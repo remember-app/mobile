@@ -1,8 +1,9 @@
 import { Link } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Button, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { isApiHealthy } from '@/api';
+import { useAuth } from '@/auth';
 
 type Status = 'checking' | 'ok' | 'unreachable';
 
@@ -13,6 +14,7 @@ const LABEL: Record<Status, string> = {
 };
 
 export default function HomeScreen() {
+  const { user } = useAuth();
   const [status, setStatus] = useState<Status>('checking');
 
   const check = useCallback(() => {
@@ -24,12 +26,16 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Remember</Text>
-      <Text style={styles.status}>{LABEL[status]}</Text>
-      <Button title="Check again" onPress={check} disabled={status === 'checking'} />
+      <Text style={styles.title}>Hi, {user?.username}</Text>
+      {/* The real list is m-0; this screen only proves you got past the gate. */}
+      <Text style={styles.placeholder}>Your memories will show up here.</Text>
+      <Link href="/profile" style={styles.link}>
+        Profile
+      </Link>
       <Link href="/about" style={styles.link}>
         About this app
       </Link>
+      <Text style={styles.status}>{LABEL[status]}</Text>
     </View>
   );
 }
@@ -37,6 +43,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 },
   title: { fontSize: 28, fontWeight: '600' },
-  status: { fontSize: 18 },
+  placeholder: { fontSize: 16, opacity: 0.7 },
   link: { fontSize: 16, color: '#208AEF' },
+  status: { fontSize: 13, opacity: 0.5 },
 });
