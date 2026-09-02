@@ -37,6 +37,19 @@ IP машины в локальной сети, например `EXPO_PUBLIC_AP
 Переменная подставляется в бандл на сборке — после её изменения перезапустите `expo start`.
 По той же причине в `EXPO_PUBLIC_*` не кладутся секреты: содержимое уезжает в собранное приложение.
 
+### Ссылка входа по email в разработке
+
+Почты в MVP нет: ссылку `remember://auth/email?token=…` API печатает себе в лог (строка
+`magic link issued`).
+
+**Схема `remember://` работает только в dev-билде.** В Expo Go она принадлежит не нам, и
+`xcrun simctl openurl booted "remember://…"` падает с `LSApplicationWorkspaceErrorDomain 115`.
+В Expo Go тот же экран открывается через схему Expo:
+
+```sh
+xcrun simctl openurl booted "exp://127.0.0.1:8081/--/auth/email?token=<TOKEN>"
+```
+
 ## Экраны
 
 Навигация — `expo-router` (файловая маршрутизация, `src/app/`), корневой layout — `Stack`.
