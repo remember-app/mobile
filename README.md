@@ -77,6 +77,12 @@ xcrun simctl openurl booted "exp://127.0.0.1:8081/--/auth/email?token=<TOKEN>"
   дату выбирает системный календарь `@react-native-community/datetimepicker`, так что ввести
   неверную нельзя. Уходит в `POST /memories` началом и концом **local** суток — `toISOString()`
   даёт RFC 3339 со смещением, которого требует `api`.
+- **`memory/[id]/upload` — Upload** (`src/app/memory/[id]/upload.tsx`) — выбор фото и видео из
+  галереи телефона. Доступ к медиатеке спрашивается кнопкой, а не на входе: до согласия экран не
+  читает ничего, и есть состояние «нет доступа» — включая `limited`, когда отдали не всю
+  библиотеку, а несколько кадров. Кнопка «Select all from that date» — это `assetsInEventWindow`
+  из `src/media-window.ts` по окну мероприятия, и ничего больше. Экран заканчивается списком к
+  отправке: сама отправка в R2 придёт с TASK-24.
 - **`profile` — Profile** (`src/app/profile.tsx`) — ник и имя, смена ника, выход.
 - **`about` — About** (`src/app/about.tsx`) — показывает текущий `EXPO_PUBLIC_API_URL`.
 

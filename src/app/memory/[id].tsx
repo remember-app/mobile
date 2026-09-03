@@ -84,6 +84,10 @@ export default function MemoryScreen() {
   const role = me?.role ?? null;
   // doc-01: adding people is «Добавление» and up. A viewer may look and leave, nothing else.
   const mayInvite = role === 'organizer' || role === 'contributor';
+  // The same level, one right: whoever may bring people to a memory may bring photos to it. Until
+  // this button existed, the upload screen was reachable only by tapping the invite push — which
+  // left everybody who joined by link with no way to the one thing they were invited for.
+  const mayUpload = mayInvite;
   const newcomerRole = mayAdd ? 'contributor' : 'viewer';
   // Derived together so the branch below narrows both at once: there is a link exactly when
   // there is an invite. `remember://` is the scheme in app.json; TASK-16 is what receives it.
@@ -195,6 +199,13 @@ export default function MemoryScreen() {
           <Text style={styles.title}>{memory.title}</Text>
           <Text style={styles.hint}>{formatEventDates(memory.event_start, memory.event_end)}</Text>
         </View>
+      ) : null}
+
+      {mayUpload ? (
+        <Button
+          title="Add photos and videos"
+          onPress={() => router.push({ pathname: '/memory/[id]/upload', params: { id } })}
+        />
       ) : null}
 
       <Text style={styles.section}>Who is here</Text>

@@ -36,7 +36,15 @@
       "expo-secure-store",
       "expo-web-browser",
       "expo-apple-authentication",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Remember shows your gallery here so you can pick the photos and videos you add to a memory.",
+          "savePhotosPermission": false,
+          "granularPermissions": ["photo", "video"]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
