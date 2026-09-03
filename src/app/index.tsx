@@ -1,5 +1,4 @@
 import { Link, useFocusEffect, useRouter } from 'expo-router';
-import type { Href } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Button, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -56,9 +55,7 @@ export default function HomeScreen() {
           </Text>
         }
         renderItem={({ item }) => (
-          // TASK-14 adds src/app/memory/[id].tsx. Until it does the route is absent from
-          // the generated typed-routes union, which is all the cast is about.
-          <Link href={`/memory/${item.id}` as Href} asChild>
+          <Link href={`/memory/${item.id}`} asChild>
             <Pressable style={styles.row}>
               <Text style={styles.rowTitle}>{item.title}</Text>
               <Text style={styles.rowDates}>{formatEventDates(item.event_start, item.event_end)}</Text>

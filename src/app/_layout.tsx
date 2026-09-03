@@ -32,6 +32,7 @@ function RootNavigator() {
       <Stack.Protected guard={status === 'ready'}>
         <Stack.Screen name="index" options={{ title: 'Remember' }} />
         <Stack.Screen name="create" options={{ title: 'New memory' }} />
+        <Stack.Screen name="memory/[id]" options={{ title: 'Memory' }} />
         <Stack.Screen name="profile" options={{ title: 'Profile' }} />
         <Stack.Screen name="about" options={{ title: 'About' }} />
       </Stack.Protected>

@@ -4,9 +4,6 @@ export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000
 
 const TIMEOUT_MS = 5000;
 
-/** The health payload the api service returns. Duplicated here on purpose: no shared types package. */
-type Health = { status: string };
-
 /** The account as the api returns it. `username` is null until it is claimed. Duplicated, same reason. */
 export type User = { id: string; username: string | null; name: string | null; email: string | null };
 
@@ -40,7 +37,7 @@ export function errorMessage(error: unknown): string {
     : 'Cannot reach the API — check that it is running and try again.';
 }
 
-type Options = { method?: 'GET' | 'POST'; body?: unknown; token?: string };
+type Options = { method?: 'GET' | 'POST' | 'DELETE'; body?: unknown; token?: string };
 
 async function request<T>(path: string, { method = 'GET', body, token }: Options = {}): Promise<T> {
   const abort = new AbortController();
@@ -69,15 +66,6 @@ async function request<T>(path: string, { method = 'GET', body, token }: Options
     return parsed as T;
   } finally {
     clearTimeout(timer);
-  }
-}
-
-/** true when the api answers GET /health with 200 {"status":"ok"}. */
-export async function isApiHealthy(): Promise<boolean> {
-  try {
-    return (await request<Health>('/health')).status === 'ok';
-  } catch {
-    return false;
   }
 }
 
@@ -146,6 +134,60 @@ export function createMemory(
   memory: { title: string; event_start: string; event_end?: string },
 ): Promise<Memory> {
   return request('/memories', { method: 'POST', body: memory, token });
+}
+
+/** A roster row: the three public fields the api hands out, plus where that person stands. */
+export type Member = Omit<User, 'email'> & { role: MemberRole };
+
+/** What may actually be granted. Never `organizer`: a memory has exactly one, its creator. */
+export type InviteRole = Exclude<MemberRole, 'organizer'>;
+
+/** The one live invite link of a memory: the raw token and the level following it grants. */
+export type Invite = { token: string; role: InviteRole };
+
+/** Everyone in a memory, in the order they joined. Any member may read it, a viewer included. */
+export function listMembers(token: string, memoryId: string): Promise<Member[]> {
+  return request(`/memories/${memoryId}/members`, { token });
+}
+
+/**
+ * Add somebody by their exact username. 404 when nobody holds it, 403 when the caller is a
+ * viewer. Re-adding an existing member is a plain 200 that answers with the role they already
+ * had — so «added» and «was already in» can only be told apart against the roster on screen.
+ */
+export function inviteByUsername(
+  token: string,
+  memoryId: string,
+  username: string,
+  role: InviteRole,
+): Promise<Member> {
+  return request(`/memories/${memoryId}/members`, {
+    method: 'POST',
+    body: { username, role },
+    token,
+  });
+}
+
+/** The memory's live link, minted on the first ask rather than at creation. 403 for a viewer. */
+export function fetchInvite(token: string, memoryId: string): Promise<Invite> {
+  return request(`/memories/${memoryId}/invite`, { token });
+}
+
+/** Revoke the live link and mint a fresh one; the old token stops opening anything. */
+export function rotateInvite(token: string, memoryId: string, role: InviteRole): Promise<Invite> {
+  return request(`/memories/${memoryId}/invite`, { method: 'POST', body: { role }, token });
+}
+
+/**
+ * Drop a membership: the organizer showing anyone else out, or anybody walking out on their
+ * own id. 409 when the organizer aims at themselves — the role is never handed over in MVP.
+ */
+export function removeMember(
+  token: string,
+  memoryId: string,
+  userId: string,
+): Promise<{ ok: true }> {
+  return request(`/memories/${memoryId}/members/${userId}`, { method: 'DELETE', token });
 }
 
 /** Drop the session server-side. Sends no body on purpose — see the note in `request`. */
