@@ -190,6 +190,31 @@ export function removeMember(
   return request(`/memories/${memoryId}/members/${userId}`, { method: 'DELETE', token });
 }
 
+/**
+ * Tell the api where to push to. Idempotent: the same device token registered twice is one row,
+ * so this can run on every launch without asking whether it already ran.
+ */
+export function registerPushToken(
+  token: string,
+  expoToken: string,
+  platform: string,
+): Promise<{ ok: true }> {
+  return request('/me/push-tokens', {
+    method: 'POST',
+    body: { token: expoToken, platform },
+    token,
+  });
+}
+
+/**
+ * Join by invite link. Answers with the memory as its new member sees it — the same shape
+ * `/memories` hands out, so the screen it lands on has nothing extra to fetch. 404 once the
+ * link has been rotated, and being a member already is a plain 200 that changes no role.
+ */
+export function acceptInvite(token: string, inviteToken: string): Promise<Memory> {
+  return request('/invites/accept', { method: 'POST', body: { token: inviteToken }, token });
+}
+
 /** Drop the session server-side. Sends no body on purpose — see the note in `request`. */
 export function endSession(token: string): Promise<{ ok: true }> {
   return request('/auth/logout', { method: 'POST', token });
