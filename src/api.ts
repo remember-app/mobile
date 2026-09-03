@@ -111,6 +111,43 @@ export function putUsername(token: string, username: string): Promise<User> {
   return request('/me/username', { method: 'POST', body: { username }, token });
 }
 
+/** Where the caller stands in a memory. Duplicated from the api, same reason as `User`. */
+export type MemberRole = 'organizer' | 'contributor' | 'viewer';
+
+/**
+ * A memory as both /memories routes return it: the row plus the caller's own role.
+ * Timestamps arrive as RFC 3339 strings (JSON has no date), and `storage_bytes` as a
+ * string because it is a bigint server-side. Duplicated here on purpose: no shared types package.
+ */
+export type Memory = {
+  id: string;
+  organizer_id: string;
+  title: string;
+  event_start: string;
+  event_end: string | null;
+  storage_bytes: string;
+  media_count: number;
+  montage_count: number;
+  created_at: string;
+  role: MemberRole;
+};
+
+/** Every memory the caller organizes or belongs to, newest event first. 401 once the token dies. */
+export function listMemories(token: string): Promise<Memory[]> {
+  return request('/memories', { token });
+}
+
+/**
+ * Create one, as its organizer. Both dates must be RFC 3339 *with an offset* — a bare
+ * `2026-09-02` is a 400, as is a blank title or an end before the start.
+ */
+export function createMemory(
+  token: string,
+  memory: { title: string; event_start: string; event_end?: string },
+): Promise<Memory> {
+  return request('/memories', { method: 'POST', body: memory, token });
+}
+
 /** Drop the session server-side. Sends no body on purpose — see the note in `request`. */
 export function endSession(token: string): Promise<{ ok: true }> {
   return request('/auth/logout', { method: 'POST', token });
