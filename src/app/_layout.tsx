@@ -1,20 +1,47 @@
-import { Stack } from 'expo-router';
+// ponytail: the package index `require`s all seven weights, so all seven land in the bundle
+// (~640KB) though only this one is loaded. Import the face by its own path and add a `*.ttf`
+// module declaration if the bundle size ever starts to matter.
+import {
+  BricolageGrotesque_600SemiBold,
+  useFonts,
+} from '@expo-google-fonts/bricolage-grotesque';
+import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 
 import { AuthProvider, useAuth } from '@/auth';
 import { usePush } from '@/push';
+import { color } from '@/theme';
 import { useUploads } from '@/uploads';
 
 // Hold the splash until the stored session has been checked, so no screen flashes
 // before the gate below knows which ones to allow.
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
+/**
+ * The kit's colours where the navigator itself paints: `background` is what the stack puts behind a
+ * screen and behind the whole card stack mid-transition, so this is what keeps a push from flashing
+ * the system white. The rest are for the chrome React Navigation still draws on its own.
+ */
+const theme = {
+  ...DarkTheme,
+  colors: {
+    primary: color.ember,
+    background: color.ink,
+    card: color.surface,
+    text: color.paper,
+    border: color.line,
+    notification: color.ember,
+  },
+};
+
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <RootNavigator />
-    </AuthProvider>
+    <ThemeProvider value={theme}>
+      <AuthProvider>
+        <RootNavigator />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
@@ -25,6 +52,11 @@ export default function RootLayout() {
 function RootNavigator() {
   const { status } = useAuth();
 
+  // Headings are the only thing that needs it, but a heading is on the first screen, so it joins
+  // the splash gate below instead of getting a loading state of its own. `error` counts as settled:
+  // a missing font is not a reason to sit on the splash forever — the system font stands in.
+  const [fontsLoaded, fontError] = useFonts({ BricolageGrotesque_600SemiBold });
+
   // Pushes, tapped pushes and a stashed invite link — all of them only mean anything once
   // there is a session, and all of them gate on that themselves.
   usePush();
@@ -34,11 +66,15 @@ function RootNavigator() {
   useUploads();
 
   useEffect(() => {
-    if (status !== 'loading') SplashScreen.hideAsync().catch(() => {});
-  }, [status]);
+    if (status !== 'loading' && (fontsLoaded || fontError)) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [status, fontsLoaded, fontError]);
 
+  // No native header anywhere: every screen draws the kit's own appbar over the kit's own
+  // background, and a white system bar on top of that would be two headers.
   return (
-    <Stack>
+    <Stack screenOptions={{ headerShown: false }}>
       <Stack.Protected guard={status === 'ready'}>
         <Stack.Screen name="index" options={{ title: 'Remember' }} />
         <Stack.Screen name="create" options={{ title: 'New memory' }} />
