@@ -1,16 +1,35 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
+import { CalendarDays, ChevronLeft } from 'lucide-react-native';
 import { useState } from 'react';
-import { Button, Platform, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Switch, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { createMemory, errorMessage } from '@/api';
 import { useAuth } from '@/auth';
 import { endOfDay, formatDay, startOfDay } from '@/dates';
+import {
+  ActionBar,
+  AppBar,
+  Banner,
+  Button,
+  Field,
+  Icon,
+  IconButton,
+  TAP,
+  Text,
+  focusRing,
+  shade,
+  useHoverFocus,
+} from '@/kit';
+import { color, radius, space } from '@/theme';
 
 /** Creating a memory: a title and the day (or span) the event happened on. */
 export default function CreateMemoryScreen() {
   const { token } = useAuth();
   const router = useRouter();
+  // The native header is off for the whole app, so the screen owes the status bar its own room.
+  const insets = useSafeAreaInsets();
   const [title, setTitle] = useState('');
   const [start, setStart] = useState(() => startOfDay(new Date()));
   // null is «single day». The end is optional in doc-01, so it stays absent until asked for.
@@ -40,51 +59,83 @@ export default function CreateMemoryScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.label}>Title</Text>
-      <TextInput
-        style={styles.input}
-        value={title}
-        onChangeText={setTitle}
-        placeholder="Anna's birthday"
-        editable={!busy}
+    <View style={[styles.screen, { paddingTop: insets.top }]}>
+      <AppBar
+        title="New memory"
+        // Drawn only when there is somewhere to go back to — this screen is also the landing
+        // spot of a replace, and a button that answers nothing is worse than no button.
+        left={
+          router.canGoBack() ? (
+            <IconButton icon={ChevronLeft} label="Back" onPress={() => router.back()} />
+          ) : null
+        }
       />
 
-      <DayField
-        label="Event date"
-        value={start}
-        onChange={(day) => setStart(startOfDay(day))}
-        disabled={busy}
-      />
+      <View style={styles.form}>
+        <Field
+          label="Title"
+          value={title}
+          onChangeText={setTitle}
+          placeholder="Anna's birthday"
+          editable={!busy}
+        />
 
-      <View style={styles.toggle}>
-        <Text style={styles.label}>Lasted more than a day</Text>
-        <Switch
-          value={end !== null}
-          onValueChange={(on) => setEnd(on ? endOfDay(start) : null)}
+        <DayField
+          label="Event date"
+          value={start}
+          onChange={(day) => setStart(startOfDay(day))}
           disabled={busy}
         />
+
+        <View style={styles.toggle}>
+          <Text role="label">Lasted more than a day</Text>
+          {/* The kit has no switch of its own — this is the platform's, wearing the kit's
+              colours: ember when it is on, hairline when it is off, paper for the thumb. */}
+          <Switch
+            value={end !== null}
+            onValueChange={(on) => setEnd(on ? endOfDay(start) : null)}
+            disabled={busy}
+            trackColor={{ false: color.line, true: color.ember }}
+            thumbColor={color.paper}
+            ios_backgroundColor={color.line}
+          />
+        </View>
+
+        {end === null ? null : (
+          <DayField
+            label="Ends"
+            value={end}
+            onChange={(day) => setEnd(endOfDay(day))}
+            // Makes the one range the api rejects unreachable from the picker itself.
+            minimumDate={start}
+            disabled={busy}
+          />
+        )}
       </View>
 
-      {end === null ? null : (
-        <DayField
-          label="Ends"
-          value={end}
-          onChange={(day) => setEnd(endOfDay(day))}
-          // Makes the one range the api rejects unreachable from the picker itself.
-          minimumDate={start}
-          disabled={busy}
-        />
-      )}
+      {/* In the flow of the screen and right above the action that raised it, never over it. */}
+      {error ? <Banner tone="error" text={error} style={styles.error} /> : null}
 
-      <View style={styles.spacer} />
-      <Button title="Create" onPress={submit} disabled={busy || title.trim() === ''} />
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      <ActionBar>
+        <Button
+          label="Create"
+          variant="primary"
+          wide
+          busy={busy}
+          disabled={title.trim() === ''}
+          onPress={submit}
+        />
+      </ActionBar>
     </View>
   );
 }
 
-/** A day, picked with the platform's own calendar — so there is no such thing as bad input. */
+/**
+ * A day, picked with the platform's own calendar — so there is no such thing as bad input. The kit
+ * does not draw a calendar, and it should not: this is system UI. What the kit does draw is
+ * everything around it, so the trigger is dressed as the kit's field (section 4) — same height,
+ * same surface, same hairline — and reads as the input it stands in for.
+ */
 function DayField({
   label,
   value,
@@ -99,11 +150,29 @@ function DayField({
   disabled: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const { hovered, focused, props } = useHoverFocus();
 
   return (
     <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
-      <Button title={formatDay(value)} onPress={() => setOpen(true)} disabled={disabled} />
+      <Text role="label">{label}</Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        accessibilityValue={{ text: formatDay(value) }}
+        accessibilityState={{ disabled, expanded: open }}
+        disabled={disabled}
+        onPress={() => setOpen(true)}
+        {...props}
+        style={({ pressed }) => [
+          styles.trigger,
+          hovered || pressed ? styles.triggerLive : null,
+          focused ? focusRing : null,
+          disabled ? styles.triggerOff : null,
+        ]}
+      >
+        <Text style={[styles.day, disabled ? styles.dayOff : null]}>{formatDay(value)}</Text>
+        <Icon icon={CalendarDays} color={color.muted} />
+      </Pressable>
       {open ? (
         <DateTimePicker
           value={value}
@@ -123,11 +192,36 @@ function DayField({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, gap: 12, padding: 24 },
-  field: { gap: 6 },
-  label: { fontSize: 15, opacity: 0.7 },
-  input: { borderWidth: 1, borderColor: '#CCC', borderRadius: 8, padding: 12, fontSize: 16 },
-  toggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  spacer: { flex: 1 },
-  error: { fontSize: 15, color: '#C0392B' },
+  screen: { flex: 1, backgroundColor: color.ink, paddingHorizontal: space.s4 },
+  form: { flex: 1, gap: space.s5, paddingTop: space.s2 },
+  // The row keeps a finger's worth of height whatever the platform draws the switch at.
+  toggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: space.s4,
+    minHeight: TAP,
+  },
+  error: { marginBottom: space.s3 },
+  // `.field` and `.input`, section 4 — the trigger stands where an input would.
+  field: { alignSelf: 'stretch', maxWidth: 420, gap: space.s2 },
+  trigger: {
+    minHeight: 52,
+    paddingHorizontal: space.s4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: space.s3,
+    backgroundColor: color.surface,
+    borderWidth: 1,
+    borderColor: color.line,
+    borderRadius: radius.card,
+  },
+  // `.input:hover` — the same one step up under a finger.
+  triggerLive: { borderColor: shade.lineHover, backgroundColor: color.raise },
+  // `.input:disabled`
+  triggerOff: { backgroundColor: color.ink },
+  // The kit's input type, with the tabular figures it asks of every date.
+  day: { fontVariant: ['tabular-nums'] },
+  dayOff: { color: color.muted },
 });
