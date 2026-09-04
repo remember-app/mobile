@@ -7,6 +7,20 @@ import { registerPushToken } from '@/api';
 import { useAuth } from '@/auth';
 
 /**
+ * A notification that arrives while the app is open is not shown at all unless this says it
+ * should be — and one that is never shown is one nobody can tap, so the invite would land and
+ * lead nowhere. The sound is on because on Android switching it off also switches the banner off.
+ */
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
+/**
  * An invite link followed while signed out. Module state and not storage on purpose: the
  * sign-in that follows happens in this same runtime, and a token that outlived the app would
  * drop somebody into a memory they no longer remember asking to join.
@@ -41,7 +55,12 @@ let coldStartAnswered = false;
 async function register(session: string) {
   try {
     const permission = await Notifications.requestPermissionsAsync();
-    if (!permission.granted) return;
+    if (!permission.granted) {
+      // Not an error — the person said no, and nothing is retried. Still a line, because on a
+      // device this is the other half of «no push arrived» and it is otherwise invisible.
+      console.warn('push registration skipped: notifications not permitted,', permission.status);
+      return;
+    }
     const { data } = await Notifications.getExpoPushTokenAsync();
     await registerPushToken(session, data, Platform.OS);
   } catch (error) {
