@@ -3,6 +3,8 @@ import { AccessibilityInfo, Animated, Easing, type ViewStyle } from 'react-nativ
 
 import { color, ease } from '@/theme';
 
+export { TAP, hitSlop } from './tap';
+
 /**
  * What every kit component needs to answer a person: motion that obeys the OS, a focus ring, and a
  * touch target big enough for a finger. The kit states these once for the whole product («Голос»),
@@ -136,15 +138,3 @@ export const focusRing: ViewStyle = {
   outlineOffset: 2,
   outlineStyle: 'solid',
 };
-
-/** The kit's floor for a touch target. Anything drawn smaller borrows the difference back. */
-export const TAP = 44;
-
-/**
- * The slop that grows a control drawn smaller than 44×44 up to it — the kit's 40×40 icon button
- * gets 2 on each side, its 36-high small button gets 4 above and below.
- */
-export function hitSlop(width: number, height = width) {
-  const grow = (size: number) => Math.max(0, (TAP - size) / 2);
-  return { left: grow(width), right: grow(width), top: grow(height), bottom: grow(height) };
-}
