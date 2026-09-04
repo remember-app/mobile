@@ -24,6 +24,8 @@ import {
   mayContribute,
   removeMember,
   rotateInvite,
+  setContributionStatus,
+  type ContributionStatus,
   type Invite,
   type Member,
   type MemberRole,
@@ -37,6 +39,14 @@ const ROLE: Record<MemberRole, string> = {
   organizer: 'Organizer',
   contributor: 'Can add photos',
   viewer: 'View only',
+};
+
+/** The four standings of doc-06, said the same way — this is «прогресс у организатора». */
+const CONTRIBUTION: Record<ContributionStatus, string> = {
+  not_started: 'Nothing uploaded yet',
+  more_coming: 'Still adding photos',
+  done: 'Uploaded everything',
+  nothing: 'Nothing to add',
 };
 
 /** Whoever it is, under whichever of the two names they have. */
@@ -148,6 +158,17 @@ export default function MemoryScreen() {
       return 'New link ready. The old one no longer opens anything.';
     });
 
+  /**
+   * «Ждать нечего», said without uploading anything — doc-06's own path onto a terminal status
+   * for the person who has no material at all. Only ever about oneself: the api takes no user id.
+   */
+  const sayNothing = () =>
+    act(async (session) => {
+      await setContributionStatus(session, id, 'nothing');
+      load();
+      return null;
+    });
+
   const drop = (target: Member) =>
     act(
       async (session) => {
@@ -229,7 +250,15 @@ export default function MemoryScreen() {
               {ROLE[member.role]}
               {member.username ? ` · @${member.username}` : ''}
             </Text>
+            <Text style={styles.hint}>{CONTRIBUTION[member.contribution_status]}</Text>
           </View>
+          {/* Only on one's own row, and only while there is something left to say: both terminal
+              statuses are the person's own word, and this is the way to give it unprompted. */}
+          {member.id === user?.id &&
+          member.contribution_status !== 'done' &&
+          member.contribution_status !== 'nothing' ? (
+            <Button title="Nothing to add" onPress={sayNothing} disabled={busy} />
+          ) : null}
           {role === 'organizer' && member.id !== user?.id ? (
             <Button title="Remove" color="#C0392B" onPress={() => confirmDrop(member)} disabled={busy} />
           ) : null}

@@ -10,13 +10,14 @@
 import { File, Paths } from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library/legacy';
 import { useEffect, useSyncExternalStore } from 'react';
-import { AppState } from 'react-native';
+import { Alert, AppState } from 'react-native';
 
 import {
   ApiError,
   errorMessage,
   finishUpload,
   refreshUpload,
+  setContributionStatus,
   startUpload,
   type UploadPlan,
 } from '@/api';
@@ -183,7 +184,28 @@ async function send(file: QueuedFile, token: string) {
     changed();
   }
 
-  await finishUpload(token, file.memoryId, plan.id, uploadedParts(file.parts));
+  const done = await finishUpload(token, file.memoryId, plan.id, uploadedParts(file.parts));
+
+  // doc-06: asked once, on the very first file this person got into this memory, and asked by the
+  // api rather than by anything counted here — the phone has no way of knowing what it uploaded on
+  // some other device. The system dialog and not a screen of its own: it is one question, and the
+  // person is already looking at the app because they just sent something.
+  if (done.first_upload) {
+    Alert.alert('Is that everything?', 'Or is there more still to come?', [
+      // Nothing to do — the first upload already left them on «more_coming».
+      { text: 'More to come', style: 'cancel' },
+      {
+        text: "That's all",
+        onPress: () =>
+          void setContributionStatus(token, file.memoryId, 'done').catch(() => {
+            // Swallowed the way `changed()` swallows a queue it could not write: the material is
+            // in, which is the part that mattered, and a status that missed leaves them on «still
+            // adding» — the truthful reading of somebody who just uploaded. Not worth a red line
+            // over an upload that succeeded, and there is no second moment to ask in.
+          }),
+      },
+    ]);
+  }
 }
 
 /**

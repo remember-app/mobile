@@ -112,6 +112,13 @@ export function putUsername(token: string, username: string): Promise<User> {
 export type MemberRole = 'organizer' | 'contributor' | 'viewer';
 
 /**
+ * How much material is still owed (doc-06). The first two are the api's own to write — an invite
+ * leaves `not_started` behind and the first upload that lands moves it to `more_coming` — and the
+ * last two are the member's own word. It grants and denies nothing: «статус не режет права».
+ */
+export type ContributionStatus = 'not_started' | 'more_coming' | 'done' | 'nothing';
+
+/**
  * A memory as both /memories routes return it: the row plus the caller's own role.
  * Timestamps arrive as RFC 3339 strings (JSON has no date), and `storage_bytes` as a
  * string because it is a bigint server-side. Duplicated here on purpose: no shared types package.
@@ -146,7 +153,10 @@ export function createMemory(
 }
 
 /** A roster row: the three public fields the api hands out, plus where that person stands. */
-export type Member = Omit<User, 'email'> & { role: MemberRole };
+export type Member = Omit<User, 'email'> & {
+  role: MemberRole;
+  contribution_status: ContributionStatus;
+};
 
 /** What may actually be granted. Never `organizer`: a memory has exactly one, its creator. */
 export type InviteRole = Exclude<MemberRole, 'organizer'>;
@@ -209,6 +219,24 @@ export function removeMember(
 }
 
 /**
+ * The caller's own word about their material: «это всё» or «ждать нечего». Only the two terminal
+ * answers — the other two statuses are the api's to write. No role gate at all, a viewer included:
+ * saying «у меня ничего нет» grants nothing, and refusing it would only leave the organizer waiting.
+ * There is no `:userId` in the route because a status is never set on somebody else.
+ */
+export function setContributionStatus(
+  token: string,
+  memoryId: string,
+  status: 'done' | 'nothing',
+): Promise<{ status: ContributionStatus }> {
+  return request(`/memories/${memoryId}/contribution-status`, {
+    method: 'POST',
+    body: { status },
+    token,
+  });
+}
+
+/**
  * How a file gets into R2 without the bytes passing through the api: the row it minted, and a
  * signed `PUT` for every slice of the file, cut at `part_size`. The links die at `expires_at`
  * (about an hour), and asking for them again re-issues them against the *same* multipart upload —
@@ -265,13 +293,17 @@ export function refreshUpload(
  * «Загружено»: seals the parts into one object and starts the preview. Idempotent — a repeat only
  * reports where the row stands. Given a longer leash than the rest: the api is waiting on R2
  * assembling the object, which for a big video is not a five-second job.
+ *
+ * `first_upload` is true exactly once per person per memory — on the completion that moved them
+ * off `not_started` — and is the api telling the app to ask the doc-06 question. A repeat of the
+ * same call, or anybody's second file, answers false.
  */
 export function finishUpload(
   token: string,
   memoryId: string,
   mediaId: string,
   parts: { part_number: number; etag: string }[],
-): Promise<{ id: string; status: string }> {
+): Promise<{ id: string; status: string; first_upload: boolean }> {
   return request(`/memories/${memoryId}/media/${mediaId}/complete`, {
     method: 'POST',
     body: { parts },
