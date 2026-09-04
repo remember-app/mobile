@@ -15,6 +15,7 @@ import {
   Image,
   Linking,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -24,6 +25,8 @@ import { errorMessage, listMemories, type Memory } from '@/api';
 import { useAuth } from '@/auth';
 import { formatEventDates } from '@/dates';
 import { assetsInEventWindow } from '@/media-window';
+import { progress } from '@/upload-queue';
+import { drop, enqueue, useUploads, wake } from '@/uploads';
 
 /**
  * Photos and videos, and nothing else — the same list twice on purpose. It is what the grid asks
@@ -36,13 +39,16 @@ const WANTED = ['photo', 'video'] as const;
 const PAGE = 500;
 
 /**
- * Picking what goes into a memory. The screen the invite push has always pointed at (doc-01), now
- * with something on it: consent, the camera roll, «select all from that date», and a selection to
- * trim. It stops at the list — sending it to R2 is TASK-24 and starts in `send` below.
+ * Putting material into a memory: consent, the camera roll, «select all from that date», a
+ * selection to trim, and the sending itself — which is handed to `@/uploads` and carries on
+ * without this screen. Nothing here asks what the memory's status is: material goes in during the
+ * event and long after the montage was made (doc-02).
  */
 export default function UploadScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { token } = useAuth();
+  // The whole app's queue; the rows below are this memory's share of it.
+  const uploads = useUploads();
   // Checked on mount, asked for only on the button — that is the difference between knowing
   // whether we may look and looking. Nothing below runs until `granted`.
   const [access, ask] = MediaLibrary.usePermissions({ granularPermissions: [...WANTED] });
@@ -52,18 +58,22 @@ export default function UploadScreen() {
   const [picked, setPicked] = useState<ReadonlySet<string>>(() => new Set());
   // Bumped whenever the library must be read from the top again: a retry, or a wider grant.
   const [rereads, setRereads] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+  // Two of them, because they cost different things. A gallery that will not open leaves nothing
+  // to put on the screen; an api that cannot be reached only costs the event dates — picking and
+  // queueing carry on, which is the whole point of a queue that waits for the network.
+  const [galleryError, setGalleryError] = useState<string | null>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const load = useCallback(() => {
     if (!token) return;
-    setError(null);
+    setApiError(null);
     // The same road the memory screen takes, and for the same reason: the event window lives on
     // the memory, this list already hands it out, and it works however the screen was reached —
     // a tapped push included, which arrives with nothing but an id.
     listMemories(token).then(
       (memories) => setMemory(memories.find((one) => one.id === id) ?? null),
-      (e: unknown) => setError(errorMessage(e)),
+      (e: unknown) => setApiError(errorMessage(e)),
     );
   }, [token, id]);
 
@@ -75,6 +85,7 @@ export default function UploadScreen() {
     if (!granted) return;
     let live = true;
     setGallery([]);
+    setGalleryError(null);
     setReading(true);
 
     void (async () => {
@@ -101,7 +112,7 @@ export default function UploadScreen() {
       } catch {
         // Not `errorMessage`: that one is worded for the api and would blame the network for a
         // phone that would not open its own gallery.
-        if (live) setError('Cannot read the gallery on this phone.');
+        if (live) setGalleryError('Cannot read the gallery on this phone.');
       } finally {
         if (live) setReading(false);
       }
@@ -116,6 +127,11 @@ export default function UploadScreen() {
     load();
     setRereads((n) => n + 1);
   }
+
+  // This memory's share of the queue, and the first file parked in it — one wording for all of
+  // them, since they stop for the same reason and it is nearly always the network.
+  const queued = uploads.filter((file) => file.memoryId === id);
+  const stuck = queued.find((file) => file.error !== undefined);
 
   /** Tap to take, tap again to put back — which is also how anything leaves the selection. */
   const toggle = (assetId: string) =>
@@ -145,19 +161,21 @@ export default function UploadScreen() {
   }
 
   /**
-   * Where this screen ends: the list, and it is handed on from right here. Sending it — signed
-   * links, R2, the resuming — is TASK-24, and it replaces this body. Nothing above this line
-   * talks to R2, and the only thing it asks the api is which days the event covered.
+   * Where the picking ends and the sending starts. The selection is handed to the queue and this
+   * screen is done with it: the queue holds it on disk, sends it part by part, and picks up again
+   * by itself if the network or the app goes away mid-file. Offline is not a refusal here — the
+   * files wait in the queue exactly as they do when a tunnel swallows them halfway.
    */
   function send() {
-    const chosen = gallery.filter((asset) => picked.has(asset.id));
-    setNotice(`${chosen.length} ready to go. Sending them is the next thing this screen gets.`);
+    enqueue(id, gallery.filter((asset) => picked.has(asset.id)));
+    setPicked(new Set());
+    setNotice(null);
   }
 
-  if (error !== null) {
+  if (galleryError !== null) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.error}>{error}</Text>
+        <Text style={styles.error}>{galleryError}</Text>
         <Button title="Try again" onPress={retry} />
       </View>
     );
@@ -200,6 +218,14 @@ export default function UploadScreen() {
           <>
             <Text style={styles.title}>{memory.title}</Text>
             <Text style={styles.hint}>{formatEventDates(memory.event_start, memory.event_end)}</Text>
+          </>
+        ) : null}
+        {/* Said, not shown as a dead end: without the api there are no event dates and so no
+            «select all from that date», but picking by hand and queueing both still work. */}
+        {apiError !== null ? (
+          <>
+            <Text style={styles.error}>{apiError}</Text>
+            <Button title="Try again" onPress={load} />
           </>
         ) : null}
         <Button
@@ -256,6 +282,43 @@ export default function UploadScreen() {
       />
 
       <View style={styles.footer}>
+        {queued.length > 0 ? (
+          <>
+            <Text style={styles.count}>{queued.length} still to send</Text>
+            {/* Every file with its own line, because every file has its own answer: a percentage
+                while it is going up, and what stopped it when it is not. Scrolls rather than
+                grows — a whole day of an event is hundreds of files. */}
+            <ScrollView style={styles.queue}>
+              {queued.map((file) => (
+                <View key={file.assetId} style={styles.queueRow}>
+                  <Text style={styles.queueName} numberOfLines={1}>
+                    {file.filename}
+                  </Text>
+                  {file.error === undefined ? (
+                    <Text style={styles.hint}>{Math.round(progress(file) * 100)}%</Text>
+                  ) : (
+                    <Pressable
+                      onPress={() => drop(file.assetId)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Drop ${file.filename} from the queue`}
+                    >
+                      <Text style={styles.remove}>✕</Text>
+                    </Pressable>
+                  )}
+                </View>
+              ))}
+            </ScrollView>
+            {/* One line for the lot: they park for the same reason, and it is nearly always the
+                network. It retries by itself — on a timer and on coming back to the app — so this
+                button is for the person who would rather not wait for either. */}
+            {stuck !== undefined ? (
+              <>
+                <Text style={styles.error}>{stuck.error}</Text>
+                <Button title="Try uploads again" onPress={wake} />
+              </>
+            ) : null}
+          </>
+        ) : null}
         <Text style={styles.count}>
           {picked.size} selected
           {reading ? '' : ` of ${gallery.length}`}
@@ -308,6 +371,10 @@ const styles = StyleSheet.create({
   tick: { fontSize: 13, fontWeight: '700', color: '#FFF' },
   footer: { padding: 16, gap: 12, borderTopWidth: 1, borderTopColor: '#EEE' },
   count: { fontSize: 16, fontWeight: '600' },
+  queue: { maxHeight: 132 },
+  queueRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  queueName: { flexShrink: 1, fontSize: 14 },
+  remove: { fontSize: 15, color: '#C0392B' },
   actions: { flexDirection: 'row', justifyContent: 'space-between' },
   explain: { fontSize: 16, textAlign: 'center' },
   hint: { fontSize: 14, opacity: 0.6, textAlign: 'center' },

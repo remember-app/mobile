@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 
 import { AuthProvider, useAuth } from '@/auth';
 import { usePush } from '@/push';
+import { useUploads } from '@/uploads';
 
 // Hold the splash until the stored session has been checked, so no screen flashes
 // before the gate below knows which ones to allow.
@@ -27,6 +28,10 @@ function RootNavigator() {
   // Pushes, tapped pushes and a stashed invite link — all of them only mean anything once
   // there is a session, and all of them gate on that themselves.
   usePush();
+
+  // Here and not on the upload screen: a queue left over from a launch that was cut short, or
+  // from a tunnel, has to pick itself back up whatever screen the app opens on.
+  useUploads();
 
   useEffect(() => {
     if (status !== 'loading') SplashScreen.hideAsync().catch(() => {});

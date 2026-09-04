@@ -37,12 +37,21 @@ export function errorMessage(error: unknown): string {
     : 'Cannot reach the API — check that it is running and try again.';
 }
 
-type Options = { method?: 'GET' | 'POST' | 'DELETE'; body?: unknown; token?: string };
+type Options = {
+  method?: 'GET' | 'POST' | 'DELETE';
+  body?: unknown;
+  token?: string;
+  /** Longer than the default only where the api is waiting on something slower than itself. */
+  timeout?: number;
+};
 
-async function request<T>(path: string, { method = 'GET', body, token }: Options = {}): Promise<T> {
+async function request<T>(
+  path: string,
+  { method = 'GET', body, token, timeout = TIMEOUT_MS }: Options = {},
+): Promise<T> {
   const abort = new AbortController();
   // Without this an unreachable host hangs for a minute and the screen stays on "loading".
-  const timer = setTimeout(() => abort.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => abort.abort(), timeout);
   try {
     const response = await fetch(`${API_URL}${path}`, {
       method,
@@ -188,6 +197,78 @@ export function removeMember(
   userId: string,
 ): Promise<{ ok: true }> {
   return request(`/memories/${memoryId}/members/${userId}`, { method: 'DELETE', token });
+}
+
+/**
+ * How a file gets into R2 without the bytes passing through the api: the row it minted, and a
+ * signed `PUT` for every slice of the file, cut at `part_size`. The links die at `expires_at`
+ * (about an hour), and asking for them again re-issues them against the *same* multipart upload —
+ * which is what lets an interrupted upload carry on instead of starting over.
+ */
+export type UploadPlan = {
+  id: string;
+  status: string;
+  upload: {
+    key: string;
+    upload_id: string;
+    part_size: number;
+    parts: { part_number: number; url: string }[];
+    expires_at: string;
+  };
+};
+
+/** The file as the api wants it declared, before a single byte is sent. */
+export type UploadIntent = {
+  kind: 'photo' | 'video';
+  size_bytes: number;
+  /** RFC 3339 with an offset, or null when the file carries no capture date at all. */
+  captured_at?: string | null;
+  /** Required for a video and ignored for a photo — the api answers 400 without it. */
+  duration_seconds?: number | null;
+};
+
+/**
+ * Announce a file and get the links to send it with. 403 for a viewer, 413 when the file is over
+ * a limit, 409 when the memory is full or out of space.
+ */
+export function startUpload(
+  token: string,
+  memoryId: string,
+  file: UploadIntent,
+): Promise<UploadPlan> {
+  return request(`/memories/${memoryId}/media`, { method: 'POST', body: file, token });
+}
+
+/**
+ * Fresh links for the same upload — the answer to one that expired mid-file, and the way a resume
+ * gets its links back at all. 409 once there is nothing left to send, and the body then carries
+ * the status the row has moved on to.
+ */
+export function refreshUpload(
+  token: string,
+  memoryId: string,
+  mediaId: string,
+): Promise<UploadPlan> {
+  return request(`/memories/${memoryId}/media/${mediaId}/upload`, { token });
+}
+
+/**
+ * «Загружено»: seals the parts into one object and starts the preview. Idempotent — a repeat only
+ * reports where the row stands. Given a longer leash than the rest: the api is waiting on R2
+ * assembling the object, which for a big video is not a five-second job.
+ */
+export function finishUpload(
+  token: string,
+  memoryId: string,
+  mediaId: string,
+  parts: { part_number: number; etag: string }[],
+): Promise<{ id: string; status: string }> {
+  return request(`/memories/${memoryId}/media/${mediaId}/complete`, {
+    method: 'POST',
+    body: { parts },
+    token,
+    timeout: 60_000,
+  });
 }
 
 /**
