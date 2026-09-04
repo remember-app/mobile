@@ -35,7 +35,7 @@ yarn-error.*
 .env*.local
 
 # agent worktrees
-.claude/
+.claude/worktrees/
 
 # typescript
 *.tsbuildinfo
@@ -45,3 +45,5 @@ example
 # generated native folders
 /ios
 /android
+
+.codegraph/
