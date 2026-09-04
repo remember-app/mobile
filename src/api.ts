@@ -314,6 +314,32 @@ export function listMedia(token: string, memoryId: string): Promise<MediaItem[]>
 }
 
 /**
+ * A signed link to the *original* — the file as it was sent, not the derivative the gallery draws.
+ * Any member may ask, a viewer included. 404 for a record that is still uploading (there are no
+ * bytes to sign yet) and for one of another memory; 503 while the api has no bucket. The link is
+ * as short-lived as the gallery's own (~15 minutes), so it is fetched at the moment of saving.
+ */
+export function downloadMedia(
+  token: string,
+  memoryId: string,
+  mediaId: string,
+): Promise<{ url: string }> {
+  return request(`/memories/${memoryId}/media/${mediaId}/download`, { token });
+}
+
+/**
+ * Every original in one answer, in the gallery's own order — «скачать всю галерею» without a round
+ * trip per file. Same set as `listMedia`, cut down to what the saving needs: the extension comes
+ * from `kind`, since neither this nor the record carries the name the file had.
+ */
+export function downloadAllMedia(
+  token: string,
+  memoryId: string,
+): Promise<{ id: string; kind: MediaItem['kind']; url: string }[]> {
+  return request(`/memories/${memoryId}/media/download`, { token });
+}
+
+/**
  * Take one record out for good, bytes and all. Whoever uploaded it may, and so may the organizer;
  * 403 for anybody else, 404 once it is already gone.
  */
