@@ -1,10 +1,12 @@
-import { Link, router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { acceptInvite, ApiError, errorMessage } from '@/api';
 import { useAuth } from '@/auth';
+import { Banner, Button, Empty } from '@/kit';
 import { clearInvite, peekInvite, stashInvite } from '@/push';
+import { space } from '@/theme';
 
 /**
  * Where `remember://invite?token=…` lands. There is no web page for an invite and no anonymous
@@ -64,28 +66,36 @@ export default function InviteScreen() {
     };
   }, [invite, status, session]);
 
-  if (error) {
+  // Says what it is busy with and holds the middle of the screen, rather than blinking over it:
+  // there is nothing else on this screen to hold place for.
+  if (!error) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.error}>{error}</Text>
-        <Link href="/" replace style={styles.link}>
-          Go to my memories
-        </Link>
+      <View style={styles.screen}>
+        <Empty busy text="Joining…" />
       </View>
     );
   }
 
+  // A spent link is a dead end, so the way out is the screen's one action — and «replace», like
+  // every other exit from here, because a used invite must not sit in the back stack.
   return (
-    <View style={styles.container}>
-      <ActivityIndicator />
-      <Text style={styles.hint}>Joining…</Text>
+    <View style={styles.screen}>
+      <View style={styles.dead}>
+        <Banner tone="error" text={error} />
+        <Button label="Go to my memories" wide onPress={() => router.replace('/')} />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16, padding: 24 },
-  hint: { fontSize: 16, opacity: 0.7 },
-  error: { fontSize: 16, color: '#C0392B', textAlign: 'center' },
-  link: { fontSize: 16, color: '#208AEF' },
+  screen: { flex: 1, justifyContent: 'center' },
+  // Capped where the kit caps a sheet, so the bar does not run the width of a tablet.
+  dead: {
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: 420,
+    gap: space.s4,
+    paddingHorizontal: space.s5,
+  },
 });
