@@ -38,6 +38,7 @@ import {
   // name here, as it has everywhere else in the app.
   Invite as InviteLink,
   RowMember,
+  Sheet,
   Text,
 } from '@/kit';
 import { color, space } from '@/theme';
@@ -82,6 +83,9 @@ export default function MemoryScreen() {
   const [mayAdd, setMayAdd] = useState(true);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  // Everything to do with getting people in is asked for on a sheet, not kept open on the screen:
+  // inviting is something one does once, and the roster is what the screen is for.
+  const [inviting, setInviting] = useState(false);
   // Who the confirm sheet is asking about; null is «no sheet». The sheet is the whole state:
   // holding a boolean beside the member would let the two disagree.
   const [dropping, setDropping] = useState<Member | null>(null);
@@ -237,11 +241,17 @@ export default function MemoryScreen() {
           />
 
           {mayContributeHere ? (
-            <Button
-              variant="primary"
-              label="Add photos and videos"
-              onPress={() => router.push({ pathname: '/memory/[id]/upload', params: { id } })}
-            />
+            <>
+              <Button
+                variant="primary"
+                label="Add photos and videos"
+                onPress={() => router.push({ pathname: '/memory/[id]/upload', params: { id } })}
+              />
+              {/* The whole of getting someone in, behind one button of the same size as the two
+                  above it — it belongs with the actions, and it stands right over the roster it
+                  adds to. */}
+              <Button label="Invite" onPress={() => setInviting(true)} />
+            </>
           ) : null}
 
           <Text role="meta" style={styles.section}>
@@ -301,72 +311,6 @@ export default function MemoryScreen() {
             })}
           </View>
 
-          {mayContributeHere ? (
-            <>
-              <Text role="meta" style={styles.section}>
-                Invite someone
-              </Text>
-              <View style={styles.toggle}>
-                <Text role="label">They can add photos too</Text>
-                {/* The kit has no switch of its own, so the platform's takes the kit's colours. */}
-                <Switch
-                  // Its own name, because the label beside it is only a sibling — and this one
-                  // decides whether a newcomer arrives able to add photos or only to look.
-                  accessibilityLabel="They can add photos too"
-                  value={mayAdd}
-                  onValueChange={setMayAdd}
-                  disabled={busy}
-                  trackColor={{ false: color.line, true: color.ember }}
-                  thumbColor={color.paper}
-                  ios_backgroundColor={color.line}
-                />
-              </View>
-              <Field
-                label="Username"
-                value={username}
-                onChangeText={setUsername}
-                placeholder="username"
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!busy}
-              />
-              <Button label="Invite" onPress={sendInvite} disabled={busy || username.trim() === ''} />
-
-              <Text role="meta" style={styles.section}>
-                Invite link
-              </Text>
-              {shareable === null ? (
-                // Asked for rather than loaded with the screen: the api mints the link on this
-                // very call, and a memory nobody shares should not carry one.
-                <Button label="Get the link" onPress={showLink} disabled={busy} />
-              ) : (
-                <>
-                  <InviteLink url={shareable.link}>
-                    {/* The platform's own share sheet, which is also the copy button — no
-                        clipboard dependency for something every OS already does better. */}
-                    <Button
-                      sm
-                      icon={Share2}
-                      label="Share"
-                      onPress={() => void Share.share({ message: shareable.link }).catch(() => {})}
-                      disabled={busy}
-                    />
-                  </InviteLink>
-                  <Text role="meta">Whoever follows it joins as «{shareable.grants}».</Text>
-                  {/* Section 11: replacing a link is a quiet thing beside it, not a red button. */}
-                  <Button
-                    sm
-                    variant="quiet"
-                    label="Replace the link"
-                    onPress={rotate}
-                    disabled={busy}
-                    style={styles.quiet}
-                  />
-                </>
-              )}
-            </>
-          ) : null}
-
           {/* The organizer has no way out: leaving would leave the memory with nobody able to
               run it, and handing the role over is out of MVP (doc-01). The api says 409. */}
           {role !== null && role !== 'organizer' ? (
@@ -384,6 +328,74 @@ export default function MemoryScreen() {
       )}
 
       {notice ? <Banner text={notice} /> : null}
+
+      {/* Both roads in, on one sheet: the level a newcomer arrives at is the same question for
+          both, and it is asked once above them. `visible` and nothing else — the Modal drops its
+          children while hidden, so each open starts the rise over. */}
+      <Sheet visible={inviting} onCancel={() => setInviting(false)}>
+        <Text accessibilityRole="header" role="title">
+          Invite someone
+        </Text>
+        <View style={styles.toggle}>
+          <Text role="label">They can add photos too</Text>
+          {/* The kit has no switch of its own, so the platform's takes the kit's colours. */}
+          <Switch
+            // Its own name, because the label beside it is only a sibling — and this one
+            // decides whether a newcomer arrives able to add photos or only to look.
+            accessibilityLabel="They can add photos too"
+            value={mayAdd}
+            onValueChange={setMayAdd}
+            disabled={busy}
+            trackColor={{ false: color.line, true: color.ember }}
+            thumbColor={color.paper}
+            ios_backgroundColor={color.line}
+          />
+        </View>
+        <Field
+          label="Username"
+          value={username}
+          onChangeText={setUsername}
+          placeholder="username"
+          autoCapitalize="none"
+          autoCorrect={false}
+          editable={!busy}
+        />
+        <Button label="Invite" onPress={sendInvite} disabled={busy || username.trim() === ''} />
+
+        <Text role="meta">Invite link</Text>
+        {shareable === null ? (
+          // Asked for rather than loaded with the screen: the api mints the link on this
+          // very call, and a memory nobody shares should not carry one.
+          <Button label="Get the link" onPress={showLink} disabled={busy} />
+        ) : (
+          <>
+            <InviteLink url={shareable.link}>
+              {/* The platform's own share sheet, which is also the copy button — no
+                  clipboard dependency for something every OS already does better. */}
+              <Button
+                sm
+                icon={Share2}
+                label="Share"
+                onPress={() => void Share.share({ message: shareable.link }).catch(() => {})}
+                disabled={busy}
+              />
+            </InviteLink>
+            <Text role="meta">Whoever follows it joins as «{shareable.grants}».</Text>
+            {/* Section 11: replacing a link is a quiet thing beside it, not a red button. */}
+            <Button
+              sm
+              variant="quiet"
+              label="Replace the link"
+              onPress={rotate}
+              disabled={busy}
+              style={styles.quiet}
+            />
+          </>
+        )}
+        {/* The same notice as the one on the screen, because half of what it says is said in
+            answer to something pressed in here — and the screen's copy is under the scrim. */}
+        {notice ? <Banner text={notice} /> : null}
+      </Sheet>
 
       {/* Both halves of the same act, and irreversible either way — doc-01 takes the media too.
           Section 13: what cannot be undone is asked on a sheet that names what will be lost, and

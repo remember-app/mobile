@@ -27,6 +27,7 @@ export * from './icon';
 export * from './interaction';
 export * from './member';
 export * from './shades';
+export * from './sheet';
 export * from './text';
 export * from './tile';
 export * from './upload';
