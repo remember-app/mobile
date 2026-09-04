@@ -1,18 +1,8 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { ChevronLeft, Share2, X } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Button,
-  Platform,
-  ScrollView,
-  Share,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ScrollView, Share, StyleSheet, Switch, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   ApiError,
@@ -33,6 +23,24 @@ import {
 } from '@/api';
 import { useAuth } from '@/auth';
 import { formatEventDates } from '@/dates';
+import {
+  AppBar,
+  Banner,
+  Button,
+  CardMontage,
+  Chip,
+  ConfirmSheet,
+  Empty,
+  Field,
+  ICO_S,
+  IconButton,
+  // The kit's `.invite` box. The api's own `Invite` is the token behind it and keeps the plain
+  // name here, as it has everywhere else in the app.
+  Invite as InviteLink,
+  RowMember,
+  Text,
+} from '@/kit';
+import { color, space } from '@/theme';
 
 /** The three levels of doc-01 «Права доступа», said the way a person would say them. */
 const ROLE: Record<MemberRole, string> = {
@@ -61,6 +69,7 @@ export default function MemoryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { token, user } = useAuth();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   // null means «not loaded yet» — the same distinction the home screen draws, so a refetch
   // after an invite keeps the roster on screen instead of flashing the spinner over it.
   const [members, setMembers] = useState<Member[] | null>(null);
@@ -73,6 +82,9 @@ export default function MemoryScreen() {
   const [mayAdd, setMayAdd] = useState(true);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  // Who the confirm sheet is asking about; null is «no sheet». The sheet is the whole state:
+  // holding a boolean beside the member would let the two disagree.
+  const [dropping, setDropping] = useState<Member | null>(null);
 
   const load = useCallback(() => {
     if (!token) return;
@@ -105,6 +117,8 @@ export default function MemoryScreen() {
     link: `remember://invite?token=${encodeURIComponent(invite.token)}`,
     grants: ROLE[invite.role],
   };
+  // Checked against `dropping` first, so a closed sheet is never «about me» by two undefineds.
+  const leaving = dropping !== null && dropping.id === user?.id;
 
   /**
    * Every button on this screen is the same shape: lock the controls, run one call, say one
@@ -180,178 +194,225 @@ export default function MemoryScreen() {
       { 404: 'They are not in this memory any more.' },
     );
 
-  /** Both halves of the same act, and irreversible either way — doc-01 takes the media too. */
-  function confirmDrop(target: Member) {
-    const self = target.id === user?.id;
-    Alert.alert(
-      self ? 'Leave this memory?' : `Remove ${label(target)}?`,
-      self
-        ? 'Everything you uploaded here goes with you.'
-        : 'Everything they uploaded here goes with them.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: self ? 'Leave' : 'Remove', style: 'destructive', onPress: () => void drop(target) },
-      ],
-    );
-  }
-
-  if (error !== null) {
-    return (
-      <View style={styles.centered}>
-        <Text style={styles.error}>{error}</Text>
-        <Button title="Try again" onPress={load} />
-      </View>
-    );
-  }
-
-  if (members === null) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator />
-        <Text style={styles.hint}>Loading…</Text>
-      </View>
-    );
-  }
-
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      {memory ? (
-        <View>
-          <Text style={styles.title}>{memory.title}</Text>
-          <Text style={styles.hint}>{formatEventDates(memory.event_start, memory.event_end)}</Text>
-        </View>
-      ) : null}
-
-      {/* Behind no role at all: looking at the material is what every member may do, a viewer
-          included (doc-01). The count is the memory's own, so it says «empty» before opening. */}
-      <Button
-        title={`Photos and videos${memory ? ` (${memory.media_count})` : ''}`}
-        onPress={() => router.push({ pathname: '/memory/[id]/gallery', params: { id } })}
-      />
-
-      {mayContributeHere ? (
-        <Button
-          title="Add photos and videos"
-          onPress={() => router.push({ pathname: '/memory/[id]/upload', params: { id } })}
-        />
-      ) : null}
-
-      <Text style={styles.section}>Who is here</Text>
-      {/* A `.map` and not a FlatList: this is one event's guest list inside a ScrollView,
-          and nesting a virtualised list in one is the thing React Native asks you not to do. */}
-      {members.map((member) => (
-        <View key={member.id} style={styles.row}>
-          <View style={styles.who}>
-            <Text style={styles.name}>
-              {label(member)}
-              {member.id === user?.id ? ' (you)' : ''}
-            </Text>
-            <Text style={styles.hint}>
-              {ROLE[member.role]}
-              {member.username ? ` · @${member.username}` : ''}
-            </Text>
-            <Text style={styles.hint}>{CONTRIBUTION[member.contribution_status]}</Text>
-          </View>
-          {/* Only on one's own row, and only while there is something left to say: both terminal
-              statuses are the person's own word, and this is the way to give it unprompted. */}
-          {member.id === user?.id &&
-          member.contribution_status !== 'done' &&
-          member.contribution_status !== 'nothing' ? (
-            <Button title="Nothing to add" onPress={sayNothing} disabled={busy} />
-          ) : null}
-          {role === 'organizer' && member.id !== user?.id ? (
-            <Button title="Remove" color="#C0392B" onPress={() => confirmDrop(member)} disabled={busy} />
-          ) : null}
-        </View>
-      ))}
-
-      {mayContributeHere ? (
-        <>
-          <Text style={styles.section}>Invite someone</Text>
-          <View style={styles.toggle}>
-            <Text style={styles.hint}>They can add photos too</Text>
-            <Switch value={mayAdd} onValueChange={setMayAdd} disabled={busy} />
-          </View>
-          <TextInput
-            style={styles.input}
-            value={username}
-            onChangeText={setUsername}
-            placeholder="username"
-            autoCapitalize="none"
-            autoCorrect={false}
-            editable={!busy}
+    <ScrollView contentContainerStyle={[styles.body, { paddingTop: insets.top }]}>
+      <AppBar
+        title={memory?.title ?? 'Memory'}
+        left={
+          <IconButton
+            icon={ChevronLeft}
+            label="Back"
+            // A tapped invite push opens this screen with nothing behind it to go back to.
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
           />
-          <Button title="Invite" onPress={sendInvite} disabled={busy || username.trim() === ''} />
+        }
+      />
+      {memory ? (
+        <Text role="meta">{formatEventDates(memory.event_start, memory.event_end)}</Text>
+      ) : null}
 
-          <Text style={styles.section}>Invite link</Text>
-          {shareable === null ? (
-            // Asked for rather than loaded with the screen: the api mints the link on this
-            // very call, and a memory nobody shares should not carry one.
-            <Button title="Get the link" onPress={showLink} disabled={busy} />
-          ) : (
+      {/* Section 10, and a placeholder for as long as doc-03 «Ролик» stays frozen: no api call
+          behind it, no state of its own, no numbers. The kit has three states and none of them is
+          «not built yet» — `failed` is picked because it is the only one that draws neither a
+          spinner pretending to work nor an empty poster pretending to load, and because the kit
+          puts the meaning in the words rather than in the colour. It sits above the roster: the
+          kit calls the montage the reward, so it holds the most visible place on the screen. */}
+      <CardMontage state="failed" title="A montage, one day" status="Not built yet" />
+
+      {error !== null ? (
+        <Banner tone="error" text={error}>
+          <Button sm variant="quiet" label="Try again" onPress={load} />
+        </Banner>
+      ) : members === null ? (
+        <Empty busy text="Loading…" />
+      ) : (
+        <>
+          {/* Behind no role at all: looking at the material is what every member may do, a viewer
+              included (doc-01). The count is the memory's own, so it says «empty» before opening.
+              It is also the one glowing button for a viewer, who has nothing else to press here. */}
+          <Button
+            variant={mayContributeHere ? 'secondary' : 'primary'}
+            label={`Photos and videos${memory ? ` (${memory.media_count})` : ''}`}
+            onPress={() => router.push({ pathname: '/memory/[id]/gallery', params: { id } })}
+          />
+
+          {mayContributeHere ? (
+            <Button
+              variant="primary"
+              label="Add photos and videos"
+              onPress={() => router.push({ pathname: '/memory/[id]/upload', params: { id } })}
+            />
+          ) : null}
+
+          <Text role="meta" style={styles.section}>
+            Who is here
+          </Text>
+          {/* A `.map` and not a FlatList: this is one event's guest list inside a ScrollView,
+              and nesting a virtualised list in one is the thing React Native asks you not to do.
+              One View around it all so the rows keep the kit's own hairline and padding instead of
+              the gap this screen puts between everything else. */}
+          <View>
+            {members.map((member, index) => {
+              const self = member.id === user?.id;
+
+              return (
+                <View key={member.id}>
+                  <RowMember
+                    name={`${label(member)}${self ? ' (you)' : ''}`}
+                    // Section 7 writes «@marina · 42 кадра» on one line, so the standing goes
+                    // beside the username rather than under it. The wording is doc-06's own.
+                    meta={[
+                      member.username && `@${member.username}`,
+                      CONTRIBUTION[member.contribution_status],
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                    divider={index > 0}
+                  >
+                    <Chip label={ROLE[member.role]} organizer={member.role === 'organizer'} />
+                    {role === 'organizer' && !self ? (
+                      <IconButton
+                        icon={X}
+                        size={ICO_S}
+                        label={`Remove ${label(member)}`}
+                        onPress={() => setDropping(member)}
+                        disabled={busy}
+                      />
+                    ) : null}
+                  </RowMember>
+                  {/* Only on one's own row, and only while there is something left to say: both
+                      terminal statuses are the person's own word, and this is the way to give it
+                      unprompted. Under the row and not in it — the row already carries an avatar,
+                      a name and a role chip, and a fourth thing on that line leaves the name no
+                      width at all on a phone. */}
+                  {self &&
+                  member.contribution_status !== 'done' &&
+                  member.contribution_status !== 'nothing' ? (
+                    <Button
+                      sm
+                      label="Nothing to add"
+                      onPress={sayNothing}
+                      disabled={busy}
+                      style={styles.own}
+                    />
+                  ) : null}
+                </View>
+              );
+            })}
+          </View>
+
+          {mayContributeHere ? (
             <>
-              <Text style={styles.link} selectable>
-                {shareable.link}
+              <Text role="meta" style={styles.section}>
+                Invite someone
               </Text>
-              <Text style={styles.hint}>Whoever follows it joins as «{shareable.grants}».</Text>
-              {/* The platform's own share sheet, which is also the copy button — no clipboard
-                  dependency for something every OS already does better. */}
+              <View style={styles.toggle}>
+                <Text role="label">They can add photos too</Text>
+                {/* The kit has no switch of its own, so the platform's takes the kit's colours. */}
+                <Switch
+                  value={mayAdd}
+                  onValueChange={setMayAdd}
+                  disabled={busy}
+                  trackColor={{ false: color.line, true: color.ember }}
+                  thumbColor={color.paper}
+                  ios_backgroundColor={color.line}
+                />
+              </View>
+              <Field
+                label="Username"
+                value={username}
+                onChangeText={setUsername}
+                placeholder="username"
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!busy}
+              />
+              <Button label="Invite" onPress={sendInvite} disabled={busy || username.trim() === ''} />
+
+              <Text role="meta" style={styles.section}>
+                Invite link
+              </Text>
+              {shareable === null ? (
+                // Asked for rather than loaded with the screen: the api mints the link on this
+                // very call, and a memory nobody shares should not carry one.
+                <Button label="Get the link" onPress={showLink} disabled={busy} />
+              ) : (
+                <>
+                  <InviteLink url={shareable.link}>
+                    {/* The platform's own share sheet, which is also the copy button — no
+                        clipboard dependency for something every OS already does better. */}
+                    <Button
+                      sm
+                      icon={Share2}
+                      label="Share"
+                      onPress={() => void Share.share({ message: shareable.link }).catch(() => {})}
+                      disabled={busy}
+                    />
+                  </InviteLink>
+                  <Text role="meta">Whoever follows it joins as «{shareable.grants}».</Text>
+                  {/* Section 11: replacing a link is a quiet thing beside it, not a red button. */}
+                  <Button
+                    sm
+                    variant="quiet"
+                    label="Replace the link"
+                    onPress={rotate}
+                    disabled={busy}
+                    style={styles.quiet}
+                  />
+                </>
+              )}
+            </>
+          ) : null}
+
+          {/* The organizer has no way out: leaving would leave the memory with nobody able to
+              run it, and handing the role over is out of MVP (doc-01). The api says 409. */}
+          {role !== null && role !== 'organizer' ? (
+            <>
+              <View style={styles.gap} />
               <Button
-                title="Share"
-                onPress={() => void Share.share({ message: shareable.link }).catch(() => {})}
+                variant="danger"
+                label="Leave this memory"
+                onPress={() => me && setDropping(me)}
                 disabled={busy}
               />
-              <Button title="Replace the link" onPress={rotate} disabled={busy} />
             </>
-          )}
+          ) : null}
         </>
-      ) : null}
+      )}
 
-      {/* The organizer has no way out: leaving would leave the memory with nobody able to
-          run it, and handing the role over is out of MVP (doc-01). The api says 409. */}
-      {role !== null && role !== 'organizer' ? (
-        <>
-          <View style={styles.gap} />
-          <Button
-            title="Leave this memory"
-            color="#C0392B"
-            onPress={() => me && confirmDrop(me)}
-            disabled={busy}
-          />
-        </>
-      ) : null}
+      {notice ? <Banner text={notice} /> : null}
 
-      {notice ? <Text style={styles.notice}>{notice}</Text> : null}
+      {/* Both halves of the same act, and irreversible either way — doc-01 takes the media too.
+          Section 13: what cannot be undone is asked on a sheet that names what will be lost, and
+          the button repeats the verb of the question. */}
+      {dropping !== null ? (
+        <ConfirmSheet
+          visible
+          title={leaving ? 'Leave this memory?' : `Remove ${label(dropping)}?`}
+          text={
+            leaving
+              ? 'Everything you uploaded here goes with you. There is no getting it back.'
+              : 'Everything they uploaded here goes with them. There is no getting it back.'
+          }
+          confirmLabel={leaving ? 'Leave' : 'Remove'}
+          cancelLabel={leaving ? 'Stay' : 'Keep them'}
+          onConfirm={() => {
+            const target = dropping;
+            setDropping(null);
+            void drop(target);
+          }}
+          onCancel={() => setDropping(null)}
+        />
+      ) : null}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, gap: 12 },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 },
-  title: { fontSize: 22, fontWeight: '600' },
-  section: { fontSize: 13, fontWeight: '600', textTransform: 'uppercase', opacity: 0.5, marginTop: 12 },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    borderWidth: 1,
-    borderColor: '#E1E1E1',
-    borderRadius: 10,
-    padding: 12,
-  },
-  who: { flexShrink: 1, gap: 2 },
-  name: { fontSize: 16, fontWeight: '500' },
-  input: { borderWidth: 1, borderColor: '#CCC', borderRadius: 8, padding: 12, fontSize: 16 },
+  body: { paddingHorizontal: space.s5, paddingBottom: space.s8, gap: space.s3 },
+  section: { marginTop: space.s4 },
   toggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  link: {
-    fontSize: 14,
-    color: '#208AEF',
-    fontFamily: Platform.select({ ios: 'Courier', default: 'monospace' }),
-  },
-  gap: { height: 24 },
-  hint: { fontSize: 14, opacity: 0.6 },
-  notice: { fontSize: 15, marginTop: 8 },
-  error: { fontSize: 15, color: '#C0392B', textAlign: 'center' },
+  own: { alignSelf: 'flex-end' },
+  quiet: { alignSelf: 'flex-start' },
+  gap: { height: space.s6 },
 });
