@@ -21,6 +21,7 @@ import {
   errorMessage,
   listMedia,
   listMemories,
+  mayContribute,
   type MediaItem,
   type MemberRole,
 } from '@/api';
@@ -77,7 +78,7 @@ export default function GalleryScreen() {
   const mayDelete = (item: MediaItem) => item.uploaded_by === user?.id || role === 'organizer';
   // Material goes in during the event and long after the montage was made (doc-02); the only thing
   // in the way is the level, which is the same one the memory screen gates its button on.
-  const mayUpload = role === 'organizer' || role === 'contributor';
+  const mayUpload = mayContribute(role);
   const shown = items?.find((item) => item.id === open) ?? null;
 
   async function remove(item: MediaItem) {

@@ -44,7 +44,6 @@ describe('progress', () => {
     assetId: 'a',
     memoryId: 'm',
     filename: 'IMG_0001.HEIC',
-    uri: 'ph://a',
     kind: 'photo',
     capturedAt: null,
     durationSeconds: null,

@@ -21,6 +21,7 @@ import {
   inviteByUsername,
   listMemories,
   listMembers,
+  mayContribute,
   removeMember,
   rotateInvite,
   type Invite,
@@ -82,12 +83,11 @@ export default function MemoryScreen() {
 
   const me = members?.find((member) => member.id === user?.id) ?? null;
   const role = me?.role ?? null;
-  // doc-01: adding people is «Добавление» and up. A viewer may look and leave, nothing else.
-  const mayInvite = role === 'organizer' || role === 'contributor';
-  // The same level, one right: whoever may bring people to a memory may bring photos to it. Until
-  // this button existed, the upload screen was reachable only by tapping the invite push — which
+  // doc-01: adding people is «Добавление» and up, and so is bringing photos — whoever may bring
+  // people to a memory may bring material to it. A viewer may look and leave, nothing else. Until
+  // the upload button existed, that screen was reachable only by tapping the invite push, which
   // left everybody who joined by link with no way to the one thing they were invited for.
-  const mayUpload = mayInvite;
+  const mayContributeHere = mayContribute(role);
   const newcomerRole = mayAdd ? 'contributor' : 'viewer';
   // Derived together so the branch below narrows both at once: there is a link exactly when
   // there is an invite. `remember://` is the scheme in app.json; TASK-16 is what receives it.
@@ -208,7 +208,7 @@ export default function MemoryScreen() {
         onPress={() => router.push({ pathname: '/memory/[id]/gallery', params: { id } })}
       />
 
-      {mayUpload ? (
+      {mayContributeHere ? (
         <Button
           title="Add photos and videos"
           onPress={() => router.push({ pathname: '/memory/[id]/upload', params: { id } })}
@@ -236,7 +236,7 @@ export default function MemoryScreen() {
         </View>
       ))}
 
-      {mayInvite ? (
+      {mayContributeHere ? (
         <>
           <Text style={styles.section}>Invite someone</Text>
           <View style={styles.toggle}>

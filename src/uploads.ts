@@ -254,7 +254,6 @@ export function enqueue(memoryId: string, assets: readonly MediaLibrary.Asset[])
       assetId: asset.id,
       memoryId,
       filename: asset.filename,
-      uri: asset.uri,
       kind: asset.mediaType === 'video' ? 'video' : 'photo',
       // RFC 3339 as the api asks for it. A file with no capture date declares none rather than
       // borrowing today's — the montage orders by this, and a wrong date is worse than no date.
@@ -268,9 +267,14 @@ export function enqueue(memoryId: string, assets: readonly MediaLibrary.Asset[])
   void run();
 }
 
-/** Give up on one: the file that has left the phone, or one nobody wants sent after all. */
-export function drop(assetId: string) {
-  queue = queue.filter((file) => file.assetId !== assetId);
+/**
+ * Give up on one: the file that has left the phone, or one nobody wants sent after all.
+ *
+ * Keyed on the pair `enqueue` composes and not on the asset alone — the same photo may be owed to
+ * two memories, and dropping it from one screen must not take the other one's copy with it.
+ */
+export function drop(memoryId: string, assetId: string) {
+  queue = queue.filter((file) => file.memoryId !== memoryId || file.assetId !== assetId);
   changed();
 }
 

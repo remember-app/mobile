@@ -151,6 +151,15 @@ export type Member = Omit<User, 'email'> & { role: MemberRole };
 /** What may actually be granted. Never `organizer`: a memory has exactly one, its creator. */
 export type InviteRole = Exclude<MemberRole, 'organizer'>;
 
+/**
+ * «Добавление» and up — the matrix row that governs both bringing material and bringing people
+ * (architecture.md, «Проверка прав»). One copy, because two screens gate buttons on it and the
+ * one that drifted would be the one nobody noticed. The api is the authority either way; this
+ * only decides whether a button is drawn.
+ */
+export const mayContribute = (role: MemberRole | null) =>
+  role === 'organizer' || role === 'contributor';
+
 /** The one live invite link of a memory: the raw token and the level following it grants. */
 export type Invite = { token: string; role: InviteRole };
 

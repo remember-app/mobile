@@ -298,7 +298,7 @@ export default function UploadScreen() {
                     <Text style={styles.hint}>{Math.round(progress(file) * 100)}%</Text>
                   ) : (
                     <Pressable
-                      onPress={() => drop(file.assetId)}
+                      onPress={() => drop(file.memoryId, file.assetId)}
                       accessibilityRole="button"
                       accessibilityLabel={`Drop ${file.filename} from the queue`}
                     >

@@ -9,8 +9,6 @@ export type QueuedFile = {
   assetId: string;
   memoryId: string;
   filename: string;
-  /** The gallery handle, for the row on screen. Not a path — see `@/uploads`. */
-  uri: string;
   kind: 'photo' | 'video';
   capturedAt: string | null;
   durationSeconds: number | null;
