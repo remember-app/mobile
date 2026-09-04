@@ -1,9 +1,11 @@
-import { Link, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ApiError, errorMessage, verifyEmailToken } from '@/api';
 import { useAuth } from '@/auth';
+import { Banner, Button, Empty } from '@/kit';
+import { color, space } from '@/theme';
 
 /**
  * Where `remember://auth/email?token=…` lands. The link token is only ever handed straight
@@ -40,27 +42,34 @@ export default function EmailLinkScreen() {
 
   if (error) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.error}>{error}</Text>
-        {/* replace, not push: a spent link must not sit in the back stack. */}
-        <Link href="/login" replace style={styles.link}>
-          Back to sign in
-        </Link>
+      <View style={styles.screen}>
+        <Banner tone="error" text={error}>
+          {/* replace, not push: a spent link must not sit in the back stack. */}
+          <Button
+            variant="quiet"
+            sm
+            label="Back to sign in"
+            onPress={() => router.replace('/login')}
+          />
+        </Banner>
       </View>
     );
   }
 
+  // Nothing to do but wait, and it is over in a moment — the kit's spinner holds the screen
+  // rather than blinking a dialog over it.
   return (
-    <View style={styles.container}>
-      <ActivityIndicator />
-      <Text style={styles.hint}>Signing you in…</Text>
+    <View style={styles.screen}>
+      <Empty busy text="Signing you in…" />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16, padding: 24 },
-  hint: { fontSize: 16, opacity: 0.7 },
-  error: { fontSize: 16, color: '#C0392B', textAlign: 'center' },
-  link: { fontSize: 16, color: '#208AEF' },
+  screen: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: space.s6,
+    backgroundColor: color.ink,
+  },
 });

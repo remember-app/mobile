@@ -1,11 +1,14 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
+import { Mail } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { Button, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ApiError, errorMessage, signInWithApple, signInWithGoogle, startEmailSignIn } from '@/api';
 import { useAuth } from '@/auth';
+import { Banner, Button, Empty, Field, Text } from '@/kit';
+import { color, space } from '@/theme';
 
 // Closes the auth browser tab once Google redirects back.
 WebBrowser.maybeCompleteAuthSession();
@@ -91,54 +94,82 @@ export default function LoginScreen() {
     await promptGoogle();
   }
 
+  // The link is out: the screen has nothing left to ask for, so it says where to look for it and
+  // keeps only the way back — the kit's «waiting» shape, section 6.
   if (sent) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.title}>Check your link</Text>
-        <Text style={styles.hint}>
-          Open the link we sent to {email.trim()}. In dev it is printed in the API log.
-        </Text>
-        <Button title="Use a different address" onPress={() => setSent(false)} />
+      <View style={styles.screen}>
+        <Text role="display">Check your link</Text>
+        <Empty icon={Mail} text={`Open the link we sent to ${email.trim()} — it signs you in here.`}>
+          <Text role="meta">In dev it is printed in the API log.</Text>
+          <Button variant="quiet" label="Use a different address" onPress={() => setSent(false)} />
+        </Empty>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Sign in</Text>
+    <View style={styles.screen}>
+      <Text role="display">Sign in</Text>
 
-      <TextInput
-        style={styles.input}
-        value={email}
-        onChangeText={setEmail}
-        placeholder="you@example.com"
-        inputMode="email"
-        autoCapitalize="none"
-        autoCorrect={false}
-        autoComplete="email"
-        editable={!busy}
-      />
-      <Button title="Send me a link" onPress={sendLink} disabled={busy || email.trim() === ''} />
+      {/* The kit's «Вход» demo, section 3: the providers first, carrying the dashed slot their own
+          mark goes in, and the email link underneath as the quiet way in. No ember on this screen —
+          the field's focus border is the one lit thing here. */}
+      <View style={styles.group}>
+        {/* ponytail: plain button; App Store review wants AppleAuthenticationButton before shipping. */}
+        <Button
+          variant="provider"
+          label="Continue with Apple"
+          onPress={withApple}
+          disabled={!appleAvailable}
+        />
+        {appleAvailable ? null : (
+          <Text role="meta">Apple sign-in is not available on this device.</Text>
+        )}
+        <Button
+          variant="provider"
+          label="Continue with Google"
+          onPress={withGoogle}
+          disabled={!googleRequest}
+        />
+      </View>
 
-      <Text style={styles.divider}>or</Text>
+      <View style={styles.group}>
+        <Field
+          label="Email"
+          value={email}
+          onChangeText={setEmail}
+          placeholder="you@example.com"
+          inputMode="email"
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete="email"
+          editable={!busy}
+        />
+        {/* `busy` already blocks the press, so the button only goes out when there is nothing to send. */}
+        <Button
+          variant="quiet"
+          wide
+          label="Send me a link"
+          onPress={sendLink}
+          busy={busy}
+          disabled={email.trim() === ''}
+        />
+      </View>
 
-      {/* ponytail: plain button; App Store review wants AppleAuthenticationButton before shipping. */}
-      <Button title="Continue with Apple" onPress={withApple} disabled={!appleAvailable} />
-      {appleAvailable ? null : (
-        <Text style={styles.hint}>Apple sign-in is not available on this device.</Text>
-      )}
-      <Button title="Continue with Google" onPress={withGoogle} disabled={!googleRequest} />
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? <Banner tone="error" text={error} /> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', gap: 16, padding: 24 },
-  title: { fontSize: 28, fontWeight: '600', textAlign: 'center' },
-  input: { borderWidth: 1, borderColor: '#CCC', borderRadius: 8, padding: 12, fontSize: 16 },
-  divider: { textAlign: 'center', opacity: 0.5 },
-  hint: { fontSize: 15, textAlign: 'center', opacity: 0.7 },
-  error: { fontSize: 15, color: '#C0392B', textAlign: 'center' },
+  screen: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: space.s6,
+    padding: space.s6,
+    backgroundColor: color.ink,
+  },
+  // One way in, held together: the buttons of a group stand closer to each other than to the next.
+  group: { gap: space.s3 },
 });
