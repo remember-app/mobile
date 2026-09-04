@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -6,12 +6,36 @@ import { color, radius, space } from '@/theme';
 
 import { ICO, Icon, type IconComponent } from './icon';
 import { focusRing, hitSlop, useHoverFocus } from './interaction';
+import { shade } from './shades';
 import { Text } from './text';
 
 /**
  * Section 14 — the top of a screen and the bottom of it. The native header is off everywhere
  * (`headerShown: false`), so a screen draws its own with these.
  */
+
+/**
+ * The kit's `.rail-h`: the same film perforation as the memory card's, punched across instead of
+ * down. The kit allows it in exactly two places — that card and the top of a screen — so it sits
+ * above the appbar and nowhere else. CSS repeats a gradient over whatever width it is given; here
+ * the strip counts its own width out into dots at the same 13px pitch.
+ */
+export function RailH({ style }: { style?: StyleProp<ViewStyle> }) {
+  const [width, setWidth] = useState(0);
+
+  return (
+    <View
+      style={[styles.railH, style]}
+      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
+      {Array.from({ length: Math.ceil(width / 13) }, (_, i) => (
+        <View key={i} style={styles.railDot} />
+      ))}
+    </View>
+  );
+}
 
 /**
  * The kit's `.iconbtn`: 40×40 and round, drawn muted until it is touched. `label` is not optional —
@@ -99,6 +123,16 @@ export function ActionBar({ children, style }: { children: ReactNode; style?: St
 }
 
 const styles = StyleSheet.create({
+  // 4.8px holes, first centred 6.5 in, one every 13 — the card's rail laid on its side.
+  railH: {
+    height: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 4.1,
+    gap: 8.2,
+    overflow: 'hidden',
+  },
+  railDot: { width: 4.8, height: 4.8, borderRadius: 2.4, backgroundColor: shade.perforation },
   iconbtn: {
     width: 40,
     height: 40,
