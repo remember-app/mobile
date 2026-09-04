@@ -85,7 +85,11 @@ export default function HomeScreen() {
               // preview urls, so it counts what is inside instead of pretending to show it.
               // ponytail: pass `thumbs` here the day /memories hands out previews.
               more={item.media_count || undefined}
-              onPress={() => router.push(`/memory/${item.id}`)}
+              // Straight to the material: what a memory is for is the photos in it, so the card
+              // opens the gallery. Who is in it lives one icon away, in that screen's appbar.
+              onPress={() =>
+                router.push({ pathname: '/memory/[id]/gallery', params: { id: item.id } })
+              }
             />
           )}
         />
