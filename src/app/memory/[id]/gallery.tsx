@@ -22,6 +22,7 @@ import {
   type MemberRole,
 } from '@/api';
 import { useAuth } from '@/auth';
+import { formatRuntime } from '@/dates';
 import { ActionBar, AppBar, Banner, Button, ConfirmSheet, Empty, IconButton, Tile } from '@/kit';
 import { color, space } from '@/theme';
 
@@ -58,13 +59,6 @@ async function saveToPhone(file: Original) {
     // Two copies of a video on a phone is what fills it up; the gallery's is the one that counts.
     saved.delete();
   }
-}
-
-/** A video's length for the corner of its frame — the kit's `0:42` (section 8). */
-function clock(seconds: number | null): string | undefined {
-  if (seconds === null) return undefined;
-  const whole = Math.round(seconds);
-  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;
 }
 
 /**
@@ -216,7 +210,15 @@ export default function GalleryScreen() {
       <AppBar
         title="Gallery"
         style={styles.pad}
-        left={<IconButton icon={ChevronLeft} label="Back" onPress={() => router.back()} />}
+        left={
+          <IconButton
+            icon={ChevronLeft}
+            label="Back"
+            // Opened straight from a link there is nothing behind this screen, and the way the
+            // memory and upload screens answer that is the way this one does.
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+          />
+        }
       />
 
       {error !== null ? (
@@ -265,7 +267,9 @@ export default function GalleryScreen() {
                 // The kit marks a video by its length in the corner; a record that came without
                 // one still says what it is, in the same place.
                 length={
-                  item.kind === 'video' ? (clock(item.duration_seconds) ?? 'Video') : undefined
+                  item.kind === 'video'
+                    ? (formatRuntime(item.duration_seconds) ?? 'Video')
+                    : undefined
                 }
                 label={
                   item.status === 'ready' ? item.kind : `${item.kind}, ${WAITING[item.status]}`

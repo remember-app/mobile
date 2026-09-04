@@ -21,13 +21,11 @@ export type BannerTone = 'error' | 'done';
 export function Banner({
   tone,
   text,
-  icon,
   children,
   style,
 }: {
   tone?: BannerTone;
   text: string;
-  icon?: IconComponent;
   children?: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
@@ -42,7 +40,7 @@ export function Banner({
       ]}
     >
       <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-        <Icon icon={icon ?? defaultIcon(tone)} color={iconColor(tone)} />
+        <Icon icon={defaultIcon(tone)} color={iconColor(tone)} />
       </View>
       <Text style={styles.text}>{text}</Text>
       {children ? <View style={styles.actions}>{children}</View> : null}

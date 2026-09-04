@@ -28,7 +28,10 @@ function answer(on: boolean) {
   for (const notify of watchers) notify();
 }
 
-AccessibilityInfo.isReduceMotionEnabled().then(answer);
+// Rejects where the native module is missing (a plain JS runtime, a static web render). Nobody is
+// awaiting this at module scope, so an unguarded reject is a red box on startup; `false` is the
+// right answer to fall back to — it is what the setting is off.
+AccessibilityInfo.isReduceMotionEnabled().then(answer, () => {});
 AccessibilityInfo.addEventListener('reduceMotionChanged', answer);
 
 export function useReducedMotion(): boolean {

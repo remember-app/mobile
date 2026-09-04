@@ -1,5 +1,6 @@
 // A memory carries a day, or a span of days; the api carries instants. These are the two
-// ends of that: what a day looks like on screen, and which instant a picked day is.
+// ends of that: what a day looks like on screen, and which instant a picked day is. Plus the
+// one other time this app writes out — how long a video runs.
 
 /** One day in the device's own locale, e.g. «3 Sep 2026». */
 export function formatDay(value: string | Date): string {
@@ -23,6 +24,17 @@ export function startOfDay(day: Date): Date {
   const instant = new Date(day);
   instant.setHours(0, 0, 0, 0);
   return instant;
+}
+
+/**
+ * How long a video runs, for the corner of its frame — `0:42`, `1:07`. Both screens that draw a
+ * contact sheet write it, so it is written once: the gallery gets the length from the api and may
+ * have none, the upload screen gets it from the phone and always does.
+ */
+export function formatRuntime(seconds: number | null): string | undefined {
+  if (seconds === null) return undefined;
+  const whole = Math.round(seconds);
+  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;
 }
 
 /** The instant a picked day ended here, so a span covers the whole of its last day. */

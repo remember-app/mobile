@@ -6,7 +6,7 @@ import { acceptInvite, ApiError, errorMessage } from '@/api';
 import { useAuth } from '@/auth';
 import { Banner, Button, Empty } from '@/kit';
 import { clearInvite, peekInvite, stashInvite } from '@/push';
-import { space } from '@/theme';
+import { color, space } from '@/theme';
 
 /**
  * Where `remember://invite?token=…` lands. There is no web page for an invite and no anonymous
@@ -89,7 +89,7 @@ export default function InviteScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, justifyContent: 'center' },
+  screen: { flex: 1, justifyContent: 'center', backgroundColor: color.ink },
   // Capped where the kit caps a sheet, so the bar does not run the width of a tablet.
   dead: {
     alignSelf: 'center',

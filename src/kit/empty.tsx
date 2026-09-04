@@ -20,12 +20,10 @@ import { Text } from './text';
  */
 export function Spinner({
   size = 22,
-  weight = 2,
   track = color.line,
   head = color.ember,
 }: {
   size?: number;
-  weight?: number;
   track?: string;
   head?: string;
 }) {
@@ -34,7 +32,8 @@ export function Spinner({
     width: size,
     height: size,
     borderRadius: size / 2,
-    borderWidth: weight,
+    // The kit draws the ring at 2 everywhere and has no modifier for it.
+    borderWidth: 2,
     borderColor: track,
     borderTopColor: head,
   };

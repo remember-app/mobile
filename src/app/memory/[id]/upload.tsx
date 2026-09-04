@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { errorMessage, listMemories, type Memory } from '@/api';
 import { useAuth } from '@/auth';
-import { formatEventDates } from '@/dates';
+import { formatEventDates, formatRuntime } from '@/dates';
 import {
   ActionBar,
   AppBar,
@@ -286,7 +286,7 @@ export default function UploadScreen() {
             uri={item.uri}
             selected={picked.has(item.id)}
             // The kit marks a video by how long it runs rather than by the word «video».
-            length={item.mediaType === 'video' ? runtime(item.duration) : undefined}
+            length={item.mediaType === 'video' ? formatRuntime(item.duration) : undefined}
             label={`${item.mediaType === 'video' ? 'Video' : 'Photo'} ${item.filename}`}
             onPress={() => toggle(item.id)}
             style={styles.cell}
@@ -383,12 +383,6 @@ function Screen({ title, children }: { title: string; children: ReactNode }) {
       {children}
     </View>
   );
-}
-
-/** A video's length as the kit writes it on the frame — `0:42`, `1:07`. */
-function runtime(seconds: number): string {
-  const whole = Math.round(seconds);
-  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;
 }
 
 const styles = StyleSheet.create({

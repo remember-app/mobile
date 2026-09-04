@@ -17,7 +17,9 @@ export default function AboutScreen() {
         <Text role="subtitle">{API_URL}</Text>
       </View>
 
-      <Text style={styles.hint}>Set EXPO_PUBLIC_API_URL to point the app elsewhere.</Text>
+      <Text role="meta" style={styles.hint}>
+        Set EXPO_PUBLIC_API_URL to point the app elsewhere.
+      </Text>
 
       <Link href="/" asChild>
         <Button variant="quiet" label="Back home" />
@@ -37,5 +39,5 @@ const styles = StyleSheet.create({
   },
   lead: { color: color.muted },
   api: { alignItems: 'center', gap: space.s1 },
-  hint: { fontSize: 13, lineHeight: 17, color: color.muted, textAlign: 'center' },
+  hint: { textAlign: 'center' },
 });

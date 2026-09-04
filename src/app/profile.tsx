@@ -44,7 +44,15 @@ export default function ProfileScreen() {
       <View style={styles.body}>
         <AppBar
           title="Profile"
-          left={<IconButton icon={ChevronLeft} label="Back" onPress={() => router.back()} />}
+          left={
+            <IconButton
+              icon={ChevronLeft}
+              label="Back"
+              // Same as everywhere else: nothing behind means home, never a button that answers
+              // nothing.
+              onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+            />
+          }
         />
         {/* The kit's member row, turned on yourself: the username is what the app calls you by, the
             name is what stands under it. */}
