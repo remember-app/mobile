@@ -100,7 +100,10 @@ export function AppBar({
   return (
     <View style={[styles.appbar, style]}>
       {left}
-      <Text role="display" style={styles.appbarTitle} numberOfLines={1}>
+      {/* The native header carried the heading; with it off app-wide, this is the only thing left
+          that can say «this is the top of the screen» to a rotor. `role` here is the kit's
+          typographic one — the spoken role is a separate prop. */}
+      <Text accessibilityRole="header" role="display" style={styles.appbarTitle} numberOfLines={1}>
         {title}
       </Text>
       {right}

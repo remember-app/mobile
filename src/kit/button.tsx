@@ -63,7 +63,9 @@ export function Button({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{ disabled: off, busy: !!busy }}
+      // `busy` counts as disabled here as well as below: RN only speaks `busy` on Android, so on
+      // iOS the button would otherwise read as live while it is swallowing every tap.
+      accessibilityState={{ disabled: off || !!busy, busy: !!busy }}
       disabled={off || busy}
       hitSlop={sm ? hitSlop(TAP, 36) : undefined}
       onPress={onPress}

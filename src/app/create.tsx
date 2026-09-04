@@ -92,6 +92,9 @@ export default function CreateMemoryScreen() {
           {/* The kit has no switch of its own — this is the platform's, wearing the kit's
               colours: ember when it is on, hairline when it is off, paper for the thumb. */}
           <Switch
+            // The words beside it are a sibling, and React Native joins nothing up on its own —
+            // without this the toggle is announced with no name at all.
+            accessibilityLabel="Lasted more than a day"
             value={end !== null}
             onValueChange={(on) => setEnd(on ? endOfDay(start) : null)}
             disabled={busy}

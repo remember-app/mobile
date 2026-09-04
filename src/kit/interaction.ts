@@ -28,11 +28,20 @@ function answer(on: boolean) {
   for (const notify of watchers) notify();
 }
 
-// Rejects where the native module is missing (a plain JS runtime, a static web render). Nobody is
-// awaiting this at module scope, so an unguarded reject is a red box on startup; `false` is the
-// right answer to fall back to — it is what the setting is off.
-AccessibilityInfo.isReduceMotionEnabled().then(answer, () => {});
-AccessibilityInfo.addEventListener('reduceMotionChanged', answer);
+// The listener goes on first and the boot answer defers to it: both write the same slot, and the
+// question is asked once and never again, so a change arriving while the promise is still in flight
+// must not be overwritten by the older answer. Rejection is swallowed rather than left unhandled —
+// nobody is awaiting this at module scope, so a reject where the native module is missing (a plain
+// JS runtime, a static web render) would be a red box on startup, and `false` is the right answer
+// to keep: it is what the setting is off.
+let told = false;
+AccessibilityInfo.addEventListener('reduceMotionChanged', (on) => {
+  told = true;
+  answer(on);
+});
+AccessibilityInfo.isReduceMotionEnabled().then((on) => {
+  if (!told) answer(on);
+}, () => {});
 
 export function useReducedMotion(): boolean {
   return useSyncExternalStore(
@@ -50,22 +59,28 @@ export function useReducedMotion(): boolean {
  * A 0 → 1 value that repeats forever — the kit's `spin` and `safelight`, the only two things allowed
  * to move without being asked. Returns `null` when reduced motion is on, and that `null` is the
  * signal to draw the still version: the kit silences even these.
+ *
+ * `on` is for the caller that only sometimes draws the moving thing. A hook cannot be called
+ * conditionally, so without it a contact sheet of a thousand ready frames would start a thousand
+ * perpetual native animations to drive a dot none of them draws. `null` comes back for `off` too —
+ * the same answer, for the same reason: there is nothing moving to read.
  */
-export function useLoop(ms: number, easing = Easing.linear): Animated.Value | null {
+export function useLoop(ms: number, easing = Easing.linear, on = true): Animated.Value | null {
   const reduced = useReducedMotion();
   const value = useRef(new Animated.Value(0)).current;
+  const run = on && !reduced;
 
   useEffect(() => {
-    if (reduced) return;
+    if (!run) return;
     // `Animated.loop` rewinds to 0 before each pass, so the value always sweeps 0 → 1.
     const loop = Animated.loop(
       Animated.timing(value, { toValue: 1, duration: ms, easing, useNativeDriver: true }),
     );
     loop.start();
     return () => loop.stop();
-  }, [reduced, ms, easing, value]);
+  }, [run, ms, easing, value]);
 
-  return reduced ? null : value;
+  return run ? value : null;
 }
 
 /**

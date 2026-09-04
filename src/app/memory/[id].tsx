@@ -310,6 +310,9 @@ export default function MemoryScreen() {
                 <Text role="label">They can add photos too</Text>
                 {/* The kit has no switch of its own, so the platform's takes the kit's colours. */}
                 <Switch
+                  // Its own name, because the label beside it is only a sibling — and this one
+                  // decides whether a newcomer arrives able to add photos or only to look.
+                  accessibilityLabel="They can add photos too"
                   value={mayAdd}
                   onValueChange={setMayAdd}
                   disabled={busy}

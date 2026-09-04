@@ -51,7 +51,9 @@ export function Tile({
 }) {
   const { focused, props } = useHoverFocus();
   const develop = useFadeIn(motion.slow);
-  const safelight = useLoop(1600, EASE);
+  // Only the waiting frame draws it, and only it should be paying for it: a sheet of a thousand
+  // ready frames must not run a thousand loops nothing reads.
+  const safelight = useLoop(1600, EASE, state === 'processing');
 
   const inner = (
     <>
@@ -136,11 +138,16 @@ export function Tile({
     );
   }
 
+  // A frame that carries a selection is a checkbox, and one that does not is a button. It matters:
+  // `selected` is spoken only when it is true, so on a sheet whose whole job is picking, an
+  // unpicked frame would announce neither that it toggles nor that it is currently off.
+  const checkable = selected !== undefined;
+
   return (
     <Pressable
-      accessibilityRole="button"
+      accessibilityRole={checkable ? 'checkbox' : 'button'}
       accessibilityLabel={label}
-      accessibilityState={{ selected: !!selected }}
+      accessibilityState={checkable ? { checked: !!selected } : undefined}
       onPress={onPress}
       {...props}
       style={[frame, focused ? focusRing : null]}

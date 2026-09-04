@@ -76,7 +76,9 @@ function Sheet({ title, text, confirmLabel, cancelLabel, onConfirm, onCancel }: 
       >
         <View style={styles.grip} />
         <View>
-          <Text role="title">{title}</Text>
+          <Text accessibilityRole="header" role="title">
+            {title}
+          </Text>
           <Text style={styles.text}>{text}</Text>
         </View>
         <View style={styles.actions}>
