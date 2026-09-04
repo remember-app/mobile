@@ -272,6 +272,51 @@ export function finishUpload(
 }
 
 /**
+ * One record in a memory's gallery. `pending_upload` never appears — those are uploads still in
+ * flight, with no bytes in the store to show — so the three statuses here are the whole set.
+ *
+ * The two urls are the derivatives, signed and short-lived (~15 minutes, architecture.md); the
+ * original is deliberately not linked from here. Both are null until the worker has made them,
+ * which is what `processing` and `failed` look like on screen.
+ */
+export type MediaItem = {
+  id: string;
+  kind: 'photo' | 'video';
+  status: 'processing' | 'ready' | 'failed';
+  uploaded_by: string;
+  size_bytes: string;
+  captured_at: string | null;
+  width: number | null;
+  height: number | null;
+  duration_seconds: number | null;
+  created_at: string;
+  /** A photo's thumbnail, a video's poster frame. */
+  thumbnail_url: string | null;
+  /** The 720p H.264 the gallery plays progressively. A photo has none. */
+  preview_url: string | null;
+};
+
+/**
+ * Everything in a memory, oldest shot first — the order the montage would play it in. Any member
+ * reads it, a viewer included. 503 while the api has no bucket configured.
+ */
+export function listMedia(token: string, memoryId: string): Promise<MediaItem[]> {
+  return request(`/memories/${memoryId}/media`, { token });
+}
+
+/**
+ * Take one record out for good, bytes and all. Whoever uploaded it may, and so may the organizer;
+ * 403 for anybody else, 404 once it is already gone.
+ */
+export function deleteMedia(
+  token: string,
+  memoryId: string,
+  mediaId: string,
+): Promise<{ ok: true }> {
+  return request(`/memories/${memoryId}/media/${mediaId}`, { method: 'DELETE', token });
+}
+
+/**
  * Tell the api where to push to. Idempotent: the same device token registered twice is one row,
  * so this can run on every launch without asking whether it already ran.
  */

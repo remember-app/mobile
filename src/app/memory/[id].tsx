@@ -201,6 +201,13 @@ export default function MemoryScreen() {
         </View>
       ) : null}
 
+      {/* Behind no role at all: looking at the material is what every member may do, a viewer
+          included (doc-01). The count is the memory's own, so it says «empty» before opening. */}
+      <Button
+        title={`Photos and videos${memory ? ` (${memory.media_count})` : ''}`}
+        onPress={() => router.push({ pathname: '/memory/[id]/gallery', params: { id } })}
+      />
+
       {mayUpload ? (
         <Button
           title="Add photos and videos"
