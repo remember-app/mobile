@@ -1,3 +1,9 @@
+// `expo-image` and not React Native's own: a frame picked out of the phone's gallery is named by a
+// `ph://` reference to the photo library, which React Native has no loader for at all — that is the
+// red «No suitable image URL loader» screen. This one asks the Photos framework, which answers for a
+// video with its poster frame too, and hands back a bitmap already scaled to the tile instead of a
+// twelve-megapixel original — which is what makes a contact sheet of thousands survivable.
+import { Image } from 'expo-image';
 import { Check, TriangleAlert } from 'lucide-react-native';
 import { Animated, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
@@ -10,6 +16,9 @@ import { Text } from './text';
 
 /** The kit's `.tile--*`, section 8: what has become of one frame. */
 export type TileState = 'ready' | 'processing' | 'failed';
+
+/** The developing frame: the kit's `develop` is an opacity, and opacity is animatable on any view. */
+const AnimatedImage = Animated.createAnimatedComponent(Image);
 
 /**
  * One frame of the contact sheet. Ready, it develops out of the darkness the way a print comes up
@@ -47,9 +56,9 @@ export function Tile({
   const inner = (
     <>
       {state === 'ready' && uri ? (
-        <Animated.Image
+        <AnimatedImage
           source={{ uri }}
-          resizeMode="cover"
+          contentFit="cover"
           style={[
             styles.image,
             {

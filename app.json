@@ -46,7 +46,8 @@
           "granularPermissions": ["photo", "video"]
         }
       ],
-      "expo-video"
+      "expo-video",
+      "expo-image"
     ],
     "experiments": {
       "typedRoutes": true,
