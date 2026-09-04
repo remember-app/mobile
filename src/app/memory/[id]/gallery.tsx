@@ -4,7 +4,7 @@ import { File, Paths } from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library/legacy';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
-import { Camera, ChevronLeft, Download, Plus, TriangleAlert } from 'lucide-react-native';
+import { Camera, ChevronLeft, Download, Plus, TriangleAlert, Users } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { FlatList, Image, Modal, RefreshControl, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -217,6 +217,17 @@ export default function GalleryScreen() {
             // Opened straight from a link there is nothing behind this screen, and the way the
             // memory and upload screens answer that is the way this one does.
             onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+          />
+        }
+        right={
+          // The memory card opens this screen now, so the roster, the invites and the way out are
+          // reached from here — one icon in the corner rather than a screen in front of the
+          // material. `Users` and not `UserPlus`: what is behind it is the whole guest list, and
+          // inviting is only one of the things done to it.
+          <IconButton
+            icon={Users}
+            label="Members"
+            onPress={() => router.push({ pathname: '/memory/[id]', params: { id } })}
           />
         }
       />
