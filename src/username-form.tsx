@@ -1,15 +1,29 @@
 import { useState } from 'react';
-import { Button, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ApiError, errorMessage, isValidUsername, USERNAME_HINT } from '@/api';
 import { useAuth } from '@/auth';
+import { Button, Field, type FieldState } from '@/kit';
+import { space } from '@/theme';
 
-/** The one username field, shared by the first claim (/set-username) and the change (/profile). */
+/**
+ * The one username field, shared by the first claim (/set-username) and the change (/profile).
+ *
+ * The kit's field answers before the form is sent (section 4, «Ник»): the same rule the submit
+ * runs — `isValidUsername` — colours the field while it is being typed, and the line underneath
+ * says what to fix. `ok` is only as much as this side can know: the name is well formed. Whether
+ * it is free is the server's word, and that comes back as the error under the field.
+ */
 export function UsernameForm({ submitLabel }: { submitLabel: string }) {
   const { user, setUsername } = useAuth();
   const [value, setValue] = useState(user?.username ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const typed = value.trim();
+  const malformed = typed !== '' && !isValidUsername(typed);
+  const state: FieldState | undefined =
+    error !== null || malformed ? 'error' : typed === '' ? undefined : 'ok';
 
   async function submit() {
     const username = value.trim();
@@ -36,23 +50,32 @@ export function UsernameForm({ submitLabel }: { submitLabel: string }) {
 
   return (
     <View style={styles.form}>
-      <TextInput
-        style={styles.input}
+      <Field
+        label="Username"
         value={value}
-        onChangeText={setValue}
-        placeholder="username"
+        // What the server said was about the name that was sent, so it goes as soon as the name does.
+        onChangeText={(next) => {
+          setValue(next);
+          setError(null);
+        }}
+        state={state}
+        hint={error ?? (state === 'ok' ? 'Looks good.' : USERNAME_HINT)}
         autoCapitalize="none"
         autoCorrect={false}
         editable={!busy}
       />
-      <Button title={submitLabel} onPress={submit} disabled={busy || value.trim() === ''} />
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      <Button
+        label={submitLabel}
+        variant="primary"
+        wide
+        busy={busy}
+        disabled={typed === ''}
+        onPress={submit}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  form: { alignSelf: 'stretch', gap: 12 },
-  input: { borderWidth: 1, borderColor: '#CCC', borderRadius: 8, padding: 12, fontSize: 16 },
-  error: { fontSize: 15, color: '#C0392B' },
+  form: { alignSelf: 'stretch', gap: space.s5 },
 });
