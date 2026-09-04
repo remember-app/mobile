@@ -4,20 +4,10 @@ import { File, Paths } from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library/legacy';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
+import { Camera, ChevronLeft, Download, Plus, TriangleAlert } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Button,
-  FlatList,
-  Image,
-  Modal,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { FlatList, Image, Modal, RefreshControl, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   ApiError,
@@ -32,6 +22,8 @@ import {
   type MemberRole,
 } from '@/api';
 import { useAuth } from '@/auth';
+import { ActionBar, AppBar, Banner, Button, ConfirmSheet, Empty, IconButton, Tile } from '@/kit';
+import { color, space } from '@/theme';
 
 /** What a tile says while there is no derivative to draw. A `ready` record always has one. */
 const WAITING: Record<MediaItem['status'], string> = {
@@ -68,16 +60,25 @@ async function saveToPhone(file: Original) {
   }
 }
 
+/** A video's length for the corner of its frame — the kit's `0:42` (section 8). */
+function clock(seconds: number | null): string | undefined {
+  if (seconds === null) return undefined;
+  const whole = Math.round(seconds);
+  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;
+}
+
 /**
  * What everybody put in, as everybody sees it — a viewer included (architecture.md, «Проверка
- * прав»). The grid draws thumbnails, tapping one opens it big, and a video plays its 720p preview
- * straight from R2 rather than downloading first. Only «Download» reaches past the derivatives:
- * the original as it was sent, saved into the phone's gallery, one file or the lot of them.
+ * прав»). The grid is the kit's contact sheet (section 8), tapping one frame opens it big, and a
+ * video plays its 720p preview straight from R2 rather than downloading first. Only «Download»
+ * reaches past the derivatives: the original as it was sent, saved into the phone's gallery, one
+ * file or the lot of them.
  */
 export default function GalleryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { token, user } = useAuth();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   // null means «not loaded yet», the distinction the other screens draw: a reload after a delete
   // keeps the grid on screen instead of flashing the spinner over it.
   const [items, setItems] = useState<MediaItem[] | null>(null);
@@ -86,6 +87,8 @@ export default function GalleryScreen() {
   const [loading, setLoading] = useState(true);
   /** The record the viewer is showing, held by id so a reload hands it a fresh signed url. */
   const [open, setOpen] = useState<string | null>(null);
+  /** Whether the delete sheet is up over the viewer. What it asks about is the open record. */
+  const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -138,18 +141,6 @@ export default function GalleryScreen() {
     }
     setItems((have) => have?.filter((one) => one.id !== item.id) ?? null);
     setOpen(null);
-  }
-
-  /** Irreversible, and the api takes the bytes with it — worth one question first. */
-  function confirmRemove(item: MediaItem) {
-    Alert.alert(
-      `Delete this ${item.kind}?`,
-      'It goes from the memory for good. A montage already made keeps it.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => void remove(item) },
-      ],
-    );
   }
 
   /**
@@ -218,120 +209,181 @@ export default function GalleryScreen() {
     }
   }
 
-  if (error !== null) {
-    return (
-      <View style={styles.centered}>
-        <Text style={styles.error}>{error}</Text>
-        <Button title="Try again" onPress={load} />
-      </View>
-    );
-  }
-
-  if (items === null) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator />
-        <Text style={styles.hint}>Loading…</Text>
-      </View>
-    );
-  }
-
   return (
-    <View style={styles.container}>
-      <FlatList
-        data={items}
-        keyExtractor={(item) => item.id}
-        numColumns={3}
-        columnWrapperStyle={styles.gridRow}
-        contentContainerStyle={styles.grid}
-        // The signed links live about fifteen minutes and a record turns `ready` while this screen
-        // is open — one pull answers both, and there is nothing here to poll for.
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}
-        ListEmptyComponent={
-          <Text style={styles.hint}>Nothing here yet — whatever anyone adds shows up here.</Text>
-        }
-        renderItem={({ item }) => (
-          <Pressable
-            style={styles.cell}
-            onPress={() => setOpen(item.id)}
-            accessibilityRole="button"
-            accessibilityLabel={
-              item.status === 'ready' ? item.kind : `${item.kind}, ${WAITING[item.status]}`
-            }
-          >
-            {item.thumbnail_url === null ? (
-              <View style={[styles.thumb, styles.blank]}>
-                <Text style={styles.placeholder}>{WAITING[item.status]}</Text>
-              </View>
-            ) : (
-              <Image source={{ uri: item.thumbnail_url }} style={styles.thumb} />
-            )}
-            {item.kind === 'video' ? <Text style={styles.kind}>Video</Text> : null}
-          </Pressable>
-        )}
+    // The native header is off for the whole app, so the screen wears the kit's own appbar and
+    // takes the phone's top inset itself.
+    <View style={[styles.screen, { paddingTop: insets.top }]}>
+      <AppBar
+        title="Gallery"
+        style={styles.pad}
+        left={<IconButton icon={ChevronLeft} label="Back" onPress={() => router.back()} />}
       />
 
-      <View style={styles.footer}>
-        {/* Where «X of N» is read while the lot comes down, and the summary after it. The open
-            file has its own copy of this line — only one of the two is ever on screen. */}
-        {notice ? <Text style={styles.report}>{notice}</Text> : null}
-        <View style={styles.actions}>
-          {/* Everyone's, a viewer included: taking the material home is what somebody who may
-              only look is in the memory for. Grey while busy, and with nothing there to take. */}
-          <Button
-            title="Download all"
-            onPress={() => void saveEverything()}
-            disabled={busy || items.length === 0}
-          />
-          {/* «Добавить ещё», and never gated on anything but the level: the same screen the memory
-              screen sends people to, reachable with the material already in front of them. */}
-          {mayUpload ? (
-            <Button
-              title="Add more"
-              onPress={() => router.push({ pathname: '/memory/[id]/upload', params: { id } })}
-            />
-          ) : null}
+      {error !== null ? (
+        <View style={styles.centered}>
+          <Banner tone="error" text={error}>
+            <Button variant="quiet" sm label="Try again" onPress={load} />
+          </Banner>
         </View>
-      </View>
-
-      <Modal
-        visible={shown !== null}
-        animationType="fade"
-        onRequestClose={() => setOpen(null)}
-        // Landscape too: a video shot sideways is worth turning the phone for, and the rest of
-        // the app is portrait-only.
-        supportedOrientations={['portrait', 'landscape']}
-      >
-        {shown === null ? null : (
-          <View style={styles.viewer}>
-            {shown.kind === 'video' && shown.preview_url !== null ? (
-              <Playing url={shown.preview_url} />
-            ) : shown.thumbnail_url !== null ? (
-              <Image source={{ uri: shown.thumbnail_url }} style={styles.big} resizeMode="contain" />
-            ) : (
-              // Nothing was ever made for this one. Said here as well as on the tile, because this
-              // is the screen the delete button is on — a failed record is one somebody may want
-              // rid of rather than looked at.
-              <Text style={styles.explain}>{WAITING[shown.status]}</Text>
+      ) : items === null ? (
+        <View style={styles.centered}>
+          <Empty busy text="Loading…" />
+        </View>
+      ) : (
+        <>
+          <FlatList
+            data={items}
+            keyExtractor={(item) => item.id}
+            numColumns={3}
+            columnWrapperStyle={styles.gridRow}
+            contentContainerStyle={styles.grid}
+            // The signed links live about fifteen minutes and a record turns `ready` while this
+            // screen is open — one pull answers both, and there is nothing here to poll for.
+            refreshControl={
+              <RefreshControl
+                refreshing={loading}
+                onRefresh={load}
+                tintColor={color.ember}
+                colors={[color.ember]}
+                progressBackgroundColor={color.surface}
+              />
+            }
+            ListEmptyComponent={
+              <Empty icon={Camera} text="Nothing here yet — whatever anyone adds shows up here." />
+            }
+            renderItem={({ item }) => (
+              <Tile
+                style={styles.cell}
+                // The record's own status is the frame's state. A `ready` record with no
+                // derivative has nothing to show either, so it wears the fallen frame rather than
+                // sitting in the sheet as an empty square.
+                state={
+                  item.status === 'ready' && item.thumbnail_url === null ? 'failed' : item.status
+                }
+                uri={item.thumbnail_url ?? undefined}
+                caption={WAITING[item.status]}
+                // The kit marks a video by its length in the corner; a record that came without
+                // one still says what it is, in the same place.
+                length={
+                  item.kind === 'video' ? (clock(item.duration_seconds) ?? 'Video') : undefined
+                }
+                label={
+                  item.status === 'ready' ? item.kind : `${item.kind}, ${WAITING[item.status]}`
+                }
+                onPress={() => setOpen(item.id)}
+              />
             )}
-            {notice ? <Text style={styles.notice}>{notice}</Text> : null}
-            <View style={styles.bar}>
-              <Button title="Close" onPress={() => setOpen(null)} disabled={busy} />
-              {/* Not gated on anything: a viewer may take home what they are looking at, and the
-                  api says the same — the download route asks for membership and nothing more. */}
-              <Button title="Download" onPress={() => void save(shown)} disabled={busy} />
-              {mayDelete(shown) ? (
+          />
+
+          <View style={styles.pad}>
+            {/* Where «X of N» is read while the lot comes down, and the summary after it. The open
+                file has its own copy of this line — only one of the two is ever on screen. */}
+            {notice ? <Banner text={notice} style={styles.notice} /> : null}
+            <ActionBar>
+              {/* Everyone's, a viewer included: taking the material home is what somebody who may
+                  only look is in the memory for. Off while busy, and with nothing there to take.
+                  While this bar is on screen the viewer is not, so `busy` here is this button's
+                  own errand and the spinner belongs to it. */}
+              <Button
+                variant="secondary"
+                wide
+                icon={Download}
+                label="Download all"
+                busy={busy}
+                disabled={busy || items.length === 0}
+                onPress={() => void saveEverything()}
+              />
+              {/* «Добавить ещё», and never gated on anything but the level: the same screen the
+                  memory screen sends people to, reachable with the material in front of them. */}
+              {mayUpload ? (
                 <Button
-                  title="Delete"
-                  color="#C0392B"
-                  onPress={() => confirmRemove(shown)}
-                  disabled={busy}
+                  variant="primary"
+                  wide
+                  icon={Plus}
+                  label="Add more"
+                  onPress={() => router.push({ pathname: '/memory/[id]/upload', params: { id } })}
                 />
               ) : null}
-            </View>
+            </ActionBar>
           </View>
-        )}
-      </Modal>
+
+          <Modal
+            visible={shown !== null}
+            animationType="fade"
+            onRequestClose={() => setOpen(null)}
+            // Landscape too: a video shot sideways is worth turning the phone for, and the rest of
+            // the app is portrait-only.
+            supportedOrientations={['portrait', 'landscape']}
+          >
+            {shown === null ? null : (
+              <View style={styles.viewer}>
+                {shown.kind === 'video' && shown.preview_url !== null ? (
+                  <Playing url={shown.preview_url} />
+                ) : shown.thumbnail_url !== null ? (
+                  <Image
+                    source={{ uri: shown.thumbnail_url }}
+                    style={styles.big}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  // Nothing was ever made for this one. Said here as well as on the tile, because
+                  // this is the screen the delete button is on — a failed record is one somebody
+                  // may want rid of rather than looked at.
+                  <View style={[styles.big, styles.blank]}>
+                    <Empty icon={TriangleAlert} text={WAITING[shown.status]} />
+                  </View>
+                )}
+                {notice ? <Banner text={notice} style={styles.viewerNotice} /> : null}
+                <ActionBar style={styles.bar}>
+                  <Button
+                    variant="quiet"
+                    label="Close"
+                    onPress={() => setOpen(null)}
+                    disabled={busy}
+                  />
+                  {/* Not gated on anything: a viewer may take home what they are looking at, and
+                      the api says the same — the download route asks for membership and nothing
+                      more. `busy` is the screen's one flag, so a delete lights this spinner too;
+                      the download is the errand that lasts long enough to need it. */}
+                  <Button
+                    variant="primary"
+                    icon={Download}
+                    label="Download"
+                    busy={busy}
+                    disabled={busy}
+                    onPress={() => void save(shown)}
+                  />
+                  {mayDelete(shown) ? (
+                    <Button
+                      variant="danger"
+                      label="Delete"
+                      onPress={() => setConfirming(true)}
+                      disabled={busy}
+                    />
+                  ) : null}
+                </ActionBar>
+
+                {/* Irreversible, and the api takes the bytes with it — worth one question first,
+                    asked on the kit's sheet (section 13) and not by the system dialog. Inside the
+                    viewer because that is the only place the delete is offered from, and a modal
+                    over a modal has to be its child. */}
+                <ConfirmSheet
+                  visible={confirming}
+                  title={`Delete this ${shown.kind}?`}
+                  text="It goes from the memory for good. A montage already made keeps it."
+                  confirmLabel="Delete"
+                  cancelLabel="Keep"
+                  onConfirm={() => {
+                    setConfirming(false);
+                    void remove(shown);
+                  }}
+                  onCancel={() => setConfirming(false)}
+                />
+              </View>
+            )}
+          </Modal>
+        </>
+      )}
     </View>
   );
 }
@@ -348,34 +400,20 @@ function Playing({ url }: { url: string }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 },
-  grid: { flexGrow: 1, padding: 2, gap: 2 },
-  gridRow: { gap: 2 },
+  screen: { flex: 1, backgroundColor: color.ink },
+  // The appbar and the bottom action stand off the edge; the sheet between them does not.
+  pad: { paddingHorizontal: space.s4 },
+  centered: { flex: 1, justifyContent: 'center', padding: space.s4 },
+  // The kit's contact sheet: a 3px gutter and nothing else, so the material reads as a lot of it.
+  grid: { flexGrow: 1, gap: 3 },
+  gridRow: { gap: 3 },
   // A third of the row and not `flex: 1`, for the reason the upload grid gives: a last row with
   // one tile in it must leave it a third of the width.
-  cell: { flex: 1 / 3, aspectRatio: 1 },
-  thumb: { width: '100%', height: '100%', borderRadius: 4, backgroundColor: '#EEE' },
-  blank: { alignItems: 'center', justifyContent: 'center', padding: 4 },
-  placeholder: { fontSize: 12, opacity: 0.6, textAlign: 'center' },
-  kind: {
-    position: 'absolute',
-    left: 4,
-    bottom: 4,
-    fontSize: 11,
-    color: '#FFF',
-    // No icon set in this app; a shadow is what keeps the word readable over a bright frame.
-    textShadowColor: '#000',
-    textShadowRadius: 3,
-  },
-  footer: { padding: 16, gap: 8, borderTopWidth: 1, borderTopColor: '#EEE' },
-  actions: { flexDirection: 'row', justifyContent: 'space-between' },
-  viewer: { flex: 1, backgroundColor: '#000', justifyContent: 'center' },
+  cell: { flex: 1 / 3 },
+  notice: { marginTop: space.s3 },
+  viewer: { flex: 1, backgroundColor: color.ink, justifyContent: 'center' },
+  viewerNotice: { marginHorizontal: space.s4 },
+  bar: { justifyContent: 'space-between', paddingHorizontal: space.s4 },
   big: { flex: 1, width: '100%' },
-  bar: { flexDirection: 'row', justifyContent: 'space-between', padding: 16, gap: 12 },
-  explain: { fontSize: 16, color: '#FFF', textAlign: 'center' },
-  hint: { fontSize: 14, opacity: 0.6, textAlign: 'center' },
-  notice: { fontSize: 15, color: '#FFF', textAlign: 'center', paddingHorizontal: 16 },
-  report: { fontSize: 15, textAlign: 'center' },
-  error: { fontSize: 15, color: '#C0392B', textAlign: 'center' },
+  blank: { justifyContent: 'center' },
 });
