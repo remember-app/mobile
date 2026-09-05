@@ -429,7 +429,7 @@ export type Montage = {
   ordered_by: string;
   status: 'queued' | 'processing' | 'ready' | 'failed';
   duration_seconds: number | null;
-  params: { target_seconds?: number; music_track_id?: string };
+  params: { target_seconds?: number; music_track_id?: MusicTrackId };
   /** The worker's own line about why it fell over. Only ever set on a `failed` one. */
   error_text: string | null;
   created_at: string;
