@@ -410,6 +410,68 @@ export function deleteMedia(
 }
 
 /**
+ * The tracks the montage worker holds, by id. Three strings the api enumerates and refuses anything
+ * outside of, so they are written out here rather than typed as `string` — what each one sounds
+ * like is the worker's, and what each one is called on screen is the screen's.
+ */
+export type MusicTrackId = 'warm' | 'bright' | 'calm';
+
+/**
+ * A video assembled out of a memory (doc-03). The row as the api hands it out, minus its storage
+ * key: `video_url` is the signed link standing in for it, and it is there only while the montage is
+ * `ready` — before that it is null, which is «ещё не готово» and not an error, exactly as the
+ * gallery's missing derivatives are. `duration_seconds` is the length the worker actually made,
+ * so it too arrives only with the finished video; `params` is what was asked for at the order.
+ */
+export type Montage = {
+  id: string;
+  memory_id: string;
+  ordered_by: string;
+  status: 'queued' | 'processing' | 'ready' | 'failed';
+  duration_seconds: number | null;
+  params: { target_seconds?: number; music_track_id?: string };
+  /** The worker's own line about why it fell over. Only ever set on a `failed` one. */
+  error_text: string | null;
+  created_at: string;
+  video_url: string | null;
+};
+
+/**
+ * Every montage of a memory, newest first. Any member reads it, a viewer included — the video is
+ * the reward for everybody who brought material. 503 while the api has no bucket configured.
+ */
+export function listMontages(token: string, memoryId: string): Promise<Montage[]> {
+  return request(`/memories/${memoryId}/montages`, { token });
+}
+
+/**
+ * «Смонтируй ролик» — the organizer's alone, 403 for anybody else. The wishes are the only two
+ * doc-03 allows, and both may be left out: the api fills the length in itself and a track nobody
+ * chose is the worker's to pick. 409 when there is too little material to cut anything out of, and
+ * the body then carries how much there is against how much is needed.
+ */
+export function orderMontage(
+  token: string,
+  memoryId: string,
+  wishes: { target_seconds?: number; music_track_id?: MusicTrackId },
+): Promise<Montage> {
+  return request(`/memories/${memoryId}/montages`, { method: 'POST', body: wishes, token });
+}
+
+/**
+ * Queue a fallen montage again — the organizer's too. The same row goes back in the queue rather
+ * than a second one being written, so the answer is the montage as it now stands. 409 when it is
+ * not a failed one, which is «somebody already pressed this».
+ */
+export function retryMontage(
+  token: string,
+  memoryId: string,
+  montageId: string,
+): Promise<Montage> {
+  return request(`/memories/${memoryId}/montages/${montageId}/retry`, { method: 'POST', token });
+}
+
+/**
  * Tell the api where to push to. Idempotent: the same device token registered twice is one row,
  * so this can run on every launch without asking whether it already ran.
  */

@@ -74,12 +74,21 @@ async function register(session: string) {
   }
 }
 
-/** Where the invite push points: the memory it is about, on the screen it is asking for. */
-function openUpload(response: Notifications.NotificationResponse | null) {
-  const memoryId = response?.notification.request.content.data?.memoryId;
-  if (typeof memoryId === 'string') {
-    router.push({ pathname: '/memory/[id]/upload', params: { id: memoryId } });
+/**
+ * Where a tapped push points. Both kinds are about a memory and carry its id; what tells them apart
+ * is the second field. An invite is a request for material, so it opens the screen that takes it. A
+ * finished montage is nothing to upload to — it opens the memory, where the videos are listed and
+ * the new one is already on top.
+ */
+function openWhatItIsAbout(response: Notifications.NotificationResponse | null) {
+  const data = response?.notification.request.content.data;
+  const memoryId = data?.memoryId;
+  if (typeof memoryId !== 'string') return;
+  if (typeof data?.montageId === 'string') {
+    router.push({ pathname: '/memory/[id]', params: { id: memoryId } });
+    return;
   }
+  router.push({ pathname: '/memory/[id]/upload', params: { id: memoryId } });
 }
 
 /**
@@ -109,9 +118,9 @@ export function usePush() {
       coldStartAnswered = true;
       // A tap that launched the app: the response is waiting rather than delivered, and it is
       // read here — after the session is restored — so the screen it opens is allowed to exist.
-      Notifications.getLastNotificationResponseAsync().then(openUpload, () => {});
+      Notifications.getLastNotificationResponseAsync().then(openWhatItIsAbout, () => {});
     }
-    const subscription = Notifications.addNotificationResponseReceivedListener(openUpload);
+    const subscription = Notifications.addNotificationResponseReceivedListener(openWhatItIsAbout);
     return () => subscription.remove();
   }, [ready]);
 }
