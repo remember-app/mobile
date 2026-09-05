@@ -42,20 +42,27 @@ export async function maySaveToPhone(): Promise<boolean> {
  * this reading it back from the record.
  */
 export async function saveToPhone(file: Original, andThen?: (uri: string) => Promise<void>) {
-  const target = new File(Paths.cache, `${file.id}.${file.kind === 'video' ? 'mp4' : 'jpg'}`);
-  // `idempotent`, because the same file downloaded twice must not fail on the leftover of the
-  // first go — the cache is swept by the system whenever it likes, but not reliably.
-  const saved = await File.downloadFileAsync(file.url, target, { idempotent: true });
+  // The id is what names the file, and it arrives off the wire: one with a slash or a `..` in it
+  // would have the download written outside the cache and over something the app keeps. Every real
+  // id here is a uuid, so anything that is not one gets a plain name instead of a path.
+  const name = /^[0-9a-f-]{36}$/i.test(file.id) ? file.id : 'download';
+  const target = new File(Paths.cache, `${name}.${file.kind === 'video' ? 'mp4' : 'jpg'}`);
   try {
+    // `idempotent`, because the same file downloaded twice must not fail on the leftover of the
+    // first go — the cache is swept by the system whenever it likes, but not reliably.
+    const saved = await File.downloadFileAsync(file.url, target, { idempotent: true });
     await MediaLibrary.saveToLibraryAsync(saved.uri);
     await andThen?.(saved.uri);
   } finally {
     // Two copies of a video on a phone is what fills it up; the gallery's is the one that counts.
-    // Swallowed, and not merely tidiness: `delete()` throws on a file the system already swept
-    // from the cache, and a bare throw here would turn a save that worked into a failure in the
-    // caller's count. The copy that matters is in the phone's gallery by this line either way.
+    // Inside the same `try` as the download, so a video cut off halfway does not sit in the cache
+    // until the system decides to sweep it — a partial montage is hundreds of megabytes of nothing.
+    // Swallowed, and not merely tidiness: `delete()` throws both on a file that was never written
+    // and on one the system already swept, and a bare throw here would turn a save that worked
+    // into a failure in the caller's count. The copy that matters is in the phone's gallery by
+    // this line either way.
     try {
-      saved.delete();
+      target.delete();
     } catch {}
   }
 }
