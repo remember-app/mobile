@@ -131,6 +131,12 @@ export type Memory = {
   event_end: string | null;
   storage_bytes: string;
   media_count: number;
+  /**
+   * Up to two signed thumbnail urls, most recently captured first — the frames the card draws.
+   * Only ready media has one, so this is a tail of `media_count` and never all of it; empty
+   * while nothing is processed yet, or when the api has no bucket configured.
+   */
+  recent_thumbnail_urls: string[];
   montage_count: number;
   created_at: string;
   role: MemberRole;
