@@ -81,10 +81,11 @@ export default function HomeScreen() {
             <CardMemory
               title={item.title}
               meta={facts(item)}
-              // The tail wants the last few frames; the memories list carries counts and no
-              // preview urls, so it counts what is inside instead of pretending to show it.
-              // ponytail: pass `thumbs` here the day /memories hands out previews.
-              more={item.media_count || undefined}
+              // The tail: the last frames the listing signed for this memory, and a «+N» for
+              // whatever those do not show. The remainder is counted off what is actually drawn,
+              // so «2 frames, both shown» ends at the two frames instead of adding a «+2».
+              thumbs={item.recent_thumbnail_urls}
+              more={Math.max(0, item.media_count - item.recent_thumbnail_urls.length) || undefined}
               // Straight to the material: what a memory is for is the photos in it, so the card
               // opens the gallery. Who is in it lives one icon away, in that screen's appbar.
               onPress={() =>
