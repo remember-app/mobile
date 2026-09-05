@@ -5,7 +5,7 @@ import * as MediaLibrary from 'expo-media-library/legacy';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { Camera, ChevronLeft, Download, Plus, TriangleAlert, Users } from 'lucide-react-native';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, Image, Modal, RefreshControl, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -20,6 +20,7 @@ import {
   mayContribute,
   type MediaItem,
   type MemberRole,
+  type Original,
 } from '@/api';
 import { useAuth } from '@/auth';
 import { formatRuntime } from '@/dates';
@@ -35,9 +36,6 @@ const WAITING: Record<MediaItem['status'], string> = {
 
 /** The one answer nothing on this screen can work around, and the one worth pointing somewhere. */
 const REFUSED = 'Remember may not add to this phone’s gallery — that is turned on in Settings.';
-
-/** An original to save, as both download routes hand it out — the whole-gallery one row for row. */
-type Original = { id: string; kind: MediaItem['kind']; url: string };
 
 /**
  * One original onto the phone: down into the cache, over into the phone's own gallery, and out of
@@ -90,6 +88,18 @@ export default function GalleryScreen() {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  /**
+   * Whether this screen is still the one the batch below is saving for. `busy` cannot answer that:
+   * it lives in state that goes with the screen, and «Download all» outlives the screen it was
+   * started on — `router.back()`, the swipe and the hardware key all pop the gallery while the loop
+   * is still going. Left alone, that loop keeps writing to the phone's gallery with nothing able to
+   * stop it, and coming back gives a fresh screen with `busy` false, so a second «Download all»
+   * runs on top of the first and every file lands twice.
+   */
+  const onScreen = useRef(true);
+  useEffect(() => () => {
+    onScreen.current = false;
+  }, []);
 
   const load = useCallback(() => {
     if (!token) return;
@@ -186,6 +196,10 @@ export default function GalleryScreen() {
       const files = await downloadAllMedia(token, id);
       let failed = 0;
       for (const [index, file] of files.entries()) {
+        // Between files and not mid-file: whoever walked out of the gallery is not waiting on the
+        // rest of it, and the one already coming down may as well land. What must not happen is
+        // this going on unattended — see `onScreen`.
+        if (!onScreen.current) return;
         setNotice(`Saving ${index + 1} of ${files.length}…`);
         try {
           await saveToPhone(file);
@@ -315,9 +329,11 @@ export default function GalleryScreen() {
               />
               {/* «Добавить ещё», gated on the level and on nothing else — the same screen the
                   memory screen sends people to, reachable with the material in front of them.
-                  Off while busy like everything else on this bar: leaving mid-batch would leave
-                  the save loop running for a screen nobody is on, and the summary it ends with
-                  unread. Back and the roster stay open, so this is not a way to trap anybody. */}
+                  Off while busy, like everything else on this bar: this one only pushes a screen
+                  in front (the gallery stays mounted and keeps its summary), but sending a batch
+                  up while a batch is coming down is two errands over one connection and one
+                  progress line between them. What the departure itself costs is handled by
+                  `onScreen`, not by this button. */}
               {mayUpload ? (
                 <Button
                   variant="primary"

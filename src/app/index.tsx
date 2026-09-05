@@ -77,22 +77,30 @@ export default function HomeScreen() {
               text="No memories yet. Start one for your next event and the photos will land here from everyone."
             />
           }
-          renderItem={({ item }) => (
-            <CardMemory
-              title={item.title}
-              meta={facts(item)}
-              // The tail: the last frames the listing signed for this memory, and a «+N» for
-              // whatever those do not show. The remainder is counted off what is actually drawn,
-              // so «2 frames, both shown» ends at the two frames instead of adding a «+2».
-              thumbs={item.recent_thumbnail_urls}
-              more={Math.max(0, item.media_count - item.recent_thumbnail_urls.length) || undefined}
-              // Straight to the material: what a memory is for is the photos in it, so the card
-              // opens the gallery. Who is in it lives one icon away, in that screen's appbar.
-              onPress={() =>
-                router.push({ pathname: '/memory/[id]/gallery', params: { id: item.id } })
-              }
-            />
-          )}
+          renderItem={({ item }) => {
+            // `?? []` and not a bare read: the app ships over the air and the api deploys on its
+            // own, so a build that knows this field can meet one that does not. Every other new
+            // field degrades quietly under that skew — this one would throw inside the list
+            // renderer and take the main screen down with it.
+            const thumbs = item.recent_thumbnail_urls ?? [];
+
+            return (
+              <CardMemory
+                title={item.title}
+                meta={facts(item)}
+                // The tail: the last frames the listing signed for this memory, and a «+N» for
+                // whatever those do not show. The remainder is counted off what is actually drawn,
+                // so «2 frames, both shown» ends at the two frames instead of adding a «+2».
+                thumbs={thumbs}
+                more={Math.max(0, item.media_count - thumbs.length) || undefined}
+                // Straight to the material: what a memory is for is the photos in it, so the card
+                // opens the gallery. Who is in it lives one icon away, in that screen's appbar.
+                onPress={() =>
+                  router.push({ pathname: '/memory/[id]/gallery', params: { id: item.id } })
+                }
+              />
+            );
+          }}
         />
       )}
 

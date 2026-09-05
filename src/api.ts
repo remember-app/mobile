@@ -376,15 +376,25 @@ export function downloadMedia(
 }
 
 /**
+ * An original to save, as both download routes hand it out — the whole-gallery one row for row.
+ * Named here rather than beside the screen that saves them: it is the shape on the wire, and the
+ * two are the same shape on purpose.
+ */
+export type Original = { id: string; kind: MediaItem['kind']; url: string };
+
+/**
  * Every original in one answer, in the gallery's own order — «скачать всю галерею» without a round
  * trip per file. Same set as `listMedia`, cut down to what the saving needs: the extension comes
  * from `kind`, since neither this nor the record carries the name the file had.
+ *
+ * The long leash for the reason `finishUpload` has one: a memory may hold up to a thousand records
+ * (MEMORY_MAX_FILES), and this signs and ships a link for every one of them in a single answer —
+ * the one request the whole «download all» hangs on must not be the one that times out at five
+ * seconds. ponytail: the real answer is a page at a time; the client already saves file by file,
+ * so paging costs it nothing. Add it when a gallery that big exists to test against.
  */
-export function downloadAllMedia(
-  token: string,
-  memoryId: string,
-): Promise<{ id: string; kind: MediaItem['kind']; url: string }[]> {
-  return request(`/memories/${memoryId}/media/download`, { token });
+export function downloadAllMedia(token: string, memoryId: string): Promise<Original[]> {
+  return request(`/memories/${memoryId}/media/download`, { token, timeout: 60_000 });
 }
 
 /**

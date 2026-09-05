@@ -114,7 +114,14 @@ export function UsernameForm({ submitLabel }: { submitLabel: string }) {
           setError(null);
         }}
         state={state}
-        hint={error ?? (availability === null ? USERNAME_HINT : AVAILABILITY_HINT[availability])}
+        // `malformed` is settled in render and `availability` only in the effect after it, so a
+        // name typed down to something malformed paints a frame of red field under a green
+        // «Username is free.» unless the format is asked here too. One rule for the colour and the
+        // words: whatever puts the field in error says why in the same breath.
+        hint={
+          error ??
+          (malformed || availability === null ? USERNAME_HINT : AVAILABILITY_HINT[availability])
+        }
         autoCapitalize="none"
         autoCorrect={false}
         editable={!busy}
