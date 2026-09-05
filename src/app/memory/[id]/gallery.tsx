@@ -1,7 +1,3 @@
-import { File, Paths } from 'expo-file-system';
-// `expo-media-library/legacy` for the reason the upload screen gives at length: the SDK 57 root
-// throws from the calls this app was written against. Only `saveToLibraryAsync` is wanted here.
-import * as MediaLibrary from 'expo-media-library/legacy';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { Camera, ChevronLeft, Download, Plus, TriangleAlert, Users } from 'lucide-react-native';
@@ -20,10 +16,10 @@ import {
   mayContribute,
   type MediaItem,
   type MemberRole,
-  type Original,
 } from '@/api';
 import { useAuth } from '@/auth';
 import { formatRuntime } from '@/dates';
+import { maySaveToPhone, REFUSED, saveToPhone } from '@/downloads';
 import { ActionBar, AppBar, Banner, Button, ConfirmSheet, Empty, IconButton, Tile } from '@/kit';
 import { color, space } from '@/theme';
 
@@ -33,36 +29,6 @@ const WAITING: Record<MediaItem['status'], string> = {
   failed: 'Could not be prepared',
   ready: 'Nothing to show',
 };
-
-/** The one answer nothing on this screen can work around, and the one worth pointing somewhere. */
-const REFUSED = 'Remember may not add to this phone’s gallery — that is turned on in Settings.';
-
-/**
- * One original onto the phone: down into the cache, over into the phone's own gallery, and out of
- * the cache again — the copy that stays is the one the gallery app holds.
- *
- * ponytail: the local name is the record's id and an extension guessed from `kind` — every photo
- * lands as `.jpg` and every video as `.mp4`, because neither `media_items` nor `original_key`
- * carries the name the file had. The upgrade path is the upload sending the real filename, and
- * this reading it back from the record.
- */
-async function saveToPhone(file: Original) {
-  const target = new File(Paths.cache, `${file.id}.${file.kind === 'video' ? 'mp4' : 'jpg'}`);
-  // `idempotent`, because the same file downloaded twice must not fail on the leftover of the
-  // first go — the cache is swept by the system whenever it likes, but not reliably.
-  const saved = await File.downloadFileAsync(file.url, target, { idempotent: true });
-  try {
-    await MediaLibrary.saveToLibraryAsync(saved.uri);
-  } finally {
-    // Two copies of a video on a phone is what fills it up; the gallery's is the one that counts.
-    // Swallowed, and not merely tidiness: `delete()` throws on a file the system already swept
-    // from the cache, and a bare throw here would turn a save that worked into a failure in the
-    // caller's count. The copy that matters is in the phone's gallery by this line either way.
-    try {
-      saved.delete();
-    } catch {}
-  }
-}
 
 /**
  * What everybody put in, as everybody sees it — a viewer included (architecture.md, «Проверка
@@ -152,13 +118,9 @@ export default function GalleryScreen() {
     setOpen(null);
   }
 
-  /**
-   * The one grant this screen needs, asked for at the moment it is needed: adding to the gallery,
-   * not reading it — a different question from the one the upload screen asks, and the phone only
-   * puts it once. Already answered means no dialog and a straight answer.
-   */
+  /** The grant, asked for at the moment it is needed, with this screen's place to say «no». */
   async function maySave(): Promise<boolean> {
-    const { granted } = await MediaLibrary.requestPermissionsAsync(true);
+    const granted = await maySaveToPhone();
     if (!granted) setNotice(REFUSED);
     return granted;
   }
