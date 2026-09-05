@@ -1,29 +1,82 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { ApiError, errorMessage, isValidUsername, USERNAME_HINT } from '@/api';
+import { ApiError, checkUsername, errorMessage, isValidUsername, USERNAME_HINT } from '@/api';
 import { useAuth } from '@/auth';
 import { Button, Field, type FieldState } from '@/kit';
 import { space } from '@/theme';
 
+/** Long enough that a typed word is one question, short enough to answer before the thumb moves. */
+const CHECK_DELAY_MS = 400;
+
+/** One wording for one fact, whether the check found it or the submit did. */
+const TAKEN = 'That username is taken — pick another.';
+
+/** Where the server stands on the name in the field. `null` is «nothing to say». */
+type Availability = 'checking' | 'free' | 'taken';
+
+const AVAILABILITY_HINT: Record<Availability, string> = {
+  checking: 'Checking…',
+  free: 'Username is free.',
+  taken: TAKEN,
+};
+
 /**
  * The one username field, shared by the first claim (/set-username) and the change (/profile).
  *
- * The kit's field answers before the form is sent (section 4, «Ник»): the same rule the submit
- * runs — `isValidUsername` — colours the field while it is being typed, and the line underneath
- * says what to fix. `ok` is only as much as this side can know: the name is well formed. Whether
- * it is free is the server's word, and that comes back as the error under the field.
+ * The kit's field answers before the form is sent (section 4, «Ник»): «Ник свободен.» is the
+ * server's word, not this side's guess, so a well-formed name is asked about while it is being
+ * typed. `isValidUsername` only decides whether there is anything worth asking — an answer for a
+ * name that could never be held is a 400, not a «free».
+ *
+ * The check is a courtesy, never the guard: it is one question about a name nobody has promised to
+ * hold. Another device can claim it between the answer and the submit, and the 409 below is what
+ * catches that — the same line the check would have shown.
  */
 export function UsernameForm({ submitLabel }: { submitLabel: string }) {
-  const { user, setUsername } = useAuth();
+  const { token, user, setUsername } = useAuth();
   const [value, setValue] = useState(user?.username ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [availability, setAvailability] = useState<Availability | null>(null);
 
   const typed = value.trim();
   const malformed = typed !== '' && !isValidUsername(typed);
+  // Nothing to say yet — being asked included — is the kit's neutral field, not a third state.
   const state: FieldState | undefined =
-    error !== null || malformed ? 'error' : typed === '' ? undefined : 'ok';
+    error !== null || malformed || availability === 'taken'
+      ? 'error'
+      : availability === 'free'
+        ? 'ok'
+        : undefined;
+
+  useEffect(() => {
+    if (token === null || !isValidUsername(typed)) {
+      setAvailability(null);
+      return;
+    }
+    setAvailability('checking');
+    let live = true;
+    // Waits out the typing rather than asking after every key; the cleanup below drops both the
+    // question that never went out and the answer to one that did — a slow reply about a name the
+    // field has since left can never overwrite a fresher one.
+    const timer = setTimeout(() => {
+      checkUsername(token, typed).then(
+        ({ available }) => {
+          if (live) setAvailability(available ? 'free' : 'taken');
+        },
+        () => {
+          // A check that could not be made says nothing about the name. The field goes quiet and
+          // the submit stays the answer — this was never the thing standing between the two.
+          if (live) setAvailability(null);
+        },
+      );
+    }, CHECK_DELAY_MS);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [token, typed]);
 
   async function submit() {
     const username = value.trim();
@@ -37,8 +90,10 @@ export function UsernameForm({ submitLabel }: { submitLabel: string }) {
       await setUsername(username);
     } catch (e) {
       setError(
+        // Still the last word: the check ran before this call, and the name could have gone in
+        // between.
         e instanceof ApiError && e.status === 409
-          ? 'That username is taken — pick another.'
+          ? TAKEN
           : e instanceof ApiError && e.status === 400
             ? USERNAME_HINT
             : errorMessage(e),
@@ -59,7 +114,7 @@ export function UsernameForm({ submitLabel }: { submitLabel: string }) {
           setError(null);
         }}
         state={state}
-        hint={error ?? (state === 'ok' ? 'Looks good.' : USERNAME_HINT)}
+        hint={error ?? (availability === null ? USERNAME_HINT : AVAILABILITY_HINT[availability])}
         autoCapitalize="none"
         autoCorrect={false}
         editable={!busy}
