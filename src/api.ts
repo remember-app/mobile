@@ -108,6 +108,16 @@ export function putUsername(token: string, username: string): Promise<User> {
   return request('/me/username', { method: 'POST', body: { username }, token });
 }
 
+/**
+ * The question `putUsername` answers by trying, asked without trying — so the field can say «free»
+ * while it is still being typed. The caller's own current username is free (re-sending it claims
+ * nothing), and a malformed one is a 400 rather than a `true` the submit would then refuse. Only an
+ * answer about the name still in the field is worth anything: the claim is what the 409 guards.
+ */
+export function checkUsername(token: string, username: string): Promise<{ available: boolean }> {
+  return request(`/me/username/available?username=${encodeURIComponent(username)}`, { token });
+}
+
 /** Where the caller stands in a memory. Duplicated from the api, same reason as `User`. */
 export type MemberRole = 'organizer' | 'contributor' | 'viewer';
 
