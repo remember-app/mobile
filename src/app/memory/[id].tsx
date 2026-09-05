@@ -294,8 +294,17 @@ export default function MemoryScreen() {
                       terminal statuses are the person's own word, and this is the way to give it
                       unprompted. Under the row and not in it — the row already carries an avatar,
                       a name and a role chip, and a fourth thing on that line leaves the name no
-                      width at all on a phone. */}
+                      width at all on a phone.
+                      And only for somebody who could have added something: doc-01 gives «загружать
+                      медиа» to «Добавление» and up, so a viewer is a person nobody is waiting on —
+                      asking them to declare «ждать нечего» asks them to answer for material they
+                      were never able to bring. The api stays open to it on purpose (no role gate
+                      there): a status grants nothing, and one already given must survive its owner
+                      being moved down to viewer. This is the asking, not the right. The standing
+                      itself stays on every row, viewer's included — the roster is the organizer's
+                      progress and it is the same line for everybody. */}
                   {self &&
+                  mayContributeHere &&
                   member.contribution_status !== 'done' &&
                   member.contribution_status !== 'nothing' ? (
                     <Button

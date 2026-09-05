@@ -57,7 +57,12 @@ async function saveToPhone(file: Original) {
     await MediaLibrary.saveToLibraryAsync(saved.uri);
   } finally {
     // Two copies of a video on a phone is what fills it up; the gallery's is the one that counts.
-    saved.delete();
+    // Swallowed, and not merely tidiness: `delete()` throws on a file the system already swept
+    // from the cache, and a bare throw here would turn a save that worked into a failure in the
+    // caller's count. The copy that matters is in the phone's gallery by this line either way.
+    try {
+      saved.delete();
+    } catch {}
   }
 }
 
@@ -308,14 +313,18 @@ export default function GalleryScreen() {
                 disabled={busy || items.length === 0}
                 onPress={() => void saveEverything()}
               />
-              {/* «Добавить ещё», and never gated on anything but the level: the same screen the
-                  memory screen sends people to, reachable with the material in front of them. */}
+              {/* «Добавить ещё», gated on the level and on nothing else — the same screen the
+                  memory screen sends people to, reachable with the material in front of them.
+                  Off while busy like everything else on this bar: leaving mid-batch would leave
+                  the save loop running for a screen nobody is on, and the summary it ends with
+                  unread. Back and the roster stay open, so this is not a way to trap anybody. */}
               {mayUpload ? (
                 <Button
                   variant="primary"
                   wide
                   icon={Plus}
                   label="Add more"
+                  disabled={busy}
                   onPress={() => router.push({ pathname: '/memory/[id]/upload', params: { id } })}
                 />
               ) : null}
