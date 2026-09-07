@@ -86,9 +86,21 @@ test('a strip tile and a sheet tile read a record the same way', () => {
 });
 
 test('neither the sheet nor the strip opens a frame that is still developing', () => {
-  // The same gate in both places, for the same reason `frameOf` is in both: a tap on a waiting
-  // frame used to open a whole screen saying «Preparing…», which is what was reported.
-  expect(gallery.match(/mayOpen\(item\)/g)).toHaveLength(2);
+  // The exact ternary and not just a call count: swapping which branch is `undefined` would still
+  // match `mayOpen(item)` twice while opening exactly the records this gate exists to stop. This
+  // was the bug fixed in review — a tap on a waiting frame opened a whole screen saying
+  // «Preparing…», which is what was reported.
+  const gate = 'onPress={mayOpen(item) ? () => setOpen(item.id) : undefined}';
+  const escaped = gate.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  expect(gallery.match(new RegExp(escaped, 'g'))).toHaveLength(2);
+});
+
+test('the frame shown full screen is the same reading frameOf gives every tile', () => {
+  // `openFrame` is `frameOf(shown)` and not `shown.thumbnail_url` read straight — the difference is
+  // the fallen-frame correction `frameOf` makes for a `ready` record with no derivative. Reading the
+  // field directly here would show a broken image instead of the «could not be prepared» state.
+  expect(gallery).toContain('const openFrame = shown === null ? null : frameOf(shown);');
+  expect(gallery).toContain('<Image source={{ uri: openFrame.uri }}');
 });
 
 test('the roads into a memory are unchanged, and a finished montage opens the montage screen', () => {
