@@ -74,9 +74,28 @@ test('nothing stands under the open frame — the actions moved up onto it', () 
 });
 
 test("the strip under the frame is the grid's own list, read once", () => {
-  expect(gallery).toContain('initialScrollIndex={frameIndex(items, open)}');
+  // The whole list and not a window on it: the strip is handed `items`, the same array the sheet
+  // above draws.
+  expect(gallery).toContain('data={items}');
   // One read of the media serves both the sheet and the strip.
   expect(gallery.match(/listMedia\(/g)).toHaveLength(1);
+});
+
+test('the strip is walked to the open frame, never started at it', () => {
+  // `initialScrollIndex` is the prop this obviously wants and the one that broke it: it pins the
+  // render window on the frame it names until a scroll event arrives, and a strip short enough to
+  // fit on screen never scrolls, so the event never comes. Opened on the fifth of seven frames the
+  // strip drew three, with a blank where the first four belonged and no way to reach them — the
+  // whole point of the strip, lost, on every gallery small enough not to overflow the screen.
+  // The prop and not the word: the comment above the fix names it, and has to be free to.
+  expect(gallery).not.toContain('initialScrollIndex={');
+  // Asked for once the content is laid out instead, which positions the strip the same way without
+  // touching the window.
+  expect(gallery).toContain('onContentSizeChange');
+  expect(gallery).toContain('strip.current?.scrollToIndex({');
+  expect(gallery).toContain('index: frameIndex(items, open)');
+  // `scrollToIndex` on a list this long is only safe because every tile is a known size.
+  expect(gallery).toContain('getItemLayout');
 });
 
 test('a strip tile and a sheet tile read a record the same way', () => {
