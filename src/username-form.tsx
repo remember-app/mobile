@@ -137,9 +137,14 @@ export function UsernameForm({ submitLabel }: { submitLabel: string }) {
         autoCorrect={false}
         editable={!busy}
       />
+      {/* The ember marks the thing there is to do, and on /profile at rest there is none: the field
+          opens holding the name the account already has, and a glowing «Change username» over it
+          asks for a change nobody is making. So the same `unchanged` that keeps the check from being
+          asked keeps the glow off, and it comes on the moment the name in the field is a different
+          one. On /set-username there is no saved name to equal, so anything typed lights it. */}
       <Button
         label={submitLabel}
-        variant="primary"
+        variant={unchanged ? 'secondary' : 'primary'}
         wide
         busy={busy}
         disabled={typed === ''}
