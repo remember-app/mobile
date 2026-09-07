@@ -6,7 +6,7 @@ import { ApiError, errorMessage, verifyEmailToken } from '@/api';
 import { useAuth } from '@/auth';
 import { Banner, Button, Empty } from '@/kit';
 import { useStrings } from '@/language';
-import { color, space } from '@/theme';
+import { space, themed } from '@/theme';
 
 /**
  * Where `remember://auth/email?token=…` lands. The link token is only ever handed straight
@@ -16,6 +16,7 @@ export default function EmailLinkScreen() {
   const params = useLocalSearchParams<{ token?: string | string[] }>();
   const { signIn } = useAuth();
   const s = useStrings();
+  const styles = useStyles();
   const [error, setError] = useState<string | null>(null);
 
   // A repeated query key arrives as an array; the api takes one string.
@@ -65,11 +66,13 @@ export default function EmailLinkScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: space.s6,
-    backgroundColor: color.ink,
-  },
-});
+const useStyles = themed(({ color }) =>
+  StyleSheet.create({
+    screen: {
+      flex: 1,
+      justifyContent: 'center',
+      padding: space.s6,
+      backgroundColor: color.ink,
+    },
+  }),
+);

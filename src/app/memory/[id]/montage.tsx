@@ -33,7 +33,7 @@ import {
 } from '@/kit';
 import { useStrings } from '@/language';
 import { type Strings } from '@/strings';
-import { color, space } from '@/theme';
+import { space, themes } from '@/theme';
 
 /** The four standings a montage can be in, in the three the kit draws (section 10). */
 const MONTAGE_STATE: Record<Montage['status'], MontageState> = {
@@ -422,13 +422,23 @@ function Playing({ url }: { url: string }) {
   return <VideoView player={player} style={styles.big} />;
 }
 
+/**
+ * The kit pins `.viewer` to the dark set in every theme (kit.html, block 0.2): «вокруг фотографии
+ * не должно быть ничего светлее её самой». `gallery.tsx` says the same at more length — the two
+ * screens draw the same viewer, and this is the one value in this sheet that has an opinion.
+ *
+ * So nothing here turns with the theme, and the sheet is a plain one: the list this screen draws is
+ * cards from the kit on the layout's own background, and both of those already turn by themselves.
+ */
+const room = themes.dark.color;
+
 const styles = StyleSheet.create({
   body: { paddingHorizontal: space.s5, paddingBottom: space.s8, gap: space.s3 },
   // A card and, under a fallen one, the line the worker left — closer to each other than the
   // screen's own gap, because they are one thing.
   montage: { gap: space.s2 },
   choices: { flexDirection: 'row', flexWrap: 'wrap', gap: space.s2 },
-  viewer: { flex: 1, backgroundColor: color.ink, justifyContent: 'center' },
+  viewer: { flex: 1, backgroundColor: room.ink, justifyContent: 'center' },
   bar: { justifyContent: 'center', paddingHorizontal: space.s4 },
   big: { flex: 1, width: '100%' },
 });

@@ -1,0 +1,81 @@
+import { expect, test, vi } from 'vitest';
+
+import gallery from './app/memory/[id]/gallery.tsx?raw';
+import montage from './app/memory/[id]/montage.tsx?raw';
+import { themes } from '@/theme';
+
+// `@/theme` reads the stored pick on import, and `expo-secure-store` is native — it does not exist
+// under vitest. `theme.test.ts` mocks it the same way; here nothing asks it anything, so the store
+// only has to be there. What the theme currently is does not matter below: both sets are read by
+// name, which is the point — the pinned values must not depend on which one is live.
+vi.mock('expo-secure-store', () => ({
+  getItemAsync: async () => null,
+  setItemAsync: async () => {},
+}));
+
+/**
+ * Every screen draws in the theme the app is currently in — with the one exception the kit itself
+ * writes down, pinned below so it cannot be lost either.
+ *
+ * Read off the source and over the whole of `src/app` rather than screen by screen: what breaks this
+ * is not one of today's routes going wrong, it is the fourteenth one being written by copying the
+ * pattern that stood here before TASK-89 — a module-scope `StyleSheet.create` reading a fixed set.
+ * That screen would look right to whoever wrote it, in the theme they wrote it in, and only turn up
+ * as a dark screen under light chrome on somebody else's phone. A test naming the routes by hand
+ * would not see it; the glob sweeps whatever is there, so a new screen is covered by existing.
+ *
+ * As text and not rendered, the same reason `memory-screens.test.ts` gives: these are `expo-router`
+ * routes wired to auth and the api, and there is no renderer here for one. `?raw` through the
+ * bundler and not `node:fs`, for the reason `raw.d.ts` gives: nothing under `src/` may reach the
+ * filesystem, because everything under `src/` runs on a phone.
+ */
+const screens = Object.entries(
+  import.meta.glob<string>('./app/**/*.tsx', { query: '?raw', import: 'default', eager: true }),
+);
+
+test('there are screens to check at all', () => {
+  // Guards the sweep itself: a move of `src/app` would otherwise leave every case below passing
+  // over an empty list.
+  expect(screens.length).toBeGreaterThanOrEqual(13);
+});
+
+test.each(screens)('%s builds no fixed sheet of its own', (_path, source) => {
+  // A sheet built once at module scope cannot answer a switch. Either it is wrapped in `themed(…)`
+  // — which makes it a hook, and it redraws — or every colour in it is one the kit pins on purpose,
+  // which is `themes.dark` spelled out and checked by name below, never a live `color`/`shade`.
+  for (const sheet of source.matchAll(/StyleSheet\.create\(\{[\s\S]*?\n\}\)/g)) {
+    expect(sheet[0]).not.toMatch(/\bcolor\.|\bshade\./);
+  }
+});
+
+/**
+ * The kit's one deliberate exception, block 0.2: `.viewer` sits in the dark-pinned selector list
+ * beside `:root` and `[data-theme="dark"]` — «открытый на весь экран кадр остаётся тёмной комнатой
+ * в любой теме. Вокруг фотографии не должно быть ничего светлее её самой». The kit demonstrates it
+ * with a `data-theme="light"` figure whose viewer is still dark, and `.filmstrip` inherits the pin
+ * by sitting inside `.viewer` in that same markup.
+ *
+ * Worth its own test because it reads as a bug: the obvious «fix» is to make these follow the theme
+ * like everything else on the screen, which is exactly what this milestone did before the kit was
+ * re-read. Pinned to the values and not just to the spelling, so swapping `room` back to the live
+ * `color` fails here rather than in somebody's eyes.
+ */
+test('the open frame stays a dark room in both themes', () => {
+  // Light is the theme the mistake shows up in: `ink` there is a pale mat board.
+  expect(themes.light.color.ink).not.toBe(themes.dark.color.ink);
+
+  expect(gallery).toContain('const room = themes.dark.color;');
+  expect(gallery).toContain('viewer: { flex: 1, backgroundColor: room.ink }');
+  expect(gallery).toContain('filmstrip: { backgroundColor: room.ink }');
+  // The ring on the open frame is inside the viewer too, so its ember is the dark one.
+  expect(gallery).toContain('stripCurrent: { borderWidth: 2, borderColor: room.ember }');
+
+  expect(montage).toContain('const room = themes.dark.color;');
+  expect(montage).toContain('viewer: { flex: 1, backgroundColor: room.ink, justifyContent:');
+});
+
+test('and the screens around it still turn with the theme', () => {
+  // The grid behind the viewer is interface, not the room a photograph is looked at in. Naming it
+  // here keeps the pin above from being widened into «this whole file is dark» by the next reader.
+  expect(gallery).toContain('screen: { flex: 1, backgroundColor: color.ink }');
+});

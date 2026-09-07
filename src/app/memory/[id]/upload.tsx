@@ -30,7 +30,7 @@ import {
 } from '@/kit';
 import { useStrings } from '@/language';
 import { assetsInEventWindow } from '@/media-window';
-import { color, space } from '@/theme';
+import { space, themed } from '@/theme';
 import { progress } from '@/upload-queue';
 import { drop, enqueue, useUploads, wake } from '@/uploads';
 
@@ -54,6 +54,7 @@ export default function UploadScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { token } = useAuth();
   const s = useStrings();
+  const styles = useStyles();
   // The whole app's queue; the rows below are this memory's share of it.
   const uploads = useUploads();
   // Checked on mount, asked for only on the button — that is the difference between knowing
@@ -362,6 +363,7 @@ export default function UploadScreen() {
 function Screen({ title, children }: { title: string; children: ReactNode }) {
   const router = useRouter();
   const s = useStrings();
+  const styles = useStyles();
   const insets = useSafeAreaInsets();
 
   return (
@@ -383,17 +385,24 @@ function Screen({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: color.ink, paddingHorizontal: space.s4, gap: space.s3 },
-  waiting: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  // The kit's sheet: 3px between frames, and nothing else — the material is the picture here.
-  sheet: { flexGrow: 1, gap: 3 },
-  sheetRow: { gap: 3 },
-  // A third of the row and not `flex: 1`: a last row holding one photo must leave it a third of
-  // the width, not stretch it across the screen. The tile brings its own square.
-  cell: { flex: 1 / 3 },
-  queue: { gap: space.s3 },
-  parked: { maxHeight: 132 },
-  parkedRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.s2 },
-  parkedName: { flexShrink: 1 },
-});
+const useStyles = themed(({ color }) =>
+  StyleSheet.create({
+    screen: { flex: 1, backgroundColor: color.ink, paddingHorizontal: space.s4, gap: space.s3 },
+    waiting: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    // The kit's sheet: 3px between frames, and nothing else — the material is the picture here.
+    sheet: { flexGrow: 1, gap: 3 },
+    sheetRow: { gap: 3 },
+    // A third of the row and not `flex: 1`: a last row holding one photo must leave it a third of
+    // the width, not stretch it across the screen. The tile brings its own square.
+    cell: { flex: 1 / 3 },
+    queue: { gap: space.s3 },
+    parked: { maxHeight: 132 },
+    parkedRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: space.s2,
+    },
+    parkedName: { flexShrink: 1 },
+  }),
+);

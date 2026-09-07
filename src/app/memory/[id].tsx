@@ -40,7 +40,7 @@ import {
   Text,
 } from '@/kit';
 import { useStrings } from '@/language';
-import { color, space } from '@/theme';
+import { space, useTheme } from '@/theme';
 
 /**
  * One memory: who is in it, how to get more people in, and how to get out. What the caller
@@ -56,6 +56,8 @@ export default function MemoryScreen() {
   const { token, user } = useAuth();
   const router = useRouter();
   const s = useStrings();
+  // The platform's switch takes its colours as props, not as a style — the sheet below has none.
+  const { color } = useTheme();
   const insets = useSafeAreaInsets();
   // null means «not loaded yet» — the same distinction the home screen draws, so a refetch
   // after an invite keeps the roster on screen instead of flashing the spinner over it.
