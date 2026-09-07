@@ -56,6 +56,35 @@ test('the two screens reach each other by an appbar icon, without stacking a cop
   expect(montage).toContain("router.navigate({ pathname: '/memory/[id]'");
 });
 
+// The open frame, read the same way. What was reported is a shape — «во весь экран без кнопок
+// снизу, а снизу лента» — and a shape is what these pin: where the actions went, and that the strip
+// is the grid's own list read once. Everything the strip decides is pinned properly in
+// `frames.test.ts`; these three only guard the layout from drifting back.
+
+test('nothing stands under the open frame — the actions moved up onto it', () => {
+  // The bottom bar of the viewer and the style it wore are gone; the grid keeps its own.
+  expect(gallery).not.toContain('styles.bar');
+  expect(gallery).toContain('styles.viewerBar');
+  for (const action of ['label="Close"', 'label="Download"', 'label="Delete"']) {
+    expect(gallery.slice(gallery.indexOf('styles.viewerBar'))).toContain(action);
+  }
+  // And they are still the same three errands, the delete still behind the kit's sheet.
+  expect(gallery).toContain('ConfirmSheet');
+  expect(gallery).toContain('void save(shown)');
+});
+
+test("the strip under the frame is the grid's own list, read once", () => {
+  expect(gallery).toContain('initialScrollIndex={frameIndex(items, open)}');
+  // One read of the media serves both the sheet and the strip.
+  expect(gallery.match(/listMedia\(/g)).toHaveLength(1);
+});
+
+test('a strip tile and a sheet tile read a record the same way', () => {
+  // `frameOf` twice and nowhere else: the two places that draw a record must not drift, which is
+  // the bug the whole of `@/frames` exists to have fixed once.
+  expect(gallery.match(/frameOf\(item\)/g)).toHaveLength(2);
+});
+
 test('the roads into a memory are unchanged, and a finished montage opens the montage screen', () => {
   // An accepted invite and the gallery's `Users` icon both land on the guest list; only the
   // «ролик готов» push follows the videos to where they went.

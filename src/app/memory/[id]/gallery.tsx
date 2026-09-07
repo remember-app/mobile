@@ -1,6 +1,15 @@
 import { useFocusEffect, useIsFocused, useLocalSearchParams, useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
-import { Camera, ChevronLeft, Download, Plus, TriangleAlert, Users } from 'lucide-react-native';
+import {
+  Camera,
+  ChevronLeft,
+  Download,
+  Plus,
+  Trash2,
+  TriangleAlert,
+  Users,
+  X,
+} from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, Image, Modal, RefreshControl, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,16 +21,27 @@ import {
   downloadMedia,
   errorMessage,
   listMedia,
-  listMemories,
+  listMembers,
   mayContribute,
   type MediaItem,
-  type MemberRole,
+  type Member,
 } from '@/api';
 import { useAuth } from '@/auth';
 import { formatRuntime } from '@/dates';
 import { maySaveToPhone, REFUSED, saveToPhone } from '@/downloads';
-import { frameOf, stillPreparing } from '@/frames';
-import { ActionBar, AppBar, Banner, Button, ConfirmSheet, Empty, IconButton, Tile } from '@/kit';
+import { frameIndex, frameOf, mayOpen, shotBy, stillPreparing } from '@/frames';
+import {
+  ActionBar,
+  AppBar,
+  Banner,
+  Button,
+  ConfirmSheet,
+  Empty,
+  IconButton,
+  RailH,
+  Text,
+  Tile,
+} from '@/kit';
 import { color, space } from '@/theme';
 
 /** What a tile says while there is no derivative to draw. A `ready` record always has one. */
@@ -38,12 +58,17 @@ const WAITING: Record<MediaItem['status'], string> = {
  */
 const WHILE_PREPARING_MS = 3000;
 
+/** The kit's filmstrip tile — 52px, and 3px of gutter after it, the contact sheet's own. */
+const STRIP_TILE = 52;
+const STRIP_GAP = 3;
+
 /**
  * What everybody put in, as everybody sees it — a viewer included (architecture.md, «Проверка
- * прав»). The grid is the kit's contact sheet (section 8), tapping one frame opens it big, and a
- * video plays its 720p preview straight from R2 rather than downloading first. Only «Download»
- * reaches past the derivatives: the original as it was sent, saved into the phone's gallery, one
- * file or the lot of them.
+ * прав»). The grid is the kit's contact sheet (section 8); tapping one frame opens it on the whole
+ * screen, with its actions over it and the rest of the gallery in a strip underneath to walk along
+ * («Кадр на весь экран»). A video plays its 720p preview straight from R2 rather than downloading
+ * first. Only «Download» reaches past the derivatives: the original as it was sent, saved into the
+ * phone's gallery, one file or the lot of them.
  */
 export default function GalleryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -53,7 +78,8 @@ export default function GalleryScreen() {
   // null means «not loaded yet», the distinction the other screens draw: a reload after a delete
   // keeps the grid on screen instead of flashing the spinner over it.
   const [items, setItems] = useState<MediaItem[] | null>(null);
-  const [role, setRole] = useState<MemberRole | null>(null);
+  /** Everybody in this memory: where the caller stands, and the name over every open frame. */
+  const [roster, setRoster] = useState<Member[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   /** The record the viewer is showing, held by id so a reload hands it a fresh signed url. */
@@ -85,13 +111,14 @@ export default function GalleryScreen() {
         setError(null);
         setLoading(true);
       }
-      // The gallery carries no role, and this screen needs the caller's own to know who may delete
-      // what. The same road the other two screens take, and it works however this one was reached.
-      Promise.all([listMedia(token, id), listMemories(token)])
+      // The gallery carries neither a role nor a name, and this screen needs both: who may delete
+      // what, and who brought the frame that is open. The roster answers both in one read, the way
+      // the guest list screen reads its own — and it works however this screen was reached.
+      Promise.all([listMedia(token, id), listMembers(token, id)])
         .then(
-          ([media, memories]) => {
+          ([media, members]) => {
             setItems(media);
-            setRole(memories.find((one) => one.id === id)?.role ?? null);
+            setRoster(members);
             setError(null);
           },
           (e: unknown) => {
@@ -127,6 +154,8 @@ export default function GalleryScreen() {
     return () => clearInterval(timer);
   }, [preparing, focused, load]);
 
+  // The caller's own standing, read off their row the way the guest list reads it.
+  const role = roster?.find((member) => member.id === user?.id)?.role ?? null;
   // Ownership and not role: a viewer may delete what they brought, a contributor may not delete a
   // neighbour's. The api is the authority — this only decides whether to draw the button.
   const mayDelete = (item: MediaItem) => item.uploaded_by === user?.id || role === 'organizer';
@@ -175,6 +204,9 @@ export default function GalleryScreen() {
     setNotice(null);
     try {
       if (!(await maySave())) return;
+      // The viewer's actions are icons now, and an icon has no spinner in it — this line is where
+      // «it is doing something» is said, and the next one replaces it with how it went.
+      setNotice('Saving…');
       const { url } = await downloadMedia(token, id, item.id);
       await saveToPhone({ id: item.id, kind: item.kind, url });
       setNotice('Saved to your gallery.');
@@ -364,47 +396,130 @@ export default function GalleryScreen() {
           >
             {shown === null ? null : (
               <View style={styles.viewer}>
-                {shown.kind === 'video' && shown.preview_url !== null ? (
-                  <Playing url={shown.preview_url} />
-                ) : openFrame !== null && openFrame.uri !== null ? (
-                  <Image source={{ uri: openFrame.uri }} style={styles.big} resizeMode="contain" />
-                ) : (
-                  // Nothing was ever made for this one. Said here as well as on the tile, because
-                  // this is the screen the delete button is on — a failed record is one somebody
-                  // may want rid of rather than looked at.
-                  <View style={[styles.big, styles.blank]}>
-                    <Empty icon={TriangleAlert} text={WAITING[shown.status]} />
-                  </View>
-                )}
-                {notice ? <Banner text={notice} style={styles.viewerNotice} /> : null}
-                <ActionBar style={styles.bar}>
-                  <Button
-                    variant="quiet"
-                    label="Close"
-                    onPress={() => setOpen(null)}
-                    disabled={busy}
-                  />
-                  {/* Not gated on anything: a viewer may take home what they are looking at, and
-                      the api says the same — the download route asks for membership and nothing
-                      more. `busy` is the screen's one flag, so a delete lights this spinner too;
-                      the download is the errand that lasts long enough to need it. */}
-                  <Button
-                    variant="primary"
-                    icon={Download}
-                    label="Download"
-                    busy={busy}
-                    disabled={busy}
-                    onPress={() => void save(shown)}
-                  />
-                  {mayDelete(shown) ? (
-                    <Button
-                      variant="danger"
-                      label="Delete"
-                      onPress={() => setConfirming(true)}
+                <View style={styles.frame}>
+                  {shown.kind === 'video' && shown.preview_url !== null ? (
+                    // Keyed by the record: walking from one video to the next along the strip
+                    // mounts a fresh player on the new file, which is what starts it playing —
+                    // the same component handed a new url would be a player already made.
+                    <Playing key={shown.id} url={shown.preview_url} />
+                  ) : openFrame !== null && openFrame.uri !== null ? (
+                    // Whole and not cropped, the kit's `.viewer__frame img`: the frame is shown as
+                    // it was shot even when that is not the shape of the phone, and what is left
+                    // over at the sides is ink rather than a border.
+                    <Image source={{ uri: openFrame.uri }} style={styles.big} resizeMode="contain" />
+                  ) : (
+                    // Nothing was ever made for this one. Said here as well as on the tile, because
+                    // this is the screen the delete button is on — a failed record is one somebody
+                    // may want rid of rather than looked at.
+                    <View style={[styles.big, styles.blank]}>
+                      <Empty icon={TriangleAlert} text={WAITING[shown.status]} />
+                    </View>
+                  )}
+
+                  {/* The kit's `.viewer__bar`: what can be done to the frame stands over it on a
+                      darkening, not under it — «без кнопок снизу», which is what was asked for, and
+                      what every phone's own gallery does. `box-none` so the darkening itself never
+                      swallows a touch meant for the frame. */}
+                  <View
+                    style={[styles.viewerBar, { paddingTop: insets.top + space.s2 }]}
+                    pointerEvents="box-none"
+                  >
+                    <IconButton
+                      icon={X}
+                      label="Close"
+                      tint={color.paper}
+                      onPress={() => setOpen(null)}
                       disabled={busy}
                     />
-                  ) : null}
-                </ActionBar>
+                    {/* `.viewer__who` — who brought this frame and the day it was shot. */}
+                    <Text role="meta" numberOfLines={1} style={styles.who}>
+                      {shotBy(shown, roster)}
+                    </Text>
+                    {/* Not gated on anything: a viewer may take home what they are looking at, and
+                        the api says the same — the download route asks for membership and nothing
+                        more. */}
+                    <IconButton
+                      icon={Download}
+                      label="Download"
+                      tint={color.paper}
+                      onPress={() => void save(shown)}
+                      disabled={busy}
+                    />
+                    {mayDelete(shown) ? (
+                      <IconButton
+                        icon={Trash2}
+                        label="Delete"
+                        tint={color.paper}
+                        onPress={() => setConfirming(true)}
+                        disabled={busy}
+                      />
+                    ) : null}
+                  </View>
+
+                  {notice ? <Banner text={notice} style={styles.viewerNotice} /> : null}
+                </View>
+
+                {/* The kit's `.filmstrip`: the whole contact sheet rolled into one row, and the
+                    only thing under the frame. The same list the grid draws — no second read —
+                    with every frame dimmed but the open one. */}
+                <View
+                  style={[
+                    styles.filmstrip,
+                    { paddingBottom: Math.max(insets.bottom, space.s2) },
+                  ]}
+                >
+                  <RailH />
+                  <FlatList
+                    horizontal
+                    data={items}
+                    keyExtractor={(item) => item.id}
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.track}
+                    // A fixed tile and a fixed gutter, so the strip can be told where to start
+                    // without measuring anything: opening the fortieth frame from the grid must
+                    // put the fortieth tile under it, not the first.
+                    getItemLayout={(_, index) => ({
+                      length: STRIP_TILE,
+                      offset: (STRIP_TILE + STRIP_GAP) * index,
+                      index,
+                    })}
+                    initialScrollIndex={frameIndex(items, open)}
+                    renderItem={({ item }) => {
+                      const frame = frameOf(item);
+                      const current = item.id === shown.id;
+                      return (
+                        <Tile
+                          // The sheet's own tile, handed a width and a dimming — the kit's strip is
+                          // the same frame smaller and in shadow, with the open one lit and ringed
+                          // in ember, the mark a picked frame already wears. `filter: brightness`
+                          // is the kit's spelling; over ink, opacity is the same thing everywhere.
+                          style={[
+                            styles.stripTile,
+                            current ? styles.stripCurrent : styles.stripDim,
+                          ]}
+                          state={frame.state}
+                          uri={frame.uri ?? undefined}
+                          // No caption: at 52px there are no words to read, only the safelight.
+                          length={
+                            item.kind === 'video'
+                              ? (formatRuntime(item.duration_seconds) ?? 'Video')
+                              : undefined
+                          }
+                          label={
+                            current
+                              ? `${item.kind}, open`
+                              : item.status === 'ready'
+                                ? item.kind
+                                : `${item.kind}, ${WAITING[item.status]}`
+                          }
+                          // A frame still developing stays in the strip and stays shut: there is
+                          // nothing behind it to open yet.
+                          onPress={mayOpen(item) ? () => setOpen(item.id) : undefined}
+                        />
+                      );
+                    }}
+                  />
+                </View>
 
                 {/* Irreversible, and the api takes the bytes with it — worth one question first,
                     asked on the kit's sheet (section 13) and not by the system dialog. Inside the
@@ -436,6 +551,10 @@ export default function GalleryScreen() {
  * was written with its index at the front, so playback starts before the whole thing is down
  * (architecture.md, «Видео в галерее»). Its own component because the player is a hook, and this
  * one is mounted only while a video is on screen — leaving it releases the player.
+ *
+ * It plays the moment it opens and wears the platform's own transport, which is what a phone's
+ * gallery does with a video. The kit's `.viewer__play` is not missing from above: it stands on a
+ * drawing that has no video in it to start, and there is nothing here for it to start.
  */
 function Playing({ url }: { url: string }) {
   const player = useVideoPlayer(url, (video) => video.play());
@@ -454,9 +573,36 @@ const styles = StyleSheet.create({
   // one tile in it must leave it a third of the width.
   cell: { flex: 1 / 3 },
   notice: { marginTop: space.s3 },
-  viewer: { flex: 1, backgroundColor: color.ink, justifyContent: 'center' },
-  viewerNotice: { marginHorizontal: space.s4 },
-  bar: { justifyContent: 'space-between', paddingHorizontal: space.s4 },
+  // The open frame is the whole screen: the frame takes what is left after the strip, and the bar
+  // lies over it rather than beside it.
+  viewer: { flex: 1, backgroundColor: color.ink },
+  frame: { flex: 1, justifyContent: 'center' },
   big: { flex: 1, width: '100%' },
   blank: { justifyContent: 'center' },
+  viewerBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.s2,
+    paddingHorizontal: space.s2,
+    paddingBottom: space.s6,
+    // The kit's own gradient, written the way React Native takes one — no library for a background.
+    // It fades to nothing so the frame is never cut in half by an edge; the icons over it read on
+    // snow the same as on night.
+    // ponytail: the property is still `experimental_` in RN 0.86. Renamed or dropped, it goes
+    // quiet — the icons stay paper-white but lose their darkening over a bright frame; the upgrade
+    // is the settled name, or `expo-linear-gradient` if it never settles.
+    experimental_backgroundImage: 'linear-gradient(rgba(20,17,15,.86), rgba(20,17,15,0))',
+  },
+  who: { flex: 1, paddingLeft: space.s1, color: 'rgba(242,236,227,.76)' },
+  // Over the frame and at the foot of it: the strip below must stay the only thing under the frame.
+  viewerNotice: { position: 'absolute', left: space.s4, right: space.s4, bottom: space.s4 },
+  filmstrip: { backgroundColor: color.ink },
+  track: { gap: STRIP_GAP, paddingHorizontal: space.s2, paddingTop: space.s2 },
+  stripTile: { width: STRIP_TILE },
+  stripDim: { opacity: 0.42 },
+  stripCurrent: { borderWidth: 2, borderColor: color.ember },
 });

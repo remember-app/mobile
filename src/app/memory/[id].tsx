@@ -12,6 +12,7 @@ import {
   listMemories,
   listMembers,
   mayContribute,
+  memberName,
   removeMember,
   rotateInvite,
   setContributionStatus,
@@ -56,9 +57,6 @@ const CONTRIBUTION: Record<ContributionStatus, string> = {
   done: 'Uploaded everything',
   nothing: 'Nothing to add',
 };
-
-/** Whoever it is, under whichever of the two names they have. */
-const label = (member: Member) => member.name ?? member.username ?? 'Someone';
 
 /**
  * One memory: who is in it, how to get more people in, and how to get out. What the caller
@@ -161,8 +159,8 @@ export default function MemoryScreen() {
         setUsername('');
         load();
         return already
-          ? `${label(added)} is already here — still «${ROLE[added.role]}».`
-          : `Added ${label(added)} — «${ROLE[added.role]}».`;
+          ? `${memberName(added)} is already here — still «${ROLE[added.role]}».`
+          : `Added ${memberName(added)} — «${ROLE[added.role]}».`;
       },
       {
         404: 'No one has that username.',
@@ -270,7 +268,7 @@ export default function MemoryScreen() {
               return (
                 <View key={member.id}>
                   <RowMember
-                    name={`${label(member)}${self ? ' (you)' : ''}`}
+                    name={`${memberName(member)}${self ? ' (you)' : ''}`}
                     // Section 7 writes «@marina · 42 кадра» on one line, so the standing goes
                     // beside the username rather than under it. The wording is doc-06's own.
                     meta={[
@@ -286,7 +284,7 @@ export default function MemoryScreen() {
                       <IconButton
                         icon={X}
                         size={ICO_S}
-                        label={`Remove ${label(member)}`}
+                        label={`Remove ${memberName(member)}`}
                         onPress={() => setDropping(member)}
                         disabled={busy}
                       />
@@ -414,7 +412,7 @@ export default function MemoryScreen() {
       {dropping !== null ? (
         <ConfirmSheet
           visible
-          title={leaving ? 'Leave this memory?' : `Remove ${label(dropping)}?`}
+          title={leaving ? 'Leave this memory?' : `Remove ${memberName(dropping)}?`}
           text={
             leaving
               ? 'Everything you uploaded here goes with you. There is no getting it back.'

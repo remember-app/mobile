@@ -46,6 +46,7 @@ export function IconButton({
   label,
   onPress,
   size = ICO,
+  tint = color.muted,
   disabled,
   style,
 }: {
@@ -53,6 +54,12 @@ export function IconButton({
   label: string;
   onPress?: () => void;
   size?: number;
+  /**
+   * What it is drawn in when untouched — `.viewer__bar .iconbtn{color:var(--paper)}`, the kit's one
+   * override of the muted default. Over an open frame there is no surface behind the icon, so muted
+   * is the difference between an action and a smudge.
+   */
+  tint?: string;
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
@@ -76,7 +83,7 @@ export function IconButton({
         style,
       ]}
     >
-      <Icon icon={icon} size={size} color={hovered ? color.paper : color.muted} />
+      <Icon icon={icon} size={size} color={hovered ? color.paper : tint} />
     </Pressable>
   );
 }

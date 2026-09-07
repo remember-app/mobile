@@ -174,6 +174,15 @@ export type Member = Omit<User, 'email'> & {
   contribution_status: ContributionStatus;
 };
 
+/**
+ * What a person is called on screen: the name they gave, else the username they claimed, else the
+ * word for a stranger. One copy, for the reason `mayContribute` has one — the roster names people
+ * and so does every open frame, and the two must say the same thing about the same person. `null`
+ * is «not on the roster», which a frame from somebody who has since left the memory hits.
+ */
+export const memberName = (member: Pick<Member, 'name' | 'username'> | null) =>
+  member?.name ?? member?.username ?? 'Someone';
+
 /** What may actually be granted. Never `organizer`: a memory has exactly one, its creator. */
 export type InviteRole = Exclude<MemberRole, 'organizer'>;
 
