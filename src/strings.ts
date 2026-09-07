@@ -322,7 +322,8 @@ export const en = {
   /** The account: who you are here, and the way out. */
   profile: {
     title: 'Profile',
-    noName: 'No name set',
+    /** Stands where the name would be. An invitation to give one, never a report that there is none. */
+    noName: 'Add your name',
     changeUsername: 'Change username',
     logOutAsk: 'Log out?',
     logOutText:
@@ -344,7 +345,10 @@ export const en = {
    * The two languages name themselves. A person looking for their own language reads it in that
    * language, so these two lines are the same in both sets on purpose.
    */
-  language: { ru: 'Русский', en: 'English' },
+  language: { label: 'Language', ru: 'Русский', en: 'English' },
+
+  /** doc-9. The third one is not a light but the phone going on deciding. */
+  theme: { label: 'Theme', system: 'As on phone', dark: 'Dark', light: 'Light' },
 };
 
 /** The shape both sets keep. */
@@ -586,7 +590,7 @@ export const ru: Strings = {
 
   profile: {
     title: 'Профиль',
-    noName: 'Имя не указано',
+    noName: 'Добавьте имя',
     changeUsername: 'Сменить ник',
     logOutAsk: 'Выйти?',
     logOutText:
@@ -603,7 +607,9 @@ export const ru: Strings = {
     continue: 'Продолжить',
   },
 
-  language: { ru: 'Русский', en: 'English' },
+  language: { label: 'Язык', ru: 'Русский', en: 'English' },
+
+  theme: { label: 'Тема', system: 'Как в телефоне', dark: 'Тёмная', light: 'Светлая' },
 };
 
 /** Both sets, by the language they belong to. */

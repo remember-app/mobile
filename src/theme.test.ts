@@ -83,3 +83,38 @@ test('and it stops following the phone once someone has picked', async () => {
   phone.tell?.({ colorScheme: 'light' });
   expect(theme.currentTheme()).toBe('dark');
 });
+
+/**
+ * The third value on the kit's switch — «Как в телефоне». It is not a light, it is the pick being
+ * taken back, and until the switch existed there was no way to reach it: `setTheme` was one-way.
+ */
+test('handing the decision back to the phone starts it deciding again', async () => {
+  phone.stored = null;
+  const theme = await start('dark');
+  await theme.setTheme('light');
+  expect(theme.currentTheme()).toBe('light');
+
+  // The phone went dark at some point while it was not being listened to. Handing it back asks it
+  // where it stands now, not where it stood when the app started.
+  phone.scheme = 'dark';
+  await theme.setTheme('system');
+  expect(theme.currentThemeChoice()).toBe('system');
+  expect(theme.currentTheme()).toBe('dark');
+
+  // And from here it follows again, the way it did before anybody picked.
+  phone.tell?.({ colorScheme: 'light' });
+  expect(theme.currentTheme()).toBe('light');
+});
+
+test('and giving it back outlives the app, the same as picking does', async () => {
+  phone.stored = null;
+  const first = await start('dark');
+  await first.setTheme('dark');
+  await first.setTheme('system');
+
+  // Next launch, phone in daylight: the app must not still be holding the dark somebody picked
+  // once and gave back.
+  const next = await start('light');
+  expect(next.currentThemeChoice()).toBe('system');
+  expect(next.currentTheme()).toBe('light');
+});

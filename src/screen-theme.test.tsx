@@ -1,8 +1,12 @@
+import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test, vi } from 'vitest';
 
 import gallery from './app/memory/[id]/gallery.tsx?raw';
 import montage from './app/memory/[id]/montage.tsx?raw';
-import { themes } from '@/theme';
+// The one component, not the barrel: `@/kit` reaches native modules node cannot parse, and this
+// needs the smallest thing in the kit that reads a colour.
+import { Text } from '@/kit/text';
+import { setTheme, ThemePin, themes } from '@/theme';
 
 // `@/theme` reads the stored pick on import, and `expo-secure-store` is native — it does not exist
 // under vitest. `theme.test.ts` mocks it the same way; here nothing asks it anything, so the store
@@ -72,6 +76,36 @@ test('the open frame stays a dark room in both themes', () => {
 
   expect(montage).toContain('const room = themes.dark.color;');
   expect(montage).toContain('viewer: { flex: 1, backgroundColor: room.ink, justifyContent:');
+
+  // And the room is pinned for what is drawn *in* it, not only for the sheet under it: a `Tile`, a
+  // `Banner`, an `Empty`, the kit's own actionbar — every one of them asks `useTheme()` for itself.
+  expect(gallery).toContain('<ThemePin value="dark">');
+  expect(montage).toContain('<ThemePin value="dark">');
+});
+
+/**
+ * The pin itself, rendered rather than read: a kit component under it has to answer with the dark
+ * set while the app is in daylight. This is the half the two `room` sheets cannot cover — they are
+ * the container, and everything the container holds carries its own colours.
+ */
+test('a kit component inside the pin draws dark while the app is light', async () => {
+  await setTheme('light');
+
+  const pinned = renderToStaticMarkup(
+    <ThemePin value="dark">
+      <Text>Костя</Text>
+    </ThemePin>,
+  );
+  const loose = renderToStaticMarkup(<Text>Костя</Text>);
+
+  await setTheme('dark');
+  const room = renderToStaticMarkup(<Text>Костя</Text>);
+
+  // Compared against the app's own two renders rather than against a colour spelled out here:
+  // `react-native-web` hashes a style into a class name, and the hash is the value — same class,
+  // same `paper`. The pin has to move the line off the light one and land it exactly on the dark.
+  expect(pinned).not.toBe(loose);
+  expect(pinned).toBe(room);
 });
 
 test('and the screens around it still turn with the theme', () => {
