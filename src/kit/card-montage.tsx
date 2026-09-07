@@ -2,11 +2,10 @@ import { Play } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { Image, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { color, glow, radius, space } from '@/theme';
+import { radius, space, themed, useTheme, type Theme } from '@/theme';
 
 import { Spinner } from './empty';
-import { focusRing, useHoverFocus, useReducedMotion } from './interaction';
-import { shade } from './shades';
+import { useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
 import { Text } from './text';
 
 /** The kit's three states for a montage, section 10. */
@@ -46,6 +45,9 @@ export function CardMontage({
 }) {
   const { hovered, focused, props } = useHoverFocus();
   const reduced = useReducedMotion();
+  const theme = useTheme();
+  const styles = useStyles();
+  const focusRing = useFocusRing();
 
   return (
     <View style={[styles.card, style]}>
@@ -73,7 +75,12 @@ export function CardMontage({
               ]}
             >
               {/* The kit draws this one glyph filled rather than stroked. */}
-              <Play size={24} color={shade.onEmber} fill={shade.onEmber} strokeWidth={1.75} />
+              <Play
+                size={24}
+                color={theme.shade.onEmber}
+                fill={theme.shade.onEmber}
+                strokeWidth={1.75}
+              />
             </Pressable>
           ) : null}
         </View>
@@ -84,8 +91,8 @@ export function CardMontage({
           {title}
         </Text>
         <View style={styles.status}>
-          <View style={[styles.statusDot, { backgroundColor: statusColor(state) }]} />
-          <Text style={[styles.statusText, { color: statusColor(state) }]}>{status}</Text>
+          <View style={[styles.statusDot, { backgroundColor: statusColor(theme, state) }]} />
+          <Text style={[styles.statusText, { color: statusColor(theme, state) }]}>{status}</Text>
         </View>
         {actions}
       </View>
@@ -93,48 +100,50 @@ export function CardMontage({
   );
 }
 
-function statusColor(state: MontageState): string {
+function statusColor({ color, shade }: Theme, state: MontageState): string {
   if (state === 'ready') return color.fixed;
-  if (state === 'failed') return shade.danger;
+  if (state === 'failed') return shade.rustText;
   return color.muted;
 }
 
-const styles = StyleSheet.create({
-  card: {
-    borderWidth: 1,
-    borderColor: color.line,
-    borderRadius: radius.card,
-    overflow: 'hidden',
-    backgroundColor: color.surface,
-  },
-  poster: { aspectRatio: 16 / 9, backgroundColor: color.ink },
-  image: { width: '100%', height: '100%' },
-  pending: { alignItems: 'center', justifyContent: 'center', gap: space.s3 },
-  play: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    marginTop: -28,
-    marginLeft: -28,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: color.ember,
-    boxShadow: glow,
-  },
-  playHover: { transform: [{ scale: 1.05 }] },
-  foot: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: space.s3,
-    paddingVertical: space.s3,
-    paddingHorizontal: space.s4,
-  },
-  title: { flex: 1, minWidth: 0 },
-  status: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  statusDot: { width: 7, height: 7, borderRadius: 3.5 },
-  statusText: { fontSize: 13, lineHeight: 13, fontWeight: '500' },
-});
+const useStyles = themed(({ color, glow }) =>
+  StyleSheet.create({
+    card: {
+      borderWidth: 1,
+      borderColor: color.line,
+      borderRadius: radius.card,
+      overflow: 'hidden',
+      backgroundColor: color.surface,
+    },
+    poster: { aspectRatio: 16 / 9, backgroundColor: color.ink },
+    image: { width: '100%', height: '100%' },
+    pending: { alignItems: 'center', justifyContent: 'center', gap: space.s3 },
+    play: {
+      position: 'absolute',
+      top: '50%',
+      left: '50%',
+      marginTop: -28,
+      marginLeft: -28,
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: color.ember,
+      boxShadow: glow,
+    },
+    playHover: { transform: [{ scale: 1.05 }] },
+    foot: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: space.s3,
+      paddingVertical: space.s3,
+      paddingHorizontal: space.s4,
+    },
+    title: { flex: 1, minWidth: 0 },
+    status: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+    statusDot: { width: 7, height: 7, borderRadius: 3.5 },
+    statusText: { fontSize: 13, lineHeight: 13, fontWeight: '500' },
+  }),
+);

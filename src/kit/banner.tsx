@@ -2,10 +2,9 @@ import { Check, Info, TriangleAlert } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { color, radius, space } from '@/theme';
+import { radius, space, themed, useTheme, type Theme } from '@/theme';
 
 import { Icon, type IconComponent } from './icon';
-import { shade } from './shades';
 import { Text } from './text';
 
 /** `.banner-error` and `.banner-done`; left off, it is the plain one. */
@@ -29,6 +28,9 @@ export function Banner({
   children?: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
+  const theme = useTheme();
+  const styles = useStyles();
+
   return (
     <View
       accessibilityRole={tone === 'error' ? 'alert' : undefined}
@@ -40,7 +42,7 @@ export function Banner({
       ]}
     >
       <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-        <Icon icon={defaultIcon(tone)} color={iconColor(tone)} />
+        <Icon icon={defaultIcon(tone)} color={iconColor(theme, tone)} />
       </View>
       <Text style={styles.text}>{text}</Text>
       {children ? <View style={styles.actions}>{children}</View> : null}
@@ -54,26 +56,28 @@ function defaultIcon(tone: BannerTone | undefined): IconComponent {
   return Info;
 }
 
-function iconColor(tone: BannerTone | undefined): string {
-  if (tone === 'error') return shade.danger;
+function iconColor({ color, shade }: Theme, tone: BannerTone | undefined): string {
+  if (tone === 'error') return shade.rustText;
   if (tone === 'done') return color.fixed;
   return color.muted;
 }
 
-const styles = StyleSheet.create({
-  banner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: space.s3,
-    paddingVertical: space.s3,
-    paddingHorizontal: space.s4,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: color.line,
-    backgroundColor: color.surface,
-  },
-  error: { borderColor: shade.dangerLine, backgroundColor: shade.dangerBanner },
-  done: { borderColor: shade.fixedBanner },
-  text: { flex: 1, minWidth: 0, fontSize: 15, lineHeight: 21 },
-  actions: { flexShrink: 0 },
-});
+const useStyles = themed(({ color, shade }) =>
+  StyleSheet.create({
+    banner: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: space.s3,
+      paddingVertical: space.s3,
+      paddingHorizontal: space.s4,
+      borderRadius: radius.card,
+      borderWidth: 1,
+      borderColor: color.line,
+      backgroundColor: color.surface,
+    },
+    error: { borderColor: shade.rustLine, backgroundColor: shade.rustFill },
+    done: { borderColor: shade.fixedLine },
+    text: { flex: 1, minWidth: 0, fontSize: 15, lineHeight: 21 },
+    actions: { flexShrink: 0 },
+  }),
+);

@@ -7,11 +7,10 @@ import { Image } from 'expo-image';
 import { Check, TriangleAlert } from 'lucide-react-native';
 import { Animated, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { color, duration as motion, radius, space } from '@/theme';
+import { duration as motion, onScrim, radius, scrim, space, themed, useTheme } from '@/theme';
 
 import { ICO_S, Icon } from './icon';
-import { EASE, focusRing, useHoverFocus, useLoop, useReducedMotion } from './interaction';
-import { shade } from './shades';
+import { EASE, useFocusRing, useHoverFocus, useLoop, useReducedMotion } from './interaction';
 import { Text } from './text';
 
 /** The kit's `.tile--*`, section 8: what has become of one frame. */
@@ -48,6 +47,9 @@ export function Tile({
 }) {
   const { focused, props } = useHoverFocus();
   const reduced = useReducedMotion();
+  const { shade } = useTheme();
+  const styles = useStyles();
+  const focusRing = useFocusRing();
   // Only the waiting frame draws it, and only it should be paying for it: a sheet of a thousand
   // ready frames must not run a thousand loops nothing reads.
   const safelight = useLoop(1600, EASE, state === 'processing');
@@ -93,7 +95,7 @@ export function Tile({
       {state === 'failed' ? (
         <View style={[StyleSheet.absoluteFill, styles.state]}>
           <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-            <Icon icon={TriangleAlert} size={ICO_S} color={shade.danger} />
+            <Icon icon={TriangleAlert} size={ICO_S} color={shade.rustText} />
           </View>
           {caption ? <Text style={[styles.caption, styles.captionFailed]}>{caption}</Text> : null}
         </View>
@@ -151,44 +153,61 @@ export function Tile({
   );
 }
 
-const styles = StyleSheet.create({
-  tile: {
-    width: '100%',
-    aspectRatio: 1,
-    borderRadius: radius.frame,
-    overflow: 'hidden',
-    backgroundColor: color.surface,
-  },
-  processing: { borderWidth: 1, borderColor: color.line },
-  failed: { borderWidth: 1, borderColor: shade.dangerLine, backgroundColor: shade.dangerTile },
-  image: { width: '100%', height: '100%' },
-  // The kit dims a picked frame so the ember ring and the tick read over it.
-  dimmed: { opacity: 0.82 },
-  state: { alignItems: 'center', justifyContent: 'center', gap: 6, padding: space.s2 },
-  safelight: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: color.ember },
-  caption: { fontSize: 12, lineHeight: 15.6, fontWeight: '500', color: color.muted, textAlign: 'center' },
-  captionFailed: { color: shade.danger },
-  length: {
-    position: 'absolute',
-    right: 5,
-    bottom: 5,
-    paddingVertical: 2,
-    paddingHorizontal: 6,
-    borderRadius: radius.pill,
-    backgroundColor: shade.scrim,
-  },
-  lengthText: { fontSize: 12, lineHeight: 14.4, fontWeight: '500', fontVariant: ['tabular-nums'] },
-  // `box-shadow: inset 0 0 0 2px` has no React Native spelling; a bordered overlay is the same ring.
-  ring: { borderWidth: 2, borderColor: color.ember, borderRadius: radius.frame },
-  check: {
-    position: 'absolute',
-    top: 5,
-    right: 5,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: color.ember,
-  },
-});
+const useStyles = themed(({ color, shade }) =>
+  StyleSheet.create({
+    tile: {
+      width: '100%',
+      aspectRatio: 1,
+      borderRadius: radius.frame,
+      overflow: 'hidden',
+      backgroundColor: color.surface,
+    },
+    processing: { borderWidth: 1, borderColor: color.line },
+    failed: { borderWidth: 1, borderColor: shade.rustLine, backgroundColor: shade.rustFill },
+    image: { width: '100%', height: '100%' },
+    // The kit dims a picked frame so the ember ring and the tick read over it.
+    dimmed: { opacity: 0.82 },
+    state: { alignItems: 'center', justifyContent: 'center', gap: 6, padding: space.s2 },
+    safelight: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: color.ember },
+    caption: {
+      fontSize: 12,
+      lineHeight: 15.6,
+      fontWeight: '500',
+      color: color.muted,
+      textAlign: 'center',
+    },
+    captionFailed: { color: shade.rustText },
+    length: {
+      position: 'absolute',
+      right: 5,
+      bottom: 5,
+      paddingVertical: 2,
+      paddingHorizontal: 6,
+      borderRadius: radius.pill,
+      backgroundColor: scrim,
+    },
+    // On the scrim and not on the theme: the pill lies on the photograph, so what is read on it is
+    // the same in both themes.
+    lengthText: {
+      fontSize: 12,
+      lineHeight: 14.4,
+      fontWeight: '500',
+      fontVariant: ['tabular-nums'],
+      color: onScrim,
+    },
+    // `box-shadow: inset 0 0 0 2px` has no React Native spelling; a bordered overlay is the same
+    // ring.
+    ring: { borderWidth: 2, borderColor: color.ember, borderRadius: radius.frame },
+    check: {
+      position: 'absolute',
+      top: 5,
+      right: 5,
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: color.ember,
+    },
+  }),
+);

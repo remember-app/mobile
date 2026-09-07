@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react';
 
-import { color } from '@/theme';
+import { useTheme } from '@/theme';
 
 /**
  * Any icon from `lucide-react-native`. Typed by the props the kit actually sets rather than by
@@ -26,11 +26,14 @@ export const ICO_S = 16;
 export function Icon({
   icon: Glyph,
   size = ICO,
-  color: tint = color.paper,
+  color: tint,
 }: {
   icon: IconComponent;
   size?: number;
+  /** Left off, it is drawn in whatever the theme reads in — `paper`. */
   color?: string;
 }) {
-  return <Glyph size={size} color={tint} strokeWidth={1.75} />;
+  const { color } = useTheme();
+
+  return <Glyph size={size} color={tint ?? color.paper} strokeWidth={1.75} />;
 }

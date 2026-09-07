@@ -1,9 +1,8 @@
 import { Image, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { color, font, radius, space } from '@/theme';
+import { font, radius, space, themed } from '@/theme';
 
-import { focusRing, useHoverFocus, useReducedMotion } from './interaction';
-import { shade } from './shades';
+import { useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
 import { Text } from './text';
 
 /**
@@ -30,6 +29,8 @@ const RAIL_WIDTH = 8;
  * card's height was measured from — the card came out 74 taller than the anatomy it draws.
  */
 function Rail() {
+  const styles = useStyles();
+
   return (
     <View
       style={styles.rail}
@@ -52,6 +53,8 @@ function Rail() {
  * and says what to do about it.
  */
 function Strip({ thumbs, blank }: { thumbs: string[]; blank?: string }) {
+  const styles = useStyles();
+
   return (
     <View style={styles.strip}>
       {thumbs.length > 0 ? (
@@ -98,6 +101,8 @@ export function CardMemory({
 }) {
   const { hovered, focused, props } = useHoverFocus();
   const reduced = useReducedMotion();
+  const styles = useStyles();
+  const focusRing = useFocusRing();
 
   return (
     <Pressable
@@ -136,61 +141,63 @@ export function CardMemory({
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    width: '100%',
-    paddingVertical: space.s4,
-    paddingRight: space.s4,
-    // The kit's 12 to the perforation, the perforation's own 8, then the kit's 16 from it to the
-    // text. In the kit those last two are the rail and the row's gap; here the rail is painted over
-    // the padding instead of standing in the row, so the padding is what holds its place.
-    paddingLeft: space.s3 + RAIL_WIDTH + space.s4,
-    backgroundColor: color.surface,
-    borderWidth: 1,
-    borderColor: color.line,
-    borderRadius: radius.card,
-  },
-  cardHover: { backgroundColor: color.raise, borderColor: shade.lineHover },
-  press: { transform: [{ translateY: 1 }] },
-  // 4.8px holes, first centred 6.5 down, one every 13 — the kit's gradient, resolved to dots. Laid
-  // over the card's left padding, top and bottom pinned to the card's own: the strip is then exactly
-  // as tall as the card is and clips the dots that run past it, and nothing here sets a height.
-  rail: {
-    position: 'absolute',
-    left: space.s3,
-    top: space.s4,
-    bottom: space.s4,
-    width: RAIL_WIDTH,
-    alignItems: 'center',
-    paddingTop: 4.1,
-    gap: 8.2,
-    overflow: 'hidden',
-  },
-  railDot: { width: 4.8, height: 4.8, borderRadius: 2.4, backgroundColor: shade.perforation },
-  body: { flex: 1, minWidth: 0, gap: space.s2 },
-  title: { fontFamily: font.display, fontSize: 20, lineHeight: 24, letterSpacing: -0.2 },
-  // Gap on both rows: 8 between one fact and the next dot, 8 between that dot and its fact.
-  meta: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: space.s2 },
-  metaItem: { flexDirection: 'row', alignItems: 'center', gap: space.s2 },
-  dot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: color.muted },
-  // 3 between frames — the same cut as between two frames of the contact sheet — and 4 above the
-  // strip, which on top of the body's own 8 is the kit's 12 between the facts and the film.
-  strip: { flexDirection: 'row', gap: 3, marginTop: space.s1 },
-  // One band of film, whether a frame is printed on it or not. No width: the frames divide the
-  // strip between themselves, however many arrive. The height is fixed instead, so a memory with
-  // one frame in it takes no more of the list than a full one.
-  film: {
-    flex: 1,
-    height: 80,
-    borderRadius: radius.frame,
-    borderWidth: 1,
-    borderColor: color.line,
-    backgroundColor: color.ink,
-  },
-  blank: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.s4 },
-  // A sentence and not a fact, so it wraps: the kit gives this one line-height 1.35 where `meta`
-  // reads its figures at 1.2.
-  blankText: { lineHeight: 17.6, textAlign: 'center' },
-});
+const useStyles = themed(({ color, shade }) =>
+  StyleSheet.create({
+    card: {
+      flexDirection: 'row',
+      alignItems: 'stretch',
+      width: '100%',
+      paddingVertical: space.s4,
+      paddingRight: space.s4,
+      // The kit's 12 to the perforation, the perforation's own 8, then the kit's 16 from it to the
+      // text. In the kit those last two are the rail and the row's gap; here the rail is painted
+      // over the padding instead of standing in the row, so the padding holds its place.
+      paddingLeft: space.s3 + RAIL_WIDTH + space.s4,
+      backgroundColor: color.surface,
+      borderWidth: 1,
+      borderColor: color.line,
+      borderRadius: radius.card,
+    },
+    cardHover: { backgroundColor: color.raise, borderColor: shade.lineHi },
+    press: { transform: [{ translateY: 1 }] },
+    // 4.8px holes, first centred 6.5 down, one every 13 — the kit's gradient, resolved to dots.
+    // Laid over the card's left padding, top and bottom pinned to the card's own: the strip is then
+    // exactly as tall as the card is and clips the dots that run past it, and nothing sets a height.
+    rail: {
+      position: 'absolute',
+      left: space.s3,
+      top: space.s4,
+      bottom: space.s4,
+      width: RAIL_WIDTH,
+      alignItems: 'center',
+      paddingTop: 4.1,
+      gap: 8.2,
+      overflow: 'hidden',
+    },
+    railDot: { width: 4.8, height: 4.8, borderRadius: 2.4, backgroundColor: shade.perf },
+    body: { flex: 1, minWidth: 0, gap: space.s2 },
+    title: { fontFamily: font.display, fontSize: 20, lineHeight: 24, letterSpacing: -0.2 },
+    // Gap on both rows: 8 between one fact and the next dot, 8 between that dot and its fact.
+    meta: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: space.s2 },
+    metaItem: { flexDirection: 'row', alignItems: 'center', gap: space.s2 },
+    dot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: color.muted },
+    // 3 between frames — the same cut as between two frames of the contact sheet — and 4 above the
+    // strip, which on top of the body's own 8 is the kit's 12 between the facts and the film.
+    strip: { flexDirection: 'row', gap: 3, marginTop: space.s1 },
+    // One band of film, whether a frame is printed on it or not. No width: the frames divide the
+    // strip between themselves, however many arrive. The height is fixed instead, so a memory with
+    // one frame in it takes no more of the list than a full one.
+    film: {
+      flex: 1,
+      height: 80,
+      borderRadius: radius.frame,
+      borderWidth: 1,
+      borderColor: color.line,
+      backgroundColor: color.ink,
+    },
+    blank: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.s4 },
+    // A sentence and not a fact, so it wraps: the kit gives this one line-height 1.35 where `meta`
+    // reads its figures at 1.2.
+    blankText: { lineHeight: 17.6, textAlign: 'center' },
+  }),
+);

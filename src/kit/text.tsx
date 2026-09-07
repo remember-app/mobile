@@ -1,6 +1,6 @@
 import { Text as RNText, StyleSheet, type TextProps } from 'react-native';
 
-import { color, type } from '@/theme';
+import { themed, type } from '@/theme';
 
 /** The kit's six type roles (section 2). Roles, not sizes: ask for `title`, not for 22px. */
 export type TypeRole = keyof typeof type;
@@ -20,9 +20,20 @@ export function Text({
 Omit<TextProps, 'role'> & {
   role?: TypeRole;
 }) {
-  return <RNText style={[styles.paper, type[role], style]} {...rest} />;
+  const styles = useStyles();
+
+  return (
+    <RNText
+      style={[styles.paper, type[role], role === 'meta' ? styles.meta : null, style]}
+      {...rest}
+    />
+  );
 }
 
-const styles = StyleSheet.create({
-  paper: { color: color.paper },
-});
+const useStyles = themed(({ color }) =>
+  StyleSheet.create({
+    paper: { color: color.paper },
+    // `.t-meta` is the one role the kit gives a colour of its own.
+    meta: { color: color.muted },
+  }),
+);

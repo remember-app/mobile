@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 
-import { color, space } from '@/theme';
+import { space, themed, useTheme } from '@/theme';
 
 import { Icon, type IconComponent } from './icon';
 import { useLoop } from './interaction';
@@ -20,13 +20,14 @@ import { Text } from './text';
  */
 export function Spinner({
   size = 22,
-  track = color.line,
-  head = color.ember,
+  track,
+  head,
 }: {
   size?: number;
   track?: string;
   head?: string;
 }) {
+  const { color } = useTheme();
   const turn = useLoop(700);
   const ring = {
     width: size,
@@ -34,8 +35,8 @@ export function Spinner({
     borderRadius: size / 2,
     // The kit draws the ring at 2 everywhere and has no modifier for it.
     borderWidth: 2,
-    borderColor: track,
-    borderTopColor: head,
+    borderColor: track ?? color.line,
+    borderTopColor: head ?? color.ember,
   };
 
   if (!turn) return <View style={ring} />;
@@ -70,6 +71,9 @@ export function Empty({
   text: string;
   children?: ReactNode;
 }) {
+  const { color } = useTheme();
+  const styles = useStyles();
+
   return (
     <View style={styles.empty}>
       {busy ? <Spinner /> : null}
@@ -85,13 +89,21 @@ export function Empty({
   );
 }
 
-const styles = StyleSheet.create({
-  empty: {
-    alignItems: 'center',
-    gap: space.s3,
-    paddingVertical: space.s8,
-    paddingHorizontal: space.s5,
-  },
-  // 15/1.45 muted, held to the kit's 34ch so the line never runs the width of a tablet.
-  text: { fontSize: 15, lineHeight: 21.75, color: color.muted, textAlign: 'center', maxWidth: 260 },
-});
+const useStyles = themed(({ color }) =>
+  StyleSheet.create({
+    empty: {
+      alignItems: 'center',
+      gap: space.s3,
+      paddingVertical: space.s8,
+      paddingHorizontal: space.s5,
+    },
+    // 15/1.45 muted, held to the kit's 34ch so the line never runs the width of a tablet.
+    text: {
+      fontSize: 15,
+      lineHeight: 21.75,
+      color: color.muted,
+      textAlign: 'center',
+      maxWidth: 260,
+    },
+  }),
+);

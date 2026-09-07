@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { AccessibilityInfo, Animated, Easing, type ViewStyle } from 'react-native';
 
-import { color, ease } from '@/theme';
+import { color, ease, themed } from '@/theme';
 
 export { TAP, hitSlop } from './tap';
 
@@ -139,6 +139,19 @@ export function useHoverFocus() {
 }
 
 /** The kit's `:focus-visible` — a 2px ember ring, held off the element by 2px. */
+export const useFocusRing = themed(
+  ({ color }): ViewStyle => ({
+    outlineWidth: 2,
+    outlineColor: color.ember,
+    outlineOffset: 2,
+    outlineStyle: 'solid',
+  }),
+);
+
+/**
+ * The same ring off a fixed dark set, for the screens that draw one themselves (`create.tsx`).
+ * TASK-89 moves them onto the live theme; this export goes with it.
+ */
 export const focusRing: ViewStyle = {
   outlineWidth: 2,
   outlineColor: color.ember,
