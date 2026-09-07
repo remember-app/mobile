@@ -85,6 +85,12 @@ test('a strip tile and a sheet tile read a record the same way', () => {
   expect(gallery.match(/frameOf\(item\)/g)).toHaveLength(2);
 });
 
+test('neither the sheet nor the strip opens a frame that is still developing', () => {
+  // The same gate in both places, for the same reason `frameOf` is in both: a tap on a waiting
+  // frame used to open a whole screen saying «Preparing…», which is what was reported.
+  expect(gallery.match(/mayOpen\(item\)/g)).toHaveLength(2);
+});
+
 test('the roads into a memory are unchanged, and a finished montage opens the montage screen', () => {
   // An accepted invite and the gallery's `Users` icon both land on the guest list; only the
   // «ролик готов» push follows the videos to where they went.
