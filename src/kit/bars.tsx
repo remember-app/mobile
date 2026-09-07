@@ -95,14 +95,23 @@ export function IconButton({
  * The kit's `.appbar`: whatever is on the left, the screen's name, whatever is on the right. The
  * title is `display` at 24 — the kit steps it down from 32 here so a long memory name still fits
  * between two icon buttons.
+ *
+ * Four screens of one memory wear its own title, so the title alone cannot say which of them is
+ * open — that was the report (TASK-76): an unlabelled corner icon was the only difference between
+ * the guest list, the movies, the frames and the upload. `subtitle` is the section's own name, in
+ * the kit's `.t-meta` under the title: the same pairing section 2 already draws everywhere else,
+ * and no new surface for it.
  */
 export function AppBar({
   title,
+  subtitle,
   left,
   right,
   style,
 }: {
   title: string;
+  /** Which part of the thing above is open. Left off on a screen that is the only one of itself. */
+  subtitle?: string;
   left?: ReactNode;
   right?: ReactNode;
   style?: StyleProp<ViewStyle>;
@@ -112,12 +121,23 @@ export function AppBar({
   return (
     <View style={[styles.appbar, style]}>
       {left}
-      {/* The native header carried the heading; with it off app-wide, this is the only thing left
-          that can say «this is the top of the screen» to a rotor. `role` here is the kit's
-          typographic one — the spoken role is a separate prop. */}
-      <Text accessibilityRole="header" role="display" style={styles.appbarTitle} numberOfLines={1}>
-        {title}
-      </Text>
+      {/* The kit's `flex:1; min-width:0` moves onto the pair, so the two lines share one column
+          between the buttons and a long memory name still truncates instead of pushing them off. */}
+      <View style={styles.appbarText}>
+        {/* The native header carried the heading; with it off app-wide, this is the only thing left
+            that can say «this is the top of the screen» to a rotor. `role` here is the kit's
+            typographic one — the spoken role is a separate prop. */}
+        <Text accessibilityRole="header" role="display" style={styles.appbarTitle} numberOfLines={1}>
+          {title}
+        </Text>
+        {/* Under the heading and not inside it: a rotor jumping the headings of a screen should
+            land on the memory's name, and read where it is on the way past. */}
+        {subtitle === undefined ? null : (
+          <Text role="meta" numberOfLines={1}>
+            {subtitle}
+          </Text>
+        )}
+      </View>
       {right}
     </View>
   );
@@ -168,8 +188,9 @@ const useStyles = themed(({ color, shade }) =>
       paddingTop: space.s4,
       paddingBottom: space.s3,
     },
+    appbarText: { flex: 1, minWidth: 0 },
     // The kit's -.02em, re-resolved for 24px — it is a ratio in CSS and a flat number here.
-    appbarTitle: { flex: 1, fontSize: 24, lineHeight: 25.2, letterSpacing: -0.48 },
+    appbarTitle: { fontSize: 24, lineHeight: 25.2, letterSpacing: -0.48 },
     actionbar: {
       flexDirection: 'row',
       gap: space.s3,

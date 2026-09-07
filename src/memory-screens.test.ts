@@ -2,10 +2,13 @@ import { expect, test } from 'vitest';
 
 import gallery from './app/memory/[id]/gallery.tsx?raw';
 import montage from './app/memory/[id]/montage.tsx?raw';
+import upload from './app/memory/[id]/upload.tsx?raw';
 import members from './app/memory/[id].tsx?raw';
+import home from './app/index.tsx?raw';
 import invite from './app/invite.tsx?raw';
 import layout from './app/_layout.tsx?raw';
 import push from './push.ts?raw';
+import { en, ru } from '@/strings';
 
 /**
  * The split of TASK-64, read off the route files themselves: the montage on one screen, the guest
@@ -49,7 +52,41 @@ test('neither of the two offers the upload screen any more — the gallery is wh
 test('the way to the material stays on the memory screen', () => {
   expect(members).toContain('/memory/[id]/gallery');
   // The words themselves live in the dictionary now (TASK-86); the button is pinned by the key.
-  expect(members).toContain('s.members.material');
+  expect(members).toContain('s.memory.frames(');
+});
+
+// The four screens of one memory, and what tells them apart — TASK-76, reported by the designer:
+// three of them were titled with the memory's own name and switched by one unlabelled icon, and the
+// fourth had thrown the name away for the bare word «Gallery».
+
+test('every screen of a memory wears its name, with the section it is under the name', () => {
+  for (const [screen, section] of [
+    [members, 's.members.title'],
+    [montage, 's.montage.title'],
+    [upload, 's.upload.title'],
+    [gallery, 's.memory.framesPlain'],
+  ] as const) {
+    // The memory's own title, with one shared word standing in until the listing answers — four
+    // different fallbacks would be four screens under four names for the same fraction of a second.
+    expect(screen).toContain('s.memory.fallbackTitle');
+    // And under it, the only thing that says which of the four is open.
+    expect(screen).toContain(`subtitle={${section}}`);
+  }
+});
+
+test('the material of a memory has one name — on the card, on the guest list, over the sheet', () => {
+  // Three names for one thing was the other half of the report: «N frames» on the card, «Photos and
+  // videos (N)» on the guest list, «Gallery» over the contact sheet. One key answers all three now.
+  expect(members).toContain('s.memory.frames(');
+  expect(members).toContain('s.memory.framesPlain');
+  expect(gallery).toContain('subtitle={s.memory.framesPlain}');
+  // The card names the material only where there is none of it to draw, and by the same word.
+  expect(home).toContain('s.home.noFrames');
+  for (const set of [en, ru]) {
+    // «0 кадров» → «кадров», which is what «Кадров пока нет» has to be built on too. Russian
+    // declines it, so the counted form is the one both lines are held against.
+    expect(set.home.noFrames.toLowerCase()).toContain(set.memory.frames(0).split(' ')[1]);
+  }
 });
 
 test('the two screens reach each other without stacking a copy each hop', () => {

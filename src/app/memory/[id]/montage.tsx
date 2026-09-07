@@ -235,7 +235,10 @@ export default function MontageScreen() {
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       <ScrollView contentContainerStyle={styles.body}>
         <AppBar
-          title={memory?.title ?? s.montage.title}
+          title={memory?.title ?? s.memory.fallbackTitle}
+          // Four screens of this memory carry its name; this is the line that says which one is
+          // open. The corner icon on the right is a way out of here, never the label of here.
+          subtitle={s.montage.title}
           left={
             <IconButton
               icon={ChevronLeft}

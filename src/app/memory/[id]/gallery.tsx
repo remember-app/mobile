@@ -21,10 +21,12 @@ import {
   downloadMedia,
   errorMessage,
   listMedia,
+  listMemories,
   listMembers,
   mayContribute,
   type MediaItem,
   type Member,
+  type Memory,
 } from '@/api';
 import { useAuth } from '@/auth';
 import { formatRuntime } from '@/dates';
@@ -78,6 +80,8 @@ export default function GalleryScreen() {
   const [items, setItems] = useState<MediaItem[] | null>(null);
   /** Everybody in this memory: where the caller stands, and the name over every open frame. */
   const [roster, setRoster] = useState<Member[] | null>(null);
+  /** The memory itself, for the one thing the appbar needs off it: what it is called. */
+  const [memory, setMemory] = useState<Memory | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   /** The record the viewer is showing, held by id so a reload hands it a fresh signed url. */
@@ -136,6 +140,22 @@ export default function GalleryScreen() {
   // changes on the worker's side, and the signed urls die in a quarter hour, so a screen that read
   // once when it was first opened is showing whatever was true then.
   useFocusEffect(load);
+
+  // The memory's own name for the appbar — this screen used to be titled «Gallery» and lost it
+  // (TASK-76), which the other three screens of a memory never did. The road they take: the listing
+  // the home screen already reads answers it, so it works however this screen was reached — a
+  // tapped push and a cold deep link included, neither of which carries a title along.
+  //
+  // On its own and not inside `load`: `load` runs on every focus and again every few seconds while
+  // something is developing, and a title does not change under anybody. Quietly, too — a name that
+  // did not arrive costs the appbar one word, and it must not put an error over a grid that came.
+  useEffect(() => {
+    if (!token) return;
+    listMemories(token).then(
+      (memories) => setMemory(memories.find((one) => one.id === id) ?? null),
+      () => {},
+    );
+  }, [token, id]);
 
   // And the same reason again with nobody navigating: a record turns `ready` while this screen is
   // open and on screen, and until this loop existed nothing ever told it — the sheet stayed in
@@ -262,7 +282,10 @@ export default function GalleryScreen() {
     // takes the phone's top inset itself.
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       <AppBar
-        title={s.gallery.title}
+        title={memory?.title ?? s.memory.fallbackTitle}
+        // Four screens of this memory carry its name; this is the line that says which one is open.
+        // And it is the word the card and the guest list call the material by, not a fourth one.
+        subtitle={s.memory.framesPlain}
         style={styles.pad}
         left={
           <IconButton

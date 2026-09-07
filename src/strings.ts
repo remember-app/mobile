@@ -64,9 +64,23 @@ export const en = {
 
   /** The product's own nouns, and the counts drawn next to them. */
   memory: {
+    /**
+     * The appbar of any screen of a memory before the memory itself has arrived — its own title
+     * takes over then. One line for all four of them, so none of them stands under a different word
+     * while it waits.
+     */
+    fallbackTitle: 'Memory',
     /** Whoever brought a frame and is no longer on the roster. */
     someone: 'Someone',
+    /**
+     * What everybody put in, under the one word the whole app calls it by — the kit allows a thing
+     * exactly one name, and this one had three (TASK-76): «frames» on the card, «Photos and videos»
+     * on the guest list, «Gallery» over the contact sheet. «Video» stays what one record is
+     * (`media.video`), never what a memory is full of.
+     */
     frames: (n: number) => `${n} ${n === 1 ? 'frame' : 'frames'}`,
+    /** The same word with nothing counted yet: a section's name, and a button before its count. */
+    framesPlain: 'Frames',
     people: (n: number) => `${n} ${n === 1 ? 'person' : 'people'}`,
   },
 
@@ -179,13 +193,11 @@ export const en = {
 
   /** The guest list: who is in a memory, how to get more people in, and how to get out. */
   members: {
-    /** The corner icon the gallery and the montage screen reach the roster by. */
+    /**
+     * The corner icon the gallery and the montage screen reach the roster by, and the section this
+     * screen is — the word under the memory's own title in its appbar.
+     */
     title: 'Members',
-    /** The appbar before the memory itself has arrived — its own title takes over then. */
-    fallbackTitle: 'Memory',
-    material: (n: number) => `Photos and videos (${n})`,
-    /** The same button before the count is known. */
-    materialPlain: 'Photos and videos',
     roster: 'Who is here',
     you: (name: string) => `${name} (you)`,
     remove: (name: string) => `Remove ${name}`,
@@ -217,9 +229,12 @@ export const en = {
     keepThem: 'Keep them',
   },
 
-  /** The contact sheet, and the open frame over it. */
+  /**
+   * The contact sheet, and the open frame over it. What the screen is *called* is not here: it is
+   * the memory's own title, over `memory.framesPlain` — the same word the card and the guest list
+   * use for the material (TASK-76).
+   */
   gallery: {
-    title: 'Gallery',
     empty: 'Nothing here yet — whatever anyone adds shows up here.',
     /** What a tile says while there is no derivative to draw, keyed by the record's status. */
     waiting: {
@@ -397,8 +412,12 @@ export const ru: Strings = {
   },
 
   memory: {
+    fallbackTitle: 'Воспоминание',
     someone: 'Кто-то',
+    // «Кадры» — то самое слово кита, и теперь единственное: карточка, экран участников и заголовок
+    // галереи называют материал одинаково.
     frames: (n: number) => count(n, 'кадр', 'кадра', 'кадров'),
+    framesPlain: 'Кадры',
     people: (n: number) => count(n, 'человек', 'человека', 'человек'),
   },
 
@@ -483,9 +502,6 @@ export const ru: Strings = {
 
   members: {
     title: 'Участники',
-    fallbackTitle: 'Воспоминание',
-    material: (n: number) => `Фото и видео (${n})`,
-    materialPlain: 'Фото и видео',
     roster: 'Кто здесь',
     you: (name: string) => `${name} (вы)`,
     remove: (name: string) => `Убрать ${name}`,
@@ -515,7 +531,6 @@ export const ru: Strings = {
   },
 
   gallery: {
-    title: 'Галерея',
     empty: 'Здесь пока пусто — всё, что кто-нибудь добавит, появится тут.',
     waiting: {
       processing: 'Проявляем…',

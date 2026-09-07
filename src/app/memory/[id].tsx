@@ -189,7 +189,9 @@ export default function MemoryScreen() {
   return (
     <ScrollView contentContainerStyle={[styles.body, { paddingTop: insets.top }]}>
       <AppBar
-        title={memory?.title ?? s.members.fallbackTitle}
+        title={memory?.title ?? s.memory.fallbackTitle}
+        // Four screens of this memory carry its name; this is the line that says which one is open.
+        subtitle={s.members.title}
         left={
           <IconButton
             icon={ChevronLeft}
@@ -228,9 +230,13 @@ export default function MemoryScreen() {
           {/* Behind no role at all: looking at the material is what every member may do, a viewer
               included (doc-01). The count is the memory's own, so it says «empty» before opening.
               Adding to it is not offered here at all any more: «Add more» stands in the gallery, in
-              front of what is already in. */}
+              front of what is already in.
+
+              «N кадров» and not «Фото и видео (N)»: the material has one name in this app, and this
+              button is one of the three places that were calling it something else (TASK-76). The
+              screen it opens is titled with the same word. */}
           <Button
-            label={memory ? s.members.material(memory.media_count) : s.members.materialPlain}
+            label={memory ? s.memory.frames(memory.media_count) : s.memory.framesPlain}
             onPress={() => router.push({ pathname: '/memory/[id]/gallery', params: { id } })}
           />
 
