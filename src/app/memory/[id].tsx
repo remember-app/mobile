@@ -1,8 +1,7 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useVideoPlayer, VideoView } from 'expo-video';
-import { ChevronLeft, Download, Film, Share2, X } from 'lucide-react-native';
+import { ChevronLeft, Film, Share2, X } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
-import { Modal, ScrollView, Share, StyleSheet, Switch, View } from 'react-native';
+import { ScrollView, Share, StyleSheet, Switch, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -12,11 +11,8 @@ import {
   inviteByUsername,
   listMemories,
   listMembers,
-  listMontages,
   mayContribute,
-  orderMontage,
   removeMember,
-  retryMontage,
   rotateInvite,
   setContributionStatus,
   type ContributionStatus,
@@ -24,18 +20,13 @@ import {
   type Member,
   type MemberRole,
   type Memory,
-  type Montage,
-  type MusicTrackId,
 } from '@/api';
 import { useAuth } from '@/auth';
-import { formatDay, formatEventDates, formatRuntime } from '@/dates';
-import { maySaveToPhone, REFUSED, saveToPhone } from '@/downloads';
+import { formatEventDates } from '@/dates';
 import {
-  ActionBar,
   AppBar,
   Banner,
   Button,
-  CardMontage,
   Chip,
   ConfirmSheet,
   Empty,
@@ -48,7 +39,6 @@ import {
   RowMember,
   Sheet,
   Text,
-  type MontageState,
 } from '@/kit';
 import { color, space } from '@/theme';
 
@@ -70,52 +60,14 @@ const CONTRIBUTION: Record<ContributionStatus, string> = {
 /** Whoever it is, under whichever of the two names they have. */
 const label = (member: Member) => member.name ?? member.username ?? 'Someone';
 
-/** The four standings a montage can be in, in the three the kit draws (section 10). */
-const MONTAGE_STATE: Record<Montage['status'], MontageState> = {
-  queued: 'pending',
-  processing: 'pending',
-  ready: 'ready',
-  failed: 'failed',
-};
-
-/**
- * The word beside the dot. None of them says how long it will be or how far along it is: the api
- * carries neither, and the kit's «Минут пять» would be this screen making a number up.
- */
-const MONTAGE_STATUS: Record<Montage['status'], string> = {
-  queued: 'Waiting its turn',
-  processing: 'Being made',
-  ready: 'Ready',
-  failed: 'Did not finish',
-};
-
-/** The worker's three tracks, under names to pick between. The ids are the api's own. */
-const TRACK: Record<MusicTrackId, string> = { warm: 'Warm', bright: 'Bright', calm: 'Calm' };
-
-/**
- * How long to ask for. The api takes anything from a quarter of a minute to five and fills in a
- * minute itself when nothing is asked — these are three round answers, not the whole range.
- */
-const LENGTHS = [
-  { seconds: 30, label: 'Half a minute' },
-  { seconds: 60, label: 'A minute' },
-  { seconds: 120, label: 'Two minutes' },
-];
-
-/**
- * What a montage is called on screen: how long it runs once it does, and the day it was asked for
- * until then — a length is the one thing about it that is worth a title, and there is none to say
- * until the worker has made it.
- */
-const montageTitle = (montage: Montage) => {
-  const runtime = formatRuntime(montage.duration_seconds);
-  return runtime ? `Montage of ${runtime}` : `Montage from ${formatDay(montage.created_at)}`;
-};
-
 /**
  * One memory: who is in it, how to get more people in, and how to get out. What the caller
  * may do is read off their own row in the roster — the api is the authority on that, so
  * nothing here is gated on anything the client made up.
+ *
+ * The videos are not here: they are their own screen, an icon away in the corner (TASK-64). Nor is
+ * a way to add material — the gallery's «Add more» is where that lives, in front of what is
+ * already in.
  */
 export default function MemoryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -140,22 +92,10 @@ export default function MemoryScreen() {
   // Who the confirm sheet is asking about; null is «no sheet». The sheet is the whole state:
   // holding a boolean beside the member would let the two disagree.
   const [dropping, setDropping] = useState<Member | null>(null);
-  // The videos and their own way of going wrong — the list is the one call here that answers 503
-  // when the api has no bucket, and that must not be the roster's problem too.
-  const [montages, setMontages] = useState<Montage[] | null>(null);
-  const [montageError, setMontageError] = useState<string | null>(null);
-  const [ordering, setOrdering] = useState(false);
-  // What the order will ask for. The api's own default length, and a track chosen rather than left
-  // to the worker — it is one tap either way, and a person who opened the sheet came to choose.
-  const [seconds, setSeconds] = useState(60);
-  const [track, setTrack] = useState<MusicTrackId>('warm');
-  /** The montage being watched, held by id so a reload hands it a fresh signed url. */
-  const [playing, setPlaying] = useState<string | null>(null);
 
   const load = useCallback(() => {
     if (!token) return;
     setError(null);
-    setMontageError(null);
     // The roster carries no memory, and the title belongs on this screen — so the list the
     // home screen already reads answers for the header too. Costs one request and works the
     // same however this screen was reached, which nav params would not.
@@ -166,24 +106,19 @@ export default function MemoryScreen() {
       },
       (e: unknown) => setError(errorMessage(e)),
     );
-    // Beside that pair rather than in it: the montage list is the one call on this screen that
-    // answers 503 over a bucket nobody configured, and a memory that lost its roster and its way
-    // out over «no videos to be had» would be a screen with nothing left on it.
-    listMontages(token, id).then(setMontages, (e: unknown) => setMontageError(errorMessage(e)));
   }, [token, id]);
 
-  // On focus rather than on mount, the way the home screen does it — and here it is the montages
-  // that need it: a queued one only ever changes on the worker's side, and `video_url` is signed
-  // for a quarter of an hour. Coming back from the gallery or the upload screen re-reads both,
-  // instead of leaving a card that has been stale since whenever this screen was first opened.
+  // On focus rather than on mount, the way the home screen does it: both things this screen says
+  // about the material — the count on the gallery button and everybody's standing on the roster —
+  // change while whoever is reading them is off uploading. Coming back re-reads them, instead of
+  // leaving a screen that has been stale since it was first opened.
   useFocusEffect(load);
 
   const me = members?.find((member) => member.id === user?.id) ?? null;
   const role = me?.role ?? null;
   // doc-01: adding people is «Добавление» and up, and so is bringing photos — whoever may bring
-  // people to a memory may bring material to it. A viewer may look and leave, nothing else. Until
-  // the upload button existed, that screen was reachable only by tapping the invite push, which
-  // left everybody who joined by link with no way to the one thing they were invited for.
+  // material to a memory may bring people to it. A viewer may look and leave, nothing else. The
+  // api is the authority on all of it; this only decides what to draw.
   const mayContributeHere = mayContribute(role);
   const newcomerRole = mayAdd ? 'contributor' : 'viewer';
   // Derived together so the branch below narrows both at once: there is a link exactly when
@@ -194,14 +129,11 @@ export default function MemoryScreen() {
   };
   // Checked against `dropping` first, so a closed sheet is never «about me» by two undefineds.
   const leaving = dropping !== null && dropping.id === user?.id;
-  const watching = montages?.find((montage) => montage.id === playing) ?? null;
 
   /**
    * Every api call this screen's buttons make is the same shape: lock the controls, run one call,
    * say one line about it. `said` maps the statuses this particular call can come back with;
-   * anything else falls through to the api's own wording. Saving a montage onto the phone is the
-   * one button that stays outside this: nothing it can fail at is the api's doing, so `keep` says
-   * its own words and carries its own «Saving…» line while it works.
+   * anything else falls through to the api's own wording.
    */
   async function act(
     what: (session: string) => Promise<string | null>,
@@ -261,93 +193,6 @@ export default function MemoryScreen() {
       return null;
     });
 
-  /**
-   * «Смонтируй ролик», with the two wishes doc-03 allows. The api answers with the row it wrote,
-   * so it goes straight onto the top of the list — the list is newest first, and a reload would be
-   * the same thing one round trip later.
-   */
-  const order = () =>
-    act(
-      async (session) => {
-        const ordered = await orderMontage(session, id, {
-          target_seconds: seconds,
-          music_track_id: track,
-        });
-        setMontages((have) => [ordered, ...(have ?? [])]);
-        setOrdering(false);
-        return 'Ordered. Everyone here is told when it is ready.';
-      },
-      {
-        // The api's own line names its numbers; this one names what to do about them.
-        409: 'Too little material for a montage yet — add a few more photos or videos first.',
-        403: 'Only the organizer can order a montage.',
-      },
-    );
-
-  /** The organizer's button under one that fell over: the same row queued again, never a second. */
-  const retry = (montage: Montage) =>
-    act(
-      async (session) => {
-        try {
-          const requeued = await retryMontage(session, id, montage.id);
-          setMontages(
-            (have) => have?.map((one) => (one.id === montage.id ? requeued : one)) ?? null,
-          );
-          return null;
-        } catch (e) {
-          // 409 is «this row is not failed any more»: it was started again from somewhere else, or
-          // the worker reached it while this card sat here. The card is the thing that is out of
-          // date, so the list is read again — left alone it would go on saying «Did not finish»
-          // under a line saying the opposite, with a button that can only ever 409 now.
-          if (e instanceof ApiError && e.status === 409) load();
-          throw e;
-        }
-      },
-      {
-        // Which of the three it moved to is on its way in from the line above; the api's own body
-        // carries it too, and neither is worth a second sentence for a button pressed this rarely.
-        409: 'That one has already moved on — reading the list again.',
-        403: 'Only the organizer can start it again.',
-      },
-    );
-
-  /**
-   * The finished video kept and then handed on — doc-03 asks for both, and this is one press
-   * because the local copy the share sheet needs exists only between the two. The sheet is opened
-   * on that copy and not on `video_url`: the link is signed and dies in a quarter of an hour, so
-   * whoever it was sent to would get a refusal instead of a video.
-   *
-   * ponytail: React Native's own `Share` attaches a file on iOS only — on Android the sheet goes
-   * out with the line and without the video, which is by then in the phone's gallery and shareable
-   * from there. `expo-sharing` is the upgrade when that is not good enough.
-   */
-  async function keep(montage: Montage) {
-    if (montage.video_url === null) return;
-    setBusy(true);
-    // The whole of the progress there is: a save is atomic, the same way the gallery's is.
-    setNotice('Saving to your gallery…');
-    try {
-      if (!(await maySaveToPhone())) {
-        setNotice(REFUSED);
-        return;
-      }
-      await saveToPhone({ id: montage.id, kind: 'video', url: montage.video_url }, async (uri) => {
-        // Dismissing the sheet is not a failure, and neither is a phone with nowhere to send it.
-        await Share.share({
-          url: uri,
-          message: memory ? `Montage from «${memory.title}»` : montageTitle(montage),
-        }).catch(() => {});
-      });
-      setNotice('Saved to your gallery.');
-    } catch {
-      // Nothing here is the api's doing: the link came with the list, and past that it is the
-      // download or the phone's own gallery.
-      setNotice('Could not save this montage to your phone.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
   const drop = (target: Member) =>
     act(
       async (session) => {
@@ -371,84 +216,21 @@ export default function MemoryScreen() {
             onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
           />
         }
+        right={
+          // The other half of the memory, one icon away — the same corner, and the same idiom, the
+          // gallery reaches this screen by. `Film` because what is behind it is the videos and the
+          // making of them. `navigate` and not `push`: the two screens point at each other, and
+          // pushing would stack a fresh copy of one over the other on every hop.
+          <IconButton
+            icon={Film}
+            label="Montage"
+            onPress={() => router.navigate({ pathname: '/memory/[id]/montage', params: { id } })}
+          />
+        }
       />
       {memory ? (
         <Text role="meta">{formatEventDates(memory.event_start, memory.event_end)}</Text>
       ) : null}
-
-      {/* Section 10, in the place the placeholder held: the kit calls the montage the reward, so it
-          gets the most visible spot on the screen. Its own block, above the roster and nowhere near
-          the gallery button — «Ролики не смешиваются с галереей» (doc-03). Behind no role at all:
-          the video is what everybody who brought material gets back, so a viewer reads the list
-          too. Only the organizer orders one, and only the organizer starts a fallen one again. */}
-      {montageError !== null ? (
-        <Banner tone="error" text={montageError}>
-          <Button sm variant="quiet" label="Try again" onPress={load} />
-        </Banner>
-      ) : null}
-      {/* Beside the list and not in place of it: `load` runs on every focus and after every invite,
-          so a list that was read once outlives a refetch that failed. Wiping it would take the
-          videos and the organizer's own way of ordering one off the screen over a blip — the same
-          rule the roster follows by keeping `members` from before. */}
-      {montages === null ? null : (
-        <>
-          {montages.map((montage) => (
-            <View key={montage.id} style={styles.montage}>
-              <CardMontage
-                state={MONTAGE_STATE[montage.status]}
-                title={montageTitle(montage)}
-                status={MONTAGE_STATUS[montage.status]}
-                // Said in place of a bar or a number: nothing on this side knows how far along the
-                // worker is, and the push is what actually brings people back to look.
-                caption="You will be told when it is ready"
-                playLabel={`Watch ${montageTitle(montage)}`}
-                onPlay={montage.video_url === null ? undefined : () => setPlaying(montage.id)}
-                actions={
-                  montage.status === 'ready' ? (
-                    <Button
-                      sm
-                      icon={Download}
-                      label="Save and share"
-                      disabled={busy || montage.video_url === null}
-                      onPress={() => void keep(montage)}
-                    />
-                  ) : montage.status === 'failed' && role === 'organizer' ? (
-                    <Button
-                      sm
-                      label="Try again"
-                      onPress={() => void retry(montage)}
-                      disabled={busy}
-                    />
-                  ) : null
-                }
-              />
-              {/* The kit's own rule is that a failure is not explained by a code — so the word
-                  beside the dot stays the screen's, and the worker's own line goes under the card,
-                  where there is room for it and where it is not the first thing read. */}
-              {montage.status === 'failed' && montage.error_text !== null ? (
-                <Text role="meta">{montage.error_text}</Text>
-              ) : null}
-            </View>
-          ))}
-
-          {/* Nothing until the roster has answered: `role` comes off it, the two calls race, and
-              this pair is the one place where not knowing yet reads as an answer — an organizer
-              would be shown «the organizer can ask for one» and no button to do it with. The cards
-              above need no role and go up as soon as they arrive. */}
-          {members === null ? null : role === 'organizer' ? (
-            // The screen's one glowing button for the organizer: doc-03 makes ordering theirs
-            // alone, and it is the thing the whole memory is being filled up for.
-            <Button
-              variant="primary"
-              label="Make a montage"
-              onPress={() => setOrdering(true)}
-              disabled={busy}
-            />
-          ) : montages.length === 0 ? (
-            <Empty icon={Film} text="No montage yet — the organizer can ask for one." />
-          ) : null}
-        </>
-      )}
 
       {error !== null ? (
         <Banner tone="error" text={error}>
@@ -460,30 +242,19 @@ export default function MemoryScreen() {
         <>
           {/* Behind no role at all: looking at the material is what every member may do, a viewer
               included (doc-01). The count is the memory's own, so it says «empty» before opening.
-              It is also the one glowing button for a viewer, who has nothing else to press here. */}
+              The kit gives the glow to exactly one thing per screen, and here that is the way to
+              the material — the only thing everybody on this screen has come for. Adding to it is
+              not offered here at all any more: «Add more» stands in the gallery, in front of what
+              is already in. */}
           <Button
-            variant={mayContributeHere ? 'secondary' : 'primary'}
+            variant="primary"
             label={`Photos and videos${memory ? ` (${memory.media_count})` : ''}`}
             onPress={() => router.push({ pathname: '/memory/[id]/gallery', params: { id } })}
           />
 
-          {mayContributeHere ? (
-            <>
-              {/* The kit gives the glow to exactly one thing per screen. For the organizer that is
-                  now «Make a montage» above — theirs is the memory being filled up for a reason,
-                  and this button keeps its place without the ember. For a contributor, bringing
-                  material is still the main thing they are here to do. */}
-              <Button
-                variant={role === 'organizer' ? 'secondary' : 'primary'}
-                label="Add photos and videos"
-                onPress={() => router.push({ pathname: '/memory/[id]/upload', params: { id } })}
-              />
-              {/* The whole of getting someone in, behind one button of the same size as the two
-                  above it — it belongs with the actions, and it stands right over the roster it
-                  adds to. */}
-              <Button label="Invite" onPress={() => setInviting(true)} />
-            </>
-          ) : null}
+          {/* The whole of getting someone in, behind one button of the same size as the one above
+              it — it belongs with the actions, and it stands right over the roster it adds to. */}
+          {mayContributeHere ? <Button label="Invite" onPress={() => setInviting(true)} /> : null}
 
           <Text role="meta" style={styles.section}>
             Who is here
@@ -568,81 +339,6 @@ export default function MemoryScreen() {
       )}
 
       {notice ? <Banner text={notice} /> : null}
-
-      {/* The two wishes doc-03 allows and nothing else, asked on a sheet the way an invite is:
-          ordering is a thing done once, and the screen is for what comes of it. What is picked is
-          in the heading above each row as well as in the buttons — a screen reader gets no «this
-          one is chosen» out of a button that only looks different. */}
-      <Sheet visible={ordering} onCancel={() => setOrdering(false)}>
-        <Text accessibilityRole="header" role="title">
-          Make a montage
-        </Text>
-        <Text role="meta">
-          Everything in this memory goes in, and the agent picks the moments itself. What comes out
-          is not edited afterwards.
-        </Text>
-
-        <Text role="label">
-          How long · {LENGTHS.find((one) => one.seconds === seconds)?.label}
-        </Text>
-        <View style={styles.choices}>
-          {LENGTHS.map((length) => (
-            <Button
-              key={length.seconds}
-              sm
-              // The picked one is the one with a frame around it. Not `primary`: the glow belongs
-              // to one thing on a surface, and here that is «Make it» at the bottom.
-              variant={length.seconds === seconds ? 'secondary' : 'quiet'}
-              label={length.label}
-              onPress={() => setSeconds(length.seconds)}
-              disabled={busy}
-            />
-          ))}
-        </View>
-
-        <Text role="label">Music · {TRACK[track]}</Text>
-        <View style={styles.choices}>
-          {(Object.keys(TRACK) as MusicTrackId[]).map((id) => (
-            <Button
-              key={id}
-              sm
-              variant={id === track ? 'secondary' : 'quiet'}
-              label={TRACK[id]}
-              onPress={() => setTrack(id)}
-              disabled={busy}
-            />
-          ))}
-        </View>
-
-        {/* `busy` alone, as everywhere else in the app: the kit already refuses the press while it
-            is set, and adding `disabled` on top would take the ember off the one glowing button on
-            the sheet for exactly as long as its spinner is turning. */}
-        <Button variant="primary" label="Make it" onPress={order} busy={busy} />
-        {/* Where «too little material» is read: the sheet stays up when the order is refused, and
-            the screen's own copy of this line is under the scrim. */}
-        {notice ? <Banner text={notice} /> : null}
-      </Sheet>
-
-      {/* The finished video played where it lies, the way the gallery plays a preview: `expo-video`
-          streams it from the signed link rather than downloading it first. A modal and not a screen
-          — there is nothing to do in here but watch it and close it. */}
-      <Modal
-        visible={watching !== null}
-        animationType="fade"
-        onRequestClose={() => setPlaying(null)}
-        // Landscape too: a montage is 16:9 and worth turning the phone for, and the rest of the
-        // app is portrait-only.
-        supportedOrientations={['portrait', 'landscape']}
-      >
-        {watching === null || watching.video_url === null ? null : (
-          <View style={styles.viewer}>
-            <Playing url={watching.video_url} />
-            <ActionBar style={styles.bar}>
-              <Button variant="quiet" label="Close" onPress={() => setPlaying(null)} />
-            </ActionBar>
-          </View>
-        )}
-      </Modal>
 
       {/* Both roads in, on one sheet: the level a newcomer arrives at is the same question for
           both, and it is asked once above them. `visible` and nothing else — the Modal drops its
@@ -738,20 +434,6 @@ export default function MemoryScreen() {
   );
 }
 
-/**
- * The montage, played from its signed link. Its own component because the player is a hook, and
- * this one is mounted only while the video is on screen — leaving it releases the player.
- *
- * The gallery has these same three lines for its previews, down to the style. Not shared, and not
- * because the two differ: both files are expo-router routes, and a route is not somewhere to
- * import a component from — the alternative is a module of its own around one `useVideoPlayer`
- * call. Worth making the moment a third screen plays a video, or the moment these two disagree.
- */
-function Playing({ url }: { url: string }) {
-  const player = useVideoPlayer(url, (video) => video.play());
-  return <VideoView player={player} style={styles.big} />;
-}
-
 const styles = StyleSheet.create({
   body: { paddingHorizontal: space.s5, paddingBottom: space.s8, gap: space.s3 },
   section: { marginTop: space.s4 },
@@ -759,11 +441,4 @@ const styles = StyleSheet.create({
   own: { alignSelf: 'flex-end' },
   quiet: { alignSelf: 'flex-start' },
   gap: { height: space.s6 },
-  // A card and, under a fallen one, the line the worker left — closer to each other than the
-  // screen's own gap, because they are one thing.
-  montage: { gap: space.s2 },
-  choices: { flexDirection: 'row', flexWrap: 'wrap', gap: space.s2 },
-  viewer: { flex: 1, backgroundColor: color.ink, justifyContent: 'center' },
-  bar: { justifyContent: 'center', paddingHorizontal: space.s4 },
-  big: { flex: 1, width: '100%' },
 });
