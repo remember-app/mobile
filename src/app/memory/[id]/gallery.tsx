@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useIsFocused, useLocalSearchParams, useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { Camera, ChevronLeft, Download, Plus, TriangleAlert, Users } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -20,6 +20,7 @@ import {
 import { useAuth } from '@/auth';
 import { formatRuntime } from '@/dates';
 import { maySaveToPhone, REFUSED, saveToPhone } from '@/downloads';
+import { frameOf, stillPreparing } from '@/frames';
 import { ActionBar, AppBar, Banner, Button, ConfirmSheet, Empty, IconButton, Tile } from '@/kit';
 import { color, space } from '@/theme';
 
@@ -29,6 +30,13 @@ const WAITING: Record<MediaItem['status'], string> = {
   failed: 'Could not be prepared',
   ready: 'Nothing to show',
 };
+
+/**
+ * How long the screen waits before looking again while the worker is still making something. A
+ * thumbnail takes it seconds, so this is about the time somebody spends noticing the sheet is not
+ * finished yet.
+ */
+const WHILE_PREPARING_MS = 3000;
 
 /**
  * What everybody put in, as everybody sees it — a viewer included (architecture.md, «Проверка
@@ -67,24 +75,57 @@ export default function GalleryScreen() {
     onScreen.current = false;
   }, []);
 
-  const load = useCallback(() => {
-    if (!token) return;
-    setError(null);
-    setLoading(true);
-    // The gallery carries no role, and this screen needs the caller's own to know who may delete
-    // what. The same road the other two screens take, and it works however this one was reached.
-    Promise.all([listMedia(token, id), listMemories(token)])
-      .then(
-        ([media, memories]) => {
-          setItems(media);
-          setRole(memories.find((one) => one.id === id)?.role ?? null);
-        },
-        (e: unknown) => setError(errorMessage(e)),
-      )
-      .finally(() => setLoading(false));
-  }, [token, id]);
+  const load = useCallback(
+    // `quiet` belongs to the re-read below: that one happens on its own every few seconds, and it
+    // must not light the pull-to-refresh spinner over a grid somebody is looking at, nor blank the
+    // sheet back to «Loading…» on the one read that fails.
+    (quiet = false) => {
+      if (!token) return;
+      if (!quiet) {
+        setError(null);
+        setLoading(true);
+      }
+      // The gallery carries no role, and this screen needs the caller's own to know who may delete
+      // what. The same road the other two screens take, and it works however this one was reached.
+      Promise.all([listMedia(token, id), listMemories(token)])
+        .then(
+          ([media, memories]) => {
+            setItems(media);
+            setRole(memories.find((one) => one.id === id)?.role ?? null);
+            setError(null);
+          },
+          (e: unknown) => {
+            if (!quiet) setError(errorMessage(e));
+          },
+        )
+        .finally(() => {
+          if (!quiet) setLoading(false);
+        });
+    },
+    [token, id],
+  );
 
-  useEffect(load, [load]);
+  // On focus rather than on mount, the way the memory and home screens do it: what is drawn here
+  // changes on the worker's side, and the signed urls die in a quarter hour, so a screen that read
+  // once when it was first opened is showing whatever was true then.
+  useFocusEffect(load);
+
+  // And the same reason again with nobody navigating: a record turns `ready` while this screen is
+  // open and on screen, and until this loop existed nothing ever told it — the sheet stayed in
+  // «Preparing…» for as long as the person kept looking, which is exactly what they reported. Only
+  // while something is actually being made, and only while this screen is the one in front:
+  // «Add more» and the roster both leave the gallery mounted behind them.
+  const preparing = stillPreparing(items);
+  const focused = useIsFocused();
+  useEffect(() => {
+    if (!preparing || !focused) return;
+    // An interval and not a timeout chained off each read: a single read that comes back on a bad
+    // connection would end the chain, and it would end it silently — the quiet read is quiet about
+    // failing too. This one keeps its own time and is cleared the moment there is nothing left
+    // being made, the screen goes behind another, or it unmounts.
+    const timer = setInterval(() => load(true), WHILE_PREPARING_MS);
+    return () => clearInterval(timer);
+  }, [preparing, focused, load]);
 
   // Ownership and not role: a viewer may delete what they brought, a contributor may not delete a
   // neighbour's. The api is the authority — this only decides whether to draw the button.
@@ -93,6 +134,8 @@ export default function GalleryScreen() {
   // in the way is the level, which is the same one the memory screen gates its button on.
   const mayUpload = mayContribute(role);
   const shown = items?.find((item) => item.id === open) ?? null;
+  /** The open record read the way the grid reads it — one answer, two places drawing it. */
+  const openFrame = shown === null ? null : frameOf(shown);
 
   async function remove(item: MediaItem) {
     if (!token) return;
@@ -216,7 +259,9 @@ export default function GalleryScreen() {
       {error !== null ? (
         <View style={styles.centered}>
           <Banner tone="error" text={error}>
-            <Button variant="quiet" sm label="Try again" onPress={load} />
+            {/* Wrapped rather than handed `load` itself: a press hands its own argument along,
+                and the first one here is «read quietly». */}
+            <Button variant="quiet" sm label="Try again" onPress={() => load()} />
           </Banner>
         </View>
       ) : items === null ? (
@@ -231,12 +276,12 @@ export default function GalleryScreen() {
             numColumns={3}
             columnWrapperStyle={styles.gridRow}
             contentContainerStyle={styles.grid}
-            // The signed links live about fifteen minutes and a record turns `ready` while this
-            // screen is open — one pull answers both, and there is nothing here to poll for.
+            // Still here, and now only for the person who would rather not wait: the re-read above
+            // already answers both the fifteen-minute links and a record turning `ready`.
             refreshControl={
               <RefreshControl
                 refreshing={loading}
-                onRefresh={load}
+                onRefresh={() => load()}
                 tintColor={color.ember}
                 colors={[color.ember]}
                 progressBackgroundColor={color.surface}
@@ -245,30 +290,30 @@ export default function GalleryScreen() {
             ListEmptyComponent={
               <Empty icon={Camera} text="Nothing here yet — whatever anyone adds shows up here." />
             }
-            renderItem={({ item }) => (
-              <Tile
-                style={styles.cell}
-                // The record's own status is the frame's state. A `ready` record with no
-                // derivative has nothing to show either, so it wears the fallen frame rather than
-                // sitting in the sheet as an empty square.
-                state={
-                  item.status === 'ready' && item.thumbnail_url === null ? 'failed' : item.status
-                }
-                uri={item.thumbnail_url ?? undefined}
-                caption={WAITING[item.status]}
-                // The kit marks a video by its length in the corner; a record that came without
-                // one still says what it is, in the same place.
-                length={
-                  item.kind === 'video'
-                    ? (formatRuntime(item.duration_seconds) ?? 'Video')
-                    : undefined
-                }
-                label={
-                  item.status === 'ready' ? item.kind : `${item.kind}, ${WAITING[item.status]}`
-                }
-                onPress={() => setOpen(item.id)}
-              />
-            )}
+            renderItem={({ item }) => {
+              // What a record is on screen is `@/frames` and not this line: the viewer below draws
+              // off the same reading, and the two must not drift.
+              const frame = frameOf(item);
+              return (
+                <Tile
+                  style={styles.cell}
+                  state={frame.state}
+                  uri={frame.uri ?? undefined}
+                  caption={WAITING[item.status]}
+                  // The kit marks a video by its length in the corner; a record that came without
+                  // one still says what it is, in the same place.
+                  length={
+                    item.kind === 'video'
+                      ? (formatRuntime(item.duration_seconds) ?? 'Video')
+                      : undefined
+                  }
+                  label={
+                    item.status === 'ready' ? item.kind : `${item.kind}, ${WAITING[item.status]}`
+                  }
+                  onPress={() => setOpen(item.id)}
+                />
+              );
+            }}
           />
 
           <View style={styles.pad}>
@@ -321,12 +366,8 @@ export default function GalleryScreen() {
               <View style={styles.viewer}>
                 {shown.kind === 'video' && shown.preview_url !== null ? (
                   <Playing url={shown.preview_url} />
-                ) : shown.thumbnail_url !== null ? (
-                  <Image
-                    source={{ uri: shown.thumbnail_url }}
-                    style={styles.big}
-                    resizeMode="contain"
-                  />
+                ) : openFrame !== null && openFrame.uri !== null ? (
+                  <Image source={{ uri: openFrame.uri }} style={styles.big} resizeMode="contain" />
                 ) : (
                   // Nothing was ever made for this one. Said here as well as on the tile, because
                   // this is the screen the delete button is on — a failed record is one somebody
