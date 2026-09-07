@@ -104,6 +104,9 @@ export default function CreateMemoryScreen() {
             disabled={busy}
             trackColor={{ false: color.line, true: color.ember }}
             thumbColor={color.paper}
+            // The same paper again, for the half of the web switch `thumbColor` does not reach:
+            // switch.d.ts has the why.
+            activeThumbColor={color.paper}
             ios_backgroundColor={color.line}
           />
         </View>
