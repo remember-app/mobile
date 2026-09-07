@@ -342,7 +342,13 @@ export default function GalleryScreen() {
                   label={
                     item.status === 'ready' ? item.kind : `${item.kind}, ${WAITING[item.status]}`
                   }
-                  onPress={() => setOpen(item.id)}
+                  // The same gate the strip below puts on the same record, and for the same
+                  // reason: a frame still being made has nothing behind it to open, so opening it
+                  // lands on a whole screen saying «Preparing…» — which is the third of the three
+                  // reports this milestone came from. The kit agrees on both sheets: a waiting
+                  // frame is a `<span>` on the contact sheet as well as in the strip, never a
+                  // `<button>`. A fallen one still opens — that is where the delete lives.
+                  onPress={mayOpen(item) ? () => setOpen(item.id) : undefined}
                 />
               );
             }}
