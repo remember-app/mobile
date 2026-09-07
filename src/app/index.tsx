@@ -88,11 +88,19 @@ export default function HomeScreen() {
               <CardMemory
                 title={item.title}
                 meta={facts(item)}
-                // The tail: the last frames the listing signed for this memory, and a «+N» for
-                // whatever those do not show. The remainder is counted off what is actually drawn,
-                // so «2 frames, both shown» ends at the two frames instead of adding a «+2».
+                // The frames the listing signed for this memory, drawn as they come: the card shows
+                // what is inside instead of counting it, so nothing here says how much is left over.
                 thumbs={thumbs}
-                more={Math.max(0, item.media_count - thumbs.length) || undefined}
+                // Two different silences, and they must not be worded the same. A memory with
+                // nothing in it is waiting for the first frame. A memory that has a hundred but
+                // signed no thumbnail — the worker has not made them yet, the api has no bucket,
+                // or the build is older than the field — is not empty, and telling that person to
+                // add the first ones would be a lie the meta line beside it contradicts.
+                blank={
+                  item.media_count === 0
+                    ? 'No frames yet. Add the first ones.'
+                    : 'Preparing the frames…'
+                }
                 // Straight to the material: what a memory is for is the photos in it, so the card
                 // opens the gallery. Who is in it lives one icon away, in that screen's appbar.
                 onPress={() =>
@@ -117,14 +125,16 @@ export default function HomeScreen() {
   );
 }
 
-/** The line under the title: when it was, and what is in it. Nobody has added anything — say so. */
+/**
+ * The line under the title: when it was, and how much is in it. An empty memory says nothing here —
+ * the card draws that on the film itself, and saying it twice on one card is saying it twice.
+ */
 function facts(memory: Memory): string[] {
-  return [
-    formatEventDates(memory.event_start, memory.event_end),
-    memory.media_count === 0
-      ? 'nothing yet'
-      : `${memory.media_count} frame${memory.media_count === 1 ? '' : 's'}`,
-  ];
+  const dates = formatEventDates(memory.event_start, memory.event_end);
+
+  return memory.media_count === 0
+    ? [dates]
+    : [dates, `${memory.media_count} frame${memory.media_count === 1 ? '' : 's'}`];
 }
 
 const styles = StyleSheet.create({
