@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { radius, space, themed, useTheme, type Theme } from '@/theme';
+import { radius, space, useTheme, type Theme } from '@/theme';
 
 import { Spinner } from './empty';
 import { ICO, ICO_S, Icon, type IconComponent } from './icon';
@@ -30,7 +30,8 @@ export type ButtonProps = {
   icon?: IconComponent;
   /**
    * `.brand-slot` for `variant="provider"` — the Apple or Google mark, which may only ever be drawn
-   * from the provider's own set. Left out, the kit's dashed placeholder stands in its place.
+   * from the provider's own set. The kit's dashed square is a slot in a demo, not a mark: until a
+   * real one is here the button carries its words alone rather than an empty box.
    */
   brand?: ReactNode;
   onPress?: () => void;
@@ -56,7 +57,6 @@ export function Button({
   const { hovered, focused, props } = useHoverFocus();
   const reduced = useReducedMotion();
   const theme = useTheme();
-  const styles = useStyles();
   const focusRing = useFocusRing();
   const off = !!disabled;
   const tint = contentColor(theme, variant, off, hovered);
@@ -94,7 +94,7 @@ export function Button({
           busy ? styles.hidden : null,
         ]}
       >
-        {variant === 'provider' ? (brand ?? <View style={styles.brandSlot} />) : null}
+        {variant === 'provider' ? brand : null}
         {icon ? <Icon icon={icon} size={sm ? ICO_S : ICO} color={tint} /> : null}
         <Text style={[styles.label, sm ? styles.labelSm : null, { color: tint }]}>{label}</Text>
       </View>
@@ -153,40 +153,31 @@ function fill(
   }
 }
 
-const useStyles = themed(({ color }) =>
-  StyleSheet.create({
-    btn: {
-      minHeight: 48,
-      paddingHorizontal: space.s5,
-      borderWidth: 1,
-      borderColor: 'transparent',
-      borderRadius: radius.pill,
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexDirection: 'row',
-    },
-    // `.btn-quiet` and `.btn-sm` both pull the sides in to 12.
-    tight: { paddingHorizontal: space.s3 },
-    sm: { minHeight: 36 },
-    wide: { width: '100%', flexShrink: 1 },
-    provider: { justifyContent: 'flex-start' },
-    off: { opacity: 0.45 },
-    press: { transform: [{ translateY: 1 }] },
-    content: { flexDirection: 'row', alignItems: 'center', gap: space.s2 },
-    // `.btn-provider` sets its own gap — the mark stands further off its words.
-    contentProvider: { gap: space.s3 },
-    hidden: { opacity: 0 },
-    busy: { alignItems: 'center', justifyContent: 'center' },
-    label: { fontSize: 16, lineHeight: 16, fontWeight: '600' },
-    labelSm: { fontSize: 14, lineHeight: 14 },
-    brandSlot: {
-      width: 20,
-      height: 20,
-      borderRadius: 4,
-      borderWidth: 1,
-      borderStyle: 'dashed',
-      borderColor: color.muted,
-      opacity: 0.6,
-    },
-  }),
-);
+// Nothing here is a colour: with the dashed brand slot gone the button's own sheet is shape and
+// rhythm only, and everything that has two answers comes through `fill` and `contentColor`.
+const styles = StyleSheet.create({
+  btn: {
+    minHeight: 48,
+    paddingHorizontal: space.s5,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+  },
+  // `.btn-quiet` and `.btn-sm` both pull the sides in to 12.
+  tight: { paddingHorizontal: space.s3 },
+  sm: { minHeight: 36 },
+  wide: { width: '100%', flexShrink: 1 },
+  provider: { justifyContent: 'flex-start' },
+  off: { opacity: 0.45 },
+  press: { transform: [{ translateY: 1 }] },
+  content: { flexDirection: 'row', alignItems: 'center', gap: space.s2 },
+  // `.btn-provider` sets its own gap — the mark stands further off its words.
+  contentProvider: { gap: space.s3 },
+  hidden: { opacity: 0 },
+  busy: { alignItems: 'center', justifyContent: 'center' },
+  label: { fontSize: 16, lineHeight: 16, fontWeight: '600' },
+  labelSm: { fontSize: 14, lineHeight: 14 },
+});
