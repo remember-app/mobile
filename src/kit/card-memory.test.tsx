@@ -23,6 +23,11 @@ function frames(html: string): number {
   return html.split('data-testid="card-memory-frame"').length - 1;
 }
 
+/** The opening tag of the element carrying `testID`, whatever else the card drew around it. */
+function tag(html: string, testID: string): string {
+  return html.match(new RegExp(`<[a-z]+[^>]*data-testid="${testID}"[^>]*>`))?.[0] ?? '';
+}
+
 test('draws one frame for every url the listing signed', () => {
   const html = renderToStaticMarkup(
     <CardMemory title="Лёшина свадьба" meta={['3 сентября', '128 кадров']} thumbs={[A, B]} />,
@@ -46,6 +51,21 @@ test('a memory nobody has added to yet says so instead of drawing empty frames',
   expect(frames(html)).toBe(0);
   expect(html).toContain('Поездка в Карелию');
   expect(html).toContain('Пока ни одного кадра.');
+});
+
+test('the perforation is drawn over the card, so it cannot set the card height', () => {
+  // Sixteen dots at a 13 pitch are a 204-tall column, and standing in the card's row that column
+  // was what the card's height came from — 238 against the 164 the kit draws, all of it empty under
+  // the frames. Nothing in node lays the card out, so what is pinned is the reason: the rail is
+  // positioned, and a positioned child is not measured with the row.
+  const html = renderToStaticMarkup(<CardMemory title="Сплав" meta={['1 мая']} />);
+
+  // `react-native-web` names its generated classes after the property it came from, so the rail
+  // being positioned and pinned top and bottom is readable straight off the markup.
+  const rail = tag(html, 'card-memory-rail');
+  for (const property of ['position', 'top', 'bottom']) {
+    expect(rail).toMatch(new RegExp(`\\br-${property}-`));
+  }
 });
 
 test('the field missing altogether is the empty memory, not a crash', () => {
