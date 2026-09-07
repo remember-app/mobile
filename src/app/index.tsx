@@ -18,7 +18,6 @@ import {
   RailH,
 } from '@/kit';
 import { useStrings } from '@/language';
-import { type Strings } from '@/strings';
 import { space, themed } from '@/theme';
 
 /** The main screen doc-01 asks for: every memory this account organizes or was invited to. */
@@ -86,7 +85,7 @@ export default function HomeScreen() {
             return (
               <CardMemory
                 title={item.title}
-                meta={facts(item, s)}
+                meta={facts(item)}
                 // The frames the listing signed for this memory, drawn as they come: the card shows
                 // what is inside instead of counting it, so nothing here says how much is left over.
                 thumbs={thumbs}
@@ -121,13 +120,13 @@ export default function HomeScreen() {
 }
 
 /**
- * The line under the title: when it was, and how much is in it. An empty memory says nothing here —
- * the card draws that on the film itself, and saying it twice on one card is saying it twice.
+ * The line under the title: when it was, and nothing else. The count that used to sit here stood in
+ * for the frames back when the listing signed only two of them — with four the strip says what is
+ * inside better than a number ever did, and a number beside it would only be the card repeating
+ * itself.
  */
-function facts(memory: Memory, s: Strings): string[] {
-  const dates = formatEventDates(memory.event_start, memory.event_end);
-
-  return memory.media_count === 0 ? [dates] : [dates, s.memory.frames(memory.media_count)];
+function facts(memory: Memory): string[] {
+  return [formatEventDates(memory.event_start, memory.event_end)];
 }
 
 const useStyles = themed(({ color }) =>
