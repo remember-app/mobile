@@ -1,4 +1,14 @@
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
+
+// Nothing below is about language, but `@/dates` writes a day in the app's own one now (m-13), and
+// the module holding it stands on two native expo modules vitest cannot load. Faked so the import
+// goes through; the window itself is timezone arithmetic and never reads a word.
+vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'en-US' }] }));
+vi.mock('expo-secure-store', () => ({
+  getItemAsync: async () => null,
+  setItemAsync: async () => {},
+}));
+
 import { endOfDay, startOfDay } from '@/dates';
 import { assetsInEventWindow } from '@/media-window';
 

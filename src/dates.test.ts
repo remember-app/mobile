@@ -1,10 +1,22 @@
-import { expect, test } from 'vitest';
-import { formatDay, formatEventDates, formatRuntime } from '@/dates';
+import { expect, test, vi } from 'vitest';
 
-// The date tests name their language out loud. The app never does — it takes the phone's — but a
-// run in node has one locale and the kit's form has to hold in both the app speaks, and the whole
-// point of the fix is that neither language's own punctuation («2026 г.», «September 3, 2026»)
-// reaches the screen. Days are written as local ones, since that is the day a memory carries.
+// `@/dates` asks `@/language` which language to write a day in, and that one stands on two native
+// expo modules vitest has nothing to run. The phone below is set to Russian on purpose: the last
+// tests here are about the app not listening to it.
+vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
+vi.mock('expo-secure-store', () => ({
+  getItemAsync: async () => null,
+  setItemAsync: async () => {},
+}));
+
+import { formatDay, formatEventDates, formatRuntime } from '@/dates';
+import { setLanguage } from '@/language';
+
+// The date tests below name their language out loud. The app never does — it takes the one it is
+// speaking — but a run in node has one locale and the kit's form has to hold in both languages the
+// app speaks, and the whole point of that fix is that neither language's own punctuation
+// («2026 г.», «September 3, 2026») reaches the screen. Days are written as local ones, since that
+// is the day a memory carries.
 
 const day = (y: number, m: number, d: number) => new Date(y, m - 1, d).toISOString();
 
@@ -41,6 +53,24 @@ test('no end at all is the single day', () => {
 // pair arrives from the api as a real memory — and it is one day, not a span of one.
 test('an end on the starting day is still a single day, not «3–3 сентября»', () => {
   expect(formatEventDates(day(2026, 9, 3), day(2026, 9, 3), 'ru-RU')).toBe('3 сентября 2026');
+});
+
+// m-13: nobody names a language on the calls the screens make. The phone faked above says Russian,
+// so a date that came out Russian while the app is English would be the device's locale leaking
+// back in — which is the bug this pair stands over.
+
+test('a day with no language named is written in the one the app speaks', async () => {
+  await setLanguage('en');
+  expect(formatDay(day(2026, 9, 3))).toBe('3 September 2026');
+  await setLanguage('ru');
+  expect(formatDay(day(2026, 9, 3))).toBe('3 сентября 2026');
+});
+
+test('a span follows the app’s language too, both ends and the month it names once', async () => {
+  await setLanguage('en');
+  expect(formatEventDates(day(2026, 8, 12), day(2026, 8, 16))).toBe('12–16 August');
+  await setLanguage('ru');
+  expect(formatEventDates(day(2026, 8, 12), day(2026, 8, 16))).toBe('12–16 августа');
 });
 
 // New in m-7: both the gallery and the upload screen draw a tile's duration corner through this,
