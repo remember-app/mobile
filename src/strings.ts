@@ -90,14 +90,22 @@ export const en = {
     failedMontage: 'Could not save this movie to your phone.',
   },
 
-  /** The three levels of doc-01 «Права доступа», keyed by what the api calls them. */
-  role: { organizer: 'Organizer', contributor: 'Can add photos', viewer: 'View only' },
+  /**
+   * The three levels of doc-01 «Права доступа», keyed by what the api calls them. One word each,
+   * as in section 7 of the kit: the chip stands at the end of a member row and every letter it
+   * takes is a letter the name and the standing beside it lose.
+   */
+  role: { organizer: 'Organizer', contributor: 'Contributor', viewer: 'Viewer' },
 
-  /** The four standings of doc-06 — «прогресс у организатора», keyed by the api's own values. */
+  /**
+   * The four standings of doc-06 — «прогресс у организатора», keyed by the api's own values.
+   * Short on purpose: these share one meta line with «@username», and a sentence there wraps the
+   * member row onto a height the kit never drew.
+   */
   standing: {
-    not_started: 'Nothing uploaded yet',
-    more_coming: 'Still adding photos',
-    done: 'Uploaded everything',
+    not_started: 'Nothing yet',
+    more_coming: 'Still adding',
+    done: 'All uploaded',
     nothing: 'Nothing to add',
   },
 
@@ -181,8 +189,11 @@ export const en = {
     roster: 'Who is here',
     you: (name: string) => `${name} (you)`,
     remove: (name: string) => `Remove ${name}`,
-    /** doc-06's «ждать нечего», given unprompted on one's own row. */
-    sayNothing: 'Nothing to add',
+    /**
+     * doc-06's «ждать нечего», given unprompted on one's own row. Said in the first person so it
+     * reads as the thing one presses, and not as the standing of the same name printed above it.
+     */
+    sayNothing: 'I have nothing to add',
     leave: 'Leave this memory',
     inviteTitle: 'Invite someone',
     mayAdd: 'They can add photos too',
@@ -399,13 +410,13 @@ export const ru: Strings = {
     failedMontage: 'Не получилось сохранить ролик на телефон.',
   },
 
-  role: { organizer: 'Организатор', contributor: 'Может добавлять', viewer: 'Только смотрит' },
+  role: { organizer: 'Организатор', contributor: 'Добавление', viewer: 'Просмотр' },
 
   standing: {
-    not_started: 'Пока ничего не загрузил',
+    not_started: 'Пока ничего',
     more_coming: 'Ещё добавляет',
     done: 'Загрузил всё',
-    nothing: 'Добавить нечего',
+    nothing: 'Ждать нечего',
   },
 
   home: {
@@ -471,7 +482,7 @@ export const ru: Strings = {
     roster: 'Кто здесь',
     you: (name: string) => `${name} (вы)`,
     remove: (name: string) => `Убрать ${name}`,
-    sayNothing: 'Ждать нечего',
+    sayNothing: 'Мне нечего добавить',
     leave: 'Выйти из воспоминания',
     inviteTitle: 'Позвать человека',
     mayAdd: 'Сможет добавлять фото',
