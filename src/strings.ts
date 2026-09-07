@@ -263,6 +263,13 @@ export const en = {
     howLong: 'How long',
     music: 'Music',
     empty: 'No movie yet — the organizer can ask for one.',
+    /**
+     * The same silence read by the one person who can end it. Empty is an invitation (kit,
+     * section 6), so it says what the thing is and what it takes — the button itself is on the
+     * bar below, and «the organizer can ask» would be telling them about themselves.
+     */
+    emptyOrganizer:
+      'No movie yet. A movie is a short cut of everything in this memory — the agent picks the moments itself and sets them to music. A few photos or videos are enough to start.',
     ordered: 'Ordered. Everyone here is told when it is ready.',
     tooLittle: 'Too little material for a movie yet — add a few more photos or videos first.',
     orderDenied: 'Only the organizer can order a movie.',
@@ -531,6 +538,8 @@ export const ru: Strings = {
     howLong: 'Длина',
     music: 'Музыка',
     empty: 'Роликов пока нет — организатор может заказать.',
+    emptyOrganizer:
+      'Ролика пока нет. Ролик — это короткое видео из всего, что есть в воспоминании: моменты нейросеть выберет сама и положит на музыку. Хватит нескольких фото или видео.',
     ordered: 'Заказали. Когда ролик будет готов, все здесь об этом узнают.',
     tooLittle: 'Материала для ролика пока мало — добавьте ещё несколько фото или видео.',
     orderDenied: 'Заказать ролик может только организатор.',
