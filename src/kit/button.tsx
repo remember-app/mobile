@@ -31,7 +31,8 @@ export type ButtonProps = {
   icon?: IconComponent;
   /**
    * `.brand-slot` for `variant="provider"` — the Apple or Google mark, which may only ever be drawn
-   * from the provider's own set. Left out, the kit's dashed placeholder stands in its place.
+   * from the provider's own set. The kit's dashed square is a slot in a demo, not a mark: until a
+   * real one is here the button carries its words alone rather than an empty box.
    */
   brand?: ReactNode;
   onPress?: () => void;
@@ -92,7 +93,7 @@ export function Button({
           busy ? styles.hidden : null,
         ]}
       >
-        {variant === 'provider' ? (brand ?? <View style={styles.brandSlot} />) : null}
+        {variant === 'provider' ? brand : null}
         {icon ? <Icon icon={icon} size={sm ? ICO_S : ICO} color={tint} /> : null}
         <Text style={[styles.label, sm ? styles.labelSm : null, { color: tint }]}>{label}</Text>
       </View>
@@ -163,13 +164,4 @@ const styles = StyleSheet.create({
   busy: { alignItems: 'center', justifyContent: 'center' },
   label: { fontSize: 16, lineHeight: 16, fontWeight: '600' },
   labelSm: { fontSize: 14, lineHeight: 14 },
-  brandSlot: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: color.muted,
-    opacity: 0.6,
-  },
 });
