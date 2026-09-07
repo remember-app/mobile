@@ -4,10 +4,11 @@ import * as WebBrowser from 'expo-web-browser';
 import { Mail } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ApiError, errorMessage, signInWithApple, signInWithGoogle, startEmailSignIn } from '@/api';
 import { useAuth } from '@/auth';
-import { Banner, Button, Empty, Field, Text } from '@/kit';
+import { Banner, Button, Empty, Field, RailH, Text } from '@/kit';
 import { useStrings } from '@/language';
 import { type Strings } from '@/strings';
 import { color, space } from '@/theme';
@@ -30,6 +31,8 @@ function providerError(s: Strings, provider: string, error: unknown): string {
 export default function LoginScreen() {
   const { signIn } = useAuth();
   const s = useStrings();
+  // The native header is off for the whole app, so the screen owes the status bar its own room.
+  const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -66,7 +69,9 @@ export default function LoginScreen() {
       await startEmailSignIn(email.trim());
       setSent(true);
     } catch (e) {
-      setError(errorMessage(e));
+      // 503 is the api saying it has no mail keys; its own wording for that is written for whoever
+      // runs it, so the screen answers in its own words instead of passing the server's along.
+      setError(e instanceof ApiError && e.status === 503 ? s.login.mailDown : errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -107,76 +112,90 @@ export default function LoginScreen() {
   // keeps only the way back — the kit's «waiting» shape, section 6.
   if (sent) {
     return (
-      <View style={styles.screen}>
-        <Text role="display">{s.login.sentTitle}</Text>
-        <Empty icon={Mail} text={s.login.sentText(email.trim())}>
-          <Text role="meta">{s.login.sentDevHint}</Text>
-          <Button variant="quiet" label={s.login.otherAddress} onPress={() => setSent(false)} />
-        </Empty>
+      <View style={[styles.screen, { paddingTop: insets.top }]}>
+        <RailH />
+        <View style={styles.middle}>
+          <Text role="display">{s.login.sentTitle}</Text>
+          <Empty icon={Mail} text={s.login.sentText(email.trim())}>
+            <Button
+              variant="quiet"
+              label={s.login.otherAddress}
+              onPress={() => setSent(false)}
+            />
+          </Empty>
+        </View>
       </View>
     );
   }
 
   return (
-    <View style={styles.screen}>
-      <Text role="display">{s.login.title}</Text>
+    <View style={[styles.screen, { paddingTop: insets.top }]}>
+      {/* This is where a person lands with nothing else on screen to tell them where they are, so
+          the top of it says so: the kit's perforation in the second of the two places it is
+          allowed, and the product's own name under it as the screen's one heading. The name is the
+          product's own and is the same word in both languages — the one heading here never turns. */}
+      <RailH />
+      <View style={styles.middle}>
+        <Text accessibilityRole="header" role="display">
+          Remember
+        </Text>
 
-      {/* The kit's «Вход» demo, section 3: the providers first, carrying the dashed slot their own
-          mark goes in, and the email link underneath as the quiet way in. No ember on this screen —
-          the field's focus border is the one lit thing here. */}
-      <View style={styles.group}>
-        {/* ponytail: plain button; App Store review wants AppleAuthenticationButton before shipping. */}
-        <Button
-          variant="provider"
-          label={s.login.withApple}
-          onPress={withApple}
-          disabled={!appleAvailable}
-        />
-        {appleAvailable ? null : <Text role="meta">{s.login.appleUnavailable}</Text>}
-        <Button
-          variant="provider"
-          label={s.login.withGoogle}
-          onPress={withGoogle}
-          disabled={!googleRequest}
-        />
+        {/* The kit's «Вход» demo, section 3: the providers first, the email link underneath as the
+            quiet way in. No ember on this screen — the field's focus border is the one lit thing
+            here. */}
+        <View style={styles.group}>
+          {/* ponytail: plain button; App Store review wants AppleAuthenticationButton before
+              shipping — and that is where the provider's own mark comes from too. */}
+          <Button
+            variant="provider"
+            label={s.login.withApple}
+            onPress={withApple}
+            disabled={!appleAvailable}
+          />
+          {appleAvailable ? null : <Text role="meta">{s.login.appleUnavailable}</Text>}
+          <Button
+            variant="provider"
+            label={s.login.withGoogle}
+            onPress={withGoogle}
+            disabled={!googleRequest}
+          />
+        </View>
+
+        <View style={styles.group}>
+          <Field
+            label={s.login.email}
+            value={email}
+            onChangeText={setEmail}
+            placeholder={s.login.emailPlaceholder}
+            inputMode="email"
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete="email"
+            editable={!busy}
+          />
+          {/* `busy` already blocks the press, so the button only goes out when there is nothing
+              to send. */}
+          <Button
+            variant="quiet"
+            wide
+            label={s.login.sendLink}
+            onPress={sendLink}
+            busy={busy}
+            disabled={email.trim() === ''}
+          />
+        </View>
+
+        {error ? <Banner tone="error" text={error} /> : null}
       </View>
-
-      <View style={styles.group}>
-        <Field
-          label={s.login.email}
-          value={email}
-          onChangeText={setEmail}
-          placeholder={s.login.emailPlaceholder}
-          inputMode="email"
-          autoCapitalize="none"
-          autoCorrect={false}
-          autoComplete="email"
-          editable={!busy}
-        />
-        {/* `busy` already blocks the press, so the button only goes out when there is nothing to send. */}
-        <Button
-          variant="quiet"
-          wide
-          label={s.login.sendLink}
-          onPress={sendLink}
-          busy={busy}
-          disabled={email.trim() === ''}
-        />
-      </View>
-
-      {error ? <Banner tone="error" text={error} /> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    justifyContent: 'center',
-    gap: space.s6,
-    padding: space.s6,
-    backgroundColor: color.ink,
-  },
+  // No native header anywhere in the app, so the perforation is what the status bar sits above.
+  screen: { flex: 1, paddingHorizontal: space.s6, backgroundColor: color.ink },
+  // Everything the screen asks for, held in the middle under the name.
+  middle: { flex: 1, justifyContent: 'center', gap: space.s6, paddingBottom: space.s6 },
   // One way in, held together: the buttons of a group stand closer to each other than to the next.
   group: { gap: space.s3 },
 });

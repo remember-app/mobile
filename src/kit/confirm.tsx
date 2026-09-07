@@ -1,6 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
-import { color, space } from '@/theme';
+import { space, themed } from '@/theme';
 
 import { Button } from './button';
 import { Sheet } from './sheet';
@@ -34,6 +34,8 @@ export function ConfirmSheet({
   onConfirm,
   onCancel,
 }: ConfirmProps) {
+  const styles = useStyles();
+
   return (
     <Sheet visible={visible} onCancel={onCancel}>
       <View>
@@ -50,7 +52,9 @@ export function ConfirmSheet({
   );
 }
 
-const styles = StyleSheet.create({
-  text: { color: color.muted, marginTop: space.s2 },
-  actions: { gap: space.s2 },
-});
+const useStyles = themed(({ color }) =>
+  StyleSheet.create({
+    text: { color: color.muted, marginTop: space.s2 },
+    actions: { gap: space.s2 },
+  }),
+);

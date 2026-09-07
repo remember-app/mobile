@@ -121,9 +121,11 @@ export const en = {
     back: 'Back home',
   },
 
-  /** The way in. The provider names are trademarks and stay as they are written. */
+  /**
+   * The way in. The provider names are trademarks and stay as they are written, and the screen's
+   * one heading is the product's own name (TASK-77) — which is not a word either language owns.
+   */
   login: {
-    title: 'Sign in',
     withApple: 'Continue with Apple',
     withGoogle: 'Continue with Google',
     appleUnavailable: 'Apple sign-in is not available on this device.',
@@ -132,9 +134,13 @@ export const en = {
     email: 'Email',
     emailPlaceholder: 'you@example.com',
     sendLink: 'Send me a link',
+    /**
+     * 503 is the api saying it has no mail keys. Its own wording for that is written for whoever
+     * runs it, so the screen answers in its own words rather than passing the server's along.
+     */
+    mailDown: "We can't send sign-in links right now — try again later.",
     sentTitle: 'Check your link',
     sentText: (email: string) => `Open the link we sent to ${email} — it signs you in here.`,
-    sentDevHint: 'In dev it is printed in the API log.',
     otherAddress: 'Use a different address',
   },
 
@@ -416,7 +422,6 @@ export const ru: Strings = {
   },
 
   login: {
-    title: 'Вход',
     withApple: 'Войти через Apple',
     withGoogle: 'Войти через Google',
     appleUnavailable: 'На этом устройстве вход через Apple недоступен.',
@@ -425,9 +430,10 @@ export const ru: Strings = {
     email: 'Почта',
     emailPlaceholder: 'ivan@example.com',
     sendLink: 'Пришлите ссылку',
+    mailDown: 'Сейчас мы не можем отправлять ссылки для входа — попробуйте позже.',
     sentTitle: 'Ссылка отправлена',
-    sentText: (email: string) => `Откройте ссылку, которую мы прислали на ${email}, — она впустит вас сюда.`,
-    sentDevHint: 'В режиме разработки она печатается в лог сервера.',
+    sentText: (email: string) =>
+      `Откройте ссылку, которую мы прислали на ${email}, — она впустит вас сюда.`,
     otherAddress: 'Другой адрес',
   },
 

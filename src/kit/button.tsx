@@ -1,12 +1,11 @@
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { color, glow, radius, space } from '@/theme';
+import { radius, space, useTheme, type Theme } from '@/theme';
 
 import { Spinner } from './empty';
 import { ICO, ICO_S, Icon, type IconComponent } from './icon';
-import { TAP, focusRing, hitSlop, useHoverFocus, useReducedMotion } from './interaction';
-import { shade } from './shades';
+import { TAP, hitSlop, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
 
 /** The kit's `.btn-*` modifiers, section 3. */
 export type ButtonVariant =
@@ -31,7 +30,8 @@ export type ButtonProps = {
   icon?: IconComponent;
   /**
    * `.brand-slot` for `variant="provider"` — the Apple or Google mark, which may only ever be drawn
-   * from the provider's own set. Left out, the kit's dashed placeholder stands in its place.
+   * from the provider's own set. The kit's dashed square is a slot in a demo, not a mark: until a
+   * real one is here the button carries its words alone rather than an empty box.
    */
   brand?: ReactNode;
   onPress?: () => void;
@@ -56,8 +56,10 @@ export function Button({
 }: ButtonProps) {
   const { hovered, focused, props } = useHoverFocus();
   const reduced = useReducedMotion();
+  const theme = useTheme();
+  const focusRing = useFocusRing();
   const off = !!disabled;
-  const tint = contentColor(variant, off, hovered);
+  const tint = contentColor(theme, variant, off, hovered);
 
   return (
     <Pressable
@@ -72,7 +74,7 @@ export function Button({
       {...props}
       style={({ pressed }) => [
         styles.btn,
-        fill(variant, off, hovered),
+        fill(theme, variant, off, hovered),
         variant === 'quiet' || sm ? styles.tight : null,
         sm ? styles.sm : null,
         variant === 'provider' ? styles.provider : null,
@@ -92,7 +94,7 @@ export function Button({
           busy ? styles.hidden : null,
         ]}
       >
-        {variant === 'provider' ? (brand ?? <View style={styles.brandSlot} />) : null}
+        {variant === 'provider' ? brand : null}
         {icon ? <Icon icon={icon} size={sm ? ICO_S : ICO} color={tint} /> : null}
         <Text style={[styles.label, sm ? styles.labelSm : null, { color: tint }]}>{label}</Text>
       </View>
@@ -106,30 +108,43 @@ export function Button({
 }
 
 /** What the label and icon are drawn in. Disabled primary loses the ember it sat on. */
-function contentColor(variant: ButtonVariant, disabled: boolean, hovered: boolean): string {
+function contentColor(
+  { color, shade }: Theme,
+  variant: ButtonVariant,
+  disabled: boolean,
+  hovered: boolean,
+): string {
   if (variant === 'primary') return disabled ? color.muted : shade.onEmber;
   if (variant === 'quiet') return hovered ? color.paper : color.muted;
-  if (variant === 'danger') return shade.danger;
+  if (variant === 'danger') return shade.rustText;
+  // `.btn-danger-solid` reads on rust and not on the screen behind it, which in daylight is the
+  // other way up from `paper`.
+  if (variant === 'danger-solid') return shade.onRust;
   return color.paper;
 }
 
 /** Background, border and glow. Hover only ever resolves true on web. */
-function fill(variant: ButtonVariant, disabled: boolean, hovered: boolean): ViewStyle {
+function fill(
+  { color, shade, glow }: Theme,
+  variant: ButtonVariant,
+  disabled: boolean,
+  hovered: boolean,
+): ViewStyle {
   switch (variant) {
     case 'primary':
       return disabled
         ? { backgroundColor: color.raise }
-        : { backgroundColor: hovered ? shade.emberHover : color.ember, boxShadow: glow };
+        : { backgroundColor: hovered ? shade.emberHi : color.ember, boxShadow: glow };
     case 'secondary':
     case 'provider':
       return {
         backgroundColor: hovered ? color.raise : color.surface,
-        borderColor: hovered ? shade.lineHover : color.line,
+        borderColor: hovered ? shade.lineHi : color.line,
       };
     case 'danger':
       return {
-        borderColor: shade.dangerLine,
-        backgroundColor: hovered ? shade.dangerHover : 'transparent',
+        borderColor: shade.rustLine,
+        backgroundColor: hovered ? shade.rustFillHi : 'transparent',
       };
     case 'danger-solid':
       return { backgroundColor: color.rust };
@@ -138,6 +153,8 @@ function fill(variant: ButtonVariant, disabled: boolean, hovered: boolean): View
   }
 }
 
+// Nothing here is a colour: with the dashed brand slot gone the button's own sheet is shape and
+// rhythm only, and everything that has two answers comes through `fill` and `contentColor`.
 const styles = StyleSheet.create({
   btn: {
     minHeight: 48,
@@ -163,13 +180,4 @@ const styles = StyleSheet.create({
   busy: { alignItems: 'center', justifyContent: 'center' },
   label: { fontSize: 16, lineHeight: 16, fontWeight: '600' },
   labelSm: { fontSize: 14, lineHeight: 14 },
-  brandSlot: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: color.muted,
-    opacity: 0.6,
-  },
 });
