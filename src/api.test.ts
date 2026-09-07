@@ -9,7 +9,7 @@ vi.mock('expo-secure-store', () => ({
   setItemAsync: async () => {},
 }));
 
-import { ApiError, errorMessage, mayContribute, memberName } from '@/api';
+import { ApiError, errorMessage, mayContribute, memberName, startEmailSignIn } from '@/api';
 import { setLanguage } from '@/language';
 import { en, ru } from '@/strings';
 
@@ -50,7 +50,34 @@ test('the two failures the api words itself turn with the language; the rest is 
   setLanguage('ru');
   expect(new ApiError(429, null).message).toBe(ru.error.tooMany);
   expect(new ApiError(503, null).message).toBe(ru.error.status(503));
-  // The api's own sentence is passed through untouched — TASK-91 is what tells it which language
-  // to write in. Translating it here would be this side inventing words for the other's answer.
+  // The api's own sentence is passed through untouched. It knows the caller's language (TASK-91)
+  // and writes its mails in it, but an answer to a request it words itself; translating that here
+  // would be this side inventing words for the other's answer.
   expect(wire.message).toBe('title must not be blank');
+});
+
+/**
+ * The letter with the sign-in link is written before there is any account to ask, so the only thing
+ * that can say which language to write it in is this request (doc-8, TASK-85). It is also the one
+ * place where the language is not a detail of a screen but the whole of what arrives in an inbox —
+ * dropped, and everyone gets Russian.
+ */
+test('the request for a sign-in link carries the language the app is speaking', async () => {
+  const sent: unknown[] = [];
+  vi.stubGlobal('fetch', async (_url: string, init: { body: string }) => {
+    sent.push(JSON.parse(init.body));
+    return new Response('{"ok":true}');
+  });
+
+  await setLanguage('ru');
+  await startEmailSignIn('pilot@example.com');
+  await setLanguage('en');
+  await startEmailSignIn('pilot@example.com');
+
+  expect(sent).toEqual([
+    { email: 'pilot@example.com', language: 'ru' },
+    { email: 'pilot@example.com', language: 'en' },
+  ]);
+
+  vi.unstubAllGlobals();
 });

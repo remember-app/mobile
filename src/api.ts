@@ -1,4 +1,4 @@
-import { currentLanguage } from '@/language';
+import { currentLanguage, type Language } from '@/language';
 import { strings } from '@/strings';
 
 // The API base URL. Expo inlines EXPO_PUBLIC_* at build time, so it has to be
@@ -33,8 +33,9 @@ export class ApiError extends Error {
 
 /**
  * ponytail: `reason` is the api's own sentence, and it comes down the wire in whatever language the
- * api writes — English today. TASK-91 is what tells the api which language the caller reads in; the
- * two lines this side writes are already both.
+ * api writes — English today. The api is now told which language the caller reads (TASK-91), but it
+ * spends that on what it writes unprompted — the mails and the pushes — and not on its answer to a
+ * request. The two lines this side words itself are already both.
  */
 function describe(status: number, body: unknown): string {
   if (status === 429) return say().error.tooMany;
@@ -91,9 +92,18 @@ async function request<T>(
   }
 }
 
-/** Ask for a magic link. The api answers 200 whether or not the address is registered. */
+/**
+ * Ask for a magic link. The api answers 200 whether or not the address is registered.
+ *
+ * The language rides along because at this point there is no session to hang it on — the address
+ * is all the api knows about whoever asked, and the letter has to be written in the language of
+ * the app that asked (TASK-85). Every later sync goes through `putLanguage` instead.
+ */
 export function startEmailSignIn(email: string): Promise<{ ok: true }> {
-  return request('/auth/email/start', { method: 'POST', body: { email } });
+  return request('/auth/email/start', {
+    method: 'POST',
+    body: { email, language: currentLanguage() },
+  });
 }
 
 /** Trade a link token for a session. 401 when it is spent or expired. */
@@ -119,6 +129,16 @@ export function fetchMe(token: string): Promise<User> {
 /** Claim or change the username. 409 when taken, 400 when the format is wrong. */
 export function putUsername(token: string, username: string): Promise<User> {
   return request('/me/username', { method: 'POST', body: { username }, token });
+}
+
+/**
+ * Tell the account which of the two languages its owner reads in. What it is for is everything the
+ * api writes to a person who is not looking at the app — the invite mails, the pushes — so each one
+ * lands in their own language and not in the sender's. Answers with the account, same as
+ * `putUsername`; nothing here reads it, the app already turned before the call was made.
+ */
+export function putLanguage(token: string, language: Language): Promise<User> {
+  return request('/me/language', { method: 'POST', body: { language }, token });
 }
 
 /**
