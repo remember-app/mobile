@@ -55,6 +55,21 @@ test('an end on the starting day is still a single day, not «3–3 сентяб
   expect(formatEventDates(day(2026, 9, 3), day(2026, 9, 3), 'ru-RU')).toBe('3 сентября 2026');
 });
 
+// The app ships over the air and the api deploys on its own, so a build can meet a listing that no
+// longer carries these fields. `new Date` swallows anything and `toLocaleDateString` answers
+// «Invalid Date» rather than throwing, so without a guard the garbage reaches the screen whole —
+// «NaN Invalid Date NaN» printed under a photograph as the day the event happened.
+test('a day the api did not send, or sent unreadable, writes nothing at all', () => {
+  for (const bad of ['', 'yesterday', undefined as unknown as string]) {
+    expect(formatDay(bad, 'ru-RU')).toBe('');
+    expect(formatEventDates(bad, null, 'ru-RU')).toBe('');
+  }
+});
+
+test('a readable start with an unreadable end is the day it began', () => {
+  expect(formatEventDates(day(2026, 9, 3), 'not-a-day', 'ru-RU')).toBe('3 сентября 2026');
+});
+
 // m-13: nobody names a language on the calls the screens make. The phone faked above says Russian,
 // so a date that came out Russian while the app is English would be the device's locale leaking
 // back in — which is the bug this pair stands over.

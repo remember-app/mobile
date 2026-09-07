@@ -63,9 +63,9 @@ test('a memory nobody has added to yet says so instead of drawing empty frames',
 
 test('the perforation is drawn over the card, so it cannot set the card height', () => {
   // Sixteen dots at a 13 pitch are a 204-tall column, and standing in the card's row that column
-  // was what the card's height came from — 238 against the 164 the kit draws, all of it empty under
-  // the frames. Nothing in node lays the card out, so what is pinned is the reason: the rail is
-  // positioned, and a positioned child is not measured with the row.
+  // was what the card's height came from — 238 against the 173.6 the kit draws, all of it empty
+  // under the frames. Nothing in node lays the card out, so what is pinned is the reason: the
+  // rail is positioned, and a positioned child is not measured with the row.
   const html = renderToStaticMarkup(<CardMemory title="Сплав" meta={['1 мая']} />);
 
   // `react-native-web` names its generated classes after the property it came from, so the rail

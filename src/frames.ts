@@ -72,7 +72,8 @@ export function shotBy(
   memory: Memory | null,
 ): string {
   const who = memberName(roster?.find((member) => member.id === item.uploaded_by) ?? null);
-  return memory === null
-    ? who
-    : `${who} · ${formatEventDates(memory.event_start, memory.event_end)}`;
+  // A memory that did not arrive and one whose days will not parse cost this line the same thing:
+  // the separator goes with the date, so a name is never left hanging off a «·».
+  const when = memory === null ? '' : formatEventDates(memory.event_start, memory.event_end);
+  return when === '' ? who : `${who} · ${when}`;
 }

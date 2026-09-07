@@ -26,7 +26,7 @@ const RAIL_WIDTH = 8;
  *
  * Painted over the card's left padding rather than standing beside the body in the row. A gradient
  * costs no height, a column of sixteen dots is 204 tall, and in the row that column was what the
- * card's height was measured from — the card came out 74 taller than the anatomy it draws.
+ * card's height was measured from — the card came out 64 taller than the anatomy it draws.
  */
 function Rail() {
   const styles = useStyles();

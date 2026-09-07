@@ -333,13 +333,25 @@ export default function MontageScreen() {
       </ScrollView>
 
       {/* Above the bar and outside the scroll, the way the gallery holds its own: what the button
-          below answers with must not land at the bottom of a list that has scrolled away. */}
-      {notice ? <Banner text={notice} /> : null}
+          below answers with must not land at the bottom of a list that has scrolled away. The bar
+          is also what carries the phone's own bottom inset — and there is no bar for anybody but
+          the organizer, so without this the line lands under the home indicator for everybody who
+          only ever saves a movie. */}
+      {notice ? (
+        <Banner
+          text={notice}
+          style={role === 'organizer' ? null : { marginBottom: Math.max(insets.bottom, space.s4) }}
+        />
+      ) : null}
 
       {/* The screen's one glowing button for the organizer — doc-03 makes ordering theirs alone,
           and it is the thing the whole memory is being filled up for. In the bottom bar because
-          that is where this app keeps the one action of a screen. */}
-      {role === 'organizer' ? (
+          that is where this app keeps the one action of a screen.
+          Not before the list has answered: standing outside the scroll, this bar is gated on the
+          role, which comes off the memory and lands first — so it would offer an order over a list
+          still in flight, and `order` prepends its new row to state that the read landing after it
+          then overwrites. Under a list that failed to read it offers a second failure instead. */}
+      {role === 'organizer' && montages !== null ? (
         <ActionBar>
           <Button
             variant="primary"

@@ -98,6 +98,18 @@ test('the two screens reach each other without stacking a copy each hop', () => 
   expect(montage).toContain("router.navigate({ pathname: '/memory/[id]'");
 });
 
+test('the order button waits for the list it prepends to', () => {
+  // TASK-75 lifted this button out of the list branch into the bottom bar, where the only thing
+  // gating it is the role — and the role comes off the memory, which is a different call that lands
+  // first. Pressed over a list still in flight, `order` puts its new row into state that the read
+  // landing after it wipes; pressed over a list that failed, it offers a second failure under an
+  // error banner. Both are the invariant the button had while it stood inside the list.
+  expect(montage).toContain("role === 'organizer' && montages !== null ?");
+  // And the answer to that press carries the bottom inset itself when there is no bar under it to
+  // carry one — everybody who is not the organizer still saves a movie and still gets a line back.
+  expect(montage).toContain("role === 'organizer' ? null : { marginBottom:");
+});
+
 test('the ember on the guest list is the road to the movie, not the one to the gallery', () => {
   // The kit gives the glow to one action per surface, and this file draws two: the screen, and the
   // invite sheet over it. Two glows in it, then, and each on the thing its own surface is for.

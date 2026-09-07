@@ -25,6 +25,11 @@ import { currentLanguage } from '@/language';
  */
 function dayFields(value: string | Date, locale: string = currentLanguage()) {
   const day = new Date(value);
+  // `new Date` never throws and neither does `toLocaleDateString` — an unparseable value comes out
+  // the other end as «NaN Invalid Date NaN», printed under a photograph as the day it happened. The
+  // app ships over the air and the api deploys on its own, so a build that expects these fields can
+  // meet one that has stopped sending them; `null` is that, and every caller writes nothing.
+  if (Number.isNaN(day.getTime())) return null;
   return {
     day: String(day.getDate()),
     month: day
@@ -35,15 +40,17 @@ function dayFields(value: string | Date, locale: string = currentLanguage()) {
   };
 }
 
-const wholeDay = (fields: ReturnType<typeof dayFields>) =>
+const wholeDay = (fields: NonNullable<ReturnType<typeof dayFields>>) =>
   `${fields.day} ${fields.month} ${fields.year}`;
 
 /**
  * One day the way the kit writes it — «3 сентября 2026», «3 September 2026». `locale` is only for
- * tests to name a language out loud; the app leaves it out and gets the one it is speaking.
+ * tests to name a language out loud; the app leaves it out and gets the one it is speaking. A day
+ * that will not parse is no day at all and writes nothing.
  */
 export function formatDay(value: string | Date, locale?: string): string {
-  return wholeDay(dayFields(value, locale));
+  const fields = dayFields(value, locale);
+  return fields === null ? '' : wholeDay(fields);
 }
 
 /**
@@ -54,8 +61,12 @@ export function formatDay(value: string | Date, locale?: string): string {
  */
 export function formatEventDates(start: string, end: string | null, locale?: string): string {
   const from = dayFields(start, locale);
+  // No readable start is no line at all; a start that reads with an end that does not is the day it
+  // began, which is the same shape a memory without an end has.
+  if (from === null) return '';
   if (!end) return wholeDay(from);
   const to = dayFields(end, locale);
+  if (to === null) return wholeDay(from);
   if (from.month !== to.month || from.year !== to.year) return `${wholeDay(from)} — ${wholeDay(to)}`;
   return from.day === to.day ? wholeDay(from) : `${from.day}–${to.day} ${to.month}`;
 }
