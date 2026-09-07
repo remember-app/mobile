@@ -63,10 +63,3 @@ export const shades: { dark: Shade; light: Shade } = {
     rustFillHi: 'rgba(134,48,30,.24)',
   },
 };
-
-/**
- * The one shade a screen still reads off a fixed dark set, under the name it had before the kit
- * named it: `create.tsx` draws its date trigger with it. TASK-89 moves the screens onto the live
- * theme and takes this with it.
- */
-export const shade = { lineHover: shades.dark.lineHi } as const;

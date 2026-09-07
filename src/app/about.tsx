@@ -4,11 +4,12 @@ import { StyleSheet, View } from 'react-native';
 import { API_URL } from '@/api';
 import { Button, Text } from '@/kit';
 import { useStrings } from '@/language';
-import { color, space } from '@/theme';
+import { space, themed } from '@/theme';
 
 /** Which api this build talks to. Service page — the kit's tokens, and nothing it does not need. */
 export default function AboutScreen() {
   const s = useStrings();
+  const styles = useStyles();
 
   return (
     <View style={styles.container}>
@@ -32,16 +33,18 @@ export default function AboutScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: space.s4,
-    padding: space.s6,
-    backgroundColor: color.ink,
-  },
-  lead: { color: color.muted },
-  api: { alignItems: 'center', gap: space.s1 },
-  hint: { textAlign: 'center' },
-});
+const useStyles = themed(({ color }) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: space.s4,
+      padding: space.s6,
+      backgroundColor: color.ink,
+    },
+    lead: { color: color.muted },
+    api: { alignItems: 'center', gap: space.s1 },
+    hint: { textAlign: 'center' },
+  }),
+);

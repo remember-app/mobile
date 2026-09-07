@@ -8,7 +8,7 @@ import { errorMessage } from '@/api';
 import { useAuth } from '@/auth';
 import { ActionBar, AppBar, Banner, Button, ConfirmSheet, IconButton, RowMember } from '@/kit';
 import { useStrings } from '@/language';
-import { color, space } from '@/theme';
+import { space, themed } from '@/theme';
 import { UsernameForm } from '@/username-form';
 
 /**
@@ -22,6 +22,7 @@ export default function ProfileScreen() {
   const { user, signOut } = useAuth();
   const router = useRouter();
   const s = useStrings();
+  const styles = useStyles();
   const insets = useSafeAreaInsets();
   const [busy, setBusy] = useState(false);
   const [asking, setAsking] = useState(false);
@@ -88,7 +89,9 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, paddingHorizontal: space.s6, backgroundColor: color.ink },
-  body: { flex: 1, gap: space.s5 },
-});
+const useStyles = themed(({ color }) =>
+  StyleSheet.create({
+    screen: { flex: 1, paddingHorizontal: space.s6, backgroundColor: color.ink },
+    body: { flex: 1, gap: space.s5 },
+  }),
+);

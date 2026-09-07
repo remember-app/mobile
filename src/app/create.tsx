@@ -18,18 +18,20 @@ import {
   IconButton,
   TAP,
   Text,
-  focusRing,
-  shade,
+  useFocusRing,
   useHoverFocus,
 } from '@/kit';
 import { useStrings } from '@/language';
-import { color, radius, space } from '@/theme';
+import { radius, space, themed, useTheme } from '@/theme';
 
 /** Creating a memory: a title and the day (or span) the event happened on. */
 export default function CreateMemoryScreen() {
   const { token } = useAuth();
   const router = useRouter();
   const s = useStrings();
+  const styles = useStyles();
+  // The platform's switch takes its colours as props, not as a style.
+  const { color } = useTheme();
   // The native header is off for the whole app, so the screen owes the status bar its own room.
   const insets = useSafeAreaInsets();
   const [title, setTitle] = useState('');
@@ -156,6 +158,9 @@ function DayField({
 }) {
   const [open, setOpen] = useState(false);
   const { hovered, focused, props } = useHoverFocus();
+  const styles = useStyles();
+  const { color } = useTheme();
+  const focusRing = useFocusRing();
 
   return (
     <View style={styles.field}>
@@ -196,37 +201,39 @@ function DayField({
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: color.ink, paddingHorizontal: space.s4 },
-  form: { flex: 1, gap: space.s5, paddingTop: space.s2 },
-  // The row keeps a finger's worth of height whatever the platform draws the switch at.
-  toggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: space.s4,
-    minHeight: TAP,
-  },
-  error: { marginBottom: space.s3 },
-  // `.field` and `.input`, section 4 — the trigger stands where an input would.
-  field: { alignSelf: 'stretch', maxWidth: 420, gap: space.s2 },
-  trigger: {
-    minHeight: 52,
-    paddingHorizontal: space.s4,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: space.s3,
-    backgroundColor: color.surface,
-    borderWidth: 1,
-    borderColor: color.line,
-    borderRadius: radius.card,
-  },
-  // `.input:hover` — the same one step up under a finger.
-  triggerLive: { borderColor: shade.lineHover, backgroundColor: color.raise },
-  // `.input:disabled`
-  triggerOff: { backgroundColor: color.ink },
-  // The kit's input type, with the tabular figures it asks of every date.
-  day: { fontVariant: ['tabular-nums'] },
-  dayOff: { color: color.muted },
-});
+const useStyles = themed(({ color, shade }) =>
+  StyleSheet.create({
+    screen: { flex: 1, backgroundColor: color.ink, paddingHorizontal: space.s4 },
+    form: { flex: 1, gap: space.s5, paddingTop: space.s2 },
+    // The row keeps a finger's worth of height whatever the platform draws the switch at.
+    toggle: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: space.s4,
+      minHeight: TAP,
+    },
+    error: { marginBottom: space.s3 },
+    // `.field` and `.input`, section 4 — the trigger stands where an input would.
+    field: { alignSelf: 'stretch', maxWidth: 420, gap: space.s2 },
+    trigger: {
+      minHeight: 52,
+      paddingHorizontal: space.s4,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: space.s3,
+      backgroundColor: color.surface,
+      borderWidth: 1,
+      borderColor: color.line,
+      borderRadius: radius.card,
+    },
+    // `.input:hover` — the same one step up under a finger.
+    triggerLive: { borderColor: shade.lineHi, backgroundColor: color.raise },
+    // `.input:disabled`
+    triggerOff: { backgroundColor: color.ink },
+    // The kit's input type, with the tabular figures it asks of every date.
+    day: { fontVariant: ['tabular-nums'] },
+    dayOff: { color: color.muted },
+  }),
+);

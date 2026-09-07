@@ -43,7 +43,7 @@ import {
   Tile,
 } from '@/kit';
 import { useStrings } from '@/language';
-import { color, space } from '@/theme';
+import { onScrim, space, themed, useTheme } from '@/theme';
 
 /**
  * How long the screen waits before looking again while the worker is still making something. A
@@ -69,6 +69,9 @@ export default function GalleryScreen() {
   const { token, user } = useAuth();
   const router = useRouter();
   const s = useStrings();
+  const styles = useStyles();
+  // The pull-to-refresh spinner is drawn by the platform and takes its colours as props.
+  const { color } = useTheme();
   const insets = useSafeAreaInsets();
   // null means «not loaded yet», the distinction the other screens draw: a reload after a delete
   // keeps the grid on screen instead of flashing the spinner over it.
@@ -427,7 +430,7 @@ export default function GalleryScreen() {
                     <IconButton
                       icon={X}
                       label={s.action.close}
-                      tint={color.paper}
+                      tint={onScrim}
                       onPress={() => setOpen(null)}
                       disabled={busy}
                     />
@@ -441,7 +444,7 @@ export default function GalleryScreen() {
                     <IconButton
                       icon={Download}
                       label={s.action.download}
-                      tint={color.paper}
+                      tint={onScrim}
                       onPress={() => void save(shown)}
                       disabled={busy}
                     />
@@ -449,7 +452,7 @@ export default function GalleryScreen() {
                       <IconButton
                         icon={Trash2}
                         label={s.action.delete}
-                        tint={color.paper}
+                        tint={onScrim}
                         onPress={() => setConfirming(true)}
                         disabled={busy}
                       />
@@ -558,51 +561,57 @@ export default function GalleryScreen() {
  */
 function Playing({ url }: { url: string }) {
   const player = useVideoPlayer(url, (video) => video.play());
+  const styles = useStyles();
   return <VideoView player={player} style={styles.big} />;
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: color.ink },
-  // The appbar and the bottom action stand off the edge; the sheet between them does not.
-  pad: { paddingHorizontal: space.s4 },
-  centered: { flex: 1, justifyContent: 'center', padding: space.s4 },
-  // The kit's contact sheet: a 3px gutter and nothing else, so the material reads as a lot of it.
-  grid: { flexGrow: 1, gap: 3 },
-  gridRow: { gap: 3 },
-  // A third of the row and not `flex: 1`, for the reason the upload grid gives: a last row with
-  // one tile in it must leave it a third of the width.
-  cell: { flex: 1 / 3 },
-  notice: { marginTop: space.s3 },
-  // The open frame is the whole screen: the frame takes what is left after the strip, and the bar
-  // lies over it rather than beside it.
-  viewer: { flex: 1, backgroundColor: color.ink },
-  frame: { flex: 1, justifyContent: 'center' },
-  big: { flex: 1, width: '100%' },
-  blank: { justifyContent: 'center' },
-  viewerBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.s2,
-    paddingHorizontal: space.s2,
-    paddingBottom: space.s6,
-    // The kit's own gradient, written the way React Native takes one — no library for a background.
-    // It fades to nothing so the frame is never cut in half by an edge; the icons over it read on
-    // snow the same as on night.
-    // ponytail: the property is still `experimental_` in RN 0.86. Renamed or dropped, it goes
-    // quiet — the icons stay paper-white but lose their darkening over a bright frame; the upgrade
-    // is the settled name, or `expo-linear-gradient` if it never settles.
-    experimental_backgroundImage: 'linear-gradient(rgba(20,17,15,.86), rgba(20,17,15,0))',
-  },
-  who: { flex: 1, paddingLeft: space.s1, color: 'rgba(242,236,227,.76)' },
-  // Over the frame and at the foot of it: the strip below must stay the only thing under the frame.
-  viewerNotice: { position: 'absolute', left: space.s4, right: space.s4, bottom: space.s4 },
-  filmstrip: { backgroundColor: color.ink },
-  track: { gap: STRIP_GAP, paddingHorizontal: space.s2, paddingTop: space.s2 },
-  stripTile: { width: STRIP_TILE },
-  stripDim: { opacity: 0.42 },
-  stripCurrent: { borderWidth: 2, borderColor: color.ember },
-});
+const useStyles = themed(({ color }) =>
+  StyleSheet.create({
+    screen: { flex: 1, backgroundColor: color.ink },
+    // The appbar and the bottom action stand off the edge; the sheet between them does not.
+    pad: { paddingHorizontal: space.s4 },
+    centered: { flex: 1, justifyContent: 'center', padding: space.s4 },
+    // The kit's contact sheet: a 3px gutter and nothing else, so the material reads as a lot of it.
+    grid: { flexGrow: 1, gap: 3 },
+    gridRow: { gap: 3 },
+    // A third of the row and not `flex: 1`, for the reason the upload grid gives: a last row with
+    // one tile in it must leave it a third of the width.
+    cell: { flex: 1 / 3 },
+    notice: { marginTop: space.s3 },
+    // The open frame is the whole screen: the frame takes what is left after the strip, and the bar
+    // lies over it rather than beside it.
+    viewer: { flex: 1, backgroundColor: color.ink },
+    frame: { flex: 1, justifyContent: 'center' },
+    big: { flex: 1, width: '100%' },
+    blank: { justifyContent: 'center' },
+    viewerBar: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: space.s2,
+      paddingHorizontal: space.s2,
+      paddingBottom: space.s6,
+      // The kit's own gradient, written the way React Native takes one — no library for a
+      // background. It fades to nothing so the frame is never cut in half by an edge. The same
+      // darkening in both themes, and the icons over it are `onScrim` for the same reason the kit
+      // gives: this lies on a photograph, not on the interface, and has to read on snow and on a
+      // night sky alike.
+      // ponytail: the property is still `experimental_` in RN 0.86. Renamed or dropped, it goes
+      // quiet — the icons stay paper-white but lose their darkening over a bright frame; the upgrade
+      // is the settled name, or `expo-linear-gradient` if it never settles.
+      experimental_backgroundImage: 'linear-gradient(rgba(20,17,15,.86), rgba(20,17,15,0))',
+    },
+    // On the darkening and not on the screen, so it is `onScrim` softened, in both themes.
+    who: { flex: 1, paddingLeft: space.s1, color: 'rgba(242,236,227,.76)' },
+    // Over the frame and at the foot of it: the strip below must stay the only thing under it.
+    viewerNotice: { position: 'absolute', left: space.s4, right: space.s4, bottom: space.s4 },
+    filmstrip: { backgroundColor: color.ink },
+    track: { gap: STRIP_GAP, paddingHorizontal: space.s2, paddingTop: space.s2 },
+    stripTile: { width: STRIP_TILE },
+    stripDim: { opacity: 0.42 },
+    stripCurrent: { borderWidth: 2, borderColor: color.ember },
+  }),
+);

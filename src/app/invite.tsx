@@ -7,7 +7,7 @@ import { useAuth } from '@/auth';
 import { Banner, Button, Empty } from '@/kit';
 import { useStrings } from '@/language';
 import { clearInvite, peekInvite, stashInvite } from '@/push';
-import { color, space } from '@/theme';
+import { space, themed } from '@/theme';
 
 /**
  * Where `remember://invite?token=…` lands. There is no web page for an invite and no anonymous
@@ -18,6 +18,7 @@ export default function InviteScreen() {
   const params = useLocalSearchParams<{ token?: string | string[] }>();
   const { status, token: session } = useAuth();
   const s = useStrings();
+  const styles = useStyles();
   const [error, setError] = useState<string | null>(null);
 
   // A repeated query key arrives as an array; the api takes one string. With no token in the
@@ -88,14 +89,16 @@ export default function InviteScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, justifyContent: 'center', backgroundColor: color.ink },
-  // Capped where the kit caps a sheet, so the bar does not run the width of a tablet.
-  dead: {
-    alignSelf: 'center',
-    width: '100%',
-    maxWidth: 420,
-    gap: space.s4,
-    paddingHorizontal: space.s5,
-  },
-});
+const useStyles = themed(({ color }) =>
+  StyleSheet.create({
+    screen: { flex: 1, justifyContent: 'center', backgroundColor: color.ink },
+    // Capped where the kit caps a sheet, so the bar does not run the width of a tablet.
+    dead: {
+      alignSelf: 'center',
+      width: '100%',
+      maxWidth: 420,
+      gap: space.s4,
+      paddingHorizontal: space.s5,
+    },
+  }),
+);

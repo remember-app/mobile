@@ -11,7 +11,7 @@ import { useAuth } from '@/auth';
 import { Banner, Button, Empty, Field, RailH, Text } from '@/kit';
 import { useStrings } from '@/language';
 import { type Strings } from '@/strings';
-import { color, space } from '@/theme';
+import { space, themed } from '@/theme';
 
 // Closes the auth browser tab once Google redirects back.
 WebBrowser.maybeCompleteAuthSession();
@@ -31,6 +31,7 @@ function providerError(s: Strings, provider: string, error: unknown): string {
 export default function LoginScreen() {
   const { signIn } = useAuth();
   const s = useStrings();
+  const styles = useStyles();
   // The native header is off for the whole app, so the screen owes the status bar its own room.
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
@@ -191,11 +192,13 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  // No native header anywhere in the app, so the perforation is what the status bar sits above.
-  screen: { flex: 1, paddingHorizontal: space.s6, backgroundColor: color.ink },
-  // Everything the screen asks for, held in the middle under the name.
-  middle: { flex: 1, justifyContent: 'center', gap: space.s6, paddingBottom: space.s6 },
-  // One way in, held together: the buttons of a group stand closer to each other than to the next.
-  group: { gap: space.s3 },
-});
+const useStyles = themed(({ color }) =>
+  StyleSheet.create({
+    // No native header anywhere in the app, so the perforation is what the status bar sits above.
+    screen: { flex: 1, paddingHorizontal: space.s6, backgroundColor: color.ink },
+    // Everything the screen asks for, held in the middle under the name.
+    middle: { flex: 1, justifyContent: 'center', gap: space.s6, paddingBottom: space.s6 },
+    // One way in, held together: the buttons of a group stand closer to each other than to the next.
+    group: { gap: space.s3 },
+  }),
+);

@@ -19,13 +19,14 @@ import {
 } from '@/kit';
 import { useStrings } from '@/language';
 import { type Strings } from '@/strings';
-import { color, space } from '@/theme';
+import { space, themed } from '@/theme';
 
 /** The main screen doc-01 asks for: every memory this account organizes or was invited to. */
 export default function HomeScreen() {
   const { token } = useAuth();
   const router = useRouter();
   const s = useStrings();
+  const styles = useStyles();
   // No native header anywhere, so the screen owes the status bar its own room.
   const insets = useSafeAreaInsets();
   // null means «not loaded yet», which is what tells a first load from a refetch: a
@@ -129,9 +130,11 @@ function facts(memory: Memory, s: Strings): string[] {
   return memory.media_count === 0 ? [dates] : [dates, s.memory.frames(memory.media_count)];
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: color.ink, paddingHorizontal: space.s4 },
-  // Cards a 12 gap apart, and the list keeps the full height so its empty state has room.
-  list: { flexGrow: 1, gap: space.s3, paddingBottom: space.s4 },
-  place: { flex: 1 },
-});
+const useStyles = themed(({ color }) =>
+  StyleSheet.create({
+    screen: { flex: 1, backgroundColor: color.ink, paddingHorizontal: space.s4 },
+    // Cards a 12 gap apart, and the list keeps the full height so its empty state has room.
+    list: { flexGrow: 1, gap: space.s3, paddingBottom: space.s4 },
+    place: { flex: 1 },
+  }),
+);

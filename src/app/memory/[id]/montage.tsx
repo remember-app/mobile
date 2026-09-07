@@ -33,7 +33,7 @@ import {
 } from '@/kit';
 import { useStrings } from '@/language';
 import { type Strings } from '@/strings';
-import { color, space } from '@/theme';
+import { space, themed } from '@/theme';
 
 /** The four standings a montage can be in, in the three the kit draws (section 10). */
 const MONTAGE_STATE: Record<Montage['status'], MontageState> = {
@@ -76,6 +76,7 @@ export default function MontageScreen() {
   const { token } = useAuth();
   const router = useRouter();
   const s = useStrings();
+  const styles = useStyles();
   const insets = useSafeAreaInsets();
   // null means «not loaded yet» — the same distinction the other screens draw, so a refetch after
   // an order keeps the cards on screen instead of flashing the spinner over them.
@@ -419,16 +420,19 @@ export default function MontageScreen() {
  */
 function Playing({ url }: { url: string }) {
   const player = useVideoPlayer(url, (video) => video.play());
+  const styles = useStyles();
   return <VideoView player={player} style={styles.big} />;
 }
 
-const styles = StyleSheet.create({
-  body: { paddingHorizontal: space.s5, paddingBottom: space.s8, gap: space.s3 },
-  // A card and, under a fallen one, the line the worker left — closer to each other than the
-  // screen's own gap, because they are one thing.
-  montage: { gap: space.s2 },
-  choices: { flexDirection: 'row', flexWrap: 'wrap', gap: space.s2 },
-  viewer: { flex: 1, backgroundColor: color.ink, justifyContent: 'center' },
-  bar: { justifyContent: 'center', paddingHorizontal: space.s4 },
-  big: { flex: 1, width: '100%' },
-});
+const useStyles = themed(({ color }) =>
+  StyleSheet.create({
+    body: { paddingHorizontal: space.s5, paddingBottom: space.s8, gap: space.s3 },
+    // A card and, under a fallen one, the line the worker left — closer to each other than the
+    // screen's own gap, because they are one thing.
+    montage: { gap: space.s2 },
+    choices: { flexDirection: 'row', flexWrap: 'wrap', gap: space.s2 },
+    viewer: { flex: 1, backgroundColor: color.ink, justifyContent: 'center' },
+    bar: { justifyContent: 'center', paddingHorizontal: space.s4 },
+    big: { flex: 1, width: '100%' },
+  }),
+);

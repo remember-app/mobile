@@ -146,12 +146,6 @@ export const themes: Record<ThemeName, Theme> = {
   light: { name: 'light', color: light, shade: shades.light, glow: glow.light },
 };
 
-/**
- * The dark set under its old name, for the screens that still take their colours off a fixed one.
- * TASK-89 moves them onto the live theme; this export goes with it.
- */
-export const color = dark;
-
 /* ── Which theme the app is in ──────────────────────────────────────────── */
 
 /*
