@@ -54,6 +54,9 @@ export function useReducedMotion(): boolean {
       };
     },
     () => reduced,
+    // Same answer off the render path: the module-scope slot is not the DOM's and reads fine
+    // without one. Without this third argument a static render throws instead of drawing.
+    () => reduced,
   );
 }
 
