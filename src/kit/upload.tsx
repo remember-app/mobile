@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { color, duration as motion, radius, space } from '@/theme';
+import { duration as motion, radius, space, themed } from '@/theme';
 
 import { EASE, useReducedMotion } from './interaction';
 import { Text } from './text';
@@ -17,6 +17,7 @@ import { Text } from './text';
  */
 export function Progress({ value, style }: { value: number; style?: StyleProp<ViewStyle> }) {
   const reduced = useReducedMotion();
+  const styles = useStyles();
   const filled = useRef(new Animated.Value(clamp(value))).current;
 
   useEffect(() => {
@@ -69,6 +70,8 @@ export function Upload({
   hint?: string;
   style?: StyleProp<ViewStyle>;
 }) {
+  const styles = useStyles();
+
   return (
     <View style={[styles.upload, style]}>
       <View style={styles.head}>
@@ -85,20 +88,22 @@ export function Upload({
 
 const clamp = (value: number) => Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0));
 
-const styles = StyleSheet.create({
-  progress: {
-    height: 3,
-    borderRadius: radius.pill,
-    backgroundColor: color.line,
-    overflow: 'hidden',
-  },
-  bar: { height: '100%', backgroundColor: color.ember, borderRadius: radius.pill },
-  upload: { alignSelf: 'stretch', gap: space.s3 },
-  head: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    gap: space.s3,
-  },
-  headTitle: { flexShrink: 1 },
-});
+const useStyles = themed(({ color }) =>
+  StyleSheet.create({
+    progress: {
+      height: 3,
+      borderRadius: radius.pill,
+      backgroundColor: color.line,
+      overflow: 'hidden',
+    },
+    bar: { height: '100%', backgroundColor: color.ember, borderRadius: radius.pill },
+    upload: { alignSelf: 'stretch', gap: space.s3 },
+    head: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
+      justifyContent: 'space-between',
+      gap: space.s3,
+    },
+    headTitle: { flexShrink: 1 },
+  }),
+);

@@ -5,39 +5,41 @@ import {
   BricolageGrotesque_600SemiBold,
   useFonts,
 } from '@expo-google-fonts/bricolage-grotesque';
-import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 
 import { AuthProvider, useAuth } from '@/auth';
 import { usePush } from '@/push';
-import { color } from '@/theme';
+import { useTheme } from '@/theme';
 import { useUploads } from '@/uploads';
 
 // Hold the splash until the stored session has been checked, so no screen flashes
 // before the gate below knows which ones to allow.
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-/**
- * The kit's colours where the navigator itself paints: `background` is what the stack puts behind a
- * screen and behind the whole card stack mid-transition, so this is what keeps a push from flashing
- * the system white. The rest are for the chrome React Navigation still draws on its own.
- */
-const theme = {
-  ...DarkTheme,
-  colors: {
-    primary: color.ember,
-    background: color.ink,
-    card: color.surface,
-    text: color.paper,
-    border: color.line,
-    notification: color.ember,
-  },
-};
-
 export default function RootLayout() {
+  const { name, color } = useTheme();
+
+  // The kit's colours where the navigator itself paints: `background` is what the stack puts behind
+  // a screen and behind the whole card stack mid-transition, so this is what keeps a push from
+  // flashing the system white. The rest are for the chrome React Navigation still draws on its own.
+  // The base is picked by name for the one thing left in it — `dark`, which is what React Navigation
+  // asks itself when it needs a colour nobody set.
+  const navigation = {
+    ...(name === 'dark' ? DarkTheme : DefaultTheme),
+    colors: {
+      primary: color.ember,
+      background: color.ink,
+      card: color.surface,
+      text: color.paper,
+      border: color.line,
+      notification: color.ember,
+    },
+  };
+
   return (
-    <ThemeProvider value={theme}>
+    <ThemeProvider value={navigation}>
       <AuthProvider>
         <RootNavigator />
       </AuthProvider>

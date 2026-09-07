@@ -10,10 +10,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { color, duration as motion, space } from '@/theme';
+import { duration as motion, scrim, space, themed } from '@/theme';
 
 import { useFadeIn } from './interaction';
-import { shade } from './shades';
 
 export type SheetProps = {
   visible: boolean;
@@ -49,6 +48,7 @@ export function Sheet({ visible, onCancel, children }: SheetProps) {
 function Rise({ onCancel, children }: Omit<SheetProps, 'visible'>) {
   const insets = useSafeAreaInsets();
   const rise = useFadeIn(motion.slow);
+  const styles = useStyles();
 
   return (
     // A sheet sits where the keyboard comes up, so anything typed into one would be typed blind.
@@ -88,28 +88,31 @@ function Rise({ onCancel, children }: Omit<SheetProps, 'visible'>) {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { flex: 1, backgroundColor: shade.scrim },
-  sheet: {
-    width: '100%',
-    maxWidth: 420,
-    alignSelf: 'center',
-    paddingTop: space.s6,
-    paddingHorizontal: space.s5,
-    gap: space.s4,
-    backgroundColor: color.surface,
-    borderWidth: 1,
-    borderColor: color.line,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-  },
-  grip: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: color.line,
-    alignSelf: 'center',
-    marginTop: -space.s3,
-  },
-});
+const useStyles = themed(({ color }) =>
+  StyleSheet.create({
+    root: { flex: 1, justifyContent: 'flex-end' },
+    // The same weight of dark the kit lays over a frame, laid here over the screen it interrupts.
+    backdrop: { flex: 1, backgroundColor: scrim },
+    sheet: {
+      width: '100%',
+      maxWidth: 420,
+      alignSelf: 'center',
+      paddingTop: space.s6,
+      paddingHorizontal: space.s5,
+      gap: space.s4,
+      backgroundColor: color.surface,
+      borderWidth: 1,
+      borderColor: color.line,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+    },
+    grip: {
+      width: 36,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: color.line,
+      alignSelf: 'center',
+      marginTop: -space.s3,
+    },
+  }),
+);

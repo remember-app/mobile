@@ -1,7 +1,15 @@
 import { renderToStaticMarkup } from 'react-dom/server';
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 
 import { CardMemory } from '@/kit/card-memory';
+
+// The card draws in the app's current theme, and the theme asks the phone for the stored pick at
+// import — `expo-secure-store` is native and cannot be imported in node at all. Nothing here reads
+// a colour, so the phone only has to answer.
+vi.mock('expo-secure-store', () => ({
+  getItemAsync: async () => null,
+  setItemAsync: async () => {},
+}));
 
 /**
  * The card is the main screen's one repeated thing, and what it is for is the frames: the listing

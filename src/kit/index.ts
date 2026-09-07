@@ -8,8 +8,10 @@
  *
  * Component and prop names echo the kit's own class names — `CardMemory` is `.card-memory`, `sm` is
  * `.btn-sm`, `tone="error"` is `.banner-error` — so a screen can be held up against the kit and
- * read off line by line. Values come from `@/theme`, which is the kit's tokens; the handful of
- * shades the kit writes inline live in `./shades`.
+ * read off line by line. Values come from `@/theme`, which is the kit's tokens; the second tier of
+ * colour — what lies on ember, rust and fixed — lives in `./shades` and reaches a component through
+ * the theme. Every component draws in the theme the app is currently in, so nothing here is dark by
+ * itself.
  *
  * Nothing here holds state of its own, fetches anything, or invents a word: every visible string is
  * a prop, because the kit is the look and the screens are the voice.

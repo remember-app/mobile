@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 
-import { color, radius, space } from '@/theme';
+import { radius, space, themed, useTheme, type Theme } from '@/theme';
 
-import { shade } from './shades';
 import { Text } from './text';
 
 /** `.field-ok` and `.field-error` — the kit's two answers to something already typed. */
@@ -31,6 +30,8 @@ export function Field({
   state?: FieldState;
 }) {
   const [focused, setFocused] = useState(false);
+  const theme = useTheme();
+  const styles = useStyles();
   const disabled = input.editable === false;
 
   return (
@@ -39,7 +40,7 @@ export function Field({
       <TextInput
         accessibilityLabel={label}
         accessibilityHint={hint}
-        placeholderTextColor={color.muted}
+        placeholderTextColor={theme.color.muted}
         {...input}
         onFocus={(e) => {
           setFocused(true);
@@ -53,38 +54,47 @@ export function Field({
           styles.input,
           // The kit's cascade puts the answer above the focus: a field in error keeps its error
           // border while it is being fixed, and the raised background is what shows the focus.
-          { borderColor: borderColor(state, focused), backgroundColor: focused ? color.raise : color.surface },
+          {
+            borderColor: borderColor(theme, state, focused),
+            backgroundColor: focused ? theme.color.raise : theme.color.surface,
+          },
           disabled ? styles.inputOff : null,
           style,
         ]}
       />
-      {hint ? <Text style={[styles.hint, hintColor(state)]}>{hint}</Text> : null}
+      {hint ? <Text style={[styles.hint, hintColor(theme, state)]}>{hint}</Text> : null}
     </View>
   );
 }
 
-function borderColor(state: FieldState | undefined, focused: boolean): string {
-  if (state === 'error') return shade.errorLine;
+function borderColor(
+  { color, shade }: Theme,
+  state: FieldState | undefined,
+  focused: boolean,
+): string {
+  if (state === 'error') return shade.rustText;
   if (state === 'ok') return shade.fixedLine;
   return focused ? color.ember : color.line;
 }
 
-function hintColor(state: FieldState | undefined) {
-  if (state === 'error') return { color: shade.danger };
+function hintColor({ color, shade }: Theme, state: FieldState | undefined) {
+  if (state === 'error') return { color: shade.rustText };
   if (state === 'ok') return { color: color.fixed };
   return null;
 }
 
-const styles = StyleSheet.create({
-  field: { alignSelf: 'stretch', maxWidth: 420, gap: space.s2 },
-  input: {
-    minHeight: 52,
-    paddingHorizontal: space.s4,
-    color: color.paper,
-    borderWidth: 1,
-    borderRadius: radius.card,
-    fontSize: 16,
-  },
-  inputOff: { color: color.muted, backgroundColor: color.ink },
-  hint: { fontSize: 13, lineHeight: 16.9, color: color.muted },
-});
+const useStyles = themed(({ color }) =>
+  StyleSheet.create({
+    field: { alignSelf: 'stretch', maxWidth: 420, gap: space.s2 },
+    input: {
+      minHeight: 52,
+      paddingHorizontal: space.s4,
+      color: color.paper,
+      borderWidth: 1,
+      borderRadius: radius.card,
+      fontSize: 16,
+    },
+    inputOff: { color: color.muted, backgroundColor: color.ink },
+    hint: { fontSize: 13, lineHeight: 16.9, color: color.muted },
+  }),
+);
