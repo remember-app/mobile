@@ -80,6 +80,7 @@ function RootNavigator() {
         <Stack.Screen name="create" options={{ title: 'New memory' }} />
         <Stack.Screen name="memory/[id]" options={{ title: 'Memory' }} />
         <Stack.Screen name="memory/[id]/gallery" options={{ title: 'Gallery' }} />
+        <Stack.Screen name="memory/[id]/montage" options={{ title: 'Montage' }} />
         <Stack.Screen name="memory/[id]/upload" options={{ title: 'Upload' }} />
         <Stack.Screen name="profile" options={{ title: 'Profile' }} />
         <Stack.Screen name="about" options={{ title: 'About' }} />
