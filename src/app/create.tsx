@@ -22,12 +22,14 @@ import {
   shade,
   useHoverFocus,
 } from '@/kit';
+import { useStrings } from '@/language';
 import { color, radius, space } from '@/theme';
 
 /** Creating a memory: a title and the day (or span) the event happened on. */
 export default function CreateMemoryScreen() {
   const { token } = useAuth();
   const router = useRouter();
+  const s = useStrings();
   // The native header is off for the whole app, so the screen owes the status bar its own room.
   const insets = useSafeAreaInsets();
   const [title, setTitle] = useState('');
@@ -61,40 +63,40 @@ export default function CreateMemoryScreen() {
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       <AppBar
-        title="New memory"
+        title={s.create.title}
         // Drawn only when there is somewhere to go back to — this screen is also the landing
         // spot of a replace, and a button that answers nothing is worse than no button.
         left={
           router.canGoBack() ? (
-            <IconButton icon={ChevronLeft} label="Back" onPress={() => router.back()} />
+            <IconButton icon={ChevronLeft} label={s.action.back} onPress={() => router.back()} />
           ) : null
         }
       />
 
       <View style={styles.form}>
         <Field
-          label="Title"
+          label={s.create.titleLabel}
           value={title}
           onChangeText={setTitle}
-          placeholder="Anna's birthday"
+          placeholder={s.create.titlePlaceholder}
           editable={!busy}
         />
 
         <DayField
-          label="Event date"
+          label={s.create.eventDate}
           value={start}
           onChange={(day) => setStart(startOfDay(day))}
           disabled={busy}
         />
 
         <View style={styles.toggle}>
-          <Text role="label">Lasted more than a day</Text>
+          <Text role="label">{s.create.multiDay}</Text>
           {/* The kit has no switch of its own — this is the platform's, wearing the kit's
               colours: ember when it is on, hairline when it is off, paper for the thumb. */}
           <Switch
             // The words beside it are a sibling, and React Native joins nothing up on its own —
             // without this the toggle is announced with no name at all.
-            accessibilityLabel="Lasted more than a day"
+            accessibilityLabel={s.create.multiDay}
             value={end !== null}
             onValueChange={(on) => setEnd(on ? endOfDay(start) : null)}
             disabled={busy}
@@ -106,7 +108,7 @@ export default function CreateMemoryScreen() {
 
         {end === null ? null : (
           <DayField
-            label="Ends"
+            label={s.create.ends}
             value={end}
             onChange={(day) => setEnd(endOfDay(day))}
             // Makes the one range the api rejects unreachable from the picker itself.
@@ -121,7 +123,7 @@ export default function CreateMemoryScreen() {
 
       <ActionBar>
         <Button
-          label="Create"
+          label={s.create.submit}
           variant="primary"
           wide
           busy={busy}

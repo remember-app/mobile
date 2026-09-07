@@ -28,7 +28,7 @@ import {
 } from '@/api';
 import { useAuth } from '@/auth';
 import { formatRuntime } from '@/dates';
-import { maySaveToPhone, REFUSED, saveToPhone } from '@/downloads';
+import { maySaveToPhone, saveToPhone } from '@/downloads';
 import { frameIndex, frameOf, mayOpen, shotBy, stillPreparing } from '@/frames';
 import {
   ActionBar,
@@ -42,14 +42,8 @@ import {
   Text,
   Tile,
 } from '@/kit';
+import { useStrings } from '@/language';
 import { color, space } from '@/theme';
-
-/** What a tile says while there is no derivative to draw. A `ready` record always has one. */
-const WAITING: Record<MediaItem['status'], string> = {
-  processing: 'Preparing…',
-  failed: 'Could not be prepared',
-  ready: 'Nothing to show',
-};
 
 /**
  * How long the screen waits before looking again while the worker is still making something. A
@@ -74,6 +68,7 @@ export default function GalleryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { token, user } = useAuth();
   const router = useRouter();
+  const s = useStrings();
   const insets = useSafeAreaInsets();
   // null means «not loaded yet», the distinction the other screens draw: a reload after a delete
   // keeps the grid on screen instead of flashing the spinner over it.
@@ -177,9 +172,7 @@ export default function GalleryScreen() {
       // anyway. Everything else stays on screen with a reason.
       if (!(e instanceof ApiError && e.status === 404)) {
         setNotice(
-          e instanceof ApiError && e.status === 403
-            ? 'Only the organizer can delete what somebody else brought.'
-            : errorMessage(e),
+          e instanceof ApiError && e.status === 403 ? s.gallery.deleteDenied : errorMessage(e),
         );
         return;
       }
@@ -193,7 +186,7 @@ export default function GalleryScreen() {
   /** The grant, asked for at the moment it is needed, with this screen's place to say «no». */
   async function maySave(): Promise<boolean> {
     const granted = await maySaveToPhone();
-    if (!granted) setNotice(REFUSED);
+    if (!granted) setNotice(s.error.galleryRefused);
     return granted;
   }
 
@@ -206,14 +199,14 @@ export default function GalleryScreen() {
       if (!(await maySave())) return;
       // The viewer's actions are icons now, and an icon has no spinner in it — this line is where
       // «it is doing something» is said, and the next one replaces it with how it went.
-      setNotice('Saving…');
+      setNotice(s.save.one);
       const { url } = await downloadMedia(token, id, item.id);
       await saveToPhone({ id: item.id, kind: item.kind, url });
-      setNotice('Saved to your gallery.');
+      setNotice(s.save.done);
     } catch (e) {
       // The api's own wording when it is the one refusing; past that it is the download or the
       // phone's gallery, and neither is worth blaming the api for.
-      setNotice(e instanceof ApiError ? e.message : 'Could not save this one to your gallery.');
+      setNotice(e instanceof ApiError ? e.message : s.save.failedOne);
     } finally {
       setBusy(false);
     }
@@ -237,7 +230,7 @@ export default function GalleryScreen() {
         // rest of it, and the one already coming down may as well land. What must not happen is
         // this going on unattended — see `onScreen`.
         if (!onScreen.current) return;
-        setNotice(`Saving ${index + 1} of ${files.length}…`);
+        setNotice(s.save.nth(index + 1, files.length));
         try {
           await saveToPhone(file);
         } catch {
@@ -249,11 +242,11 @@ export default function GalleryScreen() {
       }
       setNotice(
         failed === 0
-          ? `Saved ${files.length} to your gallery.`
-          : `Saved ${files.length - failed} of ${files.length} — try again for what is missing.`,
+          ? s.save.all(files.length)
+          : s.save.some(files.length - failed, files.length),
       );
     } catch (e) {
-      setNotice(e instanceof ApiError ? e.message : 'Could not save this gallery to your phone.');
+      setNotice(e instanceof ApiError ? e.message : s.save.failedAll);
     } finally {
       setBusy(false);
     }
@@ -264,12 +257,12 @@ export default function GalleryScreen() {
     // takes the phone's top inset itself.
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       <AppBar
-        title="Gallery"
+        title={s.gallery.title}
         style={styles.pad}
         left={
           <IconButton
             icon={ChevronLeft}
-            label="Back"
+            label={s.action.back}
             // Opened straight from a link there is nothing behind this screen, and the way the
             // memory and upload screens answer that is the way this one does.
             onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
@@ -282,7 +275,7 @@ export default function GalleryScreen() {
           // inviting is only one of the things done to it.
           <IconButton
             icon={Users}
-            label="Members"
+            label={s.members.title}
             onPress={() => router.push({ pathname: '/memory/[id]', params: { id } })}
           />
         }
@@ -293,12 +286,12 @@ export default function GalleryScreen() {
           <Banner tone="error" text={error}>
             {/* Wrapped rather than handed `load` itself: a press hands its own argument along,
                 and the first one here is «read quietly». */}
-            <Button variant="quiet" sm label="Try again" onPress={() => load()} />
+            <Button variant="quiet" sm label={s.action.retry} onPress={() => load()} />
           </Banner>
         </View>
       ) : items === null ? (
         <View style={styles.centered}>
-          <Empty busy text="Loading…" />
+          <Empty busy text={s.state.loading} />
         </View>
       ) : (
         <>
@@ -319,9 +312,7 @@ export default function GalleryScreen() {
                 progressBackgroundColor={color.surface}
               />
             }
-            ListEmptyComponent={
-              <Empty icon={Camera} text="Nothing here yet — whatever anyone adds shows up here." />
-            }
+            ListEmptyComponent={<Empty icon={Camera} text={s.gallery.empty} />}
             renderItem={({ item }) => {
               // What a record is on screen is `@/frames` and not this line: the viewer below draws
               // off the same reading, and the two must not drift.
@@ -331,16 +322,19 @@ export default function GalleryScreen() {
                   style={styles.cell}
                   state={frame.state}
                   uri={frame.uri ?? undefined}
-                  caption={WAITING[item.status]}
+                  caption={s.gallery.waiting[item.status]}
                   // The kit marks a video by its length in the corner; a record that came without
                   // one still says what it is, in the same place.
                   length={
                     item.kind === 'video'
-                      ? (formatRuntime(item.duration_seconds) ?? 'Video')
+                      ? (formatRuntime(item.duration_seconds) ?? s.media.video)
                       : undefined
                   }
+                  // Read out, never drawn — so it says «Photo» and not the api's own `photo`.
                   label={
-                    item.status === 'ready' ? item.kind : `${item.kind}, ${WAITING[item.status]}`
+                    item.status === 'ready'
+                      ? s.media[item.kind]
+                      : `${s.media[item.kind]}, ${s.gallery.waiting[item.status]}`
                   }
                   // The same gate the strip below puts on the same record, and for the same
                   // reason: a frame still being made has nothing behind it to open, so opening it
@@ -367,7 +361,7 @@ export default function GalleryScreen() {
                 variant="secondary"
                 wide
                 icon={Download}
-                label="Download all"
+                label={s.gallery.downloadAll}
                 busy={busy}
                 disabled={busy || items.length === 0}
                 onPress={() => void saveEverything()}
@@ -384,7 +378,7 @@ export default function GalleryScreen() {
                   variant="primary"
                   wide
                   icon={Plus}
-                  label="Add more"
+                  label={s.gallery.addMore}
                   disabled={busy}
                   onPress={() => router.push({ pathname: '/memory/[id]/upload', params: { id } })}
                 />
@@ -418,7 +412,7 @@ export default function GalleryScreen() {
                     // this is the screen the delete button is on — a failed record is one somebody
                     // may want rid of rather than looked at.
                     <View style={[styles.big, styles.blank]}>
-                      <Empty icon={TriangleAlert} text={WAITING[shown.status]} />
+                      <Empty icon={TriangleAlert} text={s.gallery.waiting[shown.status]} />
                     </View>
                   )}
 
@@ -432,7 +426,7 @@ export default function GalleryScreen() {
                   >
                     <IconButton
                       icon={X}
-                      label="Close"
+                      label={s.action.close}
                       tint={color.paper}
                       onPress={() => setOpen(null)}
                       disabled={busy}
@@ -446,7 +440,7 @@ export default function GalleryScreen() {
                         more. */}
                     <IconButton
                       icon={Download}
-                      label="Download"
+                      label={s.action.download}
                       tint={color.paper}
                       onPress={() => void save(shown)}
                       disabled={busy}
@@ -454,7 +448,7 @@ export default function GalleryScreen() {
                     {mayDelete(shown) ? (
                       <IconButton
                         icon={Trash2}
-                        label="Delete"
+                        label={s.action.delete}
                         tint={color.paper}
                         onPress={() => setConfirming(true)}
                         disabled={busy}
@@ -508,15 +502,15 @@ export default function GalleryScreen() {
                           // No caption: at 52px there are no words to read, only the safelight.
                           length={
                             item.kind === 'video'
-                              ? (formatRuntime(item.duration_seconds) ?? 'Video')
+                              ? (formatRuntime(item.duration_seconds) ?? s.media.video)
                               : undefined
                           }
                           label={
                             current
-                              ? `${item.kind}, open`
+                              ? `${s.media[item.kind]}, ${s.gallery.open}`
                               : item.status === 'ready'
-                                ? item.kind
-                                : `${item.kind}, ${WAITING[item.status]}`
+                                ? s.media[item.kind]
+                                : `${s.media[item.kind]}, ${s.gallery.waiting[item.status]}`
                           }
                           // A frame still developing stays in the strip and stays shut: there is
                           // nothing behind it to open yet.
@@ -533,10 +527,10 @@ export default function GalleryScreen() {
                     over a modal has to be its child. */}
                 <ConfirmSheet
                   visible={confirming}
-                  title={`Delete this ${shown.kind}?`}
-                  text="It goes from the memory for good. A montage already made keeps it."
-                  confirmLabel="Delete"
-                  cancelLabel="Keep"
+                  title={s.gallery.deleteAsk(shown.kind)}
+                  text={s.gallery.deleteText}
+                  confirmLabel={s.action.delete}
+                  cancelLabel={s.gallery.keep}
                   onConfirm={() => {
                     setConfirming(false);
                     void remove(shown);

@@ -1,6 +1,16 @@
+import { currentLanguage } from '@/language';
+import { strings } from '@/strings';
+
 // The API base URL. Expo inlines EXPO_PUBLIC_* at build time, so it has to be
 // read as a literal property access — destructuring or dynamic keys stay undefined.
 export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
+
+/**
+ * The words, read at the moment one is needed. Nothing in this file is a component, so there is no
+ * `useStrings()` to hang it on — and a call, not a captured set, is what keeps a language switched
+ * after this module was imported from being missed.
+ */
+const say = () => strings[currentLanguage()];
 
 const TIMEOUT_MS = 5000;
 
@@ -21,20 +31,23 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * ponytail: `reason` is the api's own sentence, and it comes down the wire in whatever language the
+ * api writes — English today. TASK-91 is what tells the api which language the caller reads in; the
+ * two lines this side writes are already both.
+ */
 function describe(status: number, body: unknown): string {
-  if (status === 429) return 'Too many attempts — wait a minute and try again.';
+  if (status === 429) return say().error.tooMany;
   const reason =
     typeof body === 'object' && body !== null && 'error' in body
       ? (body as { error: unknown }).error
       : undefined;
-  return typeof reason === 'string' ? reason : `The API answered ${status}.`;
+  return typeof reason === 'string' ? reason : say().error.status(status);
 }
 
 /** The line a screen can show for a failed call: the api's own wording, or a network one. */
 export function errorMessage(error: unknown): string {
-  return error instanceof ApiError
-    ? error.message
-    : 'Cannot reach the API — check that it is running and try again.';
+  return error instanceof ApiError ? error.message : say().error.offline;
 }
 
 type Options = {
@@ -181,7 +194,7 @@ export type Member = Omit<User, 'email'> & {
  * is «not on the roster», which a frame from somebody who has since left the memory hits.
  */
 export const memberName = (member: Pick<Member, 'name' | 'username'> | null) =>
-  member?.name ?? member?.username ?? 'Someone';
+  member?.name ?? member?.username ?? say().memory.someone;
 
 /** What may actually be granted. Never `organizer`: a memory has exactly one, its creator. */
 export type InviteRole = Exclude<MemberRole, 'organizer'>;
@@ -509,9 +522,6 @@ export function acceptInvite(token: string, inviteToken: string): Promise<Memory
 export function endSession(token: string): Promise<{ ok: true }> {
   return request('/auth/logout', { method: 'POST', token });
 }
-
-/** What the api enforces; mirrored here only to say it inline before a round trip. */
-export const USERNAME_HINT = '3–30 Latin letters, digits, . _ -, and not at the ends';
 
 // 3–30 chars: an alphanumeric at each end with separators allowed only between them.
 const USERNAME = /^[A-Za-z0-9][A-Za-z0-9._-]{1,28}[A-Za-z0-9]$/;

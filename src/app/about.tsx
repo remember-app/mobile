@@ -3,26 +3,30 @@ import { StyleSheet, View } from 'react-native';
 
 import { API_URL } from '@/api';
 import { Button, Text } from '@/kit';
+import { useStrings } from '@/language';
 import { color, space } from '@/theme';
 
 /** Which api this build talks to. Service page — the kit's tokens, and nothing it does not need. */
 export default function AboutScreen() {
+  const s = useStrings();
+
   return (
     <View style={styles.container}>
+      {/* The product's name, and the one word on this screen that is the same in every language. */}
       <Text role="display">Remember</Text>
-      <Text style={styles.lead}>Mobile client.</Text>
+      <Text style={styles.lead}>{s.about.lead}</Text>
 
       <View style={styles.api}>
-        <Text role="meta">API base URL</Text>
+        <Text role="meta">{s.about.apiUrl}</Text>
         <Text role="subtitle">{API_URL}</Text>
       </View>
 
       <Text role="meta" style={styles.hint}>
-        Set EXPO_PUBLIC_API_URL to point the app elsewhere.
+        {s.about.hint}
       </Text>
 
       <Link href="/" asChild>
-        <Button variant="quiet" label="Back home" />
+        <Button variant="quiet" label={s.about.back} />
       </Link>
     </View>
   );

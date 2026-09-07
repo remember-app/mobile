@@ -18,7 +18,7 @@ import {
 } from '@/api';
 import { useAuth } from '@/auth';
 import { formatDay, formatRuntime } from '@/dates';
-import { maySaveToPhone, REFUSED, saveToPhone } from '@/downloads';
+import { maySaveToPhone, saveToPhone } from '@/downloads';
 import {
   ActionBar,
   AppBar,
@@ -31,6 +31,8 @@ import {
   Text,
   type MontageState,
 } from '@/kit';
+import { useStrings } from '@/language';
+import { type Strings } from '@/strings';
 import { color, space } from '@/theme';
 
 /** The four standings a montage can be in, in the three the kit draws (section 10). */
@@ -42,37 +44,22 @@ const MONTAGE_STATE: Record<Montage['status'], MontageState> = {
 };
 
 /**
- * The word beside the dot. None of them says how long it will be or how far along it is: the api
- * carries neither, and the kit's «Минут пять» would be this screen making a number up.
- */
-const MONTAGE_STATUS: Record<Montage['status'], string> = {
-  queued: 'Waiting its turn',
-  processing: 'Being made',
-  ready: 'Ready',
-  failed: 'Did not finish',
-};
-
-/** The worker's three tracks, under names to pick between. The ids are the api's own. */
-const TRACK: Record<MusicTrackId, string> = { warm: 'Warm', bright: 'Bright', calm: 'Calm' };
-
-/**
  * How long to ask for. The api takes anything from a quarter of a minute to five and fills in a
- * minute itself when nothing is asked — these are three round answers, not the whole range.
+ * minute itself when nothing is asked — these are three round answers, not the whole range. The
+ * seconds are the whole of it here; what each one is called is `montage.length` in the dictionary.
  */
-const LENGTHS = [
-  { seconds: 30, label: 'Half a minute' },
-  { seconds: 60, label: 'A minute' },
-  { seconds: 120, label: 'Two minutes' },
-];
+const LENGTHS = [30, 60, 120] as const;
+
+type Length = (typeof LENGTHS)[number];
 
 /**
  * What a montage is called on screen: how long it runs once it does, and the day it was asked for
  * until then — a length is the one thing about it that is worth a title, and there is none to say
  * until the worker has made it.
  */
-const montageTitle = (montage: Montage) => {
+const montageTitle = (montage: Montage, s: Strings) => {
   const runtime = formatRuntime(montage.duration_seconds);
-  return runtime ? `Montage of ${runtime}` : `Montage from ${formatDay(montage.created_at)}`;
+  return runtime ? s.montage.ofLength(runtime) : s.montage.fromDay(formatDay(montage.created_at));
 };
 
 /**
@@ -88,6 +75,7 @@ export default function MontageScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { token } = useAuth();
   const router = useRouter();
+  const s = useStrings();
   const insets = useSafeAreaInsets();
   // null means «not loaded yet» — the same distinction the other screens draw, so a refetch after
   // an order keeps the cards on screen instead of flashing the spinner over them.
@@ -100,7 +88,7 @@ export default function MontageScreen() {
   const [ordering, setOrdering] = useState(false);
   // What the order will ask for. The api's own default length, and a track chosen rather than left
   // to the worker — it is one tap either way, and a person who opened the sheet came to choose.
-  const [seconds, setSeconds] = useState(60);
+  const [seconds, setSeconds] = useState<Length>(60);
   const [track, setTrack] = useState<MusicTrackId>('warm');
   /** The montage being watched, held by id so a reload hands it a fresh signed url. */
   const [playing, setPlaying] = useState<string | null>(null);
@@ -167,12 +155,12 @@ export default function MontageScreen() {
         });
         setMontages((have) => [ordered, ...(have ?? [])]);
         setOrdering(false);
-        return 'Ordered. Everyone here is told when it is ready.';
+        return s.montage.ordered;
       },
       {
         // The api's own line names its numbers; this one names what to do about them.
-        409: 'Too little material for a montage yet — add a few more photos or videos first.',
-        403: 'Only the organizer can order a montage.',
+        409: s.montage.tooLittle,
+        403: s.montage.orderDenied,
       },
     );
 
@@ -198,8 +186,8 @@ export default function MontageScreen() {
       {
         // Which of the three it moved to is on its way in from the line above; the api's own body
         // carries it too, and neither is worth a second sentence for a button pressed this rarely.
-        409: 'That one has already moved on — reading the list again.',
-        403: 'Only the organizer can start it again.',
+        409: s.montage.movedOn,
+        403: s.montage.retryDenied,
       },
     );
 
@@ -217,24 +205,25 @@ export default function MontageScreen() {
     if (montage.video_url === null) return;
     setBusy(true);
     // The whole of the progress there is: a save is atomic, the same way the gallery's is.
-    setNotice('Saving to your gallery…');
+    setNotice(s.save.montage);
     try {
       if (!(await maySaveToPhone())) {
-        setNotice(REFUSED);
+        setNotice(s.error.galleryRefused);
         return;
       }
       await saveToPhone({ id: montage.id, kind: 'video', url: montage.video_url }, async (uri) => {
         // Dismissing the sheet is not a failure, and neither is a phone with nowhere to send it.
         await Share.share({
           url: uri,
-          message: memory ? `Montage from «${memory.title}»` : montageTitle(montage),
+          // The memory's own title is what a person wrote; it goes out as it stands.
+          message: memory ? s.montage.shareText(memory.title) : montageTitle(montage, s),
         }).catch(() => {});
       });
-      setNotice('Saved to your gallery.');
+      setNotice(s.save.done);
     } catch {
       // Nothing here is the api's doing: the link came with the list, and past that it is the
       // download or the phone's own gallery.
-      setNotice('Could not save this montage to your phone.');
+      setNotice(s.save.failedMontage);
     } finally {
       setBusy(false);
     }
@@ -243,11 +232,11 @@ export default function MontageScreen() {
   return (
     <ScrollView contentContainerStyle={[styles.body, { paddingTop: insets.top }]}>
       <AppBar
-        title={memory?.title ?? 'Montage'}
+        title={memory?.title ?? s.montage.title}
         left={
           <IconButton
             icon={ChevronLeft}
-            label="Back"
+            label={s.action.back}
             // A tapped «ролик готов» push opens this screen with nothing behind it to go back to.
             onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
           />
@@ -258,7 +247,7 @@ export default function MontageScreen() {
           // pushing would stack a fresh copy of one over the other on every hop.
           <IconButton
             icon={Users}
-            label="Members"
+            label={s.members.title}
             onPress={() => router.navigate({ pathname: '/memory/[id]', params: { id } })}
           />
         }
@@ -266,12 +255,12 @@ export default function MontageScreen() {
 
       {error !== null ? (
         <Banner tone="error" text={error}>
-          <Button sm variant="quiet" label="Try again" onPress={load} />
+          <Button sm variant="quiet" label={s.action.retry} onPress={load} />
         </Banner>
       ) : null}
       {montageError !== null ? (
         <Banner tone="error" text={montageError}>
-          <Button sm variant="quiet" label="Try again" onPress={load} />
+          <Button sm variant="quiet" label={s.action.retry} onPress={load} />
         </Banner>
       ) : null}
 
@@ -279,33 +268,33 @@ export default function MontageScreen() {
           read once outlives a refetch that failed. Wiping it would take the videos and the
           organizer's own way of ordering one off the screen over a blip. */}
       {montages === null ? (
-        montageError === null ? <Empty busy text="Loading…" /> : null
+        montageError === null ? <Empty busy text={s.state.loading} /> : null
       ) : (
         <>
           {montages.map((montage) => (
             <View key={montage.id} style={styles.montage}>
               <CardMontage
                 state={MONTAGE_STATE[montage.status]}
-                title={montageTitle(montage)}
-                status={MONTAGE_STATUS[montage.status]}
+                title={montageTitle(montage, s)}
+                status={s.montage.status[montage.status]}
                 // Said in place of a bar or a number: nothing on this side knows how far along the
                 // worker is, and the push is what actually brings people back to look.
-                caption="You will be told when it is ready"
-                playLabel={`Watch ${montageTitle(montage)}`}
+                caption={s.montage.caption}
+                playLabel={s.montage.watch(montageTitle(montage, s))}
                 onPlay={montage.video_url === null ? undefined : () => setPlaying(montage.id)}
                 actions={
                   montage.status === 'ready' ? (
                     <Button
                       sm
                       icon={Download}
-                      label="Save and share"
+                      label={s.montage.saveShare}
                       disabled={busy || montage.video_url === null}
                       onPress={() => void keep(montage)}
                     />
                   ) : montage.status === 'failed' && role === 'organizer' ? (
                     <Button
                       sm
-                      label="Try again"
+                      label={s.action.retry}
                       onPress={() => void retry(montage)}
                       disabled={busy}
                     />
@@ -330,12 +319,12 @@ export default function MontageScreen() {
             // alone, and it is the thing the whole memory is being filled up for.
             <Button
               variant="primary"
-              label="Make a montage"
+              label={s.montage.make}
               onPress={() => setOrdering(true)}
               disabled={busy}
             />
           ) : montages.length === 0 ? (
-            <Empty icon={Film} text="No montage yet — the organizer can ask for one." />
+            <Empty icon={Film} text={s.montage.empty} />
           ) : null}
         </>
       )}
@@ -348,39 +337,38 @@ export default function MontageScreen() {
           one is chosen» out of a button that only looks different. */}
       <Sheet visible={ordering} onCancel={() => setOrdering(false)}>
         <Text accessibilityRole="header" role="title">
-          Make a montage
+          {s.montage.make}
         </Text>
-        <Text role="meta">
-          Everything in this memory goes in, and the agent picks the moments itself. What comes out
-          is not edited afterwards.
-        </Text>
+        <Text role="meta">{s.montage.explain}</Text>
 
         <Text role="label">
-          How long · {LENGTHS.find((one) => one.seconds === seconds)?.label}
+          {s.montage.howLong} · {s.montage.length[seconds]}
         </Text>
         <View style={styles.choices}>
           {LENGTHS.map((length) => (
             <Button
-              key={length.seconds}
+              key={length}
               sm
               // The picked one is the one with a frame around it. Not `primary`: the glow belongs
               // to one thing on a surface, and here that is «Make it» at the bottom.
-              variant={length.seconds === seconds ? 'secondary' : 'quiet'}
-              label={length.label}
-              onPress={() => setSeconds(length.seconds)}
+              variant={length === seconds ? 'secondary' : 'quiet'}
+              label={s.montage.length[length]}
+              onPress={() => setSeconds(length)}
               disabled={busy}
             />
           ))}
         </View>
 
-        <Text role="label">Music · {TRACK[track]}</Text>
+        <Text role="label">
+          {s.montage.music} · {s.montage.track[track]}
+        </Text>
         <View style={styles.choices}>
-          {(Object.keys(TRACK) as MusicTrackId[]).map((id) => (
+          {(Object.keys(s.montage.track) as MusicTrackId[]).map((id) => (
             <Button
               key={id}
               sm
               variant={id === track ? 'secondary' : 'quiet'}
-              label={TRACK[id]}
+              label={s.montage.track[id]}
               onPress={() => setTrack(id)}
               disabled={busy}
             />
@@ -390,7 +378,7 @@ export default function MontageScreen() {
         {/* `busy` alone, as everywhere else in the app: the kit already refuses the press while it
             is set, and adding `disabled` on top would take the ember off the one glowing button on
             the sheet for exactly as long as its spinner is turning. */}
-        <Button variant="primary" label="Make it" onPress={order} busy={busy} />
+        <Button variant="primary" label={s.montage.makeIt} onPress={order} busy={busy} />
         {/* Where «too little material» is read: the sheet stays up when the order is refused, and
             the screen's own copy of this line is under the scrim. */}
         {notice ? <Banner text={notice} /> : null}
@@ -411,7 +399,7 @@ export default function MontageScreen() {
           <View style={styles.viewer}>
             <Playing url={watching.video_url} />
             <ActionBar style={styles.bar}>
-              <Button variant="quiet" label="Close" onPress={() => setPlaying(null)} />
+              <Button variant="quiet" label={s.action.close} onPress={() => setPlaying(null)} />
             </ActionBar>
           </View>
         )}

@@ -1,25 +1,28 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { ApiError, checkUsername, errorMessage, isValidUsername, USERNAME_HINT } from '@/api';
+import { ApiError, checkUsername, errorMessage, isValidUsername } from '@/api';
 import { useAuth } from '@/auth';
 import { Button, Field, type FieldState } from '@/kit';
+import { useStrings } from '@/language';
+import { type Strings } from '@/strings';
 import { space } from '@/theme';
 
 /** Long enough that a typed word is one question, short enough to answer before the thumb moves. */
 const CHECK_DELAY_MS = 400;
 
-/** One wording for one fact, whether the check found it or the submit did. */
-const TAKEN = 'That username is taken — pick another.';
-
 /** Where the server stands on the name in the field. `null` is «nothing to say». */
 type Availability = 'checking' | 'free' | 'taken';
 
-const AVAILABILITY_HINT: Record<Availability, string> = {
-  checking: 'Checking…',
-  free: 'Username is free.',
-  taken: TAKEN,
-};
+/**
+ * What the field says under itself for each of the three. `error.usernameTaken` is the one wording
+ * for one fact, whether the check found it or the submit did — so both roads read the same key.
+ */
+const availabilityHint = (s: Strings): Record<Availability, string> => ({
+  checking: s.state.checking,
+  free: s.username.free,
+  taken: s.error.usernameTaken,
+});
 
 /**
  * The one username field, shared by the first claim (/set-username) and the change (/profile).
@@ -35,6 +38,7 @@ const AVAILABILITY_HINT: Record<Availability, string> = {
  */
 export function UsernameForm({ submitLabel }: { submitLabel: string }) {
   const { token, user, setUsername } = useAuth();
+  const s = useStrings();
   const [value, setValue] = useState(user?.username ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -81,7 +85,7 @@ export function UsernameForm({ submitLabel }: { submitLabel: string }) {
   async function submit() {
     const username = value.trim();
     if (!isValidUsername(username)) {
-      setError(USERNAME_HINT);
+      setError(s.error.usernameFormat);
       return;
     }
     setBusy(true);
@@ -93,9 +97,9 @@ export function UsernameForm({ submitLabel }: { submitLabel: string }) {
         // Still the last word: the check ran before this call, and the name could have gone in
         // between.
         e instanceof ApiError && e.status === 409
-          ? TAKEN
+          ? s.error.usernameTaken
           : e instanceof ApiError && e.status === 400
-            ? USERNAME_HINT
+            ? s.error.usernameFormat
             : errorMessage(e),
       );
     } finally {
@@ -106,7 +110,7 @@ export function UsernameForm({ submitLabel }: { submitLabel: string }) {
   return (
     <View style={styles.form}>
       <Field
-        label="Username"
+        label={s.username.label}
         value={value}
         // What the server said was about the name that was sent, so it goes as soon as the name does.
         onChangeText={(next) => {
@@ -120,7 +124,9 @@ export function UsernameForm({ submitLabel }: { submitLabel: string }) {
         // words: whatever puts the field in error says why in the same breath.
         hint={
           error ??
-          (malformed || availability === null ? USERNAME_HINT : AVAILABILITY_HINT[availability])
+          (malformed || availability === null
+            ? s.error.usernameFormat
+            : availabilityHint(s)[availability])
         }
         autoCapitalize="none"
         autoCorrect={false}
