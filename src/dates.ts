@@ -1,3 +1,5 @@
+import { currentLanguage } from '@/language';
+
 // A memory carries a day, or a span of days; the api carries instants. These are the two
 // ends of that: what a day looks like on screen, and which instant a picked day is. Plus the
 // one other time this app writes out — how long a video runs.
@@ -15,8 +17,13 @@
  * is every screen that draws a date going down. The cost is a language that writes the day with a
  * letter of its own — Japanese «9月3日» — which this app does not speak; move to `formatToParts`
  * when it does.
+ *
+ * The month word comes from the language the app is speaking, never from the device: handed
+ * `undefined`, a formatter falls back on the phone's own locale, which is how a phone set to
+ * Russian wrote «сентября» into an otherwise English screen. Only the word is taken, so the
+ * language alone is locale enough — «ru» and «en» carry no region worth naming here.
  */
-function dayFields(value: string | Date, locale?: string) {
+function dayFields(value: string | Date, locale: string = currentLanguage()) {
   const day = new Date(value);
   return {
     day: String(day.getDate()),
@@ -33,7 +40,7 @@ const wholeDay = (fields: ReturnType<typeof dayFields>) =>
 
 /**
  * One day the way the kit writes it — «3 сентября 2026», «3 September 2026». `locale` is only for
- * tests to name a language; the app leaves it out and gets the device's own.
+ * tests to name a language out loud; the app leaves it out and gets the one it is speaking.
  */
 export function formatDay(value: string | Date, locale?: string): string {
   return wholeDay(dayFields(value, locale));
