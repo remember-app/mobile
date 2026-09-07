@@ -230,106 +230,123 @@ export default function MontageScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={[styles.body, { paddingTop: insets.top }]}>
-      <AppBar
-        title={memory?.title ?? s.montage.title}
-        left={
-          <IconButton
-            icon={ChevronLeft}
-            label={s.action.back}
-            // A tapped «ролик готов» push opens this screen with nothing behind it to go back to.
-            onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
-          />
-        }
-        right={
-          // The other half of the memory, one icon away — the same corner the gallery reaches its
-          // members from. `navigate` and not `push`: the two screens point at each other, and
-          // pushing would stack a fresh copy of one over the other on every hop.
-          <IconButton
-            icon={Users}
-            label={s.members.title}
-            onPress={() => router.navigate({ pathname: '/memory/[id]', params: { id } })}
-          />
-        }
-      />
-
-      {error !== null ? (
-        <Banner tone="error" text={error}>
-          <Button sm variant="quiet" label={s.action.retry} onPress={load} />
-        </Banner>
-      ) : null}
-      {montageError !== null ? (
-        <Banner tone="error" text={montageError}>
-          <Button sm variant="quiet" label={s.action.retry} onPress={load} />
-        </Banner>
-      ) : null}
-
-      {/* Beside the list and not in place of it: `load` runs on every focus, so a list that was
-          read once outlives a refetch that failed. Wiping it would take the videos and the
-          organizer's own way of ordering one off the screen over a blip. */}
-      {montages === null ? (
-        montageError === null ? <Empty busy text={s.state.loading} /> : null
-      ) : (
-        <>
-          {montages.map((montage) => (
-            <View key={montage.id} style={styles.montage}>
-              <CardMontage
-                state={MONTAGE_STATE[montage.status]}
-                title={montageTitle(montage, s)}
-                status={s.montage.status[montage.status]}
-                // Said in place of a bar or a number: nothing on this side knows how far along the
-                // worker is, and the push is what actually brings people back to look.
-                caption={s.montage.caption}
-                playLabel={s.montage.watch(montageTitle(montage, s))}
-                onPlay={montage.video_url === null ? undefined : () => setPlaying(montage.id)}
-                actions={
-                  montage.status === 'ready' ? (
-                    <Button
-                      sm
-                      icon={Download}
-                      label={s.montage.saveShare}
-                      disabled={busy || montage.video_url === null}
-                      onPress={() => void keep(montage)}
-                    />
-                  ) : montage.status === 'failed' && role === 'organizer' ? (
-                    <Button
-                      sm
-                      label={s.action.retry}
-                      onPress={() => void retry(montage)}
-                      disabled={busy}
-                    />
-                  ) : null
-                }
-              />
-              {/* The kit's own rule is that a failure is not explained by a code — so the word
-                  beside the dot stays the screen's, and the worker's own line goes under the card,
-                  where there is room for it and where it is not the first thing read. */}
-              {montage.status === 'failed' && montage.error_text !== null ? (
-                <Text role="meta">{montage.error_text}</Text>
-              ) : null}
-            </View>
-          ))}
-
-          {/* Nothing until the memory has answered: `role` comes off it, the two calls race, and
-              this pair is the one place where not knowing yet reads as an answer — an organizer
-              would be shown «the organizer can ask for one» and no button to do it with. The cards
-              above need no role and go up as soon as they arrive. */}
-          {memory === null ? null : role === 'organizer' ? (
-            // The screen's one glowing button for the organizer: doc-03 makes ordering theirs
-            // alone, and it is the thing the whole memory is being filled up for.
-            <Button
-              variant="primary"
-              label={s.montage.make}
-              onPress={() => setOrdering(true)}
-              disabled={busy}
+    // The bar at the bottom is the screen's frame and not part of its list, so the scroll is inside
+    // a plain view rather than being the screen itself — the shape every other screen has.
+    <View style={[styles.screen, { paddingTop: insets.top }]}>
+      <ScrollView contentContainerStyle={styles.body}>
+        <AppBar
+          title={memory?.title ?? s.montage.title}
+          left={
+            <IconButton
+              icon={ChevronLeft}
+              label={s.action.back}
+              // A tapped «ролик готов» push opens this screen with nothing behind it to go back to.
+              onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
             />
-          ) : montages.length === 0 ? (
-            <Empty icon={Film} text={s.montage.empty} />
-          ) : null}
-        </>
-      )}
+          }
+          right={
+            // The other half of the memory, one icon away — the same corner the gallery reaches its
+            // members from. `navigate` and not `push`: the two screens point at each other, and
+            // pushing would stack a fresh copy of one over the other on every hop.
+            <IconButton
+              icon={Users}
+              label={s.members.title}
+              onPress={() => router.navigate({ pathname: '/memory/[id]', params: { id } })}
+            />
+          }
+        />
 
+        {error !== null ? (
+          <Banner tone="error" text={error}>
+            <Button sm variant="quiet" label={s.action.retry} onPress={load} />
+          </Banner>
+        ) : null}
+        {montageError !== null ? (
+          <Banner tone="error" text={montageError}>
+            <Button sm variant="quiet" label={s.action.retry} onPress={load} />
+          </Banner>
+        ) : null}
+
+        {/* Beside the list and not in place of it: `load` runs on every focus, so a list that was
+            read once outlives a refetch that failed. Wiping it would take the videos off the
+            screen over a blip. */}
+        {montages === null ? (
+          montageError === null ? <Empty busy text={s.state.loading} /> : null
+        ) : (
+          <>
+            {montages.map((montage) => (
+              <View key={montage.id} style={styles.montage}>
+                <CardMontage
+                  state={MONTAGE_STATE[montage.status]}
+                  title={montageTitle(montage, s)}
+                  status={s.montage.status[montage.status]}
+                  // Said in place of a bar or a number: nothing on this side knows how far along
+                  // the worker is, and the push is what actually brings people back to look.
+                  caption={s.montage.caption}
+                  playLabel={s.montage.watch(montageTitle(montage, s))}
+                  onPlay={montage.video_url === null ? undefined : () => setPlaying(montage.id)}
+                  actions={
+                    montage.status === 'ready' ? (
+                      <Button
+                        sm
+                        icon={Download}
+                        label={s.montage.saveShare}
+                        disabled={busy || montage.video_url === null}
+                        onPress={() => void keep(montage)}
+                      />
+                    ) : montage.status === 'failed' && role === 'organizer' ? (
+                      <Button
+                        sm
+                        label={s.action.retry}
+                        onPress={() => void retry(montage)}
+                        disabled={busy}
+                      />
+                    ) : null
+                  }
+                />
+                {/* The kit's own rule is that a failure is not explained by a code — so the word
+                    beside the dot stays the screen's, and the worker's own line goes under the
+                    card, where there is room for it and where it is not the first thing read. */}
+                {montage.status === 'failed' && montage.error_text !== null ? (
+                  <Text role="meta">{montage.error_text}</Text>
+                ) : null}
+              </View>
+            ))}
+
+            {/* Nothing here is a report of what is missing: the kit's empty is an invitation
+                (section 6), so the words say what a montage is and what it takes, and the button
+                that starts one is on the bar below. Which invitation depends on who is reading —
+                and nothing until the memory has answered, because `role` comes off it and the two
+                calls race: an organizer shown «the organizer can ask for one» is being told about
+                themselves. The cards above need no role and go up as soon as they arrive. */}
+            {montages.length === 0 && role !== null ? (
+              <Empty
+                icon={Film}
+                text={role === 'organizer' ? s.montage.emptyOrganizer : s.montage.empty}
+              />
+            ) : null}
+          </>
+        )}
+      </ScrollView>
+
+      {/* Above the bar and outside the scroll, the way the gallery holds its own: what the button
+          below answers with must not land at the bottom of a list that has scrolled away. */}
       {notice ? <Banner text={notice} /> : null}
+
+      {/* The screen's one glowing button for the organizer — doc-03 makes ordering theirs alone,
+          and it is the thing the whole memory is being filled up for. In the bottom bar because
+          that is where this app keeps the one action of a screen. */}
+      {role === 'organizer' ? (
+        <ActionBar>
+          <Button
+            variant="primary"
+            wide
+            label={s.montage.make}
+            onPress={() => setOrdering(true)}
+            disabled={busy}
+          />
+        </ActionBar>
+      ) : null}
 
       {/* The two wishes doc-03 allows and nothing else, asked on a sheet the way an invite is:
           ordering is a thing done once, and the screen is for what comes of it. What is picked is
@@ -410,7 +427,7 @@ export default function MontageScreen() {
           </View>
         )}
       </Modal>
-    </ScrollView>
+    </View>
   );
 }
 
@@ -439,7 +456,12 @@ function Playing({ url }: { url: string }) {
 const room = themes.dark.color;
 
 const styles = StyleSheet.create({
-  body: { paddingHorizontal: space.s5, paddingBottom: space.s8, gap: space.s3 },
+  // The sides belong to the screen and not to the scroll: the bar at the bottom stands in the same
+  // margin the cards do. The background is the navigator's own (`_layout.tsx`), as it always was.
+  screen: { flex: 1, paddingHorizontal: space.s5 },
+  // The same tail the guest list's scroll keeps: for a viewer there is no bar under it, and the
+  // last card must not end under the home indicator. Under the bar it is air nobody scrolls to.
+  body: { paddingBottom: space.s8, gap: space.s3 },
   // A card and, under a fallen one, the line the worker left — closer to each other than the
   // screen's own gap, because they are one thing.
   montage: { gap: space.s2 },
