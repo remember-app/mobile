@@ -86,9 +86,13 @@ export function useLoop(ms: number, easing = Easing.linear, on = true): Animated
 }
 
 /**
- * A 0 → 1 value that runs once on mount — the kit's `develop` (a frame coming out of the darkness)
- * and `rise` (a sheet coming up from the bottom). Under reduced motion it is simply already 1, so
- * the thing is there without ever having moved.
+ * A 0 → 1 value that runs once on mount — the kit's `rise`, a sheet coming up from the bottom.
+ * Under reduced motion it is simply already 1, so the thing is there without ever having moved.
+ *
+ * For an `Animated.View` and nothing else. The native driver writes straight at the view the value
+ * is attached to, so wrapping somebody else's component in `Animated.createAnimatedComponent` gets
+ * a value that climbs in JS over a picture that never moves — see the tile, which fades through
+ * `expo-image`'s own `transition` for exactly that reason.
  */
 export function useFadeIn(ms: number): Animated.Value {
   const reduced = useReducedMotion();

@@ -10,15 +10,12 @@ import { Animated, Pressable, StyleSheet, View, type StyleProp, type ViewStyle }
 import { color, duration as motion, radius, space } from '@/theme';
 
 import { ICO_S, Icon } from './icon';
-import { EASE, focusRing, useFadeIn, useHoverFocus, useLoop } from './interaction';
+import { EASE, focusRing, useHoverFocus, useLoop, useReducedMotion } from './interaction';
 import { shade } from './shades';
 import { Text } from './text';
 
 /** The kit's `.tile--*`, section 8: what has become of one frame. */
 export type TileState = 'ready' | 'processing' | 'failed';
-
-/** The developing frame: the kit's `develop` is an opacity, and opacity is animatable on any view. */
-const AnimatedImage = Animated.createAnimatedComponent(Image);
 
 /**
  * One frame of the contact sheet. Ready, it develops out of the darkness the way a print comes up
@@ -50,7 +47,7 @@ export function Tile({
   style?: StyleProp<ViewStyle>;
 }) {
   const { focused, props } = useHoverFocus();
-  const develop = useFadeIn(motion.slow);
+  const reduced = useReducedMotion();
   // Only the waiting frame draws it, and only it should be paying for it: a sheet of a thousand
   // ready frames must not run a thousand loops nothing reads.
   const safelight = useLoop(1600, EASE, state === 'processing');
@@ -58,20 +55,17 @@ export function Tile({
   const inner = (
     <>
       {state === 'ready' && uri ? (
-        <AnimatedImage
+        // The kit's `develop` is `expo-image`'s own cross-dissolve, not an `Animated` opacity laid
+        // over it. It was the latter until this frame stopped appearing at all: a native-driver
+        // opacity has to be attached to a native view, and this is a class component wrapping one,
+        // so the value rose to 1 in JS while the picture sat at 0 until an unrelated re-render
+        // pushed it — which is why a tile only showed itself once it was tapped. The dim on a
+        // picked frame is a plain style: it is a state, not a motion.
+        <Image
           source={{ uri }}
           contentFit="cover"
-          style={[
-            styles.image,
-            {
-              // The kit fades the frame in from near-black; over a dark tile, opacity is that same
-              // rise out of the darkness. A selected frame settles at the kit's dimmed 0.82.
-              opacity: develop.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0, selected ? 0.82 : 1],
-              }),
-            },
-          ]}
+          transition={reduced ? 0 : motion.slow}
+          style={[styles.image, selected ? styles.dimmed : null]}
         />
       ) : null}
 
@@ -168,6 +162,8 @@ const styles = StyleSheet.create({
   processing: { borderWidth: 1, borderColor: color.line },
   failed: { borderWidth: 1, borderColor: shade.dangerLine, backgroundColor: shade.dangerTile },
   image: { width: '100%', height: '100%' },
+  // The kit dims a picked frame so the ember ring and the tick read over it.
+  dimmed: { opacity: 0.82 },
   state: { alignItems: 'center', justifyContent: 'center', gap: 6, padding: space.s2 },
   safelight: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: color.ember },
   caption: { fontSize: 12, lineHeight: 15.6, fontWeight: '500', color: color.muted, textAlign: 'center' },
