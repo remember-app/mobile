@@ -246,7 +246,11 @@ export default function MemoryScreen() {
             <Button label={s.action.invite} onPress={() => setInviting(true)} />
           ) : null}
 
-          <Text role="meta" style={styles.section}>
+          {/* A section of the screen, and the kit sets those in `.t-title` — its type specimen
+              draws this very heading in it. Muted 13 is `.t-meta`, which is the voice of a fact
+              beside a name, not of the heading over the whole roster. A heading to a rotor, too:
+              under the memory's own name in the appbar, it is the second stop on the way down. */}
+          <Text accessibilityRole="header" role="title" style={styles.section}>
             {s.members.roster}
           </Text>
           {/* A `.map` and not a FlatList: this is one event's guest list inside a ScrollView,

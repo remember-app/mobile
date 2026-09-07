@@ -17,9 +17,17 @@ import { Text } from './text';
 export type TileState = 'ready' | 'processing' | 'failed';
 
 /**
+ * `.sheet{gap:3px}` — the cut between two frames of a contact sheet, and the whole of what stands
+ * between them. Here rather than in either screen that draws a sheet: both of them have to work the
+ * width of a column out of it, and a gutter of two minds would tell them two different widths.
+ */
+export const SHEET_GAP = 3;
+
+/**
  * One frame of the contact sheet. Ready, it develops out of the darkness the way a print comes up
  * in the tray; waiting, it pulses a safelight dot; fallen over, it says so plainly instead of
- * showing a code. Selected before sending, it takes the ember frame and a mark in the corner.
+ * showing a code. Selected before sending, it takes the ember ring and a mark in the corner; open in
+ * the filmstrip, the same ring and nothing else.
  *
  * The tile fills whatever column the sheet gives it and stays square. Nothing here is clickable
  * unless `onPress` is passed — a frame still developing is not a button.
@@ -29,6 +37,7 @@ export function Tile({
   uri,
   length,
   selected,
+  current,
   caption,
   label,
   onPress,
@@ -39,6 +48,11 @@ export function Tile({
   /** Video length as the screen writes it, e.g. `0:42` — `.tile__duration`. */
   length?: string;
   selected?: boolean;
+  /**
+   * `.tile--current` — the frame the filmstrip has open. The kit gives it the same ember ring a
+   * picked frame wears («метка выделения в продукте одна») and nothing else: no tick, no dimming.
+   */
+  current?: boolean;
   /** What a waiting or fallen frame says of itself — `.tile__state`. */
   caption?: string;
   label?: string;
@@ -107,14 +121,23 @@ export function Tile({
         </View>
       ) : null}
 
+      {/* One ring for both marks, `.tile--selected::after, .tile--current::after` — and a layer over
+          the picture rather than a border on the tile itself. A border would come out of the tile's
+          own box: in the filmstrip that made the open frame 4px smaller than every frame beside it,
+          which is the one thing it must not be. */}
+      {selected || current ? (
+        <View
+          testID="tile-ring"
+          style={[StyleSheet.absoluteFill, styles.ring]}
+          pointerEvents="none"
+        />
+      ) : null}
+
       {selected ? (
-        <>
-          <View style={[StyleSheet.absoluteFill, styles.ring]} pointerEvents="none" />
-          <View style={styles.check}>
-            {/* The kit thickens this one stroke to 3 — a 13px tick at 1.75 would not read. */}
-            <Check size={13} color={shade.onEmber} strokeWidth={3} />
-          </View>
-        </>
+        <View testID="tile-check" style={styles.check}>
+          {/* The kit thickens this one stroke to 3 — a 13px tick at 1.75 would not read. */}
+          <Check size={13} color={shade.onEmber} strokeWidth={3} />
+        </View>
       ) : null}
     </>
   );
@@ -195,8 +218,8 @@ const useStyles = themed(({ color, shade }) =>
       fontVariant: ['tabular-nums'],
       color: onScrim,
     },
-    // `box-shadow: inset 0 0 0 2px` has no React Native spelling; a bordered overlay is the same
-    // ring.
+    // The kit's own `::after{inset:0}` — a layer the size of the tile carrying the border, laid over
+    // the picture. The tile keeps every pixel of its width; only the ring is drawn on top of it.
     ring: { borderWidth: 2, borderColor: color.ember, borderRadius: radius.frame },
     check: {
       position: 'absolute',

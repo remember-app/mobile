@@ -7,6 +7,8 @@ import members from './app/memory/[id].tsx?raw';
 import home from './app/index.tsx?raw';
 import invite from './app/invite.tsx?raw';
 import layout from './app/_layout.tsx?raw';
+// The one kit file read here: the sheet's offset from the header is the appbar's own padding.
+import bars from './kit/bars.tsx?raw';
 import push from './push.ts?raw';
 import { en, ru } from '@/strings';
 
@@ -178,6 +180,39 @@ test('the frame shown full screen is the same reading frameOf gives every tile',
   // field directly here would show a broken image instead of the «could not be prepared» state.
   expect(gallery).toContain('const openFrame = shown === null ? null : frameOf(shown);');
   expect(gallery).toContain('<Image source={{ uri: openFrame.uri }}');
+});
+
+// The contact sheet itself, measured by the designer (TASK-79): the last frame of a sheet came out
+// 2pt wider than every frame above it, and the frame the strip had open came out smaller than its
+// neighbours. Both are one question — how wide a column of the kit's sheet is — and both screens
+// that draw a sheet have to answer it the same way.
+
+test('every column of a contact sheet is the same width, the last row included', () => {
+  for (const sheet of [gallery, upload]) {
+    // `flex: 1/3` divides what a row has left after its gaps, so a last row with one frame in it —
+    // no gaps in it to leave — handed that frame a third of the whole row instead of a column.
+    expect(sheet).not.toContain('flex: 1 / 3');
+    // A column worked out from the width the sheet spans, and re-read when the phone turns.
+    expect(sheet).toContain('useWindowDimensions()');
+    expect(sheet).toContain('SHEET_GAP * 2) / 3');
+  }
+});
+
+test('the 12 under the appbar is the kit’s own, and nothing stands between it and the sheet', () => {
+  // «Контактный лист вплотную к шапке» was the report; `.appbar{padding:var(--s4) 0 var(--s3)}` is
+  // where the kit keeps that 12, and the kit's appbar has carried it since m-7. Pinned so the sheet
+  // cannot end up flush against the header by the padding being dropped from underneath it.
+  expect(bars).toContain('paddingBottom: space.s3');
+  // And the gallery hangs its sheet straight off the appbar — no second gap, no screen-wide `gap`.
+  expect(gallery).toContain('screen: { flex: 1, backgroundColor: color.ink }');
+});
+
+test('a tile is read out in the line it is drawn with', () => {
+  // «Все кадры названы photo» — the raw `kind` off the api, before the dictionary (TASK-86). What
+  // was left after that is the state: both sheets ask the frame, not the record's status, whether
+  // there is anything to say past «Фото», and both go through the one helper to ask it.
+  expect(gallery.match(/nameOf\(item, frame/g)).toHaveLength(2);
+  expect(gallery).toContain("frame.state === 'ready' ? null : s.gallery.waiting[item.status]");
 });
 
 test('the roads into a memory are unchanged, and a finished montage opens the montage screen', () => {

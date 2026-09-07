@@ -86,6 +86,10 @@ export default function CreateMemoryScreen() {
 
         <DayField
           label={s.create.eventDate}
+          // The kit draws `.field-hint` under this one field and under no other on the screen: the
+          // day is the only thing here that does something later, and this is where it says so.
+          // Under the first field only — the end date is the same answer, said twice.
+          hint={s.create.dateHint}
           value={start}
           onChange={(day) => setStart(startOfDay(day))}
           disabled={busy}
@@ -148,12 +152,15 @@ export default function CreateMemoryScreen() {
  */
 function DayField({
   label,
+  hint,
   value,
   onChange,
   minimumDate,
   disabled,
 }: {
   label: string;
+  /** The kit's `.field-hint`: the line under the input that says what the day is for. */
+  hint?: string;
   value: Date;
   onChange: (day: Date) => void;
   minimumDate?: Date;
@@ -171,6 +178,8 @@ function DayField({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={label}
+        // Read out as well as drawn, the way the kit's own field hands its hint to the input.
+        accessibilityHint={hint}
         accessibilityValue={{ text: formatDay(value) }}
         accessibilityState={{ disabled, expanded: open }}
         disabled={disabled}
@@ -186,6 +195,7 @@ function DayField({
         <Text style={[styles.day, disabled ? styles.dayOff : null]}>{formatDay(value)}</Text>
         <Icon icon={CalendarDays} color={color.muted} />
       </Pressable>
+      {hint ? <Text style={styles.hint}>{hint}</Text> : null}
       {open ? (
         <DateTimePicker
           value={value}
@@ -235,6 +245,10 @@ const useStyles = themed(({ color, shade }) =>
     triggerLive: { borderColor: shade.lineHi, backgroundColor: color.raise },
     // `.input:disabled`
     triggerOff: { backgroundColor: color.ink },
+    // `.field-hint`, 13/1.3 and muted — the kit's own, and a copy of the one `@/kit/field` draws
+    // for a real input. It is copied for the same reason the shell above it is (TASK-56 has the
+    // note): this trigger stands in for a field it cannot be.
+    hint: { fontSize: 13, lineHeight: 16.9, color: color.muted },
     // The kit's input type, with the tabular figures it asks of every date.
     day: { fontVariant: ['tabular-nums'] },
     dayOff: { color: color.muted },

@@ -11,7 +11,15 @@ import {
   X,
 } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FlatList, Image, Modal, RefreshControl, StyleSheet, View } from 'react-native';
+import {
+  FlatList,
+  Image,
+  Modal,
+  RefreshControl,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -31,7 +39,7 @@ import {
 import { useAuth } from '@/auth';
 import { formatRuntime } from '@/dates';
 import { maySaveToPhone, saveToPhone } from '@/downloads';
-import { frameIndex, frameOf, mayOpen, shotBy, stillPreparing } from '@/frames';
+import { frameIndex, frameOf, mayOpen, shotBy, stillPreparing, type Frame } from '@/frames';
 import {
   ActionBar,
   AppBar,
@@ -41,6 +49,7 @@ import {
   Empty,
   IconButton,
   RailH,
+  SHEET_GAP,
   Text,
   Tile,
 } from '@/kit';
@@ -54,9 +63,9 @@ import { onScrim, space, themed, themes, ThemePin, useTheme } from '@/theme';
  */
 const WHILE_PREPARING_MS = 3000;
 
-/** The kit's filmstrip tile — 52px, and 3px of gutter after it, the contact sheet's own. */
+/** The kit's filmstrip tile — 52px, and the contact sheet's own gutter after it. */
 const STRIP_TILE = 52;
-const STRIP_GAP = 3;
+const STRIP_GAP = SHEET_GAP;
 
 /**
  * What everybody put in, as everybody sees it — a viewer included (architecture.md, «Проверка
@@ -75,6 +84,16 @@ export default function GalleryScreen() {
   // The pull-to-refresh spinner is drawn by the platform and takes its colours as props.
   const { color } = useTheme();
   const insets = useSafeAreaInsets();
+  /**
+   * One column of the contact sheet, worked out rather than flexed. The kit's sheet is three `1fr`
+   * columns, and a `1fr` column is the same width in a last row of one as in a full row of three.
+   * `flex: 1/3` is not: it hands each frame a third of what the row has left after its gaps, and a
+   * row with one frame in it has no gaps to leave — so the last frame of the sheet came out 2pt
+   * wider than every frame above it, which is what the designer measured. This sheet runs edge to
+   * edge, so its row is as wide as the window, and rotating the phone re-reads that.
+   */
+  const { width } = useWindowDimensions();
+  const cell = { width: (width - SHEET_GAP * 2) / 3 };
   // null means «not loaded yet», the distinction the other screens draw: a reload after a delete
   // keeps the grid on screen instead of flashing the spinner over it.
   const [items, setItems] = useState<MediaItem[] | null>(null);
@@ -185,6 +204,25 @@ export default function GalleryScreen() {
   const shown = items?.find((item) => item.id === open) ?? null;
   /** The open record read the way the grid reads it — one answer, two places drawing it. */
   const openFrame = shown === null ? null : frameOf(shown);
+
+  /**
+   * What a tile is called out loud: what it is, what has become of it, and whether it is the frame
+   * the strip has open — «Видео», «Фото, Проявляем…», «Фото, открыто».
+   *
+   * Whether there is anything to say past the first word is the *frame's* question and not the
+   * record's: `frameOf` turns a `ready` record with no derivative into the fallen frame, and that
+   * tile drew «Показывать нечего» while announcing itself as a plain «Фото». The words themselves
+   * are then the record's own, so a tile is read out in the line it is drawn with. One helper for
+   * both sheets, so the strip and the grid cannot drift apart again.
+   */
+  const nameOf = (item: MediaItem, frame: Frame, open?: boolean) =>
+    [
+      s.media[item.kind],
+      frame.state === 'ready' ? null : s.gallery.waiting[item.status],
+      open ? s.gallery.open : null,
+    ]
+      .filter(Boolean)
+      .join(', ');
 
   async function remove(item: MediaItem) {
     if (!token) return;
@@ -347,7 +385,7 @@ export default function GalleryScreen() {
               const frame = frameOf(item);
               return (
                 <Tile
-                  style={styles.cell}
+                  style={cell}
                   state={frame.state}
                   uri={frame.uri ?? undefined}
                   caption={s.gallery.waiting[item.status]}
@@ -359,11 +397,7 @@ export default function GalleryScreen() {
                       : undefined
                   }
                   // Read out, never drawn — so it says «Photo» and not the api's own `photo`.
-                  label={
-                    item.status === 'ready'
-                      ? s.media[item.kind]
-                      : `${s.media[item.kind]}, ${s.gallery.waiting[item.status]}`
-                  }
+                  label={nameOf(item, frame)}
                   // The same gate the strip below puts on the same record, and for the same
                   // reason: a frame still being made has nothing behind it to open, so opening it
                   // lands on a whole screen saying «Preparing…» — which is the third of the three
@@ -466,9 +500,12 @@ export default function GalleryScreen() {
                         onPress={() => setOpen(null)}
                         disabled={busy}
                       />
-                      {/* `.viewer__who` — who brought this frame and the day it was shot. */}
+                      {/* `.viewer__who` — the person who brought this frame and the day of the
+                          event, «Марина · 3 сентября». Not the file's own metadata: it used to say
+                          the login of whoever uploaded it and the day the camera stamped the file,
+                          which for anything sent out of an old album dated the event years wrong. */}
                       <Text role="meta" numberOfLines={1} style={styles.who}>
-                        {shotBy(shown, roster)}
+                        {shotBy(shown, roster, memory)}
                       </Text>
                       {/* Not gated on anything: a viewer may take home what they are looking at, and
                           the api says the same — the download route asks for membership and nothing
@@ -543,10 +580,13 @@ export default function GalleryScreen() {
                             // the same frame smaller and in shadow, with the open one lit and ringed
                             // in ember, the mark a picked frame already wears. `filter: brightness`
                             // is the kit's spelling; over ink, opacity is the same thing everywhere.
-                            style={[
-                              styles.stripTile,
-                              current ? styles.stripCurrent : styles.stripDim,
-                            ]}
+                            style={[styles.stripTile, current ? null : styles.stripDim]}
+                            // The mark itself is the tile's, not this screen's. It was a border here
+                            // until the designer measured it: a border is taken out of the tile's own
+                            // 52px, so the open frame — the one frame that must stand out — sat 4px
+                            // smaller than its neighbours and lost its picture to the ring. The kit
+                            // draws it as a layer over the frame (`.tile--current::after`).
+                            current={current}
                             state={frame.state}
                             uri={frame.uri ?? undefined}
                             // No caption: at 52px there are no words to read, only the safelight.
@@ -555,13 +595,7 @@ export default function GalleryScreen() {
                                 ? (formatRuntime(item.duration_seconds) ?? s.media.video)
                                 : undefined
                             }
-                            label={
-                              current
-                                ? `${s.media[item.kind]}, ${s.gallery.open}`
-                                : item.status === 'ready'
-                                  ? s.media[item.kind]
-                                  : `${s.media[item.kind]}, ${s.gallery.waiting[item.status]}`
-                            }
+                            label={nameOf(item, frame, current)}
                             // A frame still developing stays in the strip and stays shut: there is
                             // nothing behind it to open yet.
                             onPress={mayOpen(item) ? () => setOpen(item.id) : undefined}
@@ -633,11 +667,9 @@ const useStyles = themed(({ color }) =>
     pad: { paddingHorizontal: space.s4 },
     centered: { flex: 1, justifyContent: 'center', padding: space.s4 },
     // The kit's contact sheet: a 3px gutter and nothing else, so the material reads as a lot of it.
-    grid: { flexGrow: 1, gap: 3 },
-    gridRow: { gap: 3 },
-    // A third of the row and not `flex: 1`, for the reason the upload grid gives: a last row with
-    // one tile in it must leave it a third of the width.
-    cell: { flex: 1 / 3 },
+    // The column itself is measured out above — the row only holds the gutters between them.
+    grid: { flexGrow: 1, gap: SHEET_GAP },
+    gridRow: { gap: SHEET_GAP },
     notice: { marginTop: space.s3 },
     // The open frame is the whole screen: the frame takes what is left after the strip, and the bar
     // lies over it rather than beside it. `room` and not `color` from here down — see above.
@@ -673,6 +705,5 @@ const useStyles = themed(({ color }) =>
     track: { gap: STRIP_GAP, paddingHorizontal: space.s2, paddingTop: space.s2 },
     stripTile: { width: STRIP_TILE },
     stripDim: { opacity: 0.42 },
-    stripCurrent: { borderWidth: 2, borderColor: room.ember },
   }),
 );
