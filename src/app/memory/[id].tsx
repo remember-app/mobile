@@ -47,9 +47,9 @@ import { space, useTheme } from '@/theme';
  * may do is read off their own row in the roster — the api is the authority on that, so
  * nothing here is gated on anything the client made up.
  *
- * The videos are not here: they are their own screen, an icon away in the corner (TASK-64). Nor is
- * a way to add material — the gallery's «Add more» is where that lives, in front of what is
- * already in.
+ * The videos are not here: they are their own screen, behind the one button on this one that
+ * glows (TASK-64, TASK-74). Nor is a way to add material — the gallery's «Add more» is where that
+ * lives, in front of what is already in.
  */
 export default function MemoryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -198,17 +198,6 @@ export default function MemoryScreen() {
             onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
           />
         }
-        right={
-          // The other half of the memory, one icon away — the same corner, and the same idiom, the
-          // gallery reaches this screen by. `Film` because what is behind it is the videos and the
-          // making of them. `navigate` and not `push`: the two screens point at each other, and
-          // pushing would stack a fresh copy of one over the other on every hop.
-          <IconButton
-            icon={Film}
-            label={s.montage.title}
-            onPress={() => router.navigate({ pathname: '/memory/[id]/montage', params: { id } })}
-          />
-        }
       />
       {memory ? (
         <Text role="meta">{formatEventDates(memory.event_start, memory.event_end)}</Text>
@@ -222,14 +211,25 @@ export default function MemoryScreen() {
         <Empty busy text={s.state.loading} />
       ) : (
         <>
-          {/* Behind no role at all: looking at the material is what every member may do, a viewer
-              included (doc-01). The count is the memory's own, so it says «empty» before opening.
-              The kit gives the glow to exactly one thing per screen, and here that is the way to
-              the material — the only thing everybody on this screen has come for. Adding to it is
-              not offered here at all any more: «Add more» stands in the gallery, in front of what
-              is already in. */}
+          {/* The kit gives the glow to exactly one thing per screen, and here that is the road to
+              the movie: the montage is what the memory is being filled up for, and it was standing
+              in a 40×40 icon in the corner while the way to the gallery wore the ember. Behind no
+              role at all, the way the screen behind it is — everybody gets the video back, and the
+              ordering of one is the organizer's own button over there. `navigate` and not `push`:
+              the two screens point at each other, and pushing would stack a fresh copy of one over
+              the other on every hop. */}
           <Button
             variant="primary"
+            icon={Film}
+            label={s.montage.title}
+            onPress={() => router.navigate({ pathname: '/memory/[id]/montage', params: { id } })}
+          />
+
+          {/* Behind no role at all: looking at the material is what every member may do, a viewer
+              included (doc-01). The count is the memory's own, so it says «empty» before opening.
+              Adding to it is not offered here at all any more: «Add more» stands in the gallery, in
+              front of what is already in. */}
+          <Button
             label={memory ? s.members.material(memory.media_count) : s.members.materialPlain}
             onPress={() => router.push({ pathname: '/memory/[id]/gallery', params: { id } })}
           />
@@ -368,7 +368,12 @@ export default function MemoryScreen() {
           autoCorrect={false}
           editable={!busy}
         />
+        {/* The sheet's own one glowing button, the way the order sheet has «Смонтировать»: a
+            surface gets exactly one, and here it is the whole point of opening this one. The link
+            below is the other road in and stays a plain button — it hands over something to send,
+            it does not put anybody in. */}
         <Button
+          variant="primary"
           label={s.action.invite}
           onPress={sendInvite}
           disabled={busy || username.trim() === ''}

@@ -52,9 +52,25 @@ test('the way to the material stays on the memory screen', () => {
   expect(members).toContain('s.members.material');
 });
 
-test('the two screens reach each other by an appbar icon, without stacking a copy each hop', () => {
+test('the two screens reach each other without stacking a copy each hop', () => {
+  // The montage screen keeps its corner icon back to the roster; the road the other way is the
+  // guest list's own glowing button now (TASK-74). `navigate` on both, so the pair never stacks.
   expect(members).toContain("router.navigate({ pathname: '/memory/[id]/montage'");
   expect(montage).toContain("router.navigate({ pathname: '/memory/[id]'");
+});
+
+test('the ember on the guest list is the road to the movie, not the one to the gallery', () => {
+  // The kit gives the glow to one action per surface, and this file draws two: the screen, and the
+  // invite sheet over it. Two glows in it, then, and each on the thing its own surface is for.
+  expect(members.match(/variant="primary"/g)).toHaveLength(2);
+  // The button a hit sits in: from its own `<Button` back to the `/>` that closes it.
+  const button = (at: number) =>
+    members.slice(members.lastIndexOf('<Button', at), members.indexOf('/>', at));
+  const first = members.indexOf('variant="primary"');
+  expect(button(first)).toContain("'/memory/[id]/montage'");
+  expect(button(members.indexOf('variant="primary"', first + 1))).toContain('onPress={sendInvite}');
+  // And the way to the material, which used to wear it, is a plain button.
+  expect(button(members.indexOf("'/memory/[id]/gallery'"))).not.toContain('variant=');
 });
 
 // The open frame, read the same way. What was reported is a shape — «во весь экран без кнопок
