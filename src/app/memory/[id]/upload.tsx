@@ -186,7 +186,7 @@ export default function UploadScreen() {
     setNotice(null);
   }
 
-  const title = memory?.title ?? s.upload.title;
+  const title = memory?.title ?? s.memory.fallbackTitle;
 
   if (galleryError !== null) {
     return (
@@ -370,6 +370,9 @@ function Screen({ title, children }: { title: string; children: ReactNode }) {
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       <AppBar
         title={title}
+        // Four screens of this memory carry its name; this is the line that says which one is open.
+        // Said in every one of this screen's states, the way the way back is.
+        subtitle={s.upload.title}
         left={
           <IconButton
             icon={ChevronLeft}

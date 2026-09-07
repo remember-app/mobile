@@ -201,6 +201,12 @@ import { AppBar, Button, CardMemory, Text } from '@/kit';
 
 Навигация — `expo-router` (файловая маршрутизация, `src/app/`), корневой layout — `Stack` с гейтом.
 
+У воспоминания четыре экрана, и все четыре озаглавлены его собственным названием, поэтому
+заголовок не говорит, где ты стоишь. Говорит подпись под ним — `AppBar subtitle`, раздел одним
+словом: `s.members.title`, `s.montage.title`, `s.upload.title`, `s.memory.framesPlain` (TASK-76).
+Пятый экран воспоминания заводится так же; пока название не приехало, все четыре стоят под общим
+`s.memory.fallbackTitle`.
+
 - **`login` — Sign in** (`src/app/login.tsx`) — три входа: письмо со ссылкой, Apple и Google;
   недоступный провайдер объясняет это прямо на кнопке, а не падает.
 - **`auth/email` — Signing in** (`src/app/auth/email.tsx`) — куда приземляется ссылка
