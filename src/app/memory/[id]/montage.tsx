@@ -33,7 +33,7 @@ import {
 } from '@/kit';
 import { useStrings } from '@/language';
 import { type Strings } from '@/strings';
-import { space, themes } from '@/theme';
+import { space, themes, ThemePin } from '@/theme';
 
 /** The four standings a montage can be in, in the three the kit draws (section 10). */
 const MONTAGE_STATE: Record<Montage['status'], MontageState> = {
@@ -397,10 +397,16 @@ export default function MontageScreen() {
       >
         {watching === null || watching.video_url === null ? null : (
           <View style={styles.viewer}>
-            <Playing url={watching.video_url} />
-            <ActionBar style={styles.bar}>
-              <Button variant="quiet" label={s.action.close} onPress={() => setPlaying(null)} />
-            </ActionBar>
+            {/* The pin, and not only the `room.ink` under it: the bar is the kit's `.actionbar`
+                and draws its own `ink` and its own hairline, which in daylight is a pale strip
+                across the bottom of the dark room. Everything inside the viewer takes the dark
+                set, the same way `.viewer`'s children inherit it in the kit. */}
+            <ThemePin value="dark">
+              <Playing url={watching.video_url} />
+              <ActionBar style={styles.bar}>
+                <Button variant="quiet" label={s.action.close} onPress={() => setPlaying(null)} />
+              </ActionBar>
+            </ThemePin>
           </View>
         )}
       </Modal>

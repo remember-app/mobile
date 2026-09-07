@@ -1,5 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
-import { useSyncExternalStore } from 'react';
+import { createContext, useContext, useSyncExternalStore } from 'react';
 import { Appearance, StyleSheet, type ColorSchemeName } from 'react-native';
 
 import { shades, type Shade } from '@/kit/shades';
@@ -255,9 +255,22 @@ function subscribe(listener: () => void): () => void {
   };
 }
 
+/**
+ * A subtree held in one of the two sets whatever the app is in — `<ThemePin value="dark">`.
+ *
+ * The kit does this exactly once: `.viewer` stands in the dark-pinned selector list beside `:root`
+ * (kit.html, block 0.2), and in CSS everything under it inherits that pin — the filmstrip, the
+ * tiles in it, a banner over the frame. Spelling `themes.dark` out in the container's own sheet
+ * only pins the container: a `Tile` or an `Empty` inside it reads `useTheme()` and would go on
+ * answering with the live set, which is a light surface inside the dark room.
+ */
+const Pinned = createContext<ThemeName | null>(null);
+export const ThemePin = Pinned.Provider;
+
 /** The tokens with two answers, for a component that has to redraw when the theme changes. */
 export function useTheme(): Theme {
-  return themes[useSyncExternalStore(subscribe, currentTheme, currentTheme)];
+  const live = useSyncExternalStore(subscribe, currentTheme, currentTheme);
+  return themes[useContext(Pinned) ?? live];
 }
 
 /** The pick itself, for the one switch that shows it (`profile.tsx`). */
