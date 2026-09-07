@@ -43,7 +43,7 @@ import {
   Tile,
 } from '@/kit';
 import { useStrings } from '@/language';
-import { onScrim, space, themed, useTheme } from '@/theme';
+import { onScrim, space, themed, themes, useTheme } from '@/theme';
 
 /**
  * How long the screen waits before looking again while the worker is still making something. A
@@ -565,6 +565,19 @@ function Playing({ url }: { url: string }) {
   return <VideoView player={player} style={styles.big} />;
 }
 
+/**
+ * The open frame is a dark room in both themes — the kit pins `.viewer` to the dark set on purpose
+ * (kit.html, block 0.2): «вокруг фотографии не должно быть ничего светлее её самой», or the mount
+ * pulls the eye off the photograph. The filmstrip is inside the viewer in the kit's own markup and
+ * inherits that pin, and so does the ember ring on the open frame; the kit demonstrates it with a
+ * `data-theme="light"` figure holding a viewer that is still dark.
+ *
+ * The same rule `scrim` and `onScrim` are shared under, one step further out: this is the room the
+ * photograph is looked at in, and it is not the interface around it. The grid screen behind it is
+ * interface and does turn with the theme.
+ */
+const room = themes.dark.color;
+
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: color.ink },
@@ -579,8 +592,8 @@ const useStyles = themed(({ color }) =>
     cell: { flex: 1 / 3 },
     notice: { marginTop: space.s3 },
     // The open frame is the whole screen: the frame takes what is left after the strip, and the bar
-    // lies over it rather than beside it.
-    viewer: { flex: 1, backgroundColor: color.ink },
+    // lies over it rather than beside it. `room` and not `color` from here down — see above.
+    viewer: { flex: 1, backgroundColor: room.ink },
     frame: { flex: 1, justifyContent: 'center' },
     big: { flex: 1, width: '100%' },
     blank: { justifyContent: 'center' },
@@ -608,10 +621,10 @@ const useStyles = themed(({ color }) =>
     who: { flex: 1, paddingLeft: space.s1, color: 'rgba(242,236,227,.76)' },
     // Over the frame and at the foot of it: the strip below must stay the only thing under it.
     viewerNotice: { position: 'absolute', left: space.s4, right: space.s4, bottom: space.s4 },
-    filmstrip: { backgroundColor: color.ink },
+    filmstrip: { backgroundColor: room.ink },
     track: { gap: STRIP_GAP, paddingHorizontal: space.s2, paddingTop: space.s2 },
     stripTile: { width: STRIP_TILE },
     stripDim: { opacity: 0.42 },
-    stripCurrent: { borderWidth: 2, borderColor: color.ember },
+    stripCurrent: { borderWidth: 2, borderColor: room.ember },
   }),
 );
