@@ -12,15 +12,12 @@ import type { Original } from '@/api';
  * to the person holding the phone it is one «скачать».
  */
 
-/** The one answer nothing here can work around, and the one worth pointing somewhere. */
-export const REFUSED =
-  'Remember may not add to this phone’s gallery — that is turned on in Settings.';
-
 /**
  * The one grant saving needs, asked for at the moment it is needed: adding to the gallery, not
  * reading it — a different question from the one the upload screen asks, and the phone only puts it
  * once. Already answered means no dialog and a straight answer. What to say when it is «no» is the
- * caller's, because each screen has its own place to say it; the words are `REFUSED` either way.
+ * caller's, because each screen has its own place to say it; the words are `error.galleryRefused`
+ * either way, which is why they live in the dictionary and not beside this call.
  */
 export async function maySaveToPhone(): Promise<boolean> {
   const { granted } = await MediaLibrary.requestPermissionsAsync(true);

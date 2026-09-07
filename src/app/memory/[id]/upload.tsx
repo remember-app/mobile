@@ -28,6 +28,7 @@ import {
   Tile,
   Upload,
 } from '@/kit';
+import { useStrings } from '@/language';
 import { assetsInEventWindow } from '@/media-window';
 import { color, space } from '@/theme';
 import { progress } from '@/upload-queue';
@@ -43,14 +44,6 @@ const WANTED = ['photo', 'video'] as const;
 /** Big enough that the first page fills the screen, small enough that it arrives quickly. */
 const PAGE = 500;
 
-/** Said before the phone's own dialog, because the dialog cannot say why it is being asked. */
-const EXPLAIN =
-  'Remember cannot see a thing in your gallery until you say so — and what you pick stays on this phone until you send it.';
-
-/** The one answer this screen cannot work around, and the one worth pointing somewhere. */
-const REFUSED =
-  'The phone only asks once, and the answer was no. Turning it back on is in Settings, under Remember.';
-
 /**
  * Putting material into a memory: consent, the camera roll, «select all from that date», a
  * selection to trim, and the sending itself — which is handed to `@/uploads` and carries on
@@ -60,6 +53,7 @@ const REFUSED =
 export default function UploadScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { token } = useAuth();
+  const s = useStrings();
   // The whole app's queue; the rows below are this memory's share of it.
   const uploads = useUploads();
   // Checked on mount, asked for only on the button — that is the difference between knowing
@@ -125,7 +119,7 @@ export default function UploadScreen() {
       } catch {
         // Not `errorMessage`: that one is worded for the api and would blame the network for a
         // phone that would not open its own gallery.
-        if (live) setGalleryError('Cannot read the gallery on this phone.');
+        if (live) setGalleryError(s.upload.cannotRead);
       } finally {
         if (live) setReading(false);
       }
@@ -134,6 +128,8 @@ export default function UploadScreen() {
     return () => {
       live = false;
     };
+    // `s` is deliberately out of it: re-running this would read the whole camera roll again to
+    // re-word one line, and on a big library that is seconds of paging.
   }, [granted, rereads]);
 
   function retry() {
@@ -168,7 +164,7 @@ export default function UploadScreen() {
     const shotThen = assetsInEventWindow(memory, gallery);
     setPicked(new Set(shotThen.map((asset) => asset.id)));
     // Silence would read as a broken button; this is the one outcome that needs explaining.
-    setNotice(shotThen.length === 0 ? 'Nothing in the gallery was shot on those days.' : null);
+    setNotice(shotThen.length === 0 ? s.upload.nothingThen : null);
   }
 
   /** Widen a `limited` grant. Whatever it changed, the library is read again from the top. */
@@ -189,13 +185,13 @@ export default function UploadScreen() {
     setNotice(null);
   }
 
-  const title = memory?.title ?? 'Upload';
+  const title = memory?.title ?? s.upload.title;
 
   if (galleryError !== null) {
     return (
       <Screen title={title}>
         <Banner tone="error" text={galleryError}>
-          <Button sm variant="quiet" label="Try again" onPress={retry} />
+          <Button sm variant="quiet" label={s.action.retry} onPress={retry} />
         </Banner>
       </Screen>
     );
@@ -217,11 +213,11 @@ export default function UploadScreen() {
         {/* The kit says a message lives in the flow of the screen and carries what can be done
             about it — here that is the phone's own dialog while it is still worth asking, and
             Settings once the phone has stopped asking. */}
-        <Banner text={access.canAskAgain ? EXPLAIN : REFUSED}>
+        <Banner text={access.canAskAgain ? s.upload.explain : s.upload.refused}>
           {access.canAskAgain ? (
-            <Button sm label="Allow access" onPress={() => void ask()} />
+            <Button sm label={s.upload.allow} onPress={() => void ask()} />
           ) : (
-            <Button sm label="Open settings" onPress={() => void Linking.openSettings()} />
+            <Button sm label={s.action.openSettings} onPress={() => void Linking.openSettings()} />
           )}
         </Banner>
       </Screen>
@@ -238,7 +234,7 @@ export default function UploadScreen() {
           «select all from that date», but picking by hand and queueing both still work. */}
       {apiError !== null ? (
         <Banner tone="error" text={apiError}>
-          <Button sm variant="quiet" label="Try again" onPress={load} />
+          <Button sm variant="quiet" label={s.action.retry} onPress={load} />
         </Banner>
       ) : null}
 
@@ -246,19 +242,19 @@ export default function UploadScreen() {
           Said out loud, because otherwise «select all from that date» comes up short and the
           button looks broken when it is the grant that is narrow. */}
       {access.accessPrivileges === 'limited' ? (
-        <Banner text="Only the photos you handed to Remember are here — the rest of the gallery is invisible to this screen, «select all from that date» included.">
-          <Button sm label="Choose more" onPress={() => void chooseMore()} />
+        <Banner text={s.upload.limited}>
+          <Button sm label={s.upload.chooseMore} onPress={() => void chooseMore()} />
         </Banner>
       ) : null}
 
       <Button
-        label="Select all from that date"
+        label={s.upload.selectEvent}
         wide
         onPress={pickTheEvent}
         disabled={memory === null || reading}
       />
       {notice ? <Banner text={notice} /> : null}
-      {reading ? <Text role="meta">Still reading the gallery…</Text> : null}
+      {reading ? <Text role="meta">{s.upload.reading}</Text> : null}
 
       {/* The kit's contact sheet, section 8: three columns almost flush, because there has to be
           visibly a lot of material. Every frame here is one the phone already holds, so `ready` is
@@ -277,7 +273,7 @@ export default function UploadScreen() {
               <Spinner />
             </View>
           ) : (
-            <Empty icon={Images} text="Nothing to pick — this phone's gallery is empty." />
+            <Empty icon={Images} text={s.upload.emptyGallery} />
           )
         }
         renderItem={({ item }) => (
@@ -287,7 +283,8 @@ export default function UploadScreen() {
             selected={picked.has(item.id)}
             // The kit marks a video by how long it runs rather than by the word «video».
             length={item.mediaType === 'video' ? formatRuntime(item.duration) : undefined}
-            label={`${item.mediaType === 'video' ? 'Video' : 'Photo'} ${item.filename}`}
+            // The filename is the phone's own and is never translated.
+            label={`${item.mediaType === 'video' ? s.media.video : s.media.photo} ${item.filename}`}
             onPress={() => toggle(item.id)}
             style={styles.cell}
           />
@@ -299,17 +296,17 @@ export default function UploadScreen() {
           {/* One bar for the lot: it stands at whatever the file going up right now has sent, and
               the count beside it is what is still owed to this memory. */}
           <Upload
-            title="Sending"
-            meta={`${queued.length} still to send`}
+            title={s.state.sending}
+            meta={s.upload.stillToSend(queued.length)}
             value={sending ? progress(sending) : 0}
-            hint="The app can be put away — sending carries on."
+            hint={s.upload.carriesOn}
           />
           {/* One line for the lot: they park for the same reason, and it is nearly always the
               network. It retries by itself — on a timer and on coming back to the app — so this
               button is for the person who would rather not wait for either. */}
           {parked !== undefined ? (
             <Banner tone="error" text={parked}>
-              <Button sm variant="quiet" label="Try again" onPress={wake} />
+              <Button sm variant="quiet" label={s.action.retry} onPress={wake} />
             </Banner>
           ) : null}
           {/* Named one by one only where a name is needed: the file somebody would rather not send
@@ -324,7 +321,7 @@ export default function UploadScreen() {
                   <IconButton
                     icon={X}
                     size={ICO_S}
-                    label={`Drop ${file.filename} from the queue`}
+                    label={s.upload.dropFile(file.filename)}
                     onPress={() => drop(file.memoryId, file.assetId)}
                   />
                 </View>
@@ -334,21 +331,21 @@ export default function UploadScreen() {
         </View>
       ) : null}
 
+      {/* The total is only worth saying once the whole roll is in hand — half a count is a lie. */}
       <Text role="meta">
-        {picked.size} selected
-        {reading ? '' : ` of ${gallery.length}`}
+        {reading ? s.upload.picked(picked.size) : s.upload.pickedOf(picked.size, gallery.length)}
       </Text>
       <ActionBar>
         <Button
           variant="quiet"
-          label="Clear"
+          label={s.upload.clear}
           onPress={() => setPicked(new Set())}
           disabled={picked.size === 0}
         />
         <Button
           variant="primary"
           wide
-          label="Send"
+          label={s.action.send}
           onPress={send}
           disabled={picked.size === 0}
         />
@@ -364,6 +361,7 @@ export default function UploadScreen() {
  */
 function Screen({ title, children }: { title: string; children: ReactNode }) {
   const router = useRouter();
+  const s = useStrings();
   const insets = useSafeAreaInsets();
 
   return (
@@ -373,7 +371,7 @@ function Screen({ title, children }: { title: string; children: ReactNode }) {
         left={
           <IconButton
             icon={ChevronLeft}
-            label="Back"
+            label={s.action.back}
             // Reached by a tapped push there is nothing behind this screen, and the way create
             // answers that is the way this one does.
             onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}

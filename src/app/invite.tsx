@@ -5,6 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import { acceptInvite, ApiError, errorMessage } from '@/api';
 import { useAuth } from '@/auth';
 import { Banner, Button, Empty } from '@/kit';
+import { useStrings } from '@/language';
 import { clearInvite, peekInvite, stashInvite } from '@/push';
 import { color, space } from '@/theme';
 
@@ -16,6 +17,7 @@ import { color, space } from '@/theme';
 export default function InviteScreen() {
   const params = useLocalSearchParams<{ token?: string | string[] }>();
   const { status, token: session } = useAuth();
+  const s = useStrings();
   const [error, setError] = useState<string | null>(null);
 
   // A repeated query key arrives as an array; the api takes one string. With no token in the
@@ -24,9 +26,11 @@ export default function InviteScreen() {
   const fromLink = Array.isArray(params.token) ? params.token[0] : params.token;
   const invite = fromLink ?? peekInvite();
 
+  // `s` is deliberately out of the dependencies below: re-running this effect would send a spent
+  // invite back to the api. The words are read on the pass that actually sets one.
   useEffect(() => {
     if (!invite) {
-      setError('This link has no token in it — ask for a new one.');
+      setError(s.join.noToken);
       return;
     }
     // The stored session is still being checked; the splash is still up. Nothing to decide yet.
@@ -54,11 +58,7 @@ export default function InviteScreen() {
         const dead = e instanceof ApiError && e.status === 404;
         // A dead link is answered too — keeping it would send the next sign-in back here.
         if (dead) clearInvite();
-        setError(
-          dead
-            ? 'This invite link is no longer valid — ask whoever sent it for a new one.'
-            : errorMessage(e),
-        );
+        setError(dead ? s.join.dead : errorMessage(e));
       },
     );
     return () => {
@@ -71,7 +71,7 @@ export default function InviteScreen() {
   if (!error) {
     return (
       <View style={styles.screen}>
-        <Empty busy text="Joining…" />
+        <Empty busy text={s.state.joining} />
       </View>
     );
   }
@@ -82,7 +82,7 @@ export default function InviteScreen() {
     <View style={styles.screen}>
       <View style={styles.dead}>
         <Banner tone="error" text={error} />
-        <Button label="Go to my memories" wide onPress={() => router.replace('/')} />
+        <Button label={s.join.home} wide onPress={() => router.replace('/')} />
       </View>
     </View>
   );

@@ -17,12 +17,15 @@ import {
   IconButton,
   RailH,
 } from '@/kit';
+import { useStrings } from '@/language';
+import { type Strings } from '@/strings';
 import { color, space } from '@/theme';
 
 /** The main screen doc-01 asks for: every memory this account organizes or was invited to. */
 export default function HomeScreen() {
   const { token } = useAuth();
   const router = useRouter();
+  const s = useStrings();
   // No native header anywhere, so the screen owes the status bar its own room.
   const insets = useSafeAreaInsets();
   // null means «not loaded yet», which is what tells a first load from a refetch: a
@@ -45,11 +48,11 @@ export default function HomeScreen() {
       {/* The kit's one loud move, in the second of the two places it is allowed. */}
       <RailH />
       <AppBar
-        title="Memories"
+        title={s.home.title}
         right={
           <>
-            <IconButton icon={Info} label="About" onPress={() => router.push('/about')} />
-            <IconButton icon={User} label="Profile" onPress={() => router.push('/profile')} />
+            <IconButton icon={Info} label={s.home.about} onPress={() => router.push('/about')} />
+            <IconButton icon={User} label={s.home.profile} onPress={() => router.push('/profile')} />
           </>
         }
       />
@@ -59,24 +62,19 @@ export default function HomeScreen() {
       {error !== null ? (
         <View style={styles.place}>
           <Banner tone="error" text={error}>
-            <Button label="Try again" variant="quiet" sm onPress={load} />
+            <Button label={s.action.retry} variant="quiet" sm onPress={load} />
           </Banner>
         </View>
       ) : memories === null ? (
         <View style={styles.place}>
-          <Empty busy text="Gathering your memories…" />
+          <Empty busy text={s.state.gathering} />
         </View>
       ) : (
         <FlatList
           data={memories}
           keyExtractor={(memory) => memory.id}
           contentContainerStyle={styles.list}
-          ListEmptyComponent={
-            <Empty
-              icon={Camera}
-              text="No memories yet. Start one for your next event and the photos will land here from everyone."
-            />
-          }
+          ListEmptyComponent={<Empty icon={Camera} text={s.home.empty} />}
           renderItem={({ item }) => {
             // `?? []` and not a bare read: the app ships over the air and the api deploys on its
             // own, so a build that knows this field can meet one that does not. Every other new
@@ -87,7 +85,7 @@ export default function HomeScreen() {
             return (
               <CardMemory
                 title={item.title}
-                meta={facts(item)}
+                meta={facts(item, s)}
                 // The frames the listing signed for this memory, drawn as they come: the card shows
                 // what is inside instead of counting it, so nothing here says how much is left over.
                 thumbs={thumbs}
@@ -96,11 +94,7 @@ export default function HomeScreen() {
                 // signed no thumbnail — the worker has not made them yet, the api has no bucket,
                 // or the build is older than the field — is not empty, and telling that person to
                 // add the first ones would be a lie the meta line beside it contradicts.
-                blank={
-                  item.media_count === 0
-                    ? 'No frames yet. Add the first ones.'
-                    : 'Preparing the frames…'
-                }
+                blank={item.media_count === 0 ? s.home.noFrames : s.state.preparing}
                 // Straight to the material: what a memory is for is the photos in it, so the card
                 // opens the gallery. Who is in it lives one icon away, in that screen's appbar.
                 onPress={() =>
@@ -114,7 +108,7 @@ export default function HomeScreen() {
 
       <ActionBar>
         <Button
-          label="New memory"
+          label={s.home.create}
           variant="primary"
           icon={Plus}
           wide
@@ -129,12 +123,10 @@ export default function HomeScreen() {
  * The line under the title: when it was, and how much is in it. An empty memory says nothing here —
  * the card draws that on the film itself, and saying it twice on one card is saying it twice.
  */
-function facts(memory: Memory): string[] {
+function facts(memory: Memory, s: Strings): string[] {
   const dates = formatEventDates(memory.event_start, memory.event_end);
 
-  return memory.media_count === 0
-    ? [dates]
-    : [dates, `${memory.media_count} frame${memory.media_count === 1 ? '' : 's'}`];
+  return memory.media_count === 0 ? [dates] : [dates, s.memory.frames(memory.media_count)];
 }
 
 const styles = StyleSheet.create({

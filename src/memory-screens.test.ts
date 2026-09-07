@@ -48,7 +48,8 @@ test('neither of the two offers the upload screen any more — the gallery is wh
 
 test('the way to the material stays on the memory screen', () => {
   expect(members).toContain('/memory/[id]/gallery');
-  expect(members).toContain('Photos and videos');
+  // The words themselves live in the dictionary now (TASK-86); the button is pinned by the key.
+  expect(members).toContain('s.members.material');
 });
 
 test('the two screens reach each other by an appbar icon, without stacking a copy each hop', () => {
@@ -65,7 +66,11 @@ test('nothing stands under the open frame — the actions moved up onto it', () 
   // The bottom bar of the viewer and the style it wore are gone; the grid keeps its own.
   expect(gallery).not.toContain('styles.bar');
   expect(gallery).toContain('styles.viewerBar');
-  for (const action of ['label="Close"', 'label="Download"', 'label="Delete"']) {
+  for (const action of [
+    'label={s.action.close}',
+    'label={s.action.download}',
+    'label={s.action.delete}',
+  ]) {
     expect(gallery.slice(gallery.indexOf('styles.viewerBar'))).toContain(action);
   }
   // And they are still the same three errands, the delete still behind the kit's sheet.

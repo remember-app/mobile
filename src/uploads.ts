@@ -22,6 +22,8 @@ import {
   type UploadPlan,
 } from '@/api';
 import { useAuth } from '@/auth';
+import { currentLanguage } from '@/language';
+import { strings } from '@/strings';
 import { missingParts, uploadedParts, type PartRange, type QueuedFile } from '@/upload-queue';
 
 /** Where the queue waits between launches. Documents and not cache — nothing may sweep this. */
@@ -36,6 +38,9 @@ const RETRY_MS = 15_000;
  * keeps its one sentence for «cannot reach the api».
  */
 class UploadError extends Error {}
+
+/** The words, read at the moment one is needed — the same call `@/api` makes, for the same reason. */
+const say = () => strings[currentLanguage()];
 
 let queue: QueuedFile[] = [];
 let restored = false;
@@ -88,7 +93,7 @@ function sourceFile(asset: MediaLibrary.AssetInfo): File {
   } catch {
     // Whatever the reason, it comes to the same thing as the line below.
   }
-  throw new UploadError(`${asset.filename} is no longer on this phone.`);
+  throw new UploadError(say().upload.gone(asset.filename));
 }
 
 /**
@@ -147,10 +152,10 @@ async function putPart(url: string, source: File, part: PartRange): Promise<stri
   const response = await fetch(url, { method: 'PUT', body: bytes });
   if (response.status === 403) return null;
   if (!response.ok) {
-    throw new UploadError(`Storage refused part ${part.number} (${response.status}).`);
+    throw new UploadError(say().upload.partRefused(part.number, response.status));
   }
   const etag = response.headers.get('etag');
-  if (etag === null) throw new UploadError(`Storage took part ${part.number} without a receipt.`);
+  if (etag === null) throw new UploadError(say().upload.noReceipt(part.number));
   return etag;
 }
 
@@ -163,7 +168,7 @@ async function send(file: QueuedFile, token: string) {
 
   const linkFor = (number: number) => {
     const link = plan.upload.parts.find((part) => part.part_number === number)?.url;
-    if (link === undefined) throw new UploadError(`The api signed no link for part ${number}.`);
+    if (link === undefined) throw new UploadError(say().upload.noLink(number));
     return link;
   };
 
@@ -175,9 +180,9 @@ async function send(file: QueuedFile, token: string) {
       plan = await planFor(file, token, size);
       // `planFor` throws the etags away if the api's part size moved, and this loop is cutting to
       // the old one: it stops here and the next run starts the file on slices that line up.
-      if (plan.upload.part_size !== partSize) throw new UploadError('The part size changed.');
+      if (plan.upload.part_size !== partSize) throw new UploadError(say().upload.partSizeChanged);
       etag = await putPart(linkFor(part.number), source, part);
-      if (etag === null) throw new UploadError(`Storage would not take part ${part.number}.`);
+      if (etag === null) throw new UploadError(say().upload.partNotTaken(part.number));
     }
     file.parts[part.number] = etag;
     // Written down before the next part goes out: an app killed here resumes from this line.
@@ -191,11 +196,12 @@ async function send(file: QueuedFile, token: string) {
   // some other device. The system dialog and not a screen of its own: it is one question, and the
   // person is already looking at the app because they just sent something.
   if (done.first_upload) {
-    Alert.alert('Is that everything?', 'Or is there more still to come?', [
+    const s = say();
+    Alert.alert(s.upload.askAll, s.upload.askAllText, [
       // Nothing to do — the first upload already left them on «more_coming».
-      { text: 'More to come', style: 'cancel' },
+      { text: s.upload.moreToCome, style: 'cancel' },
       {
-        text: "That's all",
+        text: s.upload.thatsAll,
         onPress: () =>
           void setContributionStatus(token, file.memoryId, 'done').catch(() => {
             // Swallowed the way `changed()` swallows a queue it could not write: the material is

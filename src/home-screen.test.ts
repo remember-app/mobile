@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest';
 
 import index from './app/index.tsx?raw';
+import { en, ru } from '@/strings';
 
 /**
  * `card-memory.test.tsx` proves the card itself draws whatever `thumbs` it is handed — this proves
@@ -18,9 +19,13 @@ test('a memory card on the home screen draws the frames the listing actually sig
 
 test('the blank strip tells the truth about why it is empty', () => {
   // An empty memory and a memory still waiting on the worker are not the same silence, and the
-  // wording must not collapse into one — the fix this milestone made was drawing frames at all;
-  // this is what stops the two states drifting onto the same sentence later.
+  // wording must not collapse into one — the fix that milestone made was drawing frames at all;
+  // this is what stops the two states drifting onto the same sentence later. The words moved into
+  // the dictionary with TASK-86, so the screen is pinned on picking between two keys and the two
+  // keys are pinned on saying different things — in both languages, not only the one written first.
   expect(index).toContain('item.media_count === 0');
-  expect(index).toContain('No frames yet. Add the first ones.');
-  expect(index).toContain('Preparing the frames…');
+  expect(index).toContain('s.home.noFrames');
+  expect(index).toContain('s.state.preparing');
+  expect(en.home.noFrames).not.toEqual(en.state.preparing);
+  expect(ru.home.noFrames).not.toEqual(ru.state.preparing);
 });

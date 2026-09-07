@@ -9,6 +9,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError, errorMessage, signInWithApple, signInWithGoogle, startEmailSignIn } from '@/api';
 import { useAuth } from '@/auth';
 import { Banner, Button, Empty, Field, RailH, Text } from '@/kit';
+import { useStrings } from '@/language';
+import { type Strings } from '@/strings';
 import { color, space } from '@/theme';
 
 // Closes the auth browser tab once Google redirects back.
@@ -18,15 +20,17 @@ WebBrowser.maybeCompleteAuthSession();
 // so it gets a placeholder and the button answers before ever opening a browser.
 const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
 
-function providerError(provider: string, error: unknown): string {
+/** «Apple» and «Google» are names and stay themselves; only the sentence around them turns. */
+function providerError(s: Strings, provider: string, error: unknown): string {
   if (error instanceof ApiError && error.status === 501) {
-    return `${provider} sign-in isn't available yet.`;
+    return s.login.providerUnavailable(provider);
   }
   return errorMessage(error);
 }
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
+  const s = useStrings();
   // The native header is off for the whole app, so the screen owes the status bar its own room.
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
@@ -44,16 +48,18 @@ export default function LoginScreen() {
     clientId: GOOGLE_CLIENT_ID ?? 'unconfigured.apps.googleusercontent.com',
   });
 
+  // `s` is deliberately out of the dependencies: this effect trades an identity token for a
+  // session, and re-running it to re-word a line would send that token a second time.
   useEffect(() => {
     if (googleResponse?.type !== 'success') return;
     const idToken = googleResponse.params.id_token;
     if (!idToken) {
-      setError('Google did not return an identity token.');
+      setError(s.login.noIdentityToken('Google'));
       return;
     }
     signInWithGoogle(idToken)
       .then((session) => signIn(session.token))
-      .catch((e) => setError(providerError('Google', e)));
+      .catch((e) => setError(providerError(s, 'Google', e)));
   }, [googleResponse, signIn]);
 
   async function sendLink() {
@@ -65,11 +71,7 @@ export default function LoginScreen() {
     } catch (e) {
       // 503 is the api saying it has no mail keys; its own wording for that is written for whoever
       // runs it, so the screen answers in its own words instead of passing the server's along.
-      setError(
-        e instanceof ApiError && e.status === 503
-          ? "We can't send sign-in links right now — try again later."
-          : errorMessage(e),
-      );
+      setError(e instanceof ApiError && e.status === 503 ? s.login.mailDown : errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -84,20 +86,23 @@ export default function LoginScreen() {
           AppleAuthentication.AppleAuthenticationScope.EMAIL,
         ],
       });
-      if (!credential.identityToken) throw new Error('Apple did not return an identity token.');
+      if (!credential.identityToken) {
+        setError(s.login.noIdentityToken('Apple'));
+        return;
+      }
       const session = await signInWithApple(credential.identityToken);
       await signIn(session.token);
     } catch (e) {
       // Backing out of the native sheet is not an error worth showing.
       if ((e as { code?: string } | null | undefined)?.code === 'ERR_REQUEST_CANCELED') return;
-      setError(providerError('Apple', e));
+      setError(providerError(s, 'Apple', e));
     }
   }
 
   async function withGoogle() {
     setError(null);
     if (!GOOGLE_CLIENT_ID) {
-      setError("Google sign-in isn't available yet.");
+      setError(s.login.providerUnavailable('Google'));
       return;
     }
     await promptGoogle();
@@ -110,12 +115,13 @@ export default function LoginScreen() {
       <View style={[styles.screen, { paddingTop: insets.top }]}>
         <RailH />
         <View style={styles.middle}>
-          <Text role="display">Check your link</Text>
-          <Empty
-            icon={Mail}
-            text={`Open the link we sent to ${email.trim()} — it signs you in here.`}
-          >
-            <Button variant="quiet" label="Use a different address" onPress={() => setSent(false)} />
+          <Text role="display">{s.login.sentTitle}</Text>
+          <Empty icon={Mail} text={s.login.sentText(email.trim())}>
+            <Button
+              variant="quiet"
+              label={s.login.otherAddress}
+              onPress={() => setSent(false)}
+            />
           </Empty>
         </View>
       </View>
@@ -126,7 +132,8 @@ export default function LoginScreen() {
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       {/* This is where a person lands with nothing else on screen to tell them where they are, so
           the top of it says so: the kit's perforation in the second of the two places it is
-          allowed, and the product's own name under it as the screen's one heading. */}
+          allowed, and the product's own name under it as the screen's one heading. The name is the
+          product's own and is the same word in both languages — the one heading here never turns. */}
       <RailH />
       <View style={styles.middle}>
         <Text accessibilityRole="header" role="display">
@@ -141,16 +148,14 @@ export default function LoginScreen() {
               shipping — and that is where the provider's own mark comes from too. */}
           <Button
             variant="provider"
-            label="Continue with Apple"
+            label={s.login.withApple}
             onPress={withApple}
             disabled={!appleAvailable}
           />
-          {appleAvailable ? null : (
-            <Text role="meta">Apple sign-in is not available on this device.</Text>
-          )}
+          {appleAvailable ? null : <Text role="meta">{s.login.appleUnavailable}</Text>}
           <Button
             variant="provider"
-            label="Continue with Google"
+            label={s.login.withGoogle}
             onPress={withGoogle}
             disabled={!googleRequest}
           />
@@ -158,10 +163,10 @@ export default function LoginScreen() {
 
         <View style={styles.group}>
           <Field
-            label="Email"
+            label={s.login.email}
             value={email}
             onChangeText={setEmail}
-            placeholder="you@example.com"
+            placeholder={s.login.emailPlaceholder}
             inputMode="email"
             autoCapitalize="none"
             autoCorrect={false}
@@ -173,7 +178,7 @@ export default function LoginScreen() {
           <Button
             variant="quiet"
             wide
-            label="Send me a link"
+            label={s.login.sendLink}
             onPress={sendLink}
             busy={busy}
             disabled={email.trim() === ''}

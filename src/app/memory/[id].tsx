@@ -16,10 +16,8 @@ import {
   removeMember,
   rotateInvite,
   setContributionStatus,
-  type ContributionStatus,
   type Invite,
   type Member,
-  type MemberRole,
   type Memory,
 } from '@/api';
 import { useAuth } from '@/auth';
@@ -41,22 +39,8 @@ import {
   Sheet,
   Text,
 } from '@/kit';
+import { useStrings } from '@/language';
 import { color, space } from '@/theme';
-
-/** The three levels of doc-01 «Права доступа», said the way a person would say them. */
-const ROLE: Record<MemberRole, string> = {
-  organizer: 'Organizer',
-  contributor: 'Can add photos',
-  viewer: 'View only',
-};
-
-/** The four standings of doc-06, said the same way — this is «прогресс у организатора». */
-const CONTRIBUTION: Record<ContributionStatus, string> = {
-  not_started: 'Nothing uploaded yet',
-  more_coming: 'Still adding photos',
-  done: 'Uploaded everything',
-  nothing: 'Nothing to add',
-};
 
 /**
  * One memory: who is in it, how to get more people in, and how to get out. What the caller
@@ -71,6 +55,7 @@ export default function MemoryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { token, user } = useAuth();
   const router = useRouter();
+  const s = useStrings();
   const insets = useSafeAreaInsets();
   // null means «not loaded yet» — the same distinction the home screen draws, so a refetch
   // after an invite keeps the roster on screen instead of flashing the spinner over it.
@@ -123,7 +108,7 @@ export default function MemoryScreen() {
   // there is an invite. `remember://` is the scheme in app.json; TASK-16 is what receives it.
   const shareable = invite && {
     link: `remember://invite?token=${encodeURIComponent(invite.token)}`,
-    grants: ROLE[invite.role],
+    grants: s.role[invite.role],
   };
   // Checked against `dropping` first, so a closed sheet is never «about me» by two undefineds.
   const leaving = dropping !== null && dropping.id === user?.id;
@@ -159,13 +144,10 @@ export default function MemoryScreen() {
         setUsername('');
         load();
         return already
-          ? `${memberName(added)} is already here — still «${ROLE[added.role]}».`
-          : `Added ${memberName(added)} — «${ROLE[added.role]}».`;
+          ? s.members.already(memberName(added), s.role[added.role])
+          : s.members.added(memberName(added), s.role[added.role]);
       },
-      {
-        404: 'No one has that username.',
-        403: 'Only the organizer and people who can add photos may invite.',
-      },
+      { 404: s.members.noSuchUser, 403: s.members.inviteDenied },
     );
 
   const showLink = () =>
@@ -177,7 +159,7 @@ export default function MemoryScreen() {
   const rotate = () =>
     act(async (session) => {
       setInvite(await rotateInvite(session, id, newcomerRole));
-      return 'New link ready. The old one no longer opens anything.';
+      return s.members.linkReplaced;
     });
 
   /**
@@ -199,17 +181,17 @@ export default function MemoryScreen() {
         else load();
         return null;
       },
-      { 404: 'They are not in this memory any more.' },
+      { 404: s.members.gone },
     );
 
   return (
     <ScrollView contentContainerStyle={[styles.body, { paddingTop: insets.top }]}>
       <AppBar
-        title={memory?.title ?? 'Memory'}
+        title={memory?.title ?? s.members.fallbackTitle}
         left={
           <IconButton
             icon={ChevronLeft}
-            label="Back"
+            label={s.action.back}
             // A tapped invite push opens this screen with nothing behind it to go back to.
             onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
           />
@@ -221,7 +203,7 @@ export default function MemoryScreen() {
           // pushing would stack a fresh copy of one over the other on every hop.
           <IconButton
             icon={Film}
-            label="Montage"
+            label={s.montage.title}
             onPress={() => router.navigate({ pathname: '/memory/[id]/montage', params: { id } })}
           />
         }
@@ -232,10 +214,10 @@ export default function MemoryScreen() {
 
       {error !== null ? (
         <Banner tone="error" text={error}>
-          <Button sm variant="quiet" label="Try again" onPress={load} />
+          <Button sm variant="quiet" label={s.action.retry} onPress={load} />
         </Banner>
       ) : members === null ? (
-        <Empty busy text="Loading…" />
+        <Empty busy text={s.state.loading} />
       ) : (
         <>
           {/* Behind no role at all: looking at the material is what every member may do, a viewer
@@ -246,16 +228,18 @@ export default function MemoryScreen() {
               is already in. */}
           <Button
             variant="primary"
-            label={`Photos and videos${memory ? ` (${memory.media_count})` : ''}`}
+            label={memory ? s.members.material(memory.media_count) : s.members.materialPlain}
             onPress={() => router.push({ pathname: '/memory/[id]/gallery', params: { id } })}
           />
 
           {/* The whole of getting someone in, behind one button of the same size as the one above
               it — it belongs with the actions, and it stands right over the roster it adds to. */}
-          {mayContributeHere ? <Button label="Invite" onPress={() => setInviting(true)} /> : null}
+          {mayContributeHere ? (
+            <Button label={s.action.invite} onPress={() => setInviting(true)} />
+          ) : null}
 
           <Text role="meta" style={styles.section}>
-            Who is here
+            {s.members.roster}
           </Text>
           {/* A `.map` and not a FlatList: this is one event's guest list inside a ScrollView,
               and nesting a virtualised list in one is the thing React Native asks you not to do.
@@ -268,23 +252,23 @@ export default function MemoryScreen() {
               return (
                 <View key={member.id}>
                   <RowMember
-                    name={`${memberName(member)}${self ? ' (you)' : ''}`}
+                    name={self ? s.members.you(memberName(member)) : memberName(member)}
                     // Section 7 writes «@marina · 42 кадра» on one line, so the standing goes
                     // beside the username rather than under it. The wording is doc-06's own.
                     meta={[
                       member.username && `@${member.username}`,
-                      CONTRIBUTION[member.contribution_status],
+                      s.standing[member.contribution_status],
                     ]
                       .filter(Boolean)
                       .join(' · ')}
                     divider={index > 0}
                   >
-                    <Chip label={ROLE[member.role]} organizer={member.role === 'organizer'} />
+                    <Chip label={s.role[member.role]} organizer={member.role === 'organizer'} />
                     {role === 'organizer' && !self ? (
                       <IconButton
                         icon={X}
                         size={ICO_S}
-                        label={`Remove ${memberName(member)}`}
+                        label={s.members.remove(memberName(member))}
                         onPress={() => setDropping(member)}
                         disabled={busy}
                       />
@@ -309,7 +293,7 @@ export default function MemoryScreen() {
                   member.contribution_status !== 'nothing' ? (
                     <Button
                       sm
-                      label="Nothing to add"
+                      label={s.members.sayNothing}
                       onPress={sayNothing}
                       disabled={busy}
                       style={styles.own}
@@ -327,7 +311,7 @@ export default function MemoryScreen() {
               <View style={styles.gap} />
               <Button
                 variant="danger"
-                label="Leave this memory"
+                label={s.members.leave}
                 onPress={() => me && setDropping(me)}
                 disabled={busy}
               />
@@ -343,15 +327,15 @@ export default function MemoryScreen() {
           children while hidden, so each open starts the rise over. */}
       <Sheet visible={inviting} onCancel={() => setInviting(false)}>
         <Text accessibilityRole="header" role="title">
-          Invite someone
+          {s.members.inviteTitle}
         </Text>
         <View style={styles.toggle}>
-          <Text role="label">They can add photos too</Text>
+          <Text role="label">{s.members.mayAdd}</Text>
           {/* The kit has no switch of its own, so the platform's takes the kit's colours. */}
           <Switch
             // Its own name, because the label beside it is only a sibling — and this one
             // decides whether a newcomer arrives able to add photos or only to look.
-            accessibilityLabel="They can add photos too"
+            accessibilityLabel={s.members.mayAdd}
             value={mayAdd}
             onValueChange={setMayAdd}
             disabled={busy}
@@ -361,21 +345,25 @@ export default function MemoryScreen() {
           />
         </View>
         <Field
-          label="Username"
+          label={s.username.label}
           value={username}
           onChangeText={setUsername}
-          placeholder="username"
+          placeholder={s.username.placeholder}
           autoCapitalize="none"
           autoCorrect={false}
           editable={!busy}
         />
-        <Button label="Invite" onPress={sendInvite} disabled={busy || username.trim() === ''} />
+        <Button
+          label={s.action.invite}
+          onPress={sendInvite}
+          disabled={busy || username.trim() === ''}
+        />
 
-        <Text role="meta">Invite link</Text>
+        <Text role="meta">{s.members.inviteLink}</Text>
         {shareable === null ? (
           // Asked for rather than loaded with the screen: the api mints the link on this
           // very call, and a memory nobody shares should not carry one.
-          <Button label="Get the link" onPress={showLink} disabled={busy} />
+          <Button label={s.members.getLink} onPress={showLink} disabled={busy} />
         ) : (
           <>
             <InviteLink url={shareable.link}>
@@ -384,17 +372,17 @@ export default function MemoryScreen() {
               <Button
                 sm
                 icon={Share2}
-                label="Share"
+                label={s.action.share}
                 onPress={() => void Share.share({ message: shareable.link }).catch(() => {})}
                 disabled={busy}
               />
             </InviteLink>
-            <Text role="meta">Whoever follows it joins as «{shareable.grants}».</Text>
+            <Text role="meta">{s.members.linkGrants(shareable.grants)}</Text>
             {/* Section 11: replacing a link is a quiet thing beside it, not a red button. */}
             <Button
               sm
               variant="quiet"
-              label="Replace the link"
+              label={s.members.replaceLink}
               onPress={rotate}
               disabled={busy}
               style={styles.quiet}
@@ -412,14 +400,10 @@ export default function MemoryScreen() {
       {dropping !== null ? (
         <ConfirmSheet
           visible
-          title={leaving ? 'Leave this memory?' : `Remove ${memberName(dropping)}?`}
-          text={
-            leaving
-              ? 'Everything you uploaded here goes with you. There is no getting it back.'
-              : 'Everything they uploaded here goes with them. There is no getting it back.'
-          }
-          confirmLabel={leaving ? 'Leave' : 'Remove'}
-          cancelLabel={leaving ? 'Stay' : 'Keep them'}
+          title={leaving ? s.members.leaveAsk : s.members.removeAsk(memberName(dropping))}
+          text={leaving ? s.members.leaveText : s.members.removeText}
+          confirmLabel={leaving ? s.members.leaveDo : s.members.removeDo}
+          cancelLabel={leaving ? s.members.stay : s.members.keepThem}
           onConfirm={() => {
             const target = dropping;
             setDropping(null);

@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { errorMessage } from '@/api';
 import { useAuth } from '@/auth';
 import { ActionBar, AppBar, Banner, Button, ConfirmSheet, IconButton, RowMember } from '@/kit';
+import { useStrings } from '@/language';
 import { color, space } from '@/theme';
 import { UsernameForm } from '@/username-form';
 
@@ -20,6 +21,7 @@ import { UsernameForm } from '@/username-form';
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
   const router = useRouter();
+  const s = useStrings();
   const insets = useSafeAreaInsets();
   const [busy, setBusy] = useState(false);
   const [asking, setAsking] = useState(false);
@@ -43,11 +45,11 @@ export default function ProfileScreen() {
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       <View style={styles.body}>
         <AppBar
-          title="Profile"
+          title={s.profile.title}
           left={
             <IconButton
               icon={ChevronLeft}
-              label="Back"
+              label={s.action.back}
               // Same as everywhere else: nothing behind means home, never a button that answers
               // nothing.
               onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
@@ -56,23 +58,29 @@ export default function ProfileScreen() {
         />
         {/* The kit's member row, turned on yourself: the username is what the app calls you by, the
             name is what stands under it. */}
-        <RowMember name={user?.username ?? '—'} meta={user?.name ?? 'No name set'} />
+        <RowMember name={user?.username ?? '—'} meta={user?.name ?? s.profile.noName} />
 
-        <UsernameForm submitLabel="Change username" />
+        <UsernameForm submitLabel={s.profile.changeUsername} />
 
         {error ? <Banner tone="error" text={error} /> : null}
       </View>
 
       <ActionBar>
-        <Button variant="danger" wide label="Log out" busy={busy} onPress={() => setAsking(true)} />
+        <Button
+          variant="danger"
+          wide
+          label={s.action.logOut}
+          busy={busy}
+          onPress={() => setAsking(true)}
+        />
       </ActionBar>
 
       <ConfirmSheet
         visible={asking}
-        title="Log out?"
-        text="The session on this phone ends. You will have to sign in again to get back to your memories."
-        confirmLabel="Log out"
-        cancelLabel="Stay signed in"
+        title={s.profile.logOutAsk}
+        text={s.profile.logOutText}
+        confirmLabel={s.action.logOut}
+        cancelLabel={s.profile.stay}
         onConfirm={logOut}
         onCancel={() => setAsking(false)}
       />
