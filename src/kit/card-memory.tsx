@@ -17,15 +17,23 @@ import { Text } from './text';
  */
 const RAIL_DOTS = 16;
 
+/** The kit's 8-wide rail. Named because the card's left padding has to keep exactly that much. */
+const RAIL_WIDTH = 8;
+
 /**
  * The kit's `.rail`: film perforation punched down the left edge. The one loud move in the whole
  * kit, and it belongs to this card alone — CSS draws it with a repeating radial gradient, React
  * Native has no gradients, so the holes are dots on a clipped strip at the same 13px pitch.
+ *
+ * Painted over the card's left padding rather than standing beside the body in the row. A gradient
+ * costs no height, a column of sixteen dots is 204 tall, and in the row that column was what the
+ * card's height was measured from — the card came out 74 taller than the anatomy it draws.
  */
 function Rail() {
   return (
     <View
       style={styles.rail}
+      testID="card-memory-rail"
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
@@ -132,11 +140,13 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'stretch',
-    gap: space.s4,
     width: '100%',
     paddingVertical: space.s4,
     paddingRight: space.s4,
-    paddingLeft: space.s3,
+    // The kit's 12 to the perforation, the perforation's own 8, then the kit's 16 from it to the
+    // text. In the kit those last two are the rail and the row's gap; here the rail is painted over
+    // the padding instead of standing in the row, so the padding is what holds its place.
+    paddingLeft: space.s3 + RAIL_WIDTH + space.s4,
     backgroundColor: color.surface,
     borderWidth: 1,
     borderColor: color.line,
@@ -144,8 +154,20 @@ const styles = StyleSheet.create({
   },
   cardHover: { backgroundColor: color.raise, borderColor: shade.lineHover },
   press: { transform: [{ translateY: 1 }] },
-  // 4.8px holes, first centred 6.5 down, one every 13 — the kit's gradient, resolved to dots.
-  rail: { width: 8, alignItems: 'center', paddingTop: 4.1, gap: 8.2, overflow: 'hidden' },
+  // 4.8px holes, first centred 6.5 down, one every 13 — the kit's gradient, resolved to dots. Laid
+  // over the card's left padding, top and bottom pinned to the card's own: the strip is then exactly
+  // as tall as the card is and clips the dots that run past it, and nothing here sets a height.
+  rail: {
+    position: 'absolute',
+    left: space.s3,
+    top: space.s4,
+    bottom: space.s4,
+    width: RAIL_WIDTH,
+    alignItems: 'center',
+    paddingTop: 4.1,
+    gap: 8.2,
+    overflow: 'hidden',
+  },
   railDot: { width: 4.8, height: 4.8, borderRadius: 2.4, backgroundColor: shade.perforation },
   body: { flex: 1, minWidth: 0, gap: space.s2 },
   title: { fontFamily: font.display, fontSize: 20, lineHeight: 24, letterSpacing: -0.2 },
