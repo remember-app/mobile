@@ -61,6 +61,24 @@ test('a memory nobody has added to yet says so instead of drawing empty frames',
   expect(html).toContain('Пока ни одного кадра.');
 });
 
+// TASK-71 fixed the rail's height at exactly the perforation problem below — a card measured with
+// two thumbnails and never tried against the four the listing can now sign for real (TASK-66). The
+// strip itself takes any count (`flex: 1` on a zero basis, no width), so what is worth pinning is
+// that a full strip still draws every frame and the rail still floats over it rather than under it.
+test('a full strip of four real thumbnails still draws all four, rail included', () => {
+  const C = 'https://bucket.example/c.jpg?X-Amz-Signature=ccc';
+  const D = 'https://bucket.example/d.jpg?X-Amz-Signature=ddd';
+  const html = renderToStaticMarkup(
+    <CardMemory title="Слёт" meta={['3 сентября']} thumbs={[A, B, C, D]} />,
+  );
+
+  expect(frames(html)).toBe(4);
+  const rail = tag(html, 'card-memory-rail');
+  for (const property of ['position', 'top', 'bottom']) {
+    expect(rail).toMatch(new RegExp(`\\br-${property}-`));
+  }
+});
+
 test('the perforation is drawn over the card, so it cannot set the card height', () => {
   // Sixteen dots at a 13 pitch are a 204-tall column, and standing in the card's row that column
   // was what the card's height came from — 238 against the 173.6 the kit draws, all of it empty
