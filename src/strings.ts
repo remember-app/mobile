@@ -311,7 +311,8 @@ export const en = {
   /** The account: who you are here, and the way out. */
   profile: {
     title: 'Profile',
-    noName: 'No name set',
+    /** Stands where the name would be. An invitation to give one, never a report that there is none. */
+    noName: 'Add your name',
     changeUsername: 'Change username',
     logOutAsk: 'Log out?',
     logOutText:
@@ -575,7 +576,7 @@ export const ru: Strings = {
 
   profile: {
     title: 'Профиль',
-    noName: 'Имя не указано',
+    noName: 'Добавьте имя',
     changeUsername: 'Сменить ник',
     logOutAsk: 'Выйти?',
     logOutText:

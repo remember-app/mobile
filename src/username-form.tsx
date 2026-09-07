@@ -45,6 +45,11 @@ export function UsernameForm({ submitLabel }: { submitLabel: string }) {
   const [availability, setAvailability] = useState<Availability | null>(null);
 
   const typed = value.trim();
+  // The name the account already holds — what /profile opens with. The api answers «free» about it
+  // (re-sending it claims nothing, see `checkUsername`), and that answer painted the field green on
+  // a name that is not free at all: it is taken, by the person reading it. There is no question
+  // here, so none is asked and the field stays neutral until the name actually changes.
+  const unchanged = typed === (user?.username ?? '');
   const malformed = typed !== '' && !isValidUsername(typed);
   // Nothing to say yet — being asked included — is the kit's neutral field, not a third state.
   const state: FieldState | undefined =
@@ -55,7 +60,7 @@ export function UsernameForm({ submitLabel }: { submitLabel: string }) {
         : undefined;
 
   useEffect(() => {
-    if (token === null || !isValidUsername(typed)) {
+    if (token === null || unchanged || !isValidUsername(typed)) {
       setAvailability(null);
       return;
     }
@@ -80,7 +85,7 @@ export function UsernameForm({ submitLabel }: { submitLabel: string }) {
       live = false;
       clearTimeout(timer);
     };
-  }, [token, typed]);
+  }, [token, typed, unchanged]);
 
   async function submit() {
     const username = value.trim();

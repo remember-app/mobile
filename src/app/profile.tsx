@@ -15,8 +15,9 @@ import { UsernameForm } from '@/username-form';
  * The account: who you are here, the one thing you can change about it, and the way out.
  *
  * Logging out is asked for on the kit's sheet (section 13) rather than done on the press: from where
- * the person stands the session is gone and only signing in again brings it back, and the kit asks
- * for what cannot be undone the same way it asks about leaving a memory.
+ * the person stands the session ends and the way back is a whole sign-in, which is worth one
+ * question. The button itself is not painted in the rust that colour is held for — that is for what
+ * cannot be undone, and this can.
  */
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
@@ -68,7 +69,9 @@ export default function ProfileScreen() {
 
       <ActionBar>
         <Button
-          variant="danger"
+          // Not the kit's rust: that colour is held for what cannot be undone (section 2), and
+          // signing in again brings the session back. The question is still asked on the sheet.
+          variant="secondary"
           wide
           label={s.action.logOut}
           busy={busy}
