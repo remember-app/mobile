@@ -2,7 +2,8 @@ import * as SecureStore from 'expo-secure-store';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 
-import { ApiError, endSession, fetchMe, putUsername, type User } from '@/api';
+import { ApiError, endSession, fetchMe, putLanguage, putUsername, type User } from '@/api';
+import { useLanguage } from '@/language';
 
 // Keychain (iOS) / EncryptedSharedPreferences (Android). Never AsyncStorage: that is plain text.
 const TOKEN_KEY = 'session-token';
@@ -37,6 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const language = useLanguage();
 
   // Restore the stored session once at startup.
   useEffect(() => {
@@ -68,6 +70,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       live = false;
     };
   }, []);
+
+  /**
+   * Keep the account's language level with the app's. It runs as soon as there is a session —
+   * carrying whatever the app settled on, the phone's answer or the pick read back off the disk —
+   * and again on every switch by hand, because `useLanguage()` redraws this provider when the
+   * language turns. Before a session there is nothing to attach it to; that case is the letter's,
+   * and `startEmailSignIn` carries it there.
+   *
+   * Failures are dropped the way the push token's are: the language the person sees is the local
+   * one and it has already turned, so an offline phone must not hold the switch or say a word
+   * about it. The next launch, or the next switch, sends it again.
+   */
+  useEffect(() => {
+    if (!token) return;
+    putLanguage(token, language).catch(() => {});
+  }, [token, language]);
 
   const signIn = useCallback(async (sessionToken: string) => {
     // Load the account first: a token the api will not honour never reaches the keychain.
