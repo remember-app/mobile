@@ -160,6 +160,18 @@ test('a memory not read yet leaves the name alone rather than a wrong day after 
   expect(shotBy(record({ uploaded_by: 'u' }), [member({ id: 'u' })], null)).toBe('Marina');
 });
 
+// The review fix in `dayFields` (m-12) stops an unreadable date at its one source instead of at
+// every screen that prints one — this is the other caller `dates.test.ts` cannot see: a memory that
+// *did* come back, but with an `event_start` the api sent garbled or empty. Before the guard this
+// line would have read «Marina · NaN Invalid Date NaN»; the fix is only real if the separator goes
+// with the date here too, the same way it does when the memory is missing outright.
+test('a memory that came back with an unreadable event date is the name alone, not «NaN»', () => {
+  const shot = record({ uploaded_by: 'u' });
+  const roster = [member({ id: 'u' })];
+  expect(shotBy(shot, roster, wedding({ event_start: 'not-a-day' }))).toBe('Marina');
+  expect(shotBy(shot, roster, wedding({ event_start: '' }))).toBe('Marina');
+});
+
 test('a name nobody claimed is the username, and somebody off the roster is «Someone»', () => {
   const shot = record({ uploaded_by: 'u' });
   const day = wedding();
