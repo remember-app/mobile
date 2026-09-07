@@ -1,5 +1,5 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronLeft, Film, Share2, X } from 'lucide-react-native';
+import { Check, ChevronLeft, Film, Share2, X } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { ScrollView, Share, StyleSheet, Switch, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -256,13 +256,18 @@ export default function MemoryScreen() {
                   <RowMember
                     name={self ? s.members.you(memberName(member)) : memberName(member)}
                     // Section 7 writes «@marina · 42 кадра» on one line, so the standing goes
-                    // beside the username rather than under it. The wording is doc-06's own.
-                    meta={[
-                      member.username && `@${member.username}`,
-                      s.standing[member.contribution_status],
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')}
+                    // beside the username rather than under it. The wording is doc-06's own, and
+                    // it goes in as the tail: on a phone the two together outrun the row, and of
+                    // the pair it is the standing the roster is opened for.
+                    // The username is left off when it is already the name on the line above —
+                    // everybody who signed in by email is named by their username, and printing
+                    // it twice spends the one line the standing needs on nothing.
+                    meta={
+                      member.username && member.username !== memberName(member)
+                        ? `@${member.username}`
+                        : undefined
+                    }
+                    tail={s.standing[member.contribution_status]}
                     divider={index > 0}
                   >
                     <Chip label={s.role[member.role]} organizer={member.role === 'organizer'} />
@@ -280,7 +285,11 @@ export default function MemoryScreen() {
                       terminal statuses are the person's own word, and this is the way to give it
                       unprompted. Under the row and not in it — the row already carries an avatar,
                       a name and a role chip, and a fourth thing on that line leaves the name no
-                      width at all on a phone.
+                      width at all on a phone. Under the name, though, and not out at the right
+                      edge: right-aligned it hung over the hairline and read as the next person's,
+                      while in the name's own column there is no mistaking whose word it is. The
+                      tick is what keeps it from being read as one more standing printed under the
+                      row — a pill this size with no icon in it is the shape of the role chip.
                       And only for somebody who could have added something: doc-01 gives «загружать
                       медиа» to «Добавление» and up, so a viewer is a person nobody is waiting on —
                       asking them to declare «ждать нечего» asks them to answer for material they
@@ -295,6 +304,7 @@ export default function MemoryScreen() {
                   member.contribution_status !== 'nothing' ? (
                     <Button
                       sm
+                      icon={Check}
                       label={s.members.sayNothing}
                       onPress={sayNothing}
                       disabled={busy}
@@ -343,6 +353,9 @@ export default function MemoryScreen() {
             disabled={busy}
             trackColor={{ false: color.line, true: color.ember }}
             thumbColor={color.paper}
+            // The same paper again, for the half of the web switch `thumbColor` does not reach:
+            // switch.d.ts has the why. This one starts on, so it is the one it showed up on.
+            activeThumbColor={color.paper}
             ios_backgroundColor={color.line}
           />
         </View>
@@ -422,7 +435,9 @@ const styles = StyleSheet.create({
   body: { paddingHorizontal: space.s5, paddingBottom: space.s8, gap: space.s3 },
   section: { marginTop: space.s4 },
   toggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  own: { alignSelf: 'flex-end' },
+  // Indented past the avatar so it starts where its own name does, and given the row's own bottom
+  // padding so the hairline under it separates two people rather than a person from their button.
+  own: { alignSelf: 'flex-start', marginLeft: 40 + space.s3, marginBottom: space.s3 },
   quiet: { alignSelf: 'flex-start' },
   gap: { height: space.s6 },
 });

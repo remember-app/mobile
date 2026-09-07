@@ -83,3 +83,69 @@ test('and it stops following the phone once someone has picked', async () => {
   phone.tell?.({ colorScheme: 'light' });
   expect(theme.currentTheme()).toBe('dark');
 });
+
+/**
+ * The third value on the kit's switch — «Как в телефоне». It is not a light, it is the pick being
+ * taken back, and until the switch existed there was no way to reach it: `setTheme` was one-way.
+ */
+test('handing the decision back to the phone starts it deciding again', async () => {
+  phone.stored = null;
+  const theme = await start('dark');
+  await theme.setTheme('light');
+  expect(theme.currentTheme()).toBe('light');
+
+  // The phone went dark at some point while it was not being listened to. Handing it back asks it
+  // where it stands now, not where it stood when the app started.
+  phone.scheme = 'dark';
+  await theme.setTheme('system');
+  expect(theme.currentThemeChoice()).toBe('system');
+  expect(theme.currentTheme()).toBe('dark');
+
+  // And from here it follows again, the way it did before anybody picked.
+  phone.tell?.({ colorScheme: 'light' });
+  expect(theme.currentTheme()).toBe('light');
+});
+
+/**
+ * `pick()`'s quiet branch: the phone is already dark, and someone picks «Тёмная» by hand. `current`
+ * does not move — `set()` stays quiet — but `choice` does, and the switch's selected pill has to
+ * redraw to show the hand-pick rather than «Как в телефоне». Deleting the `if (moved && …) tell()`
+ * line in `pick()` leaves every other test in this file green, which is exactly why it is pinned
+ * directly against `subscribe` rather than through `currentTheme()`.
+ */
+test('picking the theme the phone is already in still tells the switch', async () => {
+  phone.stored = null;
+  const theme = await start('dark');
+  const heard: number[] = [];
+  theme.subscribe(() => heard.push(1));
+
+  await theme.setTheme('dark');
+  expect(theme.currentTheme()).toBe('dark'); // unchanged — this is the point of the test
+  expect(theme.currentThemeChoice()).toBe('dark');
+  expect(heard).toHaveLength(1);
+});
+
+/** The mirror case: picking the choice already in force moves neither, and nobody needs telling. */
+test('picking the choice already in force tells nobody', async () => {
+  phone.stored = null;
+  const theme = await start('dark');
+  await theme.setTheme('dark');
+  const heard: number[] = [];
+  theme.subscribe(() => heard.push(1));
+
+  await theme.setTheme('dark');
+  expect(heard).toHaveLength(0);
+});
+
+test('and giving it back outlives the app, the same as picking does', async () => {
+  phone.stored = null;
+  const first = await start('dark');
+  await first.setTheme('dark');
+  await first.setTheme('system');
+
+  // Next launch, phone in daylight: the app must not still be holding the dark somebody picked
+  // once and gave back.
+  const next = await start('light');
+  expect(next.currentThemeChoice()).toBe('system');
+  expect(next.currentTheme()).toBe('light');
+});

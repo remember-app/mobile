@@ -43,7 +43,7 @@ import {
   Tile,
 } from '@/kit';
 import { useStrings } from '@/language';
-import { onScrim, space, themed, themes, useTheme } from '@/theme';
+import { onScrim, space, themed, themes, ThemePin, useTheme } from '@/theme';
 
 /**
  * How long the screen waits before looking again while the worker is still making something. A
@@ -401,145 +401,153 @@ export default function GalleryScreen() {
           >
             {shown === null ? null : (
               <View style={styles.viewer}>
-                <View style={styles.frame}>
-                  {shown.kind === 'video' && shown.preview_url !== null ? (
-                    // Keyed by the record: walking from one video to the next along the strip
-                    // mounts a fresh player on the new file, which is what starts it playing —
-                    // the same component handed a new url would be a player already made.
-                    <Playing key={shown.id} url={shown.preview_url} />
-                  ) : openFrame !== null && openFrame.uri !== null ? (
-                    // Whole and not cropped, the kit's `.viewer__frame img`: the frame is shown as
-                    // it was shot even when that is not the shape of the phone, and what is left
-                    // over at the sides is ink rather than a border.
-                    <Image source={{ uri: openFrame.uri }} style={styles.big} resizeMode="contain" />
-                  ) : (
-                    // Nothing was ever made for this one. Said here as well as on the tile, because
-                    // this is the screen the delete button is on — a failed record is one somebody
-                    // may want rid of rather than looked at.
-                    <View style={[styles.big, styles.blank]}>
-                      <Empty icon={TriangleAlert} text={s.gallery.waiting[shown.status]} />
-                    </View>
-                  )}
+                {/* The room is pinned for everything the kit puts inside `.viewer`, not just for
+                    the two backgrounds below: a tile, a banner and an `Empty` in here all read
+                    `useTheme()`, and in daylight they would answer with the light set — a pale
+                    frame around a photograph, which is the one thing block 0.2 forbids. The
+                    confirm sheet is left out on purpose: the kit's `.confirm` is its own overlay
+                    over the screen, not a child of the viewer. */}
+                <ThemePin value="dark">
+                  <View style={styles.frame}>
+                    {shown.kind === 'video' && shown.preview_url !== null ? (
+                      // Keyed by the record: walking from one video to the next along the strip
+                      // mounts a fresh player on the new file, which is what starts it playing —
+                      // the same component handed a new url would be a player already made.
+                      <Playing key={shown.id} url={shown.preview_url} />
+                    ) : openFrame !== null && openFrame.uri !== null ? (
+                      // Whole and not cropped, the kit's `.viewer__frame img`: the frame is shown as
+                      // it was shot even when that is not the shape of the phone, and what is left
+                      // over at the sides is ink rather than a border.
+                      <Image source={{ uri: openFrame.uri }} style={styles.big} resizeMode="contain" />
+                    ) : (
+                      // Nothing was ever made for this one. Said here as well as on the tile, because
+                      // this is the screen the delete button is on — a failed record is one somebody
+                      // may want rid of rather than looked at.
+                      <View style={[styles.big, styles.blank]}>
+                        <Empty icon={TriangleAlert} text={s.gallery.waiting[shown.status]} />
+                      </View>
+                    )}
 
-                  {/* The kit's `.viewer__bar`: what can be done to the frame stands over it on a
-                      darkening, not under it — «без кнопок снизу», which is what was asked for, and
-                      what every phone's own gallery does. `box-none` so the darkening itself never
-                      swallows a touch meant for the frame. */}
-                  <View
-                    style={[styles.viewerBar, { paddingTop: insets.top + space.s2 }]}
-                    pointerEvents="box-none"
-                  >
-                    <IconButton
-                      icon={X}
-                      label={s.action.close}
-                      tint={onScrim}
-                      onPress={() => setOpen(null)}
-                      disabled={busy}
-                    />
-                    {/* `.viewer__who` — who brought this frame and the day it was shot. */}
-                    <Text role="meta" numberOfLines={1} style={styles.who}>
-                      {shotBy(shown, roster)}
-                    </Text>
-                    {/* Not gated on anything: a viewer may take home what they are looking at, and
-                        the api says the same — the download route asks for membership and nothing
-                        more. */}
-                    <IconButton
-                      icon={Download}
-                      label={s.action.download}
-                      tint={onScrim}
-                      onPress={() => void save(shown)}
-                      disabled={busy}
-                    />
-                    {mayDelete(shown) ? (
+                    {/* The kit's `.viewer__bar`: what can be done to the frame stands over it on a
+                        darkening, not under it — «без кнопок снизу», which is what was asked for, and
+                        what every phone's own gallery does. `box-none` so the darkening itself never
+                        swallows a touch meant for the frame. */}
+                    <View
+                      style={[styles.viewerBar, { paddingTop: insets.top + space.s2 }]}
+                      pointerEvents="box-none"
+                    >
                       <IconButton
-                        icon={Trash2}
-                        label={s.action.delete}
+                        icon={X}
+                        label={s.action.close}
                         tint={onScrim}
-                        onPress={() => setConfirming(true)}
+                        onPress={() => setOpen(null)}
                         disabled={busy}
                       />
-                    ) : null}
+                      {/* `.viewer__who` — who brought this frame and the day it was shot. */}
+                      <Text role="meta" numberOfLines={1} style={styles.who}>
+                        {shotBy(shown, roster)}
+                      </Text>
+                      {/* Not gated on anything: a viewer may take home what they are looking at, and
+                          the api says the same — the download route asks for membership and nothing
+                          more. */}
+                      <IconButton
+                        icon={Download}
+                        label={s.action.download}
+                        tint={onScrim}
+                        onPress={() => void save(shown)}
+                        disabled={busy}
+                      />
+                      {mayDelete(shown) ? (
+                        <IconButton
+                          icon={Trash2}
+                          label={s.action.delete}
+                          tint={onScrim}
+                          onPress={() => setConfirming(true)}
+                          disabled={busy}
+                        />
+                      ) : null}
+                    </View>
+
+                    {notice ? <Banner text={notice} style={styles.viewerNotice} /> : null}
                   </View>
 
-                  {notice ? <Banner text={notice} style={styles.viewerNotice} /> : null}
-                </View>
-
-                {/* The kit's `.filmstrip`: the whole contact sheet rolled into one row, and the
-                    only thing under the frame. The same list the grid draws — no second read —
-                    with every frame dimmed but the open one. */}
-                <View
-                  style={[
-                    styles.filmstrip,
-                    { paddingBottom: Math.max(insets.bottom, space.s2) },
-                  ]}
-                >
-                  <RailH />
-                  <FlatList
-                    ref={strip}
-                    horizontal
-                    data={items}
-                    keyExtractor={(item) => item.id}
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.track}
-                    // A fixed tile and a fixed gutter, so the strip can be walked to any frame
-                    // without measuring anything: opening the fortieth frame from the grid must
-                    // put the fortieth tile under it, not the first.
-                    getItemLayout={(_, index) => ({
-                      length: STRIP_TILE,
-                      offset: (STRIP_TILE + STRIP_GAP) * index,
-                      index,
-                    })}
-                    // Walked to, not started at. `initialScrollIndex` reads like the prop for
-                    // exactly this and is what cost the strip its head: it does not merely position
-                    // the row, it pins the render window on the frame it names and holds it pinned
-                    // until a scroll event arrives. A strip whose frames all fit on screen has
-                    // nothing to scroll, so that event never comes and the window never widens —
-                    // every frame before the open one stays a blank nothing can reach, which is
-                    // what was reported of a gallery of seven opened on its fifth. Asking for the
-                    // same position once the content is laid out leaves the window alone: the whole
-                    // gallery is in the strip from the first frame on, and scrolling reaches it all.
-                    onContentSizeChange={() =>
-                      strip.current?.scrollToIndex({
-                        index: frameIndex(items, open),
-                        animated: false,
-                      })
-                    }
-                    renderItem={({ item }) => {
-                      const frame = frameOf(item);
-                      const current = item.id === shown.id;
-                      return (
-                        <Tile
-                          // The sheet's own tile, handed a width and a dimming — the kit's strip is
-                          // the same frame smaller and in shadow, with the open one lit and ringed
-                          // in ember, the mark a picked frame already wears. `filter: brightness`
-                          // is the kit's spelling; over ink, opacity is the same thing everywhere.
-                          style={[
-                            styles.stripTile,
-                            current ? styles.stripCurrent : styles.stripDim,
-                          ]}
-                          state={frame.state}
-                          uri={frame.uri ?? undefined}
-                          // No caption: at 52px there are no words to read, only the safelight.
-                          length={
-                            item.kind === 'video'
-                              ? (formatRuntime(item.duration_seconds) ?? s.media.video)
-                              : undefined
-                          }
-                          label={
-                            current
-                              ? `${s.media[item.kind]}, ${s.gallery.open}`
-                              : item.status === 'ready'
-                                ? s.media[item.kind]
-                                : `${s.media[item.kind]}, ${s.gallery.waiting[item.status]}`
-                          }
-                          // A frame still developing stays in the strip and stays shut: there is
-                          // nothing behind it to open yet.
-                          onPress={mayOpen(item) ? () => setOpen(item.id) : undefined}
-                        />
-                      );
-                    }}
-                  />
-                </View>
+                  {/* The kit's `.filmstrip`: the whole contact sheet rolled into one row, and the
+                      only thing under the frame. The same list the grid draws — no second read —
+                      with every frame dimmed but the open one. */}
+                  <View
+                    style={[
+                      styles.filmstrip,
+                      { paddingBottom: Math.max(insets.bottom, space.s2) },
+                    ]}
+                  >
+                    <RailH />
+                    <FlatList
+                      ref={strip}
+                      horizontal
+                      data={items}
+                      keyExtractor={(item) => item.id}
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.track}
+                      // A fixed tile and a fixed gutter, so the strip can be walked to any frame
+                      // without measuring anything: opening the fortieth frame from the grid must
+                      // put the fortieth tile under it, not the first.
+                      getItemLayout={(_, index) => ({
+                        length: STRIP_TILE,
+                        offset: (STRIP_TILE + STRIP_GAP) * index,
+                        index,
+                      })}
+                      // Walked to, not started at. `initialScrollIndex` reads like the prop for
+                      // exactly this and is what cost the strip its head: it does not merely position
+                      // the row, it pins the render window on the frame it names and holds it pinned
+                      // until a scroll event arrives. A strip whose frames all fit on screen has
+                      // nothing to scroll, so that event never comes and the window never widens —
+                      // every frame before the open one stays a blank nothing can reach, which is
+                      // what was reported of a gallery of seven opened on its fifth. Asking for the
+                      // same position once the content is laid out leaves the window alone: the whole
+                      // gallery is in the strip from the first frame on, and scrolling reaches it all.
+                      onContentSizeChange={() =>
+                        strip.current?.scrollToIndex({
+                          index: frameIndex(items, open),
+                          animated: false,
+                        })
+                      }
+                      renderItem={({ item }) => {
+                        const frame = frameOf(item);
+                        const current = item.id === shown.id;
+                        return (
+                          <Tile
+                            // The sheet's own tile, handed a width and a dimming — the kit's strip is
+                            // the same frame smaller and in shadow, with the open one lit and ringed
+                            // in ember, the mark a picked frame already wears. `filter: brightness`
+                            // is the kit's spelling; over ink, opacity is the same thing everywhere.
+                            style={[
+                              styles.stripTile,
+                              current ? styles.stripCurrent : styles.stripDim,
+                            ]}
+                            state={frame.state}
+                            uri={frame.uri ?? undefined}
+                            // No caption: at 52px there are no words to read, only the safelight.
+                            length={
+                              item.kind === 'video'
+                                ? (formatRuntime(item.duration_seconds) ?? s.media.video)
+                                : undefined
+                            }
+                            label={
+                              current
+                                ? `${s.media[item.kind]}, ${s.gallery.open}`
+                                : item.status === 'ready'
+                                  ? s.media[item.kind]
+                                  : `${s.media[item.kind]}, ${s.gallery.waiting[item.status]}`
+                            }
+                            // A frame still developing stays in the strip and stays shut: there is
+                            // nothing behind it to open yet.
+                            onPress={mayOpen(item) ? () => setOpen(item.id) : undefined}
+                          />
+                        );
+                      }}
+                    />
+                  </View>
+                </ThemePin>
 
                 {/* Irreversible, and the api takes the bytes with it — worth one question first,
                     asked on the kit's sheet (section 13) and not by the system dialog. Inside the

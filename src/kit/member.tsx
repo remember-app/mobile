@@ -52,11 +52,18 @@ export function Chip({ label, organizer }: { label: string; organizer?: boolean 
 export function RowMember({
   name,
   meta,
+  tail,
   divider,
   children,
 }: {
   name: string;
   meta?: string;
+  /**
+   * The end of the meta line, after the kit's «·» — the standing in «@marina · 42 кадра». It keeps
+   * its whole width and `meta` gives way to it, because this is the part the screen is read for
+   * and the username in front of it is already spelled out on the line above.
+   */
+  tail?: string;
   divider?: boolean;
   children?: ReactNode;
 }) {
@@ -65,9 +72,30 @@ export function RowMember({
   return (
     <View style={[styles.row, divider ? styles.divider : null]}>
       <Avatar name={name} />
+      {/* One line each, and never more. The kit draws this row two lines tall beside a 40pt
+          avatar, and on a 390pt phone the chip and the remove button leave the two of them about
+          140pt: a name or a meta long enough to wrap breaks the row into a third height that
+          swallows whatever the screen hung underneath it. So they clip instead of wrapping. */}
       <View style={styles.rowBody}>
-        <Text style={styles.name}>{name}</Text>
-        {meta ? <Text role="meta">{meta}</Text> : null}
+        <Text style={styles.name} numberOfLines={1}>
+          {name}
+        </Text>
+        {meta || tail ? (
+          <View style={styles.metaLine}>
+            {meta ? (
+              <Text role="meta" numberOfLines={1} style={styles.metaGiving}>
+                {meta}
+              </Text>
+            ) : null}
+            {tail ? (
+              <Text role="meta" numberOfLines={1} style={styles.metaKeeping}>
+                {/* The space before the kit's «·» is non-breaking because it opens a text node,
+                    and a plain space there is one the web throws away. */}
+                {meta ? `\u00a0· ${tail}` : tail}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
       </View>
       {children}
     </View>
@@ -123,6 +151,12 @@ const useStyles = themed(({ color, shade }) =>
     row: { flexDirection: 'row', alignItems: 'center', gap: space.s3, paddingVertical: space.s3 },
     divider: { borderTopWidth: 1, borderTopColor: color.line },
     rowBody: { flex: 1, minWidth: 0 },
+    metaLine: { flexDirection: 'row', minWidth: 0 },
+    // Only the first half gives way, so what follows the «·» is never the thing that gets cut.
+    // Both are spelled out: React Native shrinks nothing unless told to, the web shrinks
+    // everything unless told not to, and this line has to break the same way on both.
+    metaGiving: { flexShrink: 1 },
+    metaKeeping: { flexShrink: 0 },
     name: { fontSize: 16, lineHeight: 19.2, fontWeight: '500' },
     invite: {
       flexDirection: 'row',

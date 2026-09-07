@@ -1,5 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
-import { useSyncExternalStore } from 'react';
+import { createContext, useContext, useSyncExternalStore } from 'react';
 import { Appearance, StyleSheet, type ColorSchemeName } from 'react-native';
 
 import { shades, type Shade } from '@/kit/shades';
@@ -138,6 +138,14 @@ const glow = {
 /** The kit's two lights, and there is no third one (doc-9). */
 export type ThemeName = 'dark' | 'light';
 
+/**
+ * What a person can pick, which is one more thing than what the app draws in: `system` is not a
+ * third light but the absence of a pick — the phone goes on deciding, and the kit's own switch
+ * (section 15) offers it as «Как в телефоне». Everything that draws asks for a `ThemeName`; only
+ * the switch itself, and the disk, know about this.
+ */
+export type ThemeChoice = ThemeName | 'system';
+
 /** Everything that has two answers, in the set the app is currently drawing in. */
 export type Theme = { name: ThemeName; color: Color; shade: Shade; glow: string };
 
@@ -173,27 +181,40 @@ export function resolveTheme(scheme: ColorSchemeName | null | undefined): ThemeN
 
 let current: ThemeName = resolveTheme(Appearance.getColorScheme());
 
-/** Once someone has picked, the phone stops being asked — their choice outranks the system. */
-let picked = false;
+/** What was picked. Until someone picks, and again if they pick `system`, the phone decides. */
+let choice: ThemeChoice = 'system';
 
 const listeners = new Set<() => void>();
+
+function tell() {
+  for (const listener of listeners) listener();
+}
 
 function set(next: ThemeName): ThemeName {
   if (next !== current) {
     current = next;
-    for (const listener of listeners) listener();
+    tell();
   }
   return current;
 }
 
-function pick(next: ThemeName): ThemeName {
-  picked = true;
-  return set(next);
+function pick(next: ThemeChoice): ThemeName {
+  const moved = next !== choice;
+  choice = next;
+  const before = current;
+  // Picking `system` hands the phone back the decision, and the answer is asked for straight away
+  // rather than waited on: the phone may well have changed while the app was ignoring it.
+  const name = set(next === 'system' ? resolveTheme(Appearance.getColorScheme()) : next);
+  // The pick can move without the light moving — dark from the phone, then dark by hand. `set` stays
+  // quiet then, and the switch showing the pick still has to redraw.
+  if (moved && name === before) tell();
+  return name;
 }
 
-// Sundown, the control centre: the phone changes theme while the app is open, and the app follows.
+// Sundown, the control centre: the phone changes theme while the app is open, and the app follows —
+// unless the person took the decision off it.
 Appearance.addChangeListener(({ colorScheme }) => {
-  if (!picked) set(resolveTheme(colorScheme));
+  if (choice === 'system') set(resolveTheme(colorScheme));
 });
 
 /**
@@ -202,7 +223,8 @@ Appearance.addChangeListener(({ colorScheme }) => {
  * everyone who never picked is the final answer anyway.
  */
 export const themeReady: Promise<ThemeName> = SecureStore.getItemAsync(CHOICE_KEY).then(
-  (stored) => (stored === 'dark' || stored === 'light' ? pick(stored) : current),
+  (stored) =>
+    stored === 'dark' || stored === 'light' || stored === 'system' ? pick(stored) : current,
   // Unreadable keychain: nothing was picked as far as this launch can tell, the phone decides.
   () => current,
 );
@@ -212,25 +234,55 @@ export function currentTheme(): ThemeName {
   return current;
 }
 
+/** What was picked, which is what the switch shows — never what the screen is drawn in. */
+export function currentThemeChoice(): ThemeChoice {
+  return choice;
+}
+
 /**
  * Switch by hand. The screen turns first and the disk catches up: a keychain that refuses throws to
  * the caller, and the only thing lost is the memory of the pick, not the pick itself.
  */
-export async function setTheme(next: ThemeName): Promise<void> {
+export async function setTheme(next: ThemeChoice): Promise<void> {
   pick(next);
   await SecureStore.setItemAsync(CHOICE_KEY, next);
 }
 
-function subscribe(listener: () => void): () => void {
+/**
+ * Exported for `theme.test.ts` as well as the hooks below: there is no harness in this repo that
+ * mounts a component and watches it redraw, so the one branch in `pick()` that moves the choice
+ * without moving the resolved theme — dark from the phone, then dark by hand — is proven by
+ * registering a listener here directly and asserting it is called, the same contract
+ * `useSyncExternalStore` relies on.
+ */
+export function subscribe(listener: () => void): () => void {
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
   };
 }
 
+/**
+ * A subtree held in one of the two sets whatever the app is in — `<ThemePin value="dark">`.
+ *
+ * The kit does this exactly once: `.viewer` stands in the dark-pinned selector list beside `:root`
+ * (kit.html, block 0.2), and in CSS everything under it inherits that pin — the filmstrip, the
+ * tiles in it, a banner over the frame. Spelling `themes.dark` out in the container's own sheet
+ * only pins the container: a `Tile` or an `Empty` inside it reads `useTheme()` and would go on
+ * answering with the live set, which is a light surface inside the dark room.
+ */
+const Pinned = createContext<ThemeName | null>(null);
+export const ThemePin = Pinned.Provider;
+
 /** The tokens with two answers, for a component that has to redraw when the theme changes. */
 export function useTheme(): Theme {
-  return themes[useSyncExternalStore(subscribe, currentTheme, currentTheme)];
+  const live = useSyncExternalStore(subscribe, currentTheme, currentTheme);
+  return themes[useContext(Pinned) ?? live];
+}
+
+/** The pick itself, for the one switch that shows it (`profile.tsx`). */
+export function useThemeChoice(): ThemeChoice {
+  return useSyncExternalStore(subscribe, currentThemeChoice, currentThemeChoice);
 }
 
 /**
