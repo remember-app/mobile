@@ -24,6 +24,7 @@ import { useAuth } from '@/auth';
 import { formatEventDates } from '@/dates';
 import {
   AppBar,
+  AVATAR,
   Banner,
   Button,
   Chip,
@@ -452,7 +453,7 @@ const styles = StyleSheet.create({
   toggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   // Indented past the avatar so it starts where its own name does, and given the row's own bottom
   // padding so the hairline under it separates two people rather than a person from their button.
-  own: { alignSelf: 'flex-start', marginLeft: 40 + space.s3, marginBottom: space.s3 },
+  own: { alignSelf: 'flex-start', marginLeft: AVATAR + space.s3, marginBottom: space.s3 },
   quiet: { alignSelf: 'flex-start' },
   gap: { height: space.s6 },
 });

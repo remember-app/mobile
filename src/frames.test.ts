@@ -2,7 +2,7 @@ import { expect, test, vi } from 'vitest';
 
 // A day is written in the app's language now (m-13), and the module that holds it stands on two
 // native expo modules vitest has nothing to run. Which language it lands on does not matter here:
-// every day below is compared against `formatDay` itself.
+// every day below is compared against `formatEventDates` itself.
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'en-US' }] }));
 vi.mock('expo-secure-store', () => ({
   getItemAsync: async () => null,

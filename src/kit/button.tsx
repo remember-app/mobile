@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { radius, space, useTheme, type Theme } from '@/theme';
@@ -29,11 +28,10 @@ export type ButtonProps = {
   disabled?: boolean;
   icon?: IconComponent;
   /**
-   * `.brand-slot` for `variant="provider"` — the Apple or Google mark, which may only ever be drawn
-   * from the provider's own set. The kit's dashed square is a slot in a demo, not a mark: until a
-   * real one is here the button carries its words alone rather than an empty box.
+   * No `.brand-slot`: the Apple and Google marks may only ever be drawn from the provider's own set,
+   * and when they arrive they arrive with the provider's own button (`AppleAuthenticationButton`),
+   * not through a slot on this one. Until then a provider button carries its words alone.
    */
-  brand?: ReactNode;
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
 };
@@ -50,7 +48,6 @@ export function Button({
   busy,
   disabled,
   icon,
-  brand,
   onPress,
   style,
 }: ButtonProps) {
@@ -94,7 +91,6 @@ export function Button({
           busy ? styles.hidden : null,
         ]}
       >
-        {variant === 'provider' ? brand : null}
         {icon ? <Icon icon={icon} size={sm ? ICO_S : ICO} color={tint} /> : null}
         <Text style={[styles.label, sm ? styles.labelSm : null, { color: tint }]}>{label}</Text>
       </View>

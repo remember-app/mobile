@@ -10,6 +10,13 @@ import { Text } from './text';
  */
 
 /**
+ * The kit's 40-wide `.avatar`. Named for the same reason `SHEET_GAP` is: a screen hanging something
+ * under a member's name has to start it where the name starts, and that offset is this plus the
+ * row's own gap — measured by hand it drifts out of its column the day the circle changes size.
+ */
+export const AVATAR = 40;
+
+/**
  * The kit's `.avatar`: one letter of the name in a circle. It only repeats the name written beside
  * it, so screen readers step over it.
  */
@@ -123,8 +130,8 @@ export function Invite({ url, children }: { url: string; children?: ReactNode })
 const useStyles = themed(({ color, shade }) =>
   StyleSheet.create({
     avatar: {
-      width: 40,
-      height: 40,
+      width: AVATAR,
+      height: AVATAR,
       borderRadius: radius.pill,
       alignItems: 'center',
       justifyContent: 'center',

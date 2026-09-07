@@ -215,11 +215,13 @@ export default function GalleryScreen() {
    * are then the record's own, so a tile is read out in the line it is drawn with. One helper for
    * both sheets, so the strip and the grid cannot drift apart again.
    */
-  const nameOf = (item: MediaItem, frame: Frame, open?: boolean) =>
+  // `current` and not `open`: `open` is this screen's own state a few lines up — the id of the
+  // record being shown — and a boolean of the same name in here reads as that one.
+  const nameOf = (item: MediaItem, frame: Frame, current?: boolean) =>
     [
       s.media[item.kind],
       frame.state === 'ready' ? null : s.gallery.waiting[item.status],
-      open ? s.gallery.open : null,
+      current ? s.gallery.open : null,
     ]
       .filter(Boolean)
       .join(', ');

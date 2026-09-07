@@ -270,7 +270,10 @@ export const en = {
    * that separation on its own, which is why only the English side needed deciding.
    */
   montage: {
-    /** The corner icon the guest list reaches the movies by, and their screen's own title. */
+    /**
+     * The movies' own screen title, the section under the memory's name in its appbar, and the
+     * glowing button the guest list reaches them by (TASK-74, TASK-76).
+     */
     title: 'Movie',
     status: {
       queued: 'Waiting its turn',
