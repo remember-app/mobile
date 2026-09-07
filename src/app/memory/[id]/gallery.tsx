@@ -98,6 +98,8 @@ export default function GalleryScreen() {
   useEffect(() => () => {
     onScreen.current = false;
   }, []);
+  /** The filmstrip, so it can be walked to the open frame once it knows how wide it is. */
+  const strip = useRef<FlatList<MediaItem>>(null);
 
   const load = useCallback(
     // `quiet` belongs to the re-read below: that one happens on its own every few seconds, and it
@@ -473,12 +475,13 @@ export default function GalleryScreen() {
                 >
                   <RailH />
                   <FlatList
+                    ref={strip}
                     horizontal
                     data={items}
                     keyExtractor={(item) => item.id}
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={styles.track}
-                    // A fixed tile and a fixed gutter, so the strip can be told where to start
+                    // A fixed tile and a fixed gutter, so the strip can be walked to any frame
                     // without measuring anything: opening the fortieth frame from the grid must
                     // put the fortieth tile under it, not the first.
                     getItemLayout={(_, index) => ({
@@ -486,7 +489,21 @@ export default function GalleryScreen() {
                       offset: (STRIP_TILE + STRIP_GAP) * index,
                       index,
                     })}
-                    initialScrollIndex={frameIndex(items, open)}
+                    // Walked to, not started at. `initialScrollIndex` reads like the prop for
+                    // exactly this and is what cost the strip its head: it does not merely position
+                    // the row, it pins the render window on the frame it names and holds it pinned
+                    // until a scroll event arrives. A strip whose frames all fit on screen has
+                    // nothing to scroll, so that event never comes and the window never widens —
+                    // every frame before the open one stays a blank nothing can reach, which is
+                    // what was reported of a gallery of seven opened on its fifth. Asking for the
+                    // same position once the content is laid out leaves the window alone: the whole
+                    // gallery is in the strip from the first frame on, and scrolling reaches it all.
+                    onContentSizeChange={() =>
+                      strip.current?.scrollToIndex({
+                        index: frameIndex(items, open),
+                        animated: false,
+                      })
+                    }
                     renderItem={({ item }) => {
                       const frame = frameOf(item);
                       const current = item.id === shown.id;
