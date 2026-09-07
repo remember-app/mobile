@@ -1,5 +1,5 @@
-import { memberName, type MediaItem, type Member } from '@/api';
-import { formatDay } from '@/dates';
+import { memberName, type MediaItem, type Member, type Memory } from '@/api';
+import { formatEventDates } from '@/dates';
 import type { TileState } from '@/kit/tile';
 
 /**
@@ -52,12 +52,27 @@ export function frameIndex(items: readonly MediaItem[], id: string | null): numb
 }
 
 /**
- * The line over an open frame — who brought it and the day it was shot, the kit's `.viewer__who`.
- * `captured_at` is the day the camera wrote and `created_at` the day it reached us; the first is
- * the truer one and old material has only the second. Somebody who has since left the memory is
- * off the roster, and their frame stays — so an unknown uploader is «Someone», not a blank.
+ * The line over an open frame — the person who brought it and the day of the event, the kit's
+ * `.viewer__who`: «Марина · 3 сентября». The name is the one they gave, else the username they
+ * claimed, exactly as the roster writes it; somebody who has since left the memory is off the
+ * roster and their frame stays, so an unknown uploader is «Someone» rather than a blank.
+ *
+ * The day is the memory's own and not the file's. This line used to carry `captured_at`, falling
+ * back to `created_at` — the day the camera wrote, else the day the file reached us. Both read as a
+ * mistake under a frame: a picture sent from an old album dated the wedding «12 March 2019», and
+ * anything the camera never stamped was dated by whenever somebody got round to uploading it.
+ * What the line is for is when this happened, and that is one answer for the whole memory.
+ *
+ * `null` is a memory not read yet — the listing this screen takes it from can fail, and a name
+ * alone is worth more than a name with a wrong date after it.
  */
-export function shotBy(item: MediaItem, roster: readonly Member[] | null): string {
-  const who = roster?.find((member) => member.id === item.uploaded_by) ?? null;
-  return `${memberName(who)} · ${formatDay(item.captured_at ?? item.created_at)}`;
+export function shotBy(
+  item: MediaItem,
+  roster: readonly Member[] | null,
+  memory: Memory | null,
+): string {
+  const who = memberName(roster?.find((member) => member.id === item.uploaded_by) ?? null);
+  return memory === null
+    ? who
+    : `${who} · ${formatEventDates(memory.event_start, memory.event_end)}`;
 }

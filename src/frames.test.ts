@@ -9,10 +9,10 @@ vi.mock('expo-secure-store', () => ({
   setItemAsync: async () => {},
 }));
 
-import type { MediaItem, Member } from '@/api';
+import type { MediaItem, Member, Memory } from '@/api';
 // The day is written by `@/dates` and read here from the same place: what is pinned below is which
 // day the line carries, not how this phone's locale spells it.
-import { formatDay } from '@/dates';
+import { formatEventDates } from '@/dates';
 import { frameIndex, frameOf, mayOpen, shotBy, stillPreparing } from '@/frames';
 
 // The gallery sat in «Preparing…» for good because it read the list once and never again, and
@@ -119,23 +119,52 @@ test('a frame still developing stays in the strip but does not open', () => {
   expect(mayOpen(strip[2])).toBe(true);
 });
 
-test('the line over a frame is who brought it and the day it was shot', () => {
-  const shot = record({ uploaded_by: 'u', captured_at: '2026-09-03T18:20:00.000Z' });
-  const line = shotBy(shot, [member({ id: 'u' })]);
-  expect(line.startsWith('Marina · ')).toBe(true);
-  // The day the camera wrote, not the day the file reached us — the record was created later.
-  expect(line).toBe(`Marina · ${formatDay('2026-09-03T18:20:00.000Z')}`);
+/** The memory the gallery is open on, cut down to what the line over a frame reads off it. */
+const wedding = (over: Partial<Memory> = {}): Memory => ({
+  id: 'm',
+  organizer_id: 'u',
+  title: 'Свадьба Лёши',
+  event_start: '2026-09-03T09:00:00.000Z',
+  event_end: null,
+  storage_bytes: '1',
+  media_count: 1,
+  recent_thumbnail_urls: [],
+  montage_count: 0,
+  created_at: '2026-09-01T09:00:00.000Z',
+  role: 'organizer',
+  ...over,
 });
 
-test('material older than any camera date falls back to the day it arrived', () => {
-  const line = shotBy(record({ uploaded_by: 'u' }), [member({ id: 'u' })]);
-  expect(line).toBe(`Marina · ${formatDay('2026-09-06T10:00:00.000Z')}`);
+test('the line over a frame is who brought it and the day of the event', () => {
+  // Shot on a phone seven years before the wedding — an old picture somebody put in anyway.
+  const shot = record({ uploaded_by: 'u', captured_at: '2019-03-12T18:20:00.000Z' });
+  const line = shotBy(shot, [member({ id: 'u' })], wedding());
+
+  expect(line).toBe(`Marina · ${formatEventDates('2026-09-03T09:00:00.000Z', null)}`);
+  // Neither of the two dates the file carries: not the day the camera stamped it, and not the day
+  // it reached us. Both of them dated the event wrong under the frame, which is what was reported.
+  expect(line).not.toContain('2019');
+});
+
+test('an event that lasted is the span, the way every other screen of a memory writes it', () => {
+  const line = shotBy(record({ uploaded_by: 'u' }), [member({ id: 'u' })], wedding({
+    event_end: '2026-09-05T20:59:59.000Z',
+  }));
+  expect(line).toBe(
+    `Marina · ${formatEventDates('2026-09-03T09:00:00.000Z', '2026-09-05T20:59:59.000Z')}`,
+  );
+});
+
+test('a memory not read yet leaves the name alone rather than a wrong day after it', () => {
+  // The listing this screen takes the memory from can fail; the frame is still somebody's.
+  expect(shotBy(record({ uploaded_by: 'u' }), [member({ id: 'u' })], null)).toBe('Marina');
 });
 
 test('a name nobody claimed is the username, and somebody off the roster is «Someone»', () => {
   const shot = record({ uploaded_by: 'u' });
-  expect(shotBy(shot, [member({ id: 'u', name: null })]).startsWith('marina · ')).toBe(true);
+  const day = wedding();
+  expect(shotBy(shot, [member({ id: 'u', name: null })], day).startsWith('marina · ')).toBe(true);
   // Whoever left the memory is off the roster, and the frame they brought stays.
-  expect(shotBy(shot, [member({ id: 'other' })]).startsWith('Someone · ')).toBe(true);
-  expect(shotBy(shot, null).startsWith('Someone · ')).toBe(true);
+  expect(shotBy(shot, [member({ id: 'other' })], day).startsWith('Someone · ')).toBe(true);
+  expect(shotBy(shot, null, day).startsWith('Someone · ')).toBe(true);
 });

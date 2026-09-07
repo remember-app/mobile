@@ -62,11 +62,22 @@ function iconColor({ color, shade }: Theme, tone: BannerTone | undefined): strin
   return color.muted;
 }
 
+/**
+ * The narrowest column the words are worth reading in. The kit hangs the action off the right edge
+ * (`.banner__actions{margin-left:auto}`) and its own demo carries one line of text beside a one-word
+ * button, which fits. A whole explanation beside «Разрешить доступ» does not: on a phone that left
+ * the text about twenty characters wide and stood the media-library banner up in six lines. Below
+ * this, then, the action goes under the words instead of squeezing them — which is the same row,
+ * wrapped, and not a second layout.
+ */
+const READABLE = 180;
+
 const useStyles = themed(({ color, shade }) =>
   StyleSheet.create({
     banner: {
       flexDirection: 'row',
       alignItems: 'flex-start',
+      flexWrap: 'wrap',
       gap: space.s3,
       paddingVertical: space.s3,
       paddingHorizontal: space.s4,
@@ -77,7 +88,10 @@ const useStyles = themed(({ color, shade }) =>
     },
     error: { borderColor: shade.rustLine, backgroundColor: shade.rustFill },
     done: { borderColor: shade.fixedLine },
-    text: { flex: 1, minWidth: 0, fontSize: 15, lineHeight: 21 },
-    actions: { flexShrink: 0 },
+    // The minimum is what decides the wrap: the row breaks when the words cannot keep their column
+    // beside the button, and the words then have the whole width of the banner.
+    text: { flex: 1, minWidth: READABLE, fontSize: 15, lineHeight: 21 },
+    // `.banner__actions{margin-left:auto; flex:none}` — out at the right edge on either row.
+    actions: { flexShrink: 0, marginLeft: 'auto' },
   }),
 );

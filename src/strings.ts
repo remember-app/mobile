@@ -186,6 +186,11 @@ export const en = {
     titleLabel: 'Title',
     titlePlaceholder: 'Anna’s birthday',
     eventDate: 'Event date',
+    /**
+     * The kit's `.field-hint` under the day, and the one line that says why the day is asked for at
+     * all: it is what the upload screen's «select all from that date» runs on.
+     */
+    dateHint: 'The app finds what your phone shot on these days.',
     multiDay: 'Lasted more than a day',
     ends: 'Ends',
     submit: 'Create',
@@ -495,6 +500,7 @@ export const ru: Strings = {
     titleLabel: 'Название',
     titlePlaceholder: 'День рождения Анны',
     eventDate: 'Дата события',
+    dateHint: 'Приложение найдёт по этим датам снятое на телефоне.',
     multiDay: 'Длилось больше дня',
     ends: 'Заканчивается',
     submit: 'Создать',

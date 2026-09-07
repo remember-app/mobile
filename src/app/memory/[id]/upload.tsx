@@ -9,7 +9,14 @@ import * as MediaLibrary from 'expo-media-library/legacy';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, Images, X } from 'lucide-react-native';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { FlatList, Linking, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  FlatList,
+  Linking,
+  ScrollView,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { errorMessage, listMemories, type Memory } from '@/api';
@@ -23,6 +30,7 @@ import {
   Empty,
   ICO_S,
   IconButton,
+  SHEET_GAP,
   Spinner,
   Text,
   Tile,
@@ -55,6 +63,14 @@ export default function UploadScreen() {
   const { token } = useAuth();
   const s = useStrings();
   const styles = useStyles();
+  /**
+   * One column of the contact sheet, measured instead of flexed — the gallery's sheet carries the
+   * long version of why. Short of it: `flex: 1/3` divides what a row has left after its gaps, and a
+   * last row of one frame has no gaps to leave, so that frame came out 2pt wider than the rest.
+   * This sheet stands inside the screen's own padding, which is what comes off the window here.
+   */
+  const { width } = useWindowDimensions();
+  const cell = { width: (width - space.s4 * 2 - SHEET_GAP * 2) / 3 };
   // The whole app's queue; the rows below are this memory's share of it.
   const uploads = useUploads();
   // Checked on mount, asked for only on the button — that is the difference between knowing
@@ -287,7 +303,7 @@ export default function UploadScreen() {
             // The filename is the phone's own and is never translated.
             label={`${item.mediaType === 'video' ? s.media.video : s.media.photo} ${item.filename}`}
             onPress={() => toggle(item.id)}
-            style={styles.cell}
+            style={cell}
           />
         )}
       />
@@ -393,11 +409,9 @@ const useStyles = themed(({ color }) =>
     screen: { flex: 1, backgroundColor: color.ink, paddingHorizontal: space.s4, gap: space.s3 },
     waiting: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     // The kit's sheet: 3px between frames, and nothing else — the material is the picture here.
-    sheet: { flexGrow: 1, gap: 3 },
-    sheetRow: { gap: 3 },
-    // A third of the row and not `flex: 1`: a last row holding one photo must leave it a third of
-    // the width, not stretch it across the screen. The tile brings its own square.
-    cell: { flex: 1 / 3 },
+    // The column itself is measured out above; this only holds the gutters between them.
+    sheet: { flexGrow: 1, gap: SHEET_GAP },
+    sheetRow: { gap: SHEET_GAP },
     queue: { gap: space.s3 },
     parked: { maxHeight: 132 },
     parkedRow: {
