@@ -2,18 +2,55 @@
 // ends of that: what a day looks like on screen, and which instant a picked day is. Plus the
 // one other time this app writes out — how long a video runs.
 
-/** One day in the device's own locale, e.g. «3 Sep 2026». */
-export function formatDay(value: string | Date): string {
-  return new Date(value).toLocaleDateString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
+/**
+ * A day taken apart into the three pieces the kit writes: day, month, year, in that order in
+ * every language. The locale's own sentence is not that shape — Russian hangs a « г.» off the
+ * year, American English leads with the month — so only the month word is asked of it, and the
+ * digits stay digits. Asked for beside a day, the month comes back in the form that belongs
+ * there: «сентября», not the bare «сентябрь». The day's digits and the locale's glue are then
+ * taken back out of it.
+ *
+ * ponytail: `Intl.DateTimeFormat.formatToParts` would read the month out cleanly, but iOS builds
+ * of Hermes have shipped without it twice (react-native 0.74 and 0.77), and a missing method here
+ * is every screen that draws a date going down. The cost is a language that writes the day with a
+ * letter of its own — Japanese «9月3日» — which this app does not speak; move to `formatToParts`
+ * when it does.
+ */
+function dayFields(value: string | Date, locale?: string) {
+  const day = new Date(value);
+  return {
+    day: String(day.getDate()),
+    month: day
+      .toLocaleDateString(locale, { day: 'numeric', month: 'long' })
+      .replace(/[\d\s.,]+/g, ' ')
+      .trim(),
+    year: String(day.getFullYear()),
+  };
 }
 
-/** The line under a memory's title: the single day, or the span when it has an end. */
-export function formatEventDates(start: string, end: string | null): string {
-  return end ? `${formatDay(start)} — ${formatDay(end)}` : formatDay(start);
+const wholeDay = (fields: ReturnType<typeof dayFields>) =>
+  `${fields.day} ${fields.month} ${fields.year}`;
+
+/**
+ * One day the way the kit writes it — «3 сентября 2026», «3 September 2026». `locale` is only for
+ * tests to name a language; the app leaves it out and gets the device's own.
+ */
+export function formatDay(value: string | Date, locale?: string): string {
+  return wholeDay(dayFields(value, locale));
+}
+
+/**
+ * The line under a memory's title. A span inside one month names that month once and leaves the
+ * year off — «12–16 августа», the way the kit draws a memory card; a span that crosses a month or
+ * a year writes both days whole, year and all. A span whose end is the day it started on is a
+ * single day, which is what the create screen makes the moment the end is switched on.
+ */
+export function formatEventDates(start: string, end: string | null, locale?: string): string {
+  const from = dayFields(start, locale);
+  if (!end) return wholeDay(from);
+  const to = dayFields(end, locale);
+  if (from.month !== to.month || from.year !== to.year) return `${wholeDay(from)} — ${wholeDay(to)}`;
+  return from.day === to.day ? wholeDay(from) : `${from.day}–${to.day} ${to.month}`;
 }
 
 /**
