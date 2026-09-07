@@ -248,7 +248,14 @@ export async function setTheme(next: ThemeChoice): Promise<void> {
   await SecureStore.setItemAsync(CHOICE_KEY, next);
 }
 
-function subscribe(listener: () => void): () => void {
+/**
+ * Exported for `theme.test.ts` as well as the hooks below: there is no harness in this repo that
+ * mounts a component and watches it redraw, so the one branch in `pick()` that moves the choice
+ * without moving the resolved theme — dark from the phone, then dark by hand — is proven by
+ * registering a listener here directly and asserting it is called, the same contract
+ * `useSyncExternalStore` relies on.
+ */
+export function subscribe(listener: () => void): () => void {
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
