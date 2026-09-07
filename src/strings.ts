@@ -333,7 +333,10 @@ export const en = {
    * The two languages name themselves. A person looking for their own language reads it in that
    * language, so these two lines are the same in both sets on purpose.
    */
-  language: { ru: 'Русский', en: 'English' },
+  language: { label: 'Language', ru: 'Русский', en: 'English' },
+
+  /** doc-9. The third one is not a light but the phone going on deciding. */
+  theme: { label: 'Theme', system: 'As on phone', dark: 'Dark', light: 'Light' },
 };
 
 /** The shape both sets keep. */
@@ -592,7 +595,9 @@ export const ru: Strings = {
     continue: 'Продолжить',
   },
 
-  language: { ru: 'Русский', en: 'English' },
+  language: { label: 'Язык', ru: 'Русский', en: 'English' },
+
+  theme: { label: 'Тема', system: 'Как в телефоне', dark: 'Тёмная', light: 'Светлая' },
 };
 
 /** Both sets, by the language they belong to. */

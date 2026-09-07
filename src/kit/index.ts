@@ -28,6 +28,7 @@ export * from './field';
 export * from './icon';
 export * from './interaction';
 export * from './member';
+export * from './segment';
 export * from './shades';
 export * from './sheet';
 export * from './text';

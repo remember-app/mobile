@@ -6,9 +6,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { errorMessage } from '@/api';
 import { useAuth } from '@/auth';
-import { ActionBar, AppBar, Banner, Button, ConfirmSheet, IconButton, RowMember } from '@/kit';
-import { useStrings } from '@/language';
-import { space, themed } from '@/theme';
+import {
+  ActionBar,
+  AppBar,
+  Banner,
+  Button,
+  ConfirmSheet,
+  IconButton,
+  RowMember,
+  Segment,
+} from '@/kit';
+import { setLanguage, useLanguage, useStrings } from '@/language';
+import { setTheme, space, themed, useThemeChoice } from '@/theme';
 import { UsernameForm } from '@/username-form';
 
 /**
@@ -17,6 +26,10 @@ import { UsernameForm } from '@/username-form';
  * Logging out is asked for on the kit's sheet (section 13) rather than done on the press: from where
  * the person stands the session is gone and only signing in again brings it back, and the kit asks
  * for what cannot be undone the same way it asks about leaving a memory.
+ *
+ * The theme and the language stand here too, on the kit's switch of section 15. Neither doc-8 nor
+ * doc-9 gets a settings screen of its own — there are two things to set in the whole product, and
+ * this is the screen that is already about the person rather than about a memory.
  */
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
@@ -24,9 +37,22 @@ export default function ProfileScreen() {
   const s = useStrings();
   const styles = useStyles();
   const insets = useSafeAreaInsets();
+  const theme = useThemeChoice();
+  const language = useLanguage();
   const [busy, setBusy] = useState(false);
   const [asking, setAsking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  /**
+   * A pick is already on the screen by the time this is called — the stores turn the app first and
+   * only then reach for the keychain. So there is nothing to wait for and nothing to undo; a
+   * keychain that refuses costs the app its memory of the pick, and that is worth saying out loud
+   * rather than swallowing.
+   */
+  function remember(stored: Promise<void>) {
+    setError(null);
+    stored.catch((e) => setError(errorMessage(e)));
+  }
 
   async function logOut() {
     setAsking(false);
@@ -62,6 +88,32 @@ export default function ProfileScreen() {
         <RowMember name={user?.username ?? '—'} meta={user?.name ?? s.profile.noName} />
 
         <UsernameForm submitLabel={s.profile.changeUsername} />
+
+        {/* The kit stands these two side by side, theme first. Three values against two: the theme
+            can be handed back to the phone, the language cannot — a phone in German is not one of
+            the two languages this app speaks, so there is nothing to hand back to (doc-8). */}
+        <Segment
+          label={s.theme.label}
+          value={theme}
+          onChange={(next) => remember(setTheme(next))}
+          options={[
+            { value: 'system', label: s.theme.system },
+            { value: 'dark', label: s.theme.dark },
+            { value: 'light', label: s.theme.light },
+          ]}
+        />
+
+        <Segment
+          label={s.language.label}
+          value={language}
+          onChange={(next) => remember(setLanguage(next))}
+          // Each language names itself, in itself: whoever is looking for their own reads it in the
+          // one they know, whichever set the app is currently in.
+          options={[
+            { value: 'ru', label: s.language.ru },
+            { value: 'en', label: s.language.en },
+          ]}
+        />
 
         {error ? <Banner tone="error" text={error} /> : null}
       </View>
