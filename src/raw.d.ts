@@ -8,3 +8,15 @@ declare module '*?raw' {
   const source: string;
   export default source;
 }
+
+/**
+ * The same thing over a whole directory — `import.meta.glob('./app/**\/*.tsx', …)`. Vite answers
+ * this too; typed here rather than by pulling in `vite/client`, which would put the dom and every
+ * other bundler global into a project that compiles for a phone.
+ */
+interface ImportMeta {
+  glob<T>(
+    pattern: string,
+    options: { query: '?raw'; import: 'default'; eager: true },
+  ): Record<string, T>;
+}
