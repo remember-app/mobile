@@ -234,7 +234,6 @@ export const en = {
      * reads as the thing one presses, and not as the standing of the same name printed above it.
      */
     sayNothing: 'I have nothing to add',
-    leave: 'Leave this memory',
     inviteTitle: 'Invite someone',
     mayAdd: 'They can add photos too',
     inviteLink: 'Invite link',
@@ -382,7 +381,6 @@ export const en = {
     title: 'Profile',
     /** Stands where the name would be. An invitation to give one, never a report that there is none. */
     noName: 'Add your name',
-    changeUsername: 'Change username',
     logOutAsk: 'Log out?',
     logOutText:
       'The session on this phone ends. You will have to sign in again to get back to your memories.',
@@ -547,7 +545,6 @@ export const ru: Strings = {
     you: (name: string) => `${name} (вы)`,
     remove: (name: string) => `Убрать ${name}`,
     sayNothing: 'Мне нечего добавить',
-    leave: 'Выйти из воспоминания',
     inviteTitle: 'Позвать человека',
     mayAdd: 'Сможет добавлять фото',
     inviteLink: 'Ссылка-приглашение',
@@ -657,7 +654,6 @@ export const ru: Strings = {
   profile: {
     title: 'Профиль',
     noName: 'Добавьте имя',
-    changeUsername: 'Сменить ник',
     logOutAsk: 'Выйти?',
     logOutText:
       'Сеанс на этом телефоне закончится. Чтобы вернуться к своим воспоминаниям, придётся войти снова.',

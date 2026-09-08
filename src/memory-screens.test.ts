@@ -167,6 +167,16 @@ test('the ember on a face is the one action that face is for', () => {
   expect(footer).toContain('label={s.action.invite}');
 });
 
+test('nobody is shown a way out of a memory, and the organizer keeps the crosses', () => {
+  // TASK-113: the human took leaving off the design. The call behind it is untouched and still the
+  // one the organizer's cross makes on somebody else — what went is the button that aimed it at
+  // oneself, and with it the only red thing the face had.
+  expect(people).not.toContain('variant="danger"');
+  expect(people).not.toContain('label={s.members.leave}');
+  expect(people).toContain('removeMember(session, id, target.id)');
+  expect(people).toContain('label={s.members.remove(memberName(member))}');
+});
+
 test('the order button waits for the list it prepends to', () => {
   // TASK-75 lifted this button out of the list branch into the bottom bar, where the only thing
   // gating it is the role — and the role comes off the memory, which is read above the face and
