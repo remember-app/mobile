@@ -248,6 +248,7 @@ export function Films({ id, head }: { id: string; head: Head }) {
                 <CardMontage
                   state={MONTAGE_STATE[montage.status]}
                   title={montageTitle(montage, s)}
+                  poster={montage.poster_url ?? undefined}
                   status={s.montage.status[montage.status]}
                   // Said in place of a bar or a number: nothing on this side knows how far along
                   // the worker is, and the push is what actually brings people back to look.

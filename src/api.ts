@@ -480,6 +480,9 @@ export type Montage = {
   error_text: string | null;
   created_at: string;
   video_url: string | null;
+  /** The still off the finished video, signed the same way `video_url` is, and null while there is
+      none — an older montage cut before posters were kept, or one not yet ready. */
+  poster_url: string | null;
 };
 
 /**
