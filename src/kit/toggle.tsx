@@ -2,6 +2,7 @@ import { StyleSheet, Switch, View } from 'react-native';
 
 import { space, useTheme } from '@/theme';
 
+import { TAP } from './tap';
 import { Text } from './text';
 
 export type ToggleProps = {
@@ -54,5 +55,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: space.s3,
+    // The row keeps a finger's worth of height whatever the platform draws the switch at — iOS
+    // draws it at 31, and the label beside it would otherwise sit in a row shorter than a tap.
+    minHeight: TAP,
   },
 });

@@ -23,6 +23,7 @@ import {
   Button,
   CardMontage,
   Empty,
+  IconButton,
   Sheet,
   Text,
   type MontageState,
@@ -255,8 +256,11 @@ export function Films({ id, head }: { id: string; head: Head }) {
                   onPlay={montage.video_url === null ? undefined : () => setPlaying(montage.id)}
                   actions={
                     montage.status === 'ready' ? (
-                      <Button
-                        sm
+                      // The kit's own «Скачать ролик» in this footer is an `.iconbtn`, and it has
+                      // to be: the title beside it is `flex:1` off a zero basis, so a button
+                      // carrying «Сохранить и поделиться» squeezed the Russian title down to «Ро…».
+                      // The words stay as the spoken label.
+                      <IconButton
                         icon={Download}
                         label={s.montage.saveShare}
                         disabled={busy || montage.video_url === null}

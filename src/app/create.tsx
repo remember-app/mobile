@@ -2,7 +2,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
 import { CalendarDays, ChevronLeft } from 'lucide-react-native';
 import { useState } from 'react';
-import { Platform, StyleSheet, Switch, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { createMemory, errorMessage } from '@/api';
@@ -17,8 +17,8 @@ import {
   FieldShell,
   Icon,
   IconButton,
-  TAP,
   Text,
+  Toggle,
 } from '@/kit';
 import { useStrings } from '@/language';
 import { space, themed, useTheme } from '@/theme';
@@ -29,8 +29,6 @@ export default function CreateMemoryScreen() {
   const router = useRouter();
   const s = useStrings();
   const styles = useStyles();
-  // The platform's switch takes its colours as props, not as a style.
-  const { color } = useTheme();
   // The native header is off for the whole app, so the screen owes the status bar its own room.
   const insets = useSafeAreaInsets();
   const [title, setTitle] = useState('');
@@ -94,25 +92,14 @@ export default function CreateMemoryScreen() {
           disabled={busy}
         />
 
-        <View style={styles.toggle}>
-          <Text role="label">{s.create.multiDay}</Text>
-          {/* The kit has no switch of its own — this is the platform's, wearing the kit's
-              colours: ember when it is on, hairline when it is off, paper for the thumb. */}
-          <Switch
-            // The words beside it are a sibling, and React Native joins nothing up on its own —
-            // without this the toggle is announced with no name at all.
-            accessibilityLabel={s.create.multiDay}
-            value={end !== null}
-            onValueChange={(on) => setEnd(on ? endOfDay(start) : null)}
-            disabled={busy}
-            trackColor={{ false: color.line, true: color.ember }}
-            thumbColor={color.paper}
-            // The same paper again, for the half of the web switch `thumbColor` does not reach:
-            // switch.d.ts has the why.
-            activeThumbColor={color.paper}
-            ios_backgroundColor={color.line}
-          />
-        </View>
+        {/* The kit's own toggle — the second of the two call sites TASK-56 named, and the one it
+            left behind. The four colour props the switch needs live there now, once. */}
+        <Toggle
+          label={s.create.multiDay}
+          value={end !== null}
+          onValueChange={(on) => setEnd(on ? endOfDay(start) : null)}
+          disabled={busy}
+        />
 
         {end === null ? null : (
           <DayField
@@ -211,14 +198,6 @@ const useStyles = themed(({ color }) =>
     screen: { flex: 1, backgroundColor: color.ink, paddingHorizontal: space.s4 },
     // The kit's `.stack-6` — what the body of this screen is spaced on.
     form: { flex: 1, gap: space.s6, paddingTop: space.s2 },
-    // The row keeps a finger's worth of height whatever the platform draws the switch at.
-    toggle: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: space.s4,
-      minHeight: TAP,
-    },
     error: { marginBottom: space.s3 },
     // The kit's input type, with the tabular figures it asks of every date.
     day: { fontVariant: ['tabular-nums'] },

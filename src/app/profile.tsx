@@ -147,7 +147,9 @@ export default function ProfileScreen() {
 
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
-    screen: { flex: 1, paddingHorizontal: space.s6, backgroundColor: color.ink },
+    // The kit's `.screen__head` / `.screen__body` / `.screen__foot` all sit 16 in, and the screens
+    // section says it once for all eleven: «Боковой отступ 16 задаёт экран».
+    screen: { flex: 1, paddingHorizontal: space.s4, backgroundColor: color.ink },
     // `.stack-6`, and `flexGrow` rather than `flex` so the column is at least the height of the
     // screen — that is what gives the button below something to be pushed against — and taller than
     // it once the content is, which is when it scrolls.

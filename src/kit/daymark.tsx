@@ -3,6 +3,7 @@ import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { space, themed } from '@/theme';
 
+import { TAP } from './tap';
 import { Text } from './text';
 
 /**
@@ -43,7 +44,9 @@ const useStyles = themed(({ color }) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: space.s3,
-      minHeight: 44,
+      // The kit's `min-height:44px`, which is the kit's tap size — named, the way the rest of the
+      // kit names it.
+      minHeight: TAP,
       paddingTop: space.s4,
       paddingBottom: space.s2,
     },

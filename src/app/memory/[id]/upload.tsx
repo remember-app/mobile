@@ -224,11 +224,9 @@ export default function UploadScreen() {
     setPicked(new Set());
   }
 
-  const title = memory?.title ?? s.memory.fallbackTitle;
-
   if (galleryError !== null) {
     return (
-      <Screen title={title}>
+      <Screen>
         <Banner tone="error" text={galleryError}>
           <Button sm variant="quiet" label={s.action.retry} onPress={retry} />
         </Banner>
@@ -238,7 +236,7 @@ export default function UploadScreen() {
 
   if (access === null) {
     return (
-      <Screen title={title}>
+      <Screen>
         <View style={styles.waiting}>
           <Spinner />
         </View>
@@ -248,7 +246,7 @@ export default function UploadScreen() {
 
   if (!granted) {
     return (
-      <Screen title={title}>
+      <Screen>
         {/* The kit says a message lives in the flow of the screen and carries what can be done
             about it — here that is the phone's own dialog while it is still worth asking, and
             Settings once the phone has stopped asking. */}
@@ -264,7 +262,7 @@ export default function UploadScreen() {
   }
 
   return (
-    <Screen title={title}>
+    <Screen>
       {memory ? (
         <Text role="meta">{formatEventDates(memory.event_start, memory.event_end)}</Text>
       ) : null}
@@ -317,6 +315,11 @@ export default function UploadScreen() {
                 sm
                 variant="quiet"
                 label={s.upload.selectDay(row.day.assets.length)}
+                // Out until the whole roll is in hand, the way the one wide «выбрать всё за эти
+                // даты» was before it was cut into days: the roll arrives 500 at a time, so a day
+                // that straddles a page is still growing, and «все» would take only the head of it
+                // and say nothing about the tail.
+                disabled={reading}
                 onPress={() => pickDay(row.day)}
               />
             </DayMark>
@@ -412,7 +415,7 @@ export default function UploadScreen() {
  * the app (`_layout`), so the kit's own appbar is what carries the way back — and a screen that
  * cannot open the gallery needs it as much as one that can.
  */
-function Screen({ title, children }: { title: string; children: ReactNode }) {
+function Screen({ children }: { children: ReactNode }) {
   const router = useRouter();
   const s = useStrings();
   const styles = useStyles();
@@ -421,10 +424,11 @@ function Screen({ title, children }: { title: string; children: ReactNode }) {
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       <AppBar
-        title={title}
-        // Four screens of this memory carry its name; this is the line that says which one is open.
-        // Said in every one of this screen's states, the way the way back is.
-        subtitle={s.upload.title}
+        // The kit's screen 7 puts «Ваши кадры» here and nothing else: this screen is about the
+        // phone's own roll, not about the memory, and the memory's name on it was the leftover of
+        // the days when four screens shared one title (TASK-76 — dissolved by TASK-101, which left
+        // exactly two screens carrying a memory's name and this is not one of them).
+        title={s.upload.title}
         left={
           // A cross and not an arrow: this screen comes up over the frames as an errand of its own,
           // not as a step deeper into them, and an errand is closed rather than backed out of. What
