@@ -138,11 +138,18 @@ export function Frames({ id, head }: { id: string; head: Head }) {
    * in React Native, and only the first of them was ever wanted.
    */
   const walked = useRef(false);
-  // Re-armed by opening another frame and by nothing else — so the strip walks once per opening,
-  // the second opening of the same frame included, and never because the gallery grew underneath.
+  /**
+   * Re-armed when the viewer opens and by nothing else — not when the open frame changes. Walking
+   * along the strip is a change of `open` with nothing remounted and no content resized, so nothing
+   * scrolls at that moment; re-arming there only leaves the latch loaded for the next frame that
+   * lands, and that one hauls the strip back from wherever the finger had it — the very jump this
+   * latch exists to stop, surviving one tap further on. Keyed on «is anything open» rather than on
+   * the press that opened it, so any future way into the viewer is armed by being one.
+   */
+  const viewing = open !== null;
   useEffect(() => {
     walked.current = false;
-  }, [open]);
+  }, [viewing]);
 
   const load = useCallback(
     // `quiet` belongs to the re-read below: that one happens on its own every few seconds, and it
@@ -209,6 +216,15 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   const shown = items?.find((item) => item.id === open) ?? null;
   /** The open record read the way the grid reads it — one answer, two places drawing it. */
   const openFrame = shown === null ? null : frameOf(shown);
+  /**
+   * What is marked *and* still in the sheet. `picked` is only ever emptied by leaving the mode or
+   * by «Снять», and the sheet moves underneath it on its own — the three-second re-read, the read
+   * on focus, the pull. Somebody else deleting a marked frame left the button counting it: it said
+   * «Скачать 3 файла», came back «Сохранено 0 файлов», and had signed the gallery to find that
+   * out. The button says what it will actually take home by being asked the same question the
+   * download is.
+   */
+  const marked = items?.filter((item) => picked.has(item.id)) ?? [];
 
   /**
    * What a tile is called out loud: what it is, what has become of it, and whether it is the frame
@@ -483,7 +499,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
                   variant="quiet"
                   label={s.action.clear}
                   onPress={() => setPicked(new Set())}
-                  disabled={busy || picked.size === 0}
+                  disabled={busy || marked.length === 0}
                 />
                 <Button
                   variant="primary"
@@ -493,10 +509,12 @@ export function Frames({ id, head }: { id: string; head: Head }) {
                   // take home. With nothing marked the button is off and says why: «Скачать 0
                   // файлов» reads as a button that would take nothing if only it worked.
                   label={
-                    picked.size === 0 ? s.gallery.nothingPicked : s.gallery.download(picked.size)
+                    marked.length === 0
+                      ? s.gallery.nothingPicked
+                      : s.gallery.download(marked.length)
                   }
                   onPress={() => void savePicked()}
-                  disabled={busy || picked.size === 0}
+                  disabled={busy || marked.length === 0}
                 />
               </ActionBar>
             ) : mayUpload ? (

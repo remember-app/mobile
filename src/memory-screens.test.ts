@@ -177,12 +177,18 @@ test('the picking footer is «Снять» beside a download that carries its co
   // The quiet half is the word the kit gives both sheets that pick something, said in one place.
   expect(picking).toContain('label={s.action.clear}');
   expect(upload).toContain('label={s.action.clear}');
-  expect(picking).toContain(
-    'picked.size === 0 ? s.gallery.nothingPicked : s.gallery.download(picked.size)',
-  );
+  expect(picking).toContain('s.gallery.download(marked.length)');
+  expect(picking).toContain('s.gallery.nothingPicked');
   expect(picking).toContain('onPress={() => void savePicked()}');
   // Both off with nothing marked, and both off while something is already coming down.
-  expect(picking.match(/disabled=\{busy \|\| picked\.size === 0\}/g)).toHaveLength(2);
+  expect(picking.match(/disabled=\{busy \|\| marked\.length === 0\}/g)).toHaveLength(2);
+  // Counted off the sheet and never off the raw set. `picked` is emptied only by leaving the mode
+  // or by «Снять», while the sheet moves on its own — the three-second re-read, the focus, the
+  // pull. A frame somebody else deleted stayed in the set and stayed in the count: the button
+  // offered «Скачать 3 файла», signed the whole gallery to find out, and came back «Сохранено 0
+  // файлов». Found in review. What the button counts is what the download will find.
+  expect(frames).toContain('const marked = items?.filter((item) => picked.has(item.id)) ?? [];');
+  expect(picking).not.toContain('picked.size');
   // The download itself is the whole-gallery route cut to what is marked — one ask, not one per
   // file, which is what «скачать всё» already did.
   expect(frames).toContain(
@@ -281,6 +287,16 @@ test('every row says how many frames that person brought, counted off the galler
   expect(people.match(/listMedia\(/g)).toHaveLength(1);
   expect(people).toContain('by.set(item.uploaded_by, (by.get(item.uploaded_by) ?? 0) + 1)');
   expect(people).toContain('count={shots ? s.memory.frames(shots.get(member.id) ?? 0)');
+  // The `@ник` under the name, and the rule for leaving it off when it is already the name above —
+  // one copy in `api.ts` beside `memberName`, which settles the other half of the same pair. It was
+  // written out here and again on the profile head until review pulled it back.
+  expect(people).toContain('meta={memberHandle(member)}');
+  // Swallowed, and nothing written on the way out. This read runs again on every focus, so a
+  // failure on the way back from the upload screen used to blank a column of counts that was
+  // already on screen and right — and nothing on this face retries it, because the banner belongs
+  // to the roster. Found in review: never counted earns the dash, counted-then-lost does not.
+  expect(people).not.toContain('setShots(null)');
+  expect(people).toContain('() => {},');
   // The kit's green belongs to «Всё загрузил» alone: that dot is what the organizer scans for.
   expect(people).toContain("ready={member.contribution_status === 'done'}");
 });
@@ -421,9 +437,14 @@ test('the strip is walked once per opening, and never again under the finger', (
   );
   expect(walk).toContain('if (walked.current) return;');
   expect(walk).toContain('walked.current = true;');
-  // Re-armed by opening another frame and by nothing else: once per opening, the second opening of
-  // the same frame included, and never because the gallery grew underneath.
-  expect(frames).toMatch(/walked\.current = false;\n {2}\}, \[open\]\);/);
+  // Re-armed by the viewer opening and by nothing else — and `[open]` is not that. Walking along
+  // the strip changes which frame is open without remounting anything or resizing the content, so
+  // nothing scrolls then; keyed on `open`, the latch was simply left loaded for the next frame to
+  // land, which hauled the strip back from under the finger one tap later. Found in review: the
+  // fix above survived in every path but this one.
+  expect(frames).toContain('const viewing = open !== null;');
+  expect(frames).toMatch(/walked\.current = false;[\s\S]{0,20}\[viewing\]\)/);
+  expect(frames).not.toMatch(/\[open\]\)/);
 });
 
 test('a strip tile and a sheet tile read a record the same way', () => {

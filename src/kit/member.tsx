@@ -10,12 +10,8 @@ import { Text } from './text';
  * Section 7 — who is in a memory. Plus the invite link of section 11, which is how they get there.
  */
 
-/**
- * The kit's 40-wide `.avatar`. Named for the same reason `SHEET_GAP` is: a screen hanging something
- * under a member's name has to start it where the name starts, and that offset is this plus the
- * row's own gap — measured by hand it drifts out of its column the day the circle changes size.
- */
-export const AVATAR = 40;
+/** The kit's 40-wide `.avatar`. */
+const AVATAR = 40;
 
 /**
  * The kit's `.avatar`: one letter of the name in a circle. It only repeats the name written beside

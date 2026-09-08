@@ -41,7 +41,10 @@ test('the head says who you are once, never the same word twice', () => {
   // by email is named by their username, and printing it again under itself spends the second line
   // on nothing.
   expect(profile).toContain('const name = memberName(user);');
-  expect(profile).toContain('username={user?.username && user.username !== name');
+  // Both halves of the pair come off `api.ts`, and the rule for dropping the second one is written
+  // there beside the rule for choosing the first. It was spelled out here and again on the roster
+  // row until review pulled it back to its sibling.
+  expect(profile).toContain('username={memberHandle(user)}');
   expect(profile).toContain('email={user?.email ?? undefined}');
 });
 
@@ -57,8 +60,15 @@ test('the three-value switch is not squeezed into equal thirds', () => {
   // needs 108. The kit puts both rows on `.segment-wide`, and the obvious tidying is to make these
   // two match — which cuts the longest value on every phone in service. Two values fit that way,
   // three do not.
-  expect(profile).toMatch(/hint=\{s\.theme\.hint\}\n\s+value=/);
-  expect(profile).toMatch(/hint=\{s\.language\.hint\}\n\s+wide\n/);
+  // Read off each `<Segment` block rather than off the line breaks around a prop: pinned by
+  // adjacency, this passed just as happily with `wide` moved *above* the hint on the theme row —
+  // which is the one arrangement it exists to catch.
+  const segment = (name: string) => {
+    const at = profile.indexOf(`label={s.${name}.label}`);
+    return profile.slice(at, profile.indexOf('/>', at));
+  };
+  expect(segment('theme')).not.toContain('wide');
+  expect(segment('language')).toContain('wide');
 });
 
 test('two hairlines cut the screen into who you are, what to set, how to leave', () => {

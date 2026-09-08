@@ -11,6 +11,7 @@ import {
   listMedia,
   listMembers,
   mayContribute,
+  memberHandle,
   memberName,
   removeMember,
   rotateInvite,
@@ -92,6 +93,12 @@ export function People({ id, head }: { id: string; head: Head }) {
     // because the roster is what this face is, and the count is a fact beside it. A memory whose
     // media cannot be listed (503 with no bucket configured) still has to show who is in it, so
     // this failure leaves the dash and never the face's error line.
+    //
+    // A failure is swallowed and nothing is written: this runs again on every focus, and a read
+    // that falls over on the way back from the upload screen used to blank a column of counts that
+    // was already on screen and correct. Nothing on this face retries it — the banner belongs to
+    // the roster — so it would have stood as dashes until the next focus. Never counted and
+    // counted-then-lost are not the same thing, and only the first one is worth a dash.
     listMedia(token, id).then(
       (media) =>
         setShots(
@@ -100,7 +107,7 @@ export function People({ id, head }: { id: string; head: Head }) {
             new Map<string, number>(),
           ),
         ),
-      () => setShots(null),
+      () => {},
     );
   }, [token, id]);
 
@@ -253,14 +260,7 @@ export function People({ id, head }: { id: string; head: Head }) {
                   <RowMember
                     key={member.id}
                     name={self ? s.members.you(memberName(member)) : memberName(member)}
-                    // The username is left off when it is already the name on the line above —
-                    // everybody who signed in by email is named by their username, and printing it
-                    // twice spends width the standing beside it needs.
-                    meta={
-                      member.username && member.username !== memberName(member)
-                        ? `@${member.username}`
-                        : undefined
-                    }
+                    meta={memberHandle(member)}
                     status={
                       mine ? (
                         <ChipAction

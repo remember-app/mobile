@@ -220,6 +220,16 @@ export type Member = Omit<User, 'email'> & {
 export const memberName = (member: Pick<Member, 'name' | 'username'> | null) =>
   member?.name ?? member?.username ?? say().memory.someone;
 
+/**
+ * The `@username` written under that name — and nothing at all when the username is already the
+ * name above it, because everybody who signed in by email is called by their username and printing
+ * it twice spends a line saying nothing. The other half of `memberName`, and here beside it for the
+ * same reason: the roster row and the profile head both draw this pair, and the day the rule
+ * changes it has to change once.
+ */
+export const memberHandle = (member: Pick<Member, 'name' | 'username'> | null) =>
+  member?.username && member.username !== memberName(member) ? `@${member.username}` : undefined;
+
 /** What may actually be granted. Never `organizer`: a memory has exactly one, its creator. */
 export type InviteRole = Exclude<MemberRole, 'organizer'>;
 

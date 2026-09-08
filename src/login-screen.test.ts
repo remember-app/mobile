@@ -66,7 +66,11 @@ test('the mail line stands whatever the build has, and alone it is the one actio
   expect(offered.lastIndexOf(') : null}')).toBeLessThan(offered.indexOf('s.login.withEmail'));
   // And with nothing above it, it stops being the quiet third choice: a lone `quiet` button reads
   // as a caption under an empty room, not as the way in.
-  expect(offered).toContain("variant={appleAvailable || GOOGLE_CLIENT_ID ? 'quiet' : 'primary'}");
+  expect(offered).toContain("variant={appleAvailable === false && !GOOGLE_CLIENT_ID ? 'primary'");
+  // `=== false` and not falsy: `null` is «the phone has not answered yet», and the ember may not
+  // land on the mail line while an Apple button is still on its way in above it. Seeded `false`,
+  // an iPhone drew the glow on the first paint and took it back a frame later.
+  expect(login).toContain('useState<boolean | null>(null)');
 });
 
 test('the development way in is not dressed up as the ordinary one', () => {

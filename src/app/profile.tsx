@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { errorMessage, memberName } from '@/api';
+import { errorMessage, memberHandle, memberName } from '@/api';
 import { useAuth } from '@/auth';
 import { AppBar, Banner, Button, Hint, IconButton, MemberHead, Segment } from '@/kit';
 import { setLanguage, useLanguage, useStrings } from '@/language';
@@ -87,11 +87,7 @@ export default function ProfileScreen() {
       >
         {/* «Кто вы»: the kit's member row turned on yourself — the big circle, the name in full
             voice, and under it the username and the address. The hairline belongs to the row. */}
-        <MemberHead
-          name={name}
-          username={user?.username && user.username !== name ? `@${user.username}` : undefined}
-          email={user?.email ?? undefined}
-        />
+        <MemberHead name={name} username={memberHandle(user)} email={user?.email ?? undefined} />
 
         {/* Over the switches and not at the foot of the screen: this is the answer to the pick that
             was just made, and the kit stands it where the pick was («Ждём», screen 8). */}

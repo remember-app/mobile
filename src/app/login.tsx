@@ -51,7 +51,12 @@ export default function LoginScreen() {
   const [devLink, setDevLink] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [appleAvailable, setAppleAvailable] = useState(false);
+  // `null` until the phone has answered — which is a third thing from «yes» and «no», and the
+  // reason it is not seeded `false`. The answer is a native round trip, so a screen that assumed
+  // «no» drew the mail line as its one ember action on the very first paint of an iPhone, then
+  // took the glow away again a frame later when Apple turned up above it. Nothing may claim to be
+  // the screen's only way in until it is known that it is.
+  const [appleAvailable, setAppleAvailable] = useState<boolean | null>(null);
 
   // False on Android and on any build without the Sign in with Apple entitlement.
   useEffect(() => {
@@ -258,7 +263,7 @@ export default function LoginScreen() {
                 so it takes the ember the kit gives that, rather than hanging there as a grey line
                 under an empty room. */}
             <Button
-              variant={appleAvailable || GOOGLE_CLIENT_ID ? 'quiet' : 'primary'}
+              variant={appleAvailable === false && !GOOGLE_CLIENT_ID ? 'primary' : 'quiet'}
               wide
               label={s.login.withEmail}
               onPress={() => setByMail(true)}
