@@ -46,3 +46,20 @@ test('the development way in is not dressed up as the ordinary one', () => {
   expect(en.login.devLink).toMatch(/development/i);
   expect(ru.login.devLink).toMatch(/разработк/i);
 });
+
+test('a dev link with no token in it fails loud instead of trading nothing', () => {
+  const block = login.slice(login.indexOf('if (!token) {'), login.indexOf('const session = await'));
+  expect(block).toContain('setDevLink(false);');
+  expect(block).toContain('setError(s.link.noToken);');
+});
+
+test('the trade\'s own failures land in the screen\'s words, not the api\'s', () => {
+  // A spent link (TASK-97's token is single-use) answers 401, and the api's own wording for that is
+  // written for whoever runs it — same trade `mailDown` already makes for a 503.
+  const block = login.slice(login.indexOf('} catch (e) {'), login.indexOf('} finally {'));
+  expect(block).toContain('setDevLink(false);');
+  expect(block).toContain('if (status === 503) setError(s.login.mailDown);');
+  expect(block).toContain('else if (status === 401) setError(s.link.expired);');
+  expect(en.link.expired).toMatch(/expired/i);
+  expect(ru.link.expired).toMatch(/действ/i);
+});
