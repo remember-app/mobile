@@ -1,459 +1,88 @@
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { Check, ChevronLeft, Film, Share2, X } from 'lucide-react-native';
-import { useCallback, useState } from 'react';
-import { ScrollView, Share, StyleSheet, Switch, View } from 'react-native';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import {
-  ApiError,
-  errorMessage,
-  fetchInvite,
-  inviteByUsername,
-  listMemories,
-  listMembers,
-  mayContribute,
-  memberName,
-  removeMember,
-  rotateInvite,
-  setContributionStatus,
-  type Invite,
-  type Member,
-  type Memory,
-} from '@/api';
+import { errorMessage, listMemories, type Memory } from '@/api';
 import { useAuth } from '@/auth';
-import { formatEventDates } from '@/dates';
-import {
-  AppBar,
-  AVATAR,
-  Banner,
-  Button,
-  Chip,
-  ConfirmSheet,
-  Empty,
-  Field,
-  ICO_S,
-  IconButton,
-  // The kit's `.invite` box. The api's own `Invite` is the token behind it and keeps the plain
-  // name here, as it has everywhere else in the app.
-  Invite as InviteLink,
-  RowMember,
-  Sheet,
-  Text,
-} from '@/kit';
-import { useStrings } from '@/language';
-import { space, useTheme } from '@/theme';
+import { Films } from '@/memory/films';
+import { type Face } from '@/memory/head';
+import { Frames } from '@/memory/frames';
+import { People } from '@/memory/people';
+import { themed } from '@/theme';
 
 /**
- * One memory: who is in it, how to get more people in, and how to get out. What the caller
- * may do is read off their own row in the roster — the api is the authority on that, so
- * nothing here is gated on anything the client made up.
+ * One memory — one screen with three faces (kit, «Экраны» 4–6): «не три экрана с одним именем, а
+ * один экран с тремя лицами: имя стоит в шапке, лицо выбирают переключателем под ней». The frames,
+ * the movies and the people used to be three routes under three captions, reached by an unlabelled
+ * corner icon; this is all three under one appbar, and the switch under it is how they are reached.
  *
- * The videos are not here: they are their own screen, behind the one button on this one that
- * glows (TASK-64, TASK-74). Nor is a way to add material — the gallery's «Add more» is where that
- * lives, in front of what is already in.
+ * Everything that is the same for all three lives here: which face is on, and the memory itself —
+ * its name in the appbar, its days, the caller's level. Read once and handed down, so switching a
+ * face does not blink the name. Everything else — the material, the montages, the roster — belongs
+ * to the face that draws it and is read when that face comes on.
+ *
+ * The face can be asked for on the way in (`?face=films`), which is how a tapped «ролик готов» push
+ * lands on the movies; without one, the frames are what a memory opens on, the way the kit's map
+ * draws it.
  */
 export default function MemoryScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const { token, user } = useAuth();
-  const router = useRouter();
-  const s = useStrings();
-  // The platform's switch takes its colours as props, not as a style — the sheet below has none.
-  const { color } = useTheme();
+  const { id, face: wanted } = useLocalSearchParams<{ id: string; face?: Face }>();
+  const { token } = useAuth();
   const insets = useSafeAreaInsets();
-  // null means «not loaded yet» — the same distinction the home screen draws, so a refetch
-  // after an invite keeps the roster on screen instead of flashing the spinner over it.
-  const [members, setMembers] = useState<Member[] | null>(null);
+  const styles = useStyles();
+  // Held here and not in the url: switching a face is not a place one goes back to, and a `replace`
+  // per press would spend a navigation on a segmented control. The link's own answer is the seed.
+  const [face, setFace] = useState<Face>(wanted ?? 'frames');
+
+  // And the seed again whenever it changes under a screen that is already up. A push mounts a fresh
+  // one and never needs this, but a link followed onto the memory somebody is already reading only
+  // hands the open screen new params — without this it stayed on the face they were on, which is
+  // what a `?face=people` link did on the simulator. Pressing the switch does not move `wanted`, so
+  // this cannot fight the hand.
+  useEffect(() => {
+    if (wanted) setFace(wanted);
+  }, [wanted]);
+  // null means «not read yet» — the appbar stands under the one shared fallback word until it is.
   const [memory, setMemory] = useState<Memory | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [invite, setInvite] = useState<Invite | null>(null);
-  const [username, setUsername] = useState('');
-  // The level newcomers get, by both roads at once: it is what an invite by username grants
-  // and what a rotated link will grant, so there is one answer to «what does joining give».
-  const [mayAdd, setMayAdd] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
-  // Everything to do with getting people in is asked for on a sheet, not kept open on the screen:
-  // inviting is something one does once, and the roster is what the screen is for.
-  const [inviting, setInviting] = useState(false);
-  // Who the confirm sheet is asking about; null is «no sheet». The sheet is the whole state:
-  // holding a boolean beside the member would let the two disagree.
-  const [dropping, setDropping] = useState<Member | null>(null);
 
   const load = useCallback(() => {
     if (!token) return;
     setError(null);
-    // The roster carries no memory, and the title belongs on this screen — so the list the
-    // home screen already reads answers for the header too. Costs one request and works the
-    // same however this screen was reached, which nav params would not.
-    Promise.all([listMembers(token, id), listMemories(token)]).then(
-      ([roster, memories]) => {
-        setMembers(roster);
-        setMemory(memories.find((one) => one.id === id) ?? null);
-      },
+    // The listing the home screen already reads answers everything this screen needs off the memory
+    // itself, and it works however the screen was reached — a tapped push and a cold deep link
+    // included, neither of which carries a title along. One read for all three faces.
+    listMemories(token).then(
+      (memories) => setMemory(memories.find((one) => one.id === id) ?? null),
       (e: unknown) => setError(errorMessage(e)),
     );
   }, [token, id]);
 
-  // On focus rather than on mount, the way the home screen does it: both things this screen says
-  // about the material — the count on the gallery button and everybody's standing on the roster —
-  // change while whoever is reading them is off uploading. Coming back re-reads them, instead of
-  // leaving a screen that has been stale since it was first opened.
+  // On focus, the way the home screen does it: the title, the days and the level all change while
+  // whoever is reading them is off uploading or being made an organizer.
   useFocusEffect(load);
 
-  const me = members?.find((member) => member.id === user?.id) ?? null;
-  const role = me?.role ?? null;
-  // doc-01: adding people is «Добавление» and up, and so is bringing photos — whoever may bring
-  // material to a memory may bring people to it. A viewer may look and leave, nothing else. The
-  // api is the authority on all of it; this only decides what to draw.
-  const mayContributeHere = mayContribute(role);
-  const newcomerRole = mayAdd ? 'contributor' : 'viewer';
-  // Derived together so the branch below narrows both at once: there is a link exactly when
-  // there is an invite. `remember://` is the scheme in app.json; TASK-16 is what receives it.
-  const shareable = invite && {
-    link: `remember://invite?token=${encodeURIComponent(invite.token)}`,
-    grants: s.role[invite.role],
-  };
-  // Checked against `dropping` first, so a closed sheet is never «about me» by two undefineds.
-  const leaving = dropping !== null && dropping.id === user?.id;
+  const head = { memory, error, reload: load, face, onFace: setFace };
 
-  /**
-   * Every api call this screen's buttons make is the same shape: lock the controls, run one call,
-   * say one line about it. `said` maps the statuses this particular call can come back with;
-   * anything else falls through to the api's own wording.
-   */
-  async function act(
-    what: (session: string) => Promise<string | null>,
-    said: Partial<Record<number, string>> = {},
-  ) {
-    if (!token) return;
-    setBusy(true);
-    setNotice(null);
-    try {
-      setNotice(await what(token));
-    } catch (e) {
-      setNotice((e instanceof ApiError ? said[e.status] : undefined) ?? errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const sendInvite = () =>
-    act(
-      async (session) => {
-        const added = await inviteByUsername(session, id, username.trim(), newcomerRole);
-        // The api is idempotent and answers 200 either way, so a re-add is only visible
-        // against the roster as it stood before the call.
-        const already = members?.some((member) => member.id === added.id) ?? false;
-        setUsername('');
-        load();
-        return already
-          ? s.members.already(memberName(added), s.role[added.role])
-          : s.members.added(memberName(added), s.role[added.role]);
-      },
-      { 404: s.members.noSuchUser, 403: s.members.inviteDenied },
-    );
-
-  const showLink = () =>
-    act(async (session) => {
-      setInvite(await fetchInvite(session, id));
-      return null;
-    });
-
-  const rotate = () =>
-    act(async (session) => {
-      setInvite(await rotateInvite(session, id, newcomerRole));
-      return s.members.linkReplaced;
-    });
-
-  /**
-   * «Ждать нечего», said without uploading anything — doc-06's own path onto a terminal status
-   * for the person who has no material at all. Only ever about oneself: the api takes no user id.
-   */
-  const sayNothing = () =>
-    act(async (session) => {
-      await setContributionStatus(session, id, 'nothing');
-      load();
-      return null;
-    });
-
-  const drop = (target: Member) =>
-    act(
-      async (session) => {
-        await removeMember(session, id, target.id);
-        if (target.id === user?.id) router.replace('/');
-        else load();
-        return null;
-      },
-      { 404: s.members.gone },
-    );
-
+  // The native header is off for the whole app, so the screen wears the kit's own appbar — drawn by
+  // the face, which is what knows whether there is an icon in the corner — and takes the phone's top
+  // inset itself.
   return (
-    <ScrollView contentContainerStyle={[styles.body, { paddingTop: insets.top }]}>
-      <AppBar
-        title={memory?.title ?? s.memory.fallbackTitle}
-        // Four screens of this memory carry its name; this is the line that says which one is open.
-        subtitle={s.members.title}
-        left={
-          <IconButton
-            icon={ChevronLeft}
-            label={s.action.back}
-            // A tapped invite push opens this screen with nothing behind it to go back to.
-            onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
-          />
-        }
-      />
-      {memory ? (
-        <Text role="meta">{formatEventDates(memory.event_start, memory.event_end)}</Text>
-      ) : null}
-
-      {error !== null ? (
-        <Banner tone="error" text={error}>
-          <Button sm variant="quiet" label={s.action.retry} onPress={load} />
-        </Banner>
-      ) : members === null ? (
-        <Empty busy text={s.state.loading} />
+    <View style={[styles.screen, { paddingTop: insets.top }]}>
+      {face === 'films' ? (
+        <Films id={id} head={head} />
+      ) : face === 'people' ? (
+        <People id={id} head={head} />
       ) : (
-        <>
-          {/* The kit gives the glow to exactly one thing per screen, and here that is the road to
-              the movie: the montage is what the memory is being filled up for, and it was standing
-              in a 40×40 icon in the corner while the way to the gallery wore the ember. Behind no
-              role at all, the way the screen behind it is — everybody gets the video back, and the
-              ordering of one is the organizer's own button over there. `navigate` and not `push`:
-              the two screens point at each other, and pushing would stack a fresh copy of one over
-              the other on every hop. */}
-          <Button
-            variant="primary"
-            icon={Film}
-            label={s.montage.title}
-            onPress={() => router.navigate({ pathname: '/memory/[id]/montage', params: { id } })}
-          />
-
-          {/* Behind no role at all: looking at the material is what every member may do, a viewer
-              included (doc-01). The count is the memory's own, so it says «empty» before opening.
-              Adding to it is not offered here at all any more: «Add more» stands in the gallery, in
-              front of what is already in.
-
-              «N кадров» and not «Фото и видео (N)»: the material has one name in this app, and this
-              button is one of the three places that were calling it something else (TASK-76). The
-              screen it opens is titled with the same word. */}
-          <Button
-            label={memory ? s.memory.frames(memory.media_count) : s.memory.framesPlain}
-            onPress={() => router.push({ pathname: '/memory/[id]/gallery', params: { id } })}
-          />
-
-          {/* The whole of getting someone in, behind one button of the same size as the one above
-              it — it belongs with the actions, and it stands right over the roster it adds to. */}
-          {mayContributeHere ? (
-            <Button label={s.action.invite} onPress={() => setInviting(true)} />
-          ) : null}
-
-          {/* A section of the screen, and the kit sets those in `.t-title` — its type specimen
-              draws this very heading in it. Muted 13 is `.t-meta`, which is the voice of a fact
-              beside a name, not of the heading over the whole roster. A heading to a rotor, too:
-              under the memory's own name in the appbar, it is the second stop on the way down. */}
-          <Text accessibilityRole="header" role="title" style={styles.section}>
-            {s.members.roster}
-          </Text>
-          {/* A `.map` and not a FlatList: this is one event's guest list inside a ScrollView,
-              and nesting a virtualised list in one is the thing React Native asks you not to do.
-              One View around it all so the rows keep the kit's own hairline and padding instead of
-              the gap this screen puts between everything else. */}
-          <View>
-            {members.map((member, index) => {
-              const self = member.id === user?.id;
-
-              return (
-                <View key={member.id}>
-                  <RowMember
-                    name={self ? s.members.you(memberName(member)) : memberName(member)}
-                    // Section 7 writes «@marina · 42 кадра» on one line, so the standing goes
-                    // beside the username rather than under it. The wording is doc-06's own, and
-                    // it goes in as the tail: on a phone the two together outrun the row, and of
-                    // the pair it is the standing the roster is opened for.
-                    // The username is left off when it is already the name on the line above —
-                    // everybody who signed in by email is named by their username, and printing
-                    // it twice spends the one line the standing needs on nothing.
-                    meta={
-                      member.username && member.username !== memberName(member)
-                        ? `@${member.username}`
-                        : undefined
-                    }
-                    tail={s.standing[member.contribution_status]}
-                    divider={index > 0}
-                  >
-                    <Chip label={s.role[member.role]} organizer={member.role === 'organizer'} />
-                    {role === 'organizer' && !self ? (
-                      <IconButton
-                        icon={X}
-                        size={ICO_S}
-                        label={s.members.remove(memberName(member))}
-                        onPress={() => setDropping(member)}
-                        disabled={busy}
-                      />
-                    ) : null}
-                  </RowMember>
-                  {/* Only on one's own row, and only while there is something left to say: both
-                      terminal statuses are the person's own word, and this is the way to give it
-                      unprompted. Under the row and not in it — the row already carries an avatar,
-                      a name and a role chip, and a fourth thing on that line leaves the name no
-                      width at all on a phone. Under the name, though, and not out at the right
-                      edge: right-aligned it hung over the hairline and read as the next person's,
-                      while in the name's own column there is no mistaking whose word it is. The
-                      tick is what keeps it from being read as one more standing printed under the
-                      row — a pill this size with no icon in it is the shape of the role chip.
-                      And only for somebody who could have added something: doc-01 gives «загружать
-                      медиа» to «Добавление» and up, so a viewer is a person nobody is waiting on —
-                      asking them to declare «ждать нечего» asks them to answer for material they
-                      were never able to bring. The api stays open to it on purpose (no role gate
-                      there): a status grants nothing, and one already given must survive its owner
-                      being moved down to viewer. This is the asking, not the right. The standing
-                      itself stays on every row, viewer's included — the roster is the organizer's
-                      progress and it is the same line for everybody. */}
-                  {self &&
-                  mayContributeHere &&
-                  member.contribution_status !== 'done' &&
-                  member.contribution_status !== 'nothing' ? (
-                    <Button
-                      sm
-                      icon={Check}
-                      label={s.members.sayNothing}
-                      onPress={sayNothing}
-                      disabled={busy}
-                      style={styles.own}
-                    />
-                  ) : null}
-                </View>
-              );
-            })}
-          </View>
-
-          {/* The organizer has no way out: leaving would leave the memory with nobody able to
-              run it, and handing the role over is out of MVP (doc-01). The api says 409. */}
-          {role !== null && role !== 'organizer' ? (
-            <>
-              <View style={styles.gap} />
-              <Button
-                variant="danger"
-                label={s.members.leave}
-                onPress={() => me && setDropping(me)}
-                disabled={busy}
-              />
-            </>
-          ) : null}
-        </>
+        <Frames id={id} head={head} />
       )}
-
-      {notice ? <Banner text={notice} /> : null}
-
-      {/* Both roads in, on one sheet: the level a newcomer arrives at is the same question for
-          both, and it is asked once above them. `visible` and nothing else — the Modal drops its
-          children while hidden, so each open starts the rise over. */}
-      <Sheet visible={inviting} onCancel={() => setInviting(false)}>
-        <Text accessibilityRole="header" role="title">
-          {s.members.inviteTitle}
-        </Text>
-        <View style={styles.toggle}>
-          <Text role="label">{s.members.mayAdd}</Text>
-          {/* The kit has no switch of its own, so the platform's takes the kit's colours. */}
-          <Switch
-            // Its own name, because the label beside it is only a sibling — and this one
-            // decides whether a newcomer arrives able to add photos or only to look.
-            accessibilityLabel={s.members.mayAdd}
-            value={mayAdd}
-            onValueChange={setMayAdd}
-            disabled={busy}
-            trackColor={{ false: color.line, true: color.ember }}
-            thumbColor={color.paper}
-            // The same paper again, for the half of the web switch `thumbColor` does not reach:
-            // switch.d.ts has the why. This one starts on, so it is the one it showed up on.
-            activeThumbColor={color.paper}
-            ios_backgroundColor={color.line}
-          />
-        </View>
-        <Field
-          label={s.username.label}
-          value={username}
-          onChangeText={setUsername}
-          placeholder={s.username.placeholder}
-          autoCapitalize="none"
-          autoCorrect={false}
-          editable={!busy}
-        />
-        {/* The sheet's own one glowing button, the way the order sheet has «Смонтировать»: a
-            surface gets exactly one, and here it is the whole point of opening this one. The link
-            below is the other road in and stays a plain button — it hands over something to send,
-            it does not put anybody in. */}
-        <Button
-          variant="primary"
-          label={s.action.invite}
-          onPress={sendInvite}
-          disabled={busy || username.trim() === ''}
-        />
-
-        <Text role="meta">{s.members.inviteLink}</Text>
-        {shareable === null ? (
-          // Asked for rather than loaded with the screen: the api mints the link on this
-          // very call, and a memory nobody shares should not carry one.
-          <Button label={s.members.getLink} onPress={showLink} disabled={busy} />
-        ) : (
-          <>
-            <InviteLink url={shareable.link}>
-              {/* The platform's own share sheet, which is also the copy button — no
-                  clipboard dependency for something every OS already does better. */}
-              <Button
-                sm
-                icon={Share2}
-                label={s.action.share}
-                onPress={() => void Share.share({ message: shareable.link }).catch(() => {})}
-                disabled={busy}
-              />
-            </InviteLink>
-            <Text role="meta">{s.members.linkGrants(shareable.grants)}</Text>
-            {/* Section 11: replacing a link is a quiet thing beside it, not a red button. */}
-            <Button
-              sm
-              variant="quiet"
-              label={s.members.replaceLink}
-              onPress={rotate}
-              disabled={busy}
-              style={styles.quiet}
-            />
-          </>
-        )}
-        {/* The same notice as the one on the screen, because half of what it says is said in
-            answer to something pressed in here — and the screen's copy is under the scrim. */}
-        {notice ? <Banner text={notice} /> : null}
-      </Sheet>
-
-      {/* Both halves of the same act, and irreversible either way — doc-01 takes the media too.
-          Section 13: what cannot be undone is asked on a sheet that names what will be lost, and
-          the button repeats the verb of the question. */}
-      {dropping !== null ? (
-        <ConfirmSheet
-          visible
-          title={leaving ? s.members.leaveAsk : s.members.removeAsk(memberName(dropping))}
-          text={leaving ? s.members.leaveText : s.members.removeText}
-          confirmLabel={leaving ? s.members.leaveDo : s.members.removeDo}
-          cancelLabel={leaving ? s.members.stay : s.members.keepThem}
-          onConfirm={() => {
-            const target = dropping;
-            setDropping(null);
-            void drop(target);
-          }}
-          onCancel={() => setDropping(null)}
-        />
-      ) : null}
-    </ScrollView>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  body: { paddingHorizontal: space.s5, paddingBottom: space.s8, gap: space.s3 },
-  section: { marginTop: space.s4 },
-  toggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  // Indented past the avatar so it starts where its own name does, and given the row's own bottom
-  // padding so the hairline under it separates two people rather than a person from their button.
-  own: { alignSelf: 'flex-start', marginLeft: AVATAR + space.s3, marginBottom: space.s3 },
-  quiet: { alignSelf: 'flex-start' },
-  gap: { height: space.s6 },
-});
+const useStyles = themed(({ color }) =>
+  StyleSheet.create({
+    screen: { flex: 1, backgroundColor: color.ink },
+  }),
+);

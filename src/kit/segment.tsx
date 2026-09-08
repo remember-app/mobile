@@ -1,4 +1,11 @@
-import { Pressable, StyleSheet, Text as RNText, View } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  Text as RNText,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 
 import { radius, space, themed, useTheme } from '@/theme';
 
@@ -11,9 +18,21 @@ export type SegmentOption<T extends string> = { value: T; label: string };
 export type SegmentProps<T extends string> = {
   /** The `t-label` above the row, and the radiogroup's name for a screen reader. */
   label: string;
+  /**
+   * Drawn without that label, which is then only the spoken one. The kit's own case: the row under
+   * a screen's appbar («Что показать») is titled by the screen itself, and a second heading over it
+   * would name the same thing twice.
+   */
+  hideLabel?: boolean;
+  /**
+   * `.segment-wide` — the row spans its column and splits it evenly between the values, instead of
+   * being as wide as its words. What the kit picks a *face* with rather than a setting.
+   */
+  wide?: boolean;
   options: readonly SegmentOption<T>[];
   value: T;
   onChange: (value: T) => void;
+  style?: StyleProp<ViewStyle>;
 };
 
 /**
@@ -23,19 +42,33 @@ export type SegmentProps<T extends string> = {
  * lights nor any of the kit's shapes.
  *
  * Controlled, and stateless like everything else in the kit: the caller holds the value and says
- * what the words are. Two callers so far — the theme and the language, side by side in the profile.
+ * what the words are. Three callers so far — the theme and the language side by side in the profile,
+ * and, `wide`, the three faces of one memory under its name.
  */
-export function Segment<T extends string>({ label, options, value, onChange }: SegmentProps<T>) {
+export function Segment<T extends string>({
+  label,
+  hideLabel,
+  wide,
+  options,
+  value,
+  onChange,
+  style,
+}: SegmentProps<T>) {
   const styles = useStyles();
 
   return (
-    <View style={styles.group}>
-      <Text role="label">{label}</Text>
-      <View style={styles.segment} accessibilityRole="radiogroup" accessibilityLabel={label}>
+    <View style={[styles.group, style]}>
+      {hideLabel ? null : <Text role="label">{label}</Text>}
+      <View
+        style={[styles.segment, wide ? styles.wide : null]}
+        accessibilityRole="radiogroup"
+        accessibilityLabel={label}
+      >
         {options.map((option) => (
           <Option
             key={option.value}
             label={option.label}
+            wide={wide}
             checked={option.value === value}
             onPress={() => onChange(option.value)}
           />
@@ -54,10 +87,12 @@ export function Segment<T extends string>({ label, options, value, onChange }: S
  */
 function Option({
   label,
+  wide,
   checked,
   onPress,
 }: {
   label: string;
+  wide?: boolean;
   checked: boolean;
   onPress: () => void;
 }) {
@@ -78,6 +113,7 @@ function Option({
       {...props}
       style={[
         styles.option,
+        wide ? styles.optionWide : null,
         checked ? { backgroundColor: color.raise, borderColor: shade.lineHi } : null,
         focused ? focusRing : null,
       ]}
@@ -109,6 +145,9 @@ const useStyles = themed(({ color }) =>
       borderColor: color.line,
       borderRadius: radius.pill,
     },
+    // `.segment-wide{display:flex; width:100%}` — the row stops being as wide as its words and takes
+    // the whole column it stands in.
+    wide: { alignSelf: 'stretch' },
     option: {
       // The one number that is not the kit's: a phone is narrower than the page the kit is drawn
       // on. At the kit's `--s4` the three-way theme row measures 332 against the 327 a 375pt phone
@@ -128,6 +167,9 @@ const useStyles = themed(({ color }) =>
       borderColor: 'transparent',
       borderRadius: radius.pill,
     },
+    // `.segment-wide label{flex:1; justify-content:center; padding:0 var(--s2)}` — equal thirds of
+    // the row, whatever the words in them are, so the switch under a memory's name never limps.
+    optionWide: { flexGrow: 1, flexBasis: 0, paddingHorizontal: space.s2 },
     label: { fontSize: 14, lineHeight: 14, fontWeight: '600' },
   }),
 );

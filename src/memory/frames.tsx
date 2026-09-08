@@ -1,15 +1,6 @@
-import { useFocusEffect, useIsFocused, useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useIsFocused, useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
-import {
-  Camera,
-  ChevronLeft,
-  Download,
-  Plus,
-  Trash2,
-  TriangleAlert,
-  Users,
-  X,
-} from 'lucide-react-native';
+import { Camera, Download, Plus, Trash2, TriangleAlert, X } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   FlatList,
@@ -29,12 +20,10 @@ import {
   downloadMedia,
   errorMessage,
   listMedia,
-  listMemories,
   listMembers,
   mayContribute,
   type MediaItem,
   type Member,
-  type Memory,
 } from '@/api';
 import { useAuth } from '@/auth';
 import { formatRuntime } from '@/dates';
@@ -42,7 +31,6 @@ import { maySaveToPhone, saveToPhone } from '@/downloads';
 import { frameIndex, frameOf, mayOpen, shotBy, stillPreparing, type Frame } from '@/frames';
 import {
   ActionBar,
-  AppBar,
   Banner,
   Button,
   ConfirmSheet,
@@ -54,10 +42,11 @@ import {
   Tile,
 } from '@/kit';
 import { useStrings } from '@/language';
+import { MemoryHead, type Head } from '@/memory/head';
 import { onScrim, space, themed, themes, ThemePin, useTheme } from '@/theme';
 
 /**
- * How long the screen waits before looking again while the worker is still making something. A
+ * How long the face waits before looking again while the worker is still making something. A
  * thumbnail takes it seconds, so this is about the time somebody spends noticing the sheet is not
  * finished yet.
  */
@@ -68,15 +57,18 @@ const STRIP_TILE = 52;
 const STRIP_GAP = SHEET_GAP;
 
 /**
- * What everybody put in, as everybody sees it — a viewer included (architecture.md, «Проверка
- * прав»). The grid is the kit's contact sheet (section 8); tapping one frame opens it on the whole
- * screen, with its actions over it and the rest of the gallery in a strip underneath to walk along
- * («Кадр на весь экран»). A video plays its 720p preview straight from R2 rather than downloading
- * first. Only «Download» reaches past the derivatives: the original as it was sent, saved into the
- * phone's gallery, one file or the lot of them.
+ * The first face of a memory (kit, «Экраны» 4): what everybody put in, as everybody sees it — a
+ * viewer included (architecture.md, «Проверка прав»). The grid is the kit's contact sheet
+ * (section 8); tapping one frame opens it on the whole screen, with its actions over it and the rest
+ * of the gallery in a strip underneath to walk along («Кадр на весь экран»). A video plays its 720p
+ * preview straight from R2 rather than downloading first. Only «Download» reaches past the
+ * derivatives: the original as it was sent, saved into the phone's gallery, one file or the lot.
+ *
+ * The lot of them is the one icon this memory's appbar carries, and it is carried on this face
+ * alone — the kit puts «Скачать всю галерею» in the corner and leaves «Добавить кадры» the whole of
+ * the footer.
  */
-export default function GalleryScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+export function Frames({ id, head }: { id: string; head: Head }) {
   const { token, user } = useAuth();
   const router = useRouter();
   const s = useStrings();
@@ -94,13 +86,11 @@ export default function GalleryScreen() {
    */
   const { width } = useWindowDimensions();
   const cell = { width: (width - SHEET_GAP * 2) / 3 };
-  // null means «not loaded yet», the distinction the other screens draw: a reload after a delete
+  // null means «not loaded yet», the distinction the other faces draw: a reload after a delete
   // keeps the grid on screen instead of flashing the spinner over it.
   const [items, setItems] = useState<MediaItem[] | null>(null);
   /** Everybody in this memory: where the caller stands, and the name over every open frame. */
   const [roster, setRoster] = useState<Member[] | null>(null);
-  /** The memory itself, for the one thing the appbar needs off it: what it is called. */
-  const [memory, setMemory] = useState<Memory | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   /** The record the viewer is showing, held by id so a reload hands it a fresh signed url. */
@@ -110,12 +100,12 @@ export default function GalleryScreen() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   /**
-   * Whether this screen is still the one the batch below is saving for. `busy` cannot answer that:
-   * it lives in state that goes with the screen, and «Download all» outlives the screen it was
-   * started on — `router.back()`, the swipe and the hardware key all pop the gallery while the loop
+   * Whether this face is still the one the batch below is saving for. `busy` cannot answer that:
+   * it lives in state that goes with the face, and «Download all» outlives it — `router.back()`, the
+   * swipe, the hardware key and now the switch to another face all take this one down while the loop
    * is still going. Left alone, that loop keeps writing to the phone's gallery with nothing able to
-   * stop it, and coming back gives a fresh screen with `busy` false, so a second «Download all»
-   * runs on top of the first and every file lands twice.
+   * stop it, and coming back gives a fresh face with `busy` false, so a second «Download all» runs on
+   * top of the first and every file lands twice.
    */
   const onScreen = useRef(true);
   useEffect(() => () => {
@@ -134,9 +124,9 @@ export default function GalleryScreen() {
         setError(null);
         setLoading(true);
       }
-      // The gallery carries neither a role nor a name, and this screen needs both: who may delete
+      // The gallery carries neither a role nor a name, and this face needs both: who may delete
       // what, and who brought the frame that is open. The roster answers both in one read, the way
-      // the guest list screen reads its own — and it works however this screen was reached.
+      // the people face reads its own — and it works however this screen was reached.
       Promise.all([listMedia(token, id), listMembers(token, id)])
         .then(
           ([media, members]) => {
@@ -155,32 +145,17 @@ export default function GalleryScreen() {
     [token, id],
   );
 
-  // On focus rather than on mount, the way the memory and home screens do it: what is drawn here
-  // changes on the worker's side, and the signed urls die in a quarter hour, so a screen that read
-  // once when it was first opened is showing whatever was true then.
+  // On focus rather than on mount, the way the home screen does it: what is drawn here changes on
+  // the worker's side, and the signed urls die in a quarter hour, so a face that read once when it
+  // was first opened is showing whatever was true then. It runs on mount too, which is what reads
+  // the material when this face is switched to.
   useFocusEffect(load);
 
-  // The memory's own name for the appbar — this screen used to be titled «Gallery» and lost it
-  // (TASK-76), which the other three screens of a memory never did. The road they take: the listing
-  // the home screen already reads answers it, so it works however this screen was reached — a
-  // tapped push and a cold deep link included, neither of which carries a title along.
-  //
-  // On its own and not inside `load`: `load` runs on every focus and again every few seconds while
-  // something is developing, and a title does not change under anybody. Quietly, too — a name that
-  // did not arrive costs the appbar one word, and it must not put an error over a grid that came.
-  useEffect(() => {
-    if (!token) return;
-    listMemories(token).then(
-      (memories) => setMemory(memories.find((one) => one.id === id) ?? null),
-      () => {},
-    );
-  }, [token, id]);
-
-  // And the same reason again with nobody navigating: a record turns `ready` while this screen is
+  // And the same reason again with nobody navigating: a record turns `ready` while this face is
   // open and on screen, and until this loop existed nothing ever told it — the sheet stayed in
   // «Preparing…» for as long as the person kept looking, which is exactly what they reported. Only
   // while something is actually being made, and only while this screen is the one in front:
-  // «Add more» and the roster both leave the gallery mounted behind them.
+  // «Add more» leaves the whole memory mounted behind it.
   const preparing = stillPreparing(items);
   const focused = useIsFocused();
   useEffect(() => {
@@ -193,13 +168,13 @@ export default function GalleryScreen() {
     return () => clearInterval(timer);
   }, [preparing, focused, load]);
 
-  // The caller's own standing, read off their row the way the guest list reads it.
+  // The caller's own standing, read off their row the way the people face reads it.
   const role = roster?.find((member) => member.id === user?.id)?.role ?? null;
   // Ownership and not role: a viewer may delete what they brought, a contributor may not delete a
   // neighbour's. The api is the authority — this only decides whether to draw the button.
   const mayDelete = (item: MediaItem) => item.uploaded_by === user?.id || role === 'organizer';
   // Material goes in during the event and long after the montage was made (doc-02); the only thing
-  // in the way is the level, which is the same one the memory screen gates its button on.
+  // in the way is the level, which is the same one the people face gates its invite on.
   const mayUpload = mayContribute(role);
   const shown = items?.find((item) => item.id === open) ?? null;
   /** The open record read the way the grid reads it — one answer, two places drawing it. */
@@ -215,7 +190,7 @@ export default function GalleryScreen() {
    * are then the record's own, so a tile is read out in the line it is drawn with. One helper for
    * both sheets, so the strip and the grid cannot drift apart again.
    */
-  // `current` and not `open`: `open` is this screen's own state a few lines up — the id of the
+  // `current` and not `open`: `open` is this face's own state a few lines up — the id of the
   // record being shown — and a boolean of the same name in here reads as that one.
   const nameOf = (item: MediaItem, frame: Frame, current?: boolean) =>
     [
@@ -248,7 +223,7 @@ export default function GalleryScreen() {
     setOpen(null);
   }
 
-  /** The grant, asked for at the moment it is needed, with this screen's place to say «no». */
+  /** The grant, asked for at the moment it is needed, with this face's place to say «no». */
   async function maySave(): Promise<boolean> {
     const granted = await maySaveToPhone();
     if (!granted) setNotice(s.error.galleryRefused);
@@ -262,8 +237,8 @@ export default function GalleryScreen() {
     setNotice(null);
     try {
       if (!(await maySave())) return;
-      // The viewer's actions are icons now, and an icon has no spinner in it — this line is where
-      // «it is doing something» is said, and the next one replaces it with how it went.
+      // The viewer's actions are icons, and an icon has no spinner in it — this line is where «it is
+      // doing something» is said, and the next one replaces it with how it went.
       setNotice(s.save.one);
       const { url } = await downloadMedia(token, id, item.id);
       await saveToPhone({ id: item.id, kind: item.kind, url });
@@ -306,9 +281,7 @@ export default function GalleryScreen() {
         }
       }
       setNotice(
-        failed === 0
-          ? s.save.all(files.length)
-          : s.save.some(files.length - failed, files.length),
+        failed === 0 ? s.save.all(files.length) : s.save.some(files.length - failed, files.length),
       );
     } catch (e) {
       setNotice(e instanceof ApiError ? e.message : s.save.failedAll);
@@ -318,33 +291,20 @@ export default function GalleryScreen() {
   }
 
   return (
-    // The native header is off for the whole app, so the screen wears the kit's own appbar and
-    // takes the phone's top inset itself.
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
-      <AppBar
-        title={memory?.title ?? s.memory.fallbackTitle}
-        // Four screens of this memory carry its name; this is the line that says which one is open.
-        // And it is the word the card and the guest list call the material by, not a fourth one.
-        subtitle={s.memory.framesPlain}
-        style={styles.pad}
-        left={
-          <IconButton
-            icon={ChevronLeft}
-            label={s.action.back}
-            // Opened straight from a link there is nothing behind this screen, and the way the
-            // memory and upload screens answer that is the way this one does.
-            onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
-          />
-        }
+    <>
+      <MemoryHead
+        {...head}
         right={
-          // The memory card opens this screen now, so the roster, the invites and the way out are
-          // reached from here — one icon in the corner rather than a screen in front of the
-          // material. `Users` and not `UserPlus`: what is behind it is the whole guest list, and
-          // inviting is only one of the things done to it.
+          // The one icon the kit allows this appbar, and it is on this face alone: taking the whole
+          // memory home is about the sheet under it and about nothing else. It used to be a second
+          // wide button in the footer beside «Добавить кадры» — two glowing-sized actions where the
+          // kit draws one (kit, «Экраны» 4). Everyone's, a viewer included: what somebody who may
+          // only look is here for. Off while busy, and while there is nothing to take.
           <IconButton
-            icon={Users}
-            label={s.members.title}
-            onPress={() => router.push({ pathname: '/memory/[id]', params: { id } })}
+            icon={Download}
+            label={s.gallery.downloadAll}
+            onPress={() => void saveEverything()}
+            disabled={busy || items === null || items.length === 0}
           />
         }
       />
@@ -414,30 +374,27 @@ export default function GalleryScreen() {
 
           <View style={styles.pad}>
             {/* Where «X of N» is read while the lot comes down, and the summary after it. The open
-                file has its own copy of this line — only one of the two is ever on screen. */}
-            {notice ? <Banner text={notice} style={styles.notice} /> : null}
-            <ActionBar>
-              {/* Everyone's, a viewer included: taking the material home is what somebody who may
-                  only look is in the memory for. Off while busy, and with nothing there to take.
-                  While this bar is on screen the viewer is not, so `busy` here is this button's
-                  own errand and the spinner belongs to it. */}
-              <Button
-                variant="secondary"
-                wide
-                icon={Download}
-                label={s.gallery.downloadAll}
-                busy={busy}
-                disabled={busy || items.length === 0}
-                onPress={() => void saveEverything()}
+                file has its own copy of this line — only one of the two is ever on screen. Without a
+                footer under it, it carries the phone's own bottom inset itself. */}
+            {notice ? (
+              <Banner
+                text={notice}
+                style={
+                  mayUpload
+                    ? styles.notice
+                    : { marginTop: space.s3, marginBottom: Math.max(insets.bottom, space.s4) }
+                }
               />
-              {/* «Добавить ещё», gated on the level and on nothing else — the same screen the
-                  memory screen sends people to, reachable with the material in front of them.
-                  Off while busy, like everything else on this bar: this one only pushes a screen
-                  in front (the gallery stays mounted and keeps its summary), but sending a batch
-                  up while a batch is coming down is two errands over one connection and one
-                  progress line between them. What the departure itself costs is handled by
-                  `onScreen`, not by this button. */}
-              {mayUpload ? (
+            ) : null}
+            {/* The kit leaves this face one footer button, and «Скачать всё» went to the corner
+                above to make room for it. «Добавить кадры», gated on the level and on nothing else
+                — whoever may only look has no footer at all (kit, «Экраны» 4, «Края»).
+                Off while busy, like everything else here: this one only pushes a screen in front
+                (the memory stays mounted and keeps its summary), but sending a batch up while a
+                batch is coming down is two errands over one connection and one progress line
+                between them. What the departure itself costs is handled by `onScreen`. */}
+            {mayUpload ? (
+              <ActionBar>
                 <Button
                   variant="primary"
                   wide
@@ -446,8 +403,8 @@ export default function GalleryScreen() {
                   disabled={busy}
                   onPress={() => router.push({ pathname: '/memory/[id]/upload', params: { id } })}
                 />
-              ) : null}
-            </ActionBar>
+              </ActionBar>
+            ) : null}
           </View>
 
           <Modal
@@ -477,7 +434,11 @@ export default function GalleryScreen() {
                       // Whole and not cropped, the kit's `.viewer__frame img`: the frame is shown as
                       // it was shot even when that is not the shape of the phone, and what is left
                       // over at the sides is ink rather than a border.
-                      <Image source={{ uri: openFrame.uri }} style={styles.big} resizeMode="contain" />
+                      <Image
+                        source={{ uri: openFrame.uri }}
+                        style={styles.big}
+                        resizeMode="contain"
+                      />
                     ) : (
                       // Nothing was ever made for this one. Said here as well as on the tile, because
                       // this is the screen the delete button is on — a failed record is one somebody
@@ -507,7 +468,7 @@ export default function GalleryScreen() {
                           the login of whoever uploaded it and the day the camera stamped the file,
                           which for anything sent out of an old album dated the event years wrong. */}
                       <Text role="meta" numberOfLines={1} style={styles.who}>
-                        {shotBy(shown, roster, memory)}
+                        {shotBy(shown, roster, head.memory)}
                       </Text>
                       {/* Not gated on anything: a viewer may take home what they are looking at, and
                           the api says the same — the download route asks for membership and nothing
@@ -537,10 +498,7 @@ export default function GalleryScreen() {
                       only thing under the frame. The same list the grid draws — no second read —
                       with every frame dimmed but the open one. */}
                   <View
-                    style={[
-                      styles.filmstrip,
-                      { paddingBottom: Math.max(insets.bottom, space.s2) },
-                    ]}
+                    style={[styles.filmstrip, { paddingBottom: Math.max(insets.bottom, space.s2) }]}
                   >
                     <RailH />
                     <FlatList
@@ -583,7 +541,7 @@ export default function GalleryScreen() {
                             // in ember, the mark a picked frame already wears. `filter: brightness`
                             // is the kit's spelling; over ink, opacity is the same thing everywhere.
                             style={[styles.stripTile, current ? null : styles.stripDim]}
-                            // The mark itself is the tile's, not this screen's. It was a border here
+                            // The mark itself is the tile's, not this face's. It was a border here
                             // until the designer measured it: a border is taken out of the tile's own
                             // 52px, so the open frame — the one frame that must stand out — sat 4px
                             // smaller than its neighbours and lost its picture to the ring. The kit
@@ -629,7 +587,7 @@ export default function GalleryScreen() {
           </Modal>
         </>
       )}
-    </View>
+    </>
   );
 }
 
@@ -657,14 +615,17 @@ function Playing({ url }: { url: string }) {
  * `data-theme="light"` figure holding a viewer that is still dark.
  *
  * The same rule `scrim` and `onScrim` are shared under, one step further out: this is the room the
- * photograph is looked at in, and it is not the interface around it. The grid screen behind it is
- * interface and does turn with the theme.
+ * photograph is looked at in, and it is not the interface around it. The face behind it is interface
+ * and does turn with the theme.
  */
 const room = themes.dark.color;
 
-const useStyles = themed(({ color }) =>
+// No colour of its own left in here: the ink behind the face belongs to the screen around it
+// (`app/memory/[id].tsx`), and everything else on it is a kit component drawing itself. Still a
+// `themed` sheet rather than a module-scope one — the pinned room below is the only thing in it that
+// has an opinion about the theme, and it says so by name.
+const useStyles = themed(() =>
   StyleSheet.create({
-    screen: { flex: 1, backgroundColor: color.ink },
     // The appbar and the bottom action stand off the edge; the sheet between them does not.
     pad: { paddingHorizontal: space.s4 },
     centered: { flex: 1, justifyContent: 'center', padding: space.s4 },

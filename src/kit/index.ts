@@ -33,4 +33,5 @@ export * from './shades';
 export * from './sheet';
 export * from './text';
 export * from './tile';
+export * from './toggle';
 export * from './upload';

@@ -1,6 +1,6 @@
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
-import { ChevronLeft, Download, Film, Users } from 'lucide-react-native';
+import { Download, Film } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { Modal, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,11 +8,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ApiError,
   errorMessage,
-  listMemories,
   listMontages,
   orderMontage,
   retryMontage,
-  type Memory,
   type Montage,
   type MusicTrackId,
 } from '@/api';
@@ -21,17 +19,16 @@ import { formatDay, formatRuntime } from '@/dates';
 import { maySaveToPhone, saveToPhone } from '@/downloads';
 import {
   ActionBar,
-  AppBar,
   Banner,
   Button,
   CardMontage,
   Empty,
-  IconButton,
   Sheet,
   Text,
   type MontageState,
 } from '@/kit';
 import { useStrings } from '@/language';
+import { MemoryHead, type Head } from '@/memory/head';
 import { type Strings } from '@/strings';
 import { space, themes, ThemePin } from '@/theme';
 
@@ -63,26 +60,25 @@ const montageTitle = (montage: Montage, s: Strings) => {
 };
 
 /**
- * The videos of one memory: what has been made, what is being made, and — for the organizer — the
- * asking for one more. Its own screen and not a block over the roster (TASK-64): «ролики не
+ * The second face of a memory (kit, «Экраны» 5): what has been made, what is being made, and — for
+ * the organizer — the asking for one more. Its own face and not a block over the roster: «ролики не
  * смешиваются с галереей» (doc-03), and neither do they with the guest list.
  *
  * Behind no role at all: the video is what everybody who brought material gets back, so a viewer
  * reads the list too. Only the organizer orders one, and only the organizer starts a fallen one
- * again — the api is the authority on that, and the level is read off the memory it hands over.
+ * again — the api is the authority on that, and the level is read off the memory the screen holds.
+ *
+ * Nothing on the right of the appbar here: the kit gives that corner to the frames alone, and the
+ * road to the other two faces is the switch under the name.
  */
-export default function MontageScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+export function Films({ id, head }: { id: string; head: Head }) {
   const { token } = useAuth();
-  const router = useRouter();
   const s = useStrings();
   const insets = useSafeAreaInsets();
-  // null means «not loaded yet» — the same distinction the other screens draw, so a refetch after
+  // null means «not loaded yet» — the same distinction the other faces draw, so a refetch after
   // an order keeps the cards on screen instead of flashing the spinner over them.
-  const [memory, setMemory] = useState<Memory | null>(null);
   const [montages, setMontages] = useState<Montage[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [montageError, setMontageError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [ordering, setOrdering] = useState(false);
@@ -93,33 +89,30 @@ export default function MontageScreen() {
   /** The montage being watched, held by id so a reload hands it a fresh signed url. */
   const [playing, setPlaying] = useState<string | null>(null);
 
+  // The memory itself — the title over this face and the level that decides whether it has a footer
+  // — is read once by the screen and handed to all three faces, so switching between them does not
+  // blink the name in the appbar.
+  const memory = head.memory;
+
   const load = useCallback(() => {
     if (!token) return;
     setError(null);
-    setMontageError(null);
-    // The montage list carries neither the memory's title nor the caller's level, so the list the
-    // home screen already reads answers for both — the road the gallery takes, and it works the
-    // same however this screen was reached, which nav params would not.
-    listMemories(token).then(
-      (memories) => setMemory(memories.find((one) => one.id === id) ?? null),
-      (e: unknown) => setError(errorMessage(e)),
-    );
-    // Beside that one rather than in it: the montage list is the call that answers 503 over a
-    // bucket nobody configured, and that must not take the title and the way out with it.
-    listMontages(token, id).then(setMontages, (e: unknown) => setMontageError(errorMessage(e)));
+    // Only the montages: this is the call that answers 503 over a bucket nobody configured, and it
+    // must not take the memory's own name down with it — that one is the screen's, above.
+    listMontages(token, id).then(setMontages, (e: unknown) => setError(errorMessage(e)));
   }, [token, id]);
 
   // On focus rather than on mount, the way the home screen does it — and here it is the montages
   // that need it: a queued one only ever changes on the worker's side, and `video_url` is signed
-  // for a quarter of an hour. Coming back from anywhere re-reads both, instead of leaving a card
-  // that has been stale since whenever this screen was first opened.
+  // for a quarter of an hour. Coming back from anywhere re-reads it, instead of leaving a card that
+  // has been stale since whenever this face was first opened.
   useFocusEffect(load);
 
   const role = memory?.role ?? null;
   const watching = montages?.find((montage) => montage.id === playing) ?? null;
 
   /**
-   * Every api call this screen's buttons make is the same shape: lock the controls, run one call,
+   * Every api call this face's buttons make is the same shape: lock the controls, run one call,
    * say one line about it. `said` maps the statuses this particular call can come back with;
    * anything else falls through to the api's own wording. Saving a montage onto the phone is the
    * one button that stays outside this: nothing it can fail at is the api's doing, so `keep` says
@@ -230,42 +223,12 @@ export default function MontageScreen() {
   }
 
   return (
-    // The bar at the bottom is the screen's frame and not part of its list, so the scroll is inside
-    // a plain view rather than being the screen itself — the shape every other screen has.
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
-      <ScrollView contentContainerStyle={styles.body}>
-        <AppBar
-          title={memory?.title ?? s.memory.fallbackTitle}
-          // Four screens of this memory carry its name; this is the line that says which one is
-          // open. The corner icon on the right is a way out of here, never the label of here.
-          subtitle={s.montage.title}
-          left={
-            <IconButton
-              icon={ChevronLeft}
-              label={s.action.back}
-              // A tapped «ролик готов» push opens this screen with nothing behind it to go back to.
-              onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
-            />
-          }
-          right={
-            // The other half of the memory, one icon away — the same corner the gallery reaches its
-            // members from. `navigate` and not `push`: the two screens point at each other, and
-            // pushing would stack a fresh copy of one over the other on every hop.
-            <IconButton
-              icon={Users}
-              label={s.members.title}
-              onPress={() => router.navigate({ pathname: '/memory/[id]', params: { id } })}
-            />
-          }
-        />
+    <>
+      <MemoryHead {...head} />
 
+      <ScrollView contentContainerStyle={styles.body}>
         {error !== null ? (
           <Banner tone="error" text={error}>
-            <Button sm variant="quiet" label={s.action.retry} onPress={load} />
-          </Banner>
-        ) : null}
-        {montageError !== null ? (
-          <Banner tone="error" text={montageError}>
             <Button sm variant="quiet" label={s.action.retry} onPress={load} />
           </Banner>
         ) : null}
@@ -274,7 +237,9 @@ export default function MontageScreen() {
             read once outlives a refetch that failed. Wiping it would take the videos off the
             screen over a blip. */}
         {montages === null ? (
-          montageError === null ? <Empty busy text={s.state.loading} /> : null
+          error === null ? (
+            <Empty busy text={s.state.loading} />
+          ) : null
         ) : (
           <>
             {montages.map((montage) => (
@@ -320,7 +285,7 @@ export default function MontageScreen() {
                 (section 6), so the words say what a montage is and what it takes, and the button
                 that starts one is on the bar below. Which invitation depends on who is reading —
                 and nothing until the memory has answered, because `role` comes off it and the two
-                calls race: an organizer shown «the organizer can ask for one» is being told about
+                reads race: an organizer shown «the organizer can ask for one» is being told about
                 themselves. The cards above need no role and go up as soon as they arrive. */}
             {montages.length === 0 && role !== null ? (
               <Empty
@@ -332,39 +297,45 @@ export default function MontageScreen() {
         )}
       </ScrollView>
 
-      {/* Above the bar and outside the scroll, the way the gallery holds its own: what the button
-          below answers with must not land at the bottom of a list that has scrolled away. The bar
-          is also what carries the phone's own bottom inset — and there is no bar for anybody but
+      {/* Above the bar and outside the scroll, the way the frames face holds its own: what the
+          button below answers with must not land at the bottom of a list that has scrolled away. The
+          bar is also what carries the phone's own bottom inset — and there is no bar for anybody but
           the organizer, so without this the line lands under the home indicator for everybody who
           only ever saves a movie. */}
       {notice ? (
         <Banner
           text={notice}
-          style={role === 'organizer' ? null : { marginBottom: Math.max(insets.bottom, space.s4) }}
+          style={
+            role === 'organizer'
+              ? styles.notice
+              : [styles.notice, { marginBottom: Math.max(insets.bottom, space.s4) }]
+          }
         />
       ) : null}
 
-      {/* The screen's one glowing button for the organizer — doc-03 makes ordering theirs alone,
-          and it is the thing the whole memory is being filled up for. In the bottom bar because
-          that is where this app keeps the one action of a screen.
+      {/* The face's one glowing button for the organizer — doc-03 makes ordering theirs alone, and
+          it is the thing the whole memory is being filled up for. In the bottom bar because that is
+          where this app keeps the one action of a screen.
           Not before the list has answered: standing outside the scroll, this bar is gated on the
           role, which comes off the memory and lands first — so it would offer an order over a list
           still in flight, and `order` prepends its new row to state that the read landing after it
           then overwrites. Under a list that failed to read it offers a second failure instead. */}
       {role === 'organizer' && montages !== null ? (
-        <ActionBar>
-          <Button
-            variant="primary"
-            wide
-            label={s.montage.make}
-            onPress={() => setOrdering(true)}
-            disabled={busy}
-          />
-        </ActionBar>
+        <View style={styles.pad}>
+          <ActionBar>
+            <Button
+              variant="primary"
+              wide
+              label={s.montage.make}
+              onPress={() => setOrdering(true)}
+              disabled={busy}
+            />
+          </ActionBar>
+        </View>
       ) : null}
 
       {/* The two wishes doc-03 allows and nothing else, asked on a sheet the way an invite is:
-          ordering is a thing done once, and the screen is for what comes of it. What is picked is
+          ordering is a thing done once, and the face is for what comes of it. What is picked is
           in the heading above each row as well as in the buttons — a screen reader gets no «this
           one is chosen» out of a button that only looks different. */}
       <Sheet visible={ordering} onCancel={() => setOrdering(false)}>
@@ -412,13 +383,13 @@ export default function MontageScreen() {
             the sheet for exactly as long as its spinner is turning. */}
         <Button variant="primary" label={s.montage.makeIt} onPress={order} busy={busy} />
         {/* Where «too little material» is read: the sheet stays up when the order is refused, and
-            the screen's own copy of this line is under the scrim. */}
+            the face's own copy of this line is under the scrim. */}
         {notice ? <Banner text={notice} /> : null}
       </Sheet>
 
-      {/* The finished video played where it lies, the way the gallery plays a preview: `expo-video`
-          streams it from the signed link rather than downloading it first. A modal and not a screen
-          — there is nothing to do in here but watch it and close it. */}
+      {/* The finished video played where it lies, the way the frames face plays a preview:
+          `expo-video` streams it from the signed link rather than downloading it first. A modal and
+          not a screen — there is nothing to do in here but watch it and close it. */}
       <Modal
         visible={watching !== null}
         animationType="fade"
@@ -442,7 +413,7 @@ export default function MontageScreen() {
           </View>
         )}
       </Modal>
-    </View>
+    </>
   );
 }
 
@@ -450,10 +421,10 @@ export default function MontageScreen() {
  * The montage, played from its signed link. Its own component because the player is a hook, and
  * this one is mounted only while the video is on screen — leaving it releases the player.
  *
- * The gallery has these same three lines for its previews, down to the style. Not shared, and not
- * because the two differ: both files are expo-router routes, and a route is not somewhere to
- * import a component from — the alternative is a module of its own around one `useVideoPlayer`
- * call. Worth making the moment a third screen plays a video, or the moment these two disagree.
+ * The frames face has these same three lines for its previews, down to the style. Not shared, and
+ * not because the two differ: it is one `useVideoPlayer` call, and a module of its own around it
+ * would be the bigger thing. Worth making the moment a third face plays a video, or the moment
+ * these two disagree.
  */
 function Playing({ url }: { url: string }) {
   const player = useVideoPlayer(url, (video) => video.play());
@@ -462,23 +433,22 @@ function Playing({ url }: { url: string }) {
 
 /**
  * The kit pins `.viewer` to the dark set in every theme (kit.html, block 0.2): «вокруг фотографии
- * не должно быть ничего светлее её самой». `gallery.tsx` says the same at more length — the two
- * screens draw the same viewer, and this is the one value in this sheet that has an opinion.
+ * не должно быть ничего светлее её самой». `frames.tsx` says the same at more length — the two faces
+ * draw the same viewer, and this is the one value in this sheet that has an opinion.
  *
- * So nothing here turns with the theme, and the sheet is a plain one: the list this screen draws is
- * cards from the kit on the layout's own background, and both of those already turn by themselves.
+ * So nothing here turns with the theme, and the sheet is a plain one: the list this face draws is
+ * cards from the kit on the screen's own background, and both of those already turn by themselves.
  */
 const room = themes.dark.color;
 
 const styles = StyleSheet.create({
-  // The sides belong to the screen and not to the scroll: the bar at the bottom stands in the same
-  // margin the cards do. The background is the navigator's own (`_layout.tsx`), as it always was.
-  screen: { flex: 1, paddingHorizontal: space.s5 },
-  // The same tail the guest list's scroll keeps: for a viewer there is no bar under it, and the
-  // last card must not end under the home indicator. Under the bar it is air nobody scrolls to.
-  body: { paddingBottom: space.s8, gap: space.s3 },
+  // The sides belong to the face and not to the scroll, so the bar at the bottom stands in the same
+  // margin the cards do — the kit's 16, which is what the head above uses too.
+  body: { paddingHorizontal: space.s4, paddingBottom: space.s8, gap: space.s3 },
+  pad: { paddingHorizontal: space.s4 },
+  notice: { marginHorizontal: space.s4 },
   // A card and, under a fallen one, the line the worker left — closer to each other than the
-  // screen's own gap, because they are one thing.
+  // face's own gap, because they are one thing.
   montage: { gap: space.s2 },
   choices: { flexDirection: 'row', flexWrap: 'wrap', gap: space.s2 },
   viewer: { flex: 1, backgroundColor: room.ink, justifyContent: 'center' },
