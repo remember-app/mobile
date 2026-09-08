@@ -77,15 +77,15 @@ async function register(session: string) {
 /**
  * Where a tapped push points. Both kinds are about a memory and carry its id; what tells them apart
  * is the second field. An invite is a request for material, so it opens the screen that takes it. A
- * finished montage is nothing to upload to — it opens the montage screen, where the videos are
- * listed and the new one is already on top.
+ * finished montage is nothing to upload to — it opens the memory on the face the videos are on, with
+ * the new one already at the top of it (TASK-101: that face used to be a screen of its own).
  */
 function openWhatItIsAbout(response: Notifications.NotificationResponse | null) {
   const data = response?.notification.request.content.data;
   const memoryId = data?.memoryId;
   if (typeof memoryId !== 'string') return;
   if (typeof data?.montageId === 'string') {
-    router.push({ pathname: '/memory/[id]/montage', params: { id: memoryId } });
+    router.push({ pathname: '/memory/[id]', params: { id: memoryId, face: 'films' } });
     return;
   }
   router.push({ pathname: '/memory/[id]/upload', params: { id: memoryId } });

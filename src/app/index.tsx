@@ -111,10 +111,9 @@ export default function HomeScreen() {
                 // add the first ones would be a lie the meta line beside it contradicts.
                 blank={item.media_count === 0 ? s.home.noFrames : s.state.preparing}
                 // Straight to the material: what a memory is for is the photos in it, so the card
-                // opens the gallery. Who is in it lives one icon away, in that screen's appbar.
-                onPress={() =>
-                  router.push({ pathname: '/memory/[id]/gallery', params: { id: item.id } })
-                }
+                // opens the memory on its first face. The movies and the people are the other two,
+                // one press away on the switch under its name.
+                onPress={() => router.push({ pathname: '/memory/[id]', params: { id: item.id } })}
               />
             );
           }}

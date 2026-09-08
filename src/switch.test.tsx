@@ -1,8 +1,9 @@
 import { renderToStaticMarkup } from 'react-dom/server';
-import { Switch } from 'react-native';
 import { expect, test, vi } from 'vitest';
 
-import { themes } from '@/theme';
+// The one component, not the barrel: `@/kit` reaches native modules node cannot parse.
+import { Toggle } from '@/kit/toggle';
+import { setTheme } from '@/theme';
 
 // `@/theme` reads the stored pick on import and `expo-secure-store` is native. Nothing below asks
 // it anything — the colours are read off `themes` by name — so the store only has to be there.
@@ -19,30 +20,25 @@ vi.mock('expo-secure-store', () => ({
  *
  * The way it broke is the reason it is pinned: nothing about it looks conditional at the call site.
  * The screen that showed it and the screen that did not were passing the very same props — the one
- * in the invite sheet just starts on, so it was the one anybody saw.
+ * in the invite sheet just starts on, so it was the one anybody saw. Those two call sites are one
+ * component now (`kit/toggle.tsx`, TASK-56), and this is that component rather than a third copy of
+ * the props: what it gets wrong nobody would see twice any more.
  *
  * Rendered through `react-native-web` (the alias lives in `vitest.config.mjs`), which is the same
  * code that draws it in a browser and writes its colours out as `rgba`. What a phone's own switch
  * does with them is native and the pilot's to check.
  */
 
-const { color } = themes.dark;
-
-/** The switch as the screens hand it over, in whichever position and state is being looked at. */
+/** The kit's toggle as a screen hands it over, in whichever position and state is being looked at. */
 function grip(value: boolean, disabled: boolean): string {
   return renderToStaticMarkup(
-    <Switch
-      value={value}
-      disabled={disabled}
-      trackColor={{ false: color.line, true: color.ember }}
-      thumbColor={color.paper}
-      activeThumbColor={color.paper}
-      ios_backgroundColor={color.line}
-    />,
+    <Toggle label="Сможет добавлять фото" value={value} onValueChange={() => {}} disabled={disabled} />,
   );
 }
 
-test('the grip is the kit paper on both sides of the switch, in reach and out of it', () => {
+test('the grip is the kit paper on both sides of the switch, in reach and out of it', async () => {
+  await setTheme('dark');
+
   // #F2ECE3 paper on #E4552B ember. Both switches carry `disabled={busy}`, and the web switch keeps
   // a second pair of defaults for that — a grey grip of its own — so it is walked here too.
   for (const disabled of [false, true]) {
@@ -58,11 +54,16 @@ test('the grip is the kit paper on both sides of the switch, in reach and out of
 
 /**
  * Swept over the sources rather than named screen by screen, the reason `screen-theme.test.ts`
- * gives: what breaks this is not today's two switches, it is the third one written by copying a
- * call site that looks complete — every colour the kit has, and still teal in a browser.
+ * gives: what breaks this is not today's switches, it is the next one written by copying a call site
+ * that looks complete — every colour the kit has, and still teal in a browser. The kit is swept with
+ * the screens now, because that is where the switch itself moved.
  */
 const screens = Object.entries(
-  import.meta.glob<string>('./app/**/*.tsx', { query: '?raw', import: 'default', eager: true }),
+  import.meta.glob<string>('./{app,memory,kit}/**/*.tsx', {
+    query: '?raw',
+    import: 'default',
+    eager: true,
+  }),
 );
 
 test.each(screens)('%s colours the grip of any switch it draws on both sides', (_path, source) => {

@@ -1,127 +1,197 @@
 import { expect, test } from 'vitest';
 
-import gallery from './app/memory/[id]/gallery.tsx?raw';
-import montage from './app/memory/[id]/montage.tsx?raw';
+import memory from './app/memory/[id].tsx?raw';
 import upload from './app/memory/[id]/upload.tsx?raw';
-import members from './app/memory/[id].tsx?raw';
 import home from './app/index.tsx?raw';
 import invite from './app/invite.tsx?raw';
 import layout from './app/_layout.tsx?raw';
 // The one kit file read here: the sheet's offset from the header is the appbar's own padding.
 import bars from './kit/bars.tsx?raw';
+import toggle from './kit/toggle.tsx?raw';
+import films from './memory/films.tsx?raw';
+import frames from './memory/frames.tsx?raw';
+import head from './memory/head.tsx?raw';
+import people from './memory/people.tsx?raw';
 import push from './push.ts?raw';
 import { en, ru } from '@/strings';
 
 /**
- * The split of TASK-64, read off the route files themselves: the montage on one screen, the guest
- * list on the other, and no way to upload from either — that button lives in the gallery.
+ * A memory is one screen with three faces — «не три экрана с одним именем, а один экран с тремя
+ * лицами: имя стоит в шапке, лицо выбирают переключателем под ней» (kit, «Экраны» 4–6, TASK-101).
+ * These read off the route and the three faces: which half went where, what the appbar carries on
+ * each of them, and what still points at what.
  *
  * Their text and not their rendered output, because this project has no renderer: every test here
  * runs pure logic, and a screen would need `react-native` transformed and `expo-router`,
  * `expo-video` and the safe area all faked before its first line ran. What is worth pinning about a
- * reorganisation is which half went where and what still points at what — that much the text
- * answers. These go the day a render harness arrives.
+ * reorganisation is the shape of it — that much the text answers. These go the day a render harness
+ * arrives.
  */
 
-test('the montage screen is a route of its own, behind the same gate as the rest of a memory', () => {
-  expect(layout).toContain('<Stack.Screen name="memory/[id]/montage"');
+test('one memory is one route, behind the same gate as the rest of the app', () => {
+  expect(layout).toContain('<Stack.Screen name="memory/[id]"');
+  // The two that were faces of it and are not routes any more.
+  expect(layout).not.toContain('name="memory/[id]/gallery"');
+  expect(layout).not.toContain('name="memory/[id]/montage"');
+  // Picking material off the phone stays a screen of its own — it is one somebody comes back from.
+  expect(layout).toContain('<Stack.Screen name="memory/[id]/upload"');
   // Inside `Stack.Protected` — a screen declared outside it exists signed out too.
-  expect(layout.indexOf('name="memory/[id]/montage"')).toBeLessThan(
-    layout.indexOf('</Stack.Protected>'),
-  );
+  expect(layout.indexOf('name="memory/[id]"')).toBeLessThan(layout.indexOf('</Stack.Protected>'));
 });
 
-test('the montage half moved out of the memory screen whole', () => {
-  for (const moved of ['listMontages', 'orderMontage', 'retryMontage', 'CardMontage']) {
-    expect(montage).toContain(moved);
-    expect(members).not.toContain(moved);
+test('the three faces are three files, and the screen is only which of them is on', () => {
+  for (const face of ['Frames', 'Films', 'People']) expect(memory).toContain(`<${face} id={id}`);
+  // The memory itself is read once, above all three, so switching a face does not blink the name.
+  expect(memory.match(/listMemories\(/g)).toHaveLength(1);
+  for (const face of [frames, films, people]) expect(face).not.toContain('listMemories');
+  // And each face reads what is its own, when it comes on.
+  expect(frames).toContain('listMedia(');
+  expect(films).toContain('listMontages(');
+  expect(people).toContain('listMembers(');
+  for (const moved of ['orderMontage', 'retryMontage', 'CardMontage']) {
+    expect(films).toContain(moved);
+    expect(people).not.toContain(moved);
+    expect(frames).not.toContain(moved);
+  }
+  for (const stayed of ['RowMember', 'inviteByUsername', 'removeMember']) {
+    expect(people).toContain(stayed);
+    expect(films).not.toContain(stayed);
   }
 });
 
-test('the roster half stayed where it was', () => {
-  for (const stayed of ['listMembers', 'RowMember', 'inviteByUsername', 'removeMember']) {
-    expect(members).toContain(stayed);
-    expect(montage).not.toContain(stayed);
+test('all three wear one appbar, with the memory’s name and no caption under it', () => {
+  for (const face of [frames, films, people]) {
+    expect(face).toContain('<MemoryHead');
+    // The line that used to say which of the three screens was open. The switch says it now, in
+    // words that can be pressed (TASK-76 asked for the caption; TASK-101 replaced it).
+    expect(face).not.toContain('subtitle={');
+    expect(face).not.toContain('<AppBar');
+  }
+  expect(head).toContain('title={memory?.title ?? s.memory.fallbackTitle}');
+  // Left in the appbar, by the rule every screen of a memory has kept: a tapped push and a followed
+  // invite both open this one with nothing behind it to go back to.
+  expect(head).toContain("router.canGoBack() ? router.back() : router.replace('/')");
+});
+
+test('the switch under the name is the kit’s wide segment, and it holds the three faces', () => {
+  expect(head).toContain('<Segment');
+  // `.segment-wide` — the row spans the screen instead of being as wide as its words, and the
+  // heading over it is the memory's own name, so the label is only spoken.
+  expect(head).toContain('wide');
+  expect(head).toContain('hideLabel');
+  expect(head).toContain('label={s.memory.whatToShow}');
+  for (const option of [
+    "{ value: 'frames', label: s.memory.framesPlain }",
+    "{ value: 'films', label: s.montage.title }",
+    "{ value: 'people', label: s.members.title }",
+  ]) {
+    expect(head).toContain(option);
+  }
+  // The kit's own three words, in both sets: «Кадры / Ролики / Люди».
+  expect(ru.memory.framesPlain).toBe('Кадры');
+  expect(ru.montage.title).toBe('Ролики');
+  expect(ru.members.title).toBe('Люди');
+  for (const set of [en, ru]) {
+    for (const word of [set.memory.framesPlain, set.montage.title, set.members.title]) {
+      // A third of a phone's width each: one word, never a phrase.
+      expect(word).not.toContain(' ');
+    }
   }
 });
 
-test('neither of the two offers the upload screen any more — the gallery is where that button is', () => {
-  expect(members).not.toContain('/memory/[id]/upload');
-  expect(montage).not.toContain('/memory/[id]/upload');
-  expect(gallery).toContain('/memory/[id]/upload');
+test('the right of the appbar is one icon, and only the frames have one', () => {
+  // «Скачать всю галерею», the kit's one icon for this corner. It used to be a second wide button in
+  // the footer, beside «Добавить кадры».
+  expect(frames).toContain('right={');
+  expect(frames).toContain('label={s.gallery.downloadAll}');
+  // The other two hand the head nothing for that corner — moving between faces is the switch's job,
+  // and the `Users` icon that used to do it is gone from all three.
+  for (const face of [films, people]) {
+    expect(face).toContain('<MemoryHead {...head} />');
+    expect(face).not.toContain('right=');
+  }
+  for (const face of [frames, films, people]) expect(face).not.toContain('Users');
 });
 
-test('the way to the material stays on the memory screen', () => {
-  expect(members).toContain('/memory/[id]/gallery');
-  // The words themselves live in the dictionary now (TASK-86); the button is pinned by the key.
-  expect(members).toContain('s.memory.frames(');
+test('the footer of the frames is one button, and it is «Add more»', () => {
+  const footer = frames.slice(frames.indexOf('<ActionBar>'), frames.indexOf('</ActionBar>'));
+  expect(footer.match(/<Button/g)).toHaveLength(1);
+  expect(footer).toContain('label={s.gallery.addMore}');
+  expect(footer).not.toContain('downloadAll');
+  // And that button is the only way to the upload screen there is.
+  expect(frames).toContain('/memory/[id]/upload');
+  expect(films).not.toContain('/memory/[id]/upload');
+  expect(people).not.toContain('/memory/[id]/upload');
 });
 
-// The four screens of one memory, and what tells them apart — TASK-76, reported by the designer:
-// three of them were titled with the memory's own name and switched by one unlabelled icon, and the
-// fourth had thrown the name away for the bare word «Gallery».
-
-test('every screen of a memory wears its name, with the section it is under the name', () => {
-  for (const [screen, section] of [
-    [members, 's.members.title'],
-    [montage, 's.montage.title'],
-    [upload, 's.upload.title'],
-    [gallery, 's.memory.framesPlain'],
-  ] as const) {
-    // The memory's own title, with one shared word standing in until the listing answers — four
-    // different fallbacks would be four screens under four names for the same fraction of a second.
-    expect(screen).toContain('s.memory.fallbackTitle');
-    // And under it, the only thing that says which of the four is open.
-    expect(screen).toContain(`subtitle={${section}}`);
+test('no face reaches another by pushing a route: the switch is the only road between them', () => {
+  for (const face of [frames, films, people]) {
+    expect(face).not.toContain("pathname: '/memory/[id]'");
+    expect(face).not.toContain('/memory/[id]/gallery');
+    expect(face).not.toContain('/memory/[id]/montage');
   }
 });
 
-test('the material of a memory has one name — on the card, on the guest list, over the sheet', () => {
-  // Three names for one thing was the other half of the report: «N frames» on the card, «Photos and
-  // videos (N)» on the guest list, «Gallery» over the contact sheet. One key answers all three now.
-  expect(members).toContain('s.memory.frames(');
-  expect(members).toContain('s.memory.framesPlain');
-  expect(gallery).toContain('subtitle={s.memory.framesPlain}');
-  // The card names the material only where there is none of it to draw, and by the same word.
+test('the platform switch is spelled out once, in the kit', () => {
+  // TASK-56: the same four colour props stood word for word on two screens, and one of them is the
+  // kind nobody notices missing. The invite sheet takes the kit's component now.
+  expect(people).toContain('<Toggle');
+  for (const face of [frames, films, people]) expect(face).not.toContain('thumbColor');
+  expect(toggle).toContain('activeThumbColor');
+});
+
+// The roads into a memory, and the face each of them lands on.
+
+test('a tapped card opens the memory on its frames, which is what it opens on by default', () => {
+  expect(home).toContain("router.push({ pathname: '/memory/[id]', params: { id: item.id } })");
+  expect(memory).toContain("useState<Face>(wanted ?? 'frames')");
+});
+
+test('an accepted invite lands on the people, and a finished movie on the movies', () => {
+  // Both used to be routes of their own; both are a face of this one screen now, asked for by name.
+  expect(invite).toContain("params: { id: memory.id, face: 'people' }");
+  expect(push).toContain("params: { id: memoryId, face: 'films' }");
+  // The «вас позвали» push still opens the screen that takes material.
+  expect(push).toContain("router.push({ pathname: '/memory/[id]/upload'");
+});
+
+test('the ember on a face is the one action that face is for', () => {
+  // The kit gives the glow to one action per surface. Each face draws two surfaces at most — itself
+  // and a sheet over it — so two is the number, never one for the screen and one for a shortcut to
+  // another screen (which is what the guest list's «Movie» button was).
+  expect(frames.match(/variant="primary"/g)).toHaveLength(1); // «Добавить кадры»
+  expect(films.match(/variant="primary"/g)).toHaveLength(2); // «Смонтировать» + the order sheet
+  expect(people.match(/variant="primary"/g)).toHaveLength(2); // «Пригласить» + the invite sheet
+  // And the people's own is in the footer the kit draws for that face, not inline in the roster.
+  const footer = people.slice(people.indexOf('<ActionBar>'), people.indexOf('</ActionBar>'));
+  expect(footer).toContain('label={s.action.invite}');
+});
+
+test('the order button waits for the list it prepends to', () => {
+  // TASK-75 lifted this button out of the list branch into the bottom bar, where the only thing
+  // gating it is the role — and the role comes off the memory, which is read above the face and
+  // lands first. Pressed over a list still in flight, `order` puts its new row into state that the
+  // read landing after it wipes; pressed over a list that failed, it offers a second failure under
+  // an error banner. Both are the invariant the button had while it stood inside the list.
+  expect(films).toContain("role === 'organizer' && montages !== null ?");
+  // And the answer to that press carries the bottom inset itself when there is no bar under it to
+  // carry one — everybody who is not the organizer still saves a movie and still gets a line back.
+  expect(films).toContain("role === 'organizer'");
+  expect(films).toContain('marginBottom: Math.max(insets.bottom');
+  // The frames face says the same thing for the same reason: a viewer has no footer there either.
+  expect(frames).toContain('marginBottom: Math.max(insets.bottom');
+});
+
+test('the material of a memory has one name — on the card, on the switch, over the sheet', () => {
+  // «N frames» on the card, «Photos and videos (N)» on the guest list, «Gallery» over the contact
+  // sheet was the report (TASK-76). One key answers all of them, and it is the word on the switch.
+  expect(head).toContain('s.memory.framesPlain');
   expect(home).toContain('s.home.noFrames');
   for (const set of [en, ru]) {
     // «0 кадров» → «кадров», which is what «Кадров пока нет» has to be built on too. Russian
     // declines it, so the counted form is the one both lines are held against.
     expect(set.home.noFrames.toLowerCase()).toContain(set.memory.frames(0).split(' ')[1]);
   }
-});
-
-test('the two screens reach each other without stacking a copy each hop', () => {
-  // The montage screen keeps its corner icon back to the roster; the road the other way is the
-  // guest list's own glowing button now (TASK-74). `navigate` on both, so the pair never stacks.
-  expect(members).toContain("router.navigate({ pathname: '/memory/[id]/montage'");
-  expect(montage).toContain("router.navigate({ pathname: '/memory/[id]'");
-});
-
-test('the order button waits for the list it prepends to', () => {
-  // TASK-75 lifted this button out of the list branch into the bottom bar, where the only thing
-  // gating it is the role — and the role comes off the memory, which is a different call that lands
-  // first. Pressed over a list still in flight, `order` puts its new row into state that the read
-  // landing after it wipes; pressed over a list that failed, it offers a second failure under an
-  // error banner. Both are the invariant the button had while it stood inside the list.
-  expect(montage).toContain("role === 'organizer' && montages !== null ?");
-  // And the answer to that press carries the bottom inset itself when there is no bar under it to
-  // carry one — everybody who is not the organizer still saves a movie and still gets a line back.
-  expect(montage).toContain("role === 'organizer' ? null : { marginBottom:");
-});
-
-test('the ember on the guest list is the road to the movie, not the one to the gallery', () => {
-  // The kit gives the glow to one action per surface, and this file draws two: the screen, and the
-  // invite sheet over it. Two glows in it, then, and each on the thing its own surface is for.
-  expect(members.match(/variant="primary"/g)).toHaveLength(2);
-  // The button a hit sits in: from its own `<Button` back to the `/>` that closes it.
-  const button = (at: number) =>
-    members.slice(members.lastIndexOf('<Button', at), members.indexOf('/>', at));
-  const first = members.indexOf('variant="primary"');
-  expect(button(first)).toContain("'/memory/[id]/montage'");
-  expect(button(members.indexOf('variant="primary"', first + 1))).toContain('onPress={sendInvite}');
-  // And the way to the material, which used to wear it, is a plain button.
-  expect(button(members.indexOf("'/memory/[id]/gallery'"))).not.toContain('variant=');
 });
 
 // The open frame, read the same way. What was reported is a shape — «во весь экран без кнопок
@@ -131,26 +201,26 @@ test('the ember on the guest list is the road to the movie, not the one to the g
 
 test('nothing stands under the open frame — the actions moved up onto it', () => {
   // The bottom bar of the viewer and the style it wore are gone; the grid keeps its own.
-  expect(gallery).not.toContain('styles.bar');
-  expect(gallery).toContain('styles.viewerBar');
+  expect(frames).not.toContain('styles.bar');
+  expect(frames).toContain('styles.viewerBar');
   for (const action of [
     'label={s.action.close}',
     'label={s.action.download}',
     'label={s.action.delete}',
   ]) {
-    expect(gallery.slice(gallery.indexOf('styles.viewerBar'))).toContain(action);
+    expect(frames.slice(frames.indexOf('styles.viewerBar'))).toContain(action);
   }
   // And they are still the same three errands, the delete still behind the kit's sheet.
-  expect(gallery).toContain('ConfirmSheet');
-  expect(gallery).toContain('void save(shown)');
+  expect(frames).toContain('ConfirmSheet');
+  expect(frames).toContain('void save(shown)');
 });
 
 test("the strip under the frame is the grid's own list, read once", () => {
   // The whole list and not a window on it: the strip is handed `items`, the same array the sheet
   // above draws.
-  expect(gallery).toContain('data={items}');
+  expect(frames).toContain('data={items}');
   // One read of the media serves both the sheet and the strip.
-  expect(gallery.match(/listMedia\(/g)).toHaveLength(1);
+  expect(frames.match(/listMedia\(/g)).toHaveLength(1);
 });
 
 test('the strip is walked to the open frame, never started at it', () => {
@@ -160,20 +230,20 @@ test('the strip is walked to the open frame, never started at it', () => {
   // strip drew three, with a blank where the first four belonged and no way to reach them — the
   // whole point of the strip, lost, on every gallery small enough not to overflow the screen.
   // The prop and not the word: the comment above the fix names it, and has to be free to.
-  expect(gallery).not.toContain('initialScrollIndex={');
+  expect(frames).not.toContain('initialScrollIndex={');
   // Asked for once the content is laid out instead, which positions the strip the same way without
   // touching the window.
-  expect(gallery).toContain('onContentSizeChange');
-  expect(gallery).toContain('strip.current?.scrollToIndex({');
-  expect(gallery).toContain('index: frameIndex(items, open)');
+  expect(frames).toContain('onContentSizeChange');
+  expect(frames).toContain('strip.current?.scrollToIndex({');
+  expect(frames).toContain('index: frameIndex(items, open)');
   // `scrollToIndex` on a list this long is only safe because every tile is a known size.
-  expect(gallery).toContain('getItemLayout');
+  expect(frames).toContain('getItemLayout');
 });
 
 test('a strip tile and a sheet tile read a record the same way', () => {
   // `frameOf` twice and nowhere else: the two places that draw a record must not drift, which is
   // the bug the whole of `@/frames` exists to have fixed once.
-  expect(gallery.match(/frameOf\(item\)/g)).toHaveLength(2);
+  expect(frames.match(/frameOf\(item\)/g)).toHaveLength(2);
 });
 
 test('neither the sheet nor the strip opens a frame that is still developing', () => {
@@ -183,15 +253,16 @@ test('neither the sheet nor the strip opens a frame that is still developing', (
   // «Preparing…», which is what was reported.
   const gate = 'onPress={mayOpen(item) ? () => setOpen(item.id) : undefined}';
   const escaped = gate.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  expect(gallery.match(new RegExp(escaped, 'g'))).toHaveLength(2);
+  expect(frames.match(new RegExp(escaped, 'g'))).toHaveLength(2);
 });
 
 test('the frame shown full screen is the same reading frameOf gives every tile', () => {
   // `openFrame` is `frameOf(shown)` and not `shown.thumbnail_url` read straight — the difference is
   // the fallen-frame correction `frameOf` makes for a `ready` record with no derivative. Reading the
   // field directly here would show a broken image instead of the «could not be prepared» state.
-  expect(gallery).toContain('const openFrame = shown === null ? null : frameOf(shown);');
-  expect(gallery).toContain('<Image source={{ uri: openFrame.uri }}');
+  expect(frames).toContain('const openFrame = shown === null ? null : frameOf(shown);');
+  expect(frames).toContain('<Image');
+  expect(frames).toContain('source={{ uri: openFrame.uri }}');
 });
 
 // The contact sheet itself, measured by the designer (TASK-79): the last frame of a sheet came out
@@ -200,7 +271,7 @@ test('the frame shown full screen is the same reading frameOf gives every tile',
 // that draw a sheet have to answer it the same way.
 
 test('every column of a contact sheet is the same width, the last row included', () => {
-  for (const sheet of [gallery, upload]) {
+  for (const sheet of [frames, upload]) {
     // `flex: 1/3` divides what a row has left after its gaps, so a last row with one frame in it —
     // no gaps in it to leave — handed that frame a third of the whole row instead of a column.
     expect(sheet).not.toContain('flex: 1 / 3');
@@ -210,27 +281,21 @@ test('every column of a contact sheet is the same width, the last row included',
   }
 });
 
-test('the 12 under the appbar is the kit’s own, and nothing stands between it and the sheet', () => {
+test('the 12 under the appbar is the kit’s own, and the switch keeps its own 16 under it', () => {
   // «Контактный лист вплотную к шапке» was the report; `.appbar{padding:var(--s4) 0 var(--s3)}` is
   // where the kit keeps that 12, and the kit's appbar has carried it since m-7. Pinned so the sheet
   // cannot end up flush against the header by the padding being dropped from underneath it.
   expect(bars).toContain('paddingBottom: space.s3');
-  // And the gallery hangs its sheet straight off the appbar — no second gap, no screen-wide `gap`.
-  expect(gallery).toContain('screen: { flex: 1, backgroundColor: color.ink }');
+  // `.screen__head .segment-wide{margin-bottom:var(--s4)}` — the whole of the gap between the switch
+  // and whatever the face draws under it. No face adds a second one.
+  expect(head).toContain('faces: { marginBottom: space.s4 }');
+  expect(frames).toContain('grid: { flexGrow: 1, gap: SHEET_GAP }');
 });
 
 test('a tile is read out in the line it is drawn with', () => {
   // «Все кадры названы photo» — the raw `kind` off the api, before the dictionary (TASK-86). What
   // was left after that is the state: both sheets ask the frame, not the record's status, whether
   // there is anything to say past «Фото», and both go through the one helper to ask it.
-  expect(gallery.match(/nameOf\(item, frame/g)).toHaveLength(2);
-  expect(gallery).toContain("frame.state === 'ready' ? null : s.gallery.waiting[item.status]");
-});
-
-test('the roads into a memory are unchanged, and a finished montage opens the montage screen', () => {
-  // An accepted invite and the gallery's `Users` icon both land on the guest list; only the
-  // «ролик готов» push follows the videos to where they went.
-  expect(invite).toContain("pathname: '/memory/[id]'");
-  expect(gallery).toContain("router.push({ pathname: '/memory/[id]', params: { id } })");
-  expect(push).toContain("router.push({ pathname: '/memory/[id]/montage'");
+  expect(frames.match(/nameOf\(item, frame/g)).toHaveLength(2);
+  expect(frames).toContain("frame.state === 'ready' ? null : s.gallery.waiting[item.status]");
 });

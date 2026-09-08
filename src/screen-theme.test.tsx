@@ -1,8 +1,9 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test, vi } from 'vitest';
 
-import gallery from './app/memory/[id]/gallery.tsx?raw';
-import montage from './app/memory/[id]/montage.tsx?raw';
+import memory from './app/memory/[id].tsx?raw';
+import films from './memory/films.tsx?raw';
+import frames from './memory/frames.tsx?raw';
 // The one component, not the barrel: `@/kit` reaches native modules node cannot parse, and this
 // needs the smallest thing in the kit that reads a colour.
 import { Text } from '@/kit/text';
@@ -33,8 +34,15 @@ vi.mock('expo-secure-store', () => ({
  * bundler and not `node:fs`, for the reason `raw.d.ts` gives: nothing under `src/` may reach the
  * filesystem, because everything under `src/` runs on a phone.
  */
+// `src/memory/` is swept with the routes: the three faces of a memory are screen-sized pieces that
+// live outside `src/app` only because everything inside it is a route, and the rule they have to
+// keep is the routes' own (TASK-101).
 const screens = Object.entries(
-  import.meta.glob<string>('./app/**/*.tsx', { query: '?raw', import: 'default', eager: true }),
+  import.meta.glob<string>('./{app,memory}/**/*.tsx', {
+    query: '?raw',
+    import: 'default',
+    eager: true,
+  }),
 );
 
 test('there are screens to check at all', () => {
@@ -68,23 +76,23 @@ test('the open frame stays a dark room in both themes', () => {
   // Light is the theme the mistake shows up in: `ink` there is a pale mat board.
   expect(themes.light.color.ink).not.toBe(themes.dark.color.ink);
 
-  expect(gallery).toContain('const room = themes.dark.color;');
-  expect(gallery).toContain('viewer: { flex: 1, backgroundColor: room.ink }');
-  expect(gallery).toContain('filmstrip: { backgroundColor: room.ink }');
+  expect(frames).toContain('const room = themes.dark.color;');
+  expect(frames).toContain('viewer: { flex: 1, backgroundColor: room.ink }');
+  expect(frames).toContain('filmstrip: { backgroundColor: room.ink }');
   // The ring on the open frame is inside the viewer too, so its ember has to be the dark one. It is
   // the kit's tile that draws it now (TASK-79 — a border here was eating 4px out of the open frame),
   // and a `Tile` reads `useTheme()` for itself, so what pins its ember dark is the `ThemePin` below
   // and not a sheet on this screen. The strip only says which frame is the open one.
-  expect(gallery).toContain('current={current}');
-  expect(gallery).not.toContain('stripCurrent');
+  expect(frames).toContain('current={current}');
+  expect(frames).not.toContain('stripCurrent');
 
-  expect(montage).toContain('const room = themes.dark.color;');
-  expect(montage).toContain('viewer: { flex: 1, backgroundColor: room.ink, justifyContent:');
+  expect(films).toContain('const room = themes.dark.color;');
+  expect(films).toContain('viewer: { flex: 1, backgroundColor: room.ink, justifyContent:');
 
   // And the room is pinned for what is drawn *in* it, not only for the sheet under it: a `Tile`, a
   // `Banner`, an `Empty`, the kit's own actionbar — every one of them asks `useTheme()` for itself.
-  expect(gallery).toContain('<ThemePin value="dark">');
-  expect(montage).toContain('<ThemePin value="dark">');
+  expect(frames).toContain('<ThemePin value="dark">');
+  expect(films).toContain('<ThemePin value="dark">');
 });
 
 /**
@@ -115,5 +123,6 @@ test('a kit component inside the pin draws dark while the app is light', async (
 test('and the screens around it still turn with the theme', () => {
   // The grid behind the viewer is interface, not the room a photograph is looked at in. Naming it
   // here keeps the pin above from being widened into «this whole file is dark» by the next reader.
-  expect(gallery).toContain('screen: { flex: 1, backgroundColor: color.ink }');
+  // The ink under all three faces is the screen's own now, so this is where it is spelled out.
+  expect(memory).toContain('screen: { flex: 1, backgroundColor: color.ink }');
 });

@@ -70,6 +70,12 @@ export const en = {
      * while it waits.
      */
     fallbackTitle: 'Memory',
+    /**
+     * The switch under that title, said out loud: a memory is one screen with three faces (kit,
+     * «Экраны» 4–6), and this is the name of the row they are picked in. Never drawn — the words on
+     * the three pills are, and the screen's own name is above them.
+     */
+    whatToShow: 'What to show',
     /** Whoever brought a frame and is no longer on the roster. */
     someone: 'Someone',
     /**
@@ -216,10 +222,10 @@ export const en = {
   /** The guest list: who is in a memory, how to get more people in, and how to get out. */
   members: {
     /**
-     * The corner icon the gallery and the montage screen reach the roster by, and the section this
-     * screen is — the word under the memory's own title in its appbar.
+     * The third face of a memory, on the switch under its name (kit, «Экраны» 6). «Люди» and not
+     * «Участники»: the pill is a third of a phone's width, and the kit picks the shorter word.
      */
-    title: 'Members',
+    title: 'People',
     roster: 'Who is here',
     you: (name: string) => `${name} (you)`,
     remove: (name: string) => `Remove ${name}`,
@@ -288,10 +294,10 @@ export const en = {
    */
   montage: {
     /**
-     * The movies' own screen title, the section under the memory's name in its appbar, and the
-     * glowing button the guest list reaches them by (TASK-74, TASK-76).
+     * The second face of a memory, on the switch under its name (kit, «Экраны» 5). Plural: the face
+     * holds every movie this memory has, and the one being watched is named by its length below.
      */
-    title: 'Movie',
+    title: 'Movies',
     status: {
       queued: 'Waiting its turn',
       processing: 'Being made',
@@ -442,9 +448,10 @@ export const ru: Strings = {
 
   memory: {
     fallbackTitle: 'Воспоминание',
+    whatToShow: 'Что показать',
     someone: 'Кто-то',
-    // «Кадры» — то самое слово кита, и теперь единственное: карточка, экран участников и заголовок
-    // галереи называют материал одинаково.
+    // «Кадры» — то самое слово кита, и теперь единственное: и карточка на главной, и переключатель
+    // лиц воспоминания называют материал одинаково.
     frames: (n: number) => count(n, 'кадр', 'кадра', 'кадров'),
     framesPlain: 'Кадры',
     people: (n: number) => count(n, 'человек', 'человека', 'человек'),
@@ -534,7 +541,7 @@ export const ru: Strings = {
   },
 
   members: {
-    title: 'Участники',
+    title: 'Люди',
     roster: 'Кто здесь',
     you: (name: string) => `${name} (вы)`,
     remove: (name: string) => `Убрать ${name}`,
@@ -580,7 +587,7 @@ export const ru: Strings = {
   },
 
   montage: {
-    title: 'Ролик',
+    title: 'Ролики',
     status: {
       queued: 'Ждёт очереди',
       processing: 'Собирается',
