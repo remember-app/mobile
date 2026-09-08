@@ -192,6 +192,11 @@ export const en = {
     dateHint: 'The app finds what your phone shot on these days.',
     multiDay: 'Lasted more than a day',
     ends: 'Ends',
+    /**
+     * The kit's banner between the dates and «Create». It answers the question this screen does not
+     * ask — where everybody else is — so that nobody holds off creating until they have the list.
+     */
+    inviteHint: 'You can invite people right after you create it.',
     submit: 'Create',
   },
 
@@ -504,6 +509,7 @@ export const ru: Strings = {
     dateHint: 'Приложение найдёт по этим датам снятое на телефоне.',
     multiDay: 'Длилось больше дня',
     ends: 'Заканчивается',
+    inviteHint: 'Позвать участников можно сразу после создания.',
     submit: 'Создать',
   },
 
