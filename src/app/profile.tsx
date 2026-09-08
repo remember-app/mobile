@@ -9,17 +9,19 @@ import { useAuth } from '@/auth';
 import { AppBar, Banner, Button, ConfirmSheet, IconButton, RowMember, Segment } from '@/kit';
 import { setLanguage, useLanguage, useStrings } from '@/language';
 import { setTheme, space, themed, useThemeChoice } from '@/theme';
-import { UsernameForm } from '@/username-form';
 
 /**
- * The account: who you are here, the one thing you can change about it, and the way out.
+ * The account: who you are here, how the app is set, and the way out.
+ *
+ * The name is shown and not editable (TASK-113): the username is claimed once on /set-username and
+ * the api still takes a change, but this screen offers none.
  *
  * Logging out is asked for on the kit's sheet (section 13) rather than done on the press: from where
  * the person stands the session ends and the way back is a whole sign-in, which is worth one
  * question. The button itself is not painted in the rust that colour is held for — that is for what
  * cannot be undone, and this can — and it does not stand in an actionbar either: the kit's screen 8
  * ends the scrolling body with a quiet small button on `.push`, no footer hairline over it. A
- * footer would say «this is what the screen is for», and the screen is for the four things above it.
+ * footer would say «this is what the screen is for», and the screen is for the things above it.
  *
  * The theme and the language stand here too, on the kit's switch of section 15. Neither doc-8 nor
  * doc-9 gets a settings screen of its own — there are two things to set in the whole product, and
@@ -79,9 +81,6 @@ export default function ProfileScreen() {
       />
 
       <ScrollView
-        // The field lives in here, so a press on a button has to land while the keyboard is up
-        // instead of being spent closing it.
-        keyboardShouldPersistTaps="handled"
         // The kit's `.screen__body` ends 20 clear of the bottom; on a phone the home indicator is
         // what that has to clear, and it is the taller of the two.
         contentContainerStyle={[styles.body, { paddingBottom: Math.max(insets.bottom, space.s5) }]}
@@ -89,8 +88,6 @@ export default function ProfileScreen() {
         {/* The kit's member row, turned on yourself: the username is what the app calls you by, the
             name is what stands under it. */}
         <RowMember name={user?.username ?? '—'} meta={user?.name ?? s.profile.noName} />
-
-        <UsernameForm submitLabel={s.profile.changeUsername} />
 
         {/* The kit stands these two side by side, theme first. Three values against two: the theme
             can be handed back to the phone, the language cannot — a phone in German is not one of

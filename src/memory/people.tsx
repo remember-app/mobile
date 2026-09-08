@@ -43,9 +43,12 @@ import { MemoryHead, type Head } from '@/memory/head';
 import { space } from '@/theme';
 
 /**
- * The third face of a memory (kit, «Экраны» 6): who is in it, how to get more people in, and how to
- * get out. What the caller may do is read off their own row in the roster — the api is the authority
- * on that, so nothing here is gated on anything the client made up.
+ * The third face of a memory (kit, «Экраны» 6): who is in it and how to get more people in. What the
+ * caller may do is read off their own row in the roster — the api is the authority on that, so
+ * nothing here is gated on anything the client made up.
+ *
+ * Leaving a memory is not offered here (TASK-113): the api still takes it and the organizer's cross
+ * still uses that same call to remove somebody else, but nobody is shown a way out of their own.
  *
  * Nothing on the right of the appbar: the kit gives that corner to the frames face alone, and the
  * material and the movies are one press away on the switch under the name.
@@ -270,21 +273,6 @@ export function People({ id, head }: { id: string; head: Head }) {
                 );
               })}
             </View>
-
-            {/* The organizer has no way out: leaving would leave the memory with nobody able to
-                run it, and handing the role over is out of MVP (doc-01). The api says 409.
-                The one red thing on the face, and it only asks — the kit keeps it small and at the
-                foot of the roster rather than in the bar, which belongs to «Пригласить». */}
-            {role !== null && role !== 'organizer' ? (
-              <Button
-                sm
-                variant="danger"
-                label={s.members.leave}
-                onPress={() => me && setDropping(me)}
-                disabled={busy}
-                style={styles.leave}
-              />
-            ) : null}
           </>
         )}
 
@@ -409,8 +397,5 @@ const styles = StyleSheet.create({
   // Indented past the avatar so it starts where its own name does, and given the row's own bottom
   // padding so the hairline under it separates two people rather than a person from their button.
   own: { alignSelf: 'flex-start', marginLeft: AVATAR + space.s3, marginBottom: space.s3 },
-  // Off the roster by more than the face's own gap: it is not one more thing about the last person
-  // on the list.
-  leave: { alignSelf: 'flex-start', marginTop: space.s3 },
   quiet: { alignSelf: 'flex-start' },
 });
