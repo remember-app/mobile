@@ -391,7 +391,7 @@ export default function UploadScreen() {
       <ActionBar>
         <Button
           variant="quiet"
-          label={s.upload.clear}
+          label={s.action.clear}
           onPress={() => setPicked(new Set())}
           disabled={picked.size === 0}
         />

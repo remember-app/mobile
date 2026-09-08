@@ -29,6 +29,8 @@ export const en = {
   action: {
     back: 'Back',
     cancel: 'Cancel',
+    /** Putting a whole selection back — the quiet half of every footer that picks something. */
+    clear: 'Clear',
     close: 'Close',
     retry: 'Try again',
     delete: 'Delete',
@@ -286,7 +288,18 @@ export const en = {
      * neuter, and «Фото, открыто» is the only form that fits either.
      */
     open: 'open',
-    downloadAll: 'Download all',
+    /**
+     * The one icon this appbar carries, and it is a switch: pressed once it puts the sheet into
+     * picking, pressed again it comes back out. Two labels because it is one control saying two
+     * different things — «Скачать всю галерею» was the icon here until the kit made taking the lot
+     * home the same picking with everything in it (kit, «Экраны» 4, «Выбор»).
+     */
+    select: 'Select frames',
+    leaveSelect: 'Leave select mode',
+    /** The glowing button of the picking mode, carrying what it is about to take home. */
+    download: (n: number) => `Download ${n} ${n === 1 ? 'file' : 'files'}`,
+    /** The same button with nothing marked yet: off, and saying why rather than «Download 0». */
+    nothingPicked: 'Nothing selected',
     addMore: 'Add more',
     deleteAsk: (kind: 'photo' | 'video') => `Delete this ${kind === 'video' ? 'video' : 'photo'}?`,
     deleteText: 'It goes from the memory for good. A movie already made keeps it.',
@@ -370,7 +383,6 @@ export const en = {
     dropFile: (name: string) => `Drop ${name} from the queue`,
     picked: (n: number) => `${n} selected`,
     pickedOf: (n: number, total: number) => `${n} selected of ${total}`,
-    clear: 'Clear',
     /** The one glowing button of the screen, carrying what it is about to take with it. */
     send: (n: number) => `Send ${n} ${n === 1 ? 'file' : 'files'}`,
     /** What the queue parks a file with. The filename is the phone's own and stays as it is. */
@@ -436,6 +448,7 @@ export const ru: Strings = {
   action: {
     back: 'Назад',
     cancel: 'Отмена',
+    clear: 'Снять',
     close: 'Закрыть',
     retry: 'Повторить',
     delete: 'Удалить',
@@ -597,7 +610,10 @@ export const ru: Strings = {
       ready: 'Показывать нечего',
     },
     open: 'открыто',
-    downloadAll: 'Скачать всё',
+    select: 'Выбрать кадры',
+    leaveSelect: 'Выйти из режима выбора',
+    download: (n: number) => `Скачать ${count(n, 'файл', 'файла', 'файлов')}`,
+    nothingPicked: 'Ничего не выбрано',
     addMore: 'Добавить ещё',
     deleteAsk: (kind: 'photo' | 'video') => `Удалить это ${kind === 'video' ? 'видео' : 'фото'}?`,
     deleteText: 'Оно уйдёт из воспоминания навсегда. В уже собранном ролике останется.',
@@ -657,7 +673,6 @@ export const ru: Strings = {
     dropFile: (name: string) => `Убрать ${name} из очереди`,
     picked: (n: number) => `Выбрано ${n}`,
     pickedOf: (n: number, total: number) => `Выбрано ${n} из ${total}`,
-    clear: 'Снять выбор',
     send: (n: number) => `Отправить ${count(n, 'файл', 'файла', 'файлов')}`,
     gone: (name: string) => `${name} больше нет на этом телефоне.`,
     partRefused: (part: number, status: number) =>

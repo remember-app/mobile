@@ -32,6 +32,14 @@ import { en, ru } from '@/strings';
  * arrives.
  */
 
+/** What each `<ActionBar>` of a face holds, in the order they stand in the file. */
+function actionBars(face: string): string[] {
+  return face
+    .split('<ActionBar>')
+    .slice(1)
+    .map((rest) => rest.slice(0, rest.indexOf('</ActionBar>')));
+}
+
 test('one memory is one route, behind the same gate as the rest of the app', () => {
   expect(layout).toContain('<Stack.Screen name="memory/[id]"');
   // The two that were faces of it and are not routes any more.
@@ -104,10 +112,13 @@ test('the switch under the name is the kit’s wide segment, and it holds the th
 });
 
 test('the right of the appbar is one icon, and only the frames have one', () => {
-  // «Скачать всю галерею», the kit's one icon for this corner. It used to be a second wide button in
-  // the footer, beside «Добавить кадры».
+  // The switch into picking, the kit's one icon for this corner — and the whole of what it holds.
+  // «Скачать всю галерею» stood here until the kit folded it into the picking itself («это тот же
+  // выбор, только весь»), and before that it was a second wide button in the footer beside
+  // «Добавить кадры».
   expect(frames).toContain('right={');
-  expect(frames).toContain('label={s.gallery.downloadAll}');
+  expect(frames).toContain('label={picking ? s.gallery.leaveSelect : s.gallery.select}');
+  expect(frames).not.toContain('gallery.downloadAll');
   // The other two hand the head nothing for that corner — moving between faces is the switch's job,
   // and the `Users` icon that used to do it is gone from all three.
   for (const face of [films, people]) {
@@ -117,15 +128,77 @@ test('the right of the appbar is one icon, and only the frames have one', () => 
   for (const face of [frames, films, people]) expect(face).not.toContain('Users');
 });
 
-test('the footer of the frames is one button, and it is «Add more»', () => {
-  const footer = frames.slice(frames.indexOf('<ActionBar>'), frames.indexOf('</ActionBar>'));
-  expect(footer.match(/<Button/g)).toHaveLength(1);
-  expect(footer).toContain('label={s.gallery.addMore}');
-  expect(footer).not.toContain('downloadAll');
+test('the footer of the frames is one wide button, «Add more» off the picking mode', () => {
+  // Two footers in the file — the picking one first, «Добавить кадры» after it — and each of them
+  // holds exactly one wide button. «Нижняя кнопка остаётся на месте и в том же весе».
+  const bars = actionBars(frames);
+  expect(bars).toHaveLength(2);
+  for (const bar of bars) expect(bar.match(/wide/g)).toHaveLength(1);
+  expect(bars[1]).toContain('label={s.gallery.addMore}');
   // And that button is the only way to the upload screen there is.
   expect(frames).toContain('/memory/[id]/upload');
   expect(films).not.toContain('/memory/[id]/upload');
   expect(people).not.toContain('/memory/[id]/upload');
+});
+
+/**
+ * The picking mode of the frames (TASK-108, kit «Экраны» 4 «Выбор»): the corner icon is a switch,
+ * a tap marks instead of opening while it is on, and the one button at the bottom changes what it
+ * is about — «меняется слово и дело».
+ */
+
+test('the corner icon is a switch, and leaving it drops every mark', () => {
+  // Held in rather than fired: the kit draws it filled while the mode is on, which is `on=` and
+  // nothing else — a plain `IconButton` has no state that survives the finger.
+  expect(frames).toContain('on={picking}');
+  expect(frames).toContain('onPress={togglePicking}');
+  // Both halves of the switch in one function, so leaving cannot forget the marks. Order matters
+  // only in that both run: what the kit asks is «нажали ещё — вышли, отметки сняты».
+  const toggling = frames.slice(frames.indexOf('function togglePicking'));
+  expect(toggling.slice(0, toggling.indexOf('}'))).toContain('setPicked(new Set());');
+  // An empty sheet has nothing to pick from, so it carries no switch at all — not a greyed one.
+  // Unless the mode is already on: the switch is the only way out of it, and the last frame can go
+  // from under it while somebody else is deleting.
+  expect(frames).toContain('picking || (items !== null && items.length > 0) ? (');
+});
+
+test('while picking, a tap marks the frame instead of opening it — and only a ready one', () => {
+  // «Ждущие и упавшие кадры не отмечаются: скачивать нечего». Read off the frame and not the
+  // record's status, so a `ready` record whose derivative never arrived is out of it too.
+  expect(frames).toContain("const pickable = picking && frame.state === 'ready';");
+  expect(frames).toContain('selected={pickable ? picked.has(item.id) : undefined}');
+  // The mark is the tile's own — the same ring and tick «Выбор кадров» draws, never a second one.
+  expect(frames).not.toContain('tile--selected');
+  expect(upload).toContain('selected={picked.has(item.id)}');
+});
+
+test('the picking footer is «Снять» beside a download that carries its count', () => {
+  const picking = actionBars(frames)[0];
+  // The quiet half is the word the kit gives both sheets that pick something, said in one place.
+  expect(picking).toContain('label={s.action.clear}');
+  expect(upload).toContain('label={s.action.clear}');
+  expect(picking).toContain(
+    'picked.size === 0 ? s.gallery.nothingPicked : s.gallery.download(picked.size)',
+  );
+  expect(picking).toContain('onPress={() => void savePicked()}');
+  // Both off with nothing marked, and both off while something is already coming down.
+  expect(picking.match(/disabled=\{busy \|\| picked\.size === 0\}/g)).toHaveLength(2);
+  // The download itself is the whole-gallery route cut to what is marked — one ask, not one per
+  // file, which is what «скачать всё» already did.
+  expect(frames).toContain(
+    '(await downloadAllMedia(token, id)).filter((file) => picked.has(file.id))',
+  );
+});
+
+test('the words of the picking mode count in Russian and say why the button is off', () => {
+  expect(ru.gallery.download(1)).toBe('Скачать 1 файл');
+  expect(ru.gallery.download(4)).toBe('Скачать 4 файла');
+  expect(ru.gallery.download(11)).toBe('Скачать 11 файлов');
+  expect(en.gallery.download(1)).toBe('Download 1 file');
+  expect(en.gallery.download(4)).toBe('Download 4 files');
+  // The kit's own line for the button with nothing marked, and the kit's own word for the quiet one.
+  expect(ru.gallery.nothingPicked).toBe('Ничего не выбрано');
+  expect(ru.action.clear).toBe('Снять');
 });
 
 test('no face reaches another by pushing a route: the switch is the only road between them', () => {
@@ -163,7 +236,9 @@ test('the ember on a face is the one action that face is for', () => {
   // The kit gives the glow to one action per surface. Each face draws two surfaces at most — itself
   // and a sheet over it — so two is the number, never one for the screen and one for a shortcut to
   // another screen (which is what the guest list's «Movie» button was).
-  expect(frames.match(/variant="primary"/g)).toHaveLength(1); // «Добавить кадры»
+  // Two on the frames because the footer has two shapes and only ever one of them is on screen:
+  // «Скачать N файлов» while picking, «Добавить кадры» the rest of the time.
+  expect(frames.match(/variant="primary"/g)).toHaveLength(2);
   expect(films.match(/variant="primary"/g)).toHaveLength(2); // «Смонтировать» + the order sheet
   expect(people.match(/variant="primary"/g)).toHaveLength(2); // «Пригласить» + the invite sheet
   // And the people's own is in the footer the kit draws for that face, not inline in the roster.
@@ -362,9 +437,12 @@ test('neither the sheet nor the strip opens a frame that is still developing', (
   // match `mayOpen(item)` twice while opening exactly the records this gate exists to stop. This
   // was the bug fixed in review — a tap on a waiting frame opened a whole screen saying
   // «Preparing…», which is what was reported.
-  const gate = 'onPress={mayOpen(item) ? () => setOpen(item.id) : undefined}';
-  const escaped = gate.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  expect(frames.match(new RegExp(escaped, 'g'))).toHaveLength(2);
+  //
+  // Twice still, in two spellings: the strip has only ever done one thing with a tap, and the sheet
+  // now asks whether it is picking first — the same gate on the branch that still opens.
+  const gate = 'mayOpen(item)\n                        ? () => setOpen(item.id)\n';
+  expect(frames).toContain(gate);
+  expect(frames).toContain('onPress={mayOpen(item) ? () => setOpen(item.id) : undefined}');
 });
 
 test('the frame shown full screen is the same reading frameOf gives every tile', () => {

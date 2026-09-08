@@ -48,6 +48,7 @@ export function IconButton({
   sm,
   size,
   tint,
+  on,
   disabled,
   style,
 }: {
@@ -66,6 +67,13 @@ export function IconButton({
    * is the difference between an action and a smudge.
    */
   tint?: string;
+  /**
+   * `.iconbtn[aria-pressed]` — a button that stays in rather than firing and letting go: the frames'
+   * corner icon is the way into picking and the way out of it again. Passing it at all is what makes
+   * this a switch; left off, the button is a plain one and says so out loud, because `checked: false`
+   * on something that does not toggle reads as an unticked box.
+   */
+  on?: boolean;
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
@@ -76,9 +84,11 @@ export function IconButton({
 
   return (
     <Pressable
-      accessibilityRole="button"
+      accessibilityRole={on === undefined ? 'button' : 'togglebutton'}
       accessibilityLabel={label}
-      accessibilityState={{ disabled: !!disabled }}
+      accessibilityState={
+        on === undefined ? { disabled: !!disabled } : { disabled: !!disabled, checked: on }
+      }
       disabled={disabled}
       // Drawn at 40 (or 28), felt at 44 either way.
       hitSlop={hitSlop(sm ? 28 : 40)}
@@ -87,6 +97,7 @@ export function IconButton({
       style={[
         styles.iconbtn,
         sm ? styles.iconbtnSm : null,
+        on ? styles.iconbtnOn : null,
         hovered ? styles.iconbtnHover : null,
         focused ? focusRing : null,
         disabled ? styles.off : null,
@@ -96,7 +107,9 @@ export function IconButton({
       <Icon
         icon={icon}
         size={size ?? (sm ? ICO_S : ICO)}
-        color={hovered ? color.paper : (tint ?? color.muted)}
+        // Held in, it reads at full strength: the kit's pressed icon is `--paper`, the same as under
+        // a finger. Muted is the resting state, and a switch that is on is not resting.
+        color={hovered || on ? color.paper : (tint ?? color.muted)}
       />
     </Pressable>
   );
@@ -177,6 +190,9 @@ const useStyles = themed(({ color, shade }) =>
       justifyContent: 'center',
     },
     iconbtnSm: { width: 28, height: 28 },
+    // `.iconbtn[aria-pressed="true"]` — filled and outlined, the same pair the segment's chosen pill
+    // wears. It is the only state of this button that survives the finger coming off it.
+    iconbtnOn: { backgroundColor: color.raise, borderColor: shade.lineHi },
     iconbtnHover: { backgroundColor: color.raise },
     off: { opacity: 0.45 },
     appbar: {

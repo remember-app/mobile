@@ -1,6 +1,14 @@
 import { useFocusEffect, useIsFocused, useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
-import { Camera, Download, Plus, Trash2, TriangleAlert, X } from 'lucide-react-native';
+import {
+  Camera,
+  Download,
+  Plus,
+  SquareCheckBig,
+  Trash2,
+  TriangleAlert,
+  X,
+} from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   FlatList,
@@ -64,9 +72,12 @@ const STRIP_GAP = SHEET_GAP;
  * preview straight from R2 rather than downloading first. Only «Download» reaches past the
  * derivatives: the original as it was sent, saved into the phone's gallery, one file or the lot.
  *
- * The lot of them is the one icon this memory's appbar carries, and it is carried on this face
- * alone — the kit puts «Скачать всю галерею» in the corner and leaves «Добавить кадры» the whole of
- * the footer.
+ * Taking material home is picking it first: the one icon this appbar carries is the switch into the
+ * picking mode and back out of it, and it is carried on this face alone. There is no separate
+ * «скачать всю галерею» beside it — «это тот же выбор, только весь», and two icons about one thing
+ * would push the memory's own name out of the bar (kit, «Экраны» 4, «Выбор»). While the mode is on,
+ * a tap marks a frame instead of opening it and the footer's one button changes what it is about:
+ * «Скачать 4 файла» where «Добавить кадры» stands the rest of the time.
  */
 export function Frames({ id, head }: { id: string; head: Head }) {
   const { token, user } = useAuth();
@@ -95,6 +106,13 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   const [loading, setLoading] = useState(true);
   /** The record the viewer is showing, held by id so a reload hands it a fresh signed url. */
   const [open, setOpen] = useState<string | null>(null);
+  /**
+   * Whether the sheet is being picked from rather than looked at — the corner switch's own state.
+   * It is what a tap on a frame means, what the footer's button is about, and nothing else.
+   */
+  const [picking, setPicking] = useState(false);
+  /** What is marked for taking home, by record id — the same set the «Выбор кадров» screen keeps. */
+  const [picked, setPicked] = useState<ReadonlySet<string>>(() => new Set());
   /** Whether the delete sheet is up over the viewer. What it asks about is the open record. */
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -213,6 +231,24 @@ export function Frames({ id, head }: { id: string; head: Head }) {
       .filter(Boolean)
       .join(', ');
 
+  /** Tap to mark, tap again to unmark — the «Выбор кадров» screen's own gesture, same as sending. */
+  const pick = (mediaId: string) =>
+    setPicked((have) => {
+      const next = new Set(have);
+      if (!next.delete(mediaId)) next.add(mediaId);
+      return next;
+    });
+
+  /**
+   * The corner switch, both ways. Leaving drops the marks — the kit says so («нажали ещё — вышли,
+   * отметки сняты»), and a selection kept in the dark would come back on the next entry as marks
+   * nobody made. Clearing on the way in costs nothing and says the same thing once.
+   */
+  function togglePicking() {
+    setPicked(new Set());
+    setPicking((on) => !on);
+  }
+
   async function remove(item: MediaItem) {
     if (!token) return;
     setBusy(true);
@@ -265,17 +301,23 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   }
 
   /**
-   * The whole gallery, one file after another. One ask for all the links, then a save each — and a
-   * file that will not come down is counted rather than fatal, because the person wanting all of
-   * it wants the rest of it too. The count is the only progress there is: a save is atomic here.
+   * What is marked, one file after another. One ask for all the links, then a save each — and a
+   * file that will not come down is counted rather than fatal, because the person wanting several
+   * of them wants the rest of them too. The count is the only progress there is: a save is atomic
+   * here.
    */
-  async function saveEverything() {
+  async function savePicked() {
     if (!token) return;
     setBusy(true);
     setNotice(null);
     try {
       if (!(await maySave())) return;
-      const files = await downloadAllMedia(token, id);
+      // The whole-gallery route, cut down to what is marked. It signs a link for every record in the
+      // memory to take a handful of them, which is what «скачать всё» has always cost and is why the
+      // route exists at all.
+      // ponytail: a link per marked record is the upgrade, and it would fix the expiry below too —
+      // worth it the day a memory is big enough for the signing itself to be felt.
+      const files = (await downloadAllMedia(token, id)).filter((file) => picked.has(file.id));
       let failed = 0;
       for (const [index, file] of files.entries()) {
         // Between files and not mid-file: whoever walked out of the gallery is not waiting on the
@@ -307,17 +349,23 @@ export function Frames({ id, head }: { id: string; head: Head }) {
       <MemoryHead
         {...head}
         right={
-          // The one icon the kit allows this appbar, and it is on this face alone: taking the whole
-          // memory home is about the sheet under it and about nothing else. It used to be a second
-          // wide button in the footer beside «Добавить кадры» — two glowing-sized actions where the
-          // kit draws one (kit, «Экраны» 4). Everyone's, a viewer included: what somebody who may
-          // only look is here for. Off while busy, and while there is nothing to take.
-          <IconButton
-            icon={Download}
-            label={s.gallery.downloadAll}
-            onPress={() => void saveEverything()}
-            disabled={busy || items === null || items.length === 0}
-          />
+          // The one icon the kit allows this appbar, and it is on this face alone: it is the switch
+          // into picking, and picking is the only way anything is taken home from here. Everyone's,
+          // a viewer included — what somebody who may only look is here for. Absent rather than
+          // greyed while the sheet is empty or still arriving: «пустой галерее переключателя выбора
+          // в шапке нет — выбирать нечего». Once the mode is on it stays, empty sheet or not:
+          // somebody else can delete the last frame from under a picking that is already open, and
+          // the switch is the only way out of it. Off while busy, so the mode cannot be walked out
+          // of from under a download that is still running.
+          picking || (items !== null && items.length > 0) ? (
+            <IconButton
+              icon={SquareCheckBig}
+              label={picking ? s.gallery.leaveSelect : s.gallery.select}
+              on={picking}
+              onPress={togglePicking}
+              disabled={busy}
+            />
+          ) : undefined
         }
       />
 
@@ -357,6 +405,11 @@ export function Frames({ id, head }: { id: string; head: Head }) {
               // What a record is on screen is `@/frames` and not this line: the viewer below draws
               // off the same reading, and the two must not drift.
               const frame = frameOf(item);
+              // «Ждущие и упавшие кадры не отмечаются: скачивать нечего» — and the frame's reading
+              // and not the record's status, so a `ready` record whose derivative never arrived is
+              // out of the picking too. It stays in the sheet, plain and untappable, the way it
+              // already stands there while the mode is off.
+              const pickable = picking && frame.state === 'ready';
               return (
                 <Tile
                   style={cell}
@@ -372,13 +425,27 @@ export function Frames({ id, head }: { id: string; head: Head }) {
                   }
                   // Read out, never drawn — so it says «Photo» and not the api's own `photo`.
                   label={nameOf(item, frame)}
-                  // The same gate the strip below puts on the same record, and for the same
+                  // The kit's one mark for a picked frame — the ember ring and the tick, the same
+                  // as on «Выбор кадров». Only while the mode is on and only where a mark means
+                  // something: handed `undefined`, the tile is a button again rather than a
+                  // checkbox that is permanently off.
+                  selected={pickable ? picked.has(item.id) : undefined}
+                  // «Тап по кадру теперь не открывает его, а отмечает» — while the mode is on. Off
+                  // it, the same gate the strip below puts on the same record, and for the same
                   // reason: a frame still being made has nothing behind it to open, so opening it
                   // lands on a whole screen saying «Preparing…» — which is the third of the three
                   // reports this milestone came from. The kit agrees on both sheets: a waiting
                   // frame is a `<span>` on the contact sheet as well as in the strip, never a
                   // `<button>`. A fallen one still opens — that is where the delete lives.
-                  onPress={mayOpen(item) ? () => setOpen(item.id) : undefined}
+                  onPress={
+                    picking
+                      ? pickable
+                        ? () => pick(item.id)
+                        : undefined
+                      : mayOpen(item)
+                        ? () => setOpen(item.id)
+                        : undefined
+                  }
                 />
               );
             }}
@@ -392,20 +459,47 @@ export function Frames({ id, head }: { id: string; head: Head }) {
               <Banner
                 text={notice}
                 style={
-                  mayUpload
+                  mayUpload || picking
                     ? styles.notice
                     : { marginTop: space.s3, marginBottom: Math.max(insets.bottom, space.s4) }
                 }
               />
             ) : null}
-            {/* The kit leaves this face one footer button, and «Скачать всё» went to the corner
-                above to make room for it. «Добавить кадры», gated on the level and on nothing else
-                — whoever may only look has no footer at all (kit, «Экраны» 4, «Края»).
-                Off while busy, like everything else here: this one only pushes a screen in front
-                (the memory stays mounted and keeps its summary), but sending a batch up while a
-                batch is coming down is two errands over one connection and one progress line
-                between them. What the departure itself costs is handled by `onScreen`. */}
-            {mayUpload ? (
+            {/* One button at the bottom, in the same place and the same weight either way — «меняется
+                слово и дело». Picking, it is «Скачать 4 файла» over the kit's quiet «Снять», and it
+                is there for everybody: «в режиме выбора подвал есть и у него — скачивать может
+                каждый, кто видит» (kit, «Экраны» 4, «Края»). The rest of the time it is «Добавить
+                кадры», gated on the level and on nothing else, and whoever may only look has no
+                footer at all. Adding stays reachable at every other moment — it only steps aside for
+                the seconds somebody is marking frames (TASK-108, уточнено человеком).
+
+                Off while busy in both shapes: sending a batch up while a batch is coming down is two
+                errands over one connection and one progress line between them, and the download
+                itself must not be started twice. What leaving the face costs is handled by
+                `onScreen`. */}
+            {picking ? (
+              <ActionBar>
+                <Button
+                  variant="quiet"
+                  label={s.action.clear}
+                  onPress={() => setPicked(new Set())}
+                  disabled={busy || picked.size === 0}
+                />
+                <Button
+                  variant="primary"
+                  wide
+                  // No glyph: the kit's «Скачать 4 файла» is words alone, where «Добавить кадры»
+                  // carries one. The count rides in the label — it is what the button is about to
+                  // take home. With nothing marked the button is off and says why: «Скачать 0
+                  // файлов» reads as a button that would take nothing if only it worked.
+                  label={
+                    picked.size === 0 ? s.gallery.nothingPicked : s.gallery.download(picked.size)
+                  }
+                  onPress={() => void savePicked()}
+                  disabled={busy || picked.size === 0}
+                />
+              </ActionBar>
+            ) : mayUpload ? (
               <ActionBar>
                 <Button
                   variant="primary"
