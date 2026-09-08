@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { radius, space, themed, useTheme } from '@/theme';
 
-import { ICO, Icon, type IconComponent } from './icon';
+import { ICO, ICO_S, Icon, type IconComponent } from './icon';
 import { hitSlop, useFocusRing, useHoverFocus } from './interaction';
 import { Text } from './text';
 
@@ -45,7 +45,8 @@ export function IconButton({
   icon,
   label,
   onPress,
-  size = ICO,
+  sm,
+  size,
   tint,
   disabled,
   style,
@@ -53,6 +54,11 @@ export function IconButton({
   icon: IconComponent;
   label: string;
   onPress?: () => void;
+  /**
+   * `.iconbtn-sm` — 28×28 with the small glyph, for a button that stands inside a row of text
+   * rather than in a bar of its own. The slop below keeps the finger target at 44 all the same.
+   */
+  sm?: boolean;
   size?: number;
   /**
    * What it is drawn in when untouched — `.viewer__bar .iconbtn{color:var(--paper)}`, the kit's one
@@ -74,19 +80,24 @@ export function IconButton({
       accessibilityLabel={label}
       accessibilityState={{ disabled: !!disabled }}
       disabled={disabled}
-      // Drawn at 40, felt at 44.
-      hitSlop={hitSlop(40)}
+      // Drawn at 40 (or 28), felt at 44 either way.
+      hitSlop={hitSlop(sm ? 28 : 40)}
       onPress={onPress}
       {...props}
       style={[
         styles.iconbtn,
+        sm ? styles.iconbtnSm : null,
         hovered ? styles.iconbtnHover : null,
         focused ? focusRing : null,
         disabled ? styles.off : null,
         style,
       ]}
     >
-      <Icon icon={icon} size={size} color={hovered ? color.paper : (tint ?? color.muted)} />
+      <Icon
+        icon={icon}
+        size={size ?? (sm ? ICO_S : ICO)}
+        color={hovered ? color.paper : (tint ?? color.muted)}
+      />
     </Pressable>
   );
 }
@@ -165,6 +176,7 @@ const useStyles = themed(({ color, shade }) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
+    iconbtnSm: { width: 28, height: 28 },
     iconbtnHover: { backgroundColor: color.raise },
     off: { opacity: 0.45 },
     appbar: {

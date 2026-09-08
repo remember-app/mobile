@@ -122,13 +122,15 @@ export const en = {
   role: { organizer: 'Organizer', contributor: 'Contributor', viewer: 'Viewer' },
 
   /**
-   * The four standings of doc-06 — «прогресс у организатора», keyed by the api's own values.
-   * Short on purpose: these share one meta line with «@username», and a sentence there wraps the
-   * member row onto a height the kit never drew.
+   * The four standings of doc-06 — «прогресс у организатора», keyed by the api's own values. Three
+   * words on screen, not four: the first two both read as «still to come», because the difference
+   * between «has not started» and «is still adding» is the api's bookkeeping and not anything the
+   * organizer does differently — the count beside the standing already says how far along they are
+   * (doc-06, уточнено 2026-09-08).
    */
   standing: {
-    not_started: 'Nothing yet',
-    more_coming: 'Still adding',
+    not_started: 'Planning to upload',
+    more_coming: 'Planning to upload',
     done: 'All uploaded',
     nothing: 'Nothing to add',
   },
@@ -238,8 +240,9 @@ export const en = {
     you: (name: string) => `${name} (you)`,
     remove: (name: string) => `Remove ${name}`,
     /**
-     * doc-06's «ждать нечего», given unprompted on one's own row. Said in the first person so it
-     * reads as the thing one presses, and not as the standing of the same name printed above it.
+     * doc-06's «ждать нечего», given unprompted — the chip that stands in one's own row where
+     * everybody else's standing is written. Said in the first person so it reads as the thing one
+     * presses, and not as the standing of the same name it turns into once pressed.
      */
     sayNothing: 'I have nothing to add',
     inviteTitle: 'Invite someone',
@@ -493,10 +496,10 @@ export const ru: Strings = {
   role: { organizer: 'Организатор', contributor: 'Добавление', viewer: 'Просмотр' },
 
   standing: {
-    not_started: 'Пока ничего',
-    more_coming: 'Ещё добавляет',
-    done: 'Загрузил всё',
-    nothing: 'Ждать нечего',
+    not_started: 'Планирует загрузить',
+    more_coming: 'Планирует загрузить',
+    done: 'Всё загрузил',
+    nothing: 'Нечего добавлять',
   },
 
   home: {
@@ -562,7 +565,7 @@ export const ru: Strings = {
     roster: 'Кто здесь',
     you: (name: string) => `${name} (вы)`,
     remove: (name: string) => `Убрать ${name}`,
-    sayNothing: 'Мне нечего добавить',
+    sayNothing: 'Мне нечего добавлять',
     inviteTitle: 'Позвать человека',
     mayAdd: 'Сможет добавлять фото',
     inviteLink: 'Ссылка-приглашение',

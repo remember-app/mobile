@@ -113,6 +113,18 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   }, []);
   /** The filmstrip, so it can be walked to the open frame once it knows how wide it is. */
   const strip = useRef<FlatList<MediaItem>>(null);
+  /**
+   * Whether the strip has already been walked to the frame that is open. The walk itself is down
+   * in the strip and carries the long version of why this exists; the short one is that
+   * «once the content is laid out» and «every time the content is laid out» are the same callback
+   * in React Native, and only the first of them was ever wanted.
+   */
+  const walked = useRef(false);
+  // Re-armed by opening another frame and by nothing else — so the strip walks once per opening,
+  // the second opening of the same frame included, and never because the gallery grew underneath.
+  useEffect(() => {
+    walked.current = false;
+  }, [open]);
 
   const load = useCallback(
     // `quiet` belongs to the re-read below: that one happens on its own every few seconds, and it
@@ -525,12 +537,32 @@ export function Frames({ id, head }: { id: string; head: Head }) {
                       // what was reported of a gallery of seven opened on its fifth. Asking for the
                       // same position once the content is laid out leaves the window alone: the whole
                       // gallery is in the strip from the first frame on, and scrolling reaches it all.
-                      onContentSizeChange={() =>
+                      //
+                      // Once, though, and the latch is what says so. `onContentSizeChange` reads
+                      // like «when the content has been laid out» and is really «whenever the
+                      // content is laid out»: React Native gives the scroll row its own `onLayout`
+                      // and calls this from it, so it comes back every time that row changes size —
+                      // and the row changes size whenever a frame lands, which on a live memory is
+                      // every few seconds, while the upload queue is still sending and the worker
+                      // still developing what it sent. Unlatched, each of those hauled the strip
+                      // back to the open frame from wherever the person had scrolled it: the strip
+                      // reads as one that will not scroll, and a tile that jumps out from under a
+                      // finger between the press and the release never fires its press, so it reads
+                      // as one that will not open a frame either — both of the things reported off a
+                      // real phone (TASK-106). A settled gallery on a simulator never grows, which
+                      // is why neither was ever seen there. React Native runs this same
+                      // `scrollToIndex` from this same place for `initialScrollIndex`, behind
+                      // exactly this latch (`_hasTriggeredInitialScrollToIndex`); it is the half of
+                      // that prop worth having, and the frozen render window above is the half that
+                      // is not.
+                      onContentSizeChange={() => {
+                        if (walked.current) return;
+                        walked.current = true;
                         strip.current?.scrollToIndex({
                           index: frameIndex(items, open),
                           animated: false,
-                        })
-                      }
+                        });
+                      }}
                       renderItem={({ item }) => {
                         const frame = frameOf(item);
                         const current = item.id === shown.id;

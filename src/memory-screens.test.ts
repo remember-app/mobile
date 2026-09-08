@@ -10,6 +10,7 @@ import api from './api.ts?raw';
 // montage card is where the poster a face hands over actually lands.
 import bars from './kit/bars.tsx?raw';
 import cardMontage from './kit/card-montage.tsx?raw';
+import member from './kit/member.tsx?raw';
 import toggle from './kit/toggle.tsx?raw';
 import films from './memory/films.tsx?raw';
 import frames from './memory/frames.tsx?raw';
@@ -180,6 +181,54 @@ test('nobody is shown a way out of a memory, and the organizer keeps the crosses
   expect(people).toContain('label={s.members.remove(memberName(member))}');
 });
 
+// The roster line itself (TASK-110, TASK-111), reported off a live device: the standings read as
+// bookkeeping, nothing said how much anybody had actually brought, and «мне нечего добавлять» was a
+// button under the row that made that one row taller than the rest.
+
+test('a standing is one of three words, and «nothing to add» is not one of the other two', () => {
+  for (const set of [en, ru]) {
+    // Four api values, three things a person is told: «has not started» and «is still adding» are
+    // the same news to whoever is waiting, and the count beside the standing says the rest.
+    expect(set.standing.not_started).toBe(set.standing.more_coming);
+    expect(new Set(Object.values(set.standing)).size).toBe(3);
+    // The one the person says about themselves keeps its own words — it is not a stage of
+    // uploading, it is the end of it (doc-06).
+    expect(set.standing.nothing).not.toBe(set.standing.done);
+    expect(set.standing.nothing).not.toBe(set.standing.not_started);
+  }
+  expect(ru.standing.more_coming).toBe('Планирует загрузить');
+  expect(ru.standing.done).toBe('Всё загрузил');
+});
+
+test('every row says how many frames that person brought, counted off the gallery', () => {
+  // The api keeps no tally on a member, so the roster counts the memory's own listing by uploader.
+  // One read, beside the roster's own — and its failure is not the roster's, so it is swallowed.
+  expect(people.match(/listMedia\(/g)).toHaveLength(1);
+  expect(people).toContain('by.set(item.uploaded_by, (by.get(item.uploaded_by) ?? 0) + 1)');
+  expect(people).toContain('count={shots ? s.memory.frames(shots.get(member.id) ?? 0)');
+  // The kit's green belongs to «Всё загрузил» alone: that dot is what the organizer scans for.
+  expect(people).toContain("ready={member.contribution_status === 'done'}");
+});
+
+test('one’s own standing is the chip that sets it, standing where the word would', () => {
+  // It was a `Button` under the row, and that is what came back from the device: the row it hung
+  // under stood taller than its neighbours and the stack read ragged (TASK-111). Now it is the
+  // kit's `.chip-action`, in the status's own slot — same 26 as the word it replaces.
+  expect(people).toContain('<ChipAction');
+  expect(people).toContain('label={s.members.sayNothing}');
+  expect(people.indexOf('status={')).toBeLessThan(people.indexOf('<ChipAction'));
+  expect(people).not.toContain('icon={Check}');
+  expect(people).not.toContain('styles.own');
+  // Both lines of the row are held to the kit's own constants, so nothing that goes into them —
+  // the chip, the cross, a bare word — can change how tall a row is.
+  expect(member).toContain('lineHeight: 28');
+  expect(member).toContain('minHeight: 26');
+  // And the cross beside the name is the kit's small one, with its column held open where the
+  // organizer looks at their own row and there is no cross to draw.
+  expect(bars).toContain('iconbtnSm: { width: 28, height: 28 }');
+  expect(people).toContain('styles.noCross');
+});
+
 test('the order button waits for the list it prepends to', () => {
   // TASK-75 lifted this button out of the list branch into the bottom bar, where the only thing
   // gating it is the role — and the role comes off the memory, which is read above the face and
@@ -261,6 +310,27 @@ test('the strip is walked to the open frame, never started at it', () => {
   expect(frames).toContain('index: frameIndex(items, open)');
   // `scrollToIndex` on a list this long is only safe because every tile is a known size.
   expect(frames).toContain('getItemLayout');
+});
+
+test('the strip is walked once per opening, and never again under the finger', () => {
+  // What was left of the fix above, and what a real phone found (TASK-106). `onContentSizeChange`
+  // reads like «when the content has been laid out» and is really «whenever the content is laid
+  // out» — React Native gives the scroll row its own `onLayout` and calls this from it — so it
+  // comes back every time that row changes size, and the row changes size every time a frame
+  // lands. On a live memory that is every few seconds while the queue is still sending and the
+  // worker still developing, and each one hauled the strip back to the open frame from wherever it
+  // had been scrolled: a strip that will not scroll, and a tile that jumps out from under a finger
+  // between the press and the release never fires its press, so a strip that will not open a frame
+  // either. A settled gallery on a simulator never grows, which is why neither was ever seen there.
+  const walk = frames.slice(
+    frames.indexOf('onContentSizeChange={'),
+    frames.indexOf('renderItem={', frames.indexOf('onContentSizeChange={')),
+  );
+  expect(walk).toContain('if (walked.current) return;');
+  expect(walk).toContain('walked.current = true;');
+  // Re-armed by opening another frame and by nothing else: once per opening, the second opening of
+  // the same frame included, and never because the gallery grew underneath.
+  expect(frames).toMatch(/walked\.current = false;\n {2}\}, \[open\]\);/);
 });
 
 test('a strip tile and a sheet tile read a record the same way', () => {
