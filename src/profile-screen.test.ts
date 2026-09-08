@@ -26,7 +26,15 @@ test('the submit only glows once the name in the field is a different one', () =
 
 test('logging out is not painted in the colour held for the irreversible', () => {
   // Kit section 2: rust is failure and what cannot be undone. Signing in again brings the session
-  // back, so the way out wears the neutral button — the sheet is where the question gets asked.
+  // back, so the way out wears no colour at all — the sheet is where the question gets asked.
   expect(profile).not.toContain('variant="danger"');
-  expect(profile).toContain('variant="secondary"');
+  expect(profile).toContain('variant="quiet"');
+});
+
+test('the way out stands in the body, not in a footer', () => {
+  // Kit screen 8: a quiet small button on `.push` at the end of the scrolling body. An actionbar
+  // would draw a hairline over it and read as the one thing the screen is for (TASK-103), which the
+  // way out is not — the name, the nick, the theme and the language are.
+  expect(profile).not.toContain('ActionBar');
+  expect(profile).toContain("marginTop: 'auto'");
 });
