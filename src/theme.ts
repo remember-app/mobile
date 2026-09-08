@@ -45,10 +45,13 @@ export const ease = [0.2, 0.7, 0.2, 1] as const;
 export const font = { display: 'BricolageGrotesque_600SemiBold' } as const;
 
 /**
- * The kit's six type roles — roles, not sizes. Line heights are the kit's ratios resolved to px.
+ * The kit's seven type roles — roles, not sizes. Line heights are the kit's ratios resolved to px.
  * Sizes only: the colour a role is read in belongs to the theme, and `kit/text.tsx` pairs the two.
  */
 export const type = StyleSheet.create({
+  // A step above `display`, and the kit spends it on one word on one screen: the product's own name
+  // over the way in. Nothing else in the app is a hero.
+  hero: { fontFamily: font.display, fontSize: 40, lineHeight: 40.8, letterSpacing: -1.2 },
   display: { fontFamily: font.display, fontSize: 32, lineHeight: 33.6, letterSpacing: -0.64 },
   title: { fontFamily: font.display, fontSize: 22, lineHeight: 26.4, letterSpacing: -0.22 },
   subtitle: { fontSize: 17, lineHeight: 22.1, fontWeight: '600' },

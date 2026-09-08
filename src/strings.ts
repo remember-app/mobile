@@ -147,11 +147,19 @@ export const en = {
    * one heading is the product's own name (TASK-77) — which is not a word either language owns.
    */
   login: {
+    /**
+     * The one line under the name, and the whole product in it: what lands here, and what comes out
+     * of it. Nothing else on the screen explains anything — the first screen after the way in does
+     * that better than any paragraph here would.
+     */
+    promise: 'Photos and video from everyone who was there — in one place. And a film out of them.',
     withApple: 'Continue with Apple',
     withGoogle: 'Continue with Google',
     appleUnavailable: 'Apple sign-in is not available on this device.',
     providerUnavailable: (provider: string) => `${provider} sign-in isn't available yet.`,
     noIdentityToken: (provider: string) => `${provider} did not return an identity token.`,
+    /** The quiet third way in, which is what opens the field below. */
+    withEmail: 'Sign in with an email link',
     email: 'Email',
     emailPlaceholder: 'you@example.com',
     sendLink: 'Send me a link',
@@ -483,11 +491,13 @@ export const ru: Strings = {
   },
 
   login: {
-    withApple: 'Войти через Apple',
-    withGoogle: 'Войти через Google',
+    promise: 'Фото и видео со всех, кто там был, — в одном месте. И ролик из них.',
+    withApple: 'Продолжить с Apple',
+    withGoogle: 'Продолжить с Google',
     appleUnavailable: 'На этом устройстве вход через Apple недоступен.',
     providerUnavailable: (provider: string) => `Вход через ${provider} пока не работает.`,
     noIdentityToken: (provider: string) => `${provider} не вернул токен входа.`,
+    withEmail: 'Войти по ссылке на почту',
     email: 'Почта',
     emailPlaceholder: 'ivan@example.com',
     sendLink: 'Пришлите ссылку',
