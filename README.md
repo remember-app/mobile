@@ -48,8 +48,18 @@ IP машины в локальной сети, например `EXPO_PUBLIC_AP
 
 ### Ссылка входа по email в разработке
 
-Почты в MVP нет: ссылку `remember://auth/email?token=…` API печатает себе в лог (строка
-`magic link issued`).
+Когда у API нет ключей почты (`RESEND_API_KEY`, `MAIL_FROM`) и он не в проде, `POST
+/auth/email/start` отдаёт ссылку `remember://auth/email?token=…` прямо в ответе вместо письма.
+Экран входа сам достаёт из неё токен и меняет на сессию, держа при этом плашку «вход для
+разработки»: руками делать нечего — адрес, кнопка, вы внутри.
+
+В лог ссылка не пишется, это ключ от аккаунта. Если она нужна отдельно — например, чтобы открыть
+сам экран `auth/email`, — возьмите её из ответа:
+
+```sh
+curl -s localhost:3000/auth/email/start \
+  -H 'content-type: application/json' -d '{"email":"you@example.com"}'
+```
 
 **Схема `remember://` работает только в dev-билде.** В Expo Go она принадлежит не нам, и
 `xcrun simctl openurl booted "remember://…"` падает с `LSApplicationWorkspaceErrorDomain 115`.
