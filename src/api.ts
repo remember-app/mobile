@@ -98,8 +98,12 @@ async function request<T>(
  * The language rides along because at this point there is no session to hang it on — the address
  * is all the api knows about whoever asked, and the letter has to be written in the language of
  * the app that asked (TASK-85). Every later sync goes through `putLanguage` instead.
+ *
+ * `link` comes back only where the api has no mail to send it with and is not the live server
+ * (TASK-97) — a `remember://auth/email?token=…` handed straight back instead of posted. Anywhere
+ * that can actually write the letter, the answer is the bare `ok`.
  */
-export function startEmailSignIn(email: string): Promise<{ ok: true }> {
+export function startEmailSignIn(email: string): Promise<{ ok: true; link?: string }> {
   return request('/auth/email/start', {
     method: 'POST',
     body: { email, language: currentLanguage() },

@@ -161,6 +161,11 @@ export const en = {
      * runs it, so the screen answers in its own words rather than passing the server's along.
      */
     mailDown: "We can't send sign-in links right now — try again later.",
+    /**
+     * Shown only where the api has no mail and hands the link back instead (TASK-97). It has to
+     * read as the workbench and not as a way in anybody was meant to have, so it says so first.
+     */
+    devLink: 'Development sign-in: no mail here, so the app is walking the link in for you.',
     sentTitle: 'Check your link',
     sentText: (email: string) => `Open the link we sent to ${email} — it signs you in here.`,
     otherAddress: 'Use a different address',
@@ -480,6 +485,7 @@ export const ru: Strings = {
     emailPlaceholder: 'ivan@example.com',
     sendLink: 'Пришлите ссылку',
     mailDown: 'Сейчас мы не можем отправлять ссылки для входа — попробуйте позже.',
+    devLink: 'Вход для разработки: почты здесь нет, приложение проходит по ссылке само.',
     sentTitle: 'Ссылка отправлена',
     sentText: (email: string) =>
       `Откройте ссылку, которую мы прислали на ${email}, — она впустит вас сюда.`,

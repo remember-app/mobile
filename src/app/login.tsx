@@ -6,7 +6,14 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ApiError, errorMessage, signInWithApple, signInWithGoogle, startEmailSignIn } from '@/api';
+import {
+  ApiError,
+  errorMessage,
+  signInWithApple,
+  signInWithGoogle,
+  startEmailSignIn,
+  verifyEmailToken,
+} from '@/api';
 import { useAuth } from '@/auth';
 import { Banner, Button, Empty, Field, RailH, Text } from '@/kit';
 import { useStrings } from '@/language';
@@ -36,6 +43,7 @@ export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
+  const [devLink, setDevLink] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [appleAvailable, setAppleAvailable] = useState(false);
@@ -67,12 +75,33 @@ export default function LoginScreen() {
     setBusy(true);
     setError(null);
     try {
-      await startEmailSignIn(email.trim());
-      setSent(true);
+      const { link } = await startEmailSignIn(email.trim());
+      // Every install that can post the letter answers with the bare `ok`, and there is nothing
+      // left to do here but say where to look for it. A link in the answer means the api had no
+      // mail to post it with (TASK-97) and handed the token straight back — so the screen walks it
+      // in itself, the same trade `auth/email.tsx` makes when a real link is opened.
+      if (!link) {
+        setSent(true);
+        return;
+      }
+      setDevLink(true);
+      const token = new URL(link).searchParams.get('token');
+      if (!token) {
+        setDevLink(false);
+        setError(s.link.noToken);
+        return;
+      }
+      const session = await verifyEmailToken(token);
+      await signIn(session.token);
     } catch (e) {
-      // 503 is the api saying it has no mail keys; its own wording for that is written for whoever
-      // runs it, so the screen answers in its own words instead of passing the server's along.
-      setError(e instanceof ApiError && e.status === 503 ? s.login.mailDown : errorMessage(e));
+      setDevLink(false);
+      // Both of these carry api wording written for whoever runs the server, so the screen answers
+      // in its own words instead of passing the server's along: 503 is the api saying it has no
+      // mail keys, 401 that the link it just handed back is already spent.
+      const status = e instanceof ApiError ? e.status : null;
+      if (status === 503) setError(s.login.mailDown);
+      else if (status === 401) setError(s.link.expired);
+      else setError(errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -186,6 +215,9 @@ export default function LoginScreen() {
           />
         </View>
 
+        {/* Not a way in anybody was meant to have — the plain banner says so while the trade runs,
+            so this is never mistaken for the sign-in a person on a phone gets. */}
+        {devLink ? <Banner text={s.login.devLink} /> : null}
         {error ? <Banner tone="error" text={error} /> : null}
       </View>
     </View>
