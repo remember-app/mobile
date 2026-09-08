@@ -240,6 +240,27 @@ test('the strip is walked to the open frame, never started at it', () => {
   expect(frames).toContain('getItemLayout');
 });
 
+test('the strip is walked once per opening, and never again under the finger', () => {
+  // What was left of the fix above, and what a real phone found (TASK-106). `onContentSizeChange`
+  // reads like «when the content has been laid out» and is really «whenever the content is laid
+  // out» — React Native gives the scroll row its own `onLayout` and calls this from it — so it
+  // comes back every time that row changes size, and the row changes size every time a frame
+  // lands. On a live memory that is every few seconds while the queue is still sending and the
+  // worker still developing, and each one hauled the strip back to the open frame from wherever it
+  // had been scrolled: a strip that will not scroll, and a tile that jumps out from under a finger
+  // between the press and the release never fires its press, so a strip that will not open a frame
+  // either. A settled gallery on a simulator never grows, which is why neither was ever seen there.
+  const walk = frames.slice(
+    frames.indexOf('onContentSizeChange={'),
+    frames.indexOf('renderItem={', frames.indexOf('onContentSizeChange={')),
+  );
+  expect(walk).toContain('if (walked.current) return;');
+  expect(walk).toContain('walked.current = true;');
+  // Re-armed by opening another frame and by nothing else: once per opening, the second opening of
+  // the same frame included, and never because the gallery grew underneath.
+  expect(frames).toMatch(/walked\.current = false;\n {2}\}, \[open\]\);/);
+});
+
 test('a strip tile and a sheet tile read a record the same way', () => {
   // `frameOf` twice and nowhere else: the two places that draw a record must not drift, which is
   // the bug the whole of `@/frames` exists to have fixed once.
