@@ -465,7 +465,26 @@ export function Frames({ id, head }: { id: string; head: Head }) {
                         what every phone's own gallery does. `box-none` so the darkening itself never
                         swallows a touch meant for the frame. */}
                     <View
-                      style={[styles.viewerBar, { paddingTop: insets.top + space.s2 }]}
+                      style={[
+                        styles.viewerBar,
+                        {
+                          paddingTop: insets.top + space.s2,
+                          // The darkening lives here and not in the sheet because it is measured
+                          // off the same inset the padding is. The kit's bar is 72px — `s2`, a
+                          // 40px icon, `s6` — and its fade spends all 86% of itself over exactly
+                          // that. This bar is that one with the phone's safe area added on top, so
+                          // the kit's fade written the kit's way — two stops, no positions — is
+                          // stretched over 131px on an iPhone with a notch, and most of it is
+                          // spent on the strip behind the status bar where there is nothing to
+                          // read. The name sits two thirds down instead of a third: .29 of ink
+                          // under it where the kit draws .52, and a line already at 76% paper
+                          // stops being readable over a bright frame. That is the report. Held at
+                          // full strength to the end of the safe area and faded from there, what
+                          // is under the row is the kit's own 72px fade on every phone, notch or
+                          // no notch.
+                          experimental_backgroundImage: `linear-gradient(rgba(20,17,15,.86), rgba(20,17,15,.86) ${insets.top}px, rgba(20,17,15,0))`,
+                        },
+                      ]}
                       pointerEvents="box-none"
                     >
                       <IconButton
@@ -682,15 +701,16 @@ const useStyles = themed(() =>
       gap: space.s2,
       paddingHorizontal: space.s2,
       paddingBottom: space.s6,
-      // The kit's own gradient, written the way React Native takes one — no library for a
-      // background. It fades to nothing so the frame is never cut in half by an edge. The same
-      // darkening in both themes, and the icons over it are `onScrim` for the same reason the kit
-      // gives: this lies on a photograph, not on the interface, and has to read on snow and on a
-      // night sky alike.
-      // ponytail: the property is still `experimental_` in RN 0.86. Renamed or dropped, it goes
-      // quiet — the icons stay paper-white but lose their darkening over a bright frame; the upgrade
-      // is the settled name, or `expo-linear-gradient` if it never settles.
-      experimental_backgroundImage: 'linear-gradient(rgba(20,17,15,.86), rgba(20,17,15,0))',
+      // The darkening itself is not here: it is measured off the safe-area inset and so is written
+      // where that inset is known, over the bar in the tree above. The same darkening in both
+      // themes, and the icons on it are `onScrim` for the reason the kit gives — this lies on a
+      // photograph, not on the interface, and has to read on snow and on a night sky alike.
+      //
+      // It is React Native's own gradient and not a library, and the `experimental_` in the name is
+      // only a name: RN 0.86 carries the prop the whole way down — `ReactNativeStyleAttributes`
+      // parses the CSS in JS, `BaseViewProps` reads that exact key in C++, and iOS draws it as a
+      // `CAGradientLayer` in `RCTViewComponentView`. Nothing about it is quiet on a device, which is
+      // why what came back from one was a fade in the wrong place rather than no fade at all.
     },
     // On the darkening and not on the screen, so it is `onScrim` softened, in both themes.
     who: { flex: 1, paddingLeft: space.s1, color: 'rgba(242,236,227,.76)' },
