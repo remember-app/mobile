@@ -338,7 +338,8 @@ export const en = {
 
   /** Picking material off the phone, and the queue that sends it (`@/uploads`). */
   upload: {
-    title: 'Upload',
+    /** The screen's own name in the kit (screens, 7) — not the memory's, which it no longer wears. */
+    title: 'Your frames',
     explain:
       'Remember cannot see a thing in your gallery until you say so — and what you pick stays on this phone until you send it.',
     refused:
@@ -619,7 +620,7 @@ export const ru: Strings = {
   },
 
   upload: {
-    title: 'Загрузка',
+    title: 'Ваши кадры',
     explain:
       'Remember не видит вашу галерею, пока вы не разрешите, — а выбранное остаётся на телефоне, пока вы не отправите его.',
     refused:
