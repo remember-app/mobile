@@ -322,11 +322,13 @@ export const en = {
       'The phone only asks once, and the answer was no. Turning it back on is in Settings, under Remember.',
     allow: 'Allow access',
     limited:
-      'Only the photos you handed to Remember are here — the rest of the gallery is invisible to this screen, «select all from that date» included.',
+      'Only the photos you handed to Remember are here — the rest of the gallery is invisible to this screen, and to the «select all» on every day in it.',
     chooseMore: 'Choose more',
     cannotRead: 'Cannot read the gallery on this phone.',
-    selectEvent: 'Select all from that date',
-    nothingThen: 'Nothing in the gallery was shot on those days.',
+    /** Over one strip of the contact sheet: the day everything under it was shot on. */
+    shotOn: (day: string) => `Shot on ${day}`,
+    /** And at the other end of that line — everything shot on that one day, in one tap. */
+    selectDay: (n: number) => `Select all ${n}`,
     reading: 'Still reading the gallery…',
     emptyGallery: 'Nothing to pick — this phone’s gallery is empty.',
     stillToSend: (n: number) => `${n} still to send`,
@@ -335,6 +337,8 @@ export const en = {
     picked: (n: number) => `${n} selected`,
     pickedOf: (n: number, total: number) => `${n} selected of ${total}`,
     clear: 'Clear',
+    /** The one glowing button of the screen, carrying what it is about to take with it. */
+    send: (n: number) => `Send ${n} ${n === 1 ? 'file' : 'files'}`,
     /** What the queue parks a file with. The filename is the phone's own and stays as it is. */
     gone: (name: string) => `${name} is no longer on this phone.`,
     partRefused: (part: number, status: number) => `Storage refused part ${part} (${status}).`,
@@ -595,11 +599,11 @@ export const ru: Strings = {
       'Телефон спрашивает один раз, и ответ был «нет». Включить обратно можно в настройках, в разделе Remember.',
     allow: 'Разрешить доступ',
     limited:
-      'Здесь только те снимки, что вы отдали Remember, — остальная галерея этому экрану не видна, «Выбрать всё за эти даты» тоже.',
+      'Здесь только те снимки, что вы отдали Remember, — остальная галерея этому экрану не видна, и «Выбрать все» в каждом дне тоже.',
     chooseMore: 'Отдать ещё',
     cannotRead: 'Не получилось прочитать галерею на этом телефоне.',
-    selectEvent: 'Выбрать всё за эти даты',
-    nothingThen: 'В галерее нет ничего, снятого в эти дни.',
+    shotOn: (day: string) => `Снято ${day}`,
+    selectDay: (n: number) => `Выбрать все ${n}`,
     reading: 'Ещё читаем галерею…',
     emptyGallery: 'Выбирать нечего — галерея этого телефона пуста.',
     stillToSend: (n: number) => `Осталось ${count(n, 'файл', 'файла', 'файлов')}`,
@@ -608,6 +612,7 @@ export const ru: Strings = {
     picked: (n: number) => `Выбрано ${n}`,
     pickedOf: (n: number, total: number) => `Выбрано ${n} из ${total}`,
     clear: 'Снять выбор',
+    send: (n: number) => `Отправить ${count(n, 'файл', 'файла', 'файлов')}`,
     gone: (name: string) => `${name} больше нет на этом телефоне.`,
     partRefused: (part: number, status: number) =>
       `Хранилище отказало на части ${part} (${status}).`,

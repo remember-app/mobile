@@ -7,8 +7,8 @@
 // pays for the uris with `getInfo()`.
 import * as MediaLibrary from 'expo-media-library/legacy';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronLeft, Images, X } from 'lucide-react-native';
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { Images, X } from 'lucide-react-native';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   FlatList,
   Linking,
@@ -21,12 +21,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { errorMessage, listMemories, type Memory } from '@/api';
 import { useAuth } from '@/auth';
-import { formatEventDates, formatRuntime } from '@/dates';
+import { formatDay, formatEventDates, formatRuntime } from '@/dates';
 import {
   ActionBar,
   AppBar,
   Banner,
   Button,
+  DayMark,
   Empty,
   ICO_S,
   IconButton,
@@ -37,7 +38,7 @@ import {
   Upload,
 } from '@/kit';
 import { useStrings } from '@/language';
-import { assetsInEventWindow } from '@/media-window';
+import { assetsByDay, type ShootingDay } from '@/media-window';
 import { space, themed } from '@/theme';
 import { progress } from '@/upload-queue';
 import { drop, enqueue, useUploads, wake } from '@/uploads';
@@ -51,6 +52,11 @@ const WANTED = ['photo', 'video'] as const;
 
 /** Big enough that the first page fills the screen, small enough that it arrives quickly. */
 const PAGE = 500;
+
+/** One line of the sheet: a day of the roll, or up to three of the frames shot on it. */
+type Row =
+  | { key: string; day: ShootingDay<MediaLibrary.Asset>; frames?: undefined }
+  | { key: string; frames: MediaLibrary.Asset[]; day?: undefined };
 
 /**
  * Putting material into a memory: consent, the camera roll, «select all from that date», a
@@ -87,7 +93,28 @@ export default function UploadScreen() {
   // queueing carry on, which is the whole point of a queue that waits for the network.
   const [galleryError, setGalleryError] = useState<string | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+
+  /**
+   * The roll as the kit lays it out: the day it was shot on, then that day's frames three to a row,
+   * then the next day — the event's days first. Flat, and three to a row by hand, because that is
+   * what `numColumns` does to a list underneath and a list cannot do it around the days standing
+   * between the strips. A day holding its own frames would read better and would mount a wedding —
+   * six hundred frames on one day, the day this screen floats to the top — in a single item.
+   *
+   * Held across renders: every tap on a frame is a render, and the cut runs over the whole camera
+   * roll, which is thousands of rows on a phone that has had one a while.
+   */
+  const rows = useMemo(
+    () =>
+      assetsByDay(memory, gallery).flatMap((day): Row[] => [
+        { key: `day-${day.at}`, day },
+        ...Array.from({ length: Math.ceil(day.assets.length / 3) }, (_, i) => ({
+          key: day.assets[i * 3].id,
+          frames: day.assets.slice(i * 3, i * 3 + 3),
+        })),
+      ]),
+    [memory, gallery],
+  );
 
   const load = useCallback(() => {
     if (!token) return;
@@ -116,12 +143,12 @@ export default function UploadScreen() {
       try {
         let after: string | undefined;
         // The whole library, newest first, one page at a time. All of it and not the first page:
-        // «select all from that date» runs over what is in hand, and an event two months back sits
-        // behind however many photos were taken since — an unread tail would drop straight out of
-        // the pick without saying so.
+        // the days are cut out of what is in hand, and an event two months back sits behind however
+        // many photos were taken since — an unread tail would leave the event's own days off the
+        // top of the screen without saying so.
         // ponytail: a huge camera roll spends a few seconds on this. If that ever bites, page only
-        // until the window is passed — but the window belongs to `assetsInEventWindow`, so that
-        // stop condition has to come from there and not from a second copy of the day maths here.
+        // until the window is passed — but the window belongs to `@/media-window`, so that stop
+        // condition has to come from there and not from a second copy of the day maths here.
         do {
           const page = await MediaLibrary.getAssetsAsync({
             first: PAGE,
@@ -172,16 +199,12 @@ export default function UploadScreen() {
     });
 
   /**
-   * The button doc-02 is built around. What it picks is `assetsInEventWindow` and nothing else:
-   * the event window is a span of *local* days, and that module is the one place that says so —
-   * the same maths behind the dates printed above this button.
+   * The button doc-02 is built around, «выбрать все за эту дату» — and the date it means is the one
+   * on the strip it stands over, never the whole screen. It only ever adds: what is already picked
+   * on another day stays picked, and the way anything leaves the selection is the one above.
    */
-  function pickTheEvent() {
-    if (!memory) return;
-    const shotThen = assetsInEventWindow(memory, gallery);
-    setPicked(new Set(shotThen.map((asset) => asset.id)));
-    // Silence would read as a broken button; this is the one outcome that needs explaining.
-    setNotice(shotThen.length === 0 ? s.upload.nothingThen : null);
+  function pickDay(day: ShootingDay<MediaLibrary.Asset>) {
+    setPicked((have) => new Set([...have, ...day.assets.map((asset) => asset.id)]));
   }
 
   /** Widen a `limited` grant. Whatever it changed, the library is read again from the top. */
@@ -199,7 +222,6 @@ export default function UploadScreen() {
   function send() {
     enqueue(id, gallery.filter((asset) => picked.has(asset.id)));
     setPicked(new Set());
-    setNotice(null);
   }
 
   const title = memory?.title ?? s.memory.fallbackTitle;
@@ -247,8 +269,9 @@ export default function UploadScreen() {
         <Text role="meta">{formatEventDates(memory.event_start, memory.event_end)}</Text>
       ) : null}
 
-      {/* Said, not shown as a dead end: without the api there are no event dates and so no
-          «select all from that date», but picking by hand and queueing both still work. */}
+      {/* Said, not shown as a dead end: without the api there is no event window, so the roll is
+          cut into its days all the same but none of them is lifted to the top as the event's.
+          Picking — by hand or by the day — and queueing both still work. */}
       {apiError !== null ? (
         <Banner tone="error" text={apiError}>
           <Button sm variant="quiet" label={s.action.retry} onPress={load} />
@@ -256,32 +279,24 @@ export default function UploadScreen() {
       ) : null}
 
       {/* iOS and Android 14 both let someone hand over a handful of photos instead of the roll.
-          Said out loud, because otherwise «select all from that date» comes up short and the
-          button looks broken when it is the grant that is narrow. */}
+          Said out loud, because otherwise a day comes up counting three frames out of the sixty
+          that were shot on it, and the grant is the only thing that would explain it. */}
       {access.accessPrivileges === 'limited' ? (
         <Banner text={s.upload.limited}>
           <Button sm label={s.upload.chooseMore} onPress={() => void chooseMore()} />
         </Banner>
       ) : null}
 
-      <Button
-        label={s.upload.selectEvent}
-        wide
-        onPress={pickTheEvent}
-        disabled={memory === null || reading}
-      />
-      {notice ? <Banner text={notice} /> : null}
       {reading ? <Text role="meta">{s.upload.reading}</Text> : null}
 
-      {/* The kit's contact sheet, section 8: three columns almost flush, because there has to be
-          visibly a lot of material. Every frame here is one the phone already holds, so `ready` is
-          the only state this sheet ever draws — the other two belong to the gallery, where a file
-          is still being turned into a derivative. */}
+      {/* The kit's contact sheet, section 8, cut into days: three columns almost flush, because
+          there has to be visibly a lot of material, and over each strip the day it was shot on
+          carrying that day's own «выбрать все». Every frame here is one the phone already holds, so
+          `ready` is the only state this sheet ever draws — the other two belong to the gallery,
+          where a file is still being turned into a derivative. */}
       <FlatList
-        data={gallery}
-        keyExtractor={(asset) => asset.id}
-        numColumns={3}
-        columnWrapperStyle={styles.sheetRow}
+        data={rows}
+        keyExtractor={(row) => row.key}
         contentContainerStyle={styles.sheet}
         ListEmptyComponent={
           // The line above already says what the wait is for, so the sheet only spins.
@@ -293,19 +308,37 @@ export default function UploadScreen() {
             <Empty icon={Images} text={s.upload.emptyGallery} />
           )
         }
-        renderItem={({ item }) => (
-          <Tile
-            state="ready"
-            uri={item.uri}
-            selected={picked.has(item.id)}
-            // The kit marks a video by how long it runs rather than by the word «video».
-            length={item.mediaType === 'video' ? formatRuntime(item.duration) : undefined}
-            // The filename is the phone's own and is never translated.
-            label={`${item.mediaType === 'video' ? s.media.video : s.media.photo} ${item.filename}`}
-            onPress={() => toggle(item.id)}
-            style={cell}
-          />
-        )}
+        renderItem={({ item: row }) =>
+          row.day ? (
+            <DayMark label={s.upload.shotOn(formatDay(new Date(row.day.at)))}>
+              {/* The action belongs to this day and says how much of it there is — the kit's
+                  «Выбрать все 61», quiet, because the glow on this screen is the sending. */}
+              <Button
+                sm
+                variant="quiet"
+                label={s.upload.selectDay(row.day.assets.length)}
+                onPress={() => pickDay(row.day)}
+              />
+            </DayMark>
+          ) : (
+            <View style={styles.sheetRow}>
+              {row.frames.map((item) => (
+                <Tile
+                  key={item.id}
+                  state="ready"
+                  uri={item.uri}
+                  selected={picked.has(item.id)}
+                  // The kit marks a video by how long it runs rather than by the word «video».
+                  length={item.mediaType === 'video' ? formatRuntime(item.duration) : undefined}
+                  // The filename is the phone's own and is never translated.
+                  label={`${item.mediaType === 'video' ? s.media.video : s.media.photo} ${item.filename}`}
+                  onPress={() => toggle(item.id)}
+                  style={cell}
+                />
+              ))}
+            </View>
+          )
+        }
       />
 
       {queued.length > 0 ? (
@@ -362,7 +395,10 @@ export default function UploadScreen() {
         <Button
           variant="primary"
           wide
-          label={s.action.send}
+          // The count rides in the label, the kit's «Отправить 4 файла» — it is what the button is
+          // about to take with it. With nothing picked the button is off and says the bare verb:
+          // «Отправить 0 файлов» reads as a button that would send nothing if only it worked.
+          label={picked.size === 0 ? s.action.send : s.upload.send(picked.size)}
           onPress={send}
           disabled={picked.size === 0}
         />
@@ -390,11 +426,13 @@ function Screen({ title, children }: { title: string; children: ReactNode }) {
         // Said in every one of this screen's states, the way the way back is.
         subtitle={s.upload.title}
         left={
+          // A cross and not an arrow: this screen comes up over the frames as an errand of its own,
+          // not as a step deeper into them, and an errand is closed rather than backed out of. What
+          // it does is unchanged — reached by a tapped push there is nothing behind this screen,
+          // and the way create answers that is the way this one does.
           <IconButton
-            icon={ChevronLeft}
-            label={s.action.back}
-            // Reached by a tapped push there is nothing behind this screen, and the way create
-            // answers that is the way this one does.
+            icon={X}
+            label={s.action.close}
             onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
           />
         }
@@ -409,9 +447,10 @@ const useStyles = themed(({ color }) =>
     screen: { flex: 1, backgroundColor: color.ink, paddingHorizontal: space.s4, gap: space.s3 },
     waiting: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     // The kit's sheet: 3px between frames, and nothing else — the material is the picture here.
-    // The column itself is measured out above; this only holds the gutters between them.
+    // The column itself is measured out above; this only holds the gutters between them. Between
+    // one day's strip and the next it is the daymark's own padding that opens the gap.
     sheet: { flexGrow: 1, gap: SHEET_GAP },
-    sheetRow: { gap: SHEET_GAP },
+    sheetRow: { flexDirection: 'row', gap: SHEET_GAP },
     queue: { gap: space.s3 },
     parked: { maxHeight: 132 },
     parkedRow: {

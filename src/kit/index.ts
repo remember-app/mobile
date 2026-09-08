@@ -23,6 +23,7 @@ export * from './button';
 export * from './card-memory';
 export * from './card-montage';
 export * from './confirm';
+export * from './daymark';
 export * from './empty';
 export * from './field';
 export * from './icon';
