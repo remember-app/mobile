@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Camera, Info, Plus, User } from 'lucide-react-native';
+import { Camera, Plus, User } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -45,35 +45,50 @@ export default function HomeScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
-      {/* The kit's one loud move, in the second of the two places it is allowed. */}
-      <RailH />
-      <AppBar
-        title={s.home.title}
-        right={
-          <>
-            <IconButton icon={Info} label={s.home.about} onPress={() => router.push('/about')} />
-            <IconButton icon={User} label={s.home.profile} onPress={() => router.push('/profile')} />
-          </>
-        }
-      />
+      {/* The kit's three belts: the head does not move, the body scrolls, the action is nailed
+          to the bottom. The 16 to the side is each belt's own and not the screen's around them —
+          held once around all three, the footer's hairline would stop 16 short of either edge
+          instead of running the full width, which is what the kit says out loud about it. */}
+      <View style={styles.belt}>
+        {/* The kit's one loud move, in the second of the two places it is allowed. */}
+        <RailH />
+        <AppBar
+          title={s.home.title}
+          right={
+            <IconButton
+              icon={User}
+              label={s.home.profile}
+              onPress={() => router.push('/profile')}
+            />
+          }
+        />
+      </View>
 
       {/* Waiting and failing both hold the place of the list rather than blinking over it, so
           the shape of the screen never changes under the person reading it. */}
       {error !== null ? (
-        <View style={styles.place}>
+        // The kit stands the error strip over the list and not in the middle of the screen: it is
+        // about what should have been below it, so it keeps the top of the body.
+        <View style={[styles.belt, styles.place]}>
           <Banner tone="error" text={error}>
             <Button label={s.action.retry} variant="quiet" sm onPress={load} />
           </Banner>
         </View>
       ) : memories === null ? (
-        <View style={styles.place}>
+        <View style={[styles.belt, styles.place, styles.mid]}>
           <Empty busy text={s.state.gathering} />
         </View>
       ) : (
         <FlatList
           data={memories}
           keyExtractor={(memory) => memory.id}
-          contentContainerStyle={styles.list}
+          // Nothing to list is the kit's second screen: the invitation stands in the middle of
+          // the body, where a stack of cards would start at the top of it.
+          contentContainerStyle={[
+            styles.belt,
+            styles.list,
+            memories.length === 0 ? styles.mid : null,
+          ]}
           ListEmptyComponent={<Empty icon={Camera} text={s.home.empty} />}
           renderItem={({ item }) => {
             // `?? []` and not a bare read: the app ships over the air and the api deploys on its
@@ -106,7 +121,7 @@ export default function HomeScreen() {
         />
       )}
 
-      <ActionBar>
+      <ActionBar style={styles.belt}>
         <Button
           label={s.home.create}
           variant="primary"
@@ -131,9 +146,14 @@ function facts(memory: Memory): string[] {
 
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
-    screen: { flex: 1, backgroundColor: color.ink, paddingHorizontal: space.s4 },
-    // Cards a 12 gap apart, and the list keeps the full height so its empty state has room.
-    list: { flexGrow: 1, gap: space.s3, paddingBottom: space.s4 },
+    screen: { flex: 1, backgroundColor: color.ink },
+    // The kit's side inset, held by each belt rather than by the screen around them.
+    belt: { paddingHorizontal: space.s4 },
+    // Cards a 12 gap apart on the kit's 20 of floor, and the list keeps the full height so its
+    // empty state has room.
+    list: { flexGrow: 1, gap: space.s3, paddingBottom: space.s5 },
     place: { flex: 1 },
+    // The kit's `.screen__body-mid`: a body with nothing to scroll holds what it has in the middle.
+    mid: { justifyContent: 'center' },
   }),
 );

@@ -126,7 +126,6 @@ export const en = {
   /** The main screen: every memory this account organizes or was invited to. */
   home: {
     title: 'Memories',
-    about: 'About',
     profile: 'Profile',
     empty:
       'No memories yet. Start one for your next event and the photos will land here from everyone.',
@@ -455,7 +454,6 @@ export const ru: Strings = {
 
   home: {
     title: 'Воспоминания',
-    about: 'О приложении',
     profile: 'Профиль',
     empty:
       'Воспоминаний пока нет. Заведите одно к ближайшему событию — и снимки начнут стекаться сюда от всех.',
