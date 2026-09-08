@@ -23,8 +23,9 @@ import { space, themed } from '@/theme';
 // Closes the auth browser tab once Google redirects back.
 WebBrowser.maybeCompleteAuthSession();
 
-// No Google credentials exist yet. The provider hook throws when the client id is undefined,
-// so it gets a placeholder and the button answers before ever opening a browser.
+// No Google credentials exist yet, and without them there is no Google button on the screen at all.
+// The hook below still has to be called — hooks cannot stand under a condition — and it throws on an
+// undefined client id, so it gets a placeholder to hold onto that nothing is ever pressed into.
 const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
 
 /** «Apple» and «Google» are names and stay themselves; only the sentence around them turns. */
@@ -195,8 +196,8 @@ export default function LoginScreen() {
       </View>
 
       {/* The kit's `.actionbar-col`: the ways in are stacked at the bottom edge, under the thumb.
-          No ember on this screen — the choice between two providers is an even one, and lighting one
-          of them would be a lie. The field's focus border is the one lit thing here. */}
+          No ember while a provider stands here — the choice between them is an even one, and
+          lighting one of them would be a lie. The field's focus border is the one lit thing then. */}
       <ActionBar style={[styles.belt, styles.column]}>
         {byMail ? (
           <>
@@ -234,25 +235,30 @@ export default function LoginScreen() {
           </>
         ) : (
           <>
-            {/* ponytail: plain button; App Store review wants AppleAuthenticationButton before
+            {/* A way in that cannot be walked is not offered at all — a button standing there
+                switched off, or one that opens nothing when pressed, only asks a person to work out
+                which of the three is the real one. Off Apple hardware, and in a build with no
+                Google client id, this bottom edge is the mail line alone.
+                ponytail: plain button; App Store review wants AppleAuthenticationButton before
                 shipping — and that is where the provider's own mark comes from too. */}
+            {appleAvailable ? (
+              <Button variant="provider" label={s.login.withApple} onPress={withApple} />
+            ) : null}
+            {GOOGLE_CLIENT_ID ? (
+              <Button
+                variant="provider"
+                label={s.login.withGoogle}
+                onPress={withGoogle}
+                disabled={!googleRequest}
+              />
+            ) : null}
+            {/* Quiet, and last, while there is something above it: it is the way in for whoever has
+                neither account, and asking for it is what brings the field up in their place. Alone
+                at the bottom it stops being the third choice and becomes the screen's one action —
+                so it takes the ember the kit gives that, rather than hanging there as a grey line
+                under an empty room. */}
             <Button
-              variant="provider"
-              label={s.login.withApple}
-              onPress={withApple}
-              disabled={!appleAvailable}
-            />
-            {appleAvailable ? null : <Text role="meta">{s.login.appleUnavailable}</Text>}
-            <Button
-              variant="provider"
-              label={s.login.withGoogle}
-              onPress={withGoogle}
-              disabled={!googleRequest}
-            />
-            {/* Quiet, and last: it is the way in for whoever has neither account above, and asking
-                for it is what brings the field up in place of these three. */}
-            <Button
-              variant="quiet"
+              variant={appleAvailable || GOOGLE_CLIENT_ID ? 'quiet' : 'primary'}
               wide
               label={s.login.withEmail}
               onPress={() => setByMail(true)}

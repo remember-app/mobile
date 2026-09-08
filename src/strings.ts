@@ -161,7 +161,11 @@ export const en = {
     promise: 'Photos and video from everyone who was there — in one place. And a film out of them.',
     withApple: 'Continue with Apple',
     withGoogle: 'Continue with Google',
-    appleUnavailable: 'Apple sign-in is not available on this device.',
+    /**
+     * The screen drops a way in it cannot walk instead of standing it there switched off, so
+     * nothing says «not on this device» out loud any more. This one is the other case: the way in
+     * looked open, the server turned it down (501), and that has to be answered in words.
+     */
     providerUnavailable: (provider: string) => `${provider} sign-in isn't available yet.`,
     noIdentityToken: (provider: string) => `${provider} did not return an identity token.`,
     /** The quiet third way in, which is what opens the field below. */
@@ -502,7 +506,6 @@ export const ru: Strings = {
     promise: 'Фото и видео со всех, кто там был, — в одном месте. И ролик из них.',
     withApple: 'Продолжить с Apple',
     withGoogle: 'Продолжить с Google',
-    appleUnavailable: 'На этом устройстве вход через Apple недоступен.',
     providerUnavailable: (provider: string) => `Вход через ${provider} пока не работает.`,
     noIdentityToken: (provider: string) => `${provider} не вернул токен входа.`,
     withEmail: 'Войти по ссылке на почту',
