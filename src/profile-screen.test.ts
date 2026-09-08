@@ -26,25 +26,62 @@ test('the submit only glows once the name in the field is a different one', () =
 });
 
 test('the profile shows the name and offers no way to change it', () => {
-  // TASK-113: the human took the change off the design. The row that reads the name out stays; the
-  // form is gone from this screen and lives on /set-username alone, which is the one claim of a name
-  // there is. Nothing was taken from the api — this is what the screen draws, not what it may do.
-  expect(profile).toContain('<RowMember name={user?.username');
+  // TASK-113: the human took the change off the design, and TASK-114 rebuilt the screen without
+  // putting it back. The head row reads the account out; the form is gone from this screen and lives
+  // on /set-username alone, which is the one claim of a name there is. Nothing was taken from the
+  // api — this is what the screen draws, not what it may do.
+  expect(profile).toContain('<MemberHead');
   expect(profile).not.toContain('UsernameForm');
+  expect(profile).not.toContain('<Field');
   expect(setUsername).toContain('<UsernameForm');
 });
 
-test('logging out is not painted in the colour held for the irreversible', () => {
-  // Kit section 2: rust is failure and what cannot be undone. Signing in again brings the session
-  // back, so the way out wears no colour at all — the sheet is where the question gets asked.
-  expect(profile).not.toContain('variant="danger"');
-  expect(profile).toContain('variant="quiet"');
+test('the head says who you are once, never the same word twice', () => {
+  // `memberName` is the roster's own rule — the name, else the username (api.ts). Whoever signed in
+  // by email is named by their username, and printing it again under itself spends the second line
+  // on nothing.
+  expect(profile).toContain('const name = memberName(user);');
+  expect(profile).toContain('username={user?.username && user.username !== name');
+  expect(profile).toContain('email={user?.email ?? undefined}');
 });
 
-test('the way out stands in the body, not in a footer', () => {
+test('both settings say where they reach', () => {
+  // Kit screen 8: under each switch a line naming what the pick touches — the theme this screen, the
+  // language the mails and the pushes too. Without them the screen is two bare rows of pills.
+  expect(profile).toContain('hint={s.theme.hint}');
+  expect(profile).toContain('hint={s.language.hint}');
+});
+
+test('the three-value switch is not squeezed into equal thirds', () => {
+  // Measured, not guessed: a third of a phone's column leaves 97pt for a word and «Как в телефоне»
+  // needs 108. The kit puts both rows on `.segment-wide`, and the obvious tidying is to make these
+  // two match — which cuts the longest value on every phone in service. Two values fit that way,
+  // three do not.
+  expect(profile).toMatch(/hint=\{s\.theme\.hint\}\n\s+value=/);
+  expect(profile).toMatch(/hint=\{s\.language\.hint\}\n\s+wide\n/);
+});
+
+test('two hairlines cut the screen into who you are, what to set, how to leave', () => {
+  // The kit's assembly for this screen. The first rule belongs to the head row (`.row-member--head`
+  // draws its own), the second stands over the way out — and it is the one a rebuild loses first,
+  // because the group reads finished without it.
+  expect(profile).toContain('borderTopWidth: 1');
+  expect(profile).toContain('borderTopColor: color.line');
+});
+
+test('logging out is quiet, in the body, and names what it costs instead of asking again', () => {
+  // Kit section 2: rust is failure and what cannot be undone. Signing in again brings the session
+  // back, so the way out wears no colour at all.
+  expect(profile).not.toContain('variant="danger"');
+  expect(profile).toContain('variant="quiet"');
   // Kit screen 8: a quiet small button on `.push` at the end of the scrolling body. An actionbar
   // would draw a hairline over it and read as the one thing the screen is for (TASK-103), which the
   // way out is not — the name, the theme and the language are.
   expect(profile).not.toContain('ActionBar');
   expect(profile).toContain("marginTop: 'auto'");
+  // And the sheet is gone with it: «строка под ней называет последствие заранее, поэтому листом
+  // подтверждения выход не спрашивают». The line is what makes the press safe to answer for, so a
+  // screen that drops it has to bring the question back.
+  expect(profile).not.toContain('ConfirmSheet');
+  expect(profile).toContain('{s.profile.logOutText}');
 });

@@ -20,16 +20,27 @@ export const AVATAR = 40;
  * The kit's `.avatar`: one letter of the name in a circle. It only repeats the name written beside
  * it, so screen readers step over it.
  */
-export function Avatar({ name, style }: { name: string; style?: StyleProp<ViewStyle> }) {
+export function Avatar({
+  name,
+  lg,
+  style,
+}: {
+  name: string;
+  /** `.avatar-lg` — «тот же кружок крупнее, там, где человек смотрит на себя, а не на список». */
+  lg?: boolean;
+  style?: StyleProp<ViewStyle>;
+}) {
   const styles = useStyles();
 
   return (
     <View
-      style={[styles.avatar, style]}
+      style={[styles.avatar, lg ? styles.avatarLg : null, style]}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
-      <Text style={styles.initial}>{name.trim().charAt(0).toUpperCase()}</Text>
+      <Text style={[styles.initial, lg ? styles.initialLg : null]}>
+        {name.trim().charAt(0).toUpperCase()}
+      </Text>
     </View>
   );
 }
@@ -110,6 +121,56 @@ export function RowMember({
 }
 
 /**
+ * The kit's `.row-member--head`: the same row turned on the person reading it, and the top of the
+ * profile (screen 8). The row is the subject of the screen instead of an item in a list, so the
+ * circle is the larger one and the name is read in full voice; the hairline under it is the first of
+ * that screen's two, and it is what ends «кто вы».
+ *
+ * No chip and nothing on the end: alone with your own account there is no role to state and nobody
+ * to remove.
+ */
+export function MemberHead({
+  name,
+  username,
+  email,
+}: {
+  name: string;
+  username?: string;
+  email?: string;
+}) {
+  const styles = useStyles();
+
+  return (
+    <View style={styles.head}>
+      <Avatar name={name} lg />
+      <View style={styles.rowBody}>
+        {/* The kit's «Края»: a long name and a long address each cut with an ellipsis rather than
+            wrapping, so the circle and the hairline under them never move. */}
+        <Text role="title" numberOfLines={1}>
+          {name}
+        </Text>
+        {username || email ? (
+          <View style={styles.headMeta}>
+            {username ? (
+              <Text role="meta" numberOfLines={1}>
+                {username}
+              </Text>
+            ) : null}
+            {/* The address is the one that gives way: a username is short by the rules that let it
+                be claimed, an address is not. */}
+            {email ? (
+              <Text role="meta" numberOfLines={1} style={styles.metaGiving}>
+                {email}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+/**
  * The kit's `.invite`: the link, and next to it whatever the screen offers to do with it — copying
  * it, mostly. Revoking sits quietly underneath rather than inside, because a link gets replaced
  * often and that is not a red-button moment.
@@ -139,7 +200,10 @@ const useStyles = themed(({ color, shade }) =>
       borderWidth: 1,
       borderColor: color.line,
     },
+    // `.avatar-lg{width:56px; height:56px; font-size:20px}`.
+    avatarLg: { width: 56, height: 56 },
     initial: { fontFamily: font.display, fontSize: 15, lineHeight: 18 },
+    initialLg: { fontSize: 20, lineHeight: 24 },
     chip: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -157,8 +221,21 @@ const useStyles = themed(({ color, shade }) =>
     chipLabelOrganizer: { color: color.paper },
     row: { flexDirection: 'row', alignItems: 'center', gap: space.s3, paddingVertical: space.s3 },
     divider: { borderTopWidth: 1, borderTopColor: color.line },
+    // `.row-member--head{padding:0 0 var(--s5); border-bottom:1px solid var(--line)}` — the row
+    // stands at the very top of the body, so it takes nothing above itself.
+    head: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: space.s3,
+      paddingBottom: space.s5,
+      borderBottomWidth: 1,
+      borderBottomColor: color.line,
+    },
     rowBody: { flex: 1, minWidth: 0 },
     metaLine: { flexDirection: 'row', minWidth: 0 },
+    // The kit's `.row-member__meta` gap, which the list rows spend on the «·» instead: here the two
+    // are separate facts about one account, not one sentence.
+    headMeta: { flexDirection: 'row', minWidth: 0, gap: space.s2 },
     // Only the first half gives way, so what follows the «·» is never the thing that gets cut.
     // Both are spelled out: React Native shrinks nothing unless told to, the web shrinks
     // everything unless told not to, and this line has to break the same way on both.

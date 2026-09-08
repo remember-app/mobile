@@ -5,7 +5,9 @@ import {
   TextInput,
   View,
   type PressableProps,
+  type StyleProp,
   type TextInputProps,
+  type TextStyle,
 } from 'react-native';
 
 import { radius, space, themed, useTheme, type Theme } from '@/theme';
@@ -15,6 +17,25 @@ import { Text } from './text';
 
 /** `.field-ok` and `.field-error` — the kit's two answers to something already typed. */
 export type FieldState = 'ok' | 'error';
+
+/**
+ * `.field-hint` — the small muted line under a control saying what to do or where the thing reaches.
+ * Exported because it is not the field's alone: the kit hangs the same line under the profile's two
+ * switches and under the way out (screen 8), and a copy of these three numbers in every one of those
+ * places is how they drift apart.
+ */
+export function Hint({
+  children,
+  style,
+}: {
+  children: ReactNode;
+  /** The field's own two colours for it — `ok` green, `error` rust. Nothing else recolours a hint. */
+  style?: StyleProp<TextStyle>;
+}) {
+  const styles = useStyles();
+
+  return <Text style={[styles.hint, style]}>{children}</Text>;
+}
 
 /**
  * The kit's field, section 4: label, input, and a line underneath that says what to do. Height 52,
@@ -72,7 +93,7 @@ export function Field({
           style,
         ]}
       />
-      {hint ? <Text style={[styles.hint, hintColor(theme, state)]}>{hint}</Text> : null}
+      {hint ? <Hint style={hintColor(theme, state)}>{hint}</Hint> : null}
     </View>
   );
 }
@@ -126,7 +147,7 @@ export function FieldShell({
       >
         {children}
       </Pressable>
-      {hint ? <Text style={styles.hint}>{hint}</Text> : null}
+      {hint ? <Hint>{hint}</Hint> : null}
     </View>
   );
 }

@@ -36,7 +36,11 @@ export const en = {
     share: 'Share',
     invite: 'Invite',
     send: 'Send',
-    logOut: 'Log out',
+    /**
+     * The account and nothing else: leaving a memory is not offered anywhere anymore (TASK-113), and
+     * the kit's screen 8 spells out which of the two exits this is.
+     */
+    logOut: 'Log out of your account',
     openSettings: 'Open settings',
   },
 
@@ -383,12 +387,11 @@ export const en = {
   /** The account: who you are here, and the way out. */
   profile: {
     title: 'Profile',
-    /** Stands where the name would be. An invitation to give one, never a report that there is none. */
-    noName: 'Add your name',
-    logOutAsk: 'Log out?',
-    logOutText:
-      'The session on this phone ends. You will have to sign in again to get back to your memories.',
-    stay: 'Stay signed in',
+    /**
+     * The line under the way out, and the reason nothing asks a second time: the kit's screen 8 names
+     * the consequence before the press instead of holding a sheet after it.
+     */
+    logOutText: 'Your memories and frames stay where they are — you come back the same way in.',
   },
 
   /** The one username field, shared by the first claim and the change. */
@@ -405,10 +408,22 @@ export const en = {
    * The two languages name themselves. A person looking for their own language reads it in that
    * language, so these two lines are the same in both sets on purpose.
    */
-  language: { label: 'Language', ru: 'Русский', en: 'English' },
+  language: {
+    label: 'Language',
+    ru: 'Русский',
+    en: 'English',
+    /** Where the pick reaches past this screen — the mails and the pushes the api writes (TASK-91). */
+    hint: 'Letters and notifications come in it too.',
+  },
 
   /** doc-9. The third one is not a light but the phone going on deciding. */
-  theme: { label: 'Theme', system: 'As on phone', dark: 'Dark', light: 'Light' },
+  theme: {
+    label: 'Theme',
+    system: 'As on phone',
+    dark: 'Dark',
+    light: 'Light',
+    hint: 'Changes at once — this screen is the sample.',
+  },
 };
 
 /** The shape both sets keep. */
@@ -425,7 +440,7 @@ export const ru: Strings = {
     share: 'Поделиться',
     invite: 'Пригласить',
     send: 'Отправить',
-    logOut: 'Выйти',
+    logOut: 'Выйти из аккаунта',
     openSettings: 'Открыть настройки',
   },
 
@@ -656,11 +671,7 @@ export const ru: Strings = {
 
   profile: {
     title: 'Профиль',
-    noName: 'Добавьте имя',
-    logOutAsk: 'Выйти?',
-    logOutText:
-      'Сеанс на этом телефоне закончится. Чтобы вернуться к своим воспоминаниям, придётся войти снова.',
-    stay: 'Остаться',
+    logOutText: 'Воспоминания и кадры останутся на месте — вернётесь тем же входом.',
   },
 
   username: {
@@ -672,9 +683,20 @@ export const ru: Strings = {
     continue: 'Продолжить',
   },
 
-  language: { label: 'Язык', ru: 'Русский', en: 'English' },
+  language: {
+    label: 'Язык',
+    ru: 'Русский',
+    en: 'English',
+    hint: 'На нём же приходят письма и уведомления.',
+  },
 
-  theme: { label: 'Тема', system: 'Как в телефоне', dark: 'Тёмная', light: 'Светлая' },
+  theme: {
+    label: 'Тема',
+    system: 'Как в телефоне',
+    dark: 'Тёмная',
+    light: 'Светлая',
+    hint: 'Меняется сразу — этот экран и есть образец.',
+  },
 };
 
 /** Both sets, by the language they belong to. */

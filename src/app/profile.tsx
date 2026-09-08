@@ -4,28 +4,25 @@ import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { errorMessage } from '@/api';
+import { errorMessage, memberName } from '@/api';
 import { useAuth } from '@/auth';
-import { AppBar, Banner, Button, ConfirmSheet, IconButton, RowMember, Segment } from '@/kit';
+import { AppBar, Banner, Button, Hint, IconButton, MemberHead, Segment } from '@/kit';
 import { setLanguage, useLanguage, useStrings } from '@/language';
 import { setTheme, space, themed, useThemeChoice } from '@/theme';
 
 /**
  * The account: who you are here, how the app is set, and the way out.
  *
+ * The kit's screen 8 cuts the screen into three with two hairlines — «кто вы», «что настроить», «как
+ * уйти» — and this file is those three in order. The middle one keeps its air on purpose: the product
+ * has exactly two settings, and a screen that admits it is better than one padded out with rows that
+ * lead nowhere.
+ *
  * The name is shown and not editable (TASK-113): the username is claimed once on /set-username and
  * the api still takes a change, but this screen offers none.
  *
- * Logging out is asked for on the kit's sheet (section 13) rather than done on the press: from where
- * the person stands the session ends and the way back is a whole sign-in, which is worth one
- * question. The button itself is not painted in the rust that colour is held for — that is for what
- * cannot be undone, and this can — and it does not stand in an actionbar either: the kit's screen 8
- * ends the scrolling body with a quiet small button on `.push`, no footer hairline over it. A
- * footer would say «this is what the screen is for», and the screen is for the things above it.
- *
- * The theme and the language stand here too, on the kit's switch of section 15. Neither doc-8 nor
- * doc-9 gets a settings screen of its own — there are two things to set in the whole product, and
- * this is the screen that is already about the person rather than about a memory.
+ * Neither doc-8 nor doc-9 gets a settings screen of its own — there are two things to set in the
+ * whole product, and this is the screen that is already about the person rather than about a memory.
  */
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
@@ -36,8 +33,12 @@ export default function ProfileScreen() {
   const theme = useThemeChoice();
   const language = useLanguage();
   const [busy, setBusy] = useState(false);
-  const [asking, setAsking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // The roster's own rule for what a person is called, turned on yourself: the name if there is one,
+  // else the username. So the line under it drops the username when that is already what is written
+  // above — printing it twice says nothing the second time.
+  const name = memberName(user);
 
   /**
    * A pick is already on the screen by the time this is called — the stores turn the app first and
@@ -51,7 +52,6 @@ export default function ProfileScreen() {
   }
 
   async function logOut() {
-    setAsking(false);
     setBusy(true);
     setError(null);
     try {
@@ -85,15 +85,32 @@ export default function ProfileScreen() {
         // what that has to clear, and it is the taller of the two.
         contentContainerStyle={[styles.body, { paddingBottom: Math.max(insets.bottom, space.s5) }]}
       >
-        {/* The kit's member row, turned on yourself: the username is what the app calls you by, the
-            name is what stands under it. */}
-        <RowMember name={user?.username ?? '—'} meta={user?.name ?? s.profile.noName} />
+        {/* «Кто вы»: the kit's member row turned on yourself — the big circle, the name in full
+            voice, and under it the username and the address. The hairline belongs to the row. */}
+        <MemberHead
+          name={name}
+          username={user?.username && user.username !== name ? `@${user.username}` : undefined}
+          email={user?.email ?? undefined}
+        />
 
-        {/* The kit stands these two side by side, theme first. Three values against two: the theme
-            can be handed back to the phone, the language cannot — a phone in German is not one of
-            the two languages this app speaks, so there is nothing to hand back to (doc-8). */}
+        {/* Over the switches and not at the foot of the screen: this is the answer to the pick that
+            was just made, and the kit stands it where the pick was («Ждём», screen 8). */}
+        {error ? <Banner tone="error" text={error} /> : null}
+
+        {/* «Что настроить», and under each switch the line saying where it reaches: the theme no
+            further than this screen, the language as far as the mails and the pushes. Three values
+            against two: the theme can be handed back to the phone, the language cannot — a phone in
+            German is not one of the two languages this app speaks, so there is nothing to hand back
+            to (doc-8).
+
+            The kit draws both rows on `.segment-wide`, and only the language one is: a third of a
+            phone's column is 97pt of word and «Как в телефоне» is 108, so equal thirds would cut it
+            on every phone in service — measured, not guessed. The kit's own floor is that every word
+            stays whole at full size, and it outranks the geometry; sized to its words the theme row
+            comes out 308 of the 358 there are anyway, so the two rows read as a pair regardless. */}
         <Segment
           label={s.theme.label}
+          hint={s.theme.hint}
           value={theme}
           onChange={(next) => remember(setTheme(next))}
           options={[
@@ -105,6 +122,8 @@ export default function ProfileScreen() {
 
         <Segment
           label={s.language.label}
+          hint={s.language.hint}
+          wide
           value={language}
           onChange={(next) => remember(setLanguage(next))}
           // Each language names itself, in itself: whoever is looking for their own reads it in the
@@ -115,29 +134,26 @@ export default function ProfileScreen() {
           ]}
         />
 
-        {error ? <Banner tone="error" text={error} /> : null}
+        {/* «Как уйти», under the second hairline and pushed to the bottom of the body: away from the
+            things pressed every day, and not in a footer — a footer would say «this is what the
+            screen is for», and the screen is for what stands above it.
 
-        <Button
-          // Not the kit's rust: that colour is held for what cannot be undone (section 2), and
-          // signing in again brings the session back. The question is still asked on the sheet.
-          variant="quiet"
-          sm
-          label={s.action.logOut}
-          busy={busy}
-          onPress={() => setAsking(true)}
-          style={styles.out}
-        />
+            The line under the button names the consequence before the press, and that is why nothing
+            asks a second time (kit screen 8): the session comes back with the same sign-in, so it is
+            neither the rust colour nor a sheet. Rust in this product stays on what takes frames
+            away. */}
+        <View style={styles.out}>
+          <Button
+            variant="quiet"
+            sm
+            label={s.action.logOut}
+            busy={busy}
+            onPress={logOut}
+            style={styles.outButton}
+          />
+          <Hint>{s.profile.logOutText}</Hint>
+        </View>
       </ScrollView>
-
-      <ConfirmSheet
-        visible={asking}
-        title={s.profile.logOutAsk}
-        text={s.profile.logOutText}
-        confirmLabel={s.action.logOut}
-        cancelLabel={s.profile.stay}
-        onConfirm={logOut}
-        onCancel={() => setAsking(false)}
-      />
     </View>
   );
 }
@@ -148,11 +164,20 @@ const useStyles = themed(({ color }) =>
     // section says it once for all eleven: «Боковой отступ 16 задаёт экран».
     screen: { flex: 1, paddingHorizontal: space.s4, backgroundColor: color.ink },
     // `.stack-6`, and `flexGrow` rather than `flex` so the column is at least the height of the
-    // screen — that is what gives the button below something to be pushed against — and taller than
+    // screen — that is what gives the group below something to be pushed against — and taller than
     // it once the content is, which is when it scrolls.
     body: { flexGrow: 1, gap: space.s6 },
-    // The kit's `.push` + `align-self:flex-start`: the way out sits at the bottom of the body, no
-    // wider than its own words.
-    out: { marginTop: 'auto', alignSelf: 'flex-start' },
+    // `.stack-2.push` with the kit's second hairline over it: the way out and its line stand at the
+    // bottom of the body, the rule 20 above them.
+    out: {
+      marginTop: 'auto',
+      gap: space.s2,
+      paddingTop: space.s5,
+      borderTopWidth: 1,
+      borderTopColor: color.line,
+    },
+    // `align-self:flex-start` — the button is no wider than its own words; the line under it takes
+    // the column.
+    outButton: { alignSelf: 'flex-start' },
   }),
 );

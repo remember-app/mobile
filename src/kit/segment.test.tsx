@@ -47,6 +47,29 @@ test('all three values stand there at once, and one of them is picked', async ()
   expect(html.match(/rgba\(148,138,127/g)).toHaveLength(2); // muted
 });
 
+test('the line under the row is drawn and read out with the switch', async () => {
+  await setTheme('dark');
+  const html = renderToStaticMarkup(
+    <Segment
+      label="Язык"
+      hint="На нём же приходят письма и уведомления."
+      value="ru"
+      onChange={() => {}}
+      options={[
+        { value: 'ru', label: 'Русский' },
+        { value: 'en', label: 'English' },
+      ]}
+    />,
+  );
+
+  // A switch that reaches past the screen it stands on has to say so (kit screen 8). It is the
+  // group's `accessibilityHint` as well as a line under it — react-native-web drops that prop, so
+  // what is checked here is the half the web draws.
+  expect(html).toContain('На нём же приходят письма и уведомления.');
+  // And it stands under the row, not over it: the pills are the setting, the line only explains it.
+  expect(html.indexOf('Русский')).toBeLessThan(html.indexOf('На нём же'));
+});
+
 test('and the row turns with the theme like everything else in the kit', async () => {
   await setTheme('light');
   const html = renderToStaticMarkup(theme);

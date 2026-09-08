@@ -9,6 +9,7 @@ import {
 
 import { radius, space, themed, useTheme } from '@/theme';
 
+import { Hint } from './field';
 import { TAP, hitSlop, useFocusRing, useHoverFocus } from './interaction';
 import { Text } from './text';
 
@@ -29,6 +30,12 @@ export type SegmentProps<T extends string> = {
    * being as wide as its words. What the kit picks a *face* with rather than a setting.
    */
   wide?: boolean;
+  /**
+   * `.field-hint` under the row — where the setting reaches, said once and quietly. The kit's screen
+   * 8 gives one to both of the product's settings; the switch under a memory's name has none,
+   * because a face is what you are looking at and reaches no further.
+   */
+  hint?: string;
   options: readonly SegmentOption<T>[];
   value: T;
   onChange: (value: T) => void;
@@ -49,6 +56,7 @@ export function Segment<T extends string>({
   label,
   hideLabel,
   wide,
+  hint,
   options,
   value,
   onChange,
@@ -63,6 +71,9 @@ export function Segment<T extends string>({
         style={[styles.segment, wide ? styles.wide : null]}
         accessibilityRole="radiogroup"
         accessibilityLabel={label}
+        // Read out with the group rather than left to the eye: the line says what picking here
+        // actually does, and a screen reader stepping over it would leave the switch unexplained.
+        accessibilityHint={hint}
       >
         {options.map((option) => (
           <Option
@@ -74,6 +85,7 @@ export function Segment<T extends string>({
           />
         ))}
       </View>
+      {hint ? <Hint>{hint}</Hint> : null}
     </View>
   );
 }
