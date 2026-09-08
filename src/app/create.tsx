@@ -2,7 +2,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
 import { CalendarDays, ChevronLeft } from 'lucide-react-native';
 import { useState } from 'react';
-import { Platform, Pressable, StyleSheet, Switch, View } from 'react-native';
+import { Platform, StyleSheet, Switch, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { createMemory, errorMessage } from '@/api';
@@ -14,15 +14,14 @@ import {
   Banner,
   Button,
   Field,
+  FieldShell,
   Icon,
   IconButton,
   TAP,
   Text,
-  useFocusRing,
-  useHoverFocus,
 } from '@/kit';
 import { useStrings } from '@/language';
-import { radius, space, themed, useTheme } from '@/theme';
+import { space, themed, useTheme } from '@/theme';
 
 /** Creating a memory: a title and the day (or span) the event happened on. */
 export default function CreateMemoryScreen() {
@@ -125,6 +124,10 @@ export default function CreateMemoryScreen() {
             disabled={busy}
           />
         )}
+
+        {/* The kit closes the body with it (screens, 3): the one thing this screen does not ask
+            for, said before «Создать» so nobody puts off creating until they have the guest list. */}
+        <Banner text={s.create.inviteHint} />
       </View>
 
       {/* In the flow of the screen and right above the action that raised it, never over it. */}
@@ -147,8 +150,8 @@ export default function CreateMemoryScreen() {
 /**
  * A day, picked with the platform's own calendar — so there is no such thing as bad input. The kit
  * does not draw a calendar, and it should not: this is system UI. What the kit does draw is
- * everything around it, so the trigger is dressed as the kit's field (section 4) — same height,
- * same surface, same hairline — and reads as the input it stands in for.
+ * everything around it, and it hands that over as `FieldShell` (section 4) — so this is the kit's
+ * own field with a day inside it, and not a second one built to look the same (TASK-56).
  */
 function DayField({
   label,
@@ -167,35 +170,24 @@ function DayField({
   disabled: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const { hovered, focused, props } = useHoverFocus();
   const styles = useStyles();
   const { color } = useTheme();
-  const focusRing = useFocusRing();
 
   return (
-    <View style={styles.field}>
-      <Text role="label">{label}</Text>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={label}
-        // Read out as well as drawn, the way the kit's own field hands its hint to the input.
-        accessibilityHint={hint}
+    <>
+      <FieldShell
+        label={label}
+        hint={hint}
         accessibilityValue={{ text: formatDay(value) }}
         accessibilityState={{ disabled, expanded: open }}
         disabled={disabled}
         onPress={() => setOpen(true)}
-        {...props}
-        style={({ pressed }) => [
-          styles.trigger,
-          hovered || pressed ? styles.triggerLive : null,
-          focused ? focusRing : null,
-          disabled ? styles.triggerOff : null,
-        ]}
       >
         <Text style={[styles.day, disabled ? styles.dayOff : null]}>{formatDay(value)}</Text>
         <Icon icon={CalendarDays} color={color.muted} />
-      </Pressable>
-      {hint ? <Text style={styles.hint}>{hint}</Text> : null}
+      </FieldShell>
+      {/* Outside the field, never inside it: on iOS this is a whole calendar drawn in place, and it
+          stands under the field the way the platform's own dialog stands over the screen. */}
       {open ? (
         <DateTimePicker
           value={value}
@@ -210,14 +202,15 @@ function DayField({
           }}
         />
       ) : null}
-    </View>
+    </>
   );
 }
 
-const useStyles = themed(({ color, shade }) =>
+const useStyles = themed(({ color }) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: color.ink, paddingHorizontal: space.s4 },
-    form: { flex: 1, gap: space.s5, paddingTop: space.s2 },
+    // The kit's `.stack-6` — what the body of this screen is spaced on.
+    form: { flex: 1, gap: space.s6, paddingTop: space.s2 },
     // The row keeps a finger's worth of height whatever the platform draws the switch at.
     toggle: {
       flexDirection: 'row',
@@ -227,28 +220,6 @@ const useStyles = themed(({ color, shade }) =>
       minHeight: TAP,
     },
     error: { marginBottom: space.s3 },
-    // `.field` and `.input`, section 4 — the trigger stands where an input would.
-    field: { alignSelf: 'stretch', maxWidth: 420, gap: space.s2 },
-    trigger: {
-      minHeight: 52,
-      paddingHorizontal: space.s4,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: space.s3,
-      backgroundColor: color.surface,
-      borderWidth: 1,
-      borderColor: color.line,
-      borderRadius: radius.card,
-    },
-    // `.input:hover` — the same one step up under a finger.
-    triggerLive: { borderColor: shade.lineHi, backgroundColor: color.raise },
-    // `.input:disabled`
-    triggerOff: { backgroundColor: color.ink },
-    // `.field-hint`, 13/1.3 and muted — the kit's own, and a copy of the one `@/kit/field` draws
-    // for a real input. It is copied for the same reason the shell above it is (TASK-56 has the
-    // note): this trigger stands in for a field it cannot be.
-    hint: { fontSize: 13, lineHeight: 16.9, color: color.muted },
     // The kit's input type, with the tabular figures it asks of every date.
     day: { fontVariant: ['tabular-nums'] },
     dayOff: { color: color.muted },
