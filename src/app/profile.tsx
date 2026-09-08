@@ -1,21 +1,12 @@
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { errorMessage } from '@/api';
 import { useAuth } from '@/auth';
-import {
-  ActionBar,
-  AppBar,
-  Banner,
-  Button,
-  ConfirmSheet,
-  IconButton,
-  RowMember,
-  Segment,
-} from '@/kit';
+import { AppBar, Banner, Button, ConfirmSheet, IconButton, RowMember, Segment } from '@/kit';
 import { setLanguage, useLanguage, useStrings } from '@/language';
 import { setTheme, space, themed, useThemeChoice } from '@/theme';
 import { UsernameForm } from '@/username-form';
@@ -26,7 +17,9 @@ import { UsernameForm } from '@/username-form';
  * Logging out is asked for on the kit's sheet (section 13) rather than done on the press: from where
  * the person stands the session ends and the way back is a whole sign-in, which is worth one
  * question. The button itself is not painted in the rust that colour is held for — that is for what
- * cannot be undone, and this can.
+ * cannot be undone, and this can — and it does not stand in an actionbar either: the kit's screen 8
+ * ends the scrolling body with a quiet small button on `.push`, no footer hairline over it. A
+ * footer would say «this is what the screen is for», and the screen is for the four things above it.
  *
  * The theme and the language stand here too, on the kit's switch of section 15. Neither doc-8 nor
  * doc-9 gets a settings screen of its own — there are two things to set in the whole product, and
@@ -71,19 +64,28 @@ export default function ProfileScreen() {
   return (
     // No native header anywhere in the app, so the screen keeps itself out from under the status bar.
     <View style={[styles.screen, { paddingTop: insets.top }]}>
-      <View style={styles.body}>
-        <AppBar
-          title={s.profile.title}
-          left={
-            <IconButton
-              icon={ChevronLeft}
-              label={s.action.back}
-              // Same as everywhere else: nothing behind means home, never a button that answers
-              // nothing.
-              onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
-            />
-          }
-        />
+      {/* The kit's three belts: the head does not move, the body scrolls under it. */}
+      <AppBar
+        title={s.profile.title}
+        left={
+          <IconButton
+            icon={ChevronLeft}
+            label={s.action.back}
+            // Same as everywhere else: nothing behind means home, never a button that answers
+            // nothing.
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+          />
+        }
+      />
+
+      <ScrollView
+        // The field lives in here, so a press on a button has to land while the keyboard is up
+        // instead of being spent closing it.
+        keyboardShouldPersistTaps="handled"
+        // The kit's `.screen__body` ends 20 clear of the bottom; on a phone the home indicator is
+        // what that has to clear, and it is the taller of the two.
+        contentContainerStyle={[styles.body, { paddingBottom: Math.max(insets.bottom, space.s5) }]}
+      >
         {/* The kit's member row, turned on yourself: the username is what the app calls you by, the
             name is what stands under it. */}
         <RowMember name={user?.username ?? '—'} meta={user?.name ?? s.profile.noName} />
@@ -117,19 +119,18 @@ export default function ProfileScreen() {
         />
 
         {error ? <Banner tone="error" text={error} /> : null}
-      </View>
 
-      <ActionBar>
         <Button
           // Not the kit's rust: that colour is held for what cannot be undone (section 2), and
           // signing in again brings the session back. The question is still asked on the sheet.
-          variant="secondary"
-          wide
+          variant="quiet"
+          sm
           label={s.action.logOut}
           busy={busy}
           onPress={() => setAsking(true)}
+          style={styles.out}
         />
-      </ActionBar>
+      </ScrollView>
 
       <ConfirmSheet
         visible={asking}
@@ -147,6 +148,12 @@ export default function ProfileScreen() {
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
     screen: { flex: 1, paddingHorizontal: space.s6, backgroundColor: color.ink },
-    body: { flex: 1, gap: space.s5 },
+    // `.stack-6`, and `flexGrow` rather than `flex` so the column is at least the height of the
+    // screen — that is what gives the button below something to be pushed against — and taller than
+    // it once the content is, which is when it scrolls.
+    body: { flexGrow: 1, gap: space.s6 },
+    // The kit's `.push` + `align-self:flex-start`: the way out sits at the bottom of the body, no
+    // wider than its own words.
+    out: { marginTop: 'auto', alignSelf: 'flex-start' },
   }),
 );
