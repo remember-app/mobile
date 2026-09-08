@@ -238,6 +238,24 @@ test('nothing stands under the open frame — the actions moved up onto it', () 
   expect(frames).toContain('void save(shown)');
 });
 
+test('the darkening over the open frame is anchored to the safe area, not stretched by it', () => {
+  // The report from a real iPhone (TASK-109): the name and the date lay on the photograph with
+  // nothing under them. The kit's bar is 72px and its fade spends all of itself over that; this one
+  // is the same bar with the phone's safe area added to its top, so a fade with no stops is
+  // stretched to 131px on a notched phone and spends most of its ink behind the status bar, where
+  // there is nothing to read. The name lands two thirds down instead of a third — .29 of darkening
+  // instead of .52.
+  //
+  // What pins the fix is that the darkening is written from the same inset the padding is: full
+  // strength to the end of the safe area, the kit's own fade below it, on every phone. A gradient
+  // spelled out in the sheet cannot know the inset, so the sheet is where it must not be.
+  const bar = frames.slice(frames.indexOf('styles.viewerBar'), frames.indexOf('pointerEvents='));
+  expect(bar).toContain('paddingTop: insets.top + space.s2');
+  expect(bar).toContain('rgba(20,17,15,.86) ${insets.top}px');
+  // And the stretched one is gone from the sheet, where it had no inset to read.
+  expect(frames.slice(frames.indexOf('const useStyles'))).not.toContain('linear-gradient');
+});
+
 test("the strip under the frame is the grid's own list, read once", () => {
   // The whole list and not a window on it: the strip is handed `items`, the same array the sheet
   // above draws.
