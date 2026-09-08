@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Check, Share2, X } from 'lucide-react-native';
+import { Share2, X } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { ScrollView, Share, StyleSheet, View } from 'react-native';
 
@@ -8,6 +8,7 @@ import {
   errorMessage,
   fetchInvite,
   inviteByUsername,
+  listMedia,
   listMembers,
   mayContribute,
   memberName,
@@ -21,20 +22,20 @@ import { useAuth } from '@/auth';
 import { formatEventDates } from '@/dates';
 import {
   ActionBar,
-  AVATAR,
   Banner,
   Button,
   Chip,
+  ChipAction,
   ConfirmSheet,
   Empty,
   Field,
-  ICO_S,
   IconButton,
   // The kit's `.invite` box. The api's own `Invite` is the token behind it and keeps the plain
   // name here, as it has everywhere else in the app.
   Invite as InviteLink,
   RowMember,
   Sheet,
+  Status,
   Text,
   Toggle,
 } from '@/kit';
@@ -60,6 +61,10 @@ export function People({ id, head }: { id: string; head: Head }) {
   // null means «not loaded yet» — the same distinction the home screen draws, so a refetch
   // after an invite keeps the roster on screen instead of flashing the spinner over it.
   const [members, setMembers] = useState<Member[] | null>(null);
+  // How many frames each person has brought, by their id. The api keeps no such tally on a member,
+  // so it is counted off the memory's own gallery — the very listing the frames face reads. null is
+  // «not counted yet», and the rows stand under a dash until it is.
+  const [shots, setShots] = useState<Map<string, number> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [invite, setInvite] = useState<Invite | null>(null);
   const [username, setUsername] = useState('');
@@ -80,9 +85,23 @@ export function People({ id, head }: { id: string; head: Head }) {
   const load = useCallback(() => {
     if (!token) return;
     setError(null);
-    // The roster alone: the memory itself — the name in the appbar and the days under it — is read
-    // once by the screen for all three faces, so switching between them re-reads only what changed.
+    // The roster: the memory itself — the name in the appbar and the days under it — is read once
+    // by the screen for all three faces, so switching between them re-reads only what changed.
     listMembers(token, id).then(setMembers, (e: unknown) => setError(errorMessage(e)));
+    // And the gallery, only to be counted: two reads side by side rather than one `Promise.all`,
+    // because the roster is what this face is, and the count is a fact beside it. A memory whose
+    // media cannot be listed (503 with no bucket configured) still has to show who is in it, so
+    // this failure leaves the dash and never the face's error line.
+    listMedia(token, id).then(
+      (media) =>
+        setShots(
+          media.reduce(
+            (by, item) => by.set(item.uploaded_by, (by.get(item.uploaded_by) ?? 0) + 1),
+            new Map<string, number>(),
+          ),
+        ),
+      () => setShots(null),
+    );
   }, [token, id]);
 
   // On focus rather than on mount, the way the home screen does it: everybody's standing on the
@@ -209,67 +228,77 @@ export function People({ id, head }: { id: string; head: Head }) {
               {members.map((member, index) => {
                 const self = member.id === user?.id;
 
+                // Only on one's own row, and only while there is something left to say: both
+                // terminal statuses are the person's own word, and this is the way to give it
+                // unprompted. It stands in the status's own place (kit, «Экраны» 6, «Свой статус»),
+                // because the standing and the switch that sets it are one thing, and a chip is
+                // exactly as tall as the word it replaces — which is what keeps this row level with
+                // the ones around it. It used to be a small button under the row and that is what
+                // was reported: it pushed one row taller than the rest and the stack came out ragged
+                // (TASK-111). Only for somebody who could have added something: doc-01 gives
+                // «загружать медиа» to «Добавление» and up, so a viewer is a person nobody is
+                // waiting on — asking them to declare «ждать нечего» asks them to answer for
+                // material they were never able to bring. The api stays open to it on purpose (no
+                // role gate there): a status grants nothing, and one already given must survive its
+                // owner being moved down to viewer. This is the asking, not the right. The standing
+                // itself is written on every row, viewer's included — the roster is the organizer's
+                // progress and it is the same line for everybody.
+                const mine =
+                  self &&
+                  mayContributeHere &&
+                  member.contribution_status !== 'done' &&
+                  member.contribution_status !== 'nothing';
+
                 return (
-                  <View key={member.id}>
-                    <RowMember
-                      name={self ? s.members.you(memberName(member)) : memberName(member)}
-                      // Section 7 writes «@marina · 42 кадра» on one line, so the standing goes
-                      // beside the username rather than under it. The wording is doc-06's own, and
-                      // it goes in as the tail: on a phone the two together outrun the row, and of
-                      // the pair it is the standing the roster is opened for.
-                      // The username is left off when it is already the name on the line above —
-                      // everybody who signed in by email is named by their username, and printing
-                      // it twice spends the one line the standing needs on nothing.
-                      meta={
-                        member.username && member.username !== memberName(member)
-                          ? `@${member.username}`
-                          : undefined
-                      }
-                      tail={s.standing[member.contribution_status]}
-                      divider={index > 0}
-                    >
-                      <Chip label={s.role[member.role]} organizer={member.role === 'organizer'} />
-                      {role === 'organizer' && !self ? (
-                        <IconButton
-                          icon={X}
-                          size={ICO_S}
-                          label={s.members.remove(memberName(member))}
-                          onPress={() => setDropping(member)}
+                  <RowMember
+                    key={member.id}
+                    name={self ? s.members.you(memberName(member)) : memberName(member)}
+                    // The username is left off when it is already the name on the line above —
+                    // everybody who signed in by email is named by their username, and printing it
+                    // twice spends width the standing beside it needs.
+                    meta={
+                      member.username && member.username !== memberName(member)
+                        ? `@${member.username}`
+                        : undefined
+                    }
+                    status={
+                      mine ? (
+                        <ChipAction
+                          label={s.members.sayNothing}
+                          onPress={sayNothing}
                           disabled={busy}
                         />
-                      ) : null}
-                    </RowMember>
-                    {/* Only on one's own row, and only while there is something left to say: both
-                        terminal statuses are the person's own word, and this is the way to give it
-                        unprompted. Under the row and not in it — the row already carries an avatar,
-                        a name and a role chip, and a fourth thing on that line leaves the name no
-                        width at all on a phone. Under the name, though, and not out at the right
-                        edge: right-aligned it hung over the hairline and read as the next person's,
-                        while in the name's own column there is no mistaking whose word it is. The
-                        tick is what keeps it from being read as one more standing printed under the
-                        row — a pill this size with no icon in it is the shape of the role chip.
-                        And only for somebody who could have added something: doc-01 gives «загружать
-                        медиа» to «Добавление» and up, so a viewer is a person nobody is waiting on —
-                        asking them to declare «ждать нечего» asks them to answer for material they
-                        were never able to bring. The api stays open to it on purpose (no role gate
-                        there): a status grants nothing, and one already given must survive its owner
-                        being moved down to viewer. This is the asking, not the right. The standing
-                        itself stays on every row, viewer's included — the roster is the organizer's
-                        progress and it is the same line for everybody. */}
-                    {self &&
-                    mayContributeHere &&
-                    member.contribution_status !== 'done' &&
-                    member.contribution_status !== 'nothing' ? (
-                      <Button
+                      ) : (
+                        <Status
+                          text={s.standing[member.contribution_status]}
+                          ready={member.contribution_status === 'done'}
+                        />
+                      )
+                    }
+                    // What they have brought so far, counted off the gallery. A dash until it is
+                    // counted rather than a nought, which would be a different thing said out loud;
+                    // either way the column is there from the first frame drawn, so the row does not
+                    // jump when the count lands.
+                    count={shots ? s.memory.frames(shots.get(member.id) ?? 0) : '—'}
+                    divider={index > 0}
+                  >
+                    <Chip label={s.role[member.role]} organizer={member.role === 'organizer'} />
+                    {/* The organizer's cross, drawn small so it stands inside a line of text
+                        rather than over it. On the organizer's own row there is none — and the
+                        kit holds that column open anyway, so the role chips of a stack that has
+                        crosses stand at one depth instead of stepping in and out. */}
+                    {role !== 'organizer' ? null : self ? (
+                      <View style={styles.noCross} />
+                    ) : (
+                      <IconButton
                         sm
-                        icon={Check}
-                        label={s.members.sayNothing}
-                        onPress={sayNothing}
+                        icon={X}
+                        label={s.members.remove(memberName(member))}
+                        onPress={() => setDropping(member)}
                         disabled={busy}
-                        style={styles.own}
                       />
-                    ) : null}
-                  </View>
+                    )}
+                  </RowMember>
                 );
               })}
             </View>
@@ -394,8 +423,7 @@ const styles = StyleSheet.create({
   // does not end against the bar.
   body: { paddingHorizontal: space.s4, paddingBottom: space.s8, gap: space.s3 },
   pad: { paddingHorizontal: space.s4 },
-  // Indented past the avatar so it starts where its own name does, and given the row's own bottom
-  // padding so the hairline under it separates two people rather than a person from their button.
-  own: { alignSelf: 'flex-start', marginLeft: AVATAR + space.s3, marginBottom: space.s3 },
+  // The kit's `minmax(28px,auto)` last column, kept open where there is no cross to put in it.
+  noCross: { width: 28 },
   quiet: { alignSelf: 'flex-start' },
 });
