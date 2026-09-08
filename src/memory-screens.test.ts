@@ -5,8 +5,11 @@ import upload from './app/memory/[id]/upload.tsx?raw';
 import home from './app/index.tsx?raw';
 import invite from './app/invite.tsx?raw';
 import layout from './app/_layout.tsx?raw';
-// The one kit file read here: the sheet's offset from the header is the appbar's own padding.
+import api from './api.ts?raw';
+// The kit files read here: the sheet's offset from the header is the appbar's own padding, and the
+// montage card is where the poster a face hands over actually lands.
 import bars from './kit/bars.tsx?raw';
+import cardMontage from './kit/card-montage.tsx?raw';
 import toggle from './kit/toggle.tsx?raw';
 import films from './memory/films.tsx?raw';
 import frames from './memory/frames.tsx?raw';
@@ -190,6 +193,16 @@ test('the order button waits for the list it prepends to', () => {
   expect(films).toContain('marginBottom: Math.max(insets.bottom');
   // The frames face says the same thing for the same reason: a viewer has no footer there either.
   expect(frames).toContain('marginBottom: Math.max(insets.bottom');
+});
+
+test('a ready montage shows its own still, and one without a still keeps the placeholder', () => {
+  // TASK-112: the card drew the kit's dark rectangle for every montage because nothing was ever
+  // handed to it. The link is the api's, signed the same way the video is, and null is the ordinary
+  // case — an older montage, or one still being cut. `?? undefined` is what keeps null out of the
+  // prop, so `CardMontage` falls back to the very placeholder it drew before.
+  expect(api).toContain('poster_url: string | null;');
+  expect(films).toContain('poster={montage.poster_url ?? undefined}');
+  expect(cardMontage).toContain('poster ? <Image source={{ uri: poster }}');
 });
 
 test('the material of a memory has one name — on the card, on the switch, over the sheet', () => {
