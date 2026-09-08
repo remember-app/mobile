@@ -39,6 +39,36 @@ test('the email field stands on the place of the ways in, never beside them', ()
   expect(asked).toContain('setByMail(false)');
 });
 
+/** The block holding the ways in, which is the half of the footer that is not the email field. */
+const offered = login.slice(login.indexOf(') : ('), login.indexOf('</ActionBar>'));
+
+test('a way in this build cannot walk is not drawn at all', () => {
+  // Both providers stand under their own signal. Drawn switched off — which is what stood here —
+  // they are three buttons where only one works, and the person has to find out which by pressing.
+  expect(offered).toContain('{appleAvailable ? (');
+  expect(offered).toContain('{GOOGLE_CLIENT_ID ? (');
+  expect(offered).not.toContain('disabled={!appleAvailable}');
+  // `disabled={!googleRequest}` stays inside the branch: with an id, the button is real and only
+  // waits for the request to be built. Without one it is not there to wait.
+  expect(offered).toContain('disabled={!googleRequest}');
+
+  // The line under the dead Apple button went with it, in both languages.
+  expect(login).not.toContain('appleUnavailable');
+  expect(en.login).not.toHaveProperty('appleUnavailable');
+  expect(ru.login).not.toHaveProperty('appleUnavailable');
+  // What a server that turns a live way in down still says is untouched — a stale signal is the
+  // case this screen cannot see, and it is answered in words.
+  expect(login).toContain('return s.login.providerUnavailable(provider);');
+});
+
+test('the mail line stands whatever the build has, and alone it is the one action', () => {
+  // Outside both branches — every conditional opened above it is closed before it starts.
+  expect(offered.lastIndexOf(') : null}')).toBeLessThan(offered.indexOf('s.login.withEmail'));
+  // And with nothing above it, it stops being the quiet third choice: a lone `quiet` button reads
+  // as a caption under an empty room, not as the way in.
+  expect(offered).toContain("variant={appleAvailable || GOOGLE_CLIENT_ID ? 'quiet' : 'primary'}");
+});
+
 test('the development way in is not dressed up as the ordinary one', () => {
   // The plain banner, no tone: rust would read as a failure and green as a job well done, and this
   // is neither — it is the workbench, and both languages have to say so in their own words.
