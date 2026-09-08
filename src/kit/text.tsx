@@ -2,7 +2,7 @@ import { Text as RNText, StyleSheet, type TextProps } from 'react-native';
 
 import { themed, type } from '@/theme';
 
-/** The kit's six type roles (section 2). Roles, not sizes: ask for `title`, not for 22px. */
+/** The kit's seven type roles (section 2). Roles, not sizes: ask for `title`, not for 22px. */
 export type TypeRole = keyof typeof type;
 
 /**

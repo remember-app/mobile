@@ -3,7 +3,7 @@ import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import { Mail } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -15,7 +15,7 @@ import {
   verifyEmailToken,
 } from '@/api';
 import { useAuth } from '@/auth';
-import { Banner, Button, Empty, Field, RailH, Text } from '@/kit';
+import { ActionBar, Banner, Button, Empty, Field, RailH, Text } from '@/kit';
 import { useStrings } from '@/language';
 import { type Strings } from '@/strings';
 import { space, themed } from '@/theme';
@@ -42,6 +42,10 @@ export default function LoginScreen() {
   // The native header is off for the whole app, so the screen owes the status bar its own room.
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
+  // Which of the two the footer is holding: the ways in, or the one that was asked for by name. The
+  // kit brings the field in *on the place of* the buttons (screen 1, «Края») — a way in that is
+  // there for whoever has no provider account, and not a fourth thing to read past for everyone else.
+  const [byMail, setByMail] = useState(false);
   const [sent, setSent] = useState(false);
   const [devLink, setDevLink] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -143,8 +147,8 @@ export default function LoginScreen() {
   if (sent) {
     return (
       <View style={[styles.screen, { paddingTop: insets.top }]}>
-        <RailH />
-        <View style={styles.middle}>
+        <RailH style={styles.belt} />
+        <View style={[styles.belt, styles.middle]}>
           <Text role="display">{s.login.sentTitle}</Text>
           <Empty icon={Mail} text={s.login.sentText(email.trim())}>
             <Button
@@ -159,78 +163,121 @@ export default function LoginScreen() {
   }
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
+    // The field below stands at the bottom edge, which is exactly where the keyboard comes up.
+    // Android resizes the window itself; iOS needs telling, the same way the kit's sheet does.
+    <KeyboardAvoidingView
+      style={[styles.screen, { paddingTop: insets.top }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       {/* This is where a person lands with nothing else on screen to tell them where they are, so
           the top of it says so: the kit's perforation in the second of the two places it is
           allowed, and the product's own name under it as the screen's one heading. The name is the
           product's own and is the same word in both languages — the one heading here never turns. */}
-      <RailH />
-      <View style={styles.middle}>
-        <Text accessibilityRole="header" role="display">
+      <RailH style={styles.belt} />
+
+      {/* The kit's screen 1: the name in `hero`, one line of what this is for, and then nothing
+          until the bottom of the screen — «тёмная комната перед тем, как включат свет». Whatever
+          else could be said here is said better by the first screen after the way in. */}
+      <View style={[styles.belt, styles.middle]}>
+        <Text accessibilityRole="header" role="hero">
           Remember
         </Text>
+        <Text>{s.login.promise}</Text>
+      </View>
 
-        {/* The kit's «Вход» demo, section 3: the providers first, the email link underneath as the
-            quiet way in. No ember on this screen — the field's focus border is the one lit thing
-            here. */}
-        <View style={styles.group}>
-          {/* ponytail: plain button; App Store review wants AppleAuthenticationButton before
-              shipping — and that is where the provider's own mark comes from too. */}
-          <Button
-            variant="provider"
-            label={s.login.withApple}
-            onPress={withApple}
-            disabled={!appleAvailable}
-          />
-          {appleAvailable ? null : <Text role="meta">{s.login.appleUnavailable}</Text>}
-          <Button
-            variant="provider"
-            label={s.login.withGoogle}
-            onPress={withGoogle}
-            disabled={!googleRequest}
-          />
-        </View>
-
-        <View style={styles.group}>
-          <Field
-            label={s.login.email}
-            value={email}
-            onChangeText={setEmail}
-            placeholder={s.login.emailPlaceholder}
-            inputMode="email"
-            autoCapitalize="none"
-            autoCorrect={false}
-            autoComplete="email"
-            editable={!busy}
-          />
-          {/* `busy` already blocks the press, so the button only goes out when there is nothing
-              to send. */}
-          <Button
-            variant="quiet"
-            wide
-            label={s.login.sendLink}
-            onPress={sendLink}
-            busy={busy}
-            disabled={email.trim() === ''}
-          />
-        </View>
-
+      {/* Both of these belong to the buttons under them, so the kit stands them over the footer and
+          in the flow — never in the middle of the screen, and never over the thing they are about. */}
+      <View style={[styles.belt, styles.notes]}>
         {/* Not a way in anybody was meant to have — the plain banner says so while the trade runs,
             so this is never mistaken for the sign-in a person on a phone gets. */}
         {devLink ? <Banner text={s.login.devLink} /> : null}
         {error ? <Banner tone="error" text={error} /> : null}
       </View>
-    </View>
+
+      {/* The kit's `.actionbar-col`: the ways in are stacked at the bottom edge, under the thumb.
+          No ember on this screen — the choice between two providers is an even one, and lighting one
+          of them would be a lie. The field's focus border is the one lit thing here. */}
+      <ActionBar style={[styles.belt, styles.column]}>
+        {byMail ? (
+          <>
+            <Field
+              label={s.login.email}
+              value={email}
+              onChangeText={setEmail}
+              placeholder={s.login.emailPlaceholder}
+              inputMode="email"
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="email"
+              editable={!busy}
+              autoFocus
+            />
+            {/* `busy` already blocks the press, so the button only goes out when there is nothing
+                to send. */}
+            <Button
+              variant="quiet"
+              wide
+              label={s.login.sendLink}
+              onPress={sendLink}
+              busy={busy}
+              disabled={email.trim() === ''}
+            />
+            {/* The screen has no way back of its own, so this state needs one: whoever opened the
+                field by mistake gets the two providers back instead of a dead end. */}
+            <Button
+              variant="quiet"
+              wide
+              label={s.action.back}
+              onPress={() => setByMail(false)}
+              disabled={busy}
+            />
+          </>
+        ) : (
+          <>
+            {/* ponytail: plain button; App Store review wants AppleAuthenticationButton before
+                shipping — and that is where the provider's own mark comes from too. */}
+            <Button
+              variant="provider"
+              label={s.login.withApple}
+              onPress={withApple}
+              disabled={!appleAvailable}
+            />
+            {appleAvailable ? null : <Text role="meta">{s.login.appleUnavailable}</Text>}
+            <Button
+              variant="provider"
+              label={s.login.withGoogle}
+              onPress={withGoogle}
+              disabled={!googleRequest}
+            />
+            {/* Quiet, and last: it is the way in for whoever has neither account above, and asking
+                for it is what brings the field up in place of these three. */}
+            <Button
+              variant="quiet"
+              wide
+              label={s.login.withEmail}
+              onPress={() => setByMail(true)}
+            />
+          </>
+        )}
+      </ActionBar>
+    </KeyboardAvoidingView>
   );
 }
 
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
     // No native header anywhere in the app, so the perforation is what the status bar sits above.
-    screen: { flex: 1, paddingHorizontal: space.s6, backgroundColor: color.ink },
-    // Everything the screen asks for, held in the middle under the name.
-    middle: { flex: 1, justifyContent: 'center', gap: space.s6, paddingBottom: space.s6 },
-    // One way in, held together: the buttons of a group stand closer to each other than to the next.
-    group: { gap: space.s3 },
+    screen: { flex: 1, backgroundColor: color.ink },
+    // The kit's side inset, 16, held by each belt rather than by the screen around them — held
+    // once around all three, the footer's hairline would stop short of either edge instead of
+    // running the full width, which is what the kit says out loud about it.
+    belt: { paddingHorizontal: space.s4 },
+    // The kit's `.screen__body-mid` with its `.stack-4`: nothing here scrolls, so what little there
+    // is stands in the middle of the room.
+    middle: { flex: 1, justifyContent: 'center', gap: space.s4 },
+    // Empty until something has to be said, and then a `.stack-2` of it above the footer.
+    notes: { gap: space.s2 },
+    // `.actionbar-col`: the ways in are a column, and a tighter one than a row of them would be.
+    column: { flexDirection: 'column', gap: space.s2 },
   }),
 );

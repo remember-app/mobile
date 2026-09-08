@@ -24,6 +24,21 @@ test('a link handed back is traded for a session here, not put up to be copied',
   expect(login).toContain('await signIn(session.token);');
 });
 
+test('the email field stands on the place of the ways in, never beside them', () => {
+  // The kit's screen 1: three buttons at the bottom edge and nothing else, and the field arrives on
+  // their place only when the third of them is asked for. A field standing there at all times —
+  // which is the layout this replaced — reads as a fourth way in that everyone has to look past.
+  const foot = login.slice(login.indexOf('<ActionBar'), login.indexOf('</ActionBar>'));
+  const [asked, offered] = foot.split(') : (');
+
+  expect(asked).toContain('<Field');
+  expect(offered).not.toContain('<Field');
+  expect(offered).toContain('s.login.withApple');
+  expect(offered).toContain('s.login.withGoogle');
+  // And the way back out of it, so the one screen with no header is not a room with no door.
+  expect(asked).toContain('setByMail(false)');
+});
+
 test('the development way in is not dressed up as the ordinary one', () => {
   // The plain banner, no tone: rust would read as a failure and green as a job well done, and this
   // is neither — it is the workbench, and both languages have to say so in their own words.
