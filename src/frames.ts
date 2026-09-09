@@ -32,6 +32,30 @@ export function stillPreparing(items: readonly MediaItem[] | null): boolean {
 }
 
 /**
+ * The list a quiet re-read leaves on screen. The api hands the whole gallery back every time and
+ * signs every link afresh, so a record that has not changed in any way still arrives with a new
+ * `thumbnail_url` — and a new url is a new file to `expo-image` and `VideoView`, which fetch it
+ * again. While one frame is developing that happened to everything visible every three seconds.
+ *
+ * So a record that is already `ready` keeps the object it had, links and all: nothing about a
+ * finished record ever moves again, and holding the old one holds its url still. Everything else —
+ * still developing, fallen, or new since the last read — is taken as it came, which is the whole
+ * reason the re-read happens.
+ *
+ * Only for the quiet loop. A read somebody asked for wants the fresh links: the old ones expire in
+ * a quarter of an hour, and a face that never re-signs them ends up drawing nothing at all.
+ */
+export function keepReady(
+  current: readonly MediaItem[] | null,
+  fresh: readonly MediaItem[],
+): MediaItem[] {
+  const ready = new Map(
+    (current ?? []).filter((item) => item.status === 'ready').map((item) => [item.id, item]),
+  );
+  return fresh.map((item) => ready.get(item.id) ?? item);
+}
+
+/**
  * Whether a record can be opened big. A frame still developing has nothing behind it yet — the kit
  * keeps it in the filmstrip so the count stays honest, but will not open it. A fallen one does
  * open: that is the screen the delete button is on, and a record nobody can look at is exactly the

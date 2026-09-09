@@ -13,7 +13,7 @@ import type { MediaItem, Member, Memory } from '@/api';
 // The day is written by `@/dates` and read here from the same place: what is pinned below is which
 // day the line carries, not how this phone's locale spells it.
 import { formatEventDates } from '@/dates';
-import { frameIndex, frameOf, mayOpen, shotBy, stillPreparing } from '@/frames';
+import { frameIndex, frameOf, keepReady, mayOpen, shotBy, stillPreparing } from '@/frames';
 
 // The gallery sat in «Preparing…» for good because it read the list once and never again, and
 // nothing on screen ever asked whether there was a reason to look. These are the two questions the
@@ -78,6 +78,41 @@ test('a record the worker gave up on stops the reading instead of being waited o
 
 test('one record still coming keeps the reading going for the whole sheet', () => {
   expect(stillPreparing([...secondRead, record({ id: 'b' })])).toBe(true);
+});
+
+// What that reading costs the phone, and what it must not cost it (TASK-119). Every answer signs
+// every link again, so the same picture comes back under a url it has never seen — and a url it has
+// never seen is a file it downloads. Three seconds later, again, for the whole sheet.
+
+test('a finished frame keeps its own link while the sheet is still being read', () => {
+  const [was] = secondRead;
+  // The same record as the api sends it a moment later: nothing about it changed but the signature.
+  const reSigned = [
+    record({ id: 'a', status: 'ready', thumbnail_url: 'https://r2.example/thumbnails/a.jpg?sig=2' }),
+  ];
+  const [now] = keepReady(secondRead, reSigned);
+
+  expect(now).toBe(was);
+  expect(frameOf(now).uri).toBe('https://r2.example/thumbnails/a.jpg?sig=1');
+});
+
+test('the frame that was still developing is taken as it came — that is what the reading is for', () => {
+  const [now] = keepReady(firstRead, secondRead);
+  expect(frameOf(now)).toEqual({
+    state: 'ready',
+    uri: 'https://r2.example/thumbnails/a.jpg?sig=1',
+  });
+  // And with nothing left developing the reading stops, so the next link it draws is a fresh one.
+  expect(stillPreparing(keepReady(firstRead, secondRead))).toBe(false);
+});
+
+test('what the last read never saw arrives whole, and what has gone does not come back', () => {
+  const sent = record({ id: 'b' });
+  expect(keepReady(secondRead, [...secondRead, sent])[1]).toBe(sent);
+  // Somebody deleted the finished one between two reads: it is held nowhere, only kept if it comes.
+  expect(keepReady(secondRead, [sent])).toEqual([sent]);
+  // And the very first read has nothing to hold anything against.
+  expect(keepReady(null, secondRead)).toEqual(secondRead);
 });
 
 // What the filmstrip under an open frame decides: which tile is the one being shown, which tiles
