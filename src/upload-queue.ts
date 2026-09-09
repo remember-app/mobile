@@ -2,6 +2,57 @@
 // already taken, and what is therefore still to send. Kept apart from the sending itself (`@/
 // uploads`) because this is the part that decides whether a resumed upload carries on or starts
 // again — and the part that can be checked without a phone.
+//
+// Nothing here reaches `@/api` or `@/language`: both of those end at a native module, and this file
+// is the one a test can import as it is.
+import type { Strings } from '@/strings';
+
+/**
+ * Why a file is parked: which line the app has for it and what goes into that line, never the
+ * sentence itself. The queue is written to disk and outlives both a language switch and the app,
+ * so a reason worded at the moment the upload broke is a reason in whatever language that moment
+ * happened to be in (TASK-93). The words are picked in `failureText`, when the banner is drawn.
+ */
+export type UploadFailure =
+  /** The file behind the gallery entry is gone. It is named by the queue's own `filename`. */
+  | { reason: 'gone' }
+  | { reason: 'partSizeChanged' }
+  | { reason: 'noReceipt' | 'noLink' | 'partNotTaken'; part: number }
+  | { reason: 'partRefused'; part: number; status: number }
+  /** No api at the other end at all — the line every screen shows for a dead network. */
+  | { reason: 'offline' }
+  /**
+   * The api answered and refused. `said` is its own wording when it sent one: that comes down the
+   * wire already in a language (TASK-91) and is the one reason here nothing translates.
+   */
+  | { reason: 'api'; status: number; said?: string };
+
+/**
+ * That reason in the language the app is speaking right now. The two api fallbacks are the same
+ * two `errorMessage` picks in `@/api` — said here rather than imported, because importing that
+ * module drags the whole native side in behind it.
+ */
+export function failureText(s: Strings, failure: UploadFailure, filename: string): string {
+  switch (failure.reason) {
+    case 'gone':
+      return s.upload.gone(filename);
+    case 'partSizeChanged':
+      return s.upload.partSizeChanged;
+    case 'noReceipt':
+      return s.upload.noReceipt(failure.part);
+    case 'noLink':
+      return s.upload.noLink(failure.part);
+    case 'partNotTaken':
+      return s.upload.partNotTaken(failure.part);
+    case 'partRefused':
+      return s.upload.partRefused(failure.part, failure.status);
+    case 'offline':
+      return s.error.offline;
+    case 'api':
+      if (failure.status === 429) return s.error.tooMany;
+      return failure.said ?? s.error.status(failure.status);
+  }
+}
 
 /** One file waiting to go into a memory, and how far it got. This is what survives a restart. */
 export type QueuedFile = {
@@ -20,7 +71,7 @@ export type QueuedFile = {
   /** Part number → R2's etag. The whole of what makes a resume a resume. */
   parts: Record<number, string>;
   /** Why it is parked. Cleared on every retry, so it is always the last reason and not the first. */
-  error?: string;
+  error?: UploadFailure;
 };
 
 /** One slice of the file: which part number it is, and the bytes it is cut from. */

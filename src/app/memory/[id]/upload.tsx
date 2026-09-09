@@ -40,7 +40,7 @@ import {
 import { useStrings } from '@/language';
 import { assetsByDay, type ShootingDay } from '@/media-window';
 import { space, themed } from '@/theme';
-import { progress } from '@/upload-queue';
+import { failureText, progress } from '@/upload-queue';
 import { drop, enqueue, useUploads, wake } from '@/uploads';
 
 /**
@@ -187,8 +187,10 @@ export default function UploadScreen() {
   const queued = uploads.filter((file) => file.memoryId === id);
   const sending = queued.find((file) => file.error === undefined);
   const stuck = queued.filter((file) => file.error !== undefined);
-  // What stopped them, in the words the queue parked the first one with.
-  const parked = stuck[0]?.error;
+  // What stopped the first of them. The queue keeps the reason and not the sentence, so the words
+  // are picked here, in the language this render is in — a language switched while they sit parked
+  // turns this line with the rest of the screen (TASK-93).
+  const parked = stuck[0];
 
   /** Tap to take, tap again to put back — which is also how anything leaves the selection. */
   const toggle = (assetId: string) =>
@@ -357,8 +359,8 @@ export default function UploadScreen() {
           {/* One line for the lot: they park for the same reason, and it is nearly always the
               network. It retries by itself — on a timer and on coming back to the app — so this
               button is for the person who would rather not wait for either. */}
-          {parked !== undefined ? (
-            <Banner tone="error" text={parked}>
+          {parked?.error !== undefined ? (
+            <Banner tone="error" text={failureText(s, parked.error, parked.filename)}>
               <Button sm variant="quiet" label={s.action.retry} onPress={wake} />
             </Banner>
           ) : null}

@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { missingParts, progress, uploadedParts, type QueuedFile } from '@/upload-queue';
+import { en, ru } from '@/strings';
+import {
+  failureText,
+  missingParts,
+  progress,
+  uploadedParts,
+  type QueuedFile,
+  type UploadFailure,
+} from '@/upload-queue';
 
 const MB = 1024 * 1024;
 
@@ -36,6 +44,48 @@ describe('uploadedParts', () => {
       { part_number: 9, etag: '"i"' },
       { part_number: 10, etag: '"j"' },
     ]);
+  });
+});
+
+/**
+ * The bug behind this (TASK-93): the queue used to hold the finished sentence, worded at the moment
+ * the upload broke and then kept on disk. Switch the language, or open the app in the other one,
+ * and the banner sat there in the language of an upload that failed an hour ago. What is kept now
+ * is the reason, and the words come from here — so the same failure has to answer in whichever
+ * language it is asked in.
+ */
+describe('failureText', () => {
+  const NAME = 'IMG_0001.HEIC';
+
+  /** One of every way the pump parks a file, and the two answers the api gets worded by. */
+  const every: UploadFailure[] = [
+    { reason: 'gone' },
+    { reason: 'partSizeChanged' },
+    { reason: 'noReceipt', part: 2 },
+    { reason: 'noLink', part: 2 },
+    { reason: 'partNotTaken', part: 2 },
+    { reason: 'partRefused', part: 2, status: 503 },
+    { reason: 'offline' },
+    { reason: 'api', status: 429 },
+    { reason: 'api', status: 500 },
+  ];
+
+  it('says every reason in the language it is asked in', () => {
+    for (const failure of every) {
+      expect(failureText(ru, failure, NAME)).not.toBe(failureText(en, failure, NAME));
+    }
+  });
+
+  it('names the file the phone no longer has', () => {
+    expect(failureText(en, { reason: 'gone' }, NAME)).toBe(`${NAME} is no longer on this phone.`);
+    expect(failureText(ru, { reason: 'gone' }, NAME)).toBe(`${NAME} больше нет на этом телефоне.`);
+  });
+
+  // The one reason nothing here translates: the api wrote it, and this side only carries it.
+  it('hands the api’s own sentence on as it came', () => {
+    const refused: UploadFailure = { reason: 'api', status: 403, said: 'Memory is closed' };
+    expect(failureText(ru, refused, NAME)).toBe('Memory is closed');
+    expect(failureText(en, refused, NAME)).toBe('Memory is closed');
   });
 });
 
