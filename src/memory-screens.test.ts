@@ -259,7 +259,10 @@ test('the ember on a face is the one action that face is for', () => {
   // «Скачать N файлов» while picking, «Добавить кадры» the rest of the time.
   expect(frames.match(/variant="primary"/g)).toHaveLength(2);
   expect(films.match(/variant="primary"/g)).toHaveLength(2); // «Смонтировать» + the order sheet
-  expect(people.match(/variant="primary"/g)).toHaveLength(2); // «Пригласить» + the invite sheet
+  // One on the people, and the invite sheet has none of its own (TASK-131): the kit redrew that
+  // sheet around one field with two answers, and the press that puts somebody in now sits on that
+  // person's own row — a `.btn-sm` «Позвать», never a glowing button under the field.
+  expect(people.match(/variant="primary"/g)).toHaveLength(1); // «Пригласить», the footer's own
   // And the people's own is in the footer the kit draws for that face, not inline in the roster.
   const footer = people.slice(people.indexOf('<ActionBar>'), people.indexOf('</ActionBar>'));
   expect(footer).toContain('label={s.action.invite}');

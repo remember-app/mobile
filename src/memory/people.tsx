@@ -1,13 +1,17 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Share2, X } from 'lucide-react-native';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, Share, StyleSheet, View } from 'react-native';
 
 import {
   ApiError,
+  addContact,
   errorMessage,
   fetchInvite,
+  findUser,
   inviteByUsername,
+  isValidUsername,
+  listContacts,
   listMedia,
   listMembers,
   mayContribute,
@@ -16,6 +20,7 @@ import {
   removeMember,
   rotateInvite,
   setContributionStatus,
+  type Contact,
   type Invite,
   type Member,
 } from '@/api';
@@ -43,6 +48,9 @@ import {
 import { useStrings } from '@/language';
 import { MemoryHead, type Head } from '@/memory/head';
 import { space } from '@/theme';
+
+/** The same wait the contacts screen and the username form give the same server: one question. */
+const LOOKUP_DELAY_MS = 400;
 
 /**
  * The third face of a memory (kit, «Экраны» 6): who is in it and how to get more people in. What the
@@ -80,6 +88,22 @@ export function People({ id, head }: { id: string; head: Head }) {
   // Who the confirm sheet is asking about; null is «no sheet». The sheet is the whole state:
   // holding a boolean beside the member would let the two disagree.
   const [dropping, setDropping] = useState<Member | null>(null);
+  // The names this person invites from (doc-10), read when the sheet opens and not with the face:
+  // whoever is not inviting has no use for the list, and every open catches whatever was saved on
+  // the contacts screen since. null is «не спросили или не отдались» — either way, no block.
+  const [contacts, setContacts] = useState<Contact[] | null>(null);
+  // Who the field turned up outside the contacts: a person, `'none'` when nobody in Remember holds
+  // the name, and null while there is nothing to say — the same three answers the contacts screen
+  // reads off the same call.
+  const [found, setFound] = useState<Contact | 'none' | null>(null);
+  const [looking, setLooking] = useState(false);
+  // The person just invited by typing their username, and whether they have been saved since. Only
+  // that road leads here: picked out of the contacts, they are a contact already (kit, «Сохранить»).
+  const [invited, setInvited] = useState<Member | null>(null);
+  const [kept, setKept] = useState(false);
+  // Which contact's «Позвать» is waiting on the server. Held by id rather than by the shared `busy`
+  // so that one row spins and the rows around it stay live — «остальные строки не гаснут».
+  const [calling, setCalling] = useState<string | null>(null);
 
   const memory = head.memory;
 
@@ -126,6 +150,14 @@ export function People({ id, head }: { id: string; head: Head }) {
     }, [load]),
   );
 
+  // Read on every open of the sheet, and nothing is done when it fails: «контакты не отдались — их
+  // блока просто нет», the username field beside it still being the whole other road in.
+  useEffect(() => {
+    if (!inviting || !token) return;
+    setInvited(null);
+    listContacts(token).then(setContacts, () => {});
+  }, [inviting, token]);
+
   const me = members?.find((member) => member.id === user?.id) ?? null;
   const role = me?.role ?? null;
   // doc-01: adding people is «Добавление» and up, and so is bringing photos — whoever may bring
@@ -141,6 +173,61 @@ export function People({ id, head }: { id: string; head: Head }) {
   };
   // Checked against `dropping` first, so a closed sheet is never «about me» by two undefineds.
   const leaving = dropping !== null && dropping.id === user?.id;
+  // The one field is the sieve, and there is no second one on the sheet (kit, «Два пути»): what is
+  // typed narrows the contacts under it, and a name none of them holds is asked of the api. The @
+  // and the capitals come off the same way the contacts screen takes them off.
+  const query = username.trim().replace(/^@+/, '');
+  const needle = query.toLowerCase();
+  // Whoever is already here drops out of the list — they are on the roster behind the sheet, and
+  // offering to invite them again would be the sheet arguing with what is under it.
+  const pickable = (contacts ?? []).filter(
+    (contact) =>
+      !members?.some((member) => member.id === contact.id) &&
+      (needle === '' ||
+        (contact.username ?? '').toLowerCase().includes(needle) ||
+        (contact.name ?? '').toLowerCase().includes(needle)),
+  );
+  // An exact name that is already answered on this sheet — a contact under the field, or somebody
+  // on the roster behind it — is not asked about: the answer is on screen, and a second row for the
+  // same person would offer to invite whoever the list has just dropped for being here already.
+  const answered =
+    (contacts ?? []).some((contact) => contact.username?.toLowerCase() === needle) ||
+    (members ?? []).some((member) => member.username?.toLowerCase() === needle);
+  // Narrowed once here rather than at every use: `'none'` is a thing the field says, not a person
+  // to draw a row for.
+  const stranger = found === 'none' ? null : found;
+
+  // The field's second answer (kit, «Два пути»): a name none of the contacts holds is asked of the
+  // api, and whoever holds it comes back as one row under «Не в контактах». The whole of this is
+  // the contacts screen's own lookup, waiting the same beat and dropping the same stale replies —
+  // a slow answer about a name the field has since left can never overwrite a fresher one.
+  useEffect(() => {
+    setFound(null);
+    // A name that could never be held is not worth asking about, and neither is one this sheet has
+    // already answered. Nothing is asked while the sheet is shut either: the field is on it.
+    if (!token || !inviting || answered || !isValidUsername(query)) {
+      setLooking(false);
+      return;
+    }
+    setLooking(true);
+    let live = true;
+    const timer = setTimeout(() => {
+      findUser(token, query)
+        .then(
+          // Yourself is already on the roster, so there is nobody to offer.
+          (person) => (live && person.id !== user?.id ? setFound(person) : undefined),
+          (e: unknown) =>
+            live ? setFound(e instanceof ApiError && e.status === 404 ? 'none' : null) : undefined,
+        )
+        .finally(() => {
+          if (live) setLooking(false);
+        });
+    }, LOOKUP_DELAY_MS);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [token, inviting, query, answered, user?.id]);
 
   /**
    * Every api call this face's buttons make is the same shape: lock the controls, run one call,
@@ -163,21 +250,55 @@ export function People({ id, head }: { id: string; head: Head }) {
     }
   }
 
-  const sendInvite = () =>
-    act(
+  /**
+   * Both roads end here, and the row that was pressed is the whole difference between them: one
+   * «Позвать» stands on a contact, the other on the stranger the field turned up. Whoever was typed
+   * rather than picked is the one worth keeping afterwards, so only that road leaves the chip.
+   */
+  const sendInvite = (person: Contact, typed: boolean) => {
+    const handle = person.username;
+    if (!handle) return;
+    setCalling(person.id);
+    void act(
       async (session) => {
-        const added = await inviteByUsername(session, id, username.trim(), newcomerRole);
+        const added = await inviteByUsername(session, id, handle, newcomerRole);
         // The api is idempotent and answers 200 either way, so a re-add is only visible
         // against the roster as it stood before the call.
         const already = members?.some((member) => member.id === added.id) ?? false;
-        setUsername('');
+        if (typed) {
+          setInvited(added);
+          setKept(false);
+          // The field has done its job, and emptying it brings the whole contact list back under
+          // the row of the person just invited.
+          setUsername('');
+        }
+        // The roster is what takes them out of the list under the field: one truth, read back from
+        // the api, rather than the sheet crossing a name off on its own account.
         load();
         return already
           ? s.members.already(memberName(added), s.role[added.role])
           : s.members.added(memberName(added), s.role[added.role]);
       },
-      { 404: s.members.noSuchUser, 403: s.members.inviteDenied },
+      { 403: s.members.inviteDenied },
+    ).finally(() => setCalling(null));
+  };
+
+  /**
+   * The chip on the row of somebody just invited by name. Outside `act`: it is nobody's answer to
+   * the invite, and clearing the line that says «Добавили Рому» to say nothing in its place would
+   * take away the very thing this chip is standing beside. Only a failure has anything to say.
+   */
+  const keep = (person: Member) => {
+    const handle = person.username;
+    if (!token || !handle) return;
+    addContact(token, handle).then(
+      (contact) => {
+        setContacts((held) => [...(held ?? []), contact]);
+        setKept(true);
+      },
+      (e: unknown) => setNotice(errorMessage(e)),
     );
+  };
 
   const showLink = () =>
     act(async (session) => {
@@ -351,6 +472,10 @@ export function People({ id, head }: { id: string; head: Head }) {
           onValueChange={setMayAdd}
           disabled={busy}
         />
+        {/* One field and two answers, and no second one anywhere on the sheet (kit, «Два пути»):
+            what is typed narrows the contacts under it, and a name none of them holds is asked of
+            the api. There is no «Пригласить» button under it either — what is typed is a sieve
+            until somebody is found, and then it is their own row that carries the press. */}
         <Field
           label={s.username.label}
           value={username}
@@ -359,17 +484,85 @@ export function People({ id, head }: { id: string; head: Head }) {
           autoCapitalize="none"
           autoCorrect={false}
           editable={!busy}
+          // The check is answered in the field and not in a button (kit, «Ждём»). Whoever *was*
+          // found is answered by their row instead: saying «Костя найден» over a row that already
+          // says Костя spends a line saying nothing.
+          state={found === 'none' ? 'error' : undefined}
+          hint={looking ? s.state.checking : found === 'none' ? s.members.noSuchUser : undefined}
         />
-        {/* The sheet's own one glowing button, the way the order sheet has «Смонтировать»: a
-            surface gets exactly one, and here it is the whole point of opening this one. The link
-            below is the other road in and stays a plain button — it hands over something to send,
-            it does not put anybody in. */}
-        <Button
-          variant="primary"
-          label={s.action.invite}
-          onPress={sendInvite}
-          disabled={busy || username.trim() === ''}
-        />
+
+        {/* Invited by name, and so the one person on this sheet who might be worth keeping. The
+            offer sits on their own row, in the right end of it where a contact's «Позвать» stands
+            — nothing rises over the sheet and nothing is asked (kit, «Экраны» 6, «Сохранить»).
+            Pressed, the chip stays exactly where it is and reads «В контактах»; unpressed, it
+            leaves with the sheet and was never in anybody's way. */}
+        {invited !== null ? (
+          <RowMember
+            name={memberName(invited)}
+            meta={memberHandle(invited)}
+            status={<Status text={s.members.invited} />}
+          >
+            <ChipAction
+              label={kept ? s.members.keptContact : s.members.keepContact}
+              checked={kept}
+              // Saved is a standing and not a switch: the way off a contact list is that list's
+              // own cross, not a chip on a sheet that is about to close.
+              onPress={kept ? undefined : () => keep(invited)}
+            />
+          </RowMember>
+        ) : null}
+
+        {/* The first road in, under the field that sieves it. Nobody left to offer — no contacts at
+            all, or every one of them already here — and the block is not there: the sheet is then
+            exactly what it was before contacts existed, never an empty list saying so. */}
+        {pickable.length > 0 ? (
+          <View style={styles.section}>
+            <Text accessibilityRole="header" role="label">
+              {s.members.fromContacts}
+            </Text>
+            {/* `.picklist{max-height:216px}` — two rows and half of the third, scrolling inside
+                itself so that a long list never grows the sheet up into the screen. */}
+            <ScrollView style={styles.picklist}>
+              {pickable.map((contact, index) => (
+                <RowMember
+                  key={contact.id}
+                  name={memberName(contact)}
+                  meta={memberHandle(contact)}
+                  divider={index > 0}
+                >
+                  <Button
+                    sm
+                    label={s.members.inviteDo}
+                    busy={calling === contact.id}
+                    onPress={() => sendInvite(contact, false)}
+                  />
+                </RowMember>
+              ))}
+            </ScrollView>
+          </View>
+        ) : null}
+
+        {/* The field's other answer: nobody saved holds that name, but somebody in Remember does.
+            One row under its own rule, with the same «Позвать» a contact's row carries — this is
+            the whole of the road by hand, and pressing it is what leaves the chip above. Under the
+            contacts and not over them: what is already kept is the likelier answer. */}
+        {stranger !== null ? (
+          <View style={styles.section}>
+            <Text accessibilityRole="header" role="label">
+              {s.contacts.notSaved}
+            </Text>
+            <View>
+              <RowMember name={memberName(stranger)} meta={memberHandle(stranger)}>
+                <Button
+                  sm
+                  label={s.members.inviteDo}
+                  busy={calling === stranger.id}
+                  onPress={() => sendInvite(stranger, true)}
+                />
+              </RowMember>
+            </View>
+          </View>
+        ) : null}
 
         <Text role="meta">{s.members.inviteLink}</Text>
         {shareable === null ? (
@@ -433,6 +626,10 @@ const styles = StyleSheet.create({
   // does not end against the bar.
   body: { paddingHorizontal: space.s4, paddingBottom: space.s8, gap: space.s3 },
   pad: { paddingHorizontal: space.s4 },
+  // `.stack-2` — the rule and the list it introduces, the way the contacts screen sets the same
+  // pair. The list itself is the kit's `.picklist`, cut where the third row is half read.
+  section: { gap: space.s2 },
+  picklist: { maxHeight: 216 },
   // The kit's `minmax(28px,auto)` last column, kept open where there is no cross to put in it.
   noCross: { width: 28 },
   quiet: { alignSelf: 'flex-start' },

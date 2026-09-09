@@ -20,6 +20,10 @@ vi.mock('expo-secure-store', () => ({
   setItemAsync: async () => {},
 }));
 
+// The check the pressed chip carries — Lucide ships Flow source node cannot parse, so it is stood
+// in for the same way `tile.test.tsx` stands in for the one in a frame's corner.
+vi.mock('lucide-react-native', () => ({ Check: () => null }));
+
 /** The classes of the first element carrying the meta line's floor — the row's second line. */
 const metaLine = (markup: string) => markup.match(/<div class="([^"]*r-minHeight[^"]*)"/)?.[1];
 
