@@ -36,7 +36,15 @@ import {
 import { useAuth } from '@/auth';
 import { formatRuntime } from '@/dates';
 import { maySaveToPhone, saveToPhone } from '@/downloads';
-import { frameIndex, frameOf, mayOpen, shotBy, stillPreparing, type Frame } from '@/frames';
+import {
+  frameIndex,
+  frameOf,
+  mayOpen,
+  openFrameOf,
+  shotBy,
+  stillPreparing,
+  type Frame,
+} from '@/frames';
 import {
   ActionBar,
   Banner,
@@ -220,8 +228,12 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   // below only says which ways up it may be drawn — this is what lets the app leave portrait at all.
   useTurnsWithPhone(shown !== null);
 
-  /** The open record read the way the grid reads it — one answer, two places drawing it. */
-  const openFrame = shown === null ? null : frameOf(shown);
+  /**
+   * The open record read for the whole of the phone and not for a tile: the big derivative, with
+   * the grid's thumbnail behind it for a record that has none. The tiles keep `frameOf` — a
+   * miniature is what a miniature is for.
+   */
+  const openFrame = shown === null ? null : openFrameOf(shown);
   /**
    * What is marked *and* still in the sheet. `picked` is only ever emptied by leaving the mode or
    * by «Снять», and the sheet moves underneath it on its own — the three-second re-read, the read

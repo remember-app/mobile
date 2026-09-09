@@ -13,7 +13,7 @@ import type { MediaItem, Member, Memory } from '@/api';
 // The day is written by `@/dates` and read here from the same place: what is pinned below is which
 // day the line carries, not how this phone's locale spells it.
 import { formatEventDates } from '@/dates';
-import { frameIndex, frameOf, mayOpen, shotBy, stillPreparing } from '@/frames';
+import { frameIndex, frameOf, mayOpen, openFrameOf, shotBy, stillPreparing } from '@/frames';
 
 // The gallery sat in «Preparing…» for good because it read the list once and never again, and
 // nothing on screen ever asked whether there was a reason to look. These are the two questions the
@@ -68,6 +68,36 @@ test('until then the frame is the waiting one, with no picture to draw', () => {
 
 test('a record that is ready with nothing on it is a fallen frame, not an empty square', () => {
   expect(frameOf(record({ status: 'ready' }))).toEqual({ state: 'failed', uri: null });
+});
+
+// What the frame opened full screen is drawn from (TASK-120). It used to be the same 640px
+// thumbnail the grid draws in a tile, stretched over the whole of a phone — the mush that was
+// reported. The tiles above keep the thumbnail; only this reading changed.
+
+test('the frame opened full screen is the big derivative and not the tile’s thumbnail', () => {
+  const big = record({
+    status: 'ready',
+    thumbnail_url: 'https://r2.example/thumbnails/a.jpg?sig=1',
+    preview_url: 'https://r2.example/previews/a.mp4?sig=1',
+  });
+  expect(openFrameOf(big)).toEqual({
+    state: 'ready',
+    uri: 'https://r2.example/previews/a.mp4?sig=1',
+  });
+  // The grid is untouched by it: a tile is still handed the miniature it is a miniature for.
+  expect(frameOf(big).uri).toBe('https://r2.example/thumbnails/a.jpg?sig=1');
+});
+
+test('a record with no big derivative opens on its thumbnail rather than on nothing', () => {
+  // Every photo, today: the worker makes a thumbnail for a photo and only a video gets a preview
+  // (architecture.md). Read straight, `preview_url` would put «Показывать нечего» over a picture
+  // that is right there — blurry beats absent until a large photo derivative exists.
+  expect(openFrameOf(secondRead[0])).toEqual(frameOf(secondRead[0]));
+});
+
+test('a record with neither is the fallen frame however it is opened', () => {
+  expect(openFrameOf(record({ status: 'ready' }))).toEqual({ state: 'failed', uri: null });
+  expect(openFrameOf(firstRead[0])).toEqual({ state: 'processing', uri: null });
 });
 
 test('a record the worker gave up on stops the reading instead of being waited on forever', () => {
