@@ -331,6 +331,12 @@ export const en = {
     track: { warm: 'Warm', bright: 'Bright', calm: 'Calm' },
     /** Three round answers out of the range the api takes, keyed by the seconds asked for. */
     length: { 30: 'Half a minute', 60: 'A minute', 120: 'Two minutes' },
+    /**
+     * Which way up the movie comes out, by the api's own two ids. Said as the shape it has and not
+     * as «landscape/portrait» — the words on the sheet are for whoever is about to watch it on a
+     * phone, and one of these is for sharing to a story.
+     */
+    orientation: { landscape: 'Wide', portrait: 'Tall' },
     ofLength: (runtime: string) => `Movie of ${runtime}`,
     fromDay: (day: string) => `Movie from ${day}`,
     caption: 'You will be told when it is ready',
@@ -342,6 +348,8 @@ export const en = {
       'Everything in this memory goes in, and the agent picks the moments itself. What comes out is not edited afterwards.',
     howLong: 'How long',
     music: 'Music',
+    /** The heading over the two shapes, the way «How long» stands over the three lengths. */
+    shape: 'Shape',
     empty: 'No movie yet — the organizer can ask for one.',
     /**
      * The same silence read by the one person who can end it. Empty is an invitation (kit,
@@ -631,6 +639,7 @@ export const ru: Strings = {
     },
     track: { warm: 'Тёплая', bright: 'Яркая', calm: 'Спокойная' },
     length: { 30: 'Полминуты', 60: 'Минута', 120: 'Две минуты' },
+    orientation: { landscape: 'Горизонтальный', portrait: 'Вертикальный' },
     ofLength: (runtime: string) => `Ролик на ${runtime}`,
     fromDay: (day: string) => `Ролик от ${day}`,
     caption: 'Мы сообщим, когда будет готов',
@@ -642,6 +651,7 @@ export const ru: Strings = {
       'В ролик пойдёт всё из этого воспоминания, а моменты нейросеть выберет сама. Готовый ролик не редактируется.',
     howLong: 'Длина',
     music: 'Музыка',
+    shape: 'Формат',
     empty: 'Роликов пока нет — организатор может заказать.',
     emptyOrganizer:
       'Ролика пока нет. Ролик — это короткое видео из всего, что есть в воспоминании: моменты нейросеть выберет сама и положит на музыку. Хватит нескольких фото или видео.',

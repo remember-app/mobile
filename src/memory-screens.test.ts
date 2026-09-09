@@ -348,6 +348,20 @@ test('the order button waits for the list it prepends to', () => {
   expect(frames).toContain('marginBottom: Math.max(insets.bottom');
 });
 
+test('the order sheet asks three things, and all three go out with the order', () => {
+  // TASK-126: orientation joined the length and the track. Horizontal is the state the sheet opens
+  // in and the one the api reads out of a body that never mentions it, so an untouched sheet orders
+  // what it always ordered — and the two words on the buttons come off the dictionary like the rest.
+  expect(films).toContain("useState<MontageOrientation>('landscape')");
+  expect(films).toContain('orientation,');
+  expect(films).toContain('label={s.montage.orientation[way]}');
+  expect(api).toContain("export type MontageOrientation = 'landscape' | 'portrait';");
+  for (const set of [en, ru]) {
+    expect(Object.keys(set.montage.orientation)).toEqual(['landscape', 'portrait']);
+    expect(set.montage.shape).toBeTruthy();
+  }
+});
+
 test('a ready montage shows its own still, and one without a still keeps the placeholder', () => {
   // TASK-112: the card drew the kit's dark rectangle for every montage because nothing was ever
   // handed to it. The link is the api's, signed the same way the video is, and null is the ordinary
