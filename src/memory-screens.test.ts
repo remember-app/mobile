@@ -223,6 +223,19 @@ test('the platform switch is spelled out once, in the kit', () => {
   expect(toggle).toContain('activeThumbColor');
 });
 
+test('the invite sheet is shut when the people face loses focus', () => {
+  // TASK-94, off a device: `useFocusEffect(load)` re-read the roster on the way in and did nothing
+  // on the way out, so a sheet nobody closed — a push, a deep link, anything that is not the cross
+  // or the scrim — stayed a mounted Modal over whatever screen came next. The cleanup the hook runs
+  // on blur is the whole fix; the re-read on focus is the same call it always was.
+  expect(people).not.toContain('useFocusEffect(load)');
+  expect(people).toMatch(
+    /useFocusEffect\(\s*useCallback\(\(\) => \{\s*load\(\);\s*return \(\) => setInviting\(false\);/,
+  );
+  // And the explicit ways out are untouched: the sheet's own cancel still closes it.
+  expect(people).toContain('onCancel={() => setInviting(false)}');
+});
+
 // The roads into a memory, and the face each of them lands on.
 
 test('a tapped card opens the memory on its frames, which is what it opens on by default', () => {
