@@ -23,6 +23,7 @@ export function CardMontage({
   title,
   status,
   poster,
+  vertical,
   caption,
   onPlay,
   playLabel,
@@ -35,6 +36,13 @@ export function CardMontage({
   status: string;
   /** Poster frame URI, when there is one to show. */
   poster?: string;
+  /**
+   * A standing montage: the frame stands up with the poster — 4/5 instead of 16/9 — and the poster
+   * is shown whole in it, on ink fields at the sides. Not the poster's full 9/16, which at the full
+   * width of the card would take most of two screens and stop the list scrolling. The frame is the
+   * ordered orientation's from the start, so a card does not jump when the still finally arrives.
+   */
+  vertical?: boolean;
   /** What the wait is busy with, while it is `pending`. */
   caption?: string;
   onPlay?: () => void;
@@ -52,12 +60,14 @@ export function CardMontage({
   return (
     <View style={[styles.card, style]}>
       {state !== 'failed' ? (
-        <View style={styles.poster}>
+        <View style={[styles.poster, vertical ? styles.posterTall : null]}>
           {poster ? (
             <Image
               testID="card-montage-poster"
               source={{ uri: poster }}
-              resizeMode="cover"
+              // Whole and not by the crop: a standing poster in a standing frame is centred by
+              // `contain`, and what is left over at the sides is the frame's own ink.
+              resizeMode={vertical ? 'contain' : 'cover'}
               style={styles.image}
             />
           ) : null}
@@ -123,6 +133,7 @@ const useStyles = themed(({ color, glow }) =>
       backgroundColor: color.surface,
     },
     poster: { aspectRatio: 16 / 9, backgroundColor: color.ink },
+    posterTall: { aspectRatio: 4 / 5 },
     image: { width: '100%', height: '100%' },
     pending: { alignItems: 'center', justifyContent: 'center', gap: space.s3 },
     play: {
