@@ -14,7 +14,7 @@ import { Alert, AppState } from 'react-native';
 
 import {
   ApiError,
-  errorMessage,
+  apiReason,
   finishUpload,
   refreshUpload,
   setContributionStatus,
@@ -24,7 +24,13 @@ import {
 import { useAuth } from '@/auth';
 import { currentLanguage } from '@/language';
 import { strings } from '@/strings';
-import { missingParts, uploadedParts, type PartRange, type QueuedFile } from '@/upload-queue';
+import {
+  missingParts,
+  uploadedParts,
+  type PartRange,
+  type QueuedFile,
+  type UploadFailure,
+} from '@/upload-queue';
 
 /** Where the queue waits between launches. Documents and not cache — nothing may sweep this. */
 const QUEUE_FILE = 'uploads.json';
@@ -33,11 +39,24 @@ const QUEUE_FILE = 'uploads.json';
 const RETRY_MS = 15_000;
 
 /**
- * A failure already worded for the person looking at the queue. Everything else that lands in the
- * pump — a dead api, a dropped connection — is worded by `errorMessage`, which is where the app
- * keeps its one sentence for «cannot reach the api».
+ * A failure the pump names itself, carried as the line to say and not as the sentence — the queue
+ * holds no words at all, so nothing in it can be left in yesterday's language (TASK-93). The
+ * `Error` message is for a log and never for a person. Everything else that lands in the pump — a
+ * dead api, a dropped connection — is named by `failure` below.
  */
-class UploadError extends Error {}
+class UploadError extends Error {
+  constructor(readonly failure: UploadFailure) {
+    super(failure.reason);
+  }
+}
+
+/** Whatever came out of the pump, as the queue keeps it: the pump's own reason, or the api's. */
+const failure = (error: unknown): UploadFailure =>
+  error instanceof UploadError
+    ? error.failure
+    : error instanceof ApiError
+      ? { reason: 'api', status: error.status, said: apiReason(error.body) }
+      : { reason: 'offline' };
 
 /** The words, read at the moment one is needed — the same call `@/api` makes, for the same reason. */
 const say = () => strings[currentLanguage()];
@@ -56,8 +75,15 @@ function restore() {
   if (restored) return;
   restored = true;
   try {
-    const file = store();
-    if (file.exists) queue = JSON.parse(file.textSync()) as QueuedFile[];
+    const saved = store();
+    // Last run's reasons stay with last run: whatever parked a file happened a tunnel and possibly
+    // a language ago, so everything comes back waiting and the pump says what is wrong now. It is
+    // also what makes a queue left by an older build readable — there the reason on disk is a
+    // finished sentence and not a line to say (TASK-93) — and it costs nothing: a queue that comes
+    // back parked is woken by the retry timer fifteen seconds later anyway.
+    if (saved.exists) {
+      queue = (JSON.parse(saved.textSync()) as QueuedFile[]).map(({ error, ...file }) => file);
+    }
   } catch {
     // A queue that cannot be read is a list of what to send again, not the material itself —
     // that is still in the gallery, and the person can pick it once more.
@@ -93,7 +119,7 @@ function sourceFile(asset: MediaLibrary.AssetInfo): File {
   } catch {
     // Whatever the reason, it comes to the same thing as the line below.
   }
-  throw new UploadError(say().upload.gone(asset.filename));
+  throw new UploadError({ reason: 'gone' });
 }
 
 /**
@@ -152,10 +178,10 @@ async function putPart(url: string, source: File, part: PartRange): Promise<stri
   const response = await fetch(url, { method: 'PUT', body: bytes });
   if (response.status === 403) return null;
   if (!response.ok) {
-    throw new UploadError(say().upload.partRefused(part.number, response.status));
+    throw new UploadError({ reason: 'partRefused', part: part.number, status: response.status });
   }
   const etag = response.headers.get('etag');
-  if (etag === null) throw new UploadError(say().upload.noReceipt(part.number));
+  if (etag === null) throw new UploadError({ reason: 'noReceipt', part: part.number });
   return etag;
 }
 
@@ -168,7 +194,7 @@ async function send(file: QueuedFile, token: string) {
 
   const linkFor = (number: number) => {
     const link = plan.upload.parts.find((part) => part.part_number === number)?.url;
-    if (link === undefined) throw new UploadError(say().upload.noLink(number));
+    if (link === undefined) throw new UploadError({ reason: 'noLink', part: number });
     return link;
   };
 
@@ -180,9 +206,9 @@ async function send(file: QueuedFile, token: string) {
       plan = await planFor(file, token, size);
       // `planFor` throws the etags away if the api's part size moved, and this loop is cutting to
       // the old one: it stops here and the next run starts the file on slices that line up.
-      if (plan.upload.part_size !== partSize) throw new UploadError(say().upload.partSizeChanged);
+      if (plan.upload.part_size !== partSize) throw new UploadError({ reason: 'partSizeChanged' });
       etag = await putPart(linkFor(part.number), source, part);
-      if (etag === null) throw new UploadError(say().upload.partNotTaken(part.number));
+      if (etag === null) throw new UploadError({ reason: 'partNotTaken', part: part.number });
     }
     file.parts[part.number] = etag;
     // Written down before the next part goes out: an app killed here resumes from this line.
@@ -242,12 +268,13 @@ async function run() {
         queue = queue.filter((file) => file !== next);
       } catch (error) {
         // Parked, not dropped: offline is the ordinary reason to be here, and the material is
-        // still owed to the memory. `errorMessage` words a dead network the way the screens do.
+        // still owed to the memory. What is written down is the reason and not a sentence — the
+        // screen words it when it draws it.
         // ponytail: everything parks the same way, so a file the api will never take — the row
         // swept away after a day, a membership that ended — is retried until somebody drops the
         // row by hand. Worth splitting permanent from transient the day that stares at anyone.
         if (alreadyIn(error)) queue = queue.filter((file) => file !== next);
-        else next.error = error instanceof UploadError ? error.message : errorMessage(error);
+        else next.error = failure(error);
       }
       changed();
     }

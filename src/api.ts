@@ -32,18 +32,25 @@ export class ApiError extends Error {
 }
 
 /**
- * ponytail: `reason` is the api's own sentence, and it comes down the wire in whatever language the
- * api writes — English today. The api is now told which language the caller reads (TASK-91), but it
- * spends that on what it writes unprompted — the mails and the pushes — and not on its answer to a
- * request. The two lines this side words itself are already both.
+ * The api's own sentence for a failure, when it sent one. Handed out on its own as well as inside
+ * the message, for the one place that has to keep a failure and word it later (`@/upload-queue`).
+ *
+ * ponytail: it comes down the wire in whatever language the api writes — English today. The api is
+ * now told which language the caller reads (TASK-91), but it spends that on what it writes
+ * unprompted — the mails and the pushes — and not on its answer to a request. The two lines this
+ * side words itself are already both.
  */
-function describe(status: number, body: unknown): string {
-  if (status === 429) return say().error.tooMany;
+export function apiReason(body: unknown): string | undefined {
   const reason =
     typeof body === 'object' && body !== null && 'error' in body
       ? (body as { error: unknown }).error
       : undefined;
-  return typeof reason === 'string' ? reason : say().error.status(status);
+  return typeof reason === 'string' ? reason : undefined;
+}
+
+function describe(status: number, body: unknown): string {
+  if (status === 429) return say().error.tooMany;
+  return apiReason(body) ?? say().error.status(status);
 }
 
 /** The line a screen can show for a failed call: the api's own wording, or a network one. */
