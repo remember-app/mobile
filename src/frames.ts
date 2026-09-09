@@ -18,7 +18,28 @@ export type Frame = { state: TileState; uri: string | null };
  * sitting in the sheet as an empty square.
  */
 export function frameOf(item: MediaItem): Frame {
-  const uri = item.thumbnail_url;
+  return frameWith(item, item.thumbnail_url);
+}
+
+/**
+ * The same record read for the one frame opened full screen. The grid's picture is the 640px
+ * thumbnail the worker makes for a tile, and blown up to the whole of a phone it is the mush that
+ * was reported — so this reading asks for the big derivative first and keeps the thumbnail as the
+ * fallback for a record that has none.
+ *
+ * A photo has none *today*: the worker makes a thumbnail for a photo and a poster plus the 720p
+ * copy for a video (architecture.md), so `preview_url` is only ever a video's playable file. The
+ * viewer reaches for it directly and mounts a player on that branch, before ever getting to the
+ * image — a video only lands here when its preview was never made, and its poster is the honest
+ * thing to draw then. Which leaves the fallback carrying every photo until a large photo
+ * derivative exists to point at; the moment the worker makes one, this is where it lands.
+ */
+export function openFrameOf(item: MediaItem): Frame {
+  return frameWith(item, item.preview_url ?? item.thumbnail_url);
+}
+
+/** The correction both readings share, so the two cannot drift on what a frame with nothing is. */
+function frameWith(item: MediaItem, uri: string | null): Frame {
   return { state: item.status === 'ready' && uri === null ? 'failed' : item.status, uri };
 }
 
