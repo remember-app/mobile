@@ -204,10 +204,14 @@ export function Films({ id, head }: { id: string; head: Head }) {
   const role = memory?.role ?? null;
   const watching = montages?.find((montage) => montage.id === playing) ?? null;
 
-  // A montage is 16:9 and worth turning the phone for. The `supportedOrientations` on the modal
-  // below only says which ways up it may be drawn — this is what lets the app leave portrait at all.
-  // Which is given back on the cleanup, so what has to be true is that the viewer is shut on every
-  // way out of this face — the focus effect above is where that is done.
+  // A wide montage is worth turning the phone for — and since TASK-126 wide is what was asked for
+  // at the order rather than what every montage is; `params.orientation` says which one this is.
+  // The viewer is left free both ways all the same: a standing montage has no reason to be turned
+  // and nothing breaks if it is, so there is nothing here worth deciding per montage. The
+  // `supportedOrientations` on the modal below only says which ways up it may be drawn — this is
+  // what lets the app leave portrait at all. Which is given back on the cleanup, so what has to be
+  // true is that the viewer is shut on every way out of this face — the focus effect above is where
+  // that is done.
   useTurnsWithPhone(watching !== null);
 
   /**
@@ -523,8 +527,8 @@ export function Films({ id, head }: { id: string; head: Head }) {
         visible={watching !== null}
         animationType="fade"
         onRequestClose={() => setPlaying(null)}
-        // Landscape too: a montage is 16:9 and worth turning the phone for, and the rest of the
-        // app is portrait-only.
+        // Landscape too: a montage ordered wide is worth turning the phone for, and the rest of
+        // the app is portrait-only.
         supportedOrientations={['portrait', 'landscape']}
       >
         {watching === null || watching.video_url === null ? null : (
