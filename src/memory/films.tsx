@@ -12,6 +12,7 @@ import {
   orderMontage,
   retryMontage,
   type Montage,
+  type MontageOrientation,
   type MusicTrackId,
 } from '@/api';
 import { useAuth } from '@/auth';
@@ -88,6 +89,9 @@ export function Films({ id, head }: { id: string; head: Head }) {
   // to the worker — it is one tap either way, and a person who opened the sheet came to choose.
   const [seconds, setSeconds] = useState<Length>(60);
   const [track, setTrack] = useState<MusicTrackId>('warm');
+  // Horizontal, which is what every montage was before this could be asked — the api reads a missing
+  // orientation as exactly this one, so an untouched sheet orders what it always ordered.
+  const [orientation, setOrientation] = useState<MontageOrientation>('landscape');
   /** The montage being watched, held by id so a reload hands it a fresh signed url. */
   const [playing, setPlaying] = useState<string | null>(null);
 
@@ -141,7 +145,7 @@ export function Films({ id, head }: { id: string; head: Head }) {
   }
 
   /**
-   * «Смонтируй ролик», with the two wishes doc-03 allows. The api answers with the row it wrote,
+   * «Смонтируй ролик», with the three wishes doc-03 allows. The api answers with the row it wrote,
    * so it goes straight onto the top of the list — the list is newest first, and a reload would be
    * the same thing one round trip later.
    */
@@ -151,6 +155,7 @@ export function Films({ id, head }: { id: string; head: Head }) {
         const ordered = await orderMontage(session, id, {
           target_seconds: seconds,
           music_track_id: track,
+          orientation,
         });
         setMontages((have) => [ordered, ...(have ?? [])]);
         setOrdering(false);
@@ -344,7 +349,7 @@ export function Films({ id, head }: { id: string; head: Head }) {
         </View>
       ) : null}
 
-      {/* The two wishes doc-03 allows and nothing else, asked on a sheet the way an invite is:
+      {/* The three wishes doc-03 allows and nothing else, asked on a sheet the way an invite is:
           ordering is a thing done once, and the face is for what comes of it. What is picked is
           in the heading above each row as well as in the buttons — a screen reader gets no «this
           one is chosen» out of a button that only looks different. */}
@@ -383,6 +388,22 @@ export function Films({ id, head }: { id: string; head: Head }) {
               variant={id === track ? 'secondary' : 'quiet'}
               label={s.montage.track[id]}
               onPress={() => setTrack(id)}
+              disabled={busy}
+            />
+          ))}
+        </View>
+
+        <Text role="label">
+          {s.montage.shape} · {s.montage.orientation[orientation]}
+        </Text>
+        <View style={styles.choices}>
+          {(Object.keys(s.montage.orientation) as MontageOrientation[]).map((way) => (
+            <Button
+              key={way}
+              sm
+              variant={way === orientation ? 'secondary' : 'quiet'}
+              label={s.montage.orientation[way]}
+              onPress={() => setOrientation(way)}
               disabled={busy}
             />
           ))}
