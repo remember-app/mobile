@@ -196,7 +196,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   // and every screen after this one was left free to turn with the phone.
   //
   // The delete confirmation is not in here: it is the kit's `ConfirmSheet`, and since TASK-129 a
-  // sheet shuts itself when the screen under it loses focus. This window is a `Modal` of this
+  // sheet shuts itself when the screen under it loses focus. The viewer above is a `Modal` of this
   // face's own and stays this face's business.
   useFocusEffect(
     useCallback(() => {

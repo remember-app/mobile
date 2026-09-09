@@ -175,8 +175,8 @@ export function Films({ id, head }: { id: string; head: Head }) {
   // follows the modal and not the mount, so nothing put the app back in portrait.
   //
   // The order sheet was shut here too until TASK-129: it is the kit's `Sheet`, and a sheet now
-  // shuts itself when the screen under it loses focus. This window is a `Modal` of this face's own
-  // and stays this face's business.
+  // shuts itself when the screen under it loses focus. The viewer above is a `Modal` of this face's
+  // own and stays this face's business.
   useFocusEffect(
     useCallback(() => {
       load();

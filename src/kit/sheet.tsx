@@ -62,6 +62,11 @@ export function Sheet({ visible, onCancel, children }: SheetProps) {
  * The callback is memoised on nothing — a subscription torn down and built again on every render is
  * not what this wants — so it cannot read anything off the closure it was born in: a sheet mounts
  * closed, and that first closure says so forever. The ref is what the last render left.
+ *
+ * Blur is not the only way out this takes: expo-router runs the cleanup on teardown as well, so a
+ * sheet unmounted while still up — a screen that mounts its sheet conditionally closes one that way
+ * on every confirm — is cancelled too. Harmless because every `onCancel` in the app is a plain state
+ * reset; a sheet whose cancel ever does more than that would feel the difference.
  */
 export function useShutOnBlur(visible: boolean, onCancel: () => void): void {
   const now = useRef({ visible, onCancel });
