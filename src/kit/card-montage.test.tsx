@@ -41,3 +41,37 @@ test('a montage with no poster keeps the placeholder, not a broken image', () =>
   const html = renderToStaticMarkup(<CardMontage state="ready" title="Movie" status="Готов" />);
   expect(html).not.toContain('data-testid="card-montage-poster"');
 });
+
+/**
+ * TASK-135: the worker sends a vertical montage a vertical still, and the card held one horizontal
+ * 16/9 frame for every montage and cropped to it — a standing poster was visible as a narrow strip
+ * across its middle. `react-native-web` compiles each style value to its own atomic class, so the
+ * two shapes are read off the markup by comparing them: what matters is that the standing card is
+ * a different frame and a different fit, and that the horizontal one is untouched.
+ */
+const atom = (html: string, property: string): string | undefined =>
+  html.match(new RegExp(`r-${property}-[\\w-]+`))?.[0];
+
+const card = (vertical: boolean): string =>
+  renderToStaticMarkup(
+    <CardMontage state="ready" title="Movie" status="Готов" poster={URL} vertical={vertical} />,
+  );
+
+test('a vertical montage stands its frame up and shows the whole poster', () => {
+  const tall = card(true);
+  const wide = card(false);
+
+  // The frame — `aspectRatio` 4/5 against 16/9 — and the fit inside it, which
+  // `react-native-web` renders as `background-size`: `contain` against `cover`.
+  expect(atom(tall, 'aspectRatio')).not.toBe(atom(wide, 'aspectRatio'));
+  expect(atom(tall, 'backgroundSize')).not.toBe(atom(wide, 'backgroundSize'));
+});
+
+test('a montage said nothing about is the horizontal card it always was', () => {
+  // The prop is the whole of the new behaviour: presentational as the card's own doc says, it knows
+  // nothing about orientation unless the screen hands it over.
+  const untold = renderToStaticMarkup(
+    <CardMontage state="ready" title="Movie" status="Готов" poster={URL} />,
+  );
+  expect(untold).toBe(card(false));
+});
