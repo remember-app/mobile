@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { type ReactNode, useRef } from 'react';
 import {
   Animated,
   KeyboardAvoidingView,
@@ -45,10 +45,32 @@ export function Sheet({ visible, onCancel, children }: SheetProps) {
   );
 }
 
+/**
+ * How long the scrim stays deaf after the sheet comes up. The second tap of a double tap on the
+ * button that opened the sheet lands where that button was a moment ago — which is now the scrim —
+ * and closes what has only just opened, so from the outside the button reads as dead (TASK-95).
+ * Long enough to swallow that second tap, short enough that nobody aiming beside the sheet on
+ * purpose ever waits for it.
+ */
+export const SCRIM_DEAF_MS = 300;
+
+/**
+ * The scrim's `onPress`, deaf for its first {@link SCRIM_DEAF_MS}. The moment the sheet opened is
+ * the moment this mounts, so a timestamp answers it: one comparison when a tap arrives, nothing
+ * scheduled, nothing to clean up, and no re-render standing between the rise and the screen.
+ */
+export function useScrimTap(onCancel: () => void): () => void {
+  const openedAt = useRef(Date.now());
+  return () => {
+    if (Date.now() - openedAt.current >= SCRIM_DEAF_MS) onCancel();
+  };
+}
+
 function Rise({ onCancel, children }: Omit<SheetProps, 'visible'>) {
   const insets = useSafeAreaInsets();
   const rise = useFadeIn(motion.slow);
   const styles = useStyles();
+  const onScrimTap = useScrimTap(onCancel);
 
   return (
     // A sheet sits where the keyboard comes up, so anything typed into one would be typed blind.
@@ -57,11 +79,12 @@ function Rise({ onCancel, children }: Omit<SheetProps, 'visible'>) {
       style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      {/* Tapping beside the sheet is the same as declining. Hidden from screen readers: they have
-          the sheet's own way out below, and a full-screen button in front of it only gets in the way. */}
+      {/* Tapping beside the sheet is the same as declining — once the sheet is up, see `useScrimTap`.
+          Hidden from screen readers: they have the sheet's own way out below, and a full-screen
+          button in front of it only gets in the way. */}
       <Pressable
         style={StyleSheet.absoluteFill}
-        onPress={onCancel}
+        onPress={onScrimTap}
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
       >
