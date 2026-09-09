@@ -665,7 +665,44 @@ test('the frame shown full screen is read for the phone, the tiles for a tile', 
   // broken image, and only `openFrameOf` keeps the thumbnail as the fallback under it.
   expect(frames).toContain('const openFrame = shown === null ? null : openFrameOf(shown);');
   expect(frames).toContain('<Image');
-  expect(frames).toContain('source={{ uri: openFrame.uri }}');
+  expect(frames).toContain('uri: openFrame.uri,');
+});
+
+test('the open frame is kept on the phone, filed under the record and not under its signature', () => {
+  // The frame opened a second time came down the wire a second time (TASK-137). React Native's own
+  // `Image` has no disk behind it at all, and `expo-image` — already what every tile is drawn with —
+  // has one by default. Both are spelled `<Image`, so what is pinned is where the name comes from:
+  // gone from the `react-native` block, taken from `expo-image`.
+  expect(frames).toContain("import { Image } from 'expo-image';");
+  const reactNative = frames.slice(0, frames.indexOf("} from 'react-native';"));
+  expect(reactNative.slice(reactNative.lastIndexOf('import {'))).not.toContain('Image');
+  // `contentFit` is what `resizeMode` is called there, and the frame is still shown whole.
+  expect(frames).toContain('contentFit="contain"');
+  expect(frames).not.toContain('resizeMode="contain"');
+
+  // What it is filed under has to be said outright. The api signs every link afresh on every read
+  // of the gallery and each one lasts a quarter of an hour (`R2_DOWNLOAD_TTL_SECONDS`), so the same
+  // bytes arrive under a new url every time — and `expo-image`'s own default key is the url. Left
+  // alone, the disk would be full of one frame under a dozen names and every look a fresh download.
+  // The record's id is what does not move, so that is the key.
+  expect(frames).toContain('cacheKey: `${shown.id}:');
+  const key = frames.slice(frames.indexOf('cacheKey:'));
+  expect(key.slice(0, key.indexOf('\n'))).not.toContain('${openFrame.uri}');
+});
+
+test('what expo-image keeps on disk has a ceiling, set once at startup and only where there is none', () => {
+  // Unbounded on ios: SDWebImage, which `expo-image` is built on there, defaults `maxDiskSize` to 0
+  // — keep everything for ever. 250MB, oldest out first, is what Glide gives android without being
+  // asked, so the number is that one and the two platforms hold the same. Behind the platform test
+  // and not called flat: android has no such method in its native module, and the call there would
+  // be a crash on the way up.
+  expect(layout.replace(/\s+/g, ' ')).toContain(
+    "if (Platform.OS === 'ios') Image.configureCache({ maxDiskSize: 262144000 })",
+  );
+  // Once, and as the app comes up rather than when a screen mounts — beside the portrait lock, above
+  // every component in the file.
+  expect(layout.match(/configureCache/g)).toHaveLength(1);
+  expect(layout.indexOf('configureCache')).toBeLessThan(layout.indexOf('export default function'));
 });
 
 // The contact sheet itself, measured by the designer (TASK-79): the last frame of a sheet came out
