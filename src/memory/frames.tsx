@@ -9,7 +9,7 @@ import {
   TriangleAlert,
   X,
 } from 'lucide-react-native';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
   Image,
@@ -34,23 +34,27 @@ import {
   type Member,
 } from '@/api';
 import { useAuth } from '@/auth';
-import { formatRuntime } from '@/dates';
+import { formatDay, formatRuntime } from '@/dates';
 import { maySaveToPhone, saveToPhone } from '@/downloads';
 import {
   frameIndex,
   frameOf,
+  framesByDay,
   keepReady,
   mayOpen,
+  mayPick,
   openFrameOf,
   shotBy,
   stillPreparing,
   type Frame,
+  type FrameDay,
 } from '@/frames';
 import {
   ActionBar,
   Banner,
   Button,
   ConfirmSheet,
+  DayMark,
   Empty,
   IconButton,
   RailH,
@@ -73,6 +77,11 @@ const WHILE_PREPARING_MS = 3000;
 /** The kit's filmstrip tile — 52px, and the contact sheet's own gutter after it. */
 const STRIP_TILE = 52;
 const STRIP_GAP = SHEET_GAP;
+
+/** One line of the contact sheet: a day of the memory, or up to three of the frames shot on it. */
+type Row =
+  | { key: string; day: FrameDay; frames?: undefined }
+  | { key: string; frames: MediaItem[]; day?: undefined };
 
 /**
  * The first face of a memory (kit, «Экраны» 4): what everybody put in, as everybody sees it — a
@@ -228,6 +237,27 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   const marked = items?.filter((item) => picked.has(item.id)) ?? [];
 
   /**
+   * The sheet as the kit lays it out: the day, then that day's frames three to a row, then the next
+   * day — the newest day first («порядок: дни сверху вниз, свежий первый»). Flat, and three to a
+   * row by hand, because that is what `numColumns` does to a list underneath and a list cannot do
+   * it around the days standing between the strips. The «Выбор кадров» screen cuts the phone's own
+   * roll the same way, for the same reason.
+   *
+   * Held across renders: every tap on a frame is a render, and the whole sheet is re-cut here.
+   */
+  const rows = useMemo(
+    () =>
+      framesByDay(items ?? []).flatMap((day): Row[] => [
+        { key: `day-${day.at}`, day },
+        ...Array.from({ length: Math.ceil(day.frames.length / 3) }, (_, i) => ({
+          key: day.frames[i * 3].id,
+          frames: day.frames.slice(i * 3, i * 3 + 3),
+        })),
+      ]),
+    [items],
+  );
+
+  /**
    * What a tile is called out loud: what it is, what has become of it, and whether it is the frame
    * the strip has open — «Видео», «Фото, Проявляем…», «Фото, открыто».
    *
@@ -255,6 +285,17 @@ export function Frames({ id, head }: { id: string; head: Head }) {
       if (!next.delete(mediaId)) next.add(mediaId);
       return next;
     });
+
+  /**
+   * The day's own action, «Выбрать все 9» — and the day it means is the one on the strip it stands
+   * over, never the whole sheet. It only ever adds: what is marked on another day stays marked, and
+   * the way anything leaves the selection is a second tap on it or the footer's «Снять». Handed the
+   * day's markable frames rather than the day, so the button's count and the button's press cannot
+   * disagree about what «все» is.
+   */
+  function pickDay(frames: readonly MediaItem[]) {
+    setPicked((have) => new Set([...have, ...frames.map((item) => item.id)]));
+  }
 
   /**
    * The corner switch, both ways. Leaving drops the marks — the kit says so («нажали ещё — вышли,
@@ -401,10 +442,8 @@ export function Frames({ id, head }: { id: string; head: Head }) {
       ) : (
         <>
           <FlatList
-            data={items}
-            keyExtractor={(item) => item.id}
-            numColumns={3}
-            columnWrapperStyle={styles.gridRow}
+            data={rows}
+            keyExtractor={(row) => row.key}
             contentContainerStyle={styles.grid}
             // Still here, and now only for the person who would rather not wait: the re-read above
             // already answers both the fifteen-minute links and a record turning `ready`.
@@ -418,52 +457,87 @@ export function Frames({ id, head }: { id: string; head: Head }) {
               />
             }
             ListEmptyComponent={<Empty icon={Camera} text={s.gallery.empty} />}
-            renderItem={({ item }) => {
-              // What a record is on screen is `@/frames` and not this line: the viewer below draws
-              // off the same reading, and the two must not drift.
-              const frame = frameOf(item);
-              // «Ждущие и упавшие кадры не отмечаются: скачивать нечего» — and the frame's reading
-              // and not the record's status, so a `ready` record whose derivative never arrived is
-              // out of the picking too. It stays in the sheet, plain and untappable, the way it
-              // already stands there while the mode is off.
-              const pickable = picking && frame.state === 'ready';
+            renderItem={({ item: row }) => {
+              // The day over its own strip (kit, «Экраны» 4, «День»): the date in words at one edge,
+              // and at the other the one thing that belongs to this day — how many frames it holds
+              // while the sheet is being looked at, «Выбрать все 9» while it is being picked from.
+              // The kit's own 16 comes back on this face: its sheet is bled to the edges of the
+              // screen, and a daymark with no inset would stand off the edge of the frames it names.
+              if (row.day) {
+                // What «все» is on this day: the frames a mark would actually mean something on, by
+                // the very rule the single tap below is gated on. A day still being developed whole
+                // has nothing to offer, so the action is off rather than counting to zero — the same
+                // answer the footer gives to the same emptiness.
+                const markable = row.day.frames.filter(mayPick);
+                return (
+                  <DayMark style={styles.pad} label={formatDay(new Date(row.day.at))}>
+                    {picking ? (
+                      <Button
+                        sm
+                        variant="quiet"
+                        label={s.gallery.selectDay(markable.length)}
+                        disabled={markable.length === 0}
+                        onPress={() => pickDay(markable)}
+                      />
+                    ) : (
+                      // The memory's one word for its material — the word on the card and on the
+                      // switch — counting a single day of it here.
+                      <Text role="meta">{s.memory.frames(row.day.frames.length)}</Text>
+                    )}
+                  </DayMark>
+                );
+              }
               return (
-                <Tile
-                  style={cell}
-                  state={frame.state}
-                  uri={frame.uri ?? undefined}
-                  caption={s.gallery.waiting[item.status]}
-                  // The kit marks a video by its length in the corner; a record that came without
-                  // one still says what it is, in the same place.
-                  length={
-                    item.kind === 'video'
-                      ? (formatRuntime(item.duration_seconds) ?? s.media.video)
-                      : undefined
-                  }
-                  // Read out, never drawn — so it says «Photo» and not the api's own `photo`.
-                  label={nameOf(item, frame)}
-                  // The kit's one mark for a picked frame — the ember ring and the tick, the same
-                  // as on «Выбор кадров». Only while the mode is on and only where a mark means
-                  // something: handed `undefined`, the tile is a button again rather than a
-                  // checkbox that is permanently off.
-                  selected={pickable ? picked.has(item.id) : undefined}
-                  // «Тап по кадру теперь не открывает его, а отмечает» — while the mode is on. Off
-                  // it, the same gate the strip below puts on the same record, and for the same
-                  // reason: a frame still being made has nothing behind it to open, so opening it
-                  // lands on a whole screen saying «Preparing…» — which is the third of the three
-                  // reports this milestone came from. The kit agrees on both sheets: a waiting
-                  // frame is a `<span>` on the contact sheet as well as in the strip, never a
-                  // `<button>`. A fallen one still opens — that is where the delete lives.
-                  onPress={
-                    picking
-                      ? pickable
-                        ? () => pick(item.id)
-                        : undefined
-                      : mayOpen(item)
-                        ? () => setOpen(item.id)
-                        : undefined
-                  }
-                />
+                <View style={styles.gridRow}>
+                  {row.frames.map((item) => {
+                    // What a record is on screen is `@/frames` and not this line: the viewer below
+                    // draws off the same reading, and the two must not drift.
+                    const frame = frameOf(item);
+                    // «Ждущие и упавшие кадры не отмечаются: скачивать нечего» — asked of `@/frames`
+                    // so the day's own count above cannot come to a different answer than the tap.
+                    const pickable = picking && mayPick(item);
+                    return (
+                      <Tile
+                        key={item.id}
+                        style={cell}
+                        state={frame.state}
+                        uri={frame.uri ?? undefined}
+                        caption={s.gallery.waiting[item.status]}
+                        // The kit marks a video by its length in the corner; a record that came
+                        // without one still says what it is, in the same place.
+                        length={
+                          item.kind === 'video'
+                            ? (formatRuntime(item.duration_seconds) ?? s.media.video)
+                            : undefined
+                        }
+                        // Read out, never drawn — so it says «Photo» and not the api's own `photo`.
+                        label={nameOf(item, frame)}
+                        // The kit's one mark for a picked frame — the ember ring and the tick, the
+                        // same as on «Выбор кадров». Only while the mode is on and only where a mark
+                        // means something: handed `undefined`, the tile is a button again rather
+                        // than a checkbox that is permanently off.
+                        selected={pickable ? picked.has(item.id) : undefined}
+                        // «Тап по кадру теперь не открывает его, а отмечает» — while the mode is on.
+                        // Off it, the same gate the strip below puts on the same record, and for the
+                        // same reason: a frame still being made has nothing behind it to open, so
+                        // opening it lands on a whole screen saying «Preparing…» — which is the third
+                        // of the three reports this milestone came from. The kit agrees on both
+                        // sheets: a waiting frame is a `<span>` on the contact sheet as well as in
+                        // the strip, never a `<button>`. A fallen one still opens — that is where
+                        // the delete lives.
+                        onPress={
+                          picking
+                            ? pickable
+                              ? () => pick(item.id)
+                              : undefined
+                            : mayOpen(item)
+                              ? () => setOpen(item.id)
+                              : undefined
+                        }
+                      />
+                    );
+                  })}
+                </View>
               );
             }}
           />
@@ -848,8 +922,11 @@ const useStyles = themed(() =>
     centered: { flex: 1, justifyContent: 'center', padding: space.s4 },
     // The kit's contact sheet: a 3px gutter and nothing else, so the material reads as a lot of it.
     // The column itself is measured out above — the row only holds the gutters between them.
+    // Between one day's strip and the next it is the daymark's own padding that opens the gap.
     grid: { flexGrow: 1, gap: SHEET_GAP },
-    gridRow: { gap: SHEET_GAP },
+    // Its own row now, and not a `columnWrapperStyle`: the list is flat so the days can stand
+    // between the strips, which means the three across are laid out here.
+    gridRow: { flexDirection: 'row', gap: SHEET_GAP },
     notice: { marginTop: space.s3 },
     // The open frame is the whole screen: the frame takes what is left after the strip, and the bar
     // lies over it rather than beside it. `room` and not `color` from here down — see above.

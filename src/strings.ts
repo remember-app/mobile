@@ -314,6 +314,15 @@ export const en = {
      */
     select: 'Select frames',
     leaveSelect: 'Leave select mode',
+    /**
+     * The right edge of a day's own strip while the mode is on, where the count of that day stands
+     * the rest of the time — «в строке дня вместо числа „Выбрать все 9“». Word for word what the
+     * «Выбор кадров» screen says over its own days, because the kit asks for «тем же тихим
+     * действием дня»; kept in this face's section all the same, the way every other word on it is,
+     * and the count it carries is this face's own — how many frames of that day can be marked at
+     * all, which on a sheet still being developed is not how many there are.
+     */
+    selectDay: (n: number) => `Select all ${n}`,
     /** The glowing button of the picking mode, carrying what it is about to take home. */
     download: (n: number) => `Download ${n} ${n === 1 ? 'file' : 'files'}`,
     /** The same button with nothing marked yet: off, and saying why rather than «Download 0». */
@@ -670,6 +679,7 @@ export const ru: Strings = {
     open: 'открыто',
     select: 'Выбрать кадры',
     leaveSelect: 'Выйти из режима выбора',
+    selectDay: (n: number) => `Выбрать все ${n}`,
     download: (n: number) => `Скачать ${count(n, 'файл', 'файла', 'файлов')}`,
     nothingPicked: 'Ничего не выбрано',
     addMore: 'Добавить ещё',

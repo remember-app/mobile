@@ -164,8 +164,11 @@ test('the corner icon is a switch, and leaving it drops every mark', () => {
 
 test('while picking, a tap marks the frame instead of opening it — and only a ready one', () => {
   // «Ждущие и упавшие кадры не отмечаются: скачивать нечего». Read off the frame and not the
-  // record's status, so a `ready` record whose derivative never arrived is out of it too.
-  expect(frames).toContain("const pickable = picking && frame.state === 'ready';");
+  // record's status, so a `ready` record whose derivative never arrived is out of it too — and
+  // asked of `@/frames` rather than spelled out here, because the day's «Выбрать все N» above the
+  // strip counts with the same rule and the two must not drift (TASK-121). `mayPick` is where that
+  // reading lives, and `frames.test.ts` pins it.
+  expect(frames).toContain('const pickable = picking && mayPick(item);');
   expect(frames).toContain('selected={pickable ? picked.has(item.id) : undefined}');
   // The mark is the tile's own — the same ring and tick «Выбор кадров» draws, never a second one.
   expect(frames).not.toContain('tile--selected');
@@ -205,6 +208,72 @@ test('the words of the picking mode count in Russian and say why the button is o
   // The kit's own line for the button with nothing marked, and the kit's own word for the quiet one.
   expect(ru.gallery.nothingPicked).toBe('Ничего не выбрано');
   expect(ru.action.clear).toBe('Снять');
+});
+
+/**
+ * The contact sheet cut into days (TASK-121, kit «Экраны» 4 «День»): the face drew one flat grid,
+ * so there was no daymark over a strip and no «Выбрать все N» to mark a whole day with. The cut is
+ * `framesByDay` and pinned in `frames.test.ts`; these read how the sheet is wired to it — the same
+ * way the «Выбор кадров» screen was wired to `assetsByDay` before it.
+ */
+
+test('the sheet is one flat list of days and strips, never a three-column grid', () => {
+  // `numColumns` lays out the list underneath, and it cannot do it *around* the days standing
+  // between the strips — so the three across are cut by hand, the way the upload screen cuts them.
+  for (const sheet of [frames, upload]) {
+    // The props and not the word: both files name `numColumns` in the comment that says why they
+    // do without it.
+    expect(sheet).not.toContain('numColumns={');
+    expect(sheet).not.toContain('columnWrapperStyle={');
+    expect(sheet).toContain('data={rows}');
+    expect(sheet).toContain('keyExtractor={(row) => row.key}');
+    expect(sheet).toContain('frames: day');
+  }
+  // The days come off `@/frames` and not off `@/media-window`: this face has no event window to
+  // sort by — every frame in it is already the event's.
+  expect(frames).toContain('framesByDay(items ?? [])');
+  expect(frames).not.toContain('assetsByDay');
+  // Cut once per read and held, not on every tap: marking a frame is a render, and the sheet of a
+  // whole wedding is re-cut in it.
+  expect(frames).toContain('const rows = useMemo(');
+  expect(frames).toContain('[items],');
+});
+
+test('the day over a strip is the date, and the one thing at its right edge', () => {
+  const daymark = frames.slice(frames.indexOf('<DayMark'), frames.indexOf('</DayMark>'));
+  // The kit's own 16 comes back on this face, where the sheet is bled to the edges of the screen —
+  // the component leaves it off for the upload screen, which stands inside the screen's padding.
+  expect(daymark).toContain('style={styles.pad}');
+  expect(daymark).toContain('label={formatDay(new Date(row.day.at))}');
+  // «Правый край всегда занят чем-то одним: числом в обычном виде, „Выбрать все 9“ в режиме
+  // выбора» — one slot, a ternary on the mode and never both at once.
+  expect(daymark).toContain('{picking ? (');
+  expect(daymark).toContain('label={s.gallery.selectDay(markable.length)}');
+  // Quiet and small: the glow on this face belongs to the footer's one action, never to a day.
+  expect(daymark).toContain('variant="quiet"');
+  expect(daymark).toContain('sm');
+  // The memory's one word for its material, counted for a single day of it (TASK-76's key).
+  expect(daymark).toContain('<Text role="meta">{s.memory.frames(row.day.frames.length)}</Text>');
+});
+
+test('«Выбрать все N» counts and marks the frames a tap could reach, and only adds', () => {
+  // The count, the gate and the press all read the one list, so the button cannot say «9» and mark
+  // eight. The rule itself is `mayPick` — the same one the single tap is gated on.
+  expect(frames).toContain('const markable = row.day.frames.filter(mayPick);');
+  expect(frames).toContain('disabled={markable.length === 0}');
+  expect(frames).toContain('onPress={() => pickDay(markable)}');
+  // Never unmarks: what is marked on another day stays marked, and taking a mark off is a second
+  // tap on the frame or the footer's «Снять».
+  const pickDay = frames.slice(frames.indexOf('function pickDay'));
+  expect(pickDay.slice(0, pickDay.indexOf('\n  }'))).toContain(
+    'setPicked((have) => new Set([...have, ...frames.map((item) => item.id)]));',
+  );
+  expect(pickDay).not.toContain('next.delete');
+  // The kit's quiet action of the day, and the same words on both sheets that have one — «тем же
+  // тихим действием дня, что и на „Выборе кадров“». Two keys because each face keeps its own words,
+  // held equal here so they cannot drift apart in one language only.
+  for (const set of [en, ru]) expect(set.gallery.selectDay(9)).toBe(set.upload.selectDay(9));
+  expect(ru.gallery.selectDay(9)).toBe('Выбрать все 9');
 });
 
 test('no face reaches another by pushing a route: the switch is the only road between them', () => {
@@ -536,8 +605,12 @@ test('neither the sheet nor the strip opens a frame that is still developing', (
   // Twice still, in two spellings: the strip has only ever done one thing with a tap — and it hands
   // the id back up rather than setting the face's own state, being its own component now — while
   // the sheet asks whether it is picking first, the same gate on the branch that still opens.
-  const gate = 'mayOpen(item)\n                        ? () => setOpen(item.id)\n';
-  expect(frames).toContain(gate);
+  //
+  // Read with the whitespace squeezed out: what is pinned is which branch opens a frame, and the
+  // tile moved two levels deeper the day the sheet was cut into days (TASK-121) — a ternary held to
+  // the column it happened to be formatted in fails on a reindentation that changed nothing.
+  const gate = 'mayOpen(item) ? () => setOpen(item.id)';
+  expect(frames.replace(/\s+/g, ' ')).toContain(gate);
   expect(frames).toContain('onPress={mayOpen(item) ? () => onOpen(item.id) : undefined}');
 });
 
