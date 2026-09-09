@@ -292,17 +292,32 @@ test('the platform switch is spelled out once, in the kit', () => {
   expect(toggle).toContain('activeThumbColor');
 });
 
-test('the invite sheet is shut when the people face loses focus', () => {
+test('every face shuts its own windows when it loses focus', () => {
   // TASK-94, off a device: `useFocusEffect(load)` re-read the roster on the way in and did nothing
   // on the way out, so a sheet nobody closed — a push, a deep link, anything that is not the cross
   // or the scrim — stayed a mounted Modal over whatever screen came next. The cleanup the hook runs
   // on blur is the whole fix; the re-read on focus is the same call it always was.
-  expect(people).not.toContain('useFocusEffect(load)');
+  //
+  // Written for the invite sheet and carried to the other two faces in review: the frame opened
+  // full screen and the montage being played are the same kind of window, reached by the same
+  // `router.push` that leaves the whole memory mounted behind it. Since TASK-124 they cost a second
+  // thing — `useTurnsWithPhone` follows the modal and not the mount, so nothing put the app back in
+  // portrait and every screen after that one was left free to turn with the phone.
+  for (const face of [people, frames, films]) expect(face).not.toContain('useFocusEffect(load)');
   expect(people).toMatch(
     /useFocusEffect\(\s*useCallback\(\(\) => \{\s*load\(\);\s*return \(\) => setInviting\(false\);/,
   );
-  // And the explicit ways out are untouched: the sheet's own cancel still closes it.
+  expect(frames).toMatch(
+    /useFocusEffect\(\s*useCallback\(\(\) => \{\s*load\(\);\s*return \(\) => setOpen\(null\);/,
+  );
+  expect(films).toMatch(
+    /useFocusEffect\(\s*useCallback\(\(\) => \{\s*load\(\);\s*return \(\) => \{\s*setPlaying\(null\);\s*setOrdering\(false\);/,
+  );
+  // And the explicit ways out are untouched: each window's own way out still closes it, the
+  // hardware key included.
   expect(people).toContain('onCancel={() => setInviting(false)}');
+  expect(frames).toContain('onRequestClose={() => setOpen(null)}');
+  expect(films).toContain('onRequestClose={() => setPlaying(null)}');
 });
 
 // The roads into a memory, and the face each of them lands on.
@@ -445,7 +460,7 @@ test('a ready montage shows its own still, and one without a still keeps the pla
   expect(cardMontage).toContain('source={{ uri: poster }}');
 });
 
-test('the films face reads again by itself while a montage is being cut (TASK-125)', () => {
+test('the films face reads again by itself while a montage is being cut', () => {
   // What was reported: the order was placed, the card said «Собираем», the worker finished, and the
   // card went on saying it until the tabs were switched away and back — the face read on focus and
   // never once on its own. The condition for looking again is «is anything still owed by the
@@ -485,7 +500,19 @@ test('the films face reads again by itself while a montage is being cut (TASK-12
   expect(films).toContain('onPress={() => load()}');
   // The focus read stays: this loop is about the face nobody leaves, not a replacement for coming
   // back to one, and the signed urls still die in a quarter of an hour.
-  expect(films).toContain('useFocusEffect(load);');
+  expect(films).toMatch(/useFocusEffect\(\s*useCallback\(\(\) => \{\s*load\(\);/);
+
+  // And what the quiet read may replace, found in review. Twice over the api signs every link
+  // afresh on every answer, so a row that has not moved still comes back with a new `video_url`:
+  // `expo-video` builds a new player for a new url, which started the montage somebody was watching
+  // over again every five seconds. Same guard the frames face has had since TASK-119, same helper.
+  expect(films).toContain('setMontages((have) => (quiet ? keepReady(have, list) : list));');
+  // And a read already in flight when this face writes the list itself — the order that prepends a
+  // row, the retry that requeues one — must not put the api's older snapshot back over it: the card
+  // would vanish, and with nothing pending left in that snapshot the loop above would clear itself
+  // and never read again.
+  expect(films).toContain('if (quiet && writes.current !== startedAt) return;');
+  expect(films.match(/writes\.current \+= 1;/g)).toHaveLength(2);
 });
 
 test('the material of a memory has one name — on the card, on the switch, over the sheet', () => {
@@ -539,9 +566,14 @@ test('the darkening over the open frame is anchored to the safe area, not stretc
   expect(frames.slice(frames.indexOf('const useStyles'))).not.toContain('linear-gradient');
 });
 
-test("the strip under the frame is the grid's own list, read once", () => {
-  // The whole list and not a window on it: the strip is handed `items`, the same array the sheet
-  // above draws.
+test("the strip under the frame is the grid's own list, in the grid's own order, read once", () => {
+  // The whole list and not a window on it, and the strip has to read in the direction the sheet
+  // above it does — which stopped being the plain `items` the moment TASK-121 cut the sheet into
+  // days (found in review). The api sends the oldest frame first and a sheet is read newest day
+  // down, so the tile at the top left of the grid was the one at the far end of the strip, and
+  // walking the strip forward walked the sheet backwards. Both are now cut from the same `rows`.
+  expect(frames).toContain('rows.flatMap((row) => row.frames ?? [])');
+  expect(frames).toContain('items={sheet}');
   expect(frames).toContain('data={items}');
   // One read of the media serves both the sheet and the strip.
   expect(frames.match(/listMedia\(/g)).toHaveLength(1);

@@ -53,23 +53,29 @@ export function stillPreparing(items: readonly MediaItem[] | null): boolean {
 }
 
 /**
- * The list a quiet re-read leaves on screen. The api hands the whole gallery back every time and
- * signs every link afresh, so a record that has not changed in any way still arrives with a new
- * `thumbnail_url` — and a new url is a new file to `expo-image` and `VideoView`, which fetch it
+ * The list a quiet re-read leaves on screen. The api hands the whole list back every time and signs
+ * every link afresh, so a row that has not changed in any way still arrives with a new
+ * `thumbnail_url` — and a new url is a new file to `expo-image` and `expo-video`, which fetch it
  * again. While one frame is developing that happened to everything visible every three seconds.
  *
- * So a record that is already `ready` keeps the object it had, links and all: nothing about a
- * finished record ever moves again, and holding the old one holds its url still. Everything else —
- * still developing, fallen, or new since the last read — is taken as it came, which is the whole
- * reason the re-read happens.
+ * So a row that is already `ready` keeps the object it had, links and all: nothing about a finished
+ * one ever moves again, and holding the old one holds its url still. Everything else — still
+ * developing, fallen, or new since the last read — is taken as it came, which is the whole reason
+ * the re-read happens.
+ *
+ * Written for the gallery and taken by the montage list as well (`memory/films.tsx`): both are a
+ * list of rows the worker finishes one at a time, both are polled quietly while it does, and both
+ * carry signed links that move on every answer. `expo-video` rebuilds the player whenever the url
+ * it was handed changes, so on that face the re-read started the montage somebody was watching over
+ * again every five seconds (TASK-125, found in review).
  *
  * Only for the quiet loop. A read somebody asked for wants the fresh links: the old ones expire in
  * a quarter of an hour, and a face that never re-signs them ends up drawing nothing at all.
  */
-export function keepReady(
-  current: readonly MediaItem[] | null,
-  fresh: readonly MediaItem[],
-): MediaItem[] {
+export function keepReady<T extends { id: string; status: string }>(
+  current: readonly T[] | null,
+  fresh: readonly T[],
+): T[] {
   const ready = new Map(
     (current ?? []).filter((item) => item.status === 'ready').map((item) => [item.id, item]),
   );

@@ -1,7 +1,7 @@
 import { useFocusEffect, useIsFocused } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { Download, Film } from 'lucide-react-native';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -18,6 +18,9 @@ import {
 import { useAuth } from '@/auth';
 import { formatDay, formatRuntime } from '@/dates';
 import { maySaveToPhone, saveToPhone } from '@/downloads';
+// From the gallery's own module: one rule about what a quiet re-read may replace, and this list is
+// polled quietly for the same reason that one is. Its doc says why both faces read it.
+import { keepReady } from '@/frames';
 import {
   ActionBar,
   Banner,
@@ -116,6 +119,18 @@ export function Films({ id, head }: { id: string; head: Head }) {
   // blink the name in the appbar.
   const memory = head.memory;
 
+  /**
+   * How many times this face has written the list itself — the order that puts a new row on top,
+   * the retry that requeues one. Both are answers the api handed back, so they are newer than any
+   * read that was already in flight: a quiet one resolving after either of them would put the list
+   * back the way the api had it a moment *before*, and the ordered card would vanish or the retried
+   * one go back to «Did not finish». Worse, that snapshot has nothing pending in it, so the loop
+   * below clears itself and this face — which has no pull-to-refresh — never reads again until the
+   * tabs are switched. So a quiet read carries the count it started under and drops its answer if
+   * that has moved (found in review, TASK-125).
+   */
+  const writes = useRef(0);
+
   const load = useCallback(
     // `quiet` is for the re-read below, which nobody asked for: it happens on its own every few
     // seconds, so it must not put a banner over a list that is fine on the one read that fails, nor
@@ -123,11 +138,20 @@ export function Films({ id, head }: { id: string; head: Head }) {
     (quiet = false) => {
       if (!token) return;
       if (!quiet) setError(null);
+      const startedAt = writes.current;
       // Only the montages: this is the call that answers 503 over a bucket nobody configured, and
       // it must not take the memory's own name down with it — that one is the screen's, above.
       listMontages(token, id).then(
         (list) => {
-          setMontages(list);
+          // Stale by the time it landed — see `writes`. A read somebody asked for is never stale.
+          if (quiet && writes.current !== startedAt) return;
+          // A quiet read is looking for what the worker has finished, and it must not disturb what
+          // was already finished: `keepReady` holds every `ready` row's own object, so the signed
+          // links behind the cards do not move. Without it this read handed `Playing` a freshly
+          // signed `video_url` every five seconds, and `expo-video` builds a new player for a new
+          // url — so the montage somebody was watching started over, every five seconds, for as
+          // long as anything else was still being cut.
+          setMontages((have) => (quiet ? keepReady(have, list) : list));
           // Including on a quiet read: once the list is in, the banner over it is about a read that
           // is no longer the last word, and nothing else would take it down until the next focus.
           setError(null);
@@ -144,7 +168,21 @@ export function Films({ id, head }: { id: string; head: Head }) {
   // that need it: a queued one only ever changes on the worker's side, and `video_url` is signed
   // for a quarter of an hour. Coming back from anywhere re-reads it, instead of leaving a card that
   // has been stale since whenever this face was first opened.
-  useFocusEffect(load);
+  //
+  // And both of this face's own windows are shut on the way out, the way the people face shuts its
+  // invite sheet (TASK-94, extended here in review): a `router.push` off a tapped push leaves the
+  // whole memory mounted behind it, so a playing montage or an open order sheet stood over the
+  // screen that came next. Since TASK-124 the viewer cost a second thing — `useTurnsWithPhone`
+  // below follows the modal and not the mount, so nothing put the app back in portrait.
+  useFocusEffect(
+    useCallback(() => {
+      load();
+      return () => {
+        setPlaying(null);
+        setOrdering(false);
+      };
+    }, [load]),
+  );
 
   // And the same reason with nobody navigating anywhere: the montage somebody just ordered turns
   // `ready` while they sit here watching the card, and until this loop existed nothing told the
@@ -168,6 +206,8 @@ export function Films({ id, head }: { id: string; head: Head }) {
 
   // A montage is 16:9 and worth turning the phone for. The `supportedOrientations` on the modal
   // below only says which ways up it may be drawn — this is what lets the app leave portrait at all.
+  // Which is given back on the cleanup, so what has to be true is that the viewer is shut on every
+  // way out of this face — the focus effect above is where that is done.
   useTurnsWithPhone(watching !== null);
 
   /**
@@ -206,6 +246,7 @@ export function Films({ id, head }: { id: string; head: Head }) {
           music_track_id: track,
           orientation,
         });
+        writes.current += 1;
         setMontages((have) => [ordered, ...(have ?? [])]);
         setOrdering(false);
         return s.montage.ordered;
@@ -223,6 +264,7 @@ export function Films({ id, head }: { id: string; head: Head }) {
       async (session) => {
         try {
           const requeued = await retryMontage(session, id, montage.id);
+          writes.current += 1;
           setMontages(
             (have) => have?.map((one) => (one.id === montage.id ? requeued : one)) ?? null,
           );
