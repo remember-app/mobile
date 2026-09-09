@@ -169,18 +169,18 @@ export function Films({ id, head }: { id: string; head: Head }) {
   // for a quarter of an hour. Coming back from anywhere re-reads it, instead of leaving a card that
   // has been stale since whenever this face was first opened.
   //
-  // And both of this face's own windows are shut on the way out, the way the people face shuts its
-  // invite sheet (TASK-94, extended here in review): a `router.push` off a tapped push leaves the
-  // whole memory mounted behind it, so a playing montage or an open order sheet stood over the
-  // screen that came next. Since TASK-124 the viewer cost a second thing — `useTurnsWithPhone`
-  // below follows the modal and not the mount, so nothing put the app back in portrait.
+  // And the viewer is shut on the way out (TASK-94, extended here in review): a `router.push` off a
+  // tapped push leaves the whole memory mounted behind it, so a playing montage stood over the
+  // screen that came next. Since TASK-124 it cost a second thing — `useTurnsWithPhone` below
+  // follows the modal and not the mount, so nothing put the app back in portrait.
+  //
+  // The order sheet was shut here too until TASK-129: it is the kit's `Sheet`, and a sheet now
+  // shuts itself when the screen under it loses focus. This window is a `Modal` of this face's own
+  // and stays this face's business.
   useFocusEffect(
     useCallback(() => {
       load();
-      return () => {
-        setPlaying(null);
-        setOrdering(false);
-      };
+      return () => setPlaying(null);
     }, [load]),
   );
 

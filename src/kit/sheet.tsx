@@ -1,4 +1,5 @@
-import { type ReactNode, useRef } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { type ReactNode, useCallback, useRef } from 'react';
 import {
   Animated,
   KeyboardAvoidingView,
@@ -30,6 +31,8 @@ export type SheetProps = {
  * never asked for.
  */
 export function Sheet({ visible, onCancel, children }: SheetProps) {
+  useShutOnBlur(visible, onCancel);
+
   return (
     <Modal
       visible={visible}
@@ -42,6 +45,35 @@ export function Sheet({ visible, onCancel, children }: SheetProps) {
       {/* Modal renders nothing while hidden, so this mounts on each open — and so does the rise. */}
       <Rise onCancel={onCancel}>{children}</Rise>
     </Modal>
+  );
+}
+
+/**
+ * Shuts the sheet when the screen it stands on loses focus, through the same `onCancel` the cross
+ * and the scrim go through (TASK-129). A `Modal` is not drawn inside the screen that raised it, so
+ * leaving that screen without closing the sheet — a `router.push`, a tapped notification, a deep
+ * link, anything that is not an explicit close — left the sheet standing over whatever came next.
+ *
+ * Here and not on the screens: this is one rule about what a sheet is, and it was being copied by
+ * hand onto every face that has one (TASK-94 and the m-17 review are the three copies it replaces).
+ * A screen that puts up a new sheet now gets the behaviour with no line of its own. Every sheet in
+ * the app is raised from a screen under expo-router, which is what `useFocusEffect` needs.
+ *
+ * The callback is memoised on nothing — a subscription torn down and built again on every render is
+ * not what this wants — so it cannot read anything off the closure it was born in: a sheet mounts
+ * closed, and that first closure says so forever. The ref is what the last render left.
+ */
+export function useShutOnBlur(visible: boolean, onCancel: () => void): void {
+  const now = useRef({ visible, onCancel });
+  now.current = { visible, onCancel };
+
+  useFocusEffect(
+    useCallback(
+      () => () => {
+        if (now.current.visible) now.current.onCancel();
+      },
+      [],
+    ),
   );
 }
 

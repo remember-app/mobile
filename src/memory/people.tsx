@@ -129,16 +129,10 @@ export function People({ id, head }: { id: string; head: Head }) {
   // roster changes while whoever is reading it is off uploading. Coming back re-reads it, instead
   // of leaving a face that has been stale since it was first opened.
   //
-  // And the sheet is shut on the way out (TASK-94): leaving this face without closing it — a push,
-  // a deep link, anything that is not the cross or the scrim — left the Modal mounted, so the
-  // invite sheet stood over whatever screen came next. The cleanup `useFocusEffect` runs on blur is
-  // where that belongs; every explicit close still goes through `setInviting(false)` as before.
-  useFocusEffect(
-    useCallback(() => {
-      load();
-      return () => setInviting(false);
-    }, [load]),
-  );
+  // The read and nothing else: shutting the invite sheet on the way out (TASK-94) was a line here
+  // until TASK-129 moved it into the kit's own `Sheet`, which now does that for every sheet in the
+  // app — this face's invite and the confirmation below it included.
+  useFocusEffect(load);
 
   // Read on every open of the sheet, and nothing is done when it fails: «контакты не отдались — их
   // блока просто нет», the username field beside it still being the whole other road in.

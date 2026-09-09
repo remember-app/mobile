@@ -188,13 +188,16 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   // was first opened is showing whatever was true then. It runs on mount too, which is what reads
   // the material when this face is switched to.
   //
-  // And the viewer is shut on the way out, the way the people face shuts its invite sheet (TASK-94,
-  // extended here in review): leaving this face without closing it — a tapped push, a deep link,
-  // anything that is not the cross, the delete or the hardware key — left the frame standing on a
-  // window of its own over whatever screen came next, because the memory stays mounted behind a
-  // `router.push`. Since TASK-124 it cost a second thing: `useTurnsWithPhone` below follows the
-  // viewer and not the mount, so nothing cleaned it up and every screen after this one was left
-  // free to turn with the phone.
+  // And the viewer is shut on the way out (TASK-94, extended here in review): leaving this face
+  // without closing it — a tapped push, a deep link, anything that is not the cross, the delete or
+  // the hardware key — left the frame standing on a window of its own over whatever screen came
+  // next, because the memory stays mounted behind a `router.push`. Since TASK-124 it cost a second
+  // thing: `useTurnsWithPhone` below follows the viewer and not the mount, so nothing cleaned it up
+  // and every screen after this one was left free to turn with the phone.
+  //
+  // The delete confirmation is not in here: it is the kit's `ConfirmSheet`, and since TASK-129 a
+  // sheet shuts itself when the screen under it loses focus. This window is a `Modal` of this
+  // face's own and stays this face's business.
   useFocusEffect(
     useCallback(() => {
       load();

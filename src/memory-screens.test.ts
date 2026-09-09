@@ -303,20 +303,28 @@ test('every face shuts its own windows when it loses focus', () => {
   // `router.push` that leaves the whole memory mounted behind it. Since TASK-124 they cost a second
   // thing — `useTurnsWithPhone` follows the modal and not the mount, so nothing put the app back in
   // portrait and every screen after that one was left free to turn with the phone.
-  for (const face of [people, frames, films]) expect(face).not.toContain('useFocusEffect(load)');
-  expect(people).toMatch(
-    /useFocusEffect\(\s*useCallback\(\(\) => \{\s*load\(\);\s*return \(\) => setInviting\(false\);/,
-  );
+  //
+  // Only those two are left here. Every sheet — the invite, the montage order, both delete
+  // confirmations — is the kit's own `Sheet`, and since TASK-129 a sheet shuts itself when the
+  // screen under it loses focus (`kit/sheet.test.tsx`); the people face's line went back to being
+  // the plain read it was before. That is the whole point of the rule living in one place: a face
+  // that puts up a new sheet gets it with no line of its own, which is how the delete confirmation
+  // on this face — never touched by hand, the hole TASK-129 was reported for — is shut too.
+  for (const face of [frames, films]) expect(face).not.toContain('useFocusEffect(load)');
+  expect(people).toContain('useFocusEffect(load);');
   expect(frames).toMatch(
-    /useFocusEffect\(\s*useCallback\(\(\) => \{\s*load\(\);\s*return \(\) => setOpen\(null\);/,
+    /useFocusEffect\(\s*useCallback\(\(\) => \{\s*load\(\);\s*return \(\) => setOpen\(null\);\s*\}, \[load\]\),\s*\);/,
   );
   expect(films).toMatch(
-    /useFocusEffect\(\s*useCallback\(\(\) => \{\s*load\(\);\s*return \(\) => \{\s*setPlaying\(null\);\s*setOrdering\(false\);/,
+    /useFocusEffect\(\s*useCallback\(\(\) => \{\s*load\(\);\s*return \(\) => setPlaying\(null\);\s*\}, \[load\]\),\s*\);/,
   );
   // And the explicit ways out are untouched: each window's own way out still closes it, the
-  // hardware key included.
+  // hardware key and both confirmations included.
   expect(people).toContain('onCancel={() => setInviting(false)}');
+  expect(people).toContain('onCancel={() => setDropping(null)}');
   expect(frames).toContain('onRequestClose={() => setOpen(null)}');
+  expect(frames).toContain('onCancel={() => setConfirming(false)}');
+  expect(films).toContain('onCancel={() => setOrdering(false)}');
   expect(films).toContain('onRequestClose={() => setPlaying(null)}');
 });
 
