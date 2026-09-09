@@ -373,6 +373,49 @@ test('a ready montage shows its own still, and one without a still keeps the pla
   expect(cardMontage).toContain('source={{ uri: poster }}');
 });
 
+test('the films face reads again by itself while a montage is being cut (TASK-125)', () => {
+  // What was reported: the order was placed, the card said «Собираем», the worker finished, and the
+  // card went on saying it until the tabs were switched away and back — the face read on focus and
+  // never once on its own. The condition for looking again is «is anything still owed by the
+  // worker», and it is derived here rather than typed out: `MONTAGE_STATE` maps every status the
+  // api has (the type is `Record<Montage['status'], …>`, so tsc keeps it whole), and the ones it
+  // draws as pending are exactly the ones with news still to come. A fifth status added to the api
+  // joins this test by joining that map.
+  const mapAt = films.indexOf('const MONTAGE_STATE');
+  const map = films.slice(mapAt, films.indexOf('};', mapAt));
+  const pending = [...map.matchAll(/(\w+): '(\w+)'/g)]
+    .filter(([, , state]) => state === 'pending')
+    .map(([, status]) => status);
+  expect(pending).toEqual(['queued', 'processing']);
+
+  const asksAt = films.indexOf('const stillMaking');
+  // On one line: where the expression wraps is the formatter's business, not this test's.
+  const asking = films.slice(asksAt, films.indexOf('/**', asksAt)).replace(/\s+/g, ' ');
+  for (const status of pending) expect(asking).toContain(`'${status}'`);
+  // And the two the worker is done with are not a reason to keep asking — a face left polling over
+  // a finished list is the same bug the other way round, forever.
+  for (const settled of ['ready', 'failed']) expect(asking).not.toContain(`'${settled}'`);
+  // Nothing read yet is nothing to wait for: the first read is what starts the loop.
+  expect(asking).toContain('?? false');
+
+  // The loop itself: only while something is being cut, only while this face is the one in front,
+  // and cleared when either stops being true.
+  expect(films).toContain('const making = stillMaking(montages);');
+  expect(films).toContain('const focused = useIsFocused();');
+  expect(films).toContain('if (!making || !focused) return;');
+  expect(films).toContain('setInterval(() => load(true), WHILE_MAKING_MS)');
+  expect(films).toContain('return () => clearInterval(timer);');
+  // Read quietly, the way the frames face reads on its own loop: a poll nobody asked for must not
+  // put a banner over a list that is on screen and fine.
+  expect(films).toContain('if (!quiet) setError(errorMessage(e));');
+  // And the one press that reads out loud calls `load` instead of handing it over — a press handler
+  // is given the touch event, which as `quiet` is truthy.
+  expect(films).toContain('onPress={() => load()}');
+  // The focus read stays: this loop is about the face nobody leaves, not a replacement for coming
+  // back to one, and the signed urls still die in a quarter of an hour.
+  expect(films).toContain('useFocusEffect(load);');
+});
+
 test('the material of a memory has one name — on the card, on the switch, over the sheet', () => {
   // «N frames» on the card, «Photos and videos (N)» on the guest list, «Gallery» over the contact
   // sheet was the report (TASK-76). One key answers all of them, and it is the word on the switch.

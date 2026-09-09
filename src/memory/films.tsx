@@ -1,7 +1,7 @@
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useIsFocused } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { Download, Film } from 'lucide-react-native';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Modal, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -42,6 +42,22 @@ const MONTAGE_STATE: Record<Montage['status'], MontageState> = {
   ready: 'ready',
   failed: 'failed',
 };
+
+/**
+ * How long the face waits before reading again while a montage is being cut. Longer than the frames
+ * face waits on a thumbnail, because this is minutes of work and not seconds of it — five is still
+ * inside the moment somebody spends looking at the card wondering whether it moved.
+ */
+const WHILE_MAKING_MS = 5000;
+
+/**
+ * Whether anything in the list is still owed by the worker. A `queued` or `processing` row only
+ * changes on the worker's side, so a face holding one has news coming that nothing will tell it —
+ * this is its reason to look again, and its reason to stop.
+ */
+const stillMaking = (montages: readonly Montage[] | null) =>
+  montages?.some((montage) => montage.status === 'queued' || montage.status === 'processing') ??
+  false;
 
 /**
  * How long to ask for. The api takes anything from a quarter of a minute to five and fills in a
@@ -100,19 +116,52 @@ export function Films({ id, head }: { id: string; head: Head }) {
   // blink the name in the appbar.
   const memory = head.memory;
 
-  const load = useCallback(() => {
-    if (!token) return;
-    setError(null);
-    // Only the montages: this is the call that answers 503 over a bucket nobody configured, and it
-    // must not take the memory's own name down with it — that one is the screen's, above.
-    listMontages(token, id).then(setMontages, (e: unknown) => setError(errorMessage(e)));
-  }, [token, id]);
+  const load = useCallback(
+    // `quiet` is for the re-read below, which nobody asked for: it happens on its own every few
+    // seconds, so it must not put a banner over a list that is fine on the one read that fails, nor
+    // take the banner off one that is not.
+    (quiet = false) => {
+      if (!token) return;
+      if (!quiet) setError(null);
+      // Only the montages: this is the call that answers 503 over a bucket nobody configured, and
+      // it must not take the memory's own name down with it — that one is the screen's, above.
+      listMontages(token, id).then(
+        (list) => {
+          setMontages(list);
+          // Including on a quiet read: once the list is in, the banner over it is about a read that
+          // is no longer the last word, and nothing else would take it down until the next focus.
+          setError(null);
+        },
+        (e: unknown) => {
+          if (!quiet) setError(errorMessage(e));
+        },
+      );
+    },
+    [token, id],
+  );
 
   // On focus rather than on mount, the way the home screen does it — and here it is the montages
   // that need it: a queued one only ever changes on the worker's side, and `video_url` is signed
   // for a quarter of an hour. Coming back from anywhere re-reads it, instead of leaving a card that
   // has been stale since whenever this face was first opened.
   useFocusEffect(load);
+
+  // And the same reason with nobody navigating anywhere: the montage somebody just ordered turns
+  // `ready` while they sit here watching the card, and until this loop existed nothing told the
+  // face — the card said «Собираем» until the tabs were switched away and back, which is what was
+  // reported (TASK-125). Only while there is something being cut, and only while this face is the
+  // one in front: the viewer and the order sheet leave the whole memory mounted behind them.
+  const making = stillMaking(montages);
+  const focused = useIsFocused();
+  useEffect(() => {
+    if (!making || !focused) return;
+    // An interval and not a timeout chained off each read: one read failing on a bad connection
+    // would end the chain, and end it silently — the quiet read says nothing about failing. This
+    // one keeps its own time and is cleared the moment there is nothing left being cut, the face
+    // goes behind something, or it unmounts.
+    const timer = setInterval(() => load(true), WHILE_MAKING_MS);
+    return () => clearInterval(timer);
+  }, [making, focused, load]);
 
   const role = memory?.role ?? null;
   const watching = montages?.find((montage) => montage.id === playing) ?? null;
@@ -240,7 +289,10 @@ export function Films({ id, head }: { id: string; head: Head }) {
       <ScrollView contentContainerStyle={styles.body}>
         {error !== null ? (
           <Banner tone="error" text={error}>
-            <Button sm variant="quiet" label={s.action.retry} onPress={load} />
+            {/* Called and not handed over: `load` now takes «read quietly» as its argument, and a
+                press handler is given the touch event as its argument — so handing it over asks for
+                a quiet read from the one press that has to speak up about what it finds. */}
+            <Button sm variant="quiet" label={s.action.retry} onPress={() => load()} />
           </Banner>
         ) : null}
 
