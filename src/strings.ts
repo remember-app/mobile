@@ -251,6 +251,22 @@ export const en = {
     sayNothing: 'I have nothing to add',
     inviteTitle: 'Invite someone',
     mayAdd: 'They can add photos too',
+    /** The rule over the contacts standing under the username field, on the invite sheet. */
+    fromContacts: 'From contacts',
+    /**
+     * The button on a contact's row. A shorter word than the footer's «Пригласить» in Russian, and
+     * that is the point: the footer opens the sheet, this one puts a person in.
+     */
+    inviteDo: 'Invite',
+    /** Where the person just invited stands, said in their own row on the sheet. */
+    invited: 'Invited',
+    /**
+     * The offer that sits on that row and nothing more (kit, «Экраны» 6, «Сохранить»): invited by
+     * typing a username, so they can be kept for next time. Pressed, it stays where it is and says
+     * the second one. Invited by picking them out of the contacts, it is never offered at all.
+     */
+    keepContact: 'Save contact',
+    keptContact: 'In contacts',
     inviteLink: 'Invite link',
     getLink: 'Get the link',
     linkGrants: (role: string) => `Whoever follows it joins as «${role}».`,
@@ -618,6 +634,11 @@ export const ru: Strings = {
     sayNothing: 'Мне нечего добавлять',
     inviteTitle: 'Позвать человека',
     mayAdd: 'Сможет добавлять фото',
+    fromContacts: 'Из контактов',
+    inviteDo: 'Позвать',
+    invited: 'Приглашён',
+    keepContact: 'В контакты',
+    keptContact: 'В контактах',
     inviteLink: 'Ссылка-приглашение',
     getLink: 'Получить ссылку',
     linkGrants: (role: string) => `Кто перейдёт по ней, войдёт как «${role}».`,

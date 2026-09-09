@@ -1,3 +1,4 @@
+import { Check } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
@@ -65,14 +66,22 @@ export function Chip({ label, organizer }: { label: string; organizer?: boolean 
  */
 export function ChipAction({
   label,
+  checked,
   onPress,
   disabled,
 }: {
   label: string;
+  /**
+   * `.chip-action[aria-pressed="true"]` — the chip did not move and now states what it did, with
+   * the kit's green check in front of the word. What it says changes by a letter or two, so the
+   * caller passes the new wording along with this: «В контакты» becomes «В контактах».
+   */
+  checked?: boolean;
   onPress?: () => void;
   disabled?: boolean;
 }) {
   const { hovered, focused, props } = useHoverFocus();
+  const { color } = useTheme();
   const styles = useStyles();
   const focusRing = useFocusRing();
 
@@ -80,7 +89,7 @@ export function ChipAction({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{ disabled: !!disabled }}
+      accessibilityState={{ disabled: !!disabled, selected: !!checked }}
       disabled={disabled}
       // `.chip-action::after{inset:-9px -6px}` — drawn 26 high, felt at the kit's 44.
       hitSlop={{ top: 9, bottom: 9, left: 6, right: 6 }}
@@ -88,11 +97,15 @@ export function ChipAction({
       {...props}
       style={[
         styles.chip,
+        checked ? styles.chipChecked : null,
         hovered ? styles.chipHover : null,
         focused ? focusRing : null,
         disabled ? styles.off : null,
       ]}
     >
+      {/* The kit's own `.ico-s` at 13 and stroke 3, the weight it draws a check at everywhere —
+          the same one the selected frame carries in its corner. */}
+      {checked ? <Check size={13} color={color.fixed} strokeWidth={3} /> : null}
       <Text style={[styles.chipLabel, styles.chipLabelAction]} numberOfLines={1}>
         {label}
       </Text>
@@ -294,6 +307,9 @@ const useStyles = themed(({ color, shade }) =>
       backgroundColor: color.raise,
     },
     chipOrganizer: { borderColor: shade.emberLine },
+    // `.chip-action[aria-pressed="true"]{border-color:var(--fixed-line)}` — the one line that
+    // changes when the chip has been pressed; the word beside the check does the rest.
+    chipChecked: { borderColor: shade.fixedLine },
     chipHover: { borderColor: shade.lineHi },
     chipDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: color.ember },
     chipLabel: { fontSize: 13, lineHeight: 13, fontWeight: '500', color: color.muted },

@@ -1,13 +1,15 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Share2, X } from 'lucide-react-native';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, Share, StyleSheet, View } from 'react-native';
 
 import {
   ApiError,
+  addContact,
   errorMessage,
   fetchInvite,
   inviteByUsername,
+  listContacts,
   listMedia,
   listMembers,
   mayContribute,
@@ -16,6 +18,7 @@ import {
   removeMember,
   rotateInvite,
   setContributionStatus,
+  type Contact,
   type Invite,
   type Member,
 } from '@/api';
@@ -80,6 +83,17 @@ export function People({ id, head }: { id: string; head: Head }) {
   // Who the confirm sheet is asking about; null is «no sheet». The sheet is the whole state:
   // holding a boolean beside the member would let the two disagree.
   const [dropping, setDropping] = useState<Member | null>(null);
+  // The names this person invites from (doc-10), read when the sheet opens and not with the face:
+  // whoever is not inviting has no use for the list, and every open catches whatever was saved on
+  // the contacts screen since. null is «не спросили или не отдались» — either way, no block.
+  const [contacts, setContacts] = useState<Contact[] | null>(null);
+  // The person just invited by typing their username, and whether they have been saved since. Only
+  // that road leads here: picked out of the contacts, they are a contact already (kit, «Сохранить»).
+  const [invited, setInvited] = useState<Member | null>(null);
+  const [kept, setKept] = useState(false);
+  // Which contact's «Позвать» is waiting on the server. Held by id rather than by the shared `busy`
+  // so that one row spins and the rows around it stay live — «остальные строки не гаснут».
+  const [calling, setCalling] = useState<string | null>(null);
 
   const memory = head.memory;
 
@@ -126,6 +140,14 @@ export function People({ id, head }: { id: string; head: Head }) {
     }, [load]),
   );
 
+  // Read on every open of the sheet, and nothing is done when it fails: «контакты не отдались — их
+  // блока просто нет», the username field beside it still being the whole other road in.
+  useEffect(() => {
+    if (!inviting || !token) return;
+    setInvited(null);
+    listContacts(token).then(setContacts, () => {});
+  }, [inviting, token]);
+
   const me = members?.find((member) => member.id === user?.id) ?? null;
   const role = me?.role ?? null;
   // doc-01: adding people is «Добавление» and up, and so is bringing photos — whoever may bring
@@ -141,6 +163,19 @@ export function People({ id, head }: { id: string; head: Head }) {
   };
   // Checked against `dropping` first, so a closed sheet is never «about me» by two undefineds.
   const leaving = dropping !== null && dropping.id === user?.id;
+  // The one field is the sieve for both roads at once (kit, «Два пути»): what is typed narrows the
+  // contacts under it, and a name none of them holds is still a name the button above can invite.
+  // The @ and the capitals come off the same way the contacts screen takes them off.
+  const needle = username.trim().replace(/^@+/, '').toLowerCase();
+  // Whoever is already here drops out of the list — they are on the roster behind the sheet, and
+  // offering to invite them again would be the sheet arguing with what is under it.
+  const pickable = (contacts ?? []).filter(
+    (contact) =>
+      !members?.some((member) => member.id === contact.id) &&
+      (needle === '' ||
+        (contact.username ?? '').toLowerCase().includes(needle) ||
+        (contact.name ?? '').toLowerCase().includes(needle)),
+  );
 
   /**
    * Every api call this face's buttons make is the same shape: lock the controls, run one call,
@@ -170,6 +205,11 @@ export function People({ id, head }: { id: string; head: Head }) {
         // The api is idempotent and answers 200 either way, so a re-add is only visible
         // against the roster as it stood before the call.
         const already = members?.some((member) => member.id === added.id) ?? false;
+        // Typed and not picked, so this is the one road onto the offer to keep them. Somebody
+        // already on the contact list gets the same row with the chip already read as «В
+        // контактах»: it is true, and offering to save them twice would not be.
+        setInvited(added);
+        setKept(contacts?.some((contact) => contact.id === added.id) ?? false);
         setUsername('');
         load();
         return already
@@ -178,6 +218,44 @@ export function People({ id, head }: { id: string; head: Head }) {
       },
       { 404: s.members.noSuchUser, 403: s.members.inviteDenied },
     );
+
+  /**
+   * The other road in, and the first one on the sheet because it is the one taken most often: the
+   * person is picked off the list and nothing is typed at all. Nothing is offered afterwards — they
+   * are a contact already, which is how they came to be on that list.
+   */
+  const inviteContact = (contact: Contact) => {
+    const handle = contact.username;
+    if (!handle) return;
+    setCalling(contact.id);
+    void act(
+      async (session) => {
+        const added = await inviteByUsername(session, id, handle, newcomerRole);
+        // The roster is what takes them out of the list under the field: one truth, read back from
+        // the api, rather than the sheet crossing a name off on its own account.
+        load();
+        return s.members.added(memberName(added), s.role[added.role]);
+      },
+      { 403: s.members.inviteDenied },
+    ).finally(() => setCalling(null));
+  };
+
+  /**
+   * The chip on the row of somebody just invited by name. Outside `act`: it is nobody's answer to
+   * the invite, and clearing the line that says «Добавили Рому» to say nothing in its place would
+   * take away the very thing this chip is standing beside. Only a failure has anything to say.
+   */
+  const keep = (person: Member) => {
+    const handle = person.username;
+    if (!token || !handle) return;
+    addContact(token, handle).then(
+      (contact) => {
+        setContacts((held) => [...(held ?? []), contact]);
+        setKept(true);
+      },
+      (e: unknown) => setNotice(errorMessage(e)),
+    );
+  };
 
   const showLink = () =>
     act(async (session) => {
@@ -371,6 +449,57 @@ export function People({ id, head }: { id: string; head: Head }) {
           disabled={busy || username.trim() === ''}
         />
 
+        {/* Invited by name, and so the one person on this sheet who might be worth keeping. The
+            offer sits on their own row, in the right end of it where a contact's «Позвать» stands
+            — nothing rises over the sheet and nothing is asked (kit, «Экраны» 6, «Сохранить»).
+            Pressed, the chip stays exactly where it is and reads «В контактах»; unpressed, it
+            leaves with the sheet and was never in anybody's way. */}
+        {invited !== null ? (
+          <RowMember
+            name={memberName(invited)}
+            meta={memberHandle(invited)}
+            status={<Status text={s.members.invited} />}
+          >
+            <ChipAction
+              label={kept ? s.members.keptContact : s.members.keepContact}
+              checked={kept}
+              // Saved is a standing and not a switch: the way off a contact list is that list's
+              // own cross, not a chip on a sheet that is about to close.
+              onPress={kept ? undefined : () => keep(invited)}
+            />
+          </RowMember>
+        ) : null}
+
+        {/* The first road in, under the field that sieves it. Nobody left to offer — no contacts at
+            all, or every one of them already here — and the block is not there: the sheet is then
+            exactly what it was before contacts existed, never an empty list saying so. */}
+        {pickable.length > 0 ? (
+          <View style={styles.section}>
+            <Text accessibilityRole="header" role="label">
+              {s.members.fromContacts}
+            </Text>
+            {/* `.picklist{max-height:216px}` — two rows and half of the third, scrolling inside
+                itself so that a long list never grows the sheet up into the screen. */}
+            <ScrollView style={styles.picklist}>
+              {pickable.map((contact, index) => (
+                <RowMember
+                  key={contact.id}
+                  name={memberName(contact)}
+                  meta={memberHandle(contact)}
+                  divider={index > 0}
+                >
+                  <Button
+                    sm
+                    label={s.members.inviteDo}
+                    busy={calling === contact.id}
+                    onPress={() => inviteContact(contact)}
+                  />
+                </RowMember>
+              ))}
+            </ScrollView>
+          </View>
+        ) : null}
+
         <Text role="meta">{s.members.inviteLink}</Text>
         {shareable === null ? (
           // Asked for rather than loaded with the face: the api mints the link on this
@@ -433,6 +562,10 @@ const styles = StyleSheet.create({
   // does not end against the bar.
   body: { paddingHorizontal: space.s4, paddingBottom: space.s8, gap: space.s3 },
   pad: { paddingHorizontal: space.s4 },
+  // `.stack-2` — the rule and the list it introduces, the way the contacts screen sets the same
+  // pair. The list itself is the kit's `.picklist`, cut where the third row is half read.
+  section: { gap: space.s2 },
+  picklist: { maxHeight: 216 },
   // The kit's `minmax(28px,auto)` last column, kept open where there is no cross to put in it.
   noCross: { width: 28 },
   quiet: { alignSelf: 'flex-start' },
