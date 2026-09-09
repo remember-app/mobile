@@ -187,7 +187,20 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   // the worker's side, and the signed urls die in a quarter hour, so a face that read once when it
   // was first opened is showing whatever was true then. It runs on mount too, which is what reads
   // the material when this face is switched to.
-  useFocusEffect(load);
+  //
+  // And the viewer is shut on the way out, the way the people face shuts its invite sheet (TASK-94,
+  // extended here in review): leaving this face without closing it — a tapped push, a deep link,
+  // anything that is not the cross, the delete or the hardware key — left the frame standing on a
+  // window of its own over whatever screen came next, because the memory stays mounted behind a
+  // `router.push`. Since TASK-124 it cost a second thing: `useTurnsWithPhone` below follows the
+  // viewer and not the mount, so nothing cleaned it up and every screen after this one was left
+  // free to turn with the phone.
+  useFocusEffect(
+    useCallback(() => {
+      load();
+      return () => setOpen(null);
+    }, [load]),
+  );
 
   // And the same reason again with nobody navigating: a record turns `ready` while this face is
   // open and on screen, and until this loop existed nothing ever told it — the sheet stayed in
@@ -218,6 +231,8 @@ export function Frames({ id, head }: { id: string; head: Head }) {
 
   // A frame shot sideways is worth turning the phone for. The `supportedOrientations` on the modal
   // below only says which ways up it may be drawn — this is what lets the app leave portrait at all.
+  // Which is given back on the cleanup, so what has to be true is that the viewer is shut on every
+  // way out of this face — the focus effect above is where that is done.
   useTurnsWithPhone(shown !== null);
 
   /**
@@ -256,6 +271,16 @@ export function Frames({ id, head }: { id: string; head: Head }) {
       ]),
     [items],
   );
+
+  /**
+   * The same sheet, flat — the order the strip under an open frame walks along. The strip is the
+   * contact sheet rolled into one row and has to read in the same direction it does, which stopped
+   * being `items` the moment the sheet was cut into days: the api sends the oldest frame first and
+   * the sheet is read newest day down, so the tile at the top left of the grid was the one at the
+   * far end of the strip, and walking the strip forward walked the sheet backwards (found in
+   * review, TASK-121).
+   */
+  const sheet = useMemo(() => rows.flatMap((row) => row.frames ?? []), [rows]);
 
   /**
    * What a tile is called out loud: what it is, what has become of it, and whether it is the frame
@@ -445,8 +470,11 @@ export function Frames({ id, head }: { id: string; head: Head }) {
             data={rows}
             keyExtractor={(row) => row.key}
             contentContainerStyle={styles.grid}
-            // Still here, and now only for the person who would rather not wait: the re-read above
-            // already answers both the fifteen-minute links and a record turning `ready`.
+            // Still here, and mostly for the person who would rather not wait: a record turning
+            // `ready` is answered by the re-read above on its own. Not the fifteen-minute links,
+            // though — that read deliberately leaves a finished record's own url where it is
+            // (`keepReady`), so on a face left open past the quarter hour a pull is the short way
+            // to freshly signed ones, and the read on focus is the other.
             refreshControl={
               <RefreshControl
                 refreshing={loading}
@@ -713,7 +741,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
                   </View>
 
                   <Filmstrip
-                    items={items}
+                    items={sheet}
                     open={shown.id}
                     onOpen={setOpen}
                     nameOf={nameOf}

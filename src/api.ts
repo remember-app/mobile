@@ -525,6 +525,18 @@ export type MusicTrackId = 'warm' | 'bright' | 'calm';
 export type MontageOrientation = 'landscape' | 'portrait';
 
 /**
+ * What was asked for at the order — the only three wishes doc-03 allows, every one of them
+ * optional. Named once and shared by both ends of the round trip: this is the body `orderMontage`
+ * sends and it is `Montage.params` coming back, which is the same shape on purpose, the way
+ * `Original` is one shape for both download routes.
+ */
+export type MontageWishes = {
+  target_seconds?: number;
+  music_track_id?: MusicTrackId;
+  orientation?: MontageOrientation;
+};
+
+/**
  * A video assembled out of a memory (doc-03). The row as the api hands it out, minus its storage
  * key: `video_url` is the signed link standing in for it, and it is there only while the montage is
  * `ready` — before that it is null, which is «ещё не готово» and not an error, exactly as the
@@ -537,11 +549,7 @@ export type Montage = {
   ordered_by: string;
   status: 'queued' | 'processing' | 'ready' | 'failed';
   duration_seconds: number | null;
-  params: {
-    target_seconds?: number;
-    music_track_id?: MusicTrackId;
-    orientation?: MontageOrientation;
-  };
+  params: MontageWishes;
   /** The worker's own line about why it fell over. Only ever set on a `failed` one. */
   error_text: string | null;
   created_at: string;
@@ -569,11 +577,7 @@ export function listMontages(token: string, memoryId: string): Promise<Montage[]
 export function orderMontage(
   token: string,
   memoryId: string,
-  wishes: {
-    target_seconds?: number;
-    music_track_id?: MusicTrackId;
-    orientation?: MontageOrientation;
-  },
+  wishes: MontageWishes,
 ): Promise<Montage> {
   return request(`/memories/${memoryId}/montages`, { method: 'POST', body: wishes, token });
 }
