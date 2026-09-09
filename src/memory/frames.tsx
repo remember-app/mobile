@@ -36,7 +36,15 @@ import {
 import { useAuth } from '@/auth';
 import { formatRuntime } from '@/dates';
 import { maySaveToPhone, saveToPhone } from '@/downloads';
-import { frameIndex, frameOf, mayOpen, shotBy, stillPreparing, type Frame } from '@/frames';
+import {
+  frameIndex,
+  frameOf,
+  keepReady,
+  mayOpen,
+  shotBy,
+  stillPreparing,
+  type Frame,
+} from '@/frames';
 import {
   ActionBar,
   Banner,
@@ -168,7 +176,10 @@ export function Frames({ id, head }: { id: string; head: Head }) {
       Promise.all([listMedia(token, id), listMembers(token, id)])
         .then(
           ([media, members]) => {
-            setItems(media);
+            // A quiet read is looking for what the worker has finished, and it must not disturb
+            // what was already finished: `keepReady` holds every `ready` record's own object, so
+            // the urls behind the frames on screen do not move and nothing is fetched twice.
+            setItems((have) => (quiet ? keepReady(have, media) : media));
             setRoster(members);
             setError(null);
           },
