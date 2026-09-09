@@ -114,7 +114,17 @@ export function People({ id, head }: { id: string; head: Head }) {
   // On focus rather than on mount, the way the home screen does it: everybody's standing on the
   // roster changes while whoever is reading it is off uploading. Coming back re-reads it, instead
   // of leaving a face that has been stale since it was first opened.
-  useFocusEffect(load);
+  //
+  // And the sheet is shut on the way out (TASK-94): leaving this face without closing it — a push,
+  // a deep link, anything that is not the cross or the scrim — left the Modal mounted, so the
+  // invite sheet stood over whatever screen came next. The cleanup `useFocusEffect` runs on blur is
+  // where that belongs; every explicit close still goes through `setInviting(false)` as before.
+  useFocusEffect(
+    useCallback(() => {
+      load();
+      return () => setInviting(false);
+    }, [load]),
+  );
 
   const me = members?.find((member) => member.id === user?.id) ?? null;
   const role = me?.role ?? null;
