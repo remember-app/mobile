@@ -55,7 +55,7 @@ IP машины в локальной сети, например `EXPO_PUBLIC_AP
 ### Ссылка входа по email в разработке
 
 Когда на API явно включён `EMAIL_LOGIN_DEV_BYPASS` (значение `1` или `true`), адрес — на домене
-`test.com`, а сам API не в проде, `POST /auth/email/start` отдаёт ссылку
+`test.test`, а сам API не в проде, `POST /auth/email/start` отдаёт ссылку
 `remember://auth/email?token=…` прямо в ответе вместо письма. Экран входа сам достаёт из неё
 токен и меняет на сессию, держа при этом плашку «вход для разработки»: руками делать нечего —
 адрес, кнопка, вы внутри.
@@ -68,7 +68,7 @@ IP машины в локальной сети, например `EXPO_PUBLIC_AP
 
 ```sh
 curl -s localhost:3000/auth/email/start \
-  -H 'content-type: application/json' -d '{"email":"you@test.com"}'
+  -H 'content-type: application/json' -d '{"email":"you@test.test"}'
 ```
 
 **Схема `remember://` работает только в dev-билде.** В Expo Go она принадлежит не нам, и
