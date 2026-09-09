@@ -140,6 +140,8 @@ export const en = {
   /** The main screen: every memory this account organizes or was invited to. */
   home: {
     title: 'Memories',
+    /** The second icon in the appbar, left of the profile — the one way into the contact list. */
+    contacts: 'Contacts',
     profile: 'Profile',
     empty:
       'No memories yet. Start one for your next event and the photos will land here from everyone.',
@@ -409,6 +411,32 @@ export const en = {
     logOutText: 'Your memories and frames stay where they are — you come back the same way in.',
   },
 
+  /**
+   * The one list a person keeps about themselves rather than about an event (doc-10): the names
+   * they invite from, so a username never has to be remembered or typed twice. Not friends — nobody
+   * on it is asked, told or granted anything, which is why there is no word here for a request, a
+   * standing or a count. «Такого ника нет» is `members.noSuchUser`: one fact, one wording, whether
+   * the invite sheet or this field is the one that found nothing.
+   */
+  contacts: {
+    title: 'Contacts',
+    /** The rule the field draws under the saved list when what was typed is somebody else. */
+    notSaved: 'Not in contacts',
+    save: 'Save',
+    /** The cross on a row, read out with the name it takes off the list. */
+    remove: (name: string) => `Remove ${name} from contacts`,
+    /**
+     * What the row says while it waits to be let go — spoken about the list and not about the
+     * person, because nothing here knows whether that person is a он or a она.
+     */
+    removed: 'Removed from contacts',
+    undo: 'Bring back',
+    empty:
+      'Nobody here yet. Type a username — next time you invite them by picking, without remembering anything.',
+    /** Nothing saved matches, and nobody in Remember holds the name either. */
+    noUser: (username: string) => `No one is @${username} in Remember.`,
+  },
+
   /** The one username field, shared by the first claim and the change. */
   username: {
     label: 'Username',
@@ -517,6 +545,7 @@ export const ru: Strings = {
 
   home: {
     title: 'Воспоминания',
+    contacts: 'Контакты',
     profile: 'Профиль',
     empty:
       'Воспоминаний пока нет. Заведите одно к ближайшему событию — и снимки начнут стекаться сюда от всех.',
@@ -690,6 +719,17 @@ export const ru: Strings = {
   profile: {
     title: 'Профиль',
     logOutText: 'Воспоминания и кадры останутся на месте — вернётесь тем же входом.',
+  },
+
+  contacts: {
+    title: 'Контакты',
+    notSaved: 'Не в контактах',
+    save: 'Сохранить',
+    remove: (name: string) => `Убрать ${name} из контактов`,
+    removed: 'Убрали из контактов',
+    undo: 'Вернуть',
+    empty: 'Пока никого. Наберите ник — и в следующий раз позовёте выбором, не вспоминая.',
+    noUser: (username: string) => `Ника @${username} в Remember нет.`,
   },
 
   username: {

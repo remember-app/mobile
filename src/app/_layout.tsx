@@ -91,6 +91,7 @@ function RootNavigator() {
             because it is a screen one comes back from. */}
         <Stack.Screen name="memory/[id]" options={{ title: 'Memory' }} />
         <Stack.Screen name="memory/[id]/upload" options={{ title: 'Upload' }} />
+        <Stack.Screen name="contacts" options={{ title: 'Contacts' }} />
         <Stack.Screen name="profile" options={{ title: 'Profile' }} />
         <Stack.Screen name="about" options={{ title: 'About' }} />
       </Stack.Protected>

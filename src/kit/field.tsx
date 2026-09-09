@@ -47,6 +47,7 @@ export function Hint({
  */
 export function Field({
   label,
+  labelHidden,
   hint,
   state,
   style,
@@ -55,6 +56,13 @@ export function Field({
   ...input
 }: TextInputProps & {
   label: string;
+  /**
+   * The kit's own label-less field — «Контакты» is the one screen that draws it, where the field
+   * stands right under the screen's name and a `.t-label` reading «Ник» over it would say what the
+   * placeholder already says. Only the visible line goes: the input keeps the label as its
+   * accessible name, so nothing is lost to a screen reader.
+   */
+  labelHidden?: boolean;
   hint?: string;
   state?: FieldState;
 }) {
@@ -65,7 +73,7 @@ export function Field({
 
   return (
     <View style={styles.field}>
-      <Text role="label">{label}</Text>
+      {labelHidden ? null : <Text role="label">{label}</Text>}
       <TextInput
         accessibilityLabel={label}
         accessibilityHint={hint}
