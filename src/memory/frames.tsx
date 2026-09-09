@@ -51,6 +51,7 @@ import {
 } from '@/kit';
 import { useStrings } from '@/language';
 import { MemoryHead, type Head } from '@/memory/head';
+import { useTurnsWithPhone } from '@/orientation';
 import { onScrim, space, themed, themes, ThemePin, useTheme } from '@/theme';
 
 /**
@@ -214,6 +215,11 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   // in the way is the level, which is the same one the people face gates its invite on.
   const mayUpload = mayContribute(role);
   const shown = items?.find((item) => item.id === open) ?? null;
+
+  // A frame shot sideways is worth turning the phone for. The `supportedOrientations` on the modal
+  // below only says which ways up it may be drawn — this is what lets the app leave portrait at all.
+  useTurnsWithPhone(shown !== null);
+
   /** The open record read the way the grid reads it — one answer, two places drawing it. */
   const openFrame = shown === null ? null : frameOf(shown);
   /**

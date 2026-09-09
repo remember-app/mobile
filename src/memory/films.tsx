@@ -30,6 +30,7 @@ import {
 } from '@/kit';
 import { useStrings } from '@/language';
 import { MemoryHead, type Head } from '@/memory/head';
+import { useTurnsWithPhone } from '@/orientation';
 import { type Strings } from '@/strings';
 import { space, themes, ThemePin } from '@/theme';
 
@@ -111,6 +112,10 @@ export function Films({ id, head }: { id: string; head: Head }) {
 
   const role = memory?.role ?? null;
   const watching = montages?.find((montage) => montage.id === playing) ?? null;
+
+  // A montage is 16:9 and worth turning the phone for. The `supportedOrientations` on the modal
+  // below only says which ways up it may be drawn — this is what lets the app leave portrait at all.
+  useTurnsWithPhone(watching !== null);
 
   /**
    * Every api call this face's buttons make is the same shape: lock the controls, run one call,
