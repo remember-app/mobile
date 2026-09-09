@@ -26,9 +26,11 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 // first screen drawn as much as of the fourteenth.
 lockPortrait();
 
-// A ceiling on what `expo-image` keeps on disk. The contact sheet and the open frame both hold
-// their pictures there on purpose — that is what makes a memory looked through a second time come
-// off the phone instead of down the wire — but on ios that disk has no limit of its own:
+// A ceiling on what `expo-image` keeps on disk. The open frame holds its picture there under a key
+// of its own, which is what makes a frame looked at a second time come off the phone instead of
+// down the wire; the contact sheet writes its tiles there too, but filed under the signed url they
+// arrived by, so those are never read again and only wait to be evicted (`kit/tile.tsx` — seen in
+// the m-19 review, left alone as its own job). Either way it fills, and on ios it has no limit:
 // SDWebImage, which expo-image is built on there, defaults `maxDiskSize` to 0, meaning keep
 // everything for ever. 250MB with the oldest going first is exactly what Glide already does on
 // android without being asked, so the number is that one, and the two platforms hold the same
