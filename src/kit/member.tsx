@@ -139,6 +139,7 @@ export function RowMember({
   status,
   count,
   divider,
+  gone,
   children,
 }: {
   name: string;
@@ -152,6 +153,12 @@ export function RowMember({
   /** `.row-member__count` — what they have brought so far, held right and never cut. */
   count?: string;
   divider?: boolean;
+  /**
+   * `.row-member--gone` — the row of somebody just taken off a list, still standing in its own
+   * place. Only the name goes muted, which is the whole modifier in the kit: nothing moves, so the
+   * way back is under the same finger that made the mistake.
+   */
+  gone?: boolean;
   children?: ReactNode;
 }) {
   const styles = useStyles();
@@ -164,7 +171,7 @@ export function RowMember({
             140pt, and a name long enough to wrap would break the row onto a height the kit never
             drew. So it clips instead of wrapping. */}
         <View style={styles.line}>
-          <Text style={styles.name} numberOfLines={1}>
+          <Text style={[styles.name, gone ? styles.nameGone : null]} numberOfLines={1}>
             {name}
           </Text>
           {children}
@@ -321,6 +328,8 @@ const useStyles = themed(({ color, shade }) =>
     who: { flexShrink: 1, minWidth: 0 },
     count: { flexShrink: 0, marginLeft: 'auto' },
     name: { flex: 1, minWidth: 0, fontSize: 16, lineHeight: 28, fontWeight: '500' },
+    // `.row-member--gone .row-member__name{color:var(--muted)}` — the one thing the modifier does.
+    nameGone: { color: color.muted },
     invite: {
       flexDirection: 'row',
       alignItems: 'center',

@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Camera, Plus, User } from 'lucide-react-native';
+import { Camera, Plus, User, Users } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -54,12 +54,23 @@ export default function HomeScreen() {
         <RailH />
         <AppBar
           title={s.home.title}
+          // Two icons is the ceiling the kit holds and both are now taken (kit, «Экраны» 9, «Справа
+          // в шапке»): the people one is the only way into the contact list, and the profile stays
+          // the outermost and does not move. Two people against one is what tells them apart — the
+          // list of those you invite, and yourself.
           right={
-            <IconButton
-              icon={User}
-              label={s.home.profile}
-              onPress={() => router.push('/profile')}
-            />
+            <>
+              <IconButton
+                icon={Users}
+                label={s.home.contacts}
+                onPress={() => router.push('/contacts')}
+              />
+              <IconButton
+                icon={User}
+                label={s.home.profile}
+                onPress={() => router.push('/profile')}
+              />
+            </>
           }
         />
       </View>

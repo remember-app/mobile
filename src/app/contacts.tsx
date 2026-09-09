@@ -1,0 +1,355 @@
+import { useFocusEffect, useRouter } from 'expo-router';
+import { ChevronLeft, Users, X } from 'lucide-react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import {
+  ApiError,
+  addContact,
+  errorMessage,
+  findUser,
+  isValidUsername,
+  listContacts,
+  memberHandle,
+  memberName,
+  removeContact,
+  type Contact,
+} from '@/api';
+import { useAuth } from '@/auth';
+import {
+  AppBar,
+  Banner,
+  Button,
+  Empty,
+  Field,
+  IconButton,
+  RowMember,
+  Text,
+} from '@/kit';
+import { useStrings } from '@/language';
+import { space, themed } from '@/theme';
+
+/** The same wait `username-form.tsx` gives the same server: a typed word is one question. */
+const LOOKUP_DELAY_MS = 400;
+
+/** How long a removed row stands there offering the way back (kit, «Экраны» 9, «Убрать»). */
+const UNDO_MS = 5000;
+
+/**
+ * The names one invites from (doc-10, kit «Экраны» 9). The only list in the product a person keeps
+ * about themselves rather than about an event, and the whole of it is a flat list of usernames:
+ * being on it is not friendship, grants nothing, and is never told to the person on it.
+ *
+ * One field does both jobs. What is typed narrows the list under it, and if nobody saved holds that
+ * name the api is asked whether anybody in Remember does — the answer arrives as one row under «Не в
+ * контактах» with «Сохранить» on it. Two fields would ask the person to choose between «искать» and
+ * «добавить» before typing the very same word into either, which is the product thinking with their
+ * hands instead of for them.
+ */
+export default function ContactsScreen() {
+  const { token, user } = useAuth();
+  const router = useRouter();
+  const s = useStrings();
+  const styles = useStyles();
+  // No native header anywhere in the app, so the screen keeps itself out from under the status bar.
+  const insets = useSafeAreaInsets();
+  // null is «not loaded yet», the distinction the home screen draws: a refetch keeps the list on
+  // screen instead of flashing the spinner over it.
+  const [contacts, setContacts] = useState<Contact[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  // A failure of something pressed, which is not the same as the list failing to arrive: the kit
+  // stands it as a strip over the list and leaves the row that was pressed exactly where it was.
+  const [notice, setNotice] = useState<string | null>(null);
+  const [typed, setTyped] = useState('');
+  // Who the field turned up outside the list: a person, `'none'` when the api says nobody holds the
+  // name, and null while there is nothing to say — a call that never went out, or one that fell over
+  // and therefore says nothing about anybody.
+  const [found, setFound] = useState<Contact | 'none' | null>(null);
+  const [looking, setLooking] = useState(false);
+  const [saving, setSaving] = useState(false);
+  // Rows that have already been deleted server-side and are standing their five seconds. Ids and
+  // not the rows themselves: the row is still in `contacts` and must not be drawn from two places.
+  const [gone, setGone] = useState<string[]>([]);
+  const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+
+  const load = useCallback(() => {
+    if (!token) return;
+    setError(null);
+    listContacts(token).then(setContacts, (e: unknown) => setError(errorMessage(e)));
+  }, [token]);
+
+  useFocusEffect(load);
+
+  // Nothing may fire after the screen is gone: every one of these holds a `setState` on a list that
+  // will not be there. The map is read into a local first — by the time the cleanup runs the ref
+  // could be pointing at another render's.
+  useEffect(() => {
+    const pending = timers.current;
+    return () => pending.forEach(clearTimeout);
+  }, []);
+
+  // The kit's «Края»: a username typed with a capital or with the @ still on it is taken as it is
+  // and brought to the product's own shape here. What the api matches on is case-insensitive
+  // anyway, so this is about the list under the field as much as about the lookup.
+  const query = typed.trim().replace(/^@+/, '');
+  const needle = query.toLowerCase();
+  const list = contacts ?? [];
+  const shown = list.filter(
+    (contact) =>
+      needle === '' ||
+      (contact.username ?? '').toLowerCase().includes(needle) ||
+      (contact.name ?? '').toLowerCase().includes(needle),
+  );
+  // «Уже сохранённого ник вводом не задваивает»: an exact hit among the saved is answered by the
+  // list itself, so nothing is asked of the api and no second row is offered.
+  const saved = list.some((contact) => contact.username?.toLowerCase() === needle);
+
+  useEffect(() => {
+    setFound(null);
+    // A name that could never be held is not worth asking about — the api answers those 404 too,
+    // and a question per keystroke of a half-typed name is the same answer three times over.
+    if (!token || saved || !isValidUsername(query)) {
+      setLooking(false);
+      return;
+    }
+    setLooking(true);
+    let live = true;
+    const timer = setTimeout(() => {
+      findUser(token, query)
+        .then(
+          // Yourself is the one person the api refuses to save (400), so the row is not offered at
+          // all rather than offered and then refused. Silently: «нет такого ника» would be a lie.
+          (person) => (live && person.id !== user?.id ? setFound(person) : undefined),
+          (e: unknown) =>
+            live ? setFound(e instanceof ApiError && e.status === 404 ? 'none' : null) : undefined,
+        )
+        .finally(() => {
+          if (live) setLooking(false);
+        });
+    }, LOOKUP_DELAY_MS);
+    // Drops both the question that never went out and the answer to one that did — a slow reply
+    // about a name the field has since left can never overwrite a fresher one.
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [token, query, saved, user?.id]);
+
+  /** Put a fading row back on its feet: the five seconds are off, and the name lights again. */
+  const cancel = useCallback((id: string) => {
+    clearTimeout(timers.current.get(id));
+    timers.current.delete(id);
+    setGone((ids) => ids.filter((held) => held !== id));
+  }, []);
+
+  /**
+   * The cross, and no sheet behind it (kit, «Экраны» 9): nothing is lost — that person keeps every
+   * memory they are in, and the name comes back with one press. So the call goes out at once and
+   * the row, still in place, spends five seconds offering the way back.
+   */
+  function drop(contact: Contact) {
+    if (!token) return;
+    setNotice(null);
+    setGone((ids) => [...ids, contact.id]);
+    removeContact(token, contact.id).catch((e: unknown) => {
+      // Already off the list is what the row is saying anyway, so it goes on fading. Anything else
+      // did not happen, and a row that fades over a contact still on the server is a lie the next
+      // focus would contradict.
+      if (e instanceof ApiError && e.status === 404) return;
+      setNotice(errorMessage(e));
+      cancel(contact.id);
+    });
+    timers.current.set(
+      contact.id,
+      setTimeout(() => {
+        timers.current.delete(contact.id);
+        setContacts((held) => held?.filter((row) => row.id !== contact.id) ?? null);
+        setGone((ids) => ids.filter((held) => held !== contact.id));
+      }, UNDO_MS),
+    );
+  }
+
+  /** «Вернуть» — off the row that is still standing there, so nothing has to be typed again. */
+  function undo(contact: Contact) {
+    cancel(contact.id);
+    if (!token || !contact.username) return;
+    setNotice(null);
+    addContact(token, contact.username).catch((e: unknown) => setNotice(errorMessage(e)));
+  }
+
+  /**
+   * «Сохранить», on the one row standing under «Не в контактах». The row moves into the list itself
+   * rather than the screen being redrawn around it, so the field keeps what was typed and the list
+   * under it now answers with the person who was just saved.
+   */
+  async function save(person: Contact) {
+    if (!token || !person.username) return;
+    setSaving(true);
+    setNotice(null);
+    try {
+      const added = await addContact(token, person.username);
+      // Sorted by username, which is the order the api itself keeps: a list read by eye must not
+      // reshuffle between one visit and the next, and one saved row must not put it out of step.
+      setContacts((held) => [...(held ?? []), added].sort(byUsername));
+      setFound(null);
+    } catch (e) {
+      // The strip goes over the list and the row keeps its button (kit, «Сбой»): whoever pressed it
+      // is still looking at the person they meant to save.
+      setNotice(errorMessage(e));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const stranger = found === 'none' || found === null ? null : found;
+  // Neither a saved row nor a stranger: the body has nothing to hold, and the kit stands what it
+  // says in the middle of it instead of at the top.
+  const nothing = shown.length === 0 && stranger === null;
+
+  return (
+    <View style={[styles.screen, { paddingTop: insets.top }]}>
+      {/* The kit's head: the bar and the field are nailed to it — «поле прибито к шапке и не уезжает
+          со списком», since it is the way to add as much as the way to search. */}
+      <AppBar
+        title={s.contacts.title}
+        left={
+          <IconButton
+            icon={ChevronLeft}
+            label={s.action.back}
+            // Same as everywhere else: nothing behind means home, never a button that answers
+            // nothing.
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+          />
+        }
+      />
+      <Field
+        label={s.username.label}
+        labelHidden
+        value={typed}
+        onChangeText={setTyped}
+        placeholder={s.username.placeholder}
+        autoCapitalize="none"
+        autoCorrect={false}
+        // The check is answered in the field, the way the invite sheet answers it (kit, «Ждём»).
+        // «Такого ника нет» only while the list under it still has rows — with nothing under it the
+        // body says the same thing at length and names the ник, and saying it twice says it once.
+        state={found === 'none' && shown.length > 0 ? 'error' : undefined}
+        hint={
+          looking
+            ? s.state.checking
+            : found === 'none' && shown.length > 0
+              ? s.members.noSuchUser
+              : undefined
+        }
+      />
+
+      <ScrollView
+        contentContainerStyle={[
+          styles.body,
+          nothing ? styles.mid : null,
+          { paddingBottom: Math.max(insets.bottom, space.s5) },
+        ]}
+      >
+        {error !== null ? (
+          // The list did not come: the strip holds its place and offers the one thing left to do.
+          <Banner tone="error" text={error}>
+            <Button sm variant="quiet" label={s.action.retry} onPress={load} />
+          </Banner>
+        ) : contacts === null ? (
+          <Empty busy text={s.state.loading} />
+        ) : (
+          <>
+            {notice !== null ? <Banner tone="error" text={notice} /> : null}
+
+            {/* One View around the rows so they keep the kit's own hairline and padding instead of
+                the gap this body puts between its groups. */}
+            {shown.length > 0 ? (
+              <View>
+                {shown.map((contact, index) => {
+                  const fading = gone.includes(contact.id);
+                  const name = memberName(contact);
+
+                  return (
+                    <RowMember
+                      key={contact.id}
+                      name={name}
+                      // The username where a member row carries a standing — a contact uploads
+                      // nothing, so there is no role and no count to write here.
+                      meta={fading ? s.contacts.removed : memberHandle(contact)}
+                      gone={fading}
+                      divider={index > 0}
+                    >
+                      {fading ? (
+                        <Button
+                          sm
+                          variant="quiet"
+                          label={s.contacts.undo}
+                          onPress={() => undo(contact)}
+                        />
+                      ) : (
+                        <IconButton
+                          sm
+                          icon={X}
+                          label={s.contacts.remove(name)}
+                          onPress={() => drop(contact)}
+                        />
+                      )}
+                    </RowMember>
+                  );
+                })}
+              </View>
+            ) : null}
+
+            {/* Under its own rule, and under the saved list rather than over it: what is already
+                kept is the answer being looked for, and this is the offer beside it. */}
+            {stranger !== null ? (
+              <View style={styles.section}>
+                <Text accessibilityRole="header" role="label">
+                  {s.contacts.notSaved}
+                </Text>
+                <View>
+                  <RowMember name={memberName(stranger)} meta={memberHandle(stranger)}>
+                    <Button
+                      sm
+                      label={s.contacts.save}
+                      busy={saving}
+                      onPress={() => save(stranger)}
+                    />
+                  </RowMember>
+                </View>
+              </View>
+            ) : null}
+
+            {/* Empty is an invitation and not a report: with nothing typed the field itself is the
+                way to add somebody, and that is what the line says. With something typed and nobody
+                anywhere holding it, the answer names the ник that was asked for. */}
+            {nothing && query === '' ? (
+              <Empty icon={Users} text={s.contacts.empty} />
+            ) : nothing && found === 'none' ? (
+              <Empty text={s.contacts.noUser(query)} />
+            ) : null}
+          </>
+        )}
+      </ScrollView>
+    </View>
+  );
+}
+
+/** The api's own order: `order by u.username`, case-folded by citext. */
+const byUsername = (a: Contact, b: Contact) =>
+  (a.username ?? '').localeCompare(b.username ?? '', undefined, { sensitivity: 'base' });
+
+const useStyles = themed(({ color }) =>
+  StyleSheet.create({
+    // The kit says it once for all eleven screens: «Боковой отступ 16 задаёт экран».
+    screen: { flex: 1, paddingHorizontal: space.s4, backgroundColor: color.ink },
+    // The field sits in the head with its own 12 under it, so the body starts at the kit's gap and
+    // grows to the full height — which is what gives the empty state a middle to stand in.
+    body: { flexGrow: 1, gap: space.s5, paddingTop: space.s3 },
+    // The kit's `.screen__body-mid`.
+    mid: { justifyContent: 'center' },
+    // `.stack-2` — the rule and the row it introduces.
+    section: { gap: space.s2 },
+  }),
+);
