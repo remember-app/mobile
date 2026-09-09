@@ -12,8 +12,18 @@ vi.mock('expo-secure-store', () => ({
 import type { MediaItem, Member, Memory } from '@/api';
 // The day is written by `@/dates` and read here from the same place: what is pinned below is which
 // day the line carries, not how this phone's locale spells it.
-import { formatEventDates } from '@/dates';
-import { frameIndex, frameOf, keepReady, mayOpen, openFrameOf, shotBy, stillPreparing } from '@/frames';
+import { formatEventDates, startOfDay } from '@/dates';
+import {
+  frameIndex,
+  frameOf,
+  framesByDay,
+  keepReady,
+  mayOpen,
+  mayPick,
+  openFrameOf,
+  shotBy,
+  stillPreparing,
+} from '@/frames';
 
 // The gallery sat in «Preparing…» for good because it read the list once and never again, and
 // nothing on screen ever asked whether there was a reason to look. These are the two questions the
@@ -235,6 +245,101 @@ test('a memory that came back with an unreadable event date is the name alone, n
   const roster = [member({ id: 'u' })];
   expect(shotBy(shot, roster, wedding({ event_start: 'not-a-day' }))).toBe('Marina');
   expect(shotBy(shot, roster, wedding({ event_start: '' }))).toBe('Marina');
+});
+
+// The sheet cut into the days it was shot over (TASK-121): the contact sheet drew one flat grid, so
+// the kit's daymark had nowhere to stand and «Выбрать все N» nothing to count. The cut itself is
+// here rather than in the screen, which no test in this project can render.
+//
+// Every instant below is built from a *local* date and never from a literal like
+// '2026-09-03T00:00:00Z': the days are local days, so a test written in UTC would pass only for
+// whoever ran it in London.
+
+/** The instant a day began here — what a strip of the sheet is keyed by. */
+const day = (date: number) => new Date(2026, 8, date).getTime();
+/** A moment on one of those days, as the api writes it. */
+const shotAt = (date: number, h = 12, m = 0, s = 0, ms = 0) =>
+  new Date(2026, 8, date, h, m, s, ms).toISOString();
+
+/** The sheet as the screen draws it: the days in order, each with its own frames in theirs. */
+const strips = (items: MediaItem[]): [number, string[]][] =>
+  framesByDay(items).map((one) => [one.at, one.frames.map((item) => item.id)]);
+
+test('the sheet is cut into local days, the newest first, each keeping the order it arrived in', () => {
+  // As `listMedia` hands it over: oldest shot first, the order a montage would play it in.
+  const items = [
+    record({ id: 'first-millisecond', captured_at: shotAt(3, 0) }),
+    record({ id: 'noon', captured_at: shotAt(3, 12) }),
+    record({ id: 'last-millisecond', captured_at: shotAt(3, 23, 59, 59, 999) }),
+    record({ id: 'the-morning-after', captured_at: shotAt(4, 9) }),
+  ];
+
+  expect(strips(items)).toEqual([
+    // Only the days are turned around — the sheet is read from the newest day down.
+    [day(4), ['the-morning-after']],
+    // Both edges of the day belong to it, and inside a day nothing is reordered.
+    [day(3), ['first-millisecond', 'noon', 'last-millisecond']],
+  ]);
+});
+
+test('the day is the one the frame was shot on, and the one it arrived on only if it has none', () => {
+  // The same coalesce the api sorts the gallery by, so a day is one unbroken run of what it sends.
+  const items = [
+    record({ id: 'stamped', captured_at: shotAt(3, 12), created_at: shotAt(9, 12) }),
+    record({ id: 'unstamped', captured_at: null, created_at: shotAt(9, 12) }),
+  ];
+
+  expect(strips(items)).toEqual([
+    [day(9), ['unstamped']],
+    [day(3), ['stamped']],
+  ]);
+});
+
+test('a frame whose day will not parse sinks to the bottom and is not thrown away', () => {
+  const items = [
+    record({ id: 'garbled', captured_at: 'not-a-day', created_at: 'not-a-day' }),
+    record({ id: 'dated', captured_at: shotAt(3, 12) }),
+  ];
+  const [dated, garbled] = strips(items);
+
+  expect(dated).toEqual([day(3), ['dated']]);
+  // On the epoch day, under everything — somebody sent it and it is in the memory.
+  expect(garbled).toEqual([startOfDay(new Date(0)).getTime(), ['garbled']]);
+});
+
+test('an empty gallery is no days at all, which is what the sheet draws its «empty» for', () => {
+  expect(framesByDay([])).toEqual([]);
+});
+
+// What a day's «Выбрать все N» counts, and what a single tap marks — one question, one answer
+// («ждущие и упавшие кадры не отмечаются: скачивать нечего»).
+
+test('only a frame with something behind it can be marked for taking home', () => {
+  expect(mayPick(secondRead[0])).toBe(true);
+  // Still being developed: there is nothing to download yet.
+  expect(mayPick(firstRead[0])).toBe(false);
+  expect(mayPick(record({ status: 'failed' }))).toBe(false);
+  // And the frame's reading rather than the record's status: `ready` with no derivative is fallen,
+  // so it is out of the picking too even though the api calls it finished.
+  expect(mayPick(record({ status: 'ready' }))).toBe(false);
+});
+
+test('the count on a day is what a tap on each of its frames would mark, never the day’s size', () => {
+  const shot = shotAt(3, 12);
+  const [{ frames }] = framesByDay([
+    record({
+      id: 'ready',
+      status: 'ready',
+      thumbnail_url: 'https://r2.example/a.jpg',
+      captured_at: shot,
+    }),
+    record({ id: 'developing', captured_at: shot }),
+    record({ id: 'fallen', status: 'failed', captured_at: shot }),
+  ]);
+
+  // A day of three frames offering «Выбрать все 1», because that is all a tap could reach.
+  expect(frames).toHaveLength(3);
+  expect(frames.filter(mayPick).map((item) => item.id)).toEqual(['ready']);
 });
 
 test('a name nobody claimed is the username, and somebody off the roster is «Someone»', () => {

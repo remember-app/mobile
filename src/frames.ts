@@ -1,5 +1,5 @@
 import { memberName, type MediaItem, type Member, type Memory } from '@/api';
-import { formatEventDates } from '@/dates';
+import { formatEventDates, startOfDay } from '@/dates';
 import type { TileState } from '@/kit/tile';
 
 /**
@@ -84,6 +84,61 @@ export function keepReady(
  */
 export function mayOpen(item: MediaItem): boolean {
   return item.status !== 'processing';
+}
+
+/**
+ * Whether a frame can be marked for taking home — «ждущие и упавшие кадры не отмечаются:
+ * скачивать нечего» (kit, «Экраны» 4, «Выбор»). The frame's reading and not the record's status, so
+ * a `ready` record whose derivative never arrived is out of the picking too; it stays in the sheet,
+ * plain and untappable.
+ *
+ * One rule and not two, because a day's «Выбрать все 9» has to mean exactly what nine taps on nine
+ * frames would: the count on the daymark and the gate on a single tap are the same question asked
+ * in two places, and this is the place it is answered.
+ */
+export function mayPick(item: MediaItem): boolean {
+  return frameOf(item).state === 'ready';
+}
+
+/** One day of a memory's material: the day itself, and the frames shot on it. */
+export type FrameDay = {
+  /** The instant that day began here — the sort key, and the day the daymark writes out. */
+  at: number;
+  frames: MediaItem[];
+};
+
+/**
+ * The gallery cut into the local days its frames were shot on, the newest day first — what the
+ * contact sheet needs to draw a daymark over each strip (kit, «Экраны» 4, «День»).
+ *
+ * Local days, not UTC ones: the day a frame belongs to is the day the phone looking at it says,
+ * which is also the day `formatDay` prints over the strip. The day itself is `captured_at` falling
+ * back to `created_at` — the same reading the api sorts the gallery by
+ * (`coalesce(captured_at, created_at)`), so a day is one unbroken run of what it hands over and the
+ * frames inside it keep the order they arrived in. Only the days are turned around: the api sends
+ * the oldest shot first, the way a montage would play them, and a sheet is read from the newest day
+ * down.
+ *
+ * A frame whose day will not parse lands on the epoch day at the very bottom, the way the camera
+ * roll's own cut treats one the phone never stamped. It is not dropped: somebody sent it, and it is
+ * in the memory.
+ *
+ * This is the gallery's own cut and deliberately not `@/media-window`'s: that one is about the
+ * phone's whole camera roll and exists to float the event's days above the rest of it, and here
+ * every frame is already the event's — there is no window left to sort by.
+ */
+export function framesByDay(items: readonly MediaItem[]): FrameDay[] {
+  const days = new Map<number, FrameDay>();
+  for (const item of items) {
+    const at = startOfDay(new Date(Date.parse(item.captured_at ?? item.created_at) || 0)).getTime();
+    let day = days.get(at);
+    if (day === undefined) {
+      day = { at, frames: [] };
+      days.set(at, day);
+    }
+    day.frames.push(item);
+  }
+  return [...days.values()].sort((a, b) => b.at - a.at);
 }
 
 /**
