@@ -139,27 +139,6 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   useEffect(() => () => {
     onScreen.current = false;
   }, []);
-  /** The filmstrip, so it can be walked to the open frame once it knows how wide it is. */
-  const strip = useRef<FlatList<MediaItem>>(null);
-  /**
-   * Whether the strip has already been walked to the frame that is open. The walk itself is down
-   * in the strip and carries the long version of why this exists; the short one is that
-   * «once the content is laid out» and «every time the content is laid out» are the same callback
-   * in React Native, and only the first of them was ever wanted.
-   */
-  const walked = useRef(false);
-  /**
-   * Re-armed when the viewer opens and by nothing else — not when the open frame changes. Walking
-   * along the strip is a change of `open` with nothing remounted and no content resized, so nothing
-   * scrolls at that moment; re-arming there only leaves the latch loaded for the next frame that
-   * lands, and that one hauls the strip back from wherever the finger had it — the very jump this
-   * latch exists to stop, surviving one tap further on. Keyed on «is anything open» rather than on
-   * the press that opened it, so any future way into the viewer is armed by being one.
-   */
-  const viewing = open !== null;
-  useEffect(() => {
-    walked.current = false;
-  }, [viewing]);
 
   const load = useCallback(
     // `quiet` belongs to the re-read below: that one happens on its own every few seconds, and it
@@ -659,96 +638,13 @@ export function Frames({ id, head }: { id: string; head: Head }) {
                     {notice ? <Banner text={notice} style={styles.viewerNotice} /> : null}
                   </View>
 
-                  {/* The kit's `.filmstrip`: the whole contact sheet rolled into one row, and the
-                      only thing under the frame. The same list the grid draws — no second read —
-                      with every frame dimmed but the open one. */}
-                  <View
-                    style={[styles.filmstrip, { paddingBottom: Math.max(insets.bottom, space.s2) }]}
-                  >
-                    <RailH />
-                    <FlatList
-                      ref={strip}
-                      horizontal
-                      data={items}
-                      keyExtractor={(item) => item.id}
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={styles.track}
-                      // A fixed tile and a fixed gutter, so the strip can be walked to any frame
-                      // without measuring anything: opening the fortieth frame from the grid must
-                      // put the fortieth tile under it, not the first.
-                      getItemLayout={(_, index) => ({
-                        length: STRIP_TILE,
-                        offset: (STRIP_TILE + STRIP_GAP) * index,
-                        index,
-                      })}
-                      // Walked to, not started at. `initialScrollIndex` reads like the prop for
-                      // exactly this and is what cost the strip its head: it does not merely position
-                      // the row, it pins the render window on the frame it names and holds it pinned
-                      // until a scroll event arrives. A strip whose frames all fit on screen has
-                      // nothing to scroll, so that event never comes and the window never widens —
-                      // every frame before the open one stays a blank nothing can reach, which is
-                      // what was reported of a gallery of seven opened on its fifth. Asking for the
-                      // same position once the content is laid out leaves the window alone: the whole
-                      // gallery is in the strip from the first frame on, and scrolling reaches it all.
-                      //
-                      // Once, though, and the latch is what says so. `onContentSizeChange` reads
-                      // like «when the content has been laid out» and is really «whenever the
-                      // content is laid out»: React Native gives the scroll row its own `onLayout`
-                      // and calls this from it, so it comes back every time that row changes size —
-                      // and the row changes size whenever a frame lands, which on a live memory is
-                      // every few seconds, while the upload queue is still sending and the worker
-                      // still developing what it sent. Unlatched, each of those hauled the strip
-                      // back to the open frame from wherever the person had scrolled it: the strip
-                      // reads as one that will not scroll, and a tile that jumps out from under a
-                      // finger between the press and the release never fires its press, so it reads
-                      // as one that will not open a frame either — both of the things reported off a
-                      // real phone (TASK-106). A settled gallery on a simulator never grows, which
-                      // is why neither was ever seen there. React Native runs this same
-                      // `scrollToIndex` from this same place for `initialScrollIndex`, behind
-                      // exactly this latch (`_hasTriggeredInitialScrollToIndex`); it is the half of
-                      // that prop worth having, and the frozen render window above is the half that
-                      // is not.
-                      onContentSizeChange={() => {
-                        if (walked.current) return;
-                        walked.current = true;
-                        strip.current?.scrollToIndex({
-                          index: frameIndex(items, open),
-                          animated: false,
-                        });
-                      }}
-                      renderItem={({ item }) => {
-                        const frame = frameOf(item);
-                        const current = item.id === shown.id;
-                        return (
-                          <Tile
-                            // The sheet's own tile, handed a width and a dimming — the kit's strip is
-                            // the same frame smaller and in shadow, with the open one lit and ringed
-                            // in ember, the mark a picked frame already wears. `filter: brightness`
-                            // is the kit's spelling; over ink, opacity is the same thing everywhere.
-                            style={[styles.stripTile, current ? null : styles.stripDim]}
-                            // The mark itself is the tile's, not this face's. It was a border here
-                            // until the designer measured it: a border is taken out of the tile's own
-                            // 52px, so the open frame — the one frame that must stand out — sat 4px
-                            // smaller than its neighbours and lost its picture to the ring. The kit
-                            // draws it as a layer over the frame (`.tile--current::after`).
-                            current={current}
-                            state={frame.state}
-                            uri={frame.uri ?? undefined}
-                            // No caption: at 52px there are no words to read, only the safelight.
-                            length={
-                              item.kind === 'video'
-                                ? (formatRuntime(item.duration_seconds) ?? s.media.video)
-                                : undefined
-                            }
-                            label={nameOf(item, frame, current)}
-                            // A frame still developing stays in the strip and stays shut: there is
-                            // nothing behind it to open yet.
-                            onPress={mayOpen(item) ? () => setOpen(item.id) : undefined}
-                          />
-                        );
-                      }}
-                    />
-                  </View>
+                  <Filmstrip
+                    items={items}
+                    open={shown.id}
+                    onOpen={setOpen}
+                    nameOf={nameOf}
+                    bottom={Math.max(insets.bottom, space.s2)}
+                  />
                 </ThemePin>
 
                 {/* Irreversible, and the api takes the bytes with it — worth one question first,
@@ -773,6 +669,142 @@ export function Frames({ id, head }: { id: string; head: Head }) {
         </>
       )}
     </>
+  );
+}
+
+/**
+ * The kit's `.filmstrip`: the whole contact sheet rolled into one row, and the only thing under the
+ * open frame. The same list the grid draws — no second read — with every frame dimmed but the open
+ * one, and a tap along it changes which frame that is.
+ *
+ * Its own component because the walk below has to be its own. It is mounted by the viewer being
+ * open and unmounted by it closing, so «once per opening» is what a ref born with it already says —
+ * there is no latch to re-arm from the face above, and nothing above has to know when to.
+ *
+ * @param open the record the frame above is showing, which is the tile this strip stands on
+ * @param bottom the phone's own bottom inset, so the strip clears the home indicator
+ */
+function Filmstrip({
+  items,
+  open,
+  onOpen,
+  nameOf,
+  bottom,
+}: {
+  items: readonly MediaItem[];
+  open: string;
+  onOpen: (id: string) => void;
+  /** What a tile is called out loud — the face's own answer, so both sheets read a record alike. */
+  nameOf: (item: MediaItem, frame: Frame, current?: boolean) => string;
+  bottom: number;
+}) {
+  const s = useStrings();
+  const styles = useStyles();
+  const strip = useRef<FlatList<MediaItem>>(null);
+  /**
+   * The width the strip was last walked at, and `null` until it has been walked at all. Not a
+   * boolean, and that is the whole of the fix below.
+   */
+  const walkedAt = useRef<number | null>(null);
+
+  return (
+    <View style={[styles.filmstrip, { paddingBottom: bottom }]}>
+      <RailH />
+      <FlatList
+        ref={strip}
+        horizontal
+        data={items}
+        keyExtractor={(item) => item.id}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.track}
+        // A fixed tile and a fixed gutter, so the strip can be walked to any frame without
+        // measuring anything: opening the fortieth frame from the grid must put the fortieth tile
+        // under it, not the first.
+        getItemLayout={(_, index) => ({
+          length: STRIP_TILE,
+          offset: (STRIP_TILE + STRIP_GAP) * index,
+          index,
+        })}
+        // Walked to, not started at. `initialScrollIndex` reads like the prop for exactly this and
+        // is what cost the strip its head: it does not merely position the row, it pins the render
+        // window on the frame it names and holds it pinned until a scroll event arrives. A strip
+        // whose frames all fit on screen has nothing to scroll, so that event never comes and the
+        // window never widens — every frame before the open one stays a blank nothing can reach,
+        // which is what was reported of a gallery of seven opened on its fifth (TASK-70).
+        //
+        // Once per width, and that is neither «once» nor «every time». `onContentSizeChange` used
+        // to be where this hung, latched to fire a single time, and both halves of that were wrong
+        // on a real phone (TASK-123):
+        //
+        // Unlatched it fires far too often — it is the scroll row's own `onLayout`, so it comes
+        // back every time the row changes size, and the row changes size every time a frame lands.
+        // On a live memory that is every few seconds while the queue is still sending and the
+        // worker still developing, and each one hauled the strip back to the open frame from
+        // wherever the person had scrolled it: a strip that reads as one that will not scroll, and
+        // a tile that jumps out from under a finger between the press and the release never fires
+        // its press, so one that will not open a frame either (TASK-106).
+        //
+        // Latched to fire once it fires at the wrong moment, and that is why the same two symptoms
+        // came back off a real phone. An iOS modal is laid out twice. The first commit sizes the
+        // whole modal from `ModalHostViewScreenSize()`, which is `RCTScreenSize()`, which swaps
+        // width for height on `[[UIDevice currentDevice] orientation]` — the way the phone is
+        // physically being held, not the way the app is allowed to draw. Somebody lying down and
+        // tapping a photo hands this strip a viewport a whole screen wide; the real size only
+        // arrives on the modal controller's `viewDidLayoutSubviews`, as a second commit. And the
+        // content of a horizontal strip is `55n` wide however wide its viewport is — so the size of
+        // the content never changes between those two commits, `onContentSizeChange` fires exactly
+        // once, on the wrong one, and the walk it fired was clamped to nothing by a scroll view
+        // that thought it had no scrolling to do. The latch then spent itself, and the strip stood
+        // at its head for the rest of the opening with the open frame off the end of it. A
+        // simulator has no accelerometer, so `UIDevice.orientation` is portrait there and the first
+        // commit is already right — which is why this was only ever seen on a phone.
+        //
+        // `onLayout` is the event that actually says what went wrong: the strip's own viewport, the
+        // thing the walk has to be clamped against. React Native hands it over after it has updated
+        // the list's own `visibleLength` from it, so the walk runs against a strip that knows how
+        // wide it is. Keyed on the width and not on a boolean, the walk happens again exactly when
+        // the width it was computed for is no longer the width the strip has — the second commit,
+        // and a rotation, and nothing else. A frame landing does not resize the strip, only its
+        // content, so the strip stays where the finger left it and TASK-106's fix stands.
+        onLayout={(e) => {
+          const { width } = e.nativeEvent.layout;
+          if (walkedAt.current === width) return;
+          walkedAt.current = width;
+          strip.current?.scrollToIndex({ index: frameIndex(items, open), animated: false });
+        }}
+        renderItem={({ item }) => {
+          const frame = frameOf(item);
+          const current = item.id === open;
+          return (
+            <Tile
+              // The sheet's own tile, handed a width and a dimming — the kit's strip is the same
+              // frame smaller and in shadow, with the open one lit and ringed in ember, the mark a
+              // picked frame already wears. `filter: brightness` is the kit's spelling; over ink,
+              // opacity is the same thing everywhere.
+              style={[styles.stripTile, current ? null : styles.stripDim]}
+              // The mark itself is the tile's, not this face's. It was a border here until the
+              // designer measured it: a border is taken out of the tile's own 52px, so the open
+              // frame — the one frame that must stand out — sat 4px smaller than its neighbours and
+              // lost its picture to the ring. The kit draws it as a layer over the frame
+              // (`.tile--current::after`).
+              current={current}
+              state={frame.state}
+              uri={frame.uri ?? undefined}
+              // No caption: at 52px there are no words to read, only the safelight.
+              length={
+                item.kind === 'video'
+                  ? (formatRuntime(item.duration_seconds) ?? s.media.video)
+                  : undefined
+              }
+              label={nameOf(item, frame, current)}
+              // A frame still developing stays in the strip and stays shut: there is nothing behind
+              // it to open yet.
+              onPress={mayOpen(item) ? () => onOpen(item.id) : undefined}
+            />
+          );
+        }}
+      />
+    </View>
   );
 }
 

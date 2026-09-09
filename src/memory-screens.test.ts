@@ -486,39 +486,39 @@ test('the strip is walked to the open frame, never started at it', () => {
   // whole point of the strip, lost, on every gallery small enough not to overflow the screen.
   // The prop and not the word: the comment above the fix names it, and has to be free to.
   expect(frames).not.toContain('initialScrollIndex={');
-  // Asked for once the content is laid out instead, which positions the strip the same way without
+  // Asked for once the strip knows how wide it is instead, which positions it the same way without
   // touching the window.
-  expect(frames).toContain('onContentSizeChange');
-  expect(frames).toContain('strip.current?.scrollToIndex({');
-  expect(frames).toContain('index: frameIndex(items, open)');
+  expect(frames).toContain('strip.current?.scrollToIndex({ index: frameIndex(items, open)');
   // `scrollToIndex` on a list this long is only safe because every tile is a known size.
   expect(frames).toContain('getItemLayout');
 });
 
-test('the strip is walked once per opening, and never again under the finger', () => {
-  // What was left of the fix above, and what a real phone found (TASK-106). `onContentSizeChange`
-  // reads like «when the content has been laid out» and is really «whenever the content is laid
-  // out» — React Native gives the scroll row its own `onLayout` and calls this from it — so it
-  // comes back every time that row changes size, and the row changes size every time a frame
-  // lands. On a live memory that is every few seconds while the queue is still sending and the
-  // worker still developing, and each one hauled the strip back to the open frame from wherever it
-  // had been scrolled: a strip that will not scroll, and a tile that jumps out from under a finger
-  // between the press and the release never fires its press, so a strip that will not open a frame
-  // either. A settled gallery on a simulator never grows, which is why neither was ever seen there.
-  const walk = frames.slice(
-    frames.indexOf('onContentSizeChange={'),
-    frames.indexOf('renderItem={', frames.indexOf('onContentSizeChange={')),
-  );
-  expect(walk).toContain('if (walked.current) return;');
-  expect(walk).toContain('walked.current = true;');
-  // Re-armed by the viewer opening and by nothing else — and `[open]` is not that. Walking along
-  // the strip changes which frame is open without remounting anything or resizing the content, so
-  // nothing scrolls then; keyed on `open`, the latch was simply left loaded for the next frame to
-  // land, which hauled the strip back from under the finger one tap later. Found in review: the
-  // fix above survived in every path but this one.
-  expect(frames).toContain('const viewing = open !== null;');
-  expect(frames).toMatch(/walked\.current = false;[\s\S]{0,20}\[viewing\]\)/);
-  expect(frames).not.toMatch(/\[open\]\)/);
+test('the walk is hung on the strip’s own width, not on the size of its content', () => {
+  // Both halves of the old spelling were wrong on a real phone, and each cost the same pair of
+  // symptoms — a strip that will not scroll and a tile that will not open a frame.
+  //
+  // `onContentSizeChange` unlatched fired far too often: it is the scroll row's own `onLayout`, so
+  // it came back every time a frame landed, and each one hauled the strip back to the open frame
+  // from under the finger (TASK-106). Latched to fire once, it fired at the wrong moment: an iOS
+  // modal is laid out twice, the first commit sized from `RCTScreenSize()` — which swaps width for
+  // height on the way the phone is *physically* held — and the content of a horizontal strip is the
+  // same width whatever its viewport, so the size of the content never changed between the two
+  // commits. One callback, on the wrong one, clamped to nothing, latch spent (TASK-123).
+  //
+  // So neither: the walk hangs on the strip's own layout, keyed on the width it was computed for.
+  expect(frames).not.toContain('onContentSizeChange={');
+  const from = frames.indexOf('onLayout={(');
+  const walk = frames.slice(from, frames.indexOf('renderItem={(', from));
+  expect(walk).toContain('const { width } = e.nativeEvent.layout;');
+  expect(walk).toContain('if (walkedAt.current === width) return;');
+  expect(walk).toContain('walkedAt.current = width;');
+  // A width and not a boolean: a boolean cannot tell the wrong-sized commit from the right one.
+  expect(frames).toContain('useRef<number | null>(null)');
+  // And no latch left in the face above to be re-armed at the wrong moment — the strip is mounted
+  // by the viewer opening and unmounted by it closing, so a ref born with it is already «once per
+  // opening». That is what the `[viewing]` effect was standing in for, and it is gone with it.
+  expect(frames).not.toContain('walked.current');
+  expect(frames).not.toContain('const viewing = open !== null;');
 });
 
 test('a strip tile and a sheet tile read a record the same way', () => {
@@ -533,11 +533,12 @@ test('neither the sheet nor the strip opens a frame that is still developing', (
   // was the bug fixed in review — a tap on a waiting frame opened a whole screen saying
   // «Preparing…», which is what was reported.
   //
-  // Twice still, in two spellings: the strip has only ever done one thing with a tap, and the sheet
-  // now asks whether it is picking first — the same gate on the branch that still opens.
+  // Twice still, in two spellings: the strip has only ever done one thing with a tap — and it hands
+  // the id back up rather than setting the face's own state, being its own component now — while
+  // the sheet asks whether it is picking first, the same gate on the branch that still opens.
   const gate = 'mayOpen(item)\n                        ? () => setOpen(item.id)\n';
   expect(frames).toContain(gate);
-  expect(frames).toContain('onPress={mayOpen(item) ? () => setOpen(item.id) : undefined}');
+  expect(frames).toContain('onPress={mayOpen(item) ? () => onOpen(item.id) : undefined}');
 });
 
 test('the frame shown full screen is read for the phone, the tiles for a tile', () => {
