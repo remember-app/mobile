@@ -54,6 +54,20 @@ test('a row is the same shape whether its standing is a word or the chip that se
   expect(chip).toContain('Мне нечего добавлять');
 });
 
+test('a row on its way off a list keeps its place and only loses its name to muted', async () => {
+  await setTheme('dark');
+  const here = renderToStaticMarkup(<RowMember name="Марина" meta="@marina" />);
+  const going = renderToStaticMarkup(<RowMember name="Марина" meta="Убрали из контактов" gone />);
+
+  // `.row-member--gone` is one declaration in the kit and must stay one: the name goes muted and
+  // nothing else moves, because the way back has to be under the finger that made the mistake. A
+  // row that dimmed itself whole, or shrank, would take the neighbours with it.
+  expect(metaLine(going)).toBe(metaLine(here));
+  // The name is the only thing recoloured — held against the row's own two renders rather than
+  // against a colour spelled out here, the idiom this file opens with.
+  expect(going).not.toBe(here);
+});
+
 /**
  * `.row-member--head` — the same row turned on the person reading it, at the top of the profile
  * (TASK-114). It shares the roster row's second line, so what is checked here is the half that is
