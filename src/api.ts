@@ -519,6 +519,12 @@ export function deleteMedia(
 export type MusicTrackId = 'warm' | 'bright' | 'calm';
 
 /**
+ * Which way up the finished video stands (doc-03). The api takes these two and nothing else, and
+ * leaves it out as «horizontal» — which is what every montage was before the choice existed.
+ */
+export type MontageOrientation = 'landscape' | 'portrait';
+
+/**
  * A video assembled out of a memory (doc-03). The row as the api hands it out, minus its storage
  * key: `video_url` is the signed link standing in for it, and it is there only while the montage is
  * `ready` — before that it is null, which is «ещё не готово» and not an error, exactly as the
@@ -531,7 +537,11 @@ export type Montage = {
   ordered_by: string;
   status: 'queued' | 'processing' | 'ready' | 'failed';
   duration_seconds: number | null;
-  params: { target_seconds?: number; music_track_id?: MusicTrackId };
+  params: {
+    target_seconds?: number;
+    music_track_id?: MusicTrackId;
+    orientation?: MontageOrientation;
+  };
   /** The worker's own line about why it fell over. Only ever set on a `failed` one. */
   error_text: string | null;
   created_at: string;
@@ -550,15 +560,20 @@ export function listMontages(token: string, memoryId: string): Promise<Montage[]
 }
 
 /**
- * «Смонтируй ролик» — the organizer's alone, 403 for anybody else. The wishes are the only two
- * doc-03 allows, and both may be left out: the api fills the length in itself and a track nobody
- * chose is the worker's to pick. 409 when there is too little material to cut anything out of, and
- * the body then carries how much there is against how much is needed.
+ * «Смонтируй ролик» — the organizer's alone, 403 for anybody else. The wishes are the only three
+ * doc-03 allows, and all of them may be left out: the api fills the length in itself, a track nobody
+ * chose is the worker's to pick, and no orientation is horizontal. 409 when there is too little
+ * material to cut anything out of, and the body then carries how much there is against how much is
+ * needed.
  */
 export function orderMontage(
   token: string,
   memoryId: string,
-  wishes: { target_seconds?: number; music_track_id?: MusicTrackId },
+  wishes: {
+    target_seconds?: number;
+    music_track_id?: MusicTrackId;
+    orientation?: MontageOrientation;
+  },
 ): Promise<Montage> {
   return request(`/memories/${memoryId}/montages`, { method: 'POST', body: wishes, token });
 }
