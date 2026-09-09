@@ -102,3 +102,19 @@ test('the removed row says it without guessing anybody’s gender', () => {
   // who is a она, so the line is spoken about the list instead of about the person.
   expect(ru.contacts.removed).toBe('Убрали из контактов');
 });
+
+test('«Вернуть» that never reaches the api takes the row with it, not just the button', () => {
+  // Review found this one: the delete already went through, so a failed re-add used to leave a live
+  // cross standing over a contact the server no longer has. `undo` still calls `cancel` first (to
+  // stop the fade and light the name again, the same as a working «Вернуть»), but its *catch* is the
+  // opposite shape of `drop`'s on purpose — `drop`'s catch undoes the fade on a failed delete, and a
+  // failed re-add here has nothing left to undo back to, so it drops the row from `contacts` instead.
+  const undo = contacts.slice(contacts.indexOf('function undo('), contacts.indexOf('function save('));
+  expect(undo).toContain('addContact(token, contact.username).catch((e: unknown) => {');
+  const catchBlock = undo.slice(undo.indexOf('.catch('));
+  expect(catchBlock).toContain('setNotice(errorMessage(e));');
+  expect(catchBlock).toContain(
+    'setContacts((held) => held?.filter((row) => row.id !== contact.id) ?? null);',
+  );
+  expect(catchBlock).not.toContain('cancel(contact.id);');
+});

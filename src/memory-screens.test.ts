@@ -579,6 +579,57 @@ test('the 12 under the appbar is the kit’s own, and the switch keeps its own 1
   expect(frames).toContain('grid: { flexGrow: 1, gap: SHEET_GAP }');
 });
 
+// The invite sheet's own bugs, found in review of TASK-131 and not yet pinned anywhere: a name
+// already on the roster went unanswered behind the scrim, a second «Позвать» under the first raced
+// the api, and the «В контакты» chip was a flag that could land on the wrong row.
+
+test('a name already on the roster is answered in the field, not left to an empty sheet', () => {
+  // `pickable` drops a contact who is already a member and the api is never asked about a name the
+  // roster already holds (`answered`), so without `here` the sheet said nothing at all about a nick
+  // that is right behind its own scrim — reported as a silent sheet.
+  expect(people).toContain(
+    "const here = (members ?? []).find((member) => member.username?.toLowerCase() === needle);",
+  );
+  expect(people).toContain('here !== undefined ||');
+  expect(people).toContain('here\n                ? s.members.already(memberName(here), s.role[here.role])');
+});
+
+test('a contact already on the roster is not offered a second invite', () => {
+  expect(people).toContain(
+    '!members?.some((member) => member.id === contact.id) && matches(contact, needle)',
+  );
+  // And the block itself is not drawn at all once that leaves nobody to offer — no contacts saved,
+  // or every one of them already here.
+  expect(people).toContain('{pickable.length > 0 ? (');
+});
+
+test('a second «Позвать» pressed under the first is refused while the call is in the air', () => {
+  // Found in review: without the guard, a second press took the spinner off the first row, unlocked
+  // the field mid-flight, and let whichever answer landed last be read as the answer to the last
+  // press.
+  expect(people).toContain('if (!handle || calling !== null) return;');
+});
+
+test('the «В контакты» chip reads the contacts list itself, never a flag beside it', () => {
+  // A `kept` boolean held next to `invited` could carry a stale answer onto whoever was invited
+  // after it — found in review. Deriving it from the list itself cannot drift from what the chip is
+  // meant to report.
+  expect(people).not.toContain('const [kept, setKept] = useState');
+  expect(people).toContain(
+    'const kept = invited !== null && (contacts ?? []).some((contact) => contact.id === invited.id);',
+  );
+  expect(people).toContain('checked={kept}');
+  expect(people).toContain('onPress={kept ? undefined : () => keep(invited)}');
+});
+
+test('only the typed road leaves the «В контакты» chip — picking from contacts does not', () => {
+  // `sendInvite`'s second argument is the whole of the difference between the two roads in doc-10:
+  // typed sets `invited` (and so can offer the chip), picked from the list does not.
+  expect(people).toContain('onPress={() => sendInvite(contact, false)}'); // from the contacts block
+  expect(people).toContain('onPress={() => sendInvite(stranger, true)}'); // the field's own find
+  expect(people).toContain('if (typed) {\n          setInvited(added);');
+});
+
 test('a tile is read out in the line it is drawn with', () => {
   // «Все кадры названы photo» — the raw `kind` off the api, before the dictionary (TASK-86). What
   // was left after that is the state: both sheets ask the frame, not the record's status, whether
