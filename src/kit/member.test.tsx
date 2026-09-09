@@ -60,8 +60,11 @@ test('a row is the same shape whether its standing is a word or the chip that se
 
 test('a row on its way off a list keeps its place and only loses its name to muted', async () => {
   await setTheme('dark');
+  // The same row twice over, `gone` the only thing between them: with the meta line changed as well
+  // the difference below would be that text, and the modifier could be deleted whole with this
+  // still green.
   const here = renderToStaticMarkup(<RowMember name="Марина" meta="@marina" />);
-  const going = renderToStaticMarkup(<RowMember name="Марина" meta="Убрали из контактов" gone />);
+  const going = renderToStaticMarkup(<RowMember name="Марина" meta="@marina" gone />);
 
   // `.row-member--gone` is one declaration in the kit and must stay one: the name goes muted and
   // nothing else moves, because the way back has to be under the finger that made the mistake. A

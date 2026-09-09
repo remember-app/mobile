@@ -8,7 +8,6 @@ import {
   ApiError,
   addContact,
   errorMessage,
-  findUser,
   isValidUsername,
   listContacts,
   memberHandle,
@@ -17,6 +16,7 @@ import {
   type Contact,
 } from '@/api';
 import { useAuth } from '@/auth';
+import { matches, useFindUser } from '@/find-user';
 import {
   AppBar,
   Banner,
@@ -29,9 +29,6 @@ import {
 } from '@/kit';
 import { useStrings } from '@/language';
 import { space, themed } from '@/theme';
-
-/** The same wait `username-form.tsx` gives the same server: a typed word is one question. */
-const LOOKUP_DELAY_MS = 400;
 
 /** How long a removed row stands there offering the way back (kit, «Экраны» 9, «Убрать»). */
 const UNDO_MS = 5000;
@@ -62,11 +59,6 @@ export default function ContactsScreen() {
   // stands it as a strip over the list and leaves the row that was pressed exactly where it was.
   const [notice, setNotice] = useState<string | null>(null);
   const [typed, setTyped] = useState('');
-  // Who the field turned up outside the list: a person, `'none'` when the api says nobody holds the
-  // name, and null while there is nothing to say — a call that never went out, or one that fell over
-  // and therefore says nothing about anybody.
-  const [found, setFound] = useState<Contact | 'none' | null>(null);
-  const [looking, setLooking] = useState(false);
   const [saving, setSaving] = useState(false);
   // Rows that have already been deleted server-side and are standing their five seconds. Ids and
   // not the rows themselves: the row is still in `contacts` and must not be drawn from two places.
@@ -95,46 +87,14 @@ export default function ContactsScreen() {
   const query = typed.trim().replace(/^@+/, '');
   const needle = query.toLowerCase();
   const list = contacts ?? [];
-  const shown = list.filter(
-    (contact) =>
-      needle === '' ||
-      (contact.username ?? '').toLowerCase().includes(needle) ||
-      (contact.name ?? '').toLowerCase().includes(needle),
-  );
+  const shown = list.filter((contact) => matches(contact, needle));
   // «Уже сохранённого ник вводом не задваивает»: an exact hit among the saved is answered by the
   // list itself, so nothing is asked of the api and no second row is offered.
   const saved = list.some((contact) => contact.username?.toLowerCase() === needle);
-
-  useEffect(() => {
-    setFound(null);
-    // A name that could never be held is not worth asking about — the api answers those 404 too,
-    // and a question per keystroke of a half-typed name is the same answer three times over.
-    if (!token || saved || !isValidUsername(query)) {
-      setLooking(false);
-      return;
-    }
-    setLooking(true);
-    let live = true;
-    const timer = setTimeout(() => {
-      findUser(token, query)
-        .then(
-          // Yourself is the one person the api refuses to save (400), so the row is not offered at
-          // all rather than offered and then refused. Silently: «нет такого ника» would be a lie.
-          (person) => (live && person.id !== user?.id ? setFound(person) : undefined),
-          (e: unknown) =>
-            live ? setFound(e instanceof ApiError && e.status === 404 ? 'none' : null) : undefined,
-        )
-        .finally(() => {
-          if (live) setLooking(false);
-        });
-    }, LOOKUP_DELAY_MS);
-    // Drops both the question that never went out and the answer to one that did — a slow reply
-    // about a name the field has since left can never overwrite a fresher one.
-    return () => {
-      live = false;
-      clearTimeout(timer);
-    };
-  }, [token, query, saved, user?.id]);
+  // The other half of the field's job, shared with the invite sheet's own (`@/find-user`). Oneself
+  // comes back as nothing to say: the api refuses to save you (400), so the row is not offered at
+  // all rather than offered and then refused, and silently — «нет такого ника» would be a lie.
+  const { found, looking } = useFindUser(token, query, { skip: saved, selfId: user?.id });
 
   /** Put a fading row back on its feet: the five seconds are off, and the name lights again. */
   const cancel = useCallback((id: string) => {
@@ -175,7 +135,13 @@ export default function ContactsScreen() {
     cancel(contact.id);
     if (!token || !contact.username) return;
     setNotice(null);
-    addContact(token, contact.username).catch((e: unknown) => setNotice(errorMessage(e)));
+    addContact(token, contact.username).catch((e: unknown) => {
+      setNotice(errorMessage(e));
+      // The delete went through; only the way back did not. A row left standing here would be a
+      // live contact with a working cross over somebody the api no longer has — so it goes, and
+      // the strip above says why.
+      setContacts((held) => held?.filter((row) => row.id !== contact.id) ?? null);
+    });
   }
 
   /**
@@ -191,8 +157,10 @@ export default function ContactsScreen() {
       const added = await addContact(token, person.username);
       // Sorted by username, which is the order the api itself keeps: a list read by eye must not
       // reshuffle between one visit and the next, and one saved row must not put it out of step.
+      // Nothing clears the row under «Не в контактах» here: the saved name now answers `saved`,
+      // which is what takes the question down. Clearing it by hand would take down whatever the
+      // field has turned up since, if the typing went on while this call was in the air.
       setContacts((held) => [...(held ?? []), added].sort(byUsername));
-      setFound(null);
     } catch (e) {
       // The strip goes over the list and the row keeps its button (kit, «Сбой»): whoever pressed it
       // is still looking at the person they meant to save.
@@ -202,7 +170,7 @@ export default function ContactsScreen() {
     }
   }
 
-  const stranger = found === 'none' || found === null ? null : found;
+  const stranger = found === 'none' ? null : found;
   // Neither a saved row nor a stranger: the body has nothing to hold, and the kit stands what it
   // says in the middle of it instead of at the top.
   const nothing = shown.length === 0 && stranger === null;
@@ -323,10 +291,13 @@ export default function ContactsScreen() {
 
             {/* Empty is an invitation and not a report: with nothing typed the field itself is the
                 way to add somebody, and that is what the line says. With something typed and nobody
-                anywhere holding it, the answer names the ник that was asked for. */}
+                anywhere holding it, the answer names the ник that was asked for — and a ник nobody
+                *could* hold is that same answer without the asking. Without that second half the
+                body came out blank: two letters, a space, or anything Cyrillic never reaches the
+                api, so `found` stayed null and neither line was drawn. */}
             {nothing && query === '' ? (
               <Empty icon={Users} text={s.contacts.empty} />
-            ) : nothing && found === 'none' ? (
+            ) : nothing && (found === 'none' || !isValidUsername(query)) ? (
               <Empty text={s.contacts.noUser(query)} />
             ) : null}
           </>
