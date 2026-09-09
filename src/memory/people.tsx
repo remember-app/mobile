@@ -8,9 +8,7 @@ import {
   addContact,
   errorMessage,
   fetchInvite,
-  findUser,
   inviteByUsername,
-  isValidUsername,
   listContacts,
   listMedia,
   listMembers,
@@ -26,6 +24,7 @@ import {
 } from '@/api';
 import { useAuth } from '@/auth';
 import { formatEventDates } from '@/dates';
+import { matches, useFindUser } from '@/find-user';
 import {
   ActionBar,
   Banner,
@@ -48,9 +47,6 @@ import {
 import { useStrings } from '@/language';
 import { MemoryHead, type Head } from '@/memory/head';
 import { space } from '@/theme';
-
-/** The same wait the contacts screen and the username form give the same server: one question. */
-const LOOKUP_DELAY_MS = 400;
 
 /**
  * The third face of a memory (kit, «Экраны» 6): who is in it and how to get more people in. What the
@@ -92,15 +88,9 @@ export function People({ id, head }: { id: string; head: Head }) {
   // whoever is not inviting has no use for the list, and every open catches whatever was saved on
   // the contacts screen since. null is «не спросили или не отдались» — either way, no block.
   const [contacts, setContacts] = useState<Contact[] | null>(null);
-  // Who the field turned up outside the contacts: a person, `'none'` when nobody in Remember holds
-  // the name, and null while there is nothing to say — the same three answers the contacts screen
-  // reads off the same call.
-  const [found, setFound] = useState<Contact | 'none' | null>(null);
-  const [looking, setLooking] = useState(false);
-  // The person just invited by typing their username, and whether they have been saved since. Only
-  // that road leads here: picked out of the contacts, they are a contact already (kit, «Сохранить»).
+  // The person just invited by typing their username. Only that road leads here: picked out of the
+  // contacts, they are a contact already (kit, «Сохранить»).
   const [invited, setInvited] = useState<Member | null>(null);
-  const [kept, setKept] = useState(false);
   // Which contact's «Позвать» is waiting on the server. Held by id rather than by the shared `busy`
   // so that one row spins and the rows around it stay live — «остальные строки не гаснут».
   const [calling, setCalling] = useState<string | null>(null);
@@ -181,53 +171,34 @@ export function People({ id, head }: { id: string; head: Head }) {
   // Whoever is already here drops out of the list — they are on the roster behind the sheet, and
   // offering to invite them again would be the sheet arguing with what is under it.
   const pickable = (contacts ?? []).filter(
-    (contact) =>
-      !members?.some((member) => member.id === contact.id) &&
-      (needle === '' ||
-        (contact.username ?? '').toLowerCase().includes(needle) ||
-        (contact.name ?? '').toLowerCase().includes(needle)),
+    (contact) => !members?.some((member) => member.id === contact.id) && matches(contact, needle),
   );
+  // The one on the roster who already holds the typed name. The sheet is a Modal with a scrim over
+  // that roster, so «этот уже здесь» has nowhere else to be said: without the line below, a name
+  // that is right behind the sheet drops out of the contacts, is not asked about, and answers with
+  // nothing at all — an empty sheet under a field with a correct nick in it.
+  const here = (members ?? []).find((member) => member.username?.toLowerCase() === needle);
   // An exact name that is already answered on this sheet — a contact under the field, or somebody
   // on the roster behind it — is not asked about: the answer is on screen, and a second row for the
   // same person would offer to invite whoever the list has just dropped for being here already.
   const answered =
-    (contacts ?? []).some((contact) => contact.username?.toLowerCase() === needle) ||
-    (members ?? []).some((member) => member.username?.toLowerCase() === needle);
+    here !== undefined ||
+    (contacts ?? []).some((contact) => contact.username?.toLowerCase() === needle);
+  // The field's second answer (kit, «Два пути»): a name none of the contacts holds is asked of the
+  // api, and whoever holds it comes back as one row under «Не в контактах». The same lookup the
+  // contacts screen reads, from the one place both of them keep it (`@/find-user`) — yourself is
+  // nobody to offer, being on this roster already.
+  const { found, looking } = useFindUser(token, query, {
+    skip: !inviting || answered,
+    selfId: user?.id,
+  });
   // Narrowed once here rather than at every use: `'none'` is a thing the field says, not a person
   // to draw a row for.
   const stranger = found === 'none' ? null : found;
-
-  // The field's second answer (kit, «Два пути»): a name none of the contacts holds is asked of the
-  // api, and whoever holds it comes back as one row under «Не в контактах». The whole of this is
-  // the contacts screen's own lookup, waiting the same beat and dropping the same stale replies —
-  // a slow answer about a name the field has since left can never overwrite a fresher one.
-  useEffect(() => {
-    setFound(null);
-    // A name that could never be held is not worth asking about, and neither is one this sheet has
-    // already answered. Nothing is asked while the sheet is shut either: the field is on it.
-    if (!token || !inviting || answered || !isValidUsername(query)) {
-      setLooking(false);
-      return;
-    }
-    setLooking(true);
-    let live = true;
-    const timer = setTimeout(() => {
-      findUser(token, query)
-        .then(
-          // Yourself is already on the roster, so there is nobody to offer.
-          (person) => (live && person.id !== user?.id ? setFound(person) : undefined),
-          (e: unknown) =>
-            live ? setFound(e instanceof ApiError && e.status === 404 ? 'none' : null) : undefined,
-        )
-        .finally(() => {
-          if (live) setLooking(false);
-        });
-    }, LOOKUP_DELAY_MS);
-    return () => {
-      live = false;
-      clearTimeout(timer);
-    };
-  }, [token, inviting, query, answered, user?.id]);
+  // Whether the person just invited has been saved since — read off the list itself rather than
+  // held in a flag beside it, so a reply about somebody invited a moment ago cannot put the check
+  // on whoever was invited after them.
+  const kept = invited !== null && (contacts ?? []).some((contact) => contact.id === invited.id);
 
   /**
    * Every api call this face's buttons make is the same shape: lock the controls, run one call,
@@ -257,7 +228,11 @@ export function People({ id, head }: { id: string; head: Head }) {
    */
   const sendInvite = (person: Contact, typed: boolean) => {
     const handle = person.username;
-    if (!handle) return;
+    // One at a time. Each row spins on its own id, but `act` behind them holds one `busy` and one
+    // `notice` for the whole sheet: a second «Позвать» pressed under the first took the spinner off
+    // that first row, unlocked the field while its call was still in the air, and let whichever
+    // answer landed last be read as the answer to the last press.
+    if (!handle || calling !== null) return;
     setCalling(person.id);
     void act(
       async (session) => {
@@ -267,7 +242,6 @@ export function People({ id, head }: { id: string; head: Head }) {
         const already = members?.some((member) => member.id === added.id) ?? false;
         if (typed) {
           setInvited(added);
-          setKept(false);
           // The field has done its job, and emptying it brings the whole contact list back under
           // the row of the person just invited.
           setUsername('');
@@ -292,10 +266,10 @@ export function People({ id, head }: { id: string; head: Head }) {
     const handle = person.username;
     if (!token || !handle) return;
     addContact(token, handle).then(
-      (contact) => {
-        setContacts((held) => [...(held ?? []), contact]);
-        setKept(true);
-      },
+      // By id and not by pushing: the api answers 200 to saving somebody already saved, so a second
+      // press before the first answer came back would otherwise leave them on the list twice.
+      (contact) =>
+        setContacts((held) => [...(held ?? []).filter((c) => c.id !== contact.id), contact]),
       (e: unknown) => setNotice(errorMessage(e)),
     );
   };
@@ -486,9 +460,19 @@ export function People({ id, head }: { id: string; head: Head }) {
           editable={!busy}
           // The check is answered in the field and not in a button (kit, «Ждём»). Whoever *was*
           // found is answered by their row instead: saying «Костя найден» over a row that already
-          // says Костя spends a line saying nothing.
+          // says Костя spends a line saying nothing. Somebody already on the roster has no row on
+          // this sheet to be answered by — they are behind the scrim — so the field says it: not an
+          // error, just the thing that is already true.
           state={found === 'none' ? 'error' : undefined}
-          hint={looking ? s.state.checking : found === 'none' ? s.members.noSuchUser : undefined}
+          hint={
+            looking
+              ? s.state.checking
+              : here
+                ? s.members.already(memberName(here), s.role[here.role])
+                : found === 'none'
+                  ? s.members.noSuchUser
+                  : undefined
+          }
         />
 
         {/* Invited by name, and so the one person on this sheet who might be worth keeping. The

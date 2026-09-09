@@ -252,7 +252,7 @@ export function createMemory(
 }
 
 /** A roster row: the three public fields the api hands out, plus where that person stands. */
-export type Member = Omit<User, 'email'> & {
+export type Member = Contact & {
   role: MemberRole;
   contribution_status: ContributionStatus;
 };

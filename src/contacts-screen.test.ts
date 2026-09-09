@@ -22,10 +22,11 @@ test('one field does both jobs — it narrows the list and asks about what is no
   // The whole point of the screen having one field and not two. Losing either half leaves a field
   // that still works, for one of the two things a person came to do.
   expect(contacts).toContain('const shown = list.filter(');
-  expect(contacts).toContain('findUser(token, query)');
-  // «Уже сохранённого ник вводом не задваивает»: an exact hit among the saved is answered by the
-  // list, so the api is not asked and no second row is offered.
-  expect(contacts).toContain('if (!token || saved || !isValidUsername(query))');
+  // The lookup itself lives in `@/find-user`, which the invite sheet reads off too — what is pinned
+  // here is that this screen still asks it. «Уже сохранённого ник вводом не задваивает» is the
+  // `skip`: an exact hit among the saved is answered by the list, so the api is not asked and no
+  // second row is offered.
+  expect(contacts).toContain('useFindUser(token, query, { skip: saved, selfId: user?.id })');
 });
 
 test('a nick typed with a capital or an @ is taken as it is', () => {
@@ -73,6 +74,10 @@ test('waiting, failing and empty each hold the place of the list', () => {
   expect(contacts).toContain('<Banner tone="error" text={error}>');
   expect(contacts).toContain('<Empty icon={Users} text={s.contacts.empty} />');
   expect(contacts).toContain('<Empty text={s.contacts.noUser(query)} />');
+  // And there is no fourth silence: a nick nobody *could* hold — two letters, a space in it,
+  // anything Cyrillic — never reaches the api, so keying the line off the api's answer alone left
+  // the body blank under a field with text in it.
+  expect(contacts).toContain("nothing && (found === 'none' || !isValidUsername(query))");
 });
 
 test('«такого ника нет» is said once, in one of the two places', () => {

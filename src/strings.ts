@@ -636,7 +636,7 @@ export const ru: Strings = {
     mayAdd: 'Сможет добавлять фото',
     fromContacts: 'Из контактов',
     inviteDo: 'Позвать',
-    invited: 'Приглашён',
+    invited: 'Позвали',
     keepContact: 'В контакты',
     keptContact: 'В контактах',
     inviteLink: 'Ссылка-приглашение',
