@@ -9,7 +9,14 @@ vi.mock('expo-secure-store', () => ({
   setItemAsync: async () => {},
 }));
 
-import { ApiError, errorMessage, mayContribute, memberName, startEmailSignIn } from '@/api';
+import {
+  ApiError,
+  errorMessage,
+  mayContribute,
+  memberHandle,
+  memberName,
+  startEmailSignIn,
+} from '@/api';
 import { setLanguage } from '@/language';
 import { en, ru } from '@/strings';
 
@@ -42,6 +49,21 @@ test('the api says its own two lines in the language the app is speaking right n
 test('a person who gave a name or a nick is called by it, never by a translated word', () => {
   expect(memberName({ name: 'Марина', username: 'marina' })).toBe('Марина');
   expect(memberName({ name: null, username: 'marina' })).toBe('marina');
+});
+
+// `memberHandle` is the other half of the same pair (found in review, TASK-110/114): the roster row
+// and the profile head both print a `@ник` under the name, and both have to agree on when there is
+// nothing worth printing there. Pulled into one place so the rule can only be wrong once.
+test('the handle under the name is left off when the name above it is already the username', () => {
+  // Signed in by email: `memberName` falls back to the username, so printing it again below spends
+  // a line saying the same word twice.
+  expect(memberHandle({ name: null, username: 'marina' })).toBeUndefined();
+  // A name was given: the username is a second, different fact and earns its own line.
+  expect(memberHandle({ name: 'Марина', username: 'marina' })).toBe('@marina');
+  // Apple hides the address and this app never asks for a username without one, but the helper
+  // still has to survive a member with neither.
+  expect(memberHandle({ name: 'Марина', username: null })).toBeUndefined();
+  expect(memberHandle(null)).toBeUndefined();
 });
 
 test('the two failures the api words itself turn with the language; the rest is the wire’s own', () => {

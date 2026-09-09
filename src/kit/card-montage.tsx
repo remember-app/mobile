@@ -53,7 +53,14 @@ export function CardMontage({
     <View style={[styles.card, style]}>
       {state !== 'failed' ? (
         <View style={styles.poster}>
-          {poster ? <Image source={{ uri: poster }} resizeMode="cover" style={styles.image} /> : null}
+          {poster ? (
+            <Image
+              testID="card-montage-poster"
+              source={{ uri: poster }}
+              resizeMode="cover"
+              style={styles.image}
+            />
+          ) : null}
 
           {state === 'pending' ? (
             <View style={[StyleSheet.absoluteFill, styles.pending]}>

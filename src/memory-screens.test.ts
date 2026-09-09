@@ -342,7 +342,8 @@ test('a ready montage shows its own still, and one without a still keeps the pla
   // prop, so `CardMontage` falls back to the very placeholder it drew before.
   expect(api).toContain('poster_url: string | null;');
   expect(films).toContain('poster={montage.poster_url ?? undefined}');
-  expect(cardMontage).toContain('poster ? <Image source={{ uri: poster }}');
+  expect(cardMontage).toContain('poster ? (');
+  expect(cardMontage).toContain('source={{ uri: poster }}');
 });
 
 test('the material of a memory has one name — on the card, on the switch, over the sheet', () => {
