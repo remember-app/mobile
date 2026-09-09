@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { useFocusEffect, useIsFocused, useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import {
@@ -12,7 +13,6 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
-  Image,
   Modal,
   RefreshControl,
   StyleSheet,
@@ -661,10 +661,24 @@ export function Frames({ id, head }: { id: string; head: Head }) {
                       // Whole and not cropped, the kit's `.viewer__frame img`: the frame is shown as
                       // it was shot even when that is not the shape of the phone, and what is left
                       // over at the sides is ink rather than a border.
+                      //
+                      // `expo-image` and not React Native's own, for the disk behind it: the same
+                      // frame opened a second time should come off the phone rather than down the
+                      // wire, and only this one keeps a disk at all. What it is filed under has to
+                      // be said outright, though. The default key is the url, and the api signs a
+                      // fresh one for the same bytes on every read of the gallery — a quarter of an
+                      // hour each (`R2_DOWNLOAD_TTL_SECONDS`) — so a key made of the url is a fresh
+                      // download every time the list is re-read. The record's id is the thing that
+                      // does not move. Which derivative it is rides in the key as well: a photo
+                      // whose big copy the worker has since made must not go on being served the
+                      // thumbnail that was filed under the same id.
                       <Image
-                        source={{ uri: openFrame.uri }}
+                        source={{
+                          uri: openFrame.uri,
+                          cacheKey: `${shown.id}:${openFrame.uri === shown.preview_url ? 'preview' : 'thumb'}`,
+                        }}
                         style={styles.big}
-                        resizeMode="contain"
+                        contentFit="contain"
                       />
                     ) : (
                       // Nothing was ever made for this one. Said here as well as on the tile, because

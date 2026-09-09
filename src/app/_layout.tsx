@@ -5,9 +5,11 @@ import {
   BricolageGrotesque_600SemiBold,
   useFonts,
 } from '@expo-google-fonts/bricolage-grotesque';
+import { Image } from 'expo-image';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { Platform } from 'react-native';
 
 import { AuthProvider, useAuth } from '@/auth';
 import { lockPortrait } from '@/orientation';
@@ -23,6 +25,17 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 // beside the splash and not in an effect: this is the app coming up, and it has to be true of the
 // first screen drawn as much as of the fourteenth.
 lockPortrait();
+
+// A ceiling on what `expo-image` keeps on disk. The contact sheet and the open frame both hold
+// their pictures there on purpose — that is what makes a memory looked through a second time come
+// off the phone instead of down the wire — but on ios that disk has no limit of its own:
+// SDWebImage, which expo-image is built on there, defaults `maxDiskSize` to 0, meaning keep
+// everything for ever. 250MB with the oldest going first is exactly what Glide already does on
+// android without being asked, so the number is that one, and the two platforms hold the same
+// amount. Only ios: the method is not in the android native module, and calling it there is a
+// crash on the way up rather than a no-op. Here beside the lock because it has to be true before
+// the first picture is fetched, not after some screen mounts.
+if (Platform.OS === 'ios') Image.configureCache({ maxDiskSize: 262144000 });
 
 export default function RootLayout() {
   const { name, color } = useTheme();

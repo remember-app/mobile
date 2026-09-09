@@ -27,12 +27,13 @@ export function frameOf(item: MediaItem): Frame {
  * was reported — so this reading asks for the big derivative first and keeps the thumbnail as the
  * fallback for a record that has none.
  *
- * A photo has none *today*: the worker makes a thumbnail for a photo and a poster plus the 720p
- * copy for a video (architecture.md), so `preview_url` is only ever a video's playable file. The
- * viewer reaches for it directly and mounts a player on that branch, before ever getting to the
- * image — a video only lands here when its preview was never made, and its poster is the honest
- * thing to draw then. Which leaves the fallback carrying every photo until a large photo
- * derivative exists to point at; the moment the worker makes one, this is where it lands.
+ * `preview_url` is the worker's large copy of whatever the record is: for a photo the big
+ * derivative, for a video the playable 720p file (architecture.md, TASK-136). The viewer reaches
+ * for a video's directly and mounts a player on that branch, before ever getting to the image — a
+ * video only lands here when its preview was never made, and its poster is the honest thing to draw
+ * then. So the fallback carries two: a photo the worker has not got to yet, and a video that fell
+ * over on the way; both are the thumbnail blown up, which is the mush that was reported, and both
+ * stop being it the moment the worker finishes.
  */
 export function openFrameOf(item: MediaItem): Frame {
   return frameWith(item, item.preview_url ?? item.thumbnail_url);
