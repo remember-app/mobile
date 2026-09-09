@@ -537,11 +537,13 @@ test('neither the sheet nor the strip opens a frame that is still developing', (
   expect(frames).toContain('onPress={mayOpen(item) ? () => setOpen(item.id) : undefined}');
 });
 
-test('the frame shown full screen is the same reading frameOf gives every tile', () => {
-  // `openFrame` is `frameOf(shown)` and not `shown.thumbnail_url` read straight — the difference is
-  // the fallen-frame correction `frameOf` makes for a `ready` record with no derivative. Reading the
-  // field directly here would show a broken image instead of the «could not be prepared» state.
-  expect(frames).toContain('const openFrame = shown === null ? null : frameOf(shown);');
+test('the frame shown full screen is read for the phone, the tiles for a tile', () => {
+  // `openFrameOf` and not `frameOf` (TASK-120): the tile's 640px thumbnail drawn over the whole of a
+  // phone is the mush that was reported, so the viewer asks for the big derivative first. Not
+  // `shown.preview_url` read straight either — both readings carry the fallen-frame correction for
+  // a `ready` record with nothing on it, which is the «could not be prepared» state rather than a
+  // broken image, and only `openFrameOf` keeps the thumbnail as the fallback under it.
+  expect(frames).toContain('const openFrame = shown === null ? null : openFrameOf(shown);');
   expect(frames).toContain('<Image');
   expect(frames).toContain('source={{ uri: openFrame.uri }}');
 });
