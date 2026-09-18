@@ -69,26 +69,31 @@ export function useReducedMotion(): boolean {
  * move without being asked. Returns `null` when reduced motion is on, and that `null` is the signal
  * to draw the still arc: spec 6 silences even this one.
  *
- * `on` is for the caller that only sometimes draws the moving thing. A hook cannot be called
- * conditionally, so without it a grid of a thousand ready frames would start a thousand perpetual
- * native animations to drive a spinner none of them draws.
+ * Linear and always running, because the one thing that loops is the spinner and a spinner is only
+ * ever mounted while it is being drawn. The old kit's tile pulsed under its own easing and its own
+ * «only while developing» flag; this one draws a `Spinner` instead, so both of those went with it
+ * (found in review, m-21). The day something else loops, it brings its own argument back.
  */
-export function useLoop(ms: number, easing = Easing.linear, on = true): Animated.Value | null {
+export function useLoop(ms: number): Animated.Value | null {
   const reduced = useReducedMotion();
   const value = useRef(new Animated.Value(0)).current;
-  const run = on && !reduced;
 
   useEffect(() => {
-    if (!run) return;
+    if (reduced) return;
     // `Animated.loop` rewinds to 0 before each pass, so the value always sweeps 0 → 1.
     const loop = Animated.loop(
-      Animated.timing(value, { toValue: 1, duration: ms, easing, useNativeDriver: true }),
+      Animated.timing(value, {
+        toValue: 1,
+        duration: ms,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
     );
     loop.start();
     return () => loop.stop();
-  }, [run, ms, easing, value]);
+  }, [reduced, ms, value]);
 
-  return run ? value : null;
+  return reduced ? null : value;
 }
 
 /**

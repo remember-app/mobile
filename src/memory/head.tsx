@@ -48,7 +48,7 @@ export function MemoryHead({
   const s = useStrings();
 
   return (
-    <View style={styles.head}>
+    <View>
       <AppBar
         title={memory?.title ?? s.memory.fallbackTitle}
         // No subtitle any more: the switch below says which face is open, and it says it in words
@@ -90,9 +90,13 @@ export function MemoryHead({
 }
 
 const styles = StyleSheet.create({
-  // 16 at the sides, and it does not scroll away with the face below it.
-  head: { paddingHorizontal: space.s4 },
-  // The whole of the gap on either side of the switch: 12 under the appbar's own 44, 16 over
-  // whatever the face draws below. No face adds a second one.
-  faces: { marginTop: space.s3, marginBottom: space.s4 },
+  // The 16 is the switch's and the failure line's own, and nothing wraps the bar in a second copy of
+  // it: the bar carries the screen's 16 itself (`kit/bars.tsx`), and a wrapper holding one too put
+  // the memory's chevron 16 further in than the one on every other screen. `MemoryFrames` draws the
+  // head at a single 16 and hangs the button 10 outside it, exactly as `Contacts` and `Account` do
+  // (found in review, m-21).
+  //
+  // The gap on either side of the switch: 12 under the appbar's own 44, 16 over whatever the face
+  // draws below. No face adds a second one.
+  faces: { marginTop: space.s3, marginBottom: space.s4, marginHorizontal: space.s4 },
 });

@@ -548,6 +548,10 @@ test('an order is asked for in four steps, on a screen of its own, and sent in o
   expect(order).toContain('const short = items !== null && !enoughMaterial(items);');
   expect(order).toContain('<Sheet\n        visible={short}');
   expect(order).toContain("router.replace({ pathname: '/memory/[id]/upload', params: { id } })");
+  // And the floor holds on what was picked, not only on what the memory holds: the api counts the
+  // ready material for its 409 and never the selection, and so does the worker, so an order taking
+  // one frame out of twenty was accepted and cut into a one-frame «ролик» (found in review).
+  expect(order).toContain('disabled={step === 1 && inMovie.length < MIN_FRAMES}');
   // Their own track goes up the moment it is picked, so the last button of the wizard is one call.
   expect(order).toContain('await sendOwnTrack(token, id,');
   // Every wish of spec 8 is in the body that goes out, and the api names all of them.
@@ -640,6 +644,30 @@ test('the waiting ends the way the montage does, and never on a spinner that tur
   for (const writing of ['orderMontage', 'retryMontage', 'deleteM', "method: '"]) {
     expect(progress).not.toContain(writing);
   }
+});
+
+test('neither screen of an order moves the app once the person has walked out of it', () => {
+  // Found in review, m-23: `useRouter` hands back the app's own router and not the screen's, so a
+  // call still in flight when «Отмена» was pressed went on to move whoever was on top of it — the
+  // wizard walked people into the waiting screen seconds after they had walked out of the wizard.
+  // Reset on the way in as well as set on the way out: a remount is a screen that is here again.
+  for (const screen of [order, progress]) {
+    expect(screen).toContain('const gone = useRef(false);');
+    expect(screen).toContain('gone.current = false;');
+    expect(screen).toContain('gone.current = true;');
+  }
+
+  // The order itself is placed and cannot be unsent — what does not happen is the leading anywhere,
+  // and the same for a track that lands after the wizard has gone.
+  const sentAt = order.indexOf('const made = await');
+  expect(order.slice(sentAt, order.indexOf('router.replace', sentAt))).toContain(
+    'if (gone.current) return;',
+  );
+  expect(order).toContain('if (!gone.current) setNotice(errorMessage(e));');
+
+  // And the waiting screen's one way out is called by its own read as well, so it is guarded where
+  // it is written: a second `back()` off an answer that landed late pops the memory too.
+  expect(progress).toContain('const leave = useCallback(() => {\n    if (gone.current) return;');
 });
 
 test('a ready montage shows its own still, and one without a still keeps the placeholder', () => {
@@ -962,8 +990,14 @@ test('the head measures out the 168 every face’s body starts at', () => {
   // height of its own (spec 4: the header line is 44), which is what holds the sheet off it:
   // «контактный лист вплотную к шапке» was the report when it did not.
   expect(bars).toContain('minHeight: height.bar');
-  // The whole of the gap on either side of the switch, and no face adds a second one.
-  expect(head).toContain('faces: { marginTop: space.s3, marginBottom: space.s4 }');
+  // The whole of the gap on either side of the switch, and no face adds a second one. The 16 at the
+  // sides is the switch's own and the failure line's: the bar under them carries the screen's 16
+  // itself, and a wrapper holding a second copy of it put this chevron 16 further in than the one on
+  // every other screen (found in review, m-21).
+  expect(head).toContain(
+    'faces: { marginTop: space.s3, marginBottom: space.s4, marginHorizontal: space.s4 }',
+  );
+  expect(head).not.toContain('head: { paddingHorizontal');
   // Spec 7.3: a memory's own header pill is the shorter segment, 36 rather than 40 — the other 8
   // of those 44 are the pill's own padding.
   const segment = head.slice(head.indexOf('<Segment'));
