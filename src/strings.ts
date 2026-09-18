@@ -406,7 +406,11 @@ export const en = {
     /** The same button with nothing marked yet: off, and saying why rather than «Download 0». */
     nothingPicked: 'Nothing selected',
     addMore: 'Add more',
-    /** The same errand from an empty gallery, where there is no «more» to add to yet. */
+    /**
+     * The same errand from an empty gallery, where there is no «more» to add to yet — and the same
+     * road named in full from `SheetTooLittle`, the sheet that stands in for step 1 of an order when
+     * the memory has too little in it.
+     */
     add: 'Add frames',
 
     /**
@@ -458,8 +462,8 @@ export const en = {
       ready: 'Ready',
       failed: 'Did not finish',
     },
-    /** The worker's three tracks, under names to pick between. The ids are the api's own. */
-    track: { warm: 'Warm', bright: 'Bright', calm: 'Calm' },
+    /** The worker's five tracks, under names to pick between. The ids are the api's own. */
+    track: { bright: 'Bright', warm: 'Warm', calm: 'Calm', night: 'Night', road: 'Road' },
     /** Three round answers out of the range the api takes, keyed by the seconds asked for. */
     length: { 30: 'Half a minute', 60: 'A minute', 120: 'Two minutes' },
     /**
@@ -478,9 +482,9 @@ export const en = {
     watch: (title: string) => `Watch ${title}`,
     saveShare: 'Save and share',
     make: 'Make a movie',
+    /** The last button of the order, and the one word the whole wizard leads to. */
     makeIt: 'Make it',
-    explain:
-      'Everything in this memory goes in, and the agent picks the moments itself. What comes out is not edited afterwards.',
+    /** The heading over the three lengths on the last step. */
     howLong: 'How long',
     music: 'Music',
     /** The heading over the two shapes, the way «How long» stands over the three lengths. */
@@ -502,6 +506,78 @@ export const en = {
     retryDenied: 'Only the organizer can start it again.',
     /** The line the share sheet goes out with. The memory's own title is not translated. */
     shareText: (title: string) => `Movie from «${title}»`,
+
+    /**
+     * Ordering, step by step (spec 8). One screen per step, and the words of each of them: the frame
+     * of the wizard first, then the four steps in order, then the two sheets that stand in for one.
+     */
+    step: (n: number, of: number) => `Step ${n} of ${of}`,
+    next: 'Next',
+
+    /** Step 1 — what the automatic pass made of the material, and what to do about it. */
+    pickTitle: 'Which frames to take',
+    pickMeta: (taken: number, all: number) => `Taking ${taken} of ${all}`,
+    passDropped: (n: number) => `${n} dropped automatically`,
+    whatDropped: 'What was dropped',
+    nextWith: (n: number) => `Next — ${n} ${n === 1 ? 'frame' : 'frames'}`,
+    /** Said of one frame, for whoever cannot see which circle is on it. */
+    inMovie: 'Going into the movie',
+    outOfMovie: 'Left out',
+
+    /** `SheetRejected` — the pass reports, and every line of the report can be undone. */
+    droppedTitle: 'What was dropped automatically',
+    droppedText: (n: number, all: number) =>
+      `${n} of ${all} frames. Nothing is lost — any of them comes back into the movie.`,
+    /** Why a frame was dropped. `other` is a reason this app has no word for, not a silent one. */
+    reason: {
+      blur: 'Blurred',
+      duplicate: 'Duplicates',
+      exposure: 'Too dark',
+      unreadable: 'Would not open',
+      other: 'Not suitable',
+    },
+    /** What was kept instead — the half of «duplicates» that says nothing was actually lost. */
+    keptBest: 'kept the best of the burst',
+    bringBack: 'Bring back',
+    bringBackAll: (n: number) => `Bring all ${n} back`,
+    leaveAsIs: 'Leave as is',
+
+    /** Step 2 — the words the director is given, or none. */
+    storyTitle: 'What is this movie about',
+    storyHint: 'This can be skipped — then the director decides.',
+    /** The box has no visible label: the screen's own heading is the label (spec 7.9). */
+    storyLabel: 'The story of the movie',
+    storyPlaceholder:
+      'Liza and Mark’s wedding. Start with the morning, then the ceremony, and end on the dancing.',
+    storyNote: 'The clearer you are, the fewer surprises',
+    /** The four openers under the box: a tap puts one at the end of what is written. */
+    seeds: ['Start with…', 'End on…', 'More of…', 'Without…'],
+
+    /** Step 3 — the shelf of tracks, or one off this phone. */
+    musicTitle: 'What to cut it to',
+    musicHint: 'The cuts land on the beat of the track you pick.',
+    ownTrack: 'Your own track from this phone',
+    /** The same thing named in a summary line and on a finished movie's card. */
+    ownTrackShort: 'Your own track',
+    sendingTrack: 'Sending the track…',
+
+    /** Step 4 — the shape of it, what the three steps came to, and the one warning. */
+    buildTitle: 'How to put it together',
+    /** The three summary rows, each of them the way back to the step that settled it. */
+    story: 'Story',
+    framesOf: (taken: number, all: number) => `${taken} of ${all}`,
+    /** «Bright · on the beat» — the track and what it does to the cuts. */
+    onTheBeat: 'on the beat',
+    nothingSaid: 'Not said',
+    directorDecides: 'The director decides',
+    onceOnly:
+      'A finished movie is not remade. If you want it another way — put together one more, there is no limit on them.',
+
+    /** `SheetTooLittle` — raised in place of step 1, when the order would not go through. */
+    tooLittleTitle: 'Too little material yet',
+    tooLittleText: (n: number) =>
+      `This memory has ${n} ${n === 1 ? 'frame' : 'frames'} — there is no story in that. Add a few more photos or videos and the order goes through.`,
+    later: 'Later',
   },
 
   /** Picking material off the phone, and the queue that sends it (`@/uploads`). */
@@ -886,7 +962,7 @@ export const ru: Strings = {
       ready: 'Готов',
       failed: 'Не собрался',
     },
-    track: { warm: 'Тёплая', bright: 'Яркая', calm: 'Спокойная' },
+    track: { bright: 'Яркая', warm: 'Тёплая', calm: 'Спокойная', night: 'Ночь', road: 'Дорога' },
     length: { 30: 'Полминуты', 60: 'Минута', 120: 'Две минуты' },
     orientation: { landscape: 'Горизонтальный', portrait: 'Вертикальный' },
     count: (n: number) => count(n, 'ролик', 'ролика', 'роликов'),
@@ -898,8 +974,6 @@ export const ru: Strings = {
     saveShare: 'Сохранить и поделиться',
     make: 'Смонтировать ролик',
     makeIt: 'Смонтировать',
-    explain:
-      'В ролик пойдёт всё из этого воспоминания, а моменты нейросеть выберет сама. Готовый ролик не редактируется.',
     howLong: 'Длина',
     music: 'Музыка',
     shape: 'Формат',
@@ -913,6 +987,60 @@ export const ru: Strings = {
     movedOn: 'С этим уже что-то произошло — перечитываем список.',
     retryDenied: 'Запустить заново может только организатор.',
     shareText: (title: string) => `Ролик из «${title}»`,
+
+    step: (n: number, of: number) => `Шаг ${n} из ${of}`,
+    next: 'Дальше',
+
+    pickTitle: 'Какие кадры взять',
+    pickMeta: (taken: number, all: number) => `Возьмём ${taken} из ${all}`,
+    passDropped: (n: number) => `${n} сняли автоматически`,
+    whatDropped: 'Что сняли',
+    nextWith: (n: number) => `Дальше — ${count(n, 'кадр', 'кадра', 'кадров')}`,
+    inMovie: 'Берём в ролик',
+    outOfMovie: 'Не берём',
+
+    droppedTitle: 'Что сняли автоматически',
+    droppedText: (n: number, all: number) =>
+      `${count(n, 'кадр', 'кадра', 'кадров')} из ${all}. Ничего не потеряно — любой вернётся в ролик.`,
+    reason: {
+      blur: 'Размыто',
+      duplicate: 'Дубли',
+      exposure: 'Темно',
+      unreadable: 'Не открылось',
+      other: 'Не подошло',
+    },
+    keptBest: 'оставили лучший из серии',
+    bringBack: 'Вернуть',
+    bringBackAll: (n: number) => `Вернуть все ${n}`,
+    leaveAsIs: 'Оставить как есть',
+
+    storyTitle: 'О чём этот ролик',
+    storyHint: 'Можно пропустить — тогда режиссёр решит сам.',
+    storyLabel: 'История ролика',
+    storyPlaceholder:
+      'Свадьба Лизы и Марка. Начни со сборов утром, дальше церемония, а финал — танцы.',
+    storyNote: 'Чем точнее, тем меньше сюрпризов',
+    seeds: ['Начни с…', 'Финал —…', 'Побольше…', 'Без…'],
+
+    musicTitle: 'Под что монтировать',
+    musicHint: 'Склейки попадут в ритм выбранного трека.',
+    ownTrack: 'Свой трек с телефона',
+    ownTrackShort: 'Свой трек',
+    sendingTrack: 'Загружаем трек…',
+
+    buildTitle: 'Как собрать',
+    story: 'История',
+    framesOf: (taken: number, all: number) => `${taken} из ${all}`,
+    onTheBeat: 'в ритм',
+    nothingSaid: 'Не сказали',
+    directorDecides: 'Режиссёр решит сам',
+    onceOnly:
+      'Готовый ролик не переделывается. Если захотите иначе — соберёте ещё один, их число не ограничено.',
+
+    tooLittleTitle: 'Материала пока мало',
+    tooLittleText: (n: number) =>
+      `В воспоминании ${count(n, 'кадр', 'кадра', 'кадров')} — из них истории не выйдет. Добавьте ещё несколько фото или видео, и заказ пройдёт.`,
+    later: 'Позже',
   },
 
   upload: {
