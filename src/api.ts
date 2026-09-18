@@ -708,6 +708,16 @@ export function finishMusicUpload(
 }
 
 /**
+ * «Послушать» on step 3 (TASK-171): a signed link to one of the five off the shelf, good for the
+ * hour the api signs its links for. Outside `/memories` and behind the plain token — the shelf is
+ * one for the whole product, the same five for everyone, so there is no memory to be a member of
+ * and no role to weigh. 404 for an id that is not on it, 503 while the api has no bucket.
+ */
+export function previewMusicTrack(token: string, trackId: MusicTrackId): Promise<{ url: string }> {
+  return request(`/music/tracks/${trackId}`, { token });
+}
+
+/**
  * Tell the api where to push to. Idempotent: the same device token registered twice is one row,
  * so this can run on every launch without asking whether it already ran.
  */
