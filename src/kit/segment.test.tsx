@@ -1,80 +1,86 @@
-import { renderToStaticMarkup } from 'react-dom/server';
-import { expect, test, vi } from 'vitest';
+import { beforeAll, expect, test } from 'vitest';
 
 import { Segment } from '@/kit/segment';
+import { allDifferent, story } from '@/kit/story';
 import { setTheme } from '@/theme';
 
-/**
- * The kit's switch of two or three (section 15). What it has to get right is the thing a `Switch`
- * gets wrong: every value on the screen at once, and exactly one of them raised out of the row.
- *
- * Rendered through `react-native-web` (the alias lives in `vitest.config.mjs`), which writes the
- * colours out as `rgba` — the same idiom `button.test.tsx` explains.
- */
+/** Spec 7.3 — the choice of two or three, drawn as a row of pills inside one. */
 
-vi.mock('expo-secure-store', () => ({
-  getItemAsync: async () => null,
-  setItemAsync: async () => {},
-}));
-
-const theme = (
-  <Segment
-    label="Тема"
-    value="dark"
-    onChange={() => {}}
-    options={[
-      { value: 'system', label: 'Как в телефоне' },
-      { value: 'dark', label: 'Тёмная' },
-      { value: 'light', label: 'Светлая' },
-    ]}
-  />
-);
-
-test('all three values stand there at once, and one of them is picked', async () => {
+beforeAll(async () => {
   await setTheme('dark');
-  const html = renderToStaticMarkup(theme);
-
-  // Nobody opens a list to find out what a product offers — that is the whole reason this is not a
-  // picker, and each pill is a radio in its own right rather than a button that happens to look
-  // like one.
-  expect(html.match(/role="radio"/g)).toHaveLength(3);
-  for (const label of ['Как в телефоне', 'Тёмная', 'Светлая']) expect(html).toContain(label);
-
-  // `.segment input:checked + label`: raise under it and paper to read it in, once — a row with two
-  // of them raised is not a radiogroup. The other two stay muted.
-  expect(html.match(/rgba\(38,32,25/g)).toHaveLength(1); // raise
-  expect(html.match(/rgba\(242,236,227/g)).toHaveLength(1); // paper
-  expect(html.match(/rgba\(148,138,127/g)).toHaveLength(2); // muted
 });
 
-test('the line under the row is drawn and read out with the switch', async () => {
-  await setTheme('dark');
-  const html = renderToStaticMarkup(
+const FACES = [
+  { value: 'frames', label: 'Кадры' },
+  { value: 'films', label: 'Ролики' },
+  { value: 'people', label: 'Люди' },
+] as const;
+
+test('every value is on screen at once, and the chosen one is the only one filled', () => {
+  const row = story(<Segment label="Лицо" options={FACES} value="frames" onChange={() => {}} />);
+  for (const face of FACES) expect(row).toContain(face.label);
+  // #0B0B12 on the chosen pill; the rest stay muted at #A4A1B2.
+  expect(row).toContain('rgba(11,11,18,1.00)');
+  expect(row).toContain('rgba(164,161,178,1.00)');
+});
+
+test('moving the choice moves the fill, and nothing else about the row', () => {
+  allDifferent(
+    Object.fromEntries(
+      FACES.map((face) => [
+        face.value,
+        <Segment label="Лицо" options={FACES} value={face.value} onChange={() => {}} />,
+      ]),
+    ),
+  );
+});
+
+test('the row is a radiogroup and each pill is a radio, so a switch reads as a switch', () => {
+  const row = story(<Segment label="Лицо" options={FACES} value="films" onChange={() => {}} />);
+  expect(row).toContain('role="radiogroup"');
+  expect(row).toContain('aria-label="Лицо"');
+  expect(row.match(/role="radio"/g)).toHaveLength(FACES.length);
+});
+
+test('the two heights, the two widths and the two grounds are each their own', () => {
+  allDifferent({
+    plain: <Segment label="Лицо" options={FACES} value="frames" onChange={() => {}} />,
+    small: <Segment label="Лицо" options={FACES} value="frames" onChange={() => {}} sm />,
+    wide: <Segment label="Лицо" options={FACES} value="frames" onChange={() => {}} wide />,
+    inSheet: (
+      <Segment label="Лицо" options={FACES} value="frames" onChange={() => {}} onSurface />
+    ),
+  });
+});
+
+test('a long word steps down a size instead of wrapping or being cut', () => {
+  const themes = [
+    { value: 'system', label: 'Как в телефоне' },
+    { value: 'dark', label: 'Тёмная' },
+    { value: 'light', label: 'Светлая' },
+  ] as const;
+  expect(
+    story(<Segment label="Тема" options={themes} value="system" onChange={() => {}} />),
+  ).not.toBe(story(<Segment label="Лицо" options={FACES} value="frames" onChange={() => {}} />));
+});
+
+test('the heading over the row can be spoken without being drawn, and the hint is read out', () => {
+  const shown = story(<Segment label="Тема" options={FACES} value="frames" onChange={() => {}} />);
+  const bare = story(
+    <Segment label="Тема" options={FACES} value="frames" onChange={() => {}} hideLabel />,
+  );
+  expect(shown).toContain('>Тема<');
+  expect(bare).not.toContain('>Тема<');
+  expect(bare).toContain('aria-label="Тема"');
+
+  const withHint = story(
     <Segment
-      label="Язык"
-      hint="На нём же приходят письма и уведомления."
-      value="ru"
+      label="Тема"
+      options={FACES}
+      value="frames"
       onChange={() => {}}
-      options={[
-        { value: 'ru', label: 'Русский' },
-        { value: 'en', label: 'English' },
-      ]}
+      hint="Меняется сразу — этот экран и есть образец"
     />,
   );
-
-  // A switch that reaches past the screen it stands on has to say so (kit screen 8). It is the
-  // group's `accessibilityHint` as well as a line under it — react-native-web drops that prop, so
-  // what is checked here is the half the web draws.
-  expect(html).toContain('На нём же приходят письма и уведомления.');
-  // And it stands under the row, not over it: the pills are the setting, the line only explains it.
-  expect(html.indexOf('Русский')).toBeLessThan(html.indexOf('На нём же'));
-});
-
-test('and the row turns with the theme like everything else in the kit', async () => {
-  await setTheme('light');
-  const html = renderToStaticMarkup(theme);
-
-  // #E5DACA on the contact sheet where the dark room has #262019, and nothing of the dark left.
-  expect(html.match(/rgba\(229,218,202/g)).toHaveLength(1);
-  expect(html).not.toContain('rgba(38,32,25');
+  expect(withHint).toContain('Меняется сразу — этот экран и есть образец');
 });

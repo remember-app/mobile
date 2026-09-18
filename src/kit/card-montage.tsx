@@ -1,167 +1,191 @@
+import { Image } from 'expo-image';
 import { Play } from 'lucide-react-native';
 import type { ReactNode } from 'react';
-import { Image, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { radius, space, themed, useTheme, type Theme } from '@/theme';
+import { photo, radius, space, themed, useTheme } from '@/theme';
 
+import { type MontageState } from './badge';
+import { StepScale } from './bits';
 import { Spinner } from './empty';
-import { useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
+import { Icon } from './icon';
+import { PRESS, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
 import { Text } from './text';
 
-/** The kit's three states for a montage, section 10. */
-export type MontageState = 'ready' | 'pending' | 'failed';
-
 /**
- * The reward for everyone having sent their frames, and the only place a frame gets the full width.
+ * Spec 7.6 — a montage, in the three states that are three different bodies rather than three
+ * colours of one:
  *
- * Presentation only, on purpose: the montage feature itself is frozen (doc-03), so this card takes
- * everything it draws as a prop and asks the API for nothing. `actions` is the end of the footer —
- * a download button when it is ready, a retry when it is not.
+ * - **ready** — a poster with the play circle on it, the name, what it was made of, and the way to
+ *   keep it;
+ * - **pending** — no poster at all, because there is nothing to show yet: a five-segment scale and
+ *   the stage it is on, named in words. «73 %» tells a person nothing; «Режиссёр строит историю»
+ *   does;
+ * - **failed** — the dangerous border, a line saying where it broke, and the way to try again.
  */
 export function CardMontage({
-  state,
   title,
-  status,
+  meta,
+  state,
   poster,
+  length,
   vertical,
   caption,
+  badge,
+  step,
   onPlay,
   playLabel,
-  actions,
+  onPress,
+  children,
   style,
 }: {
-  state: MontageState;
   title: string;
-  /** The word for the state, in the screen's own wording — `.status`. */
-  status: string;
-  /** Poster frame URI, when there is one to show. */
-  poster?: string;
-  /**
-   * A standing montage: the frame stands up with the poster — 4/5 instead of 16/9 — and the poster
-   * is shown whole in it, on ink fields at the sides. Not the poster's full 9/16, which at the full
-   * width of the card would take most of two screens and stop the list scrolling. The frame is the
-   * ordered orientation's from the start, so a card does not jump when the still finally arrives.
-   */
+  /** «13 сентября · горизонтальный · Яркая» — written by the screen. */
+  meta?: string;
+  state: MontageState;
+  poster?: string | null;
+  /** The running time in the poster's corner, «1:04». */
+  length?: string;
+  /** A vertical montage gets a taller poster; the frame inside it is never stretched either way. */
   vertical?: boolean;
-  /** What the wait is busy with, while it is `pending`. */
+  /** «Мы сообщим, когда будет готов» / «Сборка оборвалась на полпути». */
   caption?: string;
+  /** The state badge — its words belong to the screen. */
+  badge?: ReactNode;
+  /** Where the building has got to: five segments, the stage's own name, and «3 из 5». */
+  step?: { done: number; of: number; label: string; count: string };
   onPlay?: () => void;
-  /** Spoken label for the play button; falls back to the montage's own title. */
   playLabel?: string;
-  actions?: ReactNode;
+  /** The whole card leads somewhere while it is building. */
+  onPress?: () => void;
+  /** «Сохранить и поделиться», «Повторить» — a secondary button the screen names. */
+  children?: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
   const { hovered, focused, props } = useHoverFocus();
   const reduced = useReducedMotion();
-  const theme = useTheme();
+  const { color, shadow } = useTheme();
   const styles = useStyles();
   const focusRing = useFocusRing();
 
   return (
-    <View style={[styles.card, style]}>
-      {state !== 'failed' ? (
-        <View style={[styles.poster, vertical ? styles.posterTall : null]}>
-          {poster ? (
-            <Image
-              testID="card-montage-poster"
-              source={{ uri: poster }}
-              // Whole and not by the crop: a standing poster in a standing frame is centred by
-              // `contain`, and what is left over at the sides is the frame's own ink.
-              resizeMode={vertical ? 'contain' : 'cover'}
-              style={styles.image}
-            />
-          ) : null}
-
-          {state === 'pending' ? (
-            <View style={[StyleSheet.absoluteFill, styles.pending]}>
-              <Spinner />
-              {caption ? <Text role="meta">{caption}</Text> : null}
+    <Pressable
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityLabel={title}
+      disabled={!onPress}
+      onPress={onPress}
+      {...props}
+      style={({ pressed }) => [
+        styles.card,
+        { boxShadow: shadow.card },
+        state === 'failed' ? styles.failed : null,
+        hovered && onPress ? styles.hover : null,
+        pressed && !reduced ? PRESS : null,
+        focused ? focusRing : null,
+        style,
+      ]}
+    >
+      {state === 'ready' && poster ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={playLabel ?? title}
+          disabled={!onPlay}
+          onPress={onPlay}
+          style={[styles.poster, vertical ? styles.posterTall : null]}
+        >
+          <Image
+            source={{ uri: poster }}
+            contentFit={vertical ? 'contain' : 'cover'}
+            style={StyleSheet.absoluteFill}
+          />
+          <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.posterScrim]} />
+          <View style={styles.play}>
+            <Icon icon={Play} size={24} color={color.ink} fill={color.ink} />
+          </View>
+          {length ? (
+            <View style={styles.length}>
+              <Text role="meta" style={styles.onPhoto}>
+                {length}
+              </Text>
             </View>
           ) : null}
-
-          {state === 'ready' && onPlay ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={playLabel ?? title}
-              onPress={onPlay}
-              {...props}
-              style={[
-                styles.play,
-                hovered && !reduced ? styles.playHover : null,
-                focused ? focusRing : null,
-              ]}
-            >
-              {/* The kit draws this one glyph filled rather than stroked. */}
-              <Play
-                size={24}
-                color={theme.shade.onEmber}
-                fill={theme.shade.onEmber}
-                strokeWidth={1.75}
-              />
-            </Pressable>
-          ) : null}
-        </View>
+        </Pressable>
       ) : null}
 
-      <View style={styles.foot}>
-        <Text role="subtitle" style={styles.title} numberOfLines={1}>
+      <View style={styles.body}>
+        <Text role="title" numberOfLines={2}>
           {title}
         </Text>
-        <View style={styles.status}>
-          <View style={[styles.statusDot, { backgroundColor: statusColor(theme, state) }]} />
-          <Text style={[styles.statusText, { color: statusColor(theme, state) }]}>{status}</Text>
+        {meta ? <Text role="meta">{meta}</Text> : null}
+        {caption ? (
+          <Text role="meta" tone={state === 'failed' ? 'danger' : 'muted'}>
+            {caption}
+          </Text>
+        ) : null}
+
+        {step ? (
+          <View style={styles.step}>
+            <StepScale steps={step.of} done={step.done} tone="spark" />
+            <View style={styles.stepLine}>
+              <Spinner size={16} />
+              <Text role="meta" tone="paper" style={styles.grow}>
+                {step.label}
+              </Text>
+              <Text role="meta">{step.count}</Text>
+            </View>
+          </View>
+        ) : null}
+
+        <View style={styles.foot}>
+          {badge}
+          <View style={styles.grow} />
+          {children}
         </View>
-        {actions}
       </View>
-    </View>
+    </Pressable>
   );
 }
 
-function statusColor({ color, shade }: Theme, state: MontageState): string {
-  if (state === 'ready') return color.fixed;
-  if (state === 'failed') return shade.rustText;
-  return color.muted;
-}
-
-const useStyles = themed(({ color, glow }) =>
+const useStyles = themed(({ color }) =>
   StyleSheet.create({
     card: {
+      borderRadius: radius.card,
       borderWidth: 1,
       borderColor: color.line,
-      borderRadius: radius.card,
-      overflow: 'hidden',
       backgroundColor: color.surface,
+      overflow: 'hidden',
     },
-    poster: { aspectRatio: 16 / 9, backgroundColor: color.ink },
-    posterTall: { aspectRatio: 4 / 5 },
-    image: { width: '100%', height: '100%' },
-    pending: { alignItems: 'center', justifyContent: 'center', gap: space.s3 },
+    // Spec 10.5 settles one dangerous border for every dangerous surface in the product.
+    failed: { borderColor: color.dangerEdge },
+    hover: { backgroundColor: color.raise },
+    poster: { height: 200, backgroundColor: color.ink },
+    posterTall: { aspectRatio: 4 / 5, height: undefined },
+    posterScrim: { backgroundColor: photo.picked },
     play: {
-      position: 'absolute',
-      top: '50%',
-      left: '50%',
-      marginTop: -28,
-      marginLeft: -28,
-      width: 56,
-      height: 56,
-      borderRadius: 28,
+      alignSelf: 'center',
+      marginTop: 'auto',
+      marginBottom: 'auto',
+      width: 62,
+      height: 62,
+      borderRadius: radius.pill,
+      backgroundColor: photo.on,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: color.ember,
-      boxShadow: glow,
     },
-    playHover: { transform: [{ scale: 1.05 }] },
-    foot: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      flexWrap: 'wrap',
-      gap: space.s3,
-      paddingVertical: space.s3,
-      paddingHorizontal: space.s4,
+    length: {
+      position: 'absolute',
+      right: space.s2,
+      bottom: space.s2,
+      paddingVertical: 2,
+      paddingHorizontal: 6,
+      borderRadius: radius.pill,
+      backgroundColor: photo.mark,
     },
-    title: { flex: 1, minWidth: 0 },
-    status: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-    statusDot: { width: 7, height: 7, borderRadius: 3.5 },
-    statusText: { fontSize: 13, lineHeight: 13, fontWeight: '500' },
+    onPhoto: { color: photo.on },
+    body: { padding: space.s4, gap: space.s2 },
+    step: { gap: space.s2, paddingVertical: space.s1 },
+    stepLine: { flexDirection: 'row', alignItems: 'center', gap: space.s2 },
+    foot: { flexDirection: 'row', alignItems: 'center', gap: space.s3, paddingTop: space.s1 },
+    grow: { flex: 1, minWidth: 0 },
   }),
 );

@@ -1,138 +1,60 @@
-import { useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import type { ReactNode } from 'react';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { radius, space, themed, useTheme } from '@/theme';
+import { board, height, photo, radius, space, themed, useTheme } from '@/theme';
 
-import { ICO, ICO_S, Icon, type IconComponent } from './icon';
-import { hitSlop, useFocusRing, useHoverFocus } from './interaction';
+import { StepScale } from './bits';
 import { Text } from './text';
 
 /**
- * Section 14 — the top of a screen and the bottom of it. The native header is off everywhere
- * (`headerShown: false`), so a screen draws its own with these.
+ * Spec 7.1 — the frame of a screen: the board it is drawn on, the bar at the top, the layer at the
+ * bottom. The native header is off everywhere (`headerShown: false`), so a screen draws its own.
  */
 
 /**
- * The kit's `.rail-h`: the same film perforation as the memory card's, punched across instead of
- * down. The kit allows it in exactly two places — that card and the top of a screen — so it sits
- * above the appbar and nowhere else. CSS repeats a gradient over whatever width it is given; here
- * the strip counts its own width out into dots at the same 13px pitch.
+ * The board (spec 7.1). Background `ink`, the device's status line left empty at the top, and the
+ * body as its own layer between the bar and the bottom layer — the body is the only thing that
+ * scrolls.
+ *
+ * The spec's 52 is the drawn phone's status bar; here the phone says how tall its own is, which is
+ * the same thing measured rather than assumed.
  */
-export function RailH({ style }: { style?: StyleProp<ViewStyle> }) {
-  const [width, setWidth] = useState(0);
-  const styles = useStyles();
-
-  return (
-    <View
-      style={[styles.railH, style]}
-      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
-    >
-      {Array.from({ length: Math.ceil(width / 13) }, (_, i) => (
-        <View key={i} style={styles.railDot} />
-      ))}
-    </View>
-  );
-}
-
-/**
- * The kit's `.iconbtn`: 40×40 and round, drawn muted until it is touched. `label` is not optional —
- * an icon alone says nothing to a screen reader, and the kit does not let one through unlabelled.
- */
-export function IconButton({
-  icon,
-  label,
-  onPress,
-  sm,
-  size,
-  tint,
-  on,
-  disabled,
+export function Board({
+  children,
   style,
 }: {
-  icon: IconComponent;
-  label: string;
-  onPress?: () => void;
-  /**
-   * `.iconbtn-sm` — 28×28 with the small glyph, for a button that stands inside a row of text
-   * rather than in a bar of its own. The slop below keeps the finger target at 44 all the same.
-   */
-  sm?: boolean;
-  size?: number;
-  /**
-   * What it is drawn in when untouched — `.viewer__bar .iconbtn{color:var(--paper)}`, the kit's one
-   * override of the muted default. Over an open frame there is no surface behind the icon, so muted
-   * is the difference between an action and a smudge.
-   */
-  tint?: string;
-  /**
-   * `.iconbtn[aria-pressed]` — a button that stays in rather than firing and letting go: the frames'
-   * corner icon is the way into picking and the way out of it again. Passing it at all is what makes
-   * this a switch; left off, the button is a plain one and says so out loud, because `checked: false`
-   * on something that does not toggle reads as an unticked box.
-   */
-  on?: boolean;
-  disabled?: boolean;
+  children: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
-  const { hovered, focused, props } = useHoverFocus();
-  const { color } = useTheme();
+  const insets = useSafeAreaInsets();
   const styles = useStyles();
-  const focusRing = useFocusRing();
 
-  return (
-    <Pressable
-      accessibilityRole={on === undefined ? 'button' : 'togglebutton'}
-      accessibilityLabel={label}
-      accessibilityState={
-        on === undefined ? { disabled: !!disabled } : { disabled: !!disabled, checked: on }
-      }
-      disabled={disabled}
-      // Drawn at 40 (or 28), felt at 44 either way.
-      hitSlop={hitSlop(sm ? 28 : 40)}
-      onPress={onPress}
-      {...props}
-      style={[
-        styles.iconbtn,
-        sm ? styles.iconbtnSm : null,
-        on ? styles.iconbtnOn : null,
-        hovered ? styles.iconbtnHover : null,
-        focused ? focusRing : null,
-        disabled ? styles.off : null,
-        style,
-      ]}
-    >
-      <Icon
-        icon={icon}
-        size={size ?? (sm ? ICO_S : ICO)}
-        // Held in, it reads at full strength: the kit's pressed icon is `--paper`, the same as under
-        // a finger. Muted is the resting state, and a switch that is on is not resting.
-        color={hovered || on ? color.paper : (tint ?? color.muted)}
-      />
-    </Pressable>
-  );
+  return <View style={[styles.board, { paddingTop: insets.top }, style]}>{children}</View>;
 }
 
 /**
- * The kit's `.appbar`: whatever is on the left, the screen's name, whatever is on the right. The
- * title is `display` at 24 — the kit steps it down from 32 here so a long memory name still fits
- * between two icon buttons.
+ * The bar at the top of a screen (spec 7.1), in the four kinds that carry words:
  *
- * One line and no second one. There used to be a `subtitle` under the title, because four screens of
- * one memory wore its name and only an unlabelled corner icon told them apart (TASK-76). The kit's
- * «Экраны» dissolved that: the memory is one screen with three faces named in the switch under this
- * bar, and the screen next to it is called «Ваши кадры» after the phone's roll. Nothing was left to
- * disambiguate, and `.appbar` has no second line in the kit.
+ * - **root** — the screen's own name in `displaySm` and one round button on the right;
+ * - **inner** — a back button, the name in `barTitle`, truncated rather than wrapped;
+ * - **inner with a subtitle** — a `meta` line under the name, the whole `Upload*` family;
+ * - **inner with a right action** — the same plus a round button.
+ *
+ * The other two kinds have components of their own: `WizardBar` and `ViewerBar`. The bar never
+ * scrolls, whichever it is.
  */
 export function AppBar({
   title,
+  subtitle,
+  variant = 'inner',
   left,
   right,
   style,
 }: {
   title: string;
+  subtitle?: string;
+  variant?: 'root' | 'inner';
   left?: ReactNode;
   right?: ReactNode;
   style?: StyleProp<ViewStyle>;
@@ -140,78 +62,175 @@ export function AppBar({
   const styles = useStyles();
 
   return (
-    <View style={[styles.appbar, style]}>
+    <View style={[styles.bar, style]}>
       {left}
-      {/* The native header carried the heading; with it off app-wide, this is the only thing left
-          that can say «this is the top of the screen» to a rotor. `role` here is the kit's
-          typographic one — the spoken role is a separate prop. */}
-      <Text accessibilityRole="header" role="display" style={styles.appbarTitle} numberOfLines={1}>
-        {title}
-      </Text>
+      <View style={styles.barWords}>
+        {/* With the native header off app-wide, this is the only thing left that can say «this is
+            the top of the screen» to a rotor. `role` here is the typographic one — the spoken role
+            is a separate prop. */}
+        <Text
+          accessibilityRole="header"
+          role={variant === 'root' ? 'displaySm' : 'barTitle'}
+          numberOfLines={1}
+        >
+          {title}
+        </Text>
+        {subtitle ? (
+          <Text role="meta" numberOfLines={1}>
+            {subtitle}
+          </Text>
+        ) : null}
+      </View>
       {right}
     </View>
   );
 }
 
 /**
- * The kit's `.actionbar`: the one action of the screen, held at the bottom above a hairline. Adds
- * the phone's own bottom inset so the button never sits under the home indicator.
+ * The wizard's bar (spec 7.1, kind 5): a 74-wide block on each side so the step counter sits dead
+ * centre whatever the words in those blocks are, and the step scale under it.
  */
-export function ActionBar({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
-  const insets = useSafeAreaInsets();
+export function WizardBar({
+  step,
+  steps,
+  label,
+  back,
+  cancel,
+  style,
+}: {
+  step: number;
+  steps: number;
+  /** «Шаг 2 из 4» — a sentence, so the screen writes it. */
+  label: string;
+  back?: ReactNode;
+  cancel?: ReactNode;
+  style?: StyleProp<ViewStyle>;
+}) {
   const styles = useStyles();
 
   return (
-    <View style={[styles.actionbar, { paddingBottom: Math.max(insets.bottom, space.s4) }, style]}>
-      {children}
+    <View style={style}>
+      <View style={styles.bar}>
+        <View style={styles.wizardSide}>{back}</View>
+        <Text role="label" tone="muted" style={styles.wizardStep}>
+          {label}
+        </Text>
+        <View style={[styles.wizardSide, styles.wizardRight]}>{cancel}</View>
+      </View>
+      <StepScale steps={steps} done={step} />
     </View>
   );
 }
 
-const useStyles = themed(({ color, shade }) =>
+/**
+ * The viewer's floating bar (spec 7.1, kind 6): three pieces of glass over the photograph — close
+ * on the left, a pill carrying when and who in the middle, «ещё» on the right. It floats because
+ * there is no surface under it; the frame is the surface.
+ */
+export function ViewerBar({
+  date,
+  meta,
+  left,
+  right,
+  style,
+}: {
+  date: string;
+  meta: string;
+  left?: ReactNode;
+  right?: ReactNode;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const styles = useStyles();
+
+  return (
+    <View style={[styles.bar, style]}>
+      {left}
+      <View style={styles.viewerPill}>
+        <Text role="label" style={styles.onPhoto}>
+          {date}
+        </Text>
+        <Text role="meta" style={styles.onPhotoMeta}>
+          {meta}
+        </Text>
+      </View>
+      {right}
+    </View>
+  );
+}
+
+/**
+ * The bottom layer (spec 7.1): a gradient footer fading up into the screen, and the screen's action
+ * standing on it 30 from the bottom. The gradient never catches a press — the buttons over it do —
+ * and it grows from 132 to 176 when a line of counting stands above the button.
+ *
+ * `experimental_backgroundImage` and not a gradient library: React Native takes the spec's own CSS
+ * string, the same way `boxShadow` already does.
+ */
+export function ActionBar({
+  children,
+  above,
+  style,
+}: {
+  children: ReactNode;
+  /** «Выбрано 12 из 61» and a quiet «Снять» — spec 7.1, kind 3. */
+  above?: ReactNode;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const insets = useSafeAreaInsets();
+  const { color } = useTheme();
+  const styles = useStyles();
+  const tall = !!above;
+
+  return (
+    <View style={[styles.layer, { paddingBottom: Math.max(insets.bottom, board.bottom) }, style]}>
+      <View
+        pointerEvents="none"
+        style={[
+          StyleSheet.absoluteFill,
+          {
+            top: undefined,
+            height: tall ? board.footerTall : board.footer,
+            experimental_backgroundImage: `linear-gradient(to top, ${color.ink} ${
+              tall ? '62%' : '58%'
+            }, transparent)`,
+          },
+        ]}
+      />
+      {above ? <View style={styles.layerAbove}>{above}</View> : null}
+      <View style={styles.layerRow}>{children}</View>
+    </View>
+  );
+}
+
+const useStyles = themed(({ color }) =>
   StyleSheet.create({
-    // 4.8px holes, first centred 6.5 in, one every 13 — the card's rail laid on its side.
-    railH: {
-      height: 7,
+    board: { flex: 1, backgroundColor: color.ink },
+    bar: {
+      minHeight: height.bar,
       flexDirection: 'row',
       alignItems: 'center',
-      paddingLeft: 4.1,
-      gap: 8.2,
-      overflow: 'hidden',
+      gap: space.s3,
+      paddingHorizontal: space.s4,
     },
-    railDot: { width: 4.8, height: 4.8, borderRadius: 2.4, backgroundColor: shade.perf },
-    iconbtn: {
-      width: 40,
-      height: 40,
+    // `flex: 1` with `minWidth: 0` is what makes a long name truncate instead of pushing the button
+    // on the right off the screen.
+    barWords: { flex: 1, minWidth: 0, gap: 2 },
+    wizardSide: { width: 74, alignItems: 'flex-start' },
+    wizardRight: { alignItems: 'flex-end' },
+    wizardStep: { flex: 1, textAlign: 'center', fontVariant: ['tabular-nums'] },
+    viewerPill: {
+      flex: 1,
+      alignItems: 'center',
+      gap: 2,
+      paddingVertical: space.s2,
+      paddingHorizontal: space.s4,
       borderRadius: radius.pill,
-      borderWidth: 1,
-      borderColor: 'transparent',
-      alignItems: 'center',
-      justifyContent: 'center',
+      backgroundColor: photo.glass,
     },
-    iconbtnSm: { width: 28, height: 28 },
-    // `.iconbtn[aria-pressed="true"]` — filled and outlined, the same pair the segment's chosen pill
-    // wears. It is the only state of this button that survives the finger coming off it.
-    iconbtnOn: { backgroundColor: color.raise, borderColor: shade.lineHi },
-    iconbtnHover: { backgroundColor: color.raise },
-    off: { opacity: 0.45 },
-    appbar: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: space.s3,
-      paddingTop: space.s4,
-      paddingBottom: space.s3,
-    },
-    // The kit's -.02em, re-resolved for 24px — it is a ratio in CSS and a flat number here; and its
-    // `flex:1; min-width:0`, which is what makes a long name truncate rather than push.
-    appbarTitle: { flex: 1, minWidth: 0, fontSize: 24, lineHeight: 25.2, letterSpacing: -0.48 },
-    actionbar: {
-      flexDirection: 'row',
-      gap: space.s3,
-      paddingTop: space.s3,
-      borderTopWidth: 1,
-      borderTopColor: color.line,
-      backgroundColor: color.ink,
-    },
+    onPhoto: { color: photo.on },
+    onPhotoMeta: { color: photo.dot },
+    layer: { paddingHorizontal: space.s4, paddingTop: space.s3, gap: space.s3 },
+    layerAbove: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },
+    layerRow: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },
   }),
 );

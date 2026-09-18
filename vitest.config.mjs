@@ -20,5 +20,10 @@ export default defineConfig({
   // tree: a git worktree under `.claude/worktrees/` is a second copy of every test file, and the
   // run then reports on a mixture of this checkout and a stale one — twice the tests, half of them
   // about code that is not here. The api repo carries the same line for the same reason (d371e2a).
-  test: { include: ['src/**/*.test.{ts,tsx}'] },
+  test: {
+    include: ['src/**/*.test.{ts,tsx}'],
+    // The native modules stood in for once for the whole run — `vitest.setup.ts` says which and why.
+    // A test that needs a different answer from one of them mocks it again in its own file.
+    setupFiles: ['./vitest.setup.ts'],
+  },
 });

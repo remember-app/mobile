@@ -169,10 +169,12 @@ test('while picking, a tap marks the frame instead of opening it — and only a 
   // strip counts with the same rule and the two must not drift (TASK-121). `mayPick` is where that
   // reading lives, and `frames.test.ts` pins it.
   expect(frames).toContain('const pickable = picking && mayPick(item);');
-  expect(frames).toContain('selected={pickable ? picked.has(item.id) : undefined}');
-  // The mark is the tile's own — the same ring and tick «Выбор кадров» draws, never a second one.
+  expect(frames).toContain(
+    "pick={pickable ? (picked.has(item.id) ? 'keep' : 'off') : undefined}",
+  );
+  // The mark is the tile's own — one ring and one circle, never a second mark drawn by a face.
   expect(frames).not.toContain('tile--selected');
-  expect(upload).toContain('selected={picked.has(item.id)}');
+  expect(upload).toContain("pick={picked.has(item.id) ? 'send' : 'off'}");
 });
 
 test('the picking footer is «Снять» beside a download that carries its count', () => {
@@ -251,7 +253,7 @@ test('the day over a strip is the date, and the one thing at its right edge', ()
   expect(daymark).toContain('label={s.gallery.selectDay(markable.length)}');
   // Quiet and small: the glow on this face belongs to the footer's one action, never to a day.
   expect(daymark).toContain('variant="quiet"');
-  expect(daymark).toContain('sm');
+  expect(daymark).toContain('size="xs"');
   // The memory's one word for its material, counted for a single day of it (TASK-76's key).
   expect(daymark).toContain('<Text role="meta">{s.memory.frames(row.day.frames.length)}</Text>');
 });
@@ -394,37 +396,36 @@ test('every row says how many frames that person brought, counted off the galler
   // One read, beside the roster's own — and its failure is not the roster's, so it is swallowed.
   expect(people.match(/listMedia\(/g)).toHaveLength(1);
   expect(people).toContain('by.set(item.uploaded_by, (by.get(item.uploaded_by) ?? 0) + 1)');
-  expect(people).toContain('count={shots ? s.memory.frames(shots.get(member.id) ?? 0)');
+  expect(people).toContain("shots ? s.memory.frames(shots.get(member.id) ?? 0) : '—'");
   // The `@ник` under the name, and the rule for leaving it off when it is already the name above —
   // one copy in `api.ts` beside `memberName`, which settles the other half of the same pair. It was
   // written out here and again on the profile head until review pulled it back.
-  expect(people).toContain('meta={memberHandle(member)}');
+  expect(people).toContain('meta={`${memberHandle(member)} \u00b7 ${s.role[member.role]} \u00b7 ${');
   // Swallowed, and nothing written on the way out. This read runs again on every focus, so a
   // failure on the way back from the upload screen used to blank a column of counts that was
   // already on screen and right — and nothing on this face retries it, because the banner belongs
   // to the roster. Found in review: never counted earns the dash, counted-then-lost does not.
   expect(people).not.toContain('setShots(null)');
   expect(people).toContain('() => {},');
-  // The kit's green belongs to «Всё загрузил» alone: that dot is what the organizer scans for.
-  expect(people).toContain("ready={member.contribution_status === 'done'}");
+  // `spark` belongs to «Всё загрузил» alone (spec 1.2): that mark is what the organizer scans for.
+  expect(people).toContain("member.contribution_status === 'done'");
+  expect(people).toContain('<BadgeContribution');
 });
 
 test('one’s own standing is the chip that sets it, standing where the word would', () => {
   // It was a `Button` under the row, and that is what came back from the device: the row it hung
   // under stood taller than its neighbours and the stack read ragged (TASK-111). Now it is the
   // kit's `.chip-action`, in the status's own slot — same 26 as the word it replaces.
-  expect(people).toContain('<ChipAction');
   expect(people).toContain('label={s.members.sayNothing}');
-  expect(people.indexOf('status={')).toBeLessThan(people.indexOf('<ChipAction'));
+  expect(people.indexOf('status={')).toBeLessThan(people.indexOf('label={s.members.sayNothing}'));
   expect(people).not.toContain('icon={Check}');
   expect(people).not.toContain('styles.own');
-  // Both lines of the row are held to the kit's own constants, so nothing that goes into them —
-  // the chip, the cross, a bare word — can change how tall a row is.
-  expect(member).toContain('lineHeight: 28');
-  expect(member).toContain('minHeight: 26');
-  // And the cross beside the name is the kit's small one, with its column held open where the
+  // The row is held to the spec's own height (7.5: a 42 circle with 11 above and below), so
+  // nothing that goes into it — the chip, the cross, a bare word — can change how tall it is.
+  expect(member).toContain('minHeight: height.row');
+  // And the cross beside the name is the 36 round one, with its column held open where the
   // organizer looks at their own row and there is no cross to draw.
-  expect(bars).toContain('iconbtnSm: { width: 28, height: 28 }');
+  expect(people).toContain('size={36}');
   expect(people).toContain('styles.noCross');
 });
 
@@ -475,8 +476,8 @@ test('a vertical montage’s card is told to stand its frame up', () => {
   // from the queued card onwards and nothing jumps when the still lands. The two numbers are pinned
   // here because the card's own test reads rendered markup, where they are compiled-away hashes.
   expect(films).toContain("vertical={montage.params.orientation === 'portrait'}");
-  expect(cardMontage).toContain('posterTall: { aspectRatio: 4 / 5 }');
-  expect(cardMontage).toContain("resizeMode={vertical ? 'contain' : 'cover'}");
+  expect(cardMontage).toContain('posterTall: { aspectRatio: 4 / 5, height: undefined }');
+  expect(cardMontage).toContain("contentFit={vertical ? 'contain' : 'cover'}");
 });
 
 test('the films face reads again by itself while a montage is being cut', () => {
@@ -725,19 +726,19 @@ test('every column of a contact sheet is the same width, the last row included',
     expect(sheet).not.toContain('flex: 1 / 3');
     // A column worked out from the width the sheet spans, and re-read when the phone turns.
     expect(sheet).toContain('useWindowDimensions()');
-    expect(sheet).toContain('SHEET_GAP * 2) / 3');
+    expect(sheet).toContain('GRID_GAP * 2) / 3');
   }
 });
 
 test('the 12 under the appbar is the kit’s own, and the switch keeps its own 16 under it', () => {
-  // «Контактный лист вплотную к шапке» was the report; `.appbar{padding:var(--s4) 0 var(--s3)}` is
-  // where the kit keeps that 12, and the kit's appbar has carried it since m-7. Pinned so the sheet
-  // cannot end up flush against the header by the padding being dropped from underneath it.
-  expect(bars).toContain('paddingBottom: space.s3');
+  // «Контактный лист вплотную к шапке» was the report. The bar keeps a height of its own now
+  // (spec 4: the header line is 44), which is what holds the grid off it — pinned so the grid
+  // cannot end up flush against the header by that height being dropped from underneath it.
+  expect(bars).toContain('minHeight: height.bar');
   // `.screen__head .segment-wide{margin-bottom:var(--s4)}` — the whole of the gap between the switch
   // and whatever the face draws under it. No face adds a second one.
   expect(head).toContain('faces: { marginBottom: space.s4 }');
-  expect(frames).toContain('grid: { flexGrow: 1, gap: SHEET_GAP }');
+  expect(frames).toContain('grid: { flexGrow: 1, gap: GRID_GAP }');
 });
 
 // The invite sheet's own bugs, found in review of TASK-131 and not yet pinned anywhere: a name
@@ -779,7 +780,7 @@ test('the «В контакты» chip reads the contacts list itself, never a f
   expect(people).toContain(
     'const kept = invited !== null && (contacts ?? []).some((contact) => contact.id === invited.id);',
   );
-  expect(people).toContain('checked={kept}');
+  expect(people).toContain('selected={kept}');
   expect(people).toContain('onPress={kept ? undefined : () => keep(invited)}');
 });
 

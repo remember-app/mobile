@@ -30,7 +30,7 @@ test('the profile shows the name and offers no way to change it', () => {
   // putting it back. The head row reads the account out; the form is gone from this screen and lives
   // on /set-username alone, which is the one claim of a name there is. Nothing was taken from the
   // api — this is what the screen draws, not what it may do.
-  expect(profile).toContain('<MemberHead');
+  expect(profile).toContain('<Avatar name={name} size={68} />');
   expect(profile).not.toContain('UsernameForm');
   expect(profile).not.toContain('<Field');
   expect(setUsername).toContain('<UsernameForm');
@@ -44,8 +44,8 @@ test('the head says who you are once, never the same word twice', () => {
   // Both halves of the pair come off `api.ts`, and the rule for dropping the second one is written
   // there beside the rule for choosing the first. It was spelled out here and again on the roster
   // row until review pulled it back to its sibling.
-  expect(profile).toContain('username={memberHandle(user)}');
-  expect(profile).toContain('email={user?.email ?? undefined}');
+  expect(profile).toContain('{memberHandle(user)}');
+  expect(profile).toContain('{user.email}');
 });
 
 test('both settings say where they reach', () => {

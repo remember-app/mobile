@@ -31,7 +31,7 @@ import {
   Empty,
   ICO_S,
   IconButton,
-  SHEET_GAP,
+  GRID_GAP,
   Spinner,
   Text,
   Tile,
@@ -76,7 +76,7 @@ export default function UploadScreen() {
    * This sheet stands inside the screen's own padding, which is what comes off the window here.
    */
   const { width } = useWindowDimensions();
-  const cell = { width: (width - space.s4 * 2 - SHEET_GAP * 2) / 3 };
+  const cell = { width: (width - space.s4 * 2 - GRID_GAP * 2) / 3 };
   // The whole app's queue; the rows below are this memory's share of it.
   const uploads = useUploads();
   // Checked on mount, asked for only on the button — that is the difference between knowing
@@ -230,7 +230,7 @@ export default function UploadScreen() {
     return (
       <Screen>
         <Banner tone="error" text={galleryError}>
-          <Button sm variant="quiet" label={s.action.retry} onPress={retry} />
+          <Button size="xs" variant="quiet" label={s.action.retry} onPress={retry} />
         </Banner>
       </Screen>
     );
@@ -254,9 +254,9 @@ export default function UploadScreen() {
             Settings once the phone has stopped asking. */}
         <Banner text={access.canAskAgain ? s.upload.explain : s.upload.refused}>
           {access.canAskAgain ? (
-            <Button sm label={s.upload.allow} onPress={() => void ask()} />
+            <Button size="xs" label={s.upload.allow} onPress={() => void ask()} />
           ) : (
-            <Button sm label={s.action.openSettings} onPress={() => void Linking.openSettings()} />
+            <Button size="xs" label={s.action.openSettings} onPress={() => void Linking.openSettings()} />
           )}
         </Banner>
       </Screen>
@@ -274,7 +274,7 @@ export default function UploadScreen() {
           Picking — by hand or by the day — and queueing both still work. */}
       {apiError !== null ? (
         <Banner tone="error" text={apiError}>
-          <Button sm variant="quiet" label={s.action.retry} onPress={load} />
+          <Button size="xs" variant="quiet" label={s.action.retry} onPress={load} />
         </Banner>
       ) : null}
 
@@ -283,7 +283,7 @@ export default function UploadScreen() {
           that were shot on it, and the grant is the only thing that would explain it. */}
       {access.accessPrivileges === 'limited' ? (
         <Banner text={s.upload.limited}>
-          <Button sm label={s.upload.chooseMore} onPress={() => void chooseMore()} />
+          <Button size="xs" label={s.upload.chooseMore} onPress={() => void chooseMore()} />
         </Banner>
       ) : null}
 
@@ -314,7 +314,7 @@ export default function UploadScreen() {
               {/* The action belongs to this day and says how much of it there is — the kit's
                   «Выбрать все 61», quiet, because the glow on this screen is the sending. */}
               <Button
-                sm
+                size="xs"
                 variant="quiet"
                 label={s.upload.selectDay(row.day.assets.length)}
                 // Out until the whole roll is in hand, the way the one wide «выбрать всё за эти
@@ -332,7 +332,7 @@ export default function UploadScreen() {
                   key={item.id}
                   state="ready"
                   uri={item.uri}
-                  selected={picked.has(item.id)}
+                  pick={picked.has(item.id) ? 'send' : 'off'}
                   // The kit marks a video by how long it runs rather than by the word «video».
                   length={item.mediaType === 'video' ? formatRuntime(item.duration) : undefined}
                   // The filename is the phone's own and is never translated.
@@ -361,7 +361,7 @@ export default function UploadScreen() {
               button is for the person who would rather not wait for either. */}
           {parked?.error !== undefined ? (
             <Banner tone="error" text={failureText(s, parked.error, parked.filename)}>
-              <Button sm variant="quiet" label={s.action.retry} onPress={wake} />
+              <Button size="xs" variant="quiet" label={s.action.retry} onPress={wake} />
             </Banner>
           ) : null}
           {/* Named one by one only where a name is needed: the file somebody would rather not send
@@ -455,8 +455,8 @@ const useStyles = themed(({ color }) =>
     // The kit's sheet: 3px between frames, and nothing else — the material is the picture here.
     // The column itself is measured out above; this only holds the gutters between them. Between
     // one day's strip and the next it is the daymark's own padding that opens the gap.
-    sheet: { flexGrow: 1, gap: SHEET_GAP },
-    sheetRow: { flexDirection: 'row', gap: SHEET_GAP },
+    sheet: { flexGrow: 1, gap: GRID_GAP },
+    sheetRow: { flexDirection: 'row', gap: GRID_GAP },
     queue: { gap: space.s3 },
     parked: { maxHeight: 132 },
     parkedRow: {

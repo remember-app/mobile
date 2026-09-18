@@ -1,104 +1,121 @@
-import { renderToStaticMarkup } from 'react-dom/server';
-import { expect, test, vi } from 'vitest';
+import { beforeAll, expect, test } from 'vitest';
 
+import { BadgeFilms, BadgeOrganizer } from '@/kit/badge';
 import { CardMemory } from '@/kit/card-memory';
+import { allDifferent, story } from '@/kit/story';
+import { setTheme } from '@/theme';
 
-// The card draws in the app's current theme, and the theme asks the phone for the stored pick at
-// import — `expo-secure-store` is native and cannot be imported in node at all. Nothing here reads
-// a colour, so the phone only has to answer.
-vi.mock('expo-secure-store', () => ({
-  getItemAsync: async () => null,
-  setItemAsync: async () => {},
-}));
+/** Spec 7.6 — a memory in the list, large and ordinary, in every state each of them has. */
 
-/**
- * The card is the main screen's one repeated thing, and what it is for is the frames: the listing
- * signs a couple of thumbnail urls per memory and the card has to draw them. That wiring is one
- * prop deep and silent when it breaks — the card keeps rendering, just with nothing in it — so it
- * is pinned here.
- *
- * Rendered through `react-native-web` (the alias lives in `vitest.config.mjs`), which answers for
- * structure only: how many frames the card draws and what it does with none. What the phone's own
- * `Image` fetches from a signed url is native and cannot be seen from node — that part is the
- * pilot's to check.
- */
+const SHOTS = ['https://b/1.jpg', 'https://b/2.jpg', 'https://b/3.jpg', 'https://b/4.jpg'];
 
-const A = 'https://bucket.example/a.jpg?X-Amz-Signature=aaa';
-const B = 'https://bucket.example/b.jpg?X-Amz-Signature=bbb';
-
-/** Every frame the card drew, by the `testID` each one carries. */
-function frames(html: string): number {
-  return html.split('data-testid="card-memory-frame"').length - 1;
-}
-
-/** The opening tag of the element carrying `testID`, whatever else the card drew around it. */
-function tag(html: string, testID: string): string {
-  return html.match(new RegExp(`<[a-z]+[^>]*data-testid="${testID}"[^>]*>`))?.[0] ?? '';
-}
-
-test('draws one frame for every url the listing signed', () => {
-  const html = renderToStaticMarkup(
-    <CardMemory title="Лёшина свадьба" meta={['3 сентября', '128 кадров']} thumbs={[A, B]} />,
-  );
-
-  expect(frames(html)).toBe(2);
-  expect(html).toContain('Лёшина свадьба');
-  expect(html).toContain('128 кадров');
+beforeAll(async () => {
+  await setTheme('dark');
 });
 
-test('a memory nobody has added to yet says so instead of drawing empty frames', () => {
-  const html = renderToStaticMarkup(
+test('the large card and the ordinary one are two different cards', () => {
+  allDifferent({
+    large: <CardMemory title="Свадьба Лизы и Марка" thumbs={SHOTS} large />,
+    ordinary: <CardMemory title="Поход на Ладогу" thumbs={SHOTS} />,
+  });
+});
+
+test('every state of the large card is its own', () => {
+  allDifferent({
+    full: (
+      <CardMemory
+        title="Свадьба Лизы и Марка"
+        meta={['12–14 сентября', '486 кадров']}
+        thumbs={SHOTS}
+        large
+        organizer={<BadgeOrganizer label="Организатор" />}
+        films={<BadgeFilms label="2 ролика" filled />}
+        progress={7 / 9}
+        progressLabel="7 из 9 уже скинули свои кадры"
+      />
+    ),
+    noFilms: (
+      <CardMemory
+        title="Свадьба Лизы и Марка"
+        meta={['12–14 сентября', '486 кадров']}
+        thumbs={SHOTS}
+        large
+        organizer={<BadgeOrganizer label="Организатор" />}
+      />
+    ),
+    notOrganizer: (
+      <CardMemory
+        title="Свадьба Лизы и Марка"
+        meta={['12–14 сентября', '486 кадров']}
+        thumbs={SHOTS}
+        large
+        films={<BadgeFilms label="2 ролика" filled />}
+      />
+    ),
+    thin: <CardMemory title="Свадьба Лизы и Марка" thumbs={SHOTS.slice(0, 1)} large />,
+  });
+});
+
+test('the cover is read in white in both themes, because it lies on a photograph', async () => {
+  // Spec 2, the day's second departure from plain substitution: the darkening over a photograph
+  // stays dark in daylight and the name on it stays white. So this one line has to come out
+  // identical in both — the theme may move everything around it and not this.
+  const name = (markup: string) => markup.match(/<div[^>]*>Свадьба<\/div>/)?.[0];
+  const dark = story(<CardMemory title="Свадьба" thumbs={SHOTS} large />);
+  await setTheme('light');
+  const light = story(<CardMemory title="Свадьба" thumbs={SHOTS} large />);
+  await setTheme('dark');
+  expect(name(dark)).toBeTruthy();
+  expect(name(dark)).toBe(name(light));
+});
+
+test('the bar of who has brought theirs is never drawn without the sentence beside it', () => {
+  const withBar = story(
     <CardMemory
-      title="Поездка в Карелию"
-      meta={['12–16 августа']}
-      thumbs={[]}
-      blank="Пока ни одного кадра."
+      title="Свадьба"
+      thumbs={SHOTS}
+      large
+      progress={7 / 9}
+      progressLabel="7 из 9 уже скинули свои кадры"
     />,
   );
-
-  expect(frames(html)).toBe(0);
-  expect(html).toContain('Поездка в Карелию');
-  expect(html).toContain('Пока ни одного кадра.');
-});
-
-// TASK-71 fixed the rail's height at exactly the perforation problem below — a card measured with
-// two thumbnails and never tried against the four the listing can now sign for real (TASK-66). The
-// strip itself takes any count (`flex: 1` on a zero basis, no width), so what is worth pinning is
-// that a full strip still draws every frame and the rail still floats over it rather than under it.
-test('a full strip of four real thumbnails still draws all four, rail included', () => {
-  const C = 'https://bucket.example/c.jpg?X-Amz-Signature=ccc';
-  const D = 'https://bucket.example/d.jpg?X-Amz-Signature=ddd';
-  const html = renderToStaticMarkup(
-    <CardMemory title="Слёт" meta={['3 сентября']} thumbs={[A, B, C, D]} />,
+  expect(withBar).toContain('7 из 9 уже скинули свои кадры');
+  // A bar with no number says nothing, so a value on its own does not draw one.
+  expect(story(<CardMemory title="Свадьба" thumbs={SHOTS} large progress={0.5} />)).not.toContain(
+    'role="progressbar"',
   );
-
-  expect(frames(html)).toBe(4);
-  const rail = tag(html, 'card-memory-rail');
-  for (const property of ['position', 'top', 'bottom']) {
-    expect(rail).toMatch(new RegExp(`\\br-${property}-`));
-  }
 });
 
-test('the perforation is drawn over the card, so it cannot set the card height', () => {
-  // Sixteen dots at a 13 pitch are a 204-tall column, and standing in the card's row that column
-  // was what the card's height came from — 238 against the 173.6 the kit draws, all of it empty
-  // under the frames. Nothing in node lays the card out, so what is pinned is the reason: the
-  // rail is positioned, and a positioned child is not measured with the row.
-  const html = renderToStaticMarkup(<CardMemory title="Сплав" meta={['1 мая']} />);
+test('an empty ordinary card says so instead of the strip, and drops the meta with it', () => {
+  const empty = story(
+    <CardMemory
+      title="Корпоратив Nox"
+      meta={['12 сентября', '0 кадров']}
+      emptyText="Ни одного кадра — скиньте первые"
+    />,
+  );
+  expect(empty).toContain('Ни одного кадра — скиньте первые');
+  // There is nothing yet to count, so the card wears its name alone.
+  expect(empty).not.toContain('486');
+  expect(empty).not.toContain('12 сентября');
 
-  // `react-native-web` names its generated classes after the property it came from, so the rail
-  // being positioned and pinned top and bottom is readable straight off the markup.
-  const rail = tag(html, 'card-memory-rail');
-  for (const property of ['position', 'top', 'bottom']) {
-    expect(rail).toMatch(new RegExp(`\\br-${property}-`));
-  }
+  allDifferent({
+    full: <CardMemory title="Поход" meta={['12 сентября', '86 кадров']} thumbs={SHOTS} />,
+    empty: <CardMemory title="Поход" emptyText="Ни одного кадра — скиньте первые" />,
+  });
 });
 
-test('the field missing altogether is the empty memory, not a crash', () => {
-  // An older api sends no `recent_thumbnail_urls` at all, and the screen turns that into no
-  // thumbs; the prop is optional so the card must stand without it either way.
-  const html = renderToStaticMarkup(<CardMemory title="Сплав" meta={['1 мая']} />);
+test('a long name balances over three lines rather than running out of the card', () => {
+  const long = story(
+    <CardMemory title="Свадьба Лизы и Марка в Карелии на берегу Ладоги" thumbs={SHOTS} large />,
+  );
+  expect(long).toContain('Свадьба Лизы и Марка в Карелии на берегу Ладоги');
+  expect(long).toContain('-webkit-line-clamp:3');
+});
 
-  expect(frames(html)).toBe(0);
-  expect(html).toContain('Сплав');
+test('a card that leads somewhere is a button, and one that does not is not', () => {
+  expect(story(<CardMemory title="Поход" thumbs={SHOTS} onPress={() => {}} />)).toContain(
+    'role="button"',
+  );
+  expect(story(<CardMemory title="Поход" thumbs={SHOTS} />)).toContain('aria-disabled="true"');
 });

@@ -222,7 +222,7 @@ export default function ContactsScreen() {
         {error !== null ? (
           // The list did not come: the strip holds its place and offers the one thing left to do.
           <Banner tone="error" text={error}>
-            <Button sm variant="quiet" label={s.action.retry} onPress={load} />
+            <Button size="xs" variant="quiet" label={s.action.retry} onPress={load} />
           </Banner>
         ) : contacts === null ? (
           <Empty busy text={s.state.loading} />
@@ -250,14 +250,14 @@ export default function ContactsScreen() {
                     >
                       {fading ? (
                         <Button
-                          sm
+                          size="xs"
                           variant="quiet"
                           label={s.contacts.undo}
                           onPress={() => undo(contact)}
                         />
                       ) : (
                         <IconButton
-                          sm
+                          size={36}
                           icon={X}
                           label={s.contacts.remove(name)}
                           onPress={() => drop(contact)}
@@ -279,7 +279,7 @@ export default function ContactsScreen() {
                 <View>
                   <RowMember name={memberName(stranger)} meta={memberHandle(stranger)}>
                     <Button
-                      sm
+                      size="xs"
                       label={s.contacts.save}
                       busy={saving}
                       onPress={() => save(stranger)}

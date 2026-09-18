@@ -57,15 +57,14 @@ import {
   DayMark,
   Empty,
   IconButton,
-  RailH,
-  SHEET_GAP,
+  GRID_GAP,
   Text,
   Tile,
 } from '@/kit';
 import { useStrings } from '@/language';
 import { MemoryHead, type Head } from '@/memory/head';
 import { useTurnsWithPhone } from '@/orientation';
-import { onScrim, space, themed, themes, ThemePin, useTheme } from '@/theme';
+import { photo, space, themed, themes, ThemePin, useTheme } from '@/theme';
 
 /**
  * How long the face waits before looking again while the worker is still making something. A
@@ -76,7 +75,7 @@ const WHILE_PREPARING_MS = 3000;
 
 /** The kit's filmstrip tile — 52px, and the contact sheet's own gutter after it. */
 const STRIP_TILE = 52;
-const STRIP_GAP = SHEET_GAP;
+const STRIP_GAP = GRID_GAP;
 
 /** One line of the contact sheet: a day of the memory, or up to three of the frames shot on it. */
 type Row =
@@ -115,7 +114,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
    * edge, so its row is as wide as the window, and rotating the phone re-reads that.
    */
   const { width } = useWindowDimensions();
-  const cell = { width: (width - SHEET_GAP * 2) / 3 };
+  const cell = { width: (width - GRID_GAP * 2) / 3 };
   // null means «not loaded yet», the distinction the other faces draw: a reload after a delete
   // keeps the grid on screen instead of flashing the spinner over it.
   const [items, setItems] = useState<MediaItem[] | null>(null);
@@ -460,7 +459,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
           <Banner tone="error" text={error}>
             {/* Wrapped rather than handed `load` itself: a press hands its own argument along,
                 and the first one here is «read quietly». */}
-            <Button variant="quiet" sm label={s.action.retry} onPress={() => load()} />
+            <Button variant="quiet" size="xs" label={s.action.retry} onPress={() => load()} />
           </Banner>
         </View>
       ) : items === null ? (
@@ -482,8 +481,8 @@ export function Frames({ id, head }: { id: string; head: Head }) {
               <RefreshControl
                 refreshing={loading}
                 onRefresh={() => load()}
-                tintColor={color.ember}
-                colors={[color.ember]}
+                tintColor={color.accent}
+                colors={[color.accent]}
                 progressBackgroundColor={color.surface}
               />
             }
@@ -504,7 +503,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
                   <DayMark style={styles.pad} label={formatDay(new Date(row.day.at))}>
                     {picking ? (
                       <Button
-                        sm
+                        size="xs"
                         variant="quiet"
                         label={s.gallery.selectDay(markable.length)}
                         disabled={markable.length === 0}
@@ -543,11 +542,11 @@ export function Frames({ id, head }: { id: string; head: Head }) {
                         }
                         // Read out, never drawn — so it says «Photo» and not the api's own `photo`.
                         label={nameOf(item, frame)}
-                        // The kit's one mark for a picked frame — the ember ring and the tick, the
-                        // same as on «Выбор кадров». Only while the mode is on and only where a mark
+                        // Spec 1.7 gives this direction to `spark`: the frame is already ours
+                        // and is being taken home. Only while the mode is on and only where a mark
                         // means something: handed `undefined`, the tile is a button again rather
                         // than a checkbox that is permanently off.
-                        selected={pickable ? picked.has(item.id) : undefined}
+                        pick={pickable ? (picked.has(item.id) ? 'keep' : 'off') : undefined}
                         // «Тап по кадру теперь не открывает его, а отмечает» — while the mode is on.
                         // Off it, the same gate the strip below puts on the same record, and for the
                         // same reason: a frame still being made has nothing behind it to open, so
@@ -722,7 +721,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
                       <IconButton
                         icon={X}
                         label={s.action.close}
-                        tint={onScrim}
+                        tint={photo.on}
                         onPress={() => setOpen(null)}
                         disabled={busy}
                       />
@@ -739,7 +738,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
                       <IconButton
                         icon={Download}
                         label={s.action.download}
-                        tint={onScrim}
+                        tint={photo.on}
                         onPress={() => void save(shown)}
                         disabled={busy}
                       />
@@ -747,7 +746,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
                         <IconButton
                           icon={Trash2}
                           label={s.action.delete}
-                          tint={onScrim}
+                          tint={photo.on}
                           onPress={() => setConfirming(true)}
                           disabled={busy}
                         />
@@ -828,7 +827,6 @@ function Filmstrip({
 
   return (
     <View style={[styles.filmstrip, { paddingBottom: bottom }]}>
-      <RailH />
       <FlatList
         ref={strip}
         horizontal
@@ -902,11 +900,10 @@ function Filmstrip({
               // opacity is the same thing everywhere.
               style={[styles.stripTile, current ? null : styles.stripDim]}
               // The mark itself is the tile's, not this face's. It was a border here until the
-              // designer measured it: a border is taken out of the tile's own 52px, so the open
-              // frame — the one frame that must stand out — sat 4px smaller than its neighbours and
-              // lost its picture to the ring. The kit draws it as a layer over the frame
-              // (`.tile--current::after`).
-              current={current}
+              // designer measured it: a border is taken out of the tile's own box, so the open
+              // frame — the one frame that must stand out — sat smaller than its neighbours and
+              // lost its picture to the ring. The library draws it as a layer over the frame.
+              pick={current ? 'keep' : undefined}
               state={frame.state}
               uri={frame.uri ?? undefined}
               // No caption: at 52px there are no words to read, only the safelight.
@@ -944,13 +941,11 @@ function Playing({ url }: { url: string }) {
 }
 
 /**
- * The open frame is a dark room in both themes — the kit pins `.viewer` to the dark set on purpose
- * (kit.html, block 0.2): «вокруг фотографии не должно быть ничего светлее её самой», or the mount
- * pulls the eye off the photograph. The filmstrip is inside the viewer in the kit's own markup and
- * inherits that pin, and so does the ember ring on the open frame; the kit demonstrates it with a
- * `data-theme="light"` figure holding a viewer that is still dark.
+ * The open frame is a dark room in both themes — spec 8 gives the viewer a background darker than
+ * `ink` on purpose, or the mount pulls the eye off the photograph. The filmstrip stands inside that
+ * room and takes the pin with it, and so does the ring on the open frame.
  *
- * The same rule `scrim` and `onScrim` are shared under, one step further out: this is the room the
+ * The same rule `photo.*` is shared under, one step further out: this is the room the
  * photograph is looked at in, and it is not the interface around it. The face behind it is interface
  * and does turn with the theme.
  */
@@ -968,10 +963,10 @@ const useStyles = themed(() =>
     // The kit's contact sheet: a 3px gutter and nothing else, so the material reads as a lot of it.
     // The column itself is measured out above — the row only holds the gutters between them.
     // Between one day's strip and the next it is the daymark's own padding that opens the gap.
-    grid: { flexGrow: 1, gap: SHEET_GAP },
+    grid: { flexGrow: 1, gap: GRID_GAP },
     // Its own row now, and not a `columnWrapperStyle`: the list is flat so the days can stand
     // between the strips, which means the three across are laid out here.
-    gridRow: { flexDirection: 'row', gap: SHEET_GAP },
+    gridRow: { flexDirection: 'row', gap: GRID_GAP },
     notice: { marginTop: space.s3 },
     // The open frame is the whole screen: the frame takes what is left after the strip, and the bar
     // lies over it rather than beside it. `room` and not `color` from here down — see above.
@@ -991,7 +986,7 @@ const useStyles = themed(() =>
       paddingBottom: space.s6,
       // The darkening itself is not here: it is measured off the safe-area inset and so is written
       // where that inset is known, over the bar in the tree above. The same darkening in both
-      // themes, and the icons on it are `onScrim` for the reason the kit gives — this lies on a
+      // themes, and the icons on it are `photo.on` for the reason the kit gives — this lies on a
       // photograph, not on the interface, and has to read on snow and on a night sky alike.
       //
       // It is React Native's own gradient and not a library, and the `experimental_` in the name is
@@ -1000,7 +995,7 @@ const useStyles = themed(() =>
       // `CAGradientLayer` in `RCTViewComponentView`. Nothing about it is quiet on a device, which is
       // why what came back from one was a fade in the wrong place rather than no fade at all.
     },
-    // On the darkening and not on the screen, so it is `onScrim` softened, in both themes.
+    // On the darkening and not on the screen, so it is `photo.on` softened, in both themes.
     who: { flex: 1, paddingLeft: space.s1, color: 'rgba(242,236,227,.76)' },
     // Over the frame and at the foot of it: the strip below must stay the only thing under it.
     viewerNotice: { position: 'absolute', left: space.s4, right: space.s4, bottom: space.s4 },

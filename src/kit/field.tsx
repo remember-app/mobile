@@ -1,3 +1,4 @@
+import { Check } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import {
   Pressable,
@@ -10,46 +11,76 @@ import {
   type TextStyle,
 } from 'react-native';
 
-import { radius, space, themed, useTheme, type Theme } from '@/theme';
+import { height, radius, space, themed, type, useTheme, type Theme } from '@/theme';
 
+import { Icon, type IconComponent } from './icon';
 import { useFocusRing, useHoverFocus } from './interaction';
 import { Text } from './text';
 
-/** `.field-ok` and `.field-error` — the kit's two answers to something already typed. */
+/**
+ * Spec 7.3 — everything a person types into or picks from. The state of a field is never decoration:
+ * `ok` is a name the server has just said is free, `error` is a line that says what is wrong and
+ * what to do about it, and neither is ever guessed from the text on screen.
+ */
 export type FieldState = 'ok' | 'error';
 
 /**
- * `.field-hint` — the small muted line under a control saying what to do or where the thing reaches.
- * Exported because it is not the field's alone: the kit hangs the same line under the profile's two
- * switches and under the way out (screen 8), and a copy of these three numbers in every one of those
- * places is how they drift apart.
+ * The five fields the layout draws, which differ by height and by the face the text is typed in
+ * (spec 7.3):
+ *
+ * - `name` — 56, Unbounded: the memory's name is typed in the face it will be printed in on the cover;
+ * - `email` — 60;
+ * - `username` — 60, Unbounded, with an `@` in front;
+ * - `handle` — 54, with an `@` in front: the same thing inside a sheet;
+ * - `search` — 52, a magnifier and an `@`.
+ */
+export type FieldVariant = 'name' | 'email' | 'username' | 'handle' | 'search';
+
+const BOX: Record<FieldVariant, { minHeight: number; borderRadius: number }> = {
+  name: { minHeight: height.primary, borderRadius: radius.cell },
+  email: { minHeight: height.fieldTall, borderRadius: radius.section },
+  username: { minHeight: height.fieldTall, borderRadius: radius.section },
+  handle: { minHeight: 54, borderRadius: radius.field },
+  search: { minHeight: height.field, borderRadius: radius.cell },
+};
+
+const FACE: Record<FieldVariant, TextStyle> = {
+  name: type.subtitleDisplay,
+  email: type.subtitle,
+  username: { ...type.title, fontSize: 19 },
+  handle: { ...type.body, fontSize: 16 },
+  search: type.body,
+};
+
+/**
+ * The small line under a control saying what it does or how far it reaches. Not the field's alone —
+ * the same line hangs under the theme and language switches and under the way out of an account, and
+ * a copy of it in each of those places is how they drift apart.
  */
 export function Hint({
   children,
+  tone = 'muted',
   style,
 }: {
   children: ReactNode;
-  /** The field's own two colours for it — `ok` green, `error` rust. Nothing else recolours a hint. */
+  tone?: 'muted' | 'faint' | 'danger' | 'spark';
   style?: StyleProp<TextStyle>;
 }) {
-  const styles = useStyles();
-
-  return <Text style={[styles.hint, style]}>{children}</Text>;
+  return (
+    <Text role="note" tone={tone} style={style}>
+      {children}
+    </Text>
+  );
 }
 
-/**
- * The kit's field, section 4: label, input, and a line underneath that says what to do. Height 52,
- * and the focused border is ember without the glow — a field is never the main action on a screen.
- *
- * `state` colours the border and the hint together: `ok` while a username is still free, `error`
- * when the hint has to say what is wrong. Everything else is a plain `TextInput` and behaves like
- * one, `editable={false}` included.
- */
 export function Field({
   label,
   labelHidden,
+  variant = 'email',
   hint,
   state,
+  prefix,
+  icon,
   style,
   onFocus,
   onBlur,
@@ -57,14 +88,19 @@ export function Field({
 }: TextInputProps & {
   label: string;
   /**
-   * The kit's own label-less field — «Контакты» is the one screen that draws it, where the field
-   * stands right under the screen's name and a `.t-label` reading «Ник» over it would say what the
-   * placeholder already says. Only the visible line goes: the input keeps the label as its
-   * accessible name, so nothing is lost to a screen reader.
+   * The label-less field — the search on `Contacts`, the username in `SheetInvite`. Only the visible
+   * line goes: the input keeps the label as its accessible name, because a placeholder is not a
+   * label (spec 7.9, «скрытая подпись»).
    */
   labelHidden?: boolean;
+  variant?: FieldVariant;
+  /** Under the field: what to do, or — in `error` — what went wrong and what to do instead. */
   hint?: string;
   state?: FieldState;
+  /** The `@` the layout puts in front of every username. */
+  prefix?: string;
+  /** The magnifier on the search field. */
+  icon?: IconComponent;
 }) {
   const [focused, setFocused] = useState(false);
   const theme = useTheme();
@@ -73,46 +109,64 @@ export function Field({
 
   return (
     <View style={styles.field}>
-      {labelHidden ? null : <Text role="label">{label}</Text>}
-      <TextInput
-        accessibilityLabel={label}
-        accessibilityHint={hint}
-        placeholderTextColor={theme.color.muted}
-        {...input}
-        onFocus={(e) => {
-          setFocused(true);
-          onFocus?.(e);
-        }}
-        onBlur={(e) => {
-          setFocused(false);
-          onBlur?.(e);
-        }}
+      {labelHidden ? null : <Text role="eyebrow">{label.toUpperCase()}</Text>}
+      <View
         style={[
           styles.box,
-          styles.type,
-          // The kit's cascade puts the answer above the focus: a field in error keeps its error
-          // border while it is being fixed, and the raised background is what shows the focus.
+          BOX[variant],
           {
             borderColor: borderColor(theme, state, focused),
-            backgroundColor: focused ? theme.color.raise : theme.color.surface,
+            backgroundColor: disabled ? theme.color.raise : theme.color.surface,
           },
-          disabled ? styles.boxOff : null,
-          disabled ? styles.typeOff : null,
-          style,
+          focused && !state ? styles.boxFocus : null,
         ]}
-      />
-      {hint ? <Hint style={hintColor(theme, state)}>{hint}</Hint> : null}
+      >
+        {icon ? <Icon icon={icon} size={18} color={theme.color.muted} /> : null}
+        {prefix ? (
+          <Text tone="muted" style={FACE[variant]}>
+            {prefix}
+          </Text>
+        ) : null}
+        <TextInput
+          accessibilityLabel={label}
+          accessibilityHint={hint}
+          placeholderTextColor={theme.color.faint}
+          {...input}
+          onFocus={(e) => {
+            setFocused(true);
+            onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setFocused(false);
+            onBlur?.(e);
+          }}
+          style={[
+            styles.input,
+            FACE[variant],
+            { color: disabled ? theme.color.faint : theme.color.paper },
+            style,
+          ]}
+        />
+        {/* Spec 7.3 — «проверено»: a 22 spark circle inside the field, beside the name it approves. */}
+        {state === 'ok' ? (
+          <View style={styles.tick}>
+            <Icon icon={Check} size={13} color={theme.color.sparkInk} />
+          </View>
+        ) : null}
+      </View>
+      {hint ? (
+        <Hint tone={state === 'error' ? 'danger' : state === 'ok' ? 'spark' : 'muted'}>{hint}</Hint>
+      ) : null}
     </View>
   );
 }
 
 /**
- * The same field with something other than a `TextInput` in the middle of it — a day taken from the
- * platform's own calendar, where there is nothing to type. Label, box and hint are the ones above,
- * to the pixel; what differs is that the box is pressed rather than written in, so hover, focus and
- * the press are drawn here instead of arriving from the input.
+ * The same box with something other than a `TextInput` inside it — the day taken from the phone's
+ * own calendar (spec 7.3, «поле-кнопка даты»), where there is nothing to type. It is pressed rather
+ * than written in, so hover, focus and the press are drawn here instead of arriving from an input.
  *
- * `children` is what stands where the typed text would: the value at the left, an icon at the right.
+ * `children` is what stands where the typed text would: the value on the left, a chevron at the right.
  */
 export function FieldShell({
   label,
@@ -132,7 +186,7 @@ export function FieldShell({
 
   return (
     <View style={styles.field}>
-      <Text role="label">{label}</Text>
+      <Text role="eyebrow">{label.toUpperCase()}</Text>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={label}
@@ -143,14 +197,15 @@ export function FieldShell({
         {...props}
         style={({ pressed }) => [
           styles.box,
-          styles.row,
+          BOX.name,
+          styles.between,
           {
+            borderColor: theme.color.line,
             // A finger has no hover, so the press is where the same lift is felt.
-            borderColor: borderColor(theme, undefined, focused, hovered || pressed),
-            backgroundColor: focused ? theme.color.raise : theme.color.surface,
+            backgroundColor: hovered || pressed ? theme.color.raise : theme.color.surface,
           },
           focused ? focusRing : null,
-          disabled ? styles.boxOff : null,
+          disabled ? styles.off : null,
         ]}
       >
         {children}
@@ -160,49 +215,202 @@ export function FieldShell({
   );
 }
 
+/**
+ * The six cells of a code from an e-mail (spec 7.3). One input behind six boxes: the phone's own
+ * one-time-code autofill wants a single field, and six separate ones each steal the caret from the
+ * last.
+ *
+ * `error` marks all six at once, because the code is one value and not six — and the screen clears
+ * it, which is what puts the caret back in the first cell.
+ */
+export function CodeField({
+  label,
+  value,
+  onChangeText,
+  length = 6,
+  state,
+  hint,
+  autoFocus,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (next: string) => void;
+  length?: number;
+  state?: FieldState;
+  hint?: string;
+  autoFocus?: boolean;
+}) {
+  const [focused, setFocused] = useState(false);
+  const theme = useTheme();
+  const styles = useStyles();
+
+  return (
+    <View style={styles.field}>
+      <Text role="eyebrow">{label.toUpperCase()}</Text>
+      <View style={styles.code}>
+        {Array.from({ length }, (_, i) => (
+          <View
+            key={i}
+            style={[
+              styles.cell,
+              {
+                borderColor:
+                  state === 'error'
+                    ? theme.color.dangerText
+                    : focused && i === Math.min(value.length, length - 1)
+                      ? theme.color.accent
+                      : theme.color.line,
+              },
+            ]}
+          >
+            <Text style={styles.cellDigit}>{value[i] ?? ''}</Text>
+          </View>
+        ))}
+        <TextInput
+          accessibilityLabel={label}
+          accessibilityHint={hint}
+          value={value}
+          onChangeText={(next) => onChangeText(next.replace(/\D/g, '').slice(0, length))}
+          keyboardType="number-pad"
+          textContentType="oneTimeCode"
+          autoComplete="one-time-code"
+          maxLength={length}
+          autoFocus={autoFocus}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          style={[StyleSheet.absoluteFill, styles.codeInput]}
+        />
+      </View>
+      {hint ? <Hint tone={state === 'error' ? 'danger' : 'muted'}>{hint}</Hint> : null}
+    </View>
+  );
+}
+
+/**
+ * The long-text box (spec 7.3): 240 tall, never dragged bigger by hand, with a hint on the left
+ * under it and a counter on the right. Past 90% of the limit the counter turns dangerous, and
+ * nothing types past the limit at all — the counter is a warning, not an epitaph.
+ */
+export function TextArea({
+  label,
+  labelHidden,
+  hint,
+  limit,
+  value,
+  onChangeText,
+  ...input
+}: TextInputProps & {
+  label: string;
+  labelHidden?: boolean;
+  hint?: string;
+  limit: number;
+  value: string;
+  onChangeText: (next: string) => void;
+}) {
+  const [focused, setFocused] = useState(false);
+  const theme = useTheme();
+  const styles = useStyles();
+  const near = value.length >= limit * 0.9;
+
+  return (
+    <View style={styles.field}>
+      {labelHidden ? null : <Text role="eyebrow">{label.toUpperCase()}</Text>}
+      <TextInput
+        accessibilityLabel={label}
+        accessibilityHint={hint}
+        placeholderTextColor={theme.color.faint}
+        multiline
+        textAlignVertical="top"
+        maxLength={limit}
+        value={value}
+        onChangeText={onChangeText}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        {...input}
+        style={[
+          styles.area,
+          type.body,
+          {
+            color: theme.color.paper,
+            backgroundColor: theme.color.surface,
+            borderColor: focused ? theme.color.accent : theme.color.line,
+          },
+        ]}
+      />
+      <View style={styles.between}>
+        {hint ? (
+          <Text role="meta" tone="faint">
+            {hint}
+          </Text>
+        ) : (
+          <View />
+        )}
+        <Text role="meta" tone={near ? 'danger' : 'muted'}>
+          {value.length} / {limit}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+/**
+ * The border of a field. The answer stands above the focus: a field in error keeps its error border
+ * while it is being fixed, because the border is the answer and the ring is the focus.
+ */
 function borderColor(
-  { color, shade }: Theme,
+  { color }: Theme,
   state: FieldState | undefined,
   focused: boolean,
-  hovered = false,
 ): string {
-  if (state === 'error') return shade.rustText;
-  if (state === 'ok') return shade.fixedLine;
-  if (focused) return color.ember;
-  // `.input:hover` — the hairline lifts, and that is all of it: the raised background belongs to
-  // the focus alone.
-  return hovered ? shade.lineHi : color.line;
+  if (state === 'error') return color.dangerText;
+  if (state === 'ok') return color.spark;
+  if (focused) return color.accent;
+  return color.line;
 }
 
-function hintColor({ color, shade }: Theme, state: FieldState | undefined) {
-  if (state === 'error') return { color: shade.rustText };
-  if (state === 'ok') return { color: color.fixed };
-  return null;
-}
-
-// `.input` comes in two halves so that both fields can wear it: the box is what a `View` can hold,
-// the type is what only text takes. The input above puts on both; the shell's box, only the first.
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
-    field: { alignSelf: 'stretch', maxWidth: 420, gap: space.s2 },
+    field: { alignSelf: 'stretch', gap: space.s2 },
     box: {
-      minHeight: 52,
-      paddingHorizontal: space.s4,
-      borderWidth: 1,
-      borderRadius: radius.card,
-    },
-    // `.input:disabled` — the half of it the box owns.
-    boxOff: { backgroundColor: color.ink },
-    type: { color: color.paper, fontSize: 16 },
-    typeOff: { color: color.muted },
-    // The value takes the width it needs and the icon sits out at the edge, both on the line the
-    // typed text would have been on.
-    row: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: space.s3,
+      gap: space.s2,
+      paddingHorizontal: space.s4,
+      borderWidth: 1,
     },
-    hint: { fontSize: 13, lineHeight: 16.9, color: color.muted },
+    // Spec 2.5 — the focus ring, on the box rather than on the input, so it rings the whole field.
+    boxFocus: { outlineWidth: 2, outlineColor: color.accent, outlineOffset: 2, outlineStyle: 'solid' },
+    off: { opacity: 0.45 },
+    input: { flex: 1, minWidth: 0, paddingVertical: space.s2 },
+    between: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.s3 },
+    tick: {
+      width: 22,
+      height: 22,
+      borderRadius: radius.pill,
+      backgroundColor: color.spark,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    code: { flexDirection: 'row', gap: space.s2 },
+    cell: {
+      flex: 1,
+      height: height.code,
+      borderRadius: radius.cell,
+      borderWidth: 1,
+      backgroundColor: color.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cellDigit: { fontFamily: type.title.fontFamily, fontSize: 22, color: color.paper },
+    // The real input lies over the six boxes, invisible, so the caret and the phone's own autofill
+    // have somewhere to land.
+    codeInput: { opacity: 0, color: 'transparent' },
+    area: {
+      height: 240,
+      borderWidth: 1,
+      borderRadius: radius.section,
+      paddingHorizontal: space.s4,
+      paddingVertical: space.s4,
+    },
   }),
 );

@@ -36,20 +36,21 @@ function grip(value: boolean, disabled: boolean): string {
   );
 }
 
-test('the grip is the kit paper on both sides of the switch, in reach and out of it', async () => {
+test('the grip is white on both sides of the switch, in reach and out of it', async () => {
   await setTheme('dark');
 
-  // #F2ECE3 paper on #E4552B ember. Both switches carry `disabled={busy}`, and the web switch keeps
-  // a second pair of defaults for that — a grey grip of its own — so it is walked here too.
+  // Spec 7.3: a 26 white grip, on `accent` when it is on and on `raise` when it is not. Both
+  // switches carry `disabled={busy}`, and the web switch keeps a second pair of defaults for that
+  // — a grey grip of its own — so it is walked here too.
   for (const disabled of [false, true]) {
-    expect(grip(true, disabled)).toContain('rgba(242,236,227');
-    expect(grip(false, disabled)).toContain('rgba(242,236,227');
+    expect(grip(true, disabled)).toContain('rgba(255,255,255');
+    expect(grip(false, disabled)).toContain('rgba(255,255,255');
   }
 
   // The teal is what this is all about; naming it keeps the case honest if the library moves.
   expect(grip(true, false)).not.toContain('rgba(0,150,136');
-  // And the track is still the kit's, which was never the broken half.
-  expect(grip(true, false)).toContain('rgba(228,85,43');
+  // And the track is still `accent`, which was never the broken half.
+  expect(grip(true, false)).toContain('rgba(75,91,255');
 });
 
 /**

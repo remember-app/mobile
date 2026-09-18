@@ -1,62 +1,94 @@
-import { renderToStaticMarkup } from 'react-dom/server';
-import { expect, test, vi } from 'vitest';
+import { Copy } from 'lucide-react-native';
+import { beforeAll, expect, test } from 'vitest';
 
-import { Tile } from '@/kit/tile';
+import { allDifferent, story } from '@/kit/story';
+import { FrameMark, GRID_GAP, PickCircle, Tile, type PickKind } from '@/kit/tile';
+import { setTheme } from '@/theme';
 
-// The tile draws in the app's current theme, and the theme asks the phone for the stored pick at
-// import. Nothing below reads a colour — the phone only has to answer.
-vi.mock('expo-secure-store', () => ({
-  getItemAsync: async () => null,
-  setItemAsync: async () => {},
-}));
-
-// The picture itself is `expo-image` because a `ph://` reference needs the Photos framework, and
-// the glyphs are Lucide over `react-native-svg` — both are native and neither will import in node.
-// What a frame is *marked* with does not depend on either, and this file is only about the mark.
-vi.mock('expo-image', () => ({ Image: () => null }));
-vi.mock('lucide-react-native', () => ({ Check: () => null, TriangleAlert: () => null }));
-
-/**
- * The one mark the product has for a frame that is picked or open: an ember ring, drawn as a layer
- * over the picture (`.tile--selected::after, .tile--current::after`).
- *
- * Worth pinning because the obvious spelling is the wrong one, and it was the one in the filmstrip:
- * a border on the tile itself. React Native takes a border out of the box the tile already has, so
- * the open frame — the single frame in the strip that must stand out — came out 4px smaller than
- * the frames beside it and gave up that much of its picture to the ring. That reads as a bug in the
- * strip's layout, not as a mark, and it is what the designer measured (TASK-79).
- */
+/** Spec 7.7 and 7.4 — one frame of the grid, and the marks that can stand on it. */
 
 const A = 'https://bucket.example/a.jpg?X-Amz-Signature=aaa';
 
-/** The opening tag of the element carrying `testID`, whatever else the tile drew around it. */
-function tag(html: string, testID: string): string {
-  return html.match(new RegExp(`<[a-z]+[^>]*data-testid="${testID}"[^>]*>`))?.[0] ?? '';
-}
-
-const picked = renderToStaticMarkup(<Tile state="ready" uri={A} selected onPress={() => {}} />);
-const open = renderToStaticMarkup(<Tile state="ready" uri={A} current onPress={() => {}} />);
-
-test('the ring is a layer over the frame, not a border cut out of it', () => {
-  // `react-native-web` names its generated classes after the property they came from, so a layer
-  // pinned to all four edges is readable straight off the markup.
-  const ring = tag(open, 'tile-ring');
-  for (const property of ['position', 'top', 'bottom', 'left', 'right']) {
-    expect(ring).toMatch(new RegExp(`\\br-${property}-`));
-  }
+beforeAll(async () => {
+  await setTheme('dark');
 });
 
-test('a picked frame and an open one wear the same ring', () => {
-  // «Метка выделения в продукте одна» — the same class list on both, or the kit has two marks.
-  expect(tag(picked, 'tile-ring')).toBe(tag(open, 'tile-ring'));
+test('the eight states of a frame are eight different frames', () => {
+  allDifferent({
+    ready: <Tile state="ready" uri={A} label="Фото" />,
+    video: <Tile state="ready" uri={A} length="0:24" label="Видео" />,
+    developing: <Tile state="processing" caption="Проявляем…" label="Кадр" />,
+    picked: <Tile state="ready" uri={A} pick="send" label="Фото" />,
+    droppedByPass: (
+      <Tile state="ready" uri={A} pick="auto" reason={{ icon: Copy, label: 'Дубль' }} label="Фото" />
+    ),
+    droppedByHand: <Tile state="ready" uri={A} pick="hand" label="Фото" />,
+    taken: <Tile state="ready" uri={A} pick="keep" label="Фото" />,
+    broken: <Tile state="failed" caption="Не загрузилось" label="Кадр" />,
+  });
 });
 
-test('the tick belongs to picking, and the open frame does not wear one', () => {
-  expect(tag(picked, 'tile-check')).not.toBe('');
-  expect(tag(open, 'tile-check')).toBe('');
+test('a picked frame is ringed over the picture, never bordered out of it', () => {
+  // A border comes out of the tile's own box, which in the grid would make a picked frame narrower
+  // than its neighbours — the bug TASK-79 was about. The ring is a layer.
+  const picked = story(<Tile state="ready" uri={A} pick="send" label="Фото" />);
+  expect(picked).toContain('tile-ring');
+  expect(story(<Tile state="ready" uri={A} pick="off" label="Фото" />)).not.toContain('tile-ring');
 });
 
-test('a frame with neither mark is drawn without a ring at all', () => {
-  const plain = renderToStaticMarkup(<Tile state="ready" uri={A} onPress={() => {}} />);
-  expect(tag(plain, 'tile-ring')).toBe('');
+test('the colour of the pick says which way the frame is going', () => {
+  // Spec 1.7: `accent` — this one is leaving for the server; `spark` — this one is already ours.
+  const send = story(<Tile state="ready" uri={A} pick="send" label="Фото" />);
+  const keep = story(<Tile state="ready" uri={A} pick="keep" label="Фото" />);
+  expect(send).toContain('rgba(75,91,255,1.00)');
+  expect(keep).toContain('rgba(228,255,79,1.00)');
+});
+
+test('a frame carrying a pick is a checkbox, and one that does not is a button', () => {
+  // `checked` is spoken only when it is true, so on a screen whose whole job is picking, a frame
+  // with no `pick` at all would announce neither that it toggles nor that it is off.
+  expect(story(<Tile state="ready" uri={A} label="Фото" onPress={() => {}} />)).toContain(
+    'role="button"',
+  );
+  expect(
+    story(<Tile state="ready" uri={A} pick="off" label="Фото" onPress={() => {}} />),
+  ).toContain('role="checkbox"');
+  // A frame still developing is not a button at all.
+  expect(story(<Tile state="processing" caption="Проявляем…" label="Кадр" />)).toContain(
+    'role="img"',
+  );
+});
+
+test('a frame the pass dropped stays visible and says why', () => {
+  const dropped = story(
+    <Tile state="ready" uri={A} pick="auto" reason={{ icon: Copy, label: 'Дубль' }} label="Фото" />,
+  );
+  expect(dropped).toContain('Дубль');
+  // Down to 32% — out of the montage, and still there to be put back with one tap. The picture
+  // itself is dimmed and nothing else is, which is what keeps the reason readable over it.
+  expect(dropped).not.toBe(story(<Tile state="ready" uri={A} reason={{ icon: Copy, label: 'Дубль' }} label="Фото" />));
+  // No circle on it: the reason stands where the circle would.
+  expect(dropped).not.toContain('tile-ring');
+});
+
+test('the five pick circles are five circles, and only two of them are filled', () => {
+  const kinds: Exclude<PickKind, 'auto'>[] = ['send', 'keep', 'off', 'hand'];
+  allDifferent(Object.fromEntries(kinds.map((kind) => [kind, <PickCircle kind={kind} />])));
+  expect(story(<PickCircle kind="off" />)).not.toContain('data-glyph');
+  expect(story(<PickCircle kind="hand" />)).toContain('data-glyph');
+});
+
+test('the mark in the corner is a running time or a reason, never both', () => {
+  const length = story(<FrameMark length="0:24" />);
+  expect(length).toContain('0:24');
+  const reason = story(<FrameMark icon={Copy} label="Размыто" />);
+  expect(reason).toContain('Размыто');
+  expect(length).not.toBe(reason);
+  // Both lie on a photograph, so the glyph on them is white whichever theme the app is in.
+  expect(length).toContain('stroke="#FFFFFF"');
+});
+
+test('the gutter of the grid is one number, and both screens that draw a grid read it', () => {
+  // A gutter of two minds would tell the two screens two different column widths.
+  expect(GRID_GAP).toBe(3);
 });

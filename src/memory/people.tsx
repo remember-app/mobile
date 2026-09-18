@@ -30,17 +30,14 @@ import {
   Banner,
   Button,
   Chip,
-  ChipAction,
+  BadgeContribution,
+  BadgeOrganizer,
   ConfirmSheet,
   Empty,
   Field,
   IconButton,
-  // The kit's `.invite` box. The api's own `Invite` is the token behind it and keeps the plain
-  // name here, as it has everywhere else in the app.
-  Invite as InviteLink,
   RowMember,
   Sheet,
-  Status,
   Text,
   Toggle,
 } from '@/kit';
@@ -313,7 +310,7 @@ export function People({ id, head }: { id: string; head: Head }) {
 
         {error !== null ? (
           <Banner tone="error" text={error}>
-            <Button sm variant="quiet" label={s.action.retry} onPress={load} />
+            <Button size="xs" variant="quiet" label={s.action.retry} onPress={load} />
           </Banner>
         ) : members === null ? (
           <Empty busy text={s.state.loading} />
@@ -359,29 +356,38 @@ export function People({ id, head }: { id: string; head: Head }) {
                   <RowMember
                     key={member.id}
                     name={self ? s.members.you(memberName(member)) : memberName(member)}
-                    meta={memberHandle(member)}
+                    // Spec 7.5 writes the second line as «@ник · роль · N кадров» — one phrase
+                    // under the name, with what they have brought on the end of it. A dash until it
+                    // is counted rather than a nought, which would be a different thing said out
+                    // loud; either way the line is there from the first frame drawn, so the row does
+                    // not jump when the count lands.
+                    meta={`${memberHandle(member)} · ${s.role[member.role]} · ${
+                      shots ? s.memory.frames(shots.get(member.id) ?? 0) : '—'
+                    }`}
+                    ring={member.role === 'organizer'}
                     status={
                       mine ? (
-                        <ChipAction
+                        <Chip
                           label={s.members.sayNothing}
                           onPress={sayNothing}
                           disabled={busy}
                         />
                       ) : (
-                        <Status
-                          text={s.standing[member.contribution_status]}
-                          ready={member.contribution_status === 'done'}
+                        <BadgeContribution
+                          state={
+                            member.contribution_status === 'done'
+                              ? 'done'
+                              : member.contribution_status === 'nothing'
+                                ? 'nothing'
+                                : 'planned'
+                          }
+                          label={s.standing[member.contribution_status]}
                         />
                       )
                     }
-                    // What they have brought so far, counted off the gallery. A dash until it is
-                    // counted rather than a nought, which would be a different thing said out loud;
-                    // either way the column is there from the first frame drawn, so the row does not
-                    // jump when the count lands.
-                    count={shots ? s.memory.frames(shots.get(member.id) ?? 0) : '—'}
                     divider={index > 0}
                   >
-                    <Chip label={s.role[member.role]} organizer={member.role === 'organizer'} />
+                    {member.role === 'organizer' ? <BadgeOrganizer label={s.role[member.role]} sm /> : null}
                     {/* The organizer's cross, drawn small so it stands inside a line of text
                         rather than over it. On the organizer's own row there is none — and the
                         kit holds that column open anyway, so the role chips of a stack that has
@@ -390,7 +396,7 @@ export function People({ id, head }: { id: string; head: Head }) {
                       <View style={styles.noCross} />
                     ) : (
                       <IconButton
-                        sm
+                        size={36}
                         icon={X}
                         label={s.members.remove(memberName(member))}
                         onPress={() => setDropping(member)}
@@ -478,11 +484,11 @@ export function People({ id, head }: { id: string; head: Head }) {
           <RowMember
             name={memberName(invited)}
             meta={memberHandle(invited)}
-            status={<Status text={s.members.invited} />}
+            status={<BadgeContribution state="planned" label={s.members.invited} />}
           >
-            <ChipAction
+            <Chip
               label={kept ? s.members.keptContact : s.members.keepContact}
-              checked={kept}
+              selected={kept}
               // Saved is a standing and not a switch: the way off a contact list is that list's
               // own cross, not a chip on a sheet that is about to close.
               onPress={kept ? undefined : () => keep(invited)}
@@ -509,7 +515,7 @@ export function People({ id, head }: { id: string; head: Head }) {
                   divider={index > 0}
                 >
                   <Button
-                    sm
+                    size="xs"
                     label={s.members.inviteDo}
                     busy={calling === contact.id}
                     onPress={() => sendInvite(contact, false)}
@@ -532,7 +538,7 @@ export function People({ id, head }: { id: string; head: Head }) {
             <View>
               <RowMember name={memberName(stranger)} meta={memberHandle(stranger)}>
                 <Button
-                  sm
+                  size="xs"
                   label={s.members.inviteDo}
                   busy={calling === stranger.id}
                   onPress={() => sendInvite(stranger, true)}
@@ -549,21 +555,24 @@ export function People({ id, head }: { id: string; head: Head }) {
           <Button label={s.members.getLink} onPress={showLink} disabled={busy} />
         ) : (
           <>
-            <InviteLink url={shareable.link}>
+            <View style={styles.inviteLink}>
+              <Text role="meta" numberOfLines={1} style={styles.inviteUrl}>
+                {shareable.link}
+              </Text>
               {/* The platform's own share sheet, which is also the copy button — no
                   clipboard dependency for something every OS already does better. */}
               <Button
-                sm
+                size="xs"
                 icon={Share2}
                 label={s.action.share}
                 onPress={() => void Share.share({ message: shareable.link }).catch(() => {})}
                 disabled={busy}
               />
-            </InviteLink>
+            </View>
             <Text role="meta">{s.members.linkGrants(shareable.grants)}</Text>
             {/* Section 11: replacing a link is a quiet thing beside it, not a red button. */}
             <Button
-              sm
+              size="xs"
               variant="quiet"
               label={s.members.replaceLink}
               onPress={rotate}
@@ -611,4 +620,9 @@ const styles = StyleSheet.create({
   // The kit's `minmax(28px,auto)` last column, kept open where there is no cross to put in it.
   noCross: { width: 28 },
   quiet: { alignSelf: 'flex-start' },
+  // The link and whatever the screen offers to do with it, side by side; replacing it sits quietly
+  // underneath rather than inside, because a link gets replaced often and that is no red-button
+  // moment.
+  inviteLink: { flexDirection: 'row', alignItems: 'center', gap: space.s2 },
+  inviteUrl: { flex: 1, minWidth: 0 },
 });

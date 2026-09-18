@@ -7,7 +7,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { radius, space, themed, useTheme } from '@/theme';
+import { height, radius, space, themed, type, useTheme } from '@/theme';
 
 import { Hint } from './field';
 import { TAP, hitSlop, useFocusRing, useHoverFocus } from './interaction';
@@ -17,25 +17,21 @@ import { Text } from './text';
 export type SegmentOption<T extends string> = { value: T; label: string };
 
 export type SegmentProps<T extends string> = {
-  /** The `t-label` above the row, and the radiogroup's name for a screen reader. */
+  /** The heading over the row, and the radiogroup's name for a screen reader. */
   label: string;
   /**
-   * Drawn without that label, which is then only the spoken one. The kit's own case: the row under
-   * a screen's appbar («Что показать») is titled by the screen itself, and a second heading over it
-   * would name the same thing twice.
+   * Drawn without that heading, which is then only the spoken one — the row under a screen's bar is
+   * titled by the screen itself, and a second heading over it would name the same thing twice.
    */
   hideLabel?: boolean;
-  /**
-   * `.segment-wide` — the row spans its column and splits it evenly between the values, instead of
-   * being as wide as its words. What the kit picks a *face* with rather than a setting.
-   */
+  /** The row spans its column and splits it evenly, instead of being as wide as its words. */
   wide?: boolean;
-  /**
-   * `.field-hint` under the row — where the setting reaches, said once and quietly. The kit's screen
-   * 8 gives one to both of the product's settings; the switch under a memory's name has none,
-   * because a face is what you are looking at and reaches no further.
-   */
+  /** Where the setting reaches, said once and quietly, under the row. */
   hint?: string;
+  /** Spec 7.3: 36 inside a memory's own header pill, 40 everywhere else. */
+  sm?: boolean;
+  /** Inside a sheet the container is `ink`, because the sheet itself is already `surface`. */
+  onSurface?: boolean;
   options: readonly SegmentOption<T>[];
   value: T;
   onChange: (value: T) => void;
@@ -43,32 +39,37 @@ export type SegmentProps<T extends string> = {
 };
 
 /**
- * The kit's switch of two or three, section 15 — a radiogroup drawn as a row of pills. Every value
- * is visible at once on purpose: nobody opens a list to find out what a product even offers. This
- * is the kit's answer to a picker, and to the platform's own `Switch`, which is neither of the two
- * lights nor any of the kit's shapes.
+ * Spec 7.3 — a choice of two or three, drawn as a row of pills inside one. Every value is visible at
+ * once on purpose: nobody opens a list to find out what a product even offers.
  *
- * Controlled, and stateless like everything else in the kit: the caller holds the value and says
- * what the words are. Three callers so far — the theme and the language side by side in the profile,
- * and, `wide`, the three faces of one memory under its name.
+ * Controlled and wordless, like everything else here: the caller holds the value and says what the
+ * words are.
  */
 export function Segment<T extends string>({
   label,
   hideLabel,
   wide,
   hint,
+  sm,
+  onSurface,
   options,
   value,
   onChange,
   style,
 }: SegmentProps<T>) {
   const styles = useStyles();
+  // Spec 7.3: a long word steps down to 13 rather than wrapping or being cut.
+  const long = options.some((option) => option.label.length > 11);
 
   return (
     <View style={[styles.group, style]}>
       {hideLabel ? null : <Text role="label">{label}</Text>}
       <View
-        style={[styles.segment, wide ? styles.wide : null]}
+        style={[
+          styles.segment,
+          onSurface ? styles.onSurface : null,
+          wide ? styles.wide : null,
+        ]}
         accessibilityRole="radiogroup"
         accessibilityLabel={label}
         // Read out with the group rather than left to the eye: the line says what picking here
@@ -80,6 +81,8 @@ export function Segment<T extends string>({
             key={option.value}
             label={option.label}
             wide={wide}
+            sm={sm}
+            long={long}
             checked={option.value === value}
             onPress={() => onChange(option.value)}
           />
@@ -91,50 +94,58 @@ export function Segment<T extends string>({
 }
 
 /**
- * One `input + label` pair. Its own component and not a branch of the loop above because hover and
- * focus are per pill, and a hook cannot be called inside a `map`.
+ * One pill. Its own component and not a branch of the loop above because hover and focus are per
+ * pill, and a hook cannot be called inside a `map`.
  *
- * The kit hides the radio from the eye but not from the keyboard or the voice; React Native has no
- * radio to hide, so the pill is the control and carries the role itself.
+ * The layout hides the radio from the eye but not from the keyboard or the voice; React Native has
+ * no radio to hide, so the pill is the control and carries the role itself.
  */
 function Option({
   label,
   wide,
+  sm,
+  long,
   checked,
   onPress,
 }: {
   label: string;
   wide?: boolean;
+  sm?: boolean;
+  long?: boolean;
   checked: boolean;
   onPress: () => void;
 }) {
   const { hovered, focused, props } = useHoverFocus();
-  const { color, shade } = useTheme();
+  const { color } = useTheme();
   const styles = useStyles();
   const focusRing = useFocusRing();
+  const tall = sm ? height.segmentSm : height.segment;
 
   return (
     <Pressable
       accessibilityRole="radio"
       accessibilityLabel={label}
       accessibilityState={{ checked }}
-      // The pill is drawn 38 high, the kit's floor for a finger is 44; the slop is the difference,
-      // which is also exactly the padding the row holds it in.
-      hitSlop={hitSlop(TAP, 38)}
+      hitSlop={hitSlop(TAP, tall)}
       onPress={onPress}
       {...props}
       style={[
         styles.option,
+        { minHeight: tall },
         wide ? styles.optionWide : null,
-        checked ? { backgroundColor: color.raise, borderColor: shade.lineHi } : null,
+        checked ? styles.checked : null,
         focused ? focusRing : null,
       ]}
     >
       <RNText
         numberOfLines={1}
-        // Checked is read in paper, the rest stay muted — and on web the one under the cursor
-        // lights up on its way to being picked.
-        style={[styles.label, { color: checked || hovered ? color.paper : color.muted }]}
+        style={[
+          type.controlSm,
+          long ? styles.long : null,
+          // Chosen is read on `paper` in `ink`; the rest stay muted — and on web the one under the
+          // cursor lights up on its way to being picked.
+          { color: checked ? color.ink : hovered ? color.paper : color.muted },
+        ]}
       >
         {label}
       </RNText>
@@ -146,42 +157,30 @@ const useStyles = themed(({ color }) =>
   StyleSheet.create({
     group: { gap: space.s2 },
     segment: {
-      // The kit's `inline-flex`: the row is as wide as its words and no wider.
+      // The row is as wide as its words and no wider, until `wide` says otherwise.
       alignSelf: 'flex-start',
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 2,
-      padding: 3,
+      gap: space.s1,
+      padding: space.s1,
       backgroundColor: color.surface,
       borderWidth: 1,
       borderColor: color.line,
       borderRadius: radius.pill,
     },
-    // `.segment-wide{display:flex; width:100%}` — the row stops being as wide as its words and takes
-    // the whole column it stands in.
+    onSurface: { backgroundColor: color.ink },
     wide: { alignSelf: 'stretch' },
     option: {
-      // The one number that is not the kit's: a phone is narrower than the page the kit is drawn
-      // on. At the kit's `--s4` the three-way theme row measures 332 against the 327 a 375pt phone
-      // leaves between the profile's margins, so «Как в телефоне» would lose its last letters on
-      // every phone in service. `--s3` is the kit's own padding for a control drawn tighter
-      // (`.btn-sm`, `.btn-quiet`, and this pill is 38 high like them), and it brings the row to
-      // 308 — inside a 360pt Android too. Every word stays whole and at full size, which is what
-      // the kit is actually asking for.
       paddingHorizontal: space.s3,
-      // And below that — a phone smaller still, or a person running huge type — a pill that gives
-      // way is better than a row that runs off the screen.
+      // Below the smallest phone, or with huge type on, a pill that gives way beats a row that runs
+      // off the screen.
       flexShrink: 1,
-      minHeight: 38,
       alignItems: 'center',
       justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: 'transparent',
       borderRadius: radius.pill,
     },
-    // `.segment-wide label{flex:1; justify-content:center; padding:0 var(--s2)}` — equal thirds of
-    // the row, whatever the words in them are, so the switch under a memory's name never limps.
     optionWide: { flexGrow: 1, flexBasis: 0, paddingHorizontal: space.s2 },
-    label: { fontSize: 14, lineHeight: 14, fontWeight: '600' },
+    checked: { backgroundColor: color.paper },
+    long: { fontSize: 13 },
   }),
 );

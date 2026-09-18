@@ -79,11 +79,11 @@ test('the open frame stays a dark room in both themes', () => {
   expect(frames).toContain('const room = themes.dark.color;');
   expect(frames).toContain('viewer: { flex: 1, backgroundColor: room.ink }');
   expect(frames).toContain('filmstrip: { backgroundColor: room.ink }');
-  // The ring on the open frame is inside the viewer too, so its ember has to be the dark one. It is
-  // the kit's tile that draws it now (TASK-79 — a border here was eating 4px out of the open frame),
-  // and a `Tile` reads `useTheme()` for itself, so what pins its ember dark is the `ThemePin` below
-  // and not a sheet on this screen. The strip only says which frame is the open one.
-  expect(frames).toContain('current={current}');
+  // The ring on the open frame is inside the viewer too, so its colour has to be the dark set's.
+  // It is the tile that draws it (TASK-79 — a border here was eating pixels out of the open frame),
+  // and a `Tile` reads `useTheme()` for itself, so what pins it dark is the `ThemePin` below and
+  // not a sheet on this screen. The strip only says which frame is the open one.
+  expect(frames).toContain("pick={current ? 'keep' : undefined}");
   expect(frames).not.toContain('stripCurrent');
 
   expect(films).toContain('const room = themes.dark.color;');

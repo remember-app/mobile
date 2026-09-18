@@ -15,7 +15,7 @@ import {
   verifyEmailToken,
 } from '@/api';
 import { useAuth } from '@/auth';
-import { ActionBar, Banner, Button, Empty, Field, RailH, Text } from '@/kit';
+import { ActionBar, Banner, Button, Empty, Field, Text } from '@/kit';
 import { useStrings } from '@/language';
 import { type Strings } from '@/strings';
 import { space, themed } from '@/theme';
@@ -153,7 +153,6 @@ export default function LoginScreen() {
   if (sent) {
     return (
       <View style={[styles.screen, { paddingTop: insets.top }]}>
-        <RailH style={styles.belt} />
         <View style={[styles.belt, styles.middle]}>
           <Text role="display">{s.login.sentTitle}</Text>
           <Empty icon={Mail} text={s.login.sentText(email.trim())}>
@@ -175,12 +174,6 @@ export default function LoginScreen() {
       style={[styles.screen, { paddingTop: insets.top }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      {/* This is where a person lands with nothing else on screen to tell them where they are, so
-          the top of it says so: the kit's perforation in the second of the two places it is
-          allowed, and the product's own name under it as the screen's one heading. The name is the
-          product's own and is the same word in both languages — the one heading here never turns. */}
-      <RailH style={styles.belt} />
-
       {/* The kit's screen 1: the name in `hero`, one line of what this is for, and then nothing
           until the bottom of the screen — «тёмная комната перед тем, как включат свет». Whatever
           else could be said here is said better by the first screen after the way in. */}
@@ -247,11 +240,11 @@ export default function LoginScreen() {
                 ponytail: plain button; App Store review wants AppleAuthenticationButton before
                 shipping — and that is where the provider's own mark comes from too. */}
             {appleAvailable ? (
-              <Button variant="provider" label={s.login.withApple} onPress={withApple} />
+              <Button variant="paper" label={s.login.withApple} onPress={withApple} />
             ) : null}
             {GOOGLE_CLIENT_ID ? (
               <Button
-                variant="provider"
+                variant="secondary"
                 label={s.login.withGoogle}
                 onPress={withGoogle}
                 disabled={!googleRequest}

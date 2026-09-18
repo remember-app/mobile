@@ -15,7 +15,6 @@ import {
   CardMemory,
   Empty,
   IconButton,
-  RailH,
 } from '@/kit';
 import { useStrings } from '@/language';
 import { space, themed } from '@/theme';
@@ -50,8 +49,6 @@ export default function HomeScreen() {
           held once around all three, the footer's hairline would stop 16 short of either edge
           instead of running the full width, which is what the kit says out loud about it. */}
       <View style={styles.belt}>
-        {/* The kit's one loud move, in the second of the two places it is allowed. */}
-        <RailH />
         <AppBar
           title={s.home.title}
           // Two icons is the ceiling the kit holds and both are now taken (kit, «Экраны» 9, «Справа
@@ -82,7 +79,7 @@ export default function HomeScreen() {
         // about what should have been below it, so it keeps the top of the body.
         <View style={[styles.belt, styles.place]}>
           <Banner tone="error" text={error}>
-            <Button label={s.action.retry} variant="quiet" sm onPress={load} />
+            <Button label={s.action.retry} variant="quiet" size="xs" onPress={load} />
           </Banner>
         </View>
       ) : memories === null ? (
@@ -120,7 +117,7 @@ export default function HomeScreen() {
                 // signed no thumbnail — the worker has not made them yet, the api has no bucket,
                 // or the build is older than the field — is not empty, and telling that person to
                 // add the first ones would be a lie the meta line beside it contradicts.
-                blank={item.media_count === 0 ? s.home.noFrames : s.state.preparing}
+                emptyText={item.media_count === 0 ? s.home.noFrames : s.state.preparing}
                 // Straight to the material: what a memory is for is the photos in it, so the card
                 // opens the memory on its first face. The movies and the people are the other two,
                 // one press away on the switch under its name.

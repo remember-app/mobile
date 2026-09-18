@@ -1,10 +1,8 @@
-// ponytail: the package index `require`s all seven weights, so all seven land in the bundle
-// (~640KB) though only this one is loaded. Import the face by its own path and add a `*.ttf`
-// module declaration if the bundle size ever starts to matter.
-import {
-  BricolageGrotesque_600SemiBold,
-  useFonts,
-} from '@expo-google-fonts/bricolage-grotesque';
+// ponytail: each package index `require`s every weight it ships, so all of them land in the bundle
+// though only these six are loaded. Import the faces by their own paths and add a `*.ttf` module
+// declaration if the bundle size ever starts to matter.
+import { Onest_400Regular, Onest_500Medium, Onest_600SemiBold, Onest_700Bold } from '@expo-google-fonts/onest';
+import { Unbounded_600SemiBold, Unbounded_700Bold, useFonts } from '@expo-google-fonts/unbounded';
 import { Image } from 'expo-image';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -50,12 +48,12 @@ export default function RootLayout() {
   const navigation = {
     ...(name === 'dark' ? DarkTheme : DefaultTheme),
     colors: {
-      primary: color.ember,
+      primary: color.accent,
       background: color.ink,
       card: color.surface,
       text: color.paper,
       border: color.line,
-      notification: color.ember,
+      notification: color.accent,
     },
   };
 
@@ -75,10 +73,18 @@ export default function RootLayout() {
 function RootNavigator() {
   const { status } = useAuth();
 
-  // Headings are the only thing that needs it, but a heading is on the first screen, so it joins
-  // the splash gate below instead of getting a loading state of its own. `error` counts as settled:
-  // a missing font is not a reason to sit on the splash forever — the system font stands in.
-  const [fontsLoaded, fontError] = useFonts({ BricolageGrotesque_600SemiBold });
+  // Every word in the product is in one of these six faces — Unbounded for headings, Onest for
+  // everything else, both with Cyrillic — so the splash gate below waits on them rather than
+  // letting the first screen draw in the system font and swap. `error` counts as settled: a missing
+  // font is not a reason to sit on the splash forever.
+  const [fontsLoaded, fontError] = useFonts({
+    Unbounded_600SemiBold,
+    Unbounded_700Bold,
+    Onest_400Regular,
+    Onest_500Medium,
+    Onest_600SemiBold,
+    Onest_700Bold,
+  });
 
   // Pushes, tapped pushes and a stashed invite link — all of them only mean anything once
   // there is a session, and all of them gate on that themselves.

@@ -48,7 +48,7 @@ export default function EmailLinkScreen() {
           {/* replace, not push: a spent link must not sit in the back stack. */}
           <Button
             variant="quiet"
-            sm
+            size="xs"
             label={s.link.backToSignIn}
             onPress={() => router.replace('/login')}
           />

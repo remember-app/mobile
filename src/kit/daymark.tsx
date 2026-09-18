@@ -3,53 +3,69 @@ import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { space, themed } from '@/theme';
 
-import { TAP } from './tap';
+import { Divider } from './bits';
+import { Avatar } from './member';
 import { Text } from './text';
 
 /**
- * The kit's `.daymark`: the day a strip of the contact sheet was shot on, and at its right edge the
- * one thing that belongs to that day — the count of what is under it, or the action that acts on
- * it. Between them the hairline the kit calls «рез между полосками на листе», so whatever stands on
- * the right is held at the edge rather than left floating against the date.
+ * Spec 7.7 — the heading over a group of frames: a label, a hairline stretching across the gap, and
+ * on the right either a count or a button. Four kinds, and they differ only in what stands at the
+ * two ends:
  *
- * No horizontal padding of its own, which is the one place this parts from the kit's `.daymark`:
- * there the 16 is what puts the day back over a sheet bled out to the edges of the screen, and here
- * the sheet stands inside the screen's own padding already — a second inset would step every day
- * off the frames it names.
+ * - **a day and a count** — «14 сентября» / «174 кадра»;
+ * - **a day and «Выбрать все N»** — only in picking mode and in the phone's own gallery;
+ * - **a person** — their circle at 26, ringed in `spark` if they are the organizer, and «112 фото»;
+ * - **a day under limited access** — a count of the shape «3 из 61», in `faint`, because the rest is
+ *   not missing, it is unseen.
  */
 export function DayMark({
   label,
+  count,
+  avatar,
+  organizer,
+  limited,
   children,
   style,
 }: {
   label: string;
-  /** The right edge: this day's count, or the one action that belongs to this day. */
+  /** The count on the right — «174 кадра», «112 фото», «3 из 61». */
+  count?: string;
+  /** A person's name: the heading then carries their circle in front of the label. */
+  avatar?: string;
+  organizer?: boolean;
+  /** The count is about what the phone will not show, so it is drawn back rather than forward. */
+  limited?: boolean;
+  /** «Выбрать все 61» — a small button, which stands instead of the count. */
   children?: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
   const styles = useStyles();
 
   return (
-    <View style={[styles.daymark, style]}>
-      <Text role="meta">{label}</Text>
-      <View style={styles.line} />
+    <View style={[styles.mark, style]}>
+      {avatar ? <Avatar name={avatar} size={26} ring={organizer} /> : null}
+      <Text role="label" accessibilityRole="header" numberOfLines={1}>
+        {label}
+      </Text>
+      <Divider grow />
+      {count ? (
+        <Text role="meta" tone={limited ? 'faint' : 'muted'}>
+          {count}
+        </Text>
+      ) : null}
       {children}
     </View>
   );
 }
 
-const useStyles = themed(({ color }) =>
+const useStyles = themed(() =>
   StyleSheet.create({
-    daymark: {
+    mark: {
+      minHeight: 34,
       flexDirection: 'row',
       alignItems: 'center',
       gap: space.s3,
-      // The kit's `min-height:44px`, which is the kit's tap size — named, the way the rest of the
-      // kit names it.
-      minHeight: TAP,
-      paddingTop: space.s4,
-      paddingBottom: space.s2,
+      paddingVertical: space.s2,
     },
-    line: { flex: 1, minWidth: space.s6, height: 1, backgroundColor: color.line },
   }),
 );

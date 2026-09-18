@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { errorMessage, memberHandle, memberName } from '@/api';
 import { useAuth } from '@/auth';
-import { AppBar, Banner, Button, Hint, IconButton, MemberHead, Segment } from '@/kit';
+import { AppBar, Avatar, Banner, Button, Hint, IconButton, Segment, Text } from '@/kit';
 import { setLanguage, useLanguage, useStrings } from '@/language';
 import { setTheme, space, themed, useThemeChoice } from '@/theme';
 
@@ -85,9 +85,26 @@ export default function ProfileScreen() {
         // what that has to clear, and it is the taller of the two.
         contentContainerStyle={[styles.body, { paddingBottom: Math.max(insets.bottom, space.s5) }]}
       >
-        {/* «Кто вы»: the kit's member row turned on yourself — the big circle, the name in full
-            voice, and under it the username and the address. The hairline belongs to the row. */}
-        <MemberHead name={name} username={memberHandle(user)} email={user?.email ?? undefined} />
+        {/* «Кто вы» (spec 8, `Account`): the 68 circle, the name in full voice, and under it the
+            username and the address. Composition rather than a part of the library — nothing else
+            in the product stands anybody at this size. A long name and a long address each cut with
+            an ellipsis rather than wrapping, so the circle never moves. */}
+        <View style={styles.who}>
+          <Avatar name={name} size={68} />
+          <View style={styles.whoWords}>
+            <Text role="title" numberOfLines={1}>
+              {name}
+            </Text>
+            <Text role="meta" numberOfLines={1}>
+              {memberHandle(user)}
+            </Text>
+            {user?.email ? (
+              <Text role="meta" numberOfLines={1}>
+                {user.email}
+              </Text>
+            ) : null}
+          </View>
+        </View>
 
         {/* Over the switches and not at the foot of the screen: this is the answer to the pick that
             was just made, and the kit stands it where the pick was («Ждём», screen 8). */}
@@ -141,7 +158,7 @@ export default function ProfileScreen() {
         <View style={styles.out}>
           <Button
             variant="quiet"
-            sm
+            size="xs"
             label={s.action.logOut}
             busy={busy}
             onPress={logOut}
@@ -163,6 +180,8 @@ const useStyles = themed(({ color }) =>
     // screen — that is what gives the group below something to be pushed against — and taller than
     // it once the content is, which is when it scrolls.
     body: { flexGrow: 1, gap: space.s6 },
+    who: { flexDirection: 'row', alignItems: 'center', gap: space.s4 },
+    whoWords: { flex: 1, minWidth: 0, gap: 2 },
     // `.stack-2.push` with the kit's second hairline over it: the way out and its line stand at the
     // bottom of the body, the rule 20 above them.
     out: {

@@ -1,29 +1,46 @@
+import { Image } from 'expo-image';
+import { TriangleAlert } from 'lucide-react-native';
+import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { space, themed } from '@/theme';
+import { radius, space, themed, useTheme } from '@/theme';
 
 import { Button } from './button';
+import { Icon } from './icon';
+import { Avatar } from './member';
 import { Sheet } from './sheet';
 import { Text } from './text';
 
 type ConfirmProps = {
   visible: boolean;
   title: string;
-  /** The consequence, spelled out. The kit asks for what will be lost, not for «are you sure». */
+  /** The consequence, spelled out. The question is what will be lost, never «are you sure». */
   text: string;
-  /** The verb from the title — «Исключить», never «ОК». */
+  /** The verb from the title — «Удалить», «Убрать», never «ОК». */
   confirmLabel: string;
   cancelLabel: string;
   onConfirm: () => void;
   onCancel: () => void;
+  /** The frame this is about — a 64 thumbnail in the header row. */
+  thumb?: string;
+  /** Or the person it is about — a 64 avatar in the same place. */
+  who?: string;
+  /** «Марк Ковалёв · 13 сентября», «@anya.p · принесла 54 кадра». */
+  meta?: string;
+  /**
+   * The price named as a number, on a plate of its own: «54 кадра исчезнут из воспоминания». Spec 9
+   * asks for it before the press and not after, which is the whole reason this sheet exists.
+   */
+  price?: string;
 };
 
 /**
- * The kit's `.confirm`, section 13: what cannot be undone is asked for on a sheet from the bottom of
- * the screen, and the sheet names the consequence. This is what stands in for `Alert.alert` on
- * delete, leave and remove — the system dialog has none of the kit and none of its wording.
+ * Spec 7.1 and «Пусто и необратимое» — what cannot be undone is asked on a sheet that names the
+ * cost. This stands in for `Alert.alert` on delete, leave and remove: the system dialog has neither
+ * the shape nor the wording.
  *
- * The sheet itself is `./sheet`; this is the question that goes on one.
+ * The bottom block is the dangerous-plus-outlined kind: the way out is never the quiet one here,
+ * because «Оставить» has to be as easy to hit as «Удалить».
  */
 export function ConfirmSheet({
   visible,
@@ -33,28 +50,73 @@ export function ConfirmSheet({
   cancelLabel,
   onConfirm,
   onCancel,
+  thumb,
+  who,
+  meta,
+  price,
 }: ConfirmProps) {
+  const { color } = useTheme();
   const styles = useStyles();
 
   return (
-    <Sheet visible={visible} onCancel={onCancel}>
-      <View>
-        <Text accessibilityRole="header" role="title">
-          {title}
-        </Text>
-        <Text style={styles.text}>{text}</Text>
-      </View>
-      <View style={styles.actions}>
-        <Button variant="danger-solid" wide label={confirmLabel} onPress={onConfirm} />
-        <Button variant="quiet" wide label={cancelLabel} onPress={onCancel} />
-      </View>
+    <Sheet
+      visible={visible}
+      onCancel={onCancel}
+      narrow
+      head={
+        thumb || who ? (
+          <View style={styles.head}>
+            {thumb ? (
+              <Image source={{ uri: thumb }} contentFit="cover" style={styles.thumb} />
+            ) : null}
+            {who && !thumb ? <Avatar name={who} size={64} /> : null}
+            <View style={styles.headWords}>
+              <Text role="sheetTitleSm" accessibilityRole="header">
+                {title}
+              </Text>
+              {meta ? <Text role="meta">{meta}</Text> : null}
+            </View>
+          </View>
+        ) : undefined
+      }
+      title={thumb || who ? undefined : title}
+      footer={
+        <>
+          <Button variant="danger" label={confirmLabel} onPress={onConfirm} />
+          <Button variant="secondary" size="md" label={cancelLabel} onPress={onCancel} />
+        </>
+      }
+    >
+      <Text role="body" tone="muted">
+        {text}
+      </Text>
+      {price ? (
+        <View style={styles.price}>
+          <Icon icon={TriangleAlert} size={18} color={color.dangerText} />
+          <Text role="label" tone="danger" style={styles.grow}>
+            {price}
+          </Text>
+        </View>
+      ) : null}
     </Sheet>
   );
 }
 
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
-    text: { color: color.muted, marginTop: space.s2 },
-    actions: { gap: space.s2 },
+    head: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },
+    headWords: { flex: 1, minWidth: 0, gap: 2 },
+    thumb: { width: 64, height: 64, borderRadius: radius.strip, backgroundColor: color.raise },
+    price: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: space.s2,
+      padding: space.s3,
+      borderRadius: radius.cell,
+      backgroundColor: color.dangerSoft,
+      borderWidth: 1,
+      borderColor: color.dangerEdge,
+    },
+    grow: { flex: 1, minWidth: 0 },
   }),
 );

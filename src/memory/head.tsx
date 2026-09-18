@@ -79,7 +79,7 @@ export function MemoryHead({
       />
       {error === null ? null : (
         <Banner tone="error" text={error} style={styles.faces}>
-          <Button sm variant="quiet" label={s.action.retry} onPress={reload} />
+          <Button size="xs" variant="quiet" label={s.action.retry} onPress={reload} />
         </Banner>
       )}
     </View>

@@ -1,40 +1,57 @@
-import { renderToStaticMarkup } from 'react-dom/server';
-import { expect, test, vi } from 'vitest';
+import { beforeAll, expect, test } from 'vitest';
 
+import { Button } from '@/kit/button';
 import { DayMark } from '@/kit/daymark';
+import { allDifferent, story } from '@/kit/story';
 import { setTheme } from '@/theme';
 
-// The theme asks the phone for the stored pick at import, and `expo-secure-store` is native — it
-// cannot be imported in node at all. The mark reads two colours through the theme, so the phone has
-// to answer before either can be asked for.
-vi.mock('expo-secure-store', () => ({
-  getItemAsync: async () => null,
-  setItemAsync: async () => {},
-}));
+/** Spec 7.7 — the heading over a group of frames, in its four kinds. */
 
-/**
- * The day over a strip of the contact sheet: the date, and the one thing that belongs to that day
- * at the right edge. Rendered through `react-native-web` (the alias lives in `vitest.config.mjs`),
- * which answers for structure and for whether a colour moved — the two things this brick has.
- */
-
-test('the day is written with whatever belongs to it after the line', () => {
-  const html = renderToStaticMarkup(
-    <DayMark label="Снято 3 сентября">
-      <button type="button">Выбрать все 61</button>
-    </DayMark>,
-  );
-
-  expect(html.indexOf('Снято 3 сентября')).toBeLessThan(html.indexOf('Выбрать все 61'));
+beforeAll(async () => {
+  await setTheme('dark');
 });
 
-test('and it turns with the theme, like everything else in the kit', async () => {
-  // The hairline is `color.line`, which is a different colour in each of the two sets — a mark that
-  // came out identical is one whose colours were written into a sheet built once at import.
-  await setTheme('light');
-  const light = renderToStaticMarkup(<DayMark label="Снято 3 сентября" />);
-  await setTheme('dark');
-  const dark = renderToStaticMarkup(<DayMark label="Снято 3 сентября" />);
+test('the four headings are four headings', () => {
+  allDifferent({
+    dayAndCount: <DayMark label="14 сентября" count="174 кадра" />,
+    dayAndButton: (
+      <DayMark label="14 сентября">
+        <Button variant="quiet" size="xs" label="Выбрать все 174" />
+      </DayMark>
+    ),
+    person: <DayMark label="Марк Ковалёв" avatar="Марк Ковалёв" count="112 фото" />,
+    limited: <DayMark label="13 сентября" count="3 из 61" limited />,
+  });
+});
 
-  expect(light).not.toBe(dark);
+test('the right edge is one slot: a count or a button, never both at once', () => {
+  const counted = story(<DayMark label="14 сентября" count="174 кадра" />);
+  expect(counted).toContain('174 кадра');
+  const picking = story(
+    <DayMark label="14 сентября">
+      <Button variant="quiet" size="xs" label="Выбрать все 174" />
+    </DayMark>,
+  );
+  expect(picking).toContain('Выбрать все 174');
+  expect(picking).not.toContain('174 кадра');
+});
+
+test('a heading is a heading to a screen reader, whatever stands at its ends', () => {
+  expect(story(<DayMark label="14 сентября" count="174 кадра" />)).toContain('role="heading"');
+});
+
+test('the organizer’s circle wears the spark collar, and nobody else’s does', () => {
+  const organizer = story(<DayMark label="Марк Ковалёв" avatar="Марк Ковалёв" organizer count="112 фото" />);
+  expect(organizer).toContain('rgba(228,255,79,1.00)');
+  expect(story(<DayMark label="Аня" avatar="Аня" count="54 фото" />)).not.toContain(
+    'rgba(228,255,79,1.00)',
+  );
+});
+
+test('a count about what the phone will not show is drawn back rather than forward', () => {
+  // «3 из 61» under limited access: the rest is not missing, it is unseen.
+  allDifferent({
+    whole: <DayMark label="13 сентября" count="61 кадр" />,
+    limited: <DayMark label="13 сентября" count="3 из 61" limited />,
+  });
 });

@@ -23,6 +23,7 @@ import { maySaveToPhone, saveToPhone } from '@/downloads';
 import { keepReady } from '@/frames';
 import {
   ActionBar,
+  BadgeMontage,
   Banner,
   Button,
   CardMontage,
@@ -338,7 +339,7 @@ export function Films({ id, head }: { id: string; head: Head }) {
             {/* Called and not handed over: `load` now takes «read quietly» as its argument, and a
                 press handler is given the touch event as its argument — so handing it over asks for
                 a quiet read from the one press that has to speak up about what it finds. */}
-            <Button sm variant="quiet" label={s.action.retry} onPress={() => load()} />
+            <Button size="xs" variant="quiet" label={s.action.retry} onPress={() => load()} />
           </Banner>
         ) : null}
 
@@ -361,13 +362,18 @@ export function Films({ id, head }: { id: string; head: Head }) {
                   // is the right shape before there is a poster in it — and a vertical still is
                   // shown whole rather than through a horizontal crop.
                   vertical={montage.params.orientation === 'portrait'}
-                  status={s.montage.status[montage.status]}
+                  badge={
+                    <BadgeMontage
+                      state={MONTAGE_STATE[montage.status]}
+                      label={s.montage.status[montage.status]}
+                    />
+                  }
                   // Said in place of a bar or a number: nothing on this side knows how far along
                   // the worker is, and the push is what actually brings people back to look.
                   caption={s.montage.caption}
                   playLabel={s.montage.watch(montageTitle(montage, s))}
                   onPlay={montage.video_url === null ? undefined : () => setPlaying(montage.id)}
-                  actions={
+                  children={
                     montage.status === 'ready' ? (
                       // The kit's own «Скачать ролик» in this footer is an `.iconbtn`, and it has
                       // to be: the title beside it is `flex:1` off a zero basis, so a button
@@ -381,7 +387,7 @@ export function Films({ id, head }: { id: string; head: Head }) {
                       />
                     ) : montage.status === 'failed' && role === 'organizer' ? (
                       <Button
-                        sm
+                        size="xs"
                         label={s.action.retry}
                         onPress={() => void retry(montage)}
                         disabled={busy}
@@ -468,7 +474,7 @@ export function Films({ id, head }: { id: string; head: Head }) {
           {LENGTHS.map((length) => (
             <Button
               key={length}
-              sm
+              size="xs"
               // The picked one is the one with a frame around it. Not `primary`: the glow belongs
               // to one thing on a surface, and here that is «Make it» at the bottom.
               variant={length === seconds ? 'secondary' : 'quiet'}
@@ -486,7 +492,7 @@ export function Films({ id, head }: { id: string; head: Head }) {
           {(Object.keys(s.montage.track) as MusicTrackId[]).map((id) => (
             <Button
               key={id}
-              sm
+              size="xs"
               variant={id === track ? 'secondary' : 'quiet'}
               label={s.montage.track[id]}
               onPress={() => setTrack(id)}
@@ -502,7 +508,7 @@ export function Films({ id, head }: { id: string; head: Head }) {
           {(Object.keys(s.montage.orientation) as MontageOrientation[]).map((way) => (
             <Button
               key={way}
-              sm
+              size="xs"
               variant={way === orientation ? 'secondary' : 'quiet'}
               label={s.montage.orientation[way]}
               onPress={() => setOrientation(way)}
@@ -565,12 +571,13 @@ function Playing({ url }: { url: string }) {
 }
 
 /**
- * The kit pins `.viewer` to the dark set in every theme (kit.html, block 0.2): «вокруг фотографии
- * не должно быть ничего светлее её самой». `frames.tsx` says the same at more length — the two faces
- * draw the same viewer, and this is the one value in this sheet that has an opinion.
+ * The viewer is held in the dark set in every theme — spec 8 gives it a background darker than
+ * `ink` (`photo.viewer`) so the photograph is the only light thing on the screen. `frames.tsx` says
+ * the same at more length; the two faces draw the same viewer, and this is the one value in this
+ * sheet that has an opinion.
  *
  * So nothing here turns with the theme, and the sheet is a plain one: the list this face draws is
- * cards from the kit on the screen's own background, and both of those already turn by themselves.
+ * cards from the library on the screen's own background, and both already turn by themselves.
  */
 const room = themes.dark.color;
 

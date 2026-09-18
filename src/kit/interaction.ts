@@ -1,26 +1,27 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { AccessibilityInfo, Animated, Easing, type ViewStyle } from 'react-native';
 
-import { ease, themed } from '@/theme';
+import { duration, ease, themed } from '@/theme';
 
 export { TAP, hitSlop } from './tap';
 
 /**
- * What every kit component needs to answer a person: motion that obeys the OS, a focus ring, and a
- * touch target big enough for a finger. The kit states these once for the whole product («Голос»),
- * so they live here once and not in fourteen files.
+ * What every component of the library needs in order to answer a person: motion that obeys the OS,
+ * a visible focus ring, and a touch target big enough for a finger. The spec states these once for
+ * the whole product (sections 6, 10.2 and 10.3), so they live here once and not in thirty files.
  */
 
-/** The kit's `--ease`, resolved for Animated. */
+/** The spec's `ease-out`, resolved for Animated. */
 export const EASE = Easing.bezier(...ease);
 
 /**
- * The kit's `@media (prefers-reduced-motion: reduce)`, held once for the whole app.
+ * The spec's `prefers-reduced-motion: reduce` (section 6), held once for the whole app: a transition
+ * becomes an instant swap and an endless turn becomes a still glyph.
  *
  * Asking the OS is asynchronous, and a component that asks on mount animates once before the answer
- * lands — with a screenful of frames each starting its own develop, that is the setting being
- * ignored exactly where it matters. So the question is asked once at import, long before the first
- * screen mounts, and every component reads the answer that is already there.
+ * lands — with a screenful of frames each starting its own fade, that is the setting being ignored
+ * exactly where it matters. So the question is asked once at import, long before the first screen
+ * mounts, and every component reads the answer that is already there.
  */
 let reduced = false;
 const watchers = new Set<() => void>();
@@ -41,9 +42,12 @@ AccessibilityInfo.addEventListener('reduceMotionChanged', (on) => {
   told = true;
   answer(on);
 });
-AccessibilityInfo.isReduceMotionEnabled().then((on) => {
-  if (!told) answer(on);
-}, () => {});
+AccessibilityInfo.isReduceMotionEnabled().then(
+  (on) => {
+    if (!told) answer(on);
+  },
+  () => {},
+);
 
 export function useReducedMotion(): boolean {
   return useSyncExternalStore(
@@ -61,14 +65,13 @@ export function useReducedMotion(): boolean {
 }
 
 /**
- * A 0 → 1 value that repeats forever — the kit's `spin` and `safelight`, the only two things allowed
- * to move without being asked. Returns `null` when reduced motion is on, and that `null` is the
- * signal to draw the still version: the kit silences even these.
+ * A 0 → 1 value that repeats forever — the spinner, and nothing else in the product is allowed to
+ * move without being asked. Returns `null` when reduced motion is on, and that `null` is the signal
+ * to draw the still arc: spec 6 silences even this one.
  *
  * `on` is for the caller that only sometimes draws the moving thing. A hook cannot be called
- * conditionally, so without it a contact sheet of a thousand ready frames would start a thousand
- * perpetual native animations to drive a dot none of them draws. `null` comes back for `off` too —
- * the same answer, for the same reason: there is nothing moving to read.
+ * conditionally, so without it a grid of a thousand ready frames would start a thousand perpetual
+ * native animations to drive a spinner none of them draws.
  */
 export function useLoop(ms: number, easing = Easing.linear, on = true): Animated.Value | null {
   const reduced = useReducedMotion();
@@ -89,8 +92,8 @@ export function useLoop(ms: number, easing = Easing.linear, on = true): Animated
 }
 
 /**
- * A 0 → 1 value that runs once on mount — the kit's `rise`, a sheet coming up from the bottom.
- * Under reduced motion it is simply already 1, so the thing is there without ever having moved.
+ * A 0 → 1 value that runs once on mount — a sheet coming up, a pick circle appearing. Under reduced
+ * motion it is simply already 1, so the thing is there without ever having moved.
  *
  * For an `Animated.View` and nothing else. The native driver writes straight at the view the value
  * is attached to, so wrapping somebody else's component in `Animated.createAnimatedComponent` gets
@@ -120,8 +123,37 @@ export function useFadeIn(ms: number): Animated.Value {
 }
 
 /**
+ * A value that follows `to` — the sending bar reaching for a new percentage, 300ms, and never going
+ * back (spec 6). Under reduced motion it jumps.
+ *
+ * Not on the native driver: `width` is a layout property, and the whole point of this one is that
+ * the bar's width is what moves.
+ */
+export function useReach(to: number): Animated.Value {
+  const reduced = useReducedMotion();
+  const value = useRef(new Animated.Value(to)).current;
+
+  useEffect(() => {
+    if (reduced) {
+      value.setValue(to);
+      return;
+    }
+    const run = Animated.timing(value, {
+      toValue: to,
+      duration: duration.progress,
+      easing: EASE,
+      useNativeDriver: false,
+    });
+    run.start();
+    return () => run.stop();
+  }, [reduced, to, value]);
+
+  return value;
+}
+
+/**
  * Hover and focus for one pressable. Hover only ever happens on web, focus only with a keyboard or
- * a switch — both are free to ask for and the kit requires the second one to be visible.
+ * a switch — both are free to ask for and spec 10.3 requires the second one to be visible.
  */
 export function useHoverFocus() {
   const [hovered, setHovered] = useState(false);
@@ -138,12 +170,24 @@ export function useHoverFocus() {
   return { hovered, focused, props };
 }
 
-/** The kit's `:focus-visible` — a 2px ember ring, held off the element by 2px. */
-export const useFocusRing = themed(
-  ({ color }): ViewStyle => ({
-    outlineWidth: 2,
-    outlineColor: color.ember,
-    outlineOffset: 2,
-    outlineStyle: 'solid',
+const useRings = themed(
+  ({ color }): Record<'base' | 'onAccent', ViewStyle> => ({
+    base: { outlineWidth: 2, outlineColor: color.accent, outlineOffset: 2, outlineStyle: 'solid' },
+    // Spec 2.5: on an element that is itself filled with `accent` — the main button — an accent
+    // ring would be invisible, so that one is ringed in `paper`.
+    onAccent: { outlineWidth: 2, outlineColor: color.paper, outlineOffset: 2, outlineStyle: 'solid' },
   }),
 );
+
+/**
+ * Spec 2.5 — a 2px ring in `accent`, held 2px off the element, over any background. The layout has
+ * no focus anywhere and that is the one thing about it that is not a style decision: pass
+ * `onAccent` on anything filled with the accent itself.
+ */
+export function useFocusRing(onAccent = false): ViewStyle {
+  const rings = useRings();
+  return onAccent ? rings.onAccent : rings.base;
+}
+
+/** Spec 6 — a button under a finger goes to 0.98 and back. A movement, so it obeys the setting. */
+export const PRESS: ViewStyle = { transform: [{ scale: 0.98 }] };
