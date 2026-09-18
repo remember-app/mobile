@@ -1,6 +1,6 @@
 import { useFocusEffect, useIsFocused } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
-import { Download, Film } from 'lucide-react-native';
+import { Download, Film, Play } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,7 +28,6 @@ import {
   Button,
   CardMontage,
   Empty,
-  IconButton,
   Sheet,
   Text,
   type MontageState,
@@ -81,6 +80,18 @@ const montageTitle = (montage: Montage, s: Strings) => {
   const runtime = formatRuntime(montage.duration_seconds);
   return runtime ? s.montage.ofLength(runtime) : s.montage.fromDay(formatDay(montage.created_at));
 };
+
+/**
+ * What a finished montage was made of — «14 сентября · горизонтальный · Тёплая» (spec 7.6). The day
+ * it was ordered on, and the two wishes that shaped it; a montage cut before either of them could be
+ * asked for simply says less, rather than saying a default somebody never chose.
+ */
+function madeOf(montage: Montage, s: Strings): string {
+  const parts = [formatDay(montage.created_at)];
+  if (montage.params.orientation) parts.push(s.montage.orientation[montage.params.orientation]);
+  if (montage.params.music_track_id) parts.push(s.montage.track[montage.params.music_track_id]);
+  return parts.join(' · ');
+}
 
 /**
  * The second face of a memory (kit, «Экраны» 5): what has been made, what is being made, and — for
@@ -348,53 +359,80 @@ export function Films({ id, head }: { id: string; head: Head }) {
             screen over a blip. */}
         {montages === null ? (
           error === null ? (
-            <Empty busy text={s.state.loading} />
+            <View style={styles.middle}>
+              <Empty busy text={s.state.loading} />
+            </View>
           ) : null
+        ) : montages.length === 0 ? (
+          // `FilmsEmpty`, and it is not a report of what is missing: the sign is the reward itself —
+          // two of the memory's own frames with the play circle over them — and the words explain
+          // what a montage is, because the button that starts one is on the bar below. Which
+          // invitation depends on who is reading, and nothing is said until the memory has answered:
+          // `role` comes off it, and an organizer shown «the organizer can ask for one» is being
+          // told about themselves.
+          role === null ? null : (
+            <View style={styles.middle}>
+              <Empty
+                sign="poster"
+                icon={Play}
+                photos={memory?.recent_thumbnail_urls}
+                title={s.montage.emptyTitle}
+                text={role === 'organizer' ? s.montage.emptyOrganizer : s.montage.empty}
+              />
+            </View>
+          )
         ) : (
-          <>
-            {montages.map((montage) => (
+          montages.map((montage) => {
+            const state = MONTAGE_STATE[montage.status];
+
+            return (
               <View key={montage.id} style={styles.montage}>
                 <CardMontage
-                  state={MONTAGE_STATE[montage.status]}
+                  state={state}
                   title={montageTitle(montage, s)}
+                  // Spec 7.6 gives the three states three different bodies: a finished one says what
+                  // it was made of, and the two that have nothing to show yet say where they stand
+                  // instead — «Мы сообщим, когда будет готов», «Сборка оборвалась на полпути».
+                  meta={state === 'ready' ? madeOf(montage, s) : undefined}
+                  caption={
+                    state === 'ready'
+                      ? undefined
+                      : state === 'failed'
+                        ? s.montage.broke
+                        : s.montage.caption
+                  }
                   poster={montage.poster_url ?? undefined}
+                  // The running time in the poster's corner — the same number the title carries,
+                  // which is the whole of what the layout writes over a still.
+                  length={formatRuntime(montage.duration_seconds)}
                   // The orientation is known from the moment the montage was ordered, so the frame
                   // is the right shape before there is a poster in it — and a vertical still is
                   // shown whole rather than through a horizontal crop.
                   vertical={montage.params.orientation === 'portrait'}
-                  badge={
-                    <BadgeMontage
-                      state={MONTAGE_STATE[montage.status]}
-                      label={s.montage.status[montage.status]}
-                    />
-                  }
-                  // Said in place of a bar or a number: nothing on this side knows how far along
-                  // the worker is, and the push is what actually brings people back to look.
-                  caption={s.montage.caption}
+                  badge={<BadgeMontage state={state} label={s.montage.status[montage.status]} />}
                   playLabel={s.montage.watch(montageTitle(montage, s))}
                   onPlay={montage.video_url === null ? undefined : () => setPlaying(montage.id)}
-                  children={
-                    montage.status === 'ready' ? (
-                      // The kit's own «Скачать ролик» in this footer is an `.iconbtn`, and it has
-                      // to be: the title beside it is `flex:1` off a zero basis, so a button
-                      // carrying «Сохранить и поделиться» squeezed the Russian title down to «Ро…».
-                      // The words stay as the spoken label.
-                      <IconButton
-                        icon={Download}
-                        label={s.montage.saveShare}
-                        disabled={busy || montage.video_url === null}
-                        onPress={() => void keep(montage)}
-                      />
-                    ) : montage.status === 'failed' && role === 'organizer' ? (
-                      <Button
-                        size="xs"
-                        label={s.action.retry}
-                        onPress={() => void retry(montage)}
-                        disabled={busy}
-                      />
-                    ) : null
-                  }
-                />
+                >
+                  {/* The one button a card carries, beside its badge: the outlined 44 of spec 7.6,
+                      «Сохранить и поделиться» under a finished montage and «Повторить» under one
+                      that fell over. Words and not a glyph — the layout writes both out. */}
+                  {state === 'ready' ? (
+                    <Button
+                      size="sm"
+                      icon={Download}
+                      label={s.montage.saveShare}
+                      disabled={busy || montage.video_url === null}
+                      onPress={() => void keep(montage)}
+                    />
+                  ) : state === 'failed' && role === 'organizer' ? (
+                    <Button
+                      size="sm"
+                      label={s.action.retry}
+                      onPress={() => void retry(montage)}
+                      disabled={busy}
+                    />
+                  ) : null}
+                </CardMontage>
                 {/* The kit's own rule is that a failure is not explained by a code — so the word
                     beside the dot stays the screen's, and the worker's own line goes under the
                     card, where there is room for it and where it is not the first thing read. */}
@@ -402,21 +440,8 @@ export function Films({ id, head }: { id: string; head: Head }) {
                   <Text role="meta">{montage.error_text}</Text>
                 ) : null}
               </View>
-            ))}
-
-            {/* Nothing here is a report of what is missing: the kit's empty is an invitation
-                (section 6), so the words say what a montage is and what it takes, and the button
-                that starts one is on the bar below. Which invitation depends on who is reading —
-                and nothing until the memory has answered, because `role` comes off it and the two
-                reads race: an organizer shown «the organizer can ask for one» is being told about
-                themselves. The cards above need no role and go up as soon as they arrive. */}
-            {montages.length === 0 && role !== null ? (
-              <Empty
-                icon={Film}
-                text={role === 'organizer' ? s.montage.emptyOrganizer : s.montage.empty}
-              />
-            ) : null}
-          </>
+            );
+          })
         )}
       </ScrollView>
 
@@ -444,28 +469,37 @@ export function Films({ id, head }: { id: string; head: Head }) {
           still in flight, and `order` prepends its new row to state that the read landing after it
           then overwrites. Under a list that failed to read it offers a second failure instead. */}
       {role === 'organizer' && montages !== null ? (
-        <View style={styles.pad}>
-          <ActionBar>
-            <Button
-              variant="primary"
-              wide
-              label={s.montage.make}
-              onPress={() => setOrdering(true)}
-              disabled={busy}
-            />
-          </ActionBar>
-        </View>
+        <ActionBar>
+          <Button
+            variant="primary"
+            wide
+            icon={Film}
+            label={s.montage.make}
+            onPress={() => setOrdering(true)}
+            disabled={busy}
+          />
+        </ActionBar>
       ) : null}
 
       {/* The three wishes doc-03 allows and nothing else, asked on a sheet the way an invite is:
           ordering is a thing done once, and the face is for what comes of it. What is picked is
           in the heading above each row as well as in the buttons — a screen reader gets no «this
           one is chosen» out of a button that only looks different. */}
-      <Sheet visible={ordering} onCancel={() => setOrdering(false)}>
-        <Text accessibilityRole="header" role="title">
-          {s.montage.make}
+      <Sheet
+        visible={ordering}
+        onCancel={() => setOrdering(false)}
+        title={s.montage.make}
+        scroll
+        footer={
+          // `busy` alone, as everywhere else in the app: the kit already refuses the press while it
+          // is set, and adding `disabled` on top would take the ember off the one glowing button on
+          // the sheet for exactly as long as its spinner is turning.
+          <Button variant="primary" label={s.montage.makeIt} onPress={order} busy={busy} />
+        }
+      >
+        <Text role="body" tone="muted">
+          {s.montage.explain}
         </Text>
-        <Text role="meta">{s.montage.explain}</Text>
 
         <Text role="label">
           {s.montage.howLong} · {s.montage.length[seconds]}
@@ -517,10 +551,6 @@ export function Films({ id, head }: { id: string; head: Head }) {
           ))}
         </View>
 
-        {/* `busy` alone, as everywhere else in the app: the kit already refuses the press while it
-            is set, and adding `disabled` on top would take the ember off the one glowing button on
-            the sheet for exactly as long as its spinner is turning. */}
-        <Button variant="primary" label={s.montage.makeIt} onPress={order} busy={busy} />
         {/* Where «too little material» is read: the sheet stays up when the order is refused, and
             the face's own copy of this line is under the scrim. */}
         {notice ? <Banner text={notice} /> : null}
@@ -582,10 +612,12 @@ function Playing({ url }: { url: string }) {
 const room = themes.dark.color;
 
 const styles = StyleSheet.create({
-  // The sides belong to the face and not to the scroll, so the bar at the bottom stands in the same
-  // margin the cards do — the kit's 16, which is what the head above uses too.
-  body: { paddingHorizontal: space.s4, paddingBottom: space.s8, gap: space.s3 },
-  pad: { paddingHorizontal: space.s4 },
+  // The kit's 16 at the sides, which the head above and the bar below keep as well — the bar draws
+  // its own, so nothing wraps it in a second copy of this.
+  body: { flexGrow: 1, paddingHorizontal: space.s4, paddingBottom: space.s6, gap: space.s3 },
+  // An empty state and a spinner both stand in the middle of the body rather than at the top of it
+  // (spec 7.8): the list's place is held, not blinked over.
+  middle: { flex: 1, justifyContent: 'center' },
   notice: { marginHorizontal: space.s4 },
   // A card and, under a fallen one, the line the worker left — closer to each other than the
   // face's own gap, because they are one thing.

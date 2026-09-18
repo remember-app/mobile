@@ -10,7 +10,7 @@
 import { File, Paths } from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library/legacy';
 import { useEffect, useSyncExternalStore } from 'react';
-import { Alert, AppState } from 'react-native';
+import { AppState } from 'react-native';
 
 import {
   ApiError,
@@ -22,8 +22,6 @@ import {
   type UploadPlan,
 } from '@/api';
 import { useAuth } from '@/auth';
-import { currentLanguage } from '@/language';
-import { strings } from '@/strings';
 import {
   missingParts,
   uploadedParts,
@@ -58,12 +56,19 @@ const failure = (error: unknown): UploadFailure =>
       ? { reason: 'api', status: error.status, said: apiReason(error.body) }
       : { reason: 'offline' };
 
-/** The words, read at the moment one is needed — the same call `@/api` makes, for the same reason. */
-const say = () => strings[currentLanguage()];
-
 let queue: QueuedFile[] = [];
 let restored = false;
 let session: string | null = null;
+/**
+ * The memory whose «Это всё?» is up and unanswered (doc-06). Module state beside the queue and not
+ * a screen's own, for the reason the queue is: the moment the question is due is the moment a file
+ * lands, which happens with no screen watching as readily as with one.
+ *
+ * Not written to disk. A question the app was killed in the middle of is a question missed, exactly
+ * as a system dialog would have been — and what it would have set is the standing the first upload
+ * already left them on.
+ */
+let asking: string | null = null;
 let running = false;
 let retrying: ReturnType<typeof setTimeout> | null = null;
 const listeners = new Set<() => void>();
@@ -92,13 +97,21 @@ function restore() {
 }
 
 /**
- * Every change lands here: a fresh array so React re-reads it, and the file so the next launch
- * knows. Entries themselves are mutated in place — the etags go in one part at a time, and a copy
- * per part is a copy per 8 MB for nothing.
+ * Tell whoever is watching. The queue's own changes go through `changed()` below; the question
+ * doc-06 raises has nothing to write down, so it comes here straight.
+ */
+function notify() {
+  for (const listener of listeners) listener();
+}
+
+/**
+ * Every change to the queue lands here: a fresh array so React re-reads it, and the file so the next
+ * launch knows. Entries themselves are mutated in place — the etags go in one part at a time, and a
+ * copy per part is a copy per 8 MB for nothing.
  */
 function changed() {
   queue = [...queue];
-  for (const listener of listeners) listener();
+  notify();
   try {
     const file = store();
     if (!file.exists) file.create({ intermediates: true });
@@ -219,25 +232,36 @@ async function send(file: QueuedFile, token: string) {
 
   // doc-06: asked once, on the very first file this person got into this memory, and asked by the
   // api rather than by anything counted here — the phone has no way of knowing what it uploaded on
-  // some other device. The system dialog and not a screen of its own: it is one question, and the
-  // person is already looking at the app because they just sent something.
+  // some other device. Raised here and drawn by the upload screen as the layout's own «Это всё?»
+  // sheet: the queue knows the moment, the screen holds the words.
   if (done.first_upload) {
-    const s = say();
-    Alert.alert(s.upload.askAll, s.upload.askAllText, [
-      // Nothing to do — the first upload already left them on «more_coming».
-      { text: s.upload.moreToCome, style: 'cancel' },
-      {
-        text: s.upload.thatsAll,
-        onPress: () =>
-          void setContributionStatus(token, file.memoryId, 'done').catch(() => {
-            // Swallowed the way `changed()` swallows a queue it could not write: the material is
-            // in, which is the part that mattered, and a status that missed leaves them on «still
-            // adding» — the truthful reading of somebody who just uploaded. Not worth a red line
-            // over an upload that succeeded, and there is no second moment to ask in.
-          }),
-      },
-    ]);
+    asking = file.memoryId;
+    notify();
   }
+}
+
+const askedMemory = () => asking;
+
+/** Which memory is waiting for that answer — `null` while nothing is being asked. */
+export function useAskAll(): string | null {
+  return useSyncExternalStore(subscribe, askedMemory, askedMemory);
+}
+
+/**
+ * The answer, and the end of the question. «Больше ничего» is the only one that moves anything: the
+ * first upload already left them on «планирует загрузить», which is what «Ещё будет» means.
+ */
+export function answerAskAll(all: boolean) {
+  const memoryId = asking;
+  asking = null;
+  notify();
+  if (!all || memoryId === null || session === null) return;
+  void setContributionStatus(session, memoryId, 'done').catch(() => {
+    // Swallowed the way `changed()` swallows a queue it could not write: the material is in, which
+    // is the part that mattered, and a status that missed leaves them on «still adding» — the
+    // truthful reading of somebody who just uploaded. Not worth a red line over an upload that
+    // succeeded, and there is no second moment to ask in.
+  });
 }
 
 /**
@@ -360,6 +384,8 @@ export function useUploads(): QueuedFile[] {
     // queue left by the last session is exactly what has to survive that.
     if (status === 'signed-out') {
       queue = [];
+      // The question goes with the session that raised it: there is nobody left to answer for.
+      asking = null;
       changed();
     } else {
       void run();

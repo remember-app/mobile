@@ -251,7 +251,7 @@ export type Memory = {
   storage_bytes: string;
   media_count: number;
   /**
-   * Up to two signed thumbnail urls, most recently captured first — the frames the card draws.
+   * Up to four signed thumbnail urls, most recently captured first — the frames the card draws.
    * Only ready media has one, so this is a tail of `media_count` and never all of it; empty
    * while nothing is processed yet, or when the api has no bucket configured.
    */
@@ -259,6 +259,14 @@ export type Memory = {
   montage_count: number;
   created_at: string;
   role: MemberRole;
+  /** How many people are in it, the organizer included. */
+  member_count: number;
+  /**
+   * How many of them have already answered for their material — every standing except
+   * `not_started`, which is the only one nobody has answered for. This is «7 из 9 уже скинули свои
+   * кадры» on the card, counted by the listing itself so the main screen makes no request per card.
+   */
+  contributed_member_count: number;
 };
 
 /** Every memory the caller organizes or belongs to, newest event first. 401 once the token dies. */
