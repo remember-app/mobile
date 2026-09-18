@@ -1,25 +1,31 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import { Link2Off } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { acceptInvite, ApiError, errorMessage } from '@/api';
 import { useAuth } from '@/auth';
-import { Banner, Button, Empty } from '@/kit';
+import { ActionBar, Board, Button, Empty, Text, Waiting } from '@/kit';
 import { useStrings } from '@/language';
 import { clearInvite, peekInvite, stashInvite } from '@/push';
-import { space, themed } from '@/theme';
+import { space } from '@/theme';
 
 /**
  * Where `remember://invite?token=…` lands. There is no web page for an invite and no anonymous
  * path into a memory (decision-01): whoever follows a link already has an account, so this either
  * joins them straight away or sends them to sign in and picks the link back up afterwards.
+ *
+ * Two faces, spec 8 «Приглашение и края»: `InviteJoining` while it is being answered — the name of
+ * the product and a spinner, no bar and no bottom layer, because there is nothing to press and
+ * nowhere to go back to — and `InviteDead` when the answer is no.
  */
 export default function InviteScreen() {
   const params = useLocalSearchParams<{ token?: string | string[] }>();
   const { status, token: session } = useAuth();
   const s = useStrings();
-  const styles = useStyles();
-  const [error, setError] = useState<string | null>(null);
+  // The dead end, in the two lines it is made of: what happened, and — when it is the one failure
+  // this screen has a name for — the heading that says it is not the person's doing.
+  const [stop, setStop] = useState<{ title?: string; text: string } | null>(null);
 
   // A repeated query key arrives as an array; the api takes one string. With no token in the
   // url at all this is the second visit — the one `usePush` reopens once a session exists — and
@@ -31,7 +37,7 @@ export default function InviteScreen() {
   // invite back to the api. The words are read on the pass that actually sets one.
   useEffect(() => {
     if (!invite) {
-      setError(s.join.noToken);
+      setStop({ text: s.join.noToken });
       return;
     }
     // The stored session is still being checked; the splash is still up. Nothing to decide yet.
@@ -61,7 +67,9 @@ export default function InviteScreen() {
         const dead = e instanceof ApiError && e.status === 404;
         // A dead link is answered too — keeping it would send the next sign-in back here.
         if (dead) clearInvite();
-        setError(dead ? s.join.dead : errorMessage(e));
+        // Only the revoked link gets a heading: everything else is the api saying what went wrong
+        // in its own words, and a heading over it would be this screen guessing.
+        setStop(dead ? { title: s.join.deadTitle, text: s.join.dead } : { text: errorMessage(e) });
       },
     );
     return () => {
@@ -69,38 +77,43 @@ export default function InviteScreen() {
     };
   }, [invite, status, session]);
 
-  // Says what it is busy with and holds the middle of the screen, rather than blinking over it:
-  // there is nothing else on this screen to hold place for.
-  if (!error) {
+  // `InviteJoining`: the name of the product, the spinner the spec turns at 34 for a link being
+  // walked in, and the line saying what is being waited for. It lives a second and leads inward.
+  if (!stop) {
     return (
-      <View style={styles.screen}>
-        <Empty busy text={s.state.joining} />
-      </View>
+      <Board style={styles.joining}>
+        <Text accessibilityRole="header" role="heroNarrow">
+          Remember
+        </Text>
+        <Waiting text={s.state.joining} size={34} />
+      </Board>
     );
   }
 
-  // A spent link is a dead end, so the way out is the screen's one action — and «replace», like
-  // every other exit from here, because a used invite must not sit in the back stack.
+  // `InviteDead`: an empty state with the sign of a link pulled apart, and the way out standing in
+  // the bottom layer — «replace», like every other exit from here, because a spent invite must not
+  // sit in the back stack.
   return (
-    <View style={styles.screen}>
-      <View style={styles.dead}>
-        <Banner tone="error" text={error} />
-        <Button label={s.join.home} wide onPress={() => router.replace('/')} />
+    <Board>
+      <View style={styles.body}>
+        <Empty sign="line" icon={Link2Off} title={stop.title} text={stop.text} />
       </View>
-    </View>
+      <ActionBar>
+        <Button variant="primary" label={s.join.home} onPress={() => router.replace('/')} />
+      </ActionBar>
+    </Board>
   );
 }
 
-const useStyles = themed(({ color }) =>
-  StyleSheet.create({
-    screen: { flex: 1, justifyContent: 'center', backgroundColor: color.ink },
-    // Capped where the kit caps a sheet, so the bar does not run the width of a tablet.
-    dead: {
-      alignSelf: 'center',
-      width: '100%',
-      maxWidth: 420,
-      gap: space.s4,
-      paddingHorizontal: space.s5,
-    },
-  }),
-);
+const styles = StyleSheet.create({
+  // Nothing is above or below it, so the whole board is the block: the spec's 26 between the three
+  // pieces, and margins wide enough that the word never runs to the edges.
+  joining: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: space.s6,
+    paddingHorizontal: space.s7,
+  },
+  // The body is what is left above the bottom layer, and the empty state stands in the middle of it.
+  body: { flex: 1, justifyContent: 'center' },
+});
