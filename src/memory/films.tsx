@@ -1,4 +1,4 @@
-import { useFocusEffect, useIsFocused } from 'expo-router';
+import { useFocusEffect, useIsFocused, useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { Download, Film, Play } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -9,11 +9,8 @@ import {
   ApiError,
   errorMessage,
   listMontages,
-  orderMontage,
   retryMontage,
   type Montage,
-  type MontageOrientation,
-  type MusicTrackId,
 } from '@/api';
 import { useAuth } from '@/auth';
 import { formatDay, formatRuntime } from '@/dates';
@@ -28,7 +25,6 @@ import {
   Button,
   CardMontage,
   Empty,
-  Sheet,
   Text,
   type MontageState,
 } from '@/kit';
@@ -63,15 +59,6 @@ const stillMaking = (montages: readonly Montage[] | null) =>
   false;
 
 /**
- * How long to ask for. The api takes anything from a quarter of a minute to five and fills in a
- * minute itself when nothing is asked — these are three round answers, not the whole range. The
- * seconds are the whole of it here; what each one is called is `montage.length` in the dictionary.
- */
-const LENGTHS = [30, 60, 120] as const;
-
-type Length = (typeof LENGTHS)[number];
-
-/**
  * What a montage is called on screen: how long it runs once it does, and the day it was asked for
  * until then — a length is the one thing about it that is worth a title, and there is none to say
  * until the worker has made it.
@@ -83,13 +70,15 @@ const montageTitle = (montage: Montage, s: Strings) => {
 
 /**
  * What a finished montage was made of — «14 сентября · горизонтальный · Тёплая» (spec 7.6). The day
- * it was ordered on, and the two wishes that shaped it; a montage cut before either of them could be
- * asked for simply says less, rather than saying a default somebody never chose.
+ * it was ordered on, and the wishes that shaped it; a montage cut before any of them could be asked
+ * for simply says less, rather than saying a default somebody never chose. A track off the phone is
+ * named as one: its key is a storage path and never a word for a person.
  */
 function madeOf(montage: Montage, s: Strings): string {
   const parts = [formatDay(montage.created_at)];
   if (montage.params.orientation) parts.push(s.montage.orientation[montage.params.orientation]);
   if (montage.params.music_track_id) parts.push(s.montage.track[montage.params.music_track_id]);
+  else if (montage.params.music_track_key) parts.push(s.montage.ownTrackShort);
   return parts.join(' · ');
 }
 
@@ -107,6 +96,7 @@ function madeOf(montage: Montage, s: Strings): string {
  */
 export function Films({ id, head }: { id: string; head: Head }) {
   const { token } = useAuth();
+  const router = useRouter();
   const s = useStrings();
   const insets = useSafeAreaInsets();
   // null means «not loaded yet» — the same distinction the other faces draw, so a refetch after
@@ -115,14 +105,6 @@ export function Films({ id, head }: { id: string; head: Head }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const [ordering, setOrdering] = useState(false);
-  // What the order will ask for. The api's own default length, and a track chosen rather than left
-  // to the worker — it is one tap either way, and a person who opened the sheet came to choose.
-  const [seconds, setSeconds] = useState<Length>(60);
-  const [track, setTrack] = useState<MusicTrackId>('warm');
-  // Horizontal, which is what every montage was before this could be asked — the api reads a missing
-  // orientation as exactly this one, so an untouched sheet orders what it always ordered.
-  const [orientation, setOrientation] = useState<MontageOrientation>('landscape');
   /** The montage being watched, held by id so a reload hands it a fresh signed url. */
   const [playing, setPlaying] = useState<string | null>(null);
 
@@ -132,11 +114,11 @@ export function Films({ id, head }: { id: string; head: Head }) {
   const memory = head.memory;
 
   /**
-   * How many times this face has written the list itself — the order that puts a new row on top,
-   * the retry that requeues one. Both are answers the api handed back, so they are newer than any
-   * read that was already in flight: a quiet one resolving after either of them would put the list
-   * back the way the api had it a moment *before*, and the ordered card would vanish or the retried
-   * one go back to «Did not finish». Worse, that snapshot has nothing pending in it, so the loop
+   * How many times this face has written the list itself — the retry that requeues a row, and until
+   * TASK-162 the order that put a new one on top. It is an answer the api handed back, so it is
+   * newer than any read that was already in flight: a quiet one resolving after it would put the
+   * list back the way the api had it a moment *before*, and the retried card would go back to «Did
+   * not finish». Worse, that snapshot has nothing pending in it, so the loop
    * below clears itself and this face — which has no pull-to-refresh — never reads again until the
    * tabs are switched. So a quiet read carries the count it started under and drops its answer if
    * that has moved (found in review, TASK-125).
@@ -186,9 +168,9 @@ export function Films({ id, head }: { id: string; head: Head }) {
   // screen that came next. Since TASK-124 it cost a second thing — `useTurnsWithPhone` below
   // follows the modal and not the mount, so nothing put the app back in portrait.
   //
-  // The order sheet was shut here too until TASK-129: it is the kit's `Sheet`, and a sheet now
-  // shuts itself when the screen under it loses focus. The viewer above is a `Modal` of this face's
-  // own and stays this face's business.
+  // The viewer is the only window left here: the order used to be a sheet over this face and is a
+  // screen of its own since TASK-162, and this read on focus is also how the list meets what that
+  // screen ordered.
   useFocusEffect(
     useCallback(() => {
       load();
@@ -200,7 +182,7 @@ export function Films({ id, head }: { id: string; head: Head }) {
   // `ready` while they sit here watching the card, and until this loop existed nothing told the
   // face — the card said «Собираем» until the tabs were switched away and back, which is what was
   // reported (TASK-125). Only while there is something being cut, and only while this face is the
-  // one in front: the viewer and the order sheet leave the whole memory mounted behind them.
+  // one in front: the viewer and the order screen leave the whole memory mounted behind them.
   const making = stillMaking(montages);
   const focused = useIsFocused();
   useEffect(() => {
@@ -250,29 +232,11 @@ export function Films({ id, head }: { id: string; head: Head }) {
   }
 
   /**
-   * «Смонтируй ролик», with the three wishes doc-03 allows. The api answers with the row it wrote,
-   * so it goes straight onto the top of the list — the list is newest first, and a reload would be
-   * the same thing one round trip later.
+   * «Смонтируй ролик» — the four steps of spec 8, on a screen of its own (`memory/[id]/order`).
+   * Nothing is ordered here any more: the order is the last button of that wizard, and this face
+   * reads the list again on focus, so what it comes back to already holds the new card.
    */
-  const order = () =>
-    act(
-      async (session) => {
-        const ordered = await orderMontage(session, id, {
-          target_seconds: seconds,
-          music_track_id: track,
-          orientation,
-        });
-        writes.current += 1;
-        setMontages((have) => [ordered, ...(have ?? [])]);
-        setOrdering(false);
-        return s.montage.ordered;
-      },
-      {
-        // The api's own line names its numbers; this one names what to do about them.
-        409: s.montage.tooLittle,
-        403: s.montage.orderDenied,
-      },
-    );
+  const askForOne = () => router.push({ pathname: '/memory/[id]/order', params: { id } });
 
   /** The organizer's button under one that fell over: the same row queued again, never a second. */
   const retry = (montage: Montage) =>
@@ -465,9 +429,8 @@ export function Films({ id, head }: { id: string; head: Head }) {
           it is the thing the whole memory is being filled up for. In the bottom bar because that is
           where this app keeps the one action of a screen.
           Not before the list has answered: standing outside the scroll, this bar is gated on the
-          role, which comes off the memory and lands first — so it would offer an order over a list
-          still in flight, and `order` prepends its new row to state that the read landing after it
-          then overwrites. Under a list that failed to read it offers a second failure instead. */}
+          role, which comes off the memory and lands first — so it would offer the way into an order
+          over a list still in flight, or a second failure under one that failed to read. */}
       {role === 'organizer' && montages !== null ? (
         <ActionBar>
           <Button
@@ -475,86 +438,11 @@ export function Films({ id, head }: { id: string; head: Head }) {
             wide
             icon={Film}
             label={s.montage.make}
-            onPress={() => setOrdering(true)}
+            onPress={askForOne}
             disabled={busy}
           />
         </ActionBar>
       ) : null}
-
-      {/* The three wishes doc-03 allows and nothing else, asked on a sheet the way an invite is:
-          ordering is a thing done once, and the face is for what comes of it. What is picked is
-          in the heading above each row as well as in the buttons — a screen reader gets no «this
-          one is chosen» out of a button that only looks different. */}
-      <Sheet
-        visible={ordering}
-        onCancel={() => setOrdering(false)}
-        title={s.montage.make}
-        scroll
-        footer={
-          // `busy` alone, as everywhere else in the app: the kit already refuses the press while it
-          // is set, and adding `disabled` on top would take the ember off the one glowing button on
-          // the sheet for exactly as long as its spinner is turning.
-          <Button variant="primary" label={s.montage.makeIt} onPress={order} busy={busy} />
-        }
-      >
-        <Text role="body" tone="muted">
-          {s.montage.explain}
-        </Text>
-
-        <Text role="label">
-          {s.montage.howLong} · {s.montage.length[seconds]}
-        </Text>
-        <View style={styles.choices}>
-          {LENGTHS.map((length) => (
-            <Button
-              key={length}
-              size="xs"
-              // The picked one is the one with a frame around it. Not `primary`: the glow belongs
-              // to one thing on a surface, and here that is «Make it» at the bottom.
-              variant={length === seconds ? 'secondary' : 'quiet'}
-              label={s.montage.length[length]}
-              onPress={() => setSeconds(length)}
-              disabled={busy}
-            />
-          ))}
-        </View>
-
-        <Text role="label">
-          {s.montage.music} · {s.montage.track[track]}
-        </Text>
-        <View style={styles.choices}>
-          {(Object.keys(s.montage.track) as MusicTrackId[]).map((id) => (
-            <Button
-              key={id}
-              size="xs"
-              variant={id === track ? 'secondary' : 'quiet'}
-              label={s.montage.track[id]}
-              onPress={() => setTrack(id)}
-              disabled={busy}
-            />
-          ))}
-        </View>
-
-        <Text role="label">
-          {s.montage.shape} · {s.montage.orientation[orientation]}
-        </Text>
-        <View style={styles.choices}>
-          {(Object.keys(s.montage.orientation) as MontageOrientation[]).map((way) => (
-            <Button
-              key={way}
-              size="xs"
-              variant={way === orientation ? 'secondary' : 'quiet'}
-              label={s.montage.orientation[way]}
-              onPress={() => setOrientation(way)}
-              disabled={busy}
-            />
-          ))}
-        </View>
-
-        {/* Where «too little material» is read: the sheet stays up when the order is refused, and
-            the face's own copy of this line is under the scrim. */}
-        {notice ? <Banner text={notice} /> : null}
-      </Sheet>
 
       {/* The finished video played where it lies, the way the frames face plays a preview:
           `expo-video` streams it from the signed link rather than downloading it first. A modal and
@@ -622,7 +510,6 @@ const styles = StyleSheet.create({
   // A card and, under a fallen one, the line the worker left — closer to each other than the
   // face's own gap, because they are one thing.
   montage: { gap: space.s2 },
-  choices: { flexDirection: 'row', flexWrap: 'wrap', gap: space.s2 },
   viewer: { flex: 1, backgroundColor: room.ink, justifyContent: 'center' },
   bar: { justifyContent: 'center', paddingHorizontal: space.s4 },
   big: { flex: 1, width: '100%' },

@@ -44,6 +44,10 @@ const record = (over: Partial<MediaItem>): MediaItem => ({
   created_at: '2026-09-06T10:00:00.000Z',
   thumbnail_url: null,
   preview_url: null,
+  // Null on both while the automatic pass has not looked: nothing the gallery draws reads them, and
+  // the order screen is where they mean anything (TASK-162).
+  screening_rejected: null,
+  screening_reason: null,
   ...over,
 });
 
