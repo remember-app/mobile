@@ -1,7 +1,6 @@
 import { expect, test } from 'vitest';
 
 import contacts from './app/contacts.tsx?raw';
-import home from './app/index.tsx?raw';
 import { en, ru } from '@/strings';
 
 /**
@@ -9,14 +8,10 @@ import { en, ru } from '@/strings';
  * and a debounced effect has no renderer here. What this file pins is the handful of rules on the
  * contacts screen that break silently — the screen keeps working and says the wrong thing, or asks
  * for the wrong thing, and only an eye on the simulator would catch it.
+ *
+ * How the screen is *reached* is no longer pinned here: spec 8 leaves the main screen one icon and
+ * it is the account, so the way in moved inside it — `home-screen.test.ts` holds that end now.
  */
-
-test('the header opens contacts and leaves the profile the outermost icon', () => {
-  // Kit «Экраны» 9, «Справа в шапке»: two icons is the ceiling and both are now taken; the profile
-  // never moves. A second `IconButton` dropped in after it would look right and read wrong.
-  expect(home).toContain("router.push('/contacts')");
-  expect(home.indexOf('s.home.contacts')).toBeLessThan(home.indexOf('s.home.profile'));
-});
 
 test('one field does both jobs — it narrows the list and asks about what is not in it', () => {
   // The whole point of the screen having one field and not two. Losing either half leaves a field
