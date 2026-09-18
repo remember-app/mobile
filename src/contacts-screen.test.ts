@@ -8,6 +8,9 @@ import { en, ru } from '@/strings';
  * and a debounced effect has no renderer here. What this file pins is the handful of rules on the
  * contacts screen that break silently — the screen keeps working and says the wrong thing, or asks
  * for the wrong thing, and only an eye on the simulator would catch it.
+ *
+ * How the screen is *reached* is no longer pinned here: spec 8 leaves the main screen one icon and
+ * it is the account, so the way in moved inside it — `home-screen.test.ts` holds that end now.
  */
 
 test('the field is the search one: a magnifier, an @, and no label over it', () => {

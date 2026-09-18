@@ -44,6 +44,8 @@ export const en = {
      */
     logOut: 'Log out of your account',
     openSettings: 'Open settings',
+    /** The 32 cross on the connection banner — the only way to put a message away by hand. */
+    hide: 'Hide message',
   },
 
   /** What a screen says while it has nothing to show yet. */
@@ -140,13 +142,26 @@ export const en = {
   /** The main screen: every memory this account organizes or was invited to. */
   home: {
     title: 'Memories',
-    /** The second icon in the appbar, left of the profile — the one way into the contact list. */
-    contacts: 'Contacts',
-    profile: 'Profile',
+    /**
+     * The one button in the header (spec 8, `Main`) and everything about you behind it — the
+     * contact list moved inside it, so there is no second icon here to name any more.
+     */
+    account: 'Account',
+    /** `HomeEmpty`, and the first thing anybody sees after signing up: a heading and an invitation. */
+    emptyTitle: 'Nothing here yet',
     empty:
-      'No memories yet. Start one for your next event and the photos will land here from everyone.',
+      'Start a memory for your next event — and the photos will land here from everyone who was there.',
     /** A memory with nothing in it at all — said on the film of its own card. */
     noFrames: 'No frames yet. Add the first ones.',
+    /** Under the bar on a large card: how many of the guests have brought their frames in. */
+    brought: (done: number, all: number) => `${done} of ${all} have already shared their frames`,
+    /**
+     * `HomeOffline` — said over a list that is still there. The screen goes on working; what it
+     * cannot promise is that this is the latest, and that is the whole sentence.
+     */
+    offline: 'No connection to the server. Showing what is already loaded.',
+    /** `HomeOnline` — one line with no way to dismiss it, because it leaves on its own. */
+    online: 'Connected',
     create: 'New memory',
   },
 
@@ -366,6 +381,8 @@ export const en = {
      * phone, and one of these is for sharing to a story.
      */
     orientation: { landscape: 'Wide', portrait: 'Tall' },
+    /** How many a memory has, for the badge on its card — the Russian declines it, so it is a word. */
+    count: (n: number) => `${n} ${n === 1 ? 'movie' : 'movies'}`,
     ofLength: (runtime: string) => `Movie of ${runtime}`,
     fromDay: (day: string) => `Movie from ${day}`,
     caption: 'You will be told when it is ready',
@@ -535,6 +552,7 @@ export const ru: Strings = {
     send: 'Отправить',
     logOut: 'Выйти из аккаунта',
     openSettings: 'Открыть настройки',
+    hide: 'Скрыть сообщение',
   },
 
   state: {
@@ -594,11 +612,16 @@ export const ru: Strings = {
 
   home: {
     title: 'Воспоминания',
-    contacts: 'Контакты',
-    profile: 'Профиль',
+    account: 'Аккаунт',
+    emptyTitle: 'Здесь пока пусто',
     empty:
-      'Воспоминаний пока нет. Заведите одно к ближайшему событию — и снимки начнут стекаться сюда от всех.',
+      'Заведите воспоминание к ближайшему событию — и снимки начнут стекаться сюда от всех, кто там был.',
     noFrames: 'Кадров пока нет. Добавьте первые.',
+    // Про людей, а не про файлы: считаются те, кто ответил за свой материал, — и сказано это
+    // так же, как на «Людях» воспоминания.
+    brought: (done: number, all: number) => `${done} из ${all} уже скинули свои кадры`,
+    offline: 'Нет связи с сервером. Показываем то, что уже загружено.',
+    online: 'Соединение установлено',
     create: 'Новое воспоминание',
   },
 
@@ -717,6 +740,7 @@ export const ru: Strings = {
     track: { warm: 'Тёплая', bright: 'Яркая', calm: 'Спокойная' },
     length: { 30: 'Полминуты', 60: 'Минута', 120: 'Две минуты' },
     orientation: { landscape: 'Горизонтальный', portrait: 'Вертикальный' },
+    count: (n: number) => count(n, 'ролик', 'ролика', 'роликов'),
     ofLength: (runtime: string) => `Ролик на ${runtime}`,
     fromDay: (day: string) => `Ролик от ${day}`,
     caption: 'Мы сообщим, когда будет готов',
