@@ -406,15 +406,21 @@ export const en = {
     limited:
       'Only the photos you handed to Remember are here — the rest of the gallery is invisible to this screen, and to the «select all» on every day in it.',
     chooseMore: 'Choose more',
+    /** Under a day's strip, once that day is a window on a day rather than the whole of it. */
+    restUnseen: 'Remember cannot see the rest of this day',
     cannotRead: 'Cannot read the gallery on this phone.',
     /** Over one strip of the contact sheet: the day everything under it was shot on. */
     shotOn: (day: string) => `Shot on ${day}`,
     /** And at the other end of that line — everything shot on that one day, in one tap. */
     selectDay: (n: number) => `Select all ${n}`,
     reading: 'Still reading the gallery…',
-    emptyGallery: 'Nothing to pick — this phone’s gallery is empty.',
+    /** The heading names what is missing, the paragraph says what to do about it (spec 7.8). */
+    emptyTitle: 'Nothing to pick',
+    emptyText: 'This phone’s gallery is empty. Shoot something — and the frames will show up here.',
     stillToSend: (n: number) => `${n} still to send`,
     carriesOn: 'The app can be put away — sending carries on.',
+    /** The heading over the files the queue could not get out, «НЕ УШЛИ». */
+    notSent: 'Not sent',
     dropFile: (name: string) => `Drop ${name} from the queue`,
     picked: (n: number) => `${n} selected`,
     pickedOf: (n: number, total: number) => `${n} selected of ${total}`,
@@ -427,9 +433,12 @@ export const en = {
     noLink: (part: number) => `The api signed no link for part ${part}.`,
     partSizeChanged: 'The part size changed.',
     partNotTaken: (part: number) => `Storage would not take part ${part}.`,
-    /** doc-06, asked once by the system dialog on the first file that lands in a memory. */
+    /** doc-06, asked once: the sheet that comes up after the first files land in a memory. */
     askAll: 'Is that everything?',
-    askAllText: 'Or is there more still to come?',
+    askAllText:
+      'Or is there more still to come? The organizer sees your answer and knows whether to wait for you.',
+    /** The line above that question — what has just gone, and the reason it is asked now. */
+    sentToMemory: (n: number) => `${n} ${n === 1 ? 'file is' : 'files are'} in the memory`,
     moreToCome: 'More to come',
     thatsAll: 'That’s all',
   },
@@ -733,13 +742,16 @@ export const ru: Strings = {
     limited:
       'Здесь только те снимки, что вы отдали Remember, — остальная галерея этому экрану не видна, и «Выбрать все» в каждом дне тоже.',
     chooseMore: 'Отдать ещё',
+    restUnseen: 'Остальное с этого дня Remember не видит',
     cannotRead: 'Не получилось прочитать галерею на этом телефоне.',
     shotOn: (day: string) => `Снято ${day}`,
     selectDay: (n: number) => `Выбрать все ${n}`,
     reading: 'Ещё читаем галерею…',
-    emptyGallery: 'Выбирать нечего — галерея этого телефона пуста.',
+    emptyTitle: 'Выбирать нечего',
+    emptyText: 'Галерея этого телефона пуста. Снимите что-нибудь — и кадры появятся здесь.',
     stillToSend: (n: number) => `Осталось ${count(n, 'файл', 'файла', 'файлов')}`,
     carriesOn: 'Приложение можно свернуть — отправка продолжится.',
+    notSent: 'Не ушли',
     dropFile: (name: string) => `Убрать ${name} из очереди`,
     picked: (n: number) => `Выбрано ${n}`,
     pickedOf: (n: number, total: number) => `Выбрано ${n} из ${total}`,
@@ -752,7 +764,12 @@ export const ru: Strings = {
     partSizeChanged: 'Размер части изменился.',
     partNotTaken: (part: number) => `Хранилище не приняло часть ${part}.`,
     askAll: 'Это всё?',
-    askAllText: 'Или что-то ещё осталось?',
+    askAllText: 'Или что-то ещё осталось? Организатор увидит ваш ответ и поймёт, ждать вас или нет.',
+    // Один файл ушёл, а двенадцать ушли: счёт даёт форму существительного, а глагол идёт за ним.
+    sentToMemory: (n: number) =>
+      `${count(n, 'файл', 'файла', 'файлов')} ${
+        n % 10 === 1 && n % 100 !== 11 ? 'ушёл' : 'ушли'
+      } в воспоминание`,
     moreToCome: 'Ещё будет',
     thatsAll: 'Больше ничего',
   },
