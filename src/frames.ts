@@ -115,6 +115,127 @@ export type FrameDay = {
 };
 
 /**
+ * When a frame happened, as the whole gallery reads it: the day the camera stamped, falling back to
+ * the day the file arrived — the same reading the api sorts the listing by
+ * (`coalesce(captured_at, created_at)`). A stamp that will not parse is the epoch, which puts that
+ * frame at the very end of whichever direction the sheet is read in.
+ */
+export function shotAt(item: MediaItem): number {
+  return Date.parse(item.captured_at ?? item.created_at) || 0;
+}
+
+/** The local day a frame belongs to — the day the phone looking at it says, not UTC's. */
+export function dayOf(item: MediaItem): number {
+  return startOfDay(new Date(shotAt(item))).getTime();
+}
+
+/** Everything under one heading, and what that heading is about (spec 7.7, four kinds of it). */
+export type FrameGroup = { key: string; frames: MediaItem[] } & (
+  | { by: 'day'; at: number }
+  | { by: 'person'; who: string }
+  | { by: 'kind'; kind: MediaItem['kind'] }
+);
+
+/** How the sheet is cut into groups, and which way each group reads (`SheetSort`). */
+export type GroupBy = FrameGroup['by'];
+export type Order = 'newest' | 'oldest';
+export type Sort = { by: GroupBy; order: Order };
+
+/** What the gallery is arranged as until somebody says otherwise: by day, newest first. */
+export const SORT_DEFAULT: Sort = { by: 'day', order: 'newest' };
+
+/** Whether it is arranged any other way — which is the whole of what the spark dot means (spec 7.4). */
+export function arranged(sort: Sort): boolean {
+  return sort.by !== SORT_DEFAULT.by || sort.order !== SORT_DEFAULT.order;
+}
+
+/**
+ * What of the gallery is shown (`SheetFilter`): who brought it, what it is, which day it is from.
+ * An empty set is «everybody» and «every day» rather than «nobody» — the chip that says so is the
+ * one the sheet opens with.
+ */
+export type Filter = {
+  people: ReadonlySet<string>;
+  days: ReadonlySet<number>;
+  kind: MediaItem['kind'] | 'all';
+};
+
+/** Nothing filtered out, which is what the gallery stands at until the sheet says otherwise. */
+export const FILTER_NONE: Filter = { people: new Set(), days: new Set(), kind: 'all' };
+
+/** Whether anything is being held back — the other spark dot. */
+export function filtering(filter: Filter): boolean {
+  return filter.people.size > 0 || filter.days.size > 0 || filter.kind !== 'all';
+}
+
+/**
+ * The gallery as the filter leaves it. Three questions, all three answered against the record
+ * itself, so the count the sheet's own button carries («Показать 486 кадров») is worked out by
+ * exactly what the sheet will then show.
+ */
+export function framesMatching(items: readonly MediaItem[], filter: Filter): MediaItem[] {
+  return items.filter(
+    (item) =>
+      (filter.kind === 'all' || item.kind === filter.kind) &&
+      (filter.people.size === 0 || filter.people.has(item.uploaded_by)) &&
+      (filter.days.size === 0 || filter.days.has(dayOf(item))),
+  );
+}
+
+/**
+ * The gallery cut into the groups the sort asks for, each group already reading in the direction it
+ * asks for. One place for all three cuts, because they are one question — «что стоит над полосой» —
+ * and the screen only writes the heading it is handed.
+ *
+ * The order between groups is the cut's own: days run the way the frames inside them do, people
+ * stand by how much they brought (the most first — that is the list the layout draws), and the two
+ * kinds keep the order they are named in, photos before videos, because that is a pair and not a
+ * ranking.
+ */
+export function groupFrames(items: readonly MediaItem[], { by, order }: Sort): FrameGroup[] {
+  const within = [...items].sort((a, b) =>
+    order === 'newest' ? shotAt(b) - shotAt(a) : shotAt(a) - shotAt(b),
+  );
+
+  if (by === 'kind') {
+    return (['photo', 'video'] as const)
+      .map((kind) => ({
+        by: 'kind' as const,
+        kind,
+        key: `kind-${kind}`,
+        frames: within.filter((item) => item.kind === kind),
+      }))
+      .filter((group) => group.frames.length > 0);
+  }
+
+  if (by === 'person') {
+    return cut(within, (item) => item.uploaded_by)
+      .map(([who, frames]) => ({ by: 'person' as const, who, key: `who-${who}`, frames }))
+      .sort((a, b) => b.frames.length - a.frames.length);
+  }
+
+  return cut(within, dayOf)
+    .map(([at, frames]) => ({ by: 'day' as const, at, key: `day-${at}`, frames }))
+    .sort((a, b) => (order === 'newest' ? b.at - a.at : a.at - b.at));
+}
+
+/**
+ * Frames into buckets by whatever key is asked for, each bucket keeping the order they came in. The
+ * buckets themselves come back in the order they were first met, so whoever sorts them afterwards
+ * gets a stable answer out of a stable one.
+ */
+function cut<K>(items: readonly MediaItem[], keyOf: (item: MediaItem) => K): [K, MediaItem[]][] {
+  const groups = new Map<K, MediaItem[]>();
+  for (const item of items) {
+    const key = keyOf(item);
+    const held = groups.get(key);
+    if (held === undefined) groups.set(key, [item]);
+    else held.push(item);
+  }
+  return [...groups];
+}
+
+/**
  * The gallery cut into the local days its frames were shot on, the newest day first — what the
  * contact sheet needs to draw a daymark over each strip (kit, «Экраны» 4, «День»).
  *
@@ -135,17 +256,9 @@ export type FrameDay = {
  * every frame is already the event's — there is no window left to sort by.
  */
 export function framesByDay(items: readonly MediaItem[]): FrameDay[] {
-  const days = new Map<number, FrameDay>();
-  for (const item of items) {
-    const at = startOfDay(new Date(Date.parse(item.captured_at ?? item.created_at) || 0)).getTime();
-    let day = days.get(at);
-    if (day === undefined) {
-      day = { at, frames: [] };
-      days.set(at, day);
-    }
-    day.frames.push(item);
-  }
-  return [...days.values()].sort((a, b) => b.at - a.at);
+  return cut(items, dayOf)
+    .map(([at, frames]) => ({ at, frames }))
+    .sort((a, b) => b.at - a.at);
 }
 
 /**

@@ -14,6 +14,7 @@ import member from './kit/member.tsx?raw';
 import toggle from './kit/toggle.tsx?raw';
 import films from './memory/films.tsx?raw';
 import frames from './memory/frames.tsx?raw';
+import sheets from './memory/frames-sheets.tsx?raw';
 import head from './memory/head.tsx?raw';
 import people from './memory/people.tsx?raw';
 import push from './push.ts?raw';
@@ -32,10 +33,14 @@ import { en, ru } from '@/strings';
  * arrives.
  */
 
-/** What each `<ActionBar>` of a face holds, in the order they stand in the file. */
+/**
+ * What each bottom layer of a face holds, in the order they stand in the file — the props of the
+ * opening tag included, because the kind with a line of counting over the button carries that line
+ * as one (`above`).
+ */
 function actionBars(face: string): string[] {
   return face
-    .split('<ActionBar>')
+    .split('<ActionBar')
     .slice(1)
     .map((rest) => rest.slice(0, rest.indexOf('</ActionBar>')));
 }
@@ -129,16 +134,53 @@ test('the right of the appbar is one icon, and only the frames have one', () => 
 });
 
 test('the footer of the frames is one wide button, «Add more» off the picking mode', () => {
-  // Two footers in the file — the picking one first, «Добавить кадры» after it — and each of them
+  // Two footers in the file — the picking one first, the ordinary one after it — and each of them
   // holds exactly one wide button. «Нижняя кнопка остаётся на месте и в том же весе».
   const bars = actionBars(frames);
   expect(bars).toHaveLength(2);
   for (const bar of bars) expect(bar.match(/wide/g)).toHaveLength(1);
-  expect(bars[1]).toContain('label={s.gallery.addMore}');
+  // One action in two places, and the only difference is whether there is anything here yet
+  // (spec 9): «Добавить ещё» over a sheet with frames on it, «Добавить кадры» over `FramesEmpty`.
+  expect(bars[1]).toContain('label={any ? s.gallery.addMore : s.gallery.add}');
+  expect(ru.gallery.addMore).toBe('Добавить ещё');
+  expect(ru.gallery.add).toBe('Добавить кадры');
   // And that button is the only way to the upload screen there is.
   expect(frames).toContain('/memory/[id]/upload');
   expect(films).not.toContain('/memory/[id]/upload');
   expect(people).not.toContain('/memory/[id]/upload');
+});
+
+test('the ordinary footer is the filters, the one action, and the arrangement', () => {
+  // The layout's second kind of bottom layer (spec 7.1): a round 56 at either end with the screen's
+  // one action between them. Both round buttons wear the spark dot when what they open is no longer
+  // at its default — and both are asked the same question, off `@/frames` rather than off a flag
+  // this face keeps beside the state (spec 7.4).
+  const bar = actionBars(frames)[1];
+  expect(bar).toContain('icon={Funnel}');
+  expect(bar).toContain('icon={ArrowUpDown}');
+  expect(bar).toContain('dot={filtering(filter)}');
+  expect(bar).toContain('dot={arranged(sort)}');
+  expect(bar).toContain('size={height.round}');
+  // Nothing brought yet is nothing to sift or lay out, so `FramesEmpty` carries neither of them —
+  // and whoever may only look keeps both, with nothing in the middle where the action would be.
+  expect(bar.match(/\{any \? \(/g)).toHaveLength(2);
+  expect(bar).toContain('{mayUpload ? (');
+  expect(bar).toContain('<View style={styles.grow} />');
+});
+
+test('an empty gallery is the sign, what is missing, and what to do about it', () => {
+  // `FramesEmpty`: the dashed circle with the frame glyph, «Ни одного кадра», and a line that sends
+  // the person to their own phone. The action is in the bottom layer and never inside the block
+  // (spec 7.8), which is what the footer above already pins.
+  expect(frames).toContain(
+    '<Empty icon={ImageIcon} title={s.gallery.emptyTitle} text={s.gallery.empty} />',
+  );
+  expect(ru.gallery.emptyTitle).toBe('Ни одного кадра');
+  expect(ru.gallery.empty).toBe(
+    'Всё, что добавит любой участник, появится здесь. Начните со своих.',
+  );
+  // And it stands in the middle of the body rather than at the top of a list that has nothing in it.
+  expect(frames).toContain('rows.length === 0 ? styles.gridEmpty : null');
 });
 
 /**
@@ -156,10 +198,11 @@ test('the corner icon is a switch, and leaving it drops every mark', () => {
   // only in that both run: what the kit asks is «нажали ещё — вышли, отметки сняты».
   const toggling = frames.slice(frames.indexOf('function togglePicking'));
   expect(toggling.slice(0, toggling.indexOf('}'))).toContain('setPicked(new Set());');
-  // An empty sheet has nothing to pick from, so it carries no switch at all — not a greyed one.
-  // Unless the mode is already on: the switch is the only way out of it, and the last frame can go
-  // from under it while somebody else is deleting.
-  expect(frames).toContain('picking || (items !== null && items.length > 0) ? (');
+  // An empty sheet has nothing to pick from, so it carries no switch at all — not a greyed one:
+  // `FramesEmpty` has an empty corner. Unless the mode is already on: the switch is the only way
+  // out of it, and the last frame can go from under it while somebody else is deleting.
+  expect(frames).toContain('const any = items !== null && items.length > 0;');
+  expect(frames).toContain('picking || any ? (');
 });
 
 test('while picking, a tap marks the frame instead of opening it — and only a ready one', () => {
@@ -179,6 +222,11 @@ test('while picking, a tap marks the frame instead of opening it — and only a 
 
 test('the picking footer is «Снять» beside a download that carries its count', () => {
   const picking = actionBars(frames)[0];
+  // `FramesPicking`: the layout's third kind of bottom layer — the count of the whole picking and
+  // the quiet way out of it stand on a line over the button, not beside it.
+  expect(picking).toContain('above={');
+  expect(picking).toContain('{s.gallery.picked(marked.length)}');
+  expect(ru.gallery.picked(3)).toBe('Выбрано 3');
   // The quiet half is the word the kit gives both sheets that pick something, said in one place.
   expect(picking).toContain('label={s.action.clear}');
   expect(upload).toContain('label={s.action.clear}');
@@ -213,14 +261,15 @@ test('the words of the picking mode count in Russian and say why the button is o
 });
 
 /**
- * The contact sheet cut into days (TASK-121, kit «Экраны» 4 «День»): the face drew one flat grid,
- * so there was no daymark over a strip and no «Выбрать все N» to mark a whole day with. The cut is
- * `framesByDay` and pinned in `frames.test.ts`; these read how the sheet is wired to it — the same
- * way the «Выбор кадров» screen was wired to `assetsByDay` before it.
+ * The contact sheet cut into groups (TASK-121 cut it into days, TASK-144 into whatever the sort
+ * asks for): the face drew one flat grid, so there was no heading over a strip and no «Выбрать все
+ * N» to mark a whole one with. The cut itself is `groupFrames` and pinned in `frames.test.ts`;
+ * these read how the sheet is wired to it — the same way the «Выбор кадров» screen is wired to
+ * `assetsByDay`.
  */
 
-test('the sheet is one flat list of days and strips, never a three-column grid', () => {
-  // `numColumns` lays out the list underneath, and it cannot do it *around* the days standing
+test('the sheet is one flat list of headings and strips, never a three-column grid', () => {
+  // `numColumns` lays out the list underneath, and it cannot do it *around* the headings standing
   // between the strips — so the three across are cut by hand, the way the upload screen cuts them.
   for (const sheet of [frames, upload]) {
     // The props and not the word: both files name `numColumns` in the comment that says why they
@@ -229,39 +278,55 @@ test('the sheet is one flat list of days and strips, never a three-column grid',
     expect(sheet).not.toContain('columnWrapperStyle={');
     expect(sheet).toContain('data={rows}');
     expect(sheet).toContain('keyExtractor={(row) => row.key}');
-    expect(sheet).toContain('frames: day');
   }
-  // The days come off `@/frames` and not off `@/media-window`: this face has no event window to
-  // sort by — every frame in it is already the event's.
-  expect(frames).toContain('framesByDay(items ?? [])');
+  // The phone's own roll is cut into the days it was shot on; this face's cut is the answer the
+  // sort sheet gave, and it comes off `@/frames` rather than off `@/media-window` — this face has
+  // no event window to sort by, every frame in it is already the event's.
+  expect(upload).toContain('frames: day');
+  expect(frames).toContain('groupFrames(kept, sort)');
+  expect(frames).toContain('frames: group.frames.slice(i * 3, i * 3 + 3)');
   expect(frames).not.toContain('assetsByDay');
+  // What is laid out is what the filter left, and both are asked of `@/frames` so the sheet, the
+  // strip under the open frame and the count on the filter's own button cannot come apart.
+  expect(frames).toContain('framesMatching(items ?? [], filter)');
   // Cut once per read and held, not on every tap: marking a frame is a render, and the sheet of a
   // whole wedding is re-cut in it.
   expect(frames).toContain('const rows = useMemo(');
-  expect(frames).toContain('[items],');
+  expect(frames).toContain('[kept, sort],');
 });
 
-test('the day over a strip is the date, and the one thing at its right edge', () => {
+test('the heading over a strip says what is under it, and holds one thing at its right edge', () => {
   const daymark = frames.slice(frames.indexOf('<DayMark'), frames.indexOf('</DayMark>'));
-  // The kit's own 16 comes back on this face, where the sheet is bled to the edges of the screen —
-  // the component leaves it off for the upload screen, which stands inside the screen's padding.
-  expect(daymark).toContain('style={styles.pad}');
-  expect(daymark).toContain('label={formatDay(new Date(row.day.at))}');
-  // «Правый край всегда занят чем-то одним: числом в обычном виде, „Выбрать все 9“ в режиме
+  // Four kinds of heading, one component, and which one it is comes from the group itself.
+  expect(daymark).toContain('{...headingOf(group)}');
+  // «Правый край всегда занят чем-то одним: числом в обычном виде, „Выбрать все 174“ в режиме
   // выбора» — one slot, a ternary on the mode and never both at once.
+  expect(daymark).toContain('count={picking ? undefined : s.memory.frames(group.frames.length)}');
   expect(daymark).toContain('{picking ? (');
   expect(daymark).toContain('label={s.gallery.selectDay(markable.length)}');
-  // Quiet and small: the glow on this face belongs to the footer's one action, never to a day.
-  expect(daymark).toContain('variant="quiet"');
-  expect(daymark).toContain('size="xs"');
-  // The memory's one word for its material, counted for a single day of it (TASK-76's key).
-  expect(daymark).toContain('<Text role="meta">{s.memory.frames(row.day.frames.length)}</Text>');
+  // `FramesPicking` draws it as the small bordered pill, never as the glowing one: the ember on
+  // this face belongs to the footer's one action.
+  expect(daymark).toContain('variant="small"');
+  expect(daymark).not.toContain('variant="primary"');
+});
+
+test('a heading is a day, a person with their circle, or one of the two kinds', () => {
+  const heading = frames.slice(frames.indexOf('function headingOf'), frames.indexOf('/** Tap to'));
+  expect(heading).toContain("if (group.by === 'day') return { label: formatDay(new Date(group.at)) };");
+  expect(heading).toContain("if (group.by === 'kind') return { label: s.media[group.kind] };");
+  // `FramesByPeople`: the name, their circle in front of it, and the spark collar on the
+  // organizer's — read off the roster this face already holds for the open frame's own line.
+  expect(heading).toContain('avatar: name');
+  expect(heading).toContain("organizer: who?.role === 'organizer'");
+  // The material's one word counts every kind of group, «174 кадра» over a day and over a person
+  // alike (TASK-76's key).
+  expect(frames).toContain('s.memory.frames(group.frames.length)');
 });
 
 test('«Выбрать все N» counts and marks the frames a tap could reach, and only adds', () => {
   // The count, the gate and the press all read the one list, so the button cannot say «9» and mark
   // eight. The rule itself is `mayPick` — the same one the single tap is gated on.
-  expect(frames).toContain('const markable = row.day.frames.filter(mayPick);');
+  expect(frames).toContain('const markable = group.frames.filter(mayPick);');
   expect(frames).toContain('disabled={markable.length === 0}');
   expect(frames).toContain('onPress={() => pickDay(markable)}');
   // Never unmarks: what is marked on another day stays marked, and taking a mark off is a second
@@ -579,7 +644,8 @@ test('the darkening over the open frame is anchored to the safe area, not stretc
   // What pins the fix is that the darkening is written from the same inset the padding is: full
   // strength to the end of the safe area, the kit's own fade below it, on every phone. A gradient
   // spelled out in the sheet cannot know the inset, so the sheet is where it must not be.
-  const bar = frames.slice(frames.indexOf('styles.viewerBar'), frames.indexOf('pointerEvents='));
+  const from = frames.indexOf('styles.viewerBar');
+  const bar = frames.slice(from, frames.indexOf('pointerEvents=', from));
   expect(bar).toContain('paddingTop: insets.top + space.s2');
   expect(bar).toContain('rgba(20,17,15,.86) ${insets.top}px');
   // And the stretched one is gone from the sheet, where it had no inset to read.
@@ -730,15 +796,92 @@ test('every column of a contact sheet is the same width, the last row included',
   }
 });
 
-test('the 12 under the appbar is the kit’s own, and the switch keeps its own 16 under it', () => {
-  // «Контактный лист вплотную к шапке» was the report. The bar keeps a height of its own now
-  // (spec 4: the header line is 44), which is what holds the grid off it — pinned so the grid
-  // cannot end up flush against the header by that height being dropped from underneath it.
+test('the head measures out the 168 every face’s body starts at', () => {
+  // 52 of status line, a 44 bar, 12, the 44 the switch comes to, 16 — and the body. The bar keeps a
+  // height of its own (spec 4: the header line is 44), which is what holds the sheet off it:
+  // «контактный лист вплотную к шапке» was the report when it did not.
   expect(bars).toContain('minHeight: height.bar');
-  // `.screen__head .segment-wide{margin-bottom:var(--s4)}` — the whole of the gap between the switch
-  // and whatever the face draws under it. No face adds a second one.
-  expect(head).toContain('faces: { marginBottom: space.s4 }');
-  expect(frames).toContain('grid: { flexGrow: 1, gap: GRID_GAP }');
+  // The whole of the gap on either side of the switch, and no face adds a second one.
+  expect(head).toContain('faces: { marginTop: space.s3, marginBottom: space.s4 }');
+  // Spec 7.3: a memory's own header pill is the shorter segment, 36 rather than 40 — the other 8
+  // of those 44 are the pill's own padding.
+  const segment = head.slice(head.indexOf('<Segment'));
+  expect(segment.slice(0, segment.indexOf('/>')).split('\n').map((line) => line.trim())).toContain(
+    'sm',
+  );
+  // And the sheet under it stands inside the screen's 16 like everything else, not bled to the
+  // edges: at 390 that is what makes a frame of the grid 117 square.
+  expect(frames).toContain('grid: { flexGrow: 1, gap: GRID_GAP, paddingHorizontal: space.s4 }');
+  expect(frames).toContain('(width - space.s4 * 2 - GRID_GAP * 2) / 3');
+});
+
+/**
+ * The two sheets the gallery is tuned from (TASK-144, `SheetFilter` and `SheetSort`): what is shown
+ * and in what order. Their own file, because they are a second surface over this face and the face
+ * already holds the open frame.
+ */
+
+test('the filter is a draft until it is applied, and it is applied by a button that counts', () => {
+  // «Показать 486 кадров» — the number is worked out from the draft on the spot, so nobody applies
+  // a filter without being told first what it comes to. The face owns the material and answers the
+  // question; the sheet only asks it.
+  expect(frames).toContain('count={(draft) => framesMatching(items, draft).length}');
+  expect(sheets).toContain('const shown = count(draft);');
+  expect(sheets).toContain('label={shown === 0 ? s.gallery.nothingMatched : s.gallery.show(shown)}');
+  // A filter that would leave nothing cannot be applied at all, and the button says why rather than
+  // offering «Показать 0 кадров».
+  expect(sheets).toContain('disabled={shown === 0}');
+  expect(ru.gallery.show(486)).toBe('Показать 486 кадров');
+  expect(ru.gallery.nothingMatched).toBe('Ничего не подошло');
+  // Seeded by being mounted: both sheets are drawn only while open, so the draft starts at whatever
+  // is applied right now and a sheet closed any other way leaves the gallery as it was.
+  expect(frames).toContain("{tuning === 'filter' ? (");
+  expect(frames).toContain("{tuning === 'sort' ? (");
+  expect(sheets).toContain('useState<Filter>(value)');
+});
+
+test('the first chip of a filter row is the absence of a choice', () => {
+  // «Все» and «Все дни» are an empty set and not a value of their own, which is the whole reason a
+  // set is what the filter holds.
+  expect(sheets).toContain('selected={draft.people.size === 0}');
+  expect(sheets).toContain('selected={draft.days.size === 0}');
+  expect(sheets).toContain('onPress={() => setDraft((have) => ({ ...have, people: new Set() }))}');
+  expect(ru.gallery.anyone).toBe('Все');
+  expect(ru.gallery.anyDay).toBe('Все дни');
+  // Only people who actually brought something are offered, and only days the gallery holds.
+  expect(frames).toContain('people={brought}');
+  expect(frames).toContain('days={days}');
+  expect(frames).toContain('framesByDay(items ?? []).map((day) => day.at)');
+});
+
+test('the sort takes effect as it is pressed, and «Готово» is only the way out', () => {
+  // Nothing to preview here — the sheet stands over the sheet it is rearranging — so the answer
+  // goes straight up and the button at the bottom closes and nothing else.
+  expect(frames).toContain('<SortSheet value={sort} onChange={setSort} onDone={() => setTuning(null)} />');
+  expect(sheets).toContain('onChange={(by: GroupBy) => onChange({ ...value, by })}');
+  expect(sheets).toContain('onChange={(order: Order) => onChange({ ...value, order })}');
+  expect(sheets).toContain('label={s.action.done}');
+  expect(ru.gallery.groups.day).toBe('По дням');
+  expect(ru.gallery.groups.person).toBe('По людям');
+  expect(ru.gallery.orders.newest).toBe('Сначала новые');
+});
+
+test('each of the two sheets glows exactly once', () => {
+  // The rule the faces keep, kept by their sheets too: one ember per surface.
+  expect(sheets.match(/variant="primary"/g)).toHaveLength(2);
+});
+
+test('the delete sheet shows the frame it is about and names the price', () => {
+  // `SheetConfirmDelete`: a 64 thumbnail, who brought it and when, and the whole of what is lost —
+  // «Оно уйдёт из воспоминания навсегда. В уже собранном ролике останется».
+  const confirm = frames.slice(frames.indexOf('<ConfirmSheet'));
+  expect(confirm).toContain('thumb={shown.thumbnail_url ?? undefined}');
+  expect(confirm).toContain('meta={shotBy(shown, roster, head.memory)}');
+  expect(confirm).toContain('title={s.gallery.deleteAsk(shown.kind)}');
+  expect(ru.gallery.deleteAsk('photo')).toBe('Удалить это фото?');
+  expect(ru.gallery.deleteText).toBe(
+    'Оно уйдёт из воспоминания навсегда. В уже собранном ролике останется.',
+  );
 });
 
 // The invite sheet's own bugs, found in review of TASK-131 and not yet pinned anywhere: a name

@@ -65,6 +65,9 @@ export function MemoryHead({
       />
       <Segment
         wide
+        // Spec 7.3 gives a memory's own header pill the shorter segment: 36 rather than 40, which
+        // with the pill's own 4 all round is what puts the body of every face at 168.
+        sm
         // The row is titled by the screen it stands under; the name is only spoken.
         hideLabel
         label={s.memory.whatToShow}
@@ -87,8 +90,9 @@ export function MemoryHead({
 }
 
 const styles = StyleSheet.create({
-  // The kit's `.screen__head`: 16 at the sides, and it does not scroll away with the face below it.
+  // 16 at the sides, and it does not scroll away with the face below it.
   head: { paddingHorizontal: space.s4 },
-  // `.screen__head .segment-wide{margin-bottom:var(--s4)}` — the 12 above it is the appbar's own.
-  faces: { marginBottom: space.s4 },
+  // The whole of the gap on either side of the switch: 12 under the appbar's own 44, 16 over
+  // whatever the face draws below. No face adds a second one.
+  faces: { marginTop: space.s3, marginBottom: space.s4 },
 });
