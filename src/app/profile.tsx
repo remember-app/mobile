@@ -1,37 +1,48 @@
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { errorMessage, memberHandle, memberName } from '@/api';
+import { errorMessage, listContacts, memberHandle, memberName, type Contact } from '@/api';
 import { useAuth } from '@/auth';
-import { AppBar, Avatar, Banner, Button, Hint, IconButton, Segment, Text } from '@/kit';
+import {
+  AppBar,
+  Avatar,
+  AvatarStack,
+  Banner,
+  Board,
+  Button,
+  IconButton,
+  RowSection,
+  Segment,
+  Text,
+} from '@/kit';
 import { setLanguage, useLanguage, useStrings } from '@/language';
-import { setTheme, space, themed, useThemeChoice } from '@/theme';
+import { board, setTheme, space, themed, useThemeChoice } from '@/theme';
 
 /**
- * The account: who you are here, how the app is set, and the way out.
+ * `Account` (spec 8, «Аккаунт и контакты»): who you are here, what the app is set to, and the way
+ * out. Four blocks down the body with one hairline under the first and one over the last — the rules
+ * are what say «this is you», «this is the app», «this is leaving», and the group in the middle keeps
+ * its air on purpose: the product has exactly two settings and a screen that admits it is better than
+ * one padded out with rows leading nowhere.
  *
- * The kit's screen 8 cuts the screen into three with two hairlines — «кто вы», «что настроить», «как
- * уйти» — and this file is those three in order. The middle one keeps its air on purpose: the product
- * has exactly two settings, and a screen that admits it is better than one padded out with rows that
- * lead nowhere.
+ * «Контакты» is a section row here and nowhere else (doc-10): the one way into the list, instead of a
+ * second icon in the main screen's bar.
  *
  * The name is shown and not editable (TASK-113): the username is claimed once on /set-username and
  * the api still takes a change, but this screen offers none.
- *
- * Neither doc-8 nor doc-9 gets a settings screen of its own — there are two things to set in the
- * whole product, and this is the screen that is already about the person rather than about a memory.
  */
 export default function ProfileScreen() {
-  const { user, signOut } = useAuth();
+  const { token, user, signOut } = useAuth();
   const router = useRouter();
   const s = useStrings();
   const styles = useStyles();
   const insets = useSafeAreaInsets();
   const theme = useThemeChoice();
   const language = useLanguage();
+  const [contacts, setContacts] = useState<Contact[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,6 +50,17 @@ export default function ProfileScreen() {
   // else the username. So the line under it drops the username when that is already what is written
   // above — printing it twice says nothing the second time.
   const name = memberName(user);
+
+  /**
+   * The count and the three faces on the «Контакты» row, refreshed on the way back from the list
+   * itself. A failure here is swallowed: this row is a sign of what is behind it, not the list, and
+   * the screen behind it says for itself when it cannot be read.
+   */
+  useFocusEffect(
+    useCallback(() => {
+      if (token) listContacts(token).then(setContacts, () => {});
+    }, [token]),
+  );
 
   /**
    * A pick is already on the screen by the time this is called — the stores turn the app first and
@@ -64,9 +86,8 @@ export default function ProfileScreen() {
   }
 
   return (
-    // No native header anywhere in the app, so the screen keeps itself out from under the status bar.
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
-      {/* The kit's three belts: the head does not move, the body scrolls under it. */}
+    // No native header anywhere in the app, so the board keeps itself out from under the status bar.
+    <Board>
       <AppBar
         title={s.profile.title}
         left={
@@ -81,21 +102,24 @@ export default function ProfileScreen() {
       />
 
       <ScrollView
-        // The kit's `.screen__body` ends 20 clear of the bottom; on a phone the home indicator is
-        // what that has to clear, and it is the taller of the two.
-        contentContainerStyle={[styles.body, { paddingBottom: Math.max(insets.bottom, space.s5) }]}
+        // The spec's body ends 30 clear of the bottom; on a phone the home indicator is what that has
+        // to clear, and it is the taller of the two.
+        contentContainerStyle={[
+          styles.body,
+          { paddingBottom: Math.max(insets.bottom, board.bottom) },
+        ]}
       >
-        {/* «Кто вы» (spec 8, `Account`): the 68 circle, the name in full voice, and under it the
-            username and the address. Composition rather than a part of the library — nothing else
-            in the product stands anybody at this size. A long name and a long address each cut with
-            an ellipsis rather than wrapping, so the circle never moves. */}
+        {/* «Кто вы»: the 68 circle, the name in full voice, and under it the username and the
+            address. Composition rather than a part of the library — nothing else in the product
+            stands anybody at this size. A long name and a long address each cut with an ellipsis
+            rather than wrapping, so the circle never moves. */}
         <View style={styles.who}>
           <Avatar name={name} size={68} />
           <View style={styles.whoWords}>
-            <Text role="title" numberOfLines={1}>
+            <Text role="sheetTitleSm" numberOfLines={1}>
               {name}
             </Text>
-            <Text role="meta" numberOfLines={1}>
+            <Text role="label" numberOfLines={1}>
               {memberHandle(user)}
             </Text>
             {user?.email ? (
@@ -107,8 +131,20 @@ export default function ProfileScreen() {
         </View>
 
         {/* Over the switches and not at the foot of the screen: this is the answer to the pick that
-            was just made, and the kit stands it where the pick was («Ждём», screen 8). */}
+            was just made, and the spec stands it where the pick was. */}
         {error ? <Banner tone="error" text={error} /> : null}
+
+        {/* The one door to the contact list. The stack and the count are what it is worth opening
+            for — with nobody saved yet there is neither, and the row still leads there, because an
+            empty list is where the first name is typed. */}
+        <RowSection
+          title={s.contacts.title}
+          meta={contacts.length > 0 ? s.profile.contactsMeta(contacts.length) : undefined}
+          sign={
+            contacts.length > 0 ? <AvatarStack names={contacts.map(memberName)} /> : undefined
+          }
+          onPress={() => router.push('/contacts')}
+        />
 
         {/* «Что настроить», and under each switch the line saying where it reaches: the theme no
             further than this screen, the language as far as the mails and the pushes. Three values
@@ -116,11 +152,11 @@ export default function ProfileScreen() {
             German is not one of the two languages this app speaks, so there is nothing to hand back
             to (doc-8).
 
-            The kit draws both rows on `.segment-wide`, and only the language one is: a third of a
-            phone's column is 97pt of word and «Как в телефоне» is 108, so equal thirds would cut it
-            on every phone in service — measured, not guessed. The kit's own floor is that every word
-            stays whole at full size, and it outranks the geometry; sized to its words the theme row
-            comes out 308 of the 358 there are anyway, so the two rows read as a pair regardless. */}
+            Only the language row is `wide`: a third of a phone's column is 97pt of word and «Как в
+            телефоне» is 108, so equal thirds would cut it on every phone in service — measured, not
+            guessed. The spec's own floor is that every word stays whole at full size, and it outranks
+            the geometry; sized to its words the theme row comes out 308 of the 358 there are anyway,
+            so the two rows read as a pair regardless. */}
         <Segment
           label={s.theme.label}
           hint={s.theme.hint}
@@ -147,52 +183,40 @@ export default function ProfileScreen() {
           ]}
         />
 
-        {/* «Как уйти», under the second hairline and pushed to the bottom of the body: away from the
-            things pressed every day, and not in a footer — a footer would say «this is what the
-            screen is for», and the screen is for what stands above it.
-
-            The line under the button names the consequence before the press, and that is why nothing
-            asks a second time (kit screen 8): the session comes back with the same sign-in, so it is
-            neither the rust colour nor a sheet. Rust in this product stays on what takes frames
-            away. */}
+        {/* «Как уйти» (spec 8): the dangerous 60, alone under the second hairline at the bottom of
+            the body — «Выход стоит внизу и один, чтобы не попасть в него по дороге». Nothing is
+            written under it: the button says what it does, and the spec leaves the question after the
+            press undrawn rather than answering it with a line. */}
         <View style={styles.out}>
-          <Button
-            variant="quiet"
-            size="xs"
-            label={s.action.logOut}
-            busy={busy}
-            onPress={logOut}
-            style={styles.outButton}
-          />
-          <Hint>{s.profile.logOutText}</Hint>
+          <Button variant="danger" size="xl" label={s.action.logOut} busy={busy} onPress={logOut} />
         </View>
       </ScrollView>
-    </View>
+    </Board>
   );
 }
 
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
-    // The kit's `.screen__head` / `.screen__body` / `.screen__foot` all sit 16 in, and the screens
-    // section says it once for all eleven: «Боковой отступ 16 задаёт экран».
-    screen: { flex: 1, paddingHorizontal: space.s4, backgroundColor: color.ink },
-    // `.stack-6`, and `flexGrow` rather than `flex` so the column is at least the height of the
-    // screen — that is what gives the group below something to be pushed against — and taller than
-    // it once the content is, which is when it scrolls.
-    body: { flexGrow: 1, gap: space.s6 },
-    who: { flexDirection: 'row', alignItems: 'center', gap: space.s4 },
-    whoWords: { flex: 1, minWidth: 0, gap: 2 },
-    // `.stack-2.push` with the kit's second hairline over it: the way out and its line stand at the
-    // bottom of the body, the rule 20 above them.
+    // Spec 8 says it once for every screen: «Боковой отступ 16 задаёт экран». `flexGrow` rather than
+    // `flex` so the column is at least the height of the screen — that is what gives the way out
+    // something to be pushed against — and taller than it once the content is, which is when it
+    // scrolls.
+    body: { flexGrow: 1, gap: space.s6, paddingHorizontal: space.s4 },
+    who: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: space.s4,
+      paddingBottom: space.s5,
+      borderBottomWidth: 1,
+      borderBottomColor: color.line,
+    },
+    whoWords: { flex: 1, minWidth: 0, gap: space.s1 },
+    // The way out and its rule stand at the bottom of the body whatever is above them.
     out: {
       marginTop: 'auto',
-      gap: space.s2,
       paddingTop: space.s5,
       borderTopWidth: 1,
       borderTopColor: color.line,
     },
-    // `align-self:flex-start` — the button is no wider than its own words; the line under it takes
-    // the column.
-    outButton: { alignSelf: 'flex-start' },
   }),
 );

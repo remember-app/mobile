@@ -44,6 +44,8 @@ export const en = {
      */
     logOut: 'Log out of your account',
     openSettings: 'Open settings',
+    /** The 32 cross on the connection banner — the only way to put a message away by hand. */
+    hide: 'Hide message',
   },
 
   /** What a screen says while it has nothing to show yet. */
@@ -140,13 +142,26 @@ export const en = {
   /** The main screen: every memory this account organizes or was invited to. */
   home: {
     title: 'Memories',
-    /** The second icon in the appbar, left of the profile — the one way into the contact list. */
-    contacts: 'Contacts',
-    profile: 'Profile',
+    /**
+     * The one button in the header (spec 8, `Main`) and everything about you behind it — the
+     * contact list moved inside it, so there is no second icon here to name any more.
+     */
+    account: 'Account',
+    /** `HomeEmpty`, and the first thing anybody sees after signing up: a heading and an invitation. */
+    emptyTitle: 'Nothing here yet',
     empty:
-      'No memories yet. Start one for your next event and the photos will land here from everyone.',
+      'Start a memory for your next event — and the photos will land here from everyone who was there.',
     /** A memory with nothing in it at all — said on the film of its own card. */
     noFrames: 'No frames yet. Add the first ones.',
+    /** Under the bar on a large card: how many of the guests have brought their frames in. */
+    brought: (done: number, all: number) => `${done} of ${all} have already shared their frames`,
+    /**
+     * `HomeOffline` — said over a list that is still there. The screen goes on working; what it
+     * cannot promise is that this is the latest, and that is the whole sentence.
+     */
+    offline: 'No connection to the server. Showing what is already loaded.',
+    /** `HomeOnline` — one line with no way to dismiss it, because it leaves on its own. */
+    online: 'Connected',
     create: 'New memory',
   },
 
@@ -208,7 +223,9 @@ export const en = {
   /** Where an invite link lands. */
   join: {
     noToken: 'This link has no token in it — ask for a new one.',
-    dead: 'This invite link is no longer valid — ask whoever sent it for a new one.',
+    deadTitle: 'This invite no longer works',
+    /** Nobody here did anything wrong, and the screen says so before it says what to do. */
+    dead: 'The link was called back, or replaced with a newer one. Ask whoever invited you for a fresh one.',
     home: 'Go to my memories',
   },
 
@@ -369,6 +386,8 @@ export const en = {
      * phone, and one of these is for sharing to a story.
      */
     orientation: { landscape: 'Wide', portrait: 'Tall' },
+    /** How many a memory has, for the badge on its card — the Russian declines it, so it is a word. */
+    count: (n: number) => `${n} ${n === 1 ? 'movie' : 'movies'}`,
     ofLength: (runtime: string) => `Movie of ${runtime}`,
     fromDay: (day: string) => `Movie from ${day}`,
     caption: 'You will be told when it is ready',
@@ -443,14 +462,15 @@ export const en = {
     thatsAll: 'That’s all',
   },
 
-  /** The account: who you are here, and the way out. */
+  /** The account: who you are here, what the app is set to, and the way out. */
   profile: {
-    title: 'Profile',
+    title: 'Account',
     /**
-     * The line under the way out, and the reason nothing asks a second time: the kit's screen 8 names
-     * the consequence before the press instead of holding a sheet after it.
+     * Under «Contacts» on the section row that leads there: what the list is worth opening for, said
+     * as what it saves rather than as what it holds.
      */
-    logOutText: 'Your memories and frames stay where they are — you come back the same way in.',
+    contactsMeta: (n: number) =>
+      `${n} ${n === 1 ? 'person' : 'people'} — invite by picking, without remembering a username`,
   },
 
   /**
@@ -462,8 +482,10 @@ export const en = {
    */
   contacts: {
     title: 'Contacts',
-    /** The rule the field draws under the saved list when what was typed is somebody else. */
+    /** The rule over the row the field turned up when what was typed is somebody else. */
     notSaved: 'Not in contacts',
+    /** The heading of the list itself, with the count of it on the end of its own rule. */
+    saved: 'Saved',
     save: 'Save',
     /** The cross on a row, read out with the name it takes off the list. */
     remove: (name: string) => `Remove ${name} from contacts`,
@@ -473,8 +495,10 @@ export const en = {
      */
     removed: 'Removed from contacts',
     undo: 'Bring back',
+    /** The heading names what is missing; the paragraph sends them to the field over it. */
+    emptyTitle: 'Nobody here yet',
     empty:
-      'Nobody here yet. Type a username — next time you invite them by picking, without remembering anything.',
+      'Type a username in the field above — next time you invite that person by picking, without remembering anything.',
     /** Nothing saved matches, and nobody in Remember holds the name either. */
     noUser: (username: string) => `No one is @${username} in Remember.`,
   },
@@ -528,6 +552,7 @@ export const ru: Strings = {
     send: 'Отправить',
     logOut: 'Выйти из аккаунта',
     openSettings: 'Открыть настройки',
+    hide: 'Скрыть сообщение',
   },
 
   state: {
@@ -587,11 +612,16 @@ export const ru: Strings = {
 
   home: {
     title: 'Воспоминания',
-    contacts: 'Контакты',
-    profile: 'Профиль',
+    account: 'Аккаунт',
+    emptyTitle: 'Здесь пока пусто',
     empty:
-      'Воспоминаний пока нет. Заведите одно к ближайшему событию — и снимки начнут стекаться сюда от всех.',
+      'Заведите воспоминание к ближайшему событию — и снимки начнут стекаться сюда от всех, кто там был.',
     noFrames: 'Кадров пока нет. Добавьте первые.',
+    // Про людей, а не про файлы: считаются те, кто ответил за свой материал, — и сказано это
+    // так же, как на «Людях» воспоминания.
+    brought: (done: number, all: number) => `${done} из ${all} уже скинули свои кадры`,
+    offline: 'Нет связи с сервером. Показываем то, что уже загружено.',
+    online: 'Соединение установлено',
     create: 'Новое воспоминание',
   },
 
@@ -628,7 +658,8 @@ export const ru: Strings = {
 
   join: {
     noToken: 'В этой ссылке нет ключа — попросите новую.',
-    dead: 'Это приглашение больше не действует — попросите новое у того, кто его прислал.',
+    deadTitle: 'Приглашение не действует',
+    dead: 'Эту ссылку отозвали или заменили новой. Попросите свежую у того, кто вас звал.',
     home: 'К моим воспоминаниям',
   },
 
@@ -713,6 +744,7 @@ export const ru: Strings = {
     track: { warm: 'Тёплая', bright: 'Яркая', calm: 'Спокойная' },
     length: { 30: 'Полминуты', 60: 'Минута', 120: 'Две минуты' },
     orientation: { landscape: 'Горизонтальный', portrait: 'Вертикальный' },
+    count: (n: number) => count(n, 'ролик', 'ролика', 'роликов'),
     ofLength: (runtime: string) => `Ролик на ${runtime}`,
     fromDay: (day: string) => `Ролик от ${day}`,
     caption: 'Мы сообщим, когда будет готов',
@@ -773,18 +805,22 @@ export const ru: Strings = {
   },
 
   profile: {
-    title: 'Профиль',
-    logOutText: 'Воспоминания и кадры останутся на месте — вернётесь тем же входом.',
+    title: 'Аккаунт',
+    contactsMeta: (n: number) =>
+      `${count(n, 'человек', 'человека', 'человек')} — зовите выбором, не вспоминая ник`,
   },
 
   contacts: {
     title: 'Контакты',
     notSaved: 'Не в контактах',
+    saved: 'Сохранённые',
     save: 'Сохранить',
     remove: (name: string) => `Убрать ${name} из контактов`,
     removed: 'Убрали из контактов',
     undo: 'Вернуть',
-    empty: 'Пока никого. Наберите ник — и в следующий раз позовёте выбором, не вспоминая.',
+    emptyTitle: 'Пока никого',
+    empty:
+      'Наберите ник в поле сверху — и в следующий раз позовёте человека выбором, не вспоминая.',
     noUser: (username: string) => `Ника @${username} в Remember нет.`,
   },
 
