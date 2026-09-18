@@ -318,7 +318,7 @@ export const en = {
    */
   gallery: {
     /** Spec «Пусто и необратимое»: the heading names what is missing, the line under it says what to do. */
-    emptyTitle: 'Not one frame',
+    emptyTitle: 'Not a single frame',
     empty: 'Whatever anybody adds lands here. Start with your own.',
     /** What a tile says while there is no derivative to draw, keyed by the record's status. */
     waiting: {
