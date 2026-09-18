@@ -208,7 +208,9 @@ export const en = {
   /** Where an invite link lands. */
   join: {
     noToken: 'This link has no token in it — ask for a new one.',
-    dead: 'This invite link is no longer valid — ask whoever sent it for a new one.',
+    deadTitle: 'This invite no longer works',
+    /** Nobody here did anything wrong, and the screen says so before it says what to do. */
+    dead: 'The link was called back, or replaced with a newer one. Ask whoever invited you for a fresh one.',
     home: 'Go to my memories',
   },
 
@@ -619,7 +621,8 @@ export const ru: Strings = {
 
   join: {
     noToken: 'В этой ссылке нет ключа — попросите новую.',
-    dead: 'Это приглашение больше не действует — попросите новое у того, кто его прислал.',
+    deadTitle: 'Приглашение не действует',
+    dead: 'Эту ссылку отозвали или заменили новой. Попросите свежую у того, кто вас звал.',
     home: 'К моим воспоминаниям',
   },
 
