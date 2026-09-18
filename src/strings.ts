@@ -241,6 +241,17 @@ export const en = {
      */
     title: 'People',
     roster: 'Who is here',
+    /**
+     * Under that heading, and the organizer's whole progress: how many of the people who can bring
+     * material already have. Counted over those alone — a viewer is nobody anybody is waiting on.
+     */
+    brought: (n: number, of: number) => `${n} of ${of} have uploaded`,
+    /**
+     * The way into taking somebody out — «своя кнопка, а не крестик, который всегда наготове». Two
+     * labels because it is one control saying two things, the way the gallery's picking switch does.
+     */
+    edit: 'Edit the list',
+    editDone: 'Done',
     you: (name: string) => `${name} (you)`,
     remove: (name: string) => `Remove ${name}`,
     /**
@@ -251,22 +262,13 @@ export const en = {
     sayNothing: 'I have nothing to add',
     inviteTitle: 'Invite someone',
     mayAdd: 'They can add photos too',
-    /** The rule over the contacts standing under the username field, on the invite sheet. */
+    /** The rule over the chips of saved people standing under the username field, on the sheet. */
     fromContacts: 'From contacts',
     /**
-     * The button on a contact's row. A shorter word than the footer's «Пригласить» in Russian, and
-     * that is the point: the footer opens the sheet, this one puts a person in.
+     * The one button at the foot of that sheet. A shorter word than the footer's «Пригласить» in
+     * Russian, and that is the point: the footer opens the sheet, this one puts a person in.
      */
     inviteDo: 'Invite',
-    /** Where the person just invited stands, said in their own row on the sheet. */
-    invited: 'Invited',
-    /**
-     * The offer that sits on that row and nothing more (kit, «Экраны» 6, «Сохранить»): invited by
-     * typing a username, so they can be kept for next time. Pressed, it stays where it is and says
-     * the second one. Invited by picking them out of the contacts, it is never offered at all.
-     */
-    keepContact: 'Save contact',
-    keptContact: 'In contacts',
     inviteLink: 'Invite link',
     getLink: 'Get the link',
     linkGrants: (role: string) => `Whoever follows it joins as «${role}».`,
@@ -283,6 +285,9 @@ export const en = {
     stay: 'Stay',
     removeAsk: (name: string) => `Remove ${name}?`,
     removeText: 'Everything they uploaded here goes with them. There is no getting it back.',
+    /** Spec 9: the price of the irreversible is named as a figure before the press, never after. */
+    priceFrames: (n: number) =>
+      `${n} ${n === 1 ? 'frame disappears' : 'frames disappear'} from this memory`,
     removeDo: 'Remove',
     keepThem: 'Keep them',
   },
@@ -367,6 +372,8 @@ export const en = {
     ofLength: (runtime: string) => `Movie of ${runtime}`,
     fromDay: (day: string) => `Movie from ${day}`,
     caption: 'You will be told when it is ready',
+    /** The second line of a card that fell over, where a finished one says what it was made of. */
+    broke: 'The cut broke off halfway',
     watch: (title: string) => `Watch ${title}`,
     saveShare: 'Save and share',
     make: 'Make a movie',
@@ -377,14 +384,16 @@ export const en = {
     music: 'Music',
     /** The heading over the two shapes, the way «How long» stands over the three lengths. */
     shape: 'Shape',
-    empty: 'No movie yet — the organizer can ask for one.',
+    /** `FilmsEmpty` — spec 9 settles the heading over both readings of that silence. */
+    emptyTitle: 'No movie yet',
+    empty: 'The organizer can ask for one.',
     /**
-     * The same silence read by the one person who can end it. Empty is an invitation (kit,
-     * section 6), so it says what the thing is and what it takes — the button itself is on the
-     * bar below, and «the organizer can ask» would be telling them about themselves.
+     * The same silence read by the one person who can end it. Empty is an invitation (spec 7.8), so
+     * it says what the thing is and what it takes — the button itself is on the bar below, and «the
+     * organizer can ask» would be telling them about themselves.
      */
     emptyOrganizer:
-      'No movie yet. A movie is a short cut of everything in this memory — the agent picks the moments itself and sets them to music. A few photos or videos are enough to start.',
+      'A movie is a short cut of everything in this memory: the agent picks the moments itself and sets them to music. A few photos or videos are enough.',
     ordered: 'Ordered. Everyone here is told when it is ready.',
     tooLittle: 'Too little material for a movie yet — add a few more photos or videos first.',
     orderDenied: 'Only the organizer can order a movie.',
@@ -638,6 +647,9 @@ export const ru: Strings = {
   members: {
     title: 'Люди',
     roster: 'Кто здесь',
+    brought: (n: number, of: number) => `${n} из ${of} скинули`,
+    edit: 'Править состав',
+    editDone: 'Готово',
     you: (name: string) => `${name} (вы)`,
     remove: (name: string) => `Убрать ${name}`,
     sayNothing: 'Мне нечего добавлять',
@@ -645,9 +657,6 @@ export const ru: Strings = {
     mayAdd: 'Сможет добавлять фото',
     fromContacts: 'Из контактов',
     inviteDo: 'Позвать',
-    invited: 'Позвали',
-    keepContact: 'В контакты',
-    keptContact: 'В контактах',
     inviteLink: 'Ссылка-приглашение',
     getLink: 'Получить ссылку',
     linkGrants: (role: string) => `Кто перейдёт по ней, войдёт как «${role}».`,
@@ -665,6 +674,10 @@ export const ru: Strings = {
     removeAsk: (name: string) => `Убрать ${name}?`,
     removeText:
       'Всё, что этот человек сюда загрузил, уйдёт вместе с ним. Вернуть это не получится.',
+    priceFrames: (n: number) =>
+      `${count(n, 'кадр', 'кадра', 'кадров')} ${
+        n % 10 === 1 && n % 100 !== 11 ? 'исчезнет' : 'исчезнут'
+      } из воспоминания`,
     removeDo: 'Убрать',
     keepThem: 'Оставить',
   },
@@ -703,6 +716,7 @@ export const ru: Strings = {
     ofLength: (runtime: string) => `Ролик на ${runtime}`,
     fromDay: (day: string) => `Ролик от ${day}`,
     caption: 'Мы сообщим, когда будет готов',
+    broke: 'Сборка оборвалась на полпути',
     watch: (title: string) => `Смотреть: ${title}`,
     saveShare: 'Сохранить и поделиться',
     make: 'Смонтировать ролик',
@@ -712,9 +726,10 @@ export const ru: Strings = {
     howLong: 'Длина',
     music: 'Музыка',
     shape: 'Формат',
-    empty: 'Роликов пока нет — организатор может заказать.',
+    emptyTitle: 'Ролика пока нет',
+    empty: 'Заказать его может организатор.',
     emptyOrganizer:
-      'Ролика пока нет. Ролик — это короткое видео из всего, что есть в воспоминании: моменты нейросеть выберет сама и положит на музыку. Хватит нескольких фото или видео.',
+      'Ролик — короткое видео из всего, что есть в воспоминании: моменты нейросеть выберет сама и положит на музыку. Хватит нескольких фото или видео.',
     ordered: 'Заказали. Когда ролик будет готов, все здесь об этом узнают.',
     tooLittle: 'Материала для ролика пока мало — добавьте ещё несколько фото или видео.',
     orderDenied: 'Заказать ролик может только организатор.',
