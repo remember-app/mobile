@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest';
 
 import api from './api.ts?raw';
+import notFound from './app/+not-found.tsx?raw';
 import layout from './app/_layout.tsx?raw';
 import consent from './app/consent.tsx?raw';
 import login from './app/login.tsx?raw';
@@ -205,4 +206,11 @@ test('nothing is left of the link the server no longer sends', () => {
   expect(en).not.toHaveProperty('link');
   expect(ru).not.toHaveProperty('link');
   expect(en.login).not.toHaveProperty('sendLink');
+});
+
+test('a link the app has no screen for lands on the app, not on the framework’s error page', () => {
+  // The letters already posted are still in inboxes. With no route of its own, `remember://auth/
+  // email?token=…` opens expo-router's own black English «Unmatched Route» page — which reads as a
+  // crash, where the screen that link used to open said the link was spent and offered the way in.
+  expect(notFound).toContain('<Redirect href="/" />');
 });

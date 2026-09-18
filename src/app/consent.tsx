@@ -36,7 +36,6 @@ export default function ConsentScreen() {
   const router = useRouter();
   const s = useStrings();
   const styles = useStyles();
-  const { color } = useTheme();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
