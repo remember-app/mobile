@@ -77,7 +77,14 @@ test('the address is asked for on a screen of its own, which the mail door opens
     expect(screen, name).toContain('icon={ChevronLeft}');
     expect(screen, name).toContain("back: { position: 'absolute'");
     expect(screen, name).not.toContain('<AppBar');
+    // The arrow is drawn beside `router.back()` — otherwise the doc comment's «way back» promise is
+    // an icon that leads nowhere.
+    expect(screen, name).toContain('onPress={() => router.back()}');
   }
+  // `Login` has no way back at all — «нет пути назад, потому что это начало» — and `Consent` has no
+  // decline to dress up as one either: walking away from the screen is the only refusal it offers.
+  expect(login).not.toContain('ChevronLeft');
+  expect(consent).not.toContain('ChevronLeft');
 });
 
 test('the letter carries six digits now, and the address is sent with them', () => {
