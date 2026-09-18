@@ -418,10 +418,11 @@ test('the ember on a face is the one action that face is for', () => {
   // «Скачать N файлов» while picking, «Добавить кадры» the rest of the time.
   expect(frames.match(/variant="primary"/g)).toHaveLength(2);
   expect(films.match(/variant="primary"/g)).toHaveLength(2); // «Смонтировать» + the order sheet
-  // One on the people, and the invite sheet has none of its own (TASK-131): the kit redrew that
-  // sheet around one field with two answers, and the press that puts somebody in now sits on that
-  // person's own row — a `.btn-sm` «Позвать», never a glowing button under the field.
-  expect(people.match(/variant="primary"/g)).toHaveLength(1); // «Пригласить», the footer's own
+  // Two on the people for the same reason since TASK-145: «Пригласить» in the footer, and the one
+  // «Позвать» at the foot of the invite sheet. The sheet had none of its own while every press that
+  // put somebody in sat on that person's own row (TASK-131); the layout's `SheetInvite` is one of
+  // the five «одна главная кнопка» sheets of spec 7.1, so the press moved back to the bottom.
+  expect(people.match(/variant="primary"/g)).toHaveLength(2);
   // And the people's own is in the footer the kit draws for that face, not inline in the roster.
   const footer = people.slice(people.indexOf('<ActionBar>'), people.indexOf('</ActionBar>'));
   expect(footer).toContain('label={s.action.invite}');
@@ -465,7 +466,11 @@ test('every row says how many frames that person brought, counted off the galler
   // The `@ник` under the name, and the rule for leaving it off when it is already the name above —
   // one copy in `api.ts` beside `memberName`, which settles the other half of the same pair. It was
   // written out here and again on the profile head until review pulled it back.
-  expect(people).toContain('meta={`${memberHandle(member)} \u00b7 ${s.role[member.role]} \u00b7 ${');
+  expect(people).toContain('memberHandle(member),');
+  // And the role beside it is \u00ab\u0414\u043e\u0431\u0430\u0432\u043b\u0435\u043d\u0438\u0435\u00bb or \u00ab\u041f\u0440\u043e\u0441\u043c\u043e\u0442\u0440\u00bb, never \u00ab\u041e\u0440\u0433\u0430\u043d\u0438\u0437\u0430\u0442\u043e\u0440\u00bb (spec 7.5): that one
+  // is the badge on the name, and the layout writes the organizer's own second line as \u00ab@liza \u00b7 128
+  // \u043a\u0430\u0434\u0440\u043e\u0432\u00bb. One fact said twice in one row is what this line is held against.
+  expect(people).toContain("member.role === 'organizer' ? null : s.role[member.role],");
   // Swallowed, and nothing written on the way out. This read runs again on every focus, so a
   // failure on the way back from the upload screen used to blank a column of counts that was
   // already on screen and right — and nothing on this face retries it, because the banner belongs
@@ -909,30 +914,29 @@ test('a contact already on the roster is not offered a second invite', () => {
 });
 
 test('a second «Позвать» pressed under the first is refused while the call is in the air', () => {
-  // Found in review: without the guard, a second press took the spinner off the first row, unlocked
-  // the field mid-flight, and let whichever answer landed last be read as the answer to the last
-  // press.
-  expect(people).toContain('if (!handle || calling !== null) return;');
+  // Found in review: without the guard, a second press unlocked the field mid-flight and let
+  // whichever answer landed last be read as the answer to the last press. One button on the sheet
+  // since TASK-145, so the guard is the sheet's own `busy` rather than the id of a spinning row.
+  expect(people).toContain('if (!handle || busy) return;');
 });
 
-test('the «В контакты» chip reads the contacts list itself, never a flag beside it', () => {
-  // A `kept` boolean held next to `invited` could carry a stale answer onto whoever was invited
-  // after it — found in review. Deriving it from the list itself cannot drift from what the chip is
-  // meant to report.
-  expect(people).not.toContain('const [kept, setKept] = useState');
+/**
+ * The sheet the layout draws (TASK-145, `SheetInvite`): one field, the saved people as chips under
+ * it, the link under a rule, and one «Позвать» at the foot. Two roads in and one press — so what is
+ * pinned here is that the press can only ever be about one person.
+ */
+
+test('a chip and the field are one slot: what the button sends to is never two people', () => {
+  // Picked out of the chips, or turned up by the typed name — and typing lets the chip go, so the
+  // two cannot both be holding somebody when the button is pressed.
   expect(people).toContain(
-    'const kept = invited !== null && (contacts ?? []).some((contact) => contact.id === invited.id);',
+    "const target = here ? null : (picked ?? saved ?? (found === 'none' ? null : found));",
   );
-  expect(people).toContain('selected={kept}');
-  expect(people).toContain('onPress={kept ? undefined : () => keep(invited)}');
-});
-
-test('only the typed road leaves the «В контакты» chip — picking from contacts does not', () => {
-  // `sendInvite`'s second argument is the whole of the difference between the two roads in doc-10:
-  // typed sets `invited` (and so can offer the chip), picked from the list does not.
-  expect(people).toContain('onPress={() => sendInvite(contact, false)}'); // from the contacts block
-  expect(people).toContain('onPress={() => sendInvite(stranger, true)}'); // the field's own find
-  expect(people).toContain('if (typed) {\n          setInvited(added);');
+  expect(people).toContain('setPicked(picked?.id === contact.id ? null : contact);');
+  expect(people).toContain('disabled={target === null}');
+  // And a chip already pressed in is what the kit draws filled — the same «выбран» a filter chip
+  // wears, never a second mark invented by this face.
+  expect(people).toContain('selected={picked?.id === contact.id}');
 });
 
 test('a tile is read out in the line it is drawn with', () => {

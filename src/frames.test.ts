@@ -214,6 +214,8 @@ const wedding = (over: Partial<Memory> = {}): Memory => ({
   montage_count: 0,
   created_at: '2026-09-01T09:00:00.000Z',
   role: 'organizer',
+  member_count: 1,
+  contributed_member_count: 0,
   ...over,
 });
 

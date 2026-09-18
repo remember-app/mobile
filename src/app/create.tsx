@@ -1,9 +1,8 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
-import { CalendarDays, ChevronLeft } from 'lucide-react-native';
+import { CalendarDays, ChevronDown, ChevronLeft, UserPlus } from 'lucide-react-native';
 import { useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { createMemory, errorMessage } from '@/api';
 import { useAuth } from '@/auth';
@@ -12,25 +11,25 @@ import {
   ActionBar,
   AppBar,
   Banner,
+  Board,
   Button,
   Field,
   FieldShell,
+  HintNote,
+  ICO_S,
   Icon,
   IconButton,
   Text,
   Toggle,
 } from '@/kit';
 import { useStrings } from '@/language';
-import { space, themed, useTheme } from '@/theme';
+import { space, useTheme } from '@/theme';
 
-/** Creating a memory: a title and the day (or span) the event happened on. */
+/** Spec 8, `Create` — naming an event and saying when it was, and nothing else. */
 export default function CreateMemoryScreen() {
   const { token } = useAuth();
   const router = useRouter();
   const s = useStrings();
-  const styles = useStyles();
-  // The native header is off for the whole app, so the screen owes the status bar its own room.
-  const insets = useSafeAreaInsets();
   const [title, setTitle] = useState('');
   const [start, setStart] = useState(() => startOfDay(new Date()));
   // null is «single day». The end is optional in doc-01, so it stays absent until asked for.
@@ -60,7 +59,7 @@ export default function CreateMemoryScreen() {
   }
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
+    <Board>
       <AppBar
         title={s.create.title}
         // Drawn only when there is somewhere to go back to — this screen is also the landing
@@ -73,7 +72,10 @@ export default function CreateMemoryScreen() {
       />
 
       <View style={styles.form}>
+        {/* Spec 7.3, the 56 field: a memory's name is typed in the face it will be printed in on
+            its own cover, so this one field is Unbounded and no other on the screen is. */}
         <Field
+          variant="name"
           label={s.create.titleLabel}
           value={title}
           onChangeText={setTitle}
@@ -83,17 +85,14 @@ export default function CreateMemoryScreen() {
 
         <DayField
           label={s.create.eventDate}
-          // The kit draws `.field-hint` under this one field and under no other on the screen: the
-          // day is the only thing here that does something later, and this is where it says so.
-          // Under the first field only — the end date is the same answer, said twice.
+          // The one explanation on the screen stands under the one field that does something later.
+          // Under the first day only — the end is the same answer, said twice.
           hint={s.create.dateHint}
           value={start}
           onChange={(day) => setStart(startOfDay(day))}
           disabled={busy}
         />
 
-        {/* The kit's own toggle — the second of the two call sites TASK-56 named, and the one it
-            left behind. The four colour props the switch needs live there now, once. */}
         <Toggle
           label={s.create.multiDay}
           value={end !== null}
@@ -101,6 +100,7 @@ export default function CreateMemoryScreen() {
           disabled={busy}
         />
 
+        {/* Spec 8, «Края»: switched off, the whole block goes and its neighbours come up. */}
         {end === null ? null : (
           <DayField
             label={s.create.ends}
@@ -112,9 +112,10 @@ export default function CreateMemoryScreen() {
           />
         )}
 
-        {/* The kit closes the body with it (screens, 3): the one thing this screen does not ask
-            for, said before «Создать» so nobody puts off creating until they have the guest list. */}
-        <Banner text={s.create.inviteHint} />
+        {/* Spec 8 closes the body with it: the one thing this screen does not ask for, said before
+            «Создать» so nobody puts off creating until they have the guest list. `spark` on the
+            glyph because the hint is about people (spec 7.6). */}
+        <HintNote icon={UserPlus} tone="spark" text={s.create.inviteHint} />
       </View>
 
       {/* In the flow of the screen and right above the action that raised it, never over it. */}
@@ -130,15 +131,16 @@ export default function CreateMemoryScreen() {
           onPress={submit}
         />
       </ActionBar>
-    </View>
+    </Board>
   );
 }
 
 /**
- * A day, picked with the platform's own calendar — so there is no such thing as bad input. The kit
- * does not draw a calendar, and it should not: this is system UI. What the kit does draw is
- * everything around it, and it hands that over as `FieldShell` (section 4) — so this is the kit's
- * own field with a day inside it, and not a second one built to look the same (TASK-56).
+ * Spec 7.3, «поле-кнопка даты»: the calendar glyph, the day in tabular figures, the chevron — and
+ * the whole thing presses, opening the platform's own picker, so there is no such thing as bad
+ * input. The kit does not draw a calendar and should not: that is system UI. What it does draw is
+ * everything around it, which it hands over as `FieldShell` — this is the kit's own field with a day
+ * inside it, and not a second one built to look the same.
  */
 function DayField({
   label,
@@ -149,7 +151,7 @@ function DayField({
   disabled,
 }: {
   label: string;
-  /** The kit's `.field-hint`: the line under the input that says what the day is for. */
+  /** The line under the field that says what the day is for. */
   hint?: string;
   value: Date;
   onChange: (day: Date) => void;
@@ -157,7 +159,6 @@ function DayField({
   disabled: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const styles = useStyles();
   const { color } = useTheme();
 
   return (
@@ -170,8 +171,9 @@ function DayField({
         disabled={disabled}
         onPress={() => setOpen(true)}
       >
-        <Text style={[styles.day, disabled ? styles.dayOff : null]}>{formatDay(value)}</Text>
-        <Icon icon={CalendarDays} color={color.muted} />
+        <Icon icon={CalendarDays} size={ICO_S} color={color.muted} />
+        <Text style={styles.day}>{formatDay(value)}</Text>
+        <Icon icon={ChevronDown} size={ICO_S} color={color.faint} />
       </FieldShell>
       {/* Outside the field, never inside it: on iOS this is a whole calendar drawn in place, and it
           stands under the field the way the platform's own dialog stands over the screen. */}
@@ -193,14 +195,12 @@ function DayField({
   );
 }
 
-const useStyles = themed(({ color }) =>
-  StyleSheet.create({
-    screen: { flex: 1, backgroundColor: color.ink, paddingHorizontal: space.s4 },
-    // The kit's `.stack-6` — what the body of this screen is spaced on.
-    form: { flex: 1, gap: space.s6, paddingTop: space.s2 },
-    error: { marginBottom: space.s3 },
-    // The kit's input type, with the tabular figures it asks of every date.
-    day: { fontVariant: ['tabular-nums'] },
-    dayOff: { color: color.muted },
-  }),
-);
+// Shape only: the board, the fields and the bottom layer each carry their own colours — and a
+// disabled field is dimmed by the kit, not by a second colour spelled out here.
+const styles = StyleSheet.create({
+  // The body of the screen, on the kit's own side inset and its 24 between blocks.
+  form: { flex: 1, gap: space.s6, paddingHorizontal: space.s4, paddingTop: space.s6 },
+  error: { marginHorizontal: space.s4, marginBottom: space.s3 },
+  // Stretched between the calendar and the chevron, in the tabular figures every date is written in.
+  day: { flex: 1, fontVariant: ['tabular-nums'] },
+});

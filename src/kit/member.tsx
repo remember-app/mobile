@@ -195,8 +195,12 @@ export function RowContact({
   children,
 }: {
   name: string;
-  /** «@marina.k», or — for a row just removed — the line that says it is gone. */
-  handle: string;
+  /**
+   * «@marina.k», or — for a row just removed — the line that says it is gone. Left off where the
+   * name above it is already the username: whoever signed in by e-mail is called by their own
+   * username, and printing it twice spends a line saying nothing (`memberHandle`).
+   */
+  handle?: string;
   variant?: 'saved' | 'found' | 'gone';
   divider?: boolean;
   /** The cross, the «Сохранить», the «Вернуть» — whichever belongs to this state. */
@@ -214,9 +218,11 @@ export function RowContact({
           <Text role="row" tone={gone ? 'faint' : 'paper'} numberOfLines={1}>
             {name}
           </Text>
-          <Text role="meta" tone={gone ? 'faint' : 'muted'} numberOfLines={1}>
-            {handle}
-          </Text>
+          {handle ? (
+            <Text role="meta" tone={gone ? 'faint' : 'muted'} numberOfLines={1}>
+              {handle}
+            </Text>
+          ) : null}
         </View>
         {children}
       </View>
