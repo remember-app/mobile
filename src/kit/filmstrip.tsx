@@ -1,6 +1,7 @@
 import { Image } from 'expo-image';
 import { Play } from 'lucide-react-native';
-import { Pressable, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { FlatList, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { photo, radius, themed, useTheme } from '@/theme';
 
@@ -10,12 +11,21 @@ import { useFocusRing, useHoverFocus } from './interaction';
 /** One frame as the strip and the mosaic know it: a picture, and whether it moves. */
 export type Frame = { uri: string; video?: boolean };
 
+/** Spec 7.7 — a neighbour is 30 wide, the frame in hand 44, and they lie 4 apart. */
+const SHOT = 30;
+const CURRENT = 44;
+const GAP = 4;
+
 /**
  * Spec 7.7 — the viewer's filmstrip: 48 tall, the neighbours 30 × 44 fading out towards the edges,
  * the current frame 44 × 48 at full strength with a play circle on it if it is a video.
  *
  * The one place in the product with a horizontal scroll (spec 1.5), and it turns with the frame
- * above it rather than on its own.
+ * above it rather than on its own: the frame in hand is walked to the middle of the strip whenever
+ * it changes, so the strip is never standing somewhere else than the picture over it.
+ *
+ * A `FlatList` and not a plain row of everything: a memory holds up to a thousand records, and a
+ * strip that mounts a thousand thumbnails fetches a thousand pictures to show eleven of them.
  */
 export function Filmstrip({
   frames,
@@ -32,26 +42,55 @@ export function Filmstrip({
   style?: StyleProp<ViewStyle>;
 }) {
   const styles = useStyles();
+  const strip = useRef<FlatList<Frame>>(null);
+  /**
+   * How wide the strip itself is, and 0 until it has been laid out. The walk is hung on this and
+   * never on the size of the content: an iOS modal is laid out twice — the first pass sized from
+   * the way the phone is physically held — and only the strip's own viewport says which pass this
+   * is. A frame landing changes the content and not the viewport, so nothing hauls the strip back
+   * from under a finger.
+   */
+  const [viewport, setViewport] = useState(0);
+  /** Whether the strip has been walked at all: the first walk is a jump, every one after it moves. */
+  const walked = useRef(false);
+
+  useEffect(() => {
+    if (viewport === 0 || index < 0 || index >= frames.length) return;
+    strip.current?.scrollToIndex({ index, viewPosition: 0.5, animated: walked.current });
+    walked.current = true;
+    // `frames` is deliberately not in here: what the strip holds changes every few seconds while a
+    // memory is still being developed, and re-centring on each of those is a strip that will not
+    // stay where it was left — which is the bug a real phone reported twice over (TASK-106).
+  }, [index, viewport]);
 
   return (
-    <ScrollView
+    <FlatList
+      ref={strip}
       horizontal
+      data={frames}
+      keyExtractor={(frame, at) => frame.uri || String(at)}
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.strip}
       style={style}
-    >
-      {frames.map((frame, at) => (
+      onLayout={(e) => setViewport(e.nativeEvent.layout.width)}
+      // Fixed sizes, so the strip can be walked to any frame without measuring one: the frame in
+      // hand is the wide one, and everything past it is pushed along by the difference.
+      getItemLayout={(_, at) => ({
+        length: at === index ? CURRENT : SHOT,
+        offset: at * (SHOT + GAP) + (at > index ? CURRENT - SHOT : 0),
+        index: at,
+      })}
+      renderItem={({ item, index: at }) => (
         <Shot
-          key={frame.uri}
-          frame={frame}
+          frame={item}
           current={at === index}
           // The fade is by distance from the frame in hand: 0.75, 0.6, then 0.45 for everything past.
           dim={[0.75, 0.6][Math.abs(at - index) - 1] ?? 0.45}
           label={labelAt?.(at)}
           onPress={onPick ? () => onPick(at) : undefined}
         />
-      ))}
-    </ScrollView>
+      )}
+    />
   );
 }
 
@@ -158,9 +197,15 @@ export function Mosaic({
 
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
-    strip: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 48 },
-    shot: { width: 30, height: 44, borderRadius: 3, overflow: 'hidden', backgroundColor: color.raise },
-    shotCurrent: { width: 44, height: 48, borderRadius: 5, opacity: 1 },
+    strip: { flexDirection: 'row', alignItems: 'center', gap: GAP, height: 48 },
+    shot: {
+      width: SHOT,
+      height: 44,
+      borderRadius: 3,
+      overflow: 'hidden',
+      backgroundColor: color.raise,
+    },
+    shotCurrent: { width: CURRENT, height: 48, borderRadius: 5, opacity: 1 },
     playDot: {
       position: 'absolute',
       top: 17,

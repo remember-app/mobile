@@ -1,6 +1,7 @@
 import { memberName, type MediaItem, type Member, type Memory } from '@/api';
 import { formatEventDates, startOfDay } from '@/dates';
 import type { TileState } from '@/kit/tile';
+import { currentLanguage } from '@/language';
 
 /**
  * What a gallery record is on screen. `@/kit/tile` is imported for its shape only and `@/api` and
@@ -42,6 +43,25 @@ export function openFrameOf(item: MediaItem): Frame {
 /** The correction both readings share, so the two cannot drift on what a frame with nothing is. */
 function frameWith(item: MediaItem, uri: string | null): Frame {
   return { state: item.status === 'ready' && uri === null ? 'failed' : item.status, uri };
+}
+
+/**
+ * How heavy the file is, for the line on the frame's own sheet — «4,2», in the digits of the
+ * language the app is speaking. Megabytes the way a phone counts them (a million bytes, not 1024²),
+ * because this number stands beside the one the phone's own gallery shows for the same file.
+ *
+ * The unit is a word and lives in the dictionary. The size arrives as a string — it is a bigint on
+ * the api's side — and a record whose size did not come down the wire has nothing to write.
+ *
+ * `locale` is only for a test to name a language out loud, the way `formatDay` takes one; the app
+ * leaves it off and gets the language it is speaking.
+ */
+export function megabytes(item: MediaItem, locale: string = currentLanguage()): string | null {
+  const mb = Number(item.size_bytes) / 1e6;
+  if (!Number.isFinite(mb) || mb <= 0) return null;
+  // One decimal up to «9,9 МБ», none past it: a video is hundreds of megabytes and «412,3» is a
+  // digit nobody reads.
+  return mb.toLocaleString(locale, { maximumFractionDigits: mb < 10 ? 1 : 0 });
 }
 
 /**

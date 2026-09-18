@@ -4,6 +4,7 @@ import { expect, test, vi } from 'vitest';
 import memory from './app/memory/[id].tsx?raw';
 import films from './memory/films.tsx?raw';
 import frames from './memory/frames.tsx?raw';
+import viewer from './memory/frame-viewer.tsx?raw';
 // The one component, not the barrel: `@/kit` reaches native modules node cannot parse, and this
 // needs the smallest thing in the kit that reads a colour.
 import { Text } from '@/kit/text';
@@ -76,23 +77,21 @@ test('the open frame stays a dark room in both themes', () => {
   // Light is the theme the mistake shows up in: `ink` there is a pale mat board.
   expect(themes.light.color.ink).not.toBe(themes.dark.color.ink);
 
-  expect(frames).toContain('const room = themes.dark.color;');
-  expect(frames).toContain('viewer: { flex: 1, backgroundColor: room.ink }');
-  expect(frames).toContain('filmstrip: { backgroundColor: room.ink }');
-  // The ring on the open frame is inside the viewer too, so its colour has to be the dark set's.
-  // It is the tile that draws it (TASK-79 — a border here was eating pixels out of the open frame),
-  // and a `Tile` reads `useTheme()` for itself, so what pins it dark is the `ThemePin` below and
-  // not a sheet on this screen. The strip only says which frame is the open one.
-  expect(frames).toContain("pick={current ? 'keep' : undefined}");
-  expect(frames).not.toContain('stripCurrent');
+  expect(viewer).toContain('const room = themes.dark.color;');
+  expect(viewer).toContain('viewer: { flex: 1, backgroundColor: room.ink }');
+  // The gallery behind the window is interface and does turn with the theme: nothing of the room is
+  // left on that face since the window became a file of its own (TASK-147).
+  expect(frames).not.toContain('themes.dark');
 
   expect(films).toContain('const room = themes.dark.color;');
   expect(films).toContain('viewer: { flex: 1, backgroundColor: room.ink, justifyContent:');
 
-  // And the room is pinned for what is drawn *in* it, not only for the sheet under it: a `Tile`, a
-  // `Banner`, an `Empty`, the kit's own actionbar — every one of them asks `useTheme()` for itself.
-  expect(frames).toContain('<ThemePin value="dark">');
+  // And the room is pinned for what is drawn *in* it, not only for the sheet under it: the
+  // filmstrip, a `Banner`, an `Empty`, the floating bar's own glass — every one of them asks
+  // `useTheme()` for itself, and the strip is the whole width of the window.
+  expect(viewer).toContain('<ThemePin value="dark">');
   expect(films).toContain('<ThemePin value="dark">');
+  expect(viewer.indexOf('<ThemePin value="dark">')).toBeLessThan(viewer.indexOf('<Filmstrip'));
 });
 
 /**

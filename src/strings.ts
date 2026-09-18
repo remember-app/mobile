@@ -439,6 +439,33 @@ export const en = {
   },
 
   /**
+   * `Viewer`, `ViewerVideo` and `SheetFrame` — one frame on the whole of the phone, the three things
+   * that can be done with it, and what a video carries on top of that.
+   *
+   * The two long labels are long on purpose: nothing here is written on screen, every one of them is
+   * read out or held under a finger, and «Download» over a photograph does not say where it lands.
+   */
+  viewer: {
+    /** The right-hand glass button of the floating bar. It opens the frame's own sheet. */
+    more: 'More',
+    /** The same sheet, from the group of two in the middle of the action row. */
+    details: 'About this frame',
+    saveToPhone: 'Save to your phone gallery',
+    remove: 'Delete from the memory',
+    /** The line while the file is coming down to be handed on; the failure under it. */
+    sharing: 'Getting it ready…',
+    shareFailed: 'Could not hand this one on.',
+    /** How big the file is, on the frame's own sheet — the number is the phone's own digits. */
+    size: (mb: string) => `${mb} MB`,
+    play: 'Play',
+    pause: 'Pause',
+    mute: 'Turn the sound off',
+    unmute: 'Turn the sound on',
+    /** The scrubber, read out rather than drawn: the timecodes beside it are the visible half. */
+    played: 'How much has played',
+  },
+
+  /**
    * The assembled videos of one memory, and the ordering of one more.
    *
    * English calls the finished thing a **movie**, never a «video» or a «montage» — the api's push
@@ -876,6 +903,21 @@ export const ru: Strings = {
     deleteText: 'Оно уйдёт из воспоминания навсегда. В уже собранном ролике останется.',
     keep: 'Оставить',
     deleteDenied: 'Удалять чужое может только организатор.',
+  },
+
+  viewer: {
+    more: 'Ещё',
+    details: 'Подробности кадра',
+    saveToPhone: 'Сохранить в галерею телефона',
+    remove: 'Удалить из воспоминания',
+    sharing: 'Готовим к отправке…',
+    shareFailed: 'Не получилось поделиться этим кадром.',
+    size: (mb: string) => `${mb} МБ`,
+    play: 'Играть',
+    pause: 'Пауза',
+    mute: 'Выключить звук',
+    unmute: 'Включить звук',
+    played: 'Сколько проиграно',
   },
 
   montage: {

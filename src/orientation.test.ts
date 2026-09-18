@@ -3,6 +3,7 @@ import { afterEach, expect, test, vi } from 'vitest';
 import app from '../app.json';
 import layout from './app/_layout.tsx?raw';
 import films from './memory/films.tsx?raw';
+import frameViewer from './memory/frame-viewer.tsx?raw';
 import frames from './memory/frames.tsx?raw';
 
 // `expo-screen-orientation` is a native module and does not exist under vitest, so the module under
@@ -71,7 +72,12 @@ test('portrait is set as the app comes up, and lifted by the two viewers only', 
   // hook going wrong, it is the root call being dropped (every screen then free to turn) or a third
   // place picking the hook up (something other than a full-screen viewer turning with the phone).
   expect(layout).toContain('lockPortrait()');
-  expect(frames).toContain('useTurnsWithPhone(shown !== null)');
+  // The frame's own window is mounted by a frame being opened and unmounted by it closing
+  // (TASK-147), so there the flag is the component's own life and not a piece of state: the cleanup
+  // hands the app back to portrait however that window is left. The montage is still a modal inside
+  // its face and still follows the flag.
+  expect(frameViewer).toContain('useTurnsWithPhone(true)');
+  expect(frames).not.toContain('useTurnsWithPhone');
   expect(films).toContain('useTurnsWithPhone(watching !== null)');
 
   const users = Object.values(

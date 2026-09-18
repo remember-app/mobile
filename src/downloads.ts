@@ -2,6 +2,7 @@ import { File, Paths } from 'expo-file-system';
 // `expo-media-library/legacy` for the reason the upload screen gives at length: the SDK 57 root
 // throws from the calls this app was written against. Only these two are wanted here.
 import * as MediaLibrary from 'expo-media-library/legacy';
+import { Share } from 'react-native';
 
 import type { Original } from '@/api';
 
@@ -39,6 +40,35 @@ export async function maySaveToPhone(): Promise<boolean> {
  * this reading it back from the record.
  */
 export async function saveToPhone(file: Original, andThen?: (uri: string) => Promise<void>) {
+  await inCache(file, async (uri) => {
+    await MediaLibrary.saveToLibraryAsync(uri);
+    await andThen?.(uri);
+  });
+}
+
+/**
+ * The same file handed on instead of kept — the viewer's «Поделиться» (doc-02). It goes out as the
+ * local copy and never as the link the api signed: that one dies in a quarter of an hour, so
+ * whoever it reached would get a refusal instead of a photograph.
+ *
+ * Dismissing the sheet is not a failure and neither is a phone with nowhere to send it, so the
+ * sheet's own answer is swallowed the way the montage screen swallows it.
+ *
+ * ponytail: React Native's own `Share` attaches a file on iOS only — on Android the sheet goes out
+ * with the link alone. `expo-sharing` is the upgrade when that is not good enough, and it is the
+ * same ceiling the finished montage already shares.
+ */
+export async function shareFile(file: Original) {
+  await inCache(file, async (uri) => {
+    await Share.share({ url: uri }).catch(() => {});
+  });
+}
+
+/**
+ * The cached copy both of them work on: down into the cache, used while it is there, and gone
+ * again. `use` runs on that copy in the one window anything local can be done in.
+ */
+async function inCache(file: Original, use: (uri: string) => Promise<void>) {
   // The id is what names the file, and it arrives off the wire: one with a slash or a `..` in it
   // would have the download written outside the cache and over something the app keeps. Every real
   // id here is a uuid, so anything that is not one gets a plain name instead of a path.
@@ -48,8 +78,7 @@ export async function saveToPhone(file: Original, andThen?: (uri: string) => Pro
     // `idempotent`, because the same file downloaded twice must not fail on the leftover of the
     // first go — the cache is swept by the system whenever it likes, but not reliably.
     const saved = await File.downloadFileAsync(file.url, target, { idempotent: true });
-    await MediaLibrary.saveToLibraryAsync(saved.uri);
-    await andThen?.(saved.uri);
+    await use(saved.uri);
   } finally {
     // Two copies of a video on a phone is what fills it up; the gallery's is the one that counts.
     // Inside the same `try` as the download, so a video cut off halfway does not sit in the cache

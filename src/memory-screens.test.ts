@@ -10,9 +10,13 @@ import api from './api.ts?raw';
 // montage card is where the poster a face hands over actually lands.
 import bars from './kit/bars.tsx?raw';
 import cardMontage from './kit/card-montage.tsx?raw';
+// The viewer's strip is the library's own part, and what it does with a finger was learned three
+// times over on a real phone — so it is read here, beside the window that mounts it.
+import filmstrip from './kit/filmstrip.tsx?raw';
 import member from './kit/member.tsx?raw';
 import toggle from './kit/toggle.tsx?raw';
 import films from './memory/films.tsx?raw';
+import viewer from './memory/frame-viewer.tsx?raw';
 import frames from './memory/frames.tsx?raw';
 import sheets from './memory/frames-sheets.tsx?raw';
 import head from './memory/head.tsx?raw';
@@ -389,8 +393,11 @@ test('every face shuts its own windows when it loses focus', () => {
   // hardware key and both confirmations included.
   expect(people).toContain('onCancel={() => setInviting(false)}');
   expect(people).toContain('onCancel={() => setDropping(null)}');
-  expect(frames).toContain('onRequestClose={() => setOpen(null)}');
-  expect(frames).toContain('onCancel={() => setConfirming(false)}');
+  // The open frame is a window of its own now (TASK-147): the hardware key goes through the same
+  // `onClose` the face hands it, which is the same `setOpen(null)` the blur above runs.
+  expect(viewer).toContain('onRequestClose={onClose}');
+  expect(frames).toContain('onClose={() => setOpen(null)}');
+  expect(viewer).toContain('onCancel={() => setConfirming(false)}');
   expect(films).toContain('onCancel={() => setOrdering(false)}');
   expect(films).toContain('onRequestClose={() => setPlaying(null)}');
 });
@@ -617,44 +624,100 @@ test('the material of a memory has one name — on the card, on the switch, over
   }
 });
 
-// The open frame, read the same way. What was reported is a shape — «во весь экран без кнопок
-// снизу, а снизу лента» — and a shape is what these pin: where the actions went, and that the strip
-// is the grid's own list read once. Everything the strip decides is pinned properly in
-// `frames.test.ts`; these three only guard the layout from drifting back.
+/**
+ * The open frame (TASK-147): `Viewer`, `ViewerVideo` and `SheetFrame` of spec 8, in a file of their
+ * own — «во весь экран, без кнопок снизу, а снизу лента» is what was asked for, and a shape is what
+ * these pin. What the strip does with a finger lives in the library now and is read there;
+ * everything the gallery decides about a record is pinned in `frames.test.ts`.
+ */
 
-test('nothing stands under the open frame — the actions moved up onto it', () => {
-  // The bottom bar of the viewer and the style it wore are gone; the grid keeps its own.
-  expect(frames).not.toContain('styles.bar');
-  expect(frames).toContain('styles.viewerBar');
-  for (const action of [
-    'label={s.action.close}',
-    'label={s.action.download}',
-    'label={s.action.delete}',
-  ]) {
-    expect(frames.slice(frames.indexOf('styles.viewerBar'))).toContain(action);
-  }
-  // And they are still the same three errands, the delete still behind the kit's sheet.
-  expect(frames).toContain('ConfirmSheet');
-  expect(frames).toContain('void save(shown)');
+test('nothing stands under the open frame: glass over it, the strip and the actions beneath', () => {
+  // Spec 7.1, kind 6 and kind 4: three pieces of glass floating over the picture, and no bottom
+  // layer at all — the window's own row of actions is not one, and the gallery's is not in here.
+  expect(viewer).toContain('<ViewerBar');
+  expect(viewer).not.toContain('<ActionBar');
+  // TASK-109's darkening went with the bar it was under: the glass carries these now, and a
+  // gradient measured off the safe area has nothing left to darken.
+  expect(viewer).not.toContain('linear-gradient');
+  // The order down the window, spec 8: the scrubber on a line of its own, the strip, then the row.
+  const strip = viewer.indexOf('<Filmstrip');
+  expect(viewer.indexOf('<VideoTrack')).toBeLessThan(strip);
+  expect(strip).toBeLessThan(viewer.indexOf('label={s.action.share}'));
+  // «По краям то, что уводит кадр из воспоминания, в середине то, что с ним делают.»
+  const actions = viewer.slice(viewer.indexOf('<View style={styles.actions}>'));
+  const order = [
+    'label={s.action.share}',
+    'label={s.viewer.saveToPhone}',
+    'label={s.viewer.details}',
+    'label={s.viewer.remove}',
+  ].map((label) => actions.indexOf(label));
+  expect(order).toEqual([...order].sort((a, b) => a - b));
+  expect(order[0]).toBeGreaterThan(-1);
+  // The two in the middle stand on glass of their own, and the delete is the only red thing here.
+  expect(viewer).toContain('backgroundColor: photo.glass');
+  expect(viewer).toContain('tint={room.dangerText}');
+  expect(ru.viewer.remove).toBe('Удалить из воспоминания');
+  expect(ru.viewer.saveToPhone).toBe('Сохранить в галерею телефона');
 });
 
-test('the darkening over the open frame is anchored to the safe area, not stretched by it', () => {
-  // The report from a real iPhone (TASK-109): the name and the date lay on the photograph with
-  // nothing under them. The kit's bar is 72px and its fade spends all of itself over that; this one
-  // is the same bar with the phone's safe area added to its top, so a fade with no stops is
-  // stretched to 131px on a notched phone and spends most of its ink behind the status bar, where
-  // there is nothing to read. The name lands two thirds down instead of a third — .29 of darkening
-  // instead of .52.
-  //
-  // What pins the fix is that the darkening is written from the same inset the padding is: full
-  // strength to the end of the safe area, the kit's own fade below it, on every phone. A gradient
-  // spelled out in the sheet cannot know the inset, so the sheet is where it must not be.
-  const from = frames.indexOf('styles.viewerBar');
-  const bar = frames.slice(from, frames.indexOf('pointerEvents=', from));
-  expect(bar).toContain('paddingTop: insets.top + space.s2');
-  expect(bar).toContain('rgba(20,17,15,.86) ${insets.top}px');
-  // And the stretched one is gone from the sheet, where it had no inset to read.
-  expect(frames.slice(frames.indexOf('const useStyles'))).not.toContain('linear-gradient');
+test('the row of actions keeps its shape for somebody who may not delete', () => {
+  // The glass group is the middle of the window, and «в середине» has to stay true whoever is
+  // looking: without the stub the two buttons would slide towards the edge for a viewer.
+  const right = viewer.slice(viewer.indexOf('{mayDelete(item) ? ('));
+  expect(right).toContain('<View style={styles.stub} />');
+  expect(viewer).toContain('stub: { width: height.roundViewer }');
+});
+
+test('«Ещё» and «Подробности» raise the same sheet, and it is the one the layout draws', () => {
+  // Spec 8: both lead to `SheetFrame`. One piece of state, so they cannot drift into two sheets.
+  expect(viewer.match(/setDetails\(true\)/g)).toHaveLength(2);
+  expect(viewer).toContain('<FrameSheet');
+  // The sheet itself: a header row saying which frame this is, three errands, one outlined way out.
+  const sheet = sheets.slice(sheets.indexOf('export function FrameSheet'));
+  expect(sheet).toContain('label={s.viewer.saveToPhone}');
+  expect(sheet).toContain('label={s.action.share}');
+  expect(sheet).toContain('label={s.viewer.remove} danger');
+  expect(sheet).toContain('<Button variant="secondary" size="md" label={s.action.close}');
+  // The delete is absent for whoever may not delete, never greyed — and it never deletes anything
+  // itself: it hands the window back to the sheet that names the price.
+  expect(sheet).toContain('{onDelete ? (');
+  expect(viewer.replace(/\s+/g, ' ')).toContain('mayDelete(item) ? () => { setDetails(false); setConfirming(true);');
+});
+
+test('the frame’s own sheet says what the frame is, who brought it and how heavy it is', () => {
+  // «Фото», and under it «Марк Ковалёв · 12–14 сентября · 4,2 МБ». The day is the memory's own and
+  // not the file's — `shotBy` is where that was settled (TASK-94), and this line is built on it
+  // rather than beside it. The size is the one thing here that only the record knows.
+  const sheet = viewer.slice(viewer.indexOf('<FrameSheet'));
+  expect(sheet).toContain('title={s.media[item.kind]}');
+  expect(sheet).toContain('meta={[shotBy(item, roster, memory), size === null ? null : s.viewer.size(size)]');
+  expect(sheet).toContain('thumb={item.thumbnail_url ?? undefined}');
+  expect(ru.viewer.size('4,2')).toBe('4,2 МБ');
+});
+
+test('a video carries a transport and a photo carries none of it', () => {
+  // `ViewerVideo` is the same window plus three things (spec 8): the 72 button in the middle of the
+  // picture, the scrubber on a line of its own over the strip, and the sound. All three hang on the
+  // same question — whether there is a playable file — so a photograph cannot grow half a transport.
+  for (const part of [
+    '<VideoTrack',
+    'icon={isPlaying ? Pause : Play}',
+    'icon={isMuted ? VolumeX : Volume2}',
+  ]) {
+    expect(viewer).toContain(part);
+  }
+  expect(viewer.match(/playable !== null \? \(/g)).toHaveLength(3);
+  // And the platform's own transport is off: this window draws its own, and two sets of controls
+  // over one video is what the layout is written against.
+  expect(viewer).toContain('nativeControls={false}');
+  // The length is the api's first — known before a byte of the file arrives — and the player's only
+  // as the fallback for a record that came without one.
+  expect(viewer).toContain('const runs = item.duration_seconds ?? player.duration;');
+  // And what the transport shows is read off the player, with the events only asking for a redraw:
+  // `useEvent` keeps the last payload it was handed even once the player under it has been replaced,
+  // so walking from one video to the next would otherwise draw the one before it.
+  expect(viewer).toContain('const isPlaying = player.playing;');
+  expect(viewer).toContain('const at = player.currentTime;');
 });
 
 test("the strip under the frame is the grid's own list, in the grid's own order, read once", () => {
@@ -664,110 +727,89 @@ test("the strip under the frame is the grid's own list, in the grid's own order,
   // down, so the tile at the top left of the grid was the one at the far end of the strip, and
   // walking the strip forward walked the sheet backwards. Both are now cut from the same `rows`.
   expect(frames).toContain('rows.flatMap((row) => row.frames ?? [])');
-  expect(frames).toContain('items={sheet}');
-  expect(frames).toContain('data={items}');
+  expect(frames).toContain('frames={sheet}');
+  expect(frames).toContain('data={rows}');
   // One read of the media serves both the sheet and the strip.
   expect(frames.match(/listMedia\(/g)).toHaveLength(1);
+  // And the library is handed that same list, picture for picture: the window invents no second
+  // reading of a record — `@/frames` answers for both sheets (TASK-86, TASK-120).
+  expect(viewer).toContain("frames.map((one) => ({ uri: frameOf(one).uri ?? '', video: one.kind === 'video' }))");
 });
 
-test('the strip is walked to the open frame, never started at it', () => {
+test('the strip is walked to the frame in hand, and the walk hangs on its own width', () => {
+  // Three reports, one lesson, and it lives with the strip itself now (TASK-147).
+  //
   // `initialScrollIndex` is the prop this obviously wants and the one that broke it: it pins the
   // render window on the frame it names until a scroll event arrives, and a strip short enough to
-  // fit on screen never scrolls, so the event never comes. Opened on the fifth of seven frames the
-  // strip drew three, with a blank where the first four belonged and no way to reach them — the
-  // whole point of the strip, lost, on every gallery small enough not to overflow the screen.
-  // The prop and not the word: the comment above the fix names it, and has to be free to.
-  expect(frames).not.toContain('initialScrollIndex={');
-  // Asked for once the strip knows how wide it is instead, which positions it the same way without
-  // touching the window.
-  expect(frames).toContain('strip.current?.scrollToIndex({ index: frameIndex(items, open)');
-  // `scrollToIndex` on a list this long is only safe because every tile is a known size.
-  expect(frames).toContain('getItemLayout');
-});
-
-test('the walk is hung on the strip’s own width, not on the size of its content', () => {
-  // Both halves of the old spelling were wrong on a real phone, and each cost the same pair of
-  // symptoms — a strip that will not scroll and a tile that will not open a frame.
+  // fit on screen never scrolls, so the event never comes (TASK-70).
   //
-  // `onContentSizeChange` unlatched fired far too often: it is the scroll row's own `onLayout`, so
-  // it came back every time a frame landed, and each one hauled the strip back to the open frame
-  // from under the finger (TASK-106). Latched to fire once, it fired at the wrong moment: an iOS
-  // modal is laid out twice, the first commit sized from `RCTScreenSize()` — which swaps width for
-  // height on the way the phone is *physically* held — and the content of a horizontal strip is the
-  // same width whatever its viewport, so the size of the content never changed between the two
-  // commits. One callback, on the wrong one, clamped to nothing, latch spent (TASK-123).
+  // `onContentSizeChange` unlatched fires far too often — it is the scroll row's own `onLayout`, so
+  // it came back every time a frame landed, and each one hauled the strip back from under the
+  // finger (TASK-106). Latched to fire once it fired at the wrong moment: an iOS modal is laid out
+  // twice, the first commit sized from `RCTScreenSize()` — which swaps width for height on the way
+  // the phone is *physically* held — and the content of a horizontal strip is the same width
+  // whatever its viewport, so the size of the content never changed between the two commits
+  // (TASK-123).
   //
-  // So neither: the walk hangs on the strip's own layout, keyed on the width it was computed for.
-  expect(frames).not.toContain('onContentSizeChange={');
-  const from = frames.indexOf('onLayout={(');
-  const walk = frames.slice(from, frames.indexOf('renderItem={(', from));
-  expect(walk).toContain('const { width } = e.nativeEvent.layout;');
-  expect(walk).toContain('if (walkedAt.current === width) return;');
-  expect(walk).toContain('walkedAt.current = width;');
-  // A width and not a boolean: a boolean cannot tell the wrong-sized commit from the right one.
-  expect(frames).toContain('useRef<number | null>(null)');
-  // And no latch left in the face above to be re-armed at the wrong moment — the strip is mounted
-  // by the viewer opening and unmounted by it closing, so a ref born with it is already «once per
-  // opening». That is what the `[viewing]` effect was standing in for, and it is gone with it.
-  expect(frames).not.toContain('walked.current');
-  expect(frames).not.toContain('const viewing = open !== null;');
-});
-
-test('a strip tile and a sheet tile read a record the same way', () => {
-  // `frameOf` twice and nowhere else: the two places that draw a record must not drift, which is
-  // the bug the whole of `@/frames` exists to have fixed once.
-  expect(frames.match(/frameOf\(item\)/g)).toHaveLength(2);
+  // So neither: the walk hangs on the strip's own viewport, keyed on the width it was computed for.
+  expect(filmstrip).not.toContain('initialScrollIndex={');
+  expect(filmstrip).not.toContain('onContentSizeChange={');
+  expect(filmstrip).toContain('onLayout={(e) => setViewport(e.nativeEvent.layout.width)}');
+  expect(filmstrip).toContain(
+    'strip.current?.scrollToIndex({ index, viewPosition: 0.5, animated: walked.current });',
+  );
+  // Centred, so the frame in hand lands where the eye already is; and `scrollToIndex` on a strip
+  // this long is only safe because every tile is a known size.
+  expect(filmstrip).toContain('getItemLayout=');
+  // A memory holds up to a thousand records, and eleven of them are on screen: the strip is a
+  // virtualised list and not a row holding every thumbnail the gallery has.
+  expect(filmstrip).toContain('<FlatList');
+  expect(filmstrip).not.toContain('<ScrollView');
 });
 
 test('neither the sheet nor the strip opens a frame that is still developing', () => {
   // The exact ternary and not just a call count: swapping which branch is `undefined` would still
-  // match `mayOpen(item)` twice while opening exactly the records this gate exists to stop. This
-  // was the bug fixed in review — a tap on a waiting frame opened a whole screen saying
-  // «Preparing…», which is what was reported.
-  //
-  // Twice still, in two spellings: the strip has only ever done one thing with a tap — and it hands
-  // the id back up rather than setting the face's own state, being its own component now — while
-  // the sheet asks whether it is picking first, the same gate on the branch that still opens.
+  // match `mayOpen(item)` while opening exactly the records this gate exists to stop. This was the
+  // bug fixed in review — a tap on a waiting frame opened a whole screen saying «Проявляем…», which
+  // is what was reported.
   //
   // Read with the whitespace squeezed out: what is pinned is which branch opens a frame, and the
   // tile moved two levels deeper the day the sheet was cut into days (TASK-121) — a ternary held to
   // the column it happened to be formatted in fails on a reindentation that changed nothing.
-  const gate = 'mayOpen(item) ? () => setOpen(item.id)';
-  expect(frames.replace(/\s+/g, ' ')).toContain(gate);
-  expect(frames).toContain('onPress={mayOpen(item) ? () => onOpen(item.id) : undefined}');
+  expect(frames.replace(/\s+/g, ' ')).toContain('mayOpen(item) ? () => setOpen(item.id)');
+  // The strip hands back which frame was touched rather than a record, so the window is where the
+  // same gate stands for it — the same question, asked of the same helper.
+  expect(viewer.replace(/\s+/g, ' ')).toContain('if (next && mayOpen(next)) onOpen(next.id);');
 });
 
 test('the frame shown full screen is read for the phone, the tiles for a tile', () => {
   // `openFrameOf` and not `frameOf` (TASK-120): the tile's 640px thumbnail drawn over the whole of a
-  // phone is the mush that was reported, so the viewer asks for the big derivative first. Not
-  // `shown.preview_url` read straight either — both readings carry the fallen-frame correction for
-  // a `ready` record with nothing on it, which is the «could not be prepared» state rather than a
+  // phone is the mush that was reported, so the window asks for the big derivative first. Not
+  // `item.preview_url` read straight either — both readings carry the fallen-frame correction for a
+  // `ready` record with nothing on it, which is the «could not be prepared» state rather than a
   // broken image, and only `openFrameOf` keeps the thumbnail as the fallback under it.
-  expect(frames).toContain('const openFrame = shown === null ? null : openFrameOf(shown);');
-  expect(frames).toContain('<Image');
-  expect(frames).toContain('uri: openFrame.uri,');
+  expect(viewer).toContain('const shown = openFrameOf(item);');
+  expect(viewer).toContain('<Image');
+  expect(viewer).toContain('uri: shown.uri,');
+  // The grid is the other reading, and it is the tile's own.
+  expect(frames).toContain('const frame = frameOf(item);');
 });
 
 test('the open frame is kept on the phone, filed under the record and not under its signature', () => {
   // The frame opened a second time came down the wire a second time (TASK-137). React Native's own
   // `Image` has no disk behind it at all, and `expo-image` — already what every tile is drawn with —
-  // has one by default. Both are spelled `<Image`, so what is pinned is where the name comes from:
-  // gone from the `react-native` block, taken from `expo-image`.
-  expect(frames).toContain("import { Image } from 'expo-image';");
-  const reactNative = frames.slice(0, frames.indexOf("} from 'react-native';"));
-  expect(reactNative.slice(reactNative.lastIndexOf('import {'))).not.toContain('Image');
-  // `contentFit` is what `resizeMode` is called there, and the frame is still shown whole.
-  expect(frames).toContain('contentFit="contain"');
-  expect(frames).not.toContain('resizeMode="contain"');
+  // has one by default. Both are spelled `<Image`, so what is pinned is where the name comes from.
+  expect(viewer).toContain("import { Image } from 'expo-image';");
+  expect(viewer).toContain('contentFit="contain"');
+  expect(viewer).not.toContain('resizeMode="contain"');
 
-  // What it is filed under has to be said outright. The api signs every link afresh on every read
-  // of the gallery and each one lasts a quarter of an hour (`R2_DOWNLOAD_TTL_SECONDS`), so the same
+  // What it is filed under has to be said outright. The api signs every link afresh on every read of
+  // the gallery and each one lasts a quarter of an hour (`R2_DOWNLOAD_TTL_SECONDS`), so the same
   // bytes arrive under a new url every time — and `expo-image`'s own default key is the url. Left
   // alone, the disk would be full of one frame under a dozen names and every look a fresh download.
-  // The record's id is what does not move, so that is the key.
-  expect(frames).toContain('cacheKey: `${shown.id}:');
-  const key = frames.slice(frames.indexOf('cacheKey:'));
-  expect(key.slice(0, key.indexOf('\n'))).not.toContain('${openFrame.uri}');
+  expect(viewer).toContain('cacheKey: `${item.id}:');
+  const key = viewer.slice(viewer.indexOf('cacheKey:'));
+  expect(key.slice(0, key.indexOf('\n'))).not.toContain('${shown.uri}');
 });
 
 test('what expo-image keeps on disk has a ceiling, set once at startup and only where there is none', () => {
@@ -879,10 +921,10 @@ test('each of the two sheets glows exactly once', () => {
 test('the delete sheet shows the frame it is about and names the price', () => {
   // `SheetConfirmDelete`: a 64 thumbnail, who brought it and when, and the whole of what is lost —
   // «Оно уйдёт из воспоминания навсегда. В уже собранном ролике останется».
-  const confirm = frames.slice(frames.indexOf('<ConfirmSheet'));
-  expect(confirm).toContain('thumb={shown.thumbnail_url ?? undefined}');
-  expect(confirm).toContain('meta={shotBy(shown, roster, head.memory)}');
-  expect(confirm).toContain('title={s.gallery.deleteAsk(shown.kind)}');
+  const confirm = viewer.slice(viewer.indexOf('<ConfirmSheet'));
+  expect(confirm).toContain('thumb={item.thumbnail_url ?? undefined}');
+  expect(confirm).toContain('meta={shotBy(item, roster, memory)}');
+  expect(confirm).toContain('title={s.gallery.deleteAsk(item.kind)}');
   expect(ru.gallery.deleteAsk('photo')).toBe('Удалить это фото?');
   expect(ru.gallery.deleteText).toBe(
     'Оно уйдёт из воспоминания навсегда. В уже собранном ролике останется.',
@@ -943,6 +985,10 @@ test('a tile is read out in the line it is drawn with', () => {
   // «Все кадры названы photo» — the raw `kind` off the api, before the dictionary (TASK-86). What
   // was left after that is the state: both sheets ask the frame, not the record's status, whether
   // there is anything to say past «Фото», and both go through the one helper to ask it.
-  expect(frames.match(/nameOf\(item, frame/g)).toHaveLength(2);
+  expect(frames).toContain('nameOf(item, frame)');
   expect(frames).toContain("frame.state === 'ready' ? null : s.gallery.waiting[item.status]");
+  // One helper for both, and the window is handed it rather than writing a second one: the strip
+  // says the same about a record as the tile above it, «открыто» apart.
+  expect(frames).toContain('nameOf={nameOf}');
+  expect(viewer).toContain('labelAt={(to) => nameOf(frames[to], frameOf(frames[to]), to === index)}');
 });

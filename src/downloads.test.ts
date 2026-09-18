@@ -3,12 +3,13 @@ import { afterEach, expect, test, vi } from 'vitest';
 // Both expo modules touch native code that does not exist under vitest, so the module under test
 // cannot be imported without replacing them first. `vi.hoisted` is what lets the mock factories
 // below (which vitest hoists above these imports) reach back into variables the tests also use.
-const { downloadFileAsync, deleteMock, requestPermissionsAsync, saveToLibraryAsync, events } =
+const { downloadFileAsync, deleteMock, requestPermissionsAsync, saveToLibraryAsync, share, events } =
   vi.hoisted(() => ({
     downloadFileAsync: vi.fn(),
     deleteMock: vi.fn(),
     requestPermissionsAsync: vi.fn(),
     saveToLibraryAsync: vi.fn(),
+    share: vi.fn(),
     events: [] as string[],
   }));
 
@@ -29,7 +30,11 @@ vi.mock('expo-file-system', () => {
 
 vi.mock('expo-media-library/legacy', () => ({ requestPermissionsAsync, saveToLibraryAsync }));
 
-const { maySaveToPhone, saveToPhone } = await import('@/downloads');
+// The phone's own share sheet. Only the one call is wanted here, and nothing else in this module
+// touches React Native at all.
+vi.mock('react-native', () => ({ Share: { share } }));
+
+const { maySaveToPhone, saveToPhone, shareFile } = await import('@/downloads');
 
 const UUID = '11111111-2222-3333-4444-555555555555';
 
@@ -78,6 +83,34 @@ test('deletes the cached copy even when saving to the library fails, and still s
   await expect(
     saveToPhone({ id: UUID, kind: 'video', url: 'https://example/x' }),
   ).rejects.toThrow('disk full');
+  expect(deleteMock).toHaveBeenCalledTimes(1);
+});
+
+test('a frame handed on goes out as the local copy, and the phone’s gallery is left alone', async () => {
+  // The signed link is never what goes out: it dies in a quarter of an hour, so whoever it reached
+  // would get a refusal instead of a photograph. And sharing is not keeping — nothing is written to
+  // the phone's own gallery, so nothing here asks for that permission either.
+  downloadFileAsync.mockResolvedValue({ uri: 'file://cache/a.jpg' });
+  share.mockImplementation(async () => events.push('share'));
+  deleteMock.mockImplementation(() => events.push('delete'));
+
+  await shareFile({ id: UUID, kind: 'photo', url: 'https://example/x' });
+
+  expect(share).toHaveBeenCalledWith({ url: 'file://cache/a.jpg' });
+  expect(events).toEqual(['share', 'delete']);
+  expect(saveToLibraryAsync).not.toHaveBeenCalled();
+  expect(requestPermissionsAsync).not.toHaveBeenCalled();
+});
+
+test('a share sheet nobody answered is not a failure, and still sweeps the copy', async () => {
+  // Dismissing the sheet, and a phone with nowhere to send it, both come back as a rejection —
+  // neither is something to tell the person about under the frame they are looking at.
+  downloadFileAsync.mockResolvedValue({ uri: 'file://cache/a.jpg' });
+  share.mockRejectedValue(new Error('dismissed'));
+
+  await expect(
+    shareFile({ id: UUID, kind: 'photo', url: 'https://example/x' }),
+  ).resolves.toBeUndefined();
   expect(deleteMock).toHaveBeenCalledTimes(1);
 });
 

@@ -25,6 +25,7 @@ import {
   keepReady,
   mayOpen,
   mayPick,
+  megabytes,
   openFrameOf,
   shotBy,
   SORT_DEFAULT,
@@ -199,6 +200,19 @@ test('a frame still developing stays in the strip but does not open', () => {
   // The fallen one does open: the viewer is where the delete button is.
   expect(mayOpen(strip[0])).toBe(true);
   expect(mayOpen(strip[2])).toBe(true);
+});
+
+test('how heavy a file is, written the way the language writes a number', () => {
+  // The frame's own sheet says «4,2 МБ» beside who brought it — megabytes the way a phone counts
+  // them, so the number stands beside the one the phone's own gallery shows for the same file.
+  expect(megabytes(record({ size_bytes: '4200000' }), 'ru')).toBe('4,2');
+  expect(megabytes(record({ size_bytes: '4200000' }), 'en')).toBe('4.2');
+  // Past ten megabytes the decimal is noise: a video is hundreds of them.
+  expect(megabytes(record({ size_bytes: '412300000' }), 'ru')).toBe('412');
+  // A record whose size never came down the wire has nothing to say, and the line is built to drop
+  // it rather than to write «0 МБ» under somebody's photograph.
+  expect(megabytes(record({ size_bytes: '' }))).toBeNull();
+  expect(megabytes(record({ size_bytes: 'nonsense' }))).toBeNull();
 });
 
 /** The memory the gallery is open on, cut down to what the line over a frame reads off it. */

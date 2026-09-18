@@ -1,33 +1,12 @@
-import { Image } from 'expo-image';
 import { useFocusEffect, useIsFocused, useRouter } from 'expo-router';
-import { useVideoPlayer, VideoView } from 'expo-video';
-import {
-  ArrowUpDown,
-  Download,
-  Funnel,
-  ImageIcon,
-  Plus,
-  SquareCheckBig,
-  Trash2,
-  TriangleAlert,
-  X,
-} from 'lucide-react-native';
+import { ArrowUpDown, Download, Funnel, ImageIcon, Plus, SquareCheckBig } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  FlatList,
-  Modal,
-  RefreshControl,
-  StyleSheet,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   ApiError,
-  deleteMedia,
   downloadAllMedia,
-  downloadMedia,
   errorMessage,
   listMedia,
   listMembers,
@@ -43,7 +22,6 @@ import {
   arranged,
   FILTER_NONE,
   filtering,
-  frameIndex,
   frameOf,
   framesByDay,
   framesMatching,
@@ -51,8 +29,6 @@ import {
   keepReady,
   mayOpen,
   mayPick,
-  openFrameOf,
-  shotBy,
   SORT_DEFAULT,
   stillPreparing,
   type Filter,
@@ -64,7 +40,6 @@ import {
   ActionBar,
   Banner,
   Button,
-  ConfirmSheet,
   DayMark,
   Empty,
   IconButton,
@@ -74,10 +49,10 @@ import {
   Waiting,
 } from '@/kit';
 import { useStrings } from '@/language';
+import { FrameViewer } from '@/memory/frame-viewer';
 import { FilterSheet, SortSheet } from '@/memory/frames-sheets';
 import { MemoryHead, type Head } from '@/memory/head';
-import { useTurnsWithPhone } from '@/orientation';
-import { board, height, photo, space, themed, themes, ThemePin, useTheme } from '@/theme';
+import { board, height, space, themed, useTheme } from '@/theme';
 
 /**
  * How long the face waits before looking again while the worker is still making something. A
@@ -85,10 +60,6 @@ import { board, height, photo, space, themed, themes, ThemePin, useTheme } from 
  * finished yet.
  */
 const WHILE_PREPARING_MS = 3000;
-
-/** The kit's filmstrip tile — 52px, and the contact sheet's own gutter after it. */
-const STRIP_TILE = 52;
-const STRIP_GAP = GRID_GAP;
 
 /** One line of the contact sheet: a heading, or up to three of the frames standing under it. */
 type Row =
@@ -152,8 +123,6 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   const [filter, setFilter] = useState<Filter>(FILTER_NONE);
   const [sort, setSort] = useState<Sort>(SORT_DEFAULT);
   const [tuning, setTuning] = useState<Tuning | null>(null);
-  /** Whether the delete sheet is up over the viewer. What it asks about is the open record. */
-  const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   /**
@@ -208,16 +177,16 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   // was first opened is showing whatever was true then. It runs on mount too, which is what reads
   // the material when this face is switched to.
   //
-  // And the viewer is shut on the way out (TASK-94, extended here in review): leaving this face
+  // And the open frame is shut on the way out (TASK-94, extended here in review): leaving this face
   // without closing it — a tapped push, a deep link, anything that is not the cross, the delete or
   // the hardware key — left the frame standing on a window of its own over whatever screen came
   // next, because the memory stays mounted behind a `router.push`. Since TASK-124 it cost a second
-  // thing: `useTurnsWithPhone` below follows the viewer and not the mount, so nothing cleaned it up
-  // and every screen after this one was left free to turn with the phone.
+  // thing as well: the window is what hands the app its freedom to turn, and nothing was giving it
+  // back, so every screen after this one was left free to turn with the phone.
   //
   // The sheets are not in here: they are the kit's own `Sheet`, and since TASK-129 a sheet shuts
-  // itself when the screen under it loses focus. The viewer above is a `Modal` of this face's own
-  // and stays this face's business.
+  // itself when the screen under it loses focus. The window is a `Modal` raised from this face and
+  // which record it shows is this face's state, so it is this line that takes it down.
   useFocusEffect(
     useCallback(() => {
       load();
@@ -250,22 +219,14 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   // Material goes in during the event and long after the montage was made (doc-02); the only thing
   // in the way is the level, which is the same one the people face gates its invite on.
   const mayUpload = mayContribute(role);
+  /**
+   * The record the viewer is showing, if any. Held by id and looked up here, so a re-read hands the
+   * open frame a freshly signed url and a record somebody else deleted takes its own window down.
+   */
   const shown = items?.find((item) => item.id === open) ?? null;
   /** Whether anything has been brought at all — which is what tells `MemoryFrames` from `FramesEmpty`. */
   const any = items !== null && items.length > 0;
 
-  // A frame shot sideways is worth turning the phone for. The `supportedOrientations` on the modal
-  // below only says which ways up it may be drawn — this is what lets the app leave portrait at all.
-  // Which is given back on the cleanup, so what has to be true is that the viewer is shut on every
-  // way out of this face — the focus effect above is where that is done.
-  useTurnsWithPhone(shown !== null);
-
-  /**
-   * The open record read for the whole of the phone and not for a tile: the big derivative, with
-   * the grid's thumbnail behind it for a record that has none. The tiles keep `frameOf` — a
-   * miniature is what a miniature is for.
-   */
-  const openFrame = shown === null ? null : openFrameOf(shown);
   /**
    * What is marked *and* still in the sheet. `picked` is only ever emptied by leaving the mode or
    * by «Снять», and the sheet moves underneath it on its own — the three-second re-read, the read
@@ -383,55 +344,11 @@ export function Frames({ id, head }: { id: string; head: Head }) {
     setPicking((on) => !on);
   }
 
-  async function remove(item: MediaItem) {
-    if (!token) return;
-    setBusy(true);
-    setNotice(null);
-    try {
-      await deleteMedia(token, id, item.id);
-    } catch (e) {
-      // 404 is «it is already gone» — somebody else got there first, which is what was wanted
-      // anyway. Everything else stays on screen with a reason.
-      if (!(e instanceof ApiError && e.status === 404)) {
-        setNotice(
-          e instanceof ApiError && e.status === 403 ? s.gallery.deleteDenied : errorMessage(e),
-        );
-        return;
-      }
-    } finally {
-      setBusy(false);
-    }
-    setItems((have) => have?.filter((one) => one.id !== item.id) ?? null);
-    setOpen(null);
-  }
-
   /** The grant, asked for at the moment it is needed, with this face's place to say «no». */
   async function maySave(): Promise<boolean> {
     const granted = await maySaveToPhone();
     if (!granted) setNotice(s.error.galleryRefused);
     return granted;
-  }
-
-  /** The open file, kept. The link is asked for here and not held: it dies in a quarter hour. */
-  async function save(item: MediaItem) {
-    if (!token) return;
-    setBusy(true);
-    setNotice(null);
-    try {
-      if (!(await maySave())) return;
-      // The viewer's actions are icons, and an icon has no spinner in it — this line is where «it is
-      // doing something» is said, and the next one replaces it with how it went.
-      setNotice(s.save.one);
-      const { url } = await downloadMedia(token, id, item.id);
-      await saveToPhone({ id: item.id, kind: item.kind, url });
-      setNotice(s.save.done);
-    } catch (e) {
-      // The api's own wording when it is the one refusing; past that it is the download or the
-      // phone's gallery, and neither is worth blaming the api for.
-      setNotice(e instanceof ApiError ? e.message : s.save.failedOne);
-    } finally {
-      setBusy(false);
-    }
   }
 
   /**
@@ -766,325 +683,36 @@ export function Frames({ id, head }: { id: string; head: Head }) {
             <SortSheet value={sort} onChange={setSort} onDone={() => setTuning(null)} />
           ) : null}
 
-          <Modal
-            visible={shown !== null}
-            animationType="fade"
-            onRequestClose={() => setOpen(null)}
-            // Landscape too: a video shot sideways is worth turning the phone for, and the rest of
-            // the app is portrait-only.
-            supportedOrientations={['portrait', 'landscape']}
-          >
-            {shown === null ? null : (
-              <View style={styles.viewer}>
-                {/* The room is pinned for everything the kit puts inside `.viewer`, not just for
-                    the two backgrounds below: a tile, a banner and an `Empty` in here all read
-                    `useTheme()`, and in daylight they would answer with the light set — a pale
-                    frame around a photograph, which is the one thing the direction forbids. The
-                    confirm sheet is left out on purpose: the kit's sheet is its own overlay over
-                    the screen, not a child of the viewer. */}
-                <ThemePin value="dark">
-                  <View style={styles.frame}>
-                    {shown.kind === 'video' && shown.preview_url !== null ? (
-                      // Keyed by the record: walking from one video to the next along the strip
-                      // mounts a fresh player on the new file, which is what starts it playing —
-                      // the same component handed a new url would be a player already made.
-                      <Playing key={shown.id} url={shown.preview_url} />
-                    ) : openFrame !== null && openFrame.uri !== null ? (
-                      // Whole and not cropped: the frame is shown as it was shot even when that is
-                      // not the shape of the phone, and what is left over at the sides is ink
-                      // rather than a border.
-                      //
-                      // `expo-image` and not React Native's own, for the disk behind it: the same
-                      // frame opened a second time should come off the phone rather than down the
-                      // wire, and only this one keeps a disk at all. What it is filed under has to
-                      // be said outright, though. The default key is the url, and the api signs a
-                      // fresh one for the same bytes on every read of the gallery — a quarter of an
-                      // hour each (`R2_DOWNLOAD_TTL_SECONDS`) — so a key made of the url is a fresh
-                      // download every time the list is re-read. The record's id is the thing that
-                      // does not move. Which derivative it is rides in the key as well: a photo
-                      // whose big copy the worker has since made must not go on being served the
-                      // thumbnail that was filed under the same id.
-                      <Image
-                        source={{
-                          uri: openFrame.uri,
-                          cacheKey: `${shown.id}:${openFrame.uri === shown.preview_url ? 'preview' : 'thumb'}`,
-                        }}
-                        style={styles.big}
-                        contentFit="contain"
-                      />
-                    ) : (
-                      // Nothing was ever made for this one. Said here as well as on the tile, because
-                      // this is the screen the delete button is on — a failed record is one somebody
-                      // may want rid of rather than looked at.
-                      <View style={[styles.big, styles.blank]}>
-                        <Empty icon={TriangleAlert} text={s.gallery.waiting[shown.status]} />
-                      </View>
-                    )}
-
-                    {/* What can be done to the frame stands over it on a darkening, not under it —
-                        «без кнопок снизу», which is what was asked for, and what every phone's own
-                        gallery does. `box-none` so the darkening itself never swallows a touch
-                        meant for the frame. */}
-                    <View
-                      style={[
-                        styles.viewerBar,
-                        {
-                          paddingTop: insets.top + space.s2,
-                          // The darkening lives here and not in the sheet because it is measured
-                          // off the same inset the padding is. The bar is 72px — `s2`, a 40px
-                          // icon, `s6` — and its fade spends all 86% of itself over exactly that.
-                          // This bar is that one with the phone's safe area added on top, so a
-                          // fade written the plain way — two stops, no positions — is stretched
-                          // over 131px on an iPhone with a notch, and most of it is spent on the
-                          // strip behind the status bar where there is nothing to read. The name
-                          // sits two thirds down instead of a third: .29 of ink under it where the
-                          // layout draws .52, and a line already at 76% paper stops being readable
-                          // over a bright frame. That is the report. Held at full strength to the
-                          // end of the safe area and faded from there, what is under the row is the
-                          // same 72px fade on every phone, notch or no notch.
-                          experimental_backgroundImage: `linear-gradient(rgba(20,17,15,.86), rgba(20,17,15,.86) ${insets.top}px, rgba(20,17,15,0))`,
-                        },
-                      ]}
-                      pointerEvents="box-none"
-                    >
-                      <IconButton
-                        icon={X}
-                        label={s.action.close}
-                        tint={photo.on}
-                        onPress={() => setOpen(null)}
-                        disabled={busy}
-                      />
-                      {/* The person who brought this frame and the day of the event, «Марина ·
-                          3 сентября». Not the file's own metadata: it used to say the login of
-                          whoever uploaded it and the day the camera stamped the file, which for
-                          anything sent out of an old album dated the event years wrong. */}
-                      <Text role="meta" numberOfLines={1} style={styles.who}>
-                        {shotBy(shown, roster, head.memory)}
-                      </Text>
-                      {/* Not gated on anything: a viewer may take home what they are looking at, and
-                          the api says the same — the download route asks for membership and nothing
-                          more. */}
-                      <IconButton
-                        icon={Download}
-                        label={s.action.download}
-                        tint={photo.on}
-                        onPress={() => void save(shown)}
-                        disabled={busy}
-                      />
-                      {mayDelete(shown) ? (
-                        <IconButton
-                          icon={Trash2}
-                          label={s.action.delete}
-                          tint={photo.on}
-                          onPress={() => setConfirming(true)}
-                          disabled={busy}
-                        />
-                      ) : null}
-                    </View>
-
-                    {notice ? <Banner text={notice} style={styles.viewerNotice} /> : null}
-                  </View>
-
-                  <Filmstrip
-                    items={sheet}
-                    open={shown.id}
-                    onOpen={setOpen}
-                    nameOf={nameOf}
-                    bottom={Math.max(insets.bottom, space.s2)}
-                  />
-                </ThemePin>
-
-                {/* `SheetConfirmDelete`: irreversible, and the api takes the bytes with it — worth
-                    one question first, asked on a sheet that shows the frame it is about and names
-                    the price in full, never by the system dialog. Inside the viewer because that is
-                    the only place the delete is offered from, and a modal over a modal has to be
-                    its child. */}
-                <ConfirmSheet
-                  visible={confirming}
-                  thumb={shown.thumbnail_url ?? undefined}
-                  meta={shotBy(shown, roster, head.memory)}
-                  title={s.gallery.deleteAsk(shown.kind)}
-                  text={s.gallery.deleteText}
-                  confirmLabel={s.action.delete}
-                  cancelLabel={s.gallery.keep}
-                  onConfirm={() => {
-                    setConfirming(false);
-                    void remove(shown);
-                  }}
-                  onCancel={() => setConfirming(false)}
-                />
-              </View>
-            )}
-          </Modal>
+          {/* `Viewer` / `ViewerVideo`: one frame on the whole of the phone, and everything that
+              can be done with it. Mounted by a frame being opened and gone with it — which is what
+              starts a video playing and what hands the phone back to portrait on the way out. The
+              material stays this face's: the window is told when a record goes. */}
+          {shown === null ? null : (
+            <FrameViewer
+              memoryId={id}
+              item={shown}
+              frames={sheet}
+              roster={roster}
+              memory={head.memory}
+              mayDelete={mayDelete}
+              nameOf={nameOf}
+              onOpen={setOpen}
+              onClose={() => setOpen(null)}
+              onRemoved={(gone) => {
+                setItems((have) => have?.filter((one) => one.id !== gone) ?? null);
+                setOpen(null);
+              }}
+            />
+          )}
         </>
       )}
     </>
   );
 }
 
-/**
- * The filmstrip: the whole contact sheet rolled into one row, and the only thing under the open
- * frame. The same list the grid draws — no second read — with every frame dimmed but the open one,
- * and a tap along it changes which frame that is.
- *
- * Its own component because the walk below has to be its own. It is mounted by the viewer being
- * open and unmounted by it closing, so «once per opening» is what a ref born with it already says —
- * there is no latch to re-arm from the face above, and nothing above has to know when to.
- *
- * @param open the record the frame above is showing, which is the tile this strip stands on
- * @param bottom the phone's own bottom inset, so the strip clears the home indicator
- */
-function Filmstrip({
-  items,
-  open,
-  onOpen,
-  nameOf,
-  bottom,
-}: {
-  items: readonly MediaItem[];
-  open: string;
-  onOpen: (id: string) => void;
-  /** What a tile is called out loud — the face's own answer, so both sheets read a record alike. */
-  nameOf: (item: MediaItem, frame: Frame, current?: boolean) => string;
-  bottom: number;
-}) {
-  const s = useStrings();
-  const styles = useStyles();
-  const strip = useRef<FlatList<MediaItem>>(null);
-  /**
-   * The width the strip was last walked at, and `null` until it has been walked at all. Not a
-   * boolean, and that is the whole of the fix below.
-   */
-  const walkedAt = useRef<number | null>(null);
-
-  return (
-    <View style={[styles.filmstrip, { paddingBottom: bottom }]}>
-      <FlatList
-        ref={strip}
-        horizontal
-        data={items}
-        keyExtractor={(item) => item.id}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.track}
-        // A fixed tile and a fixed gutter, so the strip can be walked to any frame without
-        // measuring anything: opening the fortieth frame from the grid must put the fortieth tile
-        // under it, not the first.
-        getItemLayout={(_, index) => ({
-          length: STRIP_TILE,
-          offset: (STRIP_TILE + STRIP_GAP) * index,
-          index,
-        })}
-        // Walked to, not started at. `initialScrollIndex` reads like the prop for exactly this and
-        // is what cost the strip its head: it does not merely position the row, it pins the render
-        // window on the frame it names and holds it pinned until a scroll event arrives. A strip
-        // whose frames all fit on screen has nothing to scroll, so that event never comes and the
-        // window never widens — every frame before the open one stays a blank nothing can reach,
-        // which is what was reported of a gallery of seven opened on its fifth (TASK-70).
-        //
-        // Once per width, and that is neither «once» nor «every time». `onContentSizeChange` used
-        // to be where this hung, latched to fire a single time, and both halves of that were wrong
-        // on a real phone (TASK-123):
-        //
-        // Unlatched it fires far too often — it is the scroll row's own `onLayout`, so it comes
-        // back every time the row changes size, and the row changes size every time a frame lands.
-        // On a live memory that is every few seconds while the queue is still sending and the
-        // worker still developing, and each one hauled the strip back to the open frame from
-        // wherever the person had scrolled it: a strip that reads as one that will not scroll, and
-        // a tile that jumps out from under a finger between the press and the release never fires
-        // its press, so one that will not open a frame either (TASK-106).
-        //
-        // Latched to fire once it fires at the wrong moment, and that is why the same two symptoms
-        // came back off a real phone. An iOS modal is laid out twice. The first commit sizes the
-        // whole modal from `ModalHostViewScreenSize()`, which is `RCTScreenSize()`, which swaps
-        // width for height on `[[UIDevice currentDevice] orientation]` — the way the phone is
-        // physically being held, not the way the app is allowed to draw. Somebody lying down and
-        // tapping a photo hands this strip a viewport a whole screen wide; the real size only
-        // arrives on the modal controller's `viewDidLayoutSubviews`, as a second commit. And the
-        // content of a horizontal strip is `55n` wide however wide its viewport is — so the size of
-        // the content never changes between those two commits, `onContentSizeChange` fires exactly
-        // once, on the wrong one, and the walk it fired was clamped to nothing by a scroll view
-        // that thought it had no scrolling to do. The latch then spent itself, and the strip stood
-        // at its head for the rest of the opening with the open frame off the end of it. A
-        // simulator has no accelerometer, so `UIDevice.orientation` is portrait there and the first
-        // commit is already right — which is why this was only ever seen on a phone.
-        //
-        // `onLayout` is the event that actually says what went wrong: the strip's own viewport, the
-        // thing the walk has to be clamped against. React Native hands it over after it has updated
-        // the list's own `visibleLength` from it, so the walk runs against a strip that knows how
-        // wide it is. Keyed on the width and not on a boolean, the walk happens again exactly when
-        // the width it was computed for is no longer the width the strip has — the second commit,
-        // and a rotation, and nothing else. A frame landing does not resize the strip, only its
-        // content, so the strip stays where the finger left it and TASK-106's fix stands.
-        onLayout={(e) => {
-          const { width } = e.nativeEvent.layout;
-          if (walkedAt.current === width) return;
-          walkedAt.current = width;
-          strip.current?.scrollToIndex({ index: frameIndex(items, open), animated: false });
-        }}
-        renderItem={({ item }) => {
-          const frame = frameOf(item);
-          const current = item.id === open;
-          return (
-            <Tile
-              // The sheet's own tile, handed a width and a dimming — the strip is the same frame
-              // smaller and in shadow, with the open one lit and ringed, the mark a picked frame
-              // already wears. Over ink, opacity is that dimming everywhere.
-              style={[styles.stripTile, current ? null : styles.stripDim]}
-              // The mark itself is the tile's, not this face's. It was a border here until the
-              // designer measured it: a border is taken out of the tile's own box, so the open
-              // frame — the one frame that must stand out — sat smaller than its neighbours and
-              // lost its picture to the ring. The library draws it as a layer over the frame.
-              pick={current ? 'keep' : undefined}
-              state={frame.state}
-              uri={frame.uri ?? undefined}
-              // No caption: at 52px there are no words to read, only the safelight.
-              length={
-                item.kind === 'video'
-                  ? (formatRuntime(item.duration_seconds) ?? s.media.video)
-                  : undefined
-              }
-              label={nameOf(item, frame, current)}
-              // A frame still developing stays in the strip and stays shut: there is nothing behind
-              // it to open yet.
-              onPress={mayOpen(item) ? () => onOpen(item.id) : undefined}
-            />
-          );
-        }}
-      />
-    </View>
-  );
-}
-
-/**
- * The 720p preview, played where it lies: `expo-video` streams from the signed url and the file
- * was written with its index at the front, so playback starts before the whole thing is down
- * (doc-02, «Видео в галерее»). Its own component because the player is a hook, and this one is
- * mounted only while a video is on screen — leaving it releases the player.
- *
- * It plays the moment it opens and wears the platform's own transport, which is what a phone's
- * gallery does with a video.
- */
-function Playing({ url }: { url: string }) {
-  const player = useVideoPlayer(url, (video) => video.play());
-  const styles = useStyles();
-  return <VideoView player={player} style={styles.big} />;
-}
-
-/**
- * The open frame is a dark room in both themes — the layout gives the viewer a background darker
- * than `ink` on purpose, or the mount pulls the eye off the photograph. The filmstrip stands inside
- * that room and takes the pin with it, and so does the ring on the open frame.
- *
- * The same rule `photo.*` is shared under, one step further out: this is the room the photograph is
- * looked at in, and it is not the interface around it. The face behind it is interface and does turn
- * with the theme.
- */
-const room = themes.dark.color;
-
 // No colour of its own in the face: the ink behind it belongs to the screen around it
-// (`app/memory/[id].tsx`), and everything else on it is a kit component drawing itself. Still a
-// `themed` sheet rather than a module-scope one — the pinned room below is the only thing in it that
-// has an opinion about the theme, and it says so by name.
+// (`app/memory/[id].tsx`), and everything else on it is a kit component drawing itself. The open
+// frame is a dark room and says so in its own file (`frame-viewer.tsx`).
 const useStyles = themed(() =>
   StyleSheet.create({
     centered: { flex: 1, justifyContent: 'center', padding: space.s4 },
@@ -1107,40 +735,5 @@ const useStyles = themed(() =>
     count: { flex: 1, fontVariant: ['tabular-nums'] },
     // Where the one action of the screen would stand for somebody who may add to it.
     grow: { flex: 1 },
-    // The open frame is the whole screen: the frame takes what is left after the strip, and the bar
-    // lies over it rather than beside it. `room` and not `color` from here down — see above.
-    viewer: { flex: 1, backgroundColor: room.ink },
-    frame: { flex: 1, justifyContent: 'center' },
-    big: { flex: 1, width: '100%' },
-    blank: { justifyContent: 'center' },
-    viewerBar: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: space.s2,
-      paddingHorizontal: space.s2,
-      paddingBottom: space.s6,
-      // The darkening itself is not here: it is measured off the safe-area inset and so is written
-      // where that inset is known, over the bar in the tree above. The same darkening in both
-      // themes, and the icons on it are `photo.on` for the reason the spec gives — this lies on a
-      // photograph, not on the interface, and has to read on snow and on a night sky alike.
-      //
-      // It is React Native's own gradient and not a library, and the `experimental_` in the name is
-      // only a name: RN 0.86 carries the prop the whole way down — `ReactNativeStyleAttributes`
-      // parses the CSS in JS, `BaseViewProps` reads that exact key in C++, and iOS draws it as a
-      // `CAGradientLayer` in `RCTViewComponentView`. Nothing about it is quiet on a device, which is
-      // why what came back from one was a fade in the wrong place rather than no fade at all.
-    },
-    // On the darkening and not on the screen, so it is `photo.on` softened, in both themes.
-    who: { flex: 1, paddingLeft: space.s1, color: 'rgba(242,236,227,.76)' },
-    // Over the frame and at the foot of it: the strip below must stay the only thing under it.
-    viewerNotice: { position: 'absolute', left: space.s4, right: space.s4, bottom: space.s4 },
-    filmstrip: { backgroundColor: room.ink },
-    track: { gap: STRIP_GAP, paddingHorizontal: space.s2, paddingTop: space.s2 },
-    stripTile: { width: STRIP_TILE },
-    stripDim: { opacity: 0.42 },
   }),
 );
