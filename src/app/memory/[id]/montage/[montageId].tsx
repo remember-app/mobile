@@ -35,8 +35,10 @@ import { photo, radius, space, themed } from '@/theme';
  * where that reasoning lives.
  *
  * A route of one montage rather than a face of the memory: the movies of a memory are a face of it
- * (TASK-101) and this is one of them, watched. Reached by `replace` from the order wizard, so the
- * way back from here is the memory and never the four steps of an order already sent.
+ * (TASK-101) and this is one of them, watched. Two ways in, and what is under this screen is the
+ * memory either way: `replace` from the order wizard, so the way back is never the four steps of an
+ * order already sent, and a `push` off the «Собирается» card on the movies face (TASK-169), for
+ * whoever walked out of here and came back to it later.
  */
 export default function MontageProgressScreen() {
   const { id, montageId, frames } = useLocalSearchParams<{

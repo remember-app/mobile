@@ -457,6 +457,34 @@ test('a link that would not sign leaves silence, and the same row can be tried a
   vi.unstubAllGlobals();
 });
 
+test('a press that lost the speaker keeps its failure to itself', async () => {
+  players.length = 0;
+  let refuse: () => void = () => {};
+  vi.stubGlobal('fetch', async (url: string) => {
+    const track = url.split('/').pop();
+    if (track === 'bright') {
+      await new Promise<void>((resolve) => (refuse = () => resolve()));
+      return new Response(JSON.stringify({ error: 'no bucket' }), { status: 503 });
+    }
+    return new Response(JSON.stringify({ url: `https://r2.example/tracks/${track}.mp3` }));
+  });
+  const preview = createPreview('session', () => {});
+
+  // The same race, with the press that lost it coming back a failure rather than a link. Nobody is
+  // waiting on that press any more — the row they pressed after it is sounding — so it is not a
+  // banner: one over a track that is playing says the app is broken when it is doing exactly what
+  // it was asked. The same goes for a step walked out of, which stops everything on the way out.
+  const lost = preview.toggle('bright');
+  await preview.toggle('night');
+  refuse();
+  await expect(lost).resolves.toBeUndefined();
+  expect(players).toHaveLength(1);
+  expect(players[0]?.removed).toBe(false);
+
+  preview.stop();
+  vi.unstubAllGlobals();
+});
+
 /**
  * And the other side of that one call — the waiting the order lands on (`MontageProgress`,
  * TASK-163). The api says one word about the whole job, so what the screen may say about it is

@@ -147,9 +147,14 @@ export function createPreview(token: string, onChange: (playing: Playing) => voi
         else onChange({ track, at });
       }, TICK_MS);
     } catch (e) {
+      // Nobody is waiting on this one any more: another row took the speaker while the link was
+      // being signed, or the step itself went away and stopped everything. The press is dead, and
+      // so is its failure — thrown on, it would word a banner over a track that is playing fine,
+      // or over the step after this one, about music somebody walked away from (found in review).
+      if (wanted !== track) return;
       // A link that would not sign leaves nothing sounding — and nothing pressed either, or the
       // next press on that same row would read as «stop this» and do nothing at all.
-      if (wanted === track) stop();
+      stop();
       throw e;
     }
   }
