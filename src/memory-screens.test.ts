@@ -594,6 +594,20 @@ test('an order is asked for in four steps, on a screen of its own, and sent in o
   }
 });
 
+test('the shelf can be listened to, and the listening ends with the step', () => {
+  // TASK-172: every row of step 3 carries the round «Послушать» button spec 8 draws, and pressing
+  // it neither picks the track nor un-picks one — the row's own press is still the choosing.
+  expect(order).toContain('play={');
+  expect(order).toContain('s.montage.stopTrack(name) : s.montage.listen(name)');
+  expect(order).toContain('onPress={() => onTrack(track.id)}');
+  // The player belongs to the music step and not to the wizard around it, which is the whole of
+  // «уход со шага музыки останавливает воспроизведение»: the step is mounted while it is the step,
+  // so both leaving it and closing the wizard are it going away, and the hook stops on the way out.
+  expect(order.indexOf('useTrackPreview(token)')).toBeGreaterThan(
+    order.indexOf('function MusicStep'),
+  );
+});
+
 test('a placed order lands on the waiting for that montage, not back on the list', () => {
   // TASK-163, spec 8: what was just asked for is the only thing on the mind of whoever asked, so it
   // gets a screen — and a route of one montage, not a second face of the memory.

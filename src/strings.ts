@@ -583,6 +583,9 @@ export const en = {
     /** Step 3 — the shelf of tracks, or one off this phone. */
     musicTitle: 'What to cut it to',
     musicHint: 'The cuts land on the beat of the track you pick.',
+    /** The round button on every row of the shelf — spoken only, and it says which track it is. */
+    listen: (track: string) => `Play ${track}`,
+    stopTrack: (track: string) => `Stop ${track}`,
     ownTrack: 'Your own track from this phone',
     /** The same thing named in a summary line and on a finished movie's card. */
     ownTrackShort: 'Your own track',
@@ -1088,6 +1091,8 @@ export const ru: Strings = {
 
     musicTitle: 'Под что монтировать',
     musicHint: 'Склейки попадут в ритм выбранного трека.',
+    listen: (track: string) => `Послушать «${track}»`,
+    stopTrack: (track: string) => `Остановить «${track}»`,
     ownTrack: 'Свой трек с телефона',
     ownTrackShort: 'Свой трек',
     sendingTrack: 'Загружаем трек…',

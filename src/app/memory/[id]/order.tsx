@@ -9,6 +9,8 @@ import {
   Film,
   ImageOff,
   Info,
+  Pause,
+  Play,
   Plus,
   SunDim,
 } from 'lucide-react-native';
@@ -68,7 +70,7 @@ import {
   type Order,
   type Reason,
 } from '@/montage';
-import { sendOwnTrack } from '@/music';
+import { sendOwnTrack, useTrackPreview } from '@/music';
 import { type Strings } from '@/strings';
 import { radius, space, themed, useTheme } from '@/theme';
 
@@ -258,10 +260,12 @@ export default function OrderMontageScreen() {
       ) : step === 3 ? (
         <MusicStep
           s={s}
+          token={token}
           order={order}
           busy={busy}
           onTrack={(track) => change({ track, ownTrack: null })}
           onOwnTrack={() => void pickOwnTrack()}
+          onNotice={setNotice}
         />
       ) : (
         <BuildStep
@@ -556,21 +560,33 @@ function StoryStep({
  * Step 3, `MontageMusic` — the shelf of five, or one off this phone. Picking one is picking one:
  * their own track takes the choice off the shelf and choosing off the shelf drops their own, because
  * the api takes exactly one answer to «под что монтировать».
+ *
+ * Listening is not picking: the round button on the left plays the track where it stands and leaves
+ * the choice alone, so the shelf can be heard through without anything being decided. The player is
+ * this component's own — this step going away is the music stopping, whether that is the step after
+ * it or the wizard closing (TASK-172).
  */
 function MusicStep({
   s,
+  token,
   order,
   busy,
   onTrack,
   onOwnTrack,
+  onNotice,
 }: {
   s: Strings;
+  /** For «Послушать» alone: the link to each track is signed per press. */
+  token: string | null;
   order: Order;
   busy: boolean;
   onTrack: (track: MusicTrackId) => void;
   onOwnTrack: () => void;
+  /** A link that would not sign is said in the wizard's own banner, over the bottom bar. */
+  onNotice: (line: string | null) => void;
 }) {
   const styles = useStyles();
+  const { playing, toggle } = useTrackPreview(token);
 
   return (
     <ScrollView contentContainerStyle={styles.body}>
@@ -584,16 +600,40 @@ function MusicStep({
       </View>
 
       <View>
-        {TRACKS.map((track, i) => (
-          <RowTrack
-            key={track.id}
-            title={s.montage.track[track.id]}
-            length={track.length}
-            selected={order.track === track.id}
-            divider={i > 0}
-            onPress={() => onTrack(track.id)}
-          />
-        ))}
+        {TRACKS.map((track, i) => {
+          const name = s.montage.track[track.id];
+          /** How far into this one, or null while it is not the one sounding. */
+          const heard = playing?.track === track.id ? playing.at : null;
+          const picked = order.track === track.id;
+
+          return (
+            <RowTrack
+              key={track.id}
+              title={name}
+              length={track.length}
+              selected={picked}
+              playing={heard !== null}
+              at={heard ?? 0}
+              divider={i > 0}
+              play={
+                <IconButton
+                  icon={heard !== null ? Pause : Play}
+                  label={heard !== null ? s.montage.stopTrack(name) : s.montage.listen(name)}
+                  size={44}
+                  // Spec 8 draws the picked row's button filled and the rest of them outlined —
+                  // the row that is chosen carries the loud one, listening does not change that.
+                  tone={picked ? 'paper' : 'ghost'}
+                  style={picked ? undefined : styles.listen}
+                  onPress={() => {
+                    onNotice(null);
+                    void toggle(track.id).catch((e: unknown) => onNotice(errorMessage(e)));
+                  }}
+                />
+              }
+              onPress={() => onTrack(track.id)}
+            />
+          );
+        })}
         {/* Their own, once it is up: the same row, under the name the file carries on the phone —
             which is a person's own word and stays as it is. */}
         {order.ownTrack ? (
@@ -717,6 +757,8 @@ const useStyles = themed(({ color }) =>
     seeds: { flexDirection: 'row', flexWrap: 'wrap', gap: space.s2 },
     // Spec 7.6, «свой трек с телефона»: a dashed `handle` border at the field's own radius.
     dashed: { borderStyle: 'dashed', borderColor: color.handle, borderRadius: radius.field },
+    // «Послушать» on a row nobody picked: the outlined one, drawn in the louder of the two borders.
+    listen: { borderColor: color.lineStrong },
     summary: {
       borderWidth: 1,
       borderColor: color.line,

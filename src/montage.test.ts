@@ -32,6 +32,49 @@ vi.mock('expo-file-system', () => ({
   },
 }));
 
+/**
+ * The speaker. `expo-audio` is a native module node has nothing to run, and what it does with an
+ * mp3 is outside anything a test here could see — so every player it hands out is a note of what
+ * was asked of it, and a length long enough to have a middle.
+ */
+type FakePlayer = {
+  uri: string;
+  played: boolean;
+  removed: boolean;
+  currentTime: number;
+  duration: number;
+  play(): void;
+  remove(): void;
+};
+
+const { players, silentMode } = vi.hoisted(() => ({
+  players: [] as FakePlayer[],
+  silentMode: [] as boolean[],
+}));
+
+vi.mock('expo-audio', () => ({
+  setAudioModeAsync: async ({ playsInSilentMode }: { playsInSilentMode?: boolean }) => {
+    silentMode.push(playsInSilentMode ?? false);
+  },
+  createAudioPlayer: (source: { uri: string }) => {
+    const player: FakePlayer = {
+      uri: source.uri,
+      played: false,
+      removed: false,
+      currentTime: 0,
+      duration: 100,
+      play() {
+        player.played = true;
+      },
+      remove() {
+        player.removed = true;
+      },
+    };
+    players.push(player);
+    return player;
+  },
+}));
+
 import { orderMontage, type MediaItem, type Montage } from '@/api';
 import {
   afterTap,
@@ -46,7 +89,7 @@ import {
   wishes,
   type Order,
 } from '@/montage';
-import { sendOwnTrack } from '@/music';
+import { createPreview, sendOwnTrack, type Playing } from '@/music';
 
 /**
  * The four steps of an order, checked where they can be: what the organizer settled about the
@@ -279,6 +322,138 @@ test('a file that cannot be read never reaches the api at all', async () => {
   ).rejects.toThrow();
   expect(calls).toHaveLength(0);
 
+  vi.unstubAllGlobals();
+});
+
+/**
+ * And the shelf being heard rather than sent (TASK-172). Both ends of it are stood in for — the api
+ * signs a link, the phone plays it — so what is left is the only part worth pinning: which track is
+ * sounding after which press.
+ */
+
+/** Every api answer a preview asks for: the signed link to whichever track was named. */
+function signsLinks(asked: string[]) {
+  vi.stubGlobal('fetch', async (url: string) => {
+    asked.push(url);
+    const track = url.split('/').pop();
+    return new Response(JSON.stringify({ url: `https://r2.example/tracks/${track}.mp3` }));
+  });
+}
+
+test('one speaker for the shelf: another row switches it, the same row stops it', async () => {
+  players.length = 0;
+  silentMode.length = 0;
+  const asked: string[] = [];
+  signsLinks(asked);
+  const heard: Playing[] = [];
+  const preview = createPreview('session', (playing) => heard.push(playing));
+
+  await preview.toggle('bright');
+  expect(asked.at(-1)).toContain('/music/tracks/bright');
+  // A phone lives on silent, and iOS plays nothing through the ringer switch unless it is told.
+  expect(silentMode).toEqual([true]);
+  expect(players).toHaveLength(1);
+  expect(players[0]?.played).toBe(true);
+  expect(heard.at(-1)).toEqual({ track: 'bright', at: 0 });
+
+  // Another row: the one that was sounding is released before the next is built, so two tracks can
+  // never be heard over each other.
+  await preview.toggle('night');
+  expect(players[0]?.removed).toBe(true);
+  expect(players[1]?.uri).toContain('night');
+  expect(heard.at(-1)).toEqual({ track: 'night', at: 0 });
+
+  // And the same row again is the stop — silence, and the api is not asked for anything.
+  const signed = asked.length;
+  await preview.toggle('night');
+  expect(players[1]?.removed).toBe(true);
+  expect(heard.at(-1)).toBeNull();
+  expect(asked).toHaveLength(signed);
+  // Which leaves the shelf where it started: the next press plays again rather than stopping.
+  await preview.toggle('night');
+  expect(heard.at(-1)).toEqual({ track: 'night', at: 0 });
+
+  preview.stop();
+  vi.unstubAllGlobals();
+});
+
+test('the waveform follows the track, and running out is a stop nobody pressed', async () => {
+  players.length = 0;
+  vi.useFakeTimers();
+  signsLinks([]);
+  const heard: Playing[] = [];
+  const preview = createPreview('session', (playing) => heard.push(playing));
+
+  await preview.toggle('calm');
+  const player = players[0];
+  expect(player).toBeDefined();
+  if (player === undefined) return;
+
+  player.currentTime = 50;
+  vi.advanceTimersByTime(500);
+  expect(heard.at(-1)).toEqual({ track: 'calm', at: 0.5 });
+
+  // The end of it: nothing is sounding, the player is released, and the button says «Послушать»
+  // again without anybody having pressed anything.
+  player.currentTime = 100;
+  vi.advanceTimersByTime(500);
+  expect(heard.at(-1)).toBeNull();
+  expect(player.removed).toBe(true);
+  // And the clock goes with it — a ticker left running would report on a released player forever.
+  vi.advanceTimersByTime(5_000);
+  expect(heard.at(-1)).toBeNull();
+
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
+
+test('a link still being signed loses the speaker to the press that came after it', async () => {
+  players.length = 0;
+  let sign: () => void = () => {};
+  vi.stubGlobal('fetch', async (url: string) => {
+    const track = url.split('/').pop();
+    if (track === 'bright') await new Promise<void>((resolve) => (sign = () => resolve()));
+    return new Response(JSON.stringify({ url: `https://r2.example/tracks/${track}.mp3` }));
+  });
+  const preview = createPreview('session', () => {});
+
+  // Pressed twice inside the moment it takes to sign a link — the second press is the one whoever
+  // is holding the phone means, and the first must not start playing over it when it lands.
+  const slow = preview.toggle('bright');
+  await preview.toggle('night');
+  expect(players).toHaveLength(1);
+  expect(players[0]?.uri).toContain('night');
+
+  sign();
+  await slow;
+  expect(players).toHaveLength(1);
+  expect(players[0]?.removed).toBe(false);
+
+  preview.stop();
+  vi.unstubAllGlobals();
+});
+
+test('a link that would not sign leaves silence, and the same row can be tried again', async () => {
+  players.length = 0;
+  const refused = { status: 503 };
+  vi.stubGlobal('fetch', async () => new Response(JSON.stringify({ error: 'no bucket' }), refused));
+  const heard: Playing[] = [];
+  const preview = createPreview('session', (playing) => heard.push(playing));
+
+  await expect(preview.toggle('road')).rejects.toThrow();
+  expect(players).toHaveLength(0);
+  expect(heard.at(-1)).toBeNull();
+
+  // The press came to nothing, so the next one on that row is «play» and not «stop this» — which is
+  // what it would read as if a failed press were remembered as the track now sounding.
+  vi.unstubAllGlobals();
+  const asked: string[] = [];
+  signsLinks(asked);
+  await preview.toggle('road');
+  expect(asked).toHaveLength(1);
+  expect(heard.at(-1)).toEqual({ track: 'road', at: 0 });
+
+  preview.stop();
   vi.unstubAllGlobals();
 });
 
