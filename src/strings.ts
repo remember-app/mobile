@@ -223,7 +223,9 @@ export const en = {
   /** Where an invite link lands. */
   join: {
     noToken: 'This link has no token in it — ask for a new one.',
-    dead: 'This invite link is no longer valid — ask whoever sent it for a new one.',
+    deadTitle: 'This invite no longer works',
+    /** Nobody here did anything wrong, and the screen says so before it says what to do. */
+    dead: 'The link was called back, or replaced with a newer one. Ask whoever invited you for a fresh one.',
     home: 'Go to my memories',
   },
 
@@ -451,14 +453,15 @@ export const en = {
     thatsAll: 'That’s all',
   },
 
-  /** The account: who you are here, and the way out. */
+  /** The account: who you are here, what the app is set to, and the way out. */
   profile: {
-    title: 'Profile',
+    title: 'Account',
     /**
-     * The line under the way out, and the reason nothing asks a second time: the kit's screen 8 names
-     * the consequence before the press instead of holding a sheet after it.
+     * Under «Contacts» on the section row that leads there: what the list is worth opening for, said
+     * as what it saves rather than as what it holds.
      */
-    logOutText: 'Your memories and frames stay where they are — you come back the same way in.',
+    contactsMeta: (n: number) =>
+      `${n} ${n === 1 ? 'person' : 'people'} — invite by picking, without remembering a username`,
   },
 
   /**
@@ -470,8 +473,10 @@ export const en = {
    */
   contacts: {
     title: 'Contacts',
-    /** The rule the field draws under the saved list when what was typed is somebody else. */
+    /** The rule over the row the field turned up when what was typed is somebody else. */
     notSaved: 'Not in contacts',
+    /** The heading of the list itself, with the count of it on the end of its own rule. */
+    saved: 'Saved',
     save: 'Save',
     /** The cross on a row, read out with the name it takes off the list. */
     remove: (name: string) => `Remove ${name} from contacts`,
@@ -481,8 +486,10 @@ export const en = {
      */
     removed: 'Removed from contacts',
     undo: 'Bring back',
+    /** The heading names what is missing; the paragraph sends them to the field over it. */
+    emptyTitle: 'Nobody here yet',
     empty:
-      'Nobody here yet. Type a username — next time you invite them by picking, without remembering anything.',
+      'Type a username in the field above — next time you invite that person by picking, without remembering anything.',
     /** Nothing saved matches, and nobody in Remember holds the name either. */
     noUser: (username: string) => `No one is @${username} in Remember.`,
   },
@@ -642,7 +649,8 @@ export const ru: Strings = {
 
   join: {
     noToken: 'В этой ссылке нет ключа — попросите новую.',
-    dead: 'Это приглашение больше не действует — попросите новое у того, кто его прислал.',
+    deadTitle: 'Приглашение не действует',
+    dead: 'Эту ссылку отозвали или заменили новой. Попросите свежую у того, кто вас звал.',
     home: 'К моим воспоминаниям',
   },
 
@@ -782,18 +790,22 @@ export const ru: Strings = {
   },
 
   profile: {
-    title: 'Профиль',
-    logOutText: 'Воспоминания и кадры останутся на месте — вернётесь тем же входом.',
+    title: 'Аккаунт',
+    contactsMeta: (n: number) =>
+      `${count(n, 'человек', 'человека', 'человек')} — зовите выбором, не вспоминая ник`,
   },
 
   contacts: {
     title: 'Контакты',
     notSaved: 'Не в контактах',
+    saved: 'Сохранённые',
     save: 'Сохранить',
     remove: (name: string) => `Убрать ${name} из контактов`,
     removed: 'Убрали из контактов',
     undo: 'Вернуть',
-    empty: 'Пока никого. Наберите ник — и в следующий раз позовёте выбором, не вспоминая.',
+    emptyTitle: 'Пока никого',
+    empty:
+      'Наберите ник в поле сверху — и в следующий раз позовёте человека выбором, не вспоминая.',
     noUser: (username: string) => `Ника @${username} в Remember нет.`,
   },
 

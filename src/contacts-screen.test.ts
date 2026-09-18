@@ -13,6 +13,26 @@ import { en, ru } from '@/strings';
  * it is the account, so the way in moved inside it — `home-screen.test.ts` holds that end now.
  */
 
+test('the field is the search one: a magnifier, an @, and no label over it', () => {
+  // Spec 7.3, the fifth field: 52 with a magnifier and a prefix. It is nailed to the bar rather than
+  // standing in the body, because it is the way to add as much as the way to search — and the label
+  // stays in the markup for a screen reader, since a placeholder is not a label (spec 7.9).
+  expect(contacts).toContain('variant="search"');
+  expect(contacts).toContain('icon={Search}');
+  expect(contacts).toContain('prefix="@"');
+  expect(contacts).toContain('labelHidden');
+});
+
+test('the stranger stands above the saved list, not under it', () => {
+  // Spec 8, `Contacts`: «блок «Не в контактах» … заголовок «Сохранённые · 8»» — in that order. The
+  // eye is at the field after typing, and the answer to what was typed belongs under it.
+  expect(contacts.indexOf('s.contacts.notSaved')).toBeLessThan(
+    contacts.indexOf('s.contacts.saved'),
+  );
+  // And the saved carry their own heading with the count on the end of its rule.
+  expect(contacts).toContain('<DayMark label={s.contacts.saved} count={String(shown.length)} />');
+});
+
 test('one field does both jobs — it narrows the list and asks about what is not in it', () => {
   // The whole point of the screen having one field and not two. Losing either half leaves a field
   // that still works, for one of the two things a person came to do.
@@ -41,7 +61,8 @@ test('the cross removes at once, with no sheet and no second question', () => {
 test('the removed row stands its five seconds in place and then collapses', () => {
   // Nothing moves while it stands there — the row keeps its slot in `contacts` and only its id goes
   // into `gone`, so the neighbours do not shift under the finger that is about to undo the miss.
-  expect(contacts).toContain('const UNDO_MS = 5000;');
+  // The five seconds are the spec's own (`duration.undo`), not a number of this screen's.
+  expect(contacts).toContain('}, duration.undo),');
   expect(contacts).toContain('setGone((ids) => [...ids, contact.id]);');
   expect(contacts).toContain('setContacts((held) => held?.filter((row) => row.id !== contact.id)');
   // And no timer outlives the screen: every one of them holds a `setState` on a gone component.
@@ -55,11 +76,15 @@ test('«Вернуть» re-adds off the row itself, with nothing typed again', 
 });
 
 test('the row carries the username where a member row carries a standing', () => {
-  // Kit «Порядок»: the same row as in a memory, without the role and without the count — a contact
-  // uploads nothing, so there is nothing of theirs to state.
-  expect(contacts).toContain('meta={fading ? s.contacts.removed : memberHandle(contact)}');
+  // Spec 7.5 has a row of its own for the address book — the same shape as in a memory, without the
+  // role and without the count, because a contact uploads nothing and there is nothing of theirs to
+  // state. Its three states are the row's, not three layouts on this screen.
+  expect(contacts).toContain('<RowContact');
+  expect(contacts).toContain('handle={fading ? s.contacts.removed : memberHandle(contact)}');
+  expect(contacts).toContain("variant={fading ? 'gone' : 'saved'}");
+  expect(contacts).toContain('variant="found"');
   expect(contacts).not.toContain('<Chip');
-  expect(contacts).not.toContain('count=');
+  expect(contacts).not.toContain('<Badge');
 });
 
 test('waiting, failing and empty each hold the place of the list', () => {
@@ -67,7 +92,11 @@ test('waiting, failing and empty each hold the place of the list', () => {
   // the failure — a list that never arrives otherwise reads as a list with nobody in it.
   expect(contacts).toContain('<Empty busy text={s.state.loading} />');
   expect(contacts).toContain('<Banner tone="error" text={error}>');
-  expect(contacts).toContain('<Empty icon={Users} text={s.contacts.empty} />');
+  // Spec 7.8's rule of words, and `ContactsEmpty` draws it in two parts: the heading names what is
+  // missing, the paragraph sends them to the field over it.
+  expect(contacts).toContain(
+    '<Empty icon={UserPlus} title={s.contacts.emptyTitle} text={s.contacts.empty} />',
+  );
   expect(contacts).toContain('<Empty text={s.contacts.noUser(query)} />');
   // And there is no fourth silence: a nick nobody *could* hold — two letters, a space in it,
   // anything Cyrillic — never reaches the api, so keying the line off the api's answer alone left

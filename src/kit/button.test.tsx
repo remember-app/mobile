@@ -76,8 +76,10 @@ test('a button waiting on the server swallows the press and says the action in t
   expect(story(<Button variant="primary" label="Отправить" busy />)).toContain('Отправить');
 });
 
-test('the four heights are four heights, and each variant starts at its own', () => {
+test('the five heights are five heights, and each variant starts at its own', () => {
   allDifferent({
+    // 60, and only «Выйти из аккаунта» stands at it.
+    xl: <Button label="Дальше" size="xl" />,
     lg: <Button label="Дальше" size="lg" />,
     md: <Button label="Дальше" size="md" />,
     sm: <Button label="Дальше" size="sm" />,

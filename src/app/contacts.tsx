@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { ChevronLeft, Users, X } from 'lucide-react-native';
+import { ChevronLeft, Search, UserPlus, X } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,43 +20,42 @@ import { matches, useFindUser } from '@/find-user';
 import {
   AppBar,
   Banner,
+  Board,
   Button,
+  DayMark,
   Empty,
   Field,
   IconButton,
-  RowMember,
+  RowContact,
   Text,
 } from '@/kit';
 import { useStrings } from '@/language';
-import { space, themed } from '@/theme';
-
-/** How long a removed row stands there offering the way back (kit, «Экраны» 9, «Убрать»). */
-const UNDO_MS = 5000;
+import { board, duration, space, themed } from '@/theme';
 
 /**
- * The names one invites from (doc-10, kit «Экраны» 9). The only list in the product a person keeps
- * about themselves rather than about an event, and the whole of it is a flat list of usernames:
+ * `Contacts` (spec 8): the names one invites from (doc-10). The only list in the product a person
+ * keeps about themselves rather than about an event, and the whole of it is a flat list of usernames:
  * being on it is not friendship, grants nothing, and is never told to the person on it.
  *
- * One field does both jobs. What is typed narrows the list under it, and if nobody saved holds that
- * name the api is asked whether anybody in Remember does — the answer arrives as one row under «Не в
- * контактах» with «Сохранить» on it. Two fields would ask the person to choose between «искать» and
- * «добавить» before typing the very same word into either, which is the product thinking with their
- * hands instead of for them.
+ * One field does both jobs, and it is nailed to the bar rather than scrolling with the list — it is
+ * the way to add as much as the way to search. What is typed narrows the list under it, and if nobody
+ * saved holds that name the api is asked whether anybody in Remember does; the answer arrives as one
+ * row under «Не в контактах» with «Сохранить» on it. Two fields would ask the person to choose
+ * between «искать» and «добавить» before typing the very same word into either, which is the product
+ * thinking with their hands instead of for them.
  */
 export default function ContactsScreen() {
   const { token, user } = useAuth();
   const router = useRouter();
   const s = useStrings();
   const styles = useStyles();
-  // No native header anywhere in the app, so the screen keeps itself out from under the status bar.
   const insets = useSafeAreaInsets();
   // null is «not loaded yet», the distinction the home screen draws: a refetch keeps the list on
   // screen instead of flashing the spinner over it.
   const [contacts, setContacts] = useState<Contact[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // A failure of something pressed, which is not the same as the list failing to arrive: the kit
-  // stands it as a strip over the list and leaves the row that was pressed exactly where it was.
+  // A failure of something pressed, which is not the same as the list failing to arrive: it goes as a
+  // strip over the list and leaves the row that was pressed exactly where it was.
   const [notice, setNotice] = useState<string | null>(null);
   const [typed, setTyped] = useState('');
   const [saving, setSaving] = useState(false);
@@ -81,9 +80,9 @@ export default function ContactsScreen() {
     return () => pending.forEach(clearTimeout);
   }, []);
 
-  // The kit's «Края»: a username typed with a capital or with the @ still on it is taken as it is
-  // and brought to the product's own shape here. What the api matches on is case-insensitive
-  // anyway, so this is about the list under the field as much as about the lookup.
+  // Spec 8, «Края»: a username typed with a capital or with the @ still on it is taken as it is and
+  // brought to the product's own shape here. What the api matches on is case-insensitive anyway, so
+  // this is about the list under the field as much as about the lookup.
   const query = typed.trim().replace(/^@+/, '');
   const needle = query.toLowerCase();
   const list = contacts ?? [];
@@ -104,9 +103,9 @@ export default function ContactsScreen() {
   }, []);
 
   /**
-   * The cross, and no sheet behind it (kit, «Экраны» 9): nothing is lost — that person keeps every
-   * memory they are in, and the name comes back with one press. So the call goes out at once and
-   * the row, still in place, spends five seconds offering the way back.
+   * The cross, and no sheet behind it (spec 7.5, «убранный»): nothing is lost — that person keeps
+   * every memory they are in, and the name comes back with one press. So the call goes out at once
+   * and the row, still in place, spends five seconds offering the way back.
    */
   function drop(contact: Contact) {
     if (!token) return;
@@ -126,7 +125,7 @@ export default function ContactsScreen() {
         timers.current.delete(contact.id);
         setContacts((held) => held?.filter((row) => row.id !== contact.id) ?? null);
         setGone((ids) => ids.filter((held) => held !== contact.id));
-      }, UNDO_MS),
+      }, duration.undo),
     );
   }
 
@@ -162,8 +161,8 @@ export default function ContactsScreen() {
       // field has turned up since, if the typing went on while this call was in the air.
       setContacts((held) => [...(held ?? []), added].sort(byUsername));
     } catch (e) {
-      // The strip goes over the list and the row keeps its button (kit, «Сбой»): whoever pressed it
-      // is still looking at the person they meant to save.
+      // The strip goes over the list and the row keeps its button: whoever pressed it is still
+      // looking at the person they meant to save.
       setNotice(errorMessage(e));
     } finally {
       setSaving(false);
@@ -171,14 +170,14 @@ export default function ContactsScreen() {
   }
 
   const stranger = found === 'none' ? null : found;
-  // Neither a saved row nor a stranger: the body has nothing to hold, and the kit stands what it
-  // says in the middle of it instead of at the top.
+  // Neither a saved row nor a stranger: the body has nothing to hold, and what it says instead
+  // stands in the middle of it rather than at the top (spec 8, `ContactsEmpty`).
   const nothing = shown.length === 0 && stranger === null;
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
-      {/* The kit's head: the bar and the field are nailed to it — «поле прибито к шапке и не уезжает
-          со списком», since it is the way to add as much as the way to search. */}
+    <Board>
+      {/* The head: the bar and the field together, and the field does not scroll away with the list
+          — it is the way to add as much as the way to search. */}
       <AppBar
         title={s.contacts.title}
         left={
@@ -191,32 +190,37 @@ export default function ContactsScreen() {
           />
         }
       />
-      <Field
-        label={s.username.label}
-        labelHidden
-        value={typed}
-        onChangeText={setTyped}
-        placeholder={s.username.placeholder}
-        autoCapitalize="none"
-        autoCorrect={false}
-        // The check is answered in the field, the way the invite sheet answers it (kit, «Ждём»).
-        // «Такого ника нет» only while the list under it still has rows — with nothing under it the
-        // body says the same thing at length and names the ник, and saying it twice says it once.
-        state={found === 'none' && shown.length > 0 ? 'error' : undefined}
-        hint={
-          looking
-            ? s.state.checking
-            : found === 'none' && shown.length > 0
-              ? s.members.noSuchUser
-              : undefined
-        }
-      />
+      <View style={styles.head}>
+        <Field
+          variant="search"
+          icon={Search}
+          prefix="@"
+          label={s.username.label}
+          labelHidden
+          value={typed}
+          onChangeText={setTyped}
+          placeholder={s.username.placeholder}
+          autoCapitalize="none"
+          autoCorrect={false}
+          // The check is answered in the field, the way the invite sheet answers it. «Такого ника
+          // нет» only while the list under it still has rows — with nothing under it the body says
+          // the same thing at length and names the ник, and saying it twice says it once.
+          state={found === 'none' && shown.length > 0 ? 'error' : undefined}
+          hint={
+            looking
+              ? s.state.checking
+              : found === 'none' && shown.length > 0
+                ? s.members.noSuchUser
+                : undefined
+          }
+        />
+      </View>
 
       <ScrollView
         contentContainerStyle={[
           styles.body,
           nothing ? styles.mid : null,
-          { paddingBottom: Math.max(insets.bottom, space.s5) },
+          { paddingBottom: Math.max(insets.bottom, board.bottom) },
         ]}
       >
         {error !== null ? (
@@ -230,28 +234,54 @@ export default function ContactsScreen() {
           <>
             {notice !== null ? <Banner tone="error" text={notice} /> : null}
 
-            {/* One View around the rows so they keep the kit's own hairline and padding instead of
-                the gap this body puts between its groups. */}
+            {/* Found in Remember and not saved yet: its own rule, one row, one action — and it
+                stands above the saved list, where the eye already is after typing. */}
+            {stranger !== null ? (
+              <View style={styles.section}>
+                <Text accessibilityRole="header" role="eyebrow">
+                  {s.contacts.notSaved.toUpperCase()}
+                </Text>
+                <RowContact
+                  variant="found"
+                  name={memberName(stranger)}
+                  handle={memberHandle(stranger)}
+                >
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    wide={false}
+                    label={s.contacts.save}
+                    busy={saving}
+                    onPress={() => save(stranger)}
+                  />
+                </RowContact>
+              </View>
+            ) : null}
+
+            {/* The saved, under their own heading with the count on the end of its rule. One View
+                around the rows so they keep the hairline and padding of a list instead of the gap
+                this body puts between its groups. */}
             {shown.length > 0 ? (
               <View>
+                <DayMark label={s.contacts.saved} count={String(shown.length)} />
                 {shown.map((contact, index) => {
                   const fading = gone.includes(contact.id);
                   const name = memberName(contact);
 
                   return (
-                    <RowMember
+                    <RowContact
                       key={contact.id}
                       name={name}
                       // The username where a member row carries a standing — a contact uploads
                       // nothing, so there is no role and no count to write here.
-                      meta={fading ? s.contacts.removed : memberHandle(contact)}
-                      gone={fading}
+                      handle={fading ? s.contacts.removed : memberHandle(contact)}
+                      variant={fading ? 'gone' : 'saved'}
                       divider={index > 0}
                     >
                       {fading ? (
                         <Button
+                          variant="small"
                           size="xs"
-                          variant="quiet"
                           label={s.contacts.undo}
                           onPress={() => undo(contact)}
                         />
@@ -263,47 +293,27 @@ export default function ContactsScreen() {
                           onPress={() => drop(contact)}
                         />
                       )}
-                    </RowMember>
+                    </RowContact>
                   );
                 })}
               </View>
             ) : null}
 
-            {/* Under its own rule, and under the saved list rather than over it: what is already
-                kept is the answer being looked for, and this is the offer beside it. */}
-            {stranger !== null ? (
-              <View style={styles.section}>
-                <Text accessibilityRole="header" role="label">
-                  {s.contacts.notSaved}
-                </Text>
-                <View>
-                  <RowMember name={memberName(stranger)} meta={memberHandle(stranger)}>
-                    <Button
-                      size="xs"
-                      label={s.contacts.save}
-                      busy={saving}
-                      onPress={() => save(stranger)}
-                    />
-                  </RowMember>
-                </View>
-              </View>
-            ) : null}
-
             {/* Empty is an invitation and not a report: with nothing typed the field itself is the
-                way to add somebody, and that is what the line says. With something typed and nobody
-                anywhere holding it, the answer names the ник that was asked for — and a ник nobody
-                *could* hold is that same answer without the asking. Without that second half the
-                body came out blank: two letters, a space, or anything Cyrillic never reaches the
-                api, so `found` stayed null and neither line was drawn. */}
+                way to add somebody, and that is what the paragraph sends them to. With something
+                typed and nobody anywhere holding it, the answer names the ник that was asked for —
+                and a ник nobody *could* hold is that same answer without the asking. Without that
+                second half the body came out blank: two letters, a space, or anything Cyrillic never
+                reaches the api, so `found` stayed null and neither line was drawn. */}
             {nothing && query === '' ? (
-              <Empty icon={Users} text={s.contacts.empty} />
+              <Empty icon={UserPlus} title={s.contacts.emptyTitle} text={s.contacts.empty} />
             ) : nothing && (found === 'none' || !isValidUsername(query)) ? (
               <Empty text={s.contacts.noUser(query)} />
             ) : null}
           </>
         )}
       </ScrollView>
-    </View>
+    </Board>
   );
 }
 
@@ -311,16 +321,17 @@ export default function ContactsScreen() {
 const byUsername = (a: Contact, b: Contact) =>
   (a.username ?? '').localeCompare(b.username ?? '', undefined, { sensitivity: 'base' });
 
-const useStyles = themed(({ color }) =>
+const useStyles = themed(() =>
   StyleSheet.create({
-    // The kit says it once for all eleven screens: «Боковой отступ 16 задаёт экран».
-    screen: { flex: 1, paddingHorizontal: space.s4, backgroundColor: color.ink },
-    // The field sits in the head with its own 12 under it, so the body starts at the kit's gap and
-    // grows to the full height — which is what gives the empty state a middle to stand in.
-    body: { flexGrow: 1, gap: space.s5, paddingTop: space.s3 },
-    // The kit's `.screen__body-mid`.
+    // Spec 8 says it once for every screen: «Боковой отступ 16 задаёт экран». The 12 is the field's
+    // own gap under the bar — both belong to the head, which does not scroll.
+    head: { paddingHorizontal: space.s4, paddingTop: space.s3 },
+    // The body starts 24 under the field (spec 8: тело со 184) and grows to the full height — which
+    // is what gives the empty state a middle to stand in.
+    body: { flexGrow: 1, gap: space.s5, paddingHorizontal: space.s4, paddingTop: space.s6 },
+    // The spec's `.screen__body-mid`.
     mid: { justifyContent: 'center' },
-    // `.stack-2` — the rule and the row it introduces.
+    // The rule and the row it introduces.
     section: { gap: space.s2 },
   }),
 );

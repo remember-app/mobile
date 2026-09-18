@@ -22,9 +22,12 @@ export type ButtonVariant =
   | 'danger-outline';
 
 /** The heights of spec 4, by the place a button stands in rather than by the number. */
-export type ButtonSize = 'lg' | 'md' | 'sm' | 'xs';
+export type ButtonSize = 'xl' | 'lg' | 'md' | 'sm' | 'xs';
 
 const SIZES: Record<ButtonSize, number> = {
+  // Spec 7.2 gives the dangerous button two heights, and the taller one has exactly one place in the
+  // product: «Выйти из аккаунта» at the foot of `Account`.
+  xl: height.logout,
   lg: height.primary,
   md: height.sheetButton,
   sm: height.small,
