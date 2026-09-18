@@ -1,11 +1,10 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Share2, X } from 'lucide-react-native';
+import { Pencil, Share2, UserPlus, X } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, Share, StyleSheet, View } from 'react-native';
 
 import {
   ApiError,
-  addContact,
   errorMessage,
   fetchInvite,
   inviteByUsername,
@@ -23,7 +22,6 @@ import {
   type Member,
 } from '@/api';
 import { useAuth } from '@/auth';
-import { formatEventDates } from '@/dates';
 import { matches, useFindUser } from '@/find-user';
 import {
   ActionBar,
@@ -33,6 +31,7 @@ import {
   BadgeContribution,
   BadgeOrganizer,
   ConfirmSheet,
+  Divider,
   Empty,
   Field,
   IconButton,
@@ -46,14 +45,18 @@ import { MemoryHead, type Head } from '@/memory/head';
 import { space } from '@/theme';
 
 /**
- * The third face of a memory (kit, «Экраны» 6): who is in it and how to get more people in. What the
- * caller may do is read off their own row in the roster — the api is the authority on that, so
- * nothing here is gated on anything the client made up.
+ * The third face of a memory (spec 8, `MemoryPeople`): who is in it, how much each of them has
+ * brought, and how to get more people in. What the caller may do is read off their own row in the
+ * roster — the api is the authority on that, so nothing here is gated on anything the client made up.
+ *
+ * Taking somebody out lives behind «Править состав» and not behind a cross that is always ready
+ * (layout, `MemoryPeople`): an irreversible act is entered on purpose, and what it costs is named in
+ * figures on the sheet that asks (`SheetConfirmMember`).
  *
  * Leaving a memory is not offered here (TASK-113): the api still takes it and the organizer's cross
  * still uses that same call to remove somebody else, but nobody is shown a way out of their own.
  *
- * Nothing on the right of the appbar: the kit gives that corner to the frames face alone, and the
+ * Nothing on the right of the appbar: the layout gives that corner to the frames face alone, and the
  * material and the movies are one press away on the switch under the name.
  */
 export function People({ id, head }: { id: string; head: Head }) {
@@ -78,6 +81,10 @@ export function People({ id, head }: { id: string; head: Head }) {
   // Everything to do with getting people in is asked for on a sheet, not kept open on the face:
   // inviting is something one does once, and the roster is what this face is for.
   const [inviting, setInviting] = useState(false);
+  // Whether the roster is being edited. The crosses live in here and nowhere else — «своя кнопка, а
+  // не крестик, который всегда наготове» — so an ordinary look at who is here cannot take anybody
+  // out by a misplaced finger.
+  const [editing, setEditing] = useState(false);
   // Who the confirm sheet is asking about; null is «no sheet». The sheet is the whole state:
   // holding a boolean beside the member would let the two disagree.
   const [dropping, setDropping] = useState<Member | null>(null);
@@ -85,14 +92,9 @@ export function People({ id, head }: { id: string; head: Head }) {
   // whoever is not inviting has no use for the list, and every open catches whatever was saved on
   // the contacts screen since. null is «не спросили или не отдались» — either way, no block.
   const [contacts, setContacts] = useState<Contact[] | null>(null);
-  // The person just invited by typing their username. Only that road leads here: picked out of the
-  // contacts, they are a contact already (kit, «Сохранить»).
-  const [invited, setInvited] = useState<Member | null>(null);
-  // Which contact's «Позвать» is waiting on the server. Held by id rather than by the shared `busy`
-  // so that one row spins and the rows around it stay live — «остальные строки не гаснут».
-  const [calling, setCalling] = useState<string | null>(null);
-
-  const memory = head.memory;
+  // The contact whose chip is pressed in. One at a time: the api takes one name per call, and the
+  // sheet's own button is what sends it.
+  const [picked, setPicked] = useState<Contact | null>(null);
 
   const load = useCallback(() => {
     if (!token) return;
@@ -135,7 +137,7 @@ export function People({ id, head }: { id: string; head: Head }) {
   // блока просто нет», the username field beside it still being the whole other road in.
   useEffect(() => {
     if (!inviting || !token) return;
-    setInvited(null);
+    setPicked(null);
     listContacts(token).then(setContacts, () => {});
   }, [inviting, token]);
 
@@ -146,6 +148,11 @@ export function People({ id, head }: { id: string; head: Head }) {
   // api is the authority on all of it; this only decides what to draw.
   const mayContributeHere = mayContribute(role);
   const newcomerRole = mayAdd ? 'contributor' : 'viewer';
+  // «6 человек · 7 из 9 скинули» — the line under the heading, and the organizer's whole progress.
+  // Counted over the people who can actually bring something (doc-01: «Добавление» and up), because
+  // a viewer is nobody anybody is waiting on.
+  const bringers = (members ?? []).filter((member) => mayContribute(member.role));
+  const brought = bringers.filter((member) => member.contribution_status === 'done').length;
   // Derived together so the branch below narrows both at once: there is a link exactly when
   // there is an invite. `remember://` is the scheme in app.json; TASK-16 is what receives it.
   const shareable = invite && {
@@ -154,12 +161,15 @@ export function People({ id, head }: { id: string; head: Head }) {
   };
   // Checked against `dropping` first, so a closed sheet is never «about me» by two undefineds.
   const leaving = dropping !== null && dropping.id === user?.id;
-  // The one field is the sieve, and there is no second one on the sheet (kit, «Два пути»): what is
-  // typed narrows the contacts under it, and a name none of them holds is asked of the api. The @
-  // and the capitals come off the same way the contacts screen takes them off.
+  // What that person has brought, which is the price of taking them out — and nothing at all until
+  // the gallery has been counted, because a plate saying «0 кадров исчезнут» names no price.
+  const dropCost = dropping === null || shots === null ? null : (shots.get(dropping.id) ?? 0);
+  // The one field is the sieve, and there is no second one on the sheet (spec 8): what is typed
+  // narrows the contacts under it, and a name none of them holds is asked of the api. The @ and the
+  // capitals come off the same way the contacts screen takes them off.
   const query = username.trim().replace(/^@+/, '');
   const needle = query.toLowerCase();
-  // Whoever is already here drops out of the list — they are on the roster behind the sheet, and
+  // Whoever is already here drops out of the chips — they are on the roster behind the sheet, and
   // offering to invite them again would be the sheet arguing with what is under it.
   const pickable = (contacts ?? []).filter(
     (contact) => !members?.some((member) => member.id === contact.id) && matches(contact, needle),
@@ -169,27 +179,27 @@ export function People({ id, head }: { id: string; head: Head }) {
   // that is right behind the sheet drops out of the contacts, is not asked about, and answers with
   // nothing at all — an empty sheet under a field with a correct nick in it.
   const here = (members ?? []).find((member) => member.username?.toLowerCase() === needle);
-  // An exact name that is already answered on this sheet — a contact under the field, or somebody
-  // on the roster behind it — is not asked about: the answer is on screen, and a second row for the
-  // same person would offer to invite whoever the list has just dropped for being here already.
+  // An exact name that is already answered on this sheet — a contact among the chips, or somebody
+  // on the roster behind it — is not asked about: the answer is on screen, and a second lookup for
+  // the same person would offer to invite whoever the list has just dropped for being here already.
   const answered =
     here !== undefined ||
     (contacts ?? []).some((contact) => contact.username?.toLowerCase() === needle);
-  // The field's second answer (kit, «Два пути»): a name none of the contacts holds is asked of the
-  // api, and whoever holds it comes back as one row under «Не в контактах». The same lookup the
-  // contacts screen reads, from the one place both of them keep it (`@/find-user`) — yourself is
-  // nobody to offer, being on this roster already.
+  // The field's second answer (spec 8, «ник не найден → ошибка под полем»): a name none of the
+  // contacts holds is asked of the api, and the answer is what the button below sends to. The same
+  // lookup the contacts screen reads, from the one place both of them keep it (`@/find-user`) —
+  // yourself is nobody to offer, being on this roster already.
   const { found, looking } = useFindUser(token, query, {
     skip: !inviting || answered,
     selfId: user?.id,
   });
-  // Narrowed once here rather than at every use: `'none'` is a thing the field says, not a person
-  // to draw a row for.
-  const stranger = found === 'none' ? null : found;
-  // Whether the person just invited has been saved since — read off the list itself rather than
-  // held in a flag beside it, so a reply about somebody invited a moment ago cannot put the check
-  // on whoever was invited after them.
-  const kept = invited !== null && (contacts ?? []).some((contact) => contact.id === invited.id);
+  // Who «Позвать» will call: the contact whose chip is pressed in, or — with no chip pressed — the
+  // person the typed name stands for. Never both at once: typing lets the chip go, and a chip
+  // empties the field. A name the contacts already hold is answered off that list rather than by the
+  // api, which is never asked about it (`answered`) — typing somebody's nick in full does what
+  // pressing their chip does. Somebody already on the roster is nobody to send to: the field says so.
+  const saved = (contacts ?? []).find((contact) => contact.username?.toLowerCase() === needle);
+  const target = here ? null : (picked ?? saved ?? (found === 'none' ? null : found));
 
   /**
    * Every api call this face's buttons make is the same shape: lock the controls, run one call,
@@ -213,55 +223,32 @@ export function People({ id, head }: { id: string; head: Head }) {
   }
 
   /**
-   * Both roads end here, and the row that was pressed is the whole difference between them: one
-   * «Позвать» stands on a contact, the other on the stranger the field turned up. Whoever was typed
-   * rather than picked is the one worth keeping afterwards, so only that road leaves the chip.
+   * Both roads end here — the chip and the typed nick — because the level a newcomer arrives at is
+   * the same question for both and is asked once, above them, on the switch.
    */
-  const sendInvite = (person: Contact, typed: boolean) => {
+  const sendInvite = (person: Contact) => {
     const handle = person.username;
-    // One at a time. Each row spins on its own id, but `act` behind them holds one `busy` and one
-    // `notice` for the whole sheet: a second «Позвать» pressed under the first took the spinner off
-    // that first row, unlocked the field while its call was still in the air, and let whichever
-    // answer landed last be read as the answer to the last press.
-    if (!handle || calling !== null) return;
-    setCalling(person.id);
+    // One at a time: `act` holds one `busy` and one `notice` for the whole sheet, so a second press
+    // under the first would unlock the field mid-flight and let whichever answer landed last be
+    // read as the answer to the last press.
+    if (!handle || busy) return;
     void act(
       async (session) => {
         const added = await inviteByUsername(session, id, handle, newcomerRole);
         // The api is idempotent and answers 200 either way, so a re-add is only visible
         // against the roster as it stood before the call.
         const already = members?.some((member) => member.id === added.id) ?? false;
-        if (typed) {
-          setInvited(added);
-          // The field has done its job, and emptying it brings the whole contact list back under
-          // the row of the person just invited.
-          setUsername('');
-        }
-        // The roster is what takes them out of the list under the field: one truth, read back from
-        // the api, rather than the sheet crossing a name off on its own account.
+        // The sheet is emptied of who it was about: the roster behind it is what says they are in.
+        setUsername('');
+        setPicked(null);
+        // And that roster is read back from the api rather than crossed off here on the sheet's own
+        // account — one truth, which is also what takes them out of the chips.
         load();
         return already
           ? s.members.already(memberName(added), s.role[added.role])
           : s.members.added(memberName(added), s.role[added.role]);
       },
       { 403: s.members.inviteDenied },
-    ).finally(() => setCalling(null));
-  };
-
-  /**
-   * The chip on the row of somebody just invited by name. Outside `act`: it is nobody's answer to
-   * the invite, and clearing the line that says «Добавили Рому» to say nothing in its place would
-   * take away the very thing this chip is standing beside. Only a failure has anything to say.
-   */
-  const keep = (person: Member) => {
-    const handle = person.username;
-    if (!token || !handle) return;
-    addContact(token, handle).then(
-      // By id and not by pushing: the api answers 200 to saving somebody already saved, so a second
-      // press before the first answer came back would otherwise leave them on the list twice.
-      (contact) =>
-        setContacts((held) => [...(held ?? []).filter((c) => c.id !== contact.id), contact]),
-      (e: unknown) => setNotice(errorMessage(e)),
     );
   };
 
@@ -304,25 +291,41 @@ export function People({ id, head }: { id: string; head: Head }) {
       <MemoryHead {...head} />
 
       <ScrollView contentContainerStyle={styles.body}>
-        {memory ? (
-          <Text role="meta">{formatEventDates(memory.event_start, memory.event_end)}</Text>
-        ) : null}
-
         {error !== null ? (
           <Banner tone="error" text={error}>
             <Button size="xs" variant="quiet" label={s.action.retry} onPress={load} />
           </Banner>
         ) : members === null ? (
-          <Empty busy text={s.state.loading} />
+          <View style={styles.middle}>
+            <Empty busy text={s.state.loading} />
+          </View>
         ) : (
           <>
-            {/* A section of the face, and the kit sets those in `.t-title` — its type specimen
-                draws this very heading in it. Muted 13 is `.t-meta`, which is the voice of a fact
-                beside a name, not of the heading over the whole roster. A heading to a rotor, too:
-                under the memory's own name in the appbar, it is the second stop on the way down. */}
-            <Text accessibilityRole="header" role="title">
-              {s.members.roster}
-            </Text>
+            {/* The head of the roster (spec 8): what the list is, how far it has got, and — for the
+                organizer — the way into editing it. A section's heading is `title`; the line under
+                it is the count of people and the count of those who have brought their frames, which
+                is the one number the organizer opens this face for. */}
+            <View style={styles.roster}>
+              <View style={styles.grow}>
+                <Text accessibilityRole="header" role="title">
+                  {s.members.roster}
+                </Text>
+                <Text role="meta">
+                  {s.memory.people(members.length)} ·{' '}
+                  {s.members.brought(brought, bringers.length)}
+                </Text>
+              </View>
+              {role === 'organizer' ? (
+                <Button
+                  variant="small"
+                  icon={Pencil}
+                  label={editing ? s.members.editDone : s.members.edit}
+                  onPress={() => setEditing((was) => !was)}
+                  disabled={busy}
+                />
+              ) : null}
+            </View>
+
             {/* A `.map` and not a FlatList: this is one event's guest list inside a ScrollView,
                 and nesting a virtualised list in one is the thing React Native asks you not to do.
                 One View around it all so the rows keep the kit's own hairline and padding instead of
@@ -333,11 +336,11 @@ export function People({ id, head }: { id: string; head: Head }) {
 
                 // Only on one's own row, and only while there is something left to say: both
                 // terminal statuses are the person's own word, and this is the way to give it
-                // unprompted. It stands in the status's own place (kit, «Экраны» 6, «Свой статус»),
-                // because the standing and the switch that sets it are one thing, and a chip is
-                // exactly as tall as the word it replaces — which is what keeps this row level with
-                // the ones around it. It used to be a small button under the row and that is what
-                // was reported: it pushed one row taller than the rest and the stack came out ragged
+                // unprompted. It stands in the status's own place (spec 8, «Свой статус»), because
+                // the standing and the switch that sets it are one thing, and a chip is exactly as
+                // tall as the word it replaces — which is what keeps this row level with the ones
+                // around it. It used to be a small button under the row and that is what was
+                // reported: it pushed one row taller than the rest and the stack came out ragged
                 // (TASK-111). Only for somebody who could have added something: doc-01 gives
                 // «загружать медиа» to «Добавление» and up, so a viewer is a person nobody is
                 // waiting on — asking them to declare «ждать нечего» asks them to answer for
@@ -356,22 +359,28 @@ export function People({ id, head }: { id: string; head: Head }) {
                   <RowMember
                     key={member.id}
                     name={self ? s.members.you(memberName(member)) : memberName(member)}
-                    // Spec 7.5 writes the second line as «@ник · роль · N кадров» — one phrase
-                    // under the name, with what they have brought on the end of it. A dash until it
-                    // is counted rather than a nought, which would be a different thing said out
-                    // loud; either way the line is there from the first frame drawn, so the row does
-                    // not jump when the count lands.
-                    meta={`${memberHandle(member)} · ${s.role[member.role]} · ${
-                      shots ? s.memory.frames(shots.get(member.id) ?? 0) : '—'
-                    }`}
+                    // Spec 7.5 writes the second line as «@ник · роль · N кадров», and the role in
+                    // it is «Добавление» or «Просмотр» — never «Организатор», which is the badge
+                    // beside the name and would be the same word twice in one row. A dash until the
+                    // gallery is counted rather than a nought, which would be a different thing said
+                    // out loud; either way the line is there from the first frame drawn, so the row
+                    // does not jump when the count lands.
+                    meta={[
+                      memberHandle(member),
+                      member.role === 'organizer' ? null : s.role[member.role],
+                      shots ? s.memory.frames(shots.get(member.id) ?? 0) : '—',
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
                     ring={member.role === 'organizer'}
+                    badge={
+                      member.role === 'organizer' ? (
+                        <BadgeOrganizer label={s.role[member.role]} sm />
+                      ) : null
+                    }
                     status={
                       mine ? (
-                        <Chip
-                          label={s.members.sayNothing}
-                          onPress={sayNothing}
-                          disabled={busy}
-                        />
+                        <Chip label={s.members.sayNothing} onPress={sayNothing} disabled={busy} />
                       ) : (
                         <BadgeContribution
                           state={
@@ -387,12 +396,11 @@ export function People({ id, head }: { id: string; head: Head }) {
                     }
                     divider={index > 0}
                   >
-                    {member.role === 'organizer' ? <BadgeOrganizer label={s.role[member.role]} sm /> : null}
-                    {/* The organizer's cross, drawn small so it stands inside a line of text
-                        rather than over it. On the organizer's own row there is none — and the
-                        kit holds that column open anyway, so the role chips of a stack that has
-                        crosses stand at one depth instead of stepping in and out. */}
-                    {role !== 'organizer' ? null : self ? (
+                    {/* The cross of the editing mode, drawn small so it stands inside a line of
+                        text rather than over it. On the organizer's own row there is none — and the
+                        column is held open anyway, so the marks of a stack that has crosses stand at
+                        one depth instead of stepping in and out. */}
+                    {!editing || role !== 'organizer' ? null : self ? (
                       <View style={styles.noCross} />
                     ) : (
                       <IconButton
@@ -413,56 +421,61 @@ export function People({ id, head }: { id: string; head: Head }) {
         {notice ? <Banner text={notice} /> : null}
       </ScrollView>
 
-      {/* The kit's own footer for this face: the whole reason it exists is that there be more
+      {/* The one glowing action of this face: the whole reason it exists is that there be more
           people in the memory. Behind the same level the api gates inviting on — a viewer is shown
-          neither this nor the crosses (kit, «Экраны» 6, «Края»), and for them the face simply ends
-          with the roster. */}
+          neither this nor the crosses, and for them the face simply ends with the roster. */}
       {mayContributeHere ? (
-        <View style={styles.pad}>
-          <ActionBar>
-            <Button
-              variant="primary"
-              wide
-              label={s.action.invite}
-              onPress={() => setInviting(true)}
-              disabled={busy}
-            />
-          </ActionBar>
-        </View>
+        <ActionBar>
+          <Button
+            variant="primary"
+            wide
+            icon={UserPlus}
+            label={s.action.invite}
+            onPress={() => setInviting(true)}
+            disabled={busy}
+          />
+        </ActionBar>
       ) : null}
 
-      {/* Both roads in, on one sheet: the level a newcomer arrives at is the same question for
-          both, and it is asked once above them. `visible` and nothing else — the Modal drops its
-          children while hidden, so each open starts the rise over. */}
-      <Sheet visible={inviting} onCancel={() => setInviting(false)}>
-        <Text accessibilityRole="header" role="title">
-          {s.members.inviteTitle}
-        </Text>
-        {/* The kit has no switch of its own, so the platform's wears the kit's colours — once, in
-            `kit/toggle.tsx`, rather than spelled out on every screen that needs one (TASK-56). */}
-        <Toggle
-          label={s.members.mayAdd}
-          value={mayAdd}
-          onValueChange={setMayAdd}
-          disabled={busy}
-        />
-        {/* One field and two answers, and no second one anywhere on the sheet (kit, «Два пути»):
-            what is typed narrows the contacts under it, and a name none of them holds is asked of
-            the api. There is no «Пригласить» button under it either — what is typed is a sieve
-            until somebody is found, and then it is their own row that carries the press. */}
+      {/* `SheetInvite`, both roads in on one sheet: the nick of somebody whose name is known, the
+          chips of people already saved, and the link for whoever has neither. The level a newcomer
+          arrives at is the same question for all of them and is asked once, above. `visible` and
+          nothing else — the Modal drops its children while hidden, so each open starts the rise
+          over. */}
+      <Sheet
+        visible={inviting}
+        onCancel={() => setInviting(false)}
+        title={s.members.inviteTitle}
+        scroll
+        footer={
+          <Button
+            variant="primary"
+            label={s.members.inviteDo}
+            busy={busy}
+            disabled={target === null}
+            onPress={() => (target === null ? undefined : sendInvite(target))}
+          />
+        }
+      >
+        {/* The field carries no visible label — the sheet's own heading is over it and the `@` in
+            front says what goes in — but keeps one for a screen reader (spec 7.9). */}
         <Field
           label={s.username.label}
+          labelHidden
+          variant="handle"
+          prefix="@"
           value={username}
-          onChangeText={setUsername}
+          onChangeText={(text) => {
+            setUsername(text);
+            setPicked(null);
+          }}
           placeholder={s.username.placeholder}
           autoCapitalize="none"
           autoCorrect={false}
           editable={!busy}
-          // The check is answered in the field and not in a button (kit, «Ждём»). Whoever *was*
-          // found is answered by their row instead: saying «Костя найден» over a row that already
-          // says Костя spends a line saying nothing. Somebody already on the roster has no row on
-          // this sheet to be answered by — they are behind the scrim — so the field says it: not an
-          // error, just the thing that is already true.
+          // The check is answered in the field itself: «Никто не носит такой ник» under it, and for
+          // somebody already on the roster the plain fact that they are — not an error, and nowhere
+          // else to say it, since that roster is behind the scrim.
           state={found === 'none' ? 'error' : undefined}
           hint={
             looking
@@ -475,123 +488,93 @@ export function People({ id, head }: { id: string; head: Head }) {
           }
         />
 
-        {/* Invited by name, and so the one person on this sheet who might be worth keeping. The
-            offer sits on their own row, in the right end of it where a contact's «Позвать» stands
-            — nothing rises over the sheet and nothing is asked (kit, «Экраны» 6, «Сохранить»).
-            Pressed, the chip stays exactly where it is and reads «В контактах»; unpressed, it
-            leaves with the sheet and was never in anybody's way. */}
-        {invited !== null ? (
-          <RowMember
-            name={memberName(invited)}
-            meta={memberHandle(invited)}
-            status={<BadgeContribution state="planned" label={s.members.invited} />}
-          >
-            <Chip
-              label={kept ? s.members.keptContact : s.members.keepContact}
-              selected={kept}
-              // Saved is a standing and not a switch: the way off a contact list is that list's
-              // own cross, not a chip on a sheet that is about to close.
-              onPress={kept ? undefined : () => keep(invited)}
-            />
-          </RowMember>
-        ) : null}
+        {/* The kit has no switch of its own, so the platform's wears the kit's colours — once, in
+            `kit/toggle.tsx`, rather than spelled out on every screen that needs one (TASK-56). */}
+        <Toggle label={s.members.mayAdd} value={mayAdd} onValueChange={setMayAdd} disabled={busy} />
 
-        {/* The first road in, under the field that sieves it. Nobody left to offer — no contacts at
+        {/* The first road in, sieved by the field above it. Nobody left to offer — no contacts at
             all, or every one of them already here — and the block is not there: the sheet is then
             exactly what it was before contacts existed, never an empty list saying so. */}
         {pickable.length > 0 ? (
           <View style={styles.section}>
-            <Text accessibilityRole="header" role="label">
-              {s.members.fromContacts}
+            <Text accessibilityRole="header" role="eyebrow">
+              {s.members.fromContacts.toUpperCase()}
             </Text>
-            {/* `.picklist{max-height:216px}` — two rows and half of the third, scrolling inside
-                itself so that a long list never grows the sheet up into the screen. */}
-            <ScrollView style={styles.picklist}>
-              {pickable.map((contact, index) => (
-                <RowMember
+            <View style={styles.chips}>
+              {pickable.map((contact) => (
+                <Chip
                   key={contact.id}
-                  name={memberName(contact)}
-                  meta={memberHandle(contact)}
-                  divider={index > 0}
-                >
-                  <Button
-                    size="xs"
-                    label={s.members.inviteDo}
-                    busy={calling === contact.id}
-                    onPress={() => sendInvite(contact, false)}
-                  />
-                </RowMember>
-              ))}
-            </ScrollView>
-          </View>
-        ) : null}
-
-        {/* The field's other answer: nobody saved holds that name, but somebody in Remember does.
-            One row under its own rule, with the same «Позвать» a contact's row carries — this is
-            the whole of the road by hand, and pressing it is what leaves the chip above. Under the
-            contacts and not over them: what is already kept is the likelier answer. */}
-        {stranger !== null ? (
-          <View style={styles.section}>
-            <Text accessibilityRole="header" role="label">
-              {s.contacts.notSaved}
-            </Text>
-            <View>
-              <RowMember name={memberName(stranger)} meta={memberHandle(stranger)}>
-                <Button
-                  size="xs"
-                  label={s.members.inviteDo}
-                  busy={calling === stranger.id}
-                  onPress={() => sendInvite(stranger, true)}
+                  avatar={memberName(contact)}
+                  label={memberName(contact)}
+                  selected={picked?.id === contact.id}
+                  disabled={busy}
+                  onPress={() => {
+                    // A chip and the field are one slot: pressing one lets go of the other, so the
+                    // button below can never be about two people at once.
+                    setUsername('');
+                    setPicked(picked?.id === contact.id ? null : contact);
+                  }}
                 />
-              </RowMember>
+              ))}
             </View>
           </View>
         ) : null}
 
-        <Text role="meta">{s.members.inviteLink}</Text>
-        {shareable === null ? (
-          // Asked for rather than loaded with the face: the api mints the link on this
-          // very call, and a memory nobody shares should not carry one.
-          <Button label={s.members.getLink} onPress={showLink} disabled={busy} />
-        ) : (
-          <>
-            <View style={styles.inviteLink}>
-              <Text role="meta" numberOfLines={1} style={styles.inviteUrl}>
-                {shareable.link}
-              </Text>
-              {/* The platform's own share sheet, which is also the copy button — no
-                  clipboard dependency for something every OS already does better. */}
-              <Button
-                size="xs"
-                icon={Share2}
-                label={s.action.share}
-                onPress={() => void Share.share({ message: shareable.link }).catch(() => {})}
-                disabled={busy}
-              />
-            </View>
-            <Text role="meta">{s.members.linkGrants(shareable.grants)}</Text>
-            {/* Section 11: replacing a link is a quiet thing beside it, not a red button. */}
+        {/* The other road, for whoever's nick nobody knows — under a rule of its own, the way the
+            layout separates it from the two above. */}
+        <Divider />
+        <View style={styles.link}>
+          <View style={styles.grow}>
+            <Text role="row">{s.members.inviteLink}</Text>
+            {/* What following it will grant: the link's own level once there is one, and until then
+                the level the switch above is set to — which is what a fresh link would carry. */}
+            <Text role="note">{s.members.linkGrants(s.role[invite?.role ?? newcomerRole])}</Text>
+          </View>
+          {shareable === null ? (
+            // Asked for rather than loaded with the face: the api mints the link on this very call,
+            // and a memory nobody shares should not carry one.
+            <Button variant="small" label={s.members.getLink} onPress={showLink} disabled={busy} />
+          ) : (
+            // The platform's own share sheet, which is also the copy button — no clipboard
+            // dependency for something every OS already does better.
             <Button
-              size="xs"
-              variant="quiet"
-              label={s.members.replaceLink}
-              onPress={rotate}
+              variant="small"
+              icon={Share2}
+              label={s.action.share}
+              onPress={() => void Share.share({ message: shareable.link }).catch(() => {})}
               disabled={busy}
-              style={styles.quiet}
             />
-          </>
+          )}
+        </View>
+        {/* Replacing a link is a quiet thing beside it, not a red button — and there is nothing to
+            replace until one has been asked for. */}
+        {shareable === null ? null : (
+          <Button
+            size="xs"
+            variant="quiet"
+            label={s.members.replaceLink}
+            onPress={rotate}
+            disabled={busy}
+            style={styles.quiet}
+          />
         )}
+
         {/* The same notice as the one on the face, because half of what it says is said in
             answer to something pressed in here — and the face's copy is under the scrim. */}
         {notice ? <Banner text={notice} /> : null}
       </Sheet>
 
-      {/* Both halves of the same act, and irreversible either way — doc-01 takes the media too.
-          Section 13: what cannot be undone is asked on a sheet that names what will be lost, and
+      {/* `SheetConfirmMember` — irreversible, and doc-01 takes the material with the person. So the
+          sheet carries their face, what they brought, and the price in figures before the press;
           the button repeats the verb of the question. */}
       {dropping !== null ? (
         <ConfirmSheet
           visible
+          who={memberName(dropping)}
+          meta={[memberHandle(dropping), dropCost === null ? null : s.memory.frames(dropCost)]
+            .filter(Boolean)
+            .join(' · ')}
+          price={dropCost ? s.members.priceFrames(dropCost) : undefined}
           title={leaving ? s.members.leaveAsk : s.members.removeAsk(memberName(dropping))}
           text={leaving ? s.members.leaveText : s.members.removeText}
           confirmLabel={leaving ? s.members.leaveDo : s.members.removeDo}
@@ -609,20 +592,21 @@ export function People({ id, head }: { id: string; head: Head }) {
 }
 
 const styles = StyleSheet.create({
-  // The kit's 16 at the sides, the same the head above keeps, and a tail under the last row so it
-  // does not end against the bar.
-  body: { paddingHorizontal: space.s4, paddingBottom: space.s8, gap: space.s3 },
-  pad: { paddingHorizontal: space.s4 },
-  // `.stack-2` — the rule and the list it introduces, the way the contacts screen sets the same
-  // pair. The list itself is the kit's `.picklist`, cut where the third row is half read.
+  // The kit's 16 at the sides, the same the head above keeps — the bar below draws its own, so
+  // nothing here wraps it in a second copy.
+  body: { flexGrow: 1, paddingHorizontal: space.s4, paddingBottom: space.s6, gap: space.s3 },
+  // Waiting holds the place of the roster in the middle of the body rather than blinking at the top.
+  middle: { flex: 1, justifyContent: 'center' },
+  // The heading, its count, and the way into editing — one line, the button never shrinking.
+  roster: { flexDirection: 'row', alignItems: 'center', gap: space.s3, paddingBottom: space.s1 },
+  grow: { flex: 1, minWidth: 0 },
+  // A rule and the block it introduces, the way the contacts screen sets the same pair.
   section: { gap: space.s2 },
-  picklist: { maxHeight: 216 },
+  // Spec 7.3: chips lie in a row that wraps, 8 apart.
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.s2 },
   // The kit's `minmax(28px,auto)` last column, kept open where there is no cross to put in it.
   noCross: { width: 28 },
   quiet: { alignSelf: 'flex-start' },
-  // The link and whatever the screen offers to do with it, side by side; replacing it sits quietly
-  // underneath rather than inside, because a link gets replaced often and that is no red-button
-  // moment.
-  inviteLink: { flexDirection: 'row', alignItems: 'center', gap: space.s2 },
-  inviteUrl: { flex: 1, minWidth: 0 },
+  // The link and what the sheet offers to do with it, side by side.
+  link: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },
 });
