@@ -573,6 +573,28 @@ export const en = {
     onceOnly:
       'A finished movie is not remade. If you want it another way — put together one more, there is no limit on them.',
 
+    /** `MontageProgress` — the waiting the order leads to, and what is known while it lasts. */
+    building: 'Making the movie',
+    closeApp: 'The app can be closed — everyone here is told when the movie is ready.',
+    /**
+     * The five stages of the making, in the worker's own order. Named and not counted: «73 %» tells
+     * a person nothing, «the director builds the story» tells them where it is.
+     */
+    stage: {
+      screening: 'Dropping the spoiled frames',
+      understanding: 'Working out what is in them',
+      story: 'The director builds the story',
+      rhythm: 'Laying them out to the beat',
+      cut: 'Cutting it together',
+    },
+    /** The word on the right of a stage: one that is behind, and the one being worked on. */
+    stageDone: 'done',
+    stageRunning: 'under way',
+    /** Where the second try lives, said on the screen that watched the first one fall over. */
+    retryInMemory: 'It can be put together again from the movie’s card in the memory.',
+    /** The one button under the waiting — it leaves the screen and never touches the making. */
+    toMemory: 'To the memory',
+
     /** `SheetTooLittle` — raised in place of step 1, when the order would not go through. */
     tooLittleTitle: 'Too little material yet',
     tooLittleText: (n: number) =>
@@ -1036,6 +1058,21 @@ export const ru: Strings = {
     directorDecides: 'Режиссёр решит сам',
     onceOnly:
       'Готовый ролик не переделывается. Если захотите иначе — соберёте ещё один, их число не ограничено.',
+
+    building: 'Собираем ролик',
+    closeApp:
+      'Приложение можно закрыть — мы пришлём уведомление всем участникам, когда ролик будет готов.',
+    stage: {
+      screening: 'Отсев брака',
+      understanding: 'Разбираем, что на кадрах',
+      story: 'Режиссёр строит историю',
+      rhythm: 'Раскладываем в ритм трека',
+      cut: 'Склеиваем',
+    },
+    stageDone: 'готово',
+    stageRunning: 'идёт',
+    retryInMemory: 'Собрать заново можно на карточке ролика в воспоминании.',
+    toMemory: 'К воспоминанию',
 
     tooLittleTitle: 'Материала пока мало',
     tooLittleText: (n: number) =>

@@ -27,14 +27,16 @@ vi.mock('expo-file-system', () => ({
   },
 }));
 
-import { orderMontage, type MediaItem } from '@/api';
+import { orderMontage, type MediaItem, type Montage } from '@/api';
 import {
   afterTap,
+  beingMade,
   blankOrder,
   enoughMaterial,
   MIN_FRAMES,
   pickOf,
   rejectedGroups,
+  stages,
   taken,
   wishes,
   type Order,
@@ -235,4 +237,47 @@ test('their own track goes to R2 part by part, and the order names it by its key
   expect(body.music_track_id).toBeUndefined();
 
   vi.unstubAllGlobals();
+});
+
+/**
+ * And the other side of that one call — the waiting the order lands on (`MontageProgress`,
+ * TASK-163). The api says one word about the whole job, so what the screen may say about it is
+ * decided here, where it can be checked without a phone.
+ */
+
+test('the worker is owed a queued and a processing montage, and nothing else', () => {
+  // What starts the re-reading, on the waiting screen and on the movies face both. A `ready` or a
+  // `failed` row is the worker's last word on it, and a screen left polling over one would ask the
+  // api the same question every five seconds for as long as it stays open.
+  expect(beingMade('queued')).toBe(true);
+  expect(beingMade('processing')).toBe(true);
+  expect(beingMade('ready')).toBe(false);
+  expect(beingMade('failed')).toBe(false);
+});
+
+test('the five stages say what is known and guess at nothing', () => {
+  const standing = (status: Montage['status']) => stages(status).map((step) => step.state);
+
+  // The stages themselves are the work in the order it happens, whatever the standing.
+  for (const status of ['queued', 'processing', 'ready', 'failed'] as const) {
+    expect(stages(status).map((step) => step.stage)).toEqual([
+      'screening',
+      'understanding',
+      'story',
+      'rhythm',
+      'cut',
+    ]);
+  }
+
+  // Waiting its turn: the two that happen to a frame as it lands are behind before the order is
+  // placed, and nothing of the montage job itself has begun — nor is any of it claimed to have.
+  expect(standing('queued')).toEqual(['done', 'done', 'waiting', 'waiting', 'waiting']);
+  // Picked up: the first thing the worker does with the job is the director, so that is the one it
+  // is on. What follows the director is its own business and nobody is told when it gets there.
+  expect(standing('processing')).toEqual(['done', 'done', 'running', 'waiting', 'waiting']);
+  expect(standing('ready')).toEqual(['done', 'done', 'done', 'done', 'done']);
+  // Nothing is «идёт» on a montage that fell over: the screen says it broke and hands over the
+  // worker's own line, because which stage it broke on is exactly what nothing here knows.
+  expect(standing('failed')).not.toContain('running');
+  expect(standing('failed').slice(2)).toEqual(['waiting', 'waiting', 'waiting']);
 });

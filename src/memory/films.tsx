@@ -30,6 +30,7 @@ import {
 } from '@/kit';
 import { useStrings } from '@/language';
 import { MemoryHead, type Head } from '@/memory/head';
+import { beingMade, WHILE_MAKING_MS } from '@/montage';
 import { useTurnsWithPhone } from '@/orientation';
 import { type Strings } from '@/strings';
 import { space, themes, ThemePin } from '@/theme';
@@ -43,20 +44,12 @@ const MONTAGE_STATE: Record<Montage['status'], MontageState> = {
 };
 
 /**
- * How long the face waits before reading again while a montage is being cut. Longer than the frames
- * face waits on a thumbnail, because this is minutes of work and not seconds of it — five is still
- * inside the moment somebody spends looking at the card wondering whether it moved.
- */
-const WHILE_MAKING_MS = 5000;
-
-/**
- * Whether anything in the list is still owed by the worker. A `queued` or `processing` row only
- * changes on the worker's side, so a face holding one has news coming that nothing will tell it —
- * this is its reason to look again, and its reason to stop.
+ * Whether anything in the list is still owed by the worker — its reason to look again, and its
+ * reason to stop. The one-row question behind it, and how long to wait before asking it, are
+ * `@/montage`'s: the screen an order lands on waits over one montage and asks both the same way.
  */
 const stillMaking = (montages: readonly Montage[] | null) =>
-  montages?.some((montage) => montage.status === 'queued' || montage.status === 'processing') ??
-  false;
+  montages?.some((montage) => beingMade(montage.status)) ?? false;
 
 /**
  * What a montage is called on screen: how long it runs once it does, and the day it was asked for
