@@ -487,6 +487,15 @@ export type MediaItem = {
   thumbnail_url: string | null;
   /** The 720p H.264 the gallery plays progressively. A photo has none. */
   preview_url: string | null;
+  /**
+   * What the automatic pass made of this frame (doc-03), handed over as the worker left it: whether
+   * it would drop it, and the word for why — `blur`, `exposure`, `unreadable`. Null on both while
+   * the analysis has not looked yet, which is «ещё не готово» and deliberately not `false`: that
+   * would read as «looked at and kept». A proposal and not a verdict — the organizer overrules it in
+   * either direction on the first step of the order (`@/montage`).
+   */
+  screening_rejected: boolean | null;
+  screening_reason: string | null;
 };
 
 /**
@@ -546,11 +555,13 @@ export function deleteMedia(
 }
 
 /**
- * The tracks the montage worker holds, by id. Three strings the api enumerates and refuses anything
+ * The tracks the montage worker holds, by id. Five strings the api enumerates and refuses anything
  * outside of, so they are written out here rather than typed as `string` — what each one sounds
- * like is the worker's, and what each one is called on screen is the screen's.
+ * like is the worker's (`projects/montage/tracks`), and what each one is called on screen is the
+ * screen's. The shelf's own order is the layout's, and it lives in `@/montage` beside the running
+ * time of each one.
  */
-export type MusicTrackId = 'warm' | 'bright' | 'calm';
+export type MusicTrackId = 'bright' | 'warm' | 'calm' | 'night' | 'road';
 
 /**
  * Which way up the finished video stands (doc-03). The api takes these two and nothing else, and
@@ -559,14 +570,28 @@ export type MusicTrackId = 'warm' | 'bright' | 'calm';
 export type MontageOrientation = 'landscape' | 'portrait';
 
 /**
- * What was asked for at the order — the only three wishes doc-03 allows, every one of them
- * optional. Named once and shared by both ends of the round trip: this is the body `orderMontage`
- * sends and it is `Montage.params` coming back, which is the same shape on purpose, the way
- * `Original` is one shape for both download routes.
+ * What was asked for at the order — the wishes doc-03 allows, every one of them optional. Named once
+ * and shared by both ends of the round trip: this is the body `orderMontage` sends and it is
+ * `Montage.params` coming back, which is the same shape on purpose, the way `Original` is one shape
+ * for both download routes.
+ *
+ * The four steps of the order (spec 8) fill them in: the frames picked out by hand, the story, the
+ * music, the length and the shape. `@/montage` is what turns a wizard's state into this.
  */
 export type MontageWishes = {
   target_seconds?: number;
+  /** What the organizer said the video is about, in their own words. */
+  story_text?: string;
+  /** The frames settled by hand: these go in whatever the worker thinks, those stay out. */
+  include_media_ids?: string[];
+  exclude_media_ids?: string[];
   music_track_id?: MusicTrackId;
+  /**
+   * Their own track in R2 instead of one off the shelf — the key `finishMusicUpload` hands back.
+   * Never together with `music_track_id`: the api answers 400 to a body carrying both, because two
+   * answers to «под что монтировать» would leave the worker to choose.
+   */
+  music_track_key?: string;
   orientation?: MontageOrientation;
 };
 
@@ -602,11 +627,11 @@ export function listMontages(token: string, memoryId: string): Promise<Montage[]
 }
 
 /**
- * «Смонтируй ролик» — the organizer's alone, 403 for anybody else. The wishes are the only three
- * doc-03 allows, and all of them may be left out: the api fills the length in itself, a track nobody
- * chose is the worker's to pick, and no orientation is horizontal. 409 when there is too little
- * material to cut anything out of, and the body then carries how much there is against how much is
- * needed.
+ * «Смонтируй ролик» — the organizer's alone, 403 for anybody else. Every wish may be left out: the
+ * api fills the length in itself, a track nobody chose is the worker's to pick, and no orientation is
+ * horizontal. 409 when there is too little material to cut anything out of, and the body then
+ * carries how much there is against how much is needed; 400 for a frame named as both in and out,
+ * for a frame that is not this memory's, and for a body carrying both a track id and a track key.
  */
 export function orderMontage(
   token: string,
@@ -627,6 +652,48 @@ export function retryMontage(
   montageId: string,
 ): Promise<Montage> {
   return request(`/memories/${memoryId}/montages/${montageId}/retry`, { method: 'POST', token });
+}
+
+/**
+ * «Свой трек с телефона» (doc-03, spec 8 step 3): the organizer's own music instead of one off the
+ * shelf. It goes into R2 the way material does — this announces the file and hands back the signed
+ * links to send it with — and it is the organizer's alone, 403 for anybody else. 413 over the
+ * file ceiling, 503 while the api has no bucket.
+ *
+ * The plan is the same shape the media intent answers with, deliberately: the parts are cut and
+ * sent by the same arithmetic (`@/upload-queue`), and `@/music` is what does the sending. There is
+ * no re-issue route for these links — a track is small and the hour is long — so an upload that
+ * breaks is started again rather than resumed.
+ */
+export function startMusicUpload(
+  token: string,
+  memoryId: string,
+  sizeBytes: number,
+): Promise<UploadPlan> {
+  return request(`/memories/${memoryId}/music`, {
+    method: 'POST',
+    body: { size_bytes: sizeBytes },
+    token,
+  });
+}
+
+/**
+ * «Загружено» for a track: seals the parts into one object and answers with the key the order names
+ * it by, in `music_track_key`. Idempotent — a repeat only reports where the row stands — and on the
+ * same long leash `finishUpload` has, since the api is waiting on R2 assembling the object.
+ */
+export function finishMusicUpload(
+  token: string,
+  memoryId: string,
+  trackId: string,
+  parts: { part_number: number; etag: string }[],
+): Promise<{ id: string; status: string; key: string }> {
+  return request(`/memories/${memoryId}/music/${trackId}/complete`, {
+    method: 'POST',
+    body: { parts },
+    token,
+    timeout: 60_000,
+  });
 }
 
 /**

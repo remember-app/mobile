@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest';
 
 import memory from './app/memory/[id].tsx?raw';
+import order from './app/memory/[id]/order.tsx?raw';
 import upload from './app/memory/[id]/upload.tsx?raw';
 import home from './app/index.tsx?raw';
 import invite from './app/invite.tsx?raw';
@@ -69,11 +70,15 @@ test('the three faces are three files, and the screen is only which of them is o
   expect(frames).toContain('listMedia(');
   expect(films).toContain('listMontages(');
   expect(people).toContain('listMembers(');
-  for (const moved of ['orderMontage', 'retryMontage', 'CardMontage']) {
+  for (const moved of ['retryMontage', 'CardMontage']) {
     expect(films).toContain(moved);
     expect(people).not.toContain(moved);
     expect(frames).not.toContain(moved);
   }
+  // Asking for a movie is four steps and a screen of its own since TASK-162: this face offers it
+  // and reads its list again when that screen goes, and no face orders anything itself.
+  expect(order).toContain('orderMontage(');
+  for (const face of [frames, films, people]) expect(face).not.toContain('orderMontage');
   for (const stayed of ['RowMember', 'inviteByUsername', 'removeMember']) {
     expect(people).toContain(stayed);
     expect(films).not.toContain(stayed);
@@ -398,7 +403,7 @@ test('every face shuts its own windows when it loses focus', () => {
   expect(viewer).toContain('onRequestClose={onClose}');
   expect(frames).toContain('onClose={() => setOpen(null)}');
   expect(viewer).toContain('onCancel={() => setConfirming(false)}');
-  expect(films).toContain('onCancel={() => setOrdering(false)}');
+  expect(order).toContain('onCancel={() => setShowDropped(false)}');
   expect(films).toContain('onRequestClose={() => setPlaying(null)}');
 });
 
@@ -424,7 +429,12 @@ test('the ember on a face is the one action that face is for', () => {
   // Two on the frames because the footer has two shapes and only ever one of them is on screen:
   // «Скачать N файлов» while picking, «Добавить кадры» the rest of the time.
   expect(frames.match(/variant="primary"/g)).toHaveLength(2);
-  expect(films.match(/variant="primary"/g)).toHaveLength(2); // «Смонтировать» + the order sheet
+  // One on the movies since TASK-162: «Смонтировать ролик» in the footer, and nothing else — the
+  // sheet that used to carry the second one is a screen of its own now.
+  expect(films.match(/variant="primary"/g)).toHaveLength(1);
+  // Three on that screen, one per surface: «Дальше»/«Смонтировать» on the wizard itself, «Вернуть
+  // все» on the sheet of what was dropped, «Добавить кадры» on the one that says there is too little.
+  expect(order.match(/variant="primary"/g)).toHaveLength(3);
   // Two on the people for the same reason since TASK-145: «Пригласить» in the footer, and the one
   // «Позвать» at the foot of the invite sheet. The sheet had none of its own while every press that
   // put somebody in sat on that person's own row (TASK-131); the layout's `SheetInvite` is one of
@@ -521,17 +531,39 @@ test('the order button waits for the list it prepends to', () => {
   expect(frames).toContain('marginBottom: Math.max(insets.bottom');
 });
 
-test('the order sheet asks three things, and all three go out with the order', () => {
-  // TASK-126: orientation joined the length and the track. Horizontal is the state the sheet opens
-  // in and the one the api reads out of a body that never mentions it, so an untouched sheet orders
-  // what it always ordered — and the two words on the buttons come off the dictionary like the rest.
-  expect(films).toContain("useState<MontageOrientation>('landscape')");
-  expect(films).toContain('orientation,');
-  expect(films).toContain('label={s.montage.orientation[way]}');
+test('an order is asked for in four steps, on a screen of its own, and sent in one call', () => {
+  // TASK-162: the sheet with three switches is gone; spec 8 asks in four steps — the frames, the
+  // story, the music, the shape — and nothing leaves the phone until the last button of the last
+  // one. The face only opens it.
+  expect(layout).toContain('<Stack.Screen name="memory/[id]/order"');
+  expect(films).toContain("router.push({ pathname: '/memory/[id]/order', params: { id } })");
+  expect(order).toContain('const STEPS = 4;');
+  expect(order).toContain('await orderMontage(token, id, wishes(items, order));');
+  // Too little material raises `SheetTooLittle` in place of step 1, and its own button leads to
+  // where material comes from — the question is asked before the four steps, not after them.
+  expect(order).toContain('const short = items !== null && !enoughMaterial(items);');
+  expect(order).toContain('<Sheet\n        visible={short}');
+  expect(order).toContain("router.replace({ pathname: '/memory/[id]/upload', params: { id } })");
+  // Their own track goes up the moment it is picked, so the last button of the wizard is one call.
+  expect(order).toContain('await sendOwnTrack(token, id,');
+  // Every wish of spec 8 is in the body that goes out, and the api names all of them.
+  for (const wish of [
+    'target_seconds',
+    'story_text',
+    'include_media_ids',
+    'exclude_media_ids',
+    'music_track_id',
+    'music_track_key',
+    'orientation',
+  ]) {
+    expect(api).toContain(`${wish}?`);
+  }
   expect(api).toContain("export type MontageOrientation = 'landscape' | 'portrait';");
   for (const set of [en, ru]) {
     expect(Object.keys(set.montage.orientation)).toEqual(['landscape', 'portrait']);
     expect(set.montage.shape).toBeTruthy();
+    // The shelf is five since the worker grew two (TASK-157/161), in the order the layout draws it.
+    expect(Object.keys(set.montage.track)).toEqual(['bright', 'warm', 'calm', 'night', 'road']);
   }
 });
 
@@ -609,7 +641,10 @@ test('the films face reads again by itself while a montage is being cut', () => 
   // would vanish, and with nothing pending left in that snapshot the loop above would clear itself
   // and never read again.
   expect(films).toContain('if (quiet && writes.current !== startedAt) return;');
-  expect(films.match(/writes\.current \+= 1;/g)).toHaveLength(2);
+  // One write of its own left since TASK-162 — the retry that requeues a row. The order that used
+  // to prepend one happens on a screen of its own now, and this face meets its answer through the
+  // read on focus like any other change.
+  expect(films.match(/writes\.current \+= 1;/g)).toHaveLength(1);
 });
 
 test('the material of a memory has one name — on the card, on the switch, over the sheet', () => {

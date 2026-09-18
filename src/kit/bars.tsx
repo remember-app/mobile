@@ -117,7 +117,9 @@ export function WizardBar({
         </Text>
         <View style={[styles.wizardSide, styles.wizardRight]}>{cancel}</View>
       </View>
-      <StepScale steps={steps} done={step} />
+      {/* Inside the screen's own margins, like everything else in a bar: the row above pads itself
+          and the scale is its sibling, so without this it would run edge to edge under it. */}
+      <StepScale steps={steps} done={step} style={styles.wizardScale} />
     </View>
   );
 }
@@ -215,6 +217,7 @@ const useStyles = themed(({ color }) =>
     // `flex: 1` with `minWidth: 0` is what makes a long name truncate instead of pushing the button
     // on the right off the screen.
     barWords: { flex: 1, minWidth: 0, gap: 2 },
+    wizardScale: { marginHorizontal: space.s4, marginTop: space.s3 },
     wizardSide: { width: 74, alignItems: 'flex-start' },
     wizardRight: { alignItems: 'flex-end' },
     wizardStep: { flex: 1, textAlign: 'center', fontVariant: ['tabular-nums'] },

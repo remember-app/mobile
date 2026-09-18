@@ -112,6 +112,9 @@ function RootNavigator() {
             because it is a screen one comes back from. */}
         <Stack.Screen name="memory/[id]" options={{ title: 'Memory' }} />
         <Stack.Screen name="memory/[id]/upload" options={{ title: 'Upload' }} />
+        {/* Asking for a movie is four steps and a screen of its own (TASK-162); the movies of a
+            memory stay a face of it and not a route. */}
+        <Stack.Screen name="memory/[id]/order" options={{ title: 'Order a movie' }} />
         <Stack.Screen name="contacts" options={{ title: 'Contacts' }} />
         <Stack.Screen name="profile" options={{ title: 'Profile' }} />
         <Stack.Screen name="about" options={{ title: 'About' }} />

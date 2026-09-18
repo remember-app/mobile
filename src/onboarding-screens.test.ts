@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest';
 
 import api from './api.ts?raw';
+import notFound from './app/+not-found.tsx?raw';
 import layout from './app/_layout.tsx?raw';
 import consent from './app/consent.tsx?raw';
 import login from './app/login.tsx?raw';
@@ -76,7 +77,14 @@ test('the address is asked for on a screen of its own, which the mail door opens
     expect(screen, name).toContain('icon={ChevronLeft}');
     expect(screen, name).toContain("back: { position: 'absolute'");
     expect(screen, name).not.toContain('<AppBar');
+    // The arrow is drawn beside `router.back()` — otherwise the doc comment's «way back» promise is
+    // an icon that leads nowhere.
+    expect(screen, name).toContain('onPress={() => router.back()}');
   }
+  // `Login` has no way back at all — «нет пути назад, потому что это начало» — and `Consent` has no
+  // decline to dress up as one either: walking away from the screen is the only refusal it offers.
+  expect(login).not.toContain('ChevronLeft');
+  expect(consent).not.toContain('ChevronLeft');
 });
 
 test('the letter carries six digits now, and the address is sent with them', () => {
@@ -205,4 +213,11 @@ test('nothing is left of the link the server no longer sends', () => {
   expect(en).not.toHaveProperty('link');
   expect(ru).not.toHaveProperty('link');
   expect(en.login).not.toHaveProperty('sendLink');
+});
+
+test('a link the app has no screen for lands on the app, not on the framework’s error page', () => {
+  // The letters already posted are still in inboxes. With no route of its own, `remember://auth/
+  // email?token=…` opens expo-router's own black English «Unmatched Route» page — which reads as a
+  // crash, where the screen that link used to open said the link was spent and offered the way in.
+  expect(notFound).toContain('<Redirect href="/" />');
 });
