@@ -360,8 +360,12 @@ test('no face reaches another by pushing a route: the switch is the only road be
   for (const face of [frames, films, people]) {
     expect(face).not.toContain("pathname: '/memory/[id]'");
     expect(face).not.toContain('/memory/[id]/gallery');
-    expect(face).not.toContain('/memory/[id]/montage');
   }
+  // A screen of its own is not a face. The movies face pushes onto two of them — the order wizard
+  // and, since TASK-169, the waiting over one montage — and both come back here. What this rule
+  // bans is a face drawing another face's route, which neither of those is; the other two faces
+  // have no business with a montage at all.
+  for (const face of [frames, people]) expect(face).not.toContain('/memory/[id]/montage');
 });
 
 test('the platform switch is spelled out once, in the kit', () => {
@@ -624,6 +628,37 @@ test('a placed order lands on the waiting for that montage, not back on the list
   const named = listed.map(([, stage]) => stage);
   expect(named).toHaveLength(5);
   for (const set of [en, ru]) expect(Object.keys(set.montage.stage)).toEqual(named);
+});
+
+test('a card still being made is the second road onto the waiting over it', () => {
+  // TASK-169, spec 7.6: that screen existed from TASK-163 with exactly one way in — having just
+  // placed the order. A card saying «Собирается» in the list did nothing under a finger, so anybody
+  // who walked out of the waiting, or came back to the app an hour later, could not get back to
+  // where the making had got to.
+  expect(films).toContain(
+    'onPress={beingMade(montage.status) ? () => watchMaking(montage) : undefined}',
+  );
+  const leads = films.slice(films.indexOf('const watchMaking'));
+  const road = leads.slice(0, leads.indexOf('});'));
+  // A push and not a replace: the face is what that screen's own `back()` comes home to.
+  expect(road).toContain('router.push({');
+  expect(road).toContain("pathname: '/memory/[id]/montage/[montageId]',");
+  expect(road).toContain('params: { id, montageId: montage.id },');
+  // The frame count is the wizard's alone — it counted them while picking, and nothing counts them
+  // back off a placed order, so this road carries none and the screen says one thing less.
+  expect(road).not.toContain('frames');
+  expect(progress).toContain('frames?: string;');
+
+  // The other two states are untouched: a finished montage is watched where it lies and a fallen one
+  // is started again from its own button, both by the presses they already had.
+  expect(films).toContain(
+    'onPlay={montage.video_url === null ? undefined : () => setPlaying(montage.id)}',
+  );
+  expect(films).toContain('onPress={() => void retry(montage)}');
+  // And the kit is what makes that true: without a press handed over, the card is not a button and
+  // takes no finger at all.
+  expect(cardMontage).toContain("accessibilityRole={onPress ? 'button' : undefined}");
+  expect(cardMontage).toContain('disabled={!onPress}');
 });
 
 test('the waiting ends the way the montage does, and never on a spinner that turns for ever', () => {

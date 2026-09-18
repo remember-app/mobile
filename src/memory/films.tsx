@@ -231,6 +231,22 @@ export function Films({ id, head }: { id: string; head: Head }) {
    */
   const askForOne = () => router.push({ pathname: '/memory/[id]/order', params: { id } });
 
+  /**
+   * Where a montage still being made is watched — `MontageProgress` (spec 8, TASK-163), the screen
+   * that says in stages how far along it is. Until now the only road onto it was having just placed
+   * the order, so anybody who walked out of it, or came back to the app an hour later, had a card
+   * saying «Собирается» and nowhere to press (spec 7.6, TASK-169).
+   *
+   * A push and not a replace: this face is what that screen goes back to, and its own way out is a
+   * `back()`. Nothing about the frames goes over — the count the wizard carries is what it counted
+   * while picking, and nobody counts it back off a finished order; the screen says one thing less.
+   */
+  const watchMaking = (montage: Montage) =>
+    router.push({
+      pathname: '/memory/[id]/montage/[montageId]',
+      params: { id, montageId: montage.id },
+    });
+
   /** The organizer's button under one that fell over: the same row queued again, never a second. */
   const retry = (montage: Montage) =>
     act(
@@ -369,6 +385,12 @@ export function Films({ id, head }: { id: string; head: Head }) {
                   badge={<BadgeMontage state={state} label={s.montage.status[montage.status]} />}
                   playLabel={s.montage.watch(montageTitle(montage, s))}
                   onPlay={montage.video_url === null ? undefined : () => setPlaying(montage.id)}
+                  // The card leads somewhere only while the worker still owes it something — the
+                  // same question the polling loop above asks, so a card that is a road and a list
+                  // that keeps re-reading are one answer. A finished montage is watched where it
+                  // lies and a fallen one is started again from its own button; neither has any
+                  // waiting left to show, and the kit takes no press at all without this.
+                  onPress={beingMade(montage.status) ? () => watchMaking(montage) : undefined}
                 >
                   {/* The one button a card carries, beside its badge: the outlined 44 of spec 7.6,
                       «Сохранить и поделиться» under a finished montage and «Повторить» under one
