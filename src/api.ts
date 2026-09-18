@@ -262,8 +262,8 @@ export type Memory = {
   /** How many people are in it, the organizer included. */
   member_count: number;
   /**
-   * How many of them have already answered for their material — every standing except
-   * `not_started`, which is the only one nobody has answered for. This is «7 из 9 уже скинули свои
+   * How many of them have already brought their material — the two terminal standings, «всё
+   * загрузил» and «ждать нечего» (doc-06, `hasShared` below). This is «7 из 9 уже скинули свои
    * кадры» on the card, counted by the listing itself so the main screen makes no request per card.
    */
   contributed_member_count: number;
@@ -321,6 +321,17 @@ export type InviteRole = Exclude<MemberRole, 'organizer'>;
  */
 export const mayContribute = (role: MemberRole | null) =>
   role === 'organizer' || role === 'contributor';
+
+/**
+ * Whether that person is somebody the memory is still waiting on (doc-06). Both terminal standings
+ * count as brought — «всё загрузил» and «ждать нечего» are two different answers to the same
+ * question and either one ends it — while the two before them, never started and still adding, are
+ * both material still owed. One copy for the reason `mayContribute` has one: the roster's «7 из 9
+ * скинули» and the card's line on the main screen are one rule, and the api counts its own tally
+ * (`contributed_member_count`) by the very same one.
+ */
+export const hasShared = (status: ContributionStatus) =>
+  status === 'done' || status === 'nothing';
 
 /** The one live invite link of a memory: the raw token and the level following it grants. */
 export type Invite = { token: string; role: InviteRole };

@@ -478,6 +478,21 @@ test('a standing is one of three words, and «nothing to add» is not one of the
   expect(ru.standing.done).toBe('Всё загрузил');
 });
 
+test('the line over the roster counts «скинувшие» by the one rule both screens read', () => {
+  // Review of m-21, on one memory: the card on the main screen and this line said different
+  // numbers, because the card is counted by the api and this line counted «всё загрузил» alone.
+  // Now both ask `hasShared` (doc-06, TASK-167) — the rule, not a copy of it, so the day a fifth
+  // standing exists neither face can be the one that missed it.
+  expect(people).toContain('bringers.filter((member) => hasShared(member.contribution_status))');
+  expect(people).not.toContain("contribution_status === 'done').length");
+  // The other half of the line was never the argument: whoever may not bring material is owed
+  // nothing and is counted on neither side of the «из» (doc-01).
+  expect(people).toContain('(members ?? []).filter((member) => mayContribute(member.role))');
+  // And one's own «ждать нечего» chip is the same rule read backwards — it is offered exactly while
+  // there is still something to say, which is exactly what is not counted above.
+  expect(people).toContain('!hasShared(member.contribution_status)');
+});
+
 test('every row says how many frames that person brought, counted off the gallery', () => {
   // The api keeps no tally on a member, so the roster counts the memory's own listing by uploader.
   // One read, beside the roster's own — and its failure is not the roster's, so it is swallowed.

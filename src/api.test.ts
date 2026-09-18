@@ -12,10 +12,12 @@ vi.mock('expo-secure-store', () => ({
 import {
   ApiError,
   errorMessage,
+  hasShared,
   mayContribute,
   memberHandle,
   memberName,
   startEmailSignIn,
+  type Member,
 } from '@/api';
 import { setLanguage } from '@/language';
 import { en, ru } from '@/strings';
@@ -27,6 +29,46 @@ test('organizer and contributor may bring material and people in, viewer and nob
   expect(mayContribute('contributor')).toBe(true);
   expect(mayContribute('viewer')).toBe(false);
   expect(mayContribute(null)).toBe(false);
+});
+
+/**
+ * «7 из 9 скинули» is said in two places about one memory — on the card of the main screen, counted
+ * by the api's own listing, and on the people face, counted off the roster it holds. Review of m-21
+ * caught the two disagreeing: only one of them let «ждать нечего» count. doc-06 settles it — a
+ * terminal standing, and the person behind it is nobody anybody is waiting on — so the rule is one
+ * named function on this side, and the same rule in the api's query on the other.
+ */
+test('the wait ends at «done» and at «nothing», never at the two standings before them', () => {
+  expect(hasShared('done')).toBe(true);
+  expect(hasShared('nothing')).toBe(true);
+  // Both of these are material still owed: one has brought nothing yet, the other has said there is
+  // more coming. Neither has answered for what is left.
+  expect(hasShared('more_coming')).toBe(false);
+  expect(hasShared('not_started')).toBe(false);
+});
+
+test('one roster, one number: «ждать нечего» is counted, a viewer is in neither half', () => {
+  const who = (role: Member['role'], status: Member['contribution_status']): Member => ({
+    id: `${role}-${status}`,
+    name: null,
+    username: null,
+    role,
+    contribution_status: status,
+  });
+  // The same four the api's own test counts (TASK-166): two people who are done with in either
+  // sense, one still adding, and a viewer who was never going to bring anything.
+  const roster = [
+    who('organizer', 'done'),
+    who('contributor', 'nothing'),
+    who('contributor', 'more_coming'),
+    who('viewer', 'done'),
+  ];
+
+  // The arithmetic the people face draws its line with — a viewer counts on neither side of the
+  // «из», so this memory reads «2 из 3» there and must read the same on the main screen's card.
+  const bringers = roster.filter((member) => mayContribute(member.role));
+  const shared = bringers.filter((member) => hasShared(member.contribution_status)).length;
+  expect([shared, bringers.length]).toEqual([2, 3]);
 });
 
 /**

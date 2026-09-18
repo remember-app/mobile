@@ -7,6 +7,7 @@ import {
   ApiError,
   errorMessage,
   fetchInvite,
+  hasShared,
   inviteByUsername,
   listContacts,
   listMedia,
@@ -150,9 +151,12 @@ export function People({ id, head }: { id: string; head: Head }) {
   const newcomerRole = mayAdd ? 'contributor' : 'viewer';
   // «6 человек · 7 из 9 скинули» — the line under the heading, and the organizer's whole progress.
   // Counted over the people who can actually bring something (doc-01: «Добавление» and up), because
-  // a viewer is nobody anybody is waiting on.
+  // a viewer is nobody anybody is waiting on. Who counts as having brought is `hasShared` and not
+  // «всё загрузил» alone (doc-06, TASK-167): «ждать нечего» ends the wait just as flatly, and this
+  // face used to leave those people in the debt column — so one memory read one number here and a
+  // different one on the card of the main screen, which counts by that same rule in the api.
   const bringers = (members ?? []).filter((member) => mayContribute(member.role));
-  const brought = bringers.filter((member) => member.contribution_status === 'done').length;
+  const brought = bringers.filter((member) => hasShared(member.contribution_status)).length;
   // Derived together so the branch below narrows both at once: there is a link exactly when
   // there is an invite. `remember://` is the scheme in app.json; TASK-16 is what receives it.
   const shareable = invite && {
@@ -349,11 +353,7 @@ export function People({ id, head }: { id: string; head: Head }) {
                 // owner being moved down to viewer. This is the asking, not the right. The standing
                 // itself is written on every row, viewer's included — the roster is the organizer's
                 // progress and it is the same line for everybody.
-                const mine =
-                  self &&
-                  mayContributeHere &&
-                  member.contribution_status !== 'done' &&
-                  member.contribution_status !== 'nothing';
+                const mine = self && mayContributeHere && !hasShared(member.contribution_status);
 
                 return (
                   <RowMember
