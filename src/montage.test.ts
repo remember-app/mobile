@@ -485,6 +485,64 @@ test('a press that lost the speaker keeps its failure to itself', async () => {
   vi.unstubAllGlobals();
 });
 
+test('leaving the step while a link is still signing plays nothing when it lands', async () => {
+  // The other half of the same guard (9a2cfae): not another row winning the race, but nobody
+  // pressed anything at all — the music step went away while a link was still being asked for,
+  // the way `useTrackPreview`'s own cleanup calls `stop()` on the way out.
+  players.length = 0;
+  let sign: () => void = () => {};
+  const asked = new Promise<void>((asked) => {
+    vi.stubGlobal('fetch', async (url: string) => {
+      asked();
+      await new Promise<void>((resolve) => (sign = resolve));
+      const track = url.split('/').pop();
+      return new Response(JSON.stringify({ url: `https://r2.example/tracks/${track}.mp3` }));
+    });
+  });
+  const heard: Playing[] = [];
+  const preview = createPreview('session', (playing) => heard.push(playing));
+
+  const inFlight = preview.toggle('bright');
+  // Wait for the link to actually be asked for before leaving — `stop()` racing ahead of the
+  // request itself would prove nothing about the guard this test is aimed at.
+  await asked;
+  preview.stop();
+  sign();
+  await inFlight;
+
+  // The link signed fine, but too late — nothing is waiting on it, so nothing plays.
+  expect(players).toHaveLength(0);
+  expect(heard.at(-1)).toBeNull();
+
+  vi.unstubAllGlobals();
+});
+
+test('a link that failed after the step was left never surfaces its error', async () => {
+  // Same departure, the other outcome: the fetch that outlived the step comes back refused rather
+  // than signed. Thrown on, this is the exact banner the fix stopped — one about music somebody
+  // already walked away from, met on whatever screen came after.
+  players.length = 0;
+  let refuse: () => void = () => {};
+  const asked = new Promise<void>((asked) => {
+    vi.stubGlobal('fetch', async () => {
+      asked();
+      await new Promise<void>((resolve) => (refuse = resolve));
+      return new Response(JSON.stringify({ error: 'no bucket' }), { status: 503 });
+    });
+  });
+  const preview = createPreview('session', () => {});
+
+  const inFlight = preview.toggle('bright');
+  await asked;
+  preview.stop();
+  refuse();
+
+  await expect(inFlight).resolves.toBeUndefined();
+  expect(players).toHaveLength(0);
+
+  vi.unstubAllGlobals();
+});
+
 /**
  * And the other side of that one call — the waiting the order lands on (`MontageProgress`,
  * TASK-163). The api says one word about the whole job, so what the screen may say about it is
