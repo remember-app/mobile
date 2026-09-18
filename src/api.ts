@@ -100,26 +100,47 @@ async function request<T>(
 }
 
 /**
- * Ask for a magic link. The api answers 200 whether or not the address is registered.
+ * Ask for the six digits that open the way in (TASK-138). The api answers 200 whether or not the
+ * address is registered, so this says nothing about who is already here.
  *
  * The language rides along because at this point there is no session to hang it on — the address
  * is all the api knows about whoever asked, and the letter has to be written in the language of
  * the app that asked (TASK-85). Every later sync goes through `putLanguage` instead.
  *
- * `link` comes back only where the api has no mail to send it with and is not the live server
- * (TASK-97) — a `remember://auth/email?token=…` handed straight back instead of posted. Anywhere
- * that can actually write the letter, the answer is the bare `ok`.
+ * `code` comes back only where the api has its development door open — an address on `test.test`,
+ * off a production server — and it is the same digits the letter would have carried, handed
+ * straight back. Anywhere that really posts the letter, the answer is the bare `ok`.
  */
-export function startEmailSignIn(email: string): Promise<{ ok: true; link?: string }> {
+export function startEmailSignIn(email: string): Promise<{ ok: true; code?: string }> {
   return request('/auth/email/start', {
     method: 'POST',
     body: { email, language: currentLanguage() },
   });
 }
 
-/** Trade a link token for a session. 401 when it is spent or expired. */
-export function verifyEmailToken(token: string): Promise<Session> {
-  return request('/auth/email/verify', { method: 'POST', body: { token } });
+/**
+ * Trade the address and the code from the letter for a session. The address goes with it because
+ * the code is only ever the secret *of an address*: six digits on their own would be a million
+ * codes shared by everybody signing in at once.
+ *
+ * 401 for every way of failing — wrong digits, expired, spent, attempts used up, address unknown.
+ * The api answers one way on purpose, and so this side says one thing back.
+ */
+export function verifyEmailCode(email: string, code: string): Promise<Session> {
+  return request('/auth/email/verify', { method: 'POST', body: { email, code } });
+}
+
+/**
+ * Accept the one user agreement there is (doc-04, decision-9, TASK-139). No body at all: what is
+ * being accepted is the pilot's single agreement, whose text the app ships, and a version the
+ * client names is a version the client could get wrong.
+ *
+ * Idempotent — the moment it answers with is the one the person actually agreed at, so pressing
+ * «Принимаю» a second time (a lost answer, a session picked up again before the username was
+ * claimed) costs nothing and moves nothing.
+ */
+export function acceptConsent(token: string): Promise<{ accepted_at: string }> {
+  return request('/me/consent', { method: 'POST', token });
 }
 
 /** Trade an Apple identity token for a session. 501 while the provider has no keys. */
@@ -137,7 +158,12 @@ export function fetchMe(token: string): Promise<User> {
   return request('/me', { token });
 }
 
-/** Claim or change the username. 409 when taken, 400 when the format is wrong. */
+/**
+ * Claim or change the username. 409 when taken, 400 when the format is wrong, and 403
+ * («consent required») on a first claim by an account that has not accepted the agreement —
+ * holding a username *is* being registered, so that is the one gate registration has (TASK-139).
+ * Changing a name later never asks again.
+ */
 export function putUsername(token: string, username: string): Promise<User> {
   return request('/me/username', { method: 'POST', body: { username }, token });
 }

@@ -1,36 +1,54 @@
-import { StyleSheet, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 
-import { Text } from '@/kit';
+import { ActionBar, Board } from '@/kit';
 import { useStrings } from '@/language';
-import { space, themed } from '@/theme';
+import { OnboardingHead } from '@/onboarding-head';
+import { space } from '@/theme';
 import { UsernameForm } from '@/username-form';
 
-/** The only screen a signed-in account without a username can reach. Claiming one opens the app. */
+/**
+ * `Username` — the last screen of the way in (spec 8), and the only screen a signed-in account
+ * without a username can reach. The head is the one `Login` had, in the same place: the person has
+ * not moved anywhere, they are still coming in.
+ *
+ * What happens after the name is claimed belongs to the gate in `_layout`, which stops declaring
+ * this screen the moment the account has one — and to `invite.tsx`, which is where somebody who
+ * arrived by a link is carried into the memory rather than onto the main screen.
+ */
 export default function SetUsernameScreen() {
+  const router = useRouter();
   const s = useStrings();
-  const styles = useStyles();
 
   return (
-    <View style={styles.container}>
-      <View style={styles.intro}>
-        <Text role="display">{s.username.pick}</Text>
-        <Text style={styles.lead}>{s.username.lead}</Text>
-      </View>
-      <UsernameForm submitLabel={s.username.continue} />
-    </View>
+    <KeyboardAvoidingView
+      style={styles.fill}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <Board>
+        <OnboardingHead />
+
+        <View style={styles.room} />
+
+        <ActionBar>
+          <View style={styles.column}>
+            <UsernameForm
+              submitLabel={s.username.continue}
+              // The agreement is the api's gate on registering, and this is the screen behind it:
+              // whoever got here without accepting is sent to accept rather than shown a refusal.
+              onConsentNeeded={() => router.replace('/consent')}
+            />
+          </View>
+        </ActionBar>
+      </Board>
+    </KeyboardAvoidingView>
   );
 }
 
-const useStyles = themed(({ color }) =>
-  StyleSheet.create({
-    container: {
-      flex: 1,
-      justifyContent: 'center',
-      gap: space.s6,
-      padding: space.s6,
-      backgroundColor: color.ink,
-    },
-    intro: { gap: space.s2 },
-    lead: { color: color.muted },
-  }),
-);
+const styles = StyleSheet.create({
+  fill: { flex: 1 },
+  // The room between the head and the field, empty on this screen: the head stays where the three
+  // screens before it had it, and everything that changes happens at the bottom edge.
+  room: { flex: 1 },
+  column: { flex: 1, gap: space.s3 },
+});

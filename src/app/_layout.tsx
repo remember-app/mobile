@@ -117,15 +117,22 @@ function RootNavigator() {
         <Stack.Screen name="about" options={{ title: 'About' }} />
       </Stack.Protected>
 
+      {/* An account with a session and no username still owes two things, and they are declared in
+          the order they are walked: the agreement first, because the api refuses a first username
+          without it (403, TASK-139), and the name second. The first screen a guard declares is the
+          one the navigator falls back to, so signing in lands on the agreement — and accepting it
+          is what moves the person on to the name. */}
       <Stack.Protected guard={status === 'needs-username'}>
+        <Stack.Screen name="consent" options={{ title: 'Agreement' }} />
         <Stack.Screen name="set-username" options={{ title: 'Pick a username' }} />
       </Stack.Protected>
 
-      {/* Kept mounted while the session is still loading too, so a cold-start deep link
-          (remember://auth/email?token=…) has a screen to land on. The splash covers it. */}
+      {/* Kept mounted while the session is still loading too, so the app coming up cold has a
+          screen to stand on under the splash. */}
       <Stack.Protected guard={status === 'signed-out' || status === 'loading'}>
         <Stack.Screen name="login" options={{ title: 'Sign in' }} />
-        <Stack.Screen name="auth/email" options={{ title: 'Signing in' }} />
+        <Stack.Screen name="login/email" options={{ title: 'Sign in by email' }} />
+        <Stack.Screen name="login/code" options={{ title: 'Code from the letter' }} />
       </Stack.Protected>
 
       {/* Behind no guard, and it cannot be put behind two: expo-router reads every declared

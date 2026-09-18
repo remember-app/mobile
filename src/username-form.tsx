@@ -36,7 +36,18 @@ const availabilityHint = (s: Strings): Record<Availability, string> => ({
  * hold. Another device can claim it between the answer and the submit, and the 409 below is what
  * catches that — the same line the check would have shown.
  */
-export function UsernameForm({ submitLabel }: { submitLabel: string }) {
+export function UsernameForm({
+  submitLabel,
+  onConsentNeeded,
+}: {
+  submitLabel: string;
+  /**
+   * The api refused the first claim because the agreement has not been accepted (403, TASK-139).
+   * Holding a username *is* being registered, so that answer is not an error to print but a screen
+   * to be on — and which screen that is belongs to whoever put this form up, not to the form.
+   */
+  onConsentNeeded?: () => void;
+}) {
   const { token, user, setUsername } = useAuth();
   const s = useStrings();
   const [value, setValue] = useState(user?.username ?? '');
@@ -98,6 +109,14 @@ export function UsernameForm({ submitLabel }: { submitLabel: string }) {
     try {
       await setUsername(username);
     } catch (e) {
+      // Not a line about the name at all: the account has not accepted the agreement, and the way
+      // out of that is the screen that asks for it — pressing this again would only earn the same
+      // 403. The api is the one gate on registering, so this can happen to a person who left the
+      // way in half-walked and came back to it.
+      if (e instanceof ApiError && e.status === 403 && onConsentNeeded) {
+        onConsentNeeded();
+        return;
+      }
       setError(
         // Still the last word: the check ran before this call, and the name could have gone in
         // between.
@@ -116,6 +135,11 @@ export function UsernameForm({ submitLabel }: { submitLabel: string }) {
     <View style={styles.form}>
       <Field
         label={s.username.label}
+        // Spec 7.3 — the username field: 60 tall, typed in the headline face, with the `@` standing
+        // in front of it rather than typed by the person.
+        variant="username"
+        prefix="@"
+        placeholder={s.username.placeholder}
         value={value}
         // What the server said was about the name that was sent, so it goes as soon as the name does.
         onChangeText={(next) => {
@@ -127,11 +151,19 @@ export function UsernameForm({ submitLabel }: { submitLabel: string }) {
         // name typed down to something malformed paints a frame of red field under a green
         // «Username is free.» unless the format is asked here too. One rule for the colour and the
         // words: whatever puts the field in error says why in the same breath.
+        //
+        // With nothing wrong and nothing to report — an empty field, a check that could not be
+        // made — the line says what the name is *for* (spec 8, `Username`: «По нему вас найдут в
+        // воспоминании»). The rule about letters and length is what a broken name is answered
+        // with, and standing there before anything is typed it only reads as a warning about
+        // nothing.
         hint={
           error ??
-          (malformed || availability === null
+          (malformed
             ? s.error.usernameFormat
-            : availabilityHint(s)[availability])
+            : availability === null
+              ? s.username.lead
+              : availabilityHint(s)[availability])
         }
         autoCapitalize="none"
         autoCorrect={false}

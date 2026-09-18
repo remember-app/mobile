@@ -180,7 +180,11 @@ export function PhotoStack({
   small,
   style,
 }: {
-  photos: readonly string[];
+  /**
+   * A url, or a picture that ships with the app — the onboarding screens stand before any session
+   * and have no frames of a memory to draw. `expo-image` takes either unchanged (`src/image.d.ts`).
+   */
+  photos: readonly (string | number)[];
   small?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
@@ -194,10 +198,12 @@ export function PhotoStack({
       importantForAccessibility="no-hide-descendants"
       style={[small ? styles.stackSmall : styles.stack, style]}
     >
-      {photos.slice(0, 3).map((uri, i) => (
+      {/* Keyed by place and not by what is in it: the three stand in fixed positions, and a picture
+          that ships with the app is a number the bundler chose. */}
+      {photos.slice(0, 3).map((shot, i) => (
         <Image
-          key={uri}
-          source={{ uri }}
+          key={i}
+          source={shot}
           contentFit="cover"
           style={[
             styles.stackShot,
