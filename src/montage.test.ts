@@ -16,7 +16,12 @@ vi.mock('expo-file-system', () => ({
   File: class {
     exists = true;
     size = 9;
-    constructor(readonly uri: string) {}
+    // Every other test here hands over a file that reads fine; the guard `sendOwnTrack` opens with
+    // is only worth a mock of its own for the one uri that must fail it.
+    constructor(readonly uri: string) {
+      if (uri.includes('empty')) this.size = 0;
+      if (uri.includes('missing')) this.exists = false;
+    }
     open() {
       return {
         offset: 0,
@@ -128,6 +133,24 @@ test('a frame still being developed is in nothing — not the count, not the lis
   expect(wishes([...gallery, developing], order).exclude_media_ids).toEqual(['kept']);
 });
 
+test('the floor is on what is taken, not on what the memory holds', () => {
+  // Found in review, m-23: the api's own 409 and the worker's own count both read the memory's
+  // material and never the selection, so a wizard could carry an order below the floor while the
+  // memory it came from was nowhere near short of one. This is the arithmetic that guard now reads.
+  const start = blankOrder();
+  expect(enoughMaterial(gallery)).toBe(true);
+  // The pass alone proposes two of the four usable frames — under the floor already, with the
+  // memory itself well clear of it.
+  expect(taken(gallery, start)).toHaveLength(2);
+
+  // One frame taken back off the pass crosses the selection back over the floor…
+  const back = after(start, blurred);
+  expect(taken(gallery, back)).toHaveLength(3);
+  // …and dropping a kept frame by hand can push it back under, exactly the same arithmetic working
+  // the other way, whatever the pass proposed to begin with.
+  expect(taken(gallery, after(back, kept))).toHaveLength(2);
+});
+
 test('below three ready frames there is nothing to cut, and the wizard never starts', () => {
   expect(MIN_FRAMES).toBe(3);
   expect(enoughMaterial([kept, blurred])).toBe(false);
@@ -235,6 +258,26 @@ test('their own track goes to R2 part by part, and the order names it by its key
   const body = wishes(gallery, order);
   expect(body.music_track_key).toBe('music/track-1');
   expect(body.music_track_id).toBeUndefined();
+
+  vi.unstubAllGlobals();
+});
+
+test('a file that cannot be read never reaches the api at all', async () => {
+  const calls: string[] = [];
+  vi.stubGlobal('fetch', async (url: string) => {
+    calls.push(url);
+    return new Response(JSON.stringify({}));
+  });
+
+  // Zero bytes and a phone that lost the file both fail the same guard, before any plan is asked
+  // for — nothing is written down anywhere, so a track that did not make it is simply not chosen.
+  await expect(
+    sendOwnTrack('session', 'memory-1', { uri: 'file:///cache/empty.mp3', name: 'empty.mp3' }),
+  ).rejects.toThrow();
+  await expect(
+    sendOwnTrack('session', 'memory-1', { uri: 'file:///cache/missing.mp3', name: 'missing.mp3' }),
+  ).rejects.toThrow();
+  expect(calls).toHaveLength(0);
 
   vi.unstubAllGlobals();
 });
