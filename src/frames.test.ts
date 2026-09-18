@@ -14,15 +14,22 @@ import type { MediaItem, Member, Memory } from '@/api';
 // day the line carries, not how this phone's locale spells it.
 import { formatEventDates, startOfDay } from '@/dates';
 import {
+  arranged,
+  FILTER_NONE,
+  filtering,
   frameIndex,
   frameOf,
   framesByDay,
+  framesMatching,
+  groupFrames,
   keepReady,
   mayOpen,
   mayPick,
   openFrameOf,
   shotBy,
+  SORT_DEFAULT,
   stillPreparing,
+  type Filter,
 } from '@/frames';
 
 // The gallery sat in «Preparing…» for good because it read the list once and never again, and
@@ -351,4 +358,91 @@ test('a name nobody claimed is the username, and somebody off the roster is «So
   // Whoever left the memory is off the roster, and the frame they brought stays.
   expect(shotBy(shot, [member({ id: 'other' })], day).startsWith('Someone · ')).toBe(true);
   expect(shotBy(shot, null, day).startsWith('Someone · ')).toBe(true);
+});
+
+// What the two sheets at the foot of the gallery decide (TASK-144): `SheetSort` cuts it into groups
+// and picks the direction each one reads in, `SheetFilter` decides what is in it at all. Both live
+// here for the reason the cut into days does — the screen that draws them cannot be rendered by any
+// test in this project, and the counts on both sheets have to agree with what they then show.
+
+/** The sheet as the face draws it: each heading with the frames standing under it. */
+const groups = (items: MediaItem[], sort = SORT_DEFAULT) =>
+  groupFrames(items, sort).map((group) => [group.key, group.frames.map((item) => item.id)]);
+
+/** Three days of a wedding, as `listMedia` hands them over: oldest shot first. */
+const wedding3 = [
+  record({ id: 'morning', uploaded_by: 'liza', captured_at: shotAt(3, 9) }),
+  record({ id: 'vows', uploaded_by: 'mark', kind: 'video', captured_at: shotAt(3, 17) }),
+  record({ id: 'dancing', uploaded_by: 'liza', captured_at: shotAt(4, 1) }),
+  record({ id: 'breakfast', uploaded_by: 'anya', captured_at: shotAt(4, 10) }),
+  record({ id: 'goodbyes', uploaded_by: 'liza', captured_at: shotAt(5, 12) }),
+];
+
+test('by day, the newest day is on top and the newest frame of it first', () => {
+  expect(groups(wedding3)).toEqual([
+    [`day-${day(5)}`, ['goodbyes']],
+    [`day-${day(4)}`, ['breakfast', 'dancing']],
+    [`day-${day(3)}`, ['vows', 'morning']],
+  ]);
+});
+
+test('«Сначала старые» turns the whole sheet around, the days as well as their frames', () => {
+  // The direction is one answer for the sheet: a strip read one way under headings read the other
+  // is nobody's idea of an order.
+  expect(groups(wedding3, { by: 'day', order: 'oldest' })).toEqual([
+    [`day-${day(3)}`, ['morning', 'vows']],
+    [`day-${day(4)}`, ['dancing', 'breakfast']],
+    [`day-${day(5)}`, ['goodbyes']],
+  ]);
+});
+
+test('by people, whoever brought the most stands first — `FramesByPeople`', () => {
+  expect(groups(wedding3, { by: 'person', order: 'newest' })).toEqual([
+    ['who-liza', ['goodbyes', 'dancing', 'morning']],
+    // Two people who brought the same amount fall in the sheet's own direction: Anya's one frame is
+    // the newer of the two, and reading newest first that is the heading that comes first.
+    ['who-anya', ['breakfast']],
+    ['who-mark', ['vows']],
+  ]);
+});
+
+test('by kind, photos before videos, and a kind nobody brought is not a heading', () => {
+  expect(groups(wedding3, { by: 'kind', order: 'newest' }).map(([key]) => key)).toEqual([
+    'kind-photo',
+    'kind-video',
+  ]);
+  const photos = wedding3.filter((item) => item.kind === 'photo');
+  expect(groups(photos, { by: 'kind', order: 'newest' }).map(([key]) => key)).toEqual([
+    'kind-photo',
+  ]);
+  expect(groupFrames([], { by: 'kind', order: 'newest' })).toEqual([]);
+});
+
+test('the filter holds back by who brought it, what it is, and which day it is from', () => {
+  const only = (over: Partial<Filter>) =>
+    framesMatching(wedding3, { ...FILTER_NONE, ...over }).map((item) => item.id);
+
+  expect(only({})).toEqual(wedding3.map((item) => item.id));
+  expect(only({ kind: 'video' })).toEqual(['vows']);
+  expect(only({ people: new Set(['liza']) })).toEqual(['morning', 'dancing', 'goodbyes']);
+  expect(only({ days: new Set([day(4)]) })).toEqual(['dancing', 'breakfast']);
+  // Several chips of one row are «any of these», and the three rows narrow each other.
+  expect(only({ people: new Set(['liza', 'anya']), days: new Set([day(4)]) })).toEqual([
+    'dancing',
+    'breakfast',
+  ]);
+  // The combination the sheet will not let anybody apply — the count on its button is what says so
+  // before the press, and this is the question that count is asked.
+  expect(only({ people: new Set(['mark']), kind: 'photo' })).toEqual([]);
+});
+
+test('the spark dot means «no longer at its default», and nothing else', () => {
+  expect(filtering(FILTER_NONE)).toBe(false);
+  expect(filtering({ ...FILTER_NONE, kind: 'video' })).toBe(true);
+  expect(filtering({ ...FILTER_NONE, people: new Set(['liza']) })).toBe(true);
+  expect(filtering({ ...FILTER_NONE, days: new Set([day(4)]) })).toBe(true);
+
+  expect(arranged(SORT_DEFAULT)).toBe(false);
+  expect(arranged({ by: 'person', order: 'newest' })).toBe(true);
+  expect(arranged({ by: 'day', order: 'oldest' })).toBe(true);
 });

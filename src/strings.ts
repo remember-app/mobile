@@ -32,6 +32,8 @@ export const en = {
     /** Putting a whole selection back — the quiet half of every footer that picks something. */
     clear: 'Clear',
     close: 'Close',
+    /** The way out of a sheet that changes what is on screen while it is open. */
+    done: 'Done',
     retry: 'Try again',
     delete: 'Delete',
     download: 'Download',
@@ -365,7 +367,9 @@ export const en = {
    * use for the material (TASK-76).
    */
   gallery: {
-    empty: 'Nothing here yet — whatever anyone adds shows up here.',
+    /** Spec «Пусто и необратимое»: the heading names what is missing, the line under it says what to do. */
+    emptyTitle: 'Not a single frame',
+    empty: 'Whatever anybody adds lands here. Start with your own.',
     /** What a tile says while there is no derivative to draw, keyed by the record's status. */
     waiting: {
       processing: 'Preparing…',
@@ -395,11 +399,39 @@ export const en = {
      * all, which on a sheet still being developed is not how many there are.
      */
     selectDay: (n: number) => `Select all ${n}`,
+    /** The line over that button while the mode is on, where the count of the whole picking stands. */
+    picked: (n: number) => `${n} selected`,
     /** The glowing button of the picking mode, carrying what it is about to take home. */
     download: (n: number) => `Download ${n} ${n === 1 ? 'file' : 'files'}`,
     /** The same button with nothing marked yet: off, and saying why rather than «Download 0». */
     nothingPicked: 'Nothing selected',
     addMore: 'Add more',
+    /** The same errand from an empty gallery, where there is no «more» to add to yet. */
+    add: 'Add frames',
+
+    /**
+     * `SheetFilter` — what of the gallery is shown. Three groups, and the first chip of each is the
+     * one that holds nothing back; the glowing button counts what is about to be shown, so it says
+     * outright when that count is nought.
+     */
+    filters: 'Filters',
+    whoBrought: 'Who brought it',
+    anyone: 'Everyone',
+    whatKind: 'What to show',
+    anyKind: 'All of it',
+    whichDays: 'Which days',
+    anyDay: 'Every day',
+    show: (n: number) => `Show ${n} ${n === 1 ? 'frame' : 'frames'}`,
+    nothingMatched: 'Nothing matched',
+    reset: 'Clear the filters',
+
+    /** `SheetSort` — in what order. Two questions, and the answer to both is on screen at once. */
+    sorting: 'Sorting',
+    groupBy: 'Group them',
+    /** The three cuts: the day it was shot, the person who brought it, photo against video. */
+    groups: { day: 'By day', person: 'By person', kind: 'By kind' },
+    within: 'Inside a group',
+    orders: { newest: 'Newest first', oldest: 'Oldest first' },
     deleteAsk: (kind: 'photo' | 'video') => `Delete this ${kind === 'video' ? 'video' : 'photo'}?`,
     deleteText: 'It goes from the memory for good. A movie already made keeps it.',
     keep: 'Keep',
@@ -606,6 +638,7 @@ export const ru: Strings = {
     cancel: 'Отмена',
     clear: 'Снять',
     close: 'Закрыть',
+    done: 'Готово',
     retry: 'Повторить',
     delete: 'Удалить',
     download: 'Скачать',
@@ -806,7 +839,8 @@ export const ru: Strings = {
   },
 
   gallery: {
-    empty: 'Здесь пока пусто — всё, что кто-нибудь добавит, появится тут.',
+    emptyTitle: 'Ни одного кадра',
+    empty: 'Всё, что добавит любой участник, появится здесь. Начните со своих.',
     waiting: {
       processing: 'Проявляем…',
       failed: 'Не удалось проявить',
@@ -816,9 +850,28 @@ export const ru: Strings = {
     select: 'Выбрать кадры',
     leaveSelect: 'Выйти из режима выбора',
     selectDay: (n: number) => `Выбрать все ${n}`,
+    picked: (n: number) => `Выбрано ${n}`,
     download: (n: number) => `Скачать ${count(n, 'файл', 'файла', 'файлов')}`,
     nothingPicked: 'Ничего не выбрано',
     addMore: 'Добавить ещё',
+    add: 'Добавить кадры',
+
+    filters: 'Фильтры',
+    whoBrought: 'Кто принёс',
+    anyone: 'Все',
+    whatKind: 'Что показывать',
+    anyKind: 'Всё',
+    whichDays: 'За какие дни',
+    anyDay: 'Все дни',
+    show: (n: number) => `Показать ${count(n, 'кадр', 'кадра', 'кадров')}`,
+    nothingMatched: 'Ничего не подошло',
+    reset: 'Сбросить фильтры',
+
+    sorting: 'Сортировка',
+    groupBy: 'Собрать в группы',
+    groups: { day: 'По дням', person: 'По людям', kind: 'По типу' },
+    within: 'Внутри группы',
+    orders: { newest: 'Сначала новые', oldest: 'Сначала старые' },
     deleteAsk: (kind: 'photo' | 'video') => `Удалить это ${kind === 'video' ? 'видео' : 'фото'}?`,
     deleteText: 'Оно уйдёт из воспоминания навсегда. В уже собранном ролике останется.',
     keep: 'Оставить',
