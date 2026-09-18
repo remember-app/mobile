@@ -12,7 +12,7 @@ import {
   Plus,
   SunDim,
 } from 'lucide-react-native';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import {
@@ -55,6 +55,7 @@ import {
   droppedByPass,
   enoughMaterial,
   LENGTHS,
+  MIN_FRAMES,
   pickOf,
   reasonOf,
   rejectedGroups,
@@ -110,6 +111,19 @@ export default function OrderMontageScreen() {
   const [showDropped, setShowDropped] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  /**
+   * Whether this screen is still here. `router` is the app's own and not this screen's, so a call
+   * that was in flight when somebody pressed «Отмена» — or took the back gesture — would otherwise
+   * move the app under whoever is on top now, seconds after they left the wizard (found in review).
+   * Reset on the way in as well as set on the way out, so a remount is a screen that is here again.
+   */
+  const gone = useRef(false);
+  useEffect(() => {
+    gone.current = false;
+    return () => {
+      gone.current = true;
+    };
+  }, []);
 
   /**
    * Read once, on the way in. Deliberately not on every focus the way the three faces of a memory
@@ -153,10 +167,11 @@ export default function OrderMontageScreen() {
       if (picked.canceled || !file) return;
 
       const key = await sendOwnTrack(token, id, { uri: file.uri, name: file.name });
+      if (gone.current) return;
       // One or the other, never both: the api refuses a body carrying a shelf id and a key.
       change({ ownTrack: { key, name: file.name }, track: null });
     } catch (e) {
-      setNotice(errorMessage(e));
+      if (!gone.current) setNotice(errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -169,6 +184,9 @@ export default function OrderMontageScreen() {
     setNotice(null);
     try {
       const made = await orderMontage(token, id, wishes(items, order));
+      // Left while it was in flight: the order is placed and cannot be unsent, but the screen that
+      // asked for it is not here to lead anywhere — the list on the memory is where it shows up.
+      if (gone.current) return;
       // Onto the waiting for this one montage (TASK-163), and `replace` rather than `push`: the
       // order is sent, so the four steps behind this screen are not somewhere to go back to — what
       // is under the waiting is the memory it was ordered from. The count of frames goes along
@@ -179,6 +197,7 @@ export default function OrderMontageScreen() {
         params: { id, montageId: made.id, frames: inMovie.length },
       });
     } catch (e) {
+      if (gone.current) return;
       // The material can still fall under the floor between the read above and this call — somebody
       // else deleting what this order was counting on. The api's own line names its numbers; these
       // name what to do about them.
@@ -270,9 +289,13 @@ export default function OrderMontageScreen() {
             label={bottomLabel}
             busy={busy}
             busyLabel={last ? undefined : s.montage.sendingTrack}
-            // Nothing to take is nothing to cut: the one step that can leave the order empty is the
-            // first, and it says so by going dark rather than by refusing the press silently.
-            disabled={step === 1 && inMovie.length === 0}
+            // Under three taken is nothing to cut: the one step that can put the order below the
+            // floor is the first, and it says so by going dark rather than by refusing the press
+            // silently. Held here because nothing behind this screen holds it — the api counts the
+            // ready material for its 409 and never the selection, and so does the worker, so an
+            // order taking one frame out of twenty is accepted and cut into a one-frame «ролик»
+            // against a minute that was asked for (found in review).
+            disabled={step === 1 && inMovie.length < MIN_FRAMES}
             onPress={last ? () => void submit() : () => setStep(step + 1)}
           />
         </ActionBar>

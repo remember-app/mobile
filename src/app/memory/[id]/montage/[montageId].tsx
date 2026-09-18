@@ -1,6 +1,6 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { errorMessage, listMemories, listMontages, type Memory, type Montage } from '@/api';
@@ -55,12 +55,26 @@ export default function MontageProgressScreen() {
   const [montage, setMontage] = useState<Montage | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  /** Whether this screen is still here — see `leave`. */
+  const gone = useRef(false);
+  useEffect(() => {
+    gone.current = false;
+    return () => {
+      gone.current = true;
+    };
+  }, []);
+
   /**
    * Out of here, and the making carries on without anybody watching it — nothing on this screen
    * touches the worker. Back rather than a new screen: this one replaced the wizard, so what is
    * under it is the memory on its movies face, which reads its list again as it comes forward.
+   *
+   * Never once this screen has gone: the read below calls it too, and a read still in flight when
+   * somebody pressed «К воспоминанию» would answer after that — `router` is the app's own, so a
+   * second `back()` would pop the memory out from under them as well (found in review).
    */
   const leave = useCallback(() => {
+    if (gone.current) return;
     if (router.canGoBack()) router.back();
     else router.replace({ pathname: '/memory/[id]', params: { id, face: 'films' } });
   }, [router, id]);

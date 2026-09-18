@@ -33,10 +33,13 @@ export async function sendOwnTrack(
   const source = new File(track.uri);
   if (!source.exists || source.size === 0) throw new Error(`${track.name} cannot be read`);
 
-  const plan = await startMusicUpload(token, memoryId, source.size);
+  // Measured once, the way the queue does it: the slices have to line up with the links the api
+  // signed against this number, and a file measured twice could answer differently the second time.
+  const size = source.size;
+  const plan = await startMusicUpload(token, memoryId, size);
   const etags: Record<number, string> = {};
 
-  for (const part of missingParts(source.size, plan.upload.part_size, etags)) {
+  for (const part of missingParts(size, plan.upload.part_size, etags)) {
     const link = plan.upload.parts.find((one) => one.part_number === part.number)?.url;
     if (link === undefined) throw new Error(`no link for part ${part.number}`);
 
