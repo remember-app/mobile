@@ -1,13 +1,15 @@
 // What the four steps of an order add up to (spec 8, «Ролик: заказ по шагам»): which frames go in,
 // what the video is about, what it is cut to, how long it runs and which way up. The screen
 // (`app/memory/[id]/order.tsx`) draws the steps; everything here is the arithmetic behind them, and
-// the one place that turns what was picked into the body the api takes.
+// the one place that turns what was picked into the body the api takes. The waiting that follows an
+// order is at the foot of this file — the same subject, on the other side of the one call.
 //
 // Kept apart from that screen for the reason `@/upload-queue` is kept apart from `@/uploads`: this
 // is the part that decides what actually reaches the worker, and it is the part that can be checked
-// without a phone. Nothing here imports a value — the api's types come in as types alone, so a test
-// can import this module as it is.
-import type { MediaItem, MontageOrientation, MontageWishes, MusicTrackId } from '@/api';
+// without a phone. Nothing here imports a value — the api's types and the kit's come in as types
+// alone, so a test can import this module as it is.
+import type { MediaItem, Montage, MontageOrientation, MontageWishes, MusicTrackId } from '@/api';
+import type { StepState } from '@/kit';
 
 /**
  * The shelf of tracks, in the layout's own order (`design/screens/MontageMusic.html`), each with the
@@ -193,4 +195,58 @@ export function wishes(items: readonly MediaItem[], order: Order): MontageWishes
         ? { music_track_id: order.track }
         : {}),
   };
+}
+
+/* ── The waiting after the order ────────────────────────────────────────── */
+
+/**
+ * Whether the worker still owes this one. `queued` and `processing` only ever change on its side, so
+ * a screen holding either has news coming that nothing will tell it — this is its reason to read
+ * again, and its reason to stop.
+ */
+export const beingMade = (status: Montage['status']): boolean =>
+  status === 'queued' || status === 'processing';
+
+/**
+ * How long a screen waits before reading again while a montage is being cut. Longer than the frames
+ * face waits on a thumbnail, because this is minutes of work and not seconds of it — five is still
+ * inside the moment somebody spends looking at the screen wondering whether it moved. Both the
+ * movies face and the waiting screen keep this time, so the two never disagree about what «soon» is.
+ */
+export const WHILE_MAKING_MS = 5000;
+
+/**
+ * The five stages of making a video (doc-11, drawn in spec 8), in the order they actually happen.
+ */
+export type Stage = 'screening' | 'understanding' | 'story' | 'rhythm' | 'cut';
+
+export const STAGES: readonly Stage[] = ['screening', 'understanding', 'story', 'rhythm', 'cut'];
+
+/**
+ * The first two of them are behind before the order is even placed: a frame is screened and
+ * described as it lands, each by a job of its own (`media_screening`, `media_understanding` in the
+ * worker), and what the screening came to is exactly what step 1 of the wizard was reading. The
+ * three that are left are the montage job itself — the director, the rhythm, the cut.
+ */
+const DONE_AT_ORDER = 2;
+
+/**
+ * Where each stage stands, for a montage in the state the api reports. The api says one word about
+ * the whole job and never which stage the worker is on, so this is what is actually known rather
+ * than a guess dressed up as progress: `processing` means the job has been picked up, and the first
+ * thing done with it is the director — what comes after that nobody is told about, so it waits.
+ *
+ * A `failed` one is not walked through here at all: the screen says it fell over and shows the
+ * worker's own line instead, because where it broke is precisely what nothing here knows.
+ */
+export function stages(status: Montage['status']): { stage: Stage; state: StepState }[] {
+  return STAGES.map((stage, i) => ({
+    stage,
+    state:
+      status === 'ready' || i < DONE_AT_ORDER
+        ? 'done'
+        : i === DONE_AT_ORDER && status === 'processing'
+          ? 'running'
+          : 'waiting',
+  }));
 }

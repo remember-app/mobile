@@ -115,6 +115,12 @@ function RootNavigator() {
         {/* Asking for a movie is four steps and a screen of its own (TASK-162); the movies of a
             memory stay a face of it and not a route. */}
         <Stack.Screen name="memory/[id]/order" options={{ title: 'Order a movie' }} />
+        {/* And the waiting the order leads to (TASK-163): one montage being made, which is a route
+            of one row — the movies of a memory are still a face of it and not a screen. */}
+        <Stack.Screen
+          name="memory/[id]/montage/[montageId]"
+          options={{ title: 'Making a movie' }}
+        />
         <Stack.Screen name="contacts" options={{ title: 'Contacts' }} />
         <Stack.Screen name="profile" options={{ title: 'Profile' }} />
         <Stack.Screen name="about" options={{ title: 'About' }} />

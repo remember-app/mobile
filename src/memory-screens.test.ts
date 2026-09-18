@@ -2,6 +2,7 @@ import { expect, test } from 'vitest';
 
 import memory from './app/memory/[id].tsx?raw';
 import order from './app/memory/[id]/order.tsx?raw';
+import progress from './app/memory/[id]/montage/[montageId].tsx?raw';
 import upload from './app/memory/[id]/upload.tsx?raw';
 import home from './app/index.tsx?raw';
 import invite from './app/invite.tsx?raw';
@@ -22,6 +23,9 @@ import frames from './memory/frames.tsx?raw';
 import sheets from './memory/frames-sheets.tsx?raw';
 import head from './memory/head.tsx?raw';
 import people from './memory/people.tsx?raw';
+// The arithmetic both the movies face and the waiting screen ask their «is it still being made»
+// question through, so the two cannot drift apart about what the answer is.
+import montage from './montage.ts?raw';
 import push from './push.ts?raw';
 import { en, ru } from '@/strings';
 
@@ -567,6 +571,77 @@ test('an order is asked for in four steps, on a screen of its own, and sent in o
   }
 });
 
+test('a placed order lands on the waiting for that montage, not back on the list', () => {
+  // TASK-163, spec 8: what was just asked for is the only thing on the mind of whoever asked, so it
+  // gets a screen — and a route of one montage, not a second face of the memory.
+  expect(layout).toContain('name="memory/[id]/montage/[montageId]"');
+  expect(layout.indexOf('name="memory/[id]/montage/[montageId]"')).toBeLessThan(
+    layout.indexOf('</Stack.Protected>'),
+  );
+
+  // The wizard hands over the row the api answered with, and the count of frames it took — the one
+  // number nobody else can work out, because the api hands back what it wrote and never how many
+  // pictures add up to it. `replace`: an order already sent is not a wizard to walk back into.
+  expect(order).toContain('const made = await orderMontage(token, id, wishes(items, order));');
+  expect(order).toContain("pathname: '/memory/[id]/montage/[montageId]',");
+  expect(order).toContain('params: { id, montageId: made.id, frames: inMovie.length },');
+  const sentAt = order.indexOf('const made = await');
+  const sent = order.slice(sentAt, order.indexOf('} catch', sentAt));
+  expect(sent).toContain('router.replace({');
+  // And it does not simply walk out any more, which is what it did until this screen existed.
+  expect(sent).not.toContain('leave()');
+
+  // The screen itself: the order said back in the wizard's own words, and where the making is in
+  // stages. The stages are named and never counted — «73 %» tells a person nothing.
+  expect(progress).toContain('stages(montage.status)');
+  expect(progress).toContain('<RowStep');
+  for (const said of ['building', 'closeApp', 'toMemory', 'stageDone', 'stageRunning']) {
+    expect(progress).toContain(`s.montage.${said}`);
+  }
+  // Every stage the arithmetic walks has a word in both languages: a sixth one added there and left
+  // unnamed here would draw an empty row.
+  const stageAt = montage.indexOf('export const STAGES');
+  const listed = [...montage.slice(stageAt, montage.indexOf(';', stageAt)).matchAll(/'(\w+)'/g)];
+  const named = listed.map(([, stage]) => stage);
+  expect(named).toHaveLength(5);
+  for (const set of [en, ru]) expect(Object.keys(set.montage.stage)).toEqual(named);
+});
+
+test('the waiting ends the way the montage does, and never on a spinner that turns for ever', () => {
+  // The same read the movies face makes, cut down to the one row — there is no route for a single
+  // montage — on the way in and then on the face's own clock while the worker still owes it.
+  expect(progress).toContain('listMontages(token, id).then(');
+  expect(progress).toContain('const making = montage === null || beingMade(montage.status);');
+  expect(progress).toContain('setInterval(() => read(true), WHILE_MAKING_MS)');
+  expect(progress).toContain('return () => clearInterval(timer);');
+  // Quietly, the same way that face polls: a blip on the way must not put a banner over a screen
+  // that is fine.
+  expect(progress).toContain('if (!quiet) setError(errorMessage(e));');
+
+  // Ready while somebody sat here watching: the reward is the video and the video is played on the
+  // movies face, so this screen steps out of the way instead of growing a second player.
+  expect(progress).toContain("if (montage?.status === 'ready') leave();");
+  expect(progress).toContain(
+    "router.replace({ pathname: '/memory/[id]', params: { id, face: 'films' } });",
+  );
+  // Fallen over: the screen says so where «Собираем ролик» stood, hands over the worker's own line,
+  // and stays put — going back is the person's move and not the app's.
+  expect(progress).toContain("const broke = montage?.status === 'failed';");
+  expect(progress).toContain('{broke ? s.montage.status.failed : s.montage.building}');
+  expect(progress).toContain('{montage.error_text ? (');
+  expect(progress).toContain('s.montage.retryInMemory');
+  for (const set of [en, ru]) expect(set.montage.retryInMemory).toBeTruthy();
+
+  // «К воспоминанию» leaves and touches nothing: the making is the worker's, and the only calls
+  // this screen makes are the two reads.
+  expect(progress).toContain(
+    "import { errorMessage, listMemories, listMontages, type Memory, type Montage } from '@/api';",
+  );
+  for (const writing of ['orderMontage', 'retryMontage', 'deleteM', "method: '"]) {
+    expect(progress).not.toContain(writing);
+  }
+});
+
 test('a ready montage shows its own still, and one without a still keeps the placeholder', () => {
   // TASK-112: the card drew the kit's dark rectangle for every montage because nothing was ever
   // handed to it. The link is the api's, signed the same way the video is, and null is the ordinary
@@ -604,15 +679,19 @@ test('the films face reads again by itself while a montage is being cut', () => 
     .map(([, status]) => status);
   expect(pending).toEqual(['queued', 'processing']);
 
-  const asksAt = films.indexOf('const stillMaking');
+  // The one-row question itself is `@/montage`'s since TASK-163 — the waiting screen asks it about
+  // the montage it is watching, and the two must not drift apart about what «still being made»
+  // means. Read where it lives; the face is pinned below on asking it rather than its own copy.
+  const asksAt = montage.indexOf('export const beingMade');
   // On one line: where the expression wraps is the formatter's business, not this test's.
-  const asking = films.slice(asksAt, films.indexOf('/**', asksAt)).replace(/\s+/g, ' ');
+  const asking = montage.slice(asksAt, montage.indexOf(';', asksAt)).replace(/\s+/g, ' ');
   for (const status of pending) expect(asking).toContain(`'${status}'`);
   // And the two the worker is done with are not a reason to keep asking — a face left polling over
   // a finished list is the same bug the other way round, forever.
   for (const settled of ['ready', 'failed']) expect(asking).not.toContain(`'${settled}'`);
+  expect(films).toContain('montages?.some((montage) => beingMade(montage.status))');
   // Nothing read yet is nothing to wait for: the first read is what starts the loop.
-  expect(asking).toContain('?? false');
+  expect(films.slice(films.indexOf('const stillMaking'))).toContain('?? false');
 
   // The loop itself: only while something is being cut, only while this face is the one in front,
   // and cleared when either stops being true.

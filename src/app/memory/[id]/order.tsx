@@ -81,9 +81,10 @@ import { radius, space, themed, useTheme } from '@/theme';
  * Called `order` and not `montage` because a memory's movies are a face of the memory and never a
  * route — this is the asking for one.
  *
- * What comes of a finished order is the list the organizer came from: the api answers with the row
- * it wrote, the movies face reads again when this screen goes, and the new card is there saying
- * «Собирается». The waiting screen spec 8 draws after this one (`MontageProgress`) is TASK-163.
+ * What comes of a finished order is not the list the organizer came from but the waiting over the
+ * one montage they just asked for — `MontageProgress`, the screen spec 8 draws after this one
+ * (TASK-163). The list is behind it either way, and it is still the list that has the finished video
+ * on it: this wizard's last act is to hand the row the api answered with to that screen.
  */
 export default function OrderMontageScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -167,8 +168,16 @@ export default function OrderMontageScreen() {
     setBusy(true);
     setNotice(null);
     try {
-      await orderMontage(token, id, wishes(items, order));
-      leave();
+      const made = await orderMontage(token, id, wishes(items, order));
+      // Onto the waiting for this one montage (TASK-163), and `replace` rather than `push`: the
+      // order is sent, so the four steps behind this screen are not somewhere to go back to — what
+      // is under the waiting is the memory it was ordered from. The count of frames goes along
+      // because the wizard is the only one who ever counts them; the api hands back what it wrote
+      // and not how many pictures it adds up to.
+      router.replace({
+        pathname: '/memory/[id]/montage/[montageId]',
+        params: { id, montageId: made.id, frames: inMovie.length },
+      });
     } catch (e) {
       // The material can still fall under the floor between the read above and this call — somebody
       // else deleting what this order was counting on. The api's own line names its numbers; these
