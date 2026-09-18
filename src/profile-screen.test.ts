@@ -72,26 +72,32 @@ test('the three-value switch is not squeezed into equal thirds', () => {
 });
 
 test('two hairlines cut the screen into who you are, what to set, how to leave', () => {
-  // The kit's assembly for this screen. The first rule belongs to the head row (`.row-member--head`
-  // draws its own), the second stands over the way out — and it is the one a rebuild loses first,
-  // because the group reads finished without it.
+  // Spec 8's assembly for this screen: a rule under «кто вы» and a rule over the way out. The second
+  // is the one a rebuild loses first, because the group reads finished without it.
+  expect(profile).toContain('borderBottomWidth: 1');
+  expect(profile).toContain('borderBottomColor: color.line');
   expect(profile).toContain('borderTopWidth: 1');
   expect(profile).toContain('borderTopColor: color.line');
 });
 
-test('logging out is quiet, in the body, and names what it costs instead of asking again', () => {
-  // Kit section 2: rust is failure and what cannot be undone. Signing in again brings the session
-  // back, so the way out wears no colour at all.
-  expect(profile).not.toContain('variant="danger"');
-  expect(profile).toContain('variant="quiet"');
-  // Kit screen 8: a quiet small button on `.push` at the end of the scrolling body. An actionbar
-  // would draw a hairline over it and read as the one thing the screen is for (TASK-103), which the
-  // way out is not — the name, the theme and the language are.
-  expect(profile).not.toContain('ActionBar');
+test('the account is the one door to the contact list', () => {
+  // Spec 8: «Контакты — раздел аккаунта, а не вторая иконка в шапке главного». The row is the whole
+  // way in, so a screen that draws it without the press leaves the list unreachable.
+  expect(profile).toContain('<RowSection');
+  expect(profile).toContain("router.push('/contacts')");
+});
+
+test('the way out is the red 60 at the foot of the body, and it stands alone there', () => {
+  // Spec 8: «отделённая линией кнопка опасная 60 «Выйти из аккаунта»», and «Выход стоит внизу и
+  // один, чтобы не попасть в него по дороге» — which is what `.push` under the second rule is for.
+  expect(profile).toContain('variant="danger" size="xl"');
   expect(profile).toContain("marginTop: 'auto'");
-  // And the sheet is gone with it: «строка под ней называет последствие заранее, поэтому листом
-  // подтверждения выход не спрашивают». The line is what makes the press safe to answer for, so a
-  // screen that drops it has to bring the question back.
+  // Not the bottom layer: that would draw its own rule over the button and read as the one thing
+  // the screen is for (TASK-103), which the way out is not — the name, the theme and the language
+  // are.
+  expect(profile).not.toContain('ActionBar');
+  // Nothing is written under it either (the macro carries no line there), and nothing is asked after
+  // it: spec 8 leaves the confirmation undrawn (`[дописано]`) rather than answering it here.
+  expect(profile).not.toContain('<Hint');
   expect(profile).not.toContain('ConfirmSheet');
-  expect(profile).toContain('{s.profile.logOutText}');
 });

@@ -80,14 +80,24 @@ const waiting = StyleSheet.create({
 });
 
 /**
- * The three signs an empty state can wear (spec 7.8):
+ * The signs an empty state can wear (spec 7.8):
  *
  * - `dashed` — a dashed circle, for a list empty for a natural reason;
+ * - `line` — the same circle ringed solid in `line`, where nothing is missing but the road is out:
+ *   the state is a dead end and not a list waiting to fill (`InviteDead`);
  * - `spark` — a circle ringed in `spark`, where the person is being called to act;
  * - `poster` — two dimmed photographs and a play circle, where the point is the reward rather than
  *   the absence (`FilmsEmpty`).
  */
-export type EmptySign = 'dashed' | 'spark' | 'poster';
+export type EmptySign = 'dashed' | 'line' | 'spark' | 'poster';
+
+/** Which ring each sign draws. `poster` has none — it is photographs. */
+const SIGN = {
+  dashed: 'signDashed',
+  line: 'signLine',
+  spark: 'signSpark',
+  poster: 'signDashed',
+} as const;
 
 export function Empty({
   sign = 'dashed',
@@ -121,7 +131,7 @@ export function Empty({
           {sign === 'poster' ? (
             <Poster photos={photos ?? []} icon={icon} />
           ) : (
-            <View style={[styles.sign, sign === 'spark' ? styles.signSpark : styles.signDashed]}>
+            <View style={[styles.sign, styles[SIGN[sign]]]}>
               {icon ? <Icon icon={icon} size={38} color={color.faint} /> : null}
             </View>
           )}
@@ -184,6 +194,7 @@ const useStyles = themed(({ color }) =>
       borderColor: color.dashed,
       backgroundColor: color.surface,
     },
+    signLine: { borderWidth: 1, borderColor: color.line, backgroundColor: color.surface },
     signSpark: { borderWidth: 2, borderColor: color.spark, backgroundColor: color.surface },
     title: { textAlign: 'center' },
     // Spec 3 holds a paragraph to about 60 characters, which at these margins is this width.

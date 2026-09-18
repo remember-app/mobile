@@ -1,4 +1,4 @@
-import { Camera, ImageIcon, Play } from 'lucide-react-native';
+import { Camera, ImageIcon, Link2Off, Play } from 'lucide-react-native';
 import { beforeAll, expect, test } from 'vitest';
 
 import { Button } from '@/kit/button';
@@ -12,9 +12,10 @@ beforeAll(async () => {
   await setTheme('dark');
 });
 
-test('the three signs an empty state can wear are three signs', () => {
+test('the signs an empty state can wear are each their own sign', () => {
   allDifferent({
     dashed: <Empty icon={ImageIcon} title="Ни одного кадра" text="Всё, что добавит любой участник, появится здесь." />,
+    line: <Empty sign="line" icon={Link2Off} title="Приглашение не действует" text="Эту ссылку отозвали или заменили новой." />,
     spark: <Empty sign="spark" icon={Camera} title="Здесь пока пусто" text="Заведите воспоминание." />,
     poster: (
       <Empty
