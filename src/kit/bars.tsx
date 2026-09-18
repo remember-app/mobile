@@ -60,10 +60,15 @@ export function AppBar({
   style?: StyleProp<ViewStyle>;
 }) {
   const styles = useStyles();
+  // Spec 7.1: an inner bar closes to 8 and hangs its round buttons 10 outside the screen's margin,
+  // so the glyph inside them lines up with the words below rather than the button's own edge. The
+  // root bar keeps 12 and its one button stays inside the margin — it is filled, and a filled
+  // button pulled out would read as falling off the screen.
+  const inner = variant !== 'root';
 
   return (
-    <View style={[styles.bar, style]}>
-      {left}
+    <View style={[styles.bar, inner ? styles.barInner : null, style]}>
+      {left ? <View style={inner ? styles.pullLeft : null}>{left}</View> : null}
       <View style={styles.barWords}>
         {/* With the native header off app-wide, this is the only thing left that can say «this is
             the top of the screen» to a rotor. `role` here is the typographic one — the spoken role
@@ -81,7 +86,7 @@ export function AppBar({
           </Text>
         ) : null}
       </View>
-      {right}
+      {right ? <View style={inner ? styles.pullRight : null}>{right}</View> : null}
     </View>
   );
 }
@@ -214,6 +219,9 @@ const useStyles = themed(({ color }) =>
       gap: space.s3,
       paddingHorizontal: space.s4,
     },
+    barInner: { gap: space.s2 },
+    pullLeft: { marginLeft: -10 },
+    pullRight: { marginRight: -10 },
     // `flex: 1` with `minWidth: 0` is what makes a long name truncate instead of pushing the button
     // on the right off the screen.
     barWords: { flex: 1, minWidth: 0, gap: 2 },

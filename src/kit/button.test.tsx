@@ -155,6 +155,15 @@ test('a round button that stays in is a switch, and one that fires is not', () =
   expect(off).not.toContain('rgba(228,255,79,1.00)');
 });
 
+test('a round button standing on a fill of its own reads its glyph in full voice', () => {
+  // Spec 7.2: `muted` belongs to the 36 and the 32 that stand on nothing; the account in the root
+  // bar and the two at the foot of the gallery stand on `surface` and are read in `paper`.
+  expect(story(<IconButton icon={Plus} label="Аккаунт" tone="surface" />)).toContain(
+    'stroke="#F5F3EE"',
+  );
+  expect(story(<IconButton icon={Plus} label="Закрыть" size={36} />)).toContain('stroke="#A4A1B2"');
+});
+
 test('the spark dot says a setting has moved off its default, and is not a state of its own', () => {
   allDifferent({
     plain: <IconButton icon={Plus} label="Фильтры" tone="surface" />,
@@ -162,4 +171,15 @@ test('the spark dot says a setting has moved off its default, and is not a state
   });
   const off = story(<IconButton icon={Plus} label="Фильтры" disabled />);
   expect(off).toContain('aria-disabled="true"');
+});
+
+test('the spark dot is ringed in whatever it stands on, which is the button it sits inside', () => {
+  // Spec 7.4. On the filled 56 at the foot of the gallery that is `surface` and nothing else — an
+  // `ink` ring there is a hole cut in the button.
+  const filled = story(<IconButton icon={Plus} label="Фильтры" size={56} tone="surface" dot />);
+  expect(filled).not.toContain('rgba(11,11,18,1.00)');
+  // With no fill under it the screen is what it stands on, and the screen is `ink`.
+  expect(story(<IconButton icon={Plus} label="Фильтры" size={56} dot />)).toContain(
+    'rgba(11,11,18,1.00)',
+  );
 });

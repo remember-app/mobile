@@ -43,6 +43,19 @@ test('every state of a field is its own state, and none of them is the placehold
   });
 });
 
+test('a field inside a sheet stands on ink, because the sheet under it is already surface', () => {
+  // Spec 7.3, the same answer the segments there give: #0B0B12 in a sheet, #16161F on a screen.
+  const inSheet = story(<Field label="Ник" variant="handle" prefix="@" value="" onSurface />);
+  expect(inSheet).toContain('background-color:rgba(11,11,18,1.00)');
+  expect(story(<Field label="Ник" variant="handle" prefix="@" value="" />)).toContain(
+    'background-color:rgba(22,22,31,1.00)',
+  );
+  // Unavailable still wins over the place it stands in: `raise` and nothing else (#22222E).
+  expect(story(<Field label="Ник" variant="handle" value="" onSurface editable={false} />)).toContain(
+    'background-color:rgba(34,34,46,1.00)',
+  );
+});
+
 test('an error says what is wrong and what to do, and keeps saying it while it is fixed', () => {
   const wrong = story(
     <Field label="Ник" value="liza" state="error" hint="Такой ник уже занят — придумайте другой" />,

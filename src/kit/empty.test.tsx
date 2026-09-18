@@ -46,6 +46,29 @@ test('the sign only repeats the words, so it says nothing of its own', () => {
   expect(story(<Empty icon={ImageIcon} text="Пусто" />)).not.toContain('aria-label');
 });
 
+test('the sign inside the spark ring is read in full voice, and a dimmed circle in a dimmed one', () => {
+  // Spec 7.8: the `spark` circle is a call to act, so its glyph is `paper` — #F5F3EE — like the
+  // heading under it; the dashed circle only reports an absence and keeps `faint` — #6E6B7D.
+  expect(story(<Empty sign="spark" icon={Camera} text="Заведите воспоминание." />)).toContain(
+    'stroke="#F5F3EE"',
+  );
+  for (const sign of ['dashed', 'line'] as const) {
+    expect(story(<Empty sign={sign} icon={ImageIcon} text="Пусто" />)).toContain(
+      'stroke="#6E6B7D"',
+    );
+  }
+});
+
+test('the block breathes at two rhythms — 22 under the sign, 12 inside the words', () => {
+  const empty = story(
+    <Empty icon={ImageIcon} title="Ни одного кадра" text="Всё, что добавит участник, будет здесь." />,
+  );
+  // Spec 7.8 gives the sign and the paragraph two different distances, and one distance for both is
+  // exactly what this looked like before: two gaps, not one repeated.
+  const gaps = new Set([...empty.matchAll(/r-gap-\w+/g)].map(([found]) => found));
+  expect(gaps.size).toBe(2);
+});
+
 test('waiting holds the place of the list instead of blinking over it', () => {
   allDifferent({
     empty: <Empty icon={ImageIcon} text="Пока никого" />,

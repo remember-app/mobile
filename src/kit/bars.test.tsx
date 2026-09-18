@@ -65,6 +65,34 @@ test('the name at the top of a screen is its heading, and a long one is cut rath
   expect(bar).toContain('r-textOverflow');
 });
 
+test('an inner bar closes to 8 and hangs its round buttons outside the screen’s margin', () => {
+  const inner = story(
+    <AppBar
+      title="Свадьба Лизы и Марка"
+      left={<IconButton icon={ChevronLeft} label="Назад" />}
+      right={<IconButton icon={User} label="Выбрать" />}
+    />,
+  );
+  // Spec 7.1: −10 on each side, so the glyph in the button lines up with the words of the body
+  // rather than the button's own edge.
+  expect(inner).toContain('r-marginLeft-');
+  expect(inner).toContain('r-marginRight-');
+
+  // The root bar keeps 12 and its one button inside the margin: that one is filled, and a filled
+  // button hung over the edge reads as falling off the screen.
+  const root = story(
+    <AppBar
+      variant="root"
+      title="Воспоминания"
+      right={<IconButton icon={User} label="Аккаунт" tone="surface" />}
+    />,
+  );
+  expect(root).not.toContain('r-marginRight-');
+  // Two rhythms and not one — 8 in the inner bar, 12 in the root one.
+  const gap = (markup: string) => markup.match(/r-gap-\w+/)?.[0];
+  expect(gap(inner)).not.toBe(gap(root));
+});
+
 test('the second line under a name is there only when a screen has one', () => {
   const plain = story(<AppBar title="Ваши кадры" />);
   const withSub = story(<AppBar title="Ваши кадры" subtitle="Свадьба · 12–14 сентября" />);

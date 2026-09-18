@@ -81,6 +81,7 @@ export function Field({
   state,
   prefix,
   icon,
+  onSurface,
   style,
   onFocus,
   onBlur,
@@ -101,6 +102,12 @@ export function Field({
   prefix?: string;
   /** The magnifier on the search field. */
   icon?: IconComponent;
+  /**
+   * Spec 7.3 — the field standing inside a sheet is filled with `ink`, the same way the segments
+   * there are: the sheet under it is already `surface`, and a `surface` box on a `surface` sheet is
+   * a field nobody can see the edges of.
+   */
+  onSurface?: boolean;
 }) {
   const [focused, setFocused] = useState(false);
   const theme = useTheme();
@@ -116,7 +123,11 @@ export function Field({
           BOX[variant],
           {
             borderColor: borderColor(theme, state, focused),
-            backgroundColor: disabled ? theme.color.raise : theme.color.surface,
+            backgroundColor: disabled
+              ? theme.color.raise
+              : onSurface
+                ? theme.color.ink
+                : theme.color.surface,
           },
           focused && !state ? styles.boxFocus : null,
         ]}

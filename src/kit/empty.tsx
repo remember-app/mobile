@@ -132,19 +132,27 @@ export function Empty({
             <Poster photos={photos ?? []} icon={icon} />
           ) : (
             <View style={[styles.sign, styles[SIGN[sign]]]}>
-              {icon ? <Icon icon={icon} size={38} color={color.faint} /> : null}
+              {/* The dimmed glyph belongs to a circle that is dimmed itself. Inside the `spark` ring
+                  the sign is the invitation, so it is read in `paper` like the heading under it. */}
+              {icon ? (
+                <Icon icon={icon} size={38} color={sign === 'spark' ? color.paper : color.faint} />
+              ) : null}
             </View>
           )}
         </View>
       )}
-      {title ? (
-        <Text role="emptyTitle" accessibilityRole="header" style={styles.title}>
-          {title}
+      {/* Spec 7.8 draws two rhythms and not one: 22 from the sign down to the words, 12 between the
+          heading and the paragraph it belongs with. */}
+      <View style={styles.words}>
+        {title ? (
+          <Text role="emptyTitle" accessibilityRole="header" style={styles.title}>
+            {title}
+          </Text>
+        ) : null}
+        <Text role="body" tone="muted" style={styles.text}>
+          {text}
         </Text>
-      ) : null}
-      <Text role="body" tone="muted" style={styles.text}>
-        {text}
-      </Text>
+      </View>
       {children}
     </View>
   );
@@ -175,12 +183,14 @@ function Poster({ photos, icon }: { photos: readonly string[]; icon?: IconCompon
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
     // Spec 4: the margins of an empty state open out to 32–40, and the block breathes at 22–24.
+    // 22 is off the step of 4 on purpose — it is what the layout draws under every sign.
     empty: {
       alignItems: 'center',
-      gap: space.s6,
+      gap: 22,
       paddingVertical: space.s7,
       paddingHorizontal: space.s7,
     },
+    words: { alignItems: 'center', gap: space.s3 },
     sign: {
       width: 96,
       height: 96,

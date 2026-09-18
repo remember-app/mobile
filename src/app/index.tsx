@@ -20,7 +20,7 @@ import {
   Waiting,
 } from '@/kit';
 import { useStrings } from '@/language';
-import { duration, height, space, useTheme } from '@/theme';
+import { duration, height, space } from '@/theme';
 
 /**
  * Where the connection stands, as this screen draws it (spec, «Ожидание и отказы»): the list is the
@@ -35,7 +35,6 @@ export default function HomeScreen() {
   const { token } = useAuth();
   const router = useRouter();
   const s = useStrings();
-  const { color } = useTheme();
   // null means «not loaded yet», which is what tells a first load from a refetch: a refetch keeps
   // the list on screen instead of flashing the spinner over it — and a *failed* refetch keeps it
   // too, which is the whole of `HomeOffline`.
@@ -81,10 +80,8 @@ export default function HomeScreen() {
             icon={User}
             label={s.home.account}
             // Spec 7.2: the 44 in a root bar is `surface` over `line`, and the glyph on it is read
-            // in `paper` — the kit reads a round button `muted` by default, which is the 36 and 32
-            // in a row rather than this one.
+            // in `paper` — which the tone itself now carries.
             tone="surface"
-            tint={color.paper}
             onPress={() => router.push('/profile')}
           />
         }

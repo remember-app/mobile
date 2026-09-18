@@ -463,6 +463,8 @@ export function People({ id, head }: { id: string; head: Head }) {
           label={s.username.label}
           labelHidden
           variant="handle"
+          // The sheet under it is already `surface`, so the field itself stands on `ink` (spec 7.3).
+          onSurface
           prefix="@"
           value={username}
           onChangeText={(text) => {

@@ -228,11 +228,7 @@ export function IconButton({
   const styles = useStyles();
   const focusRing = useFocusRing();
   const lit = on ?? false;
-  const glyph = disabled
-    ? color.faint
-    : lit
-      ? color.sparkInk
-      : (tint ?? (tone === 'paper' ? color.ink : tone === 'danger' ? color.dangerText : color.muted));
+  const glyph = disabled ? color.faint : lit ? color.sparkInk : (tint ?? roundGlyph(color, tone));
 
   return (
     <Pressable
@@ -256,9 +252,58 @@ export function IconButton({
       ]}
     >
       <Icon icon={icon} size={size >= 48 ? 22 : size >= 40 ? 20 : 18} color={glyph} />
-      {dot ? <View style={styles.dot} /> : null}
+      {dot ? (
+        <View
+          style={[
+            styles.dot,
+            // Spec 7.4: ringed in the colour it stands on, which is the button's own fill — and it
+            // only stands on that fill if it sits inside the circle, hence the inset by diameter.
+            {
+              top: Math.round(size * 0.2),
+              right: Math.round(size * 0.2),
+              borderColor: roundBacking(color, tone, lit),
+            },
+          ]}
+        />
+      ) : null}
     </Pressable>
   );
+}
+
+/**
+ * What the glyph is read in. A round button standing on a fill of its own — the account in the root
+ * bar, the two at the foot of the gallery — carries its glyph in the plain colour of text; `muted`
+ * belongs to the 36 and the 32 that stand on nothing (spec 7.2).
+ */
+function roundGlyph(color: Theme['color'], tone: RoundTone): string {
+  switch (tone) {
+    case 'surface':
+      return color.paper;
+    case 'paper':
+      return color.ink;
+    case 'spark':
+      // The same answer the held-in button gives: `muted` on `spark` is a glyph nobody can see.
+      return color.sparkInk;
+    case 'danger':
+      return color.dangerText;
+    default:
+      return color.muted;
+  }
+}
+
+/** The colour under the spark dot: the button's own fill, or the screen where there is no fill. */
+function roundBacking(color: Theme['color'], tone: RoundTone, on: boolean): string {
+  if (on) return color.spark;
+  switch (tone) {
+    case 'surface':
+      return color.surface;
+    case 'paper':
+      return color.paper;
+    case 'spark':
+      return color.spark;
+    default:
+      return color.ink;
+  }
 }
 
 function roundFill(
@@ -307,17 +352,15 @@ const useStyles = themed(({ color }) =>
       justifyContent: 'center',
     },
     off: { opacity: 0.45 },
-    // Spec 7.4: a 9px dot ringed 2px in the colour of what it sits on.
+    // Spec 7.4: a 9px dot ringed 2px in the colour of what it sits on — the ring itself comes from
+    // the tone, since only the tone knows what that colour is.
     dot: {
       position: 'absolute',
-      top: 2,
-      right: 2,
       width: 9,
       height: 9,
       borderRadius: radius.pill,
       backgroundColor: color.spark,
       borderWidth: 2,
-      borderColor: color.ink,
     },
   }),
 );
