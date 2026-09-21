@@ -118,7 +118,8 @@ function RootNavigator() {
             does not fit on a sheet (spec 10.8.3). */}
         <Stack.Screen name="memory/[id]/edit" options={{ title: 'Edit the memory' }} />
         <Stack.Screen name="memory/[id]/upload" options={{ title: 'Upload' }} />
-        {/* Asking for a movie is four steps and a screen of its own (TASK-162); the movies of a
+        {/* Asking for a movie is four steps and a wizard of its own (TASK-162, split into a route
+            per step in TASK-216); one name here whatever step is on top, and the movies of a
             memory stay a face of it and not a route. */}
         <Stack.Screen name="memory/[id]/order" options={{ title: 'Order a movie' }} />
         {/* And the waiting the order leads to (TASK-163): one montage being made, which is a route

@@ -85,8 +85,10 @@ import {
   pickOf,
   rejectedGroups,
   shapeOf,
+  shelfTrack,
   stages,
   taken,
+  TRACKS,
   wishes,
   type Order,
 } from '@/montage';
@@ -144,19 +146,22 @@ test('the automatic pass proposes, and one tap is the whole of overruling it', (
   expect(pickOf(blurred, after(back, blurred))).toBe('hand');
 });
 
-test('only what was settled by hand is named in the order', () => {
+test('every frame that is not going in is named, whoever crossed it out', () => {
   const start = blankOrder();
-  // Nobody has touched anything: the worker's own pass decides, and the body names no frames at all.
+  // Nobody has touched anything, and the body already names the two the pass dropped: the api
+  // counts the film off this very list — «готовые минус exclude_media_ids» — so a summary read
+  // from it must count what the screen shows and not what the worker would have done anyway.
+  expect(wishes(gallery, start).exclude_media_ids).toEqual(['blurred', 'dark']);
   expect(wishes(gallery, start)).not.toHaveProperty('include_media_ids');
-  expect(wishes(gallery, start)).not.toHaveProperty('exclude_media_ids');
   expect(taken(gallery, start).map((item) => item.id)).toEqual(['kept', 'unseen']);
 
-  // One dropped by hand goes out as «exclude», one taken back from the pass as «include» — and the
-  // frame nobody said anything about is in neither list.
+  // One dropped by hand joins them; one taken back from the pass leaves the list and goes out as
+  // «include» instead, which is what actually brings it back — the worker skips anything its own
+  // pass rejected unless the order insists on it by name.
   const settled = after(after(start, kept), blurred);
   expect(wishes(gallery, settled)).toMatchObject({
     include_media_ids: ['blurred'],
-    exclude_media_ids: ['kept'],
+    exclude_media_ids: ['kept', 'dark'],
   });
 });
 
@@ -166,7 +171,7 @@ test('a frame taken back and then dropped by hand is named once, as dropped', ()
   const start = blankOrder();
   const settled = after(after(start, blurred), blurred);
   const body = wishes(gallery, settled);
-  expect(body.exclude_media_ids).toEqual(['blurred']);
+  expect(body.exclude_media_ids).toEqual(['blurred', 'dark']);
   expect(body.include_media_ids).toBeUndefined();
 });
 
@@ -174,7 +179,13 @@ test('a frame still being developed is in nothing — not the count, not the lis
   const developing = frame({ id: 'developing', status: 'processing' });
   const order = after(blankOrder(), kept);
   expect(taken([...gallery, developing], order).map((item) => item.id)).toEqual(['unseen']);
-  expect(wishes([...gallery, developing], order).exclude_media_ids).toEqual(['kept']);
+  // The two the pass dropped are in the list; the one still being made is in neither list, because
+  // the api refuses a body naming a frame it cannot cut anything out of.
+  expect(wishes([...gallery, developing], order).exclude_media_ids).toEqual([
+    'kept',
+    'blurred',
+    'dark',
+  ]);
 });
 
 test('the floor is on what is taken, not on what the memory holds', () => {
@@ -230,8 +241,12 @@ test('the four steps go out in one body, with everything they settled in it', as
   const order: Order = {
     ...after(after(blankOrder(), kept), blurred),
     story: '  Сборы, церемония, танцы  ',
-    track: 'night',
-    seconds: 120,
+    tracks: [
+      { key: 'music/own-1', name: 'song.mp3' },
+      { key: 'night', name: null },
+    ],
+    note: '  Свой трек первым  ',
+    seconds: 137,
     orientation: 'portrait',
   };
   await orderMontage('session', 'memory-1', wishes(gallery, order));
@@ -239,16 +254,60 @@ test('the four steps go out in one body, with everything they settled in it', as
   expect(sent).toHaveLength(1);
   expect(sent[0]?.url).toContain('/memories/memory-1/montages');
   expect(sent[0]?.body).toEqual({
-    target_seconds: 120,
+    // Any whole number of seconds, not one of three presets: the range is the material's and the
+    // api is the one that knows it.
+    target_seconds: 137,
     orientation: 'portrait',
     // Trimmed on the way out: the api keeps what it is given, and trailing spaces are not a story.
     story_text: 'Сборы, церемония, танцы',
     include_media_ids: ['blurred'],
-    exclude_media_ids: ['kept'],
-    music_track_id: 'night',
+    exclude_media_ids: ['kept', 'dark'],
+    // In the order they were taken, which is the order they play in — their own file and the shelf
+    // in one list, exactly as the api reads it.
+    music_tracks: ['music/own-1', 'night'],
+    music_note: 'Свой трек первым',
   });
 
   vi.unstubAllGlobals();
+});
+
+test('the music goes out even when there is none, and the note only with tracks', () => {
+  const start = blankOrder();
+  // Empty and not missing: that is how the worker tells «без музыки, живой звук из видео» from an
+  // order that simply said nothing about music.
+  expect(wishes(gallery, start).music_tracks).toEqual([]);
+  // Nothing was said about the length either, so the api picks its own and clamps it to what this
+  // memory can carry — a body that named a number would be the app guessing at that range.
+  expect(wishes(gallery, start)).not.toHaveProperty('target_seconds');
+
+  // A wish about music nobody picked is the one thing the api answers 400 to here, so it is not
+  // sent: the note belongs to the tracks and goes when they do.
+  const noted: Order = { ...start, note: 'Погромче к финалу' };
+  expect(wishes(gallery, noted)).not.toHaveProperty('music_note');
+  expect(wishes(gallery, { ...noted, tracks: [{ key: 'calm', name: null }] })).toMatchObject({
+    music_tracks: ['calm'],
+    music_note: 'Погромче к финалу',
+  });
+
+  // Neither of the two old single-track fields is ever written again — a body carrying one of them
+  // beside the list is «the music is named more than one way».
+  const body = wishes(gallery, { ...noted, tracks: [{ key: 'calm', name: null }] });
+  expect(body.music_track_id).toBeUndefined();
+  expect(body.music_track_key).toBeUndefined();
+});
+
+test('a track is told from the shelf by its key, and everything else is somebody’s own file', () => {
+  // The api hands the two kinds back in one list, so this is the only way a screen can name them:
+  // the five have words in the dictionary, and a storage path never does.
+  expect(TRACKS.map((track) => shelfTrack(track.id))).toEqual([
+    'bright',
+    'warm',
+    'calm',
+    'night',
+    'road',
+  ]);
+  expect(shelfTrack('music/7d2e-own-file')).toBeNull();
+  expect(shelfTrack('')).toBeNull();
 });
 
 test('their own track goes to R2 part by part, and the order names it by its key', async () => {
@@ -297,11 +356,16 @@ test('their own track goes to R2 part by part, and the order names it by its key
   });
   expect(key).toBe('music/track-1');
 
-  // And the order then carries the key instead of a shelf id — never both, which the api refuses.
-  const order: Order = { ...blankOrder(), track: 'warm', ownTrack: { key, name: 'song.mp3' } };
-  const body = wishes(gallery, order);
-  expect(body.music_track_key).toBe('music/track-1');
-  expect(body.music_track_id).toBeUndefined();
+  // And the order then carries that key in the list beside the shelf, in the order the two were
+  // taken: one list of both kinds is what the api reads, and what plays first plays first.
+  const order: Order = {
+    ...blankOrder(),
+    tracks: [
+      { key: 'warm', name: null },
+      { key, name: 'song.mp3' },
+    ],
+  };
+  expect(wishes(gallery, order).music_tracks).toEqual(['warm', 'music/track-1']);
 
   vi.unstubAllGlobals();
 });

@@ -3,7 +3,6 @@ import { expect, test } from 'vitest';
 import create from './app/create.tsx?raw';
 import memory from './app/memory/[id].tsx?raw';
 import edit from './app/memory/[id]/edit.tsx?raw';
-import order from './app/memory/[id]/order.tsx?raw';
 import settings from './app/memory/[id]/settings.tsx?raw';
 import progress from './app/memory/[id]/montage/[montageId].tsx?raw';
 import upload from './app/memory/[id]/upload.tsx?raw';
@@ -97,9 +96,9 @@ test('the two faces are two files, and the people are a screen of their own', ()
     expect(settings).not.toContain(moved);
     expect(frames).not.toContain(moved);
   }
-  // Asking for a movie is four steps and a screen of its own since TASK-162: this face offers it
-  // and reads its list again when that screen goes, and no face orders anything itself.
-  expect(order).toContain('orderMontage(');
+  // Asking for a movie is a wizard of its own since TASK-162, and a route per step since TASK-216:
+  // this face offers it and reads its list again when that screen goes, and no face orders
+  // anything itself. The wizard's own half of this rule is in `order-screens.test.ts`.
   for (const face of [frames, films, settings]) expect(face).not.toContain('orderMontage');
   for (const stayed of ['RowMember', 'removeMember']) {
     expect(settings).toContain(stayed);
@@ -439,7 +438,6 @@ test('every face shuts its own windows when it loses focus', () => {
   expect(viewer).toContain('onRequestClose={onClose}');
   expect(frames).toContain('onClose={() => setOpen(null)}');
   expect(viewer).toContain('onCancel={() => setConfirming(false)}');
-  expect(order).toContain('onCancel={() => setShowDropped(false)}');
   expect(films).toContain('onRequestClose={() => setPlaying(null)}');
 });
 
@@ -470,9 +468,8 @@ test('the ember on a face is the one action that face is for', () => {
   // One on the movies since TASK-162: «Смонтировать ролик» in the footer, and nothing else — the
   // sheet that used to carry the second one is a screen of its own now.
   expect(films.match(/variant="primary"/g)).toHaveLength(1);
-  // Three on that screen, one per surface: «Дальше»/«Смонтировать» on the wizard itself, «Вернуть
-  // все» on the sheet of what was dropped, «Добавить кадры» on the one that says there is too little.
-  expect(order.match(/variant="primary"/g)).toHaveLength(3);
+  // The wizard of the order is four screens now and counts its own embers, a surface at a time
+  // (`order-screens.test.ts`).
   // One on the settings and one on the sheet it raises: «Пригласить» in the footer, «Позвать» at
   // the foot of `SheetInvite`. The sheet had none of its own while every press that put somebody in
   // sat on that person's own row (TASK-131); the layout's `SheetInvite` is one of the five «одна
@@ -711,79 +708,14 @@ test('the order button waits for the list it prepends to', () => {
   expect(frames).toContain('marginBottom: Math.max(insets.bottom');
 });
 
-test('an order is asked for in four steps, on a screen of its own, and sent in one call', () => {
-  // TASK-162: the sheet with three switches is gone; spec 8 asks in four steps — the frames, the
-  // story, the music, the shape — and nothing leaves the phone until the last button of the last
-  // one. The face only opens it.
-  expect(layout).toContain('<Stack.Screen name="memory/[id]/order"');
-  expect(films).toContain("router.push({ pathname: '/memory/[id]/order', params: { id } })");
-  expect(order).toContain('const STEPS = 4;');
-  expect(order).toContain('await orderMontage(token, id, wishes(items, order));');
-  // Too little material raises `SheetTooLittle` in place of step 1, and its own button leads to
-  // where material comes from — the question is asked before the four steps, not after them.
-  expect(order).toContain('const short = items !== null && !enoughMaterial(items);');
-  expect(order).toContain('<Sheet\n        visible={short}');
-  expect(order).toContain("router.replace({ pathname: '/memory/[id]/upload', params: { id } })");
-  // And the floor holds on what was picked, not only on what the memory holds: the api counts the
-  // ready material for its 409 and never the selection, and so does the worker, so an order taking
-  // one frame out of twenty was accepted and cut into a one-frame «ролик» (found in review).
-  expect(order).toContain('disabled={step === 1 && inMovie.length < MIN_FRAMES}');
-  // Their own track goes up the moment it is picked, so the last button of the wizard is one call.
-  expect(order).toContain('await sendOwnTrack(token, id,');
-  // Every wish of spec 8 is in the body that goes out, and the api names all of them.
-  for (const wish of [
-    'target_seconds',
-    'story_text',
-    'include_media_ids',
-    'exclude_media_ids',
-    'music_track_id',
-    'music_track_key',
-    'orientation',
-  ]) {
-    expect(api).toContain(`${wish}?`);
-  }
-  expect(api).toContain("export type MontageOrientation = 'landscape' | 'portrait';");
-  for (const set of [en, ru]) {
-    expect(Object.keys(set.montage.orientation)).toEqual(['landscape', 'portrait']);
-    expect(set.montage.shape).toBeTruthy();
-    // The shelf is five since the worker grew two (TASK-157/161), in the order the layout draws it.
-    expect(Object.keys(set.montage.track)).toEqual(['bright', 'warm', 'calm', 'night', 'road']);
-  }
-});
-
-test('the shelf can be listened to, and the listening ends with the step', () => {
-  // TASK-172: every row of step 3 carries the round «Послушать» button spec 8 draws, and pressing
-  // it neither picks the track nor un-picks one — the row's own press is still the choosing.
-  expect(order).toContain('play={');
-  expect(order).toContain('s.montage.stopTrack(name) : s.montage.listen(name)');
-  expect(order).toContain('onPress={() => onTrack(track.id)}');
-  // The player belongs to the music step and not to the wizard around it, which is the whole of
-  // «уход со шага музыки останавливает воспроизведение»: the step is mounted while it is the step,
-  // so both leaving it and closing the wizard are it going away, and the hook stops on the way out.
-  expect(order.indexOf('useTrackPreview(token)')).toBeGreaterThan(
-    order.indexOf('function MusicStep'),
-  );
-});
-
-test('a placed order lands on the waiting for that montage, not back on the list', () => {
+test('the waiting over one montage is a route of one row, and it names every stage', () => {
   // TASK-163, spec 8: what was just asked for is the only thing on the mind of whoever asked, so it
-  // gets a screen — and a route of one montage, not a second face of the memory.
+  // gets a screen — and a route of one montage, not a second face of the memory. What the wizard
+  // hands it on the way in is checked with the wizard (`order-screens.test.ts`).
   expect(layout).toContain('name="memory/[id]/montage/[montageId]"');
   expect(layout.indexOf('name="memory/[id]/montage/[montageId]"')).toBeLessThan(
     layout.indexOf('</Stack.Protected>'),
   );
-
-  // The wizard hands over the row the api answered with, and the count of frames it took — the one
-  // number nobody else can work out, because the api hands back what it wrote and never how many
-  // pictures add up to it. `replace`: an order already sent is not a wizard to walk back into.
-  expect(order).toContain('const made = await orderMontage(token, id, wishes(items, order));');
-  expect(order).toContain("pathname: '/memory/[id]/montage/[montageId]',");
-  expect(order).toContain('params: { id, montageId: made.id, frames: inMovie.length },');
-  const sentAt = order.indexOf('const made = await');
-  const sent = order.slice(sentAt, order.indexOf('} catch', sentAt));
-  expect(sent).toContain('router.replace({');
-  // And it does not simply walk out any more, which is what it did until this screen existed.
-  expect(sent).not.toContain('leave()');
 
   // The screen itself: the order said back in the wizard's own words, and where the making is in
   // stages. The stages are named and never counted — «73 %» tells a person nothing.
@@ -870,24 +802,14 @@ test('the waiting ends the way the montage does, and never on a spinner that tur
   }
 });
 
-test('neither screen of an order moves the app once the person has walked out of it', () => {
+test('the waiting does not move the app once the person has walked out of it', () => {
   // Found in review, m-23: `useRouter` hands back the app's own router and not the screen's, so a
-  // call still in flight when «Отмена» was pressed went on to move whoever was on top of it — the
-  // wizard walked people into the waiting screen seconds after they had walked out of the wizard.
-  // Reset on the way in as well as set on the way out: a remount is a screen that is here again.
-  for (const screen of [order, progress]) {
-    expect(screen).toContain('const gone = useRef(false);');
-    expect(screen).toContain('gone.current = false;');
-    expect(screen).toContain('gone.current = true;');
-  }
-
-  // The order itself is placed and cannot be unsent — what does not happen is the leading anywhere,
-  // and the same for a track that lands after the wizard has gone.
-  const sentAt = order.indexOf('const made = await');
-  expect(order.slice(sentAt, order.indexOf('router.replace', sentAt))).toContain(
-    'if (gone.current) return;',
-  );
-  expect(order).toContain('if (!gone.current) setNotice(errorMessage(e));');
+  // call still in flight when somebody left went on to move whoever was on top of it. Reset on the
+  // way in as well as set on the way out: a remount is a screen that is here again. The wizard's
+  // own half of this rule is in `order-screens.test.ts`.
+  expect(progress).toContain('const gone = useRef(false);');
+  expect(progress).toContain('gone.current = false;');
+  expect(progress).toContain('gone.current = true;');
 
   // And the waiting screen's one way out is called by its own read as well, so it is guarded where
   // it is written: a second `back()` off an answer that landed late pops the memory too.

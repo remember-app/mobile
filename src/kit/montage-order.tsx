@@ -180,6 +180,35 @@ export function PosterOrder({
 }
 
 /**
+ * Spec 8, `MontageStory` — the plate over the story: which template the words in the box came
+ * from, or that they are the person's own. 30 tall on `accentSoft` under the accent's hairline,
+ * which is the pair of tokens the theme keeps for exactly this plate and the chosen choice card.
+ *
+ * Not a chip: nothing about it can be pressed. It reports which text is in the box, and the way to
+ * change that is to write in the box — a plate that took a finger would be a second place where
+ * the same thing is decided.
+ */
+export function ChipTemplate({
+  label,
+  icon,
+  style,
+}: {
+  label: string;
+  icon?: IconComponent;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const { color } = useTheme();
+  const styles = useStyles();
+
+  return (
+    <View style={[styles.templateChip, icon ? null : styles.templateChipBare, style]}>
+      {icon ? <Icon icon={icon} size={14} color={color.paper} /> : null}
+      <Text role="label">{label}</Text>
+    </View>
+  );
+}
+
+/**
  * Spec 7.6 — the order read back in one card, in sections with a hairline between them. Nothing in
  * it can be touched: the way to change an answer is to walk back to the step that gave it, and a
  * field here would be a second place where the same thing is decided.
@@ -363,6 +392,22 @@ const useStyles = themed(({ color }) =>
       borderRadius: radius.pill,
       backgroundColor: photo.plate,
     },
+    templateChip: {
+      alignSelf: 'flex-start',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      minHeight: 30,
+      paddingLeft: space.s2,
+      paddingRight: 12,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      borderColor: color.accentEdge,
+      backgroundColor: color.accentSoft,
+    },
+    // Without a glyph in front, the words stand in the middle of the plate rather than off to one
+    // side: the 8 on the left is room for the icon and not a margin.
+    templateChipBare: { paddingLeft: 12 },
     posterFoot: {
       marginTop: 'auto',
       flexDirection: 'row',
