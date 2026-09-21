@@ -78,10 +78,12 @@ import {
   useReducedMotion,
   Waiting,
 } from '@/kit';
+import { filed } from '@/labels';
 import { useStrings } from '@/language';
 import { Films } from '@/memory/films';
 import { FrameViewer } from '@/memory/frame-viewer';
 import { FilterSheet, SortSheet } from '@/memory/frames-sheets';
+import { LabelSheets } from '@/memory/label-sheets';
 import { BlockHead, MemoryHead, type Head } from '@/memory/head';
 import { board, duration, height, space, themed, useTheme } from '@/theme';
 
@@ -164,6 +166,8 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   const [picked, setPicked] = useState<ReadonlySet<string>>(() => new Set());
   /** Whether the sheet that asks about deleting what is marked is up. */
   const [dropping, setDropping] = useState(false);
+  /** And whether the labels of the memory are up over it (spec 7.7, `SheetLabels`). */
+  const [labelling, setLabelling] = useState(false);
   /** What of the memory is shown, and how it is laid out — the two sheets at the foot of it. */
   const [filter, setFilter] = useState<Filter>(FILTER_NONE);
   const [sort, setSort] = useState<Sort>(SORT_DEFAULT);
@@ -894,10 +898,11 @@ export function Frames({ id, head }: { id: string; head: Head }) {
               tone="glass"
               size={height.roundViewer}
               label={s.gallery.labelsPut}
-              // The sheet of labels is the labels milestone's (`SheetLabels`, spec 8) and lands
-              // right here, on this button. Until it does there is nothing to open: an empty
-              // sheet would be worse than a button that says it is not ready.
-              disabled
+              // `SheetLabels` (spec 7.7, TASK-213) — the boxes what is marked goes into. Nothing
+              // marked is nothing to file, and the button says so by being off, the way the three
+              // in the bottom layer do.
+              onPress={() => setLabelling(true)}
+              disabled={busy || marked.length === 0}
             />
           ) : undefined
         }
@@ -1033,6 +1038,19 @@ export function Frames({ id, head }: { id: string; head: Head }) {
       ) : null}
       {tuning === 'sort' ? (
         <SortSheet value={sort} onChange={setSort} onDone={() => setTuning(null)} />
+      ) : null}
+
+      {/* The labels of the memory over what is marked (spec 7.7). What comes back is a change to
+          the records themselves — a box added to or taken off `label_ids` — so the feed keeps it
+          the way it keeps a delete: in its own state, without a re-read. A fresh listing would not
+          even carry it, since the quiet one deliberately keeps finished records where they are. */}
+      {labelling ? (
+        <LabelSheets
+          memoryId={id}
+          frames={marked}
+          onFiled={(labelId, ids, now) => setItems((have) => filed(have, labelId, ids, now))}
+          onClose={() => setLabelling(false)}
+        />
       ) : null}
 
       {/* `SheetConfirmDelete` with a count (spec 8): the price is named as a number before the

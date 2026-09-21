@@ -11,6 +11,7 @@ import {
   RowStep,
   RowSummary,
   RowTrack,
+  StepLink,
   StepNote,
   Waveform,
   type StepState,
@@ -63,6 +64,24 @@ test('a track row is a row, and what picks it is the button on its right', () =>
   expect(story(<RowTrack title="Яркая" length="2:14" playing />)).not.toBe(
     story(<RowTrack title="Яркая" length="2:14" />),
   );
+});
+
+test('the wave doubles as the handle a chosen row is dragged by', () => {
+  // Spec 7.7, detail 54: the order of the chosen tracks is the order they play in, and it is
+  // changed by taking a row by its wave — the one part of it that is not already a button. The
+  // handlers belong to the list; what the row does is put them where the layout says.
+  const dragged = story(
+    <RowTrack
+      title="Тёплая"
+      length="1:40"
+      wave
+      grip={{ accessibilityRole: 'adjustable', accessibilityLabel: 'Переставить «Тёплая»' }}
+    />,
+  );
+  expect(dragged).toContain('aria-label="Переставить «Тёплая»"');
+  expect(dragged).toContain('role="slider"');
+  // A row nobody can reorder is the same row without any of that on it.
+  expect(story(<RowTrack title="Тёплая" length="1:40" wave />)).not.toContain('aria-label');
 });
 
 test('the waveform is a drawing, at the two sizes the layout gives it', () => {
@@ -132,6 +151,17 @@ test('the stage in hand opens out, and the ones around it do not', () => {
   expect(story(open)).toContain('Марк роняет кольцо');
   // A record handed to a stage that is not opened is not drawn at all.
   expect(story(shut)).not.toContain('Марк роняет кольцо');
+});
+
+test('the last line of an opened stage is the way into the whole of its journal', () => {
+  const link = story(<StepLink label="Весь журнал этапа · 148 записей" onPress={() => {}} />);
+  expect(link).toContain('Весь журнал этапа · 148 записей');
+  expect(link).toContain('role="button"');
+  // A road and not an action: the chevron is the only thing it wears, in the accent the words are
+  // read in.
+  expect(link).toContain('stroke="#A7AEFF"');
+  // And with nowhere to go it is not a button at all — the rule every row here keeps.
+  expect(story(<StepLink label="Весь журнал этапа · 148 записей" />)).not.toContain('role="button"');
 });
 
 test('a sheet’s dangerous action is the only red line on it', () => {

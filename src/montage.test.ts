@@ -80,13 +80,15 @@ import {
   afterTap,
   beingMade,
   blankOrder,
+  entered,
   enoughMaterial,
   MIN_FRAMES,
+  movedTrack,
+  pickedSeconds,
   pickOf,
   rejectedGroups,
   shapeOf,
   shelfTrack,
-  stages,
   taken,
   TRACKS,
   wishes,
@@ -112,6 +114,7 @@ const frame = (over: Partial<MediaItem>): MediaItem => ({
   height: null,
   duration_seconds: null,
   created_at: '2026-09-18T10:00:00.000Z',
+  label_ids: [],
   thumbnail_url: null,
   preview_url: null,
   screening_rejected: false,
@@ -296,6 +299,29 @@ test('the music goes out even when there is none, and the note only with tracks'
   expect(body.music_track_key).toBeUndefined();
 });
 
+test('a walk with nothing said in it costs nothing to leave, and every answer is something said', () => {
+  // The question «Отмена» asks before it throws the wizard away: walked into and straight back
+  // out of, there is nothing to confirm, and a sheet asking anyway is a door held shut for nothing.
+  const start = blankOrder();
+  expect(entered(start)).toBe(false);
+  // Whitespace is not an answer either — the same trim the body goes out under.
+  expect(entered({ ...start, story: '   ' })).toBe(false);
+
+  // Every field one of the steps can fill in, one at a time: each of them on its own is a walk
+  // worth asking about.
+  const said: Partial<Order>[] = [
+    { dropped: new Set(['kept']) },
+    { returned: new Set(['blurred']) },
+    { story: 'Начни со сборов' },
+    { template: 'parents' },
+    { tracks: [{ key: 'calm', name: null }] },
+    { note: 'Погромче к финалу' },
+    { seconds: 90 },
+    { orientation: 'portrait' },
+  ];
+  for (const answer of said) expect(entered({ ...start, ...answer })).toBe(true);
+});
+
 test('a track is told from the shelf by its key, and everything else is somebody’s own file', () => {
   // The api hands the two kinds back in one list, so this is the only way a screen can name them:
   // the five have words in the dictionary, and a storage path never does.
@@ -308,6 +334,62 @@ test('a track is told from the shelf by its key, and everything else is somebody
   ]);
   expect(shelfTrack('music/7d2e-own-file')).toBeNull();
   expect(shelfTrack('')).toBeNull();
+});
+
+test('the block of chosen tracks counts their time, and stays quiet about a file it never heard', () => {
+  // The five are known to the second (`projects/montage/tracks/README.md`), so two of them add up.
+  expect(pickedSeconds([{ key: 'warm', name: null }])).toBe(126);
+  expect(
+    pickedSeconds([
+      { key: 'warm', name: null },
+      { key: 'calm', name: null },
+    ]),
+  ).toBe(236);
+  expect(pickedSeconds([])).toBe(0);
+  // A track off somebody's phone has no length anywhere on this side, and a sum missing one of the
+  // tracks in it would be a shorter film promised out loud.
+  expect(
+    pickedSeconds([
+      { key: 'warm', name: null },
+      { key: 'music/7d2e-own-file', name: 'sunrise.mp3' },
+    ]),
+  ).toBeNull();
+});
+
+test('dragging a chosen track by its wave is the order the api plays them in', () => {
+  const list = [
+    { key: 'warm', name: null },
+    { key: 'calm', name: null },
+    { key: 'road', name: null },
+  ];
+  const keys = (tracks: readonly { key: string }[]) => tracks.map((track) => track.key);
+
+  // Down one, up one, and across the whole list: the row leaves its place and the rest close up.
+  expect(keys(movedTrack(list, 0, 1))).toEqual(['calm', 'warm', 'road']);
+  expect(keys(movedTrack(list, 2, 0))).toEqual(['road', 'warm', 'calm']);
+  // Where it was is where it stays, and a drag off either end stops at that end.
+  expect(keys(movedTrack(list, 1, 1))).toEqual(['warm', 'calm', 'road']);
+  expect(keys(movedTrack(list, 0, 9))).toEqual(['calm', 'road', 'warm']);
+  // The list handed in is never touched — the order is state, and it is replaced, not edited.
+  expect(keys(list)).toEqual(['warm', 'calm', 'road']);
+
+  // And what comes out of it is what goes out to the api, in that very order.
+  expect(wishes(gallery, { ...blankOrder(), tracks: movedTrack(list, 2, 0) }).music_tracks).toEqual([
+    'road',
+    'warm',
+    'calm',
+  ]);
+});
+
+test('the length is nobody’s until it is moved by hand', () => {
+  // An order opens with no length at all and with nothing said about whose it is; the length step
+  // sets both together, which is what takes «из шаблона „…“» out from under the figure.
+  expect(blankOrder().seconds).toBeNull();
+  expect(blankOrder().ownLength).toBe(false);
+  // And a length that was set still only goes out as the number itself.
+  expect(wishes(gallery, { ...blankOrder(), seconds: 95, ownLength: true })).toMatchObject({
+    target_seconds: 95,
+  });
 });
 
 test('their own track goes to R2 part by part, and the order names it by its key', async () => {
@@ -626,38 +708,12 @@ test('a montage is the shape of the canvas it was cut onto, horizontal when none
 });
 
 test('the worker is owed a queued and a processing montage, and nothing else', () => {
-  // What starts the re-reading, on the waiting screen and on the movies face both. A `ready` or a
-  // `failed` row is the worker's last word on it, and a screen left polling over one would ask the
-  // api the same question every five seconds for as long as it stays open.
+  // What starts the re-reading, on the movies face and inside the journal's own hook both. A
+  // `ready` or a `failed` row is the worker's last word on it, and a screen left polling over one
+  // would ask the api the same question every few seconds for as long as it stays open.
   expect(beingMade('queued')).toBe(true);
   expect(beingMade('processing')).toBe(true);
   expect(beingMade('ready')).toBe(false);
   expect(beingMade('failed')).toBe(false);
 });
 
-test('the five stages say what is known and guess at nothing', () => {
-  const standing = (status: Montage['status']) => stages(status).map((step) => step.state);
-
-  // The stages themselves are the work in the order it happens, whatever the standing.
-  for (const status of ['queued', 'processing', 'ready', 'failed'] as const) {
-    expect(stages(status).map((step) => step.stage)).toEqual([
-      'screening',
-      'understanding',
-      'story',
-      'rhythm',
-      'cut',
-    ]);
-  }
-
-  // Waiting its turn: the two that happen to a frame as it lands are behind before the order is
-  // placed, and nothing of the montage job itself has begun — nor is any of it claimed to have.
-  expect(standing('queued')).toEqual(['done', 'done', 'waiting', 'waiting', 'waiting']);
-  // Picked up: the first thing the worker does with the job is the director, so that is the one it
-  // is on. What follows the director is its own business and nobody is told when it gets there.
-  expect(standing('processing')).toEqual(['done', 'done', 'running', 'waiting', 'waiting']);
-  expect(standing('ready')).toEqual(['done', 'done', 'done', 'done', 'done']);
-  // Nothing is «идёт» on a montage that fell over: the screen says it broke and hands over the
-  // worker's own line, because which stage it broke on is exactly what nothing here knows.
-  expect(standing('failed')).not.toContain('running');
-  expect(standing('failed').slice(2)).toEqual(['waiting', 'waiting', 'waiting']);
-});

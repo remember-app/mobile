@@ -57,6 +57,7 @@ const record = (over: Partial<MediaItem>): MediaItem => ({
   height: null,
   duration_seconds: null,
   created_at: '2026-09-06T10:00:00.000Z',
+  label_ids: [],
   thumbnail_url: null,
   preview_url: null,
   // Null on both while the automatic pass has not looked: nothing the gallery draws reads them, and

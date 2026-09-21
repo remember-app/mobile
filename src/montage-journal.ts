@@ -224,22 +224,141 @@ export function minutesLeft(stages: readonly MontageStage[]): number | null {
 }
 
 /**
- * Where the kit's 96 square goes, for a gaze that arrives as fractions of the frame. The middle of
+ * Where the kit's square goes, for a gaze that arrives as fractions of the frame. The middle of
  * what the director is looking at becomes the middle of the square, and the square is then held
  * inside the frame — an eye on the very edge of a photograph must not hang half of the marker over
  * nothing. A frame smaller than the square itself simply gets it at the corner.
+ *
+ * `size` is 96 on the card and 110 on the sheet's taller frame (`SheetLiveFile`): the same eye, drawn
+ * at the size the picture under it is drawn at.
  */
 export function gazeAt(
   focus: JournalEntry['focus'],
   frame: { width: number; height: number },
+  size: number = GAZE,
 ): { left: number; top: number } | undefined {
   if (!focus) return undefined;
   const inside = (middle: number, along: number) =>
-    Math.max(0, Math.min(along - GAZE, middle * along - GAZE / 2));
+    Math.max(0, Math.min(along - size, middle * along - size / 2));
   return {
     left: inside(focus.x + focus.w / 2, frame.width),
     top: inside(focus.y + focus.h / 2, frame.height),
   };
+}
+
+/**
+ * How long a stage has been at it — what it has taken so far while it runs, and what it took once it
+ * is behind. Whole minutes and nothing under one: a stage that started eight seconds ago is not
+ * «0 мин», it is a stage with nothing to say about its own length yet.
+ */
+export function stageMinutes(stage: MontageStage, now: number = Date.now()): number | null {
+  if (stage.started_at === null) return null;
+  const from = new Date(stage.started_at).getTime();
+  const to = stage.finished_at === null ? now : new Date(stage.finished_at).getTime();
+  if (Number.isNaN(from) || Number.isNaN(to)) return null;
+  const minutes = Math.floor((to - from) / 60000);
+  return minutes >= 1 ? minutes : null;
+}
+
+/**
+ * The line under a stage's name (spec detail 56) — «212 из 214 годятся · 1 мин». What came of it
+ * where the worker has said, how far through it is where it has not, and its own time after either.
+ *
+ * Every stage's outcome is its own shape, so each is read for the one thing worth a clause out of
+ * the keys the api names («Журнал монтажа»); a key that did not arrive is simply not drawn, and a
+ * stage nobody has reached yet has no line at all rather than a line of nothing.
+ */
+export function stageLine(
+  stage: MontageStage,
+  s: Strings,
+  now: number = Date.now(),
+): string | undefined {
+  const { live } = s.montage;
+  const minutes = stageMinutes(stage, now);
+  const spent =
+    minutes === null
+      ? undefined
+      : stage.state === 'running'
+        ? live.running(minutes)
+        : live.minutes(minutes);
+  const parts = [cameOf(stage, s) ?? soFar(stage, s), spent].filter(
+    (part): part is string => part !== undefined,
+  );
+  return parts.length === 0 ? undefined : parts.join(' · ');
+}
+
+/** What the stage says it came to, in the one clause its own keys can fill. */
+function cameOf(stage: MontageStage, s: Strings): string | undefined {
+  const { live } = s.montage;
+  const came = stage.outcome;
+  switch (stage.stage) {
+    case 'screening':
+      return came.kept !== undefined && came.of !== undefined
+        ? live.kept(came.kept, came.of)
+        : undefined;
+    case 'understanding':
+      return came.faces === undefined ? undefined : live.faces(came.faces);
+    case 'directing':
+      return came.parts === undefined ? undefined : live.parts(came.parts);
+    case 'rhythm':
+      return came.cuts === undefined ? undefined : live.cuts(came.cuts);
+    case 'assembly':
+      return formatRuntime(came.seconds ?? null);
+  }
+}
+
+/** «61 из 212» — how far through it is, for a stage that has not come to anything yet. */
+function soFar(stage: MontageStage, s: Strings): string | undefined {
+  return stage.total_count === null
+    ? undefined
+    : s.montage.live.doneOf(stage.done_count, stage.total_count);
+}
+
+/** Every record a stage holds, which is what the way into its journal is counted in. */
+export const recordsOf = (stage: MontageStage): number =>
+  stage.taken_count + stage.skipped_count + stage.thought_count;
+
+/**
+ * Which records the journal is showing — the four chips over it (spec 7.6, `MontageLiveStage`). The
+ * three narrow ones are drawn against the api's own counts, so they are cut the way the api counts
+ * them: by the decision on the record, and «мысли» is a record with no decision at all.
+ */
+export type Sift = 'all' | 'thoughts' | 'take' | 'skip';
+
+export function sifted(entries: readonly JournalEntry[], sift: Sift): JournalEntry[] {
+  if (sift === 'all') return [...entries];
+  if (sift === 'thoughts') return entries.filter((entry) => entry.decision === null);
+  return entries.filter((entry) => entry.decision === sift);
+}
+
+/**
+ * Where a frame ended up, under the thought about it (spec 7.6, `SheetLiveFile`) — «Часть 2
+ * «Клятвы» · 1:12–1:16 · и ещё 1». The part of the story is the record's, the seconds are the file's
+ * own `places`, and a frame that stands in the video twice says so by a count rather than by a
+ * second line: the sheet is about why it was taken, not about the cutting list.
+ *
+ * A frame nobody took has none of this — the plate above explains why it was passed over, and an
+ * outcome under that would be a place it never went to.
+ */
+export function outcomeLine(
+  entry: JournalEntry,
+  file: JournalFile | undefined,
+  s: Strings,
+): string | undefined {
+  if (entry.decision !== 'take') return undefined;
+  const { live } = s.montage;
+  const [place, ...rest] = file?.places ?? [];
+  const from = place === undefined ? undefined : formatRuntime(place.start_seconds);
+  const to =
+    place === undefined ? undefined : formatRuntime(place.start_seconds + place.duration_seconds);
+  const parts = [
+    entry.story_part === null
+      ? undefined
+      : live.partOf(entry.story_part, entry.story_part_title ?? undefined),
+    from !== undefined && to !== undefined ? `${from}–${to}` : undefined,
+    rest.length === 0 ? undefined : live.morePlaces(rest.length),
+  ].filter((part): part is string => part !== undefined);
+  return parts.length === 0 ? undefined : parts.join(' · ');
 }
 
 /** Did this record arrive while the screen was open — the one question the typing asks. */

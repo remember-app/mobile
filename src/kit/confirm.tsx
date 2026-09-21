@@ -7,6 +7,7 @@ import { radius, space, themed, useTheme } from '@/theme';
 
 import { Button } from './button';
 import { Icon } from './icon';
+import { LabelMark } from './label';
 import { Avatar } from './member';
 import { Sheet } from './sheet';
 import { Text } from './text';
@@ -25,6 +26,11 @@ type ConfirmProps = {
   thumb?: string;
   /** Or the person it is about — a 64 avatar in the same place. */
   who?: string;
+  /**
+   * Or the label it is about (spec 10.8.1): the 64 square of its own colour with a tag in it, where
+   * the thumbnail would be. A label has no picture of its own, and a box is known by its colour.
+   */
+  tint?: string;
   /** «Марк Ковалёв · 13 сентября», «@anya.p · принесла 54 кадра». */
   meta?: string;
   /**
@@ -59,6 +65,7 @@ export function ConfirmSheet({
   onCancel,
   thumb,
   who,
+  tint,
   meta,
   price,
   variant = 'danger',
@@ -66,6 +73,8 @@ export function ConfirmSheet({
   const { color } = useTheme();
   const styles = useStyles();
   const gentle = variant === 'gentle';
+  // One 64 mark, whichever of the three this sheet is about.
+  const marked = thumb || who || tint;
 
   return (
     <Sheet
@@ -73,12 +82,13 @@ export function ConfirmSheet({
       onCancel={onCancel}
       narrow
       head={
-        (thumb || who) && !gentle ? (
+        marked && !gentle ? (
           <View style={styles.head}>
             {thumb ? (
               <Image source={{ uri: thumb }} contentFit="cover" style={styles.thumb} />
             ) : null}
             {who && !thumb ? <Avatar name={who} size={64} /> : null}
+            {tint && !thumb && !who ? <LabelMark tint={tint} size={64} /> : null}
             <View style={styles.headWords}>
               <Text role="sheetTitleSm" accessibilityRole="header">
                 {title}
@@ -88,7 +98,7 @@ export function ConfirmSheet({
           </View>
         ) : undefined
       }
-      title={(thumb || who) && !gentle ? undefined : title}
+      title={marked && !gentle ? undefined : title}
       footer={
         <>
           <Button

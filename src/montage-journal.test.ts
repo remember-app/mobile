@@ -22,9 +22,14 @@ import {
   marksOf,
   minutesLeft,
   NO_JOURNAL,
+  outcomeLine,
   pull,
   pullOlder,
   reasonWord,
+  recordsOf,
+  sifted,
+  stageLine,
+  stageMinutes,
   stageNumber,
   type Journal,
 } from '@/montage-journal';
@@ -360,6 +365,159 @@ describe('gazeAt', () => {
 
   test('is nothing where the record carries no frame at all', () => {
     expect(gazeAt(null, frame)).toBe(undefined);
+  });
+
+  test('draws the same eye at the size the sheet gives the picture', () => {
+    // `SheetLiveFile` shows the frame at 220 with a 110 square on it — the same fractions, another
+    // ruler. The middle stays where it was; only how much is taken off it changes.
+    const sheet = { width: 358, height: 220 };
+    expect(gazeAt({ x: 0.3, y: 0.25, w: 0.2, h: 0.5 }, sheet, 110)).toEqual({
+      left: 0.4 * 358 - 55,
+      top: 0.5 * 220 - 55,
+    });
+    // And it is still held inside the picture at the edge, whatever the square's size.
+    expect(gazeAt({ x: 0.99, y: 0.99, w: 0.01, h: 0.01 }, sheet, 110)).toEqual({
+      left: 358 - 110,
+      top: 110,
+    });
+  });
+});
+
+describe('the line under a stage', () => {
+  // «2026-09-21T16:42:00Z» plus four minutes, so a running stage has a length to say.
+  const began = '2026-09-21T16:38:00Z';
+  const now = Date.parse('2026-09-21T16:42:00Z');
+
+  test('says what came of the stage and how long it has been at it', () => {
+    const screening: MontageStage = {
+      ...stage('screening', 'done'),
+      started_at: began,
+      finished_at: '2026-09-21T16:39:00Z',
+      outcome: { kept: 212, of: 214 },
+    };
+    expect(stageLine(screening, ru, now)).toBe('212 из 214 годятся · 1 мин');
+    expect(stageLine(screening, en, now)).toBe('212 of 214 are usable · 1 min');
+  });
+
+  test('a stage still running is counted rather than concluded', () => {
+    const directing: MontageStage = {
+      ...stage('directing', 'running'),
+      started_at: began,
+      done_count: 61,
+      total_count: 212,
+    };
+    // «идёт» and not «за»: it is still happening, and the number is what has gone by so far.
+    expect(stageLine(directing, ru, now)).toBe('61 из 212 · идёт 4 мин');
+  });
+
+  test('what the worker has said wins over how far through it is', () => {
+    const directing: MontageStage = {
+      ...stage('directing', 'running'),
+      done_count: 61,
+      total_count: 212,
+      outcome: { parts: 3, frames: 61 },
+    };
+    expect(stageLine(directing, ru)).toBe('3 части');
+  });
+
+  test('a stage nobody has reached has no line at all rather than a line of nothing', () => {
+    expect(stageLine(stage('assembly', 'pending'), ru, now)).toBe(undefined);
+  });
+
+  test('under a minute is not a length worth printing', () => {
+    const rhythm: MontageStage = {
+      ...stage('rhythm', 'running'),
+      started_at: '2026-09-21T16:41:50Z',
+    };
+    expect(stageMinutes(rhythm, now)).toBe(null);
+    expect(stageLine(rhythm, ru, now)).toBe(undefined);
+  });
+
+  test('every one of the five has something to say out of its own keys', () => {
+    const came: Record<string, MontageStage['outcome']> = {
+      screening: { kept: 1, of: 2 },
+      understanding: { faces: 37 },
+      directing: { parts: 3 },
+      rhythm: { cuts: 38 },
+      assembly: { seconds: 150 },
+    };
+    for (const [code, outcome] of Object.entries(came)) {
+      const row = { ...stage(code as MontageStage['stage'], 'done'), outcome };
+      expect(stageLine(row, ru)).toBeTruthy();
+      expect(stageLine(row, en)).toBeTruthy();
+    }
+    expect(stageLine({ ...stage('assembly', 'done'), outcome: { seconds: 150 } }, ru)).toBe('2:30');
+  });
+
+  test('the way into a stage’s journal is counted in every record it holds', () => {
+    expect(
+      recordsOf({ ...stage('directing', 'running'), taken_count: 61, skipped_count: 87, thought_count: 4 }),
+    ).toBe(152);
+    expect(ru.montage.live.wholeStage(152)).toBe('Весь журнал этапа · 152 записи');
+  });
+});
+
+describe('the four chips over the journal', () => {
+  const entries = [
+    entry(4, { decision: null, media_id: null }),
+    entry(3, { decision: 'take', media_id: 'f3' }),
+    entry(2, { decision: 'skip', media_id: 'f2' }),
+    entry(1, { decision: 'take', media_id: 'f1' }),
+  ];
+
+  test('«всё» is every record, in the order they were already in', () => {
+    expect(sifted(entries, 'all').map((one) => one.id)).toEqual([4, 3, 2, 1]);
+  });
+
+  test('the three narrow ones cut by the decision, the way the api counts them', () => {
+    // `taken_count` / `skipped_count` / `thought_count` are counted by the api over `decision`
+    // («Журнал монтажа»), so a chip drawn against one of those numbers has to cut the same way, or
+    // «Взял 61» would show sixty other records.
+    expect(sifted(entries, 'take').map((one) => one.id)).toEqual([3, 1]);
+    expect(sifted(entries, 'skip').map((one) => one.id)).toEqual([2]);
+    expect(sifted(entries, 'thoughts').map((one) => one.id)).toEqual([4]);
+  });
+
+  test('and the three of them add up to all of it', () => {
+    const cut = (['take', 'skip', 'thoughts'] as const).flatMap((sift) => sifted(entries, sift));
+    expect(cut).toHaveLength(entries.length);
+  });
+});
+
+describe('where a frame ended up', () => {
+  const file = {
+    id: 'f1',
+    kind: 'video' as const,
+    uploaded_by: 'u1',
+    captured_at: null,
+    duration_seconds: 12.5,
+    thumbnail_url: null,
+    places: [{ start_seconds: 72, duration_seconds: 4 }],
+  };
+
+  test('is the part of the story and the seconds it plays for', () => {
+    const took = entry(1, { decision: 'take', story_part: 2, story_part_title: 'Клятвы' });
+    expect(outcomeLine(took, file, ru)).toBe('Часть 2 «Клятвы» · 1:12–1:16');
+    expect(outcomeLine(took, file, en)).toBe('Part 2 «Клятвы» · 1:12–1:16');
+  });
+
+  test('a frame that stands in the video twice says so by a count, not by a second line', () => {
+    const twice = { ...file, places: [...file.places, { start_seconds: 150, duration_seconds: 3 }] };
+    expect(outcomeLine(entry(1, { decision: 'take', story_part: 2 }), twice, ru)).toBe(
+      'Часть 2 · 1:12–1:16 · и ещё 1',
+    );
+  });
+
+  test('a frame nobody took has no outcome — the thought above it is the explanation', () => {
+    expect(outcomeLine(entry(1, { decision: 'skip', reason: 'blur' }), file, ru)).toBe(undefined);
+  });
+
+  test('a frame with no place yet says only which part it is going into', () => {
+    expect(outcomeLine(entry(1, { decision: 'take', story_part: 1 }), { ...file, places: [] }, ru)).toBe(
+      'Часть 1',
+    );
+    // And one the layout has not reached at all has nothing to say rather than an empty line.
+    expect(outcomeLine(entry(1, { decision: 'take' }), undefined, ru)).toBe(undefined);
   });
 });
 

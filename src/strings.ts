@@ -578,6 +578,67 @@ export const en = {
   },
 
   /**
+   * `SheetLabels` and `SheetLabelNew` (spec 7.7, 10.8.1) — the boxes frames are filed into, raised
+   * from picking mode. A label is a box: it holds nothing back from anybody and takes nothing away,
+   * so every word here is about filing and never about permission.
+   */
+  labels: {
+    /** The sheet's own heading, over the count of what is marked. */
+    title: 'Into a label',
+    /** Its two groups, in the caps the layout writes a group heading in. */
+    shared: 'Shared',
+    own: 'Mine',
+    /** The dashed button under both of them, and the heading of the sheet it raises. */
+    newOne: 'New label',
+    /** The whole sheet when there is not a label in the memory yet — the two groups are gone. */
+    empty: 'A label is a box: give it a name and start filing frames into it.',
+    /** The second line of a row: what the glyph beside it already says, in words. */
+    seenByAll: 'everyone sees it',
+    seenByYou: 'only you',
+    /** The way in and out of the edit mode of the sheet — «Готово» is `action.done`. */
+    edit: 'Edit',
+    /** The pair that replaces the circle while it is on, read out with the label's own name. */
+    rename: (name: string) => `Rename “${name}”`,
+    remove: (name: string) => `Delete “${name}”`,
+
+    /** `SheetLabelNew`: the heading when the same sheet is editing one rather than making it. */
+    editTitle: 'Label',
+    name: 'Name',
+    namePlaceholder: 'Best ones',
+    colour: 'Colour',
+    /** The row of eight said out loud — «Colour 2» tells nobody anything (spec 10.4). */
+    colourLabel: 'Label colour',
+    colours: ['yellow', 'pink', 'red', 'green', 'blue', 'violet', 'acid', 'grey'],
+    who: 'Who sees it',
+    sharedCard: 'Shared',
+    sharedNote: 'everyone in the memory',
+    ownCard: 'Private',
+    ownNote: 'only you',
+    /**
+     * Why «Кто видит» cannot be pressed while editing (spec 10.8.1, decision-12): the answer was
+     * given when the label was made and the api has no way back. Said as a fact, not as a refusal.
+     */
+    whoFixed: 'Settled when the label was made.',
+    /** The glowing button: one press makes the box and files what is marked into it. */
+    create: (n: number) => `Create and file ${n} ${n === 1 ? 'frame' : 'frames'}`,
+    save: 'Save',
+
+    /** The sheet that asks before a box goes. No number: nothing is lost (spec 10.8.1). */
+    deleteAsk: (name: string) => `Delete the label “${name}”?`,
+    deleteText: 'The frames stay in the memory — only the box goes.',
+    deleteConfirm: 'Delete the label',
+
+    /**
+     * What the api refuses, in words a person can act on. It answers a bare «forbidden», so the
+     * sentence is written here and picked by what was being done.
+     */
+    addDenied: 'Only someone who may add material can file frames into a shared label.',
+    takeDenied: 'Frames are taken back out by whoever filed them, or by the organizer.',
+    editDenied: 'A shared label is renamed by whoever made it, or by the organizer.',
+    gone: 'This label is no longer here.',
+  },
+
+  /**
    * The assembled videos of one memory, and the ordering of one more.
    *
    * English calls the finished thing a **movie**, never a «video» or a «montage» — the api's push
@@ -715,7 +776,7 @@ export const en = {
 
     /** Step 3 — the shelf of tracks, or one off this phone. */
     musicTitle: 'What to cut it to',
-    musicHint: 'The cuts land on the beat of the track you pick.',
+    musicHint: 'No music at all, or one track — or several.',
     /** The round button on every row of the shelf — spoken only, and it says which track it is. */
     listen: (track: string) => `Play ${track}`,
     stopTrack: (track: string) => `Stop ${track}`,
@@ -723,9 +784,37 @@ export const en = {
     /** The same thing named in a summary line and on a finished movie's card. */
     ownTrackShort: 'Your own track',
     sendingTrack: 'Sending the track…',
+    /**
+     * The card standing where the chosen tracks would be. Silence is a decision and it says what
+     * it actually gives you, which is not silence at all: whatever the videos themselves recorded.
+     */
+    noMusic: 'No music',
+    noMusicNote: 'Just the live sound from the videos',
+    /** The block of what was taken, and how much of it there is. */
+    picked: 'Chosen',
+    tracksPicked: (n: number) => `${n} ${n === 1 ? 'track' : 'tracks'}`,
+    /** The two round buttons of a shelf row — spoken, because both of them are a glyph alone. */
+    addTrack: (track: string) => `Add ${track}`,
+    dropTrack: (track: string) => `Remove ${track}`,
+    /** The wave a chosen row is dragged by, for whoever cannot drag anything. */
+    moveTrack: (track: string) => `Move ${track}`,
+    /** The 44 line under the chosen tracks: the one thing a person can say about how to use them. */
+    musicNote: 'How to use the tracks',
+    musicNotePlaceholder: 'How to use them: «Warm» over the morning…',
 
-    /** Step 4 — the shape of it, what the three steps came to, and the one warning. */
+    /** Step 4 — how long it runs and which way up, and nothing else. */
     buildTitle: 'How to put it together',
+    /** Over the card on the right: the ceiling, which is this memory's material and not a rule. */
+    lengthUpTo: (max: string) => `up to ${max}`,
+    /** The right end of the line, where the ceiling means «everything there is». */
+    lengthEnd: (max: string) => `${max} · everything there is`,
+    /** The fifth ready answer: not a number, because it is whatever the material comes to. */
+    lengthAll: 'All',
+    /** Under the figure, while the length is still the one the template asked for. */
+    lengthFromTemplate: (name: string) => `from the «${name}» template`,
+    /** The two round buttons beside the figure — five seconds either way, spoken. */
+    shorter: 'Five seconds shorter',
+    longer: 'Five seconds longer',
     /** The three summary rows, each of them the way back to the step that settled it. */
     story: 'Story',
     framesOf: (taken: number, all: number) => `${taken} of ${all}`,
@@ -735,35 +824,55 @@ export const en = {
     directorDecides: 'The director decides',
     onceOnly:
       'A finished movie is not remade. If you want it another way — put together one more, there is no limit on them.',
+    /** The last button of step 4: what is after it is the summary and not the making. */
+    toSummary: 'To the summary',
 
-    /** `MontageProgress` — the waiting the order leads to, and what is known while it lasts. */
-    building: 'Making the movie',
-    closeApp: 'The app can be closed — everyone here is told when the movie is ready.',
     /**
-     * The five stages of the making, in the worker's own order. Named and not counted: «73 %» tells
-     * a person nothing, «the director builds the story» tells them where it is.
+     * `MontageSummary` — the order read back before it is spent. Everything counted in it is the
+     * api's own answer and nothing on the screen can be edited, so these are all read-only words.
+     */
+    summaryTitle: 'Everything is ready',
+    /** «168 photos · 46 videos» — the frames that are actually going in, counted by the api. */
+    shots: (photos: number, videos: number) =>
+      `${photos} ${photos === 1 ? 'photo' : 'photos'} · ${videos} ${videos === 1 ? 'video' : 'videos'}`,
+    /** Beside that count: how many people brought them. */
+    byPeople: (n: number) => `from ${n} ${n === 1 ? 'person' : 'people'}`,
+    /** The music section with nothing in it — which is an answer and not a gap. */
+    noMusicLive: 'No music · the sound of the video itself',
+    /** The line with the clock, and the only promise the screen makes about time. */
+    readyIn: (minutes: number) =>
+      `It takes about ${minutes} ${minutes === 1 ? 'minute' : 'minutes'} — we will send you a notice.`,
+    /** The one button the whole wizard leads to. */
+    startCut: 'Start the cut',
+    /**
+     * The length was fine when it was picked and is not any more — the frames changed under it.
+     * Said without numbers on purpose: the range is the api's and it has already moved once.
+     */
+    lengthOff: 'That length does not fit the frames you picked — go back and choose another.',
+    /** The two ways back out of a refusal, straight to the step that can undo it. */
+    toFrames: 'Back to the frames',
+    toLength: 'Back to the length',
+    /**
+     * «Отмена» with something already said — the gentle sheet, where nothing is destroyed but a
+     * walk through four steps is.
+     */
+    leaveAsk: 'Leave the order?',
+    leaveText: 'The frames, the story and the music picked here are not kept.',
+    leaveDo: 'Leave',
+    stay: 'Stay',
+
+    /**
+     * The five stages of the making, under the codes the journal calls them by (`MONTAGE_STAGES`).
+     * Named and not counted: «73 %» tells a person nothing, «the director builds the story» tells
+     * them where it is.
      */
     stage: {
       screening: 'Dropping the spoiled frames',
       understanding: 'Working out what is in them',
-      story: 'The director builds the story',
-      rhythm: 'Laying them out to the beat',
-      cut: 'Cutting it together',
-      /**
-       * The same two stages under the names the journal calls them by (`MONTAGE_STAGES`). One map
-       * for both because they are one set of five stages: `story` and `cut` are what the waiting
-       * screen has called them since before there was a journal, and they go when it does.
-       */
       directing: 'The director builds the story',
+      rhythm: 'Laying them out to the beat',
       assembly: 'Cutting it together',
     },
-    /** The word on the right of a stage: one that is behind, and the one being worked on. */
-    stageDone: 'done',
-    stageRunning: 'under way',
-    /** Where the second try lives, said on the screen that watched the first one fall over. */
-    retryInMemory: 'It can be put together again from the movie’s card in the memory.',
-    /** The one button under the waiting — it leaves the screen and never touches the making. */
-    toMemory: 'To the memory',
 
     /**
      * «Монтаж в прямом эфире» (spec 7.6, 7.7) — the words the director's journal is read in. The
@@ -773,12 +882,52 @@ export const en = {
      * seconds», never «the system processed». `@/montage-journal` is what turns a record into them.
      */
     live: {
+      /** Over the whole screen, while the worker still owes it. A fallen one wears `status.failed`. */
+      title: 'The montage is on',
+      /** The pill of faces in the bar, said as one sentence to a screen reader. */
+      watching: (n: number) => `Watching now: ${n}`,
+      /** On the frame the director is holding, beside the live dot. */
+      now: 'NOW',
+      /** Who is speaking, and the same voice in two tenses. */
+      director: 'The director',
+      thinking: 'thinking…',
+      decided: 'decided',
+      /** Nothing in hand yet: the montage is still standing in the queue. */
+      inQueue: 'Waiting for our turn',
+      /** The read never came back. What was read stays on screen — this stands under it. */
+      lost: 'Connection lost, holding on',
+      /** The organizer's button under a montage that fell over. */
+      retry: 'Start the montage again',
       /** How far along the making is, as a place in the five rather than as a percentage. */
       stageOf: (n: number, of: number) => `Stage ${n} of ${of}`,
       /** The estimate over the stages still to go. Deliberately approximate — it moves. */
       leftAbout: (minutes: number) => `about ${minutes} min left`,
       /** A stage's own time, beside what came of it. */
       minutes: (minutes: number) => `${minutes} min`,
+      /** The same for the one being worked on — time spent, not time taken. */
+      running: (minutes: number) => `${minutes} min so far`,
+      /**
+       * What came of a stage, one clause each, out of the keys the api names as countable
+       * («Журнал монтажа»). A stage that has nothing to report yet says how far it has got instead.
+       */
+      kept: (n: number, of: number) => `${n} of ${of} are usable`,
+      faces: (n: number) => `${n} ${n === 1 ? 'face' : 'faces'}`,
+      parts: (n: number) => `${n} ${n === 1 ? 'part' : 'parts'}`,
+      cuts: (n: number) => `${n} ${n === 1 ? 'cut' : 'cuts'}`,
+      doneOf: (n: number, of: number) => `${n} of ${of}`,
+      /** Under the stage in hand: the way into everything it has said. */
+      wholeStage: (n: number) => `The whole stage journal · ${n} ${n === 1 ? 'record' : 'records'}`,
+      /** The time over a record that landed while somebody was watching. */
+      justNow: 'just now',
+      /** The four chips over the journal. Two of them carry the api's own count beside the word. */
+      all: 'All',
+      thoughts: 'Thoughts',
+      took: 'Took',
+      /** «ЧТО УВИДЕЛ» — the eyebrow over the words the director saw on a frame. */
+      saw: 'What it saw',
+      /** Where a frame ended up: «Part 2 «Vows» · 1:12–1:16», and how many other places it has. */
+      partOf: (n: number, title?: string) => (title ? `Part ${n} «${title}»` : `Part ${n}`),
+      morePlaces: (n: number) => `and ${n} more`,
       /** The decision itself, and the three ways it is qualified. */
       take: 'Taking',
       skip: 'Passing',
@@ -1266,6 +1415,43 @@ export const ru: Strings = {
     notOpened: 'Кадр не открылся',
   },
 
+  labels: {
+    title: 'В лейбл',
+    shared: 'Общие',
+    own: 'Мои',
+    newOne: 'Новый лейбл',
+    empty: 'Лейбл — это коробка: назовите её и складывайте кадры.',
+    seenByAll: 'видят все',
+    seenByYou: 'только вы',
+    edit: 'Править',
+    rename: (name: string) => `Переименовать «${name}»`,
+    remove: (name: string) => `Удалить «${name}»`,
+
+    editTitle: 'Лейбл',
+    name: 'Название',
+    namePlaceholder: 'Лучшее',
+    colour: 'Цвет',
+    colourLabel: 'Цвет лейбла',
+    colours: ['жёлтый', 'розовый', 'красный', 'зелёный', 'голубой', 'фиолетовый', 'кислотный', 'серый'],
+    who: 'Кто видит',
+    sharedCard: 'Общий',
+    sharedNote: 'видят все участники',
+    ownCard: 'Личный',
+    ownNote: 'только вы',
+    whoFixed: 'Выбирается один раз, при создании.',
+    create: (n: number) => `Создать и положить ${count(n, 'кадр', 'кадра', 'кадров')}`,
+    save: 'Сохранить',
+
+    deleteAsk: (name: string) => `Удалить лейбл «${name}»?`,
+    deleteText: 'Кадры останутся в воспоминании — исчезнет только коробка.',
+    deleteConfirm: 'Удалить лейбл',
+
+    addDenied: 'Складывать кадры в общий лейбл может тот, кто добавляет материал.',
+    takeDenied: 'Убрать кадры может тот, кто их положил, или организатор.',
+    editDenied: 'Переименовать общий лейбл может тот, кто его завёл, или организатор.',
+    gone: 'Этого лейбла больше нет.',
+  },
+
   montage: {
     title: 'Ролики',
     status: {
@@ -1343,14 +1529,29 @@ export const ru: Strings = {
     ownText: 'Свой текст',
 
     musicTitle: 'Под что монтировать',
-    musicHint: 'Склейки попадут в ритм выбранного трека.',
+    musicHint: 'Без музыки или один-несколько треков.',
     listen: (track: string) => `Послушать «${track}»`,
     stopTrack: (track: string) => `Остановить «${track}»`,
     ownTrack: 'Свой трек с телефона',
     ownTrackShort: 'Свой трек',
     sendingTrack: 'Загружаем трек…',
+    noMusic: 'Без музыки',
+    noMusicNote: 'Только живой звук из видео',
+    picked: 'Выбрано',
+    tracksPicked: (n: number) => count(n, 'трек', 'трека', 'треков'),
+    addTrack: (track: string) => `Добавить «${track}»`,
+    dropTrack: (track: string) => `Убрать «${track}»`,
+    moveTrack: (track: string) => `Переставить «${track}»`,
+    musicNote: 'Как использовать треки',
+    musicNotePlaceholder: 'Как использовать треки: «Тёплая» — на сборы…',
 
     buildTitle: 'Как собрать',
+    lengthUpTo: (max: string) => `до ${max}`,
+    lengthEnd: (max: string) => `${max} · всё, что есть`,
+    lengthAll: 'Всё',
+    lengthFromTemplate: (name: string) => `из шаблона «${name}»`,
+    shorter: 'Короче на 5 секунд',
+    longer: 'Длиннее на 5 секунд',
     story: 'История',
     framesOf: (taken: number, all: number) => `${taken} из ${all}`,
     onTheBeat: 'в ритм',
@@ -1358,28 +1559,59 @@ export const ru: Strings = {
     directorDecides: 'Режиссёр решит сам',
     onceOnly:
       'Готовый ролик не переделывается. Если захотите иначе — соберёте ещё один, их число не ограничено.',
+    toSummary: 'К итогу',
 
-    building: 'Собираем ролик',
-    closeApp:
-      'Приложение можно закрыть — мы пришлём уведомление всем участникам, когда ролик будет готов.',
+    summaryTitle: 'Всё готово к монтажу',
+    shots: (photos: number, videos: number) => `${photos} фото · ${videos} видео`,
+    byPeople: (n: number) => `от ${count(n, 'человека', 'человек', 'человек')}`,
+    noMusicLive: 'Без музыки · живой звук',
+    readyIn: (minutes: number) =>
+      `Соберём примерно за ${count(minutes, 'минуту', 'минуты', 'минут')} и пришлём уведомление.`,
+    startCut: 'Начать монтаж',
+    lengthOff: 'Такая длина не подходит к выбранным кадрам — вернитесь и выберите другую.',
+    toFrames: 'К кадрам',
+    toLength: 'К длине',
+    leaveAsk: 'Выйти из заказа?',
+    leaveText: 'Выбранные здесь кадры, история и музыка не сохранятся.',
+    leaveDo: 'Выйти',
+    stay: 'Остаться',
+
     stage: {
       screening: 'Отсев брака',
       understanding: 'Разбираем, что на кадрах',
-      story: 'Режиссёр строит историю',
-      rhythm: 'Раскладываем в ритм трека',
-      cut: 'Склеиваем',
       directing: 'Режиссёр строит историю',
+      rhythm: 'Раскладываем в ритм трека',
       assembly: 'Склеиваем',
     },
-    stageDone: 'готово',
-    stageRunning: 'идёт',
-    retryInMemory: 'Собрать заново можно на карточке ролика в воспоминании.',
-    toMemory: 'К воспоминанию',
 
     live: {
+      title: 'Монтаж идёт',
+      watching: (n: number) => `Смотрят сейчас: ${n}`,
+      now: 'СЕЙЧАС',
+      director: 'Режиссёр',
+      thinking: 'думает…',
+      decided: 'решил',
+      inQueue: 'Ждём очереди',
+      lost: 'Связь пропала, ждём',
+      retry: 'Повторить монтаж',
       stageOf: (n: number, of: number) => `Этап ${n} из ${of}`,
       leftAbout: (minutes: number) => `осталось ≈ ${minutes} мин`,
       minutes: (minutes: number) => `${minutes} мин`,
+      running: (minutes: number) => `идёт ${minutes} мин`,
+      kept: (n: number, of: number) => `${n} из ${of} годятся`,
+      faces: (n: number) => count(n, 'лицо', 'лица', 'лиц'),
+      parts: (n: number) => count(n, 'часть', 'части', 'частей'),
+      cuts: (n: number) => count(n, 'склейка', 'склейки', 'склеек'),
+      doneOf: (n: number, of: number) => `${n} из ${of}`,
+      wholeStage: (n: number) =>
+        `Весь журнал этапа · ${count(n, 'запись', 'записи', 'записей')}`,
+      justNow: 'сейчас',
+      all: 'Всё',
+      thoughts: 'Мысли',
+      took: 'Взял',
+      saw: 'Что увидел',
+      partOf: (n: number, title?: string) => (title ? `Часть ${n} «${title}»` : `Часть ${n}`),
+      morePlaces: (n: number) => `и ещё ${n}`,
       take: 'Беру',
       skip: 'Мимо',
       tookOneOf: (n: number) => `Взял 1 из ${n}`,

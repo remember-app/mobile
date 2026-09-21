@@ -51,6 +51,10 @@ export function LabelMark({ tint, size = 30 }: { tint: string; size?: 30 | 64 | 
  * `actions` is the edit mode of the same sheet (spec 10.8.1): the circle gives way to the pair of
  * buttons that rename and delete, and the row stops putting anything anywhere. A label somebody
  * else owns gets no pair at all, so it goes on being a row that files.
+ *
+ * A row with no `onPress` — a shared label the server will not let this person add to — has no
+ * circle either: the circle is what says «press me to file», and drawing it over a row that does
+ * not press is the dead button the kit refuses everywhere else (README, «Библиотека деталей»).
  */
 export function RowLabel({
   name,
@@ -98,15 +102,16 @@ export function RowLabel({
           <Text role="meta">{scopeLabel}</Text>
         </View>
       </View>
-      {actions ?? (
-        <View style={[styles.circle, inside ? styles.circleIn : null]}>
-          <Icon
-            icon={inside ? Check : Plus}
-            size={inside ? 14 : 15}
-            color={inside ? color.onFill : color.paper}
-          />
-        </View>
-      )}
+      {actions ??
+        (onPress ? (
+          <View style={[styles.circle, inside ? styles.circleIn : null]}>
+            <Icon
+              icon={inside ? Check : Plus}
+              size={inside ? 14 : 15}
+              color={inside ? color.onFill : color.paper}
+            />
+          </View>
+        ) : null)}
     </>
   );
 

@@ -1,7 +1,14 @@
 import { Image } from 'expo-image';
 import { Check, ChevronRight, X } from 'lucide-react-native';
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  View,
+  type StyleProp,
+  type ViewProps,
+  type ViewStyle,
+} from 'react-native';
 
 import { height, photo, radius, space, themed, useTheme } from '@/theme';
 
@@ -57,6 +64,12 @@ export function RowSummary({
 }
 
 /**
+ * How tall one track row stands (spec 7.7). Exported because a list of them that can be dragged
+ * counts rows by it: how far a finger has travelled is how many of these it has crossed.
+ */
+export const TRACK_ROW = 52;
+
+/**
  * A music track (spec 7.7): 52 tall, the round «послушать» on the left, the name and its length on
  * one baseline, and on the right the button that takes it or gives it back.
  *
@@ -69,6 +82,7 @@ export function RowTrack({
   length,
   playing,
   wave,
+  grip,
   play,
   action,
   divider,
@@ -80,6 +94,12 @@ export function RowTrack({
   playing?: boolean;
   /** The 12-bar waveform between the name and the right edge — the «Выбрано» block draws it. */
   wave?: boolean;
+  /**
+   * What the row is held by while the list is being reordered (spec 7.7, detail 54: «строка
+   * берётся за волну»). The handlers belong to whoever owns the list, and they go on the wave
+   * because it is the one part of the row that is not already a button.
+   */
+  grip?: ViewProps;
   /** The round «Послушать» — 40 `raise` in the library, 36 `paper` among the chosen. */
   play?: ReactNode;
   /** The round 36 on the right: a plus, a tick, or the cross that takes a chosen track out. */
@@ -99,7 +119,11 @@ export function RowTrack({
           </Text>
           <Text role="meta">{length}</Text>
         </View>
-        {wave ? <Waveform /> : null}
+        {wave ? (
+          <View {...grip}>
+            <Waveform />
+          </View>
+        ) : null}
         {action}
       </View>
     </View>
@@ -290,6 +314,28 @@ export function StepNote({
 }
 
 /**
+ * The last line of an opened stage (spec detail 56) — «Весь журнал этапа · 148 записей», the way out
+ * of the two records the row shows and into everything the stage has said. It lines up with those
+ * records rather than with the stage's own name, because it is the end of what they are part of.
+ *
+ * Its own row and not a `Button`: nothing here is an action on the montage, it is a road, and the
+ * only thing it wears is the chevron that says so.
+ */
+export function StepLink({ label, onPress }: { label: string; onPress?: () => void }) {
+  const styles = useStyles();
+  const { color } = useTheme();
+
+  return (
+    <Tappable label={label} onPress={onPress} style={styles.stepLink}>
+      <Text role="badge" tone="accent" numberOfLines={1} style={styles.grow}>
+        {label}
+      </Text>
+      <Icon icon={ChevronRight} size={14} color={color.accentText} />
+    </Tappable>
+  );
+}
+
+/**
  * One action inside the glass menu that drops out of the «⋯» (spec 7.7): 50 tall, the words on the
  * left and the glyph on the right. It was a sheet's row until the menu existed; the glyph moved to
  * the far side with it, because a menu is read down its left edge. The dangerous one is the only red
@@ -423,7 +469,7 @@ const useStyles = themed(({ color }) =>
     },
     summaryLabel: { width: 96 },
     track: {
-      height: 52,
+      height: TRACK_ROW,
       flexDirection: 'row',
       alignItems: 'center',
       gap: space.s3,
@@ -492,6 +538,17 @@ const useStyles = themed(({ color }) =>
       alignItems: 'flex-end',
     },
     noteLength: { color: photo.on, paddingRight: 3, paddingBottom: 2 },
+    // The layout draws this one 36 tall; here it stands at the 44 spec 10.2 asks of anything a
+    // finger lands on, which is the four points of room under a stage and nothing else.
+    stepLink: {
+      minHeight: height.small,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingLeft: 50,
+      paddingRight: 14,
+      paddingBottom: 4,
+    },
     action: {
       minHeight: 50,
       flexDirection: 'row',

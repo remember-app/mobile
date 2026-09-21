@@ -38,7 +38,7 @@ test('the way out is the outlined button and never the quiet one', () => {
   expect(sheet).toContain('min-height:52px');
 });
 
-test('a frame, a person and a bare question are three headers', () => {
+test('a frame, a person, a label and a bare question are four headers', () => {
   allDifferent({
     bare: <ConfirmSheet {...base} />,
     frame: <ConfirmSheet {...base} thumb="https://bucket.example/a.jpg" meta="Марк Ковалёв · 13 сентября" />,
@@ -50,8 +50,13 @@ test('a frame, a person and a bare question are three headers', () => {
         meta="@anya.p · принесла 54 кадра"
       />
     ),
+    // Spec 10.8.1 — a label has no picture of its own: the 64 square of its colour stands in for one.
+    label: <ConfirmSheet {...base} title="Удалить лейбл «Лучшее»?" tint="#FFB547" />,
   });
   expect(story(<ConfirmSheet {...base} who="Аня Петрова" />)).toContain('АП');
+  const label = story(<ConfirmSheet {...base} title="Удалить лейбл «Лучшее»?" tint="#FFB547" />);
+  expect(label).toContain('background-color:rgba(255,181,71,1.00)');
+  expect(label).toContain('width:64px');
 });
 
 test('the price is a number on a plate of its own, said before the press', () => {

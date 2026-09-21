@@ -4,7 +4,8 @@ import create from './app/create.tsx?raw';
 import memory from './app/memory/[id].tsx?raw';
 import edit from './app/memory/[id]/edit.tsx?raw';
 import settings from './app/memory/[id]/settings.tsx?raw';
-import progress from './app/memory/[id]/montage/[montageId].tsx?raw';
+import live from './app/memory/[id]/montage/[montageId]/index.tsx?raw';
+import stageLog from './app/memory/[id]/montage/[montageId]/stage/[stage].tsx?raw';
 import upload from './app/memory/[id]/upload.tsx?raw';
 import home from './app/index.tsx?raw';
 import invite from './app/invite.tsx?raw';
@@ -25,10 +26,13 @@ import toggle from './kit/toggle.tsx?raw';
 import cover from './memory/cover.tsx?raw';
 import films from './memory/films.tsx?raw';
 import viewer from './memory/frame-viewer.tsx?raw';
+// The card one record of the journal opens — a piece of two screens, so it lives beside neither.
+import liveFile from './memory/live-file.tsx?raw';
 import frames from './memory/frames.tsx?raw';
 import sheets from './memory/frames-sheets.tsx?raw';
 import head from './memory/head.tsx?raw';
 import inviteSheet from './memory/invite-sheet.tsx?raw';
+import labelSheets from './memory/label-sheets.tsx?raw';
 import when from './memory/when.tsx?raw';
 // The arithmetic both the movies face and the waiting screen ask their «is it still being made»
 // question through, so the two cannot drift apart about what the answer is.
@@ -129,7 +133,7 @@ test('nothing is left of the tabs, the old appbar or the people inside this scre
     expect(part).not.toContain('<AppBar');
   }
   // And the roads in ask for nothing but the memory itself.
-  for (const road of [invite, push, progress]) expect(road).not.toContain("face: '");
+  for (const road of [invite, push, live]) expect(road).not.toContain("face: '");
   // The people are a screen of their own (TASK-209) and this one only points at it.
   expect(settings).toContain('<RowMember');
   expect(frames).not.toContain('<RowMember');
@@ -812,37 +816,43 @@ test('the way into an order is offered to the organizer and to nobody else', () 
   expect(films).toContain('montages === null ? null : montages.length === 0 ? (');
 });
 
-test('the waiting over one montage is a route of one row, and it names every stage', () => {
+test('the montage on air is a route of one row, with the journal of a stage under it', () => {
   // TASK-163, spec 8: what was just asked for is the only thing on the mind of whoever asked, so it
-  // gets a screen — and a route of one montage, not a second face of the memory. What the wizard
+  // gets a screen — and a route of one montage, not a block of the memory. The file moved into a
+  // folder of its own in TASK-221, because the journal of one stage lives under it; what the wizard
   // hands it on the way in is checked with the wizard (`order-screens.test.ts`).
-  expect(layout).toContain('name="memory/[id]/montage/[montageId]"');
-  expect(layout.indexOf('name="memory/[id]/montage/[montageId]"')).toBeLessThan(
+  expect(layout).toContain('name="memory/[id]/montage/[montageId]/index"');
+  expect(layout).toContain('name="memory/[id]/montage/[montageId]/stage/[stage]"');
+  expect(layout.indexOf('name="memory/[id]/montage/[montageId]/stage/[stage]"')).toBeLessThan(
     layout.indexOf('</Stack.Protected>'),
   );
 
-  // The screen itself: the order said back in the wizard's own words, and where the making is in
-  // stages. The stages are named and never counted — «73 %» tells a person nothing.
-  expect(progress).toContain('stages(montage.status)');
-  expect(progress).toContain('<RowStep');
-  for (const said of ['building', 'closeApp', 'toMemory', 'stageDone', 'stageRunning']) {
-    expect(progress).toContain(`s.montage.${said}`);
+  // The screen itself (`MontageLive`, TASK-221): the frame in the director's hands, and under it
+  // all five stages as the worker actually reports them. The stages are named and never counted —
+  // «73 %» tells a person nothing.
+  expect(live).toContain('<CardNow');
+  expect(live).toContain('MONTAGE_STAGES.map((code, at)');
+  expect(live).toContain('<RowStep');
+  expect(live).toContain('s.montage.stage[code]');
+  // The guess this screen used to draw instead is gone from the arithmetic as well: the api says
+  // which stage is running, so nothing infers it from the one word about the whole job.
+  for (const guessed of ['export const STAGES', 'export function stages', 'DONE_AT_ORDER']) {
+    expect(montage).not.toContain(guessed);
   }
-  // Every stage the arithmetic walks has a word in both languages: a sixth one added there and left
-  // unnamed here would draw an empty row.
-  const stageAt = montage.indexOf('export const STAGES');
-  const listed = [...montage.slice(stageAt, montage.indexOf(';', stageAt)).matchAll(/'(\w+)'/g)];
-  const named = listed.map(([, stage]) => stage);
-  expect(named).toHaveLength(5);
-  // Every one of them is in the dictionary, rather than the dictionary being exactly them: the
-  // journal (TASK-220) calls the last two `directing` and `assembly`, and one map holds both sets
-  // of names for one set of five stages until this screen goes.
+  // And the dictionary is exactly the api's five: the two names the waiting screen had of its own
+  // («story», «cut») went with it, so one stage cannot be spelled two ways any more.
   for (const set of [en, ru]) {
-    expect(Object.keys(set.montage.stage)).toEqual(expect.arrayContaining(named));
+    expect(Object.keys(set.montage.stage)).toEqual([
+      'screening',
+      'understanding',
+      'directing',
+      'rhythm',
+      'assembly',
+    ]);
   }
 });
 
-test('a card still being made is the second road onto the waiting over it', () => {
+test('a card still being made is the second road onto the montage being watched', () => {
   // TASK-169, spec 7.6: that screen existed from TASK-163 with exactly one way in — having just
   // placed the order. A card saying «Собирается» in the list did nothing under a finger, so anybody
   // who walked out of the waiting, or came back to the app an hour later, could not get back to
@@ -855,10 +865,10 @@ test('a card still being made is the second road onto the waiting over it', () =
   expect(road).toContain('router.push({');
   expect(road).toContain("pathname: '/memory/[id]/montage/[montageId]',");
   expect(road).toContain('params: { id, montageId: montage.id },');
-  // The frame count is the wizard's alone — it counted them while picking, and nothing counts them
-  // back off a placed order, so this road carries none and the screen says one thing less.
+  // Neither road carries anything of its own: the screen at the end of both reads the montage, the
+  // memory and the journal for itself, so what it says does not depend on how somebody got there.
   expect(road).not.toContain('frames');
-  expect(progress).toContain('frames?: string;');
+  expect(live).not.toContain('frames?: string;');
 
   // The other two states keep their own roads: a finished montage is watched where it lies — spec
   // 7.6 gives the whole card to that press now, rather than a play circle inside it — and a fallen
@@ -871,37 +881,112 @@ test('a card still being made is the second road onto the waiting over it', () =
   expect(cardMontage).toContain('disabled={!onPress}');
 });
 
-test('the waiting ends the way the montage does, and never on a spinner that turns for ever', () => {
-  // The same read the movies face makes, cut down to the one row — there is no route for a single
-  // montage — on the way in and then on the face's own clock while the worker still owes it.
-  expect(progress).toContain('listMontages(token, id).then(');
-  expect(progress).toContain('const making = montage === null || beingMade(montage.status);');
-  expect(progress).toContain('setInterval(() => read(true), WHILE_MAKING_MS)');
-  expect(progress).toContain('return () => clearInterval(timer);');
-  // Quietly, the same way that face polls: a blip on the way must not put a banner over a screen
-  // that is fine.
-  expect(progress).toContain('if (!quiet) setError(errorMessage(e));');
-
-  // Ready while somebody sat here watching: the reward is the video and the video is played on the
-  // memory's own screen, so this one steps out of the way instead of growing a second player.
-  expect(progress).toContain("if (montage?.status === 'ready') leave();");
-  expect(progress).toContain("router.replace({ pathname: '/memory/[id]', params: { id } });");
-  // Fallen over: the screen says so where «Собираем ролик» stood, hands over the worker's own line,
-  // and stays put — going back is the person's move and not the app's.
-  expect(progress).toContain("const broke = montage?.status === 'failed';");
-  expect(progress).toContain('{broke ? s.montage.status.failed : s.montage.building}');
-  expect(progress).toContain('{montage.error_text ? (');
-  expect(progress).toContain('s.montage.retryInMemory');
-  for (const set of [en, ru]) expect(set.montage.retryInMemory).toBeTruthy();
-
-  // «К воспоминанию» leaves and touches nothing: the making is the worker's, and the only calls
-  // this screen makes are the two reads.
-  expect(progress).toContain(
-    "import { errorMessage, listMemories, listMontages, type Memory, type Montage } from '@/api';",
-  );
-  for (const writing of ['orderMontage', 'retryMontage', 'deleteM', "method: '"]) {
-    expect(progress).not.toContain(writing);
+test('the montage being watched is read through the journal’s own hook and nothing else', () => {
+  // TASK-220 holds the whole of the reading — the poll, the cursor, what a broken connection does —
+  // so this screen keeps no clock of its own. The three reads it does make are the things the
+  // journal does not carry: who is watching it, what was ordered, and who the authors are by name.
+  expect(live).toContain('useMontageJournal(token, id, montageId)');
+  expect(live).not.toContain('setInterval');
+  for (const read of ['listMemories(token)', 'listMontages(token, id)', 'listMembers(token, id)']) {
+    expect(live).toContain(read);
   }
+
+  // Ready while somebody sat here watching: the reward is the video, and it is watched where it
+  // lies. One place says so, which is the line TASK-222 repoints at «Ролик готов».
+  expect(live).toContain("if (journal.status === 'ready') leave();");
+  expect(live).toContain("router.replace({ pathname: '/memory/[id]', params: { id } });");
+});
+
+test('the four standings of a montage on air are four different screens', () => {
+  // In the queue with nothing in hand — and the first answer not yet landed, which is a different
+  // wait and says so rather than promising a queue nobody has confirmed.
+  expect(live).toContain('s.montage.live.inQueue');
+  expect(live).toContain("journal.standing === 'opening'");
+  expect(live).toContain('s.state.loading');
+
+  // The connection went: what was read stays exactly where it is and one line stands under it.
+  expect(live).toContain("journal.standing === 'offline'");
+  expect(live).toContain('s.montage.live.lost');
+  expect(live).toContain('<Spinner size={16} />');
+
+  // It fell over: the card goes only when there is no frame left to hold, and the stage that broke
+  // is what says where.
+  expect(live).toContain("const failed = journal.standing === 'failed';");
+  expect(live).toContain('{held === null && failed ? null : (');
+  expect(live).toContain('{failed && montage?.error_text ? (');
+
+  // And the thing chief struck off this screen: there is no «Сообщить, когда будет готово» on it,
+  // because the notification goes to every member anyway (decision noted on TASK-221).
+  for (const absent of ['<Toggle', 'Switch', 'notify']) expect(live).not.toContain(absent);
+});
+
+test('only the organizer starts a fallen montage again', () => {
+  // doc-03 gives the montage to the organizer, and the api answers 403 to anybody else — so the
+  // button is not drawn for them rather than drawn and refused.
+  expect(live).toContain("failed && memory?.role === 'organizer' ?");
+  expect(live).toContain('label={s.montage.live.retry}');
+  expect(live).toContain('retryMontage(token, id, montageId)');
+  // The two answers a second press can get, said in words rather than as a status.
+  expect(live).toContain('409: s.montage.movedOn');
+  expect(live).toContain('403: s.montage.retryDenied');
+  // Where each stage stands is the api's own word, never this screen's reading of the montage.
+  expect(live).toContain('state={standingOf(row)}');
+  expect(live).toContain("if (stage === undefined || stage.state === 'pending') return 'waiting';");
+});
+
+test('the open stage carries its last records and the way into the whole of its journal', () => {
+  expect(live).toContain('const last = lastOfStage(journal.entries, code);');
+  expect(live).toContain('const open = stage?.stage === code && last.length > 0;');
+  expect(live).toContain('<StepNote');
+  expect(live).toContain('label={s.montage.live.wholeStage(recordsOf(row))}');
+  // Both roads out of a stage row go to the same place — the stage's own journal.
+  expect(live.match(/pathname: '\/memory\/\[id\]\/montage\/\[montageId\]\/stage\/\[stage\]'/g))
+    .toHaveLength(2);
+  expect(live).toContain('params: { id, montageId, stage: code },');
+});
+
+test('the stage journal is one stage’s records, cut the way the api counts them', () => {
+  // Narrowed at the source and not filtered on arrival: the screen scrolls one stage's journal, so
+  // the api is asked for one stage's journal.
+  expect(stageLog).toContain('useMontageJournal(token, id, montageId, { stage: code })');
+  expect(stageLog).toContain('sifted(journal.entries, sift)');
+  for (const chip of ['all', 'thoughts', 'took', 'skip']) {
+    expect(stageLog).toContain(`s.montage.live.${chip}`);
+  }
+  // The counts on the chips are the api's tally over the whole stage, not over the page on screen.
+  expect(stageLog).toContain('count={row ? String(row.taken_count) : undefined}');
+  expect(stageLog).toContain('count={row ? String(row.skipped_count) : undefined}');
+
+  // Hundreds of records: a windowed list, paged backwards by cursor as it is scrolled, and a record
+  // landing on top does not move what somebody is reading.
+  expect(stageLog).toContain('<FlatList');
+  expect(stageLog).toContain('maintainVisibleContentPosition={{ minIndexForVisible: 1');
+  expect(stageLog).toContain('journal.loadOlder();');
+  // Only the freshest record is still being said — the rest of a page stands there finished.
+  expect(stageLog).toContain('newest={index === 0}');
+});
+
+test('a record about a file opens that file’s card, and a deleted file is still a record', () => {
+  expect(stageLog).toContain('onPress={() => setOpened(item.id)}');
+  expect(stageLog).toContain('<SheetLiveFile');
+  // A file that has gone leaves the record without a picture and the sheet without one — the api
+  // says in as many words that this is not an error.
+  expect(stageLog).toContain('uri={file?.thumbnail_url ?? undefined}');
+  expect(liveFile).toContain('uri={file?.thumbnail_url ?? undefined}');
+  expect(liveFile).toContain('{file === undefined ? author : s.media[file.kind]}');
+
+  // Its own component, because the finished montage raises the same card off the same journal
+  // (TASK-222) — so it is handed a record and a file and reads nothing for itself.
+  expect(liveFile).toContain('export function SheetLiveFile');
+  expect(liveFile).toContain('entry: JournalEntry;');
+  expect(liveFile).toContain('file?: JournalFile;');
+  for (const reading of ['listMembers', 'listMontages', 'useMontageJournal']) {
+    expect(liveFile).not.toContain(reading);
+  }
+  // «Что увидел» in tags, and under the thought where the frame ended up.
+  expect(liveFile).toContain('s.montage.live.saw.toUpperCase()');
+  expect(liveFile).toContain('<Tag key={label} label={label} />');
+  expect(liveFile).toContain('outcome={outcomeLine(entry, file, s)}');
 });
 
 test('the waiting does not move the app once the person has walked out of it', () => {
@@ -909,13 +994,14 @@ test('the waiting does not move the app once the person has walked out of it', (
   // call still in flight when somebody left went on to move whoever was on top of it. Reset on the
   // way in as well as set on the way out: a remount is a screen that is here again. The wizard's
   // own half of this rule is in `order-screens.test.ts`.
-  expect(progress).toContain('const gone = useRef(false);');
-  expect(progress).toContain('gone.current = false;');
-  expect(progress).toContain('gone.current = true;');
+  expect(live).toContain('const gone = useRef(false);');
+  expect(live).toContain('gone.current = false;');
+  expect(live).toContain('gone.current = true;');
 
-  // And the waiting screen's one way out is called by its own read as well, so it is guarded where
-  // it is written: a second `back()` off an answer that landed late pops the memory too.
-  expect(progress).toContain('const leave = useCallback(() => {\n    if (gone.current) return;');
+  // And the live screen's one way out is called by the journal as well — a montage that turns
+  // `ready` a moment after «Назад» was pressed — so it is guarded where it is written: a second
+  // `back()` off an answer that landed late pops the memory out too.
+  expect(live).toContain('const leave = useCallback(() => {\n    if (gone.current) return;');
 });
 
 test('a ready montage shows its own still, and one without a still keeps the placeholder', () => {
@@ -1578,4 +1664,86 @@ test('a tile is read out in the line it is drawn with', () => {
   // says the same about a record as the tile above it, «открыто» apart.
   expect(frames).toContain('nameOf={nameOf}');
   expect(viewer).toContain('labelAt={(to) => nameOf(frames[to], frameOf(frames[to]), to === index)}');
+});
+
+/**
+ * The labels of a memory (TASK-213, spec 7.7 and 10.8.1): the left slot of the picking bar opens
+ * them, a press on a row files what is marked, and the feed holds on to what came back. What the
+ * sheets look like is `memory/label-sheets.test.tsx`; what a press comes to is `labels.test.ts`.
+ * These pin the wiring — that the button leads anywhere at all, and that the feed does not go and
+ * read the gallery again to find out what it already knows.
+ */
+
+test('the labels button of the picking bar opens the sheet, and is off with nothing marked', () => {
+  expect(frames).toContain('label={s.gallery.labelsPut}');
+  expect(frames).toContain('onPress={() => setLabelling(true)}');
+  expect(frames).toContain('disabled={busy || marked.length === 0}');
+  // The button it used to be: drawn, named and dead until this milestone.
+  expect(frames).not.toContain('sheet would be worse than a button that says it is not ready');
+  expect(ru.gallery.labelsPut).toBe('Лейблы: положить выбранное');
+  // And the sheets are mounted by being opened, over what is marked and nothing else.
+  expect(frames).toContain('<LabelSheets');
+  expect(frames).toContain('frames={marked}');
+});
+
+test('what the api answered is kept by the feed itself, without reading the gallery again', () => {
+  // `keepReady` deliberately holds every finished record's own object through a quiet re-read, so a
+  // fresh listing would not even carry the new `label_ids` onto the screen — and a loud one would
+  // blink the whole feed for a change of one array. The same way a delete is kept.
+  expect(frames).toContain(
+    'onFiled={(labelId, ids, now) => setItems((have) => filed(have, labelId, ids, now))}',
+  );
+});
+
+test('the sheet never works out who may do what — it draws what the server answered', () => {
+  // `can_edit` and `can_add_media` come down with every label, from the same function that refuses
+  // the write routes (api README). A rule repeated here would be a second answer to one question.
+  expect(labelSheets).toContain('label.can_add_media ? () => onFile(label) : undefined');
+  // And a press while the last one is still in the air is dropped in the container, so the circles
+  // stay where they are: one vanishing mid-errand reads as the right to file being taken away.
+  expect(labelSheets).toContain('if (busy || moving.length === 0) return;');
+  expect(labelSheets).toContain('editing && label.can_edit ?');
+  expect(labelSheets).toContain('labels?.some((label) => label.can_edit)');
+  expect(labelSheets).not.toContain("role === 'organizer'");
+});
+
+test('a press files the missing ones, and a second press takes the whole selection out', () => {
+  expect(labelSheets).toContain('const { inside, ids: moving } = filing(label.id, frames);');
+  expect(labelSheets).toContain('? removeLabelMedia(session, memoryId, label.id, moving)');
+  expect(labelSheets).toContain(': addLabelMedia(session, memoryId, label.id, moving),');
+  // The row the api answers with goes straight back into the list: a new count, not a re-read.
+  expect(labelSheets).toContain('setLabels((have) => withLabel(have ?? [], answer));');
+  // A new label and the frames in it are one action, the way the button is worded.
+  expect(labelSheets).toContain('createLabel(session, memoryId, {');
+  expect(labelSheets).toContain('media_ids: ids.length > 0 ? ids : undefined,');
+  expect(ru.labels.create(4)).toBe('Создать и положить 4 кадра');
+  expect(en.labels.create(1)).toBe('Create and file 1 frame');
+});
+
+test('a deleted label leaves the frames where they are, on every one of them', () => {
+  expect(labelSheets).toContain('onFiled(label.id, null, false);');
+  expect(ru.labels.deleteText).toContain('Кадры останутся в воспоминании');
+  // Nothing is lost, so no price is named — unlike every other dangerous sheet in the app.
+  expect(labelSheets).not.toContain('price=');
+});
+
+test('the sheet says a refusal in words of its own and never gets stuck on one', () => {
+  // The api answers a bare «forbidden», which tells nobody who *can* do the thing they just tried.
+  expect(labelSheets).toContain(
+    'setError(status === 403 ? denied : status === 404 ? s.labels.gone : errorMessage(e));',
+  );
+  expect(labelSheets).toContain('setBusy(false);');
+  for (const line of [ru.labels.addDenied, ru.labels.takeDenied, ru.labels.editDenied]) {
+    expect(line.endsWith('.')).toBe(true);
+  }
+  expect(en.labels.gone).toBe('This label is no longer here.');
+});
+
+test('visibility is settled once and only shown afterwards (decision-12)', () => {
+  // Spec 10.8.1: one read-only card with the value in it, never a greyed-out pair — a disabled
+  // button promises that one day it presses, and this one never will.
+  expect(labelSheets).toContain('readOnly');
+  expect(labelSheets).toContain('{s.labels.whoFixed}');
+  // And nothing ever sends `shared` back up on a rename: the api has no such field on that route.
+  expect(labelSheets).toContain('updateLabel(session, memoryId, label.id, { title, color })');
 });
