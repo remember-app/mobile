@@ -37,6 +37,8 @@ export const en = {
     retry: 'Try again',
     delete: 'Delete',
     download: 'Download',
+    /** Keeping what is on screen — the finished movie onto the phone it is watched on. */
+    save: 'Save',
     share: 'Share',
     invite: 'Invite',
     send: 'Send',
@@ -709,6 +711,8 @@ export const en = {
     retryDenied: 'Only the organizer can start it again.',
     /** The line the share sheet goes out with. The memory's own title is not translated. */
     shareText: (title: string) => `Movie from «${title}»`,
+    /** Handing the finished movie on did not happen — the download, or a phone with nowhere to send it. */
+    shareFailed: 'Could not hand this movie on.',
 
     /**
      * Ordering, step by step (spec 8). One screen per step, and the words of each of them: the frame
@@ -889,6 +893,19 @@ export const en = {
     live: {
       /** Over the whole screen, while the worker still owes it. A fallen one wears `status.failed`. */
       title: 'The montage is on',
+      /** And over the page the finished one gets — the same bar, with nothing left to watch. */
+      doneTitle: 'The movie is ready',
+      /** Beside its name up there: every stage of the making added up (`madeInMinutes`). */
+      madeIn: (minutes: number) => `made in ${minutes} min`,
+      /** The heading over the journal a finished movie keeps for ever. */
+      howMade: 'How it was made',
+      /**
+       * The three numbers under that heading, each the answer to one word: how many frames were
+       * looked at in all, how many the director took, and how many cuts came of them.
+       */
+      watched: 'looked at',
+      tookIn: 'taken in',
+      glued: 'cuts',
       /** The pill of faces in the bar, said as one sentence to a screen reader. */
       watching: (n: number) => `Watching now: ${n}`,
       /** On the frame the director is holding, beside the live dot. */
@@ -1110,6 +1127,7 @@ export const ru: Strings = {
     retry: 'Повторить',
     delete: 'Удалить',
     download: 'Скачать',
+    save: 'Сохранить',
     share: 'Поделиться',
     invite: 'Пригласить',
     send: 'Отправить',
@@ -1489,6 +1507,7 @@ export const ru: Strings = {
     movedOn: 'С этим уже что-то произошло — перечитываем список.',
     retryDenied: 'Запустить заново может только организатор.',
     shareText: (title: string) => `Ролик из «${title}»`,
+    shareFailed: 'Не получилось поделиться роликом.',
 
     step: (n: number, of: number) => `Шаг ${n} из ${of}`,
     summaryStep: 'Итог',
@@ -1592,6 +1611,12 @@ export const ru: Strings = {
 
     live: {
       title: 'Монтаж идёт',
+      doneTitle: 'Ролик готов',
+      madeIn: (minutes: number) => `собран за ${minutes} мин`,
+      howMade: 'Как собирался',
+      watched: 'просмотрел',
+      tookIn: 'взял в ролик',
+      glued: 'склеек',
       watching: (n: number) => `Смотрят сейчас: ${n}`,
       now: 'СЕЙЧАС',
       director: 'Режиссёр',

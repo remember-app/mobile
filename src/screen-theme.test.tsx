@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test, vi } from 'vitest';
 
 import memory from './app/memory/[id].tsx?raw';
+import player from './memory/film-player.tsx?raw';
 import films from './memory/films.tsx?raw';
 import frames from './memory/frames.tsx?raw';
 import viewer from './memory/frame-viewer.tsx?raw';
@@ -99,14 +100,17 @@ test('the open frame stays a dark room in both themes', () => {
   // left on that face since the window became a file of its own (TASK-147).
   expect(frames).not.toContain('themes.dark');
 
-  expect(films).toContain('const room = themes.dark.color;');
-  expect(films).toContain('viewer: { flex: 1, backgroundColor: room.ink, justifyContent:');
+  // The film's own player is the same room, and it is one window now (TASK-222): the strip on the
+  // feed and the film's own page raise this very component, so the rule is kept in one place.
+  expect(player).toContain('const room = themes.dark.color;');
+  expect(player).toContain('viewer: { flex: 1, backgroundColor: room.ink, justifyContent:');
+  expect(films).not.toContain('themes.dark');
 
   // And the room is pinned for what is drawn *in* it, not only for the sheet under it: the
   // filmstrip, a `Banner`, an `Empty`, the floating bar's own glass — every one of them asks
   // `useTheme()` for itself, and the strip is the whole width of the window.
   expect(viewer).toContain('<ThemePin value="dark">');
-  expect(films).toContain('<ThemePin value="dark">');
+  expect(player).toContain('<ThemePin value="dark">');
   expect(viewer.indexOf('<ThemePin value="dark">')).toBeLessThan(viewer.indexOf('<Filmstrip'));
 });
 
@@ -151,6 +155,6 @@ test('and the screens around it still turn with the theme', () => {
  * `MemoryFrames` comes out a night screen under daylight chrome (spec 8, `HomeDay`).
  */
 test('the memory’s glass and feed turn with the theme; only the player is a dark room', () => {
-  for (const part of [head, frames]) expect(part).not.toContain('themes.');
-  expect(films).toContain('const room = themes.dark.color;');
+  for (const part of [head, frames, films]) expect(part).not.toContain('themes.');
+  expect(player).toContain('const room = themes.dark.color;');
 });

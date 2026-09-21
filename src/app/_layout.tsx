@@ -133,6 +133,13 @@ function RootNavigator() {
           name="memory/[id]/montage/[montageId]/stage/[stage]"
           options={{ title: 'The stage journal' }}
         />
+        {/* And what that one becomes once the worker is done (TASK-222): the film's own page — the
+            poster it is watched and saved from, and the journal of how it was cut, which stays with
+            it for ever and is opened by any member, a viewer included. */}
+        <Stack.Screen
+          name="memory/[id]/montage/[montageId]/done"
+          options={{ title: 'The movie is ready' }}
+        />
         <Stack.Screen name="contacts" options={{ title: 'Contacts' }} />
         <Stack.Screen name="profile" options={{ title: 'Profile' }} />
         <Stack.Screen name="about" options={{ title: 'About' }} />

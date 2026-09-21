@@ -98,6 +98,20 @@ test('a card leads somewhere only when it is told to', () => {
   expect(
     story(<CardMontage title="Ролик на 1:00" meta="14 сентября · Тёплая" state="ready" onPress={() => {}} />),
   ).toContain('aria-label="Ролик на 1:00 · 14 сентября · Тёплая"');
+  // Unless pressing it does something its own words do not say — the poster on `MontageLiveDone`
+  // plays the film, and «Смотреть» is what a screen reader is told (TASK-222).
+  expect(
+    story(
+      <CardMontage
+        title="Ролик на 2:30"
+        meta="2:30 · 16:9"
+        state="ready"
+        large
+        label="Смотреть: Ролик на 2:30"
+        onPress={() => {}}
+      />,
+    ),
+  ).toContain('aria-label="Смотреть: Ролик на 2:30"');
 });
 
 test('«Новый ролик» is a hole in the strip, and it is always a button', () => {
