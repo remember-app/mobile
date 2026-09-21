@@ -5,6 +5,7 @@ import memory from './app/memory/[id].tsx?raw';
 import films from './memory/films.tsx?raw';
 import frames from './memory/frames.tsx?raw';
 import viewer from './memory/frame-viewer.tsx?raw';
+import head from './memory/head.tsx?raw';
 // The one component, not the barrel: `@/kit` reaches native modules node cannot parse, and this
 // needs the smallest thing in the kit that reads a colour.
 import { Text } from '@/kit/text';
@@ -135,8 +136,21 @@ test('a kit component inside the pin draws dark while the app is light', async (
 });
 
 test('and the screens around it still turn with the theme', () => {
-  // The grid behind the viewer is interface, not the room a photograph is looked at in. Naming it
+  // The feed behind the viewer is interface, not the room a photograph is looked at in. Naming it
   // here keeps the pin above from being widened into «this whole file is dark» by the next reader.
-  // The ink under all three faces is the screen's own now, so this is where it is spelled out.
+  // The ink under the memory is the route's own, so this is where it is spelled out.
   expect(memory).toContain('screen: { flex: 1, backgroundColor: color.ink }');
+});
+
+/**
+ * The memory's own chrome is the one surface of this app drawn *over* photographs — the glass bar,
+ * the darkening under it, the gradient at the foot of the feed — and every one of them reads as a
+ * fixed dark value while being nothing of the kind: `photo` is the one set that is deliberately the
+ * same in both themes (spec 2), and it lives in the kit. That no screen spells a colour out at all
+ * is swept above; what is left to say here is that this corner pins no *set* either, or
+ * `MemoryFrames` comes out a night screen under daylight chrome (spec 8, `HomeDay`).
+ */
+test('the memory’s glass and feed turn with the theme; only the player is a dark room', () => {
+  for (const part of [head, frames]) expect(part).not.toContain('themes.');
+  expect(films).toContain('const room = themes.dark.color;');
 });

@@ -181,6 +181,7 @@ export function GlassBar({
   meta,
   capsuleLabel,
   onCapsule,
+  chevron = true,
   left,
   right,
   style,
@@ -191,6 +192,13 @@ export function GlassBar({
   capsuleLabel: string;
   /** Left off, the capsule is a plate rather than a button — `Upload` is the one place it is. */
   onCapsule?: () => void;
+  /**
+   * Whether a capsule that *is* pressed says it leads somewhere. In the feed it does — the chevron
+   * under the name is the way into the memory's settings — and in `FramesPicking` it does not: the
+   * same capsule takes every frame instead of opening anything, and the layout drops the glyph to
+   * say so. A capsule nobody presses never wears one either way.
+   */
+  chevron?: boolean;
   left?: ReactNode;
   /** Empty on `FramesEmpty`: with no frames there is nothing to pick. */
   right?: ReactNode;
@@ -199,15 +207,16 @@ export function GlassBar({
   const insets = useSafeAreaInsets();
   const { color } = useTheme();
   const styles = useStyles();
-  // A plate and a button are the same capsule; only one of them is pressed, and only one of them
-  // carries the chevron that says there is something under it.
+  // A plate and a button are the same capsule; only one of them is pressed, and the chevron says
+  // there is something under it — so a plate never wears one, and neither does the one press that
+  // leads nowhere: in `FramesPicking` the capsule takes every frame instead of opening anything.
   const words = (
     <>
       <View style={styles.capsuleLine}>
         <Text role="pillTitle" numberOfLines={1} style={styles.shrink}>
           {title}
         </Text>
-        {onCapsule ? <Icon icon={ChevronDown} size={12} color={color.muted} /> : null}
+        {onCapsule && chevron ? <Icon icon={ChevronDown} size={12} color={color.muted} /> : null}
       </View>
       {meta ? (
         <Text role="meta" numberOfLines={1}>

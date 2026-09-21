@@ -4,9 +4,7 @@ import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import {
-  ApiError,
   errorMessage,
-  orderMontage,
   previewMontage,
   type MontageOrientation,
   type MontagePreview,
@@ -16,7 +14,7 @@ import { formatRuntime } from '@/dates';
 import { Button, LengthSlider, Segment, Text, Waiting } from '@/kit';
 import { useStrings } from '@/language';
 import { PRESETS, taken, wishes } from '@/montage';
-import { useOrder, useStillHere, WizardStep } from '@/order-wizard';
+import { useOrder, WizardStep } from '@/order-wizard';
 import { space, themed } from '@/theme';
 
 /**
@@ -29,24 +27,24 @@ import { space, themed } from '@/theme';
  * out of what there is to fill — a ceiling counted once on the way in would offer a length the
  * order would then be refused for.
  *
- * ponytail: the summary this button is named after is the next card (TASK-218), so «К итогу» still
- * does what the last step of the wizard has always done — places the order and leads to the
- * waiting over it. The step that reads the order back stands between them the moment it exists.
+ * The last step of the walk and not the end of it: what follows is the summary (`MontageSummary`),
+ * which is where the order is actually sent, so the button here only leads on. Nothing has left
+ * the phone by this point except a track somebody sent up themselves — and this question, which
+ * writes nothing at all.
  */
 export default function BuildStep() {
-  const { token } = useAuth();
   const router = useRouter();
   const s = useStrings();
+  const { token } = useAuth();
   const { id, items, material, order, change } = useOrder();
   const styles = useStyles();
-  const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   /** What the api says this order comes to. Null until it has answered — there is no guess here. */
   const [preview, setPreview] = useState<MontagePreview | null>(null);
-  const gone = useStillHere();
-  const inMovie = taken(material, order);
   /** The frames going in, as one word: the range is worked out from exactly these and nothing else. */
-  const going = inMovie.map((item) => item.id).join(',');
+  const going = taken(material, order)
+    .map((item) => item.id)
+    .join(',');
 
   useEffect(() => {
     if (!token || items === null) return;
@@ -62,7 +60,7 @@ export default function BuildStep() {
         setPreview(answer);
         // The material may have shrunk under a length already chosen — walking back to step 1 and
         // dropping half the frames is all it takes. The figure comes down with it rather than
-        // standing there until the order is refused.
+        // standing there until the summary is refused.
         const held = Math.min(Math.max(order.seconds ?? 0, answer.min_seconds), answer.max_seconds);
         if (order.seconds !== null && held !== order.seconds) change({ seconds: held });
       },
@@ -77,41 +75,6 @@ export default function BuildStep() {
     // rest of the order is read at the moment the question is asked, and asking again because the
     // length moved would be asking what the length may be with that length already in the question.
   }, [token, id, going]);
-
-  /** The one call the whole wizard leads to: everything the four steps settled, in one body. */
-  async function submit() {
-    if (!token || items === null) return;
-    setBusy(true);
-    setNotice(null);
-    try {
-      const made = await orderMontage(token, id, wishes(items, order));
-      // Left while it was in flight: the order is placed and cannot be unsent, but the screen that
-      // asked for it is not here to lead anywhere — the list on the memory is where it shows up.
-      if (gone.current) return;
-      // Onto the waiting for this one montage, and `replace` rather than `push`: the order is sent,
-      // so the steps behind this screen are not somewhere to go back to — what is under the waiting
-      // is the memory it was ordered from. The count of frames goes along because the wizard is the
-      // only one who ever counts them; the api hands back what it wrote and not how many pictures
-      // it adds up to.
-      router.replace({
-        pathname: '/memory/[id]/montage/[montageId]',
-        params: { id, montageId: made.id, frames: inMovie.length },
-      });
-    } catch (e) {
-      if (gone.current) return;
-      // The material can still fall under the floor between the read on the way in and this call —
-      // somebody else deleting what this order was counting on. The api's own line names its
-      // numbers; these name what to do about them.
-      setNotice(
-        e instanceof ApiError && e.status === 409
-          ? s.montage.tooLittle
-          : e instanceof ApiError && e.status === 403
-            ? s.montage.orderDenied
-            : errorMessage(e),
-      );
-      setBusy(false);
-    }
-  }
 
   /** Nothing said is the api's own answer, clamped — the figure on the card until a finger moves it. */
   const seconds = order.seconds ?? preview?.target_seconds ?? null;
@@ -128,8 +91,7 @@ export default function BuildStep() {
           wide
           trailingIcon={ChevronRight}
           label={s.montage.toSummary}
-          busy={busy}
-          onPress={() => void submit()}
+          onPress={() => router.push({ pathname: '/memory/[id]/order/summary', params: { id } })}
         />
       }
     >

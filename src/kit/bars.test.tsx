@@ -250,6 +250,29 @@ test('the capsule is a plate where it leads nowhere', () => {
   expect(plate).not.toBe(button);
 });
 
+test('a capsule that acts instead of leading keeps the press and loses the chevron', () => {
+  // `FramesPicking`: the same capsule counts what is marked and takes every frame — it is pressed,
+  // and it opens nothing, so the glyph that promises something underneath goes.
+  const [door, action] = [true, false].map((chevron) =>
+    story(
+      <GlassBar
+        title="Выбрано 4"
+        meta="38 МБ · 3 фото и 1 видео"
+        capsuleLabel="Выбрано 4. Нажмите, чтобы выбрать все"
+        onCapsule={() => {}}
+        chevron={chevron}
+        left={<IconButton icon={ChevronLeft} label="Лейблы" tone="glass" size={48} />}
+      />,
+    ),
+  );
+  // Both are buttons and both carry the same words; only one of them says it leads anywhere.
+  for (const bar of [door, action]) {
+    expect(bar).toContain('role="button"');
+    expect(bar).toContain('38 МБ · 3 фото и 1 видео');
+  }
+  expect(door).not.toBe(action);
+});
+
 test('the right slot of the glass bar is empty where there is nothing to pick', () => {
   const full = story(
     <GlassBar

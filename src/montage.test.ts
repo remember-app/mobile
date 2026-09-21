@@ -80,6 +80,7 @@ import {
   afterTap,
   beingMade,
   blankOrder,
+  entered,
   enoughMaterial,
   MIN_FRAMES,
   movedTrack,
@@ -296,6 +297,29 @@ test('the music goes out even when there is none, and the note only with tracks'
   const body = wishes(gallery, { ...noted, tracks: [{ key: 'calm', name: null }] });
   expect(body.music_track_id).toBeUndefined();
   expect(body.music_track_key).toBeUndefined();
+});
+
+test('a walk with nothing said in it costs nothing to leave, and every answer is something said', () => {
+  // The question «Отмена» asks before it throws the wizard away: walked into and straight back
+  // out of, there is nothing to confirm, and a sheet asking anyway is a door held shut for nothing.
+  const start = blankOrder();
+  expect(entered(start)).toBe(false);
+  // Whitespace is not an answer either — the same trim the body goes out under.
+  expect(entered({ ...start, story: '   ' })).toBe(false);
+
+  // Every field one of the steps can fill in, one at a time: each of them on its own is a walk
+  // worth asking about.
+  const said: Partial<Order>[] = [
+    { dropped: new Set(['kept']) },
+    { returned: new Set(['blurred']) },
+    { story: 'Начни со сборов' },
+    { template: 'parents' },
+    { tracks: [{ key: 'calm', name: null }] },
+    { note: 'Погромче к финалу' },
+    { seconds: 90 },
+    { orientation: 'portrait' },
+  ];
+  for (const answer of said) expect(entered({ ...start, ...answer })).toBe(true);
 });
 
 test('a track is told from the shelf by its key, and everything else is somebody’s own file', () => {

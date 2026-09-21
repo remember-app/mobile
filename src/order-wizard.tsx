@@ -30,6 +30,7 @@ import {
   Banner,
   Board,
   Button,
+  ConfirmSheet,
   Icon,
   IconButton,
   Sheet,
@@ -39,7 +40,7 @@ import {
   type IconComponent,
 } from '@/kit';
 import { useStrings } from '@/language';
-import { blankOrder, enoughMaterial, usable, type Order } from '@/montage';
+import { blankOrder, entered, enoughMaterial, usable, type Order } from '@/montage';
 import { radius, space, themed, useTheme } from '@/theme';
 
 /**
@@ -240,9 +241,11 @@ export function WizardStep({
 }) {
   const router = useRouter();
   const s = useStrings();
-  const { items, error, short, leave } = useOrder();
+  const { items, error, short, order, leave } = useOrder();
   const styles = useStyles();
   const summary = step === 'summary';
+  /** «Отмена» pressed over a walk that has something in it — asked before it is thrown away. */
+  const [leaving, setLeaving] = useState(false);
 
   return (
     <Board>
@@ -262,7 +265,16 @@ export function WizardStep({
             onPress={() => (router.canGoBack() ? router.back() : leave())}
           />
         }
-        cancel={<Button variant="quiet" label={s.action.cancel} onPress={leave} />}
+        cancel={
+          <Button
+            variant="quiet"
+            label={s.action.cancel}
+            // Nothing said is nothing to lose: the wizard then closes on the press, the way it
+            // always did. Asked here and not inside `leave()`, which is also what «Позже» on
+            // `SheetTooLittle` presses — one sheet must never raise another.
+            onPress={() => (entered(order) ? setLeaving(true) : leave())}
+          />
+        }
       />
 
       {error !== null ? (
@@ -285,6 +297,23 @@ export function WizardStep({
       {items === null || short || !action ? null : (
         <ActionBar above={above}>{action}</ActionBar>
       )}
+
+      {/* Spec 7.1, detail 8 — the gentle kind: nothing here is destroyed, but four steps of
+          choices are, and that is what the sheet names. Drawn by the shell so «Отмена» asks the
+          same question on whichever step it is pressed. */}
+      <ConfirmSheet
+        visible={leaving}
+        variant="gentle"
+        title={s.montage.leaveAsk}
+        text={s.montage.leaveText}
+        confirmLabel={s.montage.leaveDo}
+        cancelLabel={s.montage.stay}
+        onConfirm={() => {
+          setLeaving(false);
+          leave();
+        }}
+        onCancel={() => setLeaving(false)}
+      />
     </Board>
   );
 }

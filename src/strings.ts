@@ -81,11 +81,12 @@ export const en = {
      */
     fallbackTitle: 'Memory',
     /**
-     * The switch under that title, said out loud: a memory is one screen with three faces (kit,
-     * «Экраны» 4–6), and this is the name of the row they are picked in. Never drawn — the words on
-     * the three pills are, and the screen's own name is above them.
+     * The capsule of the glass bar said out loud (spec 8): it carries the memory's name and leads
+     * into its settings, and the name alone would not say that it leads anywhere.
      */
-    whatToShow: 'What to show',
+    settings: (title: string) => `${title}. Memory settings and people`,
+    /** The second line of that capsule while there is nothing in the memory yet (`FramesEmpty`). */
+    nothingYet: 'nothing yet',
     /** Whoever brought a frame and is no longer on the roster. */
     someone: 'Someone',
     /**
@@ -446,13 +447,27 @@ export const en = {
      */
     open: 'open',
     /**
-     * The one icon this appbar carries, and it is a switch: pressed once it puts the sheet into
+     * The right slot of the glass bar, and it is a switch: pressed once it puts the feed into
      * picking, pressed again it comes back out. Two labels because it is one control saying two
      * different things — «Скачать всю галерею» was the icon here until the kit made taking the lot
      * home the same picking with everything in it (kit, «Экраны» 4, «Выбор»).
      */
     select: 'Select frames',
     leaveSelect: 'Leave select mode',
+    /** The left slot of that bar while picking: where `SheetLabels` will be raised from. */
+    labelsPut: 'Labels: put the picked frames in one',
+    /** The capsule while picking, with nothing marked yet (spec 8, `FramesPicking`). */
+    pickNothing: 'Pick some frames',
+    /** What pressing that capsule does, said out loud — it is a count on screen and an action here. */
+    selectAll: 'Tap to take every frame',
+    /** Its second line: what is marked, said the way the layout says it — «3 photos and 1 video». */
+    pickedKinds: (photos: number, videos: number) =>
+      [
+        photos > 0 ? `${photos} ${photos === 1 ? 'photo' : 'photos'}` : null,
+        videos > 0 ? `${videos} ${videos === 1 ? 'video' : 'videos'}` : null,
+      ]
+        .filter(Boolean)
+        .join(' and '),
     /**
      * The right edge of a day's own strip while the mode is on, where the count of that day stands
      * the rest of the time — «в строке дня вместо числа „Выбрать все 9“». Word for word what the
@@ -500,6 +515,8 @@ export const en = {
     within: 'Inside a group',
     orders: { newest: 'Newest first', oldest: 'Oldest first' },
     deleteAsk: (kind: 'photo' | 'video') => `Delete this ${kind === 'video' ? 'video' : 'photo'}?`,
+    /** The same question over an armful, with the price named as a number before the press. */
+    deleteAskMany: (n: number) => `Delete ${n} ${n === 1 ? 'frame' : 'frames'}?`,
     deleteText: 'It goes from the memory for good. A movie already made keeps it.',
     keep: 'Keep',
     deleteDenied: 'Only the organizer can delete what somebody else brought.',
@@ -591,24 +608,26 @@ export const en = {
     broke: 'The cut broke off halfway',
     watch: (title: string) => `Watch ${title}`,
     saveShare: 'Save and share',
-    make: 'Make a movie',
-    /** The last button of the order, and the one word the whole wizard leads to. */
+    /**
+     * The last button of the order, the one word the whole wizard leads to — and the paper button
+     * on the empty block, which is where an order starts when the memory has no film yet.
+     */
     makeIt: 'Make it',
     /** The heading over the three lengths on the last step. */
     howLong: 'How long',
     music: 'Music',
     /** The heading over the two shapes, the way «How long» stands over the three lengths. */
     shape: 'Shape',
-    /** `FilmsEmpty` — spec 9 settles the heading over both readings of that silence. */
-    emptyTitle: 'No movie yet',
-    empty: 'The organizer can ask for one.',
+    /** The counter beside the heading of the block while the memory has no movie yet. */
+    noneYet: 'none yet',
+    /** The dashed tile that stands first in the strip, always: the one way a new movie is started. */
+    newOne: 'New movie',
     /**
-     * The same silence read by the one person who can end it. Empty is an invitation (spec 7.8), so
-     * it says what the thing is and what it takes — the button itself is on the bar below, and «the
-     * organizer can ask» would be telling them about themselves.
+     * `FilmsEmpty` — what the block says where the strip would be. Empty is an invitation (spec 9),
+     * so it says what the thing is rather than reporting an absence; the button beside it is the
+     * organizer's, because ordering is theirs alone.
      */
-    emptyOrganizer:
-      'A movie is a short cut of everything in this memory: the agent picks the moments itself and sets them to music. A few photos or videos are enough.',
+    emptyNote: 'A neural network picks the best moments and sets them to music.',
     ordered: 'Ordered. Everyone here is told when it is ready.',
     tooLittle: 'Too little material for a movie yet — add a few more photos or videos first.',
     orderDenied: 'Only the organizer can order a movie.',
@@ -727,8 +746,6 @@ export const en = {
     /** The two round buttons beside the figure — five seconds either way, spoken. */
     shorter: 'Five seconds shorter',
     longer: 'Five seconds longer',
-    /** The last button of the step: the order is read back before anything is made. */
-    toSummary: 'To the summary',
     /** The three summary rows, each of them the way back to the step that settled it. */
     story: 'Story',
     framesOf: (taken: number, all: number) => `${taken} of ${all}`,
@@ -738,6 +755,42 @@ export const en = {
     directorDecides: 'The director decides',
     onceOnly:
       'A finished movie is not remade. If you want it another way — put together one more, there is no limit on them.',
+    /** The last button of step 4: what is after it is the summary and not the making. */
+    toSummary: 'To the summary',
+
+    /**
+     * `MontageSummary` — the order read back before it is spent. Everything counted in it is the
+     * api's own answer and nothing on the screen can be edited, so these are all read-only words.
+     */
+    summaryTitle: 'Everything is ready',
+    /** «168 photos · 46 videos» — the frames that are actually going in, counted by the api. */
+    shots: (photos: number, videos: number) =>
+      `${photos} ${photos === 1 ? 'photo' : 'photos'} · ${videos} ${videos === 1 ? 'video' : 'videos'}`,
+    /** Beside that count: how many people brought them. */
+    byPeople: (n: number) => `from ${n} ${n === 1 ? 'person' : 'people'}`,
+    /** The music section with nothing in it — which is an answer and not a gap. */
+    noMusicLive: 'No music · the sound of the video itself',
+    /** The line with the clock, and the only promise the screen makes about time. */
+    readyIn: (minutes: number) =>
+      `It takes about ${minutes} ${minutes === 1 ? 'minute' : 'minutes'} — we will send you a notice.`,
+    /** The one button the whole wizard leads to. */
+    startCut: 'Start the cut',
+    /**
+     * The length was fine when it was picked and is not any more — the frames changed under it.
+     * Said without numbers on purpose: the range is the api's and it has already moved once.
+     */
+    lengthOff: 'That length does not fit the frames you picked — go back and choose another.',
+    /** The two ways back out of a refusal, straight to the step that can undo it. */
+    toFrames: 'Back to the frames',
+    toLength: 'Back to the length',
+    /**
+     * «Отмена» with something already said — the gentle sheet, where nothing is destroyed but a
+     * walk through four steps is.
+     */
+    leaveAsk: 'Leave the order?',
+    leaveText: 'The frames, the story and the music picked here are not kept.',
+    leaveDo: 'Leave',
+    stay: 'Stay',
 
     /** `MontageProgress` — the waiting the order leads to, and what is known while it lasts. */
     building: 'Making the movie',
@@ -989,7 +1042,8 @@ export const ru: Strings = {
 
   memory: {
     fallbackTitle: 'Воспоминание',
-    whatToShow: 'Что показать',
+    settings: (title: string) => `${title}. Настройки воспоминания и люди`,
+    nothingYet: 'пока пусто',
     someone: 'Кто-то',
     // «Кадры» — то самое слово кита, и теперь единственное: и карточка на главной, и переключатель
     // лиц воспоминания называют материал одинаково.
@@ -1200,6 +1254,14 @@ export const ru: Strings = {
     open: 'открыто',
     select: 'Выбрать кадры',
     leaveSelect: 'Выйти из режима выбора',
+    labelsPut: 'Лейблы: положить выбранное',
+    pickNothing: 'Выберите кадры',
+    selectAll: 'Нажмите, чтобы выбрать все',
+    // Фото и видео по-русски не склоняются, поэтому считается только само число.
+    pickedKinds: (photos: number, videos: number) =>
+      [photos > 0 ? `${photos} фото` : null, videos > 0 ? `${videos} видео` : null]
+        .filter(Boolean)
+        .join(' и '),
     selectDay: (n: number) => `Выбрать все ${n}`,
     picked: (n: number) => `Выбрано ${n}`,
     download: (n: number) => `Скачать ${count(n, 'файл', 'файла', 'файлов')}`,
@@ -1224,6 +1286,7 @@ export const ru: Strings = {
     within: 'Внутри группы',
     orders: { newest: 'Сначала новые', oldest: 'Сначала старые' },
     deleteAsk: (kind: 'photo' | 'video') => `Удалить это ${kind === 'video' ? 'видео' : 'фото'}?`,
+    deleteAskMany: (n: number) => `Удалить ${count(n, 'кадр', 'кадра', 'кадров')}?`,
     deleteText: 'Оно уйдёт из воспоминания навсегда. В уже собранном ролике останется.',
     keep: 'Оставить',
     deleteDenied: 'Удалять чужое может только организатор.',
@@ -1274,15 +1337,13 @@ export const ru: Strings = {
     broke: 'Сборка оборвалась на полпути',
     watch: (title: string) => `Смотреть: ${title}`,
     saveShare: 'Сохранить и поделиться',
-    make: 'Смонтировать ролик',
     makeIt: 'Смонтировать',
     howLong: 'Длина',
     music: 'Музыка',
     shape: 'Формат',
-    emptyTitle: 'Ролика пока нет',
-    empty: 'Заказать его может организатор.',
-    emptyOrganizer:
-      'Ролик — короткое видео из всего, что есть в воспоминании: моменты нейросеть выберет сама и положит на музыку. Хватит нескольких фото или видео.',
+    noneYet: 'пока нет',
+    newOne: 'Новый ролик',
+    emptyNote: 'Нейросеть выберет лучшие моменты и положит на музыку.',
     ordered: 'Заказали. Когда ролик будет готов, все здесь об этом узнают.',
     tooLittle: 'Материала для ролика пока мало — добавьте ещё несколько фото или видео.',
     orderDenied: 'Заказать ролик может только организатор.',
@@ -1358,7 +1419,6 @@ export const ru: Strings = {
     lengthFromTemplate: (name: string) => `из шаблона «${name}»`,
     shorter: 'Короче на 5 секунд',
     longer: 'Длиннее на 5 секунд',
-    toSummary: 'К итогу',
     story: 'История',
     framesOf: (taken: number, all: number) => `${taken} из ${all}`,
     onTheBeat: 'в ритм',
@@ -1366,6 +1426,22 @@ export const ru: Strings = {
     directorDecides: 'Режиссёр решит сам',
     onceOnly:
       'Готовый ролик не переделывается. Если захотите иначе — соберёте ещё один, их число не ограничено.',
+    toSummary: 'К итогу',
+
+    summaryTitle: 'Всё готово к монтажу',
+    shots: (photos: number, videos: number) => `${photos} фото · ${videos} видео`,
+    byPeople: (n: number) => `от ${count(n, 'человека', 'человек', 'человек')}`,
+    noMusicLive: 'Без музыки · живой звук',
+    readyIn: (minutes: number) =>
+      `Соберём примерно за ${count(minutes, 'минуту', 'минуты', 'минут')} и пришлём уведомление.`,
+    startCut: 'Начать монтаж',
+    lengthOff: 'Такая длина не подходит к выбранным кадрам — вернитесь и выберите другую.',
+    toFrames: 'К кадрам',
+    toLength: 'К длине',
+    leaveAsk: 'Выйти из заказа?',
+    leaveText: 'Выбранные здесь кадры, история и музыка не сохранятся.',
+    leaveDo: 'Выйти',
+    stay: 'Остаться',
 
     building: 'Собираем ролик',
     closeApp:
