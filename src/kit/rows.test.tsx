@@ -36,6 +36,18 @@ test('a summary row is a way back to the step that settled it', () => {
   });
 });
 
+test('the same row stating a fact has no arrow on it', () => {
+  // The chevron promises a screen, and on the frame's own sheet («Файл», «Камера», «Место») there
+  // is none: that sheet is «только смотреть». Same row, two states, and the arrow is the difference.
+  allDifferent({
+    leads: <RowSummary label="Кадры" value="214 из 486" onPress={() => {}} />,
+    states: <RowSummary label="Файл" value="IMG_4471.HEIC · 4,2 МБ" />,
+  });
+  const fact = story(<RowSummary label="Файл" value="IMG_4471.HEIC · 4,2 МБ" />);
+  expect(fact).toContain('IMG_4471.HEIC · 4,2 МБ');
+  expect(fact).not.toContain('data-glyph');
+});
+
 test('a track row is a row, and what picks it is the button on its right', () => {
   const take = <IconButton size={36} icon={Plus} label="Добавить «Яркая»" />;
   allDifferent({

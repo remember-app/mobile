@@ -254,12 +254,21 @@ export function GlassBar({
 export function ViewerBar({
   date,
   meta,
+  label,
+  onPress,
   left,
   right,
   style,
 }: {
   date: string;
   meta: string;
+  /**
+   * The whole pill read out in one sentence — «Сведения о кадре: 13 сентября, 21:47 · Марк
+   * Ковалёв». Only where the pill leads somewhere: a pill that is not a button is two lines of
+   * words and is read as such.
+   */
+  label?: string;
+  onPress?: () => void;
   left?: ReactNode;
   right?: ReactNode;
   style?: StyleProp<ViewStyle>;
@@ -269,14 +278,26 @@ export function ViewerBar({
   return (
     <View style={[styles.bar, style]}>
       {left}
-      <View style={styles.viewerPill}>
-        <Text role="label" style={styles.onPhoto}>
-          {date}
-        </Text>
-        <Text role="meta" style={styles.onPhotoMeta}>
-          {meta}
-        </Text>
-      </View>
+      {/* Spec 7.1, detail 5: the pill is a button — it is the road to the frame's own sheet, and
+          the `chevron-down` on it is what says so. A `Pressable` with nothing to press stays a
+          plain block of glass, which is what the layout draws where there is nowhere to go. */}
+      <Pressable
+        accessibilityRole={onPress ? 'button' : undefined}
+        accessibilityLabel={onPress ? label : undefined}
+        onPress={onPress}
+        disabled={!onPress}
+        style={styles.viewerPill}
+      >
+        <View style={styles.viewerWords}>
+          <Text role="label" numberOfLines={1} style={styles.onPhoto}>
+            {date}
+          </Text>
+          <Text role="meta" numberOfLines={1} style={styles.onPhotoMeta}>
+            {meta}
+          </Text>
+        </View>
+        {onPress ? <Icon icon={ChevronDown} size={12} color={photo.dot} /> : null}
+      </Pressable>
       {right}
     </View>
   );
@@ -397,13 +418,18 @@ const useStyles = themed(({ color }) =>
     wizardStep: { flex: 1, textAlign: 'center', fontVariant: ['tabular-nums'] },
     viewerPill: {
       flex: 1,
+      flexDirection: 'row',
       alignItems: 'center',
-      gap: 2,
+      justifyContent: 'center',
+      gap: space.s2,
       paddingVertical: space.s2,
       paddingHorizontal: space.s4,
       borderRadius: radius.pill,
       backgroundColor: photo.glass,
     },
+    // Two floors beside the chevron, not above it — and they give way first: a long name is
+    // truncated, the sign that the pill opens something never is.
+    viewerWords: { flexShrink: 1, minWidth: 0, alignItems: 'center', gap: 2 },
     onPhoto: { color: photo.on },
     onPhotoMeta: { color: photo.dot },
     layer: { paddingHorizontal: space.s4, paddingTop: space.s3, gap: space.s3 },

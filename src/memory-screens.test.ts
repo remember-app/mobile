@@ -1002,74 +1002,145 @@ test('the material of a memory has one name — on the card, on the switch, over
 });
 
 /**
- * The open frame (TASK-147): `Viewer`, `ViewerVideo` and `SheetFrame` of spec 8, in a file of their
- * own — «во весь экран, без кнопок снизу, а снизу лента» is what was asked for, and a shape is what
- * these pin. What the strip does with a finger lives in the library now and is read there;
- * everything the gallery decides about a record is pinned in `frames.test.ts`.
+ * The open frame (TASK-147, rebuilt to the «Афиша» layout in TASK-211): `Viewer`, `ViewerVideo`,
+ * `SheetFrame` and `SheetFrameInfo` of spec 8, in a file of their own — «во весь экран, без кнопок
+ * снизу, а снизу лента» is what was asked for, and a shape is what these pin. What the strip does
+ * with a finger lives in the library now and is read there; everything the gallery decides about a
+ * record is pinned in `frames.test.ts`.
  */
 
-test('nothing stands under the open frame: glass over it, the strip and the actions beneath', () => {
-  // Spec 7.1, kind 6 and kind 4: three pieces of glass floating over the picture, and no bottom
-  // layer at all — the window's own row of actions is not one, and the gallery's is not in here.
+test('the whole window is three buttons on glass, and under the picture only the strip', () => {
+  // Spec 8, `Viewer`: «сверху три стеклянные кнопки … снизу плёнка 48», and nothing else. The row
+  // of four round buttons that used to stand under the strip is gone with the layout that had it —
+  // what was in it is the menu the «⋯» drops and the sheet the pill raises.
   expect(viewer).toContain('<ViewerBar');
   expect(viewer).not.toContain('<ActionBar');
+  expect(viewer).not.toContain('styles.actions');
   // TASK-109's darkening went with the bar it was under: the glass carries these now, and a
   // gradient measured off the safe area has nothing left to darken.
   expect(viewer).not.toContain('linear-gradient');
-  // The order down the window, spec 8: the scrubber on a line of its own, the strip, then the row.
+  // The order down the window, spec 8: the scrubber on a line of its own, then the strip, and the
+  // strip is the last thing in the window.
   const strip = viewer.indexOf('<Filmstrip');
   expect(viewer.indexOf('<VideoTrack')).toBeLessThan(strip);
-  expect(strip).toBeLessThan(viewer.indexOf('label={s.action.share}'));
-  // «По краям то, что уводит кадр из воспоминания, в середине то, что с ним делают.»
-  const actions = viewer.slice(viewer.indexOf('<View style={styles.actions}>'));
+  expect(strip).toBeLessThan(viewer.indexOf('<ActionMenu'));
+  // The three of them, each in its own place: «Назад» on the left, the pill of when and who in the
+  // middle, «⋯» on the right — and no fourth.
+  const bar = viewer.slice(viewer.indexOf('<ViewerBar'), viewer.indexOf('<View style={[styles.tools'));
+  expect(bar.slice(bar.indexOf('left={'))).toContain('label={s.action.close}');
+  expect(bar.slice(bar.indexOf('right={'))).toContain('label={s.viewer.more}');
+  expect(bar).toContain('label={`${s.viewer.details}');
+  expect(bar.match(/<IconButton/g)).toHaveLength(2);
+});
+
+test('the pill of when and who is the road to the frame’s own sheet', () => {
+  // Spec 8: «капсула с датой и „время · автор“», and it leads to `SheetFrameInfo`. The stamp is the
+  // gallery's own reading of when a frame happened — the same one its heading in the feed is under
+  // — and never the memory's span, which is what the pill used to carry.
+  expect(viewer).toContain('const stamp = new Date(shotAt(item));');
+  expect(viewer).toContain('const when = formatDayShort(stamp);');
+  expect(viewer).toContain("const meta = [formatTime(stamp), who].filter(Boolean).join(' · ');");
+  expect(viewer).toContain('onPress={openInfo}');
+  // One piece of state behind the sheet, and one read behind that — asked for by the pill and by
+  // nothing else, because the window opens on a picture and this is the half nobody asked about.
+  expect(viewer.match(/setDetails\(true\)/g)).toHaveLength(1);
+  expect(viewer).toContain('fetchFrameInfo(token, memoryId, item.id)');
+  // And the answer is dropped if the sheet has since been shut and raised on another frame: it
+  // would otherwise fill the open sheet with the frame before it.
+  expect(viewer).toContain('if (asking.current === read.id) setInfo(read);');
+  expect(ru.viewer.details).toBe('Сведения о кадре');
+});
+
+test('the «⋯» drops the glass menu of the three errands, and stays lit under it', () => {
+  // Spec 7.1, detail 9: the menu falls out of the button rather than rising from the bottom, the
+  // button it fell out of stays visible and lit, and the dangerous line is cut off from the two
+  // above it. «Удалить» deletes nothing itself — it hands the window to the sheet that names the
+  // price, exactly as the old sheet did.
+  const menu = viewer.slice(viewer.indexOf('<ActionMenu'), viewer.indexOf('</ActionMenu>'));
   const order = [
     'label={s.action.share}',
     'label={s.viewer.saveToPhone}',
-    'label={s.viewer.details}',
     'label={s.viewer.remove}',
-  ].map((label) => actions.indexOf(label));
+  ].map((label) => menu.indexOf(label));
   expect(order).toEqual([...order].sort((a, b) => a - b));
   expect(order[0]).toBeGreaterThan(-1);
-  // The two in the middle stand on glass of their own, and the delete is the only red thing here.
-  expect(viewer).toContain('backgroundColor: photo.glass');
-  expect(viewer).toContain('tint={room.dangerText}');
+  expect(menu).toContain('gapBefore={2}');
+  expect(menu.replace(/\s+/g, ' ')).toContain('danger onPress={() => { setMenu(false); setConfirming(true); }}');
+  expect(viewer).toContain('style={menu ? styles.held : null}');
+  expect(viewer).toContain('held: { backgroundColor: photo.held }');
+  // The words are the layout's own, and the delete is the only red line in the menu.
   expect(ru.viewer.remove).toBe('Удалить из воспоминания');
-  expect(ru.viewer.saveToPhone).toBe('Сохранить в галерею телефона');
+  expect(ru.viewer.saveToPhone).toBe('Сохранить на телефон');
 });
 
-test('the row of actions keeps its shape for somebody who may not delete', () => {
-  // The glass group is the middle of the window, and «в середине» has to stay true whoever is
-  // looking: without the stub the two buttons would slide towards the edge for a viewer.
-  const right = viewer.slice(viewer.indexOf('{mayDelete(item) ? ('));
-  expect(right).toContain('<View style={styles.stub} />');
-  expect(viewer).toContain('stub: { width: height.roundViewer }');
+test('nobody who may not delete is shown a delete, greyed or otherwise', () => {
+  // The line is absent for them rather than disabled — it was so in the sheet this menu replaced,
+  // and the api is the authority either way: the face decides ownership, the window draws it.
+  const menu = viewer.slice(viewer.indexOf('<ActionMenu'), viewer.indexOf('</ActionMenu>'));
+  expect(menu).toContain('{mayDelete(item) ? (');
+  expect(menu).toContain('  ) : null}');
 });
 
-test('«Ещё» and «Подробности» raise the same sheet, and it is the one the layout draws', () => {
-  // Spec 8: both lead to `SheetFrame`. One piece of state, so they cannot drift into two sheets.
-  expect(viewer.match(/setDetails\(true\)/g)).toHaveLength(2);
-  expect(viewer).toContain('<FrameSheet');
-  // The sheet itself: a header row saying which frame this is, three errands, one outlined way out.
-  const sheet = sheets.slice(sheets.indexOf('export function FrameSheet'));
-  expect(sheet).toContain('label={s.viewer.saveToPhone}');
-  expect(sheet).toContain('label={s.action.share}');
-  expect(sheet).toContain('label={s.viewer.remove} danger');
-  expect(sheet).toContain('<Button variant="secondary" size="md" label={s.action.close}');
-  // The delete is absent for whoever may not delete, never greyed — and it never deletes anything
-  // itself: it hands the window back to the sheet that names the price.
-  expect(sheet).toContain('{onDelete ? (');
-  expect(viewer.replace(/\s+/g, ' ')).toContain('mayDelete(item) ? () => { setDetails(false); setConfirming(true);');
+test('the frame’s own sheet is who, when, what and where — and draws nothing it was not told', () => {
+  // Spec 8, `SheetFrameInfo`: the head is known off the frame already (thumbnail, «13 сентября,
+  // 21:47», «суббота · Свадьба Лизы и Марка»), the rest arrives with one read.
+  const raised = viewer.slice(viewer.indexOf('<FrameInfoSheet'));
+  expect(raised).toContain('thumb={item.thumbnail_url ?? undefined}');
+  expect(raised).toContain('title={`${when}, ${formatTime(stamp)}`}');
+  expect(raised).toContain("meta={[formatWeekday(stamp), memory?.title].filter(Boolean).join(' · ')}");
+  const sheet = sheets.slice(sheets.indexOf('export function FrameInfoSheet'));
+  // Who brought it and how much they brought in all, then the summary rows, then the movies.
+  expect(sheet).toContain('s.viewer.brought(formatDayShort(info.created_at), info.uploaded_by.media_count)');
+  expect(sheet.indexOf('frameFacts(info, s)')).toBeLessThan(sheet.indexOf('s.viewer.inFilms'));
+  // «Только смотреть»: not one control on it, and no way out but the ways every sheet has.
+  expect(sheet).not.toContain('<Button');
+  expect(sheet).not.toContain('<RowAction');
+  // A frame in no movie at all loses the block, not just its rows.
+  expect(sheet).toContain('{info.montages.length === 0 ? null : (');
+  expect(ru.viewer.brought('15 сентября', 96)).toBe('принёс 15 сентября · всего 96 кадров');
 });
 
-test('the frame’s own sheet says what the frame is, who brought it and how heavy it is', () => {
-  // «Фото», and under it «Марк Ковалёв · 12–14 сентября · 4,2 МБ». The day is the memory's own and
-  // not the file's — `shotBy` is where that was settled (TASK-94), and this line is built on it
-  // rather than beside it. The size is the one thing here that only the record knows.
-  const sheet = viewer.slice(viewer.indexOf('<FrameSheet'));
-  expect(sheet).toContain('title={s.media[item.kind]}');
-  expect(sheet).toContain('meta={[shotBy(item, roster, memory), size === null ? null : s.viewer.size(size)]');
-  expect(sheet).toContain('thumb={item.thumbnail_url ?? undefined}');
-  expect(ru.viewer.size('4,2')).toBe('4,2 МБ');
+test('a movie the frame stands in is named by its length and opens the one player there is', () => {
+  const sheet = sheets.slice(sheets.indexOf('export function FrameInfoSheet'));
+  // «Ролик на 1:00» out of the length, because a montage has no name until templates arrive; the
+  // second it stands at is the right-hand half of the same row (spec 7.7, detail 62).
+  expect(sheet).toContain('title={runtime ? s.montage.ofLength(runtime) : s.montage.count(1)}');
+  expect(sheet).toContain("at={s.viewer.at(formatRuntime(film.start_seconds) ?? '')}");
+  expect(ru.viewer.at('1:12')).toBe('на 1:12');
+  expect(ru.montage.ofLength('1:00')).toBe('Ролик на 1:00');
+  // One frame may stand in one montage twice — the api's own key is the pair, and so is this one.
+  expect(sheet).toContain('key={`${film.id}:${film.start_seconds}`}');
+  // And the row opens the player the movies face already has: no second player is drawn for a
+  // frame (chief, 21.09.2026). The window goes first — it is a Modal, and a Modal outlives a push.
+  expect(viewer.replace(/\s+/g, ' ')).toContain(
+    "function openFilm(montageId: string) { setDetails(false); onClose(); router.push({ pathname: '/memory/[id]', params: { id: memoryId, face: 'films', montage: montageId }, });",
+  );
+  expect(films).toContain("const { montage: asked } = useLocalSearchParams<{ montage?: string }>();");
+  expect(films).toContain('useState<string | null>(asked ?? null)');
+  // Asked once: the url is cleared, or the switch back onto this face would raise the player again.
+  expect(films).toContain("router.setParams({ montage: '' })");
+});
+
+test('a frame that would not open says so, and the strip stays where it is', () => {
+  // Spec 8, the edge of `Viewer`: «знак image и „Кадр не открылся“, плёнка остаётся». The sign is
+  // inside the stage, so everything under it — the scrubber, the strip — is untouched.
+  const stage = viewer.slice(viewer.indexOf('<View style={[styles.big, styles.blank]}>'));
+  expect(stage).toContain('<Empty icon={ImageSign} text={s.viewer.notOpened} />');
+  expect(viewer.indexOf('styles.blank')).toBeLessThan(viewer.indexOf('<Filmstrip'));
+  expect(ru.viewer.notOpened).toBe('Кадр не открылся');
+});
+
+test('the window is a dark room, and the sheets over it are in the theme the app is in', () => {
+  // The window itself is pinned dark in both themes — the layout gives it a background darker than
+  // `ink` on purpose. The menu is inside the pin, because it stands on the photograph; both sheets
+  // are outside it, because a sheet is its own surface and daylight has to reach it (спека 2, «день
+  // подстановкой»). Nothing here names a colour of its own: every one of them is a token.
+  expect(viewer).toContain('<ThemePin value="dark">');
+  const pinned = viewer.indexOf('</ThemePin>');
+  expect(viewer.indexOf('<ActionMenu')).toBeLessThan(pinned);
+  expect(pinned).toBeLessThan(viewer.indexOf('<FrameInfoSheet'));
+  expect(pinned).toBeLessThan(viewer.indexOf('<ConfirmSheet'));
+  for (const file of [viewer, sheets]) expect(file).not.toMatch(/#[0-9a-fA-F]{3,8}\b|rgba?\(/);
 });
 
 test('a video carries a transport and a photo carries none of it', () => {

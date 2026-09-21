@@ -54,6 +54,34 @@ export function formatDay(value: string | Date, locale?: string): string {
 }
 
 /**
+ * The same day without its year — «13 сентября», «13 September». What stands over an open frame and
+ * on its own sheet (spec 8): a frame is looked at inside the memory it belongs to, and the year is
+ * already settled by that.
+ */
+export function formatDayShort(value: string | Date, locale?: string): string {
+  const fields = dayFields(value, locale);
+  return fields === null ? '' : `${fields.day} ${fields.month}`;
+}
+
+/**
+ * The clock beside that day — «21:47», «9:47 PM». Whether it is read round the clock or in halves
+ * is the language's own business, which is why the hour is asked for as a number rather than padded
+ * here. Unreadable is no time at all, the way an unreadable day is no day.
+ */
+export function formatTime(value: string | Date, locale: string = currentLanguage()): string {
+  const at = new Date(value);
+  if (Number.isNaN(at.getTime())) return '';
+  return at.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' });
+}
+
+/** And the name of that day — «суббота», «Saturday» — the second line of the frame's own sheet. */
+export function formatWeekday(value: string | Date, locale: string = currentLanguage()): string {
+  const day = new Date(value);
+  if (Number.isNaN(day.getTime())) return '';
+  return day.toLocaleDateString(locale, { weekday: 'long' });
+}
+
+/**
  * The line under a memory's title. A span inside one month names that month once and leaves the
  * year off — «12–16 августа», the way the kit draws a memory card; a span that crosses a month or
  * a year writes both days whole, year and all. A span whose end is the day it started on is a
