@@ -641,6 +641,8 @@ export const en = {
      * of the wizard first, then the four steps in order, then the two sheets that stand in for one.
      */
     step: (n: number, of: number) => `Step ${n} of ${of}`,
+    /** What the bar says over the total instead of a step: there is no step after it, and no scale. */
+    summaryStep: 'Summary',
     next: 'Next',
 
     /** Step 1 — what the automatic pass made of the material, and what to do about it. */
@@ -649,6 +651,12 @@ export const en = {
     passDropped: (n: number) => `${n} dropped automatically`,
     whatDropped: 'What was dropped',
     nextWith: (n: number) => `Next — ${n} ${n === 1 ? 'frame' : 'frames'}`,
+    /**
+     * Under the button that has gone dark: everything was crossed out, and there is no film in
+     * nothing. It names the floor the api holds the order to rather than «at least one» — a
+     * sentence that asked for one frame and then refused two would be the screen lying twice.
+     */
+    keepAtLeast: (n: number) => `Keep at least ${n} ${n === 1 ? 'frame' : 'frames'}`,
     /** Said of one frame, for whoever cannot see which circle is on it. */
     inMovie: 'Going into the movie',
     outOfMovie: 'Left out',
@@ -672,15 +680,30 @@ export const en = {
     leaveAsIs: 'Leave as is',
 
     /** Step 2 — the words the director is given, or none. */
-    storyTitle: 'What is this movie about',
+    storyTitle: 'How to cut this movie',
     storyHint: 'This can be skipped — then the director decides.',
     /** The box has no visible label: the screen's own heading is the label (spec 7.9). */
     storyLabel: 'The story of the movie',
     storyPlaceholder:
       'Liza and Mark’s wedding. Start with the morning, then the ceremony, and end on the dancing.',
-    storyNote: 'The clearer you are, the fewer surprises',
-    /** The four openers under the box: a tap puts one at the end of what is written. */
-    seeds: ['Start with…', 'End on…', 'More of…', 'Without…'],
+    /**
+     * The six ready-made films, by the api's own ids and in the order it hands them out. The server
+     * writes the story of each and sends the length and the shape; the name on the tile is the
+     * app's, because it is a word and not a fact about this memory. The three video sites are their
+     * own names in both languages.
+     */
+    template: {
+      for_myself: 'For myself',
+      quick: 'Quick and lively',
+      report: 'An official report',
+      short_form: 'TikTok · Reels · Shorts',
+      parents: 'For the parents',
+      dopamine: 'Dopamine bomb',
+    },
+    /** The plate over the story: which template wrote what is in the box. */
+    fromTemplate: (name: string) => `«${name}» template`,
+    /** And what that plate becomes the moment the words are edited — they are the person's now. */
+    ownText: 'Your own text',
 
     /** Step 3 — the shelf of tracks, or one off this phone. */
     musicTitle: 'What to cut it to',
@@ -1265,6 +1288,7 @@ export const ru: Strings = {
     shareText: (title: string) => `Ролик из «${title}»`,
 
     step: (n: number, of: number) => `Шаг ${n} из ${of}`,
+    summaryStep: 'Итог',
     next: 'Дальше',
 
     pickTitle: 'Какие кадры взять',
@@ -1272,6 +1296,7 @@ export const ru: Strings = {
     passDropped: (n: number) => `${n} сняли автоматически`,
     whatDropped: 'Что сняли',
     nextWith: (n: number) => `Дальше — ${count(n, 'кадр', 'кадра', 'кадров')}`,
+    keepAtLeast: (n: number) => `Оставьте хотя бы ${count(n, 'кадр', 'кадра', 'кадров')}`,
     inMovie: 'Берём в ролик',
     outOfMovie: 'Не берём',
 
@@ -1290,13 +1315,21 @@ export const ru: Strings = {
     bringBackAll: (n: number) => `Вернуть все ${n}`,
     leaveAsIs: 'Оставить как есть',
 
-    storyTitle: 'О чём этот ролик',
+    storyTitle: 'Как смонтировать этот ролик',
     storyHint: 'Можно пропустить — тогда режиссёр решит сам.',
     storyLabel: 'История ролика',
     storyPlaceholder:
       'Свадьба Лизы и Марка. Начни со сборов утром, дальше церемония, а финал — танцы.',
-    storyNote: 'Чем точнее, тем меньше сюрпризов',
-    seeds: ['Начни с…', 'Финал —…', 'Побольше…', 'Без…'],
+    template: {
+      for_myself: 'Для себя',
+      quick: 'Быстрый, энергичный',
+      report: 'Официальный отчёт',
+      short_form: 'TikTok · Reels · Shorts',
+      parents: 'Для родителей',
+      dopamine: 'Дофаминовая бомба',
+    },
+    fromTemplate: (name: string) => `Шаблон «${name}»`,
+    ownText: 'Свой текст',
 
     musicTitle: 'Под что монтировать',
     musicHint: 'Склейки попадут в ритм выбранного трека.',

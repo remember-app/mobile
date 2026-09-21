@@ -690,20 +690,35 @@ export type MontageOrientation = 'landscape' | 'portrait';
  * music, the length and the shape. `@/montage` is what turns a wizard's state into this.
  */
 export type MontageWishes = {
+  /**
+   * Any whole number of seconds inside this memory's own range, which is the material's and not a
+   * constant — `previewMontage` is the one place it is known, and the length step reads it from
+   * there rather than working it out. Left out, the api picks its own and clamps it, so «не
+   * сказали» is always a legal order and never a 400.
+   */
   target_seconds?: number;
   /** What the organizer said the video is about, in their own words. */
   story_text?: string;
   /** The frames settled by hand: these go in whatever the worker thinks, those stay out. */
   include_media_ids?: string[];
   exclude_media_ids?: string[];
-  music_track_id?: MusicTrackId;
   /**
-   * Their own track in R2 instead of one off the shelf — the key `finishMusicUpload` hands back.
-   * Never together with `music_track_id`: the api answers 400 to a body carrying both, because two
-   * answers to «под что монтировать» would leave the worker to choose.
+   * The music, in the order it plays: ids off the worker's shelf and keys of tracks the organizer
+   * sent up themselves (`music/<uuid>`), mixed freely. A list and not one answer since doc-03 grew
+   * the step — and the app sends it on every order, empty included, because an empty list is «без
+   * музыки, живой звук из видео» and a missing one is only «ничего не сказали».
    */
-  music_track_key?: string;
+  music_tracks?: string[];
+  /** How to use those tracks, in words. Only ever with a non-empty `music_tracks` — 400 without. */
+  music_note?: string;
   orientation?: MontageOrientation;
+  /**
+   * ⚠️ The one-track fields the api took before the list existed. The app no longer sends either —
+   * they are here because `Montage.params` of an older order still carries them, and the card of
+   * that movie still has to say what it was cut to.
+   */
+  music_track_id?: MusicTrackId;
+  music_track_key?: string;
 };
 
 /**
@@ -738,11 +753,83 @@ export function listMontages(token: string, memoryId: string): Promise<Montage[]
 }
 
 /**
+ * The six ready-made films of `MontageTemplate` (spec 8), by the api's own ids and in the order the
+ * screen draws them. The order of the answer is the order of the tiles and does not change.
+ */
+export type MontageTemplateId =
+  | 'for_myself'
+  | 'quick'
+  | 'report'
+  | 'short_form'
+  | 'parents'
+  | 'dopamine';
+
+/**
+ * One template: a filled-in order and nothing more than one. What comes back here is what goes out
+ * in `orderMontage`, minus the `id` and plus whatever the person changed on the way — which is the
+ * whole of the autopilot (doc-03).
+ *
+ * The story is written on the server, in the reader's own language and with this memory's name and
+ * dates already in it, and the length comes clamped to what the material can carry. What is *not*
+ * here is the name on the tile: those six words are the app's own, kept in `@/strings` by id.
+ */
+export type MontageTemplate = {
+  id: MontageTemplateId;
+  story_text: string;
+  target_seconds: number;
+  orientation: MontageOrientation;
+  music_tracks: string[];
+  music_note: string | null;
+};
+
+/** The organizer's alone, 403 for anybody else — nobody but them can order the film. */
+export function listMontageTemplates(token: string, memoryId: string): Promise<MontageTemplate[]> {
+  return request(`/memories/${memoryId}/montage-templates`, { token });
+}
+
+/**
+ * «Итог перед монтажом» (spec 8, `MontageSummary`): what the order would come to, worked out by the
+ * api off the very same body the order sends. The numbers are the frames that would actually go in
+ * — everything ready, minus `exclude_media_ids` — and the length range is this memory's own.
+ *
+ * The app never counts any of this itself: the floor and the ceiling of the length step, the people
+ * in the film and the wait in minutes all have one source, and it is this. Nothing is written by
+ * it, so a screen may ask as often as it likes; every refusal the order has, this has too, in the
+ * same words — a summary that agreed to something the order would turn down is worse than none.
+ */
+export type MontagePreview = {
+  photos: number;
+  videos: number;
+  /** How many different people brought those frames. */
+  people: number;
+  min_seconds: number;
+  max_seconds: number;
+  /** What the order would write down: what was asked for, or the api's own, clamped to the range. */
+  target_seconds: number;
+  orientation: MontageOrientation;
+  /** Roughly how long the making would take. A bearing and not a promise — the api says so too. */
+  estimate_minutes: number;
+};
+
+export function previewMontage(
+  token: string,
+  memoryId: string,
+  wishes: MontageWishes,
+): Promise<MontagePreview> {
+  return request(`/memories/${memoryId}/montages/preview`, {
+    method: 'POST',
+    body: wishes,
+    token,
+  });
+}
+
+/**
  * «Смонтируй ролик» — the organizer's alone, 403 for anybody else. Every wish may be left out: the
- * api fills the length in itself, a track nobody chose is the worker's to pick, and no orientation is
- * horizontal. 409 when there is too little material to cut anything out of, and the body then
- * carries how much there is against how much is needed; 400 for a frame named as both in and out,
- * for a frame that is not this memory's, and for a body carrying both a track id and a track key.
+ * api fills the length in itself and clamps it, an empty list of tracks is a film with the video's
+ * own sound, and no orientation is horizontal. 409 when there is too little material to cut
+ * anything out of, and the body then carries how much there is against how much is needed; 400 for
+ * a frame named as both in and out, for a frame that is not this memory's, for a track that is
+ * neither off the shelf nor this memory's, and for a note about music nobody picked.
  */
 export function orderMontage(
   token: string,

@@ -5,6 +5,7 @@ import { Field } from '@/kit/field';
 import {
   BlockPicked,
   BlockSummary,
+  ChipTemplate,
   PosterOrder,
   SummarySection,
   SummaryShots,
@@ -130,5 +131,18 @@ test('the chosen tracks stand in the accent’s own block, with the wish under t
         <RowTrack title="Тёплая" length="1:40" wave />
       </BlockPicked>
     ),
+  });
+});
+
+test('the plate over the story names the template, or says the words are the person’s own', () => {
+  const plate = story(<ChipTemplate label="Шаблон «Для родителей»" icon={House} />);
+  expect(plate).toContain('Шаблон «Для родителей»');
+  // Nothing about it is pressable: it reports which text is in the box, and the box is where that
+  // text is changed.
+  expect(plate).not.toContain('role="button"');
+  // The two states it is ever in: the template's, with its own glyph, and «Свой текст» without one.
+  allDifferent({
+    template: <ChipTemplate label="Шаблон «Для родителей»" icon={House} />,
+    own: <ChipTemplate label="Свой текст" />,
   });
 });

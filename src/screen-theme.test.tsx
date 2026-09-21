@@ -38,9 +38,10 @@ vi.mock('expo-secure-store', () => ({
  */
 // `src/memory/` is swept with the routes: the three faces of a memory are screen-sized pieces that
 // live outside `src/app` only because everything inside it is a route, and the rule they have to
-// keep is the routes' own (TASK-101).
+// keep is the routes' own (TASK-101). The order's wizard shell is here for the same reason — it
+// draws the chrome every step of the order stands in (TASK-216).
 const screens = Object.entries(
-  import.meta.glob<string>('./{app,memory}/**/*.tsx', {
+  import.meta.glob<string>('./{app/**/*,memory/**/*,order-wizard}.tsx', {
     query: '?raw',
     import: 'default',
     eager: true,
