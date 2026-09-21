@@ -256,6 +256,13 @@ export type Memory = {
    * while nothing is processed yet, or when the api has no bucket configured.
    */
   recent_thumbnail_urls: string[];
+  /**
+   * The frame the organizer chose as this memory's face, and the signed link to its preview —
+   * signed and living exactly as long as the ones in the tail above. Both are `null` until
+   * somebody picks one, and then the card draws what it drew before the cover existed.
+   */
+  cover_media_id: string | null;
+  cover_thumbnail_url: string | null;
   montage_count: number;
   created_at: string;
   role: MemberRole;

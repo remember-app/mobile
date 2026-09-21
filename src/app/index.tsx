@@ -137,10 +137,15 @@ export default function HomeScreen() {
             // field degrades quietly under that skew — this one would throw inside the list
             // renderer and take the main screen down with it.
             const thumbs = item.recent_thumbnail_urls ?? [];
+            // The one frame the organizer chose as this memory's face (api README, `PATCH
+            // /memories/:memoryId`). `?? null` and not a bare read for the same reason as above:
+            // an api older than the field sends nothing, and the card is then what it always was.
+            const cover = item.cover_thumbnail_url ?? null;
             // Spec 8: the freshest memory leads the list on the large card — but that card *is* a
             // photograph with a name across it, so a memory with nothing in it yet takes the
-            // ordinary one and its dashed film, exactly as `Main` draws «Корпоратив Nox».
-            const large = index === 0 && thumbs.length > 0;
+            // ordinary one and its dashed film, exactly as `Main` draws «Корпоратив Nox». A cover
+            // is that photograph too, and on its own is enough to carry the large card.
+            const large = index === 0 && (cover !== null || thumbs.length > 0);
             // The bar of who has already brought theirs, off the summary the listing itself counted
             // (doc-06) — no request per card. An api too old to send it draws no bar at all, rather
             // than a full one over «0 из 0».
@@ -158,6 +163,9 @@ export default function HomeScreen() {
                 // The frames the listing signed for this memory, drawn as they come: the card shows
                 // what is inside instead of counting it.
                 thumbs={thumbs}
+                // Spec 7.6, «с обложкой»: the chosen frame takes the whole face of the large card
+                // and leads the strip of the ordinary one. Without one both cards are unchanged.
+                cover={cover}
                 large={large}
                 organizer={
                   item.role === 'organizer' ? (

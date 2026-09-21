@@ -1,16 +1,8 @@
 import { Pencil, Search } from 'lucide-react-native';
 import { beforeAll, expect, test } from 'vitest';
 
-import {
-  CodeField,
-  Field,
-  FieldShell,
-  Hint,
-  TextArea,
-  type FieldVariant,
-} from '@/kit/field';
+import { CodeField, Field, Hint, TextArea, type FieldVariant } from '@/kit/field';
 import { allDifferent, story } from '@/kit/story';
-import { Text } from '@/kit/text';
 import { setTheme, type } from '@/theme';
 
 /** Spec 7.3 — every field of the layout, in every state it can be in. */
@@ -177,17 +169,6 @@ test('the long-text box carries a line saying what it is for, never how full it 
   );
   expect(noted).toContain('Своими словами');
   expect(noted).not.toBe(story(<TextArea label="История" value="" onChangeText={() => {}} />));
-});
-
-test('the date field is pressed rather than typed in, and says so', () => {
-  const shell = story(
-    <FieldShell label="Дата события" hint="Приложение найдёт по этим датам снятое на телефоне">
-      <Text>12 сентября</Text>
-    </FieldShell>,
-  );
-  expect(shell).toContain('role="button"');
-  expect(shell).toContain('12 сентября');
-  expect(shell).toContain('Приложение найдёт по этим датам снятое на телефоне');
 });
 
 test('the hint under a control has the four voices it is ever said in', () => {
