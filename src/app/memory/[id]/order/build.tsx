@@ -56,13 +56,7 @@ export default function BuildStep() {
       target_seconds: undefined,
     }).then(
       (answer) => {
-        if (!here) return;
-        setPreview(answer);
-        // The material may have shrunk under a length already chosen — walking back to step 1 and
-        // dropping half the frames is all it takes. The figure comes down with it rather than
-        // standing there until the summary is refused.
-        const held = Math.min(Math.max(order.seconds ?? 0, answer.min_seconds), answer.max_seconds);
-        if (order.seconds !== null && held !== order.seconds) change({ seconds: held });
+        if (here) setPreview(answer);
       },
       (e: unknown) => {
         if (here) setNotice(errorMessage(e));
@@ -75,6 +69,20 @@ export default function BuildStep() {
     // rest of the order is read at the moment the question is asked, and asking again because the
     // length moved would be asking what the length may be with that length already in the question.
   }, [token, id, going]);
+
+  /**
+   * A length standing outside what the api just named comes back inside it. Two ways in: the
+   * material shrank under a figure already chosen — walking back to step 1 and dropping half the
+   * frames is all it takes — and the autopilot, which rides the figure up to the template's own
+   * while this answer is still in flight. Watched rather than done once on arrival, so whichever
+   * of the two moves last is the one that is held: a figure the order would be refused for must
+   * not be left standing until the summary says so.
+   */
+  useEffect(() => {
+    if (preview === null || order.seconds === null) return;
+    const held = Math.min(Math.max(order.seconds, preview.min_seconds), preview.max_seconds);
+    if (held !== order.seconds) change({ seconds: held });
+  }, [preview, order.seconds, change]);
 
   /** Nothing said is the api's own answer, clamped — the figure on the card until a finger moves it. */
   const seconds = order.seconds ?? preview?.target_seconds ?? null;

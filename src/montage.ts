@@ -12,6 +12,7 @@ import type {
   MediaItem,
   Montage,
   MontageOrientation,
+  MontageTemplate,
   MontageTemplateId,
   MontageWishes,
   MusicTrackId,
@@ -167,6 +168,40 @@ export const blankOrder = (): Order => ({
 });
 
 /**
+ * Everything one of the six templates decides — which is the whole order except which frames go
+ * into it. A template says what kind of film this is; the material is whatever the memory holds,
+ * and the automatic pass has already had its say about that (spec 8, `MontageTemplate`).
+ */
+export type TemplateFill = Omit<Order, 'dropped' | 'returned' | 'seconds'> & {
+  /** Never «не сказали» here: a template names a length, and the api hands it over clamped. */
+  seconds: number;
+};
+
+/**
+ * A template as the order it fills in — the whole of what pressing a tile means (doc-03). The api
+ * writes the story and hands over the length already held inside what this memory can carry, so
+ * nothing here decides anything: it only puts the answer in the field that asks the question.
+ *
+ * `ownStory` and `ownLength` come back to false with it: the words and the figure are the
+ * template's again, which is what puts its plate over the story and its line under the length —
+ * and a second template pressed after the first one was edited is a fresh answer, not a half of
+ * the old one.
+ */
+export const fromTemplate = (template: MontageTemplate): TemplateFill => ({
+  template: template.id,
+  story: template.story_text,
+  ownStory: false,
+  // A template's tracks are the worker's own shelf, so none of them carries a name off a phone.
+  tracks: template.music_tracks.map((key) => ({ key, name: null })),
+  // The wish goes only with the tracks it is about: the api answers 400 to one about music nobody
+  // picked, and a template with no music has nothing for a wish to be about.
+  note: template.music_tracks.length > 0 ? (template.music_note ?? '') : '',
+  seconds: template.target_seconds,
+  ownLength: false,
+  orientation: template.orientation,
+});
+
+/**
  * Whether anything has actually been said in the wizard — the question «Отмена» asks before it
  * throws the walk away. Every field against what `blankOrder` opens with: a wizard somebody walked
  * into and straight back out of loses nothing, and a sheet asking them to confirm that would be a
@@ -316,6 +351,13 @@ export function wishes(items: readonly MediaItem[], order: Order): MontageWishes
  */
 export const shapeOf = (orientation: MontageOrientation | undefined): number =>
   orientation === 'portrait' ? 9 / 16 : 16 / 9;
+
+/**
+ * The same two shapes written the way they are read out — on the plate of a template tile («3:00 ·
+ * 16:9») and in the corner of the summary's poster. Not a word for a person to translate: the
+ * figure is the canvas the worker cuts onto, and it is the same in both languages.
+ */
+export const RATIO: Record<MontageOrientation, string> = { landscape: '16:9', portrait: '9:16' };
 
 /* ── The waiting after the order ────────────────────────────────────────── */
 

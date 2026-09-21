@@ -3,7 +3,10 @@ import { expect, test } from 'vitest';
 import api from './api.ts?raw';
 import layout from './app/_layout.tsx?raw';
 import build from './app/memory/[id]/order/build.tsx?raw';
-import frames from './app/memory/[id]/order/index.tsx?raw';
+import frames from './app/memory/[id]/order/frames.tsx?raw';
+// The way into the order, and the route the movies face has always pushed: `index.tsx` is the
+// screen of six templates since TASK-219, and step 1 is a file beside it.
+import templates from './app/memory/[id]/order/index.tsx?raw';
 import wizardLayout from './app/memory/[id]/order/_layout.tsx?raw';
 import music from './app/memory/[id]/order/music.tsx?raw';
 import story from './app/memory/[id]/order/story.tsx?raw';
@@ -24,10 +27,12 @@ import { en, ru } from '@/strings';
  * where it lives, in `montage.test.ts`.
  */
 
-const steps = { frames, story, music, build, summary };
+const steps = { templates, frames, story, music, build, summary };
 
 test('the wizard is a folder of steps, and no step declares another', () => {
   // The whole wizard is still one screen to the app around it — the route the movies face pushes.
+  // That route is the screen of templates now, which is why the strip of movies needed no edit:
+  // «Новый ролик» leads where it always did, and what stands there changed underneath it.
   expect(layout).toContain('<Stack.Screen name="memory/[id]/order"');
   expect(films).toContain("router.push({ pathname: '/memory/[id]/order', params: { id } })");
 
@@ -44,7 +49,7 @@ test('the wizard is a folder of steps, and no step declares another', () => {
     expect(step).not.toContain('<WizardBar');
     expect(step).not.toContain('<Board>');
   }
-  expect(wizard).toContain('label={summary ? s.montage.summaryStep : s.montage.step(step as number, STEPS)}');
+  expect(wizard).toContain('? s.montage.step(step, STEPS)');
   expect(wizard).toContain('label={s.action.cancel}');
 });
 
@@ -62,6 +67,9 @@ test('what was answered lives above the steps, so walking back and forth loses n
 
   // Forward is a push, so the step behind stays on the stack and the back gesture is the step's
   // own; «Отмена» drops every one of them at once, whichever step it is pressed on.
+  expect(templates).toContain(
+    "router.push({ pathname: '/memory/[id]/order/frames', params: { id } })",
+  );
   expect(frames).toContain("router.push({ pathname: '/memory/[id]/order/story', params: { id } })");
   expect(story).toContain("router.push({ pathname: '/memory/[id]/order/music', params: { id } })");
   expect(music).toContain("router.push({ pathname: '/memory/[id]/order/build', params: { id } })");
@@ -76,7 +84,7 @@ test('what was answered lives above the steps, so walking back and forth loses n
 test('«Отмена» over a walk with something in it asks before it throws it away', () => {
   // The shell asks it, so the question is the same on whichever step it is pressed — and it is the
   // gentle sheet, because nothing is destroyed here except a walk through four steps.
-  expect(wizard).toContain('onPress={() => (entered(order) ? setLeaving(true) : leave())}');
+  expect(wizard).toContain('if (entered(order)) setLeaving(true);');
   expect(wizard).toContain('variant="gentle"');
   expect(wizard).toContain('title={s.montage.leaveAsk}');
   // Nothing said is nothing to confirm, and `leave()` itself stays silent: «Позже» on
@@ -92,8 +100,126 @@ test('too little material stops the wizard before its first step, not after its 
   expect(wizard).toContain('<Sheet\n        visible={short}');
   expect(wizard).toContain("router.replace({ pathname: '/memory/[id]/upload', params: { id } })");
   // And no step draws itself while that sheet is up — the shell holds its body and its button
-  // back, so a step written later is silent there without a line of its own.
-  expect(wizard).toContain('items === null || short || !action ? null : (');
+  // back, so a step written later is silent there without a line of its own. The screen of
+  // templates is inside that silence too: a tile that cannot be pressed into an order is not a
+  // tile to press.
+  expect(wizard).toContain('items === null || short ? null : auto !== null ? (');
+});
+
+test('an order starts from six templates, and the tile is the api’s figures in the app’s words', () => {
+  // Read once on the way in, and the six come back in the api's own order — the order of the
+  // tiles. Nothing on this screen is counted or sorted here.
+  expect(templates).toContain('listMontageTemplates(token, id).then(');
+  expect(templates).toContain('templates.map((one, i) => (');
+  expect(templates).toContain('<TileTemplate');
+  // The name and the character are the dictionary's, by the api's id; the length and the shape
+  // are the answer's, and «3:00 · 16:9» is those two put together.
+  expect(templates).toContain('title={s.montage.template[one.id]}');
+  expect(templates).toContain('note={s.montage.templateNote[one.id]}');
+  expect(templates).toContain(
+    'spec={`${formatRuntime(one.target_seconds) ?? \'\'} · ${RATIO[one.orientation]}`}',
+  );
+  expect(templates).toContain('icon={TEMPLATE_SIGN[one.id]}');
+  for (const set of [en, ru]) {
+    expect(Object.keys(set.montage.templateNote)).toEqual(Object.keys(set.montage.template));
+  }
+  expect(ru.montage.templateTitle).toBe('Каким будет ролик');
+  expect(ru.montage.templateHint).toBe('Выберите шаблон — дальше всё соберётся само.');
+
+  // One press is the whole order; the other door walks the same four steps from nothing, which is
+  // what the blank order is for — a template pressed and abandoned must not follow them in.
+  expect(templates).toContain('onPress={() => start(one)}');
+  expect(templates).toContain('change(blankOrder());');
+  expect(ru.montage.ownSetup).toBe('Настроить самому');
+
+  // The read can fail, and then the screen says so with a way to ask again — and the door beside
+  // it stays open, because an order can be walked by hand without a single template.
+  expect(templates).toContain('<Banner tone="error" text={notice}');
+  expect(templates).toContain('label={s.action.retry}');
+  expect(templates).toContain('setAgain((n) => n + 1);');
+  expect(templates).toContain('}, [token, id, again]);');
+  // Nothing else on the screen asks the api anything: the material behind the tiles is the
+  // wizard's own read, and the order itself is sent from the summary.
+  expect(templates).not.toContain('orderMontage');
+  expect(templates).not.toContain('previewMontage');
+});
+
+test('the autopilot fills each step on the step, and ends on the summary', () => {
+  // It lives above the steps, with the answers: a walk that pushes a step would otherwise be
+  // unmounted by the step it pushed.
+  expect(wizard).toContain('const start = useCallback(');
+  expect(wizard).toContain('const fill = fromTemplate(template);');
+  expect(wizard).toContain('setAuto(template.id);');
+
+  // The four steps in order, each one pushed and then filled — and the walk ends on the total,
+  // where the button is the person's again.
+  const flying = wizard.slice(wizard.indexOf('const start = useCallback('));
+  const walk = [
+    "router.push({ pathname: '/memory/[id]/order/frames', params: { id } });",
+    "router.push({ pathname: '/memory/[id]/order/story', params: { id } });",
+    "router.push({ pathname: '/memory/[id]/order/music', params: { id } });",
+    "router.push({ pathname: '/memory/[id]/order/build', params: { id } });",
+    "router.push({ pathname: '/memory/[id]/order/summary', params: { id } });",
+  ].map((push) => flying.indexOf(push));
+  expect(walk).not.toContain(-1);
+  expect([...walk].sort((a, b) => a - b)).toEqual(walk);
+  expect(flying.slice(walk[4])).toContain('setAuto(null);');
+
+  // The story is typed, the tracks arrive one by one and the figure of the length travels: the
+  // point of the walk is that it can be watched.
+  expect(flying).toContain('change({ story: fill.story.slice(0, at) });');
+  expect(flying).toContain('change({ tracks: fill.tracks.slice(0, n) });');
+  expect(flying).toContain('change({ seconds: Math.round((fill.seconds * n) / RIDE_STEPS) });');
+  // With motion off none of that happens: every field lands whole, and the wait between steps is
+  // the one pause long enough to read what landed (spec 6).
+  expect(flying).toContain('if (reduced) change({ story: fill.story });');
+  expect(flying).toContain('if (reduced) change({ tracks: fill.tracks, note: fill.note });');
+  expect(flying).toContain('if (reduced) change({ seconds: fill.seconds });');
+  expect(wizard).toContain('setTimeout(done, reduced ? CALM_MS : ms)');
+  expect(wizard).toContain('const CALM_MS = 400;');
+  expect(wizard).toContain('const STEP_MS = 240;');
+
+  // Stopping is not cancelling: a timer cannot be un-fired, so the walk asks after every wait
+  // whether it is still the walk being made, and «Стоп» is that number moving on.
+  expect(wizard).toContain('const flight = useRef(0);');
+  expect(wizard).toContain('return flight.current === mine;');
+  expect(wizard).toContain('flight.current += 1;\n    setAuto(null);');
+  expect((flying.match(/if \(!\(await going\(/g) ?? []).length).toBeGreaterThanOrEqual(7);
+  // What it fills in is the model's answer and not the screen's: which frames go in is the one
+  // thing a template says nothing about.
+  expect(model).toContain('export const fromTemplate = (template: MontageTemplate): TemplateFill');
+  expect(model).toContain("export type TemplateFill = Omit<Order, 'dropped' | 'returned' | 'seconds'>");
+});
+
+test('while the autopilot walks, the bottom layer says so and hands the wheel back', () => {
+  // Spec 6: no «Дальше» while nobody is being asked — the line and «Стоп» stand in its place, on
+  // whichever step the walk has got to.
+  expect(wizard).toContain('{s.montage.autoGoing}');
+  expect(wizard).toContain('label={s.montage.autoStop} onPress={stop}');
+  expect(ru.montage.autoGoing).toBe('Собираю по шаблону');
+  expect(ru.montage.autoStop).toBe('Стоп');
+  // And the two buttons in the bar stop it too, on their way to doing what they always did: a
+  // hand on either of them is a hand on the wheel.
+  expect(wizard).toContain('onPress={() => {\n              stop();\n              if (router.canGoBack()) router.back();');
+  expect(wizard).toContain('onPress={() => {\n                stop();\n                if (entered(order)) setLeaving(true);');
+  // Stopped, the step is a step again and everything already filled in stays: the only thing
+  // `stop` touches is which walk is the current one.
+  const stopping = wizard.slice(wizard.indexOf('const stop = useCallback('));
+  expect(stopping.slice(0, stopping.indexOf('}, []);'))).not.toContain('change(');
+});
+
+test('the wizard’s bar wears three faces, and only the total has nothing on its right', () => {
+  // Spec 7.1, detail 3: the four steps carry the scale and the counter, the way in and the total
+  // carry neither — and «Отмена» stands on every screen of the walk but the last.
+  expect(wizard).toContain("const counted = typeof step === 'number';");
+  expect(wizard).toContain("variant={counted ? 'step' : 'summary'}");
+  expect(wizard).toContain(': s.montage.newOne');
+  expect(wizard).toContain('cancel={\n          summary ? undefined : (');
+  expect(templates).toContain('step="templates"');
+  expect(summary).toContain('step="summary"');
+  // The «Назад» is on all of them: from the way in it is the way out of the wizard, because there
+  // is no step behind it.
+  expect(wizard).toContain('label={s.action.back}');
 });
 
 test('step 1 rules the automatic pass, and cannot leave the order below the floor', () => {
@@ -292,11 +418,14 @@ test('step 4 asks the api how long the film may be, and asks again when the fram
   expect(build).toContain('const going = taken(material, order)');
   expect(build).toContain('}, [token, id, going]);');
   // A range that came back narrower than the length already chosen brings the length down with it,
-  // rather than leaving a figure standing that the order would be refused for.
+  // rather than leaving a figure standing that the order would be refused for. Watched and not
+  // done once on arrival: the autopilot rides the figure up while that answer is in flight, so
+  // whichever of the two moves last is the one that is held.
   expect(build).toContain(
-    'const held = Math.min(Math.max(order.seconds ?? 0, answer.min_seconds), answer.max_seconds);',
+    'const held = Math.min(Math.max(order.seconds, preview.min_seconds), preview.max_seconds);',
   );
-  expect(build).toContain('if (order.seconds !== null && held !== order.seconds) change({ seconds: held });');
+  expect(build).toContain('if (held !== order.seconds) change({ seconds: held });');
+  expect(build).toContain('}, [preview, order.seconds, change]);');
   // Nothing said is the api's own answer shown on the card — and still nothing sent (`@/montage`).
   expect(build).toContain('const seconds = order.seconds ?? preview?.target_seconds ?? null;');
 });
@@ -323,7 +452,6 @@ test('step 4 draws one length control, and the template’s line goes at the fir
   expect(ru.montage.lengthEnd('9:10')).toBe('9:10 · всё, что есть');
   // The shape is the segments of the layout, and nothing else is asked on this step.
   expect(build).toContain('label={s.montage.shape}');
-  expect(build).not.toContain('s.montage.onceOnly');
 });
 
 test('the ember is one action per surface, counted over the whole wizard', () => {
@@ -336,6 +464,9 @@ test('the ember is one action per surface, counted over the whole wizard', () =>
   for (const step of [story, music, build]) {
     expect(step.match(/variant="primary"/g)).toHaveLength(1);
   }
+  // And the screen of templates draws none at all: the accent there is on the six tiles, and
+  // «Настроить самому» is the quieter of the two doors on purpose.
+  expect(templates).not.toContain('variant="primary"');
 });
 
 test('the summary only shows — every number on it is the api’s answer', () => {
@@ -382,9 +513,9 @@ test('a refusal of the summary explains itself and leads back to the step that c
   expect(summary).toContain('e instanceof ApiError && e.status === 409');
   expect(summary).toContain('{ text: s.montage.tooLittle, back: \'frames\' }');
   expect(summary).toContain('{ text: s.montage.lengthOff, back: \'length\' }');
-  // The way back is a jump to that step and not a walk: after the autopilot (TASK-219) there may
-  // be no step behind this screen at all.
-  expect(summary).toContain("{ pathname: '/memory/[id]/order', params: { id } }");
+  // The way back is a jump to that step and not a walk: after the autopilot there may be no step
+  // behind this screen at all.
+  expect(summary).toContain("{ pathname: '/memory/[id]/order/frames', params: { id } }");
   expect(summary).toContain("{ pathname: '/memory/[id]/order/build', params: { id } }");
   expect(summary).toContain('router.dismissTo(');
   // Refused, the screen is a line and a button and never an empty summary of nothing.

@@ -23,7 +23,13 @@ import {
 } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { errorMessage, listMedia, type MediaItem, type MontageTemplateId } from '@/api';
+import {
+  errorMessage,
+  listMedia,
+  type MediaItem,
+  type MontageTemplate,
+  type MontageTemplateId,
+} from '@/api';
 import { useAuth } from '@/auth';
 import {
   ActionBar,
@@ -35,12 +41,13 @@ import {
   IconButton,
   Sheet,
   Text,
+  useReducedMotion,
   Waiting,
   WizardBar,
   type IconComponent,
 } from '@/kit';
 import { useStrings } from '@/language';
-import { blankOrder, entered, enoughMaterial, usable, type Order } from '@/montage';
+import { blankOrder, entered, enoughMaterial, fromTemplate, usable, type Order } from '@/montage';
 import { radius, space, themed, useTheme } from '@/theme';
 
 /**
@@ -72,6 +79,12 @@ export type Wizard = {
   change: (patch: Partial<Order>) => void;
   /** Out of the wizard with nothing ordered, from whichever step is on top. */
   leave: () => void;
+  /** Which template is walking the wizard by itself right now, and null while nobody is. */
+  auto: MontageTemplateId | null;
+  /** Press a tile on `MontageTemplate`: the order is filled in and the steps walk themselves. */
+  start: (template: MontageTemplate) => void;
+  /** «Стоп», «Назад», «Отмена» — the walk ends where it stands and the wheel goes back. */
+  stop: () => void;
 };
 
 const Held = createContext<Wizard | null>(null);
@@ -84,6 +97,19 @@ export function useOrder(): Wizard {
 
 /** Four steps, and the scale under every bar counts the same four. */
 export const STEPS = 4;
+
+/**
+ * The autopilot's own clock (spec 6, «Автопилот по шаблону»). The step is the layout's own
+ * transition; the strokes of the story are the journal's typing, because it is the same hand
+ * writing in the same app (`@/montage-journal`). With motion off nothing is typed at all and every
+ * wait becomes the one pause — long enough to read what landed on the step before it turns over.
+ */
+const STEP_MS = 240;
+const CALM_MS = 400;
+const TYPE_MS = 30;
+const TYPE_STROKES = 40;
+/** How many moves the figure of the length takes to reach the template's: it travels, never jumps. */
+const RIDE_STEPS = 10;
 
 /**
  * The character of each of the six templates as a glyph (spec 5): it stands on the tile that
@@ -151,11 +177,103 @@ export function OrderProvider({ id, children }: { id: string; children: ReactNod
     else router.replace({ pathname: '/memory/[id]', params: { id, face: 'films' } });
   }, [router, id]);
 
+  /**
+   * The autopilot (spec 6): which of the six is filling the wizard in, and null while the person
+   * is driving. It lives up here with the answers for the same reason they do — a walk that pushes
+   * a step is a walk that would be unmounted by its own step.
+   */
+  const [auto, setAuto] = useState<MontageTemplateId | null>(null);
+  /**
+   * Which walk is the current one. A `setTimeout` cannot be un-fired and a `push` already sent
+   * cannot be recalled, so stopping is not cancelling anything: it moves this number on, and every
+   * stroke of a walk asks first whether it is still the walk being made.
+   */
+  const flight = useRef(0);
+  const reduced = useReducedMotion();
+
+  const stop = useCallback(() => {
+    flight.current += 1;
+    setAuto(null);
+  }, []);
+
+  /**
+   * One press on a tile, and the wizard does the rest: the order is filled in from the template
+   * and the four steps walk past in front of whoever pressed it — the story typed, the tracks
+   * arriving one by one, the length riding up to the template's — ending on the summary, where
+   * the one button is theirs to press.
+   *
+   * Every field is filled on the step that asks for it and not all at once on the way in: the
+   * point of the walk is that it can be watched, and «Стоп» leaves behind exactly what has
+   * already landed. Which frames go in is the one thing a template says nothing about — the
+   * automatic pass has had its say and step 1 is simply walked through.
+   */
+  const start = useCallback(
+    (template: MontageTemplate) => {
+      const fill = fromTemplate(template);
+      flight.current += 1;
+      const mine = flight.current;
+      /** Waited, and still this walk? «Стоп», «Назад» and «Отмена» all answer no. */
+      const going = async (ms: number) => {
+        await new Promise((done) => setTimeout(done, reduced ? CALM_MS : ms));
+        return flight.current === mine;
+      };
+
+      setAuto(template.id);
+      change({ template: fill.template, orientation: fill.orientation });
+
+      void (async () => {
+        router.push({ pathname: '/memory/[id]/order/frames', params: { id } });
+        if (!(await going(STEP_MS))) return;
+
+        router.push({ pathname: '/memory/[id]/order/story', params: { id } });
+        if (!(await going(STEP_MS))) return;
+        if (reduced) change({ story: fill.story });
+        else {
+          // Longer stories are typed in bigger strokes rather than over a longer time: a sentence
+          // that takes fifteen seconds to appear is not being written, it is being withheld.
+          const stroke = Math.max(1, Math.ceil(fill.story.length / TYPE_STROKES));
+          for (let at = stroke; at < fill.story.length + stroke; at += stroke) {
+            change({ story: fill.story.slice(0, at) });
+            if (!(await going(TYPE_MS))) return;
+          }
+        }
+
+        router.push({ pathname: '/memory/[id]/order/music', params: { id } });
+        if (!(await going(STEP_MS))) return;
+        if (reduced) change({ tracks: fill.tracks, note: fill.note });
+        else {
+          for (let n = 1; n <= fill.tracks.length; n += 1) {
+            change({ tracks: fill.tracks.slice(0, n) });
+            if (!(await going(STEP_MS))) return;
+          }
+          change({ note: fill.note });
+        }
+
+        router.push({ pathname: '/memory/[id]/order/build', params: { id } });
+        if (!(await going(STEP_MS))) return;
+        if (reduced) change({ seconds: fill.seconds });
+        else {
+          for (let n = 1; n <= RIDE_STEPS; n += 1) {
+            change({ seconds: Math.round((fill.seconds * n) / RIDE_STEPS) });
+            if (!(await going(TYPE_MS))) return;
+          }
+        }
+        if (!(await going(STEP_MS))) return;
+
+        // And the walk ends on the total, with the wheel back in the person's hands: what the
+        // autopilot put together is read there and spent by a press of theirs.
+        router.push({ pathname: '/memory/[id]/order/summary', params: { id } });
+        setAuto(null);
+      })();
+    },
+    [change, id, reduced, router],
+  );
+
   const material = useMemo(() => usable(items ?? []), [items]);
   const short = items !== null && !enoughMaterial(items);
   const held = useMemo(
-    () => ({ id, items, material, error, short, order, change, leave }),
-    [id, items, material, error, short, order, change, leave],
+    () => ({ id, items, material, error, short, order, change, leave, auto, start, stop }),
+    [id, items, material, error, short, order, change, leave, auto, start, stop],
   );
 
   return (
@@ -213,6 +331,12 @@ export function OrderProvider({ id, children }: { id: string; children: ReactNod
  * back, the waiting while the gallery is read, the line that says the read failed, and the silence
  * while `SheetTooLittle` is up. A step is then its own body and its own button, which is the whole
  * of what makes it that step.
+ *
+ * The bar wears three faces (spec 7.1, detail 3): the four numbered steps carry the scale, the way
+ * in and the total drop it, and the total alone has nothing on its right — «Отмена» there would be
+ * a second way out of a screen whose whole job is to be read and pressed once. While the autopilot
+ * is walking, the step's own «Дальше» gives way to what it is doing and to «Стоп»; «Назад» and
+ * «Отмена» stay where they are and stop it too, because a hand on either is a hand on the wheel.
  */
 export function WizardStep({
   step,
@@ -224,8 +348,11 @@ export function WizardStep({
   action,
   children,
 }: {
-  /** Which of the four this is — `summary` is the total, which has no number and no scale. */
-  step: number | 'summary';
+  /**
+   * Which of the four this is. `templates` is the way into the order and `summary` is the total;
+   * neither is a step, so neither has a number or a place on the scale.
+   */
+  step: number | 'summary' | 'templates';
   title: string;
   /** The line under the heading: «Можно пропустить — тогда режиссёр решит сам». */
   note?: string;
@@ -241,19 +368,29 @@ export function WizardStep({
 }) {
   const router = useRouter();
   const s = useStrings();
-  const { items, error, short, order, leave } = useOrder();
+  const { items, error, short, order, leave, auto, stop } = useOrder();
   const styles = useStyles();
   const summary = step === 'summary';
+  /** A numbered step of the four, as against the two screens that only look like one. */
+  const counted = typeof step === 'number';
   /** «Отмена» pressed over a walk that has something in it — asked before it is thrown away. */
   const [leaving, setLeaving] = useState(false);
 
   return (
     <Board>
       <WizardBar
-        step={summary ? STEPS : step}
+        step={counted ? step : STEPS}
         steps={STEPS}
-        label={summary ? s.montage.summaryStep : s.montage.step(step as number, STEPS)}
-        variant={summary ? 'summary' : 'step'}
+        label={
+          counted
+            ? s.montage.step(step, STEPS)
+            : summary
+              ? s.montage.summaryStep
+              : s.montage.newOne
+        }
+        // The bar with no scale and the heading up against the row — what the total wears, and
+        // what the way in wears too: there is no step under either of them to count.
+        variant={counted ? 'step' : 'summary'}
         title={title}
         note={note}
         back={
@@ -262,18 +399,28 @@ export function WizardStep({
             label={s.action.back}
             style={styles.back}
             // One step back, and out of the wizard from the first one — there is no step behind it.
-            onPress={() => (router.canGoBack() ? router.back() : leave())}
+            onPress={() => {
+              stop();
+              if (router.canGoBack()) router.back();
+              else leave();
+            }}
           />
         }
         cancel={
-          <Button
-            variant="quiet"
-            label={s.action.cancel}
-            // Nothing said is nothing to lose: the wizard then closes on the press, the way it
-            // always did. Asked here and not inside `leave()`, which is also what «Позже» on
-            // `SheetTooLittle` presses — one sheet must never raise another.
-            onPress={() => (entered(order) ? setLeaving(true) : leave())}
-          />
+          summary ? undefined : (
+            <Button
+              variant="quiet"
+              label={s.action.cancel}
+              // Nothing said is nothing to lose: the wizard then closes on the press, the way it
+              // always did. Asked here and not inside `leave()`, which is also what «Позже» on
+              // `SheetTooLittle` presses — one sheet must never raise another.
+              onPress={() => {
+                stop();
+                if (entered(order)) setLeaving(true);
+                else leave();
+              }}
+            />
+          )
         }
       />
 
@@ -294,9 +441,22 @@ export function WizardStep({
           button below answers with must not land at the bottom of something that has scrolled. */}
       {notice ? <Banner text={notice} style={styles.banner} /> : null}
 
-      {items === null || short || !action ? null : (
+      {items === null || short ? null : auto !== null ? (
+        /* Spec 6 — the autopilot's own bottom layer: nothing here is for pressing «Дальше» with,
+           because nobody is being asked. The line says what is happening and the button is the
+           way to take the wheel back on whichever step it is pressed. */
+        <ActionBar
+          above={
+            <Text role="meta" tone="muted">
+              {s.montage.autoGoing}
+            </Text>
+          }
+        >
+          <Button variant="secondary" wide label={s.montage.autoStop} onPress={stop} />
+        </ActionBar>
+      ) : action ? (
         <ActionBar above={above}>{action}</ActionBar>
-      )}
+      ) : null}
 
       {/* Spec 7.1, detail 8 — the gentle kind: nothing here is destroyed, but four steps of
           choices are, and that is what the sheet names. Drawn by the shell so «Отмена» asks the

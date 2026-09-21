@@ -75,13 +75,19 @@ vi.mock('expo-audio', () => ({
   },
 }));
 
-import { orderMontage, type MediaItem, type Montage } from '@/api';
+import {
+  orderMontage,
+  type MediaItem,
+  type Montage,
+  type MontageTemplate,
+} from '@/api';
 import {
   afterTap,
   beingMade,
   blankOrder,
   entered,
   enoughMaterial,
+  fromTemplate,
   MIN_FRAMES,
   movedTrack,
   pickedSeconds,
@@ -390,6 +396,70 @@ test('the length is nobody’s until it is moved by hand', () => {
   expect(wishes(gallery, { ...blankOrder(), seconds: 95, ownLength: true })).toMatchObject({
     target_seconds: 95,
   });
+});
+
+test('a template is an order already filled in, and it reaches the api as one', () => {
+  const parents: MontageTemplate = {
+    id: 'parents',
+    story_text: 'Спокойно, по порядку: сборы, церемония, поздравления.',
+    target_seconds: 150,
+    orientation: 'landscape',
+    music_tracks: ['warm', 'calm'],
+    music_note: 'Тёплая на сборы',
+  };
+  const fill = fromTemplate(parents);
+
+  expect(fill).toEqual({
+    template: 'parents',
+    story: parents.story_text,
+    // The words and the figure are the template's until somebody rewrites them — that is what
+    // puts its plate over the story and its line under the length.
+    ownStory: false,
+    tracks: [
+      { key: 'warm', name: null },
+      { key: 'calm', name: null },
+    ],
+    note: 'Тёплая на сборы',
+    seconds: 150,
+    ownLength: false,
+    orientation: 'landscape',
+  });
+
+  // And that is the whole of «заказ по шаблону доходит с тем, что выбрано»: the fill is the order,
+  // so the body the api gets carries the template's own answers and nothing about the template
+  // itself — a filled-in order is indistinguishable from a typed one, which is what a template is.
+  const order: Order = { ...blankOrder(), ...fill };
+  expect(wishes(gallery, order)).toEqual({
+    target_seconds: 150,
+    orientation: 'landscape',
+    story_text: parents.story_text,
+    music_tracks: ['warm', 'calm'],
+    music_note: 'Тёплая на сборы',
+    // Which frames go in is the one thing a template says nothing about: what the automatic pass
+    // dropped is out, because nobody overruled it, and step 1 is walked through rather than ruled.
+    exclude_media_ids: ['blurred', 'dark'],
+  });
+  expect(order.dropped.size).toBe(0);
+  expect(order.returned.size).toBe(0);
+});
+
+test('a template with no music carries no wish about it, and one with no wish carries none', () => {
+  const quiet: MontageTemplate = {
+    id: 'for_myself',
+    story_text: 'Для себя.',
+    target_seconds: 180,
+    orientation: 'portrait',
+    music_tracks: [],
+    // The api can hand a note over with an empty shelf; the app must not pass that on — it is the
+    // one body the api itself answers 400 to.
+    music_note: 'Потише',
+  };
+  expect(fromTemplate(quiet).note).toBe('');
+  expect(wishes(gallery, { ...blankOrder(), ...fromTemplate(quiet) })).not.toHaveProperty(
+    'music_note',
+  );
+  // Null is «nothing said about the tracks», which is an empty line and not the word «null».
+  expect(fromTemplate({ ...quiet, music_tracks: ['road'], music_note: null }).note).toBe('');
 });
 
 test('their own track goes to R2 part by part, and the order names it by its key', async () => {
