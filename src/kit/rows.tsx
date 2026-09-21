@@ -17,9 +17,14 @@ import { Text } from './text';
  */
 
 /**
- * One line of the order summary (spec 7.6): a fixed 88 label, the value, and a chevron. Every row
- * leads back to the step of the wizard that settled it, which is why it is pressable at all — the
- * summary is a way back, not a receipt.
+ * One summary line (spec 7.7, detail 52): a fixed 96 label and the value beside it, on one
+ * baseline. The value wraps and the label never does — «Файл» keeps its column whatever stands in
+ * the other one.
+ *
+ * The chevron belongs to a row that leads somewhere, and only to that one: on the order's summary
+ * every line is the way back to the step that settled it, and on the frame's own sheet there is
+ * nowhere to go — the sheet is «только смотреть», and an arrow on it would promise a screen that
+ * does not exist.
  */
 export function RowSummary({
   label,
@@ -37,15 +42,15 @@ export function RowSummary({
 
   return (
     <View>
-      {divider ? <Divider /> : null}
+      {divider ? <Divider soft /> : null}
       <Tappable label={`${label}: ${value}`} onPress={onPress} style={styles.summary}>
         <Text role="label" tone="muted" style={styles.summaryLabel}>
           {label}
         </Text>
-        <Text role="row" numberOfLines={1} style={[styles.grow, styles.summaryValue]}>
+        <Text role="row" style={styles.grow}>
           {value}
         </Text>
-        <Icon icon={ChevronRight} size={18} color={color.faint} />
+        {onPress ? <Icon icon={ChevronRight} size={18} color={color.faint} /> : null}
       </Tappable>
     </View>
   );
@@ -406,15 +411,17 @@ const useStyles = themed(({ color }) =>
   StyleSheet.create({
     grow: { flex: 1, minWidth: 0 },
     hover: { backgroundColor: color.raise },
+    // Spec 7.7: the two are read across one baseline, and the row is as tall as what it holds —
+    // 11 above and below, which on one line is the 44 every other row of the product stands at.
     summary: {
       flexDirection: 'row',
-      alignItems: 'center',
+      alignItems: 'baseline',
       gap: space.s3,
       minHeight: height.small,
+      paddingVertical: 11,
       paddingHorizontal: space.s4,
     },
-    summaryLabel: { width: 88 },
-    summaryValue: { textAlign: 'right' },
+    summaryLabel: { width: 96 },
     track: {
       height: 52,
       flexDirection: 'row',

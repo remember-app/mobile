@@ -165,10 +165,13 @@ export function WizardBar({
  * Three pieces of glass floating over the frames: a round 48 on each side and, between them, the
  * capsule carrying the memory's name and what it holds.
  *
- * The capsule is a button like the other two: in the feed it opens the memory's settings, in picking
- * mode it takes every frame. A long name is cut with an ellipsis and not shrunk — the whole bar's
- * rhythm hangs off that 14 (spec 10.6) — so the sentence a screen reader gets is the caller's
- * `capsuleLabel`, which carries the name in full.
+ * The capsule is a button like the other two wherever it leads somewhere: in the feed it opens the
+ * memory's settings, in picking mode it takes every frame. Given nothing to do — `Upload`, where it
+ * only says which memory this material is going into — it is a plain plate and says so: a circle
+ * that announces itself as a button and answers no tap is worse than one that never claimed to be.
+ * A long name is cut with an ellipsis and not shrunk — the whole bar's rhythm hangs off that 14
+ * (spec 10.6) — so the sentence a screen reader gets is the caller's `capsuleLabel`, which carries
+ * the name in full either way.
  *
  * It draws its own darkening: 176 of gradient behind it, which is what keeps a white glyph readable
  * when the frame under the bar happens to be a white wall.
@@ -186,6 +189,7 @@ export function GlassBar({
   meta?: string;
   /** «Свадьба Лизы и Марка. Настройки воспоминания и люди» — the sentence, from the screen. */
   capsuleLabel: string;
+  /** Left off, the capsule is a plate rather than a button — `Upload` is the one place it is. */
   onCapsule?: () => void;
   left?: ReactNode;
   /** Empty on `FramesEmpty`: with no frames there is nothing to pick. */
@@ -195,6 +199,23 @@ export function GlassBar({
   const insets = useSafeAreaInsets();
   const { color } = useTheme();
   const styles = useStyles();
+  // A plate and a button are the same capsule; only one of them is pressed, and only one of them
+  // carries the chevron that says there is something under it.
+  const words = (
+    <>
+      <View style={styles.capsuleLine}>
+        <Text role="pillTitle" numberOfLines={1} style={styles.shrink}>
+          {title}
+        </Text>
+        {onCapsule ? <Icon icon={ChevronDown} size={12} color={color.muted} /> : null}
+      </View>
+      {meta ? (
+        <Text role="meta" numberOfLines={1}>
+          {meta}
+        </Text>
+      ) : null}
+    </>
+  );
 
   return (
     <View style={[styles.glassBar, { paddingTop: insets.top }, style]}>
@@ -206,24 +227,20 @@ export function GlassBar({
         ]}
       />
       {left}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={capsuleLabel}
-        onPress={onCapsule}
-        style={styles.capsule}
-      >
-        <View style={styles.capsuleLine}>
-          <Text role="pillTitle" numberOfLines={1} style={styles.shrink}>
-            {title}
-          </Text>
-          <Icon icon={ChevronDown} size={12} color={color.muted} />
+      {onCapsule ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={capsuleLabel}
+          onPress={onCapsule}
+          style={styles.capsule}
+        >
+          {words}
+        </Pressable>
+      ) : (
+        <View accessibilityRole="header" accessibilityLabel={capsuleLabel} style={styles.capsule}>
+          {words}
         </View>
-        {meta ? (
-          <Text role="meta" numberOfLines={1}>
-            {meta}
-          </Text>
-        ) : null}
-      </Pressable>
+      )}
       {right}
     </View>
   );
@@ -237,12 +254,21 @@ export function GlassBar({
 export function ViewerBar({
   date,
   meta,
+  label,
+  onPress,
   left,
   right,
   style,
 }: {
   date: string;
   meta: string;
+  /**
+   * The whole pill read out in one sentence — «Сведения о кадре: 13 сентября, 21:47 · Марк
+   * Ковалёв». Only where the pill leads somewhere: a pill that is not a button is two lines of
+   * words and is read as such.
+   */
+  label?: string;
+  onPress?: () => void;
   left?: ReactNode;
   right?: ReactNode;
   style?: StyleProp<ViewStyle>;
@@ -252,14 +278,26 @@ export function ViewerBar({
   return (
     <View style={[styles.bar, style]}>
       {left}
-      <View style={styles.viewerPill}>
-        <Text role="label" style={styles.onPhoto}>
-          {date}
-        </Text>
-        <Text role="meta" style={styles.onPhotoMeta}>
-          {meta}
-        </Text>
-      </View>
+      {/* Spec 7.1, detail 5: the pill is a button — it is the road to the frame's own sheet, and
+          the `chevron-down` on it is what says so. A `Pressable` with nothing to press stays a
+          plain block of glass, which is what the layout draws where there is nowhere to go. */}
+      <Pressable
+        accessibilityRole={onPress ? 'button' : undefined}
+        accessibilityLabel={onPress ? label : undefined}
+        onPress={onPress}
+        disabled={!onPress}
+        style={styles.viewerPill}
+      >
+        <View style={styles.viewerWords}>
+          <Text role="label" numberOfLines={1} style={styles.onPhoto}>
+            {date}
+          </Text>
+          <Text role="meta" numberOfLines={1} style={styles.onPhotoMeta}>
+            {meta}
+          </Text>
+        </View>
+        {onPress ? <Icon icon={ChevronDown} size={12} color={photo.dot} /> : null}
+      </Pressable>
       {right}
     </View>
   );
@@ -380,13 +418,18 @@ const useStyles = themed(({ color }) =>
     wizardStep: { flex: 1, textAlign: 'center', fontVariant: ['tabular-nums'] },
     viewerPill: {
       flex: 1,
+      flexDirection: 'row',
       alignItems: 'center',
-      gap: 2,
+      justifyContent: 'center',
+      gap: space.s2,
       paddingVertical: space.s2,
       paddingHorizontal: space.s4,
       borderRadius: radius.pill,
       backgroundColor: photo.glass,
     },
+    // Two floors beside the chevron, not above it — and they give way first: a long name is
+    // truncated, the sign that the pill opens something never is.
+    viewerWords: { flexShrink: 1, minWidth: 0, alignItems: 'center', gap: 2 },
     onPhoto: { color: photo.on },
     onPhotoMeta: { color: photo.dot },
     layer: { paddingHorizontal: space.s4, paddingTop: space.s3, gap: space.s3 },

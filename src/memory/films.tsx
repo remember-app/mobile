@@ -1,4 +1,4 @@
-import { useFocusEffect, useIsFocused, useRouter } from 'expo-router';
+import { useFocusEffect, useIsFocused, useLocalSearchParams, useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { Download, Film } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -109,8 +109,20 @@ export function Films({ id, head }: { id: string; head: Head }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  /**
+   * Which montage this face was asked to play on the way in — «В роликах» on the frame's own sheet
+   * (spec 8, `SheetFrameInfo`), the one road onto this face that names a montage. There is no
+   * second player in the product: a frame's sheet points at this one.
+   */
+  const { montage: asked } = useLocalSearchParams<{ montage?: string }>();
   /** The montage being watched, held by id so a reload hands it a fresh signed url. */
-  const [playing, setPlaying] = useState<string | null>(null);
+  const [playing, setPlaying] = useState<string | null>(asked ?? null);
+
+  // Asked once and not for ever: the ask is seeded above as this face mounts, and the url is then
+  // cleared so that coming back to this face by the switch does not raise the player again.
+  useEffect(() => {
+    if (asked) router.setParams({ montage: '' });
+  }, [asked, router]);
 
   // The memory itself — the title over this face and the level that decides whether it has a footer
   // — is read once by the screen and handed to all three faces, so switching between them does not

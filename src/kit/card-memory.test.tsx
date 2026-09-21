@@ -69,6 +69,21 @@ test('the cover is read in white in both themes, because it lies on a photograph
   expect(name(dark)).toBe(name(light));
 });
 
+test('a chosen cover takes the whole face of the large card, mosaic and all', () => {
+  // Spec 7.6, «с обложкой» (10.8.3): one frame instead of the 3 × 2, with the darkening, the
+  // badges and the name left exactly where they were. A memory that has nothing in it yet can
+  // still carry one, which is the state the main screen leans on.
+  allDifferent({
+    mosaic: <CardMemory title="Свадьба" thumbs={SHOTS} large />,
+    cover: <CardMemory title="Свадьба" thumbs={SHOTS} cover={SHOTS[3]} large />,
+  });
+  // A memory with a cover and nothing else drawn is the same card: once a face is chosen the tail
+  // behind it does not show through, which is why the main screen may lead with it on its own.
+  expect(story(<CardMemory title="Свадьба" cover={SHOTS[3]} large />)).toBe(
+    story(<CardMemory title="Свадьба" thumbs={SHOTS} cover={SHOTS[3]} large />),
+  );
+});
+
 test('the bar of who has brought theirs is never drawn without the sentence beside it', () => {
   const withBar = story(
     <CardMemory
