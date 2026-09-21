@@ -285,6 +285,7 @@ export function StepNote({
   length,
   text,
   mark,
+  onPress,
 }: {
   uri?: string;
   /** A video's running time in the corner of the thumbnail. */
@@ -292,11 +293,17 @@ export function StepNote({
   text: string;
   /** The decision pill — `BadgeDecision`, handed in so this row knows no words. */
   mark?: ReactNode;
+  /**
+   * The frame's own card, where there is one to open (`SheetLiveFile`). Without it the row is a
+   * glance and takes no finger at all — which is what it is while the montage is still being cut
+   * and the record on it is a second old.
+   */
+  onPress?: () => void;
 }) {
   const styles = useStyles();
 
   return (
-    <View style={styles.note}>
+    <Tappable label={text} onPress={onPress} style={styles.note}>
       <View style={styles.noteShot}>
         {uri ? <Image source={{ uri }} contentFit="cover" style={StyleSheet.absoluteFill} /> : null}
         {length ? (
@@ -309,7 +316,7 @@ export function StepNote({
         {text}
       </Text>
       {mark}
-    </View>
+    </Tappable>
   );
 }
 

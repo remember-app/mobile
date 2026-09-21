@@ -24,7 +24,7 @@ import {
   type Viewer,
 } from '@/api';
 import { formatRuntime } from '@/dates';
-import { useReducedMotion } from '@/kit';
+import { useReducedMotion, type StepState } from '@/kit';
 import { beingMade } from '@/montage';
 import type { Strings } from '@/strings';
 
@@ -312,6 +312,68 @@ function soFar(stage: MontageStage, s: Strings): string | undefined {
   return stage.total_count === null
     ? undefined
     : s.montage.live.doneOf(stage.done_count, stage.total_count);
+}
+
+/**
+ * Where one of the five stands, in the kit's own words for a step. A stage the worker has not
+ * reached has no row at all in the answer, which is the same thing as `pending`: it is ahead.
+ *
+ * Both screens of the making ask it — the live one about a stage being worked on, the finished one
+ * about five that are behind — so the answer is worked out here rather than twice on two screens.
+ */
+export function stageStanding(stage: MontageStage | undefined): StepState {
+  if (stage === undefined || stage.state === 'pending') return 'waiting';
+  return stage.state;
+}
+
+/**
+ * «собран за 14 мин» — the whole making, added up out of the stages that have both ends (spec 7.6,
+ * `MontageLiveDone`). Their own times and not the span from the first to the last: what is worth
+ * saying is how long the work took, and a montage that stood in a queue between two stages did not
+ * spend that wait being made.
+ *
+ * Rounded up and never under a minute, the way «осталось ≈» is: a video cut in forty seconds was
+ * still cut, and «собран за 0 мин» is the screen saying nothing happened. Null when not one stage
+ * has finished — the line is then simply not drawn, rather than drawn around a made-up number.
+ */
+export function madeInMinutes(stages: readonly MontageStage[]): number | null {
+  const spans = stages
+    .map((stage) =>
+      stage.started_at === null || stage.finished_at === null
+        ? NaN
+        : new Date(stage.finished_at).getTime() - new Date(stage.started_at).getTime(),
+    )
+    .filter((span) => !Number.isNaN(span) && span >= 0);
+  if (spans.length === 0) return null;
+  return Math.max(
+    1,
+    Math.ceil(spans.reduce((sum, span) => sum + span, 0) / 60000),
+  );
+}
+
+/**
+ * «Как собирался» in three numbers (spec 7.6, detail 44): every frame the worker looked at, the ones
+ * the director took into the film, and the cuts they came to. Each is one stage's own outcome under
+ * the keys the api names, so a montage whose journal is missing one of them shows two tiles rather
+ * than a tile with nothing in it — the same rule the line under a stage's name follows.
+ *
+ * The words belong to the screen and arrive with the dictionary, the way `stageLine`'s do: what is
+ * worked out here is which number answers which of them.
+ */
+export function howMade(
+  stages: readonly MontageStage[],
+  s: Strings,
+): { figure: number; label: string }[] {
+  const { live } = s.montage;
+  const outcomeOf = (code: MontageStageCode) => stages.find((one) => one.stage === code)?.outcome;
+  const three = [
+    { figure: outcomeOf('screening')?.of, label: live.watched },
+    { figure: outcomeOf('directing')?.frames, label: live.tookIn },
+    { figure: outcomeOf('assembly')?.cuts, label: live.glued },
+  ];
+  return three.filter(
+    (tile): tile is { figure: number; label: string } => tile.figure !== undefined,
+  );
 }
 
 /** Every record a stage holds, which is what the way into its journal is counted in. */

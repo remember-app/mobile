@@ -42,6 +42,7 @@ export function CardMontage({
   badge,
   step,
   large,
+  label,
   onPress,
   children,
   style,
@@ -58,6 +59,12 @@ export function CardMontage({
   /** How far the building has got: five bars and «3 из 5». */
   step?: { done: number; of: number; count: string };
   large?: boolean;
+  /**
+   * What the whole card says to a screen reader, where its own words are not what pressing it does —
+   * «Смотреть: Ролик на 2:30» on the poster that plays the film. Otherwise the name and what it was
+   * made of, which is what the strip's cards are.
+   */
+  label?: string;
   /** Watching it, or going to where it is being made — one press for the whole card. */
   onPress?: () => void;
   /** «Повторить» — the 36 button under a montage that fell over. */
@@ -73,7 +80,7 @@ export function CardMontage({
   return (
     <Pressable
       accessibilityRole={onPress ? 'button' : undefined}
-      accessibilityLabel={[title, meta].filter(Boolean).join(' · ')}
+      accessibilityLabel={label ?? [title, meta].filter(Boolean).join(' · ')}
       disabled={!onPress}
       onPress={onPress}
       {...props}

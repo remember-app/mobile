@@ -24,6 +24,10 @@ import member from './kit/member.tsx?raw';
 import tile from './kit/tile.tsx?raw';
 import toggle from './kit/toggle.tsx?raw';
 import cover from './memory/cover.tsx?raw';
+// The one player this product has: the strip on the feed and the film's own page both raise it,
+// which is why neither of them holds a `Modal` of its own any more (TASK-222).
+import player from './memory/film-player.tsx?raw';
+import done from './app/memory/[id]/montage/[montageId]/done.tsx?raw';
 import films from './memory/films.tsx?raw';
 import viewer from './memory/frame-viewer.tsx?raw';
 // The card one record of the journal opens — a piece of two screens, so it lives beside neither.
@@ -37,6 +41,9 @@ import when from './memory/when.tsx?raw';
 // The arithmetic both the movies face and the waiting screen ask their «is it still being made»
 // question through, so the two cannot drift apart about what the answer is.
 import montage from './montage.ts?raw';
+// Everything both screens of the making work out of one answer — where a stage stands, how long the
+// whole of it took, the three numbers of «Как собирался».
+import journalOf from './montage-journal.ts?raw';
 import push from './push.ts?raw';
 import { en, ru } from '@/strings';
 
@@ -553,7 +560,13 @@ test('every face shuts its own windows when it loses focus', () => {
   expect(viewer).toContain('onRequestClose={onClose}');
   expect(frames).toContain('onClose={() => setOpen(null)}');
   expect(viewer).toContain('onCancel={() => setConfirming(false)}');
-  expect(films).toContain('onRequestClose={() => setPlaying(null)}');
+  // The player is a window of its own file now (TASK-222) and takes the same treatment: the hardware
+  // key goes through the `onClose` it is handed, and both screens that raise it shut it on blur.
+  expect(player).toContain('onRequestClose={onClose}');
+  expect(films).toContain('onClose={() => setPlaying(null)}');
+  expect(done).toMatch(
+    /useFocusEffect\(\s*useCallback\(\(\) => \{\s*read\(\);\s*return \(\) => setPlaying\(false\);\s*\}, \[read\]\),\s*\);/,
+  );
 });
 
 // The roads into a memory, and the face each of them lands on.
@@ -577,9 +590,14 @@ test('the ember on a face is the one action that face is for', () => {
   // Two on the frames because the footer has two shapes and only ever one of them is on screen:
   // «Скачать N файлов» while picking, «Добавить кадры» the rest of the time.
   expect(frames.match(/variant="primary"/g)).toHaveLength(2);
-  // One on the movies since TASK-162: «Смонтировать ролик» in the footer, and nothing else — the
-  // sheet that used to carry the second one is a screen of its own now.
-  expect(films.match(/variant="primary"/g)).toHaveLength(1);
+  // None on the strip of movies: ordering one is the dashed tile and the paper button on the empty
+  // block, and the one ember a film has — «Сохранить и поделиться» — is in the player's own window
+  // (TASK-222), which is a surface of its own and carries exactly one.
+  expect(films.match(/variant="primary"/g)).toBeNull();
+  expect(player.match(/variant="primary"/g)).toHaveLength(1);
+  // And one on the film's own page: «Сохранить» beside «Поделиться» in the outline, as the layout
+  // draws them (`MontageLiveDone`).
+  expect(done.match(/variant="primary"/g)).toHaveLength(1);
   // The wizard of the order is four screens now and counts its own embers, a surface at a time
   // (`order-screens.test.ts`).
   // One on the settings and one on the sheet it raises: «Пригласить» in the footer, «Позвать» at
@@ -870,10 +888,10 @@ test('a card still being made is the second road onto the montage being watched'
   expect(road).not.toContain('frames');
   expect(live).not.toContain('frames?: string;');
 
-  // The other two states keep their own roads: a finished montage is watched where it lies — spec
-  // 7.6 gives the whole card to that press now, rather than a play circle inside it — and a fallen
-  // one is started again from its own button.
-  expect(films).toContain('() => setPlaying(montage.id)');
+  // The other two states keep their own roads: a finished montage has a page of its own since
+  // TASK-222 — spec 7.6 gives the whole card to that press, and it is the journal of how it was cut
+  // that made the page necessary — and a fallen one is started again from its own button.
+  expect(films).toContain('() => openFilm(montage)');
   expect(films).toContain('onPress={() => void retry(montage)}');
   // And the kit is what makes that true: without a press handed over, the card is not a button and
   // takes no finger at all.
@@ -929,9 +947,14 @@ test('only the organizer starts a fallen montage again', () => {
   // The two answers a second press can get, said in words rather than as a status.
   expect(live).toContain('409: s.montage.movedOn');
   expect(live).toContain('403: s.montage.retryDenied');
-  // Where each stage stands is the api's own word, never this screen's reading of the montage.
-  expect(live).toContain('state={standingOf(row)}');
-  expect(live).toContain("if (stage === undefined || stage.state === 'pending') return 'waiting';");
+  // Where each stage stands is the api's own word, never this screen's reading of the montage — and
+  // it is worked out in the journal's own module, because the finished film's page asks the same
+  // question of the same five rows (TASK-222).
+  expect(live).toContain('state={stageStanding(row)}');
+  expect(done).toContain('state={stageStanding(row)}');
+  expect(journalOf).toContain(
+    "if (stage === undefined || stage.state === 'pending') return 'waiting';",
+  );
 });
 
 test('the open stage carries its last records and the way into the whole of its journal', () => {
@@ -987,6 +1010,110 @@ test('a record about a file opens that file’s card, and a deleted file is stil
   expect(liveFile).toContain('s.montage.live.saw.toUpperCase()');
   expect(liveFile).toContain('<Tag key={label} label={label} />');
   expect(liveFile).toContain('outcome={outcomeLine(entry, file, s)}');
+});
+
+/**
+ * `MontageLiveDone` (TASK-222) — the finished film's own page: the reward at the top of it and the
+ * whole of how it came about under that. The journal does not disappear with the making of it, and
+ * these pin the two things that would quietly undo that promise — a road in that leads somewhere
+ * else, and a screen that treats a film without a journal as a film with a broken one.
+ */
+test('a finished film has a page of its own, and it is where the film is watched', () => {
+  expect(layout).toContain('name="memory/[id]/montage/[montageId]/done"');
+  expect(layout.indexOf('name="memory/[id]/montage/[montageId]/done"')).toBeLessThan(
+    layout.indexOf('</Stack.Protected>'),
+  );
+
+  // The bar of the live screen with nothing left to watch: the name of the film and what the making
+  // of it took, and no pill of people watching (spec 7.6 — «живая шапка без пилюли»).
+  expect(done).toContain('variant="live"');
+  expect(done).toContain('title={s.montage.live.doneTitle}');
+  expect(done).toContain('s.montage.live.madeIn(made)');
+  expect(done).not.toContain('WatchingPill');
+
+  // The poster is the card the kit draws at 196 with the play circle in it, and the press raises the
+  // one player this product has — the same window the strip on the feed raises.
+  expect(done).toContain('<CardMontage');
+  expect(done).toContain('large');
+  expect(done).toContain('onPress={film === null ? undefined : () => setPlaying(true)}');
+  expect(done).toContain('<FilmPlayer');
+  expect(done).not.toContain('useVideoPlayer');
+  expect(done).not.toContain('<Modal');
+  expect(player).toContain('export function FilmPlayer');
+  // «2:30 · 16:9» along the bottom of it, out of what the worker made and what was ordered.
+  expect(done).toContain("RATIO[montage.params.orientation ?? 'landscape']");
+
+  // The two buttons under it are the actions the player's own button is made of, and they are
+  // nobody's alone: whoever brought material gets the film back, a viewer included.
+  expect(done).toContain('label={s.action.save}');
+  expect(done).toContain('label={s.action.share}');
+  expect(done).toContain("void run(film, 'save')");
+  expect(done).toContain("void run(film, 'share')");
+  expect(player).toContain('export function useFilmActions');
+  expect(done).not.toContain("role === 'organizer'");
+});
+
+test('«Как собирался» is the journal the film keeps, and a film without one is not an error', () => {
+  // The three numbers and where each comes from are the journal module's (`howMade`), so the screen
+  // draws what it is handed rather than reading five outcomes for itself.
+  expect(done).toContain('const tiles = howMade(journal.stages, s);');
+  expect(done).toContain('<TileNumber');
+  expect(done).toContain('figure={String(tile.figure)}');
+  expect(done).toContain('{s.montage.live.howMade}');
+  expect(done).toContain('const made = madeInMinutes(journal.stages);');
+
+  // All five rows, and each of them still opens its own journal — that is the whole promise of the
+  // journal staying: any member can read any stage, a week later as much as a minute later.
+  expect(done).toContain('MONTAGE_STAGES.map((code, at)');
+  expect(done).toContain('s.montage.stage[code]');
+  expect(done).toContain('meta={row && stageLine(row, s)}');
+  expect(done.match(/pathname: '\/memory\/\[id\]\/montage\/\[montageId\]\/stage\/\[stage\]'/g))
+    .toHaveLength(2);
+  // And a record with a frame on it opens that frame's card, the way the stage's own journal does.
+  expect(done).toContain('<StepNote');
+  expect(done.replace(/\s+/g, ' ')).toContain(
+    'entry.media_id === null ? undefined : () => setOpened(entry.id)',
+  );
+  expect(done).toContain('<SheetLiveFile');
+
+  // A film cut before the journal existed answers with no stages at all (api README), and then the
+  // whole block is simply not drawn — no heading, no empty tiles, and nothing that reads as broken.
+  expect(done).toContain('{journal.stages.length === 0 ? null : (');
+  expect(done).toContain('{tiles.length === 0 ? null : (');
+});
+
+test('the montage that turns ready leads to its own page and never back into the making', () => {
+  // The live screen's one way out: «Назад» while it is still being cut, and the film's page the
+  // moment it is not. A `replace` — what is over is not something to come back to.
+  expect(live).toContain("if (journal.status === 'ready') {");
+  expect(live).toContain("pathname: '/memory/[id]/montage/[montageId]/done',");
+  expect(live).toContain('router.replace({');
+  expect(live).toContain("if (journal.status === 'ready') leave();");
+
+  // And the card in the strip is the other road to the same page — the one anybody takes a week
+  // later. A push, because the memory under it is what «Назад» comes home to.
+  const leads = films.slice(films.indexOf('const openFilm'));
+  const road = leads.slice(0, leads.indexOf('});'));
+  expect(road).toContain('router.push({');
+  expect(road).toContain("pathname: '/memory/[id]/montage/[montageId]/done',");
+  expect(road).toContain('params: { id, montageId: montage.id },');
+  // The other road to the player is untouched: a frame's own sheet names a film on the way in, and
+  // it is still the memory's route that raises the window over the feed (TASK-211).
+  expect(films).toContain("const { montage: asked } = useLocalSearchParams<{ montage?: string }>();");
+  expect(films).toContain('<FilmPlayer film={watching} memory={memory} onClose={() => setPlaying(null)} />');
+});
+
+test('a card still being cut says which of the five stages it is on', () => {
+  // TASK-223 put the stages on the list itself, so the strip draws «3 из 5» and five bars without
+  // opening anybody's journal. `null` is a finished film and one the worker has not opened yet —
+  // neither has a scale to draw.
+  expect(api).toContain('stages?: MontageStep[] | null;');
+  expect(films).toContain("montage.stages?.filter((stage) => stage.state === 'done').length ?? null");
+  expect(films).toContain('{ done, of: STAGE_COUNT, count: s.montage.live.doneOf(done, STAGE_COUNT) }');
+  expect(ru.montage.live.doneOf(3, 5)).toBe('3 из 5');
+  // The count and the scale read the one number, so the card cannot say «3» and paint four.
+  expect(cardMontage).toContain('{step ? <StageScale done={step.done} of={step.of} /> : null}');
+  expect(cardMontage).toContain('{step.count}');
 });
 
 test('the waiting does not move the app once the person has walked out of it', () => {
@@ -1096,7 +1223,7 @@ test('the way out of a played montage is the kit’s own button, across the foot
   // of text rather than as anything the app draws. Spec 7.2 gives that word the outlined button —
   // the same one the frame's sheet and the consent wear — and the bar's own width is what puts it
   // in the middle of the bottom.
-  expect(films).toContain('<Button label={s.action.close} onPress={() => setPlaying(null)} />');
+  expect(player).toContain('<Button label={s.action.close} onPress={onClose} />');
 });
 
 test('the material of a memory has one name — on the card, on the switch, over the sheet', () => {

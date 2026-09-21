@@ -16,9 +16,11 @@ import type { JournalEntry, JournalQuery, MontageJournal, MontageStage } from '@
 import {
   currentStage,
   gazeAt,
+  howMade,
   inHand,
   isFresh,
   lastOfStage,
+  madeInMinutes,
   marksOf,
   minutesLeft,
   NO_JOURNAL,
@@ -31,6 +33,7 @@ import {
   stageLine,
   stageMinutes,
   stageNumber,
+  stageStanding,
   type Journal,
 } from '@/montage-journal';
 import { en, ru } from '@/strings';
@@ -454,6 +457,77 @@ describe('the line under a stage', () => {
       recordsOf({ ...stage('directing', 'running'), taken_count: 61, skipped_count: 87, thought_count: 4 }),
     ).toBe(152);
     expect(ru.montage.live.wholeStage(152)).toBe('Весь журнал этапа · 152 записи');
+  });
+
+  test('where a stage stands is the kit’s word for a step, and «ahead» is a row that is missing', () => {
+    expect(stageStanding(undefined)).toBe('waiting');
+    expect(stageStanding(stage('assembly', 'pending'))).toBe('waiting');
+    expect(stageStanding(stage('directing', 'running'))).toBe('running');
+    expect(stageStanding(stage('screening', 'done'))).toBe('done');
+    expect(stageStanding(stage('rhythm', 'failed'))).toBe('failed');
+  });
+});
+
+/**
+ * `MontageLiveDone` (TASK-222) — what the finished film's own page says about how it was made. Both
+ * of these are read off the journal a montage keeps for ever, and both are worked out here rather
+ * than on the screen.
+ */
+describe('how the film was made', () => {
+  const ran = (
+    code: MontageStage['stage'],
+    from: string,
+    to: string | null,
+    outcome: MontageStage['outcome'] = {},
+  ): MontageStage => ({ ...stage(code, to === null ? 'running' : 'done'), started_at: from, finished_at: to, outcome });
+
+  test('«собран за 14 мин» is every stage’s own time added up', () => {
+    const stages = [
+      ran('screening', '2026-09-21T16:00:00Z', '2026-09-21T16:01:00Z'),
+      ran('understanding', '2026-09-21T16:01:00Z', '2026-09-21T16:04:00Z'),
+      // The worker stood in a queue between these two: that wait is not what the making took.
+      ran('directing', '2026-09-21T16:20:00Z', '2026-09-21T16:26:00Z'),
+      ran('rhythm', '2026-09-21T16:26:00Z', '2026-09-21T16:28:00Z'),
+      ran('assembly', '2026-09-21T16:28:00Z', '2026-09-21T16:30:00Z'),
+    ];
+    expect(madeInMinutes(stages)).toBe(14);
+    expect(ru.montage.live.madeIn(14)).toBe('собран за 14 мин');
+  });
+
+  test('a film cut in forty seconds was still cut', () => {
+    expect(madeInMinutes([ran('assembly', '2026-09-21T16:00:00Z', '2026-09-21T16:00:40Z')])).toBe(1);
+  });
+
+  test('a stage still running is not a length, and no stage at all is no line', () => {
+    expect(madeInMinutes([ran('assembly', '2026-09-21T16:00:00Z', null)])).toBe(null);
+    expect(madeInMinutes([])).toBe(null);
+  });
+
+  test('the three numbers are three stages’ own outcomes', () => {
+    const stages = [
+      { ...stage('screening', 'done'), outcome: { kept: 212, of: 214 } },
+      { ...stage('understanding', 'done'), outcome: { faces: 37 } },
+      { ...stage('directing', 'done'), outcome: { parts: 3, frames: 61 } },
+      { ...stage('assembly', 'done'), outcome: { cuts: 138, seconds: 150 } },
+    ];
+    expect(howMade(stages, ru)).toEqual([
+      { figure: 214, label: 'просмотрел' },
+      { figure: 61, label: 'взял в ролик' },
+      { figure: 138, label: 'склеек' },
+    ]);
+    expect(howMade(stages, en).map((tile) => tile.label)).toEqual([
+      'looked at',
+      'taken in',
+      'cuts',
+    ]);
+  });
+
+  test('a number the worker never wrote leaves its tile out rather than standing a dash in it', () => {
+    expect(howMade([{ ...stage('assembly', 'done'), outcome: { cuts: 138 } }], ru)).toEqual([
+      { figure: 138, label: 'склеек' },
+    ]);
+    // A film cut before the journal existed has no stages at all — and then there is no block.
+    expect(howMade([], ru)).toEqual([]);
   });
 });
 
