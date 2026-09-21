@@ -681,6 +681,166 @@ export function retryMontage(
 }
 
 /**
+ * The five stages of making a video, in the order the worker walks them (api README, «Журнал
+ * монтажа»). The order is itself the contract: «этап 3 из 5» on screen is a position in this list,
+ * and the api sorts its own answer by it rather than by when the worker got round to each one.
+ */
+export const MONTAGE_STAGES = [
+  'screening',
+  'understanding',
+  'directing',
+  'rhythm',
+  'assembly',
+] as const;
+
+export type MontageStageCode = (typeof MONTAGE_STAGES)[number];
+
+/**
+ * What a stage came to, free-form on the wire because each stage's result is its own shape. These
+ * are the keys the api names as the ones an app may count on; a key that is not there is simply not
+ * drawn, and the phrase itself is built on this side.
+ */
+export type MontageStageOutcome = {
+  /** `screening` — «212 из 214 годятся», and why the rest went, by reason code. */
+  kept?: number;
+  of?: number;
+  reasons?: Record<string, number>;
+  /** `understanding` — «37 лиц, 5 людей в главных». */
+  faces?: number;
+  people?: number;
+  animals?: number;
+  /** `directing` — «3 части, 61 кадр». */
+  parts?: number;
+  frames?: number;
+  part_titles?: string[];
+  /** `rhythm` — the track it was laid out to, and how many cuts that came to. */
+  track?: string;
+  bpm?: number;
+  /** `assembly` — the cuts and the running time of what came out. */
+  cuts?: number;
+  seconds?: number;
+};
+
+/**
+ * One of the five stages as the journal reports it. `eta_seconds` on the stage being worked on is
+ * what is *left* of it rather than what it will take in all, and the three counts at the end are the
+ * api's own tally over the records — the worker never writes those, so they cannot disagree.
+ */
+export type MontageStage = {
+  stage: MontageStageCode;
+  state: 'pending' | 'running' | 'done' | 'failed';
+  started_at: string | null;
+  finished_at: string | null;
+  eta_seconds: number | null;
+  done_count: number;
+  /** Null until there is something to count against — «61 из ?» is not drawn. */
+  total_count: number | null;
+  outcome: MontageStageOutcome;
+  updated_at: string;
+  taken_count: number;
+  skipped_count: number;
+  thought_count: number;
+};
+
+/**
+ * One thing the director said, out loud, while putting the video together. Everything but the stage
+ * is optional: a record with no `media_id` is a thought about the plan rather than about a frame,
+ * and one with no `decision` is a thought with nothing settled in it.
+ *
+ * `id` is a number and it is the cursor — the largest one held is what the next poll asks after.
+ * The four fractions of the gaze arrive as one `focus`, or as nothing at all.
+ */
+export type JournalEntry = {
+  id: number;
+  stage: MontageStageCode;
+  media_id: string | null;
+  thought: string | null;
+  decision: 'take' | 'skip' | null;
+  /** Why it was passed over, by the worker's own vocabulary — no fixed set, see `reasonWord`. */
+  reason: string | null;
+  series_size: number | null;
+  story_part: number | null;
+  story_part_title: string | null;
+  source_from_seconds: number | null;
+  source_to_seconds: number | null;
+  labels: string[] | null;
+  /** Where on the frame the director is looking, in fractions of it — never in pixels. */
+  focus: { x: number; y: number; w: number; h: number } | null;
+  created_at: string;
+};
+
+/**
+ * A file one of those records is about, signed the way the gallery's frames are. Only the files met
+ * in the page just handed over, so a journal of hundreds of records about the same frames is not
+ * re-signed in full on every poll — and a frame that has since been deleted simply has no entry
+ * here, which is not an error: the record about it stays either way.
+ */
+export type JournalFile = {
+  id: string;
+  kind: MediaItem['kind'];
+  uploaded_by: string;
+  captured_at: string | null;
+  /** How long the file itself runs — not to be read as the length of a place below. */
+  duration_seconds: number | null;
+  thumbnail_url: string | null;
+  /**
+   * Where this frame ended up in this video, in the order it plays. A list because one frame
+   * legitimately stands in a video twice — a clip cut in half, a photo that comes back at the end —
+   * and empty while there is no layout yet, which is every frame during the screening.
+   */
+  places: { start_seconds: number; duration_seconds: number }[];
+};
+
+/** Somebody watching the assembly right now. The api hands out no more than this about them. */
+export type Viewer = Pick<Contact, 'id' | 'username'>;
+
+/** One page of the journal, as the route answers. */
+export type MontageJournal = {
+  montage: { id: string; status: Montage['status'] };
+  stages: MontageStage[];
+  /** Always newest first, whichever way the cursor was going. */
+  entries: JournalEntry[];
+  /** Is there more in the direction that was asked for — and if so, ask again straight away. */
+  has_more: boolean;
+  files: JournalFile[];
+  viewers: Viewer[];
+};
+
+/** The cursor and the two narrowings, exactly as the route takes them. */
+export type JournalQuery = {
+  /** Records newer than this one, and of those the ones *next to* the cursor — see `@/montage-journal`. */
+  after?: number;
+  /** Records older than this one — paging back through a journal already being read. */
+  before?: number;
+  /** Up to 500; the api fills in 200. */
+  limit?: number;
+  stage?: MontageStageCode;
+  media_id?: string;
+};
+
+/**
+ * How the video was put together, live and afterwards (api README, «Журнал монтажа»). Any member
+ * reads it, a viewer included, and the reading itself is what marks the reader as watching — there
+ * is no «я смотрю» to send. A montage with no journal at all answers with an empty one rather than
+ * an error, and a finished video's journal is read the same way years later.
+ */
+export function fetchJournal(
+  token: string,
+  memoryId: string,
+  montageId: string,
+  query: JournalQuery = {},
+): Promise<MontageJournal> {
+  const asked = Object.entries(query)
+    .filter(([, value]) => value !== undefined)
+    .map(([key, value]) => `${key}=${encodeURIComponent(String(value))}`)
+    .join('&');
+  return request(
+    `/memories/${memoryId}/montages/${montageId}/journal${asked ? `?${asked}` : ''}`,
+    { token },
+  );
+}
+
+/**
  * «Свой трек с телефона» (doc-03, spec 8 step 3): the organizer's own music instead of one off the
  * shelf. It goes into R2 the way material does — this announces the file and hands back the signed
  * links to send it with — and it is the organizer's alone, 403 for anybody else. 413 over the
