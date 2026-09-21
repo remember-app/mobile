@@ -66,6 +66,24 @@ test('a track row is a row, and what picks it is the button on its right', () =>
   );
 });
 
+test('the wave doubles as the handle a chosen row is dragged by', () => {
+  // Spec 7.7, detail 54: the order of the chosen tracks is the order they play in, and it is
+  // changed by taking a row by its wave — the one part of it that is not already a button. The
+  // handlers belong to the list; what the row does is put them where the layout says.
+  const dragged = story(
+    <RowTrack
+      title="Тёплая"
+      length="1:40"
+      wave
+      grip={{ accessibilityRole: 'adjustable', accessibilityLabel: 'Переставить «Тёплая»' }}
+    />,
+  );
+  expect(dragged).toContain('aria-label="Переставить «Тёплая»"');
+  expect(dragged).toContain('role="slider"');
+  // A row nobody can reorder is the same row without any of that on it.
+  expect(story(<RowTrack title="Тёплая" length="1:40" wave />)).not.toContain('aria-label');
+});
+
 test('the waveform is a drawing, at the two sizes the layout gives it', () => {
   const bars = (markup: string) => (markup.match(/height:\d+px/g) ?? []).length;
   // Twelve in a row, twenty in the summary (spec 7.10) — and it never opens under a plain row.

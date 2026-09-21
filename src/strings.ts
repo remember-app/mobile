@@ -768,7 +768,7 @@ export const en = {
 
     /** Step 3 — the shelf of tracks, or one off this phone. */
     musicTitle: 'What to cut it to',
-    musicHint: 'The cuts land on the beat of the track you pick.',
+    musicHint: 'No music at all, or one track — or several.',
     /** The round button on every row of the shelf — spoken only, and it says which track it is. */
     listen: (track: string) => `Play ${track}`,
     stopTrack: (track: string) => `Stop ${track}`,
@@ -776,9 +776,37 @@ export const en = {
     /** The same thing named in a summary line and on a finished movie's card. */
     ownTrackShort: 'Your own track',
     sendingTrack: 'Sending the track…',
+    /**
+     * The card standing where the chosen tracks would be. Silence is a decision and it says what
+     * it actually gives you, which is not silence at all: whatever the videos themselves recorded.
+     */
+    noMusic: 'No music',
+    noMusicNote: 'Just the live sound from the videos',
+    /** The block of what was taken, and how much of it there is. */
+    picked: 'Chosen',
+    tracksPicked: (n: number) => `${n} ${n === 1 ? 'track' : 'tracks'}`,
+    /** The two round buttons of a shelf row — spoken, because both of them are a glyph alone. */
+    addTrack: (track: string) => `Add ${track}`,
+    dropTrack: (track: string) => `Remove ${track}`,
+    /** The wave a chosen row is dragged by, for whoever cannot drag anything. */
+    moveTrack: (track: string) => `Move ${track}`,
+    /** The 44 line under the chosen tracks: the one thing a person can say about how to use them. */
+    musicNote: 'How to use the tracks',
+    musicNotePlaceholder: 'How to use them: «Warm» over the morning…',
 
-    /** Step 4 — the shape of it, what the three steps came to, and the one warning. */
+    /** Step 4 — how long it runs and which way up, and nothing else. */
     buildTitle: 'How to put it together',
+    /** Over the card on the right: the ceiling, which is this memory's material and not a rule. */
+    lengthUpTo: (max: string) => `up to ${max}`,
+    /** The right end of the line, where the ceiling means «everything there is». */
+    lengthEnd: (max: string) => `${max} · everything there is`,
+    /** The fifth ready answer: not a number, because it is whatever the material comes to. */
+    lengthAll: 'All',
+    /** Under the figure, while the length is still the one the template asked for. */
+    lengthFromTemplate: (name: string) => `from the «${name}» template`,
+    /** The two round buttons beside the figure — five seconds either way, spoken. */
+    shorter: 'Five seconds shorter',
+    longer: 'Five seconds longer',
     /** The three summary rows, each of them the way back to the step that settled it. */
     story: 'Story',
     framesOf: (taken: number, all: number) => `${taken} of ${all}`,
@@ -1490,14 +1518,29 @@ export const ru: Strings = {
     ownText: 'Свой текст',
 
     musicTitle: 'Под что монтировать',
-    musicHint: 'Склейки попадут в ритм выбранного трека.',
+    musicHint: 'Без музыки или один-несколько треков.',
     listen: (track: string) => `Послушать «${track}»`,
     stopTrack: (track: string) => `Остановить «${track}»`,
     ownTrack: 'Свой трек с телефона',
     ownTrackShort: 'Свой трек',
     sendingTrack: 'Загружаем трек…',
+    noMusic: 'Без музыки',
+    noMusicNote: 'Только живой звук из видео',
+    picked: 'Выбрано',
+    tracksPicked: (n: number) => count(n, 'трек', 'трека', 'треков'),
+    addTrack: (track: string) => `Добавить «${track}»`,
+    dropTrack: (track: string) => `Убрать «${track}»`,
+    moveTrack: (track: string) => `Переставить «${track}»`,
+    musicNote: 'Как использовать треки',
+    musicNotePlaceholder: 'Как использовать треки: «Тёплая» — на сборы…',
 
     buildTitle: 'Как собрать',
+    lengthUpTo: (max: string) => `до ${max}`,
+    lengthEnd: (max: string) => `${max} · всё, что есть`,
+    lengthAll: 'Всё',
+    lengthFromTemplate: (name: string) => `из шаблона «${name}»`,
+    shorter: 'Короче на 5 секунд',
+    longer: 'Длиннее на 5 секунд',
     story: 'История',
     framesOf: (taken: number, all: number) => `${taken} из ${all}`,
     onTheBeat: 'в ритм',

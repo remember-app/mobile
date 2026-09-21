@@ -77,6 +77,32 @@ test('a preset the value stands on is the chosen one, and the others are not', (
   expect(story(slider({ value: 60, valueLabel: '1:00' }))).toContain('rgba(11,11,18,1.00)');
 });
 
+test('a ready answer there is no material for stands there and does not press', () => {
+  // Spec 7.3, «материала на 40 с»: over the ceiling the pill goes quiet and takes no finger.
+  // Clamping it instead would make «3:00» quietly mean «0:40» — three pills, one length, two lies.
+  // «Всё» is the ceiling itself and never goes dark; the numbers above it do, and stay readable.
+  const little = story(
+    slider({
+      value: 40,
+      max: 40,
+      valueLabel: '0:40',
+      presets: [...PRESETS.slice(0, 4), { label: 'Всё', value: 40 }],
+    }),
+  );
+  expect(little).toContain('>3:00<');
+  expect(little).toContain('aria-disabled="true"');
+  // The same five answers under a ceiling that reaches them are not the same row of pills.
+  allDifferent({
+    reachable: slider({ value: 40, valueLabel: '0:40' }),
+    beyond: slider({
+      value: 40,
+      max: 40,
+      valueLabel: '0:40',
+      presets: [...PRESETS.slice(0, 4), { label: 'Всё', value: 40 }],
+    }),
+  });
+});
+
 test('a card without ready answers is the same card, minus the row of them', () => {
   const bare = story(slider({ presets: undefined }));
   expect(bare).not.toContain('>0:30<');
