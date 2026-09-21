@@ -682,6 +682,8 @@ export const en = {
     caption: 'You will be told when it is ready',
     /** The second line of a card that fell over, where a finished one says what it was made of. */
     broke: 'The cut broke off halfway',
+    /** Spoken off the poster of a finished movie: the card is a button and the film is its name. */
+    watch: (title: string) => `Watch ${title}`,
     saveShare: 'Save and share',
     /**
      * The last button of the order, the one word the whole wizard leads to — and the paper button
@@ -1507,6 +1509,7 @@ export const ru: Strings = {
     fromDay: (day: string) => `Ролик от ${day}`,
     caption: 'Мы сообщим, когда будет готов',
     broke: 'Сборка оборвалась на полпути',
+    watch: (title: string) => `Смотреть: ${title}`,
     saveShare: 'Сохранить и поделиться',
     makeIt: 'Смонтировать',
     howLong: 'Длина',
