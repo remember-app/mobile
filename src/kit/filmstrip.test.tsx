@@ -1,3 +1,4 @@
+import { StyleSheet } from 'react-native';
 import { beforeAll, expect, test } from 'vitest';
 
 import { Filmstrip, Mosaic, type Frame } from '@/kit/filmstrip';
@@ -74,3 +75,69 @@ test('a mosaic with too few frames leaves the empty cells plain rather than repe
 test('a mosaic is a background and carries no words of its own', () => {
   expect(story(<Mosaic photos={['https://b/1.jpg']} />)).not.toContain('aria-label');
 });
+
+test('a mosaic never leaves a cell to be measured by a line that wrapped', () => {
+  // TASK-176, off a real iPhone: an ordinary memory card drew its name and «4 кадра» and, where
+  // the frames belonged, 96 points of bare card. The frames were signed, fetched and handed to
+  // this mosaic — and laid out 88 × 0.
+  //
+  // Yoga defaults `alignContent` to `flex-start` where css defaults it to `stretch`, and
+  // react-native-web copies yoga (its View sets `align-content: flex-start` outright), so what a
+  // phone does here is what this test sees. Under `flexWrap: 'wrap'` that default means a line is
+  // only as tall as what already stands in it — and a cell whose one child is an absolutely
+  // positioned picture stands 0 tall. `alignItems: 'stretch'` then stretches every cell to that 0.
+  //
+  // So: a mosaic either does not wrap, and stretch fills the slot, or it wraps and each cell says
+  // outright how big it is. Never the half of that which looks right on the web.
+  const photos = FRAMES.map((frame) => frame.uri);
+
+  // The two rows. Four cells across the full height of the slot, none of them sized by hand — so
+  // nothing here may wrap.
+  for (const layout of ['strip', 'banner'] as const) {
+    const { container, cells } = mosaic(story(<Mosaic photos={photos} layout={layout} />));
+    expect(container['flex-direction'], layout).toBe('row');
+    expect(container['flex-wrap'], layout).toBeUndefined();
+    expect(cells, layout).toHaveLength(4);
+  }
+
+  // The cover is the one that wraps, and it wraps down a column: the big cell fills the first one
+  // and the two small ones stack in the second. Wrapped along a row instead, the big cell makes
+  // its line as tall as the whole cover and the third frame lands under the bottom edge — 2 × 2
+  // and one, with a hole where the last one should be. Every cell is measured both ways, because
+  // inside that wrap there is no line to be stretched to.
+  const { container, cells } = mosaic(story(<Mosaic photos={photos} layout="cover" />));
+  expect(container['flex-direction']).toBe('column');
+  expect(container['flex-wrap']).toBe('wrap');
+  for (const cell of cells) {
+    expect(cell.width).toBeTruthy();
+    expect(cell.height).toBeTruthy();
+  }
+});
+
+/**
+ * A mosaic's own box and its cells', as css — the pictures inside the cells are not cells.
+ *
+ * `story` reads a markup string, and a shape that came out of `StyleSheet.create` is not in it: it
+ * is a class hash pointing into the sheet react-native-web compiled. So the layout is read back
+ * through that sheet, which is the only place it is written down.
+ */
+function mosaic(markup: string) {
+  const [container, ...cells] = [...markup.matchAll(/<div class="([^"]+)"([^>]*)>/g)]
+    .filter(([, , attrs]) => !attrs.includes('data-testid="image"'))
+    .map(([, classNames]) => declarations(classNames));
+  return { container, cells };
+}
+
+/** Every declaration the sheet holds under one element's class names, flattened in order. */
+function declarations(classNames: string): Record<string, string> {
+  const sheet = (StyleSheet as unknown as { getSheet(): { textContent: string } }).getSheet();
+  const out: Record<string, string> = {};
+  for (const name of classNames.split(' ')) {
+    const rule = sheet.textContent.match(new RegExp(`\\.${name}\\{([^}]*)\\}`))?.[1] ?? '';
+    for (const declaration of rule.split(';')) {
+      const colon = declaration.indexOf(':');
+      if (colon > 0) out[declaration.slice(0, colon)] = declaration.slice(colon + 1);
+    }
+  }
+  return out;
+}
