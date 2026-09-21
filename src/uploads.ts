@@ -147,6 +147,10 @@ async function planFor(file: QueuedFile, token: string, size: number): Promise<U
       size_bytes: size,
       captured_at: file.capturedAt,
       duration_seconds: file.durationSeconds,
+      // The phone's own name for the file, which is the only place «сведения о кадре» can get it
+      // from. Cut to what the api takes rather than sent whole: over 255 it answers 400, and a 400
+      // here parks a file that has nothing wrong with it.
+      file_name: file.filename.slice(0, 255),
     });
     file.mediaId = plan.id;
     // The size the api signed links against, kept rather than re-read: the slices must line up
@@ -248,15 +252,20 @@ export function useAskAll(): string | null {
 }
 
 /**
- * The answer, and the end of the question. «Больше ничего» is the only one that moves anything: the
- * first upload already left them on «планирует загрузить», which is what «Ещё будет» means.
+ * The answer, and the end of the question. Both answers are a standing and both are said out loud:
+ * «Больше ничего» is `done`, «Ещё будет» is `more_coming` — the same one the first upload already
+ * left them on, sent again because this time it is their own word and not the api's guess, and
+ * because somebody who had said «ждать нечего» earlier is taking that back with this tap.
+ *
+ * `null` is the question closed without an answer — a tap beside the sheet. Nothing is set then:
+ * silence is not a standing.
  */
-export function answerAskAll(all: boolean) {
+export function answerAskAll(answer: 'done' | 'more_coming' | null) {
   const memoryId = asking;
   asking = null;
   notify();
-  if (!all || memoryId === null || session === null) return;
-  void setContributionStatus(session, memoryId, 'done').catch(() => {
+  if (answer === null || memoryId === null || session === null) return;
+  void setContributionStatus(session, memoryId, answer).catch(() => {
     // Swallowed the way `changed()` swallows a queue it could not write: the material is in, which
     // is the part that mattered, and a status that missed leaves them on «still adding» — the
     // truthful reading of somebody who just uploaded. Not worth a red line over an upload that

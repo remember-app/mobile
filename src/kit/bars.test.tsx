@@ -161,6 +161,28 @@ test('the viewer’s bar floats on glass, because a photograph is the only surfa
   expect(viewer).toContain('Закрыть');
 });
 
+test('the pill in the middle of it is a button where it leads somewhere', () => {
+  // Spec 7.1, detail 5: the whole capsule opens the frame's own sheet, and the `chevron-down` on it
+  // is what says so. A pill with nowhere to go keeps its two floors and grows no arrow.
+  const opens = story(
+    <ViewerBar
+      date="13 сентября"
+      meta="21:47 · Марк Ковалёв"
+      label="Сведения о кадре: 13 сентября, 21:47 · Марк Ковалёв"
+      onPress={() => {}}
+    />,
+  );
+  expect(opens).toContain('role="button"');
+  expect(opens).toContain('aria-label="Сведения о кадре: 13 сентября, 21:47 · Марк Ковалёв"');
+  expect(opens).toContain('data-glyph');
+  allDifferent({
+    plain: <ViewerBar date="13 сентября" meta="21:47 · Марк Ковалёв" />,
+    opens: (
+      <ViewerBar date="13 сентября" meta="21:47 · Марк Ковалёв" label="Сведения" onPress={() => {}} />
+    ),
+  });
+});
+
 test('the bar over a montage on air carries two floors and whatever stands on its right', () => {
   const live = (
     <AppBar
@@ -185,6 +207,7 @@ test('the glass bar over the feed is three pieces of glass and its own darkening
       title="Свадьба Лизы и Марка"
       meta="12–14 сентября · 6 человек"
       capsuleLabel="Свадьба Лизы и Марка. Настройки воспоминания и люди"
+      onCapsule={() => {}}
       left={<IconButton icon={ChevronLeft} label="Назад" tone="glass" size={48} />}
       right={<IconButton icon={SquareCheckBig} label="Выбрать" tone="glass" size={48} />}
     />,
@@ -198,6 +221,56 @@ test('the glass bar over the feed is three pieces of glass and its own darkening
   // Spec 7.1: 176 of darkening under it, and glass at 62% in the capsule itself.
   expect(bar).toContain('height:176px');
   expect(bar).toContain('rgba(22,22,31,0.62)');
+});
+
+test('the capsule is a plate where it leads nowhere', () => {
+  // `Upload`: «Ваши кадры» over the memory the material is going into, and nothing under it to open
+  // — so the chevron goes with the press, and what is left announces itself as a heading.
+  const plate = story(
+    <GlassBar
+      title="Ваши кадры"
+      meta="в «Свадьба Лизы и Марка»"
+      capsuleLabel="Ваши кадры, в «Свадьба Лизы и Марка»"
+      left={<IconButton icon={ChevronLeft} label="Назад" tone="glass" size={48} />}
+    />,
+  );
+  expect(plate).toContain('в «Свадьба Лизы и Марка»');
+  expect(plate).toContain('role="heading"');
+  // The same capsule with somewhere to go is a button and wears the chevron; this one has neither.
+  const button = story(
+    <GlassBar
+      title="Ваши кадры"
+      meta="в «Свадьба Лизы и Марка»"
+      capsuleLabel="Ваши кадры, в «Свадьба Лизы и Марка»"
+      onCapsule={() => {}}
+      left={<IconButton icon={ChevronLeft} label="Назад" tone="glass" size={48} />}
+    />,
+  );
+  expect(button).toContain('role="button"');
+  expect(plate).not.toBe(button);
+});
+
+test('a capsule that acts instead of leading keeps the press and loses the chevron', () => {
+  // `FramesPicking`: the same capsule counts what is marked and takes every frame — it is pressed,
+  // and it opens nothing, so the glyph that promises something underneath goes.
+  const [door, action] = [true, false].map((chevron) =>
+    story(
+      <GlassBar
+        title="Выбрано 4"
+        meta="38 МБ · 3 фото и 1 видео"
+        capsuleLabel="Выбрано 4. Нажмите, чтобы выбрать все"
+        onCapsule={() => {}}
+        chevron={chevron}
+        left={<IconButton icon={ChevronLeft} label="Лейблы" tone="glass" size={48} />}
+      />,
+    ),
+  );
+  // Both are buttons and both carry the same words; only one of them says it leads anywhere.
+  for (const bar of [door, action]) {
+    expect(bar).toContain('role="button"');
+    expect(bar).toContain('38 МБ · 3 фото и 1 видео');
+  }
+  expect(door).not.toBe(action);
 });
 
 test('the right slot of the glass bar is empty where there is nothing to pick', () => {

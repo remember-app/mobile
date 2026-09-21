@@ -1,7 +1,8 @@
-import { memberName, type MediaItem, type Member, type Memory } from '@/api';
+import { memberName, type FrameInfo, type MediaItem, type Member, type Memory } from '@/api';
 import { formatEventDates, startOfDay } from '@/dates';
 import type { TileState } from '@/kit/tile';
 import { currentLanguage } from '@/language';
+import type { Strings } from '@/strings';
 
 /**
  * What a gallery record is on screen. `@/kit/tile` is imported for its shape only and `@/api` and
@@ -55,8 +56,14 @@ function frameWith(item: MediaItem, uri: string | null): Frame {
  *
  * `locale` is only for a test to name a language out loud, the way `formatDay` takes one; the app
  * leaves it off and gets the language it is speaking.
+ *
+ * Asked of anything carrying a size, because two things do: the record the gallery holds and the
+ * frame's own sheet, which reads the same number off a route of its own.
  */
-export function megabytes(item: MediaItem, locale: string = currentLanguage()): string | null {
+export function megabytes(
+  item: Pick<MediaItem, 'size_bytes'>,
+  locale: string = currentLanguage(),
+): string | null {
   return megabytesOf([item], locale);
 }
 
@@ -66,7 +73,7 @@ export function megabytes(item: MediaItem, locale: string = currentLanguage()): 
  * from the frame it holds.
  */
 export function megabytesOf(
-  items: readonly MediaItem[],
+  items: readonly Pick<MediaItem, 'size_bytes'>[],
   locale: string = currentLanguage(),
 ): string | null {
   const mb = items.reduce((sum, item) => sum + Number(item.size_bytes), 0) / 1e6;
@@ -329,3 +336,50 @@ export function shotBy(
   const when = memory === null ? '' : formatEventDates(memory.event_start, memory.event_end);
   return when === '' ? who : `${who} · ${when}`;
 }
+
+/** One line of the frame's own sheet: what it is called, and what it says. */
+export type FrameFact = { label: string; value: string };
+
+/**
+ * The four summary lines of `SheetFrameInfo` (spec 8), in the order the layout draws them: the file,
+ * the frame in pixels, the camera, the place.
+ *
+ * The rule the sheet is built on lives here: **a line the server knows nothing about is not drawn at
+ * all**, rather than drawn with a dash in it. Half of what this reads is written by the montage
+ * worker out of the original's metadata, so an older record — or one shot by a camera that stamped
+ * nothing — legitimately has none of it, and a sheet of four dashes says only that the product is
+ * missing something.
+ *
+ * A line is likewise built out of the pieces that *are* there: a camera model with no aperture
+ * beside it is still a camera, and «IMG_4471.HEIC» with no weight is still the name of a file.
+ */
+export function frameFacts(info: FrameInfo, s: Strings, locale?: string): FrameFact[] {
+  const size = megabytes(info, locale);
+  const facts: FrameFact[] = [];
+  const said = (label: string, value: string) => {
+    if (value !== '') facts.push({ label, value });
+  };
+
+  said(s.viewer.file, meta([info.file_name, size === null ? null : s.viewer.size(size)]));
+  // Both or neither: half a pair of sides is not a size.
+  if (info.width !== null && info.height !== null) {
+    said(s.viewer.pixels, `${info.width} × ${info.height}`);
+  }
+  said(
+    s.viewer.camera,
+    meta([
+      info.camera_model,
+      info.focal_length_mm === null ? null : s.viewer.focal(info.focal_length_mm),
+      info.aperture === null ? null : s.viewer.aperture(info.aperture),
+    ]),
+  );
+  // Coordinates as the numbers they are: turning them into «Усадьба „Остафьево“» takes an outside
+  // geocoder, which is a paid service the product has not taken (api README, «Сведения о кадре»).
+  if (info.latitude !== null && info.longitude !== null) {
+    said(s.viewer.place, s.viewer.coords(info.latitude, info.longitude));
+  }
+  return facts;
+}
+
+/** The product's one separator between two pieces of meta, over whatever is actually known. */
+const meta = (parts: readonly (string | null | undefined)[]) => parts.filter(Boolean).join(' · ');

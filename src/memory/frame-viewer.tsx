@@ -1,16 +1,16 @@
 import { useEvent } from 'expo';
 import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import {
   ChevronLeft,
   Download,
   Ellipsis,
-  Info,
+  Image as ImageSign,
   Pause,
   Play,
   Share,
   Trash2,
-  TriangleAlert,
   Volume2,
   VolumeX,
 } from 'lucide-react-native';
@@ -23,34 +23,51 @@ import {
   deleteMedia,
   downloadMedia,
   errorMessage,
+  fetchFrameInfo,
   memberName,
+  type FrameInfo,
   type MediaItem,
   type Member,
   type Memory,
 } from '@/api';
 import { useAuth } from '@/auth';
-import { formatEventDates, formatRuntime } from '@/dates';
+import { formatDayShort, formatRuntime, formatTime, formatWeekday } from '@/dates';
 import { maySaveToPhone, saveToPhone, shareFile } from '@/downloads';
-import { frameIndex, frameOf, mayOpen, megabytes, openFrameOf, shotBy, type Frame } from '@/frames';
 import {
+  frameIndex,
+  frameOf,
+  mayOpen,
+  openFrameOf,
+  shotAt,
+  shotBy,
+  type Frame,
+} from '@/frames';
+import {
+  ActionMenu,
   Banner,
   ConfirmSheet,
   Empty,
   Filmstrip,
   IconButton,
+  RowAction,
   VideoTrack,
   ViewerBar,
 } from '@/kit';
 import { useStrings } from '@/language';
-import { FrameSheet } from '@/memory/frames-sheets';
+import { FrameInfoSheet } from '@/memory/frames-sheets';
 import { useTurnsWithPhone } from '@/orientation';
-import { board, height, photo, radius, space, themed, themes, ThemePin } from '@/theme';
+import { board, height, photo, space, themed, themes, ThemePin } from '@/theme';
 
 /**
  * `Viewer` and `ViewerVideo` (spec 8, «Просмотр медиа») — one frame on the whole of the phone, laid
  * out the way every phone's own gallery lays one out (doc-02): nothing under the picture but the
- * material itself, a floating bar of glass over it, the strip of neighbours along the bottom and the
- * row of actions under that.
+ * material itself, three pieces of glass floating over it, and the strip of neighbours along the
+ * bottom.
+ *
+ * Three buttons and no row of actions under the strip: «Закрыть», the pill of when and who — which
+ * raises the frame's own sheet (`SheetFrameInfo`) — and the «⋯» that drops the glass menu of what
+ * can be done with it (`SheetFrame`). What a frame *is* and what is *done* to it used to share one
+ * sheet under two names; the layout separates them, and this window says each of them once.
  *
  * Its own file and not the gallery's: this is a screen in everything but the router — it holds what
  * is done to a frame (kept, handed on, deleted) and, for a video, the transport as well. The face
@@ -87,6 +104,7 @@ export function FrameViewer({
   onRemoved: (id: string) => void;
 }) {
   const { token } = useAuth();
+  const router = useRouter();
   const s = useStrings();
   const styles = useStyles();
   const insets = useSafeAreaInsets();
@@ -94,9 +112,15 @@ export function FrameViewer({
   const [busy, setBusy] = useState(false);
   /** The one line this window says out loud: saving, sharing, and how either of them went. */
   const [notice, setNotice] = useState<string | null>(null);
-  /** `SheetConfirmDelete` over the window, and `SheetFrame` — what «Ещё» and «Подробности» open. */
-  const [confirming, setConfirming] = useState(false);
+  /** The three surfaces over the window: the menu the «⋯» drops, the frame's sheet, the delete. */
+  const [menu, setMenu] = useState(false);
   const [details, setDetails] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  /** What the sheet shows, and the api's word when the one read behind it failed. */
+  const [info, setInfo] = useState<FrameInfo | null>(null);
+  const [infoFailed, setInfoFailed] = useState<string | null>(null);
+  /** Which frame that read was asked about — see `openInfo`. */
+  const asking = useRef<string | null>(null);
 
   // A frame shot sideways is worth turning the phone for, and the rest of the app is portrait-only.
   // This component exists for exactly as long as a frame is open, so the flag is simply `true`: the
@@ -208,6 +232,48 @@ export function FrameViewer({
     [],
   );
 
+  /**
+   * The frame's own sheet, and the one read behind it — asked for when the pill is pressed and not
+   * before: the window opens on a picture, and this is the half of a frame nobody has asked about
+   * yet. Read afresh on every opening, because the walk along the strip changes what it is about.
+   */
+  function openInfo() {
+    setMenu(false);
+    setDetails(true);
+    setInfo(null);
+    setInfoFailed(null);
+    if (!token) return;
+    // Which frame the sheet is about right now. The strip cannot be walked while it is up, but it
+    // can be shut and raised again on the next frame before this read answers — and that answer,
+    // landing second, would fill the open sheet with the frame before it.
+    asking.current = item.id;
+    fetchFrameInfo(token, memoryId, item.id).then(
+      (read) => {
+        if (asking.current === read.id) setInfo(read);
+      },
+      (e: unknown) => {
+        if (asking.current === item.id) setInfoFailed(errorMessage(e));
+      },
+    );
+  }
+
+  /**
+   * «В роликах» — one line of the sheet, and the only thing on it that leads anywhere. It leads to
+   * the film on the memory's own screen, which is the product's one player: the layout draws no
+   * second one for a frame, and a player of its own here would be a third place a video is watched.
+   *
+   * One parameter and no more since the memory lost its tabs (TASK-207): `montage` is what raises
+   * the player, and the screen spends it the moment it has.
+   *
+   * The window goes first. It is a `Modal`, so it floats over whatever the router puts up next —
+   * the same thing TASK-94 was reported for — and the feed under it is left on the frame it was on.
+   */
+  function openFilm(montageId: string) {
+    setDetails(false);
+    onClose();
+    router.push({ pathname: '/memory/[id]', params: { id: memoryId, montage: montageId } });
+  }
+
   /** The grant, asked for at the moment it is needed, with this window's place to say «no». */
   async function maySave(): Promise<boolean> {
     const granted = await maySaveToPhone();
@@ -275,10 +341,16 @@ export function FrameViewer({
     onRemoved(item.id);
   }
 
-  /** The two lines of the floating pill: when the event was, and who brought this frame. */
-  const when = memory === null ? '' : formatEventDates(memory.event_start, memory.event_end);
+  /**
+   * The two floors of the floating pill (spec 8): «13 сентября» over «21:47 · Марк Ковалёв» — when
+   * this frame happened and who brought it. The stamp is the gallery's own reading of when, the day
+   * the camera wrote falling back to the day the file arrived, so the pill agrees with the heading
+   * the same frame sits under in the feed.
+   */
+  const stamp = new Date(shotAt(item));
+  const when = formatDayShort(stamp);
   const who = memberName(roster?.find((member) => member.id === item.uploaded_by) ?? null);
-  const size = megabytes(item);
+  const meta = [formatTime(stamp), who].filter(Boolean).join(' · ');
 
   return (
     <Modal
@@ -355,22 +427,27 @@ export function FrameViewer({
                 contentFit="contain"
               />
             ) : (
-              // Nothing was ever made for this one. Said here as well as on the tile, because this
-              // is the window the delete is offered from — a failed record is one somebody may want
-              // rid of rather than looked at.
+              // Nothing was ever made for this one (spec 8, «кадр не загрузился»): the `image` sign
+              // and one line, with the strip left exactly where it is — whoever is here can walk
+              // straight past it. Said here as well as on the tile, because this is the window the
+              // delete is offered from, and a frame nobody can look at is the one somebody wants
+              // rid of.
               <View style={[styles.big, styles.blank]}>
-                <Empty icon={TriangleAlert} text={s.gallery.waiting[item.status]} />
+                <Empty icon={ImageSign} text={s.viewer.notOpened} />
               </View>
             )}
 
             {notice ? <Banner text={notice} style={styles.notice} /> : null}
           </View>
 
-          {/* Spec 7.1, the sixth kind of header: three pieces of glass over the photograph, and no
-              darkening under them — the glass is what carries them now. */}
+          {/* Spec 7.1, the fifth kind of header: three pieces of glass over the photograph and no
+              darkening under them — the glass is what carries them now. All the window's controls
+              are these three; the pill in the middle is a button like the two round ones. */}
           <ViewerBar
             date={when}
-            meta={who}
+            meta={meta}
+            label={`${s.viewer.details}: ${when}, ${meta}`}
+            onPress={openInfo}
             style={[styles.bar, { top: insets.top + space.s2 }]}
             left={
               <IconButton
@@ -389,8 +466,12 @@ export function FrameViewer({
                 size={height.roundViewer}
                 tone="viewer"
                 tint={photo.on}
-                onPress={() => setDetails(true)}
+                onPress={() => setMenu(true)}
                 disabled={busy}
+                // Spec 7.1, detail 9: the button the menu fell out of stays visible and lit under
+                // it, so the menu reads as having come from there and not from the top of the
+                // screen. `photo.held` is that light, and it is the only state this button has.
+                style={menu ? styles.held : null}
               />
             }
           />
@@ -438,88 +519,66 @@ export function FrameViewer({
               // is the honest answer to «open this one», and the two agree on what may open.
               onPick={walk}
             />
-
-            {/* Spec 8: what takes the frame out of the memory stands at the two ends, what is done
-                with it stands in the middle, on glass of its own. */}
-            <View style={styles.actions}>
-              <IconButton
-                icon={Share}
-                label={s.action.share}
-                size={height.roundViewer}
-                tone="viewer"
-                tint={photo.on}
-                onPress={() => void hand()}
-                disabled={busy}
-              />
-              <View style={styles.middle}>
-                <View style={styles.pill}>
-                  {/* Not gated on anything: a viewer may take home what they are looking at, and the
-                      api says the same — the download route asks for membership and nothing more. */}
-                  <IconButton
-                    icon={Download}
-                    label={s.viewer.saveToPhone}
-                    size={height.roundViewer}
-                    tone="ghost"
-                    tint={photo.on}
-                    onPress={() => void save()}
-                    disabled={busy}
-                  />
-                  <IconButton
-                    icon={Info}
-                    label={s.viewer.details}
-                    size={height.roundViewer}
-                    tone="ghost"
-                    tint={photo.on}
-                    onPress={() => setDetails(true)}
-                    disabled={busy}
-                  />
-                </View>
-              </View>
-              {mayDelete(item) ? (
-                <IconButton
-                  icon={Trash2}
-                  label={s.viewer.remove}
-                  size={height.roundViewer}
-                  tone="viewer"
-                  tint={room.dangerText}
-                  onPress={() => setConfirming(true)}
-                  disabled={busy}
-                />
-              ) : (
-                // Whoever may not delete keeps the glass group where it stands: a row that re-centres
-                // itself by who is looking is a row that moves under the finger.
-                <View style={styles.stub} />
-              )}
-            </View>
           </View>
+
+          {/* `SheetFrame` (spec 8) — the three errands, on glass that falls out of the «⋯» rather
+              than rising from the bottom of the screen: what is under the finger is the frame, and
+              the menu stands where the frame's own button is. Inside the pinned room, because that
+              is where the button it belongs to is; the two sheets below are not.
+
+              «Удалить из воспоминания» is the only red line and the only one that may be missing —
+              somebody who may not delete this frame is shown no delete at all, never a grey one.
+              It deletes nothing itself either: it hands the window to the sheet that names the
+              price. */}
+          <ActionMenu
+            visible={menu}
+            onCancel={() => setMenu(false)}
+            top={insets.top + space.s2 + height.roundViewer + space.s2}
+            gapBefore={2}
+          >
+            <RowAction
+              icon={Share}
+              label={s.action.share}
+              onPress={() => {
+                setMenu(false);
+                void hand();
+              }}
+            />
+            {/* Not gated on anything: a viewer may take home what they are looking at, and the api
+                says the same — the download route asks for membership and nothing more. */}
+            <RowAction
+              icon={Download}
+              label={s.viewer.saveToPhone}
+              onPress={() => {
+                setMenu(false);
+                void save();
+              }}
+            />
+            {mayDelete(item) ? (
+              <RowAction
+                icon={Trash2}
+                label={s.viewer.remove}
+                danger
+                onPress={() => {
+                  setMenu(false);
+                  setConfirming(true);
+                }}
+              />
+            ) : null}
+          </ActionMenu>
         </View>
       </ThemePin>
 
-      {/* `SheetFrame` — what to do with this frame, one line each, and the only red thing on it is
-          the delete. It is what both «Ещё» and «Подробности» raise. */}
-      <FrameSheet
+      {/* `SheetFrameInfo` — everything the picture does not say, and nothing to press on it but a
+          movie this frame ended up in. Read when it is opened; the head is known already. */}
+      <FrameInfoSheet
         visible={details}
-        title={s.media[item.kind]}
-        meta={[shotBy(item, roster, memory), size === null ? null : s.viewer.size(size)]
-          .filter(Boolean)
-          .join(' · ')}
         thumb={item.thumbnail_url ?? undefined}
-        onSave={() => {
-          setDetails(false);
-          void save();
-        }}
-        onShare={() => {
-          setDetails(false);
-          void hand();
-        }}
-        onDelete={
-          mayDelete(item)
-            ? () => {
-                setDetails(false);
-                setConfirming(true);
-              }
-            : undefined
-        }
+        title={`${when}, ${formatTime(stamp)}`}
+        meta={[formatWeekday(stamp), memory?.title].filter(Boolean).join(' · ')}
+        info={info}
+        error={infoFailed}
+        onFilm={openFilm}
         onClose={() => setDetails(false)}
       />
 
@@ -584,25 +643,12 @@ const useStyles = themed(() =>
     bar: { position: 'absolute', left: 0, right: 0 },
     // Over the picture and at the foot of it: the strip below stays the only thing under it.
     notice: { position: 'absolute', left: space.s4, right: space.s4, bottom: space.s4 },
+    // The strip and, over a video, its scrubber — and nothing else: the picture above ends where
+    // this begins, which is what keeps a whole frame whole.
     tools: { gap: space.s3, paddingTop: space.s3 },
     // A horizontal list in a column takes every pixel it is offered unless it is told its own size.
     strip: { flexGrow: 0 },
-    actions: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: space.s2,
-      paddingHorizontal: space.s4,
-    },
-    middle: { flex: 1, alignItems: 'center' },
-    pill: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: space.s1,
-      height: height.roundViewer,
-      paddingHorizontal: 6,
-      borderRadius: radius.pill,
-      backgroundColor: photo.glass,
-    },
-    stub: { width: height.roundViewer },
+    // The «⋯» while its menu is out (spec 7.1, detail 9).
+    held: { backgroundColor: photo.held },
   }),
 );

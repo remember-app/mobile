@@ -86,21 +86,27 @@ export function Films({ id, memory }: { id: string; memory: Memory | null }) {
   const { token } = useAuth();
   const router = useRouter();
   const s = useStrings();
-  /**
-   * One film asked for by link: `/memory/[id]?montage=<id>`. The sheet of one frame lists the films
-   * it was taken into (`SheetFrameInfo`), and pressing one of them shuts that window and lands
-   * here — which is why the answer is a parameter and not a screen: the player lives where the
-   * films live.
-   */
-  const { montage: wanted } = useLocalSearchParams<{ montage?: string }>();
   // null means «not loaded yet» — the distinction the feed around it draws too, so a refetch after
   // an order keeps the cards on screen instead of flashing over them.
   const [montages, setMontages] = useState<Montage[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  /**
+   * Which film this screen was asked to play on the way in — «В роликах» on the frame's own sheet
+   * (spec 8, `SheetFrameInfo`), the one road here that names a montage. There is no second player
+   * in the product: a frame's sheet points at this one, and one parameter is the whole of the ask
+   * now that the memory has no faces left to name (TASK-207).
+   */
+  const { montage: asked } = useLocalSearchParams<{ montage?: string }>();
   /** The montage being watched, held by id so a reload hands it a fresh signed url. */
-  const [playing, setPlaying] = useState<string | null>(null);
+  const [playing, setPlaying] = useState<string | null>(asked ?? null);
+
+  // Asked once and not for ever: the ask is seeded above as this block mounts, and the url is then
+  // cleared so that coming back to the memory does not raise the player again.
+  useEffect(() => {
+    if (asked) router.setParams({ montage: '' });
+  }, [asked, router]);
 
   /**
    * How many times this block has written the list itself — the retry that requeues a row. It is an
@@ -178,15 +184,6 @@ export function Films({ id, memory }: { id: string; memory: Memory | null }) {
     const timer = setInterval(() => load(true), WHILE_MAKING_MS);
     return () => clearInterval(timer);
   }, [making, focused, load]);
-
-  // And the film that link asked for, raised as soon as the list holds it. Wiped in the same
-  // breath: the parameter stays on the screen otherwise, and coming back to the memory from
-  // anywhere at all would put the player up again over a film nobody asked for a second time.
-  useEffect(() => {
-    if (!wanted) return;
-    setPlaying(wanted);
-    router.setParams({ montage: '' });
-  }, [wanted, router]);
 
   const role = memory?.role ?? null;
   const watching = montages?.find((montage) => montage.id === playing) ?? null;

@@ -54,6 +54,34 @@ export function formatDay(value: string | Date, locale?: string): string {
 }
 
 /**
+ * The same day without its year — «13 сентября», «13 September». What stands over an open frame and
+ * on its own sheet (spec 8): a frame is looked at inside the memory it belongs to, and the year is
+ * already settled by that.
+ */
+export function formatDayShort(value: string | Date, locale?: string): string {
+  const fields = dayFields(value, locale);
+  return fields === null ? '' : `${fields.day} ${fields.month}`;
+}
+
+/**
+ * The clock beside that day — «21:47», «9:47 PM». Whether it is read round the clock or in halves
+ * is the language's own business, which is why the hour is asked for as a number rather than padded
+ * here. Unreadable is no time at all, the way an unreadable day is no day.
+ */
+export function formatTime(value: string | Date, locale: string = currentLanguage()): string {
+  const at = new Date(value);
+  if (Number.isNaN(at.getTime())) return '';
+  return at.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' });
+}
+
+/** And the name of that day — «суббота», «Saturday» — the second line of the frame's own sheet. */
+export function formatWeekday(value: string | Date, locale: string = currentLanguage()): string {
+  const day = new Date(value);
+  if (Number.isNaN(day.getTime())) return '';
+  return day.toLocaleDateString(locale, { weekday: 'long' });
+}
+
+/**
  * The line under a memory's title. A span inside one month names that month once and leaves the
  * year off — «12–16 августа», the way the kit draws a memory card; a span that crosses a month or
  * a year writes both days whole, year and all. A span whose end is the day it started on is a
@@ -97,4 +125,45 @@ export function endOfDay(day: Date): Date {
   const instant = new Date(day);
   instant.setHours(23, 59, 59, 999);
   return instant;
+}
+
+/**
+ * The month over the calendar's grid — «Сентябрь 2026», «September 2026». Asked for on its own a
+ * month comes back in the form that heads a page («сентябрь», not «сентября»), and only its first
+ * letter has to be raised: Russian writes the word lowercase and the layout prints it capitalised.
+ */
+export function formatMonth(month: Date, locale: string = currentLanguage()): string {
+  const name = month.toLocaleDateString(locale, { month: 'long' });
+  return `${name.charAt(0).toUpperCase()}${name.slice(1)} ${month.getFullYear()}`;
+}
+
+/**
+ * «ПН…ВС» over the calendar's seven columns, in the language the app is speaking and starting on
+ * Monday, which is the week the kit draws. Read off a real week rather than written out per
+ * language: a list of seven letters copied into every dictionary is a translation waiting to drift.
+ */
+export function weekdayLetters(locale: string = currentLanguage()): readonly string[] {
+  // 5 January 1970 was a Monday, and the seven days after it are one whole week.
+  return Array.from({ length: 7 }, (_, i) =>
+    new Date(1970, 0, 5 + i).toLocaleDateString(locale, { weekday: 'short' }).toUpperCase(),
+  );
+}
+
+/** The same day some days back, month and year rolling over on their own. */
+export function daysBefore(day: Date, count: number): Date {
+  const back = new Date(day);
+  back.setDate(back.getDate() - count);
+  return back;
+}
+
+/**
+ * What «Выходные» hands over: the weekend just gone. On a Saturday that is the Saturday alone —
+ * Sunday has not happened yet, and a memory cannot be of tomorrow.
+ */
+export function lastWeekend(today: Date): { from: Date; to: Date } {
+  // `getDay()` counts from Sunday, so it is also how far back the last Sunday is.
+  const weekday = today.getDay();
+  if (weekday === 6) return { from: today, to: today };
+  const sunday = weekday === 0 ? today : daysBefore(today, weekday);
+  return { from: daysBefore(sunday, 1), to: sunday };
 }
