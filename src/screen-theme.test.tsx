@@ -62,6 +62,20 @@ test.each(screens)('%s builds no fixed sheet of its own', (_path, source) => {
   }
 });
 
+test.each(screens)('%s writes no colour of its own', (_path, source) => {
+  // The other half of the same rule, and the one that decides whether the light theme exists at all:
+  // both themes are the same drawing with the tokens swapped (spec 2), so a hex or an `rgba(…)`
+  // spelled out on a screen is a spot that stays night-coloured in daylight. Everything a screen
+  // draws in comes from `@/theme` through the kit — the photograph's own layer (`photo`) included,
+  // which is pinned there on purpose and not here by hand.
+  //
+  // Comments are stripped first: the layout's own numbers are quoted in a few of them, and a note
+  // saying which token replaced a hex is the opposite of the mistake this is looking for.
+  const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
+  expect(code).not.toMatch(/#[0-9A-Fa-f]{3,8}\b/);
+  expect(code).not.toMatch(/\brgba?\(/);
+});
+
 /**
  * The kit's one deliberate exception, block 0.2: `.viewer` sits in the dark-pinned selector list
  * beside `:root` and `[data-theme="dark"]` — «открытый на весь экран кадр остаётся тёмной комнатой

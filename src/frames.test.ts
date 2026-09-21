@@ -181,6 +181,7 @@ const member = (over: Partial<Member>): Member => ({
   username: 'marina',
   role: 'contributor',
   contribution_status: 'more_coming',
+  media_count: 0,
   ...over,
 });
 

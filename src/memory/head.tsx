@@ -9,11 +9,12 @@ import { useStrings } from '@/language';
 import { space } from '@/theme';
 
 /**
- * A memory is one screen with three faces — frames, movies, people (kit, «Экраны» 4–6). The name
- * stands in the appbar and the face is picked in the row under it: «Воспоминание — не три экрана с
- * одним именем, а один экран с тремя лицами».
+ * A memory is one screen with two faces — the frames and the movies. The name stands in the appbar
+ * and the face is picked in the row under it: «не два экрана с одним именем, а один экран с двумя
+ * лицами». There was a third, «Люди», until TASK-209: who is in a memory moved into its settings,
+ * which is a screen of its own — `memory/[id]/settings`.
  */
-export type Face = 'frames' | 'films' | 'people';
+export type Face = 'frames' | 'films';
 
 /** What the route knows and all three faces draw the same: the memory itself, and which face is on. */
 export type Head = {
@@ -27,11 +28,11 @@ export type Head = {
 };
 
 /**
- * The top of all three faces: the memory's name, the way back out of it, the switch between the
- * faces, and — on the right — at most one icon, which is the face's own business and comes in as
- * `right`. The kit gives that corner to exactly one face (the frames' «Скачать всю галерею»); the
- * other two leave it empty, because moving between faces is what the switch is for and an icon that
- * did it too would be a second way to say the same thing.
+ * The top of both faces: the memory's name, the way back out of it, the switch between the faces,
+ * and — on the right — at most one icon, which is the face's own business and comes in as `right`.
+ * The kit gives that corner to exactly one face (the frames' «Скачать всю галерею»); the other
+ * leaves it empty, because moving between faces is what the switch is for and an icon that did it
+ * too would be a second way to say the same thing.
  *
  * Drawn by each face rather than by the route around them, so the icon in that corner belongs to the
  * same component as the errand it starts, and nothing has to be passed back up a level.
@@ -76,7 +77,6 @@ export function MemoryHead({
         options={[
           { value: 'frames', label: s.memory.framesPlain },
           { value: 'films', label: s.montage.title },
-          { value: 'people', label: s.members.title },
         ]}
         style={styles.faces}
       />

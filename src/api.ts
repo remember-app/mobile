@@ -59,7 +59,7 @@ export function errorMessage(error: unknown): string {
 }
 
 type Options = {
-  method?: 'GET' | 'POST' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: unknown;
   token?: string;
   /** Longer than the default only where the api is waiting on something slower than itself. */
@@ -257,9 +257,10 @@ export type Memory = {
    */
   recent_thumbnail_urls: string[];
   /**
-   * The frame the organizer chose as this memory's face, and the signed link to its preview —
-   * signed and living exactly as long as the ones in the tail above. Both are `null` until
-   * somebody picks one, and then the card draws what it drew before the cover existed.
+   * The frame the organizer chose as this memory's face (spec 10.8.3), and the signed link to its
+   * preview — signed and living exactly as long as the ones in the tail above. Both are `null`
+   * until somebody picks one, and then the card draws what it drew before the cover existed. The
+   * tail does not depend on it either way; which of the two a card draws is the client's own call.
    */
   cover_media_id: string | null;
   cover_thumbnail_url: string | null;
@@ -292,10 +293,48 @@ export function createMemory(
   return request('/memories', { method: 'POST', body: memory, token });
 }
 
+/**
+ * Edit one — the organizer's alone (403 for anybody else), and the one route behind the pencil on
+ * the settings screen: the name, the days and the cover are three things changed in one press
+ * (spec 10.8.3). Only what was touched goes up; an empty body is a 400, because answering 200 to
+ * «change nothing» would claim something changed. The dates keep the same rules creating one has —
+ * RFC 3339 with an offset, and a window checked as the row will stand, not as it was sent.
+ *
+ * `cover_media_id` is a ready frame of this same memory, and `null` takes the cover off. A frame of
+ * another memory, one the worker has not finished, and an id behind which there is nothing are one
+ * 404 between them.
+ *
+ * Answers with the whole card — counters, tail of frames and cover — so the screen replaces what it
+ * holds instead of reading the listing a second time.
+ */
+export function updateMemory(
+  token: string,
+  memoryId: string,
+  patch: {
+    title?: string;
+    event_start?: string;
+    event_end?: string | null;
+    cover_media_id?: string | null;
+  },
+): Promise<Memory> {
+  return request(`/memories/${memoryId}`, { method: 'PATCH', body: patch, token });
+}
+
 /** A roster row: the three public fields the api hands out, plus where that person stands. */
 export type Member = Contact & {
   role: MemberRole;
-  contribution_status: ContributionStatus;
+  /**
+   * `null` for a `viewer` and for nobody else: they were never asked to bring anything, so «ничего
+   * не загрузил» over their name would be a reproach for work they were not given. A null, not a
+   * missing key — one shape of row for everybody.
+   */
+  contribution_status: ContributionStatus | null;
+  /**
+   * How many frames that person brought *to this memory*. Counted by the api off the same records
+   * the gallery lists (TASK-190), so the figure on the roster and the one in the gallery agree —
+   * this screen used to read the whole gallery to count it itself.
+   */
+  media_count: number;
 };
 
 /**
@@ -337,7 +376,7 @@ export const mayContribute = (role: MemberRole | null) =>
  * скинули» and the card's line on the main screen are one rule, and the api counts its own tally
  * (`contributed_member_count`) by the very same one.
  */
-export const hasShared = (status: ContributionStatus) =>
+export const hasShared = (status: ContributionStatus | null) =>
   status === 'done' || status === 'nothing';
 
 /** The one live invite link of a memory: the raw token and the level following it grants. */
@@ -391,10 +430,10 @@ export function removeMember(
 /**
  * The caller's own word about their material: «ещё будет», «это всё» or «ждать нечего». Three of the
  * four, in any order and as often as they like — `not_started` is the only one the api keeps to
- * itself, since it is what an invite leaves behind and asking for it back says nothing. No role gate
- * at all beyond `viewer`, whom nobody is waiting on: saying «у меня ничего нет» grants nothing, and
- * refusing it would only leave the organizer waiting. There is no `:userId` in the route because a
- * status is never set on somebody else.
+ * itself, since it is what an invite leaves behind and asking for it back says nothing. So «всё
+ * загрузил» is never a door that shuts (doc-06). `viewer` is the one role refused (403), and nobody
+ * is waiting on them anyway: they were never asked to bring anything and are counted in nothing.
+ * There is no `:userId` in the route because a status is never set on somebody else.
  */
 export function setContributionStatus(
   token: string,

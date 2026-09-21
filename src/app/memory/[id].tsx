@@ -8,19 +8,18 @@ import { useAuth } from '@/auth';
 import { Films } from '@/memory/films';
 import { type Face } from '@/memory/head';
 import { Frames } from '@/memory/frames';
-import { People } from '@/memory/people';
 import { themed } from '@/theme';
 
 /**
- * One memory — one screen with three faces (kit, «Экраны» 4–6): «не три экрана с одним именем, а
- * один экран с тремя лицами: имя стоит в шапке, лицо выбирают переключателем под ней». The frames,
- * the movies and the people used to be three routes under three captions, reached by an unlabelled
- * corner icon; this is all three under one appbar, and the switch under it is how they are reached.
+ * One memory — one screen with two faces: «не два экрана с одним именем, а один экран с двумя
+ * лицами: имя стоит в шапке, лицо выбирают переключателем под ней». The frames and the movies used
+ * to be routes of their own; there was a third face, «Люди», until TASK-209 moved who is in a memory
+ * into its settings (`memory/[id]/settings`) along with the event itself.
  *
- * Everything that is the same for all three lives here: which face is on, and the memory itself —
- * its name in the appbar, its days, the caller's level. Read once and handed down, so switching a
- * face does not blink the name. Everything else — the material, the montages, the roster — belongs
- * to the face that draws it and is read when that face comes on.
+ * Everything that is the same for both lives here: which face is on, and the memory itself — its
+ * name in the appbar, its days, the caller's level. Read once and handed down, so switching a face
+ * does not blink the name. Everything else belongs to the face that draws it and is read when that
+ * face comes on.
  *
  * The face can be asked for on the way in (`?face=films`), which is how a tapped «ролик готов» push
  * lands on the movies; without one, the frames are what a memory opens on, the way the kit's map
@@ -70,13 +69,7 @@ export default function MemoryScreen() {
   // inset itself.
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
-      {face === 'films' ? (
-        <Films id={id} head={head} />
-      ) : face === 'people' ? (
-        <People id={id} head={head} />
-      ) : (
-        <Frames id={id} head={head} />
-      )}
+      {face === 'films' ? <Films id={id} head={head} /> : <Frames id={id} head={head} />}
     </View>
   );
 }

@@ -111,6 +111,12 @@ function RootNavigator() {
             faces and not three routes (TASK-101). Picking material off the phone stays its own,
             because it is a screen one comes back from. */}
         <Stack.Screen name="memory/[id]" options={{ title: 'Memory' }} />
+        {/* Who is in the memory, and what the event is — a screen of its own since TASK-209, behind
+            the capsule over the feed. The people used to be a third face of the memory itself. */}
+        <Stack.Screen name="memory/[id]/settings" options={{ title: 'Memory settings' }} />
+        {/* And the one way to change the name, the days and the cover: a screen because a calendar
+            does not fit on a sheet (spec 10.8.3). */}
+        <Stack.Screen name="memory/[id]/edit" options={{ title: 'Edit the memory' }} />
         <Stack.Screen name="memory/[id]/upload" options={{ title: 'Upload' }} />
         {/* Asking for a movie is four steps and a wizard of its own (TASK-162, split into a route
             per step in TASK-216); one name here whatever step is on top, and the movies of a

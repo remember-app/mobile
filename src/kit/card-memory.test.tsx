@@ -82,6 +82,17 @@ test('a chosen cover takes the whole face of the large card, mosaic and all', ()
   expect(story(<CardMemory title="Свадьба" cover={SHOTS[3]} large />)).toBe(
     story(<CardMemory title="Свадьба" thumbs={SHOTS} cover={SHOTS[3]} large />),
   );
+  // Nobody chose one, so the card is the one that stood here before covers existed.
+  expect(story(<CardMemory title="Свадьба" thumbs={SHOTS} cover={null} large />)).toBe(
+    story(<CardMemory title="Свадьба" thumbs={SHOTS} large />),
+  );
+  // On the ordinary card the cover leads the strip instead of being added to it: still four cells,
+  // never five. Which picture is in which cell cannot be read here at all — `expo-image` stands in
+  // as a view without its source (`vitest.setup.ts`), so two different photographs are one markup.
+  const led = story(
+    <CardMemory title="Свадьба" meta={['12 сентября']} thumbs={SHOTS} cover="https://b/9.jpg" />,
+  );
+  expect(led.match(/data-testid="image"/g) ?? []).toHaveLength(4);
 });
 
 test('the bar of who has brought theirs is never drawn without the sentence beside it', () => {
