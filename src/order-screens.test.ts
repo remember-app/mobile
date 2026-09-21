@@ -8,7 +8,9 @@ import wizardLayout from './app/memory/[id]/order/_layout.tsx?raw';
 import music from './app/memory/[id]/order/music.tsx?raw';
 import story from './app/memory/[id]/order/story.tsx?raw';
 import summary from './app/memory/[id]/order/summary.tsx?raw';
-import progress from './app/memory/[id]/montage/[montageId].tsx?raw';
+// Where the order lands. The waiting screen became `MontageLive` in TASK-221 and moved into a
+// folder of its own, because the journal of one stage lives under it.
+import live from './app/memory/[id]/montage/[montageId]/index.tsx?raw';
 import films from './memory/films.tsx?raw';
 import model from './montage.ts?raw';
 import wizard from './order-wizard.tsx?raw';
@@ -178,7 +180,7 @@ test('one call at the end of the walk, and it carries every wish of spec 8', () 
 });
 
 test('a placed order lands on the waiting for that montage, not back on the list', () => {
-  expect(layout).toContain('name="memory/[id]/montage/[montageId]"');
+  expect(layout).toContain('name="memory/[id]/montage/[montageId]/index"');
   // The wizard hands over the row the api answered with, and the count of frames it took — the one
   // number nobody else can work out, because the api hands back what it wrote and never how many
   // pictures add up to it. `replace`: an order already sent is not a wizard to walk back into.
@@ -198,7 +200,7 @@ test('neither screen of an order moves the app once the person has walked out of
   expect(wizard).toContain('gone.current = false;');
   expect(wizard).toContain('gone.current = true;');
   for (const screen of [music, summary]) expect(screen).toContain('useStillHere()');
-  expect(progress).toContain('const gone = useRef(false);');
+  expect(live).toContain('const gone = useRef(false);');
 
   // The order itself is placed and cannot be unsent — what does not happen is the leading
   // anywhere, and the same for a track that lands after the wizard has gone.

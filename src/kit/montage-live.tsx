@@ -23,6 +23,15 @@ import { Text } from './text';
 const BLINK = 1000;
 
 /**
+ * How tall the frame in hand is drawn (detail 49), and the same frame given the room of a sheet
+ * (`SheetLiveFile`) with the square over it. Exported because the gaze arrives as fractions of the
+ * picture and the screen is what turns those into points — `gazeAt` in `@/montage-journal`.
+ */
+export const SHOT = 150;
+export const SHOT_SHEET = 220;
+export const GAZE_SHEET = 110;
+
+/**
  * Spec 7.6 — «Сейчас»: the frame the director is holding, where on it they are looking, and the
  * thought they are in the middle of saying. The one card in the product that is a window onto
  * something happening rather than a record of something that happened.
@@ -119,13 +128,49 @@ export function CardNow({
             {decision}
           </View>
           {thought ? (
-            <Text role="note" tone="paper">
+            // Spec 10.4: the square on the frame says nothing out loud, and what it is pointing at
+            // is exactly what the thought is about — so the thought is the live area, and a screen
+            // reader is told the director's sentence as it arrives rather than told about a square.
+            <Text accessibilityLiveRegion="polite" role="note" tone="paper">
               {thought}
               {typing ? <Cursor /> : null}
             </Text>
           ) : null}
         </View>
       )}
+    </View>
+  );
+}
+
+/**
+ * Spec 7.6 — `SheetLiveFile`'s own frame: the picture the director was looking at, at the size a
+ * sheet has room for, and the square where the eye was. The square here neither walks nor dims what
+ * is around it — the record it belongs to was decided long before the sheet was opened, and what
+ * somebody came to this sheet for is the photograph itself.
+ */
+export function ShotGaze({
+  uri,
+  gaze,
+  style,
+}: {
+  uri?: string;
+  /** Where the square goes, in points from the frame's top left — `gazeAt` at {@link GAZE_SHEET}. */
+  gaze?: { left: number; top: number };
+  style?: StyleProp<ViewStyle>;
+}) {
+  const styles = useStyles();
+
+  return (
+    <View style={[styles.shotSheet, style]}>
+      {uri ? <Image source={{ uri }} contentFit="cover" style={StyleSheet.absoluteFill} /> : null}
+      {gaze ? (
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          pointerEvents="none"
+          style={[styles.gazeSheet, { left: gaze.left, top: gaze.top }]}
+        />
+      ) : null}
     </View>
   );
 }
@@ -322,9 +367,29 @@ export function Journal({ children, style }: { children: ReactNode; style?: Styl
 
   return (
     <View style={[styles.journal, style]}>
-      <View style={styles.journalLine} />
+      <JournalLine />
       {children}
     </View>
+  );
+}
+
+/**
+ * That line on its own, for the journal that is a whole screen rather than a block: a stage's own
+ * log is hundreds of records and scrolls as a list, and a list has no single box to draw a line down
+ * — so the line is laid behind it and the records scroll past it, which is what the layout draws.
+ *
+ * The parent is what positions it: anything it is put in gets the line 5 points from its left edge.
+ */
+export function JournalLine() {
+  const styles = useStyles();
+
+  return (
+    <View
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      pointerEvents="none"
+      style={styles.journalLine}
+    />
   );
 }
 
@@ -415,8 +480,22 @@ const useStyles = themed(({ color }) =>
       backgroundColor: color.surface,
       overflow: 'hidden',
     },
-    wait: { height: 150, alignItems: 'center', justifyContent: 'center', gap: space.s3 },
-    shot: { height: 150, backgroundColor: color.raise },
+    wait: { height: SHOT, alignItems: 'center', justifyContent: 'center', gap: space.s3 },
+    shot: { height: SHOT, backgroundColor: color.raise },
+    shotSheet: {
+      height: SHOT_SHEET,
+      borderRadius: radius.field,
+      overflow: 'hidden',
+      backgroundColor: color.raise,
+    },
+    gazeSheet: {
+      position: 'absolute',
+      width: GAZE_SHEET,
+      height: GAZE_SHEET,
+      borderWidth: 2,
+      borderColor: color.spark,
+      borderRadius: radius.cell,
+    },
     // Only the top is darkened: the plates live up there and the frame itself is the point.
     shotTop: {
       experimental_backgroundImage:

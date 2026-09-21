@@ -12,9 +12,11 @@ vi.mock('expo-secure-store', () => ({
 import {
   daysBefore,
   formatDay,
+  formatDayShort,
   formatEventDates,
   formatMonth,
   formatRuntime,
+  formatTime,
   lastWeekend,
   weekdayLetters,
 } from '@/dates';
@@ -166,4 +168,23 @@ test('rounds to the nearest second, even across a minute boundary', () => {
 
 test('no duration at all — the gallery item that has none yet — is left for the caller to word', () => {
   expect(formatRuntime(null)).toBeUndefined();
+});
+
+/**
+ * The two the montage journal writes with — the same pair the open frame writes its own line with
+ * (TASK-211): the day without its year, and the clock beside it. Both are local, because they stand
+ * beside «сейчас» on a screen somebody is watching while it is written.
+ */
+test('a journal record carries the day and the minute, and never the year', () => {
+  const at = new Date(2026, 8, 13, 16, 43);
+  expect(formatDayShort(at, 'ru')).toBe('13 сентября');
+  expect(formatDayShort(at, 'ru')).not.toContain('2026');
+  expect(formatTime(at, 'ru')).toBe('16:43');
+  // English reads a clock on twelve hours, which is the language's shape and not a choice here.
+  expect(formatTime(at, 'en-US')).toMatch(/4:43\s?PM/i);
+});
+
+test('an instant that will not parse writes nothing at all, the way a day does', () => {
+  expect(formatTime('не дата')).toBe('');
+  expect(formatDayShort('не дата')).toBe('');
 });

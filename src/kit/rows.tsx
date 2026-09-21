@@ -290,6 +290,28 @@ export function StepNote({
 }
 
 /**
+ * The last line of an opened stage (spec detail 56) — «Весь журнал этапа · 148 записей», the way out
+ * of the two records the row shows and into everything the stage has said. It lines up with those
+ * records rather than with the stage's own name, because it is the end of what they are part of.
+ *
+ * Its own row and not a `Button`: nothing here is an action on the montage, it is a road, and the
+ * only thing it wears is the chevron that says so.
+ */
+export function StepLink({ label, onPress }: { label: string; onPress?: () => void }) {
+  const styles = useStyles();
+  const { color } = useTheme();
+
+  return (
+    <Tappable label={label} onPress={onPress} style={styles.stepLink}>
+      <Text role="badge" tone="accent" numberOfLines={1} style={styles.grow}>
+        {label}
+      </Text>
+      <Icon icon={ChevronRight} size={14} color={color.accentText} />
+    </Tappable>
+  );
+}
+
+/**
  * One action inside the glass menu that drops out of the «⋯» (spec 7.7): 50 tall, the words on the
  * left and the glyph on the right. It was a sheet's row until the menu existed; the glyph moved to
  * the far side with it, because a menu is read down its left edge. The dangerous one is the only red
@@ -492,6 +514,17 @@ const useStyles = themed(({ color }) =>
       alignItems: 'flex-end',
     },
     noteLength: { color: photo.on, paddingRight: 3, paddingBottom: 2 },
+    // The layout draws this one 36 tall; here it stands at the 44 spec 10.2 asks of anything a
+    // finger lands on, which is the four points of room under a stage and nothing else.
+    stepLink: {
+      minHeight: height.small,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingLeft: 50,
+      paddingRight: 14,
+      paddingBottom: 4,
+    },
     action: {
       minHeight: 50,
       flexDirection: 'row',
