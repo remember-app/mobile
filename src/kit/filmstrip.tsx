@@ -217,12 +217,22 @@ const useStyles = themed(({ color }) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    mosaic: { flexDirection: 'row', flexWrap: 'wrap', gap: 3 },
-    mosaicCover: { gap: 2 },
+    // A plain row that does not wrap, so `alignItems: stretch` gives each cell the full height of
+    // the slot. It used to wrap, and that is what drew nothing at all on an ordinary memory card
+    // (TASK-176): yoga defaults `alignContent` to `flex-start` where css defaults it to `stretch`,
+    // so a wrapped line is only as tall as what already stands in it — and a cell whose only child
+    // is an absolutely positioned picture stands 0 tall. Four cells of 88 × 0, and the card's own
+    // surface showing through the 96 points where the frames belonged.
+    mosaic: { flexDirection: 'row', gap: 3 },
+    // The one mosaic that wraps, and a column rather than a row: the big cell fills the first
+    // column, the two small ones stack in the second. A row cannot draw that — the big cell makes
+    // its line as tall as the whole cover, which puts the wrapped line under the bottom edge.
+    mosaicCover: { flexDirection: 'column', flexWrap: 'wrap', gap: 2 },
     mosaicBanner: { gap: 2 },
     cell: { flexGrow: 1, flexBasis: 0, backgroundColor: color.surface, overflow: 'hidden' },
-    // The 2 × 2 cell on the left of a cover, and the two stacked beside it.
-    cellBig: { flexBasis: '66%', flexGrow: 0, height: '100%' },
-    cellSmall: { flexBasis: '32%', flexGrow: 0, height: '49%' },
+    // The 2 × 2 cell on the left of a cover, and the two stacked beside it. Sized outright, both
+    // ways: inside the wrap above there is no line to be stretched to.
+    cellBig: { width: '66%', height: '100%', flexGrow: 0, flexBasis: 'auto' },
+    cellSmall: { width: '32%', height: '49%', flexGrow: 0, flexBasis: 'auto' },
   }),
 );
