@@ -1,11 +1,9 @@
 import { Check, Tag } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import {
-  Pressable,
   StyleSheet,
   TextInput,
   View,
-  type PressableProps,
   type StyleProp,
   type TextInputProps,
   type TextStyle,
@@ -14,7 +12,6 @@ import {
 import { height, radius, space, themed, type, useTheme, type Theme } from '@/theme';
 
 import { Icon, type IconComponent } from './icon';
-import { useFocusRing, useHoverFocus } from './interaction';
 import { Text } from './text';
 
 /**
@@ -209,60 +206,6 @@ export function Field({
 }
 
 /**
- * The same box with something other than a `TextInput` inside it — the day taken from the phone's
- * own calendar (spec 7.3, «поле-кнопка даты»), where there is nothing to type. It is pressed rather
- * than written in, so hover, focus and the press are drawn here instead of arriving from an input.
- *
- * `children` is what stands where the typed text would: the value on the left, a chevron at the right.
- */
-export function FieldShell({
-  label,
-  hint,
-  disabled,
-  children,
-  ...press
-}: Omit<PressableProps, 'style' | 'children'> & {
-  label: string;
-  hint?: string;
-  children: ReactNode;
-}) {
-  const { hovered, focused, props } = useHoverFocus();
-  const theme = useTheme();
-  const styles = useStyles();
-  const focusRing = useFocusRing();
-
-  return (
-    <View style={styles.field}>
-      <Text role="eyebrow">{label.toUpperCase()}</Text>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={label}
-        // Read out as well as drawn, the way the field above hands its hint to the input.
-        accessibilityHint={hint}
-        disabled={disabled}
-        {...press}
-        {...props}
-        style={({ pressed }) => [
-          styles.box,
-          BOX.name,
-          styles.between,
-          {
-            borderColor: theme.color.line,
-            // A finger has no hover, so the press is where the same lift is felt.
-            backgroundColor: hovered || pressed ? theme.color.raise : theme.color.surface,
-          },
-          focused ? focusRing : null,
-          disabled ? styles.off : null,
-        ]}
-      >
-        {children}
-      </Pressable>
-      {hint ? <Hint>{hint}</Hint> : null}
-    </View>
-  );
-}
-
-/**
  * The six cells of a code from an e-mail (spec 7.3). One input behind six boxes: the phone's own
  * one-time-code autofill wants a single field, and six separate ones each steal the caret from the
  * last.
@@ -431,9 +374,7 @@ const useStyles = themed(({ color }) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    off: { opacity: 0.45 },
     input: { flex: 1, minWidth: 0, paddingVertical: space.s2 },
-    between: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.s3 },
     tick: {
       width: 22,
       height: 22,

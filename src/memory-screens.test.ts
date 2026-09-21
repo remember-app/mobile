@@ -230,7 +230,9 @@ test('while picking, a tap marks the frame instead of opening it — and only a 
   );
   // The mark is the tile's own — one ring and one circle, never a second mark drawn by a face.
   expect(frames).not.toContain('tile--selected');
-  expect(upload).toContain("pick={picked.has(item.id) ? 'send' : 'off'}");
+  // And on the upload screen the same rule with the mode of its own: picking off, a frame carries
+  // no circle at all and a tap opens it (spec, `Upload`).
+  expect(upload).toContain("pick={picking ? (picked.has(item.id) ? 'send' : 'off') : undefined}");
 });
 
 test('the picking footer is «Снять» beside a download that carries its count', () => {
@@ -1186,9 +1188,11 @@ test('every column of a contact sheet is the same width, the last row included',
     // `flex: 1/3` divides what a row has left after its gaps, so a last row with one frame in it —
     // no gaps in it to leave — handed that frame a third of the whole row instead of a column.
     expect(sheet).not.toContain('flex: 1 / 3');
-    // A column worked out from the width the sheet spans, and re-read when the phone turns.
+    // A column worked out from the width the sheet spans, and re-read when the phone turns. Which
+    // gutter it is worked out of belongs to the lane the frames stand in (spec 7.8): the memory's
+    // feed and the upload screen both run edge to edge, the wizard and the queue stand in 16.
     expect(sheet).toContain('useWindowDimensions()');
-    expect(sheet).toContain('GRID_GAP * 2) / 3');
+    expect(sheet).toMatch(/(GRID_GAP|FEED_GAP) \* 2\) \/ 3/);
   }
 });
 

@@ -286,19 +286,24 @@ export const en = {
     title: 'New memory',
     titleLabel: 'Title',
     titlePlaceholder: 'Anna’s birthday',
-    eventDate: 'Event date',
+    /** The `eyebrow` over the calendar, and the whole question the block below it asks. */
+    eventDate: 'When it happened',
     /**
-     * The kit's `.field-hint` under the day, and the one line that says why the day is asked for at
-     * all: it is what the upload screen's «select all from that date» runs on.
+     * The one line under the calendar (spec 7.3, detail 15). It says how the thing works rather than
+     * why it is asked for: there is no switch for «longer than a day» any more, and the second tap
+     * is what nobody would find on their own.
      */
-    dateHint: 'The app finds what your phone shot on these days.',
-    multiDay: 'Lasted more than a day',
-    ends: 'Ends',
-    /**
-     * The kit's banner between the dates and «Create». It answers the question this screen does not
-     * ask — where everybody else is — so that nobody holds off creating until they have the list.
-     */
-    inviteHint: 'You can invite people right after you create it.',
+    dateHint: 'One day — one tap. Longer — the first day and the last.',
+    /** The four quick days over the calendar, each one a whole answer. */
+    today: 'Today',
+    yesterday: 'Yesterday',
+    weekend: 'Weekend',
+    week: 'Week',
+    /** «· 3 дня» beside the picked span. A single day never says it — it is a date, not a length. */
+    days: (n: number) => `${n} ${n === 1 ? 'day' : 'days'}`,
+    /** What the calendar's two round buttons are called, since it knows no words of its own. */
+    prevMonth: 'Previous month',
+    nextMonth: 'Next month',
     submit: 'Create',
   },
 
@@ -656,6 +661,13 @@ export const en = {
   upload: {
     /** The screen's own name in the kit (screens, 7) — not the memory's, which it no longer wears. */
     title: 'Your frames',
+    /** Under it in the glass capsule: where all this is going, and the memory named inside it. */
+    into: (memory: string) => `to «${memory}»`,
+    /**
+     * The round button on the right of that capsule. It is a switch and not an action, so it is
+     * named by what it turns on rather than by what the next tap will do.
+     */
+    picking: 'Picking mode',
     explain:
       'Remember cannot see a thing in your gallery until you say so — and what you pick stays on this phone until you send it.',
     refused:
@@ -940,11 +952,15 @@ export const ru: Strings = {
     title: 'Новое воспоминание',
     titleLabel: 'Название',
     titlePlaceholder: 'День рождения Анны',
-    eventDate: 'Дата события',
-    dateHint: 'Приложение найдёт по этим датам снятое на телефоне.',
-    multiDay: 'Длилось больше дня',
-    ends: 'Заканчивается',
-    inviteHint: 'Позвать участников можно сразу после создания.',
+    eventDate: 'Когда это было',
+    dateHint: 'Один день — одно касание. Несколько — первый и последний.',
+    today: 'Сегодня',
+    yesterday: 'Вчера',
+    weekend: 'Выходные',
+    week: 'Неделя',
+    days: (n: number) => count(n, 'день', 'дня', 'дней'),
+    prevMonth: 'Предыдущий месяц',
+    nextMonth: 'Следующий месяц',
     submit: 'Создать',
   },
 
@@ -1161,6 +1177,8 @@ export const ru: Strings = {
 
   upload: {
     title: 'Ваши кадры',
+    into: (memory: string) => `в «${memory}»`,
+    picking: 'Режим выбора',
     explain:
       'Remember не видит вашу галерею, пока вы не разрешите, — а выбранное остаётся на телефоне, пока вы не отправите его.',
     refused:

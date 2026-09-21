@@ -9,7 +9,15 @@ vi.mock('expo-secure-store', () => ({
   setItemAsync: async () => {},
 }));
 
-import { formatDay, formatEventDates, formatRuntime } from '@/dates';
+import {
+  daysBefore,
+  formatDay,
+  formatEventDates,
+  formatMonth,
+  formatRuntime,
+  lastWeekend,
+  weekdayLetters,
+} from '@/dates';
 import { setLanguage } from '@/language';
 
 // The date tests below name their language out loud. The app never does — it takes the one it is
@@ -86,6 +94,54 @@ test('a span follows the app’s language too, both ends and the month it names 
   expect(formatEventDates(day(2026, 8, 12), day(2026, 8, 16))).toBe('12–16 August');
   await setLanguage('ru');
   expect(formatEventDates(day(2026, 8, 12), day(2026, 8, 16))).toBe('12–16 августа');
+});
+
+// The calendar on `Create` knows no words: the month over its grid and the seven letters over its
+// columns are written here, in the language the app is speaking.
+
+test('the month over the grid is capitalised and carries its year', () => {
+  expect(formatMonth(new Date(2026, 8, 12), 'ru-RU')).toBe('Сентябрь 2026');
+  expect(formatMonth(new Date(2026, 8, 12), 'en-US')).toBe('September 2026');
+  // The month on its own is the form that heads a page, never the one a day is written with.
+  expect(formatMonth(new Date(2026, 8, 12), 'ru-RU')).not.toContain('сентября');
+});
+
+test('the week starts on Monday and ends on Sunday, whichever language it is read in', () => {
+  const ru = weekdayLetters('ru-RU');
+  expect(ru).toHaveLength(7);
+  expect(ru[0]).toBe('ПН');
+  expect(ru[6]).toBe('ВС');
+  expect(weekdayLetters('en-US')[0]).toBe('MON');
+});
+
+test('a day some days back rolls the month and the year over with it', () => {
+  expect(daysBefore(new Date(2026, 8, 3), 6)).toEqual(new Date(2026, 7, 28));
+  expect(daysBefore(new Date(2026, 0, 1), 1)).toEqual(new Date(2025, 11, 31));
+});
+
+// «Выходные» is the weekend just gone — the one quick day whose meaning is not one line of
+// arithmetic, and the one that has to stay behind today whatever day of the week it is pressed on.
+test('the weekend is the last Saturday and Sunday, and on a Saturday it is that day alone', () => {
+  // Sunday 13 September 2026 and the Saturday before it.
+  expect(lastWeekend(new Date(2026, 8, 16))).toEqual({
+    from: new Date(2026, 8, 12),
+    to: new Date(2026, 8, 13),
+  });
+  // Pressed on the Sunday itself, that Sunday is the end of it.
+  expect(lastWeekend(new Date(2026, 8, 13))).toEqual({
+    from: new Date(2026, 8, 12),
+    to: new Date(2026, 8, 13),
+  });
+  // Pressed on the Monday after, it is still the weekend two days behind — never the one ahead.
+  expect(lastWeekend(new Date(2026, 8, 14))).toEqual({
+    from: new Date(2026, 8, 12),
+    to: new Date(2026, 8, 13),
+  });
+  // And on a Saturday there is no Sunday yet: a memory cannot be of tomorrow.
+  expect(lastWeekend(new Date(2026, 8, 12))).toEqual({
+    from: new Date(2026, 8, 12),
+    to: new Date(2026, 8, 12),
+  });
 });
 
 // New in m-7: both the gallery and the upload screen draw a tile's duration corner through this,

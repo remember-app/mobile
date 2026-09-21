@@ -207,6 +207,7 @@ test('the glass bar over the feed is three pieces of glass and its own darkening
       title="Свадьба Лизы и Марка"
       meta="12–14 сентября · 6 человек"
       capsuleLabel="Свадьба Лизы и Марка. Настройки воспоминания и люди"
+      onCapsule={() => {}}
       left={<IconButton icon={ChevronLeft} label="Назад" tone="glass" size={48} />}
       right={<IconButton icon={SquareCheckBig} label="Выбрать" tone="glass" size={48} />}
     />,
@@ -220,6 +221,33 @@ test('the glass bar over the feed is three pieces of glass and its own darkening
   // Spec 7.1: 176 of darkening under it, and glass at 62% in the capsule itself.
   expect(bar).toContain('height:176px');
   expect(bar).toContain('rgba(22,22,31,0.62)');
+});
+
+test('the capsule is a plate where it leads nowhere', () => {
+  // `Upload`: «Ваши кадры» over the memory the material is going into, and nothing under it to open
+  // — so the chevron goes with the press, and what is left announces itself as a heading.
+  const plate = story(
+    <GlassBar
+      title="Ваши кадры"
+      meta="в «Свадьба Лизы и Марка»"
+      capsuleLabel="Ваши кадры, в «Свадьба Лизы и Марка»"
+      left={<IconButton icon={ChevronLeft} label="Назад" tone="glass" size={48} />}
+    />,
+  );
+  expect(plate).toContain('в «Свадьба Лизы и Марка»');
+  expect(plate).toContain('role="heading"');
+  // The same capsule with somewhere to go is a button and wears the chevron; this one has neither.
+  const button = story(
+    <GlassBar
+      title="Ваши кадры"
+      meta="в «Свадьба Лизы и Марка»"
+      capsuleLabel="Ваши кадры, в «Свадьба Лизы и Марка»"
+      onCapsule={() => {}}
+      left={<IconButton icon={ChevronLeft} label="Назад" tone="glass" size={48} />}
+    />,
+  );
+  expect(button).toContain('role="button"');
+  expect(plate).not.toBe(button);
 });
 
 test('the right slot of the glass bar is empty where there is nothing to pick', () => {

@@ -256,6 +256,13 @@ export type Memory = {
    * while nothing is processed yet, or when the api has no bucket configured.
    */
   recent_thumbnail_urls: string[];
+  /**
+   * The frame the organizer chose as this memory's face, and the signed link to its preview —
+   * signed and living exactly as long as the ones in the tail above. Both are `null` until
+   * somebody picks one, and then the card draws what it drew before the cover existed.
+   */
+  cover_media_id: string | null;
+  cover_thumbnail_url: string | null;
   montage_count: number;
   created_at: string;
   role: MemberRole;
@@ -382,15 +389,17 @@ export function removeMember(
 }
 
 /**
- * The caller's own word about their material: «это всё» or «ждать нечего». Only the two terminal
- * answers — the other two statuses are the api's to write. No role gate at all, a viewer included:
- * saying «у меня ничего нет» grants nothing, and refusing it would only leave the organizer waiting.
- * There is no `:userId` in the route because a status is never set on somebody else.
+ * The caller's own word about their material: «ещё будет», «это всё» or «ждать нечего». Three of the
+ * four, in any order and as often as they like — `not_started` is the only one the api keeps to
+ * itself, since it is what an invite leaves behind and asking for it back says nothing. No role gate
+ * at all beyond `viewer`, whom nobody is waiting on: saying «у меня ничего нет» grants nothing, and
+ * refusing it would only leave the organizer waiting. There is no `:userId` in the route because a
+ * status is never set on somebody else.
  */
 export function setContributionStatus(
   token: string,
   memoryId: string,
-  status: 'done' | 'nothing',
+  status: 'more_coming' | 'done' | 'nothing',
 ): Promise<{ status: ContributionStatus }> {
   return request(`/memories/${memoryId}/contribution-status`, {
     method: 'POST',
@@ -425,6 +434,12 @@ export type UploadIntent = {
   captured_at?: string | null;
   /** Required for a video and ignored for a photo — the api answers 400 without it. */
   duration_seconds?: number | null;
+  /**
+   * What the file is called on the phone, up to 255 characters — the one line «сведения о кадре»
+   * has no other source for. Optional on the api's side and staying that way: everything uploaded
+   * before the app started sending it lives without one.
+   */
+  file_name?: string;
 };
 
 /**
