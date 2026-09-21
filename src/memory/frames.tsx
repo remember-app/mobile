@@ -26,10 +26,12 @@ import {
   deleteMedia,
   downloadAllMedia,
   errorMessage,
+  listLabels,
   listMedia,
   listMembers,
   mayContribute,
   memberName,
+  type Label,
   type MediaItem,
   type Member,
 } from '@/api';
@@ -58,6 +60,7 @@ import {
   megabytesOf,
   SORT_DEFAULT,
   stillPreparing,
+  withoutLabel,
   type Filter,
   type Frame,
   type FrameGroup,
@@ -153,6 +156,12 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   const [items, setItems] = useState<MediaItem[] | null>(null);
   /** Everybody in this memory: where the caller stands, the names over the groups and the frames. */
   const [roster, setRoster] = useState<Member[] | null>(null);
+  /**
+   * The boxes of this memory as this person may see them — the «ЛЕЙБЛЫ» row of the filter sheet
+   * (spec 10.8.2). Nothing but that row is cut from them: which frames lie in a box is the frames'
+   * own `label_ids`, and that comes down with the gallery.
+   */
+  const [labels, setLabels] = useState<Label[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   /** The record the viewer is showing, held by id so a reload hands it a fresh signed url. */
@@ -280,6 +289,20 @@ export function Frames({ id, head }: { id: string; head: Head }) {
     [token, id],
   );
 
+  /**
+   * The labels, read on their own rather than as a third hand in the listing above. Three reasons,
+   * and each of them is why this is not in `load`: the quiet re-read runs every three seconds while
+   * the worker is finishing something and a box does not move on its own; a labels read that will
+   * not come back must not put an error over a feed that is perfectly fine — the row simply is not
+   * offered; and this is read again at the one moment the boxes actually change, which is the labels
+   * sheet closing over this very screen (spec 10.8.2: the row answers a box made, renamed, deleted
+   * or filled without the app being restarted).
+   */
+  const loadLabels = useCallback(() => {
+    if (!token) return;
+    listLabels(token, id).then(setLabels, () => {});
+  }, [token, id]);
+
   // On focus rather than on mount, the way the home screen does it: what is drawn here changes on
   // the worker's side, and the signed urls die in a quarter hour, so a screen that read once when it
   // was first opened is showing whatever was true then.
@@ -295,8 +318,9 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   useFocusEffect(
     useCallback(() => {
       load();
+      loadLabels();
       return () => setOpen(null);
-    }, [load]),
+    }, [load, loadLabels]),
   );
 
   // And the same reason again with nobody navigating: a record turns `ready` while this screen is
@@ -1024,6 +1048,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
       {tuning === 'filter' ? (
         <FilterSheet
           people={brought}
+          labels={labels}
           days={days}
           value={filter}
           // Asked rather than told: the material is this screen's, and the sheet's own button has
@@ -1048,8 +1073,20 @@ export function Frames({ id, head }: { id: string; head: Head }) {
         <LabelSheets
           memoryId={id}
           frames={marked}
-          onFiled={(labelId, ids, now) => setItems((have) => filed(have, labelId, ids, now))}
-          onClose={() => setLabelling(false)}
+          onFiled={(labelId, ids, now) => {
+            setItems((have) => filed(have, labelId, ids, now));
+            // A box that has gone — «ids null» is the whole feed losing it — takes itself out of the
+            // filter as well (spec 10.8.2). Left in, it would be narrowing the feed to a label no
+            // frame carries any more, with no chip anywhere to press it off again.
+            if (ids === null) setFilter((have) => withoutLabel(have, labelId));
+          }}
+          // The row of boxes on the filter sheet is read again on the way out: this is the one place
+          // a label is made, renamed, deleted or filled, and the row has to say so without the app
+          // being restarted.
+          onClose={() => {
+            setLabelling(false);
+            loadLabels();
+          }}
         />
       ) : null}
 

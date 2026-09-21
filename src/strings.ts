@@ -492,14 +492,19 @@ export const en = {
     add: 'Add frames',
 
     /**
-     * `SheetFilter` — what of the gallery is shown. Three groups of its own, and a fourth
-     * («ЛЕЙБЛЫ», spec 10.8.2) coming with the labels milestone; the glowing button counts what is
-     * about to be shown, so it says outright when that count is nought.
+     * `SheetFilter` — what of the gallery is shown. Four groups of its own; the glowing button
+     * counts what is about to be shown, so it says outright when that count is nought.
      */
     filters: 'Filters',
     whoBrought: 'Who brought it',
     whatKind: 'Type',
     anyKind: 'All of it',
+    /**
+     * The heading over the row of boxes (spec 10.8.2). The plural of `labels.title`'s own subject
+     * and not a sentence: the chips under it say the rest. This is the only way the contents of a
+     * label are looked at — there is no screen of its own for one.
+     */
+    whichLabels: 'Labels',
     whichDays: 'Day',
     anyDay: 'Every day',
     /** The chip that opens the calendar, for a day the row of days is not offering. */
@@ -1366,6 +1371,7 @@ export const ru: Strings = {
     whoBrought: 'Кто принёс',
     whatKind: 'Тип',
     anyKind: 'Всё',
+    whichLabels: 'Лейблы',
     whichDays: 'День',
     anyDay: 'Все дни',
     otherDay: 'Другая дата',

@@ -535,7 +535,7 @@ test('every face shuts its own windows when it loses focus', () => {
   for (const face of [frames, films]) expect(face).not.toContain('useFocusEffect(load)');
   expect(settings).toContain('useFocusEffect(load);');
   expect(frames).toMatch(
-    /useFocusEffect\(\s*useCallback\(\(\) => \{\s*load\(\);\s*return \(\) => setOpen\(null\);\s*\}, \[load\]\),\s*\);/,
+    /useFocusEffect\(\s*useCallback\(\(\) => \{\s*load\(\);\s*loadLabels\(\);\s*return \(\) => setOpen\(null\);\s*\}, \[load, loadLabels\]\),\s*\);/,
   );
   expect(films).toMatch(
     /useFocusEffect\(\s*useCallback\(\(\) => \{\s*load\(\);\s*return \(\) => setPlaying\(null\);\s*\}, \[load\]\),\s*\);/,
@@ -1557,10 +1557,34 @@ test('nothing the filter or the sort was set to is remembered between runs', () 
   expect(frames).toContain('useState<Filter>(FILTER_NONE)');
   expect(frames).toContain('useState<Sort>(SORT_DEFAULT)');
   for (const part of [frames, sheets]) expect(part).not.toMatch(/SecureStore|AsyncStorage/);
-  // And the place «ЛЕЙБЛЫ» lands in is left named rather than built: the third group of chips
-  // between the type and the days belongs to the labels milestone (spec 10.8.2, M-25).
-  expect(sheets).toContain('spec 10.8.2');
-  expect(sheets).toContain('ЛЕЙБЛЫ');
+});
+
+test('the boxes are the face’s own read, and the sheet is handed them like everything else', () => {
+  // Spec 10.8.2 — the «ЛЕЙБЛЫ» row. The labels are read on their own and not as a third hand in the
+  // listing: the quiet re-read runs every three seconds and a box does not move on its own, and a
+  // labels read that will not come back must not put an error over a feed that is fine.
+  expect(frames).toContain('listLabels(token, id).then(setLabels, () => {});');
+  expect(frames).toContain('labels={labels}');
+  expect(frames).not.toContain('listLabels(token, id)]');
+  // Who may see which box is the server's answer and never worked out here: what comes down is
+  // drawn, and somebody else's private label never comes down at all (api README, «Лейблы кадра»).
+  expect(sheets).not.toMatch(/label\.(mine|can_edit|can_add_media)/);
+  // The chip is the kit's (detail 73): the colour of the api's cell through the theme, the count
+  // the api worked out, and the lock only on a private one.
+  expect(sheets).toContain('swatch={labelTint(label.color, theme)}');
+  expect(sheets).toContain('icon={label.shared ? undefined : Lock}');
+  expect(sheets).toContain('count={String(label.media_count)}');
+  expect(sheets).toContain('toggled(have.labels, label.id)');
+  expect(ru.gallery.whichLabels).toBe('Лейблы');
+});
+
+test('the row answers a box made, renamed, deleted or filled without the app being restarted', () => {
+  // The labels sheet is the one place all four happen, so the row is read again as it closes.
+  expect(frames).toContain('loadLabels();');
+  expect(frames).toContain('useFocusEffect');
+  // And a box that has gone leaves the filter with it: every frame has just lost the id, and the
+  // chip that could take it off again is no longer on the sheet (`withoutLabel` in `@/frames`).
+  expect(frames).toContain('if (ids === null) setFilter((have) => withoutLabel(have, labelId));');
 });
 
 test('the sort takes effect as it is pressed, and «Готово» is only the way out', () => {
@@ -1690,9 +1714,7 @@ test('what the api answered is kept by the feed itself, without reading the gall
   // `keepReady` deliberately holds every finished record's own object through a quiet re-read, so a
   // fresh listing would not even carry the new `label_ids` onto the screen — and a loud one would
   // blink the whole feed for a change of one array. The same way a delete is kept.
-  expect(frames).toContain(
-    'onFiled={(labelId, ids, now) => setItems((have) => filed(have, labelId, ids, now))}',
-  );
+  expect(frames).toContain('setItems((have) => filed(have, labelId, ids, now));');
 });
 
 test('the sheet never works out who may do what — it draws what the server answered', () => {

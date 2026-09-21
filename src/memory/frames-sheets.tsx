@@ -1,9 +1,9 @@
 import { Image } from 'expo-image';
-import { CalendarDays, X } from 'lucide-react-native';
+import { CalendarDays, Lock, X } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { memberName, type FrameInfo } from '@/api';
+import { memberName, type FrameInfo, type Label } from '@/api';
 import {
   formatDay,
   formatDayShort,
@@ -36,8 +36,9 @@ import {
   Spinner,
   Text,
 } from '@/kit';
+import { labelTint } from '@/labels';
 import { useStrings } from '@/language';
-import { radius, space, themed } from '@/theme';
+import { radius, space, themed, useTheme } from '@/theme';
 
 /**
  * The sheets the gallery raises (spec 8): the two it is tuned from — the left round button at the
@@ -70,9 +71,9 @@ function toggled<T>(set: ReadonlySet<T>, value: T): Set<T> {
 export type FilterDay = { at: number; count: number };
 
 /**
- * `SheetFilter` — what of the gallery to show (spec 8). Three groups: who brought it, what it is,
- * which day it is from; a fourth, «ЛЕЙБЛЫ», is drawn in 10.8.2 and lands between the type and the
- * days with the labels milestone — see the gap left for it below.
+ * `SheetFilter` — what of the gallery to show (spec 8). Four groups: who brought it, what it is,
+ * which boxes it lies in (spec 10.8.2), which day it is from. The sheet grew from 560 to 636 when
+ * the labels landed in it and scrolls inside itself, which it already did for the days.
  *
  * «Сбросить» stands small beside the heading rather than under the main button: it is needed rarely
  * and must not argue with the one glowing thing on the sheet.
@@ -85,6 +86,7 @@ export type FilterDay = { at: number; count: number };
  */
 export function FilterSheet({
   people,
+  labels,
   days,
   value,
   count,
@@ -93,6 +95,11 @@ export function FilterSheet({
 }: {
   /** Everybody who actually brought something, by the name the roster writes. */
   people: readonly { id: string; name: string }[];
+  /**
+   * Every label of this memory the person is allowed to see, in the api's own order — shared first,
+   * by title within. Somebody else's private box is not among them: the server never sends it.
+   */
+  labels: readonly Label[];
   /** Every day the gallery holds, newest first, each with what it holds. */
   days: readonly FilterDay[];
   value: Filter;
@@ -103,6 +110,9 @@ export function FilterSheet({
 }) {
   const s = useStrings();
   const styles = useStyles();
+  // The label's colour is the one place on this sheet where a token is looked up by hand: the api
+  // keeps the palette cell, 1–8, and the paint for it is the theme's (`labelTint`).
+  const theme = useTheme();
   // Seeded once, because this sheet is mounted by being opened: what was applied is what it opens on.
   const [draft, setDraft] = useState<Filter>(value);
   /** Whether «Другая дата» has the calendar open under the row of days. */
@@ -199,10 +209,35 @@ export function FilterSheet({
         />
       </View>
 
-      {/* Here stands «ЛЕЙБЛЫ» — a third group of chips, one per label, between the type and the
-          days (spec 10.8.2). It belongs to the labels milestone (M-25) and is deliberately not
-          built here: the sheet already scrolls, and the `Chip` it needs carries a colour square and
-          a lock glyph for a personal one. Nothing else on this sheet moves when it lands. */}
+      {/* «ЛЕЙБЛЫ» — the boxes of this memory, third of the four and between the type and the days
+          (spec 10.8.2). This is how the contents of a label are looked at: there is no screen of
+          its own for one, the feed is narrowed to it instead. A memory with no boxes has no group
+          here at all rather than an empty row — and no private box of one's own simply makes the
+          row shorter. */}
+      {labels.length === 0 ? null : (
+        <View style={styles.group}>
+          <GroupLabel>{s.gallery.whichLabels}</GroupLabel>
+          <View style={styles.chips}>
+            {labels.map((label) => (
+              <Chip
+                key={label.id}
+                label={label.title}
+                swatch={labelTint(label.color, theme)}
+                // A private one is marked and a shared one is not: there are more shared ones, and
+                // a glyph on every chip would be noise (spec 10.8.2).
+                icon={label.shared ? undefined : Lock}
+                // What the box holds, the way a day's chip carries what that day holds — the count
+                // the api works out from the links themselves, so it is what is actually in there.
+                count={String(label.media_count)}
+                selected={draft.labels.has(label.id)}
+                onPress={() =>
+                  setDraft((have) => ({ ...have, labels: toggled(have.labels, label.id) }))
+                }
+              />
+            ))}
+          </View>
+        </View>
+      )}
 
       <View style={styles.group}>
         <GroupLabel>{s.gallery.whichDays}</GroupLabel>

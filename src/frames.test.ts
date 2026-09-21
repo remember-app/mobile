@@ -33,6 +33,7 @@ import {
   shotBy,
   SORT_DEFAULT,
   stillPreparing,
+  withoutLabel,
   type Filter,
   type Sort,
 } from '@/frames';
@@ -481,13 +482,23 @@ test('a name nobody claimed is the username, and somebody off the roster is «So
 const groups = (items: MediaItem[], sort = SORT_DEFAULT) =>
   groupFrames(items, sort).map((group) => [group.key, group.frames.map((item) => item.id)]);
 
-/** Three days of a wedding, as `listMedia` hands them over: oldest shot first. */
+/**
+ * Three days of a wedding, as `listMedia` hands them over: oldest shot first. Two boxes lie over
+ * them — the shared «Лучшее» and a private one of somebody's own — and a frame lies in as many of
+ * them as it likes, or in none (doc-13, api README «Лейблы кадра»).
+ */
 const wedding3 = [
-  record({ id: 'morning', uploaded_by: 'liza', captured_at: shotAt(3, 9) }),
-  record({ id: 'vows', uploaded_by: 'mark', kind: 'video', captured_at: shotAt(3, 17) }),
+  record({ id: 'morning', uploaded_by: 'liza', captured_at: shotAt(3, 9), label_ids: ['best'] }),
+  record({
+    id: 'vows',
+    uploaded_by: 'mark',
+    kind: 'video',
+    captured_at: shotAt(3, 17),
+    label_ids: ['best', 'mine'],
+  }),
   record({ id: 'dancing', uploaded_by: 'liza', captured_at: shotAt(4, 1) }),
   record({ id: 'breakfast', uploaded_by: 'anya', captured_at: shotAt(4, 10) }),
-  record({ id: 'goodbyes', uploaded_by: 'liza', captured_at: shotAt(5, 12) }),
+  record({ id: 'goodbyes', uploaded_by: 'liza', captured_at: shotAt(5, 12), label_ids: ['mine'] }),
 ];
 
 test('the feed nobody has arranged is one wall with no seam in it at all', () => {
@@ -577,11 +588,50 @@ test('the filter holds back by who brought it, what it is, and which day it is f
   expect(only({ people: new Set(['mark']), kind: 'photo' })).toEqual([]);
 });
 
+test('a label is looked at by narrowing the feed to it — there is no screen of its own', () => {
+  // Spec 10.8.2. The frames are read by the boxes they say they are in, which is what the api hands
+  // the gallery; a box this person may not see left no id there to match in the first place.
+  const only = (over: Partial<Filter>) =>
+    framesMatching(wedding3, { ...FILTER_NONE, ...over }).map((item) => item.id);
+
+  expect(only({ labels: new Set(['best']) })).toEqual(['morning', 'vows']);
+  // Several boxes are «any of these», the same «or» the people row is — «vows» lies in both and is
+  // still one frame on the feed.
+  expect(only({ labels: new Set(['best', 'mine']) })).toEqual(['morning', 'vows', 'goodbyes']);
+  // And the groups narrow each other the way they always did: the video of «Лучшее», and then the
+  // combination the sheet will not let anybody apply at all.
+  expect(only({ labels: new Set(['best']), kind: 'video' })).toEqual(['vows']);
+  expect(only({ labels: new Set(['mine']), people: new Set(['anya']) })).toEqual([]);
+  expect(only({ labels: new Set(['best']), days: new Set([day(3)]) })).toEqual(['morning', 'vows']);
+  // A box nothing is in is not a box that shows everything.
+  expect(only({ labels: new Set(['empty']) })).toEqual([]);
+});
+
+test('a box that has gone takes itself out of the filter, and nothing else with it', () => {
+  // The chip is off the sheet the moment the label is deleted, so nothing is left to press it off
+  // with — and every frame has just lost the id as well (`filed`), which would leave the feed
+  // narrowed to nothing at all.
+  const had: Filter = {
+    ...FILTER_NONE,
+    labels: new Set(['best', 'mine']),
+    people: new Set(['liza']),
+  };
+  const left = withoutLabel(had, 'best');
+  expect([...left.labels]).toEqual(['mine']);
+  expect(left.people).toBe(had.people);
+  // One it was never narrowed by comes back as it is — the screen holding it re-renders over
+  // nothing otherwise.
+  expect(withoutLabel(had, 'other')).toBe(had);
+  expect(filtering(withoutLabel({ ...FILTER_NONE, labels: new Set(['best']) }, 'best'))).toBe(false);
+});
+
 test('the spark dot means «no longer at its default», and nothing else', () => {
   expect(filtering(FILTER_NONE)).toBe(false);
   expect(filtering({ ...FILTER_NONE, kind: 'video' })).toBe(true);
   expect(filtering({ ...FILTER_NONE, people: new Set(['liza']) })).toBe(true);
   expect(filtering({ ...FILTER_NONE, days: new Set([day(4)]) })).toBe(true);
+  // One rule over every group of the sheet, the labels included (spec 10.8.2).
+  expect(filtering({ ...FILTER_NONE, labels: new Set(['best']) })).toBe(true);
 
   expect(arranged(SORT_DEFAULT)).toBe(false);
   expect(arranged({ ...SORT_DEFAULT, by: 'person' })).toBe(true);

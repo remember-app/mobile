@@ -238,36 +238,74 @@ export function dateMarks(
 }
 
 /**
- * What of the gallery is shown (`SheetFilter`): who brought it, what it is, which day it is from.
- * An empty set is «everybody» and «every day» rather than «nobody» — the chip that says so is the
- * one the sheet opens with.
+ * What of the gallery is shown (`SheetFilter`): who brought it, what it is, which boxes it lies in,
+ * which day it is from. An empty set is «everybody», «every label» and «every day» rather than
+ * «nobody» — the chip that says so is the one the sheet opens with.
  */
 export type Filter = {
   people: ReadonlySet<string>;
+  /** Which labels, by id — this is how the contents of a box are looked at (spec 10.8.2). */
+  labels: ReadonlySet<string>;
   days: ReadonlySet<number>;
   kind: MediaItem['kind'] | 'all';
 };
 
 /** Nothing filtered out, which is what the gallery stands at until the sheet says otherwise. */
-export const FILTER_NONE: Filter = { people: new Set(), days: new Set(), kind: 'all' };
+export const FILTER_NONE: Filter = {
+  people: new Set(),
+  labels: new Set(),
+  days: new Set(),
+  kind: 'all',
+};
 
-/** Whether anything is being held back — the other spark dot. */
+/** Whether anything is being held back — the other spark dot, one rule over every group on it. */
 export function filtering(filter: Filter): boolean {
-  return filter.people.size > 0 || filter.days.size > 0 || filter.kind !== 'all';
+  return (
+    filter.people.size > 0 ||
+    filter.labels.size > 0 ||
+    filter.days.size > 0 ||
+    filter.kind !== 'all'
+  );
 }
 
 /**
- * The gallery as the filter leaves it. Three questions, all three answered against the record
- * itself, so the count the sheet's own button carries («Показать 486 кадров») is worked out by
- * exactly what the sheet will then show.
+ * The gallery as the filter leaves it. Four questions, all four answered against the record itself,
+ * so the count the sheet's own button carries («Показать 486 кадров») is worked out by exactly what
+ * the sheet will then show.
+ *
+ * The labels are read off the record's own `label_ids`, the way everything else here is: the api
+ * cannot narrow a gallery by a label and deliberately does not try (api README, «Лейблы кадра»), and
+ * that array already holds only the boxes this person is allowed to see — somebody else's private
+ * label leaves no trace in it, so there is nothing here to hide and nothing to check.
+ *
+ * Several labels are «any of these», the same «or» the people row is (spec 10.8.2), and the four
+ * questions narrow each other exactly as the other three already did.
  */
 export function framesMatching(items: readonly MediaItem[], filter: Filter): MediaItem[] {
   return items.filter(
     (item) =>
       (filter.kind === 'all' || item.kind === filter.kind) &&
       (filter.people.size === 0 || filter.people.has(item.uploaded_by)) &&
+      (filter.labels.size === 0 || item.label_ids.some((one) => filter.labels.has(one))) &&
       (filter.days.size === 0 || filter.days.has(dayOf(item))),
   );
+}
+
+/**
+ * The same filter with one label out of it — what a box being deleted does to the feed it was
+ * filtering (spec 10.8.2). Nothing else is touched: a label is gone, not the choice of day or of
+ * who brought it.
+ *
+ * Needed because the two ends of a delete would otherwise disagree: every frame loses the box
+ * (`filed` in `@/labels`), so a filter still holding its id matches nothing at all, and the chip
+ * that could take it off again is no longer on the sheet to press. The filter it was never in comes
+ * back as it is, so a screen holding it re-renders over nothing.
+ */
+export function withoutLabel(filter: Filter, labelId: string): Filter {
+  if (!filter.labels.has(labelId)) return filter;
+  const labels = new Set(filter.labels);
+  labels.delete(labelId);
+  return { ...filter, labels };
 }
 
 /**
