@@ -1,41 +1,87 @@
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
-import { CalendarDays, ChevronDown, ChevronLeft, UserPlus } from 'lucide-react-native';
+import { ChevronLeft } from 'lucide-react-native';
 import { useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { createMemory, errorMessage } from '@/api';
 import { useAuth } from '@/auth';
-import { endOfDay, formatDay, startOfDay } from '@/dates';
+import {
+  daysBefore,
+  endOfDay,
+  formatDay,
+  formatEventDates,
+  formatMonth,
+  lastWeekend,
+  startOfDay,
+  weekdayLetters,
+} from '@/dates';
 import {
   ActionBar,
   AppBar,
   Banner,
   Board,
   Button,
+  Calendar,
+  Chip,
   Field,
-  FieldShell,
-  HintNote,
-  ICO_S,
-  Icon,
+  Hint,
   IconButton,
   Text,
-  Toggle,
 } from '@/kit';
 import { useStrings } from '@/language';
-import { space, useTheme } from '@/theme';
+import { space } from '@/theme';
 
 /** Spec 8, `Create` — naming an event and saying when it was, and nothing else. */
 export default function CreateMemoryScreen() {
   const { token } = useAuth();
   const router = useRouter();
   const s = useStrings();
+  const today = startOfDay(new Date());
   const [title, setTitle] = useState('');
-  const [start, setStart] = useState(() => startOfDay(new Date()));
-  // null is «single day». The end is optional in doc-01, so it stays absent until asked for.
-  const [end, setEnd] = useState<Date | null>(null);
+  // The day it started on, and the day it ended on once there is a second one. There is no switch
+  // for «больше дня» any more (spec 7.3, detail 15): the second tap on the calendar is that switch,
+  // and `null` is a memory of a single day, which is what the api gets told by sending no end.
+  const [from, setFrom] = useState(today);
+  const [to, setTo] = useState<Date | null>(null);
+  // Which month the grid is showing, and nothing else — so paging with the arrows past a span
+  // longer than a month never touches what is picked (spec 8, «Края»).
+  const [month, setMonth] = useState(today);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  /**
+   * The three taps of detail 15: the first sets a day, the second closes the range behind it, the
+   * third starts over. A tap *before* the day already picked is not a range running backwards — it
+   * is the first tap being corrected, so it becomes the new first one.
+   */
+  function pick(day: Date) {
+    const picked = startOfDay(day);
+    if (to === null && picked > from) setTo(picked);
+    else {
+      setFrom(picked);
+      setTo(null);
+    }
+  }
+
+  /** A quick day is the whole answer: both ends at once, and the grid brought to where they are. */
+  function jump(range: { from: Date; to: Date | null }) {
+    setFrom(range.from);
+    setTo(range.to);
+    setMonth(range.from);
+  }
+
+  const quick = [
+    { label: s.create.today, range: { from: today, to: null } },
+    { label: s.create.yesterday, range: { from: daysBefore(today, 1), to: null } },
+    { label: s.create.weekend, range: lastWeekend(today) },
+    // «Неделя» is the week behind, today included — seven days and not «this calendar week»,
+    // which on a Monday would be one day long.
+    { label: s.create.week, range: { from: daysBefore(today, 6), to: today } },
+  ];
+
+  // Counted over whole days rather than over hours, so a clock change inside the span cannot make
+  // three days read as two.
+  const days = to === null ? 1 : Math.round((to.getTime() - from.getTime()) / 86400000) + 1;
 
   async function submit() {
     if (!token) return;
@@ -44,8 +90,9 @@ export default function CreateMemoryScreen() {
     try {
       await createMemory(token, {
         title: title.trim(),
-        event_start: start.toISOString(),
-        event_end: end?.toISOString(),
+        event_start: from.toISOString(),
+        // A single day sends no end at all — the api reads a memory without one as that one day.
+        event_end: to === null ? undefined : endOfDay(to).toISOString(),
       });
       // The list refetches on focus, so it comes back holding the new memory. Falling
       // back to a replace covers the case where this screen was not pushed from it.
@@ -71,7 +118,10 @@ export default function CreateMemoryScreen() {
         }
       />
 
-      <View style={styles.form}>
+      {/* Scrolls rather than stands: the layout's 390 × 844 holds the calendar whole, and a phone
+          with the keyboard up over a shorter screen does not. `handled` so the first tap on a day
+          picks it instead of only putting the keyboard away. */}
+      <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
         {/* Spec 7.3, the 56 field: a memory's name is typed in the face it will be printed in on
             its own cover, so this one field is Unbounded and no other on the screen is. */}
         <Field
@@ -83,40 +133,46 @@ export default function CreateMemoryScreen() {
           editable={!busy}
         />
 
-        <DayField
-          label={s.create.eventDate}
-          // The one explanation on the screen stands under the one field that does something later.
-          // Under the first day only — the end is the same answer, said twice.
-          hint={s.create.dateHint}
-          value={start}
-          onChange={(day) => setStart(startOfDay(day))}
-          disabled={busy}
-        />
+        {/* Spec 8 — «Когда это было»: what is picked, the four quick days, the calendar, and the
+            one line under it. The middle of the screen and the only thing on it that decides
+            anything. */}
+        <View style={styles.when}>
+          <View style={styles.head}>
+            <Text role="eyebrow" style={styles.grow}>
+              {s.create.eventDate.toUpperCase()}
+            </Text>
+            <Text role="controlSm" style={styles.picked}>
+              {formatEventDates(from.toISOString(), to === null ? null : to.toISOString())}
+              {/* Spec 8, «Края»: one day is one date, with no length hung off it. */}
+              {days > 1 ? <Text role="chip" tone="muted">{` · ${s.create.days(days)}`}</Text> : null}
+            </Text>
+          </View>
 
-        <Toggle
-          label={s.create.multiDay}
-          value={end !== null}
-          onValueChange={(on) => setEnd(on ? endOfDay(start) : null)}
-          disabled={busy}
-        />
+          <View style={styles.quick}>
+            {quick.map((day) => (
+              <Chip key={day.label} label={day.label} size={36} onPress={() => jump(day.range)} />
+            ))}
+          </View>
 
-        {/* Spec 8, «Края»: switched off, the whole block goes and its neighbours come up. */}
-        {end === null ? null : (
-          <DayField
-            label={s.create.ends}
-            value={end}
-            onChange={(day) => setEnd(endOfDay(day))}
-            // Makes the one range the api rejects unreachable from the picker itself.
-            minimumDate={start}
-            disabled={busy}
+          <Calendar
+            month={month}
+            onMonth={setMonth}
+            from={from}
+            to={to}
+            onPick={pick}
+            // A memory cannot be of tomorrow, so the days after this one do not answer.
+            max={today}
+            weekdays={weekdayLetters()}
+            monthLabel={formatMonth(month)}
+            prevLabel={s.create.prevMonth}
+            nextLabel={s.create.nextMonth}
+            // The whole date out loud, year and all: the grid's own heading is not read with it.
+            dayLabel={formatDay}
           />
-        )}
 
-        {/* Spec 8 closes the body with it: the one thing this screen does not ask for, said before
-            «Создать» so nobody puts off creating until they have the guest list. `spark` on the
-            glyph because the hint is about people (spec 7.6). */}
-        <HintNote icon={UserPlus} tone="spark" text={s.create.inviteHint} />
-      </View>
+          <Hint>{s.create.dateHint}</Hint>
+        </View>
+      </ScrollView>
 
       {/* In the flow of the screen and right above the action that raised it, never over it. */}
       {error ? <Banner tone="error" text={error} style={styles.error} /> : null}
@@ -135,72 +191,25 @@ export default function CreateMemoryScreen() {
   );
 }
 
-/**
- * Spec 7.3, «поле-кнопка даты»: the calendar glyph, the day in tabular figures, the chevron — and
- * the whole thing presses, opening the platform's own picker, so there is no such thing as bad
- * input. The kit does not draw a calendar and should not: that is system UI. What it does draw is
- * everything around it, which it hands over as `FieldShell` — this is the kit's own field with a day
- * inside it, and not a second one built to look the same.
- */
-function DayField({
-  label,
-  hint,
-  value,
-  onChange,
-  minimumDate,
-  disabled,
-}: {
-  label: string;
-  /** The line under the field that says what the day is for. */
-  hint?: string;
-  value: Date;
-  onChange: (day: Date) => void;
-  minimumDate?: Date;
-  disabled: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const { color } = useTheme();
-
-  return (
-    <>
-      <FieldShell
-        label={label}
-        hint={hint}
-        accessibilityValue={{ text: formatDay(value) }}
-        accessibilityState={{ disabled, expanded: open }}
-        disabled={disabled}
-        onPress={() => setOpen(true)}
-      >
-        <Icon icon={CalendarDays} size={ICO_S} color={color.muted} />
-        <Text style={styles.day}>{formatDay(value)}</Text>
-        <Icon icon={ChevronDown} size={ICO_S} color={color.faint} />
-      </FieldShell>
-      {/* Outside the field, never inside it: on iOS this is a whole calendar drawn in place, and it
-          stands under the field the way the platform's own dialog stands over the screen. */}
-      {open ? (
-        <DateTimePicker
-          value={value}
-          mode="date"
-          // iOS draws the calendar in place; Android opens its own dialog and reports
-          // 'dismissed' when it is cancelled, which must not overwrite the value.
-          display={Platform.OS === 'ios' ? 'inline' : 'default'}
-          minimumDate={minimumDate}
-          onChange={(event, picked) => {
-            setOpen(false);
-            if (event.type === 'set' && picked) onChange(picked);
-          }}
-        />
-      ) : null}
-    </>
-  );
-}
-
-// Shape only: the board, the fields and the bottom layer each carry their own colours — and a
-// disabled field is dimmed by the kit, not by a second colour spelled out here.
+// Shape only: the board, the fields, the calendar and the bottom layer each carry their own
+// colours, in whichever theme the app is currently in.
 const styles = StyleSheet.create({
-  // The body of the screen, on the kit's own side inset and its 24 between blocks.
-  form: { flex: 1, gap: space.s6, paddingHorizontal: space.s4, paddingTop: space.s6 },
+  // The body of the screen, on the kit's own side inset and its 24 between blocks. `flexGrow` and
+  // not `flex`, so the column is at least the height of the screen and scrolls once it is taller.
+  form: {
+    flexGrow: 1,
+    gap: space.s6,
+    paddingHorizontal: space.s4,
+    paddingTop: space.s6,
+    paddingBottom: space.s5,
+  },
+  when: { gap: space.s3 },
+  // The name of the block and what is picked, on one baseline: a 12 eyebrow and a 14 date.
+  head: { flexDirection: 'row', alignItems: 'baseline', gap: space.s3 },
+  grow: { flex: 1 },
+  // In the tabular figures every date in the product is written in.
+  picked: { fontVariant: ['tabular-nums'] },
+  // Spec 7.3: a row of chips 8 apart, wrapping rather than cutting a word in half.
+  quick: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.s2 },
   error: { marginHorizontal: space.s4, marginBottom: space.s3 },
-  // Stretched between the calendar and the chevron, in the tabular figures every date is written in.
-  day: { flex: 1, fontVariant: ['tabular-nums'] },
 });
