@@ -144,7 +144,7 @@ test('the capsule says what the memory holds, and what is marked while picking',
   expect(ru.memory.nothingYet).toBe('пока пусто');
   // And while picking the same capsule counts what is marked and weighs it — «38 МБ · 3 фото и
   // 1 видео» — with the press taking every frame or giving them all back.
-  expect(frames).toContain('s.gallery.pickNothing : s.gallery.picked(marked.length)');
+  expect(frames).toContain('? s.gallery.pickNothing\n      : s.gallery.picked(marked.length)');
   expect(frames).toContain('megabytesOf(marked)');
   expect(frames).toContain('s.gallery.pickedKinds(');
   expect(ru.gallery.pickedKinds(3, 1)).toBe('3 фото и 1 видео');

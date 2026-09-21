@@ -497,6 +497,17 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   ]
     .filter(Boolean)
     .join(' · ');
+  /** The two lines of the capsule, whichever of its two states the screen is in. */
+  const capsule = picking
+    ? marked.length === 0
+      ? s.gallery.pickNothing
+      : s.gallery.picked(marked.length)
+    : name;
+  const under = picking
+    ? marked.length === 0
+      ? undefined
+      : madeOf
+    : [dates, holds].filter(Boolean).join(' · ');
 
   return (
     <>
@@ -637,16 +648,14 @@ export function Frames({ id, head }: { id: string; head: Head }) {
       <MemoryHead
         error={head.error}
         reload={head.reload}
-        title={picking ? (marked.length === 0 ? s.gallery.pickNothing : s.gallery.picked(marked.length)) : name}
-        meta={picking ? (marked.length === 0 ? undefined : madeOf) : [dates, holds].filter(Boolean).join(' · ')}
+        title={capsule}
+        meta={under}
         // The capsule is a door in the feed and an action while picking, so only one of the two
         // wears the chevron (spec 7.1).
         chevron={!picking}
-        capsuleLabel={
-          picking
-            ? `${marked.length === 0 ? s.gallery.pickNothing : s.gallery.picked(marked.length)}. ${s.gallery.selectAll}`
-            : s.memory.settings(name)
-        }
+        // Read out in full either way: the drawn name is cut with an ellipsis, and a count on its
+        // own does not say that pressing it takes everything.
+        capsuleLabel={picking ? `${capsule}. ${s.gallery.selectAll}` : s.memory.settings(name)}
         onCapsule={
           picking
             ? pickEverything
