@@ -1,4 +1,4 @@
-import { Search } from 'lucide-react-native';
+import { Pencil, Search } from 'lucide-react-native';
 import { beforeAll, expect, test } from 'vitest';
 
 import {
@@ -19,9 +19,17 @@ beforeAll(async () => {
   await setTheme('dark');
 });
 
-const VARIANTS: FieldVariant[] = ['name', 'email', 'username', 'handle', 'search'];
+const VARIANTS: FieldVariant[] = [
+  'name',
+  'email',
+  'username',
+  'handle',
+  'search',
+  'labelName',
+  'wish',
+];
 
-test('the five fields differ by height and by the face they are typed in', () => {
+test('the seven fields differ by height and by the face they are typed in', () => {
   allDifferent(
     Object.fromEntries(
       VARIANTS.map((variant) => [variant, <Field label="Название" variant={variant} value="" />]),
@@ -95,6 +103,38 @@ test('the search field carries its magnifier and its @, and neither is typed', (
   expect(search).toContain('@');
 });
 
+test('a label’s name is typed behind its own colour, and wears the accent before the caret arrives', () => {
+  const label = story(
+    <Field label="Название" variant="labelName" swatch="#FF7A9C" value="Для бабушки" onSurface />,
+  );
+  // The square is the colour being picked, drawn where it will be seen: #FF7A9C with a tag in it.
+  expect(label).toContain('rgba(255,122,156,1.00)');
+  expect(label).toContain('data-glyph');
+  // Spec 7.3: the accent border stands whether or not the field is focused — the sheet was opened
+  // to type in this one box.
+  expect(label).toContain('rgba(75,91,255,1.00)');
+  expect(story(<Field label="Почта" value="" />)).not.toContain('rgba(75,91,255,1.00)');
+});
+
+test('the wish line is the one field that lives inside another block', () => {
+  const wish = story(
+    <Field
+      label="Как использовать треки"
+      labelHidden
+      variant="wish"
+      icon={Pencil}
+      value=""
+      placeholder="Спокойное начало, потом ритм"
+    />,
+  );
+  // On `ink` without being told: it stands inside a block that is already a surface.
+  expect(wish).toContain('background-color:rgba(11,11,18,1.00)');
+  expect(wish).toContain('min-height:44px');
+  // No visible label, and still a name to a screen reader — a placeholder is not a label.
+  expect(wish).not.toContain('КАК ИСПОЛЬЗОВАТЬ ТРЕКИ');
+  expect(wish).toContain('aria-label="Как использовать треки"');
+});
+
 test('the code is one value behind six boxes, not six values', () => {
   const half = story(<CodeField label="Код из письма" value="1234" onChangeText={() => {}} />);
   expect(half).toContain('aria-label="Код из письма"');
@@ -119,15 +159,24 @@ test('the code is one value behind six boxes, not six values', () => {
   ).toContain('rgba(255,141,141,1.00)');
 });
 
-test('the long-text box counts what is in it and warns before the limit, not after', () => {
-  const room = story(<TextArea label="История" limit={600} value={'а'.repeat(100)} onChangeText={() => {}} />);
-  expect(room).toContain('100');
-  expect(room).toContain('600');
+test('the long-text box holds the limit silently and counts nothing out loud', () => {
+  const room = story(
+    <TextArea label="История" limit={600} value={'а'.repeat(100)} onChangeText={() => {}} />,
+  );
+  // Spec 7.3: no counter under it. A story told to a director is not a form with a quota, and the
+  // limit is the api's business — `maxLength` still holds it.
+  expect(room).not.toContain('>100<');
+  expect(room).toContain('maxLength="600"');
+  // And the box wears the accent border at rest, not only under the caret.
+  expect(room).toContain('rgba(75,91,255,1.00)');
+});
 
-  // At 90% the counter turns dangerous — and nothing types past the limit at all.
-  const near = story(<TextArea label="История" limit={600} value={'а'.repeat(560)} onChangeText={() => {}} />);
-  expect(near).not.toBe(room);
-  expect(story(<TextArea label="История" limit={600} value="" onChangeText={() => {}} />)).toContain('0');
+test('the long-text box carries a line saying what it is for, never how full it is', () => {
+  const noted = story(
+    <TextArea label="История" hint="Своими словами" value="" onChangeText={() => {}} />,
+  );
+  expect(noted).toContain('Своими словами');
+  expect(noted).not.toBe(story(<TextArea label="История" value="" onChangeText={() => {}} />));
 });
 
 test('the date field is pressed rather than typed in, and says so', () => {

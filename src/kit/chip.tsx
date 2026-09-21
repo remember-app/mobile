@@ -1,29 +1,52 @@
-import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { height, radius, space, themed, useTheme } from '@/theme';
+import { radius, space, themed, useTheme } from '@/theme';
 
-import { PRESS, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
+import { Icon, type IconComponent } from './icon';
+import { PRESS, TAP, hitSlop, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
 import { Avatar } from './member';
 import { Text } from './text';
 
 /**
- * Spec 7.3 — the chip: a pill 44 high that is offered rather than pressed home. Four kinds, and the
- * difference between them is what stands inside: words alone, a face and a name, the same chip
- * already chosen, or one there is nothing behind.
+ * Spec 7.3 — the chip: a pill that is offered rather than pressed home. Three heights, each
+ * belonging to a place rather than to a taste (spec 7.3):
+ *
+ * - **40** — a filter, the tallest and the only one that carries a face;
+ * - **36** — the quick days on `Create`, which stand on `surface` instead of on nothing;
+ * - **34** — the journal's own filter, where a row of them sits under a bar.
+ *
+ * What stands inside is the rest of it: words alone, a face and a name, a colour square and a name
+ * (a label, spec 10.8.2), a glyph, and a count that is the same words a shade quieter.
  *
  * Chips lie in a wrapping row 8 apart and wrap as they need to; that row belongs to the screen.
  */
+export type ChipSize = 40 | 36 | 34;
+
 export function Chip({
   label,
+  size = 40,
   avatar,
+  swatch,
+  icon,
+  count,
   selected,
   disabled,
   onPress,
   style,
 }: {
   label: string;
-  /** A person's name — the chip then carries their circle at 32 in front of it. */
+  size?: ChipSize;
+  /** A person's name — the chip then carries their circle at 30 in front of it. */
   avatar?: string;
+  /** A label's colour — the chip then carries an 18 square of it in front of it. */
+  swatch?: string;
+  /** A glyph before the words: `calendar` on «Другая дата», `lock` on a label only you can see. */
+  icon?: IconComponent;
+  /**
+   * How many frames are behind this chip — «312», drawn in the same words at 60%. A figure, not a
+   * sentence: it stands after the name with nothing between them.
+   */
+  count?: string;
   /** Chosen: the chip fills with `paper` and loses its border, the way a segment does. */
   selected?: boolean;
   disabled?: boolean;
@@ -35,35 +58,53 @@ export function Chip({
   const { color } = useTheme();
   const styles = useStyles();
   const focusRing = useFocusRing();
+  const tint = disabled ? color.faint : selected ? color.ink : color.paper;
+  const lead = avatar || swatch;
 
   return (
     <Pressable
       // A chip nobody can press is a label, and a label is not a button — so it says nothing about
       // being pressable to a screen reader either.
       accessibilityRole={onPress ? 'button' : undefined}
-      accessibilityLabel={label}
+      // The count belongs to the name when it is read out: «13 сентября 312» is one thing.
+      accessibilityLabel={count ? `${label} ${count}` : label}
       accessibilityState={onPress ? { disabled: !!disabled, selected: !!selected } : undefined}
       disabled={disabled || !onPress}
+      // Spec 10.2: every one of the three is drawn under 44 and felt at 44. Height only — a chip is
+      // as wide as its words, and those are already wider than a finger.
+      hitSlop={hitSlop(TAP, size)}
       onPress={onPress}
       {...props}
       style={({ pressed }) => [
         styles.chip,
-        avatar ? styles.chipAvatar : null,
-        selected ? styles.selected : styles.outlined,
+        { minHeight: size },
+        lead ? styles.chipLead : null,
+        selected ? styles.selected : size === 36 ? styles.quick : styles.outlined,
         hovered && !selected ? styles.hover : null,
         pressed && !reduced ? PRESS : null,
         focused ? focusRing : null,
         style,
       ]}
     >
-      {avatar ? <Avatar name={avatar} size={32} /> : null}
-      <Text
-        role="chip"
-        numberOfLines={1}
-        style={{ color: disabled ? color.faint : selected ? color.ink : color.paper }}
-      >
+      {avatar ? <Avatar name={avatar} size={30} /> : null}
+      {/* A colour with nothing in it: the label's name is right beside it, and a square that
+          repeats it out loud is a second name. */}
+      {swatch && !avatar ? (
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={[styles.swatch, { backgroundColor: swatch }]}
+        />
+      ) : null}
+      {icon ? <Icon icon={icon} size={14} color={selected ? color.ink : color.muted} /> : null}
+      <Text role="chip" numberOfLines={1} style={{ color: tint }}>
         {label}
       </Text>
+      {count ? (
+        <Text role="chip" numberOfLines={1} style={[styles.count, { color: tint }]}>
+          {count}
+        </Text>
+      ) : null}
     </Pressable>
   );
 }
@@ -71,19 +112,23 @@ export function Chip({
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
     chip: {
-      minHeight: height.small,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 9,
-      paddingHorizontal: space.s4,
+      gap: 6,
+      paddingHorizontal: space.s4 - 2,
       borderRadius: radius.pill,
       borderWidth: 1,
       borderColor: 'transparent',
     },
-    // A chip with a face in it pulls its left side in to 6 so the circle sits against the edge.
-    chipAvatar: { paddingLeft: 6 },
-    outlined: { borderColor: color.line },
+    // A chip with a face or a colour in it pulls its left side in so the circle sits against the edge.
+    chipLead: { paddingLeft: 6 },
+    outlined: { borderColor: color.lineQuiet },
+    // The quick days stand on a screen and not over a list, so they carry a fill of their own.
+    quick: { backgroundColor: color.surface, borderColor: color.line },
     selected: { backgroundColor: color.paper },
     hover: { backgroundColor: color.raise },
+    // Spec 7.3: the count is the same words at 60%, never a second colour and never a badge.
+    count: { opacity: 0.6, fontVariant: ['tabular-nums'] },
+    swatch: { width: 18, height: 18, borderRadius: 6 },
   }),
 );

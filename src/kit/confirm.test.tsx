@@ -68,3 +68,25 @@ test('the price is a number on a plate of its own, said before the press', () =>
   expect(withPrice).toContain('stroke="#FF8D8D"');
   expect(story(<ConfirmSheet {...base} />)).not.toContain('stroke="#FF8D8D"');
 });
+
+test('the gentle kind asks about what costs nothing, and never in red', () => {
+  // Spec 7.1, detail 8 `[дорисовано]` — leaving an account, walking away from unsaved edits: no
+  // thumbnail, no avatar, a paper button and a quiet way out. The red never appears here, or it
+  // stops meaning «навсегда» where it does.
+  const gentle = story(
+    <ConfirmSheet
+      {...base}
+      variant="gentle"
+      title="Выйти из аккаунта?"
+      text="Кадры останутся в воспоминаниях — их увидят все, кого вы звали."
+      confirmLabel="Выйти"
+      cancelLabel="Остаться"
+      who="Аня Петрова"
+    />,
+  );
+  expect(gentle).not.toContain('rgba(206,48,40,1.00)');
+  // The thing at the top goes even when one is handed over: there is no object this is about.
+  expect(gentle).not.toContain('АП');
+  expect(gentle).toContain('Выйти из аккаунта?');
+  expect(gentle).not.toBe(story(<ConfirmSheet {...base} title="Выйти из аккаунта?" />));
+});

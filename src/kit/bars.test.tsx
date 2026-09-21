@@ -1,8 +1,9 @@
-import { ChevronLeft, User } from 'lucide-react-native';
+import { ChevronLeft, SquareCheckBig, User } from 'lucide-react-native';
 import { beforeAll, expect, test } from 'vitest';
 
-import { ActionBar, AppBar, Board, ViewerBar, WizardBar } from '@/kit/bars';
+import { ActionBar, AppBar, Board, GlassBar, ViewerBar, WizardBar } from '@/kit/bars';
 import { Button, IconButton } from '@/kit/button';
+import { WatchingPill } from '@/kit/member';
 import { allDifferent, story } from '@/kit/story';
 import { Text } from '@/kit/text';
 import { height, setTheme } from '@/theme';
@@ -120,17 +121,103 @@ test('the wizard’s counter sits dead centre whatever stands on either side of 
   });
 });
 
+test('the step’s heading belongs to the bar, because the bar is what does not scroll', () => {
+  const step = story(
+    <WizardBar
+      step={3}
+      steps={4}
+      label="Шаг 3 из 4"
+      title="Под что монтировать"
+      note="Без музыки или один-несколько треков."
+    />,
+  );
+  expect(step).toContain('Под что монтировать');
+  expect(step).toContain('Без музыки или один-несколько треков.');
+  // The line under the heading is there only where a step has one.
+  expect(story(<WizardBar step={3} steps={4} label="Шаг 3 из 4" title="Под что монтировать" />)).not.toContain(
+    'Без музыки',
+  );
+});
+
+test('the total has no scale under it, because there is no step after it', () => {
+  const summary = story(<WizardBar step={4} steps={4} label="Итог" title="Свадьба Лизы и Марка" variant="summary" />);
+  // The scale is what says how far there is left to go, and the wizard's own progressbar with it.
+  expect(summary).not.toContain('role="progressbar"');
+  expect(story(<WizardBar step={4} steps={4} label="Шаг 4 из 4" title="Как собрать" />)).toContain(
+    'role="progressbar"',
+  );
+});
+
 test('the viewer’s bar floats on glass, because a photograph is the only surface under it', () => {
   const viewer = story(
     <ViewerBar
       date="13 сентября"
       meta="21:47 · Марк Ковалёв"
-      left={<IconButton icon={ChevronLeft} label="Закрыть" tone="glass" size={48} />}
+      left={<IconButton icon={ChevronLeft} label="Закрыть" tone="viewer" size={48} />}
     />,
   );
   expect(viewer).toContain('13 сентября');
   expect(viewer).toContain('21:47 · Марк Ковалёв');
   expect(viewer).toContain('Закрыть');
+});
+
+test('the bar over a montage on air carries two floors and whatever stands on its right', () => {
+  const live = (
+    <AppBar
+      variant="live"
+      title="Монтаж идёт"
+      subtitle="Для родителей · 2:30 · 16:9"
+      left={<IconButton icon={ChevronLeft} label="Назад" />}
+      right={<WatchingPill names={['Аня', 'Марк']} count={3} label="Смотрят сейчас: 3" />}
+    />
+  );
+  expect(story(live)).toContain('Смотрят сейчас: 3');
+  // 17/21 and not the inner bar's 18/21: three things have to fit on one line here.
+  allDifferent({
+    inner: <AppBar title="Монтаж идёт" subtitle="Для родителей · 2:30 · 16:9" />,
+    live: <AppBar variant="live" title="Монтаж идёт" subtitle="Для родителей · 2:30 · 16:9" />,
+  });
+});
+
+test('the glass bar over the feed is three pieces of glass and its own darkening', () => {
+  const bar = story(
+    <GlassBar
+      title="Свадьба Лизы и Марка"
+      meta="12–14 сентября · 6 человек"
+      capsuleLabel="Свадьба Лизы и Марка. Настройки воспоминания и люди"
+      left={<IconButton icon={ChevronLeft} label="Назад" tone="glass" size={48} />}
+      right={<IconButton icon={SquareCheckBig} label="Выбрать" tone="glass" size={48} />}
+    />,
+  );
+  expect(bar).toContain('Свадьба Лизы и Марка');
+  expect(bar).toContain('12–14 сентября · 6 человек');
+  // The whole capsule is a button, and the name it is read out under is the full one — the drawn
+  // one is cut with an ellipsis on purpose (spec 10.6).
+  expect(bar).toContain('aria-label="Свадьба Лизы и Марка. Настройки воспоминания и люди"');
+  expect(bar).toContain('r-textOverflow');
+  // Spec 7.1: 176 of darkening under it, and glass at 62% in the capsule itself.
+  expect(bar).toContain('height:176px');
+  expect(bar).toContain('rgba(22,22,31,0.62)');
+});
+
+test('the right slot of the glass bar is empty where there is nothing to pick', () => {
+  const full = story(
+    <GlassBar
+      title="Свадьба"
+      capsuleLabel="Свадьба"
+      left={<IconButton icon={ChevronLeft} label="Назад" tone="glass" size={48} />}
+      right={<IconButton icon={SquareCheckBig} label="Выбрать" tone="glass" size={48} />}
+    />,
+  );
+  const empty = story(
+    <GlassBar
+      title="Свадьба"
+      capsuleLabel="Свадьба"
+      left={<IconButton icon={ChevronLeft} label="Назад" tone="glass" size={48} />}
+    />,
+  );
+  expect(full).toContain('Выбрать');
+  expect(empty).not.toContain('Выбрать');
 });
 
 test('the bottom layer fades up into the screen and grows when a count stands over its button', () => {
@@ -151,6 +238,26 @@ test('the bottom layer fades up into the screen and grows when a count stands ov
   expect(counted).toContain('Выбрано 12 из 61');
   expect(counted).toContain('height:176px');
   expect(counted).toContain('62%');
+});
+
+test('the five footers are five depths, and two of them lie over photographs', () => {
+  const at = (markup: string) => markup.match(/height:(\d+)px/)?.[1];
+  const layer = (footer?: 'plain' | 'count' | 'gallery' | 'upload' | 'live') =>
+    story(
+      <ActionBar footer={footer}>
+        <Button variant="primary" label="Добавить ещё" />
+      </ActionBar>,
+    );
+  expect(at(layer('plain'))).toBe('132');
+  expect(at(layer('count'))).toBe('176');
+  expect(at(layer('gallery'))).toBe('190');
+  expect(at(layer('upload'))).toBe('210');
+  expect(at(layer('live'))).toBe('120');
+  // The gallery and the queue fade into the dark rather than into `ink`: what is under them is a
+  // wall of frames, and spec 2 keeps everything lying on a photograph dark in both themes.
+  expect(layer('gallery')).toContain('rgba(11,11,18,0.96)');
+  expect(layer('upload')).toContain('rgba(11,11,18,0.97)');
+  expect(layer('live')).toContain('#0B0B12 60%');
 });
 
 test('the gradient never catches a press, and the buttons over it do', () => {

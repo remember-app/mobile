@@ -953,7 +953,7 @@ test('the 72 stands in the middle of the picture and on the glass every button o
   // 72 and glass: the layout's own size, and the fill the «Закрыть», «Ещё» and «Поделиться» of this
   // same window already stand on. The plate is gone, and with it the last `photo.mark` here.
   expect(stage).toContain('size={72}');
-  expect(stage).toContain('tone="glass"');
+  expect(stage).toContain('tone="viewer"');
   expect(viewer).not.toContain('photo.mark');
 });
 

@@ -2,9 +2,9 @@ import { Image } from 'expo-image';
 import type { ReactNode } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { height, radius, space, themed, useTheme } from '@/theme';
+import { faceOf, font, height, radius, space, themed, useTheme } from '@/theme';
 
-import { Divider } from './bits';
+import { Divider, LiveDot } from './bits';
 import { Text } from './text';
 
 /**
@@ -13,15 +13,35 @@ import { Text } from './text';
  * username and a standing all arrive as text.
  */
 
-/** The sizes the layout draws an avatar at, each with the type size that goes inside it. */
-const LETTERS: Record<number, number> = { 26: 10, 32: 11, 34: 11, 42: 14, 64: 18, 68: 20 };
+/**
+ * The sizes the layout draws an avatar at, each with the type size that goes inside it (spec 7.5):
+ * 16 in a day gap, 18 on a frame on air, 24 in a stack, 30 in a filter chip, 32 in a sheet, 34 in a
+ * section row, 38 in a member row, 42 in a contact row, 64 on a confirmation, 68 on the account.
+ * Roughly a third of the circle, rounded the way the layout rounded it.
+ */
+const LETTERS: Record<number, number> = {
+  16: 6,
+  18: 7,
+  24: 9,
+  26: 10,
+  30: 11,
+  32: 11,
+  34: 11,
+  38: 13,
+  42: 14,
+  64: 18,
+  68: 20,
+};
 
 /**
  * Initials in a circle, or the person's own photograph if there is one — the initials stay the
- * spare (spec 7.5).
+ * spare (spec 7.5). The circle's colour is dealt from the palette of faces by the name itself, so
+ * two people side by side are two colours and the same person is the same colour everywhere.
  *
- * `ring` is the 2px `spark` collar the organizer and «вы» wear, and it is the only place a person
- * is marked by colour anywhere in the product.
+ * Two rings, and they are different things: `ring` is the `spark` collar the organizer wears — the
+ * only place a person is marked by colour in this product — and it lies *outside* the circle, while
+ * `ringColor` is the 1.5 hairline in the colour of whatever is underneath, which is what lets
+ * overlapping circles cut each other. An organizer inside a stack wears both.
  */
 export function Avatar({
   name,
@@ -36,7 +56,7 @@ export function Avatar({
   size?: number;
   uri?: string | null;
   ring?: boolean;
-  /** What the ring is drawn in when it is separating overlapping circles rather than marking one. */
+  /** What the hairline is drawn in when it is separating overlapping circles rather than marking one. */
   ringColor?: string;
   /** A contact that has just been removed: the circle goes out without leaving the row. */
   gone?: boolean;
@@ -45,9 +65,9 @@ export function Avatar({
   const { color } = useTheme();
   const styles = useStyles();
   // No border at all unless there is one to draw: a transparent 0-wide ring still writes its colour
-  // into the style, and a circle that carries `spark` without wearing it is a lie the next reader
-  // has to check by eye.
-  const collar = ring || ringColor ? { borderWidth: 2, borderColor: ringColor ?? color.spark } : null;
+  // into the style, and a circle that carries a hairline it cannot be seen against is a lie the next
+  // reader has to check by eye.
+  const collar = ringColor ? { borderWidth: 1.5, borderColor: ringColor } : null;
   const circle = { width: size, height: size, borderRadius: size / 2, ...collar };
 
   return (
@@ -55,7 +75,15 @@ export function Avatar({
       // The initials repeat a name that is written out beside them on every screen that draws one.
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={[styles.avatar, circle, gone ? styles.avatarGone : null, style]}
+      style={[
+        styles.avatar,
+        circle,
+        // Spec 7.5: the organizer's collar is a shadow and not a border, so it can stand outside the
+        // hairline instead of replacing it.
+        ring ? { boxShadow: `0 0 0 1.5px ${color.spark}` } : null,
+        gone ? styles.avatarGone : { backgroundColor: faceOf(name) },
+        style,
+      ]}
     >
       {uri ? (
         <Image source={{ uri }} contentFit="cover" style={[StyleSheet.absoluteFill, circle]} />
@@ -81,8 +109,14 @@ export function initials(name: string): string {
 }
 
 /**
- * Three circles overlapping by 12, each ringed in the colour of whatever they lie on so the edges
- * stay apart — the sign on the «Контакты» row of the account screen (spec 7.5).
+ * Circles overlapping in a row, each ringed in the colour of whatever they lie on so the edges stay
+ * apart — the sign on the «Контакты» row of the account screen, and the faces inside the «смотрят
+ * сейчас» pill (spec 7.5). They overlap by 12 at 34 and by 7 at 24: the smaller the circle, the less
+ * of it there is to give away.
+ *
+ * Four circles at most. Past that the fourth stops being a face and becomes «+N», because a row of
+ * faces is a glance and not a list — and the number it carries is the people it stands for, the
+ * three drawn ones excluded.
  */
 export function AvatarStack({
   names,
@@ -95,26 +129,108 @@ export function AvatarStack({
   size?: number;
 }) {
   const { color } = useTheme();
+  const styles = useStackStyles();
+  const under = on ?? color.surface;
+  const over = { marginLeft: size >= 30 ? -12 : -7 };
+  const rest = names.length > 4 ? names.length - 3 : 0;
+  const faces = rest ? names.slice(0, 3) : names.slice(0, 4);
 
   return (
-    <View style={stack.row}>
-      {names.slice(0, 3).map((name, i) => (
+    <View style={styles.row}>
+      {faces.map((name, i) => (
         <Avatar
           key={`${name}-${i}`}
           name={name}
           size={size}
-          ringColor={on ?? color.surface}
-          style={i === 0 ? undefined : stack.over}
+          ringColor={under}
+          style={i === 0 ? undefined : over}
         />
       ))}
+      {rest ? (
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={[
+            styles.more,
+            over,
+            { width: size, height: size, borderRadius: size / 2, borderColor: under },
+          ]}
+        >
+          <Text role="row" style={{ fontSize: LETTERS[size] ?? Math.round(size / 3) }}>
+            +{rest}
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 }
 
-const stack = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center' },
-  over: { marginLeft: -12 },
-});
+/**
+ * Spec 7.5 — «смотрят сейчас»: the faces of the people watching a montage go out, the live dot, and
+ * how many they are. It stands on the right of the bar over a montage on air and nowhere else, and
+ * with nobody watching it is not drawn at all — the screen decides that, because zero is a fact
+ * about people and not a state of a pill.
+ *
+ * One thing to a screen reader, because three faces and a number read out one at a time are noise:
+ * the whole pill is the sentence the screen hands it.
+ */
+export function WatchingPill({
+  names,
+  count,
+  label,
+  style,
+}: {
+  names: readonly string[];
+  /** Said as a figure — it can be larger than the faces there is room for. */
+  count: number;
+  /** «Смотрят сейчас: 3» — the sentence, from the screen. */
+  label: string;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const { color } = useTheme();
+  const styles = useStackStyles();
+
+  return (
+    <View accessible accessibilityLabel={label} style={[styles.pill, style]}>
+      {/* The hairline is `ink` and not the pill's own fill: at 24 the circles overlap by 7, and the
+          darker cut is what keeps three faces from reading as one shape. */}
+      <AvatarStack names={names} size={24} on={color.ink} />
+      <View style={styles.pillCount}>
+        <LiveDot />
+        <Text role="meta" style={styles.pillFigure}>
+          {count}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+const useStackStyles = themed(({ color }) =>
+  StyleSheet.create({
+    row: { flexDirection: 'row', alignItems: 'center' },
+    more: {
+      borderWidth: 1.5,
+      backgroundColor: color.raise,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    pill: {
+      height: height.watchPill,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingLeft: 6,
+      paddingRight: space.s3 - 2,
+      borderRadius: radius.pill,
+      backgroundColor: color.surface,
+      borderWidth: 1,
+      borderColor: color.line,
+    },
+    pillCount: { flexDirection: 'row', alignItems: 'center', gap: space.s1 },
+    // The figure is read in `paper` and a weight heavier than a meta line: it is the point of the pill.
+    pillFigure: { color: color.paper, fontFamily: font.semi },
+  }),
+);
 
 /**
  * Spec 7.5 — a person inside a memory: the circle, their name with whatever badge the screen hangs

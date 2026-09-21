@@ -1,7 +1,7 @@
 import { beforeAll, expect, test } from 'vitest';
 
 import { BadgeContribution, BadgeOrganizer } from '@/kit/badge';
-import { Avatar, AvatarStack, RowContact, RowMember, initials } from '@/kit/member';
+import { Avatar, AvatarStack, RowContact, RowMember, WatchingPill, initials } from '@/kit/member';
 import { allDifferent, story } from '@/kit/story';
 import { setTheme } from '@/theme';
 
@@ -38,23 +38,68 @@ test('the five kinds of circle are five kinds', () => {
     separated: <Avatar name="Марк Ковалёв" ringColor="#16161F" />,
     photo: <Avatar name="Марк Ковалёв" uri="https://bucket.example/m.jpg" />,
   });
-  // The collar is `spark` — the one place a person is marked by colour.
-  expect(story(<Avatar name="Марк Ковалёв" ring />)).toContain('rgba(228,255,79,1.00)');
+  // The collar is `spark`, and it lies outside the circle: the one place a person is marked by
+  // colour, and the one ring that has to coexist with the hairline of a stack.
+  expect(story(<Avatar name="Марк Ковалёв" ring />)).toContain('0 0 0 1.5px #E4FF4F');
+  expect(story(<Avatar name="Марк Ковалёв" ring ringColor="#16161F" />)).toContain('1.5px');
   // A photograph takes the circle whole, and the initials stay the spare.
   expect(story(<Avatar name="Марк Ковалёв" uri="https://bucket.example/m.jpg" />)).not.toContain(
     'МК',
   );
 });
 
-test('a stack of three overlaps and each circle is ringed in what it lies on', () => {
+test('a face takes its colour from the name, and the same name is the same colour', () => {
+  // Spec 2 — the palette of faces: dealt out per person, carrying no meaning at all. What it must
+  // do is hold still, or one person is two people between two screens.
+  const anya = story(<Avatar name="Аня Петрова" />);
+  expect(anya).toBe(story(<Avatar name="Аня Петрова" />));
+  expect(anya).not.toBe(story(<Avatar name="Марк Ковалёв" />));
+  // One of the six and nothing else.
+  expect(anya).toMatch(
+    /rgba\((91,75,138|47,94,99|122,75,58|62,90,46|90,62,94|58,74,110),1\.00\)/,
+  );
+});
+
+test('every size the layout draws a circle at is its own size, letters and all', () => {
+  allDifferent(
+    Object.fromEntries(
+      [16, 24, 30, 32, 34, 38, 42, 64, 68].map((size) => [
+        String(size),
+        <Avatar name="Марк Ковалёв" size={size} />,
+      ]),
+    ),
+  );
+  // 16 in a day gap carries 6px of letters; 68 on the account carries 20.
+  expect(story(<Avatar name="Марк Ковалёв" size={16} />)).toContain('font-size:6px');
+  expect(story(<Avatar name="Марк Ковалёв" size={68} />)).toContain('font-size:20px');
+});
+
+test('a stack overlaps by what its circles can spare, and stops at four', () => {
   const stack = story(<AvatarStack names={['Аня', 'Марк', 'Лиза']} on="#16161F" />);
   expect(stack).toContain('АН');
   expect(stack).toContain('МА');
   expect(stack).toContain('ЛИ');
-  // Only three, however many were handed over — the sign is a sign, not a list.
-  const many = story(<AvatarStack names={['Аня', 'Марк', 'Лиза', 'Ира']} on="#16161F" />);
-  expect(many.match(/data-glyph/g)).toBeNull();
+  // Spec 7.5: −12 at 34, −7 at 24 — the smaller the circle, the less of it there is to give away.
+  expect(stack).toContain('margin-left:-12px');
+  expect(story(<AvatarStack names={['Аня', 'Марк']} size={24} on="#16161F" />)).toContain(
+    'margin-left:-7px',
+  );
+  // Four faces are four faces; past that the fourth circle becomes the count of everyone left.
+  expect(story(<AvatarStack names={['Аня', 'Марк', 'Лиза', 'Ира']} on="#16161F" />)).toContain('ИР');
+  const many = story(<AvatarStack names={['Аня', 'Марк', 'Лиза', 'Ира', 'Пётр']} on="#16161F" />);
+  expect(many).toContain('+2');
   expect(many).not.toContain('ИР');
+});
+
+test('the watching pill says how many are watching, in one sentence and not four', () => {
+  const pill = story(
+    <WatchingPill names={['Аня', 'Марк', 'Лиза']} count={3} label="Смотрят сейчас: 3" />,
+  );
+  expect(pill).toContain('aria-label="Смотрят сейчас: 3"');
+  expect(pill).toContain('>3<');
+  // Three faces at 24, overlapping by 7 and cut apart by a hairline in the colour under them.
+  expect(pill).toContain('margin-left:-7px');
+  expect(pill).toContain('font-size:9px');
 });
 
 test('a member row carries the name, a whole phrase under it, and the mark of what they brought', () => {

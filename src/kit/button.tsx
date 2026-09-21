@@ -19,10 +19,11 @@ export type ButtonVariant =
   | 'small'
   | 'quiet'
   | 'danger'
-  | 'danger-outline';
+  | 'danger-outline'
+  | 'dashed';
 
 /** The heights of spec 4, by the place a button stands in rather than by the number. */
-export type ButtonSize = 'xl' | 'lg' | 'md' | 'sm' | 'xs';
+export type ButtonSize = 'xl' | 'lg' | 'md' | 'sm' | 'xs' | 'xxs';
 
 const SIZES: Record<ButtonSize, number> = {
   // Spec 7.2 gives the dangerous button two heights, and the taller one has exactly one place in the
@@ -32,6 +33,8 @@ const SIZES: Record<ButtonSize, number> = {
   md: height.sheetButton,
   sm: height.small,
   xs: height.rowButton,
+  // The smallest thing in the product that is still a button with words in it: «Свой трек».
+  xxs: height.roundTiny,
 };
 
 /** What each variant stands at unless a caller says otherwise. */
@@ -43,6 +46,8 @@ const DEFAULT_SIZE: Record<ButtonVariant, ButtonSize> = {
   quiet: 'sm',
   danger: 'lg',
   'danger-outline': 'lg',
+  // «Новый лейбл», the taller of the two dashed ones.
+  dashed: 'md',
 };
 
 /** The loud ones run the width they are given; the two quiet ones are as wide as their words. */
@@ -54,6 +59,7 @@ const DEFAULT_WIDE: Record<ButtonVariant, boolean> = {
   quiet: false,
   danger: true,
   'danger-outline': true,
+  dashed: true,
 };
 
 export type ButtonProps = {
@@ -117,6 +123,10 @@ export function Button({
         styles.btn,
         { minHeight: tall },
         fill(theme, variant, off, hovered),
+        // Spec 7.2 draws the dashed one twice and squares it off only where it is tall: «Новый
+        // лейбл» at 52 is a box with a hole in it, «Свой трек» at 32 is a pill like every other chip
+        // in the row it stands in.
+        variant === 'dashed' && tall >= height.sheetButton ? styles.boxed : null,
         variant === 'quiet' || variant === 'small' ? styles.tight : null,
         (wide ?? DEFAULT_WIDE[variant]) ? styles.wide : null,
         pressed && !reduced ? PRESS : null,
@@ -152,6 +162,9 @@ function contentColor({ color }: Theme, variant: ButtonVariant, disabled: boolea
   }
 }
 
+/** The one dashed border in the kit, and the reason `lineQuiet` exists (spec 2). */
+const DASHED: ViewStyle = { borderStyle: 'dashed', backgroundColor: 'transparent' };
+
 /** Fill, border and — on the main button alone — the shadow that names it the main one. */
 function fill(
   { color, shadow }: Theme,
@@ -178,19 +191,33 @@ function fill(
       return { backgroundColor: color.dangerFill };
     case 'danger-outline':
       return { borderColor: color.danger, backgroundColor: 'transparent' };
+    case 'dashed':
+      return { ...DASHED, borderColor: color.lineQuiet };
     case 'quiet':
       return {};
   }
 }
 
 /**
- * Spec 7.2 — the round button, at the five diameters the layout draws: 56 at the foot of the
- * gallery, 48 in the viewer, 44 in a bar, 36 in a row, 32 on a banner. Under 44 the drawn size
- * stays and the finger target grows out to 44 (spec 10.2).
+ * Spec 7.2 — the round button, at the six diameters the layout draws: 56 at the foot of the gallery,
+ * 48 on the glass bar and in the viewer, 44 in a bar, 40 in a track row, 36 in a row, 32 on a
+ * banner. Under 44 the drawn size stays and the finger target grows out to 44 (spec 10.2).
+ *
+ * The two glasses are two tones and not one: `glass` is the bar over the feed — `ink` at 62% behind
+ * a blur, which is what keeps a white glyph readable over a wall of photographs — and `viewer` is
+ * the paper-tinted glass of the frame window, where the picture underneath is the whole point.
  *
  * `label` is not optional: a glyph alone says nothing to a screen reader.
  */
-export type RoundTone = 'surface' | 'ghost' | 'glass' | 'paper' | 'spark' | 'danger';
+export type RoundTone =
+  | 'surface'
+  | 'raise'
+  | 'ghost'
+  | 'glass'
+  | 'viewer'
+  | 'paper'
+  | 'spark'
+  | 'danger';
 
 export function IconButton({
   icon,
@@ -224,11 +251,13 @@ export function IconButton({
 }) {
   const { hovered, focused, props } = useHoverFocus();
   const reduced = useReducedMotion();
-  const { color } = useTheme();
+  const theme = useTheme();
+  const { color } = theme;
   const styles = useStyles();
-  const focusRing = useFocusRing();
+  // Spec 2.5: held in, the button is filled with `accent` itself, so its ring is drawn in `paper`.
+  const focusRing = useFocusRing(on === true);
   const lit = on ?? false;
-  const glyph = disabled ? color.faint : lit ? color.sparkInk : (tint ?? roundGlyph(color, tone));
+  const glyph = disabled ? color.faint : lit ? color.onFill : (tint ?? roundGlyph(color, tone));
 
   return (
     <Pressable
@@ -244,7 +273,7 @@ export function IconButton({
       style={({ pressed }) => [
         styles.round,
         { width: size, height: size, borderRadius: size / 2 },
-        roundFill(color, tone, lit, hovered),
+        roundFill(theme, tone, lit, hovered),
         disabled ? styles.off : null,
         pressed && !reduced ? PRESS : null,
         focused ? focusRing : null,
@@ -284,6 +313,12 @@ export function IconButton({
 function roundGlyph(color: Theme['color'], tone: RoundTone): string {
   switch (tone) {
     case 'surface':
+    // Raised above a card — the ± of the length slider. A fill of its own, so a full-voice glyph.
+    case 'raise':
+    // Glass is a fill: the layout reads every glyph on both glasses in `paper`, and `muted` on a
+    // pane lying over a photograph is a glyph that disappears into the brightest frame behind it.
+    case 'glass':
+    case 'viewer':
       return color.paper;
     case 'paper':
       return color.ink;
@@ -299,9 +334,16 @@ function roundGlyph(color: Theme['color'], tone: RoundTone): string {
 
 /** The colour under the spark dot: the button's own fill, or the screen where there is no fill. */
 function roundBacking(color: Theme['color'], tone: RoundTone, on: boolean): string {
-  if (on) return color.spark;
+  if (on) return color.accent;
   switch (tone) {
+    case 'raise':
+      return color.raise;
     case 'surface':
+    // Glass has no colour of its own — it is `surface` thinned over whatever is behind it — so the
+    // ring takes the opaque version. A ring in the photograph's own colours is not one anybody can
+    // draw, and the dot on the glass filter button is the only place this is ever seen.
+    case 'glass':
+    case 'viewer':
       return color.surface;
     case 'paper':
       return color.paper;
@@ -313,17 +355,30 @@ function roundBacking(color: Theme['color'], tone: RoundTone, on: boolean): stri
 }
 
 function roundFill(
-  color: Theme['color'],
+  { color, shadow }: Theme,
   tone: RoundTone,
   on: boolean,
   hovered: boolean,
 ): ViewStyle {
-  if (on) return { backgroundColor: color.spark };
+  // Spec 7.2 — held in: `accent`, a white hairline and the shadow. The shadow is what tells it apart
+  // from a button that is merely drawn on the accent, and it is the only round one that carries one.
+  if (on)
+    return {
+      backgroundColor: color.accent,
+      borderColor: 'rgba(255,255,255,0.14)',
+      boxShadow: shadow.round,
+    };
   switch (tone) {
     case 'surface':
       return { backgroundColor: color.surface, borderColor: color.line };
-    // The viewer's glass: there is no surface behind a button standing over a photograph.
+    // Spec 7.2: raised, and without a border — the lift is the fill.
+    case 'raise':
+      return { backgroundColor: color.raise };
+    // The glass of a bar standing over the feed — `ink` behind a blur, with its own hairline.
     case 'glass':
+      return { backgroundColor: photo.bar, borderColor: photo.barEdge };
+    // The viewer's glass: there is no surface behind a button standing over a photograph.
+    case 'viewer':
       return { backgroundColor: photo.glass };
     case 'paper':
       return { backgroundColor: color.paper };
@@ -349,6 +404,7 @@ const useStyles = themed(({ color }) =>
     },
     // Spec 7.2: the quiet one and the small one both pull their sides in.
     tight: { paddingHorizontal: space.s3 },
+    boxed: { borderRadius: radius.cell },
     // A small button never shrinks when the row beside it runs long.
     wide: { width: '100%', flexShrink: 1 },
     round: {

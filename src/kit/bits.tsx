@@ -43,6 +43,25 @@ export function MetaDot({ onPhoto }: { onPhoto?: boolean }) {
 }
 
 /**
+ * The live dot (spec 7.4): 6px of `danger` — the one place in the product where that colour is not
+ * danger but «right now». It stands before the count of who is watching and inside the «СЕЙЧАС» mark
+ * on a frame, and it never blinks: a dot that blinks is asking to be looked at, and this one is only
+ * saying that something is running.
+ *
+ * Hidden from screen readers: whatever it stands beside already says the word.
+ */
+export function LiveDot({ style }: { style?: StyleProp<ViewStyle> }) {
+  const styles = useStyles();
+  return (
+    <View
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={[styles.live, style]}
+    />
+  );
+}
+
+/**
  * The wizard's step scale: equal 3px segments with 6 between them. The passed ones and the current
  * one are `accent`; the future ones are `line`.
  *
@@ -300,6 +319,7 @@ const useStyles = themed(({ color }) =>
     dividerGrow: { flex: 1 },
     dot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: color.lineStrong },
     dotOnPhoto: { backgroundColor: photo.dot },
+    live: { width: 6, height: 6, borderRadius: 3, backgroundColor: color.danger },
     scale: { flexDirection: 'row', gap: 6 },
     scaleStep: { flex: 1, height: 3, borderRadius: radius.pill, backgroundColor: color.line },
     scaleAccent: { backgroundColor: color.accent },

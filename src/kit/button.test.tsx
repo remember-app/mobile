@@ -19,9 +19,10 @@ const VARIANTS: ButtonVariant[] = [
   'quiet',
   'danger',
   'danger-outline',
+  'dashed',
 ];
 
-test('the seven buttons are seven different buttons', () => {
+test('the eight buttons are eight different buttons', () => {
   allDifferent(
     Object.fromEntries(
       VARIANTS.map((variant) => [variant, <Button variant={variant} label="Смонтировать" />]),
@@ -76,7 +77,17 @@ test('a button waiting on the server swallows the press and says the action in t
   expect(story(<Button variant="primary" label="Отправить" busy />)).toContain('Отправить');
 });
 
-test('the five heights are five heights, and each variant starts at its own', () => {
+test('the dashed button is a hole rather than a thing, and it is square only where it is tall', () => {
+  // Spec 7.2: 1px dashed `lineQuiet` (#3A3747) and no fill at all — «Новый лейбл» and «Свой трек».
+  const big = story(<Button variant="dashed" label="Новый лейбл" />);
+  expect(big).toContain('rgba(58,55,71,1.00)');
+  expect(big).toContain('border-top-style:dashed');
+  // 52 is a box with a 16 radius; 32 is a pill, like every chip in the row it stands in.
+  expect(big).not.toBe(story(<Button variant="dashed" label="Свой трек" size="xxs" />));
+  expect(story(<Button variant="primary" label="Создать" />)).not.toContain('dashed');
+});
+
+test('the six heights are six heights, and each variant starts at its own', () => {
   allDifferent({
     // 60, and only «Выйти из аккаунта» stands at it.
     xl: <Button label="Дальше" size="xl" />,
@@ -84,6 +95,7 @@ test('the five heights are five heights, and each variant starts at its own', ()
     md: <Button label="Дальше" size="md" />,
     sm: <Button label="Дальше" size="sm" />,
     xs: <Button label="Дальше" size="xs" />,
+    xxs: <Button label="Дальше" size="xxs" />,
   });
   // The main action stands at 56 and the small row button at 44 without being told.
   expect(story(<Button variant="primary" label="Дальше" />)).toBe(
@@ -133,14 +145,29 @@ test('the round button is drawn at the six diameters the layout uses', () => {
 test('every round tone is its own fill, and none of them is a word', () => {
   allDifferent({
     surface: <IconButton icon={Plus} label="Аккаунт" tone="surface" />,
+    raise: <IconButton icon={Plus} label="Короче на 5 секунд" tone="raise" />,
     ghost: <IconButton icon={Plus} label="Назад" tone="ghost" />,
-    glass: <IconButton icon={Plus} label="Закрыть" tone="glass" />,
+    glass: <IconButton icon={Plus} label="Назад" tone="glass" />,
+    viewer: <IconButton icon={Plus} label="Закрыть" tone="viewer" />,
     paper: <IconButton icon={Plus} label="Послушать" tone="paper" />,
     spark: <IconButton icon={Plus} label="Выбрать" tone="spark" />,
     danger: <IconButton icon={Plus} label="Удалить" tone="danger" />,
   });
   // The label is the only thing a screen reader has: a glyph says nothing on its own.
   expect(story(<IconButton icon={Plus} label="Фильтры" />)).toContain('aria-label="Фильтры"');
+});
+
+test('the two glasses are two glasses, and both read their glyph in full voice', () => {
+  // Spec 7.2: the bar over the feed is `ink` at 62% with a hairline of its own; the viewer's pane is
+  // paper-tinted and has none — what shows through it is the frame itself.
+  const bar = story(<IconButton icon={Plus} label="Назад" tone="glass" size={48} />);
+  expect(bar).toContain('rgba(22,22,31,0.62)');
+  expect(bar).toContain('rgba(255,255,255,0.09)');
+  expect(bar).toContain('stroke="#F5F3EE"');
+
+  const viewer = story(<IconButton icon={Plus} label="Закрыть" tone="viewer" size={48} />);
+  expect(viewer).toContain('rgba(245,243,238,0.10)');
+  expect(viewer).not.toContain('rgba(255,255,255,0.09)');
 });
 
 test('a round button that stays in is a switch, and one that fires is not', () => {
@@ -154,9 +181,10 @@ test('a round button that stays in is a switch, and one that fires is not', () =
   expect(off).toContain('role="togglebutton"');
   expect(held).toContain('role="togglebutton"');
   expect(off).not.toBe(held);
-  // Held in, it is filled with `spark` and read in `sparkInk`.
-  expect(held).toContain('rgba(228,255,79,1.00)');
-  expect(off).not.toContain('rgba(228,255,79,1.00)');
+  // Spec 7.2 — held in: `accent`, a white hairline and the shadow that no other round button has.
+  expect(held).toContain('rgba(75,91,255,1.00)');
+  expect(held).toContain('6px 18px');
+  expect(off).not.toContain('6px 18px');
 });
 
 test('a round button standing on a fill of its own reads its glyph in full voice', () => {
