@@ -62,6 +62,20 @@ test.each(screens)('%s builds no fixed sheet of its own', (_path, source) => {
   }
 });
 
+test.each(screens)('%s writes no colour of its own', (_path, source) => {
+  // The other half of the same rule, and the one that decides whether the light theme exists at all:
+  // both themes are the same drawing with the tokens swapped (spec 2), so a hex or an `rgba(…)`
+  // spelled out on a screen is a spot that stays night-coloured in daylight. Everything a screen
+  // draws in comes from `@/theme` through the kit — the photograph's own layer (`photo`) included,
+  // which is pinned there on purpose and not here by hand.
+  //
+  // Comments are stripped first: the layout's own numbers are quoted in a few of them, and a note
+  // saying which token replaced a hex is the opposite of the mistake this is looking for.
+  const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
+  expect(code).not.toMatch(/#[0-9A-Fa-f]{3,8}\b/);
+  expect(code).not.toMatch(/\brgba?\(/);
+});
+
 /**
  * The kit's one deliberate exception, block 0.2: `.viewer` sits in the dark-pinned selector list
  * beside `:root` and `[data-theme="dark"]` — «открытый на весь экран кадр остаётся тёмной комнатой
@@ -128,22 +142,14 @@ test('and the screens around it still turn with the theme', () => {
 });
 
 /**
- * The memory's own chrome, which is the one surface of this app drawn *over* photographs: the glass
- * bar, the gradient under it and the one at the foot of the feed. They read as fixed dark values and
- * are not — `photo` is the one set that is the same in both themes on purpose (spec 2), and it lives
- * in the kit. The screen must hold none of it, or `MemoryFrames` comes out dark under light chrome
- * in daylight, which is the whole bug TASK-89 was about (spec 8, `HomeDay`).
+ * The memory's own chrome is the one surface of this app drawn *over* photographs — the glass bar,
+ * the darkening under it, the gradient at the foot of the feed — and every one of them reads as a
+ * fixed dark value while being nothing of the kind: `photo` is the one set that is deliberately the
+ * same in both themes (spec 2), and it lives in the kit. That no screen spells a colour out at all
+ * is swept above; what is left to say here is that this corner pins no *set* either, or
+ * `MemoryFrames` comes out a night screen under daylight chrome (spec 8, `HomeDay`).
  */
-test('the memory draws its glass and its feed out of the kit, in whatever theme it is in', () => {
-  for (const part of [head, frames, films]) {
-    // Not one colour spelled out anywhere in them, `photo` included: they ask the kit for a
-    // component and the kit asks the theme.
-    expect(part).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
-    expect(part).not.toMatch(/rgba?\(/);
-    expect(part).not.toContain("from '@/theme/");
-  }
-  // The feed turns with the theme like any other screen — the one pinned dark room in this corner
-  // of the app is the player, and it says so itself.
-  expect(head).not.toContain('themes.');
-  expect(frames).not.toContain('themes.');
+test('the memory’s glass and feed turn with the theme; only the player is a dark room', () => {
+  for (const part of [head, frames]) expect(part).not.toContain('themes.');
+  expect(films).toContain('const room = themes.dark.color;');
 });

@@ -54,6 +54,7 @@ test('one roster, one number: «ждать нечего» is counted, a viewer i
     username: null,
     role,
     contribution_status: status,
+    media_count: 0,
   });
   // The same four the api's own test counts (TASK-166): two people who are done with in either
   // sense, one still adding, and a viewer who was never going to bring anything.

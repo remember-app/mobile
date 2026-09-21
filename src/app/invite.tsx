@@ -58,8 +58,9 @@ export default function InviteScreen() {
         // in the middle of the call cannot lose the token it is still working on.
         clearInvite();
         // replace, not push: a link that has been spent must not sit in the back stack. Onto the
-        // memory itself — it is one screen now (TASK-207), and whoever just joined is shown what
-        // they joined; who else is in it is one press away, on the capsule at the top of the feed.
+        // memory they were called to, which is what the layout leads an accepted invite to
+        // («дальше — воспоминание, куда звали»); who is in it is behind the capsule over the feed,
+        // and used to be a face of this same screen until TASK-209 gave it one of its own.
         router.replace({ pathname: '/memory/[id]', params: { id: memory.id } });
       },
       (e: unknown) => {
