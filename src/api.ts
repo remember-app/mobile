@@ -518,6 +518,52 @@ export function listMedia(token: string, memoryId: string): Promise<MediaItem[]>
 }
 
 /**
+ * Everything about one frame the picture itself does not say — the sheet «Сведения о кадре» (spec 8,
+ * `SheetFrameInfo`). Read by every member, a viewer included.
+ *
+ * Half of it is written by the montage worker rather than by the api, exactly as `width` and
+ * `height` are: the camera, the place, and which finished videos this frame stands in. A record
+ * older than that worker carries `null` in every one of those fields, and `file_name` is missing
+ * outright for anything uploaded before the app started sending a name — so «нет такого поля» and
+ * «поле пустое» are one thing here, and the sheet draws neither.
+ */
+export type FrameInfo = {
+  id: string;
+  /** Absent, never null, when the file arrived without a name. */
+  file_name?: string;
+  size_bytes: string;
+  captured_at: string | null;
+  created_at: string;
+  width: number | null;
+  height: number | null;
+  camera_model: string | null;
+  focal_length_mm: number | null;
+  aperture: number | null;
+  /** The place as coordinates and nothing else: no geocoder, so there is no name to show. */
+  latitude: number | null;
+  longitude: number | null;
+  /** Who brought it, and how many frames that person brought to *this* memory. */
+  uploaded_by: Contact & { media_count: number };
+  /**
+   * The finished montages this frame stands in, newest first, and the second it stands at in each.
+   * One frame can legitimately appear twice in the same montage, so the id alone is not a key.
+   */
+  montages: { id: string; duration_seconds: number | null; start_seconds: number }[];
+};
+
+/**
+ * The sheet's one read. Nothing signed comes back and no bucket is asked, so this is the one media
+ * route with no 503 in it: the sheet opens over a frame the app is already showing.
+ */
+export function fetchFrameInfo(
+  token: string,
+  memoryId: string,
+  mediaId: string,
+): Promise<FrameInfo> {
+  return request(`/memories/${memoryId}/media/${mediaId}`, { token });
+}
+
+/**
  * A signed link to the *original* — the file as it was sent, not the derivative the gallery draws.
  * Any member may ask, a viewer included. 404 for a record that is still uploading (there are no
  * bytes to sign yet) and for one of another memory; 503 while the api has no bucket. The link is

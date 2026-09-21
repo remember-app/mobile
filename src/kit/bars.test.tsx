@@ -161,6 +161,28 @@ test('the viewer’s bar floats on glass, because a photograph is the only surfa
   expect(viewer).toContain('Закрыть');
 });
 
+test('the pill in the middle of it is a button where it leads somewhere', () => {
+  // Spec 7.1, detail 5: the whole capsule opens the frame's own sheet, and the `chevron-down` on it
+  // is what says so. A pill with nowhere to go keeps its two floors and grows no arrow.
+  const opens = story(
+    <ViewerBar
+      date="13 сентября"
+      meta="21:47 · Марк Ковалёв"
+      label="Сведения о кадре: 13 сентября, 21:47 · Марк Ковалёв"
+      onPress={() => {}}
+    />,
+  );
+  expect(opens).toContain('role="button"');
+  expect(opens).toContain('aria-label="Сведения о кадре: 13 сентября, 21:47 · Марк Ковалёв"');
+  expect(opens).toContain('data-glyph');
+  allDifferent({
+    plain: <ViewerBar date="13 сентября" meta="21:47 · Марк Ковалёв" />,
+    opens: (
+      <ViewerBar date="13 сентября" meta="21:47 · Марк Ковалёв" label="Сведения" onPress={() => {}} />
+    ),
+  });
+});
+
 test('the bar over a montage on air carries two floors and whatever stands on its right', () => {
   const live = (
     <AppBar

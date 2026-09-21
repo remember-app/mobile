@@ -9,7 +9,7 @@ vi.mock('expo-secure-store', () => ({
   setItemAsync: async () => {},
 }));
 
-import type { MediaItem, Member, Memory } from '@/api';
+import type { FrameInfo, MediaItem, Member, Memory } from '@/api';
 // The day is written by `@/dates` and read here from the same place: what is pinned below is which
 // day the line carries, not how this phone's locale spells it.
 import { formatEventDates, startOfDay } from '@/dates';
@@ -17,6 +17,7 @@ import {
   arranged,
   FILTER_NONE,
   filtering,
+  frameFacts,
   frameIndex,
   frameOf,
   framesByDay,
@@ -32,6 +33,9 @@ import {
   stillPreparing,
   type Filter,
 } from '@/frames';
+// The words of the sheet, read from the dictionary rather than repeated here: what is pinned below
+// is which lines are drawn, and the wording is `strings.ts`'s own business.
+import { ru } from '@/strings';
 
 // The gallery sat in «Preparing…» for good because it read the list once and never again, and
 // nothing on screen ever asked whether there was a reason to look. These are the two questions the
@@ -217,6 +221,71 @@ test('how heavy a file is, written the way the language writes a number', () => 
   // it rather than to write «0 МБ» under somebody's photograph.
   expect(megabytes(record({ size_bytes: '' }))).toBeNull();
   expect(megabytes(record({ size_bytes: 'nonsense' }))).toBeNull();
+});
+
+/**
+ * The frame's own sheet (spec 8, `SheetFrameInfo`). Half of what it shows is written by the montage
+ * worker out of the original's metadata, so «сервер этого не знает» is the ordinary case and not the
+ * broken one — these pin the one rule the whole sheet stands on: a line nobody can fill is not drawn.
+ */
+
+/** One frame as its own route hands it over, with everything the worker writes left empty. */
+const told = (over: Partial<FrameInfo> = {}): FrameInfo => ({
+  id: 'a',
+  size_bytes: '4200000',
+  captured_at: '2026-09-13T18:47:00.000Z',
+  created_at: '2026-09-15T09:12:00.000Z',
+  width: null,
+  height: null,
+  camera_model: null,
+  focal_length_mm: null,
+  aperture: null,
+  latitude: null,
+  longitude: null,
+  uploaded_by: { id: 'u', username: 'mark', name: 'Марк Ковалёв', media_count: 96 },
+  montages: [],
+  ...over,
+});
+
+test('the sheet says only what the server knows, and never a line with a dash in it', () => {
+  const whole = frameFacts(
+    told({
+      file_name: 'IMG_4471.HEIC',
+      width: 4032,
+      height: 3024,
+      camera_model: 'iPhone 15 Pro',
+      focal_length_mm: 24,
+      aperture: 1.8,
+      latitude: 55.518,
+      longitude: 37.53,
+    }),
+    ru,
+    'ru',
+  );
+  expect(whole).toEqual([
+    { label: 'Файл', value: 'IMG_4471.HEIC · 4,2 МБ' },
+    { label: 'Размер', value: '4032 × 3024' },
+    { label: 'Камера', value: 'iPhone 15 Pro · 24 мм · f/1.8' },
+    // Coordinates as the numbers they are: naming a place takes a geocoder the product has not got.
+    { label: 'Место', value: '55.518, 37.53' },
+  ]);
+
+  // The same frame as an older record: the worker never looked at it, and every field it fills is
+  // empty. Three of the four lines go with them — and «Файл» keeps the one thing that is known.
+  expect(frameFacts(told(), ru, 'ru')).toEqual([{ label: 'Файл', value: '4,2 МБ' }]);
+});
+
+test('a line is built out of the pieces that are there, and dropped when none are', () => {
+  // A camera that stamped its name and nothing else is still a camera.
+  expect(frameFacts(told({ camera_model: 'iPhone 15 Pro' }), ru, 'ru')[1]).toEqual({
+    label: 'Камера',
+    value: 'iPhone 15 Pro',
+  });
+  // Half a pair of sides is not a size, and a stray longitude is not a place.
+  const half = frameFacts(told({ width: 4032, longitude: 37.53 }), ru, 'ru');
+  expect(half.map((fact) => fact.label)).toEqual(['Файл']);
+  // And a record whose size never came down the wire loses «Файл» too, rather than saying «0 МБ».
+  expect(frameFacts(told({ size_bytes: '' }), ru, 'ru')).toEqual([]);
 });
 
 /** The memory the gallery is open on, cut down to what the line over a frame reads off it. */

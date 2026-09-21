@@ -443,18 +443,16 @@ export const en = {
   },
 
   /**
-   * `Viewer`, `ViewerVideo` and `SheetFrame` — one frame on the whole of the phone, the three things
-   * that can be done with it, and what a video carries on top of that.
-   *
-   * The two long labels are long on purpose: nothing here is written on screen, every one of them is
-   * read out or held under a finger, and «Download» over a photograph does not say where it lands.
+   * `Viewer`, `ViewerVideo`, `SheetFrame` and `SheetFrameInfo` — one frame on the whole of the
+   * phone, the three things that can be done with it, everything the picture does not say about it,
+   * and what a video carries on top of all that.
    */
   viewer: {
-    /** The right-hand glass button of the floating bar. It opens the frame's own sheet. */
+    /** The right-hand glass button of the floating bar. It drops the menu of what can be done. */
     more: 'More',
-    /** The same sheet, from the group of two in the middle of the action row. */
+    /** The pill in the middle of that bar, which raises the frame's own sheet. */
     details: 'About this frame',
-    saveToPhone: 'Save to your phone gallery',
+    saveToPhone: 'Save to your phone',
     remove: 'Delete from the memory',
     /** The line while the file is coming down to be handed on; the failure under it. */
     sharing: 'Getting it ready…',
@@ -467,6 +465,28 @@ export const en = {
     unmute: 'Turn the sound on',
     /** The scrubber, read out rather than drawn: the timecodes beside it are the visible half. */
     played: 'How much has played',
+
+    /**
+     * `SheetFrameInfo` (spec 8) — the four summary lines, who brought it, and which movies it ended
+     * up in. A line the server knows nothing about is not drawn at all, so none of these has a word
+     * for «unknown»: the absence is the answer.
+     */
+    brought: (day: string, n: number) => `brought it ${day} · ${n} frames in all`,
+    file: 'File',
+    /** The frame in pixels, which the layout calls «Размер» — the file's weight is on the line above. */
+    pixels: 'Size',
+    camera: 'Camera',
+    place: 'Place',
+    /** The units are words and the api hands over bare numbers, so they are put on here. */
+    focal: (mm: number) => `${mm} mm`,
+    aperture: (f: number) => `f/${f}`,
+    /** The place is coordinates and nothing else: naming one takes a geocoder the product has not got. */
+    coords: (lat: number, lon: number) => `${lat}, ${lon}`,
+    inFilms: 'In movies',
+    /** The second a frame stands at inside a movie, on the row that opens it. */
+    at: (runtime: string) => `at ${runtime}`,
+    /** Spec 8: a frame whose picture never arrived says so, and the strip stays where it is. */
+    notOpened: 'This frame would not open',
   },
 
   /**
@@ -1008,8 +1028,8 @@ export const ru: Strings = {
 
   viewer: {
     more: 'Ещё',
-    details: 'Подробности кадра',
-    saveToPhone: 'Сохранить в галерею телефона',
+    details: 'Сведения о кадре',
+    saveToPhone: 'Сохранить на телефон',
     remove: 'Удалить из воспоминания',
     sharing: 'Готовим к отправке…',
     shareFailed: 'Не получилось поделиться этим кадром.',
@@ -1019,6 +1039,18 @@ export const ru: Strings = {
     mute: 'Выключить звук',
     unmute: 'Включить звук',
     played: 'Сколько проиграно',
+
+    brought: (day: string, n: number) => `принёс ${day} · всего ${count(n, 'кадр', 'кадра', 'кадров')}`,
+    file: 'Файл',
+    pixels: 'Размер',
+    camera: 'Камера',
+    place: 'Место',
+    focal: (mm: number) => `${mm} мм`,
+    aperture: (f: number) => `f/${f}`,
+    coords: (lat: number, lon: number) => `${lat}, ${lon}`,
+    inFilms: 'В роликах',
+    at: (runtime: string) => `на ${runtime}`,
+    notOpened: 'Кадр не открылся',
   },
 
   montage: {
