@@ -114,16 +114,20 @@ test('a glyph can stand before the words or after them, and never instead of the
   );
 });
 
-test('the round button is drawn at the five diameters the layout uses', () => {
+test('the round button is drawn at the six diameters the layout uses', () => {
   allDifferent(
     Object.fromEntries(
-      [56, 48, 44, 36, 32].map((size) => [
+      [72, 56, 48, 44, 36, 32].map((size) => [
         String(size),
         <IconButton icon={Plus} label="Фильтры" size={size} />,
       ]),
     ),
   );
   expect(story(<IconButton icon={Plus} label="Фильтры" size={48} />)).toContain('width:48px');
+  // The glyph grows with the circle. The viewer's 72 is the one that needs it: the layout draws a
+  // 26 in it, and 22 there reads as a plate with something small lost in the middle (TASK-181).
+  expect(story(<IconButton icon={Plus} label="Пауза" size={72} />)).toContain('width="26"');
+  expect(story(<IconButton icon={Plus} label="Закрыть" size={48} />)).toContain('width="22"');
 });
 
 test('every round tone is its own fill, and none of them is a word', () => {

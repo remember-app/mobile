@@ -923,7 +923,9 @@ test('a video carries a transport and a photo carries none of it', () => {
   ]) {
     expect(viewer).toContain(part);
   }
-  expect(viewer.match(/playable !== null \? \(/g)).toHaveLength(3);
+  // Two branches and not three: the button shares the picture's own box, so it comes and goes with
+  // it (TASK-181). The scrubber is the other one.
+  expect(viewer.match(/playable !== null \? \(/g)).toHaveLength(2);
   // And the platform's own transport is off: this window draws its own, and two sets of controls
   // over one video is what the layout is written against.
   expect(viewer).toContain('nativeControls={false}');
@@ -935,6 +937,53 @@ test('a video carries a transport and a photo carries none of it', () => {
   // so walking from one video to the next would otherwise draw the one before it.
   expect(viewer).toContain('const isPlaying = player.playing;');
   expect(viewer).toContain('const at = player.currentTime;');
+});
+
+test('the 72 stands in the middle of the picture and on the glass every button over one wears', () => {
+  // Both reported off a device (TASK-181). The button hung visibly above the middle of the frame
+  // and read as a dark plate, and each had its own cause: it was centred over the whole stage,
+  // whose top padding is the floating bar's own 116, and it wore `photo.mark` — the 72 % plate a
+  // mark in the corner of a tile sits on, which over a whole photograph is a hole in it.
+  const stage = viewer.slice(viewer.indexOf('{playable !== null ? ('), viewer.indexOf('{notice ?'));
+  // One box holds the picture and the button, and it is the box the stage's padding is already out
+  // of — so the middle of the one is the middle of the other.
+  expect(stage).toContain('<View style={styles.big}>');
+  expect(stage.indexOf('<VideoView')).toBeLessThan(stage.indexOf('styles.middleOfFrame'));
+  expect(viewer).toContain('...StyleSheet.absoluteFill,');
+  // 72 and glass: the layout's own size, and the fill the «Закрыть», «Ещё» and «Поделиться» of this
+  // same window already stand on. The plate is gone, and with it the last `photo.mark` here.
+  expect(stage).toContain('size={72}');
+  expect(stage).toContain('tone="glass"');
+  expect(viewer).not.toContain('photo.mark');
+});
+
+test('the film can be wound, and only while there is a length to wind it against', () => {
+  // «Видео нельзя перемотать» off a device (TASK-181): the bar reported and took no finger at all.
+  const track = viewer.slice(viewer.indexOf('<VideoTrack'), viewer.indexOf('<Filmstrip'));
+  expect(track.replace(/\s+/g, ' ')).toContain(
+    'onSeek={ runs > 0 ? (to) => { player.currentTime = to * runs; } : undefined }',
+  );
+});
+
+test('the picture is walked with a finger, and the finger is taken on the picture alone', () => {
+  // TASK-182, and the whole lesson of TASK-123 in one line: this window never had the gesture at
+  // all — «над кадром стоит одиночный Image, а не пейджер». The other two sideways things on the
+  // screen, the strip and the scrubber, each stand on a line of their own and must never see it.
+  const swipe = viewer.slice(viewer.indexOf('const swipe = PanResponder.create'));
+  expect(viewer.match(/\{\.\.\.swipe\.panHandlers\}/g)).toHaveLength(1);
+  expect(viewer.indexOf('{...swipe.panHandlers}')).toBeLessThan(viewer.indexOf('<VideoTrack'));
+  // A tap belongs to whatever is under it; the walk asks for the finger only once it has plainly
+  // gone sideways, and by capture — so a swipe begun on the pause button is still a swipe.
+  expect(swipe).toContain('onStartShouldSetPanResponderCapture: () => false');
+  expect(swipe).toContain('Math.abs(g.dx) > SIDEWAYS && Math.abs(g.dx) > Math.abs(g.dy)');
+  // Left is the next frame of the sheet, right the one before it.
+  expect(swipe).toContain('walk(index + (g.dx < 0 ? 1 : -1));');
+  // One rule about what opens, for the finger and for the strip alike — so photographs and videos
+  // walk the same way whichever of the two asked, and the strip follows the frame in hand.
+  expect(viewer).toContain('onPick={walk}');
+  expect(viewer.match(/if \(next && mayOpen\(next\)\) onOpen\(next\.id\);/g)).toHaveLength(1);
+  expect(viewer).toContain('const index = frameIndex(frames, item.id);');
+  expect(viewer).toContain('index={index}');
 });
 
 test("the strip under the frame is the grid's own list, in the grid's own order, read once", () => {

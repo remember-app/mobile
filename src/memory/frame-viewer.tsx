@@ -15,7 +15,7 @@ import {
   VolumeX,
 } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
-import { Modal, StyleSheet, View } from 'react-native';
+import { Modal, PanResponder, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -144,6 +144,45 @@ export function FrameViewer({
     [frames],
   );
 
+  /**
+   * One step along the sheet, however it was asked for — a finger on the picture or a tap on the
+   * strip. A frame still being developed stays shut either way: there is nothing behind it to open
+   * yet, and it is the same gate the contact sheet puts on the same record.
+   */
+  function walk(to: number) {
+    const next = frames[to];
+    if (next && mayOpen(next)) onOpen(next.id);
+  }
+
+  /**
+   * The picture is walked with a finger, photographs and videos alike, across the whole gallery
+   * (TASK-182) — the gesture the window never had, which is what two reports about «не листается»
+   * were really asking for (TASK-123).
+   *
+   * It lives on the picture and nowhere else. The strip below is the one horizontal scroll in the
+   * product, and the scrubber above it is the other sideways gesture — the layout puts each on a
+   * line of its own precisely so that no two of them ever share a finger.
+   *
+   * Rebuilt every render on purpose: the release reads which frame the walk starts from, and a
+   * handler held still would go on walking from whichever frame the window was opened at.
+   */
+  const swipe = PanResponder.create({
+    // A tap belongs to whatever is under it — the pause button in the middle of a video. The walk
+    // asks for the finger only once it has plainly gone sideways, and it asks by capture so that a
+    // swipe begun on that button is still a swipe.
+    onStartShouldSetPanResponderCapture: () => false,
+    onMoveShouldSetPanResponderCapture: (_, g) =>
+      Math.abs(g.dx) > SIDEWAYS && Math.abs(g.dx) > Math.abs(g.dy),
+    onPanResponderRelease: (_, g) => {
+      // ponytail: the frame is swapped when the finger lifts, and does not travel under it. A
+      // carousel that follows the finger is a second horizontal scroll inside a modal over a
+      // player — the exact ground TASK-106 and TASK-123 were lost on. Worth building the day the
+      // movement itself is asked for, and not before.
+      if (Math.abs(g.dx) < WALK) return;
+      walk(index + (g.dx < 0 ? 1 : -1));
+    },
+  });
+
   /** The grant, asked for at the moment it is needed, with this window's place to say «no». */
   async function maySave(): Promise<boolean> {
     const granted = await maySaveToPhone();
@@ -233,18 +272,44 @@ export function FrameViewer({
       <ThemePin value="dark">
         <View style={styles.viewer}>
           {/* The frame itself, between the floating bar and the tools under it — the layout's own
-              116 above and 148 (196 with a video's scrubber) below. */}
-          <View style={[styles.stage, { paddingTop: insets.top + STAGE_TOP }]}>
+              116 above and 148 (196 with a video's scrubber) below. The finger that walks the
+              gallery is taken here, on the picture, and never on the strip or the scrubber. */}
+          <View
+            style={[styles.stage, { paddingTop: insets.top + STAGE_TOP }]}
+            {...swipe.panHandlers}
+          >
             {playable !== null ? (
               // Streamed off the signed url, index first, so it plays before the whole file is down
               // (doc-02, «Видео в галерее»). Its transport is the row under the strip and the button
               // in the middle of the frame, so the platform's own is off.
-              <VideoView
-                player={player}
-                nativeControls={false}
-                contentFit="contain"
-                style={styles.big}
-              />
+              //
+              // The picture and its button share one box, and that box is what the stage leaves
+              // after its own padding. Hung on the stage instead, the button centres itself over
+              // the padding as well — which on a phone is the 116 of floating bar, and puts it
+              // visibly above the middle of the frame (reported off a device).
+              <View style={styles.big}>
+                <VideoView
+                  player={player}
+                  nativeControls={false}
+                  contentFit="contain"
+                  style={styles.fill}
+                />
+
+                {/* Pause and play, 72 in the middle of the picture — `ViewerVideo` and nowhere
+                    else. Glass, like every other button standing on a photograph: the frame has to
+                    go on showing through it. `box-none`, so everything around the circle belongs
+                    to the picture under it. */}
+                <View style={styles.middleOfFrame} pointerEvents="box-none">
+                  <IconButton
+                    icon={isPlaying ? Pause : Play}
+                    label={isPlaying ? s.viewer.pause : s.viewer.play}
+                    size={72}
+                    tone="glass"
+                    tint={photo.on}
+                    onPress={() => (isPlaying ? player.pause() : player.play())}
+                  />
+                </View>
+              </View>
             ) : shown.uri !== null ? (
               // Whole and not cropped: the frame is shown as it was shot even when that is not the
               // shape of the phone, and what is left over at the sides is the room itself.
@@ -272,22 +337,6 @@ export function FrameViewer({
                 <Empty icon={TriangleAlert} text={s.gallery.waiting[item.status]} />
               </View>
             )}
-
-            {/* Pause and play, 72 in the middle of the picture — `ViewerVideo` and nowhere else.
-                `box-none`, so everything around the button belongs to the frame under it. */}
-            {playable !== null ? (
-              <View style={styles.middleOfFrame} pointerEvents="box-none">
-                <IconButton
-                  icon={isPlaying ? Pause : Play}
-                  label={isPlaying ? s.viewer.pause : s.viewer.play}
-                  size={72}
-                  tone="ghost"
-                  tint={photo.on}
-                  style={styles.pause}
-                  onPress={() => (isPlaying ? player.pause() : player.play())}
-                />
-              </View>
-            ) : null}
 
             {notice ? <Banner text={notice} style={styles.notice} /> : null}
           </View>
@@ -330,6 +379,16 @@ export function FrameViewer({
                 of={formatRuntime(runs) ?? ZERO}
                 value={runs > 0 ? at / runs : 0}
                 label={s.viewer.played}
+                // Dragged and pressed, not only read: a film nobody can wind is a film watched from
+                // the start every time. Nothing to wind until the length is known — the api's own,
+                // or the player's once the first `timeUpdate` has been through.
+                onSeek={
+                  runs > 0
+                    ? (to) => {
+                        player.currentTime = to * runs;
+                      }
+                    : undefined
+                }
                 sound={
                   <IconButton
                     icon={isMuted ? VolumeX : Volume2}
@@ -350,12 +409,9 @@ export function FrameViewer({
               index={index}
               style={styles.strip}
               labelAt={(to) => nameOf(frames[to], frameOf(frames[to]), to === index)}
-              // A frame still being developed stays in the strip and stays shut: there is nothing
-              // behind it to open yet. The same gate the contact sheet puts on the same record.
-              onPick={(to) => {
-                const next = frames[to];
-                if (next && mayOpen(next)) onOpen(next.id);
-              }}
+              // The same step the finger takes, asked for by name instead of by direction — so a
+              // tap on the strip and a swipe on the picture cannot disagree about what opens.
+              onPick={walk}
             />
 
             {/* Spec 8: what takes the frame out of the memory stands at the two ends, what is done
@@ -466,6 +522,12 @@ export function FrameViewer({
 /** What a timecode says before there is anything to count — «0:00» in every language. */
 const ZERO = '0:00';
 
+/** How far sideways a finger has to go before the picture takes it from whatever is under it. */
+const SIDEWAYS = 12;
+
+/** And how far in all, for a lift to mean «the next one» rather than «I changed my mind». */
+const WALK = 56;
+
 /**
  * What the floating bar takes off the top of the picture: the 48 button plus the 8 above and below
  * it. The layout's 116 is this measured from a 52 status line.
@@ -485,19 +547,15 @@ const useStyles = themed(() =>
     // The picture takes what is left between the floating bar and the tools, and is centred in it.
     stage: { flex: 1, justifyContent: 'center' },
     big: { flex: 1, width: '100%' },
+    fill: { flex: 1 },
     blank: { justifyContent: 'center' },
+    // Over the picture's own box and not the stage's, which is what puts the button in the middle
+    // of the frame rather than in the middle of what is left over above it.
     middleOfFrame: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
+      ...StyleSheet.absoluteFill,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    // The plate a mark wears on a photograph, under a button this size: the frame has to go on
-    // showing through it.
-    pause: { backgroundColor: photo.mark },
     bar: { position: 'absolute', left: 0, right: 0 },
     // Over the picture and at the foot of it: the strip below stays the only thing under it.
     notice: { position: 'absolute', left: space.s4, right: space.s4, bottom: space.s4 },

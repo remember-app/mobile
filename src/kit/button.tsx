@@ -251,7 +251,13 @@ export function IconButton({
         style,
       ]}
     >
-      <Icon icon={icon} size={size >= 48 ? 22 : size >= 40 ? 20 : 18} color={glyph} />
+      {/* The glyph grows with the circle: 22 in a 48 reads as a button, 22 in the viewer's 72
+          reads as a plate with something small lost in it. The layout draws that one at 26. */}
+      <Icon
+        icon={icon}
+        size={size >= 64 ? 26 : size >= 48 ? 22 : size >= 40 ? 20 : 18}
+        color={glyph}
+      />
       {dot ? (
         <View
           style={[

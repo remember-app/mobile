@@ -83,6 +83,30 @@ test('the video scrubber is its own line above the strip, so two gestures never 
   expect(track).toContain('aria-label="Звук"');
 });
 
+test('the scrubber takes a finger when it is given somewhere to send it, and reports when it is not', () => {
+  // «Видео нельзя перемотать: ползунок не тянется, по полосе не нажимается» — off a device
+  // (TASK-181). A bar that only reports is a film watched from the start every time.
+  const read = (
+    <VideoTrack at="0:24" of="1:08" value={0.35} label="Просмотрено" />
+  );
+  const wound = (
+    <VideoTrack at="0:24" of="1:08" value={0.35} label="Просмотрено" onSeek={() => {}} />
+  );
+  allDifferent({ read: read, wound: wound });
+  // A bar that moves says so: «adjustable» is what carries the two steps a screen reader has
+  // instead of a finger, and the one that cannot move stays what every other bar here is. The web
+  // the harness renders through calls that role `slider`; on a phone it is `adjustable`.
+  expect(story(read)).toContain('role="progressbar"');
+  expect(story(wound)).toContain('role="slider"');
+  // And the line is the same 4 either way — what grew is the share of it a finger has to hit.
+  expect(story(wound)).toContain('width:35%');
+  expect(story(wound)).toContain('left:35%');
+  // A finger past either end of the bar is held at that end, the way every other bar here holds.
+  const past = <VideoTrack at="1:08" of="1:08" value={2} label="Просмотрено" onSeek={() => {}} />;
+  expect(story(past)).toContain('width:100%');
+  expect(story(past)).toContain('left:100%');
+});
+
 test('the onboarding stack is three photographs at three angles, in two sizes', () => {
   const photos = ['https://b/1.jpg', 'https://b/2.jpg', 'https://b/3.jpg'];
   allDifferent({

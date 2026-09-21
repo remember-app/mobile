@@ -1,6 +1,14 @@
 import { Image } from 'expo-image';
-import type { ReactNode } from 'react';
-import { Animated, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { useRef, useState, type ReactNode } from 'react';
+import {
+  Animated,
+  PanResponder,
+  StyleSheet,
+  View,
+  type GestureResponderEvent,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 
 import { photo, radius, space, themed, useTheme } from '@/theme';
 
@@ -123,15 +131,26 @@ export function Progress({
   );
 }
 
+/** How far one press of a screen reader's «increment» moves the bar — a twentieth of the film. */
+const STEP = 0.05;
+
+/** What a screen reader may do to a bar it can move, since it has no finger to drag it with. */
+const STEPS = [{ name: 'increment' }, { name: 'decrement' }];
+
 /**
  * The video scrubber (spec 7.9): timecode, the bar with its `spark` handle, the running time, and
  * the sound button. It stands on a line of its own above the filmstrip so that two horizontal
  * gestures never fight over the same finger.
+ *
+ * With `onSeek` the bar is dragged and pressed as well as read: the handle follows the finger from
+ * the moment it lands anywhere along the line, and the film follows the handle. Without it the bar
+ * only reports, which is what every other bar in the product does.
  */
 export function VideoTrack({
   at,
   of,
   value,
+  onSeek,
   sound,
   label,
 }: {
@@ -141,12 +160,54 @@ export function VideoTrack({
   of: string;
   /** 0…1 */
   value: number;
+  /** Where the finger put it, 0…1. Given, the bar can be dragged and pressed; left off it cannot. */
+  onSeek?: (value: number) => void;
   /** The sound button, 36 and round; handed in so this part knows nothing about buttons. */
   sound?: ReactNode;
   label?: string;
 }) {
   const styles = useStyles();
   const clamped = Math.max(0, Math.min(1, value));
+  /**
+   * Where the finger is holding the handle, and `null` when nothing is holding it. The film is
+   * seeked all the way through the drag, but it answers back four times a second at best — so what
+   * is drawn is the finger's own place until it lifts, or the handle would stutter behind it.
+   */
+  const [held, setHeld] = useState<number | null>(null);
+  /** How wide the line is, measured rather than assumed: it is whatever the row leaves it. */
+  const width = useRef(0);
+  const shown = held ?? clamped;
+
+  // `locationX` is the touch measured against the view it landed on, which is the pad and never
+  // the line inside it: the line, the fill and the handle are all `none` to a finger, and the pad
+  // is 36 tall around a 4px bar — a target nobody has to aim at (spec 10.2).
+  const take = (e: GestureResponderEvent) => {
+    const to =
+      width.current === 0 ? 0 : Math.max(0, Math.min(1, e.nativeEvent.locationX / width.current));
+    setHeld(to);
+    onSeek?.(to);
+  };
+
+  // Rebuilt every render rather than remembered, and it costs nothing to: where the finger is comes
+  // off the event itself, never off a tally this object keeps between one touch and the next.
+  const pan = !onSeek
+    ? null
+    : PanResponder.create({
+        // A press anywhere on the line is a seek to that point, and a drag carries on from there —
+        // one gesture, so tapping and dragging cannot disagree about where the film goes.
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        // Nothing around this bar scrolls sideways — the filmstrip is a line of its own below it —
+        // so once the finger is on the handle it keeps it.
+        onPanResponderTerminationRequest: () => false,
+        onPanResponderGrant: take,
+        onPanResponderMove: take,
+        onPanResponderRelease: (e) => {
+          take(e);
+          setHeld(null);
+        },
+        onPanResponderTerminate: () => setHeld(null),
+      });
 
   return (
     <View style={styles.videoRow}>
@@ -154,13 +215,30 @@ export function VideoTrack({
         {at}
       </Text>
       <View
-        accessibilityRole="progressbar"
+        accessibilityRole={onSeek ? 'adjustable' : 'progressbar'}
         accessibilityLabel={label}
-        accessibilityValue={{ min: 0, max: 100, now: Math.round(clamped * 100) }}
-        style={styles.videoTrack}
+        accessibilityValue={{ min: 0, max: 100, now: Math.round(shown * 100) }}
+        accessibilityActions={onSeek ? STEPS : undefined}
+        onAccessibilityAction={
+          onSeek &&
+          ((e) =>
+            onSeek(
+              Math.max(
+                0,
+                Math.min(1, shown + (e.nativeEvent.actionName === 'decrement' ? -STEP : STEP)),
+              ),
+            ))
+        }
+        style={styles.videoPad}
+        onLayout={(e) => {
+          width.current = e.nativeEvent.layout.width;
+        }}
+        {...pan?.panHandlers}
       >
-        <View style={[styles.videoFill, { width: `${clamped * 100}%` }]} />
-        <View style={[styles.videoHandle, { left: `${clamped * 100}%` }]} />
+        <View style={styles.videoTrack} pointerEvents="none">
+          <View style={[styles.videoFill, { width: `${shown * 100}%` }]} />
+          <View style={[styles.videoHandle, { left: `${shown * 100}%` }]} />
+        </View>
       </View>
       <Text role="meta" style={styles.onPhoto}>
         {of}
@@ -233,7 +311,10 @@ const useStyles = themed(({ color }) =>
     fillAccent: { backgroundColor: color.accent },
     fillSpark: { backgroundColor: color.spark },
     videoRow: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },
-    videoTrack: { flex: 1, height: 4, borderRadius: radius.pill, backgroundColor: photo.glass },
+    // The line is 4 tall and the finger's share of it is 36 — the height of the sound button beside
+    // it, so the row is no taller for being draggable.
+    videoPad: { flex: 1, justifyContent: 'center', paddingVertical: space.s4 },
+    videoTrack: { height: 4, borderRadius: radius.pill, backgroundColor: photo.glass },
     videoFill: { height: '100%', borderRadius: radius.pill, backgroundColor: color.spark },
     videoHandle: {
       position: 'absolute',
