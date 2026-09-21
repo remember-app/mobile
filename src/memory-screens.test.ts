@@ -642,7 +642,12 @@ test('a placed order lands on the waiting for that montage, not back on the list
   const listed = [...montage.slice(stageAt, montage.indexOf(';', stageAt)).matchAll(/'(\w+)'/g)];
   const named = listed.map(([, stage]) => stage);
   expect(named).toHaveLength(5);
-  for (const set of [en, ru]) expect(Object.keys(set.montage.stage)).toEqual(named);
+  // Every one of them is in the dictionary, rather than the dictionary being exactly them: the
+  // journal (TASK-220) calls the last two `directing` and `assembly`, and one map holds both sets
+  // of names for one set of five stages until this screen goes.
+  for (const set of [en, ru]) {
+    expect(Object.keys(set.montage.stage)).toEqual(expect.arrayContaining(named));
+  }
 });
 
 test('a card still being made is the second road onto the waiting over it', () => {

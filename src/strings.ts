@@ -641,6 +641,13 @@ export const en = {
       story: 'The director builds the story',
       rhythm: 'Laying them out to the beat',
       cut: 'Cutting it together',
+      /**
+       * The same two stages under the names the journal calls them by (`MONTAGE_STAGES`). One map
+       * for both because they are one set of five stages: `story` and `cut` are what the waiting
+       * screen has called them since before there was a journal, and they go when it does.
+       */
+      directing: 'The director builds the story',
+      assembly: 'Cutting it together',
     },
     /** The word on the right of a stage: one that is behind, and the one being worked on. */
     stageDone: 'done',
@@ -649,6 +656,45 @@ export const en = {
     retryInMemory: 'It can be put together again from the movie’s card in the memory.',
     /** The one button under the waiting — it leaves the screen and never touches the making. */
     toMemory: 'To the memory',
+
+    /**
+     * «Монтаж в прямом эфире» (spec 7.6, 7.7) — the words the director's journal is read in. The
+     * names of the five stages are `stage` above; these are what is said *inside* one of them.
+     *
+     * The voice is the spec's own rule for this screen: first person and short — «Taking three
+     * seconds», never «the system processed». `@/montage-journal` is what turns a record into them.
+     */
+    live: {
+      /** How far along the making is, as a place in the five rather than as a percentage. */
+      stageOf: (n: number, of: number) => `Stage ${n} of ${of}`,
+      /** The estimate over the stages still to go. Deliberately approximate — it moves. */
+      leftAbout: (minutes: number) => `about ${minutes} min left`,
+      /** A stage's own time, beside what came of it. */
+      minutes: (minutes: number) => `${minutes} min`,
+      /** The decision itself, and the three ways it is qualified. */
+      take: 'Taking',
+      skip: 'Passing',
+      tookOneOf: (n: number) => `Took 1 of ${n}`,
+      /** «Taking 0:04–0:07» — the piece of a video that is going in, not the whole file. */
+      tookFrom: (from: string, to: string) => `Taking ${from}–${to}`,
+      part: (n: number) => `part ${n}`,
+      /**
+       * Why a frame was passed over, by the worker's own codes. The list is the worker's vocabulary
+       * and not a closed set — the api puts no check on it — so anything this side has no word for
+       * is `other`, which is still an honest answer about a frame nobody took.
+       */
+      reason: {
+        blur: 'Blurred',
+        exposure: 'The light is off',
+        unreadable: 'Would not open',
+        duplicate: 'A double',
+        /** Struck off by hand at the order — the director had no say in this one. */
+        excluded: 'Left out at the order',
+        /** Good enough, but the movie is only so long. */
+        no_room: 'No room left',
+        other: 'Not suitable',
+      },
+    },
 
     /** `SheetTooLittle` — raised in place of step 1, when the order would not go through. */
     tooLittleTitle: 'Too little material yet',
@@ -1163,11 +1209,33 @@ export const ru: Strings = {
       story: 'Режиссёр строит историю',
       rhythm: 'Раскладываем в ритм трека',
       cut: 'Склеиваем',
+      directing: 'Режиссёр строит историю',
+      assembly: 'Склеиваем',
     },
     stageDone: 'готово',
     stageRunning: 'идёт',
     retryInMemory: 'Собрать заново можно на карточке ролика в воспоминании.',
     toMemory: 'К воспоминанию',
+
+    live: {
+      stageOf: (n: number, of: number) => `Этап ${n} из ${of}`,
+      leftAbout: (minutes: number) => `осталось ≈ ${minutes} мин`,
+      minutes: (minutes: number) => `${minutes} мин`,
+      take: 'Беру',
+      skip: 'Мимо',
+      tookOneOf: (n: number) => `Взял 1 из ${n}`,
+      tookFrom: (from: string, to: string) => `Беру ${from}–${to}`,
+      part: (n: number) => `часть ${n}`,
+      reason: {
+        blur: 'Смазан',
+        exposure: 'Свет не тот',
+        unreadable: 'Не открылся',
+        duplicate: 'Дубль',
+        excluded: 'Убрали при заказе',
+        no_room: 'Не влез',
+        other: 'Не подошёл',
+      },
+    },
 
     tooLittleTitle: 'Материала пока мало',
     tooLittleText: (n: number) =>
