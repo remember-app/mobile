@@ -24,17 +24,16 @@ import type { StepState } from '@/kit';
  * facts about those five files and not something the api hands out — there is no route that lists
  * the shelf, and a list of five that changes about once a year is not worth one.
  *
- * ponytail: nothing here can play them either — the worker holds the mp3s and nothing signs a link
- * to one, so step 3 shows no «Послушать» button. It is the one thing the layout draws that the api
- * cannot answer yet; the row in the kit already takes the button, so the day a preview route exists
- * it is a prop and not a redraw.
+ * Seconds and not «1:20»: the same number is a row's own length and part of the sum over everything
+ * chosen, and a figure written out once has to be parsed back to be added up. `formatRuntime` is
+ * what turns it into the word, the way it does for every other length in the app.
  */
-export const TRACKS: readonly { id: MusicTrackId; length: string }[] = [
-  { id: 'bright', length: '1:20' },
-  { id: 'warm', length: '2:06' },
-  { id: 'calm', length: '1:50' },
-  { id: 'night', length: '1:50' },
-  { id: 'road', length: '2:26' },
+export const TRACKS: readonly { id: MusicTrackId; seconds: number }[] = [
+  { id: 'bright', seconds: 80 },
+  { id: 'warm', seconds: 126 },
+  { id: 'calm', seconds: 110 },
+  { id: 'night', seconds: 110 },
+  { id: 'road', seconds: 146 },
 ];
 
 /**
@@ -47,13 +46,22 @@ export const shelfTrack = (key: string): MusicTrackId | null =>
   TRACKS.some((track) => track.id === key) ? (key as MusicTrackId) : null;
 
 /**
- * How long to ask for. Any whole number of seconds inside this memory's own range is a legal
- * answer now (doc-03) — these three round ones are what the interim step 4 still offers until the
- * slider of `MontageBuild` replaces it (TASK-217), and they are a shortcut and not the range.
+ * The three round lengths the order used to be picked from, and the only place they are left: the
+ * waiting screen names the length of a montage that was ordered with one of them. Step 4 asks for
+ * any whole number of seconds now (doc-03), so nothing chooses out of this list any more.
  */
 export const LENGTHS = [30, 60, 120] as const;
 
 export type Length = (typeof LENGTHS)[number];
+
+/**
+ * The four ready answers of `MontageBuild` (spec 7.3, detail 19). The fifth pill is «Всё» and is
+ * not here: it is whatever this memory's material can carry, which only the api knows.
+ */
+export const PRESETS = [30, 60, 90, 180] as const;
+
+/** How much of a wish about the music the api takes (doc-03: 400 over 500, and only with tracks). */
+export const NOTE_LIMIT = 500;
 
 /**
  * Below this there is nothing to cut a video out of, and the api refuses the order with 409
@@ -73,6 +81,39 @@ export const STORY_LIMIT = 600;
  * null for the shelf, whose five names are the app's own and come from `@/strings`.
  */
 export type PickedTrack = { key: string; name: string | null };
+
+/**
+ * How long everything chosen runs altogether — the «2 трека · 3:45» over the block of them. Null
+ * the moment one of them is a file off somebody's phone: nothing here has ever heard it and the
+ * api does not say how long it is, so the block counts the tracks and stays quiet about the time
+ * rather than printing a sum that is quietly short.
+ */
+export function pickedSeconds(tracks: readonly PickedTrack[]): number | null {
+  let total = 0;
+  for (const track of tracks) {
+    const shelf = TRACKS.find((one) => one.id === track.key);
+    if (shelf === undefined) return null;
+    total += shelf.seconds;
+  }
+  return total;
+}
+
+/**
+ * The chosen tracks with the one standing at `from` moved to `to` — what a finger dragging a row
+ * of «Выбрано» by its wave comes to. The list is the order they play in (doc-03), so this is the
+ * whole of what the drag decides.
+ */
+export function movedTrack(
+  tracks: readonly PickedTrack[],
+  from: number,
+  to: number,
+): PickedTrack[] {
+  const next = [...tracks];
+  const [moved] = next.splice(from, 1);
+  if (moved === undefined) return next;
+  next.splice(Math.max(0, Math.min(next.length, to)), 0, moved);
+  return next;
+}
 
 /**
  * Everything the wizard has been told, one field per step. The two sets are the whole of step 1: the
@@ -103,6 +144,12 @@ export type Order = {
   note: string;
   /** Any whole number of seconds; null is «не сказали», and then the api picks and clamps it. */
   seconds: number | null;
+  /**
+   * Whether the length was moved by hand since a template set it — `ownStory`'s twin, and for the
+   * same reason: the figure on step 4 carries «из шаблона „…“» under it only while the template is
+   * the one who put it there, and one touch of the slider makes the number the person's own.
+   */
+  ownLength: boolean;
   orientation: MontageOrientation;
 };
 
@@ -116,6 +163,7 @@ export const blankOrder = (): Order => ({
   tracks: [],
   note: '',
   seconds: null,
+  ownLength: false,
   orientation: 'landscape',
 });
 

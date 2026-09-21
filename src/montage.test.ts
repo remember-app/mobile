@@ -82,6 +82,8 @@ import {
   blankOrder,
   enoughMaterial,
   MIN_FRAMES,
+  movedTrack,
+  pickedSeconds,
   pickOf,
   rejectedGroups,
   shapeOf,
@@ -308,6 +310,62 @@ test('a track is told from the shelf by its key, and everything else is somebody
   ]);
   expect(shelfTrack('music/7d2e-own-file')).toBeNull();
   expect(shelfTrack('')).toBeNull();
+});
+
+test('the block of chosen tracks counts their time, and stays quiet about a file it never heard', () => {
+  // The five are known to the second (`projects/montage/tracks/README.md`), so two of them add up.
+  expect(pickedSeconds([{ key: 'warm', name: null }])).toBe(126);
+  expect(
+    pickedSeconds([
+      { key: 'warm', name: null },
+      { key: 'calm', name: null },
+    ]),
+  ).toBe(236);
+  expect(pickedSeconds([])).toBe(0);
+  // A track off somebody's phone has no length anywhere on this side, and a sum missing one of the
+  // tracks in it would be a shorter film promised out loud.
+  expect(
+    pickedSeconds([
+      { key: 'warm', name: null },
+      { key: 'music/7d2e-own-file', name: 'sunrise.mp3' },
+    ]),
+  ).toBeNull();
+});
+
+test('dragging a chosen track by its wave is the order the api plays them in', () => {
+  const list = [
+    { key: 'warm', name: null },
+    { key: 'calm', name: null },
+    { key: 'road', name: null },
+  ];
+  const keys = (tracks: readonly { key: string }[]) => tracks.map((track) => track.key);
+
+  // Down one, up one, and across the whole list: the row leaves its place and the rest close up.
+  expect(keys(movedTrack(list, 0, 1))).toEqual(['calm', 'warm', 'road']);
+  expect(keys(movedTrack(list, 2, 0))).toEqual(['road', 'warm', 'calm']);
+  // Where it was is where it stays, and a drag off either end stops at that end.
+  expect(keys(movedTrack(list, 1, 1))).toEqual(['warm', 'calm', 'road']);
+  expect(keys(movedTrack(list, 0, 9))).toEqual(['calm', 'road', 'warm']);
+  // The list handed in is never touched — the order is state, and it is replaced, not edited.
+  expect(keys(list)).toEqual(['warm', 'calm', 'road']);
+
+  // And what comes out of it is what goes out to the api, in that very order.
+  expect(wishes(gallery, { ...blankOrder(), tracks: movedTrack(list, 2, 0) }).music_tracks).toEqual([
+    'road',
+    'warm',
+    'calm',
+  ]);
+});
+
+test('the length is nobody’s until it is moved by hand', () => {
+  // An order opens with no length at all and with nothing said about whose it is; the length step
+  // sets both together, which is what takes «из шаблона „…“» out from under the figure.
+  expect(blankOrder().seconds).toBeNull();
+  expect(blankOrder().ownLength).toBe(false);
+  // And a length that was set still only goes out as the number itself.
+  expect(wishes(gallery, { ...blankOrder(), seconds: 95, ownLength: true })).toMatchObject({
+    target_seconds: 95,
+  });
 });
 
 test('their own track goes to R2 part by part, and the order names it by its key', async () => {

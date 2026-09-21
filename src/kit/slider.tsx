@@ -171,12 +171,16 @@ export function LengthSlider({
       {presets ? (
         <View style={styles.presets}>
           {presets.map((preset) => {
-            const on = clamp(preset.value, min, max) === value;
+            // Spec 7.3, «материала на 40 с»: a ready answer longer than there is material for is
+            // not offered at all. Clamping it instead would make «3:00» quietly mean «0:40», and
+            // three pills that all set the same length are three lies in a row.
+            const over = preset.value > max;
             return (
               <Preset
                 key={preset.label}
                 label={preset.label}
-                selected={on}
+                selected={!over && clamp(preset.value, min, max) === value}
+                disabled={over}
                 onPress={() => onChange(clamp(preset.value, min, max))}
               />
             );
@@ -194,10 +198,13 @@ const STEPS = [{ name: 'increment' }, { name: 'decrement' }];
 function Preset({
   label,
   selected,
+  disabled,
   onPress,
 }: {
   label: string;
   selected: boolean;
+  /** Longer than the material: spec 7.3 leaves the pill standing and takes the press away. */
+  disabled?: boolean;
   onPress: () => void;
 }) {
   const { hovered, focused, props } = useHoverFocus();
@@ -210,18 +217,26 @@ function Preset({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{ selected }}
+      accessibilityState={{ selected, disabled: !!disabled }}
+      disabled={disabled}
       hitSlop={hitSlop(TAP, height.roundTiny)}
       onPress={onPress}
       {...props}
       style={({ pressed }) => [
         styles.preset,
-        selected ? styles.presetOn : hovered ? styles.presetHover : null,
+        disabled ? styles.presetOff : selected ? styles.presetOn : hovered ? styles.presetHover : null,
         pressed && !reduced ? PRESS : null,
         focused ? focusRing : null,
       ]}
     >
-      <Text role="label" style={[styles.presetWord, { color: selected ? color.ink : color.paper }]}>
+      <Text
+        role="label"
+        style={[
+          styles.presetWord,
+          // Spec 7.3, detail 16: unavailable is `faint` on the quieter of the two borders.
+          { color: disabled ? color.faint : selected ? color.ink : color.paper },
+        ]}
+      >
         {label}
       </Text>
     </Pressable>
@@ -270,6 +285,7 @@ const useStyles = themed(({ color }) =>
       borderColor: color.lineQuiet,
     },
     presetOn: { backgroundColor: color.paper, borderColor: color.paper },
+    presetOff: { borderColor: color.line },
     presetHover: { backgroundColor: color.raise },
     presetWord: { fontVariant: ['tabular-nums'] },
   }),

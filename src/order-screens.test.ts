@@ -151,12 +151,17 @@ test('one call at the end of the last step, and it carries every wish of spec 8'
   expect(api).toContain('/montages/preview');
   expect(api).toContain('export function previewMontage(');
   expect(api).toContain('export function listMontageTemplates(');
-  // The length and what will be in the film come from the api and are worked out nowhere here:
-  // no screen of the wizard counts a second of material.
-  for (const step of Object.values(steps)) {
+  // The length and what will be in the film come from the api and are worked out nowhere here.
+  // The last step reads the range off the preview and draws it; no other screen of the wizard, and
+  // nothing in the model behind them, counts a second of material for itself.
+  expect(build).toContain('previewMontage(token, id, {');
+  expect(build).toContain('min={preview.min_seconds}');
+  expect(build).toContain('max={preview.max_seconds}');
+  for (const step of [frames, story, music]) {
     expect(step).not.toContain('max_seconds');
     expect(step).not.toContain('min_seconds');
   }
+  expect(model).not.toContain('max_seconds');
 });
 
 test('a placed order lands on the waiting for that montage, not back on the list', () => {
@@ -207,7 +212,98 @@ test('the shelf can be listened to, and the listening ends with the step', () =>
   for (const set of [en, ru]) {
     expect(Object.keys(set.montage.track)).toEqual(['bright', 'warm', 'calm', 'night', 'road']);
   }
-  expect(model).toContain("{ id: 'bright', length: '1:20' }");
+  expect(model).toContain("{ id: 'bright', seconds: 80 }");
+});
+
+test('step 3 is «Без музыки» until a track is taken, and the block of them after', () => {
+  // Nothing taken: the choice card stands where the chosen tracks would be, already chosen. It is
+  // an answer and not an absence, and it says what it actually gives — the video's own sound.
+  expect(music).toContain('{picked.length === 0 ? (');
+  expect(music).toContain('<ChoiceCard');
+  expect(music).toContain('icon={VolumeX}');
+  expect(music).toContain('title={s.montage.noMusic}');
+  expect(music).toContain('note={s.montage.noMusicNote}');
+  expect(ru.montage.noMusic).toBe('Без музыки');
+  expect(ru.montage.noMusicNote).toBe('Только живой звук из видео');
+
+  // Anything taken: «Выбрано» in its place — how many and how long altogether, the rows, and the
+  // one line about how to use them.
+  expect(music).toContain('<BlockPicked');
+  expect(music).toContain('s.montage.tracksPicked(picked.length)');
+  expect(music).toContain('formatRuntime(total)');
+  expect(music).toContain('variant="wish"');
+  expect(music).toContain('onChangeText={(note) => change({ note })}');
+  expect(ru.montage.tracksPicked(2)).toBe('2 трека');
+  expect(en.montage.tracksPicked(1)).toBe('1 track');
+
+  // And the last one taken back brings the card straight back and clears the wish with it: the api
+  // answers 400 to a note about music nobody picked, and the words were about tracks that are gone.
+  expect(music).toContain("change(tracks.length === 0 ? { tracks, note: '' } : { tracks });");
+});
+
+test('tracks go in in any number, in the order they play, and that order is dragged about', () => {
+  // The shelf adds to the end of the list rather than replacing one answer with another — several
+  // at once is the whole of the new step — and their own track lands in the same list.
+  expect(music).toContain('change({ tracks: [...picked, { key, name: null }] })');
+  expect(music).toContain('change({ tracks: [...picked, { key, name: file.name }] });');
+
+  // The row is dragged by its wave (spec 7.7), and rows are counted rather than measured: every
+  // one of them is exactly `TRACK_ROW` tall, which is the kit's own number and not a copy of it.
+  expect(music).toContain('grip={{');
+  expect(music).toContain('...gripFor(i),');
+  expect(music).toContain('Math.round(gesture.dy / TRACK_ROW)');
+  expect(music).toContain('change({ tracks: movedTrack(picked, from, to) });');
+  // Dragging says nothing to a screen reader, so the same two moves stand as actions on the wave.
+  expect(music).toContain('accessibilityActions: MOVES');
+  expect(music).toContain('s.montage.moveTrack(name)');
+
+  // «Послушать» stays on every row of the shelf (TASK-172) and on a chosen one off it; a track of
+  // their own has no link this app could play, so it has no button pretending otherwise.
+  expect(music).toContain('shelf === null ? undefined : (');
+  expect(music).toContain('s.montage.stopTrack(name) : s.montage.listen(name)');
+});
+
+test('step 4 asks the api how long the film may be, and asks again when the frames change', () => {
+  // The preview is the only source of the two walls, and the question leaves the length out of
+  // itself: asked with one the material no longer stretches to, the api answers 400, not a range.
+  expect(build).toContain('const [preview, setPreview] = useState<MontagePreview | null>(null);');
+  expect(build).toContain('target_seconds: undefined,');
+  // Asked again on the frames and on nothing else — the id of everything going in is the key.
+  expect(build).toContain('const going = inMovie.map((item) => item.id).join(');
+  expect(build).toContain('}, [token, id, going]);');
+  // A range that came back narrower than the length already chosen brings the length down with it,
+  // rather than leaving a figure standing that the order would be refused for.
+  expect(build).toContain(
+    'const held = Math.min(Math.max(order.seconds ?? 0, answer.min_seconds), answer.max_seconds);',
+  );
+  expect(build).toContain('if (order.seconds !== null && held !== order.seconds) change({ seconds: held });');
+  // Nothing said is the api's own answer shown on the card — and still nothing sent (`@/montage`).
+  expect(build).toContain('const seconds = order.seconds ?? preview?.target_seconds ?? null;');
+});
+
+test('step 4 draws one length control, and the template’s line goes at the first touch of it', () => {
+  // The three round answers are gone from the wizard: the length is a figure on a line now, with
+  // five ready answers under it — four numbers and «Всё», which is the ceiling the api just named.
+  expect(build).not.toContain('LENGTHS');
+  expect(build).toContain('<LengthSlider');
+  expect(build).toContain('...PRESETS.map((value) => ({ label: formatRuntime(value) ?? \'\', value })),');
+  expect(build).toContain("{ label: s.montage.lengthAll, value: preview.max_seconds },");
+  expect(model).toContain('export const PRESETS = [30, 60, 90, 180] as const;');
+
+  // «из шаблона „…“» stands under the figure while the template is the one who put it there, and
+  // a hand on the slider makes the number the person's own — `ownStory`'s twin, one step along.
+  expect(build).toContain('change({ seconds: next, ownLength: true })');
+  expect(build).toContain('template && !order.ownLength');
+  expect(model).toContain('ownLength: boolean;');
+  expect(ru.montage.lengthFromTemplate('Для родителей')).toBe('из шаблона «Для родителей»');
+
+  // The ceiling stands over the card in words, and the right end of the line says what it means.
+  expect(build).toContain('s.montage.lengthUpTo(formatRuntime(preview.max_seconds) ?? \'\')');
+  expect(ru.montage.lengthUpTo('9:10')).toBe('до 9:10');
+  expect(ru.montage.lengthEnd('9:10')).toBe('9:10 · всё, что есть');
+  // The shape is the segments of the layout, and nothing else is asked on this step.
+  expect(build).toContain('label={s.montage.shape}');
+  expect(build).not.toContain('s.montage.onceOnly');
 });
 
 test('the ember is one action per surface, counted over the whole wizard', () => {

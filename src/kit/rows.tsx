@@ -1,7 +1,14 @@
 import { Image } from 'expo-image';
 import { Check, ChevronRight, X } from 'lucide-react-native';
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  View,
+  type StyleProp,
+  type ViewProps,
+  type ViewStyle,
+} from 'react-native';
 
 import { height, photo, radius, space, themed, useTheme } from '@/theme';
 
@@ -57,6 +64,12 @@ export function RowSummary({
 }
 
 /**
+ * How tall one track row stands (spec 7.7). Exported because a list of them that can be dragged
+ * counts rows by it: how far a finger has travelled is how many of these it has crossed.
+ */
+export const TRACK_ROW = 52;
+
+/**
  * A music track (spec 7.7): 52 tall, the round «послушать» on the left, the name and its length on
  * one baseline, and on the right the button that takes it or gives it back.
  *
@@ -69,6 +82,7 @@ export function RowTrack({
   length,
   playing,
   wave,
+  grip,
   play,
   action,
   divider,
@@ -80,6 +94,12 @@ export function RowTrack({
   playing?: boolean;
   /** The 12-bar waveform between the name and the right edge — the «Выбрано» block draws it. */
   wave?: boolean;
+  /**
+   * What the row is held by while the list is being reordered (spec 7.7, detail 54: «строка
+   * берётся за волну»). The handlers belong to whoever owns the list, and they go on the wave
+   * because it is the one part of the row that is not already a button.
+   */
+  grip?: ViewProps;
   /** The round «Послушать» — 40 `raise` in the library, 36 `paper` among the chosen. */
   play?: ReactNode;
   /** The round 36 on the right: a plus, a tick, or the cross that takes a chosen track out. */
@@ -99,7 +119,11 @@ export function RowTrack({
           </Text>
           <Text role="meta">{length}</Text>
         </View>
-        {wave ? <Waveform /> : null}
+        {wave ? (
+          <View {...grip}>
+            <Waveform />
+          </View>
+        ) : null}
         {action}
       </View>
     </View>
@@ -423,7 +447,7 @@ const useStyles = themed(({ color }) =>
     },
     summaryLabel: { width: 96 },
     track: {
-      height: 52,
+      height: TRACK_ROW,
       flexDirection: 'row',
       alignItems: 'center',
       gap: space.s3,
