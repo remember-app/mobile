@@ -85,10 +85,18 @@ test('the edit mode puts the pair of buttons where the circle was, and stops the
   expect(markup).not.toContain('aria-label="Лучшее"');
 });
 
-test('a row nobody can press is not a button', () => {
-  expect(
-    story(<RowLabel tint={AMBER} name="Лучшее" scope="own" scopeLabel="только вы" />),
-  ).not.toContain('role="button"');
+test('a row nobody can press is not a button, and wears no circle either', () => {
+  // A viewer on somebody else's shared label: the server says «нельзя класть», so the row keeps the
+  // colour, the name and the meta and loses the one thing that promised a press.
+  const shut = story(<RowLabel tint={AMBER} name="Лучшее" scope="own" scopeLabel="только вы" />);
+  expect(shut).not.toContain('role="button"');
+  expect(shut).toContain('Лучшее');
+  allDifferent({
+    shut: <RowLabel tint={AMBER} name="Лучшее" scope="own" scopeLabel="только вы" />,
+    filing: (
+      <RowLabel tint={AMBER} name="Лучшее" scope="own" scopeLabel="только вы" onPress={() => {}} />
+    ),
+  });
 });
 
 test('the hairline belongs to the list, not to the row', () => {

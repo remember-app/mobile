@@ -29,6 +29,7 @@ import frames from './memory/frames.tsx?raw';
 import sheets from './memory/frames-sheets.tsx?raw';
 import head from './memory/head.tsx?raw';
 import inviteSheet from './memory/invite-sheet.tsx?raw';
+import labelSheets from './memory/label-sheets.tsx?raw';
 import when from './memory/when.tsx?raw';
 // The arithmetic both the movies face and the waiting screen ask their «is it still being made»
 // question through, so the two cannot drift apart about what the answer is.
@@ -1481,4 +1482,86 @@ test('a tile is read out in the line it is drawn with', () => {
   // says the same about a record as the tile above it, «открыто» apart.
   expect(frames).toContain('nameOf={nameOf}');
   expect(viewer).toContain('labelAt={(to) => nameOf(frames[to], frameOf(frames[to]), to === index)}');
+});
+
+/**
+ * The labels of a memory (TASK-213, spec 7.7 and 10.8.1): the left slot of the picking bar opens
+ * them, a press on a row files what is marked, and the feed holds on to what came back. What the
+ * sheets look like is `memory/label-sheets.test.tsx`; what a press comes to is `labels.test.ts`.
+ * These pin the wiring — that the button leads anywhere at all, and that the feed does not go and
+ * read the gallery again to find out what it already knows.
+ */
+
+test('the labels button of the picking bar opens the sheet, and is off with nothing marked', () => {
+  expect(frames).toContain('label={s.gallery.labelsPut}');
+  expect(frames).toContain('onPress={() => setLabelling(true)}');
+  expect(frames).toContain('disabled={busy || marked.length === 0}');
+  // The button it used to be: drawn, named and dead until this milestone.
+  expect(frames).not.toContain('sheet would be worse than a button that says it is not ready');
+  expect(ru.gallery.labelsPut).toBe('Лейблы: положить выбранное');
+  // And the sheets are mounted by being opened, over what is marked and nothing else.
+  expect(frames).toContain('<LabelSheets');
+  expect(frames).toContain('frames={marked}');
+});
+
+test('what the api answered is kept by the feed itself, without reading the gallery again', () => {
+  // `keepReady` deliberately holds every finished record's own object through a quiet re-read, so a
+  // fresh listing would not even carry the new `label_ids` onto the screen — and a loud one would
+  // blink the whole feed for a change of one array. The same way a delete is kept.
+  expect(frames).toContain(
+    'onFiled={(labelId, ids, now) => setItems((have) => filed(have, labelId, ids, now))}',
+  );
+});
+
+test('the sheet never works out who may do what — it draws what the server answered', () => {
+  // `can_edit` and `can_add_media` come down with every label, from the same function that refuses
+  // the write routes (api README). A rule repeated here would be a second answer to one question.
+  expect(labelSheets).toContain('label.can_add_media ? () => onFile(label) : undefined');
+  // And a press while the last one is still in the air is dropped in the container, so the circles
+  // stay where they are: one vanishing mid-errand reads as the right to file being taken away.
+  expect(labelSheets).toContain('if (busy || moving.length === 0) return;');
+  expect(labelSheets).toContain('editing && label.can_edit ?');
+  expect(labelSheets).toContain('labels?.some((label) => label.can_edit)');
+  expect(labelSheets).not.toContain("role === 'organizer'");
+});
+
+test('a press files the missing ones, and a second press takes the whole selection out', () => {
+  expect(labelSheets).toContain('const { inside, ids: moving } = filing(label.id, frames);');
+  expect(labelSheets).toContain('? removeLabelMedia(session, memoryId, label.id, moving)');
+  expect(labelSheets).toContain(': addLabelMedia(session, memoryId, label.id, moving),');
+  // The row the api answers with goes straight back into the list: a new count, not a re-read.
+  expect(labelSheets).toContain('setLabels((have) => withLabel(have ?? [], answer));');
+  // A new label and the frames in it are one action, the way the button is worded.
+  expect(labelSheets).toContain('createLabel(session, memoryId, {');
+  expect(labelSheets).toContain('media_ids: ids.length > 0 ? ids : undefined,');
+  expect(ru.labels.create(4)).toBe('Создать и положить 4 кадра');
+  expect(en.labels.create(1)).toBe('Create and file 1 frame');
+});
+
+test('a deleted label leaves the frames where they are, on every one of them', () => {
+  expect(labelSheets).toContain('onFiled(label.id, null, false);');
+  expect(ru.labels.deleteText).toContain('Кадры останутся в воспоминании');
+  // Nothing is lost, so no price is named — unlike every other dangerous sheet in the app.
+  expect(labelSheets).not.toContain('price=');
+});
+
+test('the sheet says a refusal in words of its own and never gets stuck on one', () => {
+  // The api answers a bare «forbidden», which tells nobody who *can* do the thing they just tried.
+  expect(labelSheets).toContain(
+    'setError(status === 403 ? denied : status === 404 ? s.labels.gone : errorMessage(e));',
+  );
+  expect(labelSheets).toContain('setBusy(false);');
+  for (const line of [ru.labels.addDenied, ru.labels.takeDenied, ru.labels.editDenied]) {
+    expect(line.endsWith('.')).toBe(true);
+  }
+  expect(en.labels.gone).toBe('This label is no longer here.');
+});
+
+test('visibility is settled once and only shown afterwards (decision-12)', () => {
+  // Spec 10.8.1: one read-only card with the value in it, never a greyed-out pair — a disabled
+  // button promises that one day it presses, and this one never will.
+  expect(labelSheets).toContain('readOnly');
+  expect(labelSheets).toContain('{s.labels.whoFixed}');
+  // And nothing ever sends `shared` back up on a rename: the api has no such field on that route.
+  expect(labelSheets).toContain('updateLabel(session, memoryId, label.id, { title, color })');
 });

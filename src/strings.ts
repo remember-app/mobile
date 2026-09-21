@@ -570,6 +570,67 @@ export const en = {
   },
 
   /**
+   * `SheetLabels` and `SheetLabelNew` (spec 7.7, 10.8.1) — the boxes frames are filed into, raised
+   * from picking mode. A label is a box: it holds nothing back from anybody and takes nothing away,
+   * so every word here is about filing and never about permission.
+   */
+  labels: {
+    /** The sheet's own heading, over the count of what is marked. */
+    title: 'Into a label',
+    /** Its two groups, in the caps the layout writes a group heading in. */
+    shared: 'Shared',
+    own: 'Mine',
+    /** The dashed button under both of them, and the heading of the sheet it raises. */
+    newOne: 'New label',
+    /** The whole sheet when there is not a label in the memory yet — the two groups are gone. */
+    empty: 'A label is a box: give it a name and start filing frames into it.',
+    /** The second line of a row: what the glyph beside it already says, in words. */
+    seenByAll: 'everyone sees it',
+    seenByYou: 'only you',
+    /** The way in and out of the edit mode of the sheet — «Готово» is `action.done`. */
+    edit: 'Edit',
+    /** The pair that replaces the circle while it is on, read out with the label's own name. */
+    rename: (name: string) => `Rename “${name}”`,
+    remove: (name: string) => `Delete “${name}”`,
+
+    /** `SheetLabelNew`: the heading when the same sheet is editing one rather than making it. */
+    editTitle: 'Label',
+    name: 'Name',
+    namePlaceholder: 'Best ones',
+    colour: 'Colour',
+    /** The row of eight said out loud — «Colour 2» tells nobody anything (spec 10.4). */
+    colourLabel: 'Label colour',
+    colours: ['yellow', 'pink', 'red', 'green', 'blue', 'violet', 'acid', 'grey'],
+    who: 'Who sees it',
+    sharedCard: 'Shared',
+    sharedNote: 'everyone in the memory',
+    ownCard: 'Private',
+    ownNote: 'only you',
+    /**
+     * Why «Кто видит» cannot be pressed while editing (spec 10.8.1, decision-12): the answer was
+     * given when the label was made and the api has no way back. Said as a fact, not as a refusal.
+     */
+    whoFixed: 'Settled when the label was made.',
+    /** The glowing button: one press makes the box and files what is marked into it. */
+    create: (n: number) => `Create and file ${n} ${n === 1 ? 'frame' : 'frames'}`,
+    save: 'Save',
+
+    /** The sheet that asks before a box goes. No number: nothing is lost (spec 10.8.1). */
+    deleteAsk: (name: string) => `Delete the label “${name}”?`,
+    deleteText: 'The frames stay in the memory — only the box goes.',
+    deleteConfirm: 'Delete the label',
+
+    /**
+     * What the api refuses, in words a person can act on. It answers a bare «forbidden», so the
+     * sentence is written here and picked by what was being done.
+     */
+    addDenied: 'Only someone who may add material can file frames into a shared label.',
+    takeDenied: 'Frames are taken back out by whoever filed them, or by the organizer.',
+    editDenied: 'A shared label is renamed by whoever made it, or by the organizer.',
+    gone: 'This label is no longer here.',
+  },
+
+  /**
    * The assembled videos of one memory, and the ordering of one more.
    *
    * English calls the finished thing a **movie**, never a «video» or a «montage» — the api's push
@@ -1253,6 +1314,43 @@ export const ru: Strings = {
     inFilms: 'В роликах',
     at: (runtime: string) => `на ${runtime}`,
     notOpened: 'Кадр не открылся',
+  },
+
+  labels: {
+    title: 'В лейбл',
+    shared: 'Общие',
+    own: 'Мои',
+    newOne: 'Новый лейбл',
+    empty: 'Лейбл — это коробка: назовите её и складывайте кадры.',
+    seenByAll: 'видят все',
+    seenByYou: 'только вы',
+    edit: 'Править',
+    rename: (name: string) => `Переименовать «${name}»`,
+    remove: (name: string) => `Удалить «${name}»`,
+
+    editTitle: 'Лейбл',
+    name: 'Название',
+    namePlaceholder: 'Лучшее',
+    colour: 'Цвет',
+    colourLabel: 'Цвет лейбла',
+    colours: ['жёлтый', 'розовый', 'красный', 'зелёный', 'голубой', 'фиолетовый', 'кислотный', 'серый'],
+    who: 'Кто видит',
+    sharedCard: 'Общий',
+    sharedNote: 'видят все участники',
+    ownCard: 'Личный',
+    ownNote: 'только вы',
+    whoFixed: 'Выбирается один раз, при создании.',
+    create: (n: number) => `Создать и положить ${count(n, 'кадр', 'кадра', 'кадров')}`,
+    save: 'Сохранить',
+
+    deleteAsk: (name: string) => `Удалить лейбл «${name}»?`,
+    deleteText: 'Кадры останутся в воспоминании — исчезнет только коробка.',
+    deleteConfirm: 'Удалить лейбл',
+
+    addDenied: 'Складывать кадры в общий лейбл может тот, кто добавляет материал.',
+    takeDenied: 'Убрать кадры может тот, кто их положил, или организатор.',
+    editDenied: 'Переименовать общий лейбл может тот, кто его завёл, или организатор.',
+    gone: 'Этого лейбла больше нет.',
   },
 
   montage: {

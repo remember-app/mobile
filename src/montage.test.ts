@@ -112,6 +112,7 @@ const frame = (over: Partial<MediaItem>): MediaItem => ({
   height: null,
   duration_seconds: null,
   created_at: '2026-09-18T10:00:00.000Z',
+  label_ids: [],
   thumbnail_url: null,
   preview_url: null,
   screening_rejected: false,
