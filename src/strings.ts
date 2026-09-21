@@ -636,6 +636,13 @@ export const en = {
   upload: {
     /** The screen's own name in the kit (screens, 7) — not the memory's, which it no longer wears. */
     title: 'Your frames',
+    /** Under it in the glass capsule: where all this is going, and the memory named inside it. */
+    into: (memory: string) => `to «${memory}»`,
+    /**
+     * The round button on the right of that capsule. It is a switch and not an action, so it is
+     * named by what it turns on rather than by what the next tap will do.
+     */
+    picking: 'Picking mode',
     explain:
       'Remember cannot see a thing in your gallery until you say so — and what you pick stays on this phone until you send it.',
     refused:
@@ -1129,6 +1136,8 @@ export const ru: Strings = {
 
   upload: {
     title: 'Ваши кадры',
+    into: (memory: string) => `в «${memory}»`,
+    picking: 'Режим выбора',
     explain:
       'Remember не видит вашу галерею, пока вы не разрешите, — а выбранное остаётся на телефоне, пока вы не отправите его.',
     refused:
