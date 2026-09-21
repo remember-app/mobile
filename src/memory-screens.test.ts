@@ -969,7 +969,7 @@ test('the picture is walked with a finger, and the finger is taken on the pictur
   // TASK-182, and the whole lesson of TASK-123 in one line: this window never had the gesture at
   // all — «над кадром стоит одиночный Image, а не пейджер». The other two sideways things on the
   // screen, the strip and the scrubber, each stand on a line of their own and must never see it.
-  const swipe = viewer.slice(viewer.indexOf('const swipe = PanResponder.create'));
+  const swipe = viewer.slice(viewer.indexOf('const swipe = useMemo('));
   expect(viewer.match(/\{\.\.\.swipe\.panHandlers\}/g)).toHaveLength(1);
   expect(viewer.indexOf('{...swipe.panHandlers}')).toBeLessThan(viewer.indexOf('<VideoTrack'));
   // A tap belongs to whatever is under it; the walk asks for the finger only once it has plainly
@@ -977,11 +977,26 @@ test('the picture is walked with a finger, and the finger is taken on the pictur
   expect(swipe).toContain('onStartShouldSetPanResponderCapture: () => false');
   expect(swipe).toContain('Math.abs(g.dx) > SIDEWAYS && Math.abs(g.dx) > Math.abs(g.dy)');
   // Left is the next frame of the sheet, right the one before it.
-  expect(swipe).toContain('walk(index + (g.dx < 0 ? 1 : -1));');
+  expect(swipe).toContain('step.current(g.dx < 0 ? 1 : -1);');
+  // And built once, never per render (found in review): `PanResponder` keeps how far the finger
+  // has come inside the object `create` returns, and a playing video re-renders this window four
+  // times a second — a responder made afresh under a finger starts counting from nothing, and both
+  // thresholds above end up measured against a scrap of the swipe. The walk worked on photographs
+  // and failed on video, which is «не листается» for the third time. What moves between renders is
+  // read through a ref instead.
+  expect(swipe).toContain('PanResponder.create({');
+  expect(swipe).toMatch(/\}\),\s*\[\],\s*\);/);
+  expect(viewer).toContain('const step = useRef(stride);');
   // One rule about what opens, for the finger and for the strip alike — so photographs and videos
-  // walk the same way whichever of the two asked, and the strip follows the frame in hand.
+  // walk the same way whichever of the two asked, and the strip follows the frame in hand. The two
+  // differ on one thing only: a tap names a frame and is refused when that frame cannot open,
+  // while a finger names a direction and carries on past it rather than hitting a wall.
   expect(viewer).toContain('onPick={walk}');
   expect(viewer.match(/if \(next && mayOpen\(next\)\) onOpen\(next\.id\);/g)).toHaveLength(1);
+  expect(viewer.replace(/\s+/g, ' ')).toContain(
+    'for (let to = index + by; to >= 0 && to < frames.length; to += by) ' +
+      '{ if (mayOpen(frames[to])) return onOpen(frames[to].id); }',
+  );
   expect(viewer).toContain('const index = frameIndex(frames, item.id);');
   expect(viewer).toContain('index={index}');
 });

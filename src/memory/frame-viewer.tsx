@@ -14,7 +14,7 @@ import {
   Volume2,
   VolumeX,
 } from 'lucide-react-native';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Modal, PanResponder, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -145,14 +145,31 @@ export function FrameViewer({
   );
 
   /**
-   * One step along the sheet, however it was asked for — a finger on the picture or a tap on the
-   * strip. A frame still being developed stays shut either way: there is nothing behind it to open
-   * yet, and it is the same gate the contact sheet puts on the same record.
+   * One step along the sheet, asked for by name — a tap on the strip. A frame still being
+   * developed stays shut: there is nothing behind it to open yet, and it is the same gate the
+   * contact sheet puts on the same record.
    */
   function walk(to: number) {
     const next = frames[to];
     if (next && mayOpen(next)) onOpen(next.id);
   }
+
+  /**
+   * And the same step asked for by direction — a finger. This one carries on past a frame still
+   * developing rather than stopping at it: «the next one» is not «open this one», and a run of
+   * records the worker has not finished with is exactly what the top of a sheet looks like minutes
+   * after an upload. A wall there is one more «не листается» (TASK-106, TASK-123) with nothing on
+   * screen to explain it.
+   */
+  function stride(by: 1 | -1) {
+    for (let to = index + by; to >= 0 && to < frames.length; to += by) {
+      if (mayOpen(frames[to])) return onOpen(frames[to].id);
+    }
+  }
+
+  /** The step as this render knows it, for a gesture that outlives the render it began in. */
+  const step = useRef(stride);
+  step.current = stride;
 
   /**
    * The picture is walked with a finger, photographs and videos alike, across the whole gallery
@@ -163,25 +180,33 @@ export function FrameViewer({
    * product, and the scrubber above it is the other sideways gesture — the layout puts each on a
    * line of its own precisely so that no two of them ever share a finger.
    *
-   * Rebuilt every render on purpose: the release reads which frame the walk starts from, and a
-   * handler held still would go on walking from whichever frame the window was opened at.
+   * Built once and never rebuilt, with the step read through the ref above. `PanResponder` keeps
+   * how far the finger has come inside the object `create` hands back, so a responder made afresh
+   * mid-gesture starts counting from nothing — and this window re-renders four times a second for
+   * the whole of a playing video (`timeUpdate`). Rebuilt per render, both thresholds below were
+   * measured against whatever scrap of the swipe fell after the last of those renders: the walk
+   * worked on a photograph and failed on video, which is the same symptom a third time.
    */
-  const swipe = PanResponder.create({
-    // A tap belongs to whatever is under it — the pause button in the middle of a video. The walk
-    // asks for the finger only once it has plainly gone sideways, and it asks by capture so that a
-    // swipe begun on that button is still a swipe.
-    onStartShouldSetPanResponderCapture: () => false,
-    onMoveShouldSetPanResponderCapture: (_, g) =>
-      Math.abs(g.dx) > SIDEWAYS && Math.abs(g.dx) > Math.abs(g.dy),
-    onPanResponderRelease: (_, g) => {
-      // ponytail: the frame is swapped when the finger lifts, and does not travel under it. A
-      // carousel that follows the finger is a second horizontal scroll inside a modal over a
-      // player — the exact ground TASK-106 and TASK-123 were lost on. Worth building the day the
-      // movement itself is asked for, and not before.
-      if (Math.abs(g.dx) < WALK) return;
-      walk(index + (g.dx < 0 ? 1 : -1));
-    },
-  });
+  const swipe = useMemo(
+    () =>
+      PanResponder.create({
+        // A tap belongs to whatever is under it — the pause button in the middle of a video. The
+        // walk asks for the finger only once it has plainly gone sideways, and it asks by capture
+        // so that a swipe begun on that button is still a swipe.
+        onStartShouldSetPanResponderCapture: () => false,
+        onMoveShouldSetPanResponderCapture: (_, g) =>
+          Math.abs(g.dx) > SIDEWAYS && Math.abs(g.dx) > Math.abs(g.dy),
+        onPanResponderRelease: (_, g) => {
+          // ponytail: the frame is swapped when the finger lifts, and does not travel under it. A
+          // carousel that follows the finger is a second horizontal scroll inside a modal over a
+          // player — the exact ground TASK-106 and TASK-123 were lost on. Worth building the day
+          // the movement itself is asked for, and not before.
+          if (Math.abs(g.dx) < WALK) return;
+          step.current(g.dx < 0 ? 1 : -1);
+        },
+      }),
+    [],
+  );
 
   /** The grant, asked for at the moment it is needed, with this window's place to say «no». */
   async function maySave(): Promise<boolean> {
@@ -409,8 +434,8 @@ export function FrameViewer({
               index={index}
               style={styles.strip}
               labelAt={(to) => nameOf(frames[to], frameOf(frames[to]), to === index)}
-              // The same step the finger takes, asked for by name instead of by direction — so a
-              // tap on the strip and a swipe on the picture cannot disagree about what opens.
+              // A tap names the frame it wants, so this is the gate and not the stride: refusing
+              // is the honest answer to «open this one», and the two agree on what may open.
               onPick={walk}
             />
 
