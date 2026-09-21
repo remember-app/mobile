@@ -50,6 +50,7 @@ import {
   recordsOf,
   stageLine,
   stageNumber,
+  stageStanding,
   STAGE_COUNT,
   useMontageJournal,
   useTypedThought,
@@ -105,20 +106,27 @@ export default function MontageLiveScreen() {
   }, []);
 
   /**
-   * Out of here, and the making carries on without anybody watching it — nothing on this screen
-   * touches the worker. Back rather than a new screen: what is under this one is the memory itself,
-   * whose strip of films reads its list again as it comes forward.
+   * Out of here — and while the montage is still owed, that is back: what is under this screen is
+   * the memory itself, whose strip of films reads its list again as it comes forward, and the making
+   * carries on without anybody watching it.
    *
-   * The one way out, and the one place a finished montage is sent to: the day «Ролик готов» exists
-   * as a screen (TASK-222) this is the single line that points at it instead. Never once this screen
-   * has gone — a `ready` landing after somebody pressed «Назад» would otherwise pop the memory out
-   * from under them as well (found in review, TASK-163).
+   * Once it is finished this is the one line that points at «Ролик готов» instead (TASK-222), and a
+   * `replace` rather than a push: the making is over, and nothing should lead back into watching it.
+   * The film's own page is where it is watched, saved and read about now.
+   *
+   * Never once this screen has gone — a `ready` landing after somebody pressed «Назад» would
+   * otherwise pop the memory out from under them as well (found in review, TASK-163).
    */
   const leave = useCallback(() => {
     if (gone.current) return;
-    if (router.canGoBack()) router.back();
+    if (journal.status === 'ready') {
+      router.replace({
+        pathname: '/memory/[id]/montage/[montageId]/done',
+        params: { id, montageId },
+      });
+    } else if (router.canGoBack()) router.back();
     else router.replace({ pathname: '/memory/[id]', params: { id } });
-  }, [router, id]);
+  }, [journal.status, router, id, montageId]);
 
   /**
    * The three things about this montage that the journal does not carry and that do not change while
@@ -284,7 +292,7 @@ export default function MontageLiveScreen() {
                 <RowStep
                   title={s.montage.stage[code]}
                   meta={row && stageLine(row, s)}
-                  state={standingOf(row)}
+                  state={stageStanding(row)}
                   open={open}
                   onPress={() =>
                     router.push({
@@ -351,15 +359,6 @@ export default function MontageLiveScreen() {
       ) : null}
     </Board>
   );
-}
-
-/**
- * Where one of the five stands, in the kit's own words for a step. A stage the worker has not
- * reached has no row at all in the answer, which is the same thing as `pending`: it is ahead.
- */
-function standingOf(stage: MontageStage | undefined): StepState {
-  if (stage === undefined || stage.state === 'pending') return 'waiting';
-  return stage.state;
 }
 
 /**

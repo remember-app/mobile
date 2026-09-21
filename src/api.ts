@@ -857,7 +857,20 @@ export type Montage = {
   /** The still off the finished video, signed the same way `video_url` is, and null while there is
       none — an older montage cut before posters were kept, or one not yet ready. */
   poster_url: string | null;
+  /**
+   * How far the making has got — the five stages in pipeline order with a state each, and nothing
+   * else about them: the card in the strip draws «3 из 5» and five bars out of this without opening
+   * anybody's journal (api README, «Список роликов»).
+   *
+   * `null` on a finished montage and on one the worker has not opened yet — on the first there is
+   * nothing left to show, on the second nothing yet — and absent altogether from the answer `retry`
+   * gives back, which is why it is optional as well as nullable.
+   */
+  stages?: MontageStep[] | null;
 };
+
+/** One of the five as the list reports it: where it stands, and not a word more. */
+export type MontageStep = { stage: MontageStageCode; state: MontageStage['state'] };
 
 /**
  * Every montage of a memory, newest first. Any member reads it, a viewer included — the video is

@@ -1,33 +1,31 @@
 import { useFocusEffect, useIsFocused, useLocalSearchParams, useRouter } from 'expo-router';
-import { useVideoPlayer, VideoView } from 'expo-video';
-import { Download } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Modal, ScrollView, Share, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { ApiError, errorMessage, listMontages, retryMontage, type Memory, type Montage } from '@/api';
 import { useAuth } from '@/auth';
-import { formatDay, formatRuntime } from '@/dates';
-import { maySaveToPhone, saveToPhone } from '@/downloads';
+import { formatDay } from '@/dates';
 // From the gallery's own module: one rule about what a quiet re-read may replace, and this list is
 // polled quietly for the same reason that one is. Its doc says why both lists read it.
 import { keepReady } from '@/frames';
 import {
-  ActionBar,
   BadgeMontage,
   Banner,
   Button,
   CardMontage,
   CardMontageNew,
   EmptyMontages,
-  Text,
   type MontageState,
 } from '@/kit';
 import { useStrings } from '@/language';
+// The one player this product has, and what a film is called — both of them shared with the film's
+// own page, which watches and saves the very same video (TASK-222).
+import { FilmPlayer, montageTitle } from '@/memory/film-player';
 import { BlockHead } from '@/memory/head';
 import { beingMade, shelfTrack, WHILE_MAKING_MS } from '@/montage';
-import { useTurnsWithPhone } from '@/orientation';
+import { STAGE_COUNT } from '@/montage-journal';
 import { type Strings } from '@/strings';
-import { space, themes, ThemePin } from '@/theme';
+import { space } from '@/theme';
 
 /** The four standings a montage can be in, in the three the kit draws (section 10). */
 const MONTAGE_STATE: Record<Montage['status'], MontageState> = {
@@ -46,14 +44,13 @@ const stillMaking = (montages: readonly Montage[] | null) =>
   montages?.some((montage) => beingMade(montage.status)) ?? false;
 
 /**
- * What a montage is called on screen: how long it runs once it does, and the day it was asked for
- * until then — a length is the one thing about it that is worth a title, and there is none to say
- * until the worker has made it.
+ * How far the making has got, off the list's own answer — five states in pipeline order, and the
+ * card draws «3 из 5» and five bars out of them (api README, TASK-223). `null` on a finished one and
+ * on one the worker has not opened yet: on the first there is nothing left to show, on the second
+ * nothing yet. Never the journal — the strip must not open five journals to draw five scales.
  */
-const montageTitle = (montage: Montage, s: Strings) => {
-  const runtime = formatRuntime(montage.duration_seconds);
-  return runtime ? s.montage.ofLength(runtime) : s.montage.fromDay(formatDay(montage.created_at));
-};
+const stagesDone = (montage: Montage): number | null =>
+  montage.stages?.filter((stage) => stage.state === 'done').length ?? null;
 
 /**
  * What a finished montage was made of — «14 сентября · горизонтальный · Тёплая» (spec 7.6). The day
@@ -169,8 +166,8 @@ export function Films({ id, memory }: { id: string; memory: Memory | null }) {
   //
   // And the player is shut on the way out (TASK-94, extended in review): a `router.push` off a
   // tapped push leaves the whole memory mounted behind it, so a playing montage stood over the
-  // screen that came next. Since TASK-124 it cost a second thing — `useTurnsWithPhone` below
-  // follows the modal and not the mount, so nothing put the app back in portrait.
+  // screen that came next. Since TASK-124 it costs a second thing — the player's own lock on the
+  // orientation follows the window and not the mount, so nothing put the app back in portrait.
   useFocusEffect(
     useCallback(() => {
       load();
@@ -197,15 +194,6 @@ export function Films({ id, memory }: { id: string; memory: Memory | null }) {
 
   const role = memory?.role ?? null;
   const watching = montages?.find((montage) => montage.id === playing) ?? null;
-
-  // A wide montage is worth turning the phone for — and since TASK-126 wide is what was asked for
-  // at the order rather than what every montage is; `params.orientation` says which one this is.
-  // The player is left free both ways all the same: a standing montage has no reason to be turned
-  // and nothing breaks if it is, so there is nothing here worth deciding per montage. The
-  // `supportedOrientations` on the modal below only says which ways up it may be drawn — this is
-  // what lets the app leave portrait at all. Which is given back on the cleanup, so what has to be
-  // true is that the player is shut on every way off this screen — the focus effect above does that.
-  useTurnsWithPhone(watching !== null);
 
   /**
    * Every api call a button here makes is the same shape: lock the controls, run one call, say one
@@ -254,6 +242,21 @@ export function Films({ id, memory }: { id: string; memory: Memory | null }) {
       params: { id, montageId: montage.id },
     });
 
+  /**
+   * And where a finished one lives — «Ролик готов» (spec 8, `MontageLiveDone`, TASK-222). The card
+   * used to raise the player over the strip; the film has a page of its own now, because the journal
+   * of how it was cut stays with it for ever and there would otherwise be nothing to open it from.
+   * The player is on that page and it is this very one: «смотреть» is a press on its poster.
+   *
+   * The other road here is untouched and is not this one: `montage` on the memory's own route raises
+   * the player over the feed, which is what «В роликах» on a frame's sheet asks for (TASK-211).
+   */
+  const openFilm = (montage: Montage) =>
+    router.push({
+      pathname: '/memory/[id]/montage/[montageId]/done',
+      params: { id, montageId: montage.id },
+    });
+
   /** The organizer's button under one that fell over: the same row queued again, never a second. */
   const retry = (montage: Montage) =>
     act(
@@ -281,48 +284,6 @@ export function Films({ id, memory }: { id: string; memory: Memory | null }) {
         403: s.montage.retryDenied,
       },
     );
-
-  /**
-   * The finished video kept and then handed on — doc-03 asks for both, and this is one press
-   * because the local copy the share sheet needs exists only between the two. The sheet is opened
-   * on that copy and not on `video_url`: the link is signed and dies in a quarter of an hour, so
-   * whoever it was sent to would get a refusal instead of a video.
-   *
-   * It lives in the player and not on the card: the card in the strip is 232 × 148 of poster with
-   * the name over it, and there is no room on it for a button — the place a montage is saved from
-   * is the place it is watched from.
-   *
-   * ponytail: React Native's own `Share` attaches a file on iOS only — on Android the sheet goes
-   * out with the line and without the video, which is by then in the phone's gallery and shareable
-   * from there. `expo-sharing` is the upgrade when that is not good enough.
-   */
-  async function keep(montage: Montage) {
-    if (montage.video_url === null) return;
-    setBusy(true);
-    // The whole of the progress there is: a save is atomic, the same way the gallery's is.
-    setNotice(s.save.montage);
-    try {
-      if (!(await maySaveToPhone())) {
-        setNotice(s.error.galleryRefused);
-        return;
-      }
-      await saveToPhone({ id: montage.id, kind: 'video', url: montage.video_url }, async (uri) => {
-        // Dismissing the sheet is not a failure, and neither is a phone with nowhere to send it.
-        await Share.share({
-          url: uri,
-          // The memory's own title is what a person wrote; it goes out as it stands.
-          message: memory ? s.montage.shareText(memory.title) : montageTitle(montage, s),
-        }).catch(() => {});
-      });
-      setNotice(s.save.done);
-    } catch {
-      // Nothing here is the api's doing: the link came with the list, and past that it is the
-      // download or the phone's own gallery.
-      setNotice(s.save.failedMontage);
-    } finally {
-      setBusy(false);
-    }
-  }
 
   return (
     <View style={styles.block}>
@@ -375,6 +336,7 @@ export function Films({ id, memory }: { id: string; memory: Memory | null }) {
 
           {montages.map((montage) => {
             const state = MONTAGE_STATE[montage.status];
+            const done = stagesDone(montage);
 
             return (
               <CardMontage
@@ -394,14 +356,22 @@ export function Films({ id, memory }: { id: string; memory: Memory | null }) {
                 }
                 poster={montage.poster_url ?? undefined}
                 badge={<BadgeMontage state={state} label={s.montage.status[montage.status]} />}
-                // Watching a finished one, or walking into the making of one that is still owed.
-                // Either way it is the whole card, which is what the layout gives it.
+                // Spec detail 38 — «3 из 5» and five bars on the one being cut, straight off the
+                // list. The count and the scale read the one number, so the card cannot say «3» and
+                // paint four; a row the worker has not opened yet has no stages and no scale.
+                step={
+                  done === null
+                    ? undefined
+                    : { done, of: STAGE_COUNT, count: s.montage.live.doneOf(done, STAGE_COUNT) }
+                }
+                // Walking into the making of one that is still owed, or onto the page of one that is
+                // finished. Either way it is the whole card, which is what the layout gives it.
                 onPress={
                   beingMade(montage.status)
                     ? () => watchMaking(montage)
-                    : montage.video_url === null
-                      ? undefined
-                      : () => setPlaying(montage.id)
+                    : state === 'ready'
+                      ? () => openFilm(montage)
+                      : undefined
                 }
               >
                 {/* The one button a card carries, and only the fallen card has room for it: a
@@ -424,73 +394,19 @@ export function Films({ id, memory }: { id: string; memory: Memory | null }) {
           inside the window is the one that can be read. */}
       {notice && watching === null ? <Banner text={notice} style={styles.aside} /> : null}
 
-      {/* The finished video played where it lies: `expo-video` streams it from the signed link
-          rather than downloading it first. A modal and not a screen — there is nothing to do in here
-          but watch it, keep it and close it. */}
-      <Modal
-        visible={watching !== null}
-        animationType="fade"
-        onRequestClose={() => setPlaying(null)}
-        // Landscape too: a montage ordered wide is worth turning the phone for, and the rest of
-        // the app is portrait-only.
-        supportedOrientations={['portrait', 'landscape']}
-      >
-        {watching === null || watching.video_url === null ? null : (
-          <View style={styles.viewer}>
-            {/* The pin, and not only the `room.ink` under it: the bar is the kit's own and draws
-                its `ink` and its hairline, which in daylight is a pale strip across the bottom of
-                the dark room. Everything inside the player takes the dark set. */}
-            <ThemePin value="dark">
-              <Playing url={watching.video_url} />
-              {notice ? <Banner text={notice} style={styles.aside} /> : null}
-              {/* Spec 7.2 gives «Закрыть» the outlined button, which is what it wears on
-                  `SheetFrame` and on the consent too (TASK-177, off a device: a quiet one stood as
-                  a line of text in the left corner and read as nothing the app draws). Beside it
-                  the one thing to be done with a finished montage, in the glowing weight. */}
-              <ActionBar>
-                <Button label={s.action.close} onPress={() => setPlaying(null)} />
-                <Button
-                  variant="primary"
-                  wide
-                  icon={Download}
-                  label={s.montage.saveShare}
-                  disabled={busy}
-                  onPress={() => void keep(watching)}
-                />
-              </ActionBar>
-            </ThemePin>
-          </View>
-        )}
-      </Modal>
+      {/* The one player this product has (`memory/film-player.tsx`), raised over the strip by the
+          one road that names a film on the way in — «В роликах» on a frame's own sheet (TASK-211).
+          A finished card leads to the film's page now, and it is watched there, in this same
+          window. */}
+      <FilmPlayer film={watching} memory={memory} onClose={() => setPlaying(null)} />
     </View>
   );
 }
 
 /**
- * The montage, played from its signed link. Its own component because the player is a hook, and
- * this one is mounted only while the video is on screen — leaving it releases the player.
- *
- * The open frame has these same three lines for its previews, down to the style. Not shared, and
- * not because the two differ: it is one `useVideoPlayer` call, and a module of its own around it
- * would be the bigger thing. Worth making the moment a third screen plays a video, or the moment
- * these two disagree.
+ * Nothing this file draws has a colour of its own: the cards, the dashed block and the lines are kit
+ * components on the feed's own background, and those turn with the theme by themselves.
  */
-function Playing({ url }: { url: string }) {
-  const player = useVideoPlayer(url, (video) => video.play());
-  return <VideoView player={player} style={styles.big} />;
-}
-
-/**
- * The player is held in the dark set in every theme — spec 8 gives it a background darker than
- * `ink` (`photo.viewer`) so the video is the only light thing on the screen. `frame-viewer.tsx`
- * says the same at more length; the two draw the same kind of room, and this is the one value in
- * this sheet that has an opinion.
- *
- * So nothing here turns with the theme, and the sheet is a plain one: everything else this file
- * draws is a kit component on the screen's own background, and those turn by themselves.
- */
-const room = themes.dark.color;
-
 const styles = StyleSheet.create({
   // Spec 8: the heading, then 10 down to the strip that stands under it.
   block: { gap: 10 },
@@ -500,6 +416,4 @@ const styles = StyleSheet.create({
   // Everything that is not the strip keeps the screen's margins instead: the dashed block, the line
   // about a read that failed, the line a press answered with.
   aside: { marginHorizontal: space.s4 },
-  viewer: { flex: 1, backgroundColor: room.ink, justifyContent: 'center' },
-  big: { flex: 1, width: '100%' },
 });

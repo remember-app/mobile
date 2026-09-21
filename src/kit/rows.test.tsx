@@ -153,6 +153,19 @@ test('the stage in hand opens out, and the ones around it do not', () => {
   expect(story(shut)).not.toContain('Марк роняет кольцо');
 });
 
+test('a record under a stage opens that frame’s card where there is one to open', () => {
+  // On the finished film's page every record leads to `SheetLiveFile` (TASK-222); while the montage
+  // is still being cut the same row is a glance and takes no finger, so the press is optional and
+  // the row is not a button without one.
+  const note = (onPress?: () => void) =>
+    story(<StepNote uri="https://bucket.example/f10.jpg" text="Марк роняет кольцо" onPress={onPress} />);
+  expect(note(() => {})).toContain('role="button"');
+  expect(note()).not.toContain('role="button"');
+  // What it says to a screen reader is the thought itself — the record is about that frame, and
+  // the thought is the only thing on the row a person could mean by it.
+  expect(note(() => {})).toContain('aria-label="Марк роняет кольцо"');
+});
+
 test('the last line of an opened stage is the way into the whole of its journal', () => {
   const link = story(<StepLink label="Весь журнал этапа · 148 записей" onPress={() => {}} />);
   expect(link).toContain('Весь журнал этапа · 148 записей');
