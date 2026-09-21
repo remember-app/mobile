@@ -8,7 +8,14 @@
 // is the part that decides what actually reaches the worker, and it is the part that can be checked
 // without a phone. Nothing here imports a value — the api's types and the kit's come in as types
 // alone, so a test can import this module as it is.
-import type { MediaItem, Montage, MontageOrientation, MontageWishes, MusicTrackId } from '@/api';
+import type {
+  MediaItem,
+  Montage,
+  MontageOrientation,
+  MontageTemplateId,
+  MontageWishes,
+  MusicTrackId,
+} from '@/api';
 import type { StepState } from '@/kit';
 
 /**
@@ -31,9 +38,18 @@ export const TRACKS: readonly { id: MusicTrackId; length: string }[] = [
 ];
 
 /**
- * How long to ask for. The api takes anything from a quarter of a minute to five and fills in a
- * minute itself when nothing is asked — these are the three round answers the layout offers, not the
- * whole range.
+ * Which of the five a track in an order is, or none of them — and then it is one the organizer
+ * sent up themselves, whose key is a storage path (`music/<uuid>`) and never a word for a person.
+ * The api reads one list of both kinds, so telling them apart is the reader's job: a shelf id has
+ * a name in the dictionary, and anything else is «Свой трек».
+ */
+export const shelfTrack = (key: string): MusicTrackId | null =>
+  TRACKS.some((track) => track.id === key) ? (key as MusicTrackId) : null;
+
+/**
+ * How long to ask for. Any whole number of seconds inside this memory's own range is a legal
+ * answer now (doc-03) — these three round ones are what the interim step 4 still offers until the
+ * slider of `MontageBuild` replaces it (TASK-217), and they are a shortcut and not the range.
  */
 export const LENGTHS = [30, 60, 120] as const;
 
@@ -51,6 +67,14 @@ export const MIN_FRAMES = 3;
 export const STORY_LIMIT = 600;
 
 /**
+ * One track of the order, as the api takes it: `key` is either an id off the shelf (`calm`) or the
+ * storage key of a file the organizer sent up themselves (`music/<uuid>`) — the api reads one list
+ * of both, so this holds one kind of thing too. `name` is the phone's own name for their file, and
+ * null for the shelf, whose five names are the app's own and come from `@/strings`.
+ */
+export type PickedTrack = { key: string; name: string | null };
+
+/**
  * Everything the wizard has been told, one field per step. The two sets are the whole of step 1: the
  * automatic pass is a proposal, and these are the two directions the organizer overrules it in —
  * `dropped` is what they took out by hand, `returned` is what the pass took out and they put back.
@@ -60,22 +84,38 @@ export type Order = {
   dropped: ReadonlySet<string>;
   returned: ReadonlySet<string>;
   story: string;
-  /** One of the shelf, or none — a track nobody chose is the worker's to pick. */
-  track: MusicTrackId | null;
-  /** Their own track's key in R2, once it is up there. Wins over `track`; see `wishes`. */
-  ownTrack: { key: string; name: string } | null;
-  seconds: Length;
+  /**
+   * Which of the six the order started from, or none at all («Настроить самому»). What it is *for*
+   * is the plate on step 2 and the autopilot's own thread — the wishes it filled in are in the
+   * fields beside this one, already indistinguishable from typed ones, because that is exactly what
+   * a template is (doc-03): a body filled in ahead of time.
+   */
+  template: MontageTemplateId | null;
+  /**
+   * Whether the story has been touched since the template wrote it. The plate then says «Свой
+   * текст»: the words are the person's now, and a template whose text was rewritten is no longer
+   * the thing it names.
+   */
+  ownStory: boolean;
+  /** The music in the order it plays. Empty is an answer — a film with the video's own sound. */
+  tracks: readonly PickedTrack[];
+  /** What to do with those tracks, in words. Goes out only while there are tracks to do it to. */
+  note: string;
+  /** Any whole number of seconds; null is «не сказали», and then the api picks and clamps it. */
+  seconds: number | null;
   orientation: MontageOrientation;
 };
 
-/** What the wizard opens on: the automatic pass as it stands, a minute long, horizontal. */
+/** What the wizard opens on: the automatic pass as it stands, nothing said, horizontal. */
 export const blankOrder = (): Order => ({
   dropped: new Set(),
   returned: new Set(),
   story: '',
-  track: null,
-  ownTrack: null,
-  seconds: 60,
+  template: null,
+  ownStory: false,
+  tracks: [],
+  note: '',
+  seconds: null,
   orientation: 'landscape',
 });
 
@@ -164,14 +204,21 @@ export function rejectedGroups(
 }
 
 /**
- * The order as the api takes it (doc-03). Only what was actually settled is named: a frame nobody
- * touched is neither included nor excluded, because the worker's own pass is what decides those —
- * `include` is «this one goes in whatever you think of it» and `exclude` is «this one does not».
+ * The order as the api takes it (doc-03). Every frame that is not going in is named: `exclude` is
+ * what the pass dropped and nobody took back, plus everything dropped by hand. Named and not left
+ * to the worker's own pass, because the api counts the film off this very body — «готовые минус
+ * exclude_media_ids» is what `previewMontage` answers with, and a summary counting frames the
+ * screen has already crossed out would be a summary of a different film.
  *
- * `include` leaves out anything in `dropped`: a frame the pass dropped, the organizer put back and
- * then dropped by hand is still in `returned`, and naming it both ways is the one body the api
- * refuses outright. The same rule keeps the two tracks apart — their own file wins over the shelf,
- * because it is the later and more deliberate of the two answers.
+ * `include` is the other direction and still needed: the worker skips anything its pass rejected
+ * unless the order insists on it by name (`director.py`), so a frame taken back on step 1 only
+ * actually comes back if it is in this list. It leaves out anything in `dropped` — a frame put back
+ * and then dropped by hand is still in `returned`, and naming it both ways is the one body the api
+ * refuses outright.
+ *
+ * The music always goes out, empty list included: that is how the worker tells «без музыки, живой
+ * звук» from an order that simply said nothing. The note about the tracks goes only with tracks —
+ * the api answers 400 to a wish about music nobody picked.
  */
 export function wishes(items: readonly MediaItem[], order: Order): MontageWishes {
   const material = usable(items);
@@ -180,20 +227,19 @@ export function wishes(items: readonly MediaItem[], order: Order): MontageWishes
       (item) => item.screening_rejected && order.returned.has(item.id) && !order.dropped.has(item.id),
     )
     .map((item) => item.id);
-  const exclude = material.filter((item) => order.dropped.has(item.id)).map((item) => item.id);
+  const exclude = material.filter((item) => pickOf(item, order) !== 'keep').map((item) => item.id);
   const story = order.story.trim();
+  const tracks = order.tracks.map((track) => track.key);
+  const note = order.note.trim();
 
   return {
-    target_seconds: order.seconds,
     orientation: order.orientation,
+    music_tracks: tracks,
+    ...(order.seconds === null ? {} : { target_seconds: order.seconds }),
     ...(story ? { story_text: story } : {}),
     ...(include.length > 0 ? { include_media_ids: include } : {}),
     ...(exclude.length > 0 ? { exclude_media_ids: exclude } : {}),
-    ...(order.ownTrack
-      ? { music_track_key: order.ownTrack.key }
-      : order.track
-        ? { music_track_id: order.track }
-        : {}),
+    ...(tracks.length > 0 && note ? { music_note: note } : {}),
   };
 }
 

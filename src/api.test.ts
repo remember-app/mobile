@@ -16,6 +16,9 @@ import {
   mayContribute,
   memberHandle,
   memberName,
+  listMontageTemplates,
+  orderMontage,
+  previewMontage,
   startEmailSignIn,
   type Member,
 } from '@/api';
@@ -142,6 +145,40 @@ test('the request for a sign-in link carries the language the app is speaking', 
     { email: 'pilot@example.com', language: 'ru' },
     { email: 'pilot@example.com', language: 'en' },
   ]);
+
+  vi.unstubAllGlobals();
+});
+
+/**
+ * The three calls an order is made of (doc-03, TASK-216): the six templates it can start from, the
+ * summary it is read back as, and the order itself. All three are the organizer's, and the first
+ * two exist so that nothing about a film is worked out on this side — the length it may run to and
+ * the frames that will be in it are the api's answer and never this app's arithmetic.
+ */
+test('templates are read, the summary is asked for with the very body the order sends', async () => {
+  const asked: { url: string; method?: string; body: unknown }[] = [];
+  vi.stubGlobal('fetch', async (url: string, init: { method?: string; body?: string }) => {
+    asked.push({ url, method: init.method, body: init.body ? JSON.parse(init.body) : null });
+    return new Response('[]');
+  });
+
+  await listMontageTemplates('session', 'memory-1');
+  // A body is a body: the same wishes go to the summary and to the order, and the only difference
+  // between the two calls is that one of them writes something down.
+  const wishes = { target_seconds: 90, music_tracks: ['calm'], exclude_media_ids: ['3ab0'] };
+  await previewMontage('session', 'memory-1', wishes);
+  await orderMontage('session', 'memory-1', wishes);
+
+  expect(asked.map((one) => one.url.replace(/^.*\/memories/, '/memories'))).toEqual([
+    '/memories/memory-1/montage-templates',
+    '/memories/memory-1/montages/preview',
+    '/memories/memory-1/montages',
+  ]);
+  // The templates are read and the other two are asked, which is what keeps a summary from
+  // counting as an order against the montage counter.
+  expect(asked.map((one) => one.method)).toEqual(['GET', 'POST', 'POST']);
+  expect(asked[1]?.body).toEqual(wishes);
+  expect(asked[2]?.body).toEqual(asked[1]?.body);
 
   vi.unstubAllGlobals();
 });

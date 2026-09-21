@@ -16,8 +16,14 @@ test('every key says something different in each language', () => {
     );
   const english = new Map(flat(en));
   const same = flat(ru).filter(([key, value]) => english.get(key) === value);
-  // The two language names are the one pair meant to match: each names itself in its own language.
-  expect(same.map(([key]) => key)).toEqual(['language.ru', 'language.en']);
+  // Three pairs are meant to match. Each language names itself in its own language — and the
+  // template for short video is named after the three sites it is cut for, which are trademarks
+  // and the same word in every language there is.
+  expect(same.map(([key]) => key)).toEqual([
+    'montage.template.short_form',
+    'language.ru',
+    'language.en',
+  ]);
 });
 
 test('Russian counts in three forms, English in two', () => {

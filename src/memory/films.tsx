@@ -31,7 +31,7 @@ import {
 } from '@/kit';
 import { useStrings } from '@/language';
 import { MemoryHead, type Head } from '@/memory/head';
-import { beingMade, WHILE_MAKING_MS } from '@/montage';
+import { beingMade, shelfTrack, WHILE_MAKING_MS } from '@/montage';
 import { useTurnsWithPhone } from '@/orientation';
 import { type Strings } from '@/strings';
 import { space, themes, ThemePin } from '@/theme';
@@ -67,12 +67,22 @@ const montageTitle = (montage: Montage, s: Strings) => {
  * it was ordered on, and the wishes that shaped it; a montage cut before any of them could be asked
  * for simply says less, rather than saying a default somebody never chose. A track off the phone is
  * named as one: its key is a storage path and never a word for a person.
+ *
+ * The music is a list now, in the order it plays, and one card may name several tracks. An older
+ * montage carries neither list nor empty list but one of the two single fields the api took before
+ * it — and it is still on the same screen, so both are read here.
  */
 function madeOf(montage: Montage, s: Strings): string {
   const parts = [formatDay(montage.created_at)];
-  if (montage.params.orientation) parts.push(s.montage.orientation[montage.params.orientation]);
-  if (montage.params.music_track_id) parts.push(s.montage.track[montage.params.music_track_id]);
-  else if (montage.params.music_track_key) parts.push(s.montage.ownTrackShort);
+  const { orientation, music_tracks, music_track_id, music_track_key } = montage.params;
+  if (orientation) parts.push(s.montage.orientation[orientation]);
+  if (music_tracks?.length) {
+    for (const key of music_tracks) {
+      const shelf = shelfTrack(key);
+      parts.push(shelf ? s.montage.track[shelf] : s.montage.ownTrackShort);
+    }
+  } else if (music_track_id) parts.push(s.montage.track[music_track_id]);
+  else if (music_track_key) parts.push(s.montage.ownTrackShort);
   return parts.join(' · ');
 }
 
