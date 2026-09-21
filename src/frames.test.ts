@@ -177,6 +177,7 @@ const member = (over: Partial<Member>): Member => ({
   username: 'marina',
   role: 'contributor',
   contribution_status: 'more_coming',
+  media_count: 0,
   ...over,
 });
 
@@ -229,6 +230,8 @@ const wedding = (over: Partial<Memory> = {}): Memory => ({
   storage_bytes: '1',
   media_count: 1,
   recent_thumbnail_urls: [],
+  cover_media_id: null,
+  cover_thumbnail_url: null,
   montage_count: 0,
   created_at: '2026-09-01T09:00:00.000Z',
   role: 'organizer',

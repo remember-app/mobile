@@ -158,6 +158,10 @@ export default function HomeScreen() {
                 // The frames the listing signed for this memory, drawn as they come: the card shows
                 // what is inside instead of counting it.
                 thumbs={thumbs}
+                // The frame the organizer put up as this memory's face (spec 10.8.3): on the large
+                // card it takes the whole of it instead of the mosaic, on the ordinary one it leads
+                // the strip. Nobody chose one and both cards are exactly what they were.
+                cover={item.cover_thumbnail_url}
                 large={large}
                 organizer={
                   item.role === 'organizer' ? (

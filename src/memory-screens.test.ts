@@ -1,7 +1,9 @@
 import { expect, test } from 'vitest';
 
 import memory from './app/memory/[id].tsx?raw';
+import edit from './app/memory/[id]/edit.tsx?raw';
 import order from './app/memory/[id]/order.tsx?raw';
+import settings from './app/memory/[id]/settings.tsx?raw';
 import progress from './app/memory/[id]/montage/[montageId].tsx?raw';
 import upload from './app/memory/[id]/upload.tsx?raw';
 import home from './app/index.tsx?raw';
@@ -17,12 +19,14 @@ import cardMontage from './kit/card-montage.tsx?raw';
 import filmstrip from './kit/filmstrip.tsx?raw';
 import member from './kit/member.tsx?raw';
 import toggle from './kit/toggle.tsx?raw';
+import cover from './memory/cover.tsx?raw';
 import films from './memory/films.tsx?raw';
 import viewer from './memory/frame-viewer.tsx?raw';
 import frames from './memory/frames.tsx?raw';
 import sheets from './memory/frames-sheets.tsx?raw';
 import head from './memory/head.tsx?raw';
-import people from './memory/people.tsx?raw';
+import inviteSheet from './memory/invite-sheet.tsx?raw';
+import when from './memory/when.tsx?raw';
 // The arithmetic both the movies face and the waiting screen ask their «is it still being made»
 // question through, so the two cannot drift apart about what the answer is.
 import montage from './montage.ts?raw';
@@ -30,10 +34,11 @@ import push from './push.ts?raw';
 import { en, ru } from '@/strings';
 
 /**
- * A memory is one screen with three faces — «не три экрана с одним именем, а один экран с тремя
- * лицами: имя стоит в шапке, лицо выбирают переключателем под ней» (kit, «Экраны» 4–6, TASK-101).
- * These read off the route and the three faces: which half went where, what the appbar carries on
- * each of them, and what still points at what.
+ * A memory is one screen with two faces — «не два экрана с одним именем, а один экран с двумя
+ * лицами: имя стоит в шапке, лицо выбирают переключателем под ней» (TASK-101). There was a third,
+ * «Люди», until TASK-209: who is in a memory and what the event is are its settings now, on a route
+ * of their own. These read off the route, the two faces and that screen: which half went where,
+ * what the appbar carries on each of them, and what still points at what.
  *
  * Their text and not their rendered output, because this project has no renderer: every test here
  * runs pure logic, and a screen would need `react-native` transformed and `expo-router`,
@@ -61,36 +66,53 @@ test('one memory is one route, behind the same gate as the rest of the app', () 
   expect(layout).not.toContain('name="memory/[id]/montage"');
   // Picking material off the phone stays a screen of its own — it is one somebody comes back from.
   expect(layout).toContain('<Stack.Screen name="memory/[id]/upload"');
+  // And so are the settings and the one screen that edits the memory (TASK-209): the people used to
+  // be a face and are a route now, which is what the capsule over the feed leads to.
+  expect(layout).toContain('<Stack.Screen name="memory/[id]/settings"');
+  expect(layout).toContain('<Stack.Screen name="memory/[id]/edit"');
   // Inside `Stack.Protected` — a screen declared outside it exists signed out too.
   expect(layout.indexOf('name="memory/[id]"')).toBeLessThan(layout.indexOf('</Stack.Protected>'));
+  expect(layout.indexOf('name="memory/[id]/settings"')).toBeLessThan(
+    layout.indexOf('</Stack.Protected>'),
+  );
 });
 
-test('the three faces are three files, and the screen is only which of them is on', () => {
-  for (const face of ['Frames', 'Films', 'People']) expect(memory).toContain(`<${face} id={id}`);
-  // The memory itself is read once, above all three, so switching a face does not blink the name.
+test('the two faces are two files, and the people are a screen of their own', () => {
+  for (const face of ['Frames', 'Films']) expect(memory).toContain(`<${face} id={id}`);
+  expect(memory).not.toContain('<People');
+  // The memory itself is read once, above both, so switching a face does not blink the name.
   expect(memory.match(/listMemories\(/g)).toHaveLength(1);
-  for (const face of [frames, films, people]) expect(face).not.toContain('listMemories');
+  for (const face of [frames, films]) expect(face).not.toContain('listMemories');
   // And each face reads what is its own, when it comes on.
   expect(frames).toContain('listMedia(');
   expect(films).toContain('listMontages(');
-  expect(people).toContain('listMembers(');
+  // The roster is the settings screen's own list now. The frames still read it, and for something
+  // else entirely — the name under a group and the caller's own level — never to show who is here.
+  expect(settings).toContain('listMembers(');
+  expect(films).not.toContain('listMembers(');
+  expect(frames).not.toContain('RowMember');
   for (const moved of ['retryMontage', 'CardMontage']) {
     expect(films).toContain(moved);
-    expect(people).not.toContain(moved);
+    expect(settings).not.toContain(moved);
     expect(frames).not.toContain(moved);
   }
   // Asking for a movie is four steps and a screen of its own since TASK-162: this face offers it
   // and reads its list again when that screen goes, and no face orders anything itself.
   expect(order).toContain('orderMontage(');
-  for (const face of [frames, films, people]) expect(face).not.toContain('orderMontage');
-  for (const stayed of ['RowMember', 'inviteByUsername', 'removeMember']) {
-    expect(people).toContain(stayed);
+  for (const face of [frames, films, settings]) expect(face).not.toContain('orderMontage');
+  for (const stayed of ['RowMember', 'removeMember']) {
+    expect(settings).toContain(stayed);
     expect(films).not.toContain(stayed);
   }
+  // Putting somebody in is the sheet's, and the sheet is a file: the settings raise it and the
+  // layout hangs the same one off a memory just created.
+  expect(inviteSheet).toContain('inviteByUsername(');
+  expect(settings).not.toContain('inviteByUsername(');
+  expect(settings).toContain('<InviteSheet');
 });
 
-test('all three wear one appbar, with the memory’s name and no caption under it', () => {
-  for (const face of [frames, films, people]) {
+test('both faces wear one appbar, with the memory’s name and no caption under it', () => {
+  for (const face of [frames, films]) {
     expect(face).toContain('<MemoryHead');
     // The line that used to say which of the three screens was open. The switch says it now, in
     // words that can be pressed (TASK-76 asked for the caption; TASK-101 replaced it).
@@ -103,7 +125,7 @@ test('all three wear one appbar, with the memory’s name and no caption under i
   expect(head).toContain("router.canGoBack() ? router.back() : router.replace('/')");
 });
 
-test('the switch under the name is the kit’s wide segment, and it holds the three faces', () => {
+test('the switch under the name is the kit’s wide segment, and it holds the two faces', () => {
   expect(head).toContain('<Segment');
   // `.segment-wide` — the row spans the screen instead of being as wide as its words, and the
   // heading over it is the memory's own name, so the label is only spoken.
@@ -113,17 +135,18 @@ test('the switch under the name is the kit’s wide segment, and it holds the th
   for (const option of [
     "{ value: 'frames', label: s.memory.framesPlain }",
     "{ value: 'films', label: s.montage.title }",
-    "{ value: 'people', label: s.members.title }",
   ]) {
     expect(head).toContain(option);
   }
-  // The kit's own three words, in both sets: «Кадры / Ролики / Люди».
+  // The third of them went with the face (TASK-209): «Люди» is a screen now, and the word is its
+  // own heading there rather than a pill here.
+  expect(head).not.toContain("value: 'people'");
   expect(ru.memory.framesPlain).toBe('Кадры');
   expect(ru.montage.title).toBe('Ролики');
   expect(ru.members.title).toBe('Люди');
   for (const set of [en, ru]) {
-    for (const word of [set.memory.framesPlain, set.montage.title, set.members.title]) {
-      // A third of a phone's width each: one word, never a phrase.
+    for (const word of [set.memory.framesPlain, set.montage.title]) {
+      // Half a phone's width each: one word, never a phrase.
       expect(word).not.toContain(' ');
     }
   }
@@ -137,13 +160,11 @@ test('the right of the appbar is one icon, and only the frames have one', () => 
   expect(frames).toContain('right={');
   expect(frames).toContain('label={picking ? s.gallery.leaveSelect : s.gallery.select}');
   expect(frames).not.toContain('gallery.downloadAll');
-  // The other two hand the head nothing for that corner — moving between faces is the switch's job,
-  // and the `Users` icon that used to do it is gone from all three.
-  for (const face of [films, people]) {
-    expect(face).toContain('<MemoryHead {...head} />');
-    expect(face).not.toContain('right=');
-  }
-  for (const face of [frames, films, people]) expect(face).not.toContain('Users');
+  // The other hands the head nothing for that corner — moving between faces is the switch's job,
+  // and the `Users` icon that used to do it is gone from both.
+  expect(films).toContain('<MemoryHead {...head} />');
+  expect(films).not.toContain('right=');
+  for (const face of [frames, films]) expect(face).not.toContain('Users');
 });
 
 test('the footer of the frames is one wide button, «Add more» off the picking mode', () => {
@@ -160,7 +181,7 @@ test('the footer of the frames is one wide button, «Add more» off the picking 
   // And that button is the only way to the upload screen there is.
   expect(frames).toContain('/memory/[id]/upload');
   expect(films).not.toContain('/memory/[id]/upload');
-  expect(people).not.toContain('/memory/[id]/upload');
+  expect(settings).not.toContain('/memory/[id]/upload');
 });
 
 test('the ordinary footer is the filters, the one action, and the arrangement', () => {
@@ -355,7 +376,7 @@ test('«Выбрать все N» counts and marks the frames a tap could reach,
 });
 
 test('no face reaches another by pushing a route: the switch is the only road between them', () => {
-  for (const face of [frames, films, people]) {
+  for (const face of [frames, films]) {
     expect(face).not.toContain("pathname: '/memory/[id]'");
     expect(face).not.toContain('/memory/[id]/gallery');
   }
@@ -363,14 +384,16 @@ test('no face reaches another by pushing a route: the switch is the only road be
   // and, since TASK-169, the waiting over one montage — and both come back here. What this rule
   // bans is a face drawing another face's route, which neither of those is; the other two faces
   // have no business with a montage at all.
-  for (const face of [frames, people]) expect(face).not.toContain('/memory/[id]/montage');
+  expect(frames).not.toContain('/memory/[id]/montage');
 });
 
 test('the platform switch is spelled out once, in the kit', () => {
   // TASK-56: the same four colour props stood word for word on two screens, and one of them is the
   // kind nobody notices missing. The invite sheet takes the kit's component now.
-  expect(people).toContain('<Toggle');
-  for (const face of [frames, films, people]) expect(face).not.toContain('thumbColor');
+  expect(inviteSheet).toContain('<Toggle');
+  for (const face of [frames, films, settings, inviteSheet]) {
+    expect(face).not.toContain('thumbColor');
+  }
   expect(toggle).toContain('activeThumbColor');
 });
 
@@ -388,12 +411,12 @@ test('every face shuts its own windows when it loses focus', () => {
   //
   // Only those two are left here. Every sheet — the invite, the montage order, both delete
   // confirmations — is the kit's own `Sheet`, and since TASK-129 a sheet shuts itself when the
-  // screen under it loses focus (`kit/sheet.test.tsx`); the people face's line went back to being
-  // the plain read it was before. That is the whole point of the rule living in one place: a face
-  // that puts up a new sheet gets it with no line of its own, which is how the delete confirmation
-  // on this face — never touched by hand, the hole TASK-129 was reported for — is shut too.
+  // screen under it loses focus (`kit/sheet.test.tsx`); the settings screen's line is the plain
+  // read it was before. That is the whole point of the rule living in one place: a screen that puts
+  // up a new sheet gets it with no line of its own, which is how the confirmation on the settings —
+  // never touched by hand, the hole TASK-129 was reported for — is shut too.
   for (const face of [frames, films]) expect(face).not.toContain('useFocusEffect(load)');
-  expect(people).toContain('useFocusEffect(load);');
+  expect(settings).toContain('useFocusEffect(load);');
   expect(frames).toMatch(
     /useFocusEffect\(\s*useCallback\(\(\) => \{\s*load\(\);\s*return \(\) => setOpen\(null\);\s*\}, \[load\]\),\s*\);/,
   );
@@ -402,8 +425,12 @@ test('every face shuts its own windows when it loses focus', () => {
   );
   // And the explicit ways out are untouched: each window's own way out still closes it, the
   // hardware key and both confirmations included.
-  expect(people).toContain('onCancel={() => setInviting(false)}');
-  expect(people).toContain('onCancel={() => setDropping(null)}');
+  expect(settings).toContain('onCancel={() => setInviting(false)}');
+  expect(settings).toContain('onCancel={() => setDropping(null)}');
+  // The screen that edits a memory has two of its own — the cover picker and the sheet that asks
+  // about edits nobody saved — and both are shut the same way.
+  expect(edit).toContain('onCancel={() => setPicking(false)}');
+  expect(edit).toContain('onCancel={() => setLeaving(false)}');
   // The open frame is a window of its own now (TASK-147): the hardware key goes through the same
   // `onClose` the face hands it, which is the same `setOpen(null)` the blur above runs.
   expect(viewer).toContain('onRequestClose={onClose}');
@@ -420,9 +447,11 @@ test('a tapped card opens the memory on its frames, which is what it opens on by
   expect(memory).toContain("useState<Face>(wanted ?? 'frames')");
 });
 
-test('an accepted invite lands on the people, and a finished movie on the movies', () => {
-  // Both used to be routes of their own; both are a face of this one screen now, asked for by name.
-  expect(invite).toContain("params: { id: memory.id, face: 'people' }");
+test('an accepted invite lands on the memory itself, and a finished movie on the movies', () => {
+  // «Дальше — воспоминание, куда звали» (spec, `InviteJoining`). It used to ask for the people by
+  // name; they are a screen of their own now, behind the capsule.
+  expect(invite).toContain('params: { id: memory.id }');
+  expect(invite).not.toContain("face: 'people'");
   expect(push).toContain("params: { id: memoryId, face: 'films' }");
   // The «вас позвали» push still opens the screen that takes material.
   expect(push).toContain("router.push({ pathname: '/memory/[id]/upload'");
@@ -441,29 +470,59 @@ test('the ember on a face is the one action that face is for', () => {
   // Three on that screen, one per surface: «Дальше»/«Смонтировать» on the wizard itself, «Вернуть
   // все» on the sheet of what was dropped, «Добавить кадры» on the one that says there is too little.
   expect(order.match(/variant="primary"/g)).toHaveLength(3);
-  // Two on the people for the same reason since TASK-145: «Пригласить» in the footer, and the one
-  // «Позвать» at the foot of the invite sheet. The sheet had none of its own while every press that
-  // put somebody in sat on that person's own row (TASK-131); the layout's `SheetInvite` is one of
-  // the five «одна главная кнопка» sheets of spec 7.1, so the press moved back to the bottom.
-  expect(people.match(/variant="primary"/g)).toHaveLength(2);
-  // And the people's own is in the footer the kit draws for that face, not inline in the roster.
-  const footer = people.slice(people.indexOf('<ActionBar>'), people.indexOf('</ActionBar>'));
+  // One on the settings and one on the sheet it raises: «Пригласить» in the footer, «Позвать» at
+  // the foot of `SheetInvite`. The sheet had none of its own while every press that put somebody in
+  // sat on that person's own row (TASK-131); the layout's `SheetInvite` is one of the five «одна
+  // главная кнопка» sheets of spec 7.1, so the press moved back to the bottom.
+  expect(settings.match(/variant="primary"/g)).toHaveLength(1);
+  expect(inviteSheet.match(/variant="primary"/g)).toHaveLength(1);
+  // And the settings' own is in the footer the kit draws, not inline in the roster.
+  const footer = settings.slice(settings.indexOf('<ActionBar>'), settings.indexOf('</ActionBar>'));
   expect(footer).toContain('label={s.action.invite}');
+  // Two on the screen that edits a memory — «Сохранить» in its footer and «Поставить обложкой» at
+  // the foot of the sheet that picks one — and they are on two surfaces, never at once.
+  expect(edit.match(/variant="primary"/g)).toHaveLength(1);
+  expect(cover.match(/variant="primary"/g)).toHaveLength(1);
 });
 
 test('nobody is shown a way out of a memory, and the organizer keeps the crosses', () => {
   // TASK-113: the human took leaving off the design. The call behind it is untouched and still the
   // one the organizer's cross makes on somebody else — what went is the button that aimed it at
-  // oneself, and with it the only red thing the face had.
-  expect(people).not.toContain('variant="danger"');
-  expect(people).not.toContain('label={s.members.leave}');
-  expect(people).toContain('removeMember(session, id, target.id)');
-  expect(people).toContain('label={s.members.remove(memberName(member))}');
+  // oneself, and with it the only red thing the screen had.
+  expect(settings).not.toContain('variant="danger"');
+  expect(settings).not.toContain('s.members.leave');
+  expect(settings).toContain('removeMember(session, id, target.id)');
+  expect(settings).toContain('label={s.members.remove(memberName(member))}');
 });
 
-// The roster line itself (TASK-110, TASK-111), reported off a live device: the standings read as
-// bookkeeping, nothing said how much anybody had actually brought, and «мне нечего добавлять» was a
-// button under the row that made that one row taller than the rest.
+// The settings screen (spec 8, `MemorySettings`, TASK-209): what the event is and who is in it.
+// The roster below it carries the two things reported off a live device long before it moved here
+// (TASK-110, TASK-111) — the standings read as bookkeeping, and nothing said how much anybody had
+// actually brought.
+
+test('the settings are the memory named, counted and covered, under one pencil', () => {
+  // Spec 8: the card is what this memory is — the 68 cover, the name, «12–14 сентября · 486
+  // кадров» — and the one round button on it changes all three at once (spec 10.8.3).
+  expect(settings).toContain('<CoverSlot uri={memory.cover_thumbnail_url}');
+  expect(settings).toContain('formatEventDates(memory.event_start, memory.event_end)');
+  expect(settings).toContain('s.memory.frames(memory.media_count)');
+  expect(settings).toContain('label={s.settings.edit}');
+  expect(settings).toContain("router.push({ pathname: '/memory/[id]/edit', params: { id } })");
+  // «Не организатор — круглой 44 „править“ и кнопки „Править состав“ нет вовсе (не недоступны — не
+  // рисуются)»: a greyed-out button would promise that one day it presses.
+  expect(settings).toContain('{organizer ? (');
+  expect(settings).toContain('{organizer && members.length > 1 ? (');
+  expect(settings).not.toContain('disabled={!organizer}');
+});
+
+test('the cover a memory has is the one chain everywhere it is shown', () => {
+  // Spec 6 and 10.8.3: the chosen frame, else the mosaic of the first frames, else the dashed
+  // frame — in the 68 slot and on both cards of the list, which is the kit's own `cover` prop.
+  expect(cover).toContain('shots.length > 0 ? (');
+  expect(cover).toContain('<Mosaic photos={shots} layout="strip" />');
+  expect(cover).toContain('<DashedFrame');
+  expect(home).toContain('cover={item.cover_thumbnail_url}');
+});
 
 test('a standing is one of three words, and «nothing to add» is not one of the other two', () => {
   for (const set of [en, ru]) {
@@ -478,64 +537,154 @@ test('a standing is one of three words, and «nothing to add» is not one of the
   }
   expect(ru.standing.more_coming).toBe('Планирует загрузить');
   expect(ru.standing.done).toBe('Всё загрузил');
+  // And the three a person may actually ask for: `not_started` is what an invite leaves behind and
+  // the api refuses it back, so it is not on the way round either.
+  expect(api).toContain("status: 'more_coming' | 'done' | 'nothing',");
 });
 
 test('the line over the roster counts «скинувшие» by the one rule both screens read', () => {
   // Review of m-21, on one memory: the card on the main screen and this line said different
   // numbers, because the card is counted by the api and this line counted «всё загрузил» alone.
   // Now both ask `hasShared` (doc-06, TASK-167) — the rule, not a copy of it, so the day a fifth
-  // standing exists neither face can be the one that missed it.
-  expect(people).toContain('bringers.filter((member) => hasShared(member.contribution_status))');
-  expect(people).not.toContain("contribution_status === 'done').length");
+  // standing exists neither screen can be the one that missed it.
+  expect(settings).toContain('bringers.filter((member) => hasShared(member.contribution_status))');
+  expect(settings).not.toContain("contribution_status === 'done').length");
   // The other half of the line was never the argument: whoever may not bring material is owed
   // nothing and is counted on neither side of the «из» (doc-01).
-  expect(people).toContain('(members ?? []).filter((member) => mayContribute(member.role))');
-  // And one's own «ждать нечего» chip is the same rule read backwards — it is offered exactly while
-  // there is still something to say, which is exactly what is not counted above.
-  expect(people).toContain('!hasShared(member.contribution_status)');
+  expect(settings).toContain('(members ?? []).filter((member) => mayContribute(member.role))');
+  expect(settings).toContain('s.members.brought(brought, bringers.length)');
+  expect(ru.members.brought(3, 5)).toBe('3 из 5 всё скинули');
 });
 
-test('every row says how many frames that person brought, counted off the gallery', () => {
-  // The api keeps no tally on a member, so the roster counts the memory's own listing by uploader.
-  // One read, beside the roster's own — and its failure is not the roster's, so it is swallowed.
-  expect(people.match(/listMedia\(/g)).toHaveLength(1);
-  expect(people).toContain('by.set(item.uploaded_by, (by.get(item.uploaded_by) ?? 0) + 1)');
-  expect(people).toContain("shots ? s.memory.frames(shots.get(member.id) ?? 0) : '—'");
-  // The `@ник` under the name, and the rule for leaving it off when it is already the name above —
-  // one copy in `api.ts` beside `memberName`, which settles the other half of the same pair. It was
-  // written out here and again on the profile head until review pulled it back.
-  expect(people).toContain('memberHandle(member),');
-  // And the role beside it is \u00ab\u0414\u043e\u0431\u0430\u0432\u043b\u0435\u043d\u0438\u0435\u00bb or \u00ab\u041f\u0440\u043e\u0441\u043c\u043e\u0442\u0440\u00bb, never \u00ab\u041e\u0440\u0433\u0430\u043d\u0438\u0437\u0430\u0442\u043e\u0440\u00bb (spec 7.5): that one
-  // is the badge on the name, and the layout writes the organizer's own second line as \u00ab@liza \u00b7 128
-  // \u043a\u0430\u0434\u0440\u043e\u0432\u00bb. One fact said twice in one row is what this line is held against.
-  expect(people).toContain("member.role === 'organizer' ? null : s.role[member.role],");
-  // Swallowed, and nothing written on the way out. This read runs again on every focus, so a
-  // failure on the way back from the upload screen used to blank a column of counts that was
-  // already on screen and right — and nothing on this face retries it, because the banner belongs
-  // to the roster. Found in review: never counted earns the dash, counted-then-lost does not.
-  expect(people).not.toContain('setShots(null)');
-  expect(people).toContain('() => {},');
+test('viewers stand in a block of their own, with no standing and no count', () => {
+  // Spec 8: «блок „Зрители“ — те же строки без меты и значка», and with nobody only watching the
+  // block is not drawn at all. The api answers `null` for their standing on purpose (TASK-190):
+  // «ничего не загрузил» over somebody never asked to bring anything is a reproach.
+  expect(settings).toContain(
+    "const viewers = (members ?? []).filter((member) => member.role === 'viewer');",
+  );
+  expect(settings).toContain('{viewers.length > 0 ? (');
+  expect(settings).toContain("meta={member.role === 'viewer' ? undefined : framesOf(member)}");
+  expect(settings).toContain('const standing = member.contribution_status;');
+  expect(settings).toContain('if (standing === null) return null;');
+  expect(api).toContain('contribution_status: ContributionStatus | null;');
+});
+
+test('every row says how many frames that person brought, and the api is what counted them', () => {
+  // It used to be counted here, off the whole gallery, because the api kept no tally on a member.
+  // It does now (TASK-190), so the roster is one read again and the number on a row is the same one
+  // the gallery itself would show.
+  // `?? 0` and not a bare read, the way the main screen guards its own new field: the app ships
+  // over the air and the api deploys on its own, and «undefined кадров» under every name is what a
+  // build meeting an older api would print.
+  expect(settings).toContain('s.memory.frames(member.media_count ?? 0)');
+  expect(settings).not.toContain('listMedia(');
+  expect(settings).not.toContain('uploaded_by');
+  // The role is not written into the row at all (spec 8, «роли в строке не выделяем»): the organizer
+  // is told by the `spark` collar on their circle, and one fact said twice in a 56 row is what the
+  // layout took out.
+  expect(settings).toContain("ring={member.role === 'organizer'}");
+  expect(settings).not.toContain('s.role[member.role]');
   // `spark` belongs to «Всё загрузил» alone (spec 1.2): that mark is what the organizer scans for,
   // and spec 7.4 leaves the circle two states — brought, or still coming.
-  expect(people).toContain('hasShared(member.contribution_status) ? \'done\' : \'planned\'');
-  expect(people).toContain('<BadgeContribution');
+  expect(settings).toContain("hasShared(standing) ? 'done' : 'planned'");
+  expect(settings).toContain('<BadgeContribution');
 });
 
-test('one’s own standing is the chip that sets it, standing where the word would', () => {
-  // It was a `Button` under the row, and that is what came back from the device: the row it hung
-  // under stood taller than its neighbours and the stack read ragged (TASK-111). Now it is the
-  // kit's `.chip-action`, in the status's own slot — same 26 as the word it replaces.
-  expect(people).toContain('label={s.members.sayNothing}');
-  expect(people.indexOf('status={')).toBeLessThan(people.indexOf('label={s.members.sayNothing}'));
-  expect(people).not.toContain('icon={Check}');
-  expect(people).not.toContain('styles.own');
+test('one’s own standing is a button that turns it, and only one’s own', () => {
+  // Spec 7.4: «тот же круг внутри круглой кнопки 44 — нажатие меняет статус в любой момент». Three
+  // answers in a ring, so no press is ever the last one: doc-06 keeps every door it opens open.
+  expect(settings).toContain('<StandingButton');
+  expect(settings).toContain('label={s.settings.yourStanding(word)}');
+  expect(settings).toContain('onPress={() => void turnStanding(standing)}');
+  expect(settings).toContain("not_started: 'done',");
+  expect(settings).toContain("more_coming: 'done',");
+  expect(settings).toContain("done: 'nothing',");
+  expect(settings).toContain("nothing: 'more_coming',");
+  // Nobody else's is a button, and nothing here sets a standing on somebody else — which is why the
+  // api has no `:userId` in that route at all.
+  expect(settings).toContain('setContributionStatus(session, id, NEXT[from])');
   // The row is held to the spec's own height (7.5: a member stands 56), so nothing that goes into
-  // it — the chip, the cross, a bare circle — can change how tall it is.
+  // it — the button, the cross, a bare circle — can change how tall it is.
   expect(member).toContain('minHeight: 56');
-  // And spec 10.8.4 gives the right edge one thing at a time: while the roster is being edited
-  // that thing is the 36 cross, and on one's own row it is never the cross.
-  expect(people).toContain('size={36}');
-  expect(people).toContain("editing && role === 'organizer' && !self ? (");
+  // And spec 10.8.4 gives the right edge one thing at a time: while the roster is being edited that
+  // thing is the 36 cross, and on one's own row it is never the cross.
+  expect(settings).toContain('size={36}');
+  expect(settings).toContain('if (editing && organizer && !self)');
+});
+
+test('taking somebody out names the price, and a viewer has none to name', () => {
+  // `SheetConfirmMember` as it is drawn: the face, «@anya.p · принесла 54 кадра», the paragraph and
+  // the plate with the figure on it. Spec 10.8.4 gives a viewer a different paragraph and no plate —
+  // there is no material behind them, and «0 кадров исчезнут» names no price at all.
+  expect(settings).toContain(
+    'dropping.media_count ? s.members.priceFrames(dropping.media_count) : undefined',
+  );
+  expect(settings).toContain(
+    "text={dropping.role === 'viewer' ? s.members.removeViewerText : s.members.removeText}",
+  );
+  expect(ru.members.removeViewerText).toBe('Этот человек больше не увидит воспоминание.');
+});
+
+// The one screen that changes a memory (spec 10.8.3, `MemoryEdit` and `SheetCover`): three things
+// at once, applied by one button and by nothing else.
+
+test('the name, the days and the cover leave in one call, and only what was touched', () => {
+  expect(edit).toContain('await updateMemory(token, id, {');
+  expect(edit).toContain('...(named === memory.title ? {} : { title: named }),');
+  expect(edit).toContain('...(cover === memory.cover_media_id ? {} : { cover_media_id: cover }),');
+  expect(edit).toContain('event_start: startOfDay(span.from).toISOString(),');
+  expect(edit).toContain('event_end: span.to === null ? null : endOfDay(span.to).toISOString(),');
+  // The api refuses an empty body on purpose, and «Сохранить» is unavailable until there is one
+  // thing to send — the screen says that by being off, without a line explaining itself.
+  expect(edit).toContain("disabled={!changed || named === ''}");
+  // A name wiped out is a field error and not a silent refusal (spec 10.8.3).
+  expect(edit).toContain("hint={named === '' ? s.edit.noTitle : undefined}");
+  // Nothing here deletes a memory, and nothing ever will: in MVP there is no deleting one (doc-01).
+  expect(edit).not.toContain('deleteMemory');
+});
+
+test('a cover is picked on a sheet, waits in the slot, and comes off again quietly', () => {
+  expect(edit).toContain('<CoverSheet');
+  expect(edit).toContain('label={s.edit.coverDrop}');
+  expect(edit).toContain('onPress={() => setCover(null)}');
+  // Spec 10.8.3: «кадров в воспоминании нет вовсе — листа не бывает», so the button that opens it is
+  // unavailable and a line under the card says what is missing.
+  expect(edit).toContain('disabled={saving || pickable.length === 0}');
+  expect(edit).toContain('{pickable.length === 0 ? <Hint>{s.edit.coverNeedsFrames}</Hint> : null}');
+  // One frame at a time on that sheet: a tap moves the pick rather than adding to it.
+  expect(cover).toContain("picked === item.id ? 'send' : 'off'");
+  expect(cover).toContain('onPress={takeable ? () => setPicked(item.id) : undefined}');
+  // Newest first, the way the feed reads — and no day gaps: here a picture is chosen, not a day.
+  expect(cover).toContain('[...media].sort((a, b) => shotAt(b) - shotAt(a))');
+  expect(cover).not.toContain('Daymark');
+});
+
+test('walking away from unsaved edits asks, and asks gently', () => {
+  // Spec 7.1, detail 8: nothing is lost by leaving, so there is no red on this sheet and the way on
+  // is the paper button. With nothing changed «Назад» simply goes.
+  expect(edit).toContain('onPress={() => (changed ? setLeaving(true) : leave())}');
+  expect(edit).toContain('variant="gentle"');
+  expect(edit).toContain('title={s.edit.leaveAsk}');
+  expect(ru.edit.leaveText).toBe('Название, даты и обложка останутся прежними.');
+});
+
+test('«Когда это было» is one block, written once and standing on two screens', () => {
+  // Spec 10.8.3: «блок из `Create` целиком, без единой правки». A second copy of it is the day the
+  // two screens disagree about what a span is.
+  expect(edit).toContain('<EventWhen value={span} onChange={setSpan} disabled={saving} />');
+  expect(when).toContain('<Calendar');
+  // A memory cannot have happened tomorrow.
+  expect(when).toContain('max={today}');
+  // One day is one tap, a span is two, a third starts over — and there is no switch for «больше
+  // дня», because the gesture has already said it.
+  expect(when).toContain('export function pickDay(span: Span, day: Date): Span {');
+  expect(when).not.toContain('multiDay');
+  // The four quick answers of the layout, each worked out from today rather than stored.
+  for (const quick of ['today', 'yesterday', 'weekend', 'week']) {
+    expect(when).toContain(`'${quick}'`);
+  }
+  expect(ru.when.hint).toBe('Один день — одно касание. Несколько — первый и последний.');
 });
 
 test('the order button waits for the list it prepends to', () => {
@@ -1223,27 +1372,27 @@ test('a name already on the roster is answered in the field, not left to an empt
   // `pickable` drops a contact who is already a member and the api is never asked about a name the
   // roster already holds (`answered`), so without `here` the sheet said nothing at all about a nick
   // that is right behind its own scrim — reported as a silent sheet.
-  expect(people).toContain(
+  expect(inviteSheet).toContain(
     "const here = (members ?? []).find((member) => member.username?.toLowerCase() === needle);",
   );
-  expect(people).toContain('here !== undefined ||');
-  expect(people).toContain('here\n                ? s.members.already(memberName(here), s.role[here.role])');
+  expect(inviteSheet).toContain('here !== undefined ||');
+  expect(inviteSheet).toContain('? s.members.already(memberName(here), s.role[here.role])');
 });
 
 test('a contact already on the roster is not offered a second invite', () => {
-  expect(people).toContain(
+  expect(inviteSheet).toContain(
     '!members?.some((member) => member.id === contact.id) && matches(contact, needle)',
   );
   // And the block itself is not drawn at all once that leaves nobody to offer — no contacts saved,
   // or every one of them already here.
-  expect(people).toContain('{pickable.length > 0 ? (');
+  expect(inviteSheet).toContain('{pickable.length > 0 ? (');
 });
 
 test('a second «Позвать» pressed under the first is refused while the call is in the air', () => {
   // Found in review: without the guard, a second press unlocked the field mid-flight and let
   // whichever answer landed last be read as the answer to the last press. One button on the sheet
   // since TASK-145, so the guard is the sheet's own `busy` rather than the id of a spinning row.
-  expect(people).toContain('if (!handle || busy) return;');
+  expect(inviteSheet).toContain('if (!handle || busy) return;');
 });
 
 /**
@@ -1255,14 +1404,14 @@ test('a second «Позвать» pressed under the first is refused while the c
 test('a chip and the field are one slot: what the button sends to is never two people', () => {
   // Picked out of the chips, or turned up by the typed name — and typing lets the chip go, so the
   // two cannot both be holding somebody when the button is pressed.
-  expect(people).toContain(
+  expect(inviteSheet).toContain(
     "const target = here ? null : (picked ?? saved ?? (found === 'none' ? null : found));",
   );
-  expect(people).toContain('setPicked(picked?.id === contact.id ? null : contact);');
-  expect(people).toContain('disabled={target === null}');
+  expect(inviteSheet).toContain('setPicked(picked?.id === contact.id ? null : contact);');
+  expect(inviteSheet).toContain('disabled={target === null}');
   // And a chip already pressed in is what the kit draws filled — the same «выбран» a filter chip
-  // wears, never a second mark invented by this face.
-  expect(people).toContain('selected={picked?.id === contact.id}');
+  // wears, never a second mark invented by this sheet.
+  expect(inviteSheet).toContain('selected={picked?.id === contact.id}');
 });
 
 test('a tile is read out in the line it is drawn with', () => {

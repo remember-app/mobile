@@ -54,6 +54,17 @@ export function formatDay(value: string | Date, locale?: string): string {
 }
 
 /**
+ * The head of the calendar — «Сентябрь 2026», «September 2026». The bare month here and not the one
+ * `dayFields` reads: asked without a day beside it, a language that declines gives the plain form,
+ * which is the one a heading wants («Сентябрь», never «сентября»). Russian writes it lower case and
+ * the heading is capitalised, so the first letter is lifted; English already has it lifted.
+ */
+export function formatMonth(month: Date, locale: string = currentLanguage()): string {
+  const name = month.toLocaleDateString(locale, { month: 'long' });
+  return `${name.charAt(0).toUpperCase()}${name.slice(1)} ${month.getFullYear()}`;
+}
+
+/**
  * The line under a memory's title. A span inside one month names that month once and leaves the
  * year off — «12–16 августа», the way the kit draws a memory card; a span that crosses a month or
  * a year writes both days whole, year and all. A span whose end is the day it started on is a
