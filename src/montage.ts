@@ -16,7 +16,6 @@ import type {
   MontageWishes,
   MusicTrackId,
 } from '@/api';
-import type { StepState } from '@/kit';
 
 /**
  * The shelf of tracks, in the layout's own order (`design/screens/MontageMusic.html`), each with the
@@ -118,6 +117,22 @@ export const blankOrder = (): Order => ({
   seconds: null,
   orientation: 'landscape',
 });
+
+/**
+ * Whether anything has actually been said in the wizard — the question «Отмена» asks before it
+ * throws the walk away. Every field against what `blankOrder` opens with: a wizard somebody walked
+ * into and straight back out of loses nothing, and a sheet asking them to confirm that would be a
+ * door held shut for no reason (spec 8, `MontageSummary`).
+ */
+export const entered = (order: Order): boolean =>
+  order.dropped.size > 0 ||
+  order.returned.size > 0 ||
+  order.story.trim() !== '' ||
+  order.template !== null ||
+  order.tracks.length > 0 ||
+  order.note.trim() !== '' ||
+  order.seconds !== null ||
+  order.orientation !== 'landscape';
 
 /**
  * The material an order can be made of: only `ready` counts. A frame still being developed has no
@@ -265,45 +280,15 @@ export const beingMade = (status: Montage['status']): boolean =>
   status === 'queued' || status === 'processing';
 
 /**
- * How long a screen waits before reading again while a montage is being cut. Longer than the frames
- * face waits on a thumbnail, because this is minutes of work and not seconds of it — five is still
- * inside the moment somebody spends looking at the screen wondering whether it moved. Both the
- * movies face and the waiting screen keep this time, so the two never disagree about what «soon» is.
+ * How long the strip of films waits before reading its list again while a montage is being cut.
+ * Longer than the feed waits on a thumbnail, because this is minutes of work and not seconds of it —
+ * five is still inside the moment somebody spends looking at a card wondering whether it moved. The
+ * montage watched live keeps a clock of its own and a far shorter one: there it is the journal being
+ * read, a sentence at a time, and not one word about the whole job (`@/montage-journal`).
  */
 export const WHILE_MAKING_MS = 5000;
 
-/**
- * The five stages of making a video (doc-11, drawn in spec 8), in the order they actually happen.
- */
-export type Stage = 'screening' | 'understanding' | 'story' | 'rhythm' | 'cut';
-
-export const STAGES: readonly Stage[] = ['screening', 'understanding', 'story', 'rhythm', 'cut'];
-
-/**
- * The first two of them are behind before the order is even placed: a frame is screened and
- * described as it lands, each by a job of its own (`media_screening`, `media_understanding` in the
- * worker), and what the screening came to is exactly what step 1 of the wizard was reading. The
- * three that are left are the montage job itself — the director, the rhythm, the cut.
- */
-const DONE_AT_ORDER = 2;
-
-/**
- * Where each stage stands, for a montage in the state the api reports. The api says one word about
- * the whole job and never which stage the worker is on, so this is what is actually known rather
- * than a guess dressed up as progress: `processing` means the job has been picked up, and the first
- * thing done with it is the director — what comes after that nobody is told about, so it waits.
- *
- * A `failed` one is not walked through here at all: the screen says it fell over and shows the
- * worker's own line instead, because where it broke is precisely what nothing here knows.
- */
-export function stages(status: Montage['status']): { stage: Stage; state: StepState }[] {
-  return STAGES.map((stage, i) => ({
-    stage,
-    state:
-      status === 'ready' || i < DONE_AT_ORDER
-        ? 'done'
-        : i === DONE_AT_ORDER && status === 'processing'
-          ? 'running'
-          : 'waiting',
-  }));
-}
+// The five stages used to be guessed from the one word the api says about the whole job — there was
+// nothing else to go on. Since TASK-200 the worker writes a row per stage and the journal hands them
+// over as they really are, so the guess went with the screen that drew it (TASK-221): what a stage
+// is doing now lives in `@/montage-journal`, off the answer rather than off an assumption.

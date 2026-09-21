@@ -11,6 +11,7 @@ import {
   RowStep,
   RowSummary,
   RowTrack,
+  StepLink,
   StepNote,
   Waveform,
   type StepState,
@@ -132,6 +133,17 @@ test('the stage in hand opens out, and the ones around it do not', () => {
   expect(story(open)).toContain('Марк роняет кольцо');
   // A record handed to a stage that is not opened is not drawn at all.
   expect(story(shut)).not.toContain('Марк роняет кольцо');
+});
+
+test('the last line of an opened stage is the way into the whole of its journal', () => {
+  const link = story(<StepLink label="Весь журнал этапа · 148 записей" onPress={() => {}} />);
+  expect(link).toContain('Весь журнал этапа · 148 записей');
+  expect(link).toContain('role="button"');
+  // A road and not an action: the chevron is the only thing it wears, in the accent the words are
+  // read in.
+  expect(link).toContain('stroke="#A7AEFF"');
+  // And with nowhere to go it is not a button at all — the rule every row here keeps.
+  expect(story(<StepLink label="Весь журнал этапа · 148 записей" />)).not.toContain('role="button"');
 });
 
 test('a sheet’s dangerous action is the only red line on it', () => {

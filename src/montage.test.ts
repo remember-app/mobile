@@ -80,13 +80,13 @@ import {
   afterTap,
   beingMade,
   blankOrder,
+  entered,
   enoughMaterial,
   MIN_FRAMES,
   pickOf,
   rejectedGroups,
   shapeOf,
   shelfTrack,
-  stages,
   taken,
   TRACKS,
   wishes,
@@ -295,6 +295,29 @@ test('the music goes out even when there is none, and the note only with tracks'
   const body = wishes(gallery, { ...noted, tracks: [{ key: 'calm', name: null }] });
   expect(body.music_track_id).toBeUndefined();
   expect(body.music_track_key).toBeUndefined();
+});
+
+test('a walk with nothing said in it costs nothing to leave, and every answer is something said', () => {
+  // The question «Отмена» asks before it throws the wizard away: walked into and straight back
+  // out of, there is nothing to confirm, and a sheet asking anyway is a door held shut for nothing.
+  const start = blankOrder();
+  expect(entered(start)).toBe(false);
+  // Whitespace is not an answer either — the same trim the body goes out under.
+  expect(entered({ ...start, story: '   ' })).toBe(false);
+
+  // Every field one of the steps can fill in, one at a time: each of them on its own is a walk
+  // worth asking about.
+  const said: Partial<Order>[] = [
+    { dropped: new Set(['kept']) },
+    { returned: new Set(['blurred']) },
+    { story: 'Начни со сборов' },
+    { template: 'parents' },
+    { tracks: [{ key: 'calm', name: null }] },
+    { note: 'Погромче к финалу' },
+    { seconds: 90 },
+    { orientation: 'portrait' },
+  ];
+  for (const answer of said) expect(entered({ ...start, ...answer })).toBe(true);
 });
 
 test('a track is told from the shelf by its key, and everything else is somebody’s own file', () => {
@@ -627,38 +650,12 @@ test('a montage is the shape of the canvas it was cut onto, horizontal when none
 });
 
 test('the worker is owed a queued and a processing montage, and nothing else', () => {
-  // What starts the re-reading, on the waiting screen and on the movies face both. A `ready` or a
-  // `failed` row is the worker's last word on it, and a screen left polling over one would ask the
-  // api the same question every five seconds for as long as it stays open.
+  // What starts the re-reading, on the movies face and inside the journal's own hook both. A
+  // `ready` or a `failed` row is the worker's last word on it, and a screen left polling over one
+  // would ask the api the same question every few seconds for as long as it stays open.
   expect(beingMade('queued')).toBe(true);
   expect(beingMade('processing')).toBe(true);
   expect(beingMade('ready')).toBe(false);
   expect(beingMade('failed')).toBe(false);
 });
 
-test('the five stages say what is known and guess at nothing', () => {
-  const standing = (status: Montage['status']) => stages(status).map((step) => step.state);
-
-  // The stages themselves are the work in the order it happens, whatever the standing.
-  for (const status of ['queued', 'processing', 'ready', 'failed'] as const) {
-    expect(stages(status).map((step) => step.stage)).toEqual([
-      'screening',
-      'understanding',
-      'story',
-      'rhythm',
-      'cut',
-    ]);
-  }
-
-  // Waiting its turn: the two that happen to a frame as it lands are behind before the order is
-  // placed, and nothing of the montage job itself has begun — nor is any of it claimed to have.
-  expect(standing('queued')).toEqual(['done', 'done', 'waiting', 'waiting', 'waiting']);
-  // Picked up: the first thing the worker does with the job is the director, so that is the one it
-  // is on. What follows the director is its own business and nobody is told when it gets there.
-  expect(standing('processing')).toEqual(['done', 'done', 'running', 'waiting', 'waiting']);
-  expect(standing('ready')).toEqual(['done', 'done', 'done', 'done', 'done']);
-  // Nothing is «идёт» on a montage that fell over: the screen says it broke and hands over the
-  // worker's own line, because which stage it broke on is exactly what nothing here knows.
-  expect(standing('failed')).not.toContain('running');
-  expect(standing('failed').slice(2)).toEqual(['waiting', 'waiting', 'waiting']);
-});

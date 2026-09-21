@@ -1,7 +1,16 @@
 import { beforeAll, expect, test } from 'vitest';
 
 import { BadgeDecision } from '@/kit/badge';
-import { CardNow, Journal, LogEntry, NoteThought, RowFilmAt, TileNumber } from '@/kit/montage-live';
+import {
+  CardNow,
+  Journal,
+  JournalLine,
+  LogEntry,
+  NoteThought,
+  RowFilmAt,
+  ShotGaze,
+  TileNumber,
+} from '@/kit/montage-live';
 import { allDifferent, story } from '@/kit/story';
 import { setTheme } from '@/theme';
 
@@ -59,6 +68,35 @@ test('the gaze square stands where it is told to and dims everything outside its
   // square. Without a gaze nothing on the frame carries a shadow at all.
   expect(right).toMatch(/r-boxShadow-\w+/);
   expect(story(<CardNow uri={SHOT} who="Режиссёр" />)).not.toMatch(/r-boxShadow-\w+/);
+});
+
+test('the thought is the one thing on the card a screen reader is told as it arrives', () => {
+  // Spec 10.4: the square on the frame cannot be read out — what it is pointing at is the sentence
+  // being said about it, so that sentence is the live area and the square stays silent.
+  const card = story(<CardNow uri={SHOT} who="Режиссёр" thought="Бабушка смеётся" typing />);
+  expect(card).toContain('aria-live="polite"');
+});
+
+test('the sheet draws the same frame bigger, with the same eye on it', () => {
+  allDifferent({
+    plain: <ShotGaze uri={SHOT} />,
+    looking: <ShotGaze uri={SHOT} gaze={{ left: 118, top: 56 }} />,
+    elsewhere: <ShotGaze uri={SHOT} gaze={{ left: 20, top: 10 }} />,
+    // A frame that has been deleted since: the sheet is still the record, without a picture.
+    gone: <ShotGaze gaze={{ left: 118, top: 56 }} />,
+  });
+  // Nothing is dimmed around this one — unlike the card, where the shadow is the dimming.
+  expect(story(<ShotGaze uri={SHOT} gaze={{ left: 10, top: 10 }} />)).not.toMatch(
+    /r-boxShadow-\w+/,
+  );
+});
+
+test('the journal’s line is one line, whether the records are a block or a list', () => {
+  // A whole stage's journal scrolls as a list and has no single box to draw a line down, so the
+  // line is the same part laid behind it — and the block still draws it exactly once.
+  const alone = story(<JournalLine />);
+  expect(alone).toBeTruthy();
+  expect(story(<Journal>{null}</Journal>)).toContain(alone.slice(alone.indexOf('class=')));
 });
 
 test('a thought is a plate, and it sometimes says where it landed', () => {
