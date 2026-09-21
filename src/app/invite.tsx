@@ -58,9 +58,9 @@ export default function InviteScreen() {
         // in the middle of the call cannot lose the token it is still working on.
         clearInvite();
         // replace, not push: a link that has been spent must not sit in the back stack. Onto the
-        // people of the memory, which is what an accepted invite has always opened: whoever just
-        // joined is shown who they joined, and the material is one press away on the switch.
-        router.replace({ pathname: '/memory/[id]', params: { id: memory.id, face: 'people' } });
+        // memory itself — it is one screen now (TASK-207), and whoever just joined is shown what
+        // they joined; who else is in it is one press away, on the capsule at the top of the feed.
+        router.replace({ pathname: '/memory/[id]', params: { id: memory.id } });
       },
       (e: unknown) => {
         if (!live) return;

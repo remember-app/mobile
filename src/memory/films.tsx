@@ -1,22 +1,15 @@
-import { useFocusEffect, useIsFocused, useRouter } from 'expo-router';
+import { useFocusEffect, useIsFocused, useLocalSearchParams, useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
-import { Download, Film } from 'lucide-react-native';
+import { Download } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal, ScrollView, Share, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import {
-  ApiError,
-  errorMessage,
-  listMontages,
-  retryMontage,
-  type Montage,
-} from '@/api';
+import { ApiError, errorMessage, listMontages, retryMontage, type Memory, type Montage } from '@/api';
 import { useAuth } from '@/auth';
 import { formatDay, formatRuntime } from '@/dates';
 import { maySaveToPhone, saveToPhone } from '@/downloads';
 // From the gallery's own module: one rule about what a quiet re-read may replace, and this list is
-// polled quietly for the same reason that one is. Its doc says why both faces read it.
+// polled quietly for the same reason that one is. Its doc says why both lists read it.
 import { keepReady } from '@/frames';
 import {
   ActionBar,
@@ -24,13 +17,13 @@ import {
   Banner,
   Button,
   CardMontage,
-  Empty,
+  CardMontageNew,
   EmptyMontages,
   Text,
   type MontageState,
 } from '@/kit';
 import { useStrings } from '@/language';
-import { MemoryHead, type Head } from '@/memory/head';
+import { BlockHead } from '@/memory/head';
 import { beingMade, WHILE_MAKING_MS } from '@/montage';
 import { useTurnsWithPhone } from '@/orientation';
 import { type Strings } from '@/strings';
@@ -77,24 +70,31 @@ function madeOf(montage: Montage, s: Strings): string {
 }
 
 /**
- * The second face of a memory (kit, «Экраны» 5): what has been made, what is being made, and — for
- * the organizer — the asking for one more. Its own face and not a block over the roster: «ролики не
- * смешиваются с галереей» (doc-03), and neither do they with the guest list.
+ * The «Ролики» block, first thing on a memory's feed (spec 8, `MemoryFrames`): the reward stands
+ * over the material it is made of. Not a face of the memory any more — the tabs are gone — but a
+ * strip that scrolls sideways at the head of the frames: the dashed «Новый ролик» tile, then what
+ * has been made and what is being made.
  *
  * Behind no role at all: the video is what everybody who brought material gets back, so a viewer
- * reads the list too. Only the organizer orders one, and only the organizer starts a fallen one
- * again — the api is the authority on that, and the level is read off the memory the screen holds.
+ * reads the strip too. Only the organizer orders one, and only the organizer starts a fallen one
+ * again — the api is the authority on that, and the level is read off the memory the route holds.
  *
- * Nothing on the right of the appbar here: the kit gives that corner to the frames alone, and the
- * road to the other two faces is the switch under the name.
+ * A memory with no montages in it is `FilmsEmpty`: the dashed block that stands where the strip
+ * would be, saying what a montage is and offering to cut one.
  */
-export function Films({ id, head }: { id: string; head: Head }) {
+export function Films({ id, memory }: { id: string; memory: Memory | null }) {
   const { token } = useAuth();
   const router = useRouter();
   const s = useStrings();
-  const insets = useSafeAreaInsets();
-  // null means «not loaded yet» — the same distinction the other faces draw, so a refetch after
-  // an order keeps the cards on screen instead of flashing the spinner over them.
+  /**
+   * One film asked for by link: `/memory/[id]?montage=<id>`. The sheet of one frame lists the films
+   * it was taken into (`SheetFrameInfo`), and pressing one of them shuts that window and lands
+   * here — which is why the answer is a parameter and not a screen: the player lives where the
+   * films live.
+   */
+  const { montage: wanted } = useLocalSearchParams<{ montage?: string }>();
+  // null means «not loaded yet» — the distinction the feed around it draws too, so a refetch after
+  // an order keeps the cards on screen instead of flashing over them.
   const [montages, setMontages] = useState<Montage[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -102,20 +102,14 @@ export function Films({ id, head }: { id: string; head: Head }) {
   /** The montage being watched, held by id so a reload hands it a fresh signed url. */
   const [playing, setPlaying] = useState<string | null>(null);
 
-  // The memory itself — the title over this face and the level that decides whether it has a footer
-  // — is read once by the screen and handed to all three faces, so switching between them does not
-  // blink the name in the appbar.
-  const memory = head.memory;
-
   /**
-   * How many times this face has written the list itself — the retry that requeues a row, and until
-   * TASK-162 the order that put a new one on top. It is an answer the api handed back, so it is
-   * newer than any read that was already in flight: a quiet one resolving after it would put the
-   * list back the way the api had it a moment *before*, and the retried card would go back to «Did
-   * not finish». Worse, that snapshot has nothing pending in it, so the loop
-   * below clears itself and this face — which has no pull-to-refresh — never reads again until the
-   * tabs are switched. So a quiet read carries the count it started under and drops its answer if
-   * that has moved (found in review, TASK-125).
+   * How many times this block has written the list itself — the retry that requeues a row. It is an
+   * answer the api handed back, so it is newer than any read that was already in flight: a quiet one
+   * resolving after it would put the list back the way the api had it a moment *before*, and the
+   * retried card would go back to «Did not finish». Worse, that snapshot has nothing pending in it,
+   * so the loop below clears itself and nothing reads again until the screen is left and come back
+   * to. So a quiet read carries the count it started under and drops its answer if that has moved
+   * (found in review, TASK-125).
    */
   const writes = useRef(0);
 
@@ -128,7 +122,7 @@ export function Films({ id, head }: { id: string; head: Head }) {
       if (!quiet) setError(null);
       const startedAt = writes.current;
       // Only the montages: this is the call that answers 503 over a bucket nobody configured, and
-      // it must not take the memory's own name down with it — that one is the screen's, above.
+      // it must not take the memory's own name down with it — that one is the route's.
       listMontages(token, id).then(
         (list) => {
           // Stale by the time it landed — see `writes`. A read somebody asked for is never stale.
@@ -155,16 +149,12 @@ export function Films({ id, head }: { id: string; head: Head }) {
   // On focus rather than on mount, the way the home screen does it — and here it is the montages
   // that need it: a queued one only ever changes on the worker's side, and `video_url` is signed
   // for a quarter of an hour. Coming back from anywhere re-reads it, instead of leaving a card that
-  // has been stale since whenever this face was first opened.
+  // has been stale since whenever this screen was first opened.
   //
-  // And the viewer is shut on the way out (TASK-94, extended here in review): a `router.push` off a
+  // And the player is shut on the way out (TASK-94, extended in review): a `router.push` off a
   // tapped push leaves the whole memory mounted behind it, so a playing montage stood over the
   // screen that came next. Since TASK-124 it cost a second thing — `useTurnsWithPhone` below
   // follows the modal and not the mount, so nothing put the app back in portrait.
-  //
-  // The viewer is the only window left here: the order used to be a sheet over this face and is a
-  // screen of its own since TASK-162, and this read on focus is also how the list meets what that
-  // screen ordered.
   useFocusEffect(
     useCallback(() => {
       load();
@@ -174,40 +164,48 @@ export function Films({ id, head }: { id: string; head: Head }) {
 
   // And the same reason with nobody navigating anywhere: the montage somebody just ordered turns
   // `ready` while they sit here watching the card, and until this loop existed nothing told the
-  // face — the card said «Собираем» until the tabs were switched away and back, which is what was
-  // reported (TASK-125). Only while there is something being cut, and only while this face is the
-  // one in front: the viewer and the order screen leave the whole memory mounted behind them.
+  // screen — the card said «Собираем» until it was left and come back to, which is what was
+  // reported (TASK-125). Only while there is something being cut, and only while this screen is the
+  // one in front: the player and the order screen leave the whole memory mounted behind them.
   const making = stillMaking(montages);
   const focused = useIsFocused();
   useEffect(() => {
     if (!making || !focused) return;
     // An interval and not a timeout chained off each read: one read failing on a bad connection
     // would end the chain, and end it silently — the quiet read says nothing about failing. This
-    // one keeps its own time and is cleared the moment there is nothing left being cut, the face
+    // one keeps its own time and is cleared the moment there is nothing left being cut, the screen
     // goes behind something, or it unmounts.
     const timer = setInterval(() => load(true), WHILE_MAKING_MS);
     return () => clearInterval(timer);
   }, [making, focused, load]);
+
+  // And the film that link asked for, raised as soon as the list holds it. Wiped in the same
+  // breath: the parameter stays on the screen otherwise, and coming back to the memory from
+  // anywhere at all would put the player up again over a film nobody asked for a second time.
+  useEffect(() => {
+    if (!wanted) return;
+    setPlaying(wanted);
+    router.setParams({ montage: '' });
+  }, [wanted, router]);
 
   const role = memory?.role ?? null;
   const watching = montages?.find((montage) => montage.id === playing) ?? null;
 
   // A wide montage is worth turning the phone for — and since TASK-126 wide is what was asked for
   // at the order rather than what every montage is; `params.orientation` says which one this is.
-  // The viewer is left free both ways all the same: a standing montage has no reason to be turned
+  // The player is left free both ways all the same: a standing montage has no reason to be turned
   // and nothing breaks if it is, so there is nothing here worth deciding per montage. The
   // `supportedOrientations` on the modal below only says which ways up it may be drawn — this is
   // what lets the app leave portrait at all. Which is given back on the cleanup, so what has to be
-  // true is that the viewer is shut on every way out of this face — the focus effect above is where
-  // that is done.
+  // true is that the player is shut on every way off this screen — the focus effect above does that.
   useTurnsWithPhone(watching !== null);
 
   /**
-   * Every api call this face's buttons make is the same shape: lock the controls, run one call,
-   * say one line about it. `said` maps the statuses this particular call can come back with;
-   * anything else falls through to the api's own wording. Saving a montage onto the phone is the
-   * one button that stays outside this: nothing it can fail at is the api's doing, so `keep` says
-   * its own words and carries its own «Saving…» line while it works.
+   * Every api call a button here makes is the same shape: lock the controls, run one call, say one
+   * line about it. `said` maps the statuses this particular call can come back with; anything else
+   * falls through to the api's own wording. Saving a montage onto the phone is the one button that
+   * stays outside this: nothing it can fail at is the api's doing, so `keep` says its own words and
+   * carries its own «Saving…» line while it works.
    */
   async function act(
     what: (session: string) => Promise<string | null>,
@@ -226,21 +224,21 @@ export function Films({ id, head }: { id: string; head: Head }) {
   }
 
   /**
-   * «Смонтируй ролик» — the four steps of spec 8, on a screen of its own (`memory/[id]/order`).
-   * Nothing is ordered here any more: the order is the last button of that wizard, and this face
-   * reads the list again on focus, so what it comes back to already holds the new card.
+   * «Новый ролик» — the order as it stands today: the four steps of `memory/[id]/order`. The
+   * templates the layout draws in front of them are the montage milestone's, and this tile is where
+   * they will land; nothing is ordered here either way, and the strip meets what that screen ordered
+   * through the read on focus.
    */
   const askForOne = () => router.push({ pathname: '/memory/[id]/order', params: { id } });
 
   /**
    * Where a montage still being made is watched — `MontageProgress` (spec 8, TASK-163), the screen
-   * that says in stages how far along it is. Until now the only road onto it was having just placed
-   * the order, so anybody who walked out of it, or came back to the app an hour later, had a card
-   * saying «Собирается» and nowhere to press (spec 7.6, TASK-169).
+   * that says in stages how far along it is. `MontageLive`, the montage as a spectacle, replaces it
+   * in its own milestone; the card leads to whichever of the two is standing there.
    *
-   * A push and not a replace: this face is what that screen goes back to, and its own way out is a
+   * A push and not a replace: this screen is what that one goes back to, and its own way out is a
    * `back()`. Nothing about the frames goes over — the count the wizard carries is what it counted
-   * while picking, and nobody counts it back off a finished order; the screen says one thing less.
+   * while picking, and nobody counts it back off a finished order.
    */
   const watchMaking = (montage: Montage) =>
     router.push({
@@ -282,6 +280,10 @@ export function Films({ id, head }: { id: string; head: Head }) {
    * on that copy and not on `video_url`: the link is signed and dies in a quarter of an hour, so
    * whoever it was sent to would get a refusal instead of a video.
    *
+   * It lives in the player and not on the card: the card in the strip is 232 × 148 of poster with
+   * the name over it, and there is no room on it for a button — the place a montage is saved from
+   * is the place it is watched from.
+   *
    * ponytail: React Native's own `Share` attaches a file on iOS only — on Android the sheet goes
    * out with the line and without the video, which is by then in the phone's gallery and shareable
    * from there. `expo-sharing` is the upgrade when that is not good enough.
@@ -315,147 +317,108 @@ export function Films({ id, head }: { id: string; head: Head }) {
   }
 
   return (
-    <>
-      <MemoryHead {...head} />
+    <View style={styles.block}>
+      {/* The heading and its counter (spec 8): how many films this memory has, and «пока нет» while
+          it has none. Nothing counted until the list answers — a zero over a list in flight is a
+          number nobody can trust. */}
+      <BlockHead
+        title={s.montage.title}
+        count={
+          montages === null
+            ? undefined
+            : montages.length === 0
+              ? s.montage.noneYet
+              : String(montages.length)
+        }
+      />
 
-      <ScrollView contentContainerStyle={styles.body}>
-        {error !== null ? (
-          <Banner tone="error" text={error}>
-            {/* Called and not handed over: `load` now takes «read quietly» as its argument, and a
-                press handler is given the touch event as its argument — so handing it over asks for
-                a quiet read from the one press that has to speak up about what it finds. */}
-            <Button size="xs" variant="quiet" label={s.action.retry} onPress={() => load()} />
-          </Banner>
-        ) : null}
+      {error !== null ? (
+        <Banner tone="error" text={error} style={styles.aside}>
+          {/* Called and not handed over: `load` takes «read quietly» as its argument, and a press
+              handler is given the touch event — so handing it over asks for a quiet read from the
+              one press that has to speak up about what it finds. */}
+          <Button size="xs" variant="quiet" label={s.action.retry} onPress={() => load()} />
+        </Banner>
+      ) : montages === null ? null : montages.length === 0 ? (
+        // `FilmsEmpty` (spec 8): the dashed block that stands where the strip would be, not an empty
+        // state — the two leaning frames are the reward itself, and the words say what a montage is,
+        // because this is where a person first meets the idea. The paper button is the organizer's:
+        // doc-03 makes ordering theirs alone, and offering it to anybody else is a door into a 403.
+        <EmptyMontages
+          style={styles.aside}
+          photos={memory?.recent_thumbnail_urls}
+          text={s.montage.emptyNote}
+        >
+          {role === 'organizer' ? (
+            <Button variant="paper" size="sm" label={s.montage.makeIt} onPress={askForOne} />
+          ) : null}
+        </EmptyMontages>
+      ) : (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.strip}
+        >
+          {/* Spec 7.6 — the dashed tile stands first in the strip, always: it is the one place on
+              the memory's own screen where a new film is started. */}
+          {role === 'organizer' ? (
+            <CardMontageNew label={s.montage.newOne} onPress={askForOne} />
+          ) : null}
 
-        {/* Beside the list and not in place of it: `load` runs on every focus, so a list that was
-            read once outlives a refetch that failed. Wiping it would take the videos off the
-            screen over a blip. */}
-        {montages === null ? (
-          error === null ? (
-            <View style={styles.middle}>
-              <Empty busy text={s.state.loading} />
-            </View>
-          ) : null
-        ) : montages.length === 0 ? (
-          // `FilmsEmpty` (spec 7.6): the dashed block that stands where the strip of montages
-          // would be, not an empty state — the two leaning frames are the reward itself, and the
-          // words explain what a montage is, because the button that starts one is on the bar
-          // below. Which invitation depends on who is reading, and nothing is said until the memory
-          // has answered: `role` comes off it, and an organizer shown «the organizer can ask for
-          // one» is being told about themselves.
-          role === null ? null : (
-            <EmptyMontages
-              photos={memory?.recent_thumbnail_urls}
-              text={role === 'organizer' ? s.montage.emptyOrganizer : s.montage.empty}
-            />
-          )
-        ) : (
-          montages.map((montage) => {
+          {montages.map((montage) => {
             const state = MONTAGE_STATE[montage.status];
 
             return (
-              <View key={montage.id} style={styles.montage}>
-                <CardMontage
-                  state={state}
-                  title={montageTitle(montage, s)}
-                  // Spec 7.6 gives the three states three different bodies: a finished one says what
-                  // it was made of, and the two that have nothing to show yet say where they stand
-                  // instead — «Мы сообщим, когда будет готов», «Сборка оборвалась на полпути».
-                  meta={state === 'ready' ? madeOf(montage, s) : undefined}
-                  caption={
-                    state === 'ready'
+              <CardMontage
+                key={montage.id}
+                state={state}
+                title={montageTitle(montage, s)}
+                // Spec 7.6 gives the three states three different bodies: a finished one says what
+                // it was made of, and the two that have nothing to show yet say where they stand
+                // instead — «Мы сообщим, когда будет готов», «Сборка оборвалась на полпути».
+                meta={state === 'ready' ? madeOf(montage, s) : undefined}
+                caption={
+                  state === 'ready'
+                    ? undefined
+                    : state === 'failed'
+                      ? s.montage.broke
+                      : s.montage.caption
+                }
+                poster={montage.poster_url ?? undefined}
+                badge={<BadgeMontage state={state} label={s.montage.status[montage.status]} />}
+                // Watching a finished one, or walking into the making of one that is still owed.
+                // Either way it is the whole card, which is what the layout gives it.
+                onPress={
+                  beingMade(montage.status)
+                    ? () => watchMaking(montage)
+                    : montage.video_url === null
                       ? undefined
-                      : state === 'failed'
-                        ? s.montage.broke
-                        : s.montage.caption
-                  }
-                  poster={montage.poster_url ?? undefined}
-                  // Spec 7.6 — the card is the poster, 196 tall and the width of the face. Until
-                  // this list becomes the horizontal strip over the feed (its own task), that is the
-                  // one form of it that fills a column properly.
-                  large
-                  badge={<BadgeMontage state={state} label={s.montage.status[montage.status]} />}
-                  // Watching a finished one, or walking into the making of one that is still owed.
-                  // Either way it is the whole card, which is what the layout gives it now.
-                  onPress={
-                    beingMade(montage.status)
-                      ? () => watchMaking(montage)
-                      : montage.video_url === null
-                        ? undefined
-                        : () => setPlaying(montage.id)
-                  }
-                >
-                  {/* The one button a card carries, beside its badge: the outlined 44 of spec 7.6,
-                      «Сохранить и поделиться» under a finished montage and «Повторить» under one
-                      that fell over. Words and not a glyph — the layout writes both out. */}
-                  {state === 'ready' ? (
-                    <Button
-                      size="sm"
-                      icon={Download}
-                      label={s.montage.saveShare}
-                      disabled={busy || montage.video_url === null}
-                      onPress={() => void keep(montage)}
-                    />
-                  ) : state === 'failed' && role === 'organizer' ? (
-                    <Button
-                      size="sm"
-                      label={s.action.retry}
-                      onPress={() => void retry(montage)}
-                      disabled={busy}
-                    />
-                  ) : null}
-                </CardMontage>
-                {/* The kit's own rule is that a failure is not explained by a code — so the word
-                    beside the dot stays the screen's, and the worker's own line goes under the
-                    card, where there is room for it and where it is not the first thing read. */}
-                {montage.status === 'failed' && montage.error_text !== null ? (
-                  <Text role="meta">{montage.error_text}</Text>
+                      : () => setPlaying(montage.id)
+                }
+              >
+                {/* The one button a card carries, and only the fallen card has room for it: a
+                    finished one is saved from the player it is watched in. */}
+                {state === 'failed' && role === 'organizer' ? (
+                  <Button
+                    size="sm"
+                    label={s.action.retry}
+                    onPress={() => void retry(montage)}
+                    disabled={busy}
+                  />
                 ) : null}
-              </View>
+              </CardMontage>
             );
-          })
-        )}
-      </ScrollView>
+          })}
+        </ScrollView>
+      )}
 
-      {/* Above the bar and outside the scroll, the way the frames face holds its own: what the
-          button below answers with must not land at the bottom of a list that has scrolled away. The
-          bar is also what carries the phone's own bottom inset — and there is no bar for anybody but
-          the organizer, so without this the line lands under the home indicator for everybody who
-          only ever saves a movie. */}
-      {notice ? (
-        <Banner
-          text={notice}
-          style={
-            role === 'organizer'
-              ? styles.notice
-              : [styles.notice, { marginBottom: Math.max(insets.bottom, space.s4) }]
-          }
-        />
-      ) : null}
+      {/* What a press here answered with. Only while the player is down: with it up, the copy
+          inside the window is the one that can be read. */}
+      {notice && watching === null ? <Banner text={notice} style={styles.aside} /> : null}
 
-      {/* The face's one glowing button for the organizer — doc-03 makes ordering theirs alone, and
-          it is the thing the whole memory is being filled up for. In the bottom bar because that is
-          where this app keeps the one action of a screen.
-          Not before the list has answered: standing outside the scroll, this bar is gated on the
-          role, which comes off the memory and lands first — so it would offer the way into an order
-          over a list still in flight, or a second failure under one that failed to read. */}
-      {role === 'organizer' && montages !== null ? (
-        <ActionBar>
-          <Button
-            variant="primary"
-            wide
-            icon={Film}
-            label={s.montage.make}
-            onPress={askForOne}
-            disabled={busy}
-          />
-        </ActionBar>
-      ) : null}
-
-      {/* The finished video played where it lies, the way the frames face plays a preview:
-          `expo-video` streams it from the signed link rather than downloading it first. A modal and
-          not a screen — there is nothing to do in here but watch it and close it. */}
+      {/* The finished video played where it lies: `expo-video` streams it from the signed link
+          rather than downloading it first. A modal and not a screen — there is nothing to do in here
+          but watch it, keep it and close it. */}
       <Modal
         visible={watching !== null}
         animationType="fade"
@@ -466,24 +429,32 @@ export function Films({ id, head }: { id: string; head: Head }) {
       >
         {watching === null || watching.video_url === null ? null : (
           <View style={styles.viewer}>
-            {/* The pin, and not only the `room.ink` under it: the bar is the kit's `.actionbar`
-                and draws its own `ink` and its own hairline, which in daylight is a pale strip
-                across the bottom of the dark room. Everything inside the viewer takes the dark
-                set, the same way `.viewer`'s children inherit it in the kit. */}
+            {/* The pin, and not only the `room.ink` under it: the bar is the kit's own and draws
+                its `ink` and its hairline, which in daylight is a pale strip across the bottom of
+                the dark room. Everything inside the player takes the dark set. */}
             <ThemePin value="dark">
               <Playing url={watching.video_url} />
+              {notice ? <Banner text={notice} style={styles.aside} /> : null}
               {/* Spec 7.2 gives «Закрыть» the outlined button, which is what it wears on
-                  `SheetFrame` and on the consent too — and running the width of the bar is what
-                  puts it in the middle of the bottom (TASK-177, off a device: a quiet one stood
-                  as a line of text in the left corner and read as nothing the app draws). */}
+                  `SheetFrame` and on the consent too (TASK-177, off a device: a quiet one stood as
+                  a line of text in the left corner and read as nothing the app draws). Beside it
+                  the one thing to be done with a finished montage, in the glowing weight. */}
               <ActionBar>
                 <Button label={s.action.close} onPress={() => setPlaying(null)} />
+                <Button
+                  variant="primary"
+                  wide
+                  icon={Download}
+                  label={s.montage.saveShare}
+                  disabled={busy}
+                  onPress={() => void keep(watching)}
+                />
               </ActionBar>
             </ThemePin>
           </View>
         )}
       </Modal>
-    </>
+    </View>
   );
 }
 
@@ -491,9 +462,9 @@ export function Films({ id, head }: { id: string; head: Head }) {
  * The montage, played from its signed link. Its own component because the player is a hook, and
  * this one is mounted only while the video is on screen — leaving it releases the player.
  *
- * The frames face has these same three lines for its previews, down to the style. Not shared, and
+ * The open frame has these same three lines for its previews, down to the style. Not shared, and
  * not because the two differ: it is one `useVideoPlayer` call, and a module of its own around it
- * would be the bigger thing. Worth making the moment a third face plays a video, or the moment
+ * would be the bigger thing. Worth making the moment a third screen plays a video, or the moment
  * these two disagree.
  */
 function Playing({ url }: { url: string }) {
@@ -502,27 +473,25 @@ function Playing({ url }: { url: string }) {
 }
 
 /**
- * The viewer is held in the dark set in every theme — spec 8 gives it a background darker than
- * `ink` (`photo.viewer`) so the photograph is the only light thing on the screen. `frames.tsx` says
- * the same at more length; the two faces draw the same viewer, and this is the one value in this
- * sheet that has an opinion.
+ * The player is held in the dark set in every theme — spec 8 gives it a background darker than
+ * `ink` (`photo.viewer`) so the video is the only light thing on the screen. `frame-viewer.tsx`
+ * says the same at more length; the two draw the same kind of room, and this is the one value in
+ * this sheet that has an opinion.
  *
- * So nothing here turns with the theme, and the sheet is a plain one: the list this face draws is
- * cards from the library on the screen's own background, and both already turn by themselves.
+ * So nothing here turns with the theme, and the sheet is a plain one: everything else this file
+ * draws is a kit component on the screen's own background, and those turn by themselves.
  */
 const room = themes.dark.color;
 
 const styles = StyleSheet.create({
-  // The kit's 16 at the sides, which the head above and the bar below keep as well — the bar draws
-  // its own, so nothing wraps it in a second copy of this.
-  body: { flexGrow: 1, paddingHorizontal: space.s4, paddingBottom: space.s6, gap: space.s3 },
-  // An empty state and a spinner both stand in the middle of the body rather than at the top of it
-  // (spec 7.8): the list's place is held, not blinked over.
-  middle: { flex: 1, justifyContent: 'center' },
-  notice: { marginHorizontal: space.s4 },
-  // A card and, under a fallen one, the line the worker left — closer to each other than the
-  // face's own gap, because they are one thing.
-  montage: { gap: space.s2 },
+  // Spec 8: the heading, then 10 down to the strip that stands under it.
+  block: { gap: 10 },
+  // The strip runs edge to edge and starts at the screen's own 16, so the last card slides off the
+  // right edge rather than stopping inside a margin.
+  strip: { flexDirection: 'row', gap: space.s2, paddingHorizontal: space.s4 },
+  // Everything that is not the strip keeps the screen's margins instead: the dashed block, the line
+  // about a read that failed, the line a press answered with.
+  aside: { marginHorizontal: space.s4 },
   viewer: { flex: 1, backgroundColor: room.ink, justifyContent: 'center' },
   big: { flex: 1, width: '100%' },
 });

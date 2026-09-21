@@ -34,7 +34,7 @@ test('signing in comes before accepting, and the token survives the trip', () =>
 test('an accepted invite clears the stash before it leaves, so the join cannot repeat', () => {
   expect(invite).toContain('clearInvite();');
   expect(invite).toContain(
-    "router.replace({ pathname: '/memory/[id]', params: { id: memory.id, face: 'people' } });",
+    "router.replace({ pathname: '/memory/[id]', params: { id: memory.id } });",
   );
   expect(invite.indexOf('clearInvite();')).toBeLessThan(invite.indexOf('router.replace({'));
 });

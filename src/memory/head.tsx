@@ -1,87 +1,86 @@
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import type { ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import type { Memory } from '@/api';
-import { AppBar, Banner, Button, IconButton, Segment } from '@/kit';
+import { Banner, Button, GlassBar, IconButton, Text } from '@/kit';
 import { useStrings } from '@/language';
-import { space } from '@/theme';
+import { height, space } from '@/theme';
 
 /**
- * A memory is one screen with three faces — frames, movies, people (kit, «Экраны» 4–6). The name
- * stands in the appbar and the face is picked in the row under it: «Воспоминание — не три экрана с
- * одним именем, а один экран с тремя лицами».
+ * What the route reads once and hands down: the memory itself — its name, its days, the caller's
+ * level — the failure of that read, and the way to make it again. One read for the whole screen, so
+ * nothing about the memory blinks while the feed under it moves.
  */
-export type Face = 'frames' | 'films' | 'people';
-
-/** What the route knows and all three faces draw the same: the memory itself, and which face is on. */
 export type Head = {
-  /** null until the listing answers — the appbar stands under one shared word until it does. */
+  /** null until the listing answers — the capsule stands under one shared word until it does. */
   memory: Memory | null;
-  /** The memory could not be read. The face's own list has its own line for its own failure. */
   error: string | null;
   reload: () => void;
-  face: Face;
-  onFace: (face: Face) => void;
 };
 
 /**
- * The top of all three faces: the memory's name, the way back out of it, the switch between the
- * faces, and — on the right — at most one icon, which is the face's own business and comes in as
- * `right`. The kit gives that corner to exactly one face (the frames' «Скачать всю галерею»); the
- * other two leave it empty, because moving between faces is what the switch is for and an icon that
- * did it too would be a second way to say the same thing.
+ * The glass bar over a memory's feed (spec 7.1, detail 4, and `MemoryFrames`): three pieces of glass
+ * floating over the photographs — a round 48 at each side and the capsule between them. It is what
+ * the memory's tabs became: there is no second screen to switch to any more, so the bar carries the
+ * name, what the memory holds, and the two things that can be done from the top of it.
  *
- * Drawn by each face rather than by the route around them, so the icon in that corner belongs to the
- * same component as the errand it starts, and nothing has to be passed back up a level.
+ * What stands in the two round slots is the screen's business and not the bar's: in the feed it is
+ * «Назад» and «Выбрать», in `FramesPicking` it is «Лейблы» and the same select button held in. The
+ * way out of a memory is the one thing this keeps, because it is the same on every state of it — a
+ * tapped push and a followed invite both open this screen with nothing behind it.
+ *
+ * It floats: the bar is drawn over the feed rather than above it, and its own darkening is what
+ * keeps a white glyph readable when the frame underneath happens to be a white wall.
  */
 export function MemoryHead({
-  memory,
+  title,
+  meta,
+  capsuleLabel,
+  onCapsule,
+  chevron,
+  left,
+  right,
   error,
   reload,
-  face,
-  onFace,
-  right,
-}: Head & { right?: ReactNode }) {
+}: Omit<Head, 'memory'> & {
+  title: string;
+  meta?: string;
+  capsuleLabel: string;
+  onCapsule?: () => void;
+  chevron?: boolean;
+  left?: ReactNode;
+  right?: ReactNode;
+}) {
   const router = useRouter();
   const s = useStrings();
 
   return (
-    <View>
-      <AppBar
-        title={memory?.title ?? s.memory.fallbackTitle}
-        // No subtitle any more: the switch below says which face is open, and it says it in words
-        // that can be pressed (TASK-101 — three screens under three captions became one screen).
+    // `box-none` so everything around the three pieces of glass belongs to the feed underneath:
+    // this layer covers the top of the screen and only the buttons on it may catch a finger.
+    <View style={styles.head} pointerEvents="box-none">
+      <GlassBar
+        title={title}
+        meta={meta}
+        capsuleLabel={capsuleLabel}
+        onCapsule={onCapsule}
+        chevron={chevron}
         left={
-          <IconButton
-            icon={ChevronLeft}
-            label={s.action.back}
-            // A tapped push and a followed invite both open this screen with nothing behind it.
-            onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
-          />
+          left ?? (
+            <IconButton
+              icon={ChevronLeft}
+              tone="glass"
+              size={height.roundViewer}
+              label={s.action.back}
+              onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+            />
+          )
         }
         right={right}
       />
-      <Segment
-        wide
-        // Spec 7.3 gives a memory's own header pill the shorter segment: 36 rather than 40, which
-        // with the pill's own 4 all round is what puts the body of every face at 168.
-        sm
-        // The row is titled by the screen it stands under; the name is only spoken.
-        hideLabel
-        label={s.memory.whatToShow}
-        value={face}
-        onChange={onFace}
-        options={[
-          { value: 'frames', label: s.memory.framesPlain },
-          { value: 'films', label: s.montage.title },
-          { value: 'people', label: s.members.title },
-        ]}
-        style={styles.faces}
-      />
       {error === null ? null : (
-        <Banner tone="error" text={error} style={styles.faces}>
+        <Banner tone="error" text={error} style={styles.banner}>
           <Button size="xs" variant="quiet" label={s.action.retry} onPress={reload} />
         </Banner>
       )}
@@ -89,14 +88,42 @@ export function MemoryHead({
   );
 }
 
+/**
+ * The heading of a block on the feed (spec 8): the name in `section` and, beside it, the count of
+ * what stands under it — «Ролики 2», «Кадры · 486 кадров». Two words in a row rather than a part of
+ * the library: what it is made of is the kit's type roles, and the only thing it adds is that the
+ * count sits on the same baseline as the name.
+ */
+export function BlockHead({
+  title,
+  count,
+  style,
+}: {
+  title: string;
+  /** Nothing yet read is nothing to count — the heading stands alone until the list answers. */
+  count?: string;
+  style?: StyleProp<ViewStyle>;
+}) {
+  return (
+    <View style={[styles.block, style]}>
+      <Text role="section" accessibilityRole="header">
+        {title}
+      </Text>
+      {count ? <Text role="meta">{count}</Text> : null}
+    </View>
+  );
+}
+
+// Nothing here has a colour of its own: the glass, the words and the banner are kit components
+// drawing themselves in whatever theme the app is in, and what is left is where they stand.
 const styles = StyleSheet.create({
-  // The 16 is the switch's and the failure line's own, and nothing wraps the bar in a second copy of
-  // it: the bar carries the screen's 16 itself (`kit/bars.tsx`), and a wrapper holding one too put
-  // the memory's chevron 16 further in than the one on every other screen. `MemoryFrames` draws the
-  // head at a single 16 and hangs the button 10 outside it, exactly as `Contacts` and `Account` do
-  // (found in review, m-21).
-  //
-  // The gap on either side of the switch: 12 under the appbar's own 44, 16 over whatever the face
-  // draws below. No face adds a second one.
-  faces: { marginTop: space.s3, marginBottom: space.s4, marginHorizontal: space.s4 },
+  head: { position: 'absolute', left: 0, right: 0, top: 0 },
+  // The glass bar keeps 12 at the sides (spec 7.1), and the line about a failed read lines up with it.
+  banner: { marginHorizontal: space.s3, marginTop: space.s2 },
+  block: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: space.s2,
+    paddingHorizontal: space.s4,
+  },
 });

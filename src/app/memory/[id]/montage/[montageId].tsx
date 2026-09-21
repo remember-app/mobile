@@ -34,11 +34,11 @@ import { photo, radius, space, themed } from '@/theme';
  * one word about the whole job — so what the rows say is what is actually known; `@/montage` is
  * where that reasoning lives.
  *
- * A route of one montage rather than a face of the memory: the movies of a memory are a face of it
- * (TASK-101) and this is one of them, watched. Two ways in, and what is under this screen is the
- * memory either way: `replace` from the order wizard, so the way back is never the four steps of an
- * order already sent, and a `push` off the «Собирается» card on the movies face (TASK-169), for
- * whoever walked out of here and came back to it later.
+ * A route of one montage rather than a block of the memory: the films of a memory are a strip at the
+ * head of its feed (TASK-207) and this is one of them, watched. Two ways in, and what is under this
+ * screen is the memory either way: `replace` from the order wizard, so the way back is never the
+ * four steps of an order already sent, and a `push` off the «Собирается» card in that strip
+ * (TASK-169), for whoever walked out of here and came back to it later.
  */
 export default function MontageProgressScreen() {
   const { id, montageId, frames } = useLocalSearchParams<{
@@ -69,7 +69,7 @@ export default function MontageProgressScreen() {
   /**
    * Out of here, and the making carries on without anybody watching it — nothing on this screen
    * touches the worker. Back rather than a new screen: this one replaced the wizard, so what is
-   * under it is the memory on its movies face, which reads its list again as it comes forward.
+   * under it is the memory itself, whose strip of films reads its list again as it comes forward.
    *
    * Never once this screen has gone: the read below calls it too, and a read still in flight when
    * somebody pressed «К воспоминанию» would answer after that — `router` is the app's own, so a
@@ -78,7 +78,7 @@ export default function MontageProgressScreen() {
   const leave = useCallback(() => {
     if (gone.current) return;
     if (router.canGoBack()) router.back();
-    else router.replace({ pathname: '/memory/[id]', params: { id, face: 'films' } });
+    else router.replace({ pathname: '/memory/[id]', params: { id } });
   }, [router, id]);
 
   // The name over the screen and the four frames under the solid, off the listing every screen of a
@@ -95,9 +95,9 @@ export default function MontageProgressScreen() {
 
   /**
    * The montage as it now stands. There is no route for one montage — the api lists them — so this
-   * is the same read the movies face makes, picked down to the row this screen is watching.
+   * is the same read the memory’s own strip of films makes, cut down to the row this screen watches.
    *
-   * `quiet` is the same distinction that face draws: the read on the way in speaks up when it
+   * `quiet` is the same distinction that strip draws: the read on the way in speaks up when it
    * fails, the ones that happen on their own every few seconds do not, or a blip on the way would
    * put a banner over a screen that is fine.
    */
@@ -125,9 +125,9 @@ export default function MontageProgressScreen() {
 
   useFocusEffect(useCallback(() => read(), [read]));
 
-  // And again every few seconds while the worker still owes this one — the same loop the movies face
-  // runs over its list (TASK-125), here over the one row. Only while it is still being made: the
-  // moment it is ready or has fallen over, nothing more is coming.
+  // And again every few seconds while the worker still owes this one — the same loop the strip of
+  // films runs over its list (TASK-125), here over the one row. Only while it is still being made:
+  // the moment it is ready or has fallen over, nothing more is coming.
   const making = montage === null || beingMade(montage.status);
   useEffect(() => {
     if (!making) return;
@@ -138,9 +138,9 @@ export default function MontageProgressScreen() {
   }, [making, read]);
 
   // Ready while somebody sat here watching — which is the whole point of sitting here. The reward is
-  // the video itself and it is played on the movies face, so this screen steps out of the way rather
-  // than growing a second player: the face reads its list as it comes forward and the card is there,
-  // with its poster and its «Сохранить и поделиться».
+  // the video itself and it is played on the memory's own screen, so this one steps out of the way
+  // rather than growing a second player: the strip of films reads its list as it comes forward and
+  // the card is there, with its poster and the play circle on it.
   useEffect(() => {
     if (montage?.status === 'ready') leave();
   }, [montage?.status, leave]);
@@ -219,7 +219,7 @@ export default function MontageProgressScreen() {
         )}
       </ScrollView>
 
-      {/* Above the bar and outside the scroll, the way every face of a memory holds its own. */}
+      {/* Above the bar and outside the scroll, the way every screen of a memory holds its own. */}
       {error ? <Banner tone="error" text={error} style={styles.banner} /> : null}
 
       <ActionBar>

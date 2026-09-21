@@ -178,6 +178,7 @@ export function GlassBar({
   meta,
   capsuleLabel,
   onCapsule,
+  chevron = true,
   left,
   right,
   style,
@@ -187,6 +188,12 @@ export function GlassBar({
   /** «Свадьба Лизы и Марка. Настройки воспоминания и люди» — the sentence, from the screen. */
   capsuleLabel: string;
   onCapsule?: () => void;
+  /**
+   * Whether the capsule says it is a door. It is one in the feed — the chevron under the name is
+   * the way into the memory's settings — and it is not in `FramesPicking`, where the same capsule
+   * takes every frame instead of leading anywhere, and the layout drops the glyph to say so.
+   */
+  chevron?: boolean;
   left?: ReactNode;
   /** Empty on `FramesEmpty`: with no frames there is nothing to pick. */
   right?: ReactNode;
@@ -216,7 +223,7 @@ export function GlassBar({
           <Text role="pillTitle" numberOfLines={1} style={styles.shrink}>
             {title}
           </Text>
-          <Icon icon={ChevronDown} size={12} color={color.muted} />
+          {chevron ? <Icon icon={ChevronDown} size={12} color={color.muted} /> : null}
         </View>
         {meta ? (
           <Text role="meta" numberOfLines={1}>

@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Pencil, Share2, UserPlus, X } from 'lucide-react-native';
+import { ChevronLeft, Pencil, Share2, UserPlus, X } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, Share, StyleSheet, View } from 'react-native';
 
@@ -26,6 +26,7 @@ import { useAuth } from '@/auth';
 import { matches, useFindUser } from '@/find-user';
 import {
   ActionBar,
+  AppBar,
   Banner,
   Button,
   Chip,
@@ -291,7 +292,25 @@ export function People({ id, head }: { id: string; head: Head }) {
 
   return (
     <>
-      <MemoryHead {...head} />
+      {/* The inner bar of spec 7.1 and not the memory's own glass: the people left the feed when the
+          tabs did (TASK-207) and stand on the memory's settings now, which is a screen with a
+          heading rather than a wall of photographs. */}
+      <AppBar
+        title={head.memory?.title ?? s.memory.fallbackTitle}
+        left={
+          <IconButton
+            icon={ChevronLeft}
+            label={s.action.back}
+            // A tapped push and a followed invite both open a memory with nothing behind it.
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+          />
+        }
+      />
+      {head.error === null ? null : (
+        <Banner tone="error" text={head.error} style={styles.aside}>
+          <Button size="xs" variant="quiet" label={s.action.retry} onPress={head.reload} />
+        </Banner>
+      )}
 
       <ScrollView contentContainerStyle={styles.body}>
         {error !== null ? (
@@ -581,6 +600,8 @@ const styles = StyleSheet.create({
   // The kit's 16 at the sides, the same the head above keeps — the bar below draws its own, so
   // nothing here wraps it in a second copy.
   body: { flexGrow: 1, paddingHorizontal: space.s4, paddingBottom: space.s6, gap: space.s3 },
+  // The line about a memory that would not read stands outside the scroll, in the same margins.
+  aside: { marginHorizontal: space.s4 },
   // Waiting holds the place of the roster in the middle of the body rather than blinking at the top.
   middle: { flex: 1, justifyContent: 'center' },
   // The heading, its count, and the way into editing — one line, the button never shrinking.

@@ -30,10 +30,11 @@ import push from './push.ts?raw';
 import { en, ru } from '@/strings';
 
 /**
- * A memory is one screen with three faces — «не три экрана с одним именем, а один экран с тремя
- * лицами: имя стоит в шапке, лицо выбирают переключателем под ней» (kit, «Экраны» 4–6, TASK-101).
- * These read off the route and the three faces: which half went where, what the appbar carries on
- * each of them, and what still points at what.
+ * A memory is one screen and no tabs (spec 8, `MemoryFrames`, TASK-207): the feed of frames runs the
+ * width and the height of the phone, the films stand first on it, and the glass bar floats over it.
+ * The three faces of TASK-101 are gone — the people moved to the memory's own settings, and the
+ * films became a block of the feed. These read off the route and the pieces it is drawn from: what
+ * went where, what the bar carries, and what still points at what.
  *
  * Their text and not their rendered output, because this project has no renderer: every test here
  * runs pure logic, and a screen would need `react-native` transformed and `expo-router`,
@@ -65,12 +66,17 @@ test('one memory is one route, behind the same gate as the rest of the app', () 
   expect(layout.indexOf('name="memory/[id]"')).toBeLessThan(layout.indexOf('</Stack.Protected>'));
 });
 
-test('the three faces are three files, and the screen is only which of them is on', () => {
-  for (const face of ['Frames', 'Films', 'People']) expect(memory).toContain(`<${face} id={id}`);
-  // The memory itself is read once, above all three, so switching a face does not blink the name.
+test('the memory is one screen: the feed, with the films standing first on it', () => {
+  // No tabs and no faces: the route draws the feed, and the feed draws the films at its head.
+  expect(memory).toContain('<Frames id={id} head=');
+  expect(memory).not.toContain('<People');
+  expect(memory).not.toContain('<Films');
+  expect(frames).toContain('<Films id={id} memory={memory} />');
+  // The memory itself is read once, above everything, so nothing about it blinks while the feed
+  // underneath moves.
   expect(memory.match(/listMemories\(/g)).toHaveLength(1);
-  for (const face of [frames, films, people]) expect(face).not.toContain('listMemories');
-  // And each face reads what is its own, when it comes on.
+  for (const part of [frames, films, people]) expect(part).not.toContain('listMemories');
+  // And each block reads what is its own.
   expect(frames).toContain('listMedia(');
   expect(films).toContain('listMontages(');
   expect(people).toContain('listMembers(');
@@ -79,71 +85,75 @@ test('the three faces are three files, and the screen is only which of them is o
     expect(people).not.toContain(moved);
     expect(frames).not.toContain(moved);
   }
-  // Asking for a movie is four steps and a screen of its own since TASK-162: this face offers it
-  // and reads its list again when that screen goes, and no face orders anything itself.
+  // Asking for a movie is four steps and a screen of its own since TASK-162: the block offers it
+  // and reads its list again when that screen goes, and nothing here orders anything itself.
   expect(order).toContain('orderMontage(');
-  for (const face of [frames, films, people]) expect(face).not.toContain('orderMontage');
+  for (const part of [frames, films, people]) expect(part).not.toContain('orderMontage');
   for (const stayed of ['RowMember', 'inviteByUsername', 'removeMember']) {
     expect(people).toContain(stayed);
     expect(films).not.toContain(stayed);
   }
 });
 
-test('all three wear one appbar, with the memory’s name and no caption under it', () => {
-  for (const face of [frames, films, people]) {
-    expect(face).toContain('<MemoryHead');
-    // The line that used to say which of the three screens was open. The switch says it now, in
-    // words that can be pressed (TASK-76 asked for the caption; TASK-101 replaced it).
-    expect(face).not.toContain('subtitle={');
-    expect(face).not.toContain('<AppBar');
+test('nothing is left of the tabs, the old appbar or the people inside this screen', () => {
+  // What TASK-207 took out, named so it cannot come back by habit: the switch between faces, the
+  // `?face=` that asked for one by link, and the inner appbar the three of them shared.
+  for (const part of [memory, frames, films]) {
+    expect(part).not.toContain('<Segment');
+    expect(part).not.toContain('type Face');
+    expect(part).not.toContain('face:');
+    expect(part).not.toContain('face=');
+    expect(part).not.toContain('<AppBar');
   }
-  expect(head).toContain('title={memory?.title ?? s.memory.fallbackTitle}');
-  // Left in the appbar, by the rule every screen of a memory has kept: a tapped push and a followed
-  // invite both open this one with nothing behind it to go back to.
+  // And the roads in ask for nothing but the memory itself.
+  for (const road of [invite, push, progress]) expect(road).not.toContain("face: '");
+  // The people are a screen of their own now (the settings, its own task) and are not drawn here.
+  expect(memory).not.toContain('@/memory/people');
+  expect(frames).not.toContain('@/memory/people');
+});
+
+test('the glass bar floats over the feed, with a door in the middle and a slot at each end', () => {
+  // Spec 7.1, detail 4 — the bar that replaced the tabs. It is drawn over the frames rather than
+  // above them, which is what its own darkening is for.
+  expect(head).toContain('<GlassBar');
+  expect(head).toContain('head: { position: \'absolute\', left: 0, right: 0, top: 0 }');
+  expect(frames).toContain('<MemoryHead');
+  // The way out of a memory is the bar's own, because it is the same on every state of it: a tapped
+  // push and a followed invite both open this screen with nothing behind it to go back to.
   expect(head).toContain("router.canGoBack() ? router.back() : router.replace('/')");
-});
-
-test('the switch under the name is the kit’s wide segment, and it holds the three faces', () => {
-  expect(head).toContain('<Segment');
-  // `.segment-wide` — the row spans the screen instead of being as wide as its words, and the
-  // heading over it is the memory's own name, so the label is only spoken.
-  expect(head).toContain('wide');
-  expect(head).toContain('hideLabel');
-  expect(head).toContain('label={s.memory.whatToShow}');
-  for (const option of [
-    "{ value: 'frames', label: s.memory.framesPlain }",
-    "{ value: 'films', label: s.montage.title }",
-    "{ value: 'people', label: s.members.title }",
-  ]) {
-    expect(head).toContain(option);
-  }
-  // The kit's own three words, in both sets: «Кадры / Ролики / Люди».
-  expect(ru.memory.framesPlain).toBe('Кадры');
-  expect(ru.montage.title).toBe('Ролики');
-  expect(ru.members.title).toBe('Люди');
-  for (const set of [en, ru]) {
-    for (const word of [set.memory.framesPlain, set.montage.title, set.members.title]) {
-      // A third of a phone's width each: one word, never a phrase.
-      expect(word).not.toContain(' ');
-    }
-  }
-});
-
-test('the right of the appbar is one icon, and only the frames have one', () => {
-  // The switch into picking, the kit's one icon for this corner — and the whole of what it holds.
-  // «Скачать всю галерею» stood here until the kit folded it into the picking itself («это тот же
-  // выбор, только весь»), and before that it was a second wide button in the footer beside
-  // «Добавить кадры».
-  expect(frames).toContain('right={');
+  // The capsule is a door in the feed and an action while picking, and only the door wears a
+  // chevron (spec 7.1). The kit draws one or the other; it never invents the words.
+  expect(head).toContain('chevron={chevron}');
+  expect(bars).toContain('{chevron ? <Icon icon={ChevronDown}');
+  expect(frames).toContain('chevron={!picking}');
+  // Where the capsule leads: the memory's settings, which is where the people went.
+  expect(frames).toContain("router.push({ pathname: '/memory/[id]/settings', params: { id } })");
+  expect(ru.memory.settings('Свадьба')).toBe('Свадьба. Настройки воспоминания и люди');
+  // And the right slot is the switch into picking — absent while there is nothing to pick, which is
+  // what `FramesEmpty` draws.
   expect(frames).toContain('label={picking ? s.gallery.leaveSelect : s.gallery.select}');
+  expect(frames).toContain('picking || any ? (');
   expect(frames).not.toContain('gallery.downloadAll');
-  // The other two hand the head nothing for that corner — moving between faces is the switch's job,
-  // and the `Users` icon that used to do it is gone from all three.
-  for (const face of [films, people]) {
-    expect(face).toContain('<MemoryHead {...head} />');
-    expect(face).not.toContain('right=');
-  }
-  for (const face of [frames, films, people]) expect(face).not.toContain('Users');
+});
+
+test('the capsule says what the memory holds, and what is marked while picking', () => {
+  // «12–14 сентября · 6 человек» under the name, and «3 октября · пока пусто» where nothing has
+  // been brought yet (`FramesEmpty`) — one line, built from the memory the route read.
+  expect(frames).toContain('formatEventDates(memory.event_start, memory.event_end)');
+  expect(frames).toContain('s.memory.people(memory.member_count) : s.memory.nothingYet');
+  expect(ru.memory.nothingYet).toBe('пока пусто');
+  // And while picking the same capsule counts what is marked and weighs it — «38 МБ · 3 фото и
+  // 1 видео» — with the press taking every frame or giving them all back.
+  expect(frames).toContain('s.gallery.pickNothing : s.gallery.picked(marked.length)');
+  expect(frames).toContain('megabytesOf(marked)');
+  expect(frames).toContain('s.gallery.pickedKinds(');
+  expect(ru.gallery.pickedKinds(3, 1)).toBe('3 фото и 1 видео');
+  expect(ru.gallery.pickedKinds(3, 0)).toBe('3 фото');
+  expect(en.gallery.pickedKinds(0, 1)).toBe('1 video');
+  const everything = frames.slice(frames.indexOf('function pickEverything'));
+  expect(everything.slice(0, everything.indexOf('\n  }'))).toContain(
+    'have.size >= markable.length ? new Set() : new Set(markable.map((item) => item.id))',
+  );
 });
 
 test('the footer of the frames is one wide button, «Add more» off the picking mode', () => {
@@ -193,7 +203,29 @@ test('an empty gallery is the sign, what is missing, and what to do about it', (
     'Всё, что добавит любой участник, появится здесь. Начните со своих.',
   );
   // And it stands in the middle of the body rather than at the top of a list that has nothing in it.
-  expect(frames).toContain('rows.length === 0 ? styles.gridEmpty : null');
+  expect(frames).toContain('rows.length === 0 ? styles.feedEmpty : null');
+  // With nothing brought there is no film to cut and nothing to count, so neither block is drawn
+  // over it: `FramesEmpty` is the sign, the words and one button, and nothing else.
+  expect(frames).toContain('ListHeaderComponent={\n          any ? (');
+});
+
+test('a memory with no film says what one is, and offers it to the one who can order it', () => {
+  // `FilmsEmpty` (spec 8): the dashed block where the strip would be, not an empty state — the two
+  // leaning frames are the reward itself and the words say what a montage is.
+  expect(films).toContain('<EmptyMontages');
+  expect(films).toContain('text={s.montage.emptyNote}');
+  expect(films).toContain("role === 'organizer' ? (");
+  expect(films).toContain('label={s.montage.makeIt}');
+  expect(ru.montage.emptyNote).toBe('Нейросеть выберет лучшие моменты и положит на музыку.');
+  expect(ru.montage.makeIt).toBe('Смонтировать');
+  // And the counter beside the heading says the same silence in one word.
+  expect(films).toContain('s.montage.noneYet');
+  expect(ru.montage.noneYet).toBe('пока нет');
+  // The dashed tile stands first in the strip, always — the one place a new film is started, and
+  // the one road out of this screen into the order as it stands today.
+  expect(films).toContain('<CardMontageNew label={s.montage.newOne} onPress={askForOne} />');
+  expect(ru.montage.newOne).toBe('Новый ролик');
+  expect(films.indexOf('<CardMontageNew')).toBeLessThan(films.indexOf('montages.map('));
 });
 
 /**
@@ -233,33 +265,57 @@ test('while picking, a tap marks the frame instead of opening it — and only a 
   expect(upload).toContain("pick={picked.has(item.id) ? 'send' : 'off'}");
 });
 
-test('the picking footer is «Снять» beside a download that carries its count', () => {
+test('the picking footer is share, a download that carries its count, and delete', () => {
   const picking = actionBars(frames)[0];
-  // `FramesPicking`: the layout's third kind of bottom layer — the count of the whole picking and
-  // the quiet way out of it stand on a line over the button, not beside it.
-  expect(picking).toContain('above={');
-  expect(picking).toContain('{s.gallery.picked(marked.length)}');
+  // `FramesPicking` (spec 8): three buttons, the count riding in the middle one — the line of
+  // counting moved up into the capsule, which is where the layout puts it now.
+  expect(picking).toContain('label={s.action.share}');
+  expect(picking).toContain('label={s.action.delete}');
+  expect(picking).not.toContain('above={');
   expect(ru.gallery.picked(3)).toBe('Выбрано 3');
-  // The quiet half is the word the kit gives both sheets that pick something, said in one place.
-  expect(picking).toContain('label={s.action.clear}');
-  expect(upload).toContain('label={s.action.clear}');
+  // Spec 7.2 — the dangerous round one is glass with a red glyph, never a red fill.
+  expect(picking).toContain('tint={color.dangerText}');
   expect(picking).toContain('s.gallery.download(marked.length)');
   expect(picking).toContain('s.gallery.nothingPicked');
   expect(picking).toContain('onPress={() => void savePicked()}');
   // Both off with nothing marked, and both off while something is already coming down.
   expect(picking.match(/disabled=\{busy \|\| marked\.length === 0\}/g)).toHaveLength(2);
-  // Counted off the sheet and never off the raw set. `picked` is emptied only by leaving the mode
-  // or by «Снять», while the sheet moves on its own — the three-second re-read, the focus, the
+  // Counted off the feed and never off the raw set. `picked` is emptied only by leaving the mode or
+  // by the capsule, while the feed moves on its own — the three-second re-read, the focus, the
   // pull. A frame somebody else deleted stayed in the set and stayed in the count: the button
   // offered «Скачать 3 файла», signed the whole gallery to find out, and came back «Сохранено 0
   // файлов». Found in review. What the button counts is what the download will find.
   expect(frames).toContain('const marked = items?.filter((item) => picked.has(item.id)) ?? [];');
   expect(picking).not.toContain('picked.size');
   // The download itself is the whole-gallery route cut to what is marked — one ask, not one per
-  // file, which is what «скачать всё» already did.
+  // file, which is what «скачать всё» already did. Sharing takes the same links.
   expect(frames).toContain(
-    '(await downloadAllMedia(token, id)).filter((file) => picked.has(file.id))',
+    '(await downloadAllMedia(session, id)).filter((file) => picked.has(file.id))',
   );
+  expect(frames).toContain('await shareFile(file);');
+});
+
+test('deleting an armful asks first, counts the price, and takes only what may be taken', () => {
+  // Criterion of the card and spec 9 both: the number is named before the press, and it is the
+  // number that will actually go — one's own frames, or anybody's for the organizer. The api is the
+  // authority either way; this only decides what the sheet promises.
+  expect(frames).toContain('const deletable = marked.filter(mayDelete);');
+  expect(frames).toContain('const mayDelete = (item: MediaItem) =>');
+  expect(frames).toContain("item.uploaded_by === user?.id || role === 'organizer'");
+  expect(frames).toContain('<ConfirmSheet');
+  expect(frames).toContain('s.gallery.deleteAskMany(deletable.length)');
+  expect(frames).toContain('meta={deletable.length < marked.length ? s.gallery.deleteDenied');
+  expect(ru.gallery.deleteAskMany(4)).toBe('Удалить 4 кадра?');
+  expect(ru.gallery.deleteAskMany(1)).toBe('Удалить 1 кадр?');
+  // One frame is named the way the open frame names it, rather than counted at it.
+  expect(frames).toContain('s.gallery.deleteAsk(deletable[0].kind)');
+  // Whatever did go leaves the feed even if the run stopped halfway: those records are gone on the
+  // server, and a feed still drawing them would open windows onto nothing.
+  const deleting = frames.slice(frames.indexOf('async function deletePicked'));
+  expect(deleting.slice(0, deleting.indexOf('\n  }'))).toContain(
+    'if (gone.size > 0) setItems((have) => have?.filter((one) => !gone.has(one.id)) ?? null);',
+  );
+  expect(frames).toContain('deleteMedia(token, id, item.id)');
 });
 
 test('the words of the picking mode count in Russian and say why the button is off', () => {
@@ -354,16 +410,18 @@ test('«Выбрать все N» counts and marks the frames a tap could reach,
   expect(ru.gallery.selectDay(9)).toBe('Выбрать все 9');
 });
 
-test('no face reaches another by pushing a route: the switch is the only road between them', () => {
-  for (const face of [frames, films, people]) {
-    expect(face).not.toContain("pathname: '/memory/[id]'");
-    expect(face).not.toContain('/memory/[id]/gallery');
+test('nothing on this screen pushes the screen it is already on', () => {
+  for (const part of [frames, films, people]) {
+    expect(part).not.toContain("pathname: '/memory/[id]'");
+    expect(part).not.toContain('/memory/[id]/gallery');
   }
-  // A screen of its own is not a face. The movies face pushes onto two of them — the order wizard
-  // and, since TASK-169, the waiting over one montage — and both come back here. What this rule
-  // bans is a face drawing another face's route, which neither of those is; the other two faces
-  // have no business with a montage at all.
-  for (const face of [frames, people]) expect(face).not.toContain('/memory/[id]/montage');
+  // The roads out of it are four, and each belongs to the piece that offers it: the settings and
+  // the upload to the feed, the order and the waiting over one montage to the strip of films.
+  expect(frames).toContain('/memory/[id]/settings');
+  expect(frames).toContain('/memory/[id]/upload');
+  expect(films).toContain('/memory/[id]/order');
+  expect(films).toContain('/memory/[id]/montage/[montageId]');
+  for (const part of [frames, people]) expect(part).not.toContain('/memory/[id]/montage');
 });
 
 test('the platform switch is spelled out once, in the kit', () => {
@@ -415,15 +473,24 @@ test('every face shuts its own windows when it loses focus', () => {
 
 // The roads into a memory, and the face each of them lands on.
 
-test('a tapped card opens the memory on its frames, which is what it opens on by default', () => {
-  expect(home).toContain("router.push({ pathname: '/memory/[id]', params: { id: item.id } })");
-  expect(memory).toContain("useState<Face>(wanted ?? 'frames')");
+test('one film can be asked for by link, and the ask is spent on the way in', () => {
+  // `/memory/[id]?montage=<id>` — the one parameter this screen still takes, and it raises the
+  // player over that film. The frame's own sheet is where it is pressed: it lists the films a frame
+  // was taken into, and there is no screen of one film to go to.
+  expect(films).toContain("useLocalSearchParams<{ montage?: string }>()");
+  expect(films).toContain('setPlaying(wanted);');
+  // Wiped in the same breath, or the parameter stays on the screen and every later return to the
+  // memory puts the player up again over a film nobody asked for twice.
+  expect(films).toContain("router.setParams({ montage: '' });");
 });
 
-test('an accepted invite lands on the people, and a finished movie on the movies', () => {
-  // Both used to be routes of their own; both are a face of this one screen now, asked for by name.
-  expect(invite).toContain("params: { id: memory.id, face: 'people' }");
-  expect(push).toContain("params: { id: memoryId, face: 'films' }");
+test('every road into a memory lands on the one screen it has', () => {
+  // The card on the home screen, an accepted invite and a «ролик готов» push: all three used to ask
+  // for a face by name, and there is nothing left to ask for — the films are on the feed and the
+  // people are a press away on the capsule.
+  expect(home).toContain("router.push({ pathname: '/memory/[id]', params: { id: item.id } })");
+  expect(invite).toContain("params: { id: memory.id }");
+  expect(push).toContain("params: { id: memoryId }");
   // The «вас позвали» push still opens the screen that takes material.
   expect(push).toContain("router.push({ pathname: '/memory/[id]/upload'");
 });
@@ -538,19 +605,15 @@ test('one’s own standing is the chip that sets it, standing where the word wou
   expect(people).toContain("editing && role === 'organizer' && !self ? (");
 });
 
-test('the order button waits for the list it prepends to', () => {
-  // TASK-75 lifted this button out of the list branch into the bottom bar, where the only thing
-  // gating it is the role — and the role comes off the memory, which is read above the face and
-  // lands first. Pressed over a list still in flight, `order` puts its new row into state that the
-  // read landing after it wipes; pressed over a list that failed, it offers a second failure under
-  // an error banner. Both are the invariant the button had while it stood inside the list.
-  expect(films).toContain("role === 'organizer' && montages !== null ?");
-  // And the answer to that press carries the bottom inset itself when there is no bar under it to
-  // carry one — everybody who is not the organizer still saves a movie and still gets a line back.
-  expect(films).toContain("role === 'organizer'");
-  expect(films).toContain('marginBottom: Math.max(insets.bottom');
-  // The frames face says the same thing for the same reason: a viewer has no footer there either.
-  expect(frames).toContain('marginBottom: Math.max(insets.bottom');
+test('the way into an order is offered to the organizer and to nobody else', () => {
+  // Ordering is theirs alone (doc-03), so the dashed tile and the paper button on the empty block
+  // are drawn for them only: offering either to anybody else is a door into a 403. The api is the
+  // authority; this is what the screen draws.
+  expect(films.match(/role === 'organizer'/g)?.length).toBeGreaterThanOrEqual(3);
+  expect(films).toContain("router.push({ pathname: '/memory/[id]/order', params: { id } })");
+  // Nothing is drawn over a list still in flight: `montages === null` is neither empty nor full, so
+  // neither the strip nor the block that invites an order is on screen yet.
+  expect(films).toContain('montages === null ? null : montages.length === 0 ? (');
 });
 
 test('an order is asked for in four steps, on a screen of its own, and sent in one call', () => {
@@ -684,11 +747,9 @@ test('the waiting ends the way the montage does, and never on a spinner that tur
   expect(progress).toContain('if (!quiet) setError(errorMessage(e));');
 
   // Ready while somebody sat here watching: the reward is the video and the video is played on the
-  // movies face, so this screen steps out of the way instead of growing a second player.
+  // memory's own screen, so this one steps out of the way instead of growing a second player.
   expect(progress).toContain("if (montage?.status === 'ready') leave();");
-  expect(progress).toContain(
-    "router.replace({ pathname: '/memory/[id]', params: { id, face: 'films' } });",
-  );
+  expect(progress).toContain("router.replace({ pathname: '/memory/[id]', params: { id } });");
   // Fallen over: the screen says so where «Собираем ролик» stood, hands over the worker's own line,
   // and stays put — going back is the person's move and not the app's.
   expect(progress).toContain("const broke = montage?.status === 'failed';");
@@ -828,8 +889,9 @@ test('the way out of a played montage is the kit’s own button, across the foot
 
 test('the material of a memory has one name — on the card, on the switch, over the sheet', () => {
   // «N frames» on the card, «Photos and videos (N)» on the guest list, «Gallery» over the contact
-  // sheet was the report (TASK-76). One key answers all of them, and it is the word on the switch.
-  expect(head).toContain('s.memory.framesPlain');
+  // sheet was the report (TASK-76). One key answers all of them, and it is the heading over the
+  // material on the feed.
+  expect(frames).toContain('title={s.memory.framesPlain}');
   expect(home).toContain('s.home.noFrames');
   for (const set of [en, ru]) {
     // «0 кадров» → «кадров», which is what «Кадров пока нет» has to be built on too. Russian
@@ -1117,33 +1179,26 @@ test('every column of a contact sheet is the same width, the last row included',
     expect(sheet).not.toContain('flex: 1 / 3');
     // A column worked out from the width the sheet spans, and re-read when the phone turns.
     expect(sheet).toContain('useWindowDimensions()');
-    expect(sheet).toContain('GRID_GAP * 2) / 3');
   }
+  // The two grids of spec 7.8, and they are not one grid at two sizes: the wizard and the queue
+  // stand inside the screen's 16 with a 3 gutter, the memory's own feed runs the whole width with a
+  // 2 and no margins at all — «лента идёт во всю ширину, щель 2».
+  expect(upload).toContain('GRID_GAP * 2) / 3');
+  expect(frames).toContain('const cell = { width: (width - FEED_GAP * 2) / 3 };');
+  expect(frames).toContain('feed: { flexGrow: 1, gap: FEED_GAP }');
+  expect(frames).toContain('lane="feed"');
 });
 
-test('the head measures out the 168 every face’s body starts at', () => {
-  // 52 of status line, a 44 bar, 12, the 44 the switch comes to, 16 — and the body. The bar keeps a
-  // height of its own (spec 4: the header line is 44), which is what holds the sheet off it:
-  // «контактный лист вплотную к шапке» was the report when it did not.
-  expect(bars).toContain('minHeight: height.bar');
-  // The whole of the gap on either side of the switch, and no face adds a second one. The 16 at the
-  // sides is the switch's own and the failure line's: the bar under them carries the screen's 16
-  // itself, and a wrapper holding a second copy of it put this chevron 16 further in than the one on
-  // every other screen (found in review, m-21).
-  expect(head).toContain(
-    'faces: { marginTop: space.s3, marginBottom: space.s4, marginHorizontal: space.s4 }',
-  );
-  expect(head).not.toContain('head: { paddingHorizontal');
-  // Spec 7.3: a memory's own header pill is the shorter segment, 36 rather than 40 — the other 8
-  // of those 44 are the pill's own padding.
-  const segment = head.slice(head.indexOf('<Segment'));
-  expect(segment.slice(0, segment.indexOf('/>')).split('\n').map((line) => line.trim())).toContain(
-    'sm',
-  );
-  // And the sheet under it stands inside the screen's 16 like everything else, not bled to the
-  // edges: at 390 that is what makes a frame of the grid 117 square.
-  expect(frames).toContain('grid: { flexGrow: 1, gap: GRID_GAP, paddingHorizontal: space.s4 }');
-  expect(frames).toContain('(width - space.s4 * 2 - GRID_GAP * 2) / 3');
+test('the feed starts far enough down to clear the glass floating over it', () => {
+  // 52 of status line (measured, not assumed), the bar's own 48 and 16 — which is the 116 the
+  // layout draws the «Ролики» block at. Nothing is subtracted for the bar: it floats, so the feed
+  // passes under it rather than starting below it.
+  expect(frames).toContain('{ paddingTop: insets.top + height.roundViewer + space.s4 }');
+  // And it runs under the bottom layer as well, with room left for that layer's own gradient.
+  expect(frames).toContain('{ paddingBottom: board.footerGallery }');
+  expect(bars).toContain('gallery: { height: board.footerGallery');
+  // Spec 8: 22 between the films and the heading over the material, 10 down to the first row.
+  expect(frames).toContain('framesHead: { marginTop: 22, marginBottom: 10 }');
 });
 
 /**
@@ -1156,7 +1211,7 @@ test('the filter is a draft until it is applied, and it is applied by a button t
   // «Показать 486 кадров» — the number is worked out from the draft on the spot, so nobody applies
   // a filter without being told first what it comes to. The face owns the material and answers the
   // question; the sheet only asks it.
-  expect(frames).toContain('count={(draft) => framesMatching(items, draft).length}');
+  expect(frames).toContain('count={(draft) => framesMatching(items ?? [], draft).length}');
   expect(sheets).toContain('const shown = count(draft);');
   expect(sheets).toContain('label={shown === 0 ? s.gallery.nothingMatched : s.gallery.show(shown)}');
   // A filter that would leave nothing cannot be applied at all, and the button says why rather than

@@ -5,6 +5,7 @@ import memory from './app/memory/[id].tsx?raw';
 import films from './memory/films.tsx?raw';
 import frames from './memory/frames.tsx?raw';
 import viewer from './memory/frame-viewer.tsx?raw';
+import head from './memory/head.tsx?raw';
 // The one component, not the barrel: `@/kit` reaches native modules node cannot parse, and this
 // needs the smallest thing in the kit that reads a colour.
 import { Text } from '@/kit/text';
@@ -120,8 +121,29 @@ test('a kit component inside the pin draws dark while the app is light', async (
 });
 
 test('and the screens around it still turn with the theme', () => {
-  // The grid behind the viewer is interface, not the room a photograph is looked at in. Naming it
+  // The feed behind the viewer is interface, not the room a photograph is looked at in. Naming it
   // here keeps the pin above from being widened into «this whole file is dark» by the next reader.
-  // The ink under all three faces is the screen's own now, so this is where it is spelled out.
+  // The ink under the memory is the route's own, so this is where it is spelled out.
   expect(memory).toContain('screen: { flex: 1, backgroundColor: color.ink }');
+});
+
+/**
+ * The memory's own chrome, which is the one surface of this app drawn *over* photographs: the glass
+ * bar, the gradient under it and the one at the foot of the feed. They read as fixed dark values and
+ * are not — `photo` is the one set that is the same in both themes on purpose (spec 2), and it lives
+ * in the kit. The screen must hold none of it, or `MemoryFrames` comes out dark under light chrome
+ * in daylight, which is the whole bug TASK-89 was about (spec 8, `HomeDay`).
+ */
+test('the memory draws its glass and its feed out of the kit, in whatever theme it is in', () => {
+  for (const part of [head, frames, films]) {
+    // Not one colour spelled out anywhere in them, `photo` included: they ask the kit for a
+    // component and the kit asks the theme.
+    expect(part).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+    expect(part).not.toMatch(/rgba?\(/);
+    expect(part).not.toContain("from '@/theme/");
+  }
+  // The feed turns with the theme like any other screen — the one pinned dark room in this corner
+  // of the app is the player, and it says so itself.
+  expect(head).not.toContain('themes.');
+  expect(frames).not.toContain('themes.');
 });
