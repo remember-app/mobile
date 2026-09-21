@@ -41,8 +41,19 @@ test('one icon stands in the header and it opens the account', () => {
 test('the large card is the freshest memory only while it has a photograph to carry', () => {
   // Spec 8 gives the lead card two fifths of the screen because it *is* a picture with a name
   // across it. The memory just created is both the freshest and the emptiest one there is, so
-  // keying the size on the index alone opens the app on a 340-tall grey rectangle.
-  expect(index).toContain('const large = index === 0 && thumbs.length > 0;');
+  // keying the size on the index alone opens the app on a 340-tall grey rectangle. A chosen cover
+  // is that photograph just as much as the tail is, and it carries the card on its own.
+  expect(index).toContain('const large = index === 0 && (cover !== null || thumbs.length > 0);');
+});
+
+test('a memory whose organizer chose a face draws it, and one that has none is unchanged', () => {
+  // Spec 7.6, «с обложкой» — the card itself decides what a cover does to each of its two sizes
+  // (`card-memory.test.tsx`); the screen's whole part is handing over the field the api signs.
+  expect(index).toContain('cover={cover}');
+  // `?? null` and not a bare read: the app ships over the air and the api deploys on its own, so
+  // a build that knows this field can meet one that does not — and `undefined` would then decide
+  // the size of the lead card by accident.
+  expect(index).toContain('const cover = item.cover_thumbnail_url ?? null;');
 });
 
 test('who has already brought their frames is read off the listing, not asked per card', () => {

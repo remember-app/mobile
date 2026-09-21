@@ -165,10 +165,13 @@ export function WizardBar({
  * Three pieces of glass floating over the frames: a round 48 on each side and, between them, the
  * capsule carrying the memory's name and what it holds.
  *
- * The capsule is a button like the other two: in the feed it opens the memory's settings, in picking
- * mode it takes every frame. A long name is cut with an ellipsis and not shrunk — the whole bar's
- * rhythm hangs off that 14 (spec 10.6) — so the sentence a screen reader gets is the caller's
- * `capsuleLabel`, which carries the name in full.
+ * The capsule is a button like the other two wherever it leads somewhere: in the feed it opens the
+ * memory's settings, in picking mode it takes every frame. Given nothing to do — `Upload`, where it
+ * only says which memory this material is going into — it is a plain plate and says so: a circle
+ * that announces itself as a button and answers no tap is worse than one that never claimed to be.
+ * A long name is cut with an ellipsis and not shrunk — the whole bar's rhythm hangs off that 14
+ * (spec 10.6) — so the sentence a screen reader gets is the caller's `capsuleLabel`, which carries
+ * the name in full either way.
  *
  * It draws its own darkening: 176 of gradient behind it, which is what keeps a white glyph readable
  * when the frame under the bar happens to be a white wall.
@@ -186,6 +189,7 @@ export function GlassBar({
   meta?: string;
   /** «Свадьба Лизы и Марка. Настройки воспоминания и люди» — the sentence, from the screen. */
   capsuleLabel: string;
+  /** Left off, the capsule is a plate rather than a button — `Upload` is the one place it is. */
   onCapsule?: () => void;
   left?: ReactNode;
   /** Empty on `FramesEmpty`: with no frames there is nothing to pick. */
@@ -195,6 +199,23 @@ export function GlassBar({
   const insets = useSafeAreaInsets();
   const { color } = useTheme();
   const styles = useStyles();
+  // A plate and a button are the same capsule; only one of them is pressed, and only one of them
+  // carries the chevron that says there is something under it.
+  const words = (
+    <>
+      <View style={styles.capsuleLine}>
+        <Text role="pillTitle" numberOfLines={1} style={styles.shrink}>
+          {title}
+        </Text>
+        {onCapsule ? <Icon icon={ChevronDown} size={12} color={color.muted} /> : null}
+      </View>
+      {meta ? (
+        <Text role="meta" numberOfLines={1}>
+          {meta}
+        </Text>
+      ) : null}
+    </>
+  );
 
   return (
     <View style={[styles.glassBar, { paddingTop: insets.top }, style]}>
@@ -206,24 +227,20 @@ export function GlassBar({
         ]}
       />
       {left}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={capsuleLabel}
-        onPress={onCapsule}
-        style={styles.capsule}
-      >
-        <View style={styles.capsuleLine}>
-          <Text role="pillTitle" numberOfLines={1} style={styles.shrink}>
-            {title}
-          </Text>
-          <Icon icon={ChevronDown} size={12} color={color.muted} />
+      {onCapsule ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={capsuleLabel}
+          onPress={onCapsule}
+          style={styles.capsule}
+        >
+          {words}
+        </Pressable>
+      ) : (
+        <View accessibilityRole="header" accessibilityLabel={capsuleLabel} style={styles.capsule}>
+          {words}
         </View>
-        {meta ? (
-          <Text role="meta" numberOfLines={1}>
-            {meta}
-          </Text>
-        ) : null}
-      </Pressable>
+      )}
       {right}
     </View>
   );

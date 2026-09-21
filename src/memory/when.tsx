@@ -1,21 +1,32 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { formatDay, formatEventDates, formatMonth, startOfDay } from '@/dates';
+import {
+  daysBefore,
+  formatDay,
+  formatEventDates,
+  formatMonth,
+  lastWeekend,
+  startOfDay,
+  weekdayLetters,
+} from '@/dates';
 import { Calendar, Chip, Hint, Text } from '@/kit';
 import { useStrings } from '@/language';
 import { space } from '@/theme';
 
 /**
- * «Когда это было» — the block `Create` is built round and `MemoryEdit` repeats without a single
- * change (spec 10.8.3): the span written out on the right of its own eyebrow, four quick chips, the
- * calendar, and one line under it saying how it is worked. Here rather than inside either screen
- * because it is one block standing on two of them, and the day the two differ is the day one of them
- * is wrong.
+ * «Когда это было» — the block `Create` is built round, drawn again on `MemoryEdit` without a single
+ * change (spec 10.8.3). The span written out beside its own eyebrow, four quick days, the calendar,
+ * and one line under it saying how the thing is worked.
  *
  * There is no switch for «больше дня» and no second field for the end: one day is one tap, a span is
- * two, and a third tap starts over (`pickDay`). A memory cannot have happened tomorrow, so nothing
- * past today can be touched at all.
+ * two, and a third starts over. A memory cannot have happened tomorrow, so nothing past today
+ * answers at all.
+ *
+ * ponytail: `Create` still draws this arrangement inline (TASK-212 landed it there while this was
+ * being written). The words, the day arithmetic and the calendar are already shared — what stands
+ * twice is the twenty lines of JSX below. Point `src/app/create.tsx` at `<EventWhen>` when somebody
+ * is in that file anyway; until then the two must be changed together.
  */
 export type Span = {
   from: Date;
@@ -25,46 +36,24 @@ export type Span = {
 
 /**
  * What the calendar makes of one touched day, which is the whole of the gesture (spec 7.3, detail
- * 15). An open span closes on anything at or after its first day; a day before it becomes the new
- * first day rather than an upside-down span, and a closed span starts over.
+ * 15). An open span closes on anything after its first day; a day before it is the first tap being
+ * corrected rather than a span running backwards, and a closed span starts over.
  */
 export function pickDay(span: Span, day: Date): Span {
   const picked = startOfDay(day);
-  if (span.to !== null) return { from: picked, to: null };
-  return picked < startOfDay(span.from)
-    ? { from: picked, to: null }
-    : { from: span.from, to: picked };
+  return span.to === null && picked > startOfDay(span.from)
+    ? { from: span.from, to: picked }
+    : { from: picked, to: null };
 }
-
-/** How many days a span covers, both ends counted — «3 дня» beside «12–14 сентября». */
-export function daysIn({ from, to }: Span): number {
-  if (to === null) return 1;
-  const ms = startOfDay(to).getTime() - startOfDay(from).getTime();
-  return Math.round(ms / 86_400_000) + 1;
-}
-
-const DAY_MS = 86_400_000;
-const shift = (day: Date, by: number) => startOfDay(new Date(day.getTime() + by * DAY_MS));
 
 /**
- * The four quick answers of the layout, each worked out from today rather than stored: «Сегодня»,
- * «Вчера», «Выходные» — the last Saturday and Sunday that have actually happened — and «Неделя»,
- * the seven days ending today.
+ * How many days a span covers, both ends counted — «3 дня» beside «12–14 сентября». Over whole days
+ * and not over hours, so a clock change inside the span cannot make three days read as two.
  */
-function quickSpans(today: Date): { key: keyof Quick; span: Span }[] {
-  // Saturday is day 6; `(day + 1) % 7` is how many days back the most recent one is, and on a
-  // Saturday that is none — the Sunday after it has not happened yet, so the span is the one day.
-  const saturday = shift(today, -((today.getDay() + 1) % 7));
-  const sunday = shift(saturday, 1);
-  return [
-    { key: 'today', span: { from: today, to: null } },
-    { key: 'yesterday', span: { from: shift(today, -1), to: null } },
-    { key: 'weekend', span: { from: saturday, to: sunday > today ? null : sunday } },
-    { key: 'week', span: { from: shift(today, -6), to: today } },
-  ];
+export function daysIn({ from, to }: Span): number {
+  if (to === null) return 1;
+  return Math.round((startOfDay(to).getTime() - startOfDay(from).getTime()) / 86400000) + 1;
 }
-
-type Quick = { today: string; yesterday: string; weekend: string; week: string };
 
 export function EventWhen({
   value,
@@ -78,35 +67,44 @@ export function EventWhen({
   const s = useStrings();
   const today = startOfDay(new Date());
   const days = daysIn(value);
-  // Which month the grid is showing is the calendar's own business and not the span's: the arrows
-  // move it without touching what is picked, which is how a span longer than a month is read.
+  // Which month the grid is showing, and nothing else — so paging with the arrows past a span longer
+  // than a month never touches what is picked (spec 8, «Края»).
   const [month, setMonth] = useState(value.from);
-  // But a quick chip can land in another month, and closing a span never makes a new `from` — so
-  // this follows the first day of the span and only when that day is itself replaced.
+  // A quick day can land in another month, and closing a span never makes a new `from` — so the grid
+  // follows the first day of the span, and only when that day is itself replaced.
   useEffect(() => setMonth(value.from), [value.from]);
+
+  /** A quick day is the whole answer: both ends at once, and the grid brought to where they are. */
+  const quick = [
+    { label: s.create.today, span: { from: today, to: null } },
+    { label: s.create.yesterday, span: { from: daysBefore(today, 1), to: null } },
+    { label: s.create.weekend, span: lastWeekend(today) },
+    // «Неделя» is the week behind, today included — seven days and not «this calendar week», which
+    // on a Monday would be one day long.
+    { label: s.create.week, span: { from: daysBefore(today, 6), to: today } },
+  ];
 
   return (
     <View style={styles.block}>
       <View style={styles.head}>
-        <Text role="eyebrow" tone="muted" accessibilityRole="header" style={styles.grow}>
-          {s.when.label.toUpperCase()}
+        <Text role="eyebrow" accessibilityRole="header" style={styles.grow}>
+          {s.create.eventDate.toUpperCase()}
         </Text>
-        {/* «12–14 сентября · 3 дня»: the span in the screen's own voice, the count after it a
-            shade quieter. One day counts nothing — the date already says it. */}
-        <Text role="controlSm" numberOfLines={1} style={styles.span}>
+        <Text role="controlSm" numberOfLines={1} style={styles.picked}>
           {formatEventDates(value.from.toISOString(), value.to?.toISOString() ?? null)}
-          {days > 1 ? <Text role="meta">{` · ${s.when.days(days)}`}</Text> : null}
+          {/* Spec 8, «Края»: one day is one date, with no length hung off it. */}
+          {days > 1 ? <Text role="chip" tone="muted">{` · ${s.create.days(days)}`}</Text> : null}
         </Text>
       </View>
 
       <View style={styles.quick}>
-        {quickSpans(today).map(({ key, span }) => (
+        {quick.map((day) => (
           <Chip
-            key={key}
+            key={day.label}
+            label={day.label}
             size={36}
-            label={s.when[key]}
             disabled={disabled}
-            onPress={() => onChange(span)}
+            onPress={() => onChange(day.span)}
           />
         ))}
       </View>
@@ -117,26 +115,27 @@ export function EventWhen({
         from={value.from}
         to={value.to}
         onPick={(day) => onChange(pickDay(value, day))}
+        // A memory cannot be of tomorrow, so the days after this one do not answer.
         max={today}
-        weekdays={s.when.weekdays}
+        weekdays={weekdayLetters()}
         monthLabel={formatMonth(month)}
-        prevLabel={s.when.prevMonth}
-        nextLabel={s.when.nextMonth}
-        dayLabel={(day) => formatDay(day)}
+        prevLabel={s.create.prevMonth}
+        nextLabel={s.create.nextMonth}
+        // The whole date out loud, year and all: the grid's own heading is not read with it.
+        dayLabel={formatDay}
       />
 
-      <Hint>{s.when.hint}</Hint>
+      <Hint>{s.create.dateHint}</Hint>
     </View>
   );
 }
 
 // Shape only: every colour in here belongs to the chips, the calendar and the words themselves.
 const styles = StyleSheet.create({
-  // Spec 10.8.3, the rhythm of `Create`: 10 between the eyebrow, the row of chips, the grid and the
-  // line under it.
+  // Spec 10.8.3, the rhythm of `Create`: 10 between the eyebrow, the chips, the grid and the line.
   block: { gap: 10 },
   head: { flexDirection: 'row', alignItems: 'baseline', gap: space.s3 },
   grow: { flex: 1, minWidth: 0 },
-  span: { flexShrink: 1, fontVariant: ['tabular-nums'] },
-  quick: { flexDirection: 'row', justifyContent: 'center', gap: space.s2 },
+  picked: { flexShrink: 1, fontVariant: ['tabular-nums'] },
+  quick: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.s2 },
 });

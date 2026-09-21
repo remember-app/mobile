@@ -286,19 +286,24 @@ export const en = {
     title: 'New memory',
     titleLabel: 'Title',
     titlePlaceholder: 'Anna’s birthday',
-    eventDate: 'Event date',
+    /** The `eyebrow` over the calendar, and the whole question the block below it asks. */
+    eventDate: 'When it happened',
     /**
-     * The kit's `.field-hint` under the day, and the one line that says why the day is asked for at
-     * all: it is what the upload screen's «select all from that date» runs on.
+     * The one line under the calendar (spec 7.3, detail 15). It says how the thing works rather than
+     * why it is asked for: there is no switch for «longer than a day» any more, and the second tap
+     * is what nobody would find on their own.
      */
-    dateHint: 'The app finds what your phone shot on these days.',
-    multiDay: 'Lasted more than a day',
-    ends: 'Ends',
-    /**
-     * The kit's banner between the dates and «Create». It answers the question this screen does not
-     * ask — where everybody else is — so that nobody holds off creating until they have the list.
-     */
-    inviteHint: 'You can invite people right after you create it.',
+    dateHint: 'One day — one tap. Longer — the first day and the last.',
+    /** The four quick days over the calendar, each one a whole answer. */
+    today: 'Today',
+    yesterday: 'Yesterday',
+    weekend: 'Weekend',
+    week: 'Week',
+    /** «· 3 дня» beside the picked span. A single day never says it — it is a date, not a length. */
+    days: (n: number) => `${n} ${n === 1 ? 'day' : 'days'}`,
+    /** What the calendar's two round buttons are called, since it knows no words of its own. */
+    prevMonth: 'Previous month',
+    nextMonth: 'Next month',
     submit: 'Create',
   },
 
@@ -417,26 +422,6 @@ export const en = {
     leaveText: 'The name, the days and the cover stay as they were.',
     leaveDo: 'Leave',
     stay: 'Stay',
-  },
-
-  /**
-   * «Когда это было» — the block of `Create`, and the same block inside `MemoryEdit` (spec 10.8.3:
-   * «блок из `Create` целиком, без единой правки»). One day is one tap and a span is two, so there
-   * is no switch for «больше дня» and no second field for the end.
-   */
-  when: {
-    label: 'When it happened',
-    /** Beside the span above the calendar: «12–14 September · 3 days». One day says nothing extra. */
-    days: (n: number) => `${n} ${n === 1 ? 'day' : 'days'}`,
-    today: 'Today',
-    yesterday: 'Yesterday',
-    weekend: 'Weekend',
-    week: 'Week',
-    hint: 'One day — one tap. Several — the first and the last.',
-    /** Monday first, the way the calendar is drawn and the way it wants them handed in. */
-    weekdays: ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'],
-    prevMonth: 'Previous month',
-    nextMonth: 'Next month',
   },
 
   /**
@@ -694,6 +679,13 @@ export const en = {
       story: 'The director builds the story',
       rhythm: 'Laying them out to the beat',
       cut: 'Cutting it together',
+      /**
+       * The same two stages under the names the journal calls them by (`MONTAGE_STAGES`). One map
+       * for both because they are one set of five stages: `story` and `cut` are what the waiting
+       * screen has called them since before there was a journal, and they go when it does.
+       */
+      directing: 'The director builds the story',
+      assembly: 'Cutting it together',
     },
     /** The word on the right of a stage: one that is behind, and the one being worked on. */
     stageDone: 'done',
@@ -702,6 +694,45 @@ export const en = {
     retryInMemory: 'It can be put together again from the movie’s card in the memory.',
     /** The one button under the waiting — it leaves the screen and never touches the making. */
     toMemory: 'To the memory',
+
+    /**
+     * «Монтаж в прямом эфире» (spec 7.6, 7.7) — the words the director's journal is read in. The
+     * names of the five stages are `stage` above; these are what is said *inside* one of them.
+     *
+     * The voice is the spec's own rule for this screen: first person and short — «Taking three
+     * seconds», never «the system processed». `@/montage-journal` is what turns a record into them.
+     */
+    live: {
+      /** How far along the making is, as a place in the five rather than as a percentage. */
+      stageOf: (n: number, of: number) => `Stage ${n} of ${of}`,
+      /** The estimate over the stages still to go. Deliberately approximate — it moves. */
+      leftAbout: (minutes: number) => `about ${minutes} min left`,
+      /** A stage's own time, beside what came of it. */
+      minutes: (minutes: number) => `${minutes} min`,
+      /** The decision itself, and the three ways it is qualified. */
+      take: 'Taking',
+      skip: 'Passing',
+      tookOneOf: (n: number) => `Took 1 of ${n}`,
+      /** «Taking 0:04–0:07» — the piece of a video that is going in, not the whole file. */
+      tookFrom: (from: string, to: string) => `Taking ${from}–${to}`,
+      part: (n: number) => `part ${n}`,
+      /**
+       * Why a frame was passed over, by the worker's own codes. The list is the worker's vocabulary
+       * and not a closed set — the api puts no check on it — so anything this side has no word for
+       * is `other`, which is still an honest answer about a frame nobody took.
+       */
+      reason: {
+        blur: 'Blurred',
+        exposure: 'The light is off',
+        unreadable: 'Would not open',
+        duplicate: 'A double',
+        /** Struck off by hand at the order — the director had no say in this one. */
+        excluded: 'Left out at the order',
+        /** Good enough, but the movie is only so long. */
+        no_room: 'No room left',
+        other: 'Not suitable',
+      },
+    },
 
     /** `SheetTooLittle` — raised in place of step 1, when the order would not go through. */
     tooLittleTitle: 'Too little material yet',
@@ -714,6 +745,13 @@ export const en = {
   upload: {
     /** The screen's own name in the kit (screens, 7) — not the memory's, which it no longer wears. */
     title: 'Your frames',
+    /** Under it in the glass capsule: where all this is going, and the memory named inside it. */
+    into: (memory: string) => `to «${memory}»`,
+    /**
+     * The round button on the right of that capsule. It is a switch and not an action, so it is
+     * named by what it turns on rather than by what the next tap will do.
+     */
+    picking: 'Picking mode',
     explain:
       'Remember cannot see a thing in your gallery until you say so — and what you pick stays on this phone until you send it.',
     refused:
@@ -998,11 +1036,15 @@ export const ru: Strings = {
     title: 'Новое воспоминание',
     titleLabel: 'Название',
     titlePlaceholder: 'День рождения Анны',
-    eventDate: 'Дата события',
-    dateHint: 'Приложение найдёт по этим датам снятое на телефоне.',
-    multiDay: 'Длилось больше дня',
-    ends: 'Заканчивается',
-    inviteHint: 'Позвать участников можно сразу после создания.',
+    eventDate: 'Когда это было',
+    dateHint: 'Один день — одно касание. Несколько — первый и последний.',
+    today: 'Сегодня',
+    yesterday: 'Вчера',
+    weekend: 'Выходные',
+    week: 'Неделя',
+    days: (n: number) => count(n, 'день', 'дня', 'дней'),
+    prevMonth: 'Предыдущий месяц',
+    nextMonth: 'Следующий месяц',
     submit: 'Создать',
   },
 
@@ -1072,19 +1114,6 @@ export const ru: Strings = {
     leaveText: 'Название, даты и обложка останутся прежними.',
     leaveDo: 'Уйти',
     stay: 'Остаться',
-  },
-
-  when: {
-    label: 'Когда это было',
-    days: (n: number) => count(n, 'день', 'дня', 'дней'),
-    today: 'Сегодня',
-    yesterday: 'Вчера',
-    weekend: 'Выходные',
-    week: 'Неделя',
-    hint: 'Один день — одно касание. Несколько — первый и последний.',
-    weekdays: ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'],
-    prevMonth: 'Предыдущий месяц',
-    nextMonth: 'Следующий месяц',
   },
 
   gallery: {
@@ -1236,11 +1265,33 @@ export const ru: Strings = {
       story: 'Режиссёр строит историю',
       rhythm: 'Раскладываем в ритм трека',
       cut: 'Склеиваем',
+      directing: 'Режиссёр строит историю',
+      assembly: 'Склеиваем',
     },
     stageDone: 'готово',
     stageRunning: 'идёт',
     retryInMemory: 'Собрать заново можно на карточке ролика в воспоминании.',
     toMemory: 'К воспоминанию',
+
+    live: {
+      stageOf: (n: number, of: number) => `Этап ${n} из ${of}`,
+      leftAbout: (minutes: number) => `осталось ≈ ${minutes} мин`,
+      minutes: (minutes: number) => `${minutes} мин`,
+      take: 'Беру',
+      skip: 'Мимо',
+      tookOneOf: (n: number) => `Взял 1 из ${n}`,
+      tookFrom: (from: string, to: string) => `Беру ${from}–${to}`,
+      part: (n: number) => `часть ${n}`,
+      reason: {
+        blur: 'Смазан',
+        exposure: 'Свет не тот',
+        unreadable: 'Не открылся',
+        duplicate: 'Дубль',
+        excluded: 'Убрали при заказе',
+        no_room: 'Не влез',
+        other: 'Не подошёл',
+      },
+    },
 
     tooLittleTitle: 'Материала пока мало',
     tooLittleText: (n: number) =>
@@ -1250,6 +1301,8 @@ export const ru: Strings = {
 
   upload: {
     title: 'Ваши кадры',
+    into: (memory: string) => `в «${memory}»`,
+    picking: 'Режим выбора',
     explain:
       'Remember не видит вашу галерею, пока вы не разрешите, — а выбранное остаётся на телефоне, пока вы не отправите его.',
     refused:

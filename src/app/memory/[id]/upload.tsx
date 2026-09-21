@@ -1,3 +1,7 @@
+// `expo-image` and not React Native's own, here as in the kit's tile: a frame picked out of the
+// phone's gallery is named by a `ph://` reference to the photo library, which React Native has no
+// loader for at all — that is the red «No suitable image URL loader» screen.
+import { Image } from 'expo-image';
 // `expo-media-library/legacy` and not the package root: in SDK 57 the root re-exports
 // `getAssetsAsync` only to throw, and the replacement hands back lazy asset *handles* whose uri and
 // capture time are a native round trip each — one per tile in a grid of thousands. The legacy call
@@ -7,9 +11,19 @@
 // pays for the uris with `getInfo()`.
 import * as MediaLibrary from 'expo-media-library/legacy';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowUp, Check, ChevronLeft, ImageIcon, Info, Smartphone, X } from 'lucide-react-native';
+import {
+  ArrowUp,
+  Check,
+  ChevronLeft,
+  CircleCheckBig,
+  ImageIcon,
+  Info,
+  Smartphone,
+  X,
+} from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, Linking, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { FlatList, Linking, Modal, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { errorMessage, listMemories, type Memory } from '@/api';
 import { useAuth } from '@/auth';
@@ -24,7 +38,8 @@ import {
   DashedFrame,
   DayMark,
   Empty,
-  GRID_GAP,
+  FEED_GAP,
+  GlassBar,
   HintNote,
   Icon,
   IconButton,
@@ -37,7 +52,7 @@ import {
 } from '@/kit';
 import { useStrings } from '@/language';
 import { assetsByDay, type ShootingDay } from '@/media-window';
-import { height, radius, space, themed, useTheme } from '@/theme';
+import { board, height, radius, space, themed, themes, ThemePin, useTheme } from '@/theme';
 import { failureText, progress, type QueuedFile, type UploadFailure } from '@/upload-queue';
 import { answerAskAll, drop, enqueue, useAskAll, useUploads, wake } from '@/uploads';
 
@@ -52,8 +67,14 @@ const WANTED = ['photo', 'video'] as const;
 const PAGE = 500;
 
 /**
- * One line of the contact sheet: a day of the roll, up to three of the frames shot on it, or — under
- * a partial grant — the plate saying the rest of that day is not ours to show.
+ * A frame opened full screen stays a dark room whatever the app's theme is (spec 2, and the kit's
+ * one deliberate pin): around a photograph there must be nothing brighter than the photograph.
+ */
+const room = themes.dark.color;
+
+/**
+ * One line of the feed: a day of the roll, up to three of the frames shot on it, or — under a
+ * partial grant — the plate saying the rest of that day is not ours to show.
  */
 type Row =
   | { key: string; day: ShootingDay<MediaLibrary.Asset>; frames?: undefined; unseen?: undefined }
@@ -61,14 +82,17 @@ type Row =
   | { key: string; unseen: true; day?: undefined; frames?: undefined };
 
 /**
- * Putting material into a memory: consent, the camera roll, «выбрать все за эту дату», a selection
- * to trim, the sending itself — handed to `@/uploads`, which carries on without this screen — and
- * the one question doc-06 asks afterwards. Nothing here asks what the memory's status is: material
- * goes in during the event and long after the montage was made (doc-02).
+ * Putting material into a memory: consent, the camera roll drawn the way a memory's own feed is —
+ * three to a row, edge to edge, the date standing between one day and the next — the selection to
+ * trim, the sending itself (handed to `@/uploads`, which carries on without this screen) and the
+ * one question doc-06 asks afterwards. Nothing here asks what the memory's status is: material goes
+ * in during the event and long after the montage was made (doc-02).
  *
  * Spec «Экраны»: `Upload`, and its four other faces — `UploadAccess`, `UploadLimited`,
- * `UploadQueue`, `UploadEmpty` — plus the sheet `SheetAskAll`. All of them are this one file: they
- * differ in what the body holds and in whether the bottom layer is there at all.
+ * `UploadQueue`, `UploadEmpty` — plus the sheet `SheetAskAll`. All of them are this one file, and
+ * what tells them apart is whether there are photographs to stand under: with a feed the screen
+ * wears the glass bar that floats over it, and with a message or an empty gallery instead — the
+ * plain bar with the memory named under the heading, which is what the layout draws.
  */
 export default function UploadScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -77,14 +101,15 @@ export default function UploadScreen() {
   const { color } = useTheme();
   const s = useStrings();
   const styles = useStyles();
+  const insets = useSafeAreaInsets();
   /**
-   * One column of the contact sheet, measured instead of flexed — the gallery's sheet carries the
-   * long version of why. Short of it: `flex: 1/3` divides what a row has left after its gaps, and a
-   * last row of one frame has no gaps to leave, so that frame came out 2pt wider than the rest.
-   * This sheet stands inside the screen's own padding, which is what comes off the window here.
+   * One column of the feed, measured instead of flexed — the gallery's own feed carries the long
+   * version of why. Short of it: `flex: 1/3` divides what a row has left after its gaps, and a last
+   * row of one frame has no gaps to leave, so that frame came out 2pt wider than the rest. This
+   * feed runs the whole width of the window, so nothing comes off it but the two gutters.
    */
   const { width } = useWindowDimensions();
-  const cell = { width: (width - space.s4 * 2 - GRID_GAP * 2) / 3 };
+  const cell = { width: (width - FEED_GAP * 2) / 3 };
   // The whole app's queue; the rows below are this memory's share of it.
   const uploads = useUploads();
   // Checked on mount, asked for only on the button — that is the difference between knowing
@@ -94,6 +119,14 @@ export default function UploadScreen() {
   const [gallery, setGallery] = useState<MediaLibrary.Asset[]>([]);
   const [reading, setReading] = useState(true);
   const [picked, setPicked] = useState<ReadonlySet<string>>(() => new Set());
+  /**
+   * Picking is on from the first moment (spec, `Upload`): this screen exists to hand material over,
+   * and a mode that has to be turned on first would make every visit start with the same tap.
+   * Turned off, the circles go and the feed is just a feed — a tap opens the frame instead.
+   */
+  const [picking, setPicking] = useState(true);
+  /** The frame being looked at full screen, which is what a tap does once picking is off. */
+  const [open, setOpen] = useState<MediaLibrary.Asset | null>(null);
   // What this visit has handed to the queue — the number the «Это всё?» sheet counts out loud.
   const [sent, setSent] = useState(0);
   // Bumped whenever the library must be read from the top again: a retry, or a wider grant.
@@ -226,12 +259,20 @@ export default function UploadScreen() {
     });
 
   /**
-   * The button doc-02 is built around, «выбрать все за эту дату» — and the date it means is the one
-   * on the strip it stands over, never the whole screen. It only ever adds: what is already picked
-   * on another day stays picked, and the way anything leaves the selection is the one above.
+   * The day's own seam, which the layout made a button (spec 7.8): one tap takes the whole day,
+   * the next puts it back — the circle in front of the date is which of the two it is now. Only
+   * this day, never the screen: what is picked on another day is nobody's business here.
    */
-  function pickDay(day: ShootingDay<MediaLibrary.Asset>) {
-    setPicked((have) => new Set([...have, ...day.assets.map((asset) => asset.id)]));
+  function toggleDay(day: ShootingDay<MediaLibrary.Asset>) {
+    setPicked((have) => {
+      const next = new Set(have);
+      const whole = day.assets.every((asset) => have.has(asset.id));
+      for (const asset of day.assets) {
+        if (whole) next.delete(asset.id);
+        else next.add(asset.id);
+      }
+      return next;
+    });
   }
 
   /** Widen a `limited` grant. Whatever it changed, the library is read again from the top. */
@@ -253,11 +294,109 @@ export default function UploadScreen() {
     setPicked(new Set());
   }
 
-  /**
-   * The body, in the five states the layout draws it in. A function and not a component: the screen
-   * holds every bit of state above, and a component here would be a new type on every render.
-   */
-  function body() {
+  /** The way out. Reached by a tapped push there is nothing behind it, so the list is the answer. */
+  const leave = () => (router.canGoBack() ? router.back() : router.replace('/'));
+
+  /** What a frame is called out as — the phone's own filename, which is never translated. */
+  const nameOf = (asset: MediaLibrary.Asset) =>
+    `${asset.mediaType === 'video' ? s.media.video : s.media.photo} ${asset.filename}`;
+
+  // Everything the sending and the grant have to say. It stands over the feed and scrolls away with
+  // it, and on a screen with no feed at all — an empty gallery with a queue still going — it stands
+  // over whatever is being said instead.
+  const said =
+    apiError !== null ||
+    queued.length > 0 ||
+    stuck.length > 0 ||
+    limited ||
+    (reading && rows.length > 0);
+
+  function blocks() {
+    return (
+      <>
+        {/* Said, not shown as a dead end: without the api there is no event window, so the roll
+            is cut into its days all the same but none of them is lifted to the top as the
+            event's. Picking — by hand or by the day — and queueing both still work. */}
+        {apiError !== null ? (
+          <Banner tone="error" text={apiError}>
+            <Button size="xs" variant="quiet" label={s.action.retry} onPress={load} />
+          </Banner>
+        ) : null}
+
+        {/* `UploadQueue`. One bar for the lot: it stands at whatever the file going up right now
+            has sent, and the count beside it is what is still owed to this memory. */}
+        {queued.length > 0 ? (
+          <Upload
+            title={s.state.sending}
+            meta={s.upload.stillToSend(queued.length)}
+            value={sending ? progress(sending) : 0}
+            hint={s.upload.carriesOn}
+          />
+        ) : null}
+
+        {/* Named one by one, because each of them carries its own reason and because one of them
+            is the file somebody would rather not send after all. The queue retries by itself —
+            on a timer and on coming back to the app — so the button is for whoever would rather
+            not wait for either. */}
+        {stuck.length > 0 ? (
+          <View style={styles.parked}>
+            <View style={styles.parkedHead}>
+              <Text role="eyebrow" tone="muted">
+                {s.upload.notSent.toUpperCase()}
+              </Text>
+              <Button size="xs" variant="quiet" label={s.action.retry} onPress={wake} />
+            </View>
+            {stuck.map((file) => (
+              <RowStuck
+                key={file.assetId}
+                name={file.filename}
+                // The queue keeps the reason and not the sentence, so the words are picked here,
+                // in the language this render is in — a language switched while they sit parked
+                // turns these lines with the rest of the screen (TASK-93).
+                reason={failureText(s, file.error, file.filename)}
+                // The roll is in hand, so the parked file can show itself. A file the phone no
+                // longer has is not in it, and the kit draws a glyph square instead.
+                // ponytail: a scan of the roll per parked file per render. Hundreds parked at
+                // once — a whole event that went out on no signal — is the day this becomes an
+                // id→uri map cut beside `rows`.
+                uri={gallery.find((asset) => asset.id === file.assetId)?.uri}
+                icon={ImageIcon}
+              >
+                <IconButton
+                  icon={X}
+                  size={height.roundRow}
+                  label={s.upload.dropFile(file.filename)}
+                  onPress={() => drop(file.memoryId, file.assetId)}
+                />
+              </RowStuck>
+            ))}
+          </View>
+        ) : null}
+
+        {/* `UploadLimited`: what is on this screen is what was handed over, and the day marks
+            below carry counts instead of «Выбрать все» — there is nothing to select all of. */}
+        {limited ? (
+          <HintNote icon={Info} tone="spark" text={s.upload.limited}>
+            <Button
+              variant="secondary"
+              size="xs"
+              wide={false}
+              label={s.upload.chooseMore}
+              onPress={() => void chooseMore()}
+              style={styles.start}
+            />
+          </HintNote>
+        ) : null}
+
+        {/* Why a day's «Выбрать все» is out: the roll is still arriving, and a count taken
+            halfway through it would pick the head of a day and say nothing about the tail. */}
+        {reading && rows.length > 0 ? <Text role="meta">{s.upload.reading}</Text> : null}
+      </>
+    );
+  }
+
+  /** The body of the screen with no feed on it, in the four states the layout draws it in. */
+  function message() {
     // Nothing to put on the screen at all. The message stands in the flow and carries what can be
     // done about it, the same shape `UploadAccess` uses — this one can only be tried again.
     if (galleryError !== null) {
@@ -295,211 +434,215 @@ export default function UploadScreen() {
       );
     }
 
+    if (reading) {
+      return (
+        <View style={styles.centre}>
+          <Waiting text={s.upload.reading} />
+        </View>
+      );
+    }
+
+    // `UploadEmpty` — access given and nothing to give back. No bottom layer under it: there is
+    // nothing to offer.
     return (
-      <FlatList
-        data={rows}
-        keyExtractor={(row) => row.key}
-        contentContainerStyle={styles.sheet}
-        // Everything the sending and the grant have to say stands above the first day and scrolls
-        // away with it: this screen is a contact sheet, and the sheet is what it is for.
-        ListHeaderComponent={
-          <View style={styles.head}>
-            {/* Said, not shown as a dead end: without the api there is no event window, so the roll
-                is cut into its days all the same but none of them is lifted to the top as the
-                event's. Picking — by hand or by the day — and queueing both still work. */}
-            {apiError !== null ? (
-              <Banner tone="error" text={apiError}>
-                <Button size="xs" variant="quiet" label={s.action.retry} onPress={load} />
-              </Banner>
-            ) : null}
-
-            {/* `UploadQueue`. One bar for the lot: it stands at whatever the file going up right now
-                has sent, and the count beside it is what is still owed to this memory. */}
-            {queued.length > 0 ? (
-              <Upload
-                title={s.state.sending}
-                meta={s.upload.stillToSend(queued.length)}
-                value={sending ? progress(sending) : 0}
-                hint={s.upload.carriesOn}
-              />
-            ) : null}
-
-            {/* Named one by one, because each of them carries its own reason and because one of them
-                is the file somebody would rather not send after all. The queue retries by itself —
-                on a timer and on coming back to the app — so the button is for whoever would rather
-                not wait for either. */}
-            {stuck.length > 0 ? (
-              <View style={styles.parked}>
-                <View style={styles.parkedHead}>
-                  <Text role="eyebrow" tone="muted">
-                    {s.upload.notSent.toUpperCase()}
-                  </Text>
-                  <Button size="xs" variant="quiet" label={s.action.retry} onPress={wake} />
-                </View>
-                {stuck.map((file) => (
-                  <RowStuck
-                    key={file.assetId}
-                    name={file.filename}
-                    // The queue keeps the reason and not the sentence, so the words are picked here,
-                    // in the language this render is in — a language switched while they sit parked
-                    // turns these lines with the rest of the screen (TASK-93).
-                    reason={failureText(s, file.error, file.filename)}
-                    // The roll is in hand, so the parked file can show itself. A file the phone no
-                    // longer has is not in it, and the kit draws a glyph square instead.
-                    // ponytail: a scan of the roll per parked file per render. Hundreds parked at
-                    // once — a whole event that went out on no signal — is the day this becomes an
-                    // id→uri map cut beside `rows`.
-                    uri={gallery.find((asset) => asset.id === file.assetId)?.uri}
-                    icon={ImageIcon}
-                  >
-                    <IconButton
-                      icon={X}
-                      size={height.roundRow}
-                      label={s.upload.dropFile(file.filename)}
-                      onPress={() => drop(file.memoryId, file.assetId)}
-                    />
-                  </RowStuck>
-                ))}
-              </View>
-            ) : null}
-
-            {/* `UploadLimited`: what is on this screen is what was handed over, and the day marks
-                below carry counts instead of «Выбрать все» — there is nothing to select all of. */}
-            {limited ? (
-              <HintNote icon={Info} tone="spark" text={s.upload.limited}>
-                <Button
-                  variant="secondary"
-                  size="xs"
-                  wide={false}
-                  label={s.upload.chooseMore}
-                  onPress={() => void chooseMore()}
-                  style={styles.start}
-                />
-              </HintNote>
-            ) : null}
-
-            {/* Why a day's «Выбрать все» is out: the roll is still arriving, and a count taken
-                halfway through it would pick the head of a day and say nothing about the tail. */}
-            {reading && rows.length > 0 ? <Text role="meta">{s.upload.reading}</Text> : null}
-          </View>
-        }
-        ListEmptyComponent={
-          reading ? (
-            <View style={styles.centre}>
-              <Waiting text={s.upload.reading} />
-            </View>
-          ) : (
-            // `UploadEmpty` — access given and nothing to give back. No bottom layer under it:
-            // there is nothing to offer.
-            <Empty
-              sign="dashed"
-              icon={Smartphone}
-              title={s.upload.emptyTitle}
-              text={s.upload.emptyText}
-            />
-          )
-        }
-        renderItem={({ item: row }) =>
-          row.day ? (
-            <DayMark
-              label={s.upload.shotOn(formatDay(new Date(row.day.at)))}
-              count={s.memory.frames(row.day.assets.length)}
-              // Under a partial grant the seam only counts what is here, drawn back rather than
-              // forward — the rest is not missing, it is unseen, and there is no whole day to take.
-              limited={limited}
-              // Spec 7.8's third kind: the band itself takes the day and gives it back. Out until
-              // the whole roll is in hand — it arrives 500 at a time, so a day that straddles a
-              // page is still growing, and «все» would take only its head.
-              onPress={limited || reading ? undefined : () => pickDay(row.day)}
-              pressLabel={s.upload.selectDay(row.day.assets.length)}
-            />
-          ) : row.unseen ? (
-            <DashedFrame style={styles.unseen}>
-              <Text role="label" tone="faint" style={styles.middle}>
-                {s.upload.restUnseen}
-              </Text>
-            </DashedFrame>
-          ) : (
-            <View style={styles.strip}>
-              {row.frames.map((item) => (
-                <Tile
-                  key={item.id}
-                  // Every frame here is one the phone already holds, so `ready` is the only state
-                  // this sheet ever draws — the other two belong to the gallery, where a file is
-                  // still being turned into a derivative.
-                  state="ready"
-                  uri={item.uri}
-                  pick={picked.has(item.id) ? 'send' : 'off'}
-                  // The kit marks a video by how long it runs rather than by the word «video».
-                  length={item.mediaType === 'video' ? formatRuntime(item.duration) : undefined}
-                  // The filename is the phone's own and is never translated.
-                  label={`${item.mediaType === 'video' ? s.media.video : s.media.photo} ${item.filename}`}
-                  onPress={() => toggle(item.id)}
-                  style={cell}
-                />
-              ))}
-            </View>
-          )
-        }
-      />
+      <Empty sign="dashed" icon={Smartphone} title={s.upload.emptyTitle} text={s.upload.emptyText} />
     );
   }
 
+  const feed = granted && rows.length > 0;
+
   return (
-    <Board>
-      <AppBar
-        // Spec «Экраны»: «Ваши кадры» over the memory this material is going into. The screen is
-        // about the phone's own roll; the memory is the line under it, not the heading.
-        title={s.upload.title}
-        subtitle={subtitleFor(memory)}
-        left={
-          // A chevron, which is what every inner bar carries (spec 5): this screen is a step one
-          // comes back from. Reached by a tapped push there is nothing behind it, and then the way
-          // out is the memory list — the same answer `create` gives.
-          <IconButton
-            icon={ChevronLeft}
-            label={s.action.back}
-            onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+    // With a feed the board keeps nothing back for the status line: the photographs run under it
+    // and the glass bar's own darkening is what makes the glyphs on it readable (spec 7.1).
+    <Board style={feed ? styles.bleed : undefined}>
+      {feed ? (
+        <FlatList
+          data={rows}
+          keyExtractor={(row) => row.key}
+          contentContainerStyle={[
+            styles.feed,
+            {
+              // Spec 4: the body under the glass bar starts at 108 — the status line, the bar's own
+              // 48 and 8 under it — and ends clear of the bottom layer, where there is one.
+              paddingTop: insets.top + height.roundViewer + space.s2,
+              paddingBottom: picking ? board.footerTall : space.s5,
+            },
+          ]}
+          ListHeaderComponent={
+            // The only thing on this face that is not a photograph, so it is the only thing that
+            // takes the screen's own margin — the feed under it runs to both edges.
+            <View style={[styles.head, styles.headFeed, said ? styles.headSaid : null]}>
+              {blocks()}
+            </View>
+          }
+          renderItem={({ item: row }) =>
+            row.day ? (
+              <DayMark
+                label={s.upload.shotOn(formatDay(new Date(row.day.at)))}
+                count={s.memory.frames(row.day.assets.length)}
+                // Under a partial grant the seam only counts what is here, drawn back rather than
+                // forward — the rest is not missing, it is unseen, and there is no whole day to take.
+                limited={limited}
+                picked={row.day.assets.every((asset) => picked.has(asset.id))}
+                // Spec 7.8's third kind: the band itself takes the day and gives it back. Out with
+                // picking off — there is nothing to take — and out until the whole roll is in hand,
+                // since it arrives 500 at a time and a day that straddles a page is still growing,
+                // so «все» would take only its head.
+                onPress={picking && !limited && !reading ? () => toggleDay(row.day) : undefined}
+                pressLabel={s.upload.selectDay(row.day.assets.length)}
+              />
+            ) : row.unseen ? (
+              <DashedFrame style={styles.unseen}>
+                <Text role="label" tone="faint" style={styles.middle}>
+                  {s.upload.restUnseen}
+                </Text>
+              </DashedFrame>
+            ) : (
+              <View style={styles.strip}>
+                {row.frames.map((item) => (
+                  <Tile
+                    key={item.id}
+                    // Every frame here is one the phone already holds, so `ready` is the only state
+                    // this feed ever draws — the other two belong to the gallery, where a file is
+                    // still being turned into a derivative.
+                    state="ready"
+                    lane="feed"
+                    uri={item.uri}
+                    // No circle at all with picking off: a frame that is not being picked is not a
+                    // checkbox, and the layout takes the circles away with the mode.
+                    pick={picking ? (picked.has(item.id) ? 'send' : 'off') : undefined}
+                    // The kit marks a video by how long it runs rather than by the word «video».
+                    length={item.mediaType === 'video' ? formatRuntime(item.duration) : undefined}
+                    label={nameOf(item)}
+                    onPress={() => (picking ? toggle(item.id) : setOpen(item))}
+                    style={cell}
+                  />
+                ))}
+              </View>
+            )
+          }
+        />
+      ) : (
+        <>
+          {/* Spec 7.1: with no photographs under it the bar is the plain one, and the memory is
+              named under the heading instead of inside a capsule of glass. */}
+          <AppBar
+            title={s.upload.title}
+            subtitle={subtitleFor(memory)}
+            left={<IconButton icon={ChevronLeft} label={s.action.back} onPress={leave} />}
           />
-        }
-      />
+          <View style={styles.body}>
+            <View style={[styles.head, said ? styles.headSaid : null]}>{blocks()}</View>
+            {message()}
+          </View>
+        </>
+      )}
 
-      <View style={styles.body}>{body()}</View>
+      {/* Over the feed and not above it, which is what makes it glass. «Ваши кадры» over the memory
+          this material is going into — a plate and not a button: the memory's own screen is behind
+          «Назад», and there is nothing else here to open. */}
+      {feed ? (
+        <GlassBar
+          style={styles.glass}
+          title={s.upload.title}
+          meta={memory ? s.upload.into(memory.title) : undefined}
+          capsuleLabel={memory ? `${s.upload.title}, ${s.upload.into(memory.title)}` : s.upload.title}
+          left={
+            <IconButton
+              icon={ChevronLeft}
+              label={s.action.back}
+              tone="glass"
+              size={height.roundViewer}
+              onPress={leave}
+            />
+          }
+          right={
+            <IconButton
+              icon={CircleCheckBig}
+              label={s.upload.picking}
+              tone="glass"
+              size={height.roundViewer}
+              on={picking}
+              onPress={() => setPicking((was) => !was)}
+            />
+          }
+        />
+      ) : null}
 
-      {/* The bottom layer of the third kind, and only once something is picked: with nothing marked
-          the layout has no layer at all — `UploadQueue` and `UploadEmpty` are drawn without one. */}
-      {picked.size > 0 ? (
+      {/* The bottom layer of the third kind, and only while something can be sent: with picking off
+          the feed is just a feed, and `UploadAccess`, `UploadEmpty` and the rest are drawn with no
+          layer at all. The button stands there from the start and is simply out until something is
+          marked — the layout would rather show what this screen is for than hide it. */}
+      {feed && picking ? (
         <ActionBar
+          style={styles.layer}
+          footer="upload"
           above={
-            <>
-              <Text role="label" style={styles.grow}>
-                {/* The total is only worth saying once the whole roll is in hand — half a count is
-                    a lie, so until then the selection counts only itself. */}
-                {reading
-                  ? s.upload.picked(picked.size)
-                  : s.upload.pickedOf(picked.size, gallery.length)}
-              </Text>
-              <Button variant="quiet" label={s.action.clear} onPress={() => setPicked(new Set())} />
-            </>
+            picked.size > 0 ? (
+              <>
+                <Text role="label" style={styles.grow}>
+                  {/* The total is only worth saying once the whole roll is in hand — half a count
+                      is a lie, so until then the selection counts only itself. */}
+                  {reading
+                    ? s.upload.picked(picked.size)
+                    : s.upload.pickedOf(picked.size, gallery.length)}
+                </Text>
+                <Button variant="quiet" label={s.action.clear} onPress={() => setPicked(new Set())} />
+              </>
+            ) : undefined
           }
         >
           <Button
             variant="primary"
             wide
             icon={ArrowUp}
-            // The count rides in the label, the layout's «Отправить 12 файлов» — it is what the
-            // button is about to take with it.
-            label={s.upload.send(picked.size)}
+            disabled={picked.size === 0}
+            // The count rides in the label, the layout's «Отправить 28 файлов» — it is what the
+            // button is about to take with it, and with nothing marked there is no count to name.
+            label={picked.size > 0 ? s.upload.send(picked.size) : s.action.send}
             onPress={send}
           />
         </ActionBar>
       ) : null}
 
+      {/* Picking off, a tap opens the frame instead — the phone's own copy, at the size it was shot.
+          ponytail: a video shows the poster the library hands back and does not play; the frame that
+          plays is the one already in a memory (`src/memory/frame-viewer.tsx`). The day somebody
+          wants playback here, it is `expo-video` over `getAssetInfoAsync().localUri`. */}
+      <Modal
+        visible={open !== null}
+        statusBarTranslucent
+        animationType="fade"
+        onRequestClose={() => setOpen(null)}
+      >
+        <ThemePin value="dark">
+          <View style={styles.room}>
+            {open ? (
+              <Image
+                source={{ uri: open.uri }}
+                contentFit="contain"
+                accessibilityLabel={nameOf(open)}
+                style={StyleSheet.absoluteFill}
+              />
+            ) : null}
+            <View style={[styles.roomBar, { paddingTop: insets.top }]}>
+              <IconButton
+                icon={X}
+                label={s.action.close}
+                tone="viewer"
+                size={height.roundViewer}
+                onPress={() => setOpen(null)}
+              />
+            </View>
+          </View>
+        </ThemePin>
+      </Modal>
+
       {/* `SheetAskAll` — doc-06's one question, and the person's own answer to it. Both buttons are
           equal in weight: this is their word about themselves, not something wanted from them. */}
       <Sheet
         visible={asking}
-        onCancel={() => answerAskAll(false)}
+        onCancel={() => answerAskAll(null)}
         title={s.upload.askAll}
         head={
           <View style={styles.result}>
@@ -515,11 +658,15 @@ export default function UploadScreen() {
         }
         footer={
           <>
-            <Button variant="paper" label={s.upload.thatsAll} onPress={() => answerAskAll(true)} />
+            <Button
+              variant="paper"
+              label={s.upload.thatsAll}
+              onPress={() => answerAskAll('done')}
+            />
             <Button
               variant="secondary"
               label={s.upload.moreToCome}
-              onPress={() => answerAskAll(false)}
+              onPress={() => answerAskAll('more_coming')}
             />
           </>
         }
@@ -533,9 +680,9 @@ export default function UploadScreen() {
 }
 
 /**
- * The line under «Ваши кадры»: which memory this is going into and when it happened. The separator
- * goes with the dates, so a memory whose dates will not read is never left hanging off a «·» —
- * `@/frames` learnt that one the hard way.
+ * The line under «Ваши кадры» on the plain bar: which memory this is going into and when it
+ * happened. The separator goes with the dates, so a memory whose dates will not read is never left
+ * hanging off a «·» — `@/frames` learnt that one the hard way.
  */
 function subtitleFor(memory: Memory | null): string | undefined {
   if (memory === null) return undefined;
@@ -545,24 +692,34 @@ function subtitleFor(memory: Memory | null): string | undefined {
 
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
-    // Spec 4: the body of this screen starts at 116 on the drawn board, which is the bar's own 44
-    // and this under it. The screen's margin is the app's 16.
+    // The feed face keeps nothing back for the status line — the glass bar is what stands there.
+    bleed: { paddingTop: 0 },
+    // Spec 4: the body of the plain-bar face starts at 124, which is the bar's own 44 and this
+    // under it. The screen's margin is the app's 16.
     body: { flex: 1, paddingHorizontal: space.s4, paddingTop: space.s5 },
     centre: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-    // No padding of its own: with nothing to say — the plain `Upload` face — this block has to take
-    // up no room at all, and the day mark under it brings its own.
+    // The feed is the kit's own: 2px between frames, no margins, nothing between a day's strip and
+    // the next day but the seam's own height.
+    feed: { flexGrow: 1, gap: FEED_GAP },
+    strip: { flexDirection: 'row', gap: FEED_GAP },
+    // What the queue and the grant have to say. The margin comes with the feed face only: the
+    // plain-bar face stands in the body's own 16 already.
     head: { gap: space.s4 },
-    // The kit's sheet: 3px between frames, and nothing else — the material is the picture here.
-    // The column itself is measured out above; this only holds the gutters between them. Between
-    // one day's strip and the next it is the daymark's own padding that opens the gap.
-    sheet: { flexGrow: 1, gap: GRID_GAP },
-    strip: { flexDirection: 'row', gap: GRID_GAP },
+    headFeed: { paddingHorizontal: space.s4 },
+    // And it only takes room when it has something to say: with nothing in it the first day of the
+    // roll stands directly under the bar.
+    headSaid: { paddingBottom: space.s4 },
+    glass: { position: 'absolute', left: 0, right: 0, top: 0 },
+    layer: { position: 'absolute', left: 0, right: 0, bottom: 0 },
     parked: { gap: space.s2 },
     parkedHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     start: { alignSelf: 'flex-start' },
-    unseen: { marginTop: space.s5 },
+    unseen: { marginTop: space.s5, marginHorizontal: space.s4 },
     middle: { textAlign: 'center' },
     grow: { flex: 1, minWidth: 0 },
+    // The one frame opened full screen, and the room stays dark in daylight (spec 2).
+    room: { flex: 1, backgroundColor: room.ink },
+    roomBar: { paddingHorizontal: space.s3 },
     result: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },
     // The 26 circle of spec 7.6's «готово», on the line that says what has just gone.
     tick: {

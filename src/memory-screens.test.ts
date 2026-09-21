@@ -1,5 +1,6 @@
 import { expect, test } from 'vitest';
 
+import create from './app/create.tsx?raw';
 import memory from './app/memory/[id].tsx?raw';
 import edit from './app/memory/[id]/edit.tsx?raw';
 import order from './app/memory/[id]/order.tsx?raw';
@@ -251,7 +252,9 @@ test('while picking, a tap marks the frame instead of opening it — and only a 
   );
   // The mark is the tile's own — one ring and one circle, never a second mark drawn by a face.
   expect(frames).not.toContain('tile--selected');
-  expect(upload).toContain("pick={picked.has(item.id) ? 'send' : 'off'}");
+  // And on the upload screen the same rule with the mode of its own: picking off, a frame carries
+  // no circle at all and a tap opens it (spec, `Upload`).
+  expect(upload).toContain("pick={picking ? (picked.has(item.id) ? 'send' : 'off') : undefined}");
 });
 
 test('the picking footer is «Снять» beside a download that carries its count', () => {
@@ -521,7 +524,8 @@ test('the cover a memory has is the one chain everywhere it is shown', () => {
   expect(cover).toContain('shots.length > 0 ? (');
   expect(cover).toContain('<Mosaic photos={shots} layout="strip" />');
   expect(cover).toContain('<DashedFrame');
-  expect(home).toContain('cover={item.cover_thumbnail_url}');
+  expect(home).toContain('const cover = item.cover_thumbnail_url ?? null;');
+  expect(home).toContain('cover={cover}');
 });
 
 test('a standing is one of three words, and «nothing to add» is not one of the other two', () => {
@@ -669,22 +673,27 @@ test('walking away from unsaved edits asks, and asks gently', () => {
   expect(ru.edit.leaveText).toBe('Название, даты и обложка останутся прежними.');
 });
 
-test('«Когда это было» is one block, written once and standing on two screens', () => {
-  // Spec 10.8.3: «блок из `Create` целиком, без единой правки». A second copy of it is the day the
-  // two screens disagree about what a span is.
+test('«Когда это было» is the same block on both screens, down to the words', () => {
+  // Spec 10.8.3: «блок из `Create` целиком, без единой правки». `Create` still draws its own copy
+  // of the arrangement (it landed there while this was being written, and there is a `ponytail:`
+  // note on the seam), so what is held here is everything the two are allowed to differ in:
+  // nothing. Same words, same day arithmetic, same ceiling on tomorrow.
   expect(edit).toContain('<EventWhen value={span} onChange={setSpan} disabled={saving} />');
-  expect(when).toContain('<Calendar');
-  // A memory cannot have happened tomorrow.
-  expect(when).toContain('max={today}');
-  // One day is one tap, a span is two, a third starts over — and there is no switch for «больше
-  // дня», because the gesture has already said it.
-  expect(when).toContain('export function pickDay(span: Span, day: Date): Span {');
-  expect(when).not.toContain('multiDay');
-  // The four quick answers of the layout, each worked out from today rather than stored.
-  for (const quick of ['today', 'yesterday', 'weekend', 'week']) {
-    expect(when).toContain(`'${quick}'`);
+  for (const source of [when, create]) {
+    expect(source).toContain('<Calendar');
+    expect(source).toContain('max={today}');
+    expect(source).toContain('weekdays={weekdayLetters()}');
+    expect(source).toContain('monthLabel={formatMonth(month)}');
+    expect(source).toContain('lastWeekend(today)');
+    expect(source).toContain('daysBefore(today, 6)');
+    expect(source).toContain('s.create.dateHint');
+    // The second tap is the switch for «больше дня», so there is no switch.
+    expect(source).not.toContain('multiDay');
   }
-  expect(ru.when.hint).toBe('Один день — одно касание. Несколько — первый и последний.');
+  // One day is one tap, a span is two, a third starts over — and a tap before the first day is that
+  // first tap being corrected, never a span running backwards.
+  expect(when).toContain('export function pickDay(span: Span, day: Date): Span {');
+  expect(ru.create.dateHint).toBe('Один день — одно касание. Несколько — первый и последний.');
 });
 
 test('the order button waits for the list it prepends to', () => {
@@ -789,7 +798,12 @@ test('a placed order lands on the waiting for that montage, not back on the list
   const listed = [...montage.slice(stageAt, montage.indexOf(';', stageAt)).matchAll(/'(\w+)'/g)];
   const named = listed.map(([, stage]) => stage);
   expect(named).toHaveLength(5);
-  for (const set of [en, ru]) expect(Object.keys(set.montage.stage)).toEqual(named);
+  // Every one of them is in the dictionary, rather than the dictionary being exactly them: the
+  // journal (TASK-220) calls the last two `directing` and `assembly`, and one map holds both sets
+  // of names for one set of five stages until this screen goes.
+  for (const set of [en, ru]) {
+    expect(Object.keys(set.montage.stage)).toEqual(expect.arrayContaining(named));
+  }
 });
 
 test('a card still being made is the second road onto the waiting over it', () => {
@@ -1264,9 +1278,11 @@ test('every column of a contact sheet is the same width, the last row included',
     // `flex: 1/3` divides what a row has left after its gaps, so a last row with one frame in it —
     // no gaps in it to leave — handed that frame a third of the whole row instead of a column.
     expect(sheet).not.toContain('flex: 1 / 3');
-    // A column worked out from the width the sheet spans, and re-read when the phone turns.
+    // A column worked out from the width the sheet spans, and re-read when the phone turns. Which
+    // gutter it is worked out of belongs to the lane the frames stand in (spec 7.8): the memory's
+    // feed and the upload screen both run edge to edge, the wizard and the queue stand in 16.
     expect(sheet).toContain('useWindowDimensions()');
-    expect(sheet).toContain('GRID_GAP * 2) / 3');
+    expect(sheet).toMatch(/(GRID_GAP|FEED_GAP) \* 2\) \/ 3/);
   }
 });
 

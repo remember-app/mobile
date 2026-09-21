@@ -56,27 +56,6 @@ test('every state of the large card is its own', () => {
   });
 });
 
-test('a chosen cover takes the large card whole, and without one the card is what it was', () => {
-  // Spec 10.8.3: the frame somebody put up as the memory's face takes the whole of the large card
-  // instead of the 3 × 2 mosaic. Everything laid over the picture — the darkening, the badges, the
-  // name, the bar of who has brought theirs — stays exactly where it was.
-  allDifferent({
-    mosaic: <CardMemory title="Свадьба" thumbs={SHOTS} large />,
-    cover: <CardMemory title="Свадьба" thumbs={SHOTS} cover="https://b/9.jpg" large />,
-  });
-  // Nobody chose one, so the card is the one that stood here before covers existed.
-  expect(story(<CardMemory title="Свадьба" thumbs={SHOTS} cover={null} large />)).toBe(
-    story(<CardMemory title="Свадьба" thumbs={SHOTS} large />),
-  );
-  // On the ordinary card the cover leads the strip instead of being added to it: still four cells,
-  // never five. Which picture is in which cell cannot be read here at all — `expo-image` stands in
-  // as a view without its source (`vitest.setup.ts`), so two different photographs are one markup.
-  const led = story(
-    <CardMemory title="Свадьба" meta={['12 сентября']} thumbs={SHOTS} cover="https://b/9.jpg" />,
-  );
-  expect(led.match(/data-testid="image"/g) ?? []).toHaveLength(4);
-});
-
 test('the cover is read in white in both themes, because it lies on a photograph', async () => {
   // Spec 2, the day's second departure from plain substitution: the darkening over a photograph
   // stays dark in daylight and the name on it stays white. So this one line has to come out
@@ -88,6 +67,32 @@ test('the cover is read in white in both themes, because it lies on a photograph
   await setTheme('dark');
   expect(name(dark)).toBeTruthy();
   expect(name(dark)).toBe(name(light));
+});
+
+test('a chosen cover takes the whole face of the large card, mosaic and all', () => {
+  // Spec 7.6, «с обложкой» (10.8.3): one frame instead of the 3 × 2, with the darkening, the
+  // badges and the name left exactly where they were. A memory that has nothing in it yet can
+  // still carry one, which is the state the main screen leans on.
+  allDifferent({
+    mosaic: <CardMemory title="Свадьба" thumbs={SHOTS} large />,
+    cover: <CardMemory title="Свадьба" thumbs={SHOTS} cover={SHOTS[3]} large />,
+  });
+  // A memory with a cover and nothing else drawn is the same card: once a face is chosen the tail
+  // behind it does not show through, which is why the main screen may lead with it on its own.
+  expect(story(<CardMemory title="Свадьба" cover={SHOTS[3]} large />)).toBe(
+    story(<CardMemory title="Свадьба" thumbs={SHOTS} cover={SHOTS[3]} large />),
+  );
+  // Nobody chose one, so the card is the one that stood here before covers existed.
+  expect(story(<CardMemory title="Свадьба" thumbs={SHOTS} cover={null} large />)).toBe(
+    story(<CardMemory title="Свадьба" thumbs={SHOTS} large />),
+  );
+  // On the ordinary card the cover leads the strip instead of being added to it: still four cells,
+  // never five. Which picture is in which cell cannot be read here at all — `expo-image` stands in
+  // as a view without its source (`vitest.setup.ts`), so two different photographs are one markup.
+  const led = story(
+    <CardMemory title="Свадьба" meta={['12 сентября']} thumbs={SHOTS} cover="https://b/9.jpg" />,
+  );
+  expect(led.match(/data-testid="image"/g) ?? []).toHaveLength(4);
 });
 
 test('the bar of who has brought theirs is never drawn without the sentence beside it', () => {
