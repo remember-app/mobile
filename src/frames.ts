@@ -168,57 +168,144 @@ export function dayOf(item: MediaItem): number {
   return startOfDay(new Date(shotAt(item))).getTime();
 }
 
-/** Everything under one heading, and what that heading is about (spec 7.7, four kinds of it). */
+/**
+ * Everything under one seam, and what that seam is about (spec 7.8, detail 65) — plus the feed that
+ * has no seam at all, which is what it looks like by default: one unbroken wall of photographs with
+ * the days read off the spine at the edge instead (`MemoryScrub`).
+ */
 export type FrameGroup = { key: string; frames: MediaItem[] } & (
+  | { by: 'all' }
   | { by: 'day'; at: number }
   | { by: 'person'; who: string }
   | { by: 'kind'; kind: MediaItem['kind'] }
 );
 
-/** How the sheet is cut into groups, and which way each group reads (`SheetSort`). */
-export type GroupBy = FrameGroup['by'];
+/**
+ * How the feed is cut into groups — «СОБРАТЬ В ГРУППЫ» of `SheetSort`, and the days are deliberately
+ * not one of the three: a date is a caption rather than a group, so it is its own switch.
+ */
+export type GroupBy = 'none' | 'person' | 'kind';
 export type Order = 'newest' | 'oldest';
-export type Sort = { by: GroupBy; order: Order };
+/** The whole of `SheetSort`: which way it reads, how it is cut, and whether the days are written. */
+export type Sort = { by: GroupBy; order: Order; dates: boolean };
 
-/** What the gallery is arranged as until somebody says otherwise: by day, newest first. */
-export const SORT_DEFAULT: Sort = { by: 'day', order: 'newest' };
+/**
+ * What the feed stands at until somebody says otherwise: nothing grouped, newest first, and the
+ * dates off — which is `MemoryFrames` itself, and `MemoryScrub` the moment a finger moves it.
+ */
+export const SORT_DEFAULT: Sort = { by: 'none', order: 'newest', dates: false };
 
 /** Whether it is arranged any other way — which is the whole of what the spark dot means (spec 7.4). */
 export function arranged(sort: Sort): boolean {
-  return sort.by !== SORT_DEFAULT.by || sort.order !== SORT_DEFAULT.order;
+  return (
+    sort.by !== SORT_DEFAULT.by ||
+    sort.order !== SORT_DEFAULT.order ||
+    sort.dates !== SORT_DEFAULT.dates
+  );
+}
+
+/** Three across, in both lanes of spec 7.8 — the feed is cut by hand, so the number is named once. */
+export const COLUMNS = 3;
+
+/**
+ * Spec 7.8, detail 66 — where each day begins on the feed, so the spine can hang a pill on that
+ * seam. Points from the top of the list: `top` is where the first row starts and `row` is the pitch
+ * of one row, a tile and the gutter under it, both worked out by the screen because it is the one
+ * that knows how wide a phone is.
+ *
+ * Only ever asked of the ungrouped feed, which is the only arrangement where the days run in order
+ * down the wall: cut by person or by kind the days interleave, and a rail of them would point at
+ * nothing.
+ *
+ * A mark stands on the seam between two rows and never inside one, so two days beginning in the same
+ * row of three share a seam — and a seam carries one pill, the day that opens it.
+ */
+export function dateMarks(
+  frames: readonly MediaItem[],
+  { top, row }: { top: number; row: number },
+): { at: number; top: number }[] {
+  const marks: { at: number; top: number }[] = [];
+  let day: number | null = null;
+  frames.forEach((item, at) => {
+    const on = dayOf(item);
+    if (on === day) return;
+    day = on;
+    const y = top + Math.floor(at / COLUMNS) * row;
+    if (marks.at(-1)?.top === y) return;
+    marks.push({ at: on, top: y });
+  });
+  return marks;
 }
 
 /**
- * What of the gallery is shown (`SheetFilter`): who brought it, what it is, which day it is from.
- * An empty set is «everybody» and «every day» rather than «nobody» — the chip that says so is the
- * one the sheet opens with.
+ * What of the gallery is shown (`SheetFilter`): who brought it, what it is, which boxes it lies in,
+ * which day it is from. An empty set is «everybody», «every label» and «every day» rather than
+ * «nobody» — the chip that says so is the one the sheet opens with.
  */
 export type Filter = {
   people: ReadonlySet<string>;
+  /** Which labels, by id — this is how the contents of a box are looked at (spec 10.8.2). */
+  labels: ReadonlySet<string>;
   days: ReadonlySet<number>;
   kind: MediaItem['kind'] | 'all';
 };
 
 /** Nothing filtered out, which is what the gallery stands at until the sheet says otherwise. */
-export const FILTER_NONE: Filter = { people: new Set(), days: new Set(), kind: 'all' };
+export const FILTER_NONE: Filter = {
+  people: new Set(),
+  labels: new Set(),
+  days: new Set(),
+  kind: 'all',
+};
 
-/** Whether anything is being held back — the other spark dot. */
+/** Whether anything is being held back — the other spark dot, one rule over every group on it. */
 export function filtering(filter: Filter): boolean {
-  return filter.people.size > 0 || filter.days.size > 0 || filter.kind !== 'all';
+  return (
+    filter.people.size > 0 ||
+    filter.labels.size > 0 ||
+    filter.days.size > 0 ||
+    filter.kind !== 'all'
+  );
 }
 
 /**
- * The gallery as the filter leaves it. Three questions, all three answered against the record
- * itself, so the count the sheet's own button carries («Показать 486 кадров») is worked out by
- * exactly what the sheet will then show.
+ * The gallery as the filter leaves it. Four questions, all four answered against the record itself,
+ * so the count the sheet's own button carries («Показать 486 кадров») is worked out by exactly what
+ * the sheet will then show.
+ *
+ * The labels are read off the record's own `label_ids`, the way everything else here is: the api
+ * cannot narrow a gallery by a label and deliberately does not try (api README, «Лейблы кадра»), and
+ * that array already holds only the boxes this person is allowed to see — somebody else's private
+ * label leaves no trace in it, so there is nothing here to hide and nothing to check.
+ *
+ * Several labels are «any of these», the same «or» the people row is (spec 10.8.2), and the four
+ * questions narrow each other exactly as the other three already did.
  */
 export function framesMatching(items: readonly MediaItem[], filter: Filter): MediaItem[] {
   return items.filter(
     (item) =>
       (filter.kind === 'all' || item.kind === filter.kind) &&
       (filter.people.size === 0 || filter.people.has(item.uploaded_by)) &&
+      (filter.labels.size === 0 || item.label_ids.some((one) => filter.labels.has(one))) &&
       (filter.days.size === 0 || filter.days.has(dayOf(item))),
   );
+}
+
+/**
+ * The same filter with one label out of it — what a box being deleted does to the feed it was
+ * filtering (spec 10.8.2). Nothing else is touched: a label is gone, not the choice of day or of
+ * who brought it.
+ *
+ * Needed because the two ends of a delete would otherwise disagree: every frame loses the box
+ * (`filed` in `@/labels`), so a filter still holding its id matches nothing at all, and the chip
+ * that could take it off again is no longer on the sheet to press. The filter it was never in comes
+ * back as it is, so a screen holding it re-renders over nothing.
+ */
+export function withoutLabel(filter: Filter, labelId: string): Filter {
+  if (!filter.labels.has(labelId)) return filter;
+  const labels = new Set(filter.labels);
+  labels.delete(labelId);
+  return { ...filter, labels };
 }
 
 /**
@@ -230,8 +317,13 @@ export function framesMatching(items: readonly MediaItem[], filter: Filter): Med
  * stand by how much they brought (the most first — that is the list the layout draws), and the two
  * kinds keep the order they are named in, photos before videos, because that is a pair and not a
  * ranking.
+ *
+ * «Не собирать» is a cut too — into one piece, seamless. Turning the dates on cuts that one piece
+ * into days (`MemoryDated`); leaving them off is the wall the spine hangs its marks beside
+ * (`MemoryScrub`). Grouped by person or by kind the switch has nothing to give: the seam there is
+ * already somebody's name, so the sheet holds it shut.
  */
-export function groupFrames(items: readonly MediaItem[], { by, order }: Sort): FrameGroup[] {
+export function groupFrames(items: readonly MediaItem[], { by, order, dates }: Sort): FrameGroup[] {
   const within = [...items].sort((a, b) =>
     order === 'newest' ? shotAt(b) - shotAt(a) : shotAt(a) - shotAt(b),
   );
@@ -252,6 +344,8 @@ export function groupFrames(items: readonly MediaItem[], { by, order }: Sort): F
       .map(([who, frames]) => ({ by: 'person' as const, who, key: `who-${who}`, frames }))
       .sort((a, b) => b.frames.length - a.frames.length);
   }
+
+  if (!dates) return within.length === 0 ? [] : [{ by: 'all', key: 'all', frames: within }];
 
   return cut(within, dayOf)
     .map(([at, frames]) => ({ by: 'day' as const, at, key: `day-${at}`, frames }))

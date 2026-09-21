@@ -13,6 +13,7 @@ import {
   daysBefore,
   formatDay,
   formatDayShort,
+  formatDayTiny,
   formatEventDates,
   formatMonth,
   formatRuntime,
@@ -33,6 +34,15 @@ const day = (y: number, m: number, d: number) => new Date(y, m - 1, d).toISOStri
 test('a single day is written in the kit form: full month, no year marker', () => {
   expect(formatDay(day(2026, 9, 3), 'ru-RU')).toBe('3 сентября 2026');
   expect(formatDay(day(2026, 9, 3), 'en-US')).toBe('3 September 2026');
+});
+
+test('the tiny day is the month cut short, and nothing of the locale’s own glue', () => {
+  // The pill on the date spine and the day chips of the filter (spec 7.8, detail 66): ten pixels
+  // of line, so the month is the abbreviation — and Russian's own full stop after it is not part
+  // of a date, the same rule the whole day is written by.
+  expect(formatDayTiny(day(2026, 9, 13), 'ru-RU')).toBe('13 сент');
+  expect(formatDayTiny(day(2026, 9, 13), 'en-US')).toBe('13 Sep');
+  expect(formatDayTiny('not a day', 'ru-RU')).toBe('');
 });
 
 test('a span inside one month names the month once and drops the year', () => {

@@ -137,6 +137,9 @@ export const duration = {
   press: 120,
   /** the pick circle appearing on a tile */
   pick: 140,
+  /** the date spine proving while a finger moves the feed, and its slower going a second later */
+  spineIn: 120,
+  spineOut: 400,
   /** the action menu falling out of the button it was opened from */
   menu: 160,
   /** the connection banner sliding in, and a sheet going down */
