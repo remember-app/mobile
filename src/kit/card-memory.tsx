@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { ImageIcon } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
@@ -25,6 +26,7 @@ export function CardMemory({
   title,
   meta,
   thumbs,
+  cover,
   large,
   organizer,
   films,
@@ -39,6 +41,12 @@ export function CardMemory({
   /** «12–14 сентября · 486 кадров» — the screen writes both halves; the dot between them is ours. */
   meta?: readonly string[];
   thumbs?: readonly string[];
+  /**
+   * The one frame somebody chose to stand for this memory (spec 10.8.3). On the large card it takes
+   * the whole face instead of the mosaic; on the ordinary one it simply leads the strip. Nothing
+   * else moves either way, and without it both cards are what they were.
+   */
+  cover?: string | null;
   large?: boolean;
   /** The «ОРГАНИЗАТОР» badge, when this account organizes this memory. */
   organizer?: ReactNode;
@@ -59,7 +67,9 @@ export function CardMemory({
   const { color, shadow } = useTheme();
   const styles = useStyles();
   const focusRing = useFocusRing();
-  const shots = thumbs ?? [];
+  // The chosen frame leads the strip and is never repeated further along it (spec 10.8.3): four
+  // cells, and the first of them is now spoken for.
+  const shots = cover ? [cover, ...(thumbs ?? []).filter((uri) => uri !== cover)] : thumbs ?? [];
 
   return (
     <Pressable
@@ -79,7 +89,13 @@ export function CardMemory({
     >
       {large ? (
         <>
-          <Mosaic photos={shots} layout="cover" />
+          {/* Spec 10.8.3 — a chosen frame takes the whole face; without one the memory shows itself
+              as the mosaic of what is in it. Everything laid over the picture stays put either way. */}
+          {cover ? (
+            <Image source={{ uri: cover }} contentFit="cover" style={StyleSheet.absoluteFill} />
+          ) : (
+            <Mosaic photos={shots} layout="cover" />
+          )}
           {/* Spec 2: the darkening over a photograph stays dark in daylight, and so does the white
               it is read in — it lies on the picture, not on the interface. */}
           <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.cover]} />

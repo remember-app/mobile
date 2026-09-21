@@ -21,10 +21,24 @@ import { Text } from './text';
  * a list and the hairline in a group heading cannot drift apart.
  */
 
-/** A 1px rule. `grow` is the version that stretches between a label and a count. */
-export function Divider({ grow, style }: { grow?: boolean; style?: StyleProp<ViewStyle> }) {
+/**
+ * A 1px rule. `grow` is the version that stretches between a label and a count; `soft` is the one
+ * drawn inside a list rather than between blocks — spec 7.10 gives those two different weights, and
+ * a `line` hairline between every two rows of a long list reads as a grid.
+ */
+export function Divider({
+  grow,
+  soft,
+  style,
+}: {
+  grow?: boolean;
+  soft?: boolean;
+  style?: StyleProp<ViewStyle>;
+}) {
   const styles = useStyles();
-  return <View style={[styles.divider, grow ? styles.dividerGrow : null, style]} />;
+  return (
+    <View style={[styles.divider, soft ? styles.dividerSoft : null, grow ? styles.dividerGrow : null, style]} />
+  );
 }
 
 /**
@@ -297,6 +311,7 @@ export function PhotoStack({
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
     divider: { height: 1, backgroundColor: color.line },
+    dividerSoft: { backgroundColor: color.raise },
     dividerGrow: { flex: 1 },
     dot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: color.lineStrong },
     dotOnPhoto: { backgroundColor: photo.dot },

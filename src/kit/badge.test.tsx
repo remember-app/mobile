@@ -2,9 +2,11 @@ import { beforeAll, expect, test } from 'vitest';
 
 import {
   BadgeContribution,
+  BadgeDecision,
   BadgeFilms,
   BadgeMontage,
   BadgeOrganizer,
+  Tag,
   type Contribution,
   type MontageState,
 } from '@/kit/badge';
@@ -74,7 +76,6 @@ test('what a participant has brought is a circle, and the circle is read out in 
   const states: Record<Contribution, string> = {
     done: 'Всё загрузил',
     planned: 'Планирует загрузить',
-    nothing: 'Нечего добавлять',
   };
   allDifferent(
     Object.fromEntries(
@@ -90,9 +91,37 @@ test('what a participant has brought is a circle, and the circle is read out in 
       `aria-label="${label}"`,
     );
   }
-  // «Всё загрузил» is the only one wearing the spark: that mark is what the organizer scans a
-  // roster for, and the other two are outlines.
+  // «Всё загрузил» is the one wearing the spark: that mark is what the organizer scans a roster
+  // for, and the other is an outline.
   expect(fillOf(story(<BadgeContribution state="done" label="Всё загрузил" />))).toBe(
     fillOf(story(<BadgeOrganizer label="Организатор" />)),
   );
+});
+
+test('what the director decided about a file is three marks, and one of them never stands alone', () => {
+  allDifferent({
+    take: <BadgeDecision kind="take" label="Беру" />,
+    takeAt: <BadgeDecision kind="take" label="Беру 0:04–0:07" />,
+    pass: <BadgeDecision kind="pass" label="Мимо" />,
+    part: <BadgeDecision kind="part" label="часть 2" />,
+  });
+  // Spec 1.2: in the montage `spark` means «taken», so «Беру» and «Взял 1 из 4» wear the same fill
+  // as «Готов» and «Мимо» does not.
+  expect(fillOf(story(<BadgeDecision kind="take" label="Взял 1 из 4" />))).toBe(
+    fillOf(story(<BadgeMontage state="ready" label="Готов" />)),
+  );
+  expect(fillOf(story(<BadgeDecision kind="pass" label="Мимо" />))).not.toBe(
+    fillOf(story(<BadgeDecision kind="take" label="Беру" />)),
+  );
+});
+
+test('a tag word is what was seen on a frame, and nothing presses it', () => {
+  const tag = story(<Tag label="тёплый свет" />);
+  expect(tag).toContain('тёплый свет');
+  expect(tag).not.toContain('role="button"');
+  // It is not a chip either: a chip is offered to be pressed and this one only reports.
+  allDifferent({
+    tag: <Tag label="Бабушка" />,
+    decision: <BadgeDecision kind="pass" label="Бабушка" />,
+  });
 });

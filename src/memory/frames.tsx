@@ -482,19 +482,17 @@ export function Frames({ id, head }: { id: string; head: Head }) {
                 return (
                   <DayMark
                     {...headingOf(group)}
-                    // The right edge is one slot: the count in the ordinary state, the day's own
-                    // action while picking, never both at once.
-                    count={picking ? undefined : s.memory.frames(group.frames.length)}
-                  >
-                    {picking ? (
-                      <Button
-                        variant="small"
-                        label={s.gallery.selectDay(markable.length)}
-                        disabled={markable.length === 0}
-                        onPress={() => pickDay(markable)}
-                      />
-                    ) : null}
-                  </DayMark>
+                    // The seam holds one count, and while the mode is on the whole band becomes
+                    // the button that takes the group (spec 7.8) — «Выбрать все 174» is the band
+                    // itself now, not a pill hanging off its right edge.
+                    count={s.memory.frames(
+                      picking ? markable.length : group.frames.length,
+                    )}
+                    onPress={
+                      picking && markable.length > 0 ? () => pickDay(markable) : undefined
+                    }
+                    pressLabel={s.gallery.selectDay(markable.length)}
+                  />
                 );
               }
               return (

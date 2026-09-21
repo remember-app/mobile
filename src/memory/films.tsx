@@ -1,6 +1,6 @@
 import { useFocusEffect, useIsFocused, useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
-import { Download, Film, Play } from 'lucide-react-native';
+import { Download, Film } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -25,12 +25,13 @@ import {
   Button,
   CardMontage,
   Empty,
+  EmptyMontages,
   Text,
   type MontageState,
 } from '@/kit';
 import { useStrings } from '@/language';
 import { MemoryHead, type Head } from '@/memory/head';
-import { beingMade, shapeOf, WHILE_MAKING_MS } from '@/montage';
+import { beingMade, WHILE_MAKING_MS } from '@/montage';
 import { useTurnsWithPhone } from '@/orientation';
 import { type Strings } from '@/strings';
 import { space, themes, ThemePin } from '@/theme';
@@ -337,22 +338,17 @@ export function Films({ id, head }: { id: string; head: Head }) {
             </View>
           ) : null
         ) : montages.length === 0 ? (
-          // `FilmsEmpty`, and it is not a report of what is missing: the sign is the reward itself —
-          // two of the memory's own frames with the play circle over them — and the words explain
-          // what a montage is, because the button that starts one is on the bar below. Which
-          // invitation depends on who is reading, and nothing is said until the memory has answered:
-          // `role` comes off it, and an organizer shown «the organizer can ask for one» is being
-          // told about themselves.
+          // `FilmsEmpty` (spec 7.6): the dashed block that stands where the strip of montages
+          // would be, not an empty state — the two leaning frames are the reward itself, and the
+          // words explain what a montage is, because the button that starts one is on the bar
+          // below. Which invitation depends on who is reading, and nothing is said until the memory
+          // has answered: `role` comes off it, and an organizer shown «the organizer can ask for
+          // one» is being told about themselves.
           role === null ? null : (
-            <View style={styles.middle}>
-              <Empty
-                sign="poster"
-                icon={Play}
-                photos={memory?.recent_thumbnail_urls}
-                title={s.montage.emptyTitle}
-                text={role === 'organizer' ? s.montage.emptyOrganizer : s.montage.empty}
-              />
-            </View>
+            <EmptyMontages
+              photos={memory?.recent_thumbnail_urls}
+              text={role === 'organizer' ? s.montage.emptyOrganizer : s.montage.empty}
+            />
           )
         ) : (
           montages.map((montage) => {
@@ -375,23 +371,20 @@ export function Films({ id, head }: { id: string; head: Head }) {
                         : s.montage.caption
                   }
                   poster={montage.poster_url ?? undefined}
-                  // The running time in the poster's corner — the same number the title carries,
-                  // which is the whole of what the layout writes over a still.
-                  length={formatRuntime(montage.duration_seconds)}
-                  // The card is the shape of the video itself — a standing montage a tall card, one
-                  // lying down a wide one, the still filling either to the edges (TASK-178). The
-                  // shape is the worker's canvas read off the orientation that was ordered, so it
-                  // is right before there is a poster in it and nothing jumps when one lands.
-                  ratio={shapeOf(montage.params.orientation)}
+                  // Spec 7.6 — the card is the poster, 196 tall and the width of the face. Until
+                  // this list becomes the horizontal strip over the feed (its own task), that is the
+                  // one form of it that fills a column properly.
+                  large
                   badge={<BadgeMontage state={state} label={s.montage.status[montage.status]} />}
-                  playLabel={s.montage.watch(montageTitle(montage, s))}
-                  onPlay={montage.video_url === null ? undefined : () => setPlaying(montage.id)}
-                  // The card leads somewhere only while the worker still owes it something — the
-                  // same question the polling loop above asks, so a card that is a road and a list
-                  // that keeps re-reading are one answer. A finished montage is watched where it
-                  // lies and a fallen one is started again from its own button; neither has any
-                  // waiting left to show, and the kit takes no press at all without this.
-                  onPress={beingMade(montage.status) ? () => watchMaking(montage) : undefined}
+                  // Watching a finished one, or walking into the making of one that is still owed.
+                  // Either way it is the whole card, which is what the layout gives it now.
+                  onPress={
+                    beingMade(montage.status)
+                      ? () => watchMaking(montage)
+                      : montage.video_url === null
+                        ? undefined
+                        : () => setPlaying(montage.id)
+                  }
                 >
                   {/* The one button a card carries, beside its badge: the outlined 44 of spec 7.6,
                       «Сохранить и поделиться» under a finished montage and «Повторить» under one

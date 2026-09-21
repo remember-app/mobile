@@ -1,15 +1,14 @@
-import { Image } from 'expo-image';
 import type { ReactNode } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 
-import { duration, photo, radius, space, themed, useTheme } from '@/theme';
+import { duration, radius, space, themed, useTheme } from '@/theme';
 
 import { Icon, type IconComponent } from './icon';
 import { useLoop } from './interaction';
 import { Text } from './text';
 
 /**
- * A screen with nothing on it yet, and a screen still waiting for something — spec 7.8. An empty
+ * A screen with nothing on it yet, and a screen still waiting for something — spec 7.9. An empty
  * state is an invitation and not a report: the heading names what is missing, the paragraph says
  * what to do, and the action itself stands in the bottom layer rather than inside this block.
  */
@@ -62,7 +61,7 @@ export function Spinner({
   );
 }
 
-/** Spec 7.8 — waiting, with a line saying what is being waited for. */
+/** Spec 7.9 — waiting, with a line saying what is being waited for. */
 export function Waiting({ text, size = 38 }: { text: string; size?: SpinnerSize }) {
   return (
     <View style={waiting.block}>
@@ -80,24 +79,21 @@ const waiting = StyleSheet.create({
 });
 
 /**
- * The signs an empty state can wear (spec 7.8):
+ * The signs an empty state can wear (spec 7.9):
  *
- * - `dashed` — a dashed circle, for a list empty for a natural reason;
+ * - `dashed` — a dashed circle over a hollow, for a list empty for a natural reason;
  * - `line` — the same circle ringed solid in `line`, where nothing is missing but the road is out:
  *   the state is a dead end and not a list waiting to fill (`InviteDead`);
- * - `spark` — a circle ringed in `spark`, where the person is being called to act;
- * - `poster` — two dimmed photographs and a play circle, where the point is the reward rather than
- *   the absence (`FilmsEmpty`).
+ * - `spark` — a circle ringed in `spark`, where the person is being called to act.
+ *
+ * A memory with no montages in it is *not* one of these any more (spec 7.6): it is the dashed block
+ * that stands where the strip would be, `EmptyMontages` in `kit/card-montage.tsx`. An empty state
+ * takes the whole body of a screen, and «пока нет роликов» never did.
  */
-export type EmptySign = 'dashed' | 'line' | 'spark' | 'poster';
+export type EmptySign = 'dashed' | 'line' | 'spark';
 
-/** Which ring each sign draws. `poster` has none — it is photographs. */
-const SIGN = {
-  dashed: 'signDashed',
-  line: 'signLine',
-  spark: 'signSpark',
-  poster: 'signDashed',
-} as const;
+/** Which ring each sign draws. */
+const SIGN = { dashed: 'signDashed', line: 'signLine', spark: 'signSpark' } as const;
 
 export function Empty({
   sign = 'dashed',
@@ -105,7 +101,6 @@ export function Empty({
   busy,
   title,
   text,
-  photos,
   children,
 }: {
   sign?: EmptySign;
@@ -114,8 +109,6 @@ export function Empty({
   busy?: boolean;
   title?: string;
   text: string;
-  /** `poster` only — the two frames behind the play circle. */
-  photos?: readonly string[];
   children?: ReactNode;
 }) {
   const { color } = useTheme();
@@ -128,20 +121,16 @@ export function Empty({
       ) : (
         // The sign only ever repeats the words below it, so screen readers are spared it.
         <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          {sign === 'poster' ? (
-            <Poster photos={photos ?? []} icon={icon} />
-          ) : (
-            <View style={[styles.sign, styles[SIGN[sign]]]}>
-              {/* The dimmed glyph belongs to a circle that is dimmed itself. Inside the `spark` ring
-                  the sign is the invitation, so it is read in `paper` like the heading under it. */}
-              {icon ? (
-                <Icon icon={icon} size={38} color={sign === 'spark' ? color.paper : color.faint} />
-              ) : null}
-            </View>
-          )}
+          <View style={[styles.sign, styles[SIGN[sign]]]}>
+            {/* The dimmed glyph belongs to a circle that is dimmed itself. Inside the `spark` ring
+                the sign is the invitation, so it is read in `paper` like the heading under it. */}
+            {icon ? (
+              <Icon icon={icon} size={38} color={sign === 'spark' ? color.paper : color.faint} />
+            ) : null}
+          </View>
         </View>
       )}
-      {/* Spec 7.8 draws two rhythms and not one: 22 from the sign down to the words, 12 between the
+      {/* Spec 7.9 draws two rhythms and not one: 22 from the sign down to the words, 12 between the
           heading and the paragraph it belongs with. */}
       <View style={styles.words}>
         {title ? (
@@ -154,28 +143,6 @@ export function Empty({
         </Text>
       </View>
       {children}
-    </View>
-  );
-}
-
-/** Two dimmed frames at an angle with a play circle over them — the reward, shown rather than told. */
-function Poster({ photos, icon }: { photos: readonly string[]; icon?: IconComponent }) {
-  const { color } = useTheme();
-  const styles = useStyles();
-
-  return (
-    <View style={styles.poster}>
-      {photos.slice(0, 2).map((uri, i) => (
-        <Image
-          key={uri}
-          source={{ uri }}
-          contentFit="cover"
-          style={[styles.posterShot, i === 0 ? styles.posterLeft : styles.posterRight]}
-        />
-      ))}
-      <View style={styles.posterPlay}>
-        {icon ? <Icon icon={icon} size={30} color={color.spark} fill={color.spark} /> : null}
-      </View>
     </View>
   );
 }
@@ -198,36 +165,18 @@ const useStyles = themed(({ color }) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
+    // Spec 7.9 — the dashed sign stands on a hollow and not on a surface: a list with nothing in it
+    // is a hole in the screen, and a card there would be a thing where there is none.
     signDashed: {
-      borderWidth: 2,
+      borderWidth: 1,
       borderStyle: 'dashed',
       borderColor: color.dashed,
-      backgroundColor: color.surface,
+      backgroundColor: color.hollowSoft,
     },
     signLine: { borderWidth: 1, borderColor: color.line, backgroundColor: color.surface },
     signSpark: { borderWidth: 2, borderColor: color.spark, backgroundColor: color.surface },
     title: { textAlign: 'center' },
     // Spec 3 holds a paragraph to about 60 characters, which at these margins is this width.
     text: { textAlign: 'center', maxWidth: 300 },
-    poster: { width: 200, height: 150, alignItems: 'center', justifyContent: 'center' },
-    posterShot: {
-      position: 'absolute',
-      width: 104,
-      height: 128,
-      borderRadius: radius.field,
-      opacity: 0.45,
-    },
-    posterLeft: { left: 0, transform: [{ rotate: '-9deg' }] },
-    posterRight: { right: 0, transform: [{ rotate: '8deg' }] },
-    posterPlay: {
-      width: 88,
-      height: 88,
-      borderRadius: radius.pill,
-      borderWidth: 2,
-      borderColor: color.spark,
-      backgroundColor: photo.mark,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
   }),
 );

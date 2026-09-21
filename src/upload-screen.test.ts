@@ -15,8 +15,10 @@ import uploads from './uploads.ts?raw';
  */
 
 test('«выбрать все N» for a day is out while any page of the roll is still arriving', () => {
-  const button = upload.slice(upload.indexOf('label={s.upload.selectDay'), upload.indexOf('onPress={() => pickDay'));
-  expect(button).toContain('disabled={reading}');
+  // Spec 7.8 moved the action into the seam itself, so being out is having no press at all: a band
+  // that cannot be pressed is not a checkbox, which is exactly what a half-read day should be.
+  const daymark = upload.slice(upload.indexOf('<DayMark'), upload.indexOf('/>', upload.indexOf('<DayMark')));
+  expect(daymark).toContain('onPress={limited || reading ? undefined : () => pickDay(row.day)}');
 });
 
 test('reading spans every page of the roll, not just the first', () => {
@@ -70,10 +72,10 @@ test('a partial grant counts the day instead of offering to select all of it', (
   // `UploadLimited`: «Выбрать все» is gone because there is nothing to select all of, the count is
   // drawn back (`limited`) because the rest is unseen rather than missing, and the plate under the
   // strip says so in words.
-  const daymark = upload.slice(upload.indexOf('<DayMark'), upload.indexOf('</DayMark>'));
-  expect(daymark).toContain('count={limited ? s.memory.frames(row.day.assets.length) : undefined}');
+  const daymark = upload.slice(upload.indexOf('<DayMark'), upload.indexOf('/>', upload.indexOf('<DayMark')));
+  expect(daymark).toContain('count={s.memory.frames(row.day.assets.length)}');
   expect(daymark).toContain('limited={limited}');
-  expect(daymark).toContain('{limited ? null : (');
+  expect(daymark).toContain('limited || reading ? undefined');
   expect(upload).toContain('...(limited ? [{ key: `unseen-${day.at}`, unseen: true as const }] : []),');
   expect(upload).toContain('{s.upload.restUnseen}');
 });

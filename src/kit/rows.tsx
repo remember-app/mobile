@@ -1,8 +1,9 @@
+import { Image } from 'expo-image';
 import { Check, ChevronRight, X } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { height, radius, space, themed, useTheme } from '@/theme';
+import { height, photo, radius, space, themed, useTheme } from '@/theme';
 
 import { Divider } from './bits';
 import { Spinner } from './empty';
@@ -51,84 +52,79 @@ export function RowSummary({
 }
 
 /**
- * A music track (spec 7.6). Unpicked it is a line in a list; picked, the whole row becomes a card
- * with an `accent` border and the waveform opens up under the name — the one place in the product
- * where picking something makes it grow rather than tick it.
+ * A music track (spec 7.7): 52 tall, the round «послушать» on the left, the name and its length on
+ * one baseline, and on the right the button that takes it or gives it back.
+ *
+ * The row itself picks nothing any more — that is what the button on its right is for, and it is
+ * handed in, so a track knows nothing about buttons. Several tracks can be taken at once, and a row
+ * that was itself the switch could not say that: it would have had to be a radio.
  */
 export function RowTrack({
   title,
   length,
-  selected,
   playing,
-  at = 0,
-  onPress,
+  wave,
   play,
+  action,
   divider,
 }: {
   title: string;
   /** «2:14» — written by the screen. */
   length: string;
-  selected?: boolean;
+  /** Sounding right now: the name goes `spark`, and the button handed in becomes a pause. */
   playing?: boolean;
-  /** 0…1 — how much of it has been heard, which is what colours the waveform. */
-  at?: number;
-  onPress?: () => void;
-  /** The round 44 «Послушать» button, handed in so this row knows nothing about buttons. */
+  /** The 12-bar waveform between the name and the right edge — the «Выбрано» block draws it. */
+  wave?: boolean;
+  /** The round «Послушать» — 40 `raise` in the library, 36 `paper` among the chosen. */
   play?: ReactNode;
+  /** The round 36 on the right: a plus, a tick, or the cross that takes a chosen track out. */
+  action?: ReactNode;
   divider?: boolean;
 }) {
   const styles = useStyles();
-  const { color } = useTheme();
 
   return (
     <View>
-      {divider && !selected ? <Divider /> : null}
-      <Tappable
-        label={title}
-        onPress={onPress}
-        selected={selected}
-        style={[styles.track, selected ? styles.trackPicked : null]}
-      >
+      {divider ? <Divider soft style={styles.insetTrack} /> : null}
+      <View style={styles.track}>
         {play}
-        <View style={styles.grow}>
-          <View style={styles.trackLine}>
-            <Text role="row" numberOfLines={1} style={styles.grow}>
-              {title}
-            </Text>
-            <Text role="meta">{length}</Text>
-          </View>
-          {selected ? <Waveform at={playing || at > 0 ? at : 0} /> : null}
+        <View style={[styles.grow, styles.trackLine]}>
+          <Text role="row" tone={playing ? 'spark' : 'paper'} numberOfLines={1} style={styles.shrink}>
+            {title}
+          </Text>
+          <Text role="meta">{length}</Text>
         </View>
-        <View style={[styles.radio, selected ? styles.radioOn : null]}>
-          {selected ? <Icon icon={Check} size={14} color={color.onFill} /> : null}
-        </View>
-      </Tappable>
+        {wave ? <Waveform /> : null}
+        {action}
+      </View>
     </View>
   );
 }
 
-/** Sixteen bars of varying height: what has been heard in `accent`, the rest in `handle`. */
-export function Waveform({ at }: { at: number }) {
+/**
+ * The waveform (spec 7.10): twelve 2px bars in a row, twenty 3px ones in the order summary. It is a
+ * fixed drawing and says nothing about the track — the real shape of one is the montage worker's to
+ * know, and a waveform that reshuffles on every render is noise pretending to be a signal.
+ */
+export function Waveform({ wide }: { wide?: boolean }) {
   const styles = useStyles();
-  // A fixed pattern and not a random one: a waveform that reshuffles on every render is noise
-  // pretending to be a signal. The real shape of a track is the montage worker's to know.
-  const bars = [5, 9, 14, 8, 17, 11, 20, 13, 7, 16, 10, 19, 12, 6, 15, 9];
+  const bars = wide ? WIDE_BARS : BARS;
 
   return (
     <View
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={styles.wave}
+      style={[styles.wave, wide ? styles.waveWide : null]}
     >
       {bars.map((tall, i) => (
-        <View
-          key={i}
-          style={[styles.waveBar, { height: tall }, i / bars.length < at ? styles.waveHeard : null]}
-        />
+        <View key={i} style={[styles.waveBar, wide ? styles.waveBarWide : null, { height: tall }]} />
       ))}
     </View>
   );
 }
+
+const BARS = [5, 9, 13, 8, 15, 10, 6, 12, 14, 7, 11, 5];
+const WIDE_BARS = [6, 10, 15, 9, 18, 12, 7, 14, 17, 9, 13, 6, 11, 16, 8, 12, 15, 7, 10, 14];
 
 /**
  * One reason the automatic pass dropped frames (spec 7.6): a 38 glyph square, what it is called, how
@@ -175,74 +171,124 @@ export function RowRejected({
   );
 }
 
-/** Where one stage of the build stands (spec 7.6). */
+/** Where one stage of the build stands (spec 7.7). */
 export type StepState = 'done' | 'running' | 'waiting' | 'failed';
 
 /**
- * One stage of a montage being assembled: a 26 circle saying where it is, the stage's own name, and
- * a word on the right. The stage is named rather than counted — spec's own rule for `MontageProgress`.
+ * One stage of a montage being made (spec 7.7): a 24 circle saying where it is, the stage's own
+ * name, a line of what came of it, and the chevron into its journal. The stage is named rather than
+ * counted — «73 %» tells a person nothing, «Режиссёр строит историю» does.
+ *
+ * The one still running opens: it takes an `accentNote` wash and carries its last few records under
+ * it, so the screen shows what the director is doing without anybody having to go looking. A stage
+ * still ahead is not a road at all — no meta, no chevron, one faint line naming what is coming.
  */
 export function RowStep({
   title,
+  meta,
   state,
-  word,
+  open,
+  onPress,
+  children,
 }: {
   title: string;
+  /** «212 из 214 годятся · 1 мин» — written by the screen; a stage ahead has none. */
+  meta?: string;
   state: StepState;
-  /** «готово», «идёт», «не вышло» — a word, so the screen writes it; `waiting` has none. */
-  word?: string;
+  /** The stage in hand, opened out: its last records and the way into the whole journal. */
+  open?: boolean;
+  onPress?: () => void;
+  /** Those records — `StepNote` each, and the link under them. */
+  children?: ReactNode;
 }) {
   const styles = useStyles();
   const { color } = useTheme();
+  const ahead = state === 'waiting';
 
   return (
-    <View style={styles.step}>
-      {state === 'running' ? (
-        <Spinner size={26} track={color.line} head={color.accent} />
-      ) : (
-        <View
-          style={[
-            styles.stepMark,
-            state === 'done' ? styles.stepDone : null,
-            state === 'failed' ? styles.stepFailed : null,
-            state === 'waiting' ? styles.stepWaiting : null,
-          ]}
-        >
-          {state === 'done' ? <Icon icon={Check} size={14} color={color.sparkInk} /> : null}
-          {state === 'failed' ? <Icon icon={X} size={14} color={color.dangerText} /> : null}
-        </View>
-      )}
-      <Text
-        role={state === 'running' ? 'row' : 'body'}
-        tone={
-          state === 'running'
-            ? 'paper'
-            : state === 'waiting'
-              ? 'faint'
-              : state === 'failed'
-                ? 'danger'
-                : 'muted'
-        }
-        numberOfLines={1}
-        style={styles.grow}
-      >
-        {title}
-      </Text>
-      {word ? (
-        <Text
-          role="meta"
-          tone={state === 'running' ? 'accent' : state === 'failed' ? 'danger' : 'muted'}
-        >
-          {word}
-        </Text>
-      ) : null}
+    <View style={open ? styles.stepOpen : null}>
+      <Tappable label={[title, meta].filter(Boolean).join('. ')} onPress={ahead ? undefined : onPress} style={styles.step}>
+        {state === 'running' ? (
+          <Spinner size={24} track={color.line} head={color.accent} />
+        ) : (
+          <View
+            style={[
+              styles.stepMark,
+              state === 'done' ? styles.stepDone : null,
+              state === 'failed' ? styles.stepFailed : null,
+              ahead ? styles.stepWaiting : null,
+            ]}
+          >
+            {state === 'done' ? <Icon icon={Check} size={13} color={color.sparkInk} /> : null}
+            {state === 'failed' ? <Icon icon={X} size={13} color={color.dangerText} /> : null}
+          </View>
+        )}
+        {ahead ? (
+          <Text role="note" tone="faint" numberOfLines={1} style={styles.grow}>
+            {title}
+          </Text>
+        ) : (
+          <View style={styles.grow}>
+            <Text role="label" numberOfLines={1}>
+              {title}
+            </Text>
+            {meta ? (
+              <Text role="badgeSm" tone="muted" numberOfLines={1}>
+                {meta}
+              </Text>
+            ) : null}
+          </View>
+        )}
+        {ahead ? null : <Icon icon={ChevronRight} size={16} color={color.faint} />}
+      </Tappable>
+      {open ? children : null}
     </View>
   );
 }
 
 /**
- * One action inside a sheet (spec 7.6): 56 tall, a 20 glyph, the words. The dangerous one is the
- * only red thing on the sheet, and there is never more than one of it.
+ * One record under an opened stage (spec 7.7): the frame at 34, two lines of what the director
+ * thought about it, and the mark of what they decided. The journal's own full-size entry is
+ * `LogEntry` — this is the glance at it that fits inside a row.
+ */
+export function StepNote({
+  uri,
+  length,
+  text,
+  mark,
+}: {
+  uri?: string;
+  /** A video's running time in the corner of the thumbnail. */
+  length?: string;
+  text: string;
+  /** The decision pill — `BadgeDecision`, handed in so this row knows no words. */
+  mark?: ReactNode;
+}) {
+  const styles = useStyles();
+
+  return (
+    <View style={styles.note}>
+      <View style={styles.noteShot}>
+        {uri ? <Image source={{ uri }} contentFit="cover" style={StyleSheet.absoluteFill} /> : null}
+        {length ? (
+          <Text role="badgeSm" style={styles.noteLength}>
+            {length}
+          </Text>
+        ) : null}
+      </View>
+      <Text role="meta" tone="paper" numberOfLines={2} style={styles.grow}>
+        {text}
+      </Text>
+      {mark}
+    </View>
+  );
+}
+
+/**
+ * One action inside the glass menu that drops out of the «⋯» (spec 7.7): 50 tall, the words on the
+ * left and the glyph on the right. It was a sheet's row until the menu existed; the glyph moved to
+ * the far side with it, because a menu is read down its left edge. The dangerous one is the only red
+ * line in the menu, and there is never more than one of it.
  */
 export function RowAction({
   icon,
@@ -263,12 +309,12 @@ export function RowAction({
 
   return (
     <View>
-      {divider ? <Divider /> : null}
+      {divider ? <Divider soft /> : null}
       <Tappable label={label} onPress={onPress} style={styles.action}>
-        <Icon icon={icon} size={20} color={tint} />
         <Text role="row" style={[styles.grow, { color: tint }]}>
           {label}
         </Text>
+        <Icon icon={icon} size={19} color={tint} />
       </Tappable>
     </View>
   );
@@ -370,33 +416,20 @@ const useStyles = themed(({ color }) =>
     summaryLabel: { width: 88 },
     summaryValue: { textAlign: 'right' },
     track: {
+      height: 52,
       flexDirection: 'row',
       alignItems: 'center',
       gap: space.s3,
-      paddingVertical: space.s3,
-      borderWidth: 1,
-      borderColor: 'transparent',
-      borderRadius: radius.section,
-    },
-    trackPicked: {
-      backgroundColor: color.surface,
-      borderColor: color.accent,
       paddingHorizontal: space.s3,
     },
-    trackLine: { flexDirection: 'row', alignItems: 'center', gap: space.s2 },
-    wave: { flexDirection: 'row', alignItems: 'flex-end', gap: 3, height: 20, marginTop: 6 },
-    waveBar: { width: 3, borderRadius: radius.pill, backgroundColor: color.handle },
-    waveHeard: { backgroundColor: color.accent },
-    radio: {
-      width: 24,
-      height: 24,
-      borderRadius: radius.pill,
-      borderWidth: 1,
-      borderColor: color.lineStrong,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    radioOn: { backgroundColor: color.accent, borderColor: color.accent },
+    // The hairline starts where the name does — past the round button, never under it.
+    insetTrack: { marginLeft: 64 },
+    trackLine: { flexDirection: 'row', alignItems: 'baseline', gap: space.s2 },
+    shrink: { flexShrink: 1 },
+    wave: { flexDirection: 'row', alignItems: 'center', gap: 2, height: 16 },
+    waveWide: { gap: 2, height: 18 },
+    waveBar: { width: 2, borderRadius: radius.pill, backgroundColor: color.faint },
+    waveBarWide: { width: 3 },
     rejected: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -412,16 +445,20 @@ const useStyles = themed(({ color }) =>
       justifyContent: 'center',
     },
     step: {
+      minHeight: 48,
       flexDirection: 'row',
       alignItems: 'center',
       gap: space.s3,
-      paddingVertical: space.s2,
+      paddingHorizontal: 14,
     },
+    // Spec 7.7 — the stage in hand is washed rather than boxed: it is one of a list of stages, and
+    // a border round it would make it a card standing apart from its own neighbours.
+    stepOpen: { backgroundColor: color.accentNote },
     stepMark: {
-      width: 26,
-      height: 26,
+      width: 24,
+      height: 24,
       borderRadius: radius.pill,
-      borderWidth: 1,
+      borderWidth: 1.5,
       borderColor: 'transparent',
       alignItems: 'center',
       justifyContent: 'center',
@@ -429,11 +466,31 @@ const useStyles = themed(({ color }) =>
     stepDone: { backgroundColor: color.spark },
     stepFailed: { borderColor: color.dangerText },
     stepWaiting: { borderColor: color.line },
+    // The records under an opened stage line up with its name, not with its circle.
+    note: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingVertical: 6,
+      paddingRight: 14,
+      paddingLeft: 50,
+    },
+    noteShot: {
+      width: 34,
+      height: 34,
+      borderRadius: 8,
+      overflow: 'hidden',
+      backgroundColor: color.raise,
+      justifyContent: 'flex-end',
+      alignItems: 'flex-end',
+    },
+    noteLength: { color: photo.on, paddingRight: 3, paddingBottom: 2 },
     action: {
-      minHeight: height.primary,
+      minHeight: 50,
       flexDirection: 'row',
       alignItems: 'center',
       gap: space.s3,
+      paddingHorizontal: space.s4,
       borderRadius: radius.cell,
     },
     section: {

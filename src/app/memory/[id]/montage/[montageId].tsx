@@ -202,7 +202,9 @@ export default function MontageProgressScreen() {
                     key={stage}
                     title={s.montage.stage[stage]}
                     state={state}
-                    word={
+                    // Spec 7.7 puts what came of a stage on its own second line, where the word
+                    // for where it stands used to sit at the right edge.
+                    meta={
                       state === 'done'
                         ? s.montage.stageDone
                         : state === 'running'

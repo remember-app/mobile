@@ -403,27 +403,16 @@ export default function UploadScreen() {
           row.day ? (
             <DayMark
               label={s.upload.shotOn(formatDay(new Date(row.day.at)))}
-              // Spec 7.7's fourth kind: under a partial grant the right edge counts what is here
-              // rather than offering the whole day, and it is drawn back rather than forward —
-              // the rest is not missing, it is unseen. How many that is, the phone never says.
-              count={limited ? s.memory.frames(row.day.assets.length) : undefined}
+              count={s.memory.frames(row.day.assets.length)}
+              // Under a partial grant the seam only counts what is here, drawn back rather than
+              // forward — the rest is not missing, it is unseen, and there is no whole day to take.
               limited={limited}
-            >
-              {limited ? null : (
-                // The action belongs to this day and says how much of it there is — the layout's
-                // «Выбрать все 61», outlined and small, because the glow on this screen is the
-                // sending.
-                <Button
-                  variant="small"
-                  label={s.upload.selectDay(row.day.assets.length)}
-                  // Out until the whole roll is in hand: the roll arrives 500 at a time, so a day
-                  // that straddles a page is still growing, and «все» would take only the head of
-                  // it and say nothing about the tail.
-                  disabled={reading}
-                  onPress={() => pickDay(row.day)}
-                />
-              )}
-            </DayMark>
+              // Spec 7.8's third kind: the band itself takes the day and gives it back. Out until
+              // the whole roll is in hand — it arrives 500 at a time, so a day that straddles a
+              // page is still growing, and «все» would take only its head.
+              onPress={limited || reading ? undefined : () => pickDay(row.day)}
+              pressLabel={s.upload.selectDay(row.day.assets.length)}
+            />
           ) : row.unseen ? (
             <DashedFrame style={styles.unseen}>
               <Text role="label" tone="faint" style={styles.middle}>

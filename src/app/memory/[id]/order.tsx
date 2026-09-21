@@ -2,6 +2,7 @@ import { getDocumentAsync } from 'expo-document-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   Aperture,
+  Check,
   ChevronLeft,
   ChevronRight,
   CircleSlash,
@@ -611,33 +612,40 @@ function MusicStep({
               key={track.id}
               title={name}
               length={track.length}
-              selected={picked}
               playing={heard !== null}
-              at={heard ?? 0}
               divider={i > 0}
               play={
                 <IconButton
                   icon={heard !== null ? Pause : Play}
                   label={heard !== null ? s.montage.stopTrack(name) : s.montage.listen(name)}
-                  size={44}
-                  // Spec 8 draws the picked row's button filled and the rest of them outlined —
-                  // the row that is chosen carries the loud one, listening does not change that.
-                  tone={picked ? 'paper' : 'ghost'}
-                  style={picked ? undefined : styles.listen}
+                  size={40}
+                  tone="surface"
                   onPress={() => {
                     onNotice(null);
                     void toggle(track.id).catch((e: unknown) => onNotice(errorMessage(e)));
                   }}
                 />
               }
-              onPress={() => onTrack(track.id)}
+              // Spec 7.7 — the row no longer picks; the 36 on its right does, and it says which
+              // way it is: the plus takes the track, the tick gives it back.
+              action={
+                <IconButton
+                  icon={picked ? Check : Plus}
+                  label={picked ? s.montage.stopTrack(name) : name}
+                  size={36}
+                  tone={picked ? 'surface' : 'ghost'}
+                  on={picked}
+                  style={picked ? undefined : styles.listen}
+                  onPress={() => onTrack(track.id)}
+                />
+              }
             />
           );
         })}
         {/* Their own, once it is up: the same row, under the name the file carries on the phone —
             which is a person's own word and stays as it is. */}
         {order.ownTrack ? (
-          <RowTrack title={order.ownTrack.name} length={s.montage.ownTrackShort} selected divider />
+          <RowTrack title={order.ownTrack.name} length={s.montage.ownTrackShort} wave divider />
         ) : null}
       </View>
 

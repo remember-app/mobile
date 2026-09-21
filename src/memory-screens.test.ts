@@ -308,19 +308,15 @@ test('the sheet is one flat list of headings and strips, never a three-column gr
   expect(frames).toContain('[kept, sort],');
 });
 
-test('the heading over a strip says what is under it, and holds one thing at its right edge', () => {
-  const daymark = frames.slice(frames.indexOf('<DayMark'), frames.indexOf('</DayMark>'));
-  // Four kinds of heading, one component, and which one it is comes from the group itself.
+test('the seam over a strip says what is under it, and takes the whole day while picking', () => {
+  const daymark = frames.slice(frames.indexOf('<DayMark'), frames.indexOf('/>', frames.indexOf('<DayMark')));
+  // Three kinds of seam, one component, and which one it is comes from the group itself.
   expect(daymark).toContain('{...headingOf(group)}');
-  // «Правый край всегда занят чем-то одним: числом в обычном виде, „Выбрать все 174“ в режиме
-  // выбора» — one slot, a ternary on the mode and never both at once.
-  expect(daymark).toContain('count={picking ? undefined : s.memory.frames(group.frames.length)}');
-  expect(daymark).toContain('{picking ? (');
-  expect(daymark).toContain('label={s.gallery.selectDay(markable.length)}');
-  // `FramesPicking` draws it as the small bordered pill, never as the glowing one: the ember on
-  // this face belongs to the footer's one action.
-  expect(daymark).toContain('variant="small"');
-  expect(daymark).not.toContain('variant="primary"');
+  // Spec 7.8 — the band itself is the button while the mode is on: «Выбрать все 174» is no longer
+  // a pill hanging off the right edge, so the count stays where it is and the press wraps it.
+  expect(daymark).toContain('picking ? markable.length : group.frames.length');
+  expect(daymark).toContain('onPress={');
+  expect(daymark).toContain('pressLabel={s.gallery.selectDay(markable.length)}');
 });
 
 test('a heading is a day, a person with their circle, or one of the two kinds', () => {
@@ -333,15 +329,17 @@ test('a heading is a day, a person with their circle, or one of the two kinds', 
   expect(heading).toContain("organizer: who?.role === 'organizer'");
   // The material's one word counts every kind of group, «174 кадра» over a day and over a person
   // alike (TASK-76's key).
-  expect(frames).toContain('s.memory.frames(group.frames.length)');
+  expect(frames).toContain('group.frames.length');
+  expect(frames).toContain('s.memory.frames(');
 });
 
 test('«Выбрать все N» counts and marks the frames a tap could reach, and only adds', () => {
   // The count, the gate and the press all read the one list, so the button cannot say «9» and mark
   // eight. The rule itself is `mayPick` — the same one the single tap is gated on.
   expect(frames).toContain('const markable = group.frames.filter(mayPick);');
-  expect(frames).toContain('disabled={markable.length === 0}');
-  expect(frames).toContain('onPress={() => pickDay(markable)}');
+  // A seam with nothing a tap could reach takes no press at all — the same answer the footer
+  // gives to the same emptiness, and the band is the press now (spec 7.8).
+  expect(frames).toContain('picking && markable.length > 0 ? () => pickDay(markable) : undefined');
   // Never unmarks: what is marked on another day stays marked, and taking a mark off is a second
   // tap on the frame or the footer's «Снять».
   const pickDay = frames.slice(frames.indexOf('function pickDay'));
@@ -517,8 +515,9 @@ test('every row says how many frames that person brought, counted off the galler
   // to the roster. Found in review: never counted earns the dash, counted-then-lost does not.
   expect(people).not.toContain('setShots(null)');
   expect(people).toContain('() => {},');
-  // `spark` belongs to «Всё загрузил» alone (spec 1.2): that mark is what the organizer scans for.
-  expect(people).toContain("member.contribution_status === 'done'");
+  // `spark` belongs to «Всё загрузил» alone (spec 1.2): that mark is what the organizer scans for,
+  // and spec 7.4 leaves the circle two states — brought, or still coming.
+  expect(people).toContain('hasShared(member.contribution_status) ? \'done\' : \'planned\'');
   expect(people).toContain('<BadgeContribution');
 });
 
@@ -530,13 +529,13 @@ test('one’s own standing is the chip that sets it, standing where the word wou
   expect(people.indexOf('status={')).toBeLessThan(people.indexOf('label={s.members.sayNothing}'));
   expect(people).not.toContain('icon={Check}');
   expect(people).not.toContain('styles.own');
-  // The row is held to the spec's own height (7.5: a 42 circle with 11 above and below), so
-  // nothing that goes into it — the chip, the cross, a bare word — can change how tall it is.
-  expect(member).toContain('minHeight: height.row');
-  // And the cross beside the name is the 36 round one, with its column held open where the
-  // organizer looks at their own row and there is no cross to draw.
+  // The row is held to the spec's own height (7.5: a member stands 56), so nothing that goes into
+  // it — the chip, the cross, a bare circle — can change how tall it is.
+  expect(member).toContain('minHeight: 56');
+  // And spec 10.8.4 gives the right edge one thing at a time: while the roster is being edited
+  // that thing is the 36 cross, and on one's own row it is never the cross.
   expect(people).toContain('size={36}');
-  expect(people).toContain('styles.noCross');
+  expect(people).toContain("editing && role === 'organizer' && !self ? (");
 });
 
 test('the order button waits for the list it prepends to', () => {
@@ -649,9 +648,8 @@ test('a card still being made is the second road onto the waiting over it', () =
   // placed the order. A card saying «Собирается» in the list did nothing under a finger, so anybody
   // who walked out of the waiting, or came back to the app an hour later, could not get back to
   // where the making had got to.
-  expect(films).toContain(
-    'onPress={beingMade(montage.status) ? () => watchMaking(montage) : undefined}',
-  );
+  expect(films).toContain('beingMade(montage.status)');
+  expect(films).toContain('() => watchMaking(montage)');
   const leads = films.slice(films.indexOf('const watchMaking'));
   const road = leads.slice(0, leads.indexOf('});'));
   // A push and not a replace: the face is what that screen's own `back()` comes home to.
@@ -663,11 +661,10 @@ test('a card still being made is the second road onto the waiting over it', () =
   expect(road).not.toContain('frames');
   expect(progress).toContain('frames?: string;');
 
-  // The other two states are untouched: a finished montage is watched where it lies and a fallen one
-  // is started again from its own button, both by the presses they already had.
-  expect(films).toContain(
-    'onPlay={montage.video_url === null ? undefined : () => setPlaying(montage.id)}',
-  );
+  // The other two states keep their own roads: a finished montage is watched where it lies — spec
+  // 7.6 gives the whole card to that press now, rather than a play circle inside it — and a fallen
+  // one is started again from its own button.
+  expect(films).toContain('() => setPlaying(montage.id)');
   expect(films).toContain('onPress={() => void retry(montage)}');
   // And the kit is what makes that true: without a press handed over, the card is not a button and
   // takes no finger at all.
@@ -745,18 +742,18 @@ test('a ready montage shows its own still, and one without a still keeps the pla
   expect(cardMontage).toContain('source={{ uri: poster }}');
 });
 
-test('the montage’s card is the shape of the montage, and the still fills it', () => {
-  // TASK-135 gave a standing montage a taller frame; TASK-178 made the card the video's own shape
-  // instead of one the card picked — 4:5 with the still shown inside it left black strips down both
-  // sides of a 9:16 poster, which is the opposite of what a card is for. The shape is the screen's
-  // to hand over — the card asks the api for nothing — and it comes off the orientation that was
-  // ordered (TASK-126), so the card is right from the queued one onwards and nothing jumps when the
-  // still lands. `cover` is what fills it: the frame and the box are the same shape, so nothing is
-  // cropped off either. Pinned here because the card's own test reads rendered markup, where the
-  // styles are compiled-away hashes.
-  expect(films).toContain('ratio={shapeOf(montage.params.orientation)}');
-  expect(cardMontage).toContain("style={[styles.poster, { aspectRatio: ratio ?? WIDE }]}");
+test('the montage’s card is the poster, and the still fills it', () => {
+  // TASK-135 gave a standing montage a taller frame and TASK-178 made the card the video's own
+  // shape; the new layout (spec 7.6) settles it differently again — the card is a fixed poster,
+  // 232 × 148 in the strip and 196 across when it is the screen, and the shape of the film is said
+  // in words on the order's own poster instead of being drawn by a card in a list. `cover` is what
+  // fills it. Pinned here because the card's own test reads rendered markup, where the styles are
+  // compiled-away hashes.
+  expect(cardMontage).toContain('const CARD = { width: 232, height: 148 };');
+  expect(cardMontage).toContain('const LARGE = 196;');
   expect(cardMontage).toContain('contentFit="cover"');
+  // And a montage still being cut shows its own frame out of focus rather than no frame at all.
+  expect(cardMontage).toContain('blurRadius={ready ? 0 : BLUR}');
 });
 
 test('the films face reads again by itself while a montage is being cut', () => {

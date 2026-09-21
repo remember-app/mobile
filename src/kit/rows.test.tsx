@@ -1,6 +1,8 @@
-import { Copy } from 'lucide-react-native';
+import { Copy, Pause, Play, Plus, X } from 'lucide-react-native';
 import { beforeAll, expect, test } from 'vitest';
 
+import { BadgeDecision } from '@/kit/badge';
+import { IconButton } from '@/kit/button';
 import { AvatarStack } from '@/kit/member';
 import {
   RowAction,
@@ -9,13 +11,14 @@ import {
   RowStep,
   RowSummary,
   RowTrack,
+  StepNote,
   Waveform,
   type StepState,
 } from '@/kit/rows';
 import { allDifferent, story } from '@/kit/story';
 import { setTheme } from '@/theme';
 
-/** Spec 7.6 — the rows, each of them one line of a list somewhere in the product. */
+/** Spec 7.7 — the rows, each of them one line of a list somewhere in the product. */
 
 beforeAll(async () => {
   await setTheme('dark');
@@ -33,24 +36,30 @@ test('a summary row is a way back to the step that settled it', () => {
   });
 });
 
-test('picking a track makes it grow rather than tick it', () => {
+test('a track row is a row, and what picks it is the button on its right', () => {
+  const take = <IconButton size={36} icon={Plus} label="Добавить «Яркая»" />;
   allDifferent({
-    plain: <RowTrack title="Яркая" length="2:14" onPress={() => {}} divider />,
-    picked: <RowTrack title="Яркая" length="2:14" selected onPress={() => {}} />,
-    playing: <RowTrack title="Яркая" length="2:14" selected playing at={0.4} onPress={() => {}} />,
+    plain: <RowTrack title="Яркая" length="2:14" play={<IconButton size={40} icon={Play} label="Послушать" />} action={take} divider />,
+    playing: <RowTrack title="Яркая" length="2:14" playing play={<IconButton size={40} icon={Pause} label="Стоп" />} action={take} />,
+    chosen: <RowTrack title="Яркая" length="2:14" wave play={<IconButton size={36} icon={Play} label="Послушать" tone="paper" />} action={<IconButton size={36} icon={X} label="Убрать" />} />,
   });
-  // The waveform only opens under the one that was picked: sixteen bars, and none before that.
-  const bars = (markup: string) => (markup.match(/height:\d+px/g) ?? []).length;
-  expect(bars(story(<RowTrack title="Яркая" length="2:14" onPress={() => {}} />))).toBe(0);
-  expect(bars(story(<RowTrack title="Яркая" length="2:14" selected onPress={() => {}} />))).toBe(16);
+  // The row itself picks nothing — several tracks can be taken, and a row that was the switch
+  // could not say that.
+  expect(story(<RowTrack title="Яркая" length="2:14" />)).not.toContain('role="button"');
+  // The name goes `spark` while it is sounding, and nothing else in the row moves. The colour is
+  // a compiled class here (`story.tsx`), so what is asked is that the two are not the same row.
+  expect(story(<RowTrack title="Яркая" length="2:14" playing />)).not.toBe(
+    story(<RowTrack title="Яркая" length="2:14" />),
+  );
 });
 
-test('the waveform paints what has been heard and leaves the rest alone', () => {
-  allDifferent({
-    start: <Waveform at={0} />,
-    middle: <Waveform at={0.5} />,
-    end: <Waveform at={1} />,
-  });
+test('the waveform is a drawing, at the two sizes the layout gives it', () => {
+  const bars = (markup: string) => (markup.match(/height:\d+px/g) ?? []).length;
+  // Twelve in a row, twenty in the summary (spec 7.10) — and it never opens under a plain row.
+  expect(bars(story(<Waveform />))).toBe(12);
+  expect(bars(story(<Waveform wide />))).toBe(20);
+  expect(bars(story(<RowTrack title="Яркая" length="2:14" />))).toBe(0);
+  expect(bars(story(<RowTrack title="Яркая" length="2:14" wave />))).toBe(12);
 });
 
 test('a reason the pass dropped frames reports, and offers them back', () => {
@@ -62,25 +71,55 @@ test('a reason the pass dropped frames reports, and offers them back', () => {
   expect(row).toContain('data-glyph');
 });
 
-test('the four states of a build step are four states, and three of them say a word', () => {
+test('the four states of a build step are four states, and three of them lead somewhere', () => {
   const states: StepState[] = ['done', 'running', 'waiting', 'failed'];
-  const words: Record<StepState, string | undefined> = {
-    done: 'готово',
-    running: 'идёт',
+  const metas: Record<StepState, string | undefined> = {
+    done: '212 из 214 годятся · 1 мин',
+    running: '61 из 212 разложено · идёт 4 мин',
     waiting: undefined,
-    failed: 'не вышло',
+    failed: 'оборвалось на 3 минуте',
   };
   allDifferent(
     Object.fromEntries(
       states.map((state) => [
         state,
-        <RowStep title="Режиссёр строит историю" state={state} word={words[state]} />,
+        <RowStep
+          title="Режиссёр строит историю"
+          state={state}
+          meta={metas[state]}
+          onPress={() => {}}
+        />,
       ]),
     ),
   );
-  // The one that is waiting says nothing on the right: there is nothing yet to report.
-  expect(story(<RowStep title="Склейка" state="waiting" />)).not.toContain('готово');
-  expect(story(<RowStep title="Склейка" state="running" word="идёт" />)).toContain('идёт');
+  // Spec 7.7 — a stage still ahead is not a road: no second line, no chevron, and no press.
+  const ahead = story(
+    <RowStep title="Дальше: ритм трека · склейка" state="waiting" onPress={() => {}} />,
+  );
+  expect(ahead).not.toContain('role="button"');
+  expect(story(<RowStep title="Отсев брака" state="done" meta="1 мин" onPress={() => {}} />)).toContain(
+    'role="button"',
+  );
+});
+
+test('the stage in hand opens out, and the ones around it do not', () => {
+  const open = (
+    <RowStep title="Режиссёр строит историю" state="running" meta="61 из 212" open onPress={() => {}}>
+      <StepNote
+        uri="https://bucket.example/f10.jpg"
+        length="0:12"
+        text="Марк роняет кольцо — живой момент, беру 3 секунды"
+        mark={<BadgeDecision kind="take" label="Беру" />}
+      />
+    </RowStep>
+  );
+  const shut = (
+    <RowStep title="Режиссёр строит историю" state="running" meta="61 из 212" onPress={() => {}} />
+  );
+  allDifferent({ open, shut });
+  expect(story(open)).toContain('Марк роняет кольцо');
+  // A record handed to a stage that is not opened is not drawn at all.
+  expect(story(shut)).not.toContain('Марк роняет кольцо');
 });
 
 test('a sheet’s dangerous action is the only red line on it', () => {

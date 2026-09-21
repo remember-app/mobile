@@ -7,14 +7,14 @@ import { Image } from 'expo-image';
 import { Check, ImageIcon, Play, X } from 'lucide-react-native';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { duration as motion, photo, radius, space, themed, useTheme } from '@/theme';
+import { duration as motion, font, photo, radius, space, themed, useTheme } from '@/theme';
 
 import { Spinner } from './empty';
 import { Icon, type IconComponent } from './icon';
 import { useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
 import { Text } from './text';
 
-/** What has become of one frame (spec 7.7). */
+/** What has become of one frame (spec 7.8). */
 export type TileState = 'ready' | 'processing' | 'failed';
 
 /**
@@ -26,20 +26,33 @@ export type TileState = 'ready' | 'processing' | 'failed';
 export type PickKind = 'send' | 'keep' | 'off' | 'auto' | 'hand';
 
 /**
- * The gutter between two frames of the grid, and the whole of what stands between them. Here rather
- * than in either screen that draws a grid: both have to work a column width out of it, and a gutter
- * of two minds would tell them two different widths.
+ * The two grids a frame stands in (spec 7.8). They are not one grid at two sizes: the memory's own
+ * feed runs edge to edge with the frames nearly touching and no rounding at all, because there the
+ * photographs *are* the screen; the wizard and the send queue stand inside the screen's own 16 with
+ * a hair more air and a 4 radius, because there a frame is a thing being picked out of a list.
  */
-export const GRID_GAP = 3;
+export type TileLane = 'feed' | 'pick';
 
 /**
- * One frame of the grid (spec 7.7). It fills whatever column it is given and stays square. Nothing
- * here is pressable unless `onPress` is passed — a frame still developing is not a button.
+ * The gutter between two frames, one per lane, and the whole of what stands between them. Here
+ * rather than in the screens that draw a grid: each has to work a column width out of it, and a
+ * gutter of two minds would tell them two different widths.
+ */
+export const GRID_GAP = 3;
+export const FEED_GAP = 2;
+
+/**
+ * One frame of the grid (spec 7.8). It fills whatever column it is given and stays square — at 390
+ * that is 129 across the feed and 117 inside the wizard, which is where those two numbers in the
+ * spec come from. Nothing here is pressable unless `onPress` is passed: a frame still developing is
+ * not a button.
  */
 export function Tile({
   state,
   uri,
+  lane = 'pick',
   pick,
+  ring,
   length,
   reason,
   caption,
@@ -49,8 +62,16 @@ export function Tile({
 }: {
   state: TileState;
   uri?: string;
+  /** Which grid this one stands in — it settles the rounding and the size of the circle. */
+  lane?: TileLane;
   /** The circle in the corner. Left off, the frame is not in a picking mode at all. */
   pick?: PickKind;
+  /**
+   * The send queue's own frame around a picked file (spec 7.4): 3px of `accent` inset over the
+   * picture. Only there — in the feed a picked frame is told by the darkening alone, and in the
+   * wizard by the circle.
+   */
+  ring?: boolean;
   /** A video's running time as the screen writes it, «0:24». */
   length?: string;
   /** Why the automatic pass dropped this one: a glyph and a word, «Размыто» / «Дубль» / «Темно». */
@@ -110,29 +131,32 @@ export function Tile({
         </View>
       ) : null}
 
-      {length && state === 'ready' && !reason ? <FrameMark length={length} /> : null}
-      {reason ? <FrameMark icon={reason.icon} label={reason.label} /> : null}
+      {length && state === 'ready' && !reason ? <FrameMark length={length} lane={lane} /> : null}
+      {reason ? <FrameMark icon={reason.icon} label={reason.label} lane={lane} /> : null}
+
+      {/* Spec 7.4 — a picked frame goes down under a scrim so the circle on it stays the brightest
+          thing in the square. */}
+      {picked ? (
+        <View testID="tile-scrim" pointerEvents="none" style={[StyleSheet.absoluteFill, styles.scrim]} />
+      ) : null}
 
       {/* A layer over the picture rather than a border on the tile itself: a border comes out of the
           tile's own box, which in the grid would make a picked frame narrower than its neighbours. */}
-      {picked ? (
+      {ring && picked ? (
         <View
           testID="tile-ring"
           pointerEvents="none"
-          style={[
-            StyleSheet.absoluteFill,
-            styles.ring,
-            { borderColor: pick === 'send' ? color.accent : color.spark },
-          ]}
+          style={[StyleSheet.absoluteFill, styles.ring, { borderColor: color.accent }]}
         />
       ) : null}
 
-      {pick && pick !== 'auto' ? <PickCircle kind={pick} /> : null}
+      {pick && pick !== 'auto' ? <PickCircle kind={pick} size={lane === 'feed' ? 24 : 22} /> : null}
     </>
   );
 
   const frame: StyleProp<ViewStyle> = [
     styles.tile,
+    lane === 'feed' ? styles.feed : null,
     state === 'processing' ? styles.processing : null,
     state === 'failed' ? styles.broken : null,
     style,
@@ -164,60 +188,86 @@ export function Tile({
 }
 
 /**
- * Spec 7.4 — the 22 circle in the top right corner of a tile, 6 in from the edge. Its own component
- * because it is its own detail: the same circle stands on a frame going to the server and on a frame
- * being taken home, and only the colour tells those two apart.
+ * Spec 7.4 — the circle that says a frame has been picked, in the three sizes the layout draws it
+ * at: 24 in the corner of a feed frame, 22 in the wizard and the send queue, 13 inside a day gap.
+ * Its own component because it is its own detail: the same circle stands on a frame going to the
+ * server and on a frame being taken home, and only the colour tells those two apart.
+ *
+ * The 13 is the one that does not lie on a photograph, so it is drawn in the theme's own ink rather
+ * than in the white a picture needs underneath it.
  */
-export function PickCircle({ kind }: { kind: Exclude<PickKind, 'auto'> }) {
+export function PickCircle({
+  kind,
+  size = 22,
+}: {
+  kind: Exclude<PickKind, 'auto'>;
+  size?: 24 | 22 | 13;
+}) {
   const { color } = useTheme();
   const styles = useStyles();
+  const tiny = size === 13;
+  const tick = tiny ? 8 : 13;
 
   return (
     <View
       pointerEvents="none"
       style={[
         styles.pick,
-        kind === 'send' ? { backgroundColor: color.accent } : null,
+        { width: size, height: size },
+        tiny ? null : styles.pickCorner,
+        kind === 'send' ? [styles.pickSend, { backgroundColor: color.accent }] : null,
+        kind === 'send' && tiny ? styles.pickBare : null,
         kind === 'keep' ? { backgroundColor: color.spark } : null,
-        kind === 'off' ? styles.pickOff : null,
+        kind === 'off' ? (tiny ? { borderWidth: 1.5, borderColor: color.faint } : styles.pickOff) : null,
         kind === 'hand' ? [styles.pickHand, { borderColor: color.lineStrong }] : null,
       ]}
     >
-      {kind === 'send' ? <Icon icon={Check} size={13} color={color.onFill} /> : null}
-      {kind === 'keep' ? <Icon icon={Check} size={13} color={color.sparkInk} /> : null}
-      {kind === 'hand' ? <Icon icon={X} size={13} color={color.muted} /> : null}
+      {kind === 'send' ? <Icon icon={Check} size={tick} color={color.onFill} /> : null}
+      {kind === 'keep' ? <Icon icon={Check} size={tick} color={color.sparkInk} /> : null}
+      {kind === 'hand' ? <Icon icon={X} size={tick} color={color.muted} /> : null}
     </View>
   );
 }
 
 /**
- * Spec 7.4 — the mark in the bottom left corner of a tile: either a video's running time, or the
- * reason the automatic pass dropped the frame. The reason's plate is denser and runs the whole width
- * of the tile, because a word has to be read at 10px over somebody's photograph.
+ * Spec 7.4 — the mark in the bottom corner of a tile: either a video's running time, or the reason
+ * the automatic pass dropped the frame.
+ *
+ * The running time carries no plate in the feed at all — a shadow on the letters is enough, and a
+ * plate under every video would be a grid of dark rectangles. In the wizard, where the frames stand
+ * apart on their own, it gets the plate back. The reason's plate is denser still and runs the whole
+ * width, because a word has to be read at 10px over somebody's photograph.
  */
 export function FrameMark({
   length,
   icon,
   label,
+  lane = 'pick',
 }: {
   length?: string;
   icon?: IconComponent;
   label?: string;
+  lane?: TileLane;
 }) {
   const styles = useStyles();
+  const bare = lane === 'feed' && !label;
 
   return (
-    <View style={[styles.mark, label ? styles.markWide : null]}>
+    <View style={[styles.mark, bare ? styles.markBare : null, label ? styles.markWide : null]}>
       <Icon
         icon={icon ?? Play}
-        size={length ? 10 : 11}
+        size={length ? 9 : 11}
         color={photo.on}
         fill={length ? photo.on : undefined}
       />
       <Text
         role="meta"
         numberOfLines={1}
-        style={[styles.markText, label ? styles.markTextSm : null]}
+        style={[
+          styles.markText,
+          bare ? styles.markShadow : null,
+          label ? styles.markTextSm : null,
+        ]}
       >
         {length ?? label}
       </Text>
@@ -234,6 +284,8 @@ const useStyles = themed(({ color }) =>
       overflow: 'hidden',
       backgroundColor: color.surface,
     },
+    // Spec 7.8: in the feed the photographs run together and nothing is rounded off them.
+    feed: { borderRadius: 0 },
     processing: { borderWidth: 1, borderColor: color.line },
     broken: { backgroundColor: color.raise },
     image: { width: '100%', height: '100%' },
@@ -241,18 +293,15 @@ const useStyles = themed(({ color }) =>
     down: { opacity: 0.32 },
     state: { alignItems: 'center', justifyContent: 'center', gap: 6, padding: space.s2 },
     caption: { textAlign: 'center' },
-    ring: { borderWidth: 3, borderRadius: radius.tile, backgroundColor: photo.picked },
-    pick: {
-      position: 'absolute',
-      top: 6,
-      right: 6,
-      width: 22,
-      height: 22,
-      borderRadius: radius.pill,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    pickOff: { backgroundColor: photo.pickOff, borderWidth: 1.5, borderColor: photo.pickEdge },
+    scrim: { backgroundColor: photo.picked },
+    ring: { borderWidth: 3, borderRadius: radius.tile },
+    pick: { borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
+    pickCorner: { position: 'absolute', top: 6, right: 6 },
+    // The 24 in the feed carries a white collar so it is read over any photograph; the 13 in a day
+    // gap stands on the screen's own ink and needs none.
+    pickSend: { borderWidth: 2, borderColor: photo.on },
+    pickBare: { borderWidth: 0 },
+    pickOff: { backgroundColor: photo.pickOff, borderWidth: 2, borderColor: photo.pickEdge },
     pickHand: { backgroundColor: photo.pickHand, borderWidth: 1 },
     mark: {
       position: 'absolute',
@@ -261,14 +310,17 @@ const useStyles = themed(({ color }) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: 4,
-      paddingVertical: 2,
-      paddingHorizontal: 6,
+      paddingVertical: 3,
+      paddingHorizontal: 7,
       borderRadius: radius.pill,
       backgroundColor: photo.mark,
     },
+    // In the feed the timecode stands at the right edge and owns no surface at all.
+    markBare: { left: undefined, right: 7, bottom: 6, gap: 3, padding: 0, backgroundColor: undefined },
     // The reason runs the width of the tile — a word needs the room a timecode does not.
-    markWide: { right: 5, backgroundColor: photo.markStrong },
-    markText: { color: photo.on, fontSize: 11 },
+    markWide: { left: 0, right: 0, bottom: 0, borderRadius: 0, justifyContent: 'center', backgroundColor: photo.markStrong },
+    markText: { color: photo.on, fontSize: 11, fontFamily: font.semi },
+    markShadow: { textShadowColor: 'rgba(0,0,0,0.7)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
     markTextSm: { color: color.muted, fontSize: 10 },
   }),
 );

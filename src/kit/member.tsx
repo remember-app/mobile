@@ -117,61 +117,56 @@ const stack = StyleSheet.create({
 });
 
 /**
- * Spec 7.5 — a person inside a memory: the circle, their name with whatever badge the screen hangs
- * on it, a second line saying who they are and what they have brought, and on the right the mark of
- * their contribution. Rows are separated by a hairline, which React Native has no sibling selector
- * for — so a list passes `divider` on every row but the first.
+ * Spec 7.5 — a person inside a memory: the circle, their name, a second line of what they have
+ * brought, and one mark at the right edge. Rows are separated by a hairline, which React Native has
+ * no sibling selector for — so a list passes `divider` on every row but the first.
  *
- * The second line runs the full width *under* the badge and the mark rather than in what is left
- * beside them: a whole phrase about someone's standing has nowhere else to live.
+ * The right edge holds exactly one thing and the screen says which: the 28 contribution circle,
+ * the 44 button that is your own standing, or — while the roster is being edited — the 36 cross
+ * that takes this person out (spec 10.8.4). They replace each other rather than queue up, because
+ * two marks in a 56 row is a row nobody can scan.
+ *
+ * Nobody's role is written out here. The organizer is told by the `spark` collar on their circle
+ * and by nothing else: «Организатор» beside a name that already wears the ring is the same word
+ * said twice.
  */
 export function RowMember({
   name,
   meta,
-  badge,
   status,
   divider,
   gone,
   uri,
   ring,
-  children,
 }: {
   name: string;
-  /** «@marina.k · Добавление · 54 кадра» — assembled by the screen, because every part of it is a word. */
+  /** «128 кадров» — written by the screen, because every part of it is a word. */
   meta?: string;
-  /** The «Организатор» badge, when this is the organizer. */
-  badge?: ReactNode;
-  /** The 28 mark of what they have contributed, on the right. */
+  /** The one mark at the right edge: the contribution circle, your own button, or the cross. */
   status?: ReactNode;
   divider?: boolean;
   gone?: boolean;
   uri?: string | null;
   /** The `spark` collar: the organizer, and yourself. */
   ring?: boolean;
-  /** Anything the screen puts at the end of the name line — a cross, a small button. */
-  children?: ReactNode;
 }) {
   const styles = useStyles();
 
   return (
     <View>
-      {divider ? <Divider /> : null}
-      <View style={styles.row}>
-        <Avatar name={name} size={42} uri={uri} ring={ring} gone={gone} />
+      {divider ? <Divider soft style={styles.inset} /> : null}
+      <View style={styles.member}>
+        <Avatar name={name} size={38} uri={uri} ring={ring} gone={gone} />
         <View style={styles.rowWords}>
-          <View style={styles.rowLine}>
-            <Text role="row" tone={gone ? 'faint' : 'paper'} numberOfLines={1} style={styles.grow}>
-              {name}
-            </Text>
-            {badge}
-          </View>
+          <Text role="row" tone={gone ? 'faint' : 'paper'} numberOfLines={1}>
+            {name}
+          </Text>
           {meta ? (
             <Text role="meta" numberOfLines={1}>
               {meta}
             </Text>
           ) : null}
         </View>
-        {children}
         {status}
       </View>
     </View>
@@ -243,6 +238,17 @@ const useStyles = themed(({ color }) =>
       gap: space.s3,
       paddingVertical: 11,
     },
+    // Spec 7.5: a member stands 56 to a contact's 64 — inside a memory the list is long and the
+    // circle is smaller, so the row closes up with it.
+    member: {
+      minHeight: 56,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: space.s3,
+      paddingHorizontal: 14,
+    },
+    // The hairline starts where the words do, not where the circle does.
+    inset: { marginLeft: 64 },
     card: {
       paddingHorizontal: space.s3,
       backgroundColor: color.surface,

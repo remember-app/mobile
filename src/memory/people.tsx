@@ -30,7 +30,6 @@ import {
   Button,
   Chip,
   BadgeContribution,
-  BadgeOrganizer,
   ConfirmSheet,
   Divider,
   Empty,
@@ -373,45 +372,30 @@ export function People({ id, head }: { id: string; head: Head }) {
                       .filter(Boolean)
                       .join(' · ')}
                     ring={member.role === 'organizer'}
-                    badge={
-                      member.role === 'organizer' ? (
-                        <BadgeOrganizer label={s.role[member.role]} sm />
-                      ) : null
-                    }
+                    // Spec 10.8.4 — the right edge holds one thing, and while the roster is being
+                    // edited that thing is the cross. Never on one's own row: the organizer does
+                    // not take themselves out, so their own standing stays where it was.
                     status={
-                      mine ? (
+                      editing && role === 'organizer' && !self ? (
+                        <IconButton
+                          size={36}
+                          icon={X}
+                          tone="danger"
+                          label={s.members.remove(memberName(member))}
+                          onPress={() => setDropping(member)}
+                          disabled={busy}
+                        />
+                      ) : mine ? (
                         <Chip label={s.members.sayNothing} onPress={sayNothing} disabled={busy} />
                       ) : (
                         <BadgeContribution
-                          state={
-                            member.contribution_status === 'done'
-                              ? 'done'
-                              : member.contribution_status === 'nothing'
-                                ? 'nothing'
-                                : 'planned'
-                          }
+                          state={hasShared(member.contribution_status) ? 'done' : 'planned'}
                           label={s.standing[member.contribution_status]}
                         />
                       )
                     }
                     divider={index > 0}
-                  >
-                    {/* The cross of the editing mode, drawn small so it stands inside a line of
-                        text rather than over it. On the organizer's own row there is none — and the
-                        column is held open anyway, so the marks of a stack that has crosses stand at
-                        one depth instead of stepping in and out. */}
-                    {!editing || role !== 'organizer' ? null : self ? (
-                      <View style={styles.noCross} />
-                    ) : (
-                      <IconButton
-                        size={36}
-                        icon={X}
-                        label={s.members.remove(memberName(member))}
-                        onPress={() => setDropping(member)}
-                        disabled={busy}
-                      />
-                    )}
-                  </RowMember>
+                  />
                 );
               })}
             </View>
@@ -606,8 +590,6 @@ const styles = StyleSheet.create({
   section: { gap: space.s2 },
   // Spec 7.3: chips lie in a row that wraps, 8 apart.
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.s2 },
-  // The kit's `minmax(28px,auto)` last column, kept open where there is no cross to put in it.
-  noCross: { width: 28 },
   quiet: { alignSelf: 'flex-start' },
   // The link and what the sheet offers to do with it, side by side.
   link: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },

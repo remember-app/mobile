@@ -2,13 +2,14 @@ import { beforeAll, expect, test } from 'vitest';
 
 import { BadgeMontage } from '@/kit/badge';
 import { Button } from '@/kit/button';
-import { CardMontage } from '@/kit/card-montage';
+import { CardMontage, CardMontageNew, EmptyMontages } from '@/kit/card-montage';
 import { allDifferent, story } from '@/kit/story';
 import { setTheme } from '@/theme';
 
-/** Spec 7.6 — a montage, whose three states are three different bodies. */
+/** Spec 7.6 — the strip of montages over a memory's feed: a card, the way to start one, and none. */
 
 const POSTER = 'https://bucket.example/poster.jpg';
+const SHOTS = ['https://bucket.example/1.jpg', 'https://bucket.example/2.jpg'];
 
 beforeAll(async () => {
   await setTheme('dark');
@@ -18,28 +19,25 @@ test('ready, building and broken are three cards and not three colours of one', 
   allDifferent({
     ready: (
       <CardMontage
-        title="Свадьба — минута"
-        meta="13 сентября · горизонтальный · Яркая"
+        title="Ролик на 1:00"
+        meta="14 сентября · Тёплая"
         state="ready"
         poster={POSTER}
-        length="1:04"
         badge={<BadgeMontage state="ready" label="Готов" />}
-      >
-        <Button variant="secondary" size="sm" label="Сохранить и поделиться" />
-      </CardMontage>
+      />
     ),
     pending: (
       <CardMontage
-        title="Свадьба — минута"
+        title="Ролик на 2:00"
         state="pending"
-        caption="Мы сообщим, когда будет готов"
+        poster={POSTER}
         badge={<BadgeMontage state="pending" label="Собирается" />}
-        step={{ done: 3, of: 5, label: 'Режиссёр строит историю', count: '3 из 5' }}
+        step={{ done: 3, of: 5, count: '3 из 5' }}
       />
     ),
     failed: (
       <CardMontage
-        title="Свадьба — минута"
+        title="Ролик на 2:00"
         state="failed"
         caption="Сборка оборвалась на полпути"
         badge={<BadgeMontage state="failed" label="Не собрался" />}
@@ -47,58 +45,84 @@ test('ready, building and broken are three cards and not three colours of one', 
         <Button variant="secondary" size="sm" label="Повторить" />
       </CardMontage>
     ),
+    large: (
+      <CardMontage
+        title="Ролик на 2:30"
+        meta="2:30 · 16:9"
+        state="ready"
+        poster={POSTER}
+        large
+        badge={<BadgeMontage state="ready" label="Готов" />}
+      />
+    ),
   });
 });
 
-test('a card still building shows no poster at all — there is nothing yet to show', () => {
+test('a card still being cut shows its own frame out of focus rather than no frame at all', () => {
   const pending = story(
-    <CardMontage
-      title="Свадьба"
-      state="pending"
-      caption="Мы сообщим, когда будет готов"
-      step={{ done: 3, of: 5, label: 'Режиссёр строит историю', count: '3 из 5' }}
-    />,
+    <CardMontage title="Ролик" state="pending" poster={POSTER} step={{ done: 3, of: 5, count: '3 из 5' }} />,
   );
-  expect(pending).not.toContain('data-testid="image"');
-  // The stage is named rather than counted: «73 %» tells a person nothing, this does.
-  expect(pending).toContain('Режиссёр строит историю');
+  const ready = story(<CardMontage title="Ролик" state="ready" poster={POSTER} />);
+  // Same still, drawn differently: there is something there and it is not ready to be looked at.
+  expect(pending).not.toBe(ready);
   expect(pending).toContain('3 из 5');
 });
 
-test('a ready card carries its own still, and one without a still keeps the placeholder', () => {
-  const withPoster = story(<CardMontage title="Свадьба" state="ready" poster={POSTER} />);
-  const without = story(<CardMontage title="Свадьба" state="ready" poster={null} />);
-  expect(withPoster).not.toBe(without);
-  expect(withPoster).toContain('1:04'.slice(0, 0) + 'Свадьба');
+test('the scale of five says how far along, and the done ones are spark', () => {
+  const scale = story(
+    <CardMontage title="Ролик" state="pending" step={{ done: 3, of: 5, count: '3 из 5' }} />,
+  );
+  expect(scale).toContain('role="progressbar"');
+  // Five bars and not four: the scale says «of five» by being five, whatever the count beside it
+  // reads. The bars are the only children it has, so counting them is counting these.
+  const bars = scale.slice(scale.indexOf('role="progressbar"'));
+  expect((bars.match(/<div class="css-view/g) ?? []).length).toBe(5);
+  allDifferent({
+    started: <CardMontage title="Ролик" state="pending" step={{ done: 1, of: 5, count: '1 из 5' }} />,
+    nearly: <CardMontage title="Ролик" state="pending" step={{ done: 4, of: 5, count: '4 из 5' }} />,
+  });
 });
 
-test('the card takes the montage’s own shape, whichever way up it was cut', () => {
-  // TASK-135 gave a standing montage a taller frame than a lying one; TASK-178 made it the video's
-  // own shape rather than a shape of the card's choosing — 9:16 stood up, 16:9 laid down, and the
-  // still fills it to the edges. The shape is the screen's to hand over and comes off the
-  // orientation that was ordered, so the card is right from the queued one onwards and nothing
-  // jumps when the still lands.
-  allDifferent({
-    wide: <CardMontage title="Свадьба" state="ready" poster={POSTER} ratio={16 / 9} />,
-    tall: <CardMontage title="Свадьба" state="ready" poster={POSTER} ratio={9 / 16} />,
-  });
-  // And a card told nothing is the wide one — the orientation an order that named none was cut in.
-  expect(story(<CardMontage title="Свадьба" state="ready" poster={POSTER} />)).toBe(
-    story(<CardMontage title="Свадьба" state="ready" poster={POSTER} ratio={16 / 9} />),
+test('a card with a still and one without are not the same card', () => {
+  expect(story(<CardMontage title="Ролик" state="ready" poster={POSTER} />)).not.toBe(
+    story(<CardMontage title="Ролик" state="ready" poster={null} />),
   );
 });
 
-test('the broken card takes the one dangerous border the product has', () => {
-  // Spec 10.5 settles a single `rgba(206,48,40,.45)` for every dangerous surface.
-  const failed = story(<CardMontage title="Свадьба" state="failed" caption="Сборка оборвалась" />);
-  expect(failed).toContain('Сборка оборвалась');
-  expect(failed).not.toBe(story(<CardMontage title="Свадьба" state="ready" caption="Сборка оборвалась" />));
-});
-
-test('the running time sits in the poster’s corner and the card leads on where it is told to', () => {
-  const ready = story(<CardMontage title="Свадьба" state="ready" poster={POSTER} length="1:04" />);
-  expect(ready).toContain('1:04');
-  expect(story(<CardMontage title="Свадьба" state="pending" onPress={() => {}} />)).toContain(
+test('a card leads somewhere only when it is told to', () => {
+  expect(story(<CardMontage title="Ролик" state="pending" onPress={() => {}} />)).toContain(
     'role="button"',
   );
+  expect(story(<CardMontage title="Ролик" state="pending" />)).not.toContain('role="button"');
+  // Read out as the whole thing it is, name and meta together.
+  expect(
+    story(<CardMontage title="Ролик на 1:00" meta="14 сентября · Тёплая" state="ready" onPress={() => {}} />),
+  ).toContain('aria-label="Ролик на 1:00 · 14 сентября · Тёплая"');
+});
+
+test('«Новый ролик» is a hole in the strip, and it is always a button', () => {
+  const tile = story(<CardMontageNew label="Новый ролик" onPress={() => {}} />);
+  expect(tile).toContain('Новый ролик');
+  expect(tile).toContain('role="button"');
+  // It is not a montage card wearing a plus: a hole is 92 where a card is 232.
+  expect(tile).not.toContain('r-width-talwmj');
+  // Nothing to press until there is something to press with.
+  expect(story(<CardMontageNew label="Новый ролик" />)).toContain('aria-disabled="true"');
+});
+
+test('a memory with no montages gets the dashed block, not an empty state', () => {
+  const block = story(
+    <EmptyMontages photos={SHOTS} text="Нейросеть выберет лучшие моменты и положит на музыку.">
+      <Button variant="paper" size="sm" label="Смонтировать" />
+    </EmptyMontages>,
+  );
+  expect(block).toContain('Нейросеть выберет лучшие моменты');
+  // The block never explains without offering.
+  expect(block).toContain('Смонтировать');
+  // Two frames, no more — and it is the same block with fewer when a memory has fewer.
+  allDifferent({
+    two: <EmptyMontages photos={SHOTS} text="Нейросеть соберёт ролик." />,
+    one: <EmptyMontages photos={SHOTS.slice(0, 1)} text="Нейросеть соберёт ролик." />,
+    none: <EmptyMontages text="Нейросеть соберёт ролик." />,
+  });
 });

@@ -171,6 +171,16 @@ export const type = StyleSheet.create({
   displaySm: { fontFamily: font.headline, fontSize: 25, lineHeight: 28, letterSpacing: -0.75 },
   /** the heading of an empty state */
   emptyTitle: { fontFamily: font.headline, fontSize: 24, lineHeight: 28, letterSpacing: -0.84 },
+  /** the length of a montage printed across its poster — the one number read from across a room */
+  figureHero: {
+    fontFamily: font.headline,
+    fontSize: 34,
+    lineHeight: 36,
+    letterSpacing: -1.02,
+    ...tabular,
+  },
+  /** «214 просмотрел» — a number that is the whole of what a tile says */
+  figure: { fontFamily: font.headline, fontSize: 20, lineHeight: 24, letterSpacing: -0.6, ...tabular },
   /** the heading of a sheet */
   sheetTitle: { fontFamily: font.headline, fontSize: 23, lineHeight: 26, letterSpacing: -0.69 },
   /** the heading of a confirmation sheet */
@@ -203,6 +213,8 @@ export const type = StyleSheet.create({
   eyebrow: { fontFamily: font.bold, fontSize: 12, lineHeight: 14, letterSpacing: 1.2 },
   /** «ОРГАНИЗАТОР», «ГОТОВ» */
   badge: { fontFamily: font.bold, fontSize: 11, lineHeight: 13, letterSpacing: 0.66 },
+  /** «Беру 0:04–0:07», «Взял 1 из 4» — the badge's size, written out rather than shouted */
+  decision: { fontFamily: font.bold, fontSize: 11, lineHeight: 13, ...tabular },
   /** «ОРГАНИЗАТОР» inside a member row */
   badgeSm: { fontFamily: font.bold, fontSize: 10, lineHeight: 12, letterSpacing: 0.5 },
   /** dates, counters, timecodes */
@@ -218,16 +230,24 @@ export const photo = {
   /** the cover of a memory — the layout's own four stops, top to bottom */
   cover:
     'linear-gradient(to top, rgba(7,7,13,.95) 0%, rgba(7,7,13,.78) 30%, rgba(7,7,13,.10) 62%, rgba(7,7,13,.28) 100%)',
+  /** the poster of a montage — darker at the foot, where the name and the scale stand */
+  poster: 'linear-gradient(to top, rgba(9,9,14,.82) 0%, rgba(9,9,14,0) 60%)',
   /** the plate under a mark in the corner of a tile */
   mark: 'rgba(9,9,14,0.72)',
   /** the same plate under a reason a frame was dropped — denser, it carries smaller type */
   markStrong: 'rgba(9,9,14,0.86)',
+  /** the blurred plate a whole phrase stands on over a photograph — an author, a length, a date */
+  plate: 'rgba(11,11,18,0.58)',
+  /** the date spine's hairline down the edge of the feed, and the tick that leaves it */
+  spine: 'rgba(245,243,238,0.22)',
+  /** what is read on that spine — the date in its pill, and the dot on the line */
+  spineMark: 'rgba(245,243,238,0.72)',
   /** a picked tile goes down under this */
-  picked: 'rgba(11,11,18,0.28)',
+  picked: 'rgba(11,11,18,0.30)',
   /** the pick circle before anything is picked — a hole in the photograph, not a surface */
-  pickOff: 'rgba(9,9,14,0.6)',
+  pickOff: 'rgba(11,11,18,0.18)',
   /** its hairline */
-  pickEdge: 'rgba(245,243,238,0.7)',
+  pickEdge: 'rgba(255,255,255,0.85)',
   /** the pick circle of a frame taken out by hand */
   pickHand: 'rgba(9,9,14,0.86)',
   /** the viewer's glass: a button over a photograph has no surface under it */
@@ -236,6 +256,8 @@ export const photo = {
   mosaic: 'rgba(9,9,14,0.72)',
   /** read on any of the above */
   on: '#FFFFFF',
+  /** the second line read on any of the above — a date, a count, what a montage was made of */
+  onQuiet: 'rgba(255,255,255,0.72)',
   /** the meta dot when it stands on a photograph */
   dot: 'rgba(255,255,255,.45)',
   /** the track of a contribution bar drawn over a cover */
@@ -264,6 +286,8 @@ export type Color = {
   line: string;
   /** the border of a secondary button — louder than `line` */
   lineStrong: string;
+  /** the border of a chip and of anything dashed — quieter than `lineStrong` */
+  lineQuiet: string;
   /** the text, and the fill of a paper button and of a chosen segment */
   paper: string;
   /** secondary text, captions, meta */
@@ -274,6 +298,12 @@ export type Color = {
   accent: string;
   /** accent as text or as a border, where the fill itself would not be read */
   accentText: string;
+  /** the fill of a chosen choice-card and of the template plate — accent laid on very thin */
+  accentSoft: string;
+  /** the fill of the director's thought and of the stage they are on — thinner still */
+  accentNote: string;
+  /** the hairline round either of those two: the accent at just over a third */
+  accentEdge: string;
   /** the organizer, «готово», progress, checked */
   spark: string;
   /** read on top of `spark` — dark in both themes */
@@ -288,6 +318,10 @@ export type Color = {
   onFill: string;
   /** the dashed border of an empty frame */
   dashed: string;
+  /** what lies inside a dashed block — a hole in the screen rather than a surface on it */
+  hollow: string;
+  /** the same hole under the round sign of an empty state */
+  hollowSoft: string;
   /** a sheet's handle, a spent bar of the waveform */
   handle: string;
   /** the fill of a dangerous banner or plate */
@@ -311,11 +345,15 @@ const dark: Color = {
   raise: '#22222E',
   line: '#2C2C3A',
   lineStrong: '#45424F',
+  lineQuiet: '#3A3747',
   paper: '#F5F3EE',
   muted: '#A4A1B2',
   faint: '#6E6B7D',
   accent: '#4B5BFF',
   accentText: '#A7AEFF',
+  accentSoft: '#1A1C33',
+  accentNote: '#14152A',
+  accentEdge: 'rgba(75,91,255,0.35)',
   spark: '#E4FF4F',
   sparkInk: '#14160A',
   danger: '#FF5A5A',
@@ -323,6 +361,8 @@ const dark: Color = {
   dangerFill: '#CE3028',
   onFill: '#FFFFFF',
   dashed: '#35333F',
+  hollow: '#111119',
+  hollowSoft: '#14141C',
   handle: '#3A3747',
   dangerSoft: 'rgba(206,48,40,0.14)',
   dangerEdge: 'rgba(206,48,40,0.45)',
@@ -344,6 +384,7 @@ const light: Color = {
   raise: '#F7F4EC',
   line: '#E4DFD3',
   lineStrong: '#C4BCA8',
+  lineQuiet: '#D4CDBD',
   paper: '#15151C',
   muted: '#6C6979',
   // The mirror of the night's `faint`: 3.79 : 1 there on `ink`, 3.79 : 1 here. Decorative and
@@ -352,6 +393,11 @@ const light: Color = {
   accent: '#3B3FE0',
   // On paper the accent reads as itself (6.2 : 1 on `ink`); it is the night that needs a lighter one.
   accentText: '#3B3FE0',
+  // The night lays the accent on the dark; daylight lays the same amount of it on paper, so both
+  // read as «the accent, barely there» rather than as a fourth surface.
+  accentSoft: '#E6E7FA',
+  accentNote: '#EDEDF9',
+  accentEdge: 'rgba(59,63,224,0.35)',
   spark: '#DCF531',
   sparkInk: '#15151C',
   danger: '#D93A3A',
@@ -360,6 +406,10 @@ const light: Color = {
   dangerFill: '#CE3028',
   onFill: '#FFFFFF',
   dashed: '#D2CBBB',
+  // A hole is darker than the screen at night and lighter than it in daylight — either way it is
+  // the one step away from `ink` that says «nothing lives here yet».
+  hollow: '#ECE8DE',
+  hollowSoft: '#EFEBE2',
   handle: '#CFC8B8',
   dangerSoft: 'rgba(206,48,40,0.10)',
   dangerEdge: 'rgba(206,48,40,0.45)',

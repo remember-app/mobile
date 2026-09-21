@@ -1,4 +1,4 @@
-import { Camera, ImageIcon, Link2Off, Play } from 'lucide-react-native';
+import { Camera, ImageIcon, Link2Off } from 'lucide-react-native';
 import { beforeAll, expect, test } from 'vitest';
 
 import { Button } from '@/kit/button';
@@ -6,7 +6,7 @@ import { Empty, Spinner, Waiting, type SpinnerSize } from '@/kit/empty';
 import { allDifferent, story } from '@/kit/story';
 import { setTheme } from '@/theme';
 
-/** Spec 7.8 — a screen with nothing on it yet, and a screen still waiting for something. */
+/** Spec 7.9 — a screen with nothing on it yet, and a screen still waiting for something. */
 
 beforeAll(async () => {
   await setTheme('dark');
@@ -17,15 +17,6 @@ test('the signs an empty state can wear are each their own sign', () => {
     dashed: <Empty icon={ImageIcon} title="Ни одного кадра" text="Всё, что добавит любой участник, появится здесь." />,
     line: <Empty sign="line" icon={Link2Off} title="Приглашение не действует" text="Эту ссылку отозвали или заменили новой." />,
     spark: <Empty sign="spark" icon={Camera} title="Здесь пока пусто" text="Заведите воспоминание." />,
-    poster: (
-      <Empty
-        sign="poster"
-        icon={Play}
-        photos={['https://b/1.jpg', 'https://b/2.jpg']}
-        title="Ролика пока нет"
-        text="Ролик — короткое видео из всего, что есть в воспоминании."
-      />
-    ),
   });
 });
 
@@ -47,7 +38,7 @@ test('the sign only repeats the words, so it says nothing of its own', () => {
 });
 
 test('the sign inside the spark ring is read in full voice, and a dimmed circle in a dimmed one', () => {
-  // Spec 7.8: the `spark` circle is a call to act, so its glyph is `paper` — #F5F3EE — like the
+  // Spec 7.9: the `spark` circle is a call to act, so its glyph is `paper` — #F5F3EE — like the
   // heading under it; the dashed circle only reports an absence and keeps `faint` — #6E6B7D.
   expect(story(<Empty sign="spark" icon={Camera} text="Заведите воспоминание." />)).toContain(
     'stroke="#F5F3EE"',
@@ -63,7 +54,7 @@ test('the block breathes at two rhythms — 22 under the sign, 12 inside the wor
   const empty = story(
     <Empty icon={ImageIcon} title="Ни одного кадра" text="Всё, что добавит участник, будет здесь." />,
   );
-  // Spec 7.8 gives the sign and the paragraph two different distances, and one distance for both is
+  // Spec 7.9 gives the sign and the paragraph two different distances, and one distance for both is
   // exactly what this looked like before: two gaps, not one repeated.
   const gaps = new Set([...empty.matchAll(/r-gap-\w+/g)].map(([found]) => found));
   expect(gaps.size).toBe(2);
