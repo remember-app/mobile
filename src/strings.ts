@@ -667,7 +667,6 @@ export const en = {
     caption: 'You will be told when it is ready',
     /** The second line of a card that fell over, where a finished one says what it was made of. */
     broke: 'The cut broke off halfway',
-    watch: (title: string) => `Watch ${title}`,
     saveShare: 'Save and share',
     /**
      * The last button of the order, the one word the whole wizard leads to — and the paper button
@@ -689,7 +688,6 @@ export const en = {
      * organizer's, because ordering is theirs alone.
      */
     emptyNote: 'A neural network picks the best moments and sets them to music.',
-    ordered: 'Ordered. Everyone here is told when it is ready.',
     tooLittle: 'Too little material for a movie yet — add a few more photos or videos first.',
     orderDenied: 'Only the organizer can order a movie.',
     movedOn: 'That one has already moved on — reading the list again.',
@@ -705,6 +703,18 @@ export const en = {
     /** What the bar says over the total instead of a step: there is no step after it, and no scale. */
     summaryStep: 'Summary',
     next: 'Next',
+
+    /** `MontageTemplate` — the way in: six ready-made films, and the door beside them. */
+    templateTitle: 'What the movie will be',
+    templateHint: 'Pick a template — the rest puts itself together.',
+    /** The other door: the same four steps, walked by hand and starting from nothing. */
+    ownSetup: 'Set it up myself',
+    /**
+     * Spec 6 — while the autopilot walks the steps. In the continuous, because it is happening
+     * while the words are being read, and the button beside it is the wheel handed back.
+     */
+    autoGoing: 'Putting it together from the template',
+    autoStop: 'Stop',
 
     /** Step 1 — what the automatic pass made of the material, and what to do about it. */
     pickTitle: 'Which frames to take',
@@ -761,6 +771,15 @@ export const en = {
       parents: 'For the parents',
       dopamine: 'Dopamine bomb',
     },
+    /** The second line on a tile: what that kind of film is like, in three or four words. */
+    templateNote: {
+      for_myself: 'Personal, unhurried',
+      quick: 'Lively, on the beat',
+      report: 'Even, in order',
+      short_form: 'Hooks from the first second',
+      parents: 'Faces, warmth, a little slower',
+      dopamine: 'As sharp as it gets',
+    },
     /** The plate over the story: which template wrote what is in the box. */
     fromTemplate: (name: string) => `«${name}» template`,
     /** And what that plate becomes the moment the words are edited — they are the person's now. */
@@ -809,13 +828,9 @@ export const en = {
     longer: 'Five seconds longer',
     /** The three summary rows, each of them the way back to the step that settled it. */
     story: 'Story',
-    framesOf: (taken: number, all: number) => `${taken} of ${all}`,
     /** «Bright · on the beat» — the track and what it does to the cuts. */
     onTheBeat: 'on the beat',
-    nothingSaid: 'Not said',
     directorDecides: 'The director decides',
-    onceOnly:
-      'A finished movie is not remade. If you want it another way — put together one more, there is no limit on them.',
     /** The last button of step 4: what is after it is the summary and not the making. */
     toSummary: 'To the summary',
 
@@ -1457,7 +1472,6 @@ export const ru: Strings = {
     fromDay: (day: string) => `Ролик от ${day}`,
     caption: 'Мы сообщим, когда будет готов',
     broke: 'Сборка оборвалась на полпути',
-    watch: (title: string) => `Смотреть: ${title}`,
     saveShare: 'Сохранить и поделиться',
     makeIt: 'Смонтировать',
     howLong: 'Длина',
@@ -1466,7 +1480,6 @@ export const ru: Strings = {
     noneYet: 'пока нет',
     newOne: 'Новый ролик',
     emptyNote: 'Нейросеть выберет лучшие моменты и положит на музыку.',
-    ordered: 'Заказали. Когда ролик будет готов, все здесь об этом узнают.',
     tooLittle: 'Материала для ролика пока мало — добавьте ещё несколько фото или видео.',
     orderDenied: 'Заказать ролик может только организатор.',
     movedOn: 'С этим уже что-то произошло — перечитываем список.',
@@ -1476,6 +1489,12 @@ export const ru: Strings = {
     step: (n: number, of: number) => `Шаг ${n} из ${of}`,
     summaryStep: 'Итог',
     next: 'Дальше',
+
+    templateTitle: 'Каким будет ролик',
+    templateHint: 'Выберите шаблон — дальше всё соберётся само.',
+    ownSetup: 'Настроить самому',
+    autoGoing: 'Собираю по шаблону',
+    autoStop: 'Стоп',
 
     pickTitle: 'Какие кадры взять',
     pickMeta: (taken: number, all: number) => `Возьмём ${taken} из ${all}`,
@@ -1514,6 +1533,14 @@ export const ru: Strings = {
       parents: 'Для родителей',
       dopamine: 'Дофаминовая бомба',
     },
+    templateNote: {
+      for_myself: 'Личное, без спешки',
+      quick: 'Бодро, в ритм',
+      report: 'Ровно, по порядку',
+      short_form: 'Цепляет с первой секунды',
+      parents: 'Лица, тепло, чуть медленнее',
+      dopamine: 'Максимально резко',
+    },
     fromTemplate: (name: string) => `Шаблон «${name}»`,
     ownText: 'Свой текст',
 
@@ -1542,12 +1569,8 @@ export const ru: Strings = {
     shorter: 'Короче на 5 секунд',
     longer: 'Длиннее на 5 секунд',
     story: 'История',
-    framesOf: (taken: number, all: number) => `${taken} из ${all}`,
     onTheBeat: 'в ритм',
-    nothingSaid: 'Не сказали',
     directorDecides: 'Режиссёр решит сам',
-    onceOnly:
-      'Готовый ролик не переделывается. Если захотите иначе — соберёте ещё один, их число не ограничено.',
     toSummary: 'К итогу',
 
     summaryTitle: 'Всё готово к монтажу',

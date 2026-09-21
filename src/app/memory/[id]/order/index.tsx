@@ -1,221 +1,135 @@
 import { useRouter } from 'expo-router';
-import {
-  Aperture,
-  ChevronRight,
-  CircleSlash,
-  Copy,
-  ImageOff,
-  SunDim,
-} from 'lucide-react-native';
-import { useMemo, useState } from 'react';
-import { FlatList, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Pencil } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
+import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
+import { errorMessage, listMontageTemplates, type MontageTemplate } from '@/api';
+import { useAuth } from '@/auth';
 import { formatRuntime } from '@/dates';
-import {
-  Button,
-  GRID_GAP,
-  RowRejected,
-  Sheet,
-  Text,
-  Tile,
-  type IconComponent,
-} from '@/kit';
+import { Banner, Button, TileTemplate, Waiting } from '@/kit';
 import { useStrings } from '@/language';
-import {
-  afterTap,
-  droppedByPass,
-  MIN_FRAMES,
-  pickOf,
-  reasonOf,
-  rejectedGroups,
-  taken,
-  type Reason,
-} from '@/montage';
-import { useOrder, WizardStep } from '@/order-wizard';
+import { blankOrder, RATIO } from '@/montage';
+import { TEMPLATE_SIGN, useOrder, useStillHere, WizardStep } from '@/order-wizard';
 import { space, themed } from '@/theme';
 
 /**
- * Step 1, `MontageSelect` — the automatic pass reports and the organizer rules. Every tile is one
- * of four things: going in, dropped by the pass with the reason on it, dropped by hand, or a video
- * with its running time; and a tap moves any of them to the other side.
+ * `MontageTemplate` (spec 8) — the way into an order and the biggest decision in it: six
+ * ready-made films, and pressing one is the whole order made. The autopilot then fills the four
+ * steps in and walks them in front of whoever pressed it (`@/order-wizard`), so this screen's
+ * work ends at the press.
  *
- * The first screen of the wizard, so this is where the material is met: what the pass proposed is
- * on the grid, what it dropped is behind «Что сняли», and neither is a verdict.
+ * What is on a tile comes from two places on purpose: the name and the line under it are the
+ * app's own words, because they are a character and not a fact, and «3:00 · 16:9» is the api's —
+ * the length is already held inside what this memory's material can carry, and the shape is what
+ * the worker will actually cut onto. Nothing here is worked out on the phone.
+ *
+ * «Настроить самому» is the other door and leads to the same four steps with nothing filled in:
+ * a walk abandoned half way through a template must not leave its story in the box of somebody
+ * who then said they would do it themselves.
+ *
+ * Too little material is answered above this screen rather than on it — `SheetTooLittle` stands
+ * in place of the body the moment the gallery is read, so no tile can be pressed into an order
+ * the api would refuse.
  */
-export default function PickFramesStep() {
+export default function TemplatesScreen() {
   const router = useRouter();
   const s = useStrings();
-  const { id, material, order, change } = useOrder();
+  const { token } = useAuth();
+  const { id, material, change, auto, start, stop } = useOrder();
   const styles = useStyles();
-  /**
-   * One column of the grid, worked out rather than flexed — `memory/frames.tsx` says why at length:
-   * a `1fr` column is the same width in a last row of one as in a full row of three, and
-   * `flex: 1/3` is not. This grid stands inside the screen's own 16 margins.
-   */
+  const gone = useStillHere();
+  /** The six, in the api's own order — null until it has answered, because there is no guess. */
+  const [templates, setTemplates] = useState<MontageTemplate[] | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  /** Bumped by «Повторить»: the read is the effect, so asking again is asking it again. */
+  const [again, setAgain] = useState(0);
+  /** Two to a row, worked out the way both galleries work theirs out (`memory/frames.tsx`). */
   const { width } = useWindowDimensions();
-  const cell = { width: (width - space.s4 * 2 - GRID_GAP * 2) / 3 };
-  /** Whether `SheetRejected` is up — what the automatic pass dropped, and why. */
-  const [showDropped, setShowDropped] = useState(false);
+  const cell = { width: (width - space.s4 * 2 - space.s2) / 2 };
 
-  const inMovie = taken(material, order);
-  const passDropped = droppedByPass(material, order);
-  // Three to a row by hand rather than `numColumns`, the way both galleries cut theirs.
-  const rows = useMemo(
-    () =>
-      Array.from({ length: Math.ceil(material.length / 3) }, (_, i) =>
-        material.slice(i * 3, i * 3 + 3),
-      ),
-    [material],
-  );
-
-  /**
-   * Under three taken there is nothing to cut, and the one step that can put an order below the
-   * floor is this one. It says so by going dark rather than by refusing the press silently: the
-   * api counts the ready material for its 409 and never the selection, and so does the worker, so
-   * an order taking one frame out of twenty is accepted and cut into a one-frame «ролик» against
-   * a minute that was asked for (found in review).
-   */
-  const enough = inMovie.length >= MIN_FRAMES;
+  useEffect(() => {
+    if (!token) return;
+    listMontageTemplates(token, id).then(
+      (came) => {
+        if (!gone.current) setTemplates(came);
+      },
+      (e: unknown) => {
+        if (!gone.current) setNotice(errorMessage(e));
+      },
+    );
+  }, [token, id, again]);
 
   return (
     <WizardStep
-      step={1}
-      title={s.montage.pickTitle}
-      /* The count and the way into what the pass dropped, on one line: the pass reports here and
-         explains itself there. No button while it has dropped nothing. */
-      head={
-        <View style={styles.headLine}>
-          <Text role="label" tone="muted" style={styles.grow}>
-            {passDropped.length > 0
-              ? `${s.montage.pickMeta(inMovie.length, material.length)} · ${s.montage.passDropped(passDropped.length)}`
-              : s.montage.pickMeta(inMovie.length, material.length)}
-          </Text>
-          {passDropped.length > 0 ? (
-            <Button size="sm" label={s.montage.whatDropped} onPress={() => setShowDropped(true)} />
-          ) : null}
-        </View>
-      }
-      above={
-        enough ? undefined : (
-          <Text role="meta" tone="faint">
-            {s.montage.keepAtLeast(MIN_FRAMES)}
-          </Text>
-        )
-      }
+      step="templates"
+      title={s.montage.templateTitle}
+      note={s.montage.templateHint}
       action={
         <Button
-          variant="primary"
+          variant="secondary"
           wide
-          trailingIcon={ChevronRight}
-          label={s.montage.nextWith(inMovie.length)}
-          disabled={!enough}
-          onPress={() =>
-            router.push({ pathname: '/memory/[id]/order/story', params: { id } })
-          }
+          icon={Pencil}
+          label={s.montage.ownSetup}
+          // Blank, and every field of it: a template pressed before this and then abandoned would
+          // otherwise walk into the steps as somebody's own answers.
+          onPress={() => {
+            stop();
+            change(blankOrder());
+            router.push({ pathname: '/memory/[id]/order/frames', params: { id } });
+          }}
         />
       }
     >
-      <FlatList
-        data={rows}
-        keyExtractor={(row) => row[0]?.id ?? ''}
-        contentContainerStyle={styles.grid}
-        renderItem={({ item: row }) => (
-          <View style={styles.row}>
-            {row.map((item) => {
-              const pick = pickOf(item, order);
-              const reason = reasonOf(item.screening_reason);
-
-              return (
-                <Tile
-                  key={item.id}
-                  state="ready"
-                  uri={item.thumbnail_url ?? undefined}
-                  pick={pick}
-                  length={item.kind === 'video' ? formatRuntime(item.duration_seconds) : undefined}
-                  reason={
-                    pick === 'auto'
-                      ? { icon: REASON_SIGN[reason], label: s.montage.reason[reason] }
-                      : undefined
-                  }
-                  label={pick === 'keep' ? s.montage.inMovie : s.montage.outOfMovie}
-                  onPress={() => change(afterTap(item, order))}
-                  style={cell}
-                />
-              );
-            })}
+      {notice !== null ? (
+        // The six could not be read. Said with the way to ask again under it — and the door
+        // beside it stays open: an order can be walked by hand without a single template.
+        <Banner tone="error" text={notice} style={styles.banner}>
+          <Button
+            size="xs"
+            variant="quiet"
+            label={s.action.retry}
+            onPress={() => {
+              setNotice(null);
+              setAgain((n) => n + 1);
+            }}
+          />
+        </Banner>
+      ) : templates === null ? (
+        <View style={styles.middle}>
+          <Waiting text={s.state.loading} />
+        </View>
+      ) : (
+        <ScrollView contentContainerStyle={styles.body}>
+          <View style={styles.grid}>
+            {templates.map((one, i) => (
+              <TileTemplate
+                key={one.id}
+                title={s.montage.template[one.id]}
+                note={s.montage.templateNote[one.id]}
+                spec={`${formatRuntime(one.target_seconds) ?? ''} · ${RATIO[one.orientation]}`}
+                icon={TEMPLATE_SIGN[one.id]}
+                // A frame of this memory's own behind each one — the mood of the film and not its
+                // subject, which is why the kit keeps it well under the words.
+                uri={material[i]?.thumbnail_url ?? undefined}
+                // Taken by the autopilot: this one is ringed and the other five go down.
+                picked={auto === one.id}
+                dimmed={auto !== null && auto !== one.id}
+                onPress={() => start(one)}
+                style={cell}
+              />
+            ))}
           </View>
-        )}
-      />
-
-      <Sheet
-        visible={showDropped}
-        onCancel={() => setShowDropped(false)}
-        title={s.montage.droppedTitle}
-        scroll
-        footer={
-          <>
-            <Button
-              variant="primary"
-              label={s.montage.bringBackAll(passDropped.length)}
-              // Added to what has already been taken back, never in place of it: «все» means the
-              // ones still out, and replacing the set would quietly drop the earlier ones again.
-              onPress={() => {
-                change({
-                  returned: new Set([...order.returned, ...passDropped.map((item) => item.id)]),
-                });
-                setShowDropped(false);
-              }}
-            />
-            <Button
-              variant="quiet"
-              wide
-              label={s.montage.leaveAsIs}
-              onPress={() => setShowDropped(false)}
-            />
-          </>
-        }
-      >
-        <Text role="body" tone="muted">
-          {s.montage.droppedText(passDropped.length, material.length)}
-        </Text>
-        {rejectedGroups(material, order).map((group, i) => (
-          <RowRejected
-            key={group.reason}
-            icon={REASON_SIGN[group.reason]}
-            title={s.montage.reason[group.reason]}
-            count={
-              group.reason === 'duplicate'
-                ? `${s.memory.frames(group.ids.length)} — ${s.montage.keptBest}`
-                : s.memory.frames(group.ids.length)
-            }
-            divider={i > 0}
-          >
-            <Button
-              size="xs"
-              label={s.montage.bringBack}
-              onPress={() => change({ returned: new Set([...order.returned, ...group.ids]) })}
-            />
-          </RowRejected>
-        ))}
-      </Sheet>
+        </ScrollView>
+      )}
     </WizardStep>
   );
 }
 
-/** The glyph each reason of the automatic pass wears, on the tile and in the sheet (spec 7.4). */
-const REASON_SIGN: Record<Reason, IconComponent> = {
-  blur: Aperture,
-  duplicate: Copy,
-  exposure: SunDim,
-  unreadable: ImageOff,
-  other: CircleSlash,
-};
-
 const useStyles = themed(() =>
   StyleSheet.create({
-    grow: { flex: 1, minWidth: 0 },
-    headLine: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },
-    grid: { paddingHorizontal: space.s4, paddingBottom: space.s7, gap: GRID_GAP },
-    row: { flexDirection: 'row', gap: GRID_GAP },
+    middle: { flex: 1, justifyContent: 'center' },
+    banner: { marginHorizontal: space.s4 },
+    body: { flexGrow: 1, paddingHorizontal: space.s4, paddingBottom: space.s6 },
+    grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.s2 },
   }),
 );

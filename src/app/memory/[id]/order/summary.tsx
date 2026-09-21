@@ -9,7 +9,6 @@ import {
   listMemories,
   orderMontage,
   previewMontage,
-  type MontageOrientation,
   type MontagePreview,
 } from '@/api';
 import { useAuth } from '@/auth';
@@ -28,7 +27,7 @@ import {
   Waiting,
 } from '@/kit';
 import { useStrings } from '@/language';
-import { shelfTrack, taken, wishes } from '@/montage';
+import { RATIO, shelfTrack, taken, wishes } from '@/montage';
 import { TEMPLATE_SIGN, useOrder, useStillHere, WizardStep } from '@/order-wizard';
 import { space, themed, useTheme } from '@/theme';
 
@@ -142,7 +141,7 @@ export default function SummaryStep() {
   const goBackTo = (step: Refusal['back']) =>
     router.dismissTo(
       step === 'frames'
-        ? { pathname: '/memory/[id]/order', params: { id } }
+        ? { pathname: '/memory/[id]/order/frames', params: { id } }
         : { pathname: '/memory/[id]/order/build', params: { id } },
     );
 
@@ -255,13 +254,6 @@ export default function SummaryStep() {
 
 /** A refusal in the words a person reads, and the step that can take it back. */
 type Refusal = { text: string; back: 'frames' | 'length' | null };
-
-/**
- * The shape of the finished film as a ratio, for the corner of the poster. The worker cuts onto one
- * of two fixed canvases (`@/montage`, `shapeOf`), so this is a fact about the order and not a
- * measurement of anything on screen.
- */
-const RATIO: Record<MontageOrientation, string> = { landscape: '16:9', portrait: '9:16' };
 
 const useStyles = themed(() =>
   StyleSheet.create({

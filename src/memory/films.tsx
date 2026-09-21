@@ -231,10 +231,11 @@ export function Films({ id, memory }: { id: string; memory: Memory | null }) {
   }
 
   /**
-   * «Новый ролик» — the order as it stands today: the first step of the wizard, which is a route
-   * per step since TASK-216 (`memory/[id]/order`, its own `index.tsx`). The templates the layout
-   * draws in front of them are the montage milestone's and land on this same tile; nothing is
-   * ordered here either way, and the strip meets what the wizard ordered through the read on focus.
+   * «Новый ролик» — the way into the order, which is the screen of six templates
+   * (`memory/[id]/order`, its own `index.tsx`); the four steps are routes beside it. This tile has
+   * led to that one route throughout, which is why the templates arriving in front of the steps
+   * changed nothing here. Nothing is ordered from this strip either way — it meets what the wizard
+   * ordered through the read on focus.
    */
   const askForOne = () => router.push({ pathname: '/memory/[id]/order', params: { id } });
 
