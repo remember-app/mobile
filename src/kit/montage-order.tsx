@@ -159,7 +159,7 @@ export function PosterOrder({
         </View>
       ) : null}
       <View style={styles.posterFoot}>
-        <Text role="figureHero" style={[styles.grow, styles.onPhoto]}>
+        <Text role="figure" style={[styles.grow, styles.onPhoto]}>
           {length}
         </Text>
         <View style={styles.posterShape}>

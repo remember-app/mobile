@@ -5,6 +5,7 @@ import { Animated, Pressable, StyleSheet, View, type StyleProp, type ViewStyle }
 
 import { photo, radius, space, themed, useTheme } from '@/theme';
 
+import { LiveDot } from './bits';
 import { Spinner } from './empty';
 import { Icon } from './icon';
 import { PRESS, useFocusRing, useHoverFocus, useLoop, useReach, useReducedMotion } from './interaction';
@@ -180,15 +181,6 @@ function SparkMark({ size }: { size: 20 | 22 }) {
       <Icon icon={Sparkles} size={size === 22 ? 12 : 11} color={color.sparkInk} />
     </View>
   );
-}
-
-/**
- * Spec 7.4 — the 6px `danger` dot, the one place in the product where that colour is not a warning
- * but «this second». It does not blink: a thing that is happening does not need to flag itself down.
- */
-export function LiveDot() {
-  const styles = useStyles();
-  return <View style={styles.live} />;
 }
 
 /**
@@ -408,7 +400,7 @@ export function TileNumber({ figure, label }: { figure: string; label: string })
 
   return (
     <View style={styles.number}>
-      <Text role="figure">{figure}</Text>
+      <Text role="figureTile">{figure}</Text>
       <Text role="meta">{label}</Text>
     </View>
   );
@@ -463,7 +455,6 @@ const useStyles = themed(({ color }) =>
       justifyContent: 'center',
     },
     cursor: { width: 2, height: 15, marginLeft: 2, backgroundColor: color.spark },
-    live: { width: 6, height: 6, borderRadius: radius.pill, backgroundColor: color.danger },
     plateNote: {
       flexDirection: 'row',
       alignItems: 'flex-start',

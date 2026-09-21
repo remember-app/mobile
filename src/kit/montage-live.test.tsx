@@ -1,15 +1,7 @@
 import { beforeAll, expect, test } from 'vitest';
 
 import { BadgeDecision } from '@/kit/badge';
-import {
-  CardNow,
-  Journal,
-  LiveDot,
-  LogEntry,
-  NoteThought,
-  RowFilmAt,
-  TileNumber,
-} from '@/kit/montage-live';
+import { CardNow, Journal, LogEntry, NoteThought, RowFilmAt, TileNumber } from '@/kit/montage-live';
 import { allDifferent, story } from '@/kit/story';
 import { setTheme } from '@/theme';
 
@@ -67,13 +59,6 @@ test('the gaze square stands where it is told to and dims everything outside its
   // square. Without a gaze nothing on the frame carries a shadow at all.
   expect(right).toMatch(/r-boxShadow-\w+/);
   expect(story(<CardNow uri={SHOT} who="Режиссёр" />)).not.toMatch(/r-boxShadow-\w+/);
-});
-
-test('the live dot is a dot, and it does not blink', () => {
-  // A thing that is happening does not flag itself down, so there is one state and it is still.
-  const dot = story(<LiveDot />);
-  expect(dot).toContain('r-borderRadius');
-  expect(dot).not.toContain('data-glyph');
 });
 
 test('a thought is a plate, and it sometimes says where it landed', () => {

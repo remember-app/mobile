@@ -92,6 +92,16 @@ export const height = {
   row: 64,
   /** the header line of a screen */
   bar: 44,
+  /** a chip: the filter's own height, and the tallest of the three */
+  chip: 40,
+  /** the quick days on `Create` */
+  chipSm: 36,
+  /** the journal's filter */
+  chipXs: 34,
+  /** the «смотрят сейчас» pill in a bar */
+  watchPill: 36,
+  /** the pill carrying a switch — «Сообщить, когда будет готово» */
+  togglePill: 52,
 } as const;
 
 /**
@@ -107,6 +117,14 @@ export const board = {
   footer: 132,
   /** the same footer when a count stands above the button */
   footerTall: 176,
+  /** the footer over the gallery, where three buttons stand on a wall of photographs */
+  footerGallery: 190,
+  /** the footer of `Upload`, the deepest one: a block of sending stands above the button */
+  footerUpload: 210,
+  /** the footer of a montage on air, the shallowest: one pill and nothing else */
+  footerLive: 120,
+  /** the darkening over the head of the gallery, under the glass bar */
+  headGallery: 176,
 } as const;
 
 /**
@@ -119,6 +137,8 @@ export const duration = {
   press: 120,
   /** the pick circle appearing on a tile */
   pick: 140,
+  /** the action menu falling out of the button it was opened from */
+  menu: 160,
   /** the connection banner sliding in, and a sheet going down */
   banner: 200,
   /** a step of the wizard sliding sideways */
@@ -171,16 +191,6 @@ export const type = StyleSheet.create({
   displaySm: { fontFamily: font.headline, fontSize: 25, lineHeight: 28, letterSpacing: -0.75 },
   /** the heading of an empty state */
   emptyTitle: { fontFamily: font.headline, fontSize: 24, lineHeight: 28, letterSpacing: -0.84 },
-  /** the length of a montage printed across its poster — the one number read from across a room */
-  figureHero: {
-    fontFamily: font.headline,
-    fontSize: 34,
-    lineHeight: 36,
-    letterSpacing: -1.02,
-    ...tabular,
-  },
-  /** «214 просмотрел» — a number that is the whole of what a tile says */
-  figure: { fontFamily: font.headline, fontSize: 20, lineHeight: 24, letterSpacing: -0.6, ...tabular },
   /** the heading of a sheet */
   sheetTitle: { fontFamily: font.headline, fontSize: 23, lineHeight: 26, letterSpacing: -0.69 },
   /** the heading of a confirmation sheet */
@@ -189,6 +199,18 @@ export const type = StyleSheet.create({
   title: { fontFamily: font.headlineSemi, fontSize: 19, lineHeight: 22, letterSpacing: -0.475 },
   /** the heading of an inner bar */
   barTitle: { fontFamily: font.headlineSemi, fontSize: 18, lineHeight: 21, letterSpacing: -0.54 },
+  /** the heading of the bar over a montage on air, which carries a line of meta under it */
+  barTitleLive: { fontFamily: font.headlineSemi, fontSize: 17, lineHeight: 21, letterSpacing: -0.51 },
+  /** «Ролики», «Кадры», «Люди» — the heading of a block, and the calendar's month */
+  section: { fontFamily: font.headlineSemi, fontSize: 15, lineHeight: 18, letterSpacing: -0.3 },
+  /** the memory's name inside the glass capsule over its feed */
+  pillTitle: { fontFamily: font.headlineSemi, fontSize: 14, lineHeight: 17, letterSpacing: -0.28 },
+  /** the length of a film, said as a poster says it */
+  figure: { fontFamily: font.headline, fontSize: 34, lineHeight: 36, letterSpacing: -1.02, ...tabular },
+  /** the same figure where a card holds it — the length on «Как собрать» */
+  figureSm: { fontFamily: font.headline, fontSize: 30, lineHeight: 34, letterSpacing: -0.9, ...tabular },
+  /** the smallest of the three — «214 просмотрел», a number that is the whole of what a tile says */
+  figureTile: { fontFamily: font.headline, fontSize: 20, lineHeight: 24, letterSpacing: -0.6, ...tabular },
   /** «Отправляем», the value of the «Название» field — a name typed in the face it is printed in */
   subtitleDisplay: { fontFamily: font.headlineSemi, fontSize: 17, lineHeight: 22 },
   /** a subheading in the running text face */
@@ -232,6 +254,30 @@ export const photo = {
     'linear-gradient(to top, rgba(7,7,13,.95) 0%, rgba(7,7,13,.78) 30%, rgba(7,7,13,.10) 62%, rgba(7,7,13,.28) 100%)',
   /** the poster of a montage — darker at the foot, where the name and the scale stand */
   poster: 'linear-gradient(to top, rgba(9,9,14,.82) 0%, rgba(9,9,14,0) 60%)',
+  /**
+   * The two footers that lie over photographs rather than over the screen (spec 2): the wall of
+   * frames under the gallery's three buttons, and the queue under `Upload`. Dark in both themes for
+   * the same reason a cover's darkening is — what is under them is the picture, not the interface.
+   */
+  footerGallery:
+    'linear-gradient(to top, rgba(11,11,18,0.96) 0%, rgba(11,11,18,0.78) 40%, rgba(11,11,18,0) 100%)',
+  footerUpload:
+    'linear-gradient(to top, rgba(11,11,18,0.97) 0%, rgba(11,11,18,0.86) 45%, rgba(11,11,18,0) 100%)',
+  /** The darkening over the head of the gallery, under the glass bar (spec 7.1). */
+  headGallery:
+    'linear-gradient(to bottom, rgba(11,11,18,0.94) 0%, rgba(11,11,18,0.72) 38%, rgba(11,11,18,0) 100%)',
+  /** The glass of a bar standing over the feed — the other glass, `glass`, is the viewer's. */
+  bar: 'rgba(22,22,31,0.62)',
+  /** Its hairline, and the hairline of the action menu. */
+  barEdge: 'rgba(255,255,255,0.09)',
+  /** The glass of the action menu, which floats deeper than a bar does. */
+  menu: 'rgba(30,30,40,0.86)',
+  menuEdge: 'rgba(255,255,255,0.10)',
+  /** The rule between two rows of that menu, and the gap before its dangerous row. */
+  menuLine: 'rgba(255,255,255,0.08)',
+  menuGap: 'rgba(0,0,0,0.28)',
+  /** A glass button held open: the menu fell out of it and it stays lit (spec 7.1). */
+  held: 'rgba(245,243,238,0.22)',
   /** the plate under a mark in the corner of a tile */
   mark: 'rgba(9,9,14,0.72)',
   /** the same plate under a reason a frame was dropped — denser, it carries smaller type */
@@ -286,7 +332,7 @@ export type Color = {
   line: string;
   /** the border of a secondary button — louder than `line` */
   lineStrong: string;
-  /** the border of a chip and of anything dashed — quieter than `lineStrong` */
+  /** the border of a chip and of anything dashed — quieter than `lineStrong`, louder than `line` */
   lineQuiet: string;
   /** the text, and the fill of a paper button and of a chosen segment */
   paper: string;
@@ -384,7 +430,9 @@ const light: Color = {
   raise: '#F7F4EC',
   line: '#E4DFD3',
   lineStrong: '#C4BCA8',
-  lineQuiet: '#D4CDBD',
+  // The same place between the two the night's `#3A3747` holds, and the day's handle already stood
+  // at it — a chip's border and a sheet's handle are one value in the layout (spec 2).
+  lineQuiet: '#CFC8B8',
   paper: '#15151C',
   muted: '#6C6979',
   // The mirror of the night's `faint`: 3.79 : 1 there on `ink`, 3.79 : 1 here. Decorative and
@@ -393,10 +441,10 @@ const light: Color = {
   accent: '#3B3FE0',
   // On paper the accent reads as itself (6.2 : 1 on `ink`); it is the night that needs a lighter one.
   accentText: '#3B3FE0',
-  // The night lays the accent on the dark; daylight lays the same amount of it on paper, so both
-  // read as «the accent, barely there» rather than as a fourth surface.
-  accentSoft: '#E6E7FA',
-  accentNote: '#EDEDF9',
+  // The night puts the chosen card a shade *darker* than the sheet; the day puts it a shade bluer
+  // than the paper, which is the same move — the accent breathed onto the surface under it.
+  accentSoft: '#ECEDFB',
+  accentNote: '#F3F3FC',
   accentEdge: 'rgba(59,63,224,0.35)',
   spark: '#DCF531',
   sparkInk: '#15151C',
@@ -425,15 +473,32 @@ const light: Color = {
  * softer. CSS strings because `boxShadow` takes that form in React Native, which keeps them
  * identical to the spec.
  */
-export type Shadow = { card: string; cardLarge: string; primary: string };
+export type Shadow = {
+  card: string;
+  cardLarge: string;
+  primary: string;
+  /** The round button held in — the shallower cousin of `primary` (spec 2). */
+  round: string;
+  /** The action menu, which floats higher than anything else in the product (spec 7.1). */
+  menu: string;
+};
 
 const shadow: Record<'dark' | 'light', Shadow> = {
   // The night has no card shadows at all — a surface rises by getting lighter.
-  dark: { card: 'none', cardLarge: 'none', primary: '0 12px 32px rgba(75,91,255,0.38)' },
+  dark: {
+    card: 'none',
+    cardLarge: 'none',
+    primary: '0 12px 32px rgba(75,91,255,0.38)',
+    round: '0 6px 18px rgba(75,91,255,0.40)',
+    menu: '0 18px 50px rgba(0,0,0,0.55)',
+  },
   light: {
     card: '0 2px 10px rgba(28,24,14,0.05)',
     cardLarge: '0 6px 20px rgba(28,24,14,0.10)',
     primary: '0 12px 28px rgba(59,63,224,0.28)',
+    // The day's accent shadow is the softer one, by the same rule the main button follows.
+    round: '0 6px 16px rgba(59,63,224,0.30)',
+    menu: '0 18px 44px rgba(28,24,14,0.28)',
   },
 };
 
@@ -454,6 +519,32 @@ export const themes: Record<ThemeName, Theme> = {
   dark: { name: 'dark', color: dark, shadow: shadow.dark },
   light: { name: 'light', color: light, shadow: shadow.light },
 };
+
+/**
+ * The six backgrounds a face without a photograph is given (spec 2). They carry no meaning at all —
+ * they are dealt out per person so that two circles side by side are two people, and that is the
+ * whole of it. Shared by both themes: white initials are read on all six.
+ */
+export const faces = ['#5B4B8A', '#2F5E63', '#7A4B3A', '#3E5A2E', '#5A3E5E', '#3A4A6E'] as const;
+
+/**
+ * Which of the six a person gets — the same one every time, from their name, because a face that
+ * changes colour between two screens is a different person to whoever is looking.
+ */
+export function faceOf(name: string): string {
+  let sum = 0;
+  for (let i = 0; i < name.length; i++) sum = (sum + name.charCodeAt(i)) % 4096;
+  return faces[sum % faces.length];
+}
+
+/**
+ * The eight colours a label can be (spec 2) — this one a person picks, so unlike the faces it is
+ * offered rather than dealt. The last two are the theme's own `spark` and `muted`, which is why this
+ * is a function and not a constant.
+ */
+export function labelColors({ color }: Theme): readonly string[] {
+  return ['#FFB547', '#FF7A9C', '#FF5A5A', '#4BD6A0', '#4FB3FF', '#8A7CFF', color.spark, color.muted];
+}
 
 /* ── Which theme the app is in ──────────────────────────────────────────── */
 

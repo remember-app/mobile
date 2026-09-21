@@ -329,7 +329,7 @@ export function FrameViewer({
                     icon={isPlaying ? Pause : Play}
                     label={isPlaying ? s.viewer.pause : s.viewer.play}
                     size={72}
-                    tone="glass"
+                    tone="viewer"
                     tint={photo.on}
                     onPress={() => (isPlaying ? player.pause() : player.play())}
                   />
@@ -377,7 +377,7 @@ export function FrameViewer({
                 icon={ChevronLeft}
                 label={s.action.close}
                 size={height.roundViewer}
-                tone="glass"
+                tone="viewer"
                 tint={photo.on}
                 onPress={onClose}
               />
@@ -387,7 +387,7 @@ export function FrameViewer({
                 icon={Ellipsis}
                 label={s.viewer.more}
                 size={height.roundViewer}
-                tone="glass"
+                tone="viewer"
                 tint={photo.on}
                 onPress={() => setDetails(true)}
                 disabled={busy}
@@ -446,7 +446,7 @@ export function FrameViewer({
                 icon={Share}
                 label={s.action.share}
                 size={height.roundViewer}
-                tone="glass"
+                tone="viewer"
                 tint={photo.on}
                 onPress={() => void hand()}
                 disabled={busy}
@@ -480,7 +480,7 @@ export function FrameViewer({
                   icon={Trash2}
                   label={s.viewer.remove}
                   size={height.roundViewer}
-                  tone="glass"
+                  tone="viewer"
                   tint={room.dangerText}
                   onPress={() => setConfirming(true)}
                   disabled={busy}

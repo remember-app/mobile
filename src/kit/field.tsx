@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react-native';
+import { Check, Tag } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import {
   Pressable,
@@ -25,16 +25,25 @@ import { Text } from './text';
 export type FieldState = 'ok' | 'error';
 
 /**
- * The five fields the layout draws, which differ by height and by the face the text is typed in
+ * The seven fields the layout draws, which differ by height and by the face the text is typed in
  * (spec 7.3):
  *
  * - `name` — 56, Unbounded: the memory's name is typed in the face it will be printed in on the cover;
  * - `email` — 60;
  * - `username` — 60, Unbounded, with an `@` in front;
  * - `handle` — 54, with an `@` in front: the same thing inside a sheet;
- * - `search` — 52, a magnifier and an `@`.
+ * - `search` — 52, a magnifier and an `@`;
+ * - `labelName` — 52, a label's name with its colour square in front of it;
+ * - `wish` — 44, the one field that lives inside another block: what to do with the music.
  */
-export type FieldVariant = 'name' | 'email' | 'username' | 'handle' | 'search';
+export type FieldVariant =
+  | 'name'
+  | 'email'
+  | 'username'
+  | 'handle'
+  | 'search'
+  | 'labelName'
+  | 'wish';
 
 const BOX: Record<FieldVariant, { minHeight: number; borderRadius: number }> = {
   name: { minHeight: height.primary, borderRadius: radius.cell },
@@ -42,6 +51,8 @@ const BOX: Record<FieldVariant, { minHeight: number; borderRadius: number }> = {
   username: { minHeight: height.fieldTall, borderRadius: radius.section },
   handle: { minHeight: 54, borderRadius: radius.field },
   search: { minHeight: height.field, borderRadius: radius.cell },
+  labelName: { minHeight: height.field, borderRadius: radius.cell },
+  wish: { minHeight: height.small, borderRadius: radius.strip },
 };
 
 const FACE: Record<FieldVariant, TextStyle> = {
@@ -50,6 +61,8 @@ const FACE: Record<FieldVariant, TextStyle> = {
   username: { ...type.title, fontSize: 19 },
   handle: { ...type.body, fontSize: 16 },
   search: type.body,
+  labelName: { ...type.row, fontSize: 16 },
+  wish: { ...type.label, fontSize: 13 },
 };
 
 /**
@@ -81,6 +94,7 @@ export function Field({
   state,
   prefix,
   icon,
+  swatch,
   onSurface,
   style,
   onFocus,
@@ -100,8 +114,14 @@ export function Field({
   state?: FieldState;
   /** The `@` the layout puts in front of every username. */
   prefix?: string;
-  /** The magnifier on the search field. */
+  /** The magnifier on the search field, the pencil on the wish line. */
   icon?: IconComponent;
+  /**
+   * Spec 7.3 — the leading sign a label's name is typed behind: a 28 square of the label's own
+   * colour with a tag in it. It is the colour being picked, drawn where it will be seen, so it moves
+   * with the palette under the field.
+   */
+  swatch?: string;
   /**
    * Spec 7.3 — the field standing inside a sheet is filled with `ink`, the same way the segments
    * there are: the sheet under it is already `surface`, and a `surface` box on a `surface` sheet is
@@ -121,18 +141,34 @@ export function Field({
         style={[
           styles.box,
           BOX[variant],
+          variant === 'wish' ? styles.boxTight : null,
           {
-            borderColor: borderColor(theme, state, focused),
+            borderColor: borderColor(theme, variant, state, focused),
             backgroundColor: disabled
               ? theme.color.raise
-              : onSurface
+              : onSurface || variant === 'wish'
                 ? theme.color.ink
                 : theme.color.surface,
           },
           focused && !state ? styles.boxFocus : null,
         ]}
       >
-        {icon ? <Icon icon={icon} size={18} color={theme.color.muted} /> : null}
+        {swatch ? (
+          <View
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={[styles.swatch, { backgroundColor: swatch }]}
+          >
+            <Icon icon={Tag} size={15} color={theme.color.ink} />
+          </View>
+        ) : null}
+        {icon ? (
+          <Icon
+            icon={icon}
+            size={variant === 'wish' ? 16 : 18}
+            color={variant === 'wish' ? theme.color.faint : theme.color.muted}
+          />
+        ) : null}
         {prefix ? (
           <Text tone="muted" style={FACE[variant]}>
             {prefix}
@@ -298,9 +334,13 @@ export function CodeField({
 }
 
 /**
- * The long-text box (spec 7.3): 240 tall, never dragged bigger by hand, with a hint on the left
- * under it and a counter on the right. Past 90% of the limit the counter turns dangerous, and
- * nothing types past the limit at all — the counter is a warning, not an epitaph.
+ * The long-text box (spec 7.3): 280 tall, never dragged bigger by hand, scrolling inside itself, and
+ * wearing the accent border at rest — it is the one thing a step of the wizard asks for, and the
+ * border says so before the caret arrives.
+ *
+ * No counter under it any more. A story told to a director is not a form field with a quota, and the
+ * limit — which is still enforced, because the api has one — is not something anybody should be
+ * writing against.
  */
 export function TextArea({
   label,
@@ -313,15 +353,15 @@ export function TextArea({
 }: TextInputProps & {
   label: string;
   labelHidden?: boolean;
+  /** The line under the box. Not a count — what the box is for. */
   hint?: string;
-  limit: number;
+  /** How much the api will take. Held silently: nothing types past it, and nothing counts down to it. */
+  limit?: number;
   value: string;
   onChangeText: (next: string) => void;
 }) {
-  const [focused, setFocused] = useState(false);
   const theme = useTheme();
   const styles = useStyles();
-  const near = value.length >= limit * 0.9;
 
   return (
     <View style={styles.field}>
@@ -335,8 +375,6 @@ export function TextArea({
         maxLength={limit}
         value={value}
         onChangeText={onChangeText}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
         {...input}
         style={[
           styles.area,
@@ -344,22 +382,11 @@ export function TextArea({
           {
             color: theme.color.paper,
             backgroundColor: theme.color.surface,
-            borderColor: focused ? theme.color.accent : theme.color.line,
+            borderColor: theme.color.accent,
           },
         ]}
       />
-      <View style={styles.between}>
-        {hint ? (
-          <Text role="meta" tone="faint">
-            {hint}
-          </Text>
-        ) : (
-          <View />
-        )}
-        <Text role="meta" tone={near ? 'danger' : 'muted'}>
-          {value.length} / {limit}
-        </Text>
-      </View>
+      {hint ? <Hint>{hint}</Hint> : null}
     </View>
   );
 }
@@ -370,12 +397,16 @@ export function TextArea({
  */
 function borderColor(
   { color }: Theme,
+  variant: FieldVariant,
   state: FieldState | undefined,
   focused: boolean,
 ): string {
   if (state === 'error') return color.dangerText;
   if (state === 'ok') return color.spark;
   if (focused) return color.accent;
+  // Spec 7.3: the label's name wears the accent border whether or not the caret is in it — the
+  // sheet it stands in is opened to type in that one box, and nothing else on it is a field.
+  if (variant === 'labelName') return color.accent;
   return color.line;
 }
 
@@ -389,8 +420,17 @@ const useStyles = themed(({ color }) =>
       paddingHorizontal: space.s4,
       borderWidth: 1,
     },
+    // The wish line stands inside a block that already has its own 16 of air around it.
+    boxTight: { paddingHorizontal: space.s3, gap: space.s2 },
     // Spec 2.5 — the focus ring, on the box rather than on the input, so it rings the whole field.
     boxFocus: { outlineWidth: 2, outlineColor: color.accent, outlineOffset: 2, outlineStyle: 'solid' },
+    swatch: {
+      width: 28,
+      height: 28,
+      borderRadius: 9,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     off: { opacity: 0.45 },
     input: { flex: 1, minWidth: 0, paddingVertical: space.s2 },
     between: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.s3 },
@@ -417,7 +457,7 @@ const useStyles = themed(({ color }) =>
     // have somewhere to land.
     codeInput: { opacity: 0, color: 'transparent' },
     area: {
-      height: 240,
+      height: 280,
       borderWidth: 1,
       borderRadius: radius.section,
       paddingHorizontal: space.s4,

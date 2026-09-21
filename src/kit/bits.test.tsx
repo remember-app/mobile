@@ -4,6 +4,7 @@ import { beforeAll, expect, test } from 'vitest';
 import {
   DashedFrame,
   Divider,
+  LiveDot,
   MetaDot,
   PhotoStack,
   Progress,
@@ -127,4 +128,14 @@ test('the dashed frame stands where a strip of photographs would, and says why i
   );
   expect(frame).toContain('Ни одного кадра — скиньте первые');
   expect(frame).toContain('border-top-style:dashed');
+});
+
+test('the live dot is its own mark, and it is not the meta dot in red', () => {
+  // Spec 7.4: 6px of `danger` meaning «right now» — the one place that colour is not danger. It
+  // says nothing out loud: whatever it stands beside carries the word.
+  allDifferent({
+    live: <LiveDot />,
+    meta: <MetaDot />,
+  });
+  expect(story(<LiveDot />)).not.toContain('aria-label');
 });

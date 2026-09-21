@@ -43,11 +43,11 @@ test('a seam that picks is a checkbox over the whole band, and one that does not
 });
 
 test('the organizer’s circle wears the spark collar in the seam, and nobody else’s does', () => {
+  // Spec 7.5: the collar is a shadow outside the circle rather than a border in it, so a circle
+  // inside a stack can wear both it and the hairline that cuts it from its neighbour.
   const organizer = story(<DayMark label="Марк Ковалёв" avatar="Марк Ковалёв" organizer count="96" />);
-  expect(organizer).toContain('rgba(228,255,79,1.00)');
-  expect(story(<DayMark label="Аня" avatar="Аня" count="54" />)).not.toContain(
-    'rgba(228,255,79,1.00)',
-  );
+  expect(organizer).toContain('0 0 0 1.5px #E4FF4F');
+  expect(story(<DayMark label="Аня" avatar="Аня" count="54" />)).not.toContain('#E4FF4F');
 });
 
 test('a count about what the phone will not show is drawn back rather than forward', () => {

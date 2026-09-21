@@ -32,6 +32,13 @@ type ConfirmProps = {
    * asks for it before the press and not after, which is the whole reason this sheet exists.
    */
   price?: string;
+  /**
+   * Spec 7.1, detail 8 — the kind asked when nothing is lost: leaving an account, walking away from
+   * edits nobody saved. No thumbnail, no avatar, and the button at the bottom is `paper` rather than
+   * red, with a quiet way out under it. The dangerous red never appears here, or it stops meaning
+   * «навсегда» where it does appear.
+   */
+  variant?: 'danger' | 'gentle';
 };
 
 /**
@@ -54,9 +61,11 @@ export function ConfirmSheet({
   who,
   meta,
   price,
+  variant = 'danger',
 }: ConfirmProps) {
   const { color } = useTheme();
   const styles = useStyles();
+  const gentle = variant === 'gentle';
 
   return (
     <Sheet
@@ -64,7 +73,7 @@ export function ConfirmSheet({
       onCancel={onCancel}
       narrow
       head={
-        thumb || who ? (
+        (thumb || who) && !gentle ? (
           <View style={styles.head}>
             {thumb ? (
               <Image source={{ uri: thumb }} contentFit="cover" style={styles.thumb} />
@@ -79,11 +88,21 @@ export function ConfirmSheet({
           </View>
         ) : undefined
       }
-      title={thumb || who ? undefined : title}
+      title={(thumb || who) && !gentle ? undefined : title}
       footer={
         <>
-          <Button variant="danger" label={confirmLabel} onPress={onConfirm} />
-          <Button variant="secondary" size="md" label={cancelLabel} onPress={onCancel} />
+          <Button
+            variant={gentle ? 'paper' : 'danger'}
+            label={confirmLabel}
+            onPress={onConfirm}
+          />
+          <Button
+            variant={gentle ? 'quiet' : 'secondary'}
+            size="md"
+            wide
+            label={cancelLabel}
+            onPress={onCancel}
+          />
         </>
       }
     >

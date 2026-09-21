@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { expect, test } from 'vitest';
 
 import { font, height, photo, radius, space, themes, type } from '@/theme';
@@ -42,6 +43,9 @@ const PAIRS = [
   ['what is read on a dangerous fill', 'onFill', 'dangerFill'],
   ['what is read on the spark', 'sparkInk', 'spark'],
   ['the ink of a chosen pill', 'ink', 'paper'],
+  // A chosen choice card is `accentSoft` with both its floors of words on it — spec 7.3, detail 21.
+  ['the name on a chosen card', 'paper', 'accentSoft'],
+  ['the line under it', 'muted', 'accentSoft'],
 ] as const;
 
 test.each(['dark', 'light'] as const)('every pair of %s reads at the floor or above', (name) => {
@@ -120,14 +124,21 @@ test('the rhythm, the radii and the heights are the spec’s own numbers', () =>
  * exactly like a package that does.
  */
 const FACES = {
-  Unbounded_700Bold: 'node_modules/@expo-google-fonts/unbounded/700Bold/Unbounded_700Bold.ttf',
-  Unbounded_600SemiBold:
-    'node_modules/@expo-google-fonts/unbounded/600SemiBold/Unbounded_600SemiBold.ttf',
-  Onest_400Regular: 'node_modules/@expo-google-fonts/onest/400Regular/Onest_400Regular.ttf',
-  Onest_500Medium: 'node_modules/@expo-google-fonts/onest/500Medium/Onest_500Medium.ttf',
-  Onest_600SemiBold: 'node_modules/@expo-google-fonts/onest/600SemiBold/Onest_600SemiBold.ttf',
-  Onest_700Bold: 'node_modules/@expo-google-fonts/onest/700Bold/Onest_700Bold.ttf',
+  Unbounded_700Bold: '@expo-google-fonts/unbounded/700Bold/Unbounded_700Bold.ttf',
+  Unbounded_600SemiBold: '@expo-google-fonts/unbounded/600SemiBold/Unbounded_600SemiBold.ttf',
+  Onest_400Regular: '@expo-google-fonts/onest/400Regular/Onest_400Regular.ttf',
+  Onest_500Medium: '@expo-google-fonts/onest/500Medium/Onest_500Medium.ttf',
+  Onest_600SemiBold: '@expo-google-fonts/onest/600SemiBold/Onest_600SemiBold.ttf',
+  Onest_700Bold: '@expo-google-fonts/onest/700Bold/Onest_700Bold.ttf',
 };
+
+/**
+ * Where a face actually lies, asked of the module resolver rather than spelled out from the working
+ * directory: `node_modules/…` is only the answer when the test is run from the root of the checkout,
+ * and a git worktree — which is where an agent builds — has its own root and the packages in the
+ * other one.
+ */
+const resolve = createRequire(import.meta.url).resolve;
 
 /** Whether a TrueType file's character map covers a code point. Formats 4 and 12, which is all
  *  Google's own builds ever use. */
@@ -162,7 +173,7 @@ function covers(file: Buffer, code: number): boolean {
 }
 
 test.each(Object.entries(FACES))('%s draws Cyrillic', (_name, path) => {
-  const file = readFileSync(path);
+  const file = readFileSync(resolve(path));
   // «А», «я», «ё» — the ends of the alphabet and the letter a partial subset drops first.
   for (const letter of ['А', 'я', 'ё', 'Ё']) {
     expect(covers(file, letter.codePointAt(0)!), letter).toBe(true);
