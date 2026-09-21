@@ -259,19 +259,19 @@ export function FrameViewer({
 
   /**
    * «В роликах» — one line of the sheet, and the only thing on it that leads anywhere. It leads to
-   * the montage on the movies face, which is the product's one player: the layout draws no second
-   * one for a frame, and a player of its own here would be a third place a video is watched.
+   * the film on the memory's own screen, which is the product's one player: the layout draws no
+   * second one for a frame, and a player of its own here would be a third place a video is watched.
+   *
+   * One parameter and no more since the memory lost its tabs (TASK-207): `montage` is what raises
+   * the player, and the screen spends it the moment it has.
    *
    * The window goes first. It is a `Modal`, so it floats over whatever the router puts up next —
-   * the same thing TASK-94 was reported for — and the face under it is left on the frame it was on.
+   * the same thing TASK-94 was reported for — and the feed under it is left on the frame it was on.
    */
   function openFilm(montageId: string) {
     setDetails(false);
     onClose();
-    router.push({
-      pathname: '/memory/[id]',
-      params: { id: memoryId, face: 'films', montage: montageId },
-    });
+    router.push({ pathname: '/memory/[id]', params: { id: memoryId, montage: montageId } });
   }
 
   /** The grant, asked for at the moment it is needed, with this window's place to say «no». */

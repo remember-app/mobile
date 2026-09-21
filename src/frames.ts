@@ -64,7 +64,19 @@ export function megabytes(
   item: Pick<MediaItem, 'size_bytes'>,
   locale: string = currentLanguage(),
 ): string | null {
-  const mb = Number(item.size_bytes) / 1e6;
+  return megabytesOf([item], locale);
+}
+
+/**
+ * The same number over a whole armful — «38 МБ» in the capsule of `FramesPicking`, which is the
+ * weight of everything marked. One rule for both, so a selection of one never reads differently
+ * from the frame it holds.
+ */
+export function megabytesOf(
+  items: readonly Pick<MediaItem, 'size_bytes'>[],
+  locale: string = currentLanguage(),
+): string | null {
+  const mb = items.reduce((sum, item) => sum + Number(item.size_bytes), 0) / 1e6;
   if (!Number.isFinite(mb) || mb <= 0) return null;
   // One decimal up to «9,9 МБ», none past it: a video is hundreds of megabytes and «412,3» is a
   // digit nobody reads.
