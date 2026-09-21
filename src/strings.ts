@@ -727,6 +727,42 @@ export const en = {
     directorDecides: 'The director decides',
     onceOnly:
       'A finished movie is not remade. If you want it another way — put together one more, there is no limit on them.',
+    /** The last button of step 4: what is after it is the summary and not the making. */
+    toSummary: 'To the summary',
+
+    /**
+     * `MontageSummary` — the order read back before it is spent. Everything counted in it is the
+     * api's own answer and nothing on the screen can be edited, so these are all read-only words.
+     */
+    summaryTitle: 'Everything is ready',
+    /** «168 photos · 46 videos» — the frames that are actually going in, counted by the api. */
+    shots: (photos: number, videos: number) =>
+      `${photos} ${photos === 1 ? 'photo' : 'photos'} · ${videos} ${videos === 1 ? 'video' : 'videos'}`,
+    /** Beside that count: how many people brought them. */
+    byPeople: (n: number) => `from ${n} ${n === 1 ? 'person' : 'people'}`,
+    /** The music section with nothing in it — which is an answer and not a gap. */
+    noMusicLive: 'No music · the sound of the video itself',
+    /** The line with the clock, and the only promise the screen makes about time. */
+    readyIn: (minutes: number) =>
+      `It takes about ${minutes} ${minutes === 1 ? 'minute' : 'minutes'} — we will send you a notice.`,
+    /** The one button the whole wizard leads to. */
+    startCut: 'Start the cut',
+    /**
+     * The length was fine when it was picked and is not any more — the frames changed under it.
+     * Said without numbers on purpose: the range is the api's and it has already moved once.
+     */
+    lengthOff: 'That length does not fit the frames you picked — go back and choose another.',
+    /** The two ways back out of a refusal, straight to the step that can undo it. */
+    toFrames: 'Back to the frames',
+    toLength: 'Back to the length',
+    /**
+     * «Отмена» with something already said — the gentle sheet, where nothing is destroyed but a
+     * walk through four steps is.
+     */
+    leaveAsk: 'Leave the order?',
+    leaveText: 'The frames, the story and the music picked here are not kept.',
+    leaveDo: 'Leave',
+    stay: 'Stay',
 
     /** `MontageProgress` — the waiting the order leads to, and what is known while it lasts. */
     building: 'Making the movie',
@@ -1347,6 +1383,22 @@ export const ru: Strings = {
     directorDecides: 'Режиссёр решит сам',
     onceOnly:
       'Готовый ролик не переделывается. Если захотите иначе — соберёте ещё один, их число не ограничено.',
+    toSummary: 'К итогу',
+
+    summaryTitle: 'Всё готово к монтажу',
+    shots: (photos: number, videos: number) => `${photos} фото · ${videos} видео`,
+    byPeople: (n: number) => `от ${count(n, 'человека', 'человек', 'человек')}`,
+    noMusicLive: 'Без музыки · живой звук',
+    readyIn: (minutes: number) =>
+      `Соберём примерно за ${count(minutes, 'минуту', 'минуты', 'минут')} и пришлём уведомление.`,
+    startCut: 'Начать монтаж',
+    lengthOff: 'Такая длина не подходит к выбранным кадрам — вернитесь и выберите другую.',
+    toFrames: 'К кадрам',
+    toLength: 'К длине',
+    leaveAsk: 'Выйти из заказа?',
+    leaveText: 'Выбранные здесь кадры, история и музыка не сохранятся.',
+    leaveDo: 'Выйти',
+    stay: 'Остаться',
 
     building: 'Собираем ролик',
     closeApp:

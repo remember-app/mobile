@@ -120,6 +120,22 @@ export const blankOrder = (): Order => ({
 });
 
 /**
+ * Whether anything has actually been said in the wizard — the question «Отмена» asks before it
+ * throws the walk away. Every field against what `blankOrder` opens with: a wizard somebody walked
+ * into and straight back out of loses nothing, and a sheet asking them to confirm that would be a
+ * door held shut for no reason (spec 8, `MontageSummary`).
+ */
+export const entered = (order: Order): boolean =>
+  order.dropped.size > 0 ||
+  order.returned.size > 0 ||
+  order.story.trim() !== '' ||
+  order.template !== null ||
+  order.tracks.length > 0 ||
+  order.note.trim() !== '' ||
+  order.seconds !== null ||
+  order.orientation !== 'landscape';
+
+/**
  * The material an order can be made of: only `ready` counts. A frame still being developed has no
  * derivative the worker could measure, and the api refuses it by name in `include`/`exclude` and
  * leaves it out of the count that decides whether there is enough at all — so the screen must not
