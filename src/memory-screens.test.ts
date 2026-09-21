@@ -818,6 +818,14 @@ test('the films face reads again by itself while a montage is being cut', () => 
   expect(films.match(/writes\.current \+= 1;/g)).toHaveLength(1);
 });
 
+test('the way out of a played montage is the kit’s own button, across the foot of the window', () => {
+  // TASK-177, off a device: «Закрыть» stood quiet in the left corner of the bar and read as a line
+  // of text rather than as anything the app draws. Spec 7.2 gives that word the outlined button —
+  // the same one the frame's sheet and the consent wear — and the bar's own width is what puts it
+  // in the middle of the bottom.
+  expect(films).toContain('<Button label={s.action.close} onPress={() => setPlaying(null)} />');
+});
+
 test('the material of a memory has one name — on the card, on the switch, over the sheet', () => {
   // «N frames» on the card, «Photos and videos (N)» on the guest list, «Gallery» over the contact
   // sheet was the report (TASK-76). One key answers all of them, and it is the word on the switch.

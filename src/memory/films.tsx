@@ -478,8 +478,12 @@ export function Films({ id, head }: { id: string; head: Head }) {
                 set, the same way `.viewer`'s children inherit it in the kit. */}
             <ThemePin value="dark">
               <Playing url={watching.video_url} />
-              <ActionBar style={styles.bar}>
-                <Button variant="quiet" label={s.action.close} onPress={() => setPlaying(null)} />
+              {/* Spec 7.2 gives «Закрыть» the outlined button, which is what it wears on
+                  `SheetFrame` and on the consent too — and running the width of the bar is what
+                  puts it in the middle of the bottom (TASK-177, off a device: a quiet one stood
+                  as a line of text in the left corner and read as nothing the app draws). */}
+              <ActionBar>
+                <Button label={s.action.close} onPress={() => setPlaying(null)} />
               </ActionBar>
             </ThemePin>
           </View>
@@ -526,6 +530,5 @@ const styles = StyleSheet.create({
   // face's own gap, because they are one thing.
   montage: { gap: space.s2 },
   viewer: { flex: 1, backgroundColor: room.ink, justifyContent: 'center' },
-  bar: { justifyContent: 'center', paddingHorizontal: space.s4 },
   big: { flex: 1, width: '100%' },
 });
