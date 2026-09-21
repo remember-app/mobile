@@ -745,15 +745,18 @@ test('a ready montage shows its own still, and one without a still keeps the pla
   expect(cardMontage).toContain('source={{ uri: poster }}');
 });
 
-test('a vertical montage’s card is told to stand its frame up', () => {
-  // TASK-135: the card kept one horizontal frame and cropped a standing poster to it, so a vertical
-  // montage was a narrow strip. The shape is the screen's to hand over — the card asks the api for
-  // nothing — and it comes off the orientation that was ordered (TASK-126), so the frame is right
-  // from the queued card onwards and nothing jumps when the still lands. The two numbers are pinned
-  // here because the card's own test reads rendered markup, where they are compiled-away hashes.
-  expect(films).toContain("vertical={montage.params.orientation === 'portrait'}");
-  expect(cardMontage).toContain('posterTall: { aspectRatio: 4 / 5, height: undefined }');
-  expect(cardMontage).toContain("contentFit={vertical ? 'contain' : 'cover'}");
+test('the montage’s card is the shape of the montage, and the still fills it', () => {
+  // TASK-135 gave a standing montage a taller frame; TASK-178 made the card the video's own shape
+  // instead of one the card picked — 4:5 with the still shown inside it left black strips down both
+  // sides of a 9:16 poster, which is the opposite of what a card is for. The shape is the screen's
+  // to hand over — the card asks the api for nothing — and it comes off the orientation that was
+  // ordered (TASK-126), so the card is right from the queued one onwards and nothing jumps when the
+  // still lands. `cover` is what fills it: the frame and the box are the same shape, so nothing is
+  // cropped off either. Pinned here because the card's own test reads rendered markup, where the
+  // styles are compiled-away hashes.
+  expect(films).toContain('ratio={shapeOf(montage.params.orientation)}');
+  expect(cardMontage).toContain("style={[styles.poster, { aspectRatio: ratio ?? WIDE }]}");
+  expect(cardMontage).toContain('contentFit="cover"');
 });
 
 test('the films face reads again by itself while a montage is being cut', () => {

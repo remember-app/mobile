@@ -12,6 +12,9 @@ import { Icon } from './icon';
 import { PRESS, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
 import { Text } from './text';
 
+/** What a card is shaped like when the screen says nothing about it — a video lying down. */
+const WIDE = 16 / 9;
+
 /**
  * Spec 7.6 — a montage, in the three states that are three different bodies rather than three
  * colours of one:
@@ -29,7 +32,7 @@ export function CardMontage({
   state,
   poster,
   length,
-  vertical,
+  ratio,
   caption,
   badge,
   step,
@@ -46,8 +49,13 @@ export function CardMontage({
   poster?: string | null;
   /** The running time in the poster's corner, «1:04». */
   length?: string;
-  /** A vertical montage gets a taller poster; the frame inside it is never stretched either way. */
-  vertical?: boolean;
+  /**
+   * The montage's own shape, width over height — the card takes it whole, so a video stood up is a
+   * tall card and one laid down is a wide one, and the still fills either to the edges with nothing
+   * cropped off and no black strip around it. The screen hands it over; horizontal if it says
+   * nothing.
+   */
+  ratio?: number;
   /** «Мы сообщим, когда будет готов» / «Сборка оборвалась на полпути». */
   caption?: string;
   /** The state badge — its words belong to the screen. */
@@ -91,13 +99,12 @@ export function CardMontage({
           accessibilityLabel={playLabel ?? title}
           disabled={!onPlay}
           onPress={onPlay}
-          style={[styles.poster, vertical ? styles.posterTall : null]}
+          style={[styles.poster, { aspectRatio: ratio ?? WIDE }]}
         >
-          <Image
-            source={{ uri: poster }}
-            contentFit={vertical ? 'contain' : 'cover'}
-            style={StyleSheet.absoluteFill}
-          />
+          {/* `cover` and never `contain`: the frame carries the montage's own shape and so does the
+              box it is being put in, so there is nothing to crop off and nothing to leave bare —
+              and on the rounding between the two, a hair of overfill beats a hairline of black. */}
+          <Image source={{ uri: poster }} contentFit="cover" style={StyleSheet.absoluteFill} />
           <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.posterScrim]} />
           <View style={styles.play}>
             <Icon icon={Play} size={24} color={color.ink} fill={color.ink} />
@@ -158,8 +165,7 @@ const useStyles = themed(({ color }) =>
     // Spec 10.5 settles one dangerous border for every dangerous surface in the product.
     failed: { borderColor: color.dangerEdge },
     hover: { backgroundColor: color.raise },
-    poster: { height: 200, backgroundColor: color.ink },
-    posterTall: { aspectRatio: 4 / 5, height: undefined },
+    poster: { width: '100%', backgroundColor: color.ink },
     posterScrim: { backgroundColor: photo.picked },
     play: {
       alignSelf: 'center',

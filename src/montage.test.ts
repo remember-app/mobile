@@ -84,6 +84,7 @@ import {
   MIN_FRAMES,
   pickOf,
   rejectedGroups,
+  shapeOf,
   stages,
   taken,
   wishes,
@@ -548,6 +549,17 @@ test('a link that failed after the step was left never surfaces its error', asyn
  * TASK-163). The api says one word about the whole job, so what the screen may say about it is
  * decided here, where it can be checked without a phone.
  */
+
+test('a montage is the shape of the canvas it was cut onto, horizontal when none was asked for', () => {
+  // TASK-178: the card is the shape of the video, and this is where that shape is known. The worker
+  // cuts onto two fixed canvases (`projects/montage/assembly.py`: 1920 × 1080 and 1080 × 1920), so
+  // these are the video's real proportions and not a guess off the poster — checked against a real
+  // pair of finished montages, whose files measure exactly those two sizes.
+  expect(shapeOf('portrait')).toBeCloseTo(1080 / 1920);
+  expect(shapeOf('landscape')).toBeCloseTo(1920 / 1080);
+  // An order that said nothing about which way up was cut horizontal — the worker's own default.
+  expect(shapeOf(undefined)).toBe(shapeOf('landscape'));
+});
 
 test('the worker is owed a queued and a processing montage, and nothing else', () => {
   // What starts the re-reading, on the waiting screen and on the movies face both. A `ready` or a

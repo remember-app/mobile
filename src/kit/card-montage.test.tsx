@@ -72,14 +72,20 @@ test('a ready card carries its own still, and one without a still keeps the plac
   expect(withPoster).toContain('1:04'.slice(0, 0) + 'Свадьба');
 });
 
-test('a vertical montage stands its frame up rather than cropping it to a strip', () => {
-  // TASK-135: the card kept one horizontal frame and cropped a standing poster to it. The shape is
-  // the screen's to hand over and comes off the orientation that was ordered, so the frame is right
-  // from the queued card onwards and nothing jumps when the still lands.
+test('the card takes the montage’s own shape, whichever way up it was cut', () => {
+  // TASK-135 gave a standing montage a taller frame than a lying one; TASK-178 made it the video's
+  // own shape rather than a shape of the card's choosing — 9:16 stood up, 16:9 laid down, and the
+  // still fills it to the edges. The shape is the screen's to hand over and comes off the
+  // orientation that was ordered, so the card is right from the queued one onwards and nothing
+  // jumps when the still lands.
   allDifferent({
-    wide: <CardMontage title="Свадьба" state="ready" poster={POSTER} />,
-    tall: <CardMontage title="Свадьба" state="ready" poster={POSTER} vertical />,
+    wide: <CardMontage title="Свадьба" state="ready" poster={POSTER} ratio={16 / 9} />,
+    tall: <CardMontage title="Свадьба" state="ready" poster={POSTER} ratio={9 / 16} />,
   });
+  // And a card told nothing is the wide one — the orientation an order that named none was cut in.
+  expect(story(<CardMontage title="Свадьба" state="ready" poster={POSTER} />)).toBe(
+    story(<CardMontage title="Свадьба" state="ready" poster={POSTER} ratio={16 / 9} />),
+  );
 });
 
 test('the broken card takes the one dangerous border the product has', () => {

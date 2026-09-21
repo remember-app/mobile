@@ -197,6 +197,17 @@ export function wishes(items: readonly MediaItem[], order: Order): MontageWishes
   };
 }
 
+/**
+ * The shape the finished video comes out in, as width over height. Not measured off the poster and
+ * not a taste: the worker cuts every montage onto one of two fixed canvases — 1920 × 1080 laid
+ * down, 1080 × 1920 stood up (`projects/montage/assembly.py`, `CANVASES`) — so the orientation that
+ * was ordered *is* the video's own aspect ratio, known from the moment the order is placed and
+ * before there is a frame of it to look at. An order that named no orientation was cut horizontal,
+ * which is the worker's own default for one (`DEFAULT_ORIENTATION`) and so the answer here too.
+ */
+export const shapeOf = (orientation: MontageOrientation | undefined): number =>
+  orientation === 'portrait' ? 9 / 16 : 16 / 9;
+
 /* ── The waiting after the order ────────────────────────────────────────── */
 
 /**

@@ -30,7 +30,7 @@ import {
 } from '@/kit';
 import { useStrings } from '@/language';
 import { MemoryHead, type Head } from '@/memory/head';
-import { beingMade, WHILE_MAKING_MS } from '@/montage';
+import { beingMade, shapeOf, WHILE_MAKING_MS } from '@/montage';
 import { useTurnsWithPhone } from '@/orientation';
 import { type Strings } from '@/strings';
 import { space, themes, ThemePin } from '@/theme';
@@ -378,10 +378,11 @@ export function Films({ id, head }: { id: string; head: Head }) {
                   // The running time in the poster's corner — the same number the title carries,
                   // which is the whole of what the layout writes over a still.
                   length={formatRuntime(montage.duration_seconds)}
-                  // The orientation is known from the moment the montage was ordered, so the frame
-                  // is the right shape before there is a poster in it — and a vertical still is
-                  // shown whole rather than through a horizontal crop.
-                  vertical={montage.params.orientation === 'portrait'}
+                  // The card is the shape of the video itself — a standing montage a tall card, one
+                  // lying down a wide one, the still filling either to the edges (TASK-178). The
+                  // shape is the worker's canvas read off the orientation that was ordered, so it
+                  // is right before there is a poster in it and nothing jumps when one lands.
+                  ratio={shapeOf(montage.params.orientation)}
                   badge={<BadgeMontage state={state} label={s.montage.status[montage.status]} />}
                   playLabel={s.montage.watch(montageTitle(montage, s))}
                   onPlay={montage.video_url === null ? undefined : () => setPlaying(montage.id)}
