@@ -27,6 +27,7 @@ import {
   mayOpen,
   mayPick,
   megabytes,
+  megabytesOf,
   openFrameOf,
   shotBy,
   SORT_DEFAULT,
@@ -221,6 +222,24 @@ test('how heavy a file is, written the way the language writes a number', () => 
   // it rather than to write «0 МБ» under somebody's photograph.
   expect(megabytes(record({ size_bytes: '' }))).toBeNull();
   expect(megabytes(record({ size_bytes: 'nonsense' }))).toBeNull();
+});
+
+test('a whole selection weighs what its frames weigh together', () => {
+  // The capsule of `FramesPicking` says «38 МБ · 3 фото и 1 видео», which is the sum and not the
+  // biggest of them — one rule with the line above, so a selection of one reads exactly like the
+  // frame it holds.
+  const marked = [
+    record({ size_bytes: '4200000' }),
+    record({ size_bytes: '4200000' }),
+    record({ size_bytes: '2000000' }),
+  ];
+  expect(megabytesOf(marked, 'ru')).toBe('10');
+  expect(megabytesOf([record({ size_bytes: '4200000' })], 'ru')).toBe('4,2');
+  // Nothing marked weighs nothing, and nothing is what the capsule then says — never «0 МБ».
+  expect(megabytesOf([], 'ru')).toBeNull();
+  // A record whose size never came down the wire drags the sum to `NaN` rather than reading as
+  // zero, so the line is dropped instead of lying about how much is about to be downloaded.
+  expect(megabytesOf([record({ size_bytes: 'nonsense' })], 'ru')).toBeNull();
 });
 
 /**
