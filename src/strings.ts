@@ -764,34 +764,18 @@ export const en = {
     leaveDo: 'Leave',
     stay: 'Stay',
 
-    /** `MontageProgress` — the waiting the order leads to, and what is known while it lasts. */
-    building: 'Making the movie',
-    closeApp: 'The app can be closed — everyone here is told when the movie is ready.',
     /**
-     * The five stages of the making, in the worker's own order. Named and not counted: «73 %» tells
-     * a person nothing, «the director builds the story» tells them where it is.
+     * The five stages of the making, under the codes the journal calls them by (`MONTAGE_STAGES`).
+     * Named and not counted: «73 %» tells a person nothing, «the director builds the story» tells
+     * them where it is.
      */
     stage: {
       screening: 'Dropping the spoiled frames',
       understanding: 'Working out what is in them',
-      story: 'The director builds the story',
-      rhythm: 'Laying them out to the beat',
-      cut: 'Cutting it together',
-      /**
-       * The same two stages under the names the journal calls them by (`MONTAGE_STAGES`). One map
-       * for both because they are one set of five stages: `story` and `cut` are what the waiting
-       * screen has called them since before there was a journal, and they go when it does.
-       */
       directing: 'The director builds the story',
+      rhythm: 'Laying them out to the beat',
       assembly: 'Cutting it together',
     },
-    /** The word on the right of a stage: one that is behind, and the one being worked on. */
-    stageDone: 'done',
-    stageRunning: 'under way',
-    /** Where the second try lives, said on the screen that watched the first one fall over. */
-    retryInMemory: 'It can be put together again from the movie’s card in the memory.',
-    /** The one button under the waiting — it leaves the screen and never touches the making. */
-    toMemory: 'To the memory',
 
     /**
      * «Монтаж в прямом эфире» (spec 7.6, 7.7) — the words the director's journal is read in. The
@@ -801,12 +785,52 @@ export const en = {
      * seconds», never «the system processed». `@/montage-journal` is what turns a record into them.
      */
     live: {
+      /** Over the whole screen, while the worker still owes it. A fallen one wears `status.failed`. */
+      title: 'The montage is on',
+      /** The pill of faces in the bar, said as one sentence to a screen reader. */
+      watching: (n: number) => `Watching now: ${n}`,
+      /** On the frame the director is holding, beside the live dot. */
+      now: 'NOW',
+      /** Who is speaking, and the same voice in two tenses. */
+      director: 'The director',
+      thinking: 'thinking…',
+      decided: 'decided',
+      /** Nothing in hand yet: the montage is still standing in the queue. */
+      inQueue: 'Waiting for our turn',
+      /** The read never came back. What was read stays on screen — this stands under it. */
+      lost: 'Connection lost, holding on',
+      /** The organizer's button under a montage that fell over. */
+      retry: 'Start the montage again',
       /** How far along the making is, as a place in the five rather than as a percentage. */
       stageOf: (n: number, of: number) => `Stage ${n} of ${of}`,
       /** The estimate over the stages still to go. Deliberately approximate — it moves. */
       leftAbout: (minutes: number) => `about ${minutes} min left`,
       /** A stage's own time, beside what came of it. */
       minutes: (minutes: number) => `${minutes} min`,
+      /** The same for the one being worked on — time spent, not time taken. */
+      running: (minutes: number) => `${minutes} min so far`,
+      /**
+       * What came of a stage, one clause each, out of the keys the api names as countable
+       * («Журнал монтажа»). A stage that has nothing to report yet says how far it has got instead.
+       */
+      kept: (n: number, of: number) => `${n} of ${of} are usable`,
+      faces: (n: number) => `${n} ${n === 1 ? 'face' : 'faces'}`,
+      parts: (n: number) => `${n} ${n === 1 ? 'part' : 'parts'}`,
+      cuts: (n: number) => `${n} ${n === 1 ? 'cut' : 'cuts'}`,
+      doneOf: (n: number, of: number) => `${n} of ${of}`,
+      /** Under the stage in hand: the way into everything it has said. */
+      wholeStage: (n: number) => `The whole stage journal · ${n} ${n === 1 ? 'record' : 'records'}`,
+      /** The time over a record that landed while somebody was watching. */
+      justNow: 'just now',
+      /** The four chips over the journal. Two of them carry the api's own count beside the word. */
+      all: 'All',
+      thoughts: 'Thoughts',
+      took: 'Took',
+      /** «ЧТО УВИДЕЛ» — the eyebrow over the words the director saw on a frame. */
+      saw: 'What it saw',
+      /** Where a frame ended up: «Part 2 «Vows» · 1:12–1:16», and how many other places it has. */
+      partOf: (n: number, title?: string) => (title ? `Part ${n} «${title}»` : `Part ${n}`),
+      morePlaces: (n: number) => `and ${n} more`,
       /** The decision itself, and the three ways it is qualified. */
       take: 'Taking',
       skip: 'Passing',
@@ -1400,27 +1424,42 @@ export const ru: Strings = {
     leaveDo: 'Выйти',
     stay: 'Остаться',
 
-    building: 'Собираем ролик',
-    closeApp:
-      'Приложение можно закрыть — мы пришлём уведомление всем участникам, когда ролик будет готов.',
     stage: {
       screening: 'Отсев брака',
       understanding: 'Разбираем, что на кадрах',
-      story: 'Режиссёр строит историю',
-      rhythm: 'Раскладываем в ритм трека',
-      cut: 'Склеиваем',
       directing: 'Режиссёр строит историю',
+      rhythm: 'Раскладываем в ритм трека',
       assembly: 'Склеиваем',
     },
-    stageDone: 'готово',
-    stageRunning: 'идёт',
-    retryInMemory: 'Собрать заново можно на карточке ролика в воспоминании.',
-    toMemory: 'К воспоминанию',
 
     live: {
+      title: 'Монтаж идёт',
+      watching: (n: number) => `Смотрят сейчас: ${n}`,
+      now: 'СЕЙЧАС',
+      director: 'Режиссёр',
+      thinking: 'думает…',
+      decided: 'решил',
+      inQueue: 'Ждём очереди',
+      lost: 'Связь пропала, ждём',
+      retry: 'Повторить монтаж',
       stageOf: (n: number, of: number) => `Этап ${n} из ${of}`,
       leftAbout: (minutes: number) => `осталось ≈ ${minutes} мин`,
       minutes: (minutes: number) => `${minutes} мин`,
+      running: (minutes: number) => `идёт ${minutes} мин`,
+      kept: (n: number, of: number) => `${n} из ${of} годятся`,
+      faces: (n: number) => count(n, 'лицо', 'лица', 'лиц'),
+      parts: (n: number) => count(n, 'часть', 'части', 'частей'),
+      cuts: (n: number) => count(n, 'склейка', 'склейки', 'склеек'),
+      doneOf: (n: number, of: number) => `${n} из ${of}`,
+      wholeStage: (n: number) =>
+        `Весь журнал этапа · ${count(n, 'запись', 'записи', 'записей')}`,
+      justNow: 'сейчас',
+      all: 'Всё',
+      thoughts: 'Мысли',
+      took: 'Взял',
+      saw: 'Что увидел',
+      partOf: (n: number, title?: string) => (title ? `Часть ${n} «${title}»` : `Часть ${n}`),
+      morePlaces: (n: number) => `и ещё ${n}`,
       take: 'Беру',
       skip: 'Мимо',
       tookOneOf: (n: number) => `Взял 1 из ${n}`,
