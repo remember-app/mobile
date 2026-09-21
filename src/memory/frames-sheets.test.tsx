@@ -4,17 +4,21 @@ import { beforeAll, expect, test, vi } from 'vitest';
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
 
 import type { FrameInfo } from '@/api';
+import { FILTER_NONE, SORT_DEFAULT, type Filter, type Sort } from '@/frames';
 import { allDifferent, story } from '@/kit/story';
-import { FrameInfoSheet } from '@/memory/frames-sheets';
+import { FilterSheet, FrameInfoSheet, SortSheet } from '@/memory/frames-sheets';
 import { setTheme, ThemePin } from '@/theme';
 
 /**
- * `SheetFrameInfo` (spec 8) — the one sheet of this file that draws material rather than controls,
- * and the only one worth a story: what it shows is decided by what the server knew, and every one
- * of those states is a different sheet.
+ * The sheets of a memory's feed (spec 8): `SheetFrameInfo`, which draws material rather than
+ * controls, and the two the feed is tuned from — `SheetFilter` and `SheetSort`. All three are
+ * surfaces that hold nothing of their own but the draft, so all three can be rendered here as the
+ * states they have.
  *
- * The rows themselves are `frames.test.ts`'s (`frameFacts`); what is read here is the sheet — its
- * head, the person, the movies, and the fact that it is drawn in whichever theme the app is in.
+ * The rows of the first are `frames.test.ts`'s (`frameFacts`) and so is everything the other two
+ * decide (`framesMatching`, `groupFrames`); what is read here is the sheets — what stands on them,
+ * what the buttons say in each state, and that every one of them is drawn in the theme the app is
+ * in.
  */
 
 beforeAll(async () => {
@@ -108,6 +112,97 @@ test('the three states of the sheet are three sheets', () => {
   expect(story(sheet(null, 'Нет связи с сервером'))).toContain('Нет связи с сервером');
 });
 
+/** Two people who brought something, and two days of it — what `SheetFilter` is handed. */
+const people = [
+  { id: 'liza', name: 'Лиза Морозова' },
+  { id: 'mark', name: 'Марк Ковалёв' },
+];
+const days = [
+  { at: new Date(2026, 8, 13).getTime(), count: 312 },
+  { at: new Date(2026, 8, 12).getTime(), count: 88 },
+];
+
+const filter = (over: Partial<Filter> = {}, shown = 486) => (
+  <FilterSheet
+    people={people}
+    days={days}
+    value={{ ...FILTER_NONE, ...over }}
+    count={() => shown}
+    onApply={() => {}}
+    onCancel={() => {}}
+  />
+);
+
+const sorting = (over: Partial<Sort> = {}) => (
+  <SortSheet value={{ ...SORT_DEFAULT, ...over }} onChange={() => {}} onDone={() => {}} />
+);
+
+test('the filter is three groups, and a day chip carries what that day holds', () => {
+  const whole = story(filter());
+  for (const line of [
+    'Фильтры',
+    'Сбросить',
+    // The eyebrows are drawn in caps, the way the layout writes every heading over a row.
+    'КТО ПРИНЁС',
+    // The name they are called by, with the whole of it still in the circle.
+    '>Лиза<',
+    'ЛМ',
+    'ТИП',
+    'Всё',
+    'Фото',
+    'Видео',
+    'ДЕНЬ',
+    'Все дни',
+    '13 сент',
+    '312',
+    'Другая дата',
+  ]) {
+    expect(whole).toContain(line);
+  }
+  // The calendar is behind «Другая дата» and not under the row from the start: it is for the day
+  // the row is not offering, which on most memories is no day at all.
+  expect(whole).not.toContain('Сентябрь 2026');
+});
+
+test('the main button counts what it will show, and says when there is nothing to', () => {
+  // Nothing held back at all: there is no count worth promising, so the button offers the lot.
+  expect(story(filter())).toContain('Показать все');
+  // A choice: the number is what that choice comes to, worked out on the spot by the face.
+  expect(story(filter({ kind: 'video' }, 184))).toContain('Показать 184 кадра');
+  // And a choice that comes to nothing cannot be applied at all (spec 8).
+  expect(story(filter({ kind: 'video' }, 0))).toContain('Ни одного кадра под эти условия');
+  allDifferent({
+    nothing: filter(),
+    counted: filter({ kind: 'video' }, 184),
+    empty: filter({ kind: 'video' }, 0),
+  });
+});
+
+test('the sort sheet is the order, the three cuts, and the one switch about dates', () => {
+  const whole = story(sorting());
+  for (const line of [
+    'Сортировка',
+    'Порядок',
+    'Сначала новые',
+    'Сначала старые',
+    'Собрать в группы',
+    'Не собирать',
+    'По людям',
+    'По типу',
+    'Даты между днями',
+    'Выключено — дата видна только на полосе у края, пока листаете.',
+    'Готово',
+  ]) {
+    expect(whole).toContain(line);
+  }
+  // The switch on, the feed cut by people, and the switch held shut because of it — three sheets.
+  allDifferent({
+    plain: sorting(),
+    dated: sorting({ dates: true }),
+    byPeople: sorting({ by: 'person' }),
+  });
+});
+
 test('the sheet is drawn in the theme the app is in, because daylight reaches it', () => {
   // The window under it is pinned dark in both themes (`frame-viewer.tsx`), and the sheet is
   // deliberately outside that pin: it is its own surface over the screen, and in daylight it is a
@@ -117,4 +212,15 @@ test('the sheet is drawn in the theme the app is in, because daylight reaches it
   expect(day).not.toBe(night);
   // And the same words either way: a theme is a colour and nothing else (spec 2).
   for (const drawn of [night, day]) expect(drawn).toContain('iPhone 15 Pro · 24 мм · f/1.8');
+});
+
+test('and so are the two the feed is tuned from — nothing on them is a colour of its own', () => {
+  // The same check for `SheetFilter` and `SheetSort` (TASK-208): every chip, segment and switch on
+  // them is the kit drawing itself, so the whole surface swaps with the theme and the words do not.
+  for (const both of [filter({ kind: 'photo' }, 184), sorting({ dates: true })]) {
+    const night = story(<ThemePin value="dark">{both}</ThemePin>);
+    const day = story(<ThemePin value="light">{both}</ThemePin>);
+    expect(day).not.toBe(night);
+  }
+  expect(story(<ThemePin value="light">{sorting()}</ThemePin>)).toContain('Даты между днями');
 });

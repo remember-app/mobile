@@ -378,7 +378,7 @@ test('the sheet is one flat list of headings and strips, never a three-column gr
   // no event window to sort by, every frame in it is already the event's.
   expect(upload).toContain('frames: day');
   expect(frames).toContain('groupFrames(kept, sort)');
-  expect(frames).toContain('frames: group.frames.slice(i * 3, i * 3 + 3)');
+  expect(frames).toContain('frames: group.frames.slice(i * COLUMNS, i * COLUMNS + COLUMNS)');
   expect(frames).not.toContain('assetsByDay');
   // What is laid out is what the filter left, and both are asked of `@/frames` so the sheet, the
   // strip under the open frame and the count on the filter's own button cannot come apart.
@@ -393,16 +393,67 @@ test('the seam over a strip says what is under it, and takes the whole day while
   const daymark = frames.slice(frames.indexOf('<DayMark'), frames.indexOf('/>', frames.indexOf('<DayMark')));
   // Three kinds of seam, one component, and which one it is comes from the group itself.
   expect(daymark).toContain('{...headingOf(group)}');
-  // Spec 7.8 — the band itself is the button while the mode is on: «Выбрать все 174» is no longer
-  // a pill hanging off the right edge, so the count stays where it is and the press wraps it.
-  expect(daymark).toContain('picking ? markable.length : group.frames.length');
+  // Spec 7.8 — a figure and never a sentence: «128» after a person's name, and over a day nothing
+  // at all, because `MemoryDated` draws the date by itself. While the mode is on every seam counts:
+  // the band itself is then the button that takes the group.
+  expect(daymark).toContain(
+    "picking || group.by !== 'day'\n                    ? String(picking ? markable.length : group.frames.length)\n                    : undefined",
+  );
   expect(daymark).toContain('onPress={');
   expect(daymark).toContain('pressLabel={s.gallery.selectDay(markable.length)}');
 });
 
+/**
+ * The days on the feed (TASK-208, spec 8): off by default and read off the spine at the right edge
+ * while a finger is moving the feed (`MemoryScrub`), on by the switch in the sort sheet and then
+ * written into a 20px seam between the days (`MemoryDated`). Never both.
+ */
+
+test('the feed nobody arranged is one wall, and the days are only on the spine', () => {
+  // The ungrouped cut has no seam of its own, so the feed spends no row at all on saying what day
+  // it is — that is the whole of `MemoryFrames` and `MemoryScrub`.
+  expect(frames).toContain("...(group.by === 'all' ? [] : [{ key: group.key, group }])");
+  // And the spine is drawn only there: cut by people or by kind the days interleave, and a rail of
+  // them would point at nothing. A feed shorter than the screen has no spine either (spec 8).
+  expect(frames).toContain("sort.by !== 'none' || sort.dates || headerHeight === 0 || reach <= 0");
+  expect(frames).toContain('const reach = feed.content - feed.view;');
+  expect(frames).toContain('dateMarks(sheet, { top: feedTop, row: rowPitch })');
+  // Where the first row of frames stands: the top the feed is pushed down by, the block of films
+  // over it measured rather than guessed, and the one gutter between them.
+  expect(frames).toContain(
+    'const feedTop = insets.top + height.roundViewer + space.s4 + headerHeight + FEED_GAP;',
+  );
+  expect(frames).toContain('const rowPitch = cell.width + FEED_GAP;');
+});
+
+test('the spine rides the scroll itself, and is grabbed only while it can be seen', () => {
+  // Spec 6: 120 coming, 400 going, a second after the feed stops — and nothing under «уменьшить
+  // движение», where it simply is or is not.
+  expect(frames).toContain('duration: reduced ? 0 : ms');
+  expect(frames).toContain('fade(1, duration.spineIn)');
+  expect(frames).toContain('fade(0, duration.spineOut)');
+  expect(frames).toContain('}, SPINE_HOLD_MS);');
+  // The marks stand on the feed's own seams, so they are moved by the scroll on the native side
+  // rather than by this screen re-rendering sixty times a second — and the handler is hung once,
+  // because re-attaching it mid-flick is a dropped frame under the finger.
+  expect(frames).toContain('useNativeDriver: true,');
+  expect(frames).toContain('transform: [{ translateY: Animated.multiply(scrolled, -1) }]');
+  expect(frames).toContain('const onScroll = useMemo(');
+  expect(frames).toContain('onScroll={onScroll}');
+  // Dragging it throws the feed (spec 7.8), and it answers only touches that begin on the strip —
+  // a flick along the right edge must not stop being a flick halfway through.
+  expect(frames).toContain('list.current?.scrollToOffset({ offset: part * reach, animated: false })');
+  expect(frames).toContain('onStartShouldSetPanResponder: () => true,');
+  expect(frames).not.toContain('onMoveShouldSetPanResponder');
+  // What is drawn at nought opacity is still a thing in the way of the feed underneath.
+  expect(frames).toContain("pointerEvents={scrolling ? 'box-none' : 'none'}");
+});
+
 test('a heading is a day, a person with their circle, or one of the two kinds', () => {
   const heading = frames.slice(frames.indexOf('function headingOf'), frames.indexOf('/** Tap to'));
-  expect(heading).toContain("if (group.by === 'day') return { label: formatDay(new Date(group.at)) };");
+  // `MemoryDated` — «13 сентября, суббота»: the day and its name, and no year in it. Which year
+  // this was is settled by the memory the feed belongs to, not repeated over every strip.
+  expect(heading).toContain('`${formatDayShort(at)}, ${formatWeekday(at)}`');
   expect(heading).toContain("if (group.by === 'kind') return { label: s.media[group.kind] };");
   // `FramesByPeople`: the name, their circle in front of it, and the spark collar on the
   // organizer's — read off the roster this face already holds for the open frame's own line.
@@ -1364,12 +1415,15 @@ test('the filter is a draft until it is applied, and it is applied by a button t
   // question; the sheet only asks it.
   expect(frames).toContain('count={(draft) => framesMatching(items ?? [], draft).length}');
   expect(sheets).toContain('const shown = count(draft);');
-  expect(sheets).toContain('label={shown === 0 ? s.gallery.nothingMatched : s.gallery.show(shown)}');
+  expect(sheets).toContain(
+    'shown === 0 ? s.gallery.nothingMatched : chosen ? s.gallery.show(shown) : s.gallery.showAll',
+  );
   // A filter that would leave nothing cannot be applied at all, and the button says why rather than
-  // offering «Показать 0 кадров».
+  // offering «Показать 0 кадров»; nothing held back at all has no count to promise (spec 8).
   expect(sheets).toContain('disabled={shown === 0}');
   expect(ru.gallery.show(486)).toBe('Показать 486 кадров');
-  expect(ru.gallery.nothingMatched).toBe('Ничего не подошло');
+  expect(ru.gallery.showAll).toBe('Показать все');
+  expect(ru.gallery.nothingMatched).toBe('Ни одного кадра под эти условия');
   // Seeded by being mounted: both sheets are drawn only while open, so the draft starts at whatever
   // is applied right now and a sheet closed any other way leaves the gallery as it was.
   expect(frames).toContain("{tuning === 'filter' ? (");
@@ -1377,18 +1431,50 @@ test('the filter is a draft until it is applied, and it is applied by a button t
   expect(sheets).toContain('useState<Filter>(value)');
 });
 
-test('the first chip of a filter row is the absence of a choice', () => {
-  // «Все» and «Все дни» are an empty set and not a value of their own, which is the whole reason a
-  // set is what the filter holds.
-  expect(sheets).toContain('selected={draft.people.size === 0}');
+test('the day row opens with the absence of a choice, and the people row does not', () => {
+  // «Все дни» is an empty set and not a value of its own, which is the whole reason a set is what
+  // the filter holds. The people row has no such chip in the layout: a face is pressed off again,
+  // and «Сбросить» is what clears the lot.
   expect(sheets).toContain('selected={draft.days.size === 0}');
-  expect(sheets).toContain('onPress={() => setDraft((have) => ({ ...have, people: new Set() }))}');
-  expect(ru.gallery.anyone).toBe('Все');
+  expect(sheets).toContain('onPress={() => setDraft((have) => ({ ...have, days: new Set() }))}');
+  expect(sheets).not.toContain('people: new Set() }))}');
   expect(ru.gallery.anyDay).toBe('Все дни');
-  // Only people who actually brought something are offered, and only days the gallery holds.
+  // «Сбросить» stands small beside the heading and not under the main button (spec 8), and says by
+  // being off that there is nothing to clear.
+  expect(sheets).toContain('disabled={!chosen}');
+  expect(sheets).toContain('onPress={() => setDraft(FILTER_NONE)}');
+  expect(ru.gallery.reset).toBe('Сбросить');
+  // Only people who actually brought something are offered, and only days the gallery holds —
+  // each day with what it holds, which is the figure on its own chip.
   expect(frames).toContain('people={brought}');
   expect(frames).toContain('days={days}');
-  expect(frames).toContain('framesByDay(items ?? []).map((day) => day.at)');
+  expect(frames).toContain('framesByDay(items ?? []).map((day) => ({ at: day.at, count: day.frames.length }))');
+  expect(sheets).toContain('count={String(day.count)}');
+});
+
+test('a day the row is not offering is reached by the calendar, and can be taken off again', () => {
+  // «Другая дата» (spec 8) opens the kit's own calendar under the row of days; a day picked there
+  // joins the same set every chip toggles.
+  expect(sheets).toContain('label={s.gallery.otherDay}');
+  expect(sheets).toContain('icon={CalendarDays}');
+  expect(sheets).toContain('selected={calendar}');
+  expect(sheets).toContain('toggled(have.days, startOfDay(day).getTime())');
+  expect(ru.gallery.otherDay).toBe('Другая дата');
+  // And it gets a chip of its own even when the memory holds nothing from that day: otherwise it
+  // would be filtering the feed with nothing on screen to say so, and nothing to press to undo it.
+  expect(sheets).toContain('.filter((at) => !held.has(at)).map((at) => ({ at, count: 0 }))');
+});
+
+test('nothing the filter or the sort was set to is remembered between runs', () => {
+  // Both are this screen's own state and nothing else: a memory opened afresh opens on the whole
+  // of itself, in the order it stands in by default (spec 8).
+  expect(frames).toContain('useState<Filter>(FILTER_NONE)');
+  expect(frames).toContain('useState<Sort>(SORT_DEFAULT)');
+  for (const part of [frames, sheets]) expect(part).not.toMatch(/SecureStore|AsyncStorage/);
+  // And the place «ЛЕЙБЛЫ» lands in is left named rather than built: the third group of chips
+  // between the type and the days belongs to the labels milestone (spec 10.8.2, M-25).
+  expect(sheets).toContain('spec 10.8.2');
+  expect(sheets).toContain('ЛЕЙБЛЫ');
 });
 
 test('the sort takes effect as it is pressed, and «Готово» is only the way out', () => {
@@ -1398,9 +1484,20 @@ test('the sort takes effect as it is pressed, and «Готово» is only the w
   expect(sheets).toContain('onChange={(by: GroupBy) => onChange({ ...value, by })}');
   expect(sheets).toContain('onChange={(order: Order) => onChange({ ...value, order })}');
   expect(sheets).toContain('label={s.action.done}');
-  expect(ru.gallery.groups.day).toBe('По дням');
+  // The three cuts of the layout, and the days are none of them: a date is a caption over a strip,
+  // so it has a switch of its own with a line under it saying what off means.
+  expect(ru.gallery.groups.none).toBe('Не собирать');
   expect(ru.gallery.groups.person).toBe('По людям');
+  expect(ru.gallery.order).toBe('Порядок');
   expect(ru.gallery.orders.newest).toBe('Сначала новые');
+  expect(ru.gallery.datesBetween).toBe('Даты между днями');
+  expect(ru.gallery.datesNote).toBe(
+    'Выключено — дата видна только на полосе у края, пока листаете.',
+  );
+  expect(sheets).toContain('onValueChange={(dates) => onChange({ ...value, dates })}');
+  // Held shut while the feed is cut by people or by kind: there the seam is already a name, and a
+  // switch that would change nothing is worse than one that says it cannot.
+  expect(sheets).toContain("disabled={value.by !== 'none'}");
 });
 
 test('each of the two sheets glows exactly once', () => {

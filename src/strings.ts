@@ -492,28 +492,36 @@ export const en = {
     add: 'Add frames',
 
     /**
-     * `SheetFilter` — what of the gallery is shown. Three groups, and the first chip of each is the
-     * one that holds nothing back; the glowing button counts what is about to be shown, so it says
-     * outright when that count is nought.
+     * `SheetFilter` — what of the gallery is shown. Three groups of its own, and a fourth
+     * («ЛЕЙБЛЫ», spec 10.8.2) coming with the labels milestone; the glowing button counts what is
+     * about to be shown, so it says outright when that count is nought.
      */
     filters: 'Filters',
     whoBrought: 'Who brought it',
-    anyone: 'Everyone',
-    whatKind: 'What to show',
+    whatKind: 'Type',
     anyKind: 'All of it',
-    whichDays: 'Which days',
+    whichDays: 'Day',
     anyDay: 'Every day',
+    /** The chip that opens the calendar, for a day the row of days is not offering. */
+    otherDay: 'Another date',
     show: (n: number) => `Show ${n} ${n === 1 ? 'frame' : 'frames'}`,
-    nothingMatched: 'Nothing matched',
-    reset: 'Clear the filters',
+    /** The same button with nothing held back at all: there is no count to promise yet. */
+    showAll: 'Show everything',
+    nothingMatched: 'No frames under these conditions',
+    reset: 'Reset',
 
-    /** `SheetSort` — in what order. Two questions, and the answer to both is on screen at once. */
+    /**
+     * `SheetSort` — in what order, and how it is cut. The dates are neither: a date is a caption
+     * over a strip and not a group, so it has a switch of its own with a line saying what it does.
+     */
     sorting: 'Sorting',
+    order: 'Order',
     groupBy: 'Group them',
-    /** The three cuts: the day it was shot, the person who brought it, photo against video. */
-    groups: { day: 'By day', person: 'By person', kind: 'By kind' },
-    within: 'Inside a group',
+    /** The three cuts: nothing at all, the person who brought it, photo against video. */
+    groups: { none: 'No groups', person: 'By person', kind: 'By kind' },
     orders: { newest: 'Newest first', oldest: 'Oldest first' },
+    datesBetween: 'Dates between days',
+    datesNote: 'Off — the date is only on the rail at the edge, while you scroll.',
     deleteAsk: (kind: 'photo' | 'video') => `Delete this ${kind === 'video' ? 'video' : 'photo'}?`,
     /** The same question over an armful, with the price named as a number before the press. */
     deleteAskMany: (n: number) => `Delete ${n} ${n === 1 ? 'frame' : 'frames'}?`,
@@ -1207,20 +1215,23 @@ export const ru: Strings = {
 
     filters: 'Фильтры',
     whoBrought: 'Кто принёс',
-    anyone: 'Все',
-    whatKind: 'Что показывать',
+    whatKind: 'Тип',
     anyKind: 'Всё',
-    whichDays: 'За какие дни',
+    whichDays: 'День',
     anyDay: 'Все дни',
+    otherDay: 'Другая дата',
     show: (n: number) => `Показать ${count(n, 'кадр', 'кадра', 'кадров')}`,
-    nothingMatched: 'Ничего не подошло',
-    reset: 'Сбросить фильтры',
+    showAll: 'Показать все',
+    nothingMatched: 'Ни одного кадра под эти условия',
+    reset: 'Сбросить',
 
     sorting: 'Сортировка',
+    order: 'Порядок',
     groupBy: 'Собрать в группы',
-    groups: { day: 'По дням', person: 'По людям', kind: 'По типу' },
-    within: 'Внутри группы',
+    groups: { none: 'Не собирать', person: 'По людям', kind: 'По типу' },
     orders: { newest: 'Сначала новые', oldest: 'Сначала старые' },
+    datesBetween: 'Даты между днями',
+    datesNote: 'Выключено — дата видна только на полосе у края, пока листаете.',
     deleteAsk: (kind: 'photo' | 'video') => `Удалить это ${kind === 'video' ? 'видео' : 'фото'}?`,
     deleteAskMany: (n: number) => `Удалить ${count(n, 'кадр', 'кадра', 'кадров')}?`,
     deleteText: 'Оно уйдёт из воспоминания навсегда. В уже собранном ролике останется.',

@@ -23,7 +23,13 @@ import { currentLanguage } from '@/language';
  * Russian wrote «сентября» into an otherwise English screen. Only the word is taken, so the
  * language alone is locale enough — «ru» and «en» carry no region worth naming here.
  */
-function dayFields(value: string | Date, locale: string = currentLanguage()) {
+function dayFields(
+  value: string | Date,
+  locale: string = currentLanguage(),
+  // The same word cut short — «сент», «Sep» — for the two places a day stands in a space measured
+  // in millimetres: the pill on the date spine and the day chips of `SheetFilter`.
+  width: 'long' | 'short' = 'long',
+) {
   const day = new Date(value);
   // `new Date` never throws and neither does `toLocaleDateString` — an unparseable value comes out
   // the other end as «NaN Invalid Date NaN», printed under a photograph as the day it happened. The
@@ -33,7 +39,7 @@ function dayFields(value: string | Date, locale: string = currentLanguage()) {
   return {
     day: String(day.getDate()),
     month: day
-      .toLocaleDateString(locale, { day: 'numeric', month: 'long' })
+      .toLocaleDateString(locale, { day: 'numeric', month: width })
       .replace(/[\d\s.,]+/g, ' ')
       .trim(),
     year: String(day.getFullYear()),
@@ -60,6 +66,16 @@ export function formatDay(value: string | Date, locale?: string): string {
  */
 export function formatDayShort(value: string | Date, locale?: string): string {
   const fields = dayFields(value, locale);
+  return fields === null ? '' : `${fields.day} ${fields.month}`;
+}
+
+/**
+ * The shortest a day gets — «13 сент», «13 Sep»: the pill on the date spine (spec 7.8, detail 66)
+ * and the day chips of `SheetFilter`, both of which hold one line ten pixels tall. The month is the
+ * locale's own abbreviation with its full stop taken off, the way the layout writes it.
+ */
+export function formatDayTiny(value: string | Date, locale?: string): string {
+  const fields = dayFields(value, locale, 'short');
   return fields === null ? '' : `${fields.day} ${fields.month}`;
 }
 

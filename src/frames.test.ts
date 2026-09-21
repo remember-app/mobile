@@ -15,6 +15,7 @@ import type { FrameInfo, MediaItem, Member, Memory } from '@/api';
 import { formatEventDates, startOfDay } from '@/dates';
 import {
   arranged,
+  dateMarks,
   FILTER_NONE,
   filtering,
   frameFacts,
@@ -33,6 +34,7 @@ import {
   SORT_DEFAULT,
   stillPreparing,
   type Filter,
+  type Sort,
 } from '@/frames';
 // The words of the sheet, read from the dictionary rather than repeated here: what is pinned below
 // is which lines are drawn, and the wording is `strings.ts`'s own business.
@@ -487,8 +489,17 @@ const wedding3 = [
   record({ id: 'goodbyes', uploaded_by: 'liza', captured_at: shotAt(5, 12) }),
 ];
 
-test('by day, the newest day is on top and the newest frame of it first', () => {
+test('the feed nobody has arranged is one wall with no seam in it at all', () => {
+  // `MemoryFrames` and `MemoryScrub`: nothing grouped, newest first, and not one row of the screen
+  // spent on saying which day it is — that is the spine's business, out at the edge.
   expect(groups(wedding3)).toEqual([
+    ['all', ['goodbyes', 'breakfast', 'dancing', 'vows', 'morning']],
+  ]);
+  expect(groupFrames([], SORT_DEFAULT)).toEqual([]);
+});
+
+test('turning the dates on cuts that wall into days — `MemoryDated`', () => {
+  expect(groups(wedding3, { ...SORT_DEFAULT, dates: true })).toEqual([
     [`day-${day(5)}`, ['goodbyes']],
     [`day-${day(4)}`, ['breakfast', 'dancing']],
     [`day-${day(3)}`, ['vows', 'morning']],
@@ -498,33 +509,53 @@ test('by day, the newest day is on top and the newest frame of it first', () => 
 test('«Сначала старые» turns the whole sheet around, the days as well as their frames', () => {
   // The direction is one answer for the sheet: a strip read one way under headings read the other
   // is nobody's idea of an order.
-  expect(groups(wedding3, { by: 'day', order: 'oldest' })).toEqual([
+  expect(groups(wedding3, { by: 'none', order: 'oldest', dates: true })).toEqual([
     [`day-${day(3)}`, ['morning', 'vows']],
     [`day-${day(4)}`, ['dancing', 'breakfast']],
     [`day-${day(5)}`, ['goodbyes']],
   ]);
+  expect(groups(wedding3, { by: 'none', order: 'oldest', dates: false })).toEqual([
+    ['all', ['morning', 'vows', 'dancing', 'breakfast', 'goodbyes']],
+  ]);
 });
 
 test('by people, whoever brought the most stands first — `FramesByPeople`', () => {
-  expect(groups(wedding3, { by: 'person', order: 'newest' })).toEqual([
+  expect(groups(wedding3, { by: 'person', order: 'newest', dates: true })).toEqual([
     ['who-liza', ['goodbyes', 'dancing', 'morning']],
     // Two people who brought the same amount fall in the sheet's own direction: Anya's one frame is
     // the newer of the two, and reading newest first that is the heading that comes first.
     ['who-anya', ['breakfast']],
     ['who-mark', ['vows']],
   ]);
+  // A seam about somebody is already saying where their frames begin, so the switch of dates has
+  // nothing left to give here — the sheet holds it shut, and the cut answers the same either way.
+  expect(groups(wedding3, { by: 'person', order: 'newest', dates: false })).toEqual(
+    groups(wedding3, { by: 'person', order: 'newest', dates: true }),
+  );
 });
 
 test('by kind, photos before videos, and a kind nobody brought is not a heading', () => {
-  expect(groups(wedding3, { by: 'kind', order: 'newest' }).map(([key]) => key)).toEqual([
-    'kind-photo',
-    'kind-video',
-  ]);
+  const byKind: Sort = { by: 'kind', order: 'newest', dates: false };
+  expect(groups(wedding3, byKind).map(([key]) => key)).toEqual(['kind-photo', 'kind-video']);
   const photos = wedding3.filter((item) => item.kind === 'photo');
-  expect(groups(photos, { by: 'kind', order: 'newest' }).map(([key]) => key)).toEqual([
-    'kind-photo',
+  expect(groups(photos, byKind).map(([key]) => key)).toEqual(['kind-photo']);
+  expect(groupFrames([], byKind)).toEqual([]);
+});
+
+test('every day of the wall is a mark on the spine, on the seam between two rows', () => {
+  // Spec 7.8, detail 66 — `MemoryScrub`. The wall in the order it is actually drawn in, three
+  // across: «goodbyes», «breakfast» and «dancing» make the first row, «vows» and «morning» the
+  // second. So the last day opens the feed at its very top, and the first day opens the second row
+  // one pitch down.
+  const wall = groupFrames(wedding3, SORT_DEFAULT)[0].frames;
+  expect(dateMarks(wall, { top: 100, row: 131 })).toEqual([
+    { at: day(5), top: 100 },
+    { at: day(3), top: 231 },
   ]);
-  expect(groupFrames([], { by: 'kind', order: 'newest' })).toEqual([]);
+  // And the day in between gets no pill of its own: it begins in the middle of the first row, on a
+  // seam that already carries one. A mark stands between rows and never inside one, and a seam
+  // holds a single pill — the day that opened it.
+  expect(dateMarks([], { top: 100, row: 131 })).toEqual([]);
 });
 
 test('the filter holds back by who brought it, what it is, and which day it is from', () => {
@@ -552,6 +583,9 @@ test('the spark dot means «no longer at its default», and nothing else', () =>
   expect(filtering({ ...FILTER_NONE, days: new Set([day(4)]) })).toBe(true);
 
   expect(arranged(SORT_DEFAULT)).toBe(false);
-  expect(arranged({ by: 'person', order: 'newest' })).toBe(true);
-  expect(arranged({ by: 'day', order: 'oldest' })).toBe(true);
+  expect(arranged({ ...SORT_DEFAULT, by: 'person' })).toBe(true);
+  expect(arranged({ ...SORT_DEFAULT, order: 'oldest' })).toBe(true);
+  // The dates between the days are an arrangement like any other, and `MemoryDated` is drawn with
+  // the dot burning on the round button they were turned on from.
+  expect(arranged({ ...SORT_DEFAULT, dates: true })).toBe(true);
 });

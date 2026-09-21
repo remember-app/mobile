@@ -11,7 +11,14 @@ import {
   Trash2,
 } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, useWindowDimensions, View } from 'react-native';
+import {
+  Animated,
+  PanResponder,
+  RefreshControl,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -27,10 +34,18 @@ import {
   type Member,
 } from '@/api';
 import { useAuth } from '@/auth';
-import { formatDay, formatEventDates, formatRuntime } from '@/dates';
+import {
+  formatDayShort,
+  formatDayTiny,
+  formatEventDates,
+  formatRuntime,
+  formatWeekday,
+} from '@/dates';
 import { maySaveToPhone, saveToPhone, shareFile } from '@/downloads';
 import {
   arranged,
+  COLUMNS,
+  dateMarks,
   FILTER_NONE,
   filtering,
   frameOf,
@@ -53,11 +68,14 @@ import {
   Banner,
   Button,
   ConfirmSheet,
+  DateSpine,
   DayMark,
   Empty,
+  EASE,
   FEED_GAP,
   IconButton,
   Tile,
+  useReducedMotion,
   Waiting,
 } from '@/kit';
 import { useStrings } from '@/language';
@@ -65,7 +83,7 @@ import { Films } from '@/memory/films';
 import { FrameViewer } from '@/memory/frame-viewer';
 import { FilterSheet, SortSheet } from '@/memory/frames-sheets';
 import { BlockHead, MemoryHead, type Head } from '@/memory/head';
-import { board, height, space, themed, useTheme } from '@/theme';
+import { board, duration, height, space, themed, useTheme } from '@/theme';
 
 /**
  * How long the feed waits before looking again while the worker is still making something. A
@@ -74,9 +92,22 @@ import { board, height, space, themed, useTheme } from '@/theme';
  */
 const WHILE_PREPARING_MS = 3000;
 
-/** One line of the feed: a heading, or up to three of the frames standing under it. */
+/** How long the date spine stands after the feed stops, before it goes (spec 6). */
+const SPINE_HOLD_MS = 1000;
+
+/**
+ * How wide a strip of the right edge the spine answers a finger in. Wider than the hairline and the
+ * pills it carries, narrower than a tap target: it is live only while the spine itself is visible,
+ * and a strip as wide as a thumb would be swallowing flicks meant for the feed underneath.
+ */
+const SPINE_GRAB = 32;
+
+/** A seam over a strip of frames — every cut but the one that has no seam at all. */
+type Seam = Exclude<FrameGroup, { by: 'all' }>;
+
+/** One line of the feed: a seam, or up to three of the frames standing under it. */
 type Row =
-  | { key: string; group: FrameGroup; frames?: undefined }
+  | { key: string; group: Seam; frames?: undefined }
   | { key: string; frames: MediaItem[]; group?: undefined };
 
 /** Which of the two sheets the feed is being tuned from, if either. */
@@ -113,7 +144,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
    * gaps to leave — so the last frame of the feed came out wider than every frame above it, which is
    * what the designer measured. Rotating the phone re-reads the width.
    */
-  const { width } = useWindowDimensions();
+  const { width, height: screen } = useWindowDimensions();
   const cell = { width: (width - FEED_GAP * 2) / 3 };
   // null means «not loaded yet», the distinction the montage block draws too: a reload after a
   // delete keeps the feed on screen instead of flashing the spinner over it.
@@ -151,6 +182,65 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   useEffect(() => () => {
     onScreen.current = false;
   }, []);
+
+  /**
+   * The date spine (spec 7.8, detail 66, and `MemoryScrub`). Four things are needed to draw it and
+   * none of them is in the material: how far the list has been moved, how tall the block of films
+   * over the frames came out, and how the whole of the feed compares to the screen it is being read
+   * through — a feed shorter than the screen has no spine at all.
+   *
+   * The offset is an `Animated.Value` written straight from the scroll on the native side, and the
+   * marks ride on it as one translated layer: they stand on the seams of the feed, so they have to
+   * move exactly as the photographs do, and doing that through React state would be re-rendering
+   * this whole screen sixty times a second.
+   */
+  const list = useRef<Animated.FlatList<Row>>(null);
+  const scrolled = useRef(new Animated.Value(0)).current;
+  const spineFade = useRef(new Animated.Value(0)).current;
+  const [scrolling, setScrolling] = useState(false);
+  const [headerHeight, setHeaderHeight] = useState(0);
+  const [feed, setFeed] = useState({ content: 0, view: 0 });
+  const reduced = useReducedMotion();
+  /** The timer that ends the spine's stay; null while it is not standing. */
+  const stay = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /**
+   * Spec 6 — the spine proves while a finger is moving the feed and goes a second after it stops:
+   * 120 coming, 400 going, and neither under «уменьшить движение», where it simply is or is not.
+   * Every scroll event lands here, so the arrival is only played once a burst and the rest of the
+   * burst just pushes the departure back.
+   */
+  const moving = useCallback(() => {
+    const fade = (toValue: number, ms: number) =>
+      Animated.timing(spineFade, {
+        toValue,
+        duration: reduced ? 0 : ms,
+        easing: EASE,
+        useNativeDriver: true,
+      }).start();
+    // The arrival, and the one re-render the whole burst costs: sixty events a second must not be
+    // sixty dispatches at a screen holding a wall of photographs.
+    if (stay.current === null) {
+      fade(1, duration.spineIn);
+      setScrolling(true);
+    } else {
+      clearTimeout(stay.current);
+    }
+    stay.current = setTimeout(() => {
+      stay.current = null;
+      setScrolling(false);
+      fade(0, duration.spineOut);
+    }, SPINE_HOLD_MS);
+  }, [spineFade, reduced]);
+
+  // The timer outlives the screen otherwise: it holds `setScrolling`, and a memory left while the
+  // spine is still up would be writing state into a screen that has gone.
+  useEffect(
+    () => () => {
+      if (stay.current !== null) clearTimeout(stay.current);
+    },
+    [],
+  );
 
   const load = useCallback(
     // `quiet` belongs to the re-read below: that one happens on its own every few seconds, and it
@@ -265,10 +355,12 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   const rows = useMemo(
     () =>
       groupFrames(kept, sort).flatMap((group): Row[] => [
-        { key: group.key, group },
-        ...Array.from({ length: Math.ceil(group.frames.length / 3) }, (_, i) => ({
-          key: group.frames[i * 3].id,
-          frames: group.frames.slice(i * 3, i * 3 + 3),
+        // The wall has no seam over it at all (`MemoryFrames`, `MemoryScrub`): with the dates off
+        // and nothing grouped, the days are read off the spine at the edge instead.
+        ...(group.by === 'all' ? [] : [{ key: group.key, group }]),
+        ...Array.from({ length: Math.ceil(group.frames.length / COLUMNS) }, (_, i) => ({
+          key: group.frames[i * COLUMNS].id,
+          frames: group.frames.slice(i * COLUMNS, i * COLUMNS + COLUMNS),
         })),
       ]),
     [kept, sort],
@@ -283,6 +375,73 @@ export function Frames({ id, head }: { id: string; head: Head }) {
    */
   const sheet = useMemo(() => rows.flatMap((row) => row.frames ?? []), [rows]);
 
+  /**
+   * Where the first row of frames starts, in points down the list's own content: the top the feed
+   * is pushed down by to clear the glass, the block of films over it as it actually came out, and
+   * the one gutter between that block and the frames. Everything below rides a row's pitch — a
+   * square tile and the gutter under it.
+   */
+  const feedTop = insets.top + height.roundViewer + space.s4 + headerHeight + FEED_GAP;
+  const rowPitch = cell.width + FEED_GAP;
+  /** How much of the feed is out of sight — nothing at all, on one shorter than the screen. */
+  const reach = feed.content - feed.view;
+
+  /**
+   * The marks on the spine: one per day, on the seam between the two rows where that day begins
+   * (spec 7.8). Only on the wall — cut into days, people or kinds, the seam itself says where a day
+   * begins — and only when there is something to scroll: «лента короче экрана — стержня нет вовсе».
+   */
+  const spine = useMemo(
+    () =>
+      sort.by !== 'none' || sort.dates || headerHeight === 0 || reach <= 0
+        ? []
+        : dateMarks(sheet, { top: feedTop, row: rowPitch }).map((mark) => ({
+            label: formatDayTiny(new Date(mark.at)),
+            top: mark.top,
+          })),
+    [sort, sheet, headerHeight, reach, feedTop, rowPitch],
+  );
+
+  /** Where the strip the spine is grabbed by begins and how tall it is: between the two glasses. */
+  const grabTop = insets.top + height.roundViewer;
+  const grabSpan = Math.max(1, screen - board.footerGallery - grabTop);
+
+  /**
+   * Dragging the spine throws the feed (spec 7.8): where the finger stands on the strip is where the
+   * feed stands in itself. It only answers touches that *begin* on the strip, and only while the
+   * spine is visible — otherwise a flick along the right edge would stop being a flick halfway
+   * through it.
+   */
+  const pan = useMemo(() => {
+    const jump = (pageY: number) => {
+      if (reach <= 0) return;
+      const part = Math.min(1, Math.max(0, (pageY - grabTop) / grabSpan));
+      list.current?.scrollToOffset({ offset: part * reach, animated: false });
+      // A finger holding the spine still is holding the spine: the feed sends nothing while it
+      // does not move, and the thing being held must not fade out from under it.
+      moving();
+    };
+    return PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onPanResponderGrant: (e) => jump(e.nativeEvent.pageY),
+      onPanResponderMove: (e) => jump(e.nativeEvent.pageY),
+    });
+  }, [reach, grabTop, grabSpan, moving]);
+
+  /**
+   * The scroll itself, hung once rather than rebuilt on every render: it carries a native animation
+   * on one end and this screen's own fade on the other, and re-attaching it mid-flick is a dropped
+   * frame under the finger.
+   */
+  const onScroll = useMemo(
+    () =>
+      Animated.event([{ nativeEvent: { contentOffset: { y: scrolled } } }], {
+        useNativeDriver: true,
+        listener: moving,
+      }),
+    [scrolled, moving],
+  );
+
   /** Everybody who actually brought something, for the chips the filter sheet offers. */
   const brought = useMemo(() => {
     const ids = [...new Set((items ?? []).map((item) => item.uploaded_by))];
@@ -292,8 +451,15 @@ export function Frames({ id, head }: { id: string; head: Head }) {
     }));
   }, [items, roster]);
 
-  /** Every day the memory holds, newest first — the other row of chips on that sheet. */
-  const days = useMemo(() => framesByDay(items ?? []).map((day) => day.at), [items]);
+  /**
+   * Every day the memory holds, newest first, each with what it holds — the other row of chips on
+   * that sheet, and the counts are of the whole memory rather than of what is on screen: a chip
+   * says what pressing it would bring back, not what the filter has already left.
+   */
+  const days = useMemo(
+    () => framesByDay(items ?? []).map((day) => ({ at: day.at, count: day.frames.length })),
+    [items],
+  );
 
   /**
    * What a tile is called out loud: what it is, what has become of it, and whether it is the frame
@@ -316,9 +482,14 @@ export function Frames({ id, head }: { id: string; head: Head }) {
       .filter(Boolean)
       .join(', ');
 
-  /** What stands at the two ends of a heading: the group said in words, and who it belongs to. */
-  function headingOf(group: FrameGroup): { label: string; avatar?: string; organizer?: boolean } {
-    if (group.by === 'day') return { label: formatDay(new Date(group.at)) };
+  /** What stands at the two ends of a seam: the group said in words, and who it belongs to. */
+  function headingOf(group: Seam): { label: string; avatar?: string; organizer?: boolean } {
+    // `MemoryDated` — «13 сентября, суббота»: the day and the name of it, and no year. Which year
+    // the wedding was is settled by the memory this feed belongs to.
+    if (group.by === 'day') {
+      const at = new Date(group.at);
+      return { label: `${formatDayShort(at)}, ${formatWeekday(at)}` };
+    }
     // Photo against video: the material's own two kinds, under the words one record is named by.
     if (group.by === 'kind') return { label: s.media[group.kind] };
     // `FramesByPeople`: the circle in front of the name, with the spark collar if this is the
@@ -511,9 +682,23 @@ export function Frames({ id, head }: { id: string; head: Head }) {
 
   return (
     <>
-      <FlatList
+      <Animated.FlatList<Row>
+        ref={list}
         data={rows}
         keyExtractor={(row) => row.key}
+        // What the spine is hung on: the offset goes to the native side, where the marks are moved
+        // with the photographs, and the listener is what lights the thing and puts it out again.
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        // The two numbers that say whether there is anything to scroll at all, and how far a drag
+        // on the spine reaches. Guarded, because a list writes both on every layout pass.
+        onContentSizeChange={(_width, content) =>
+          setFeed((was) => (was.content === content ? was : { ...was, content }))
+        }
+        onLayout={(e) => {
+          const view = e.nativeEvent.layout.height;
+          setFeed((was) => (was.view === view ? was : { ...was, view }));
+        }}
         // The feed runs under the glass bar and under the bottom layer, and starts far enough down
         // for the block over it to clear the bar. An empty one is one block in the middle instead.
         contentContainerStyle={[
@@ -540,7 +725,15 @@ export function Frames({ id, head }: { id: string; head: Head }) {
         // over `FramesEmpty`: with nothing brought there is no film to cut and nothing to count.
         ListHeaderComponent={
           any ? (
-            <View>
+            // Measured rather than reckoned: the films are a block whose height is its own business
+            // — a strip, an empty state, nothing at all while it reads — and the spine's marks are
+            // counted from the first row of frames, which stands under it.
+            <View
+              onLayout={(e) => {
+                const tall = e.nativeEvent.layout.height;
+                setHeaderHeight((was) => (was === tall ? was : tall));
+              }}
+            >
               <Films id={id} memory={memory} />
               <BlockHead
                 title={s.memory.framesPlain}
@@ -580,9 +773,15 @@ export function Frames({ id, head }: { id: string; head: Head }) {
             return (
               <DayMark
                 {...headingOf(group)}
-                // The seam holds one count, and while the mode is on the whole band becomes the
-                // button that takes the group (spec 7.8).
-                count={s.memory.frames(picking ? markable.length : group.frames.length)}
+                // The seam holds one figure and never a sentence (spec 7.8): how many that person
+                // brought, and over a day nothing at all — `MemoryDated` writes the date alone.
+                // While the mode is on every seam counts, because the whole band is then the button
+                // that takes the group.
+                count={
+                  picking || group.by !== 'day'
+                    ? String(picking ? markable.length : group.frames.length)
+                    : undefined
+                }
                 onPress={picking && markable.length > 0 ? () => pickDay(markable) : undefined}
                 pressLabel={s.gallery.selectDay(markable.length)}
               />
@@ -640,6 +839,33 @@ export function Frames({ id, head }: { id: string; head: Head }) {
           );
         }}
       />
+
+      {/* `MemoryScrub` — the spine at the right edge: a hairline with a pill on every seam where a
+          day begins, proving while the feed is moving and gone a second after it stops. It lies
+          over the photographs and takes no room from them, and it is not there at all when the
+          dates are written between the days, when the feed is cut by people or by kind, or when
+          there is less of it than a screen.
+
+          The marks are moved by the scroll itself rather than by this screen re-rendering: they are
+          drawn where the feed's own seams are, and translated by however far it has been moved. */}
+      {spine.length === 0 ? null : (
+        <Animated.View
+          // Dead to a finger unless the spine can be seen: what is drawn at nought opacity is still
+          // a thing in the way of the feed underneath.
+          pointerEvents={scrolling ? 'box-none' : 'none'}
+          style={[styles.spine, { opacity: spineFade }]}
+        >
+          <Animated.View
+            style={[
+              styles.spineFeed,
+              { height: feed.content, transform: [{ translateY: Animated.multiply(scrolled, -1) }] },
+            ]}
+          >
+            <DateSpine marks={spine} />
+          </Animated.View>
+          <View style={[styles.grab, { top: grabTop, height: grabSpan }]} {...pan.panHandlers} />
+        </Animated.View>
+      )}
 
       {/* Spec 7.1, detail 4 — the glass over the feed. In the feed it is «Назад», the memory's name
           and the way into picking; while picking it is the labels, what is marked, and the same
@@ -874,6 +1100,14 @@ const useStyles = themed(() =>
     // The bottom layer stands over the feed and takes no room from it: the gradient inside it is
     // what the last frames pass under.
     bottom: { position: 'absolute', left: 0, right: 0, bottom: 0 },
+    // The spine's own layer: the whole screen, so the hairline runs its full height (spec 7.8).
+    spine: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+    // And inside it the feed's own coordinates — as tall as everything there is to scroll, moved
+    // up by however much of it has been. The line and the marks live in here together, so both
+    // stand still against the photographs instead of against the phone.
+    spineFeed: { position: 'absolute', top: 0, left: 0, right: 0 },
+    // Where a finger takes hold of it: the right edge between the two glasses, drawn by nothing.
+    grab: { position: 'absolute', right: 0, width: SPINE_GRAB },
     notice: { marginHorizontal: space.s4, marginTop: space.s3 },
     // Where the one action of the screen would stand for somebody who may add to it.
     grow: { flex: 1 },
