@@ -205,8 +205,8 @@ test('a film being cut carries the stage it is on, «N из 5», counted the way
   const step = (id: string) => screen.card(id).props.step;
   expect(step('a')).toEqual({ at: 3, of: 5, count: ru.montage.live.doneOf(3, 5) });
   expect(step('between')).toEqual({ at: 2, of: 5, count: ru.montage.live.doneOf(2, 5) });
-  // A fallen film stands at the stage that fell over.
-  expect(step('broke')).toEqual({ at: 2, of: 5, count: ru.montage.live.doneOf(2, 5) });
+  // A fallen film stands at the stage that fell over, and says it is that one.
+  expect(step('broke')).toEqual({ at: 2, of: 5, count: ru.montage.live.doneOf(2, 5), failed: true });
   expect(step('b')).toBeUndefined();
   expect(step('c')).toBeUndefined();
 });

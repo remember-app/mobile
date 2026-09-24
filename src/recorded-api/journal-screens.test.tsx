@@ -897,8 +897,8 @@ describe.each(SCENARIOS)('%s — a montage that fell over', (scenario) => {
     const strip = await mount(<Films id={MEMORY} memory={{ id: MEMORY, role } as never} />, replay(fellOver(steps, role), { extra }), role);
     const card = strip.root.findAllByType(CardMontage)[1];
     expect(card.props.state).toBe('failed');
-    // The stage it broke on, counted the way the screen it opens counts it.
-    expect(card.props.step).toEqual({ at: 2, of: 5, count: ru.montage.live.doneOf(2, 5) });
+    // The stage it broke on, counted the way the screen it opens counts it, and painted apart.
+    expect(card.props.step).toEqual({ at: 2, of: 5, count: ru.montage.live.doneOf(2, 5), failed: true });
     // The card's own «Повторить» stays where it was: the organizer's, and nobody else's.
     expect(card.findAllByType(Button).map((one) => one.props.label)).toEqual(role === 'organizer' ? [ru.action.retry] : []);
     await strip.press(card);

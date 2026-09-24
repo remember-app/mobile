@@ -225,10 +225,11 @@ export default function MontageLiveScreen() {
       />
 
       <ScrollView contentContainerStyle={styles.body}>
-        {/* «Сейчас» — the frame in the director's hands. A montage that fell over with nothing in
-            them has no card at all: a spinner over «Ждём очереди» under a screen that says it did
-            not finish would be the screen arguing with itself. */}
-        {held === null && failed ? null : (
+        {/* «Сейчас» — the frame in the director's hands. A montage that fell over has no card at
+            all: nobody's hands are on it any more, and a live window over an attempt that broke a
+            week ago says the director is still at work. Where it broke is the stage wearing the
+            cross below, opened out on its last records — the frame it held among them. */}
+        {failed ? null : (
           <CardNow
             uri={file?.thumbnail_url ?? undefined}
             author={file ? author : undefined}

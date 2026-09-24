@@ -5,7 +5,8 @@ import { beforeAll, expect, test } from 'vitest';
 import { BadgeMontage } from '@/kit/badge';
 import { Button } from '@/kit/button';
 import { CardMontage, CardMontageNew, EmptyMontages } from '@/kit/card-montage';
-import { allDifferent, story } from '@/kit/story';
+import { allDifferent, compiled, story } from '@/kit/story';
+import { Text } from '@/kit/text';
 import { mountsTrees } from '@/test-renderer';
 import { setTheme } from '@/theme';
 
@@ -13,6 +14,16 @@ import { setTheme } from '@/theme';
 
 const POSTER = 'https://bucket.example/poster.jpg';
 const SHOTS = ['https://bucket.example/1.jpg', 'https://bucket.example/2.jpg'];
+
+/** The bars of a card's scale, in order — the only children the scale has. */
+const barsOf = (markup: string) =>
+  markup.slice(markup.indexOf('role="progressbar"')).match(/<div class="[^"]*"><\/div>/g) ?? [];
+
+/** The colour a bar is filled with, read out of the rule its class compiled to (`story.tsx`). */
+const fillOf = (bar: string) => {
+  const name = bar.match(/r-backgroundColor-[a-z0-9]+/)?.[0];
+  return compiled().match(new RegExp(`\\.${name}\\{background-color:([^;]+);\\}`))?.[1];
+};
 
 mountsTrees();
 
@@ -76,8 +87,6 @@ test('a card still being cut shows its own frame out of focus rather than no fra
 test('the scale of five is lit up to the stage in hand, as many bars as the count says', () => {
   const scale = (at: number) =>
     story(<CardMontage title="Ролик" state="pending" step={{ at, of: 5, count: `${at} из 5` }} />);
-  const barsOf = (markup: string) =>
-    markup.slice(markup.indexOf('role="progressbar"')).match(/<div class="[^"]*"><\/div>/g) ?? [];
   expect(scale(3)).toContain('role="progressbar"');
   // Five bars and not four: the scale says «of five» by being five, whatever the count beside it
   // reads. The bars are the only children it has, so counting them is counting these.
@@ -88,6 +97,47 @@ test('the scale of five is lit up to the stage in hand, as many bars as the coun
     const bars = barsOf(scale(at));
     expect(bars.filter((bar) => bar === bars[0]), `${at} из 5`).toHaveLength(at);
   }
+});
+
+test('the stage a montage fell over on is lit in danger, apart from the ones it got through', async () => {
+  const fallen = (failed?: boolean) =>
+    story(
+      <CardMontage title="Ролик" state="failed" step={{ at: 3, of: 5, count: '3 из 5', failed }} />,
+    );
+  const spark = 'rgba(228,255,79,1.00)';
+  const track = 'rgba(255,255,255,0.22)';
+  // The night's `dangerText` — the cross its row wears on the screen the card opens (spec detail 56).
+  const danger = 'rgba(255,141,141,1.00)';
+  expect(barsOf(fallen(true)).map(fillOf)).toEqual([spark, spark, danger, track, track]);
+  // A montage that fell over between two stages has none that broke: the scale is only lit.
+  expect(barsOf(fallen()).map(fillOf)).toEqual([spark, spark, spark, track, track]);
+  // It lies on the poster, so daylight does not trade it for the day's dark red, made for cream.
+  await setTheme('light');
+  expect(fillOf(barsOf(fallen(true))[2])).toBe(danger);
+  await setTheme('dark');
+});
+
+test('a fallen card says why it broke on one line, and its label carries all of it', () => {
+  const why = 'материал не годится для ролика: файлы не читаются, кадры испорчены или исключены';
+  const card = (
+    <CardMontage
+      title="Ролик на 2:00"
+      state="failed"
+      caption={why}
+      step={{ at: 2, of: 5, count: '2 из 5', failed: true }}
+      onPress={() => {}}
+    >
+      <Button variant="secondary" size="sm" label="Повторить" />
+    </CardMontage>
+  );
+  let tree!: TestRenderer.ReactTestRenderer;
+  act(() => {
+    tree = TestRenderer.create(card);
+  });
+  // Under the button and over the scale, a second line lifts the name into the badge.
+  const line = tree.root.find((node) => node.type === Text && node.props.children === why);
+  expect(line.props.numberOfLines).toBe(1);
+  expect(story(card)).toContain(`aria-label="Ролик на 2:00 · ${why} · 2 из 5"`);
 });
 
 test('a card with a still and one without are not the same card', () => {

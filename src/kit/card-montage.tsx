@@ -27,8 +27,8 @@ const BLUR = 10;
  * - **ready** — the still, the play circle, the name and what it was made of;
  * - **pending** — the same still under a blur, because there is a film coming but nothing to show
  *   of it yet, and a scale of five saying how far along it is;
- * - **failed** — the same body with the dangerous badge, the line saying where it broke, and the
- *   way to try again.
+ * - **failed** — the same body with the dangerous badge, the line saying why it broke, the stage it
+ *   broke on in danger on the scale, and the way to try again.
  *
  * `large` is the one full-width view the layout draws (196): the same card once the montage is the
  * screen rather than one of several in a strip.
@@ -52,18 +52,24 @@ export function CardMontage({
   meta?: string;
   state: MontageState;
   poster?: string | null;
-  /** «Сборка оборвалась на полпути» — the failed card's own line. */
+  /**
+   * «Мы сообщим, когда будет готов», or why a fallen one broke — one line, and the rest is left to
+   * the label and to the screen the card opens: a second line lifts the name into the badge.
+   */
   caption?: string;
   /** The state badge — its words belong to the screen. */
   badge?: ReactNode;
-  /** Which stage the building is on: «3 из 5», and five bars lit up to it, that one included. */
-  step?: { at: number; of: number; count: string };
+  /**
+   * Which stage the building is on: «3 из 5», and five bars lit up to it, that one included.
+   * `failed` — that stage is the one it fell over on, and its bar is drawn in danger.
+   */
+  step?: { at: number; of: number; count: string; failed?: boolean };
   large?: boolean;
   /**
    * What the whole card says to a screen reader, where its own words are not what pressing it does —
    * «Смотреть: Ролик на 2:30» on the poster that plays the film. Otherwise the words on the card, in
    * the order they stand: a pressed card is one element, and whatever is left out of its label is
-   * never read — «Сборка оборвалась на полпути» on a fallen one above all.
+   * never read — why a fallen one broke above all, and all of it, where the card shows one line.
    */
   label?: string;
   /**
@@ -126,11 +132,11 @@ export function CardMontage({
               ) : null}
             </View>
             {caption ? (
-              <Text role="meta" numberOfLines={2} style={styles.onPhotoMeta}>
+              <Text role="meta" numberOfLines={1} style={styles.onPhotoMeta}>
                 {caption}
               </Text>
             ) : null}
-            {step ? <StageScale at={step.at} of={step.of} /> : null}
+            {step ? <StageScale at={step.at} of={step.of} failed={step.failed} /> : null}
           </>
         )}
       </View>
@@ -209,10 +215,13 @@ function PlayCircle({ size }: { size: 34 | 60 }) {
  * Spec 7.6 and detail 38 — five 3px bars over the poster, `spark` up to the stage in hand and that
  * one included, as many as the count beside them says. Not the wizard's `StepScale` (spec 7.10):
  * that one runs on `line` over a surface and marks the step in hand in `accent`; here the stage in
- * hand is lit like the ones behind it, and the track is white on a picture.
+ * hand is lit like the ones behind it, and the track is white on a picture. A stage that fell over
+ * is lit in danger instead, the way its row wears the cross on the screen the card opens.
  */
-function StageScale({ at, of }: { at: number; of: number }) {
+function StageScale({ at, of, failed }: { at: number; of: number; failed?: boolean }) {
   const styles = useStyles();
+  const lit = (i: number) =>
+    i >= at ? null : failed && i === at - 1 ? styles.scaleFailed : styles.scaleLit;
 
   return (
     <View
@@ -221,7 +230,7 @@ function StageScale({ at, of }: { at: number; of: number }) {
       style={styles.scale}
     >
       {Array.from({ length: of }, (_, i) => (
-        <View key={i} style={[styles.scaleBar, i < at ? styles.scaleLit : null]} />
+        <View key={i} style={[styles.scaleBar, lit(i)]} />
       ))}
     </View>
   );
@@ -347,6 +356,9 @@ const useStyles = themed(({ color }) =>
     scale: { flexDirection: 'row', gap: 3 },
     scaleBar: { flex: 1, height: 3, borderRadius: radius.pill, backgroundColor: photo.track },
     scaleLit: { backgroundColor: color.spark },
+    // The night's, as the badge beside it is: the day's `dangerText` is a dark red made for cream,
+    // and this lies on a photograph in both themes.
+    scaleFailed: { backgroundColor: night.dangerText },
     new: {
       width: 92,
       height: CARD.height,

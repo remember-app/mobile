@@ -967,10 +967,10 @@ test('the four standings of a montage on air are four different screens', () => 
   expect(live).toContain('s.montage.live.lost');
   expect(live).toContain('<Spinner size={16} />');
 
-  // It fell over: the card goes only when there is no frame left to hold, and the stage that broke
-  // is what says where.
+  // It fell over: «Сейчас» goes whole, frame or no frame — nobody is at work on it — and the stage
+  // that broke is what says where.
   expect(live).toContain("const failed = journal.standing === 'failed';");
-  expect(live).toContain('{held === null && failed ? null : (');
+  expect(live).toContain('{failed ? null : (');
   expect(live).toContain('{failed && montage?.error_text ? (');
 
   // And the thing chief struck off this screen: there is no «Сообщить, когда будет готово» on it,
@@ -1186,7 +1186,9 @@ test('a card still being cut says which of the five stages it is on', () => {
   expect(films).toContain('{ at, of: STAGE_COUNT, count: s.montage.live.doneOf(at, STAGE_COUNT) }');
   expect(ru.montage.live.doneOf(3, 5)).toBe('3 из 5');
   // The count and the scale read the one number, so the card cannot say «3» and paint four.
-  expect(cardMontage).toContain('{step ? <StageScale at={step.at} of={step.of} /> : null}');
+  expect(cardMontage).toContain(
+    '{step ? <StageScale at={step.at} of={step.of} failed={step.failed} /> : null}',
+  );
   expect(cardMontage).toContain('{step.count}');
 });
 
