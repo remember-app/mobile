@@ -812,8 +812,7 @@ export const en = {
     /** The round button on every row of the shelf — spoken only, and it says which track it is. */
     listen: (track: string) => `Play ${track}`,
     stopTrack: (track: string) => `Stop ${track}`,
-    ownTrack: 'Your own track from this phone',
-    /** The same thing named in a summary line and on a finished movie's card. */
+    /** A track off the phone — on its pill, its row, the summary and a finished movie's card. */
     ownTrackShort: 'Your own track',
     sendingTrack: 'Sending the track…',
     /**
@@ -1588,7 +1587,6 @@ export const ru: Strings = {
     musicHint: 'Без музыки или один-несколько треков.',
     listen: (track: string) => `Послушать «${track}»`,
     stopTrack: (track: string) => `Остановить «${track}»`,
-    ownTrack: 'Свой трек с телефона',
     ownTrackShort: 'Свой трек',
     sendingTrack: 'Загружаем трек…',
     noMusic: 'Без музыки',

@@ -208,6 +208,21 @@ test('while the autopilot walks, the bottom layer says so and hands the wheel ba
   expect(stopping.slice(0, stopping.indexOf('}, []);'))).not.toContain('change(');
 });
 
+test('the walk stops however the person gets out from under it, and never writes over a hand', () => {
+  // The walk only pushes, so a step going away is somebody leaving — the system back gesture, or
+  // the whole wizard closing — and a walk still running would push its next step onto the memory.
+  expect(wizard).toContain('useEffect(() => stop, [stop]);');
+  // Typing into the story while the template types is taking the wheel.
+  expect(story).toContain('onChangeText={(story) => {\n            stop();');
+
+  const flying = wizard.slice(wizard.indexOf('const start = useCallback('));
+  // A second template starts clean: nothing of the first one's words, and the words and the figure
+  // are the template's again rather than still somebody's own.
+  expect(flying).toContain("change({ ...fill, story: '', tracks: [], note: '', seconds: null });");
+  // «Стоп» mid-word leaves the template's whole text, not half a word — unless a hand has it.
+  expect(flying).toContain('change((was) => (was.ownStory ? {} : { story: fill.story }));');
+});
+
 test('the wizard’s bar wears three faces, and only the total has nothing on its right', () => {
   // Spec 7.1, detail 3: the four steps carry the scale and the counter, the way in and the total
   // carry neither — and «Отмена» stands on every screen of the walk but the last.
@@ -260,7 +275,7 @@ test('step 2 is skippable, and the plate says whose words are in the box', () =>
   expect(story).toContain('icon={order.ownStory ? undefined : TEMPLATE_SIGN[template]}');
   expect(story).toContain('? s.montage.ownText');
   expect(story).toContain(': s.montage.fromTemplate(s.montage.template[template])');
-  expect(story).toContain('onChangeText={(story) => change({ story, ownStory: true })}');
+  expect(story).toContain('stop();\n            change({ story, ownStory: true });');
   // The six templates the api hands out have a word each in both sets, by its own ids.
   const ids = [...api.matchAll(/^  \| '(\w+)'/gm)].map(([, id]) => id);
   expect(ids).toEqual(['for_myself', 'quick', 'report', 'short_form', 'parents', 'dopamine']);
@@ -277,8 +292,10 @@ test('one call at the end of the walk, and it carries every wish of spec 8', () 
   expect(music).toContain('await sendOwnTrack(token, id,');
 
   // Every field of the body the api takes is named in the client, the list of tracks included —
-  // and the two old single-track fields are still readable, because an older montage's card is
-  // still drawn from them.
+  // and nothing it no longer takes: the two old single-track fields are only on `Montage.params`,
+  // because an older montage's card is still drawn from them (TASK-226).
+  const bodyType = api.slice(api.indexOf('export type MontageWishes = {'));
+  const body = bodyType.slice(0, bodyType.indexOf('\n};'));
   for (const wish of [
     'target_seconds',
     'story_text',
@@ -287,11 +304,13 @@ test('one call at the end of the walk, and it carries every wish of spec 8', () 
     'music_tracks',
     'music_note',
     'orientation',
-    'music_track_id',
-    'music_track_key',
   ]) {
-    expect(api).toContain(`${wish}?`);
+    expect(body).toContain(`${wish}?`);
   }
+  expect(body).not.toContain('music_track_');
+  expect(api).toContain(
+    'params: MontageWishes & { music_track_id?: MusicTrackId; music_track_key?: string };',
+  );
   // The three routes of an order, and the summary asks with the same body the order sends.
   expect(api).toContain('/montage-templates');
   expect(api).toContain('/montages/preview');
@@ -391,14 +410,19 @@ test('tracks go in in any number, in the order they play, and that order is drag
   // The shelf adds to the end of the list rather than replacing one answer with another — several
   // at once is the whole of the new step — and their own track lands in the same list.
   expect(music).toContain('change({ tracks: [...picked, { key, name: null }] })');
-  expect(music).toContain('change({ tracks: [...picked, { key, name: file.name }] });');
+  // Their own track lands on the list as it is when the upload ends, not as it was when the picker
+  // opened: the shelf stays pressable meanwhile, and what was added there must not be dropped.
+  expect(music).toContain('change((was) => ({ tracks: [...was.tracks, { key, name: file.name }] }));');
 
   // The row is dragged by its wave (spec 7.7), and rows are counted rather than measured: every
   // one of them is exactly `TRACK_ROW` tall, which is the kit's own number and not a copy of it.
   expect(music).toContain('grip={{');
   expect(music).toContain('...gripFor(i),');
-  expect(music).toContain('Math.round(gesture.dy / TRACK_ROW)');
-  expect(music).toContain('change({ tracks: movedTrack(picked, from, to) });');
+  // Counted from where the finger came down, and not off `gesture.dy`: each swap re-renders the
+  // list, the next move reaches the new render's handler, and its own `dy` starts again from zero.
+  expect(music).toContain('held.from + Math.round((e.nativeEvent.pageY - held.y) / TRACK_ROW)');
+  expect(music).not.toContain('gesture.dy / TRACK_ROW');
+  expect(music).toContain('change({ tracks: movedTrack(held.list, held.from, to) });');
   // Dragging says nothing to a screen reader, so the same two moves stand as actions on the wave.
   expect(music).toContain('accessibilityActions: MOVES');
   expect(music).toContain('s.montage.moveTrack(name)');
@@ -480,6 +504,13 @@ test('the summary only shows — every number on it is the api’s answer', () =
 
   // One call, with the very body the order sends — so what is totalled is what would be made.
   expect(summary).toContain('previewMontage(token, id, wishes(items, order))');
+  // And asked again when that body moves under it: after the autopilot, step 4 beneath holds the
+  // length back into range only when its own answer lands, and a total of the order as it was would
+  // then refuse — or stand over — a different order than the button sends. The old answer goes the
+  // moment the order moves, and with it the button.
+  expect(summary).toContain('}, [token, items, id, order]);');
+  expect(summary).toContain('setPreview(null);\n    setStopped(null);');
+  expect(summary).toContain('if (here) setPreview(came);');
   // And nothing on the screen is counted here: the photos, the videos, the people, the length and
   // the wait are all read off that answer (doc-03).
   expect(summary).toContain('s.montage.shots(preview.photos, preview.videos)');

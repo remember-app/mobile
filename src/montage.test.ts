@@ -301,8 +301,8 @@ test('the music goes out even when there is none, and the note only with tracks'
   // Neither of the two old single-track fields is ever written again — a body carrying one of them
   // beside the list is «the music is named more than one way».
   const body = wishes(gallery, { ...noted, tracks: [{ key: 'calm', name: null }] });
-  expect(body.music_track_id).toBeUndefined();
-  expect(body.music_track_key).toBeUndefined();
+  expect(body).not.toHaveProperty('music_track_id');
+  expect(body).not.toHaveProperty('music_track_key');
 });
 
 test('a walk with nothing said in it costs nothing to leave, and every answer is something said', () => {
