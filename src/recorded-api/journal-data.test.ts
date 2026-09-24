@@ -24,11 +24,13 @@ import {
   isFresh,
   madeInMinutes,
   marksOf,
+  minutesLeft,
   NO_JOURNAL,
   placeLine,
   pull,
   pullOlder,
   reasonWord,
+  recordsOf as recordsInStage,
   stageLine,
   stageStanding,
   type Journal,
@@ -128,6 +130,91 @@ describe.each(SCENARIOS)('%s — a screen open through the whole making', (scena
       expect(held.viewers).toEqual(last.viewers);
       expect(held.status).toBe(last.montage.status);
     }
+  });
+
+  // The worker opens the job with all five stages waiting, and from then on only changes them
+  // (api README, «Что настоящее, что смоделировано»): a stage never «appears», and «Этап N из 5» has
+  // to come out right when all five are waiting, between two stages, and while a counter says
+  // «done» before the stage does. The recording is the guard on that shape, so a re-recording that
+  // went back to stages arriving one by one would fail here and not pass over the checks below.
+  test('every answer carries the five stages; the sitting opens with all of them waiting, and the app counts them right', async () => {
+    const { sitting, polls } = await sitThroughTheMaking(scenario);
+    const rowsOf = (one: Step) => (one.response.body as MontageJournal).stages;
+    const rowOf = (one: Step, code: string) => rowsOf(one).find((row) => row.stage === code)!;
+
+    for (const one of sitting) expect(rowsOf(one).map((row) => row.stage), one.name).toEqual([...MONTAGE_STAGES]);
+
+    // Nothing has begun: five estimates, no record, no count — and nothing to name as «the stage».
+    const [opening, ...rest] = polls;
+    expect(opening.held.entries).toEqual([]);
+    for (const row of opening.held.stages) {
+      expect(row, row.stage).toMatchObject({ state: 'pending', started_at: null, done_count: 0, total_count: null, outcome: {} });
+      expect(row.eta_seconds, row.stage).toBeGreaterThan(0);
+      expect(stageStanding(row)).toBe('waiting');
+    }
+    expect(currentStage(opening.held.stages)).toBeNull();
+
+    // The screening counter reaches its total before the stage is closed: `running` at `done = total`
+    // is on the tape, and it is not «done» for the app.
+    const counted = sitting.filter((one) => {
+      const row = rowOf(one, 'screening');
+      return row.state === 'running' && row.done_count === row.total_count;
+    });
+    expect(counted.length, 'the recording has a screening counted to its end and not yet closed').toBeGreaterThan(0);
+    for (const one of counted) expect(stageStanding(rowOf(one, 'screening')), one.name).toBe('running');
+
+    // The estimate of a stage at work is the one the worker began with, until the stage is done —
+    // it does not count down, and the app has no reason to make it look as if it did.
+    for (const code of ['understanding', 'directing'] as const) {
+      const working = sitting.filter((one) => rowOf(one, code).state === 'running');
+      expect(working.length, code).toBeGreaterThan(1);
+      for (const one of working) expect(rowOf(one, code).eta_seconds, `${code} in ${one.name}`).toBe(rowOf(sitting[0], code).eta_seconds);
+    }
+
+    // «Этап N из 5» is the furthest stage the worker has reached — never one back, never two ahead of
+    // the one at work — from the first stage to the fifth; the list's bare five say the same.
+    let was = 0;
+    for (const { held } of rest) {
+      const reached = Math.max(0, ...held.stages.map((row, at) => (row.state === 'pending' ? 0 : at + 1)));
+      const named = currentStage(held.stages);
+      expect(named ? MONTAGE_STAGES.indexOf(named.stage) + 1 : 0).toBe(reached);
+      expect(currentStage(held.stages.map(({ stage, state }) => ({ stage, state })))?.stage).toBe(named?.stage);
+      expect(reached).toBeGreaterThanOrEqual(was);
+      was = reached;
+    }
+    expect(was).toBe(5);
+
+    // «осталось ≈ N мин» is never under a minute while any stage is not done, is gone when all five
+    // are, and never grows over the making: every number the worker gave only ever falls or stays.
+    let left = Infinity;
+    for (const { held } of polls) {
+      const minutes = minutesLeft(held.stages);
+      if (held.stages.every((row) => row.state === 'done')) {
+        expect(minutes).toBeNull();
+        continue;
+      }
+      expect(minutes).toBeGreaterThanOrEqual(1);
+      expect(minutes!).toBeLessThanOrEqual(left);
+      left = minutes!;
+    }
+  });
+
+  // On the real worker only screening and assembly move their counter. Understanding and directing
+  // stand at «0 из N» from the first record to the last, so the line under the stage would say that
+  // nothing has been done while its records pile up under it. Red on purpose: a defect of the app on
+  // the real model, reported and not repaired here.
+  test('a stage at work does not say «0 из N» while records of it are already in the journal', async () => {
+    const { polls } = await sitThroughTheMaking(scenario);
+    const seen: string[] = [];
+    for (const { held } of polls) {
+      for (const row of held.stages.filter((one) => one.state === 'running' && recordsInStage(one) > 0)) {
+        for (const s of [ru, en]) {
+          const line = stageLine(row, s, Date.parse(row.updated_at)) ?? '';
+          if (row.total_count !== null && line.includes(s.montage.live.doneOf(0, row.total_count))) seen.push(`${row.stage}: ${line}`);
+        }
+      }
+    }
+    expect(seen).toEqual([]);
   });
 
   test('the state it ends on is the full reading of the ready montage', async () => {

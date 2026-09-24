@@ -63,8 +63,9 @@ export const BROKE = 'Режиссёр не ответил';
  * are cut out of recorded ones: the list taken while `understanding` was at work, with that stage
  * fallen over and `why` beside it — the worker's line, or none at all — and the ready montage's own
  * journal cut back to the same moment: the two stages it reached, their records, and the files those
- * name without a layout. Any member reads both (api README, «Журнал монтажа»), so they are served to
- * `as`.
+ * name without a layout. The three stages after the one that fell are as the worker opened the job
+ * with them (`live_first_open_empty`): the journal always carries all five. Any member reads both
+ * (api README, «Журнал монтажа»), so they are served to `as`.
  */
 export function fellOver(steps: readonly Step[], as: Role, why: string | null = BROKE): Step[] {
   const list = step(steps, 'montage_list_while_building');
@@ -92,7 +93,7 @@ export function fellOver(steps: readonly Step[], as: Role, why: string | null = 
     answer(journal, {
       ...whole,
       montage: { ...whole.montage, status: 'failed' },
-      stages: whole.stages.slice(0, at + 1).map(fell),
+      stages: whole.stages.map((row, i) => (i <= at ? fell(row, i) : bodyOf(steps, 'live_first_open_empty').stages[i])),
       entries,
       files: whole.files.filter((one) => met.has(one.id)).map((one) => ({ ...one, places: [] })),
     }),
