@@ -599,7 +599,7 @@ export type FrameInfo = {
   camera_model: string | null;
   focal_length_mm: number | null;
   aperture: number | null;
-  /** The place as coordinates and nothing else: no geocoder, so there is no name to show. */
+  /** The place as coordinates and nothing else: the name is the phone's geocoder's (`@/geocoder`). */
   latitude: number | null;
   longitude: number | null;
   /** Who brought it, and how many frames that person brought to *this* memory. */
@@ -679,8 +679,8 @@ export function deleteMedia(
  * `can_edit` (rename, recolour, delete) and `can_add_media` (put frames in) are **the server's own
  * answer about this asker**, worked out by the same function that refuses the write routes
  * (`labelDenial`, api README). The app never repeats the rule: a button is drawn where the server
- * said it may be. Neither of them is `mine` — a shared label is edited by its maker and by the
- * organizer, and filled by anybody who may add material at all.
+ * said it may be. Neither of them is `mine` — a shared label is edited and filled by every member,
+ * a viewer included (decision-12).
  */
 export type Label = {
   id: string;
@@ -710,8 +710,9 @@ export function listLabels(token: string, memoryId: string): Promise<Label[]> {
  * together or not at all. Answers with the row the listing would give, so the sheet that made it
  * puts it straight into its own list without asking again.
  *
- * `shared` is settled here and never again (decision-12): the api has no way to move a box between
- * shared and private after the fact. 403 when a viewer tries to make a shared one.
+ * `shared` is settled here and never again: moving a box between shared and private after the fact
+ * is not allowed (decision-12). 403 when a viewer tries to make a shared one — a viewer makes
+ * private ones only.
  */
 export function createLabel(
   token: string,
@@ -764,8 +765,7 @@ export function addLabelMedia(
 
 /**
  * Take a batch back out of the box — out of the label and never out of the memory. A frame that was
- * not in it is not an error. One frame in the batch this person may not take out refuses the whole
- * batch (403): they marked frames and have to hear «нельзя», not find half of them still filed.
+ * not in it is not an error. Any member takes frames out of a shared label, whoever put them in.
  */
 export function removeLabelMedia(
   token: string,
@@ -796,10 +796,9 @@ export type MusicTrackId = 'bright' | 'warm' | 'calm' | 'night' | 'road';
 export type MontageOrientation = 'landscape' | 'portrait';
 
 /**
- * What was asked for at the order — the wishes doc-03 allows, every one of them optional. Named once
- * and shared by both ends of the round trip: this is the body `orderMontage` sends and it is
- * `Montage.params` coming back, which is the same shape on purpose, the way `Original` is one shape
- * for both download routes.
+ * What was asked for at the order — the wishes doc-03 allows, every one of them optional. This is
+ * the body `orderMontage` sends, and `Montage.params` coming back is the same shape plus the two
+ * fields an older order may still carry.
  *
  * The four steps of the order (spec 8) fill them in: the frames picked out by hand, the story, the
  * music, the length and the shape. `@/montage` is what turns a wizard's state into this.
@@ -827,13 +826,6 @@ export type MontageWishes = {
   /** How to use those tracks, in words. Only ever with a non-empty `music_tracks` — 400 without. */
   music_note?: string;
   orientation?: MontageOrientation;
-  /**
-   * ⚠️ The one-track fields the api took before the list existed. The app no longer sends either —
-   * they are here because `Montage.params` of an older order still carries them, and the card of
-   * that movie still has to say what it was cut to.
-   */
-  music_track_id?: MusicTrackId;
-  music_track_key?: string;
 };
 
 /**
@@ -849,7 +841,11 @@ export type Montage = {
   ordered_by: string;
   status: 'queued' | 'processing' | 'ready' | 'failed';
   duration_seconds: number | null;
-  params: MontageWishes;
+  /**
+   * The wishes it was ordered with. An order placed before the list of tracks named one track in
+   * one of two fields the api no longer takes; its card still says what it was cut to.
+   */
+  params: MontageWishes & { music_track_id?: MusicTrackId; music_track_key?: string };
   /** The worker's own line about why it fell over. Only ever set on a `failed` one. */
   error_text: string | null;
   created_at: string;
@@ -1106,16 +1102,16 @@ export type MontageJournal = {
   viewers: Viewer[];
 };
 
-/** The cursor and the two narrowings, exactly as the route takes them. */
+/**
+ * The cursor and the one narrowing the app asks for, as the route takes them. The route also takes
+ * `limit` and `media_id`; nothing here sends either, so neither is here.
+ */
 export type JournalQuery = {
   /** Records newer than this one, and of those the ones *next to* the cursor — see `@/montage-journal`. */
   after?: number;
   /** Records older than this one — paging back through a journal already being read. */
   before?: number;
-  /** Up to 500; the api fills in 200. */
-  limit?: number;
   stage?: MontageStageCode;
-  media_id?: string;
 };
 
 /**
@@ -1165,7 +1161,7 @@ export function startMusicUpload(
 
 /**
  * «Загружено» for a track: seals the parts into one object and answers with the key the order names
- * it by, in `music_track_key`. Idempotent — a repeat only reports where the row stands — and on the
+ * it by, in `music_tracks`. Idempotent — a repeat only reports where the row stands — and on the
  * same long leash `finishUpload` has, since the api is waiting on R2 assembling the object.
  */
 export function finishMusicUpload(

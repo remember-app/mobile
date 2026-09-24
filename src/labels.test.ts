@@ -1,12 +1,4 @@
-import { expect, test, vi } from 'vitest';
-
-// `@/theme` stands on two native expo modules vitest has nothing to run, and `labelTint` asks it for
-// the eight colours.
-vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
-vi.mock('expo-secure-store', () => ({
-  getItemAsync: async () => null,
-  setItemAsync: async () => {},
-}));
+import { expect, test } from 'vitest';
 
 import type { Label, MediaItem } from '@/api';
 import { filed, filing, labelGroups, labelNameOk, labelTint, withLabel } from '@/labels';

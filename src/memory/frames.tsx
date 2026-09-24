@@ -54,13 +54,15 @@ import {
   framesByDay,
   framesMatching,
   groupFrames,
+  keepLabels,
   keepReady,
   mayOpen,
   mayPick,
   megabytesOf,
+  removeFrames,
   SORT_DEFAULT,
   stillPreparing,
-  withoutLabel,
+  toggleEvery,
   type Filter,
   type Frame,
   type FrameGroup,
@@ -106,6 +108,14 @@ const SPINE_HOLD_MS = 1000;
  * and a strip as wide as a thumb would be swallowing flicks meant for the feed underneath.
  */
 const SPINE_GRAB = 32;
+
+/**
+ * A pill on the spine is 16 tall and stands centred on the seam between two rows (spec 7.8, detail
+ * 66): half a gutter above the row that opens the day, and half its own height above that. What
+ * `dateMarks` hands over is where the row starts, so this is how far above it the pill's top edge
+ * goes — without it the pill sits inside the first row of its day, 9 short of the layout.
+ */
+const SEAM_LIFT = FEED_GAP / 2 + 8;
 
 /** A seam over a strip of frames — every cut but the one that has no seam at all. */
 type Seam = Exclude<FrameGroup, { by: 'all' }>;
@@ -195,6 +205,15 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   useEffect(() => () => {
     onScreen.current = false;
   }, []);
+  /**
+   * How many times this screen has written the feed itself — a frame deleted, a label filed. That
+   * answer is newer than any quiet read already in flight, and such a read landing afterwards would
+   * put the api's older snapshot back over it: the deleted frame would come back, and with nothing
+   * left developing in that snapshot the loop below would stop and never read again. So a quiet read
+   * carries the count it started under and drops its answer when that has moved (the films strip
+   * keeps the same guard for the same reason).
+   */
+  const writes = useRef(0);
 
   /**
    * The date spine (spec 7.8, detail 66, and `MemoryScrub`). Four things are needed to draw it and
@@ -268,9 +287,12 @@ export function Frames({ id, head }: { id: string; head: Head }) {
       // The listing carries neither a role nor a name, and this screen needs both: who may delete
       // what, and who brought the frame that is open or the strip that is grouped by them. The
       // roster answers all of it in one read.
+      const startedAt = writes.current;
       Promise.all([listMedia(token, id), listMembers(token, id)])
         .then(
           ([media, members]) => {
+            // Stale by the time it landed — see `writes`. A read somebody asked for is never stale.
+            if (quiet && writes.current !== startedAt) return;
             // A quiet read is looking for what the worker has finished, and it must not disturb
             // what was already finished: `keepReady` holds every `ready` record's own object, so
             // the urls behind the frames on screen do not move and nothing is fetched twice.
@@ -300,7 +322,11 @@ export function Frames({ id, head }: { id: string; head: Head }) {
    */
   const loadLabels = useCallback(() => {
     if (!token) return;
-    listLabels(token, id).then(setLabels, () => {});
+    listLabels(token, id).then((all) => {
+      setLabels(all);
+      // A box somebody else deleted leaves the filter too, the way one deleted here does.
+      setFilter((have) => keepLabels(have, (one) => all.some((label) => label.id === one)));
+    }, () => {});
   }, [token, id]);
 
   // On focus rather than on mount, the way the home screen does it: what is drawn here changes on
@@ -425,7 +451,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
         ? []
         : dateMarks(sheet, { top: feedTop, row: rowPitch }).map((mark) => ({
             label: formatDayTiny(new Date(mark.at)),
-            top: mark.top,
+            top: mark.top - SEAM_LIFT,
           })),
     [sort, sheet, headerHeight, reach, feedTop, rowPitch],
   );
@@ -553,9 +579,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
    */
   function pickEverything() {
     const markable = kept.filter(mayPick);
-    setPicked((have) =>
-      have.size >= markable.length ? new Set() : new Set(markable.map((item) => item.id)),
-    );
+    setPicked((have) => toggleEvery(markable, have));
   }
 
   /**
@@ -664,21 +688,24 @@ export function Frames({ id, head }: { id: string; head: Head }) {
     setDropping(false);
     setBusy(true);
     setNotice(null);
-    const gone = new Set<string>();
-    try {
-      for (const item of deletable) {
-        if (!onScreen.current) break;
-        await deleteMedia(token, id, item.id);
-        gone.add(item.id);
-      }
-    } catch (e) {
-      setNotice(
-        e instanceof ApiError && e.status === 403 ? s.gallery.deleteDenied : errorMessage(e),
-      );
-    } finally {
-      if (gone.size > 0) setItems((have) => have?.filter((one) => !gone.has(one.id)) ?? null);
-      setBusy(false);
+    // A frame somebody else already took out is gone all the same, and does not stop the run.
+    const { gone, failure } = await removeFrames(
+      deletable,
+      (item) => deleteMedia(token, id, item.id),
+      () => onScreen.current,
+    );
+    if (gone.size > 0) {
+      writes.current += 1;
+      setItems((have) => have?.filter((one) => !gone.has(one.id)) ?? null);
     }
+    if (failure !== undefined) {
+      setNotice(
+        failure instanceof ApiError && failure.status === 403
+          ? s.gallery.deleteDenied
+          : errorMessage(failure),
+      );
+    }
+    setBusy(false);
   }
 
   /** The days of the event under the memory's name, and what it holds — the capsule's second line. */
@@ -1074,11 +1101,12 @@ export function Frames({ id, head }: { id: string; head: Head }) {
           memoryId={id}
           frames={marked}
           onFiled={(labelId, ids, now) => {
+            writes.current += 1;
             setItems((have) => filed(have, labelId, ids, now));
             // A box that has gone — «ids null» is the whole feed losing it — takes itself out of the
             // filter as well (spec 10.8.2). Left in, it would be narrowing the feed to a label no
             // frame carries any more, with no chip anywhere to press it off again.
-            if (ids === null) setFilter((have) => withoutLabel(have, labelId));
+            if (ids === null) setFilter((have) => keepLabels(have, (one) => one !== labelId));
           }}
           // The row of boxes on the filter sheet is read again on the way out: this is the one place
           // a label is made, renamed, deleted or filled, and the row has to say so without the app
@@ -1126,6 +1154,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
           onOpen={setOpen}
           onClose={() => setOpen(null)}
           onRemoved={(gone) => {
+            writes.current += 1;
             setItems((have) => have?.filter((one) => one.id !== gone) ?? null);
             setOpen(null);
           }}

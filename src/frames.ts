@@ -1,4 +1,11 @@
-import { memberName, type FrameInfo, type MediaItem, type Member, type Memory } from '@/api';
+import {
+  ApiError,
+  memberName,
+  type FrameInfo,
+  type MediaItem,
+  type Member,
+  type Memory,
+} from '@/api';
 import { formatEventDates, startOfDay } from '@/dates';
 import type { TileState } from '@/kit/tile';
 import { currentLanguage } from '@/language';
@@ -144,6 +151,51 @@ export function mayOpen(item: MediaItem): boolean {
  */
 export function mayPick(item: MediaItem): boolean {
   return frameOf(item).state === 'ready';
+}
+
+/**
+ * What the capsule's «выбрать все» does to the selection (spec 8, `FramesPicking`): takes every frame
+ * a mark could mean something on, and once they are all taken the same press gives them back.
+ *
+ * Asked of the frames themselves and not of the size of the set: the selection is only ever trimmed
+ * by hand, so it can hold ids of frames that have since been deleted by somebody else — counted, they
+ * made «все взято» true while a frame was still bare, and the press cleared the lot instead of taking
+ * the rest.
+ */
+export function toggleEvery(
+  markable: readonly MediaItem[],
+  have: ReadonlySet<string>,
+): Set<string> {
+  const all = markable.length > 0 && markable.every((item) => have.has(item.id));
+  return all ? new Set() : new Set(markable.map((item) => item.id));
+}
+
+/**
+ * Takes frames out of the memory one after another and reports what went. A frame the api no longer
+ * has (404) is gone all the same — somebody else got there first, which is what was asked for — so it
+ * counts as removed and the run carries on; anything else (a refusal, no connection) stops the run,
+ * because the rest would meet the same answer, and hands that failure back for the screen to say.
+ *
+ * `carryOn` is asked between frames, so a screen that has been left stops the errand without
+ * abandoning the frame already in flight. Never throws: whatever was removed before the failure has
+ * to leave the feed even when the run stopped halfway.
+ */
+export async function removeFrames(
+  items: readonly MediaItem[],
+  remove: (item: MediaItem) => Promise<unknown>,
+  carryOn: () => boolean = () => true,
+): Promise<{ gone: Set<string>; failure?: unknown }> {
+  const gone = new Set<string>();
+  for (const item of items) {
+    if (!carryOn()) break;
+    try {
+      await remove(item);
+    } catch (failure) {
+      if (!(failure instanceof ApiError && failure.status === 404)) return { gone, failure };
+    }
+    gone.add(item.id);
+  }
+  return { gone };
 }
 
 /** One day of a memory's material: the day itself, and the frames shot on it. */
@@ -292,20 +344,17 @@ export function framesMatching(items: readonly MediaItem[], filter: Filter): Med
 }
 
 /**
- * The same filter with one label out of it — what a box being deleted does to the feed it was
- * filtering (spec 10.8.2). Nothing else is touched: a label is gone, not the choice of day or of
- * who brought it.
+ * The same filter holding only the labels `keep` still answers for — what a box that has gone, here
+ * or by somebody else's hand, does to the feed it was filtering (spec 10.8.2). Nothing else is
+ * touched: a label is gone, not the choice of day or of who brought it.
  *
- * Needed because the two ends of a delete would otherwise disagree: every frame loses the box
- * (`filed` in `@/labels`), so a filter still holding its id matches nothing at all, and the chip
- * that could take it off again is no longer on the sheet to press. The filter it was never in comes
- * back as it is, so a screen holding it re-renders over nothing.
+ * Needed because a filter still holding a dead id matches nothing at all — no frame carries it any
+ * more — and the chip that could take it off again is no longer on the sheet to press. A filter
+ * with nothing to drop comes back as it is, so a screen holding it re-renders over nothing.
  */
-export function withoutLabel(filter: Filter, labelId: string): Filter {
-  if (!filter.labels.has(labelId)) return filter;
-  const labels = new Set(filter.labels);
-  labels.delete(labelId);
-  return { ...filter, labels };
+export function keepLabels(filter: Filter, keep: (labelId: string) => boolean): Filter {
+  const labels = new Set([...filter.labels].filter(keep));
+  return labels.size === filter.labels.size ? filter : { ...filter, labels };
 }
 
 /**
@@ -446,8 +495,17 @@ export type FrameFact = { label: string; value: string };
  *
  * A line is likewise built out of the pieces that *are* there: a camera model with no aperture
  * beside it is still a camera, and «IMG_4471.HEIC» with no weight is still the name of a file.
+ *
+ * `place` is the name the phone's geocoder gave the point, when it gave one. It takes the
+ * coordinates' seat and never a row of its own: a frame with no point has no place line, whatever
+ * is handed in.
  */
-export function frameFacts(info: FrameInfo, s: Strings, locale?: string): FrameFact[] {
+export function frameFacts(
+  info: FrameInfo,
+  s: Strings,
+  locale?: string,
+  place: string | null = null,
+): FrameFact[] {
   const size = megabytes(info, locale);
   const facts: FrameFact[] = [];
   const said = (label: string, value: string) => {
@@ -467,10 +525,11 @@ export function frameFacts(info: FrameInfo, s: Strings, locale?: string): FrameF
       info.aperture === null ? null : s.viewer.aperture(info.aperture),
     ]),
   );
-  // Coordinates as the numbers they are: turning them into «Усадьба „Остафьево“» takes an outside
-  // geocoder, which is a paid service the product has not taken (api README, «Сведения о кадре»).
+  // The api sends the point and no name (README, «Сведения о кадре»); the name is the phone's
+  // geocoder's, asked by the sheet (`@/geocoder`) and handed in as `place`. Until it answers, and
+  // whenever it cannot, the point stands as the numbers it is.
   if (info.latitude !== null && info.longitude !== null) {
-    said(s.viewer.place, s.viewer.coords(info.latitude, info.longitude));
+    said(s.viewer.place, place || s.viewer.coords(info.latitude, info.longitude));
   }
   return facts;
 }

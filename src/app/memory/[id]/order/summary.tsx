@@ -78,22 +78,29 @@ export default function SummaryStep() {
           : { text: errorMessage(e), back: null };
 
   /**
-   * The total, once there is material to total. Read on the way in and not again: nothing on this
-   * screen changes the order, and coming back to it from a step is a fresh screen with a fresh
-   * read — which is exactly when the numbers can have moved.
+   * The total of the order as it stands, asked again whenever it moves. Nothing on this screen
+   * changes it, but step 4 under it can: after the autopilot the length is held back into range
+   * there only once its own answer lands, which may be after this screen has already asked. Until
+   * the total of the order as it now is comes back there is no button, so what is pressed is always
+   * what was totalled.
    */
   useEffect(() => {
     if (!token || items === null) return;
+    let here = true;
+    setPreview(null);
+    setStopped(null);
     previewMontage(token, id, wishes(items, order)).then(
       (came) => {
-        if (!gone.current) setPreview(came);
+        if (here) setPreview(came);
       },
       (e: unknown) => {
-        if (!gone.current) setStopped(refusal(e));
+        if (here) setStopped(refusal(e));
       },
     );
-    // The order itself is deliberately not among these: it cannot change while this screen is up.
-  }, [token, items, id]);
+    return () => {
+      here = false;
+    };
+  }, [token, items, id, order]);
 
   // The memory's own name, for the corner of the poster — off the listing every screen of a memory
   // reads, the way the waiting screen after the order reads it. A failure here is left unsaid: the

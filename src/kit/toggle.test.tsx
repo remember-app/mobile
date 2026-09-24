@@ -1,4 +1,3 @@
-import { Bell } from 'lucide-react-native';
 import { beforeAll, expect, test } from 'vitest';
 
 import { allDifferent, story } from '@/kit/story';
@@ -37,60 +36,20 @@ test('the words beside it are its name, and pressing them flips it too', () => {
 
 /** Spec 7.7, detail 59 — the same switch given a place to stand. */
 
-test('the switch stands in a card or in a pill, and they are two shapes of one thing', () => {
-  allDifferent({
-    card: (
-      <RowToggle
-        label="Даты между днями"
-        note="Выключено — дата видна только на полосе у края, пока листаете."
-        value
-        onValueChange={() => {}}
-      />
-    ),
-    cardOff: (
-      <RowToggle
-        label="Даты между днями"
-        note="Выключено — дата видна только на полосе у края, пока листаете."
-        value={false}
-        onValueChange={() => {}}
-      />
-    ),
-    pill: (
-      <RowToggle
-        label="Сообщить, когда будет готово"
-        icon={Bell}
-        variant="pill"
-        value
-        onValueChange={() => {}}
-      />
-    ),
-  });
-});
-
-test('the card kind explains the setting and the pill kind opens with a glyph', () => {
-  const card = story(
+test('the switch in a card is on or off, and explains what it reaches', () => {
+  const card = (value: boolean) => (
     <RowToggle
       label="Даты между днями"
-      note="Выключено — дата видна только на полосе у края."
-      value
+      note="Выключено — дата видна только на полосе у края, пока листаете."
+      value={value}
       onValueChange={() => {}}
-    />,
+    />
   );
-  expect(card).toContain('Выключено — дата видна только на полосе у края.');
-  // The explanation is the whole point of the card kind: without it, it is not that kind.
-  expect(card).not.toContain('data-glyph');
+  allDifferent({ on: card(true), off: card(false) });
 
-  const pill = story(
-    <RowToggle
-      label="Сообщить, когда будет готово"
-      icon={Bell}
-      variant="pill"
-      value
-      onValueChange={() => {}}
-    />,
-  );
-  expect(pill).toContain('data-glyph');
-  // Both are one control to a screen reader, whatever they carry.
-  expect(pill).toContain('role="switch"');
-  expect(pill).toContain('aria-label="Сообщить, когда будет готово"');
+  const drawn = story(card(true));
+  expect(drawn).toContain('Выключено — дата видна только на полосе у края, пока листаете.');
+  // One control to a screen reader, whatever it carries.
+  expect(drawn).toContain('role="switch"');
+  expect(drawn).toContain('aria-label="Даты между днями"');
 });

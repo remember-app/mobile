@@ -119,8 +119,8 @@ export function FrameViewer({
   /** What the sheet shows, and the api's word when the one read behind it failed. */
   const [info, setInfo] = useState<FrameInfo | null>(null);
   const [infoFailed, setInfoFailed] = useState<string | null>(null);
-  /** Which frame that read was asked about — see `openInfo`. */
-  const asking = useRef<string | null>(null);
+  /** Which opening of the sheet the read behind it belongs to — see `openInfo`. */
+  const opening = useRef(0);
 
   // A frame shot sideways is worth turning the phone for, and the rest of the app is portrait-only.
   // This component exists for exactly as long as a frame is open, so the flag is simply `true`: the
@@ -243,16 +243,17 @@ export function FrameViewer({
     setInfo(null);
     setInfoFailed(null);
     if (!token) return;
-    // Which frame the sheet is about right now. The strip cannot be walked while it is up, but it
-    // can be shut and raised again on the next frame before this read answers — and that answer,
-    // landing second, would fill the open sheet with the frame before it.
-    asking.current = item.id;
+    // Only the latest opening may answer into the sheet. The strip cannot be walked while it is up,
+    // but it can be shut and raised again — on the next frame, or on this one — before an earlier
+    // read has answered, and that answer landing second would fill the open sheet with the frame
+    // before it, or lay a failure of the first read over the details the second one brought.
+    const mine = ++opening.current;
     fetchFrameInfo(token, memoryId, item.id).then(
       (read) => {
-        if (asking.current === read.id) setInfo(read);
+        if (opening.current === mine) setInfo(read);
       },
       (e: unknown) => {
-        if (asking.current === item.id) setInfoFailed(errorMessage(e));
+        if (opening.current === mine) setInfoFailed(errorMessage(e));
       },
     );
   }

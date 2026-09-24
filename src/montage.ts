@@ -1,6 +1,6 @@
 // What the four steps of an order add up to (spec 8, «Ролик: заказ по шагам»): which frames go in,
-// what the video is about, what it is cut to, how long it runs and which way up. The screen
-// (`app/memory/[id]/order.tsx`) draws the steps; everything here is the arithmetic behind them, and
+// what the video is about, what it is cut to, how long it runs and which way up. The screens
+// (`app/memory/[id]/order/`) draw the steps; everything here is the arithmetic behind them, and
 // the one place that turns what was picked into the body the api takes. The waiting that follows an
 // order is at the foot of this file — the same subject, on the other side of the one call.
 //
@@ -147,7 +147,7 @@ export type Order = {
   /**
    * Whether the length was moved by hand since a template set it — `ownStory`'s twin, and for the
    * same reason: the figure on step 4 carries «из шаблона „…“» under it only while the template is
-   * the one who put it there, and one touch of the slider makes the number the person's own.
+   * the one who put it there, and the slider moving it makes the number the person's own.
    */
   ownLength: boolean;
   orientation: MontageOrientation;

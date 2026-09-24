@@ -1,8 +1,7 @@
 import { Pressable, StyleSheet, Switch, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { height, radius, space, themed, useTheme } from '@/theme';
+import { radius, space, themed, useTheme } from '@/theme';
 
-import { Icon, type IconComponent } from './icon';
 import { TAP } from './tap';
 import { Text } from './text';
 
@@ -59,35 +58,24 @@ export function Toggle({ label, value, onValueChange, disabled }: ToggleProps) {
 }
 
 /**
- * Spec 7.7 — the switch given a place to stand, in the two the layout draws:
- *
- * - **in a card** (`SheetSort`) — a name, a line saying what the setting reaches, and the switch on
- *   the right, all on `ink` inside a sheet that is already `surface`;
- * - **in a pill** (`MontageLive`) — 52 tall and round-ended, a glyph, one line, the switch. It
- *   stands in the bottom layer where a button would, because it is the only thing that screen asks.
- *
- * The whole thing flips, label included, the same way the bare `Toggle` does.
+ * Spec 7.7 — the switch given a place to stand, in a card (`SheetSort`): a name, a line saying what
+ * the setting reaches, and the switch on the right, all on `ink` inside a sheet that is already
+ * `surface`. The whole thing flips, label included, the same way the bare `Toggle` does.
  */
 export function RowToggle({
   label,
   note,
-  icon,
-  variant = 'card',
   value,
   onValueChange,
   disabled,
   style,
 }: ToggleProps & {
-  /** What the setting reaches, under the name. The card kind has it; the pill kind has no room. */
+  /** What the setting reaches, under the name. */
   note?: string;
-  /** The glyph that opens the pill — a bell on «Сообщить, когда будет готово». */
-  icon?: IconComponent;
-  variant?: 'card' | 'pill';
   style?: StyleProp<ViewStyle>;
 }) {
   const { color } = useTheme();
   const styles = useRowStyles();
-  const pill = variant === 'pill';
 
   return (
     <Pressable
@@ -99,11 +87,10 @@ export function RowToggle({
       accessibilityState={{ checked: value, disabled: !!disabled }}
       disabled={disabled}
       onPress={() => onValueChange(!value)}
-      style={[pill ? styles.pill : styles.card, style]}
+      style={[styles.card, style]}
     >
-      {icon ? <Icon icon={icon} size={18} color={color.muted} /> : null}
       <View style={styles.words}>
-        <Text role={pill ? 'note' : 'row'}>{label}</Text>
+        <Text role="row">{label}</Text>
         {note ? (
           <Text role="meta" tone="muted" style={styles.note}>
             {note}
@@ -137,18 +124,6 @@ const useRowStyles = themed(({ color }) =>
       paddingHorizontal: space.s4,
       borderRadius: radius.section,
       backgroundColor: color.ink,
-      borderWidth: 1,
-      borderColor: color.line,
-    },
-    pill: {
-      height: height.togglePill,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: space.s3,
-      paddingLeft: space.s4,
-      paddingRight: 6,
-      borderRadius: radius.pill,
-      backgroundColor: color.surface,
       borderWidth: 1,
       borderColor: color.line,
     },

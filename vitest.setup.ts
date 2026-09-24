@@ -19,6 +19,10 @@ vi.mock('expo-secure-store', () => ({
   setItemAsync: async () => {},
 }));
 
+// The phone's geocoder, which names a point. Here it names nothing, and a sheet that asks stays on
+// the coordinates; the test that is about the geocoder itself mocks it again with answers of its own.
+vi.mock('expo-location', () => ({ reverseGeocodeAsync: async () => [] }));
+
 // Photos and posters. `expo-image` and not React Native's own — `kit/tile.tsx` says why. It stands
 // in as a plain view wearing the same style, so what a part does *to* a picture — dimming a dropped
 // frame, rounding a thumbnail — is still there to be read off the markup.

@@ -16,12 +16,16 @@
 /**
  * Russian counts in three forms where English has two: 1 кадр, 2 кадра, 5 кадров. The rule is the
  * language's own and never changes, so it is four lines here rather than `Intl.PluralRules`, which
- * Hermes does not carry on every platform.
+ * Hermes does not carry on every platform. `form` is the word alone, for a number drawn apart from it.
  */
-function count(n: number, one: string, few: string, many: string): string {
+function form(n: number, one: string, few: string, many: string): string {
   const teen = n % 100 >= 11 && n % 100 <= 14;
   const last = n % 10;
-  return `${n} ${teen ? many : last === 1 ? one : last >= 2 && last <= 4 ? few : many}`;
+  return teen ? many : last === 1 ? one : last >= 2 && last <= 4 ? few : many;
+}
+
+function count(n: number, one: string, few: string, many: string): string {
+  return `${n} ${form(n, one, few, many)}`;
 }
 
 export const en = {
@@ -310,14 +314,10 @@ export const en = {
     submit: 'Create',
   },
 
-  /** The guest list: who is in a memory, how to get more people in, and how to get out. */
+  /** The guest list: who is in a memory, how to get more people in, and how to take somebody out. */
   members: {
-    /**
-     * The third face of a memory, on the switch under its name (kit, «Экраны» 6). «Люди» and not
-     * «Участники»: the pill is a third of a phone's width, and the kit picks the shorter word.
-     */
+    /** The heading of the block on the memory's settings. «Люди» and not «Участники»: the shorter word. */
     title: 'People',
-    roster: 'Who is here',
     /**
      * Under that heading, and the organizer's whole progress: how many of the people who can bring
      * material already have. Counted over those alone — a viewer is nobody anybody is waiting on.
@@ -328,15 +328,8 @@ export const en = {
      * labels because it is one control saying two things, the way the gallery's picking switch does.
      */
     edit: 'Edit the list',
-    editDone: 'Done',
     you: (name: string) => `${name} (you)`,
     remove: (name: string) => `Remove ${name}`,
-    /**
-     * doc-06's «ждать нечего», given unprompted — the chip that stands in one's own row where
-     * everybody else's standing is written. Said in the first person so it reads as the thing one
-     * presses, and not as the standing of the same name it turns into once pressed.
-     */
-    sayNothing: 'I have nothing to add',
     inviteTitle: 'Invite someone',
     mayAdd: 'They can add photos too',
     /** The rule over the chips of saved people standing under the username field, on the sheet. */
@@ -356,10 +349,6 @@ export const en = {
     noSuchUser: 'No one has that username.',
     inviteDenied: 'Only the organizer and people who can add photos may invite.',
     gone: 'They are not in this memory any more.',
-    leaveAsk: 'Leave this memory?',
-    leaveText: 'Everything you uploaded here goes with you. There is no getting it back.',
-    leaveDo: 'Leave',
-    stay: 'Stay',
     removeAsk: (name: string) => `Remove ${name}?`,
     removeText: 'Everything they uploaded here goes with them. There is no getting it back.',
     /** Spec 9: the price of the irreversible is named as a figure before the press, never after. */
@@ -575,7 +564,7 @@ export const en = {
     /** The units are words and the api hands over bare numbers, so they are put on here. */
     focal: (mm: number) => `${mm} mm`,
     aperture: (f: number) => `f/${f}`,
-    /** The place is coordinates and nothing else: naming one takes a geocoder the product has not got. */
+    /** The place as numbers: what stands until the phone's geocoder names it, and when it cannot. */
     coords: (lat: number, lon: number) => `${lat}, ${lon}`,
     inFilms: 'In movies',
     /** The second a frame stands at inside a movie, on the row that opens it. */
@@ -622,8 +611,9 @@ export const en = {
     ownCard: 'Private',
     ownNote: 'only you',
     /**
-     * Why «Кто видит» cannot be pressed while editing (spec 10.8.1, decision-12): the answer was
-     * given when the label was made and the api has no way back. Said as a fact, not as a refusal.
+     * Why «Кто видит» cannot be pressed while editing (spec 10.8.1): visibility is chosen once, when
+     * the label is made, and changing it afterwards is not allowed (decision-12). Said as a fact,
+     * not as a refusal.
      */
     whoFixed: 'Settled when the label was made.',
     /** The glowing button: one press makes the box and files what is marked into it. */
@@ -636,13 +626,14 @@ export const en = {
     deleteConfirm: 'Delete the label',
 
     /**
-     * What the api refuses, in words a person can act on. It answers a bare «forbidden», so the
-     * sentence is written here and picked by what was being done.
+     * The one refusal the labels still have — a viewer making a shared one — in words a person can
+     * act on. The api answers a bare «forbidden», so the sentence is written here.
      */
-    addDenied: 'Only someone who may add material can file frames into a shared label.',
-    takeDenied: 'Frames are taken back out by whoever filed them, or by the organizer.',
-    editDenied: 'A shared label is renamed by whoever made it, or by the organizer.',
+    sharedDenied:
+      'Only people who can add photos may make a shared label. You can make a private one.',
     gone: 'This label is no longer here.',
+    /** A 404 with no label in the path: the memory's own check, so this person was taken out of it. */
+    memoryGone: 'You are no longer in this memory.',
   },
 
   /**
@@ -810,8 +801,7 @@ export const en = {
     /** The round button on every row of the shelf — spoken only, and it says which track it is. */
     listen: (track: string) => `Play ${track}`,
     stopTrack: (track: string) => `Stop ${track}`,
-    ownTrack: 'Your own track from this phone',
-    /** The same thing named in a summary line and on a finished movie's card. */
+    /** A track off the phone — on its pill, its row, the summary and a finished movie's card. */
     ownTrackShort: 'Your own track',
     sendingTrack: 'Sending the track…',
     /**
@@ -918,11 +908,12 @@ export const en = {
       howMade: 'How it was made',
       /**
        * The three numbers under that heading, each the answer to one word: how many frames were
-       * looked at in all, how many the director took, and how many cuts came of them.
+       * looked at in all, how many the director took, and how many cuts came of them. The last is
+       * the one noun of the three, so it agrees with its number.
        */
       watched: 'looked at',
       tookIn: 'taken in',
-      glued: 'cuts',
+      glued: (n: number): string => (n === 1 ? 'cut' : 'cuts'),
       /** The pill of faces in the bar, said as one sentence to a screen reader. */
       watching: (n: number) => `Watching now: ${n}`,
       /** On the frame the director is holding, beside the live dot. */
@@ -988,6 +979,8 @@ export const en = {
         excluded: 'Left out at the order',
         /** Good enough, but the movie is only so long. */
         no_room: 'No room left',
+        /** The director's own choice to leave it out — its words about why are the record's thought. */
+        left_out: 'Not in the story',
         other: 'Not suitable',
       },
     },
@@ -1310,13 +1303,10 @@ export const ru: Strings = {
 
   members: {
     title: 'Люди',
-    roster: 'Кто здесь',
     brought: (n: number, of: number) => `${n} из ${of} всё скинули`,
     edit: 'Править состав',
-    editDone: 'Готово',
     you: (name: string) => `${name} (вы)`,
     remove: (name: string) => `Убрать ${name}`,
-    sayNothing: 'Мне нечего добавлять',
     inviteTitle: 'Позвать человека',
     mayAdd: 'Сможет добавлять фото',
     fromContacts: 'Из контактов',
@@ -1331,10 +1321,6 @@ export const ru: Strings = {
     noSuchUser: 'Никто не носит такой ник.',
     inviteDenied: 'Звать людей могут организатор и те, кто может добавлять фото.',
     gone: 'Этого человека здесь уже нет.',
-    leaveAsk: 'Выйти из воспоминания?',
-    leaveText: 'Всё, что вы сюда загрузили, уйдёт вместе с вами. Вернуть это не получится.',
-    leaveDo: 'Выйти',
-    stay: 'Остаться',
     removeAsk: (name: string) => `Убрать ${name}?`,
     removeText:
       'Всё, что этот человек сюда загрузил, уйдёт вместе с ним. Вернуть это не получится.',
@@ -1487,10 +1473,9 @@ export const ru: Strings = {
     deleteText: 'Кадры останутся в воспоминании — исчезнет только коробка.',
     deleteConfirm: 'Удалить лейбл',
 
-    addDenied: 'Складывать кадры в общий лейбл может тот, кто добавляет материал.',
-    takeDenied: 'Убрать кадры может тот, кто их положил, или организатор.',
-    editDenied: 'Переименовать общий лейбл может тот, кто его завёл, или организатор.',
+    sharedDenied: 'Общий лейбл могут завести те, кто добавляет фото. Вы можете завести личный.',
     gone: 'Этого лейбла больше нет.',
+    memoryGone: 'Вас больше нет в этом воспоминании.',
   },
 
   montage: {
@@ -1587,7 +1572,6 @@ export const ru: Strings = {
     musicHint: 'Без музыки или один-несколько треков.',
     listen: (track: string) => `Послушать «${track}»`,
     stopTrack: (track: string) => `Остановить «${track}»`,
-    ownTrack: 'Свой трек с телефона',
     ownTrackShort: 'Свой трек',
     sendingTrack: 'Загружаем трек…',
     noMusic: 'Без музыки',
@@ -1642,7 +1626,7 @@ export const ru: Strings = {
       howMade: 'Как собирался',
       watched: 'просмотрел',
       tookIn: 'взял в ролик',
-      glued: 'склеек',
+      glued: (n: number) => form(n, 'склейка', 'склейки', 'склеек'),
       watching: (n: number) => `Смотрят сейчас: ${n}`,
       now: 'СЕЙЧАС',
       director: 'Режиссёр',
@@ -1681,6 +1665,7 @@ export const ru: Strings = {
         duplicate: 'Дубль',
         excluded: 'Убрали при заказе',
         no_room: 'Не влез',
+        left_out: 'Не в истории',
         other: 'Не подошёл',
       },
     },

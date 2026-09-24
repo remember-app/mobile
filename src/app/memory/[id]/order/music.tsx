@@ -85,30 +85,33 @@ export default function MusicStep() {
     change({ tracks: movedTrack(picked, from, Math.max(0, Math.min(picked.length - 1, to))) });
 
   /**
-   * Where the row being dragged has got to. The gesture that is running belongs to the render it
-   * began on — a re-render makes new handlers, but not for a finger already down — so `from` is
-   * where the row stood when it was grabbed and the list in this closure is the list as it was
-   * then. Every move is worked out from those two, which makes it the same answer however many
-   * times it is asked; this only remembers the last one so the order is not rewritten sixty times
-   * a second on its way past one row.
+   * The row a finger has hold of, taken the moment it lands: where the row stood, where it is now,
+   * where the finger came down and the list as it was. A swap re-renders the list, and the
+   * responder then answers the next move with the new render's handlers, whose own `gesture.dy`
+   * starts again from zero — counted from that, the row ran ahead of the finger. Every move is
+   * worked out from this grab instead, whichever render's handler is asked.
    */
-  const at = useRef(0);
+  const grab = useRef({ from: 0, to: 0, y: 0, list: picked });
   const gripFor = (from: number) =>
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dy) > 2,
       onPanResponderTerminationRequest: () => false,
-      onPanResponderGrant: () => {
-        at.current = from;
+      onPanResponderGrant: (e) => {
+        grab.current = { from, to: from, y: e.nativeEvent.pageY, list: picked };
       },
-      onPanResponderMove: (_, gesture) => {
+      onPanResponderMove: (e) => {
+        const held = grab.current;
         const to = Math.max(
           0,
-          Math.min(picked.length - 1, from + Math.round(gesture.dy / TRACK_ROW)),
+          Math.min(
+            held.list.length - 1,
+            held.from + Math.round((e.nativeEvent.pageY - held.y) / TRACK_ROW),
+          ),
         );
-        if (to === at.current) return;
-        at.current = to;
-        change({ tracks: movedTrack(picked, from, to) });
+        if (to === held.to) return;
+        held.to = to;
+        change({ tracks: movedTrack(held.list, held.from, to) });
       },
     }).panHandlers;
 
@@ -131,7 +134,8 @@ export default function MusicStep() {
 
       const key = await sendOwnTrack(token, id, { uri: file.uri, name: file.name });
       if (gone.current) return;
-      change({ tracks: [...picked, { key, name: file.name }] });
+      // Onto the list as it is now: the shelf stays pressable while the file goes up.
+      change((was) => ({ tracks: [...was.tracks, { key, name: file.name }] }));
     } catch (e) {
       if (!gone.current) setNotice(errorMessage(e));
     } finally {
