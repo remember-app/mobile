@@ -1693,7 +1693,8 @@ test('the boxes are the face’s own read, and the sheet is handed them like eve
   // Spec 10.8.2 — the «ЛЕЙБЛЫ» row. The labels are read on their own and not as a third hand in the
   // listing: the quiet re-read runs every three seconds and a box does not move on its own, and a
   // labels read that will not come back must not put an error over a feed that is fine.
-  expect(frames).toContain('listLabels(token, id).then(setLabels, () => {});');
+  expect(frames).toContain('listLabels(token, id).then((all) => {');
+  expect(frames).toContain('}, () => {});');
   expect(frames).toContain('labels={labels}');
   expect(frames).not.toContain('listLabels(token, id)]');
   // Who may see which box is the server's answer and never worked out here: what comes down is
@@ -1713,8 +1714,14 @@ test('the row answers a box made, renamed, deleted or filled without the app bei
   expect(frames).toContain('loadLabels();');
   expect(frames).toContain('useFocusEffect');
   // And a box that has gone leaves the filter with it: every frame has just lost the id, and the
-  // chip that could take it off again is no longer on the sheet (`withoutLabel` in `@/frames`).
-  expect(frames).toContain('if (ids === null) setFilter((have) => withoutLabel(have, labelId));');
+  // chip that could take it off again is no longer on the sheet (`keepLabels` in `@/frames`).
+  expect(frames).toContain(
+    'if (ids === null) setFilter((have) => keepLabels(have, (one) => one !== labelId));',
+  );
+  // Deleted by somebody else, it is simply missing from the next read of the row — and goes too.
+  expect(frames).toContain(
+    'setFilter((have) => keepLabels(have, (one) => all.some((label) => label.id === one)));',
+  );
 });
 
 test('the sort takes effect as it is pressed, and «Готово» is only the way out', () => {
@@ -1882,12 +1889,23 @@ test('a deleted label leaves the frames where they are, on every one of them', (
 test('the one refusal left — a viewer making a shared label — is said in words, and never sticks', () => {
   // Any member edits and fills a shared label (decision-12), so making one is the only write a
   // member can still be refused. The api answers a bare «forbidden», which tells nobody what to do.
-  expect(labelSheets).toContain('status === 403 && denied ? denied : status === 404');
-  expect(labelSheets).toContain('s.labels.sharedDenied,');
+  expect(labelSheets).toContain('{ 403: s.labels.sharedDenied, 404: s.labels.memoryGone }');
   expect(labelSheets.match(/s\.labels\.\w+Denied/g)).toEqual(['s.labels.sharedDenied']);
   expect(labelSheets).toContain('setBusy(false);');
   expect(ru.labels.sharedDenied).toContain('личный');
+  // A 404 is the label's only where a label is in the path. Making one has none, so there it is the
+  // memory's membership check, and «этого лейбла больше нет» would be the wrong thing to say.
+  expect(labelSheets).toContain('refused: Refusals = { 404: s.labels.gone }');
+  expect(labelSheets).toContain('setError(worded(e, { 404: s.labels.memoryGone }))');
   expect(en.labels.gone).toBe('This label is no longer here.');
+  expect(ru.labels.memoryGone).toBe('Вас больше нет в этом воспоминании.');
+});
+
+test('back on a list that never arrived, the sheet reads it again instead of waiting on nothing', () => {
+  // A failed read, then «Новый лейбл» and back: the failure is cleared with the sheet it was said on,
+  // and a list still null with no error would otherwise be «Загрузка…» with no read behind it.
+  expect(labelSheets).toContain('if (next === null && labels === null) load();');
+  expect(labelSheets).toContain('onCancel={() => write(null)}');
 });
 
 test('visibility is settled once and only shown afterwards (decision-12)', () => {

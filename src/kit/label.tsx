@@ -122,7 +122,7 @@ export function RowLabel({
         <View style={styles.row}>{inner}</View>
       ) : (
         <Pressable
-          // `aria-pressed`, not `checked`: the row does a thing to what is chosen rather than
+          // `selected`, not `checked`: the row does a thing to what is chosen rather than
           // standing for a value of its own (spec 7.7).
           accessibilityRole="button"
           accessibilityState={{ selected: !!inside }}
