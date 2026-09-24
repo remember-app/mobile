@@ -316,18 +316,42 @@ describe.each(SCENARIOS)('%s — the worker’s words, in the app’s', (scenari
     }
   });
 
-  test('every row of every stage says something in words, and never a raw key', () => {
+  test('every row of every stage says something in words, and never a raw key — a stage at work with nothing counted says nothing in its first minute', () => {
+    const MINUTE = 60_000;
+    let bare = 0;
     for (const s of [ru, en]) {
       for (const row of rows) {
         expect(['pending', 'running', 'done', 'failed']).toContain(row.state);
         expect(['waiting', 'running', 'done', 'failed']).toContain(stageStanding(row));
-        const line = stageLine(row, s, Date.parse(row.finished_at ?? row.updated_at));
-        // A stage not reached (`pending`) has no line; every other one has, and it is words.
-        if (row.state === 'pending') continue;
-        expect(line, `${row.stage} ${row.state}`).toBeTruthy();
-        expect(line).not.toMatch(/undefined|null|NaN|\[object/);
+        const at = Date.parse(row.finished_at ?? row.updated_at);
+        const line = stageLine(row, s, at);
+        const label = `${row.stage} ${row.state}`;
+        // A stage not reached (`pending`) has no line.
+        if (row.state === 'pending') {
+          expect(line, label).toBeUndefined();
+          continue;
+        }
+        if (row.state === 'running') {
+          const counted = row.done_count > 0 && row.total_count !== null;
+          if (counted) {
+            // The stages that move their counter (screening, assembly) show it, said in words.
+            expect(line, label).toContain(s.montage.live.doneOf(row.done_count, row.total_count!));
+          } else {
+            // Nothing counted: not «0 из N», and in the first minute no line at all — the name and the
+            // spinner carry it — then how long it has been at it.
+            expect(line, label).toBeUndefined();
+            expect(stageLine(row, s, Date.parse(row.started_at!) + 3 * MINUTE), label).toBe(s.montage.live.running(3));
+            bare++;
+          }
+        } else {
+          // Done or fallen over: always says what came of it or how long it took.
+          expect(line, label).toBeTruthy();
+        }
+        if (line !== undefined) expect(line).not.toMatch(/undefined|null|NaN|\[object/);
+        expect(line ?? '').not.toContain(s.montage.live.doneOf(0, row.total_count ?? 0));
       }
     }
+    expect(bare, 'the recording has a stage at work with nothing counted').toBeGreaterThan(0);
   });
 
   test('the rhythm says what it came to — the cuts to the music, or that there was none to fit to', () => {
