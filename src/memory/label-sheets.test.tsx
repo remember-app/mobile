@@ -3,6 +3,8 @@ import { beforeAll, expect, test, vi } from 'vitest';
 // The words come from the dictionary, and the dictionary asks the phone which language it is in.
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
 
+import { Tag as TagIcon } from 'lucide-react-native';
+
 import { allDifferent, story } from '@/kit/story';
 import { label } from '@/label-fixtures';
 import { LabelNewSheet, LabelsSheet } from '@/memory/label-sheets';
@@ -141,7 +143,7 @@ test('rights come from the flags the server sent and not from who made the label
 });
 
 test('a failure from the server is said in words, over a sheet that still works', () => {
-  const failed = story(sheet({ error: 'Этого лейбла больше нет.' }));
+  const failed = story(sheet({ error: { text: 'Этого лейбла больше нет.', icon: TagIcon } }));
   expect(failed).toContain('Этого лейбла больше нет.');
   // The list is still there under it — the sheet does not get stuck on a failure.
   expect(failed).toContain('Лучшее');
