@@ -18,6 +18,7 @@ import { formatRuntime, formatTime } from '@/dates';
 import {
   AppBar,
   BadgeDecision,
+  Banner,
   Board,
   Chip,
   IconButton,
@@ -93,6 +94,24 @@ export default function MontageLiveStageScreen() {
   const shown = sifted(journal.entries, sift);
   const card = journal.entries.find((entry) => entry.id === opened);
   const cardFile = card?.media_id ? journal.files[card.media_id] : undefined;
+
+  // The api's 404: this reader is not in the memory any more — said the way the live screen says it.
+  if (journal.standing === 'refused') {
+    return (
+      <Board>
+        <AppBar
+          variant="live"
+          title={s.montage.stage[code]}
+          left={
+            <IconButton icon={ChevronLeft} label={s.action.back} onPress={() => router.back()} />
+          }
+        />
+        <View style={styles.feed}>
+          <Banner tone="error" text={s.memory.gone} />
+        </View>
+      </Board>
+    );
+  }
 
   return (
     <Board>

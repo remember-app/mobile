@@ -1891,5 +1891,5 @@ test('the words of the labels flow are the ones the layout wrote', () => {
   expect(ru.labels.sharedDenied).toContain('личный');
   expect(ru.labels.gone).toBe('Этого лейбла больше нет.');
   expect(en.labels.gone).toBe('This label is no longer here.');
-  expect(ru.labels.memoryGone).toBe('Вас больше нет в этом воспоминании.');
+  expect(ru.memory.gone).toBe('Вас больше нет в этом воспоминании.');
 });

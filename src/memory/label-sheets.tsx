@@ -92,7 +92,7 @@ export function LabelSheets({
     if (!token) return;
     setError(null);
     listLabels(token, memoryId).then(setLabels, (e: unknown) =>
-      setError(worded(e, { 404: s.labels.memoryGone })),
+      setError(worded(e, { 404: s.memory.gone })),
     );
   }, [token, memoryId, s]);
 
@@ -161,7 +161,7 @@ export function LabelSheets({
           media_ids: ids.length > 0 ? ids : undefined,
         }),
       // No label in the path, so a 404 is the membership check; a 403 is a viewer asking for «Общий».
-      { 403: s.labels.sharedDenied, 404: s.labels.memoryGone },
+      { 403: s.labels.sharedDenied, 404: s.memory.gone },
     );
     if (made === null) return;
     setLabels((have) => withLabel(have ?? [], made));
