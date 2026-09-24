@@ -139,7 +139,7 @@ import {
 } from '@/kit';
 import { frame } from '@/label-fixtures';
 import { currentLanguage, setLanguage } from '@/language';
-import { OrderProvider, useOrder, type Wizard } from '@/order-wizard';
+import { ENTER_MS, OrderProvider, READ_MS, useOrder, type Wizard } from '@/order-wizard';
 import { ru, strings } from '@/strings';
 import { act, BEAT_BY_BEAT, drives } from '@/test-drive';
 import { mountsTrees } from '@/test-renderer';
@@ -501,13 +501,15 @@ test('with motion reduced nothing is typed: each step lands whole and the order 
   const server = serve();
   await open();
   await act(async () => tile('dopamine').props.onPress());
-  await run(200);
+  // Step 1 has nothing to fill in, and is still left standing to be read: the setting takes away
+  // what moves, never the time to take in what landed (TASK-279).
+  await run(ENTER_MS + READ_MS - 50);
   expect(nav.top()).toBe('frames');
-  await run(200);
-  // One pause per step, long enough to read the step before it fills — and then the story is whole.
+  await run(100);
+  // And the story lands whole — but only once the step it lands on has finished arriving.
   expect(nav.top()).toBe('story');
   expect(wizard.order.story).toBe('');
-  await run(400);
+  await run(ENTER_MS);
   expect(wizard.order.story).toBe(fullStory('dopamine'));
   await settle();
 

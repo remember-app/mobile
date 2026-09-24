@@ -41,6 +41,7 @@ import {
   Icon,
   IconButton,
   Sheet,
+  soften,
   Text,
   useReducedMotion,
   Waiting,
@@ -115,17 +116,32 @@ export function useOrder(): Wizard {
 export const STEPS = 4;
 
 /**
- * The autopilot's own clock (spec 6, «Автопилот по шаблону»). The step is the layout's own
- * transition; the strokes of the story are the journal's typing, because it is the same hand
- * writing in the same app (`@/montage-journal`). With motion off nothing is typed at all and every
- * wait becomes the one pause — long enough to read what landed on the step before it turns over.
+ * The autopilot's own clock (spec 6, «Автопилот по шаблону»). Every step of the walk has the same
+ * three beats — turn to it, fill it in, leave it standing — and the whole of it comes to about
+ * eight seconds, which is what it is for: a person watching has to see *what* landed on a step
+ * before the next one takes its place, and eight seconds of that is a thing being built rather
+ * than a thing being waited for. It was under three, and three is a flicker (TASK-279).
+ *
+ * The one clock for both settings. «Reduce motion» takes away what moves — the typing, the tracks
+ * arriving one by one, the figure travelling — and not the time to read: a step whose fields land
+ * whole still needs its beat, or the story appears and is gone in the same instant.
  */
-const STEP_MS = 240;
-const CALM_MS = 400;
+/** The step pushed and left alone until the stack has finished bringing it in (`duration.step`). */
+export const ENTER_MS = 420;
+/** One thing landing on a step: a track taken, the wish under the tracks. */
+const FILL_MS = 360;
+/** A full step left standing, so what landed on it is read before it turns over. */
+export const READ_MS = 560;
+/**
+ * One stroke of the story — the journal's own beat, because it is the same hand writing in the same
+ * app (`@/montage-journal`) — and how many strokes the whole of it takes however long it is. Eighty
+ * of them put a template's three hundred characters up over about two and a half seconds: fast
+ * enough to read as writing, slow enough to watch the words arrive.
+ */
 const TYPE_MS = 30;
-const TYPE_STROKES = 40;
+const TYPE_STROKES = 80;
 /** How many moves the figure of the length takes to reach the template's: it travels, never jumps. */
-const RIDE_STEPS = 10;
+const RIDE_STEPS = 24;
 
 /**
  * The character of each of the six templates as a glyph (spec 5): it stands on the tile that
@@ -266,7 +282,7 @@ export function OrderProvider({ id, children }: { id: string; children: ReactNod
       const mine = flight.current;
       /** Waited, and still this walk? «Стоп», «Назад» and «Отмена» all answer no. */
       const going = async (ms: number) => {
-        await new Promise((done) => setTimeout(done, reduced ? CALM_MS : ms));
+        await new Promise((done) => setTimeout(done, ms));
         return flight.current === mine;
       };
 
@@ -276,11 +292,13 @@ export function OrderProvider({ id, children }: { id: string; children: ReactNod
       change({ ...fill, story: '', tracks: [], note: '', seconds: null });
 
       void (async () => {
+        // A template says nothing about which frames go in — the automatic pass has had its say —
+        // so step 1 is only turned to and left standing: one beat to arrive, one to be read.
         router.push({ pathname: '/memory/[id]/order/frames', params: { id } });
-        if (!(await going(STEP_MS))) return;
+        if (!(await going(ENTER_MS + READ_MS))) return;
 
         router.push({ pathname: '/memory/[id]/order/story', params: { id } });
-        if (!(await going(STEP_MS))) return;
+        if (!(await going(ENTER_MS))) return;
         if (reduced) change({ story: fill.story });
         else {
           // Longer stories are typed in bigger strokes rather than over a longer time: a sentence
@@ -295,20 +313,26 @@ export function OrderProvider({ id, children }: { id: string; children: ReactNod
             }
           }
         }
+        if (!(await going(READ_MS))) return;
 
         router.push({ pathname: '/memory/[id]/order/music', params: { id } });
-        if (!(await going(STEP_MS))) return;
+        if (!(await going(ENTER_MS))) return;
         if (reduced) change({ tracks: fill.tracks, note: fill.note });
         else {
           for (let n = 1; n <= fill.tracks.length; n += 1) {
+            // The first track is «Без музыки» giving way to the list, and every one after it is a
+            // row landing in it: both are the layout moving, so both are moved into.
+            soften(FILL_MS);
             change({ tracks: fill.tracks.slice(0, n) });
-            if (!(await going(STEP_MS))) return;
+            if (!(await going(FILL_MS))) return;
           }
+          soften(FILL_MS);
           change({ note: fill.note });
         }
+        if (!(await going(READ_MS))) return;
 
         router.push({ pathname: '/memory/[id]/order/build', params: { id } });
-        if (!(await going(STEP_MS))) return;
+        if (!(await going(ENTER_MS))) return;
         if (reduced) change({ seconds: fill.seconds });
         else {
           for (let n = 1; n <= RIDE_STEPS; n += 1) {
@@ -316,7 +340,7 @@ export function OrderProvider({ id, children }: { id: string; children: ReactNod
             if (!(await going(TYPE_MS))) return;
           }
         }
-        if (!(await going(STEP_MS))) return;
+        if (!(await going(READ_MS))) return;
 
         // And the walk ends on the total, with the wheel back in the person's hands: what the
         // autopilot put together is read there and spent by a press of theirs.
