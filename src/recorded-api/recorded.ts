@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 
-import type { MontageJournal } from '@/api';
+import { MONTAGE_STAGES, type Montage, type MontageJournal, type MontageStep } from '@/api';
 
 /**
  * The api's recorded answers to the journal routes (see `README.md` beside this file), and a stand-in
@@ -54,6 +54,50 @@ export const step = (steps: readonly Step[], name: string): Step => {
 
 export const bodyOf = (steps: readonly Step[], name: string) =>
   step(steps, name).response.body as MontageJournal;
+
+/** What the worker said about why it broke — the list's `error_text` on `fellOver`'s montage. */
+export const BROKE = 'Режиссёр не ответил';
+
+/**
+ * NOT WORDS OF THE API — the recording has no montage that fell over, so these two answers about one
+ * are cut out of recorded ones: the list taken while `understanding` was at work, with that stage
+ * fallen over and `why` beside it — the worker's line, or none at all — and the ready montage's own
+ * journal cut back to the same moment: the two stages it reached, their records, and the files those
+ * name without a layout. Any member reads both (api README, «Журнал монтажа»), so they are served to
+ * `as`.
+ */
+export function fellOver(steps: readonly Step[], as: Role, why: string | null = BROKE): Step[] {
+  const list = step(steps, 'montage_list_while_building');
+  const journal = step(steps, 'journal_of_ready_montage');
+  const whole = journal.response.body as MontageJournal;
+  const at = MONTAGE_STAGES.indexOf('understanding');
+  const fell = <Row extends MontageStep>(row: Row, i: number) => ({
+    ...row,
+    state: i < at ? 'done' : i === at ? 'failed' : 'pending',
+  });
+  const entries = whole.entries.filter((one) => MONTAGE_STAGES.indexOf(one.stage) <= at);
+  const met = new Set(entries.map((one) => one.media_id));
+  const answer = (recorded: Step, body: unknown): Step => ({
+    ...recorded,
+    request: { ...recorded.request, as },
+    response: { status: 200, body },
+  });
+  return [
+    answer(
+      list,
+      (list.response.body as Montage[]).map((one) =>
+        one.id === MONTAGE ? { ...one, status: 'failed', error_text: why, stages: one.stages!.map(fell) } : one,
+      ),
+    ),
+    answer(journal, {
+      ...whole,
+      montage: { ...whole.montage, status: 'failed' },
+      stages: whole.stages.slice(0, at + 1).map(fell),
+      entries,
+      files: whole.files.filter((one) => met.has(one.id)).map((one) => ({ ...one, places: [] })),
+    }),
+  ];
+}
 
 /** The steps of one sitting in front of the screen, in the order they were recorded. */
 export const liveSteps = (steps: readonly Step[]) =>
