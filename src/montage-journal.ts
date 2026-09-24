@@ -179,15 +179,17 @@ export const stageNumber = (stage: MontageStageCode): number => MONTAGE_STAGES.i
 
 /**
  * The stage the video is on now: the one being worked on, or — when none is — the one that fell
- * over, and failing that the last one the worker has reached. Null before anything is known, which
- * is a montage still standing in the queue as much as a journal not read yet.
+ * over, and failing that the last one the worker has reached. A `pending` row is not reached: the
+ * worker writes all five as it opens the job, so between two stages the answer is the one just
+ * done and not the last row of the five. Null before anything is known, which is a montage still
+ * standing in the queue as much as a journal not read yet.
  */
 export function currentStage(stages: readonly MontageStage[]): MontageStage | null {
   const inOrder = [...stages].sort((a, b) => stageNumber(a.stage) - stageNumber(b.stage));
   return (
     inOrder.find((stage) => stage.state === 'running') ??
     inOrder.find((stage) => stage.state === 'failed') ??
-    inOrder[inOrder.length - 1] ??
+    inOrder.filter((stage) => stage.state !== 'pending').pop() ??
     null
   );
 }

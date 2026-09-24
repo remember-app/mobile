@@ -303,6 +303,16 @@ describe('currentStage', () => {
   test('is nothing at all for a montage still in the queue', () => {
     expect(currentStage([])).toBe(null);
   });
+
+  // The worker writes all five rows `pending` as it opens the job (`journal.begin`), so the last
+  // row is always «assembly» — «этап 5 из 5» before the first frame and between every two stages.
+  test('a row still pending is not a stage reached', () => {
+    const ahead = (['understanding', 'directing', 'rhythm', 'assembly'] as const).map((code) =>
+      stage(code, 'pending'),
+    );
+    expect(currentStage([stage('screening', 'pending'), ...ahead])).toBe(null);
+    expect(currentStage([done, ...ahead])?.stage).toBe('screening');
+  });
 });
 
 describe('minutesLeft', () => {
