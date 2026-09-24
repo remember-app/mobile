@@ -12,7 +12,6 @@ import {
   type Member,
   type Memory,
   type Montage,
-  type MontageOrientation,
 } from '@/api';
 import { useAuth } from '@/auth';
 import { formatRuntime } from '@/dates';
@@ -31,6 +30,7 @@ import { useStrings } from '@/language';
 import { FilmPlayer, montageTitle, useFilmActions } from '@/memory/film-player';
 import { SheetLiveFile } from '@/memory/live-file';
 import { StageRows } from '@/memory/stage-rows';
+import { RATIO } from '@/montage';
 import { howMade, madeInMinutes, useMontageJournal } from '@/montage-journal';
 import { space } from '@/theme';
 
@@ -244,14 +244,6 @@ function madeTo(montage: Montage | null): string | undefined {
   const runtime = formatRuntime(montage.duration_seconds);
   return [runtime, RATIO[montage.params.orientation ?? 'landscape']].filter(Boolean).join(' · ');
 }
-
-/**
- * The shape of the finished film as a ratio, the way the last step of the order says it
- * (`order/summary.tsx`): the worker cuts onto one of two fixed canvases, so these are facts about
- * the order and not measurements of anything on screen — and they are digits, not words, so they
- * stand outside the dictionary.
- */
-const RATIO: Record<MontageOrientation, string> = { landscape: '16:9', portrait: '9:16' };
 
 // Nothing here carries a colour of its own — every piece on this page brings the kit's with it.
 const styles = StyleSheet.create({
