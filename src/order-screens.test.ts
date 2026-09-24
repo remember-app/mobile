@@ -430,7 +430,7 @@ test('step 4 asks the api how long the film may be, and asks again when the fram
   expect(build).toContain('const seconds = order.seconds ?? preview?.target_seconds ?? null;');
 });
 
-test('step 4 draws one length control, and the template’s line goes at the first touch of it', () => {
+test('step 4 draws one length control, and the template’s line goes when the figure moves', () => {
   // The three round answers are gone from the wizard: the length is a figure on a line now, with
   // five ready answers under it — four numbers and «Всё», which is the ceiling the api just named.
   expect(build).not.toContain('LENGTHS');
@@ -440,8 +440,11 @@ test('step 4 draws one length control, and the template’s line goes at the fir
   expect(model).toContain('export const PRESETS = [30, 60, 90, 180] as const;');
 
   // «из шаблона „…“» stands under the figure while the template is the one who put it there, and
-  // a hand on the slider makes the number the person's own — `ownStory`'s twin, one step along.
+  // the slider moving it makes the number the person's own — `ownStory`'s twin, one step along. A
+  // finger resting on it moves nothing and so says nothing (`grabLength` in the kit), and the step
+  // takes whatever second it is handed as it is, rounding it to nothing of its own.
   expect(build).toContain('change({ seconds: next, ownLength: true })');
+  expect(build).not.toContain('Math.round');
   expect(build).toContain('template && !order.ownLength');
   expect(model).toContain('ownLength: boolean;');
   expect(ru.montage.lengthFromTemplate('Для родителей')).toBe('из шаблона «Для родителей»');
