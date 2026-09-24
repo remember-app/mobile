@@ -37,7 +37,11 @@ export type LengthSliderProps = {
   value: number;
   onChange: (seconds: number) => void;
   min: number;
-  /** Worked out from the material: `min(10:00, Σ video + 2.5s × photos)` — the screen does that sum. */
+  /**
+   * What the material can carry, as the api works it out and hands it over (`max_seconds`):
+   * `min(10:00, Σ video + 2.5s × photos − 0.5s × (frames − 1))`, down to whole seconds, a crossfade
+   * paid on every join. The app never sums it.
+   */
   max: number;
   /** «2:30» — the value, written out. */
   valueLabel: string;
