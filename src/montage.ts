@@ -147,7 +147,7 @@ export type Order = {
   /**
    * Whether the length was moved by hand since a template set it — `ownStory`'s twin, and for the
    * same reason: the figure on step 4 carries «из шаблона „…“» under it only while the template is
-   * the one who put it there, and one touch of the slider makes the number the person's own.
+   * the one who put it there, and the slider moving it makes the number the person's own.
    */
   ownLength: boolean;
   orientation: MontageOrientation;
