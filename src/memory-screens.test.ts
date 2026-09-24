@@ -351,8 +351,9 @@ test('deleting an armful asks first, counts the price, and takes only what may b
   // server, and a feed still drawing them would open windows onto nothing.
   const deleting = frames.slice(frames.indexOf('async function deletePicked'));
   expect(deleting.slice(0, deleting.indexOf('\n  }'))).toContain(
-    'if (gone.size > 0) setItems((have) => have?.filter((one) => !gone.has(one.id)) ?? null);',
+    'setItems((have) => have?.filter((one) => !gone.has(one.id)) ?? null);',
   );
+  expect(deleting.slice(0, deleting.indexOf('\n  }'))).toContain('if (gone.size > 0) {');
   expect(frames).toContain('deleteMedia(token, id, item.id)');
 });
 
@@ -749,6 +750,14 @@ test('one’s own standing is a button that turns it, and only one’s own', () 
   // thing is the 36 cross, and on one's own row it is never the cross.
   expect(settings).toContain('size={36}');
   expect(settings).toContain('if (editing && organizer && !self)');
+});
+
+test('the mode of editing the roster does not outlive the last person there is to take out', () => {
+  // Spec 10.8.4: «убирать некого — кнопки нет вовсе». The button is drawn only over a roster of more
+  // than one, and the mode itself is switched off with it — otherwise it waits, on, for the next
+  // person to be invited and shows their cross before anybody has asked for crosses.
+  expect(settings).toContain('{organizer && members.length > 1 ? (');
+  expect(settings).toContain('if (members !== null && members.length <= 1) setEditing(false);');
 });
 
 test('taking somebody out names the price, and a viewer has none to name', () => {
@@ -1235,6 +1244,17 @@ test('the films face reads again by itself while a montage is being cut', () => 
   expect(films.match(/writes\.current \+= 1;/g)).toHaveLength(1);
 });
 
+test('a quiet read in flight never puts an older feed back over one this screen has just written', () => {
+  // The frames face writes its own list three ways — a run of deletes, the one frame the window
+  // deletes, a label filed — and every one of them is newer than a read that started before it. Left
+  // alone, that read brought a deleted frame back, and with nothing developing in its snapshot the
+  // loop that re-reads stopped, so the ghost stood there until somebody pulled. The films strip has
+  // had this guard since TASK-125.
+  expect(frames).toContain('const startedAt = writes.current;');
+  expect(frames).toContain('if (quiet && writes.current !== startedAt) return;');
+  expect(frames.match(/writes\.current \+= 1;/g)).toHaveLength(3);
+});
+
 test('the way out of a played montage is the kit’s own button, across the foot of the window', () => {
   // TASK-177, off a device: «Закрыть» stood quiet in the left corner of the bar and read as a line
   // of text rather than as anything the app draws. Spec 7.2 gives that word the outlined button —
@@ -1300,9 +1320,12 @@ test('the pill of when and who is the road to the frame’s own sheet', () => {
   // nothing else, because the window opens on a picture and this is the half nobody asked about.
   expect(viewer.match(/setDetails\(true\)/g)).toHaveLength(1);
   expect(viewer).toContain('fetchFrameInfo(token, memoryId, item.id)');
-  // And the answer is dropped if the sheet has since been shut and raised on another frame: it
-  // would otherwise fill the open sheet with the frame before it.
-  expect(viewer).toContain('if (asking.current === read.id) setInfo(read);');
+  // And only the latest opening may answer into it: a read that lands after the sheet was shut and
+  // raised again — on another frame, or on this one — would fill the open sheet with the frame
+  // before it, or lay the failure of the first read over the details the second one brought.
+  expect(viewer).toContain('const mine = ++opening.current;');
+  expect(viewer).toContain('if (opening.current === mine) setInfo(read);');
+  expect(viewer).toContain('if (opening.current === mine) setInfoFailed(errorMessage(e));');
   expect(ru.viewer.details).toBe('Сведения о кадре');
 });
 

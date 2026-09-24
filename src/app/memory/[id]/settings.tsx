@@ -1,6 +1,6 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, Pencil, UserPlus, X } from 'lucide-react-native';
-import { useCallback, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import {
@@ -95,6 +95,13 @@ export default function MemorySettingsScreen() {
   // On focus rather than on mount, the way the home screen does it: everybody's standing changes
   // while whoever is reading it is off uploading, and the name and the cover change one screen away.
   useFocusEffect(load);
+
+  // The button goes when there is nobody left to take out, and the mode goes with it: kept on, it
+  // would be sitting there switched on the next time somebody joins, with a cross already beside
+  // their name that nobody asked for.
+  useEffect(() => {
+    if (members !== null && members.length <= 1) setEditing(false);
+  }, [members]);
 
   const me = members?.find((member) => member.id === user?.id) ?? null;
   const role = me?.role ?? null;

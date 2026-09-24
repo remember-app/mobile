@@ -205,6 +205,15 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   useEffect(() => () => {
     onScreen.current = false;
   }, []);
+  /**
+   * How many times this screen has written the feed itself — a frame deleted, a label filed. That
+   * answer is newer than any quiet read already in flight, and such a read landing afterwards would
+   * put the api's older snapshot back over it: the deleted frame would come back, and with nothing
+   * left developing in that snapshot the loop below would stop and never read again. So a quiet read
+   * carries the count it started under and drops its answer when that has moved (the films strip
+   * keeps the same guard for the same reason).
+   */
+  const writes = useRef(0);
 
   /**
    * The date spine (spec 7.8, detail 66, and `MemoryScrub`). Four things are needed to draw it and
@@ -278,9 +287,12 @@ export function Frames({ id, head }: { id: string; head: Head }) {
       // The listing carries neither a role nor a name, and this screen needs both: who may delete
       // what, and who brought the frame that is open or the strip that is grouped by them. The
       // roster answers all of it in one read.
+      const startedAt = writes.current;
       Promise.all([listMedia(token, id), listMembers(token, id)])
         .then(
           ([media, members]) => {
+            // Stale by the time it landed — see `writes`. A read somebody asked for is never stale.
+            if (quiet && writes.current !== startedAt) return;
             // A quiet read is looking for what the worker has finished, and it must not disturb
             // what was already finished: `keepReady` holds every `ready` record's own object, so
             // the urls behind the frames on screen do not move and nothing is fetched twice.
@@ -678,7 +690,10 @@ export function Frames({ id, head }: { id: string; head: Head }) {
       (item) => deleteMedia(token, id, item.id),
       () => onScreen.current,
     );
-    if (gone.size > 0) setItems((have) => have?.filter((one) => !gone.has(one.id)) ?? null);
+    if (gone.size > 0) {
+      writes.current += 1;
+      setItems((have) => have?.filter((one) => !gone.has(one.id)) ?? null);
+    }
     if (failure !== undefined) {
       setNotice(
         failure instanceof ApiError && failure.status === 403
@@ -1082,6 +1097,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
           memoryId={id}
           frames={marked}
           onFiled={(labelId, ids, now) => {
+            writes.current += 1;
             setItems((have) => filed(have, labelId, ids, now));
             // A box that has gone — «ids null» is the whole feed losing it — takes itself out of the
             // filter as well (spec 10.8.2). Left in, it would be narrowing the feed to a label no
@@ -1134,6 +1150,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
           onOpen={setOpen}
           onClose={() => setOpen(null)}
           onRemoved={(gone) => {
+            writes.current += 1;
             setItems((have) => have?.filter((one) => one.id !== gone) ?? null);
             setOpen(null);
           }}
