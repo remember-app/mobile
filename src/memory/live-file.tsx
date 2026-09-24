@@ -85,8 +85,8 @@ export function SheetLiveFile({
         </View>
         {/* Why it was taken, where there is a why (spec 28): beside «Беру» and in the journal's own
             colour for what stands next to it — just under it rather than in its row, where a pill
-            this long would squeeze the author and the date down to a letter or two. A frame passed
-            over has none here: the plate under it says why (spec 7.6). */}
+            this long would squeeze the author and the date down to a letter or two. Why a frame was
+            passed over is the thought's to say on this sheet, not a pill's (spec 7.6). */}
         {why ? (
           <View style={styles.why}>
             <BadgeDecision kind="part" label={why} />
