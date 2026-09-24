@@ -59,6 +59,9 @@ test('what was answered lives above the steps, so walking back and forth loses n
   expect(wizardLayout).toContain('<OrderProvider id={id}>');
   expect(wizard).toContain('const [order, setOrder] = useState<Order>(blankOrder);');
   expect(wizard).toContain('listMedia(token, id).then(setItems');
+  // Read again only by `reread` — «Повторить» over a failed read, and a refusal leading back.
+  expect(wizard).toContain('useEffect(read, [read]);');
+  expect(wizard).toContain('label={s.action.retry} onPress={reread}');
   for (const step of Object.values(steps)) {
     expect(step).toContain('useOrder()');
     expect(step).not.toContain('useState<Order>');
@@ -438,9 +441,14 @@ test('step 4 asks the api how long the film may be, and asks again when the fram
   // itself: asked with one the material no longer stretches to, the api answers 400, not a range.
   expect(build).toContain('const [preview, setPreview] = useState<MontagePreview | null>(null);');
   expect(build).toContain('target_seconds: undefined,');
-  // Asked again on the frames and on nothing else — the id of everything going in is the key.
+  // Asked again on the frames as read and on nothing else — the id of everything going in, and the
+  // read itself: a refusal of the total reads the material again, and the same frames can carry less.
   expect(build).toContain('const going = taken(material, order)');
-  expect(build).toContain('}, [token, id, going]);');
+  expect(build).toContain('}, [token, id, items, going]);');
+  // The old range goes with the question, and a failed question stands where the slider would,
+  // with the way to ask it again off a fresh read.
+  expect(build).toContain('setPreview(null);\n    setFailed(null);');
+  expect(build).toContain('label={s.action.retry} onPress={reread}');
   // A range that came back narrower than the length already chosen brings the length down with it,
   // rather than leaving a figure standing that the order would be refused for. Watched and not
   // done once on arrival: the autopilot rides the figure up while that answer is in flight, so
@@ -542,16 +550,18 @@ test('the summary only shows — every number on it is the api’s answer', () =
 });
 
 test('a refusal of the summary explains itself and leads back to the step that can undo it', () => {
-  // The two the api can answer either call with: the material under the floor, and a length the
-  // frames no longer carry. Both are said in this app's words and not in the api's numbers.
-  expect(summary).toContain('e instanceof ApiError && e.status === 409');
-  expect(summary).toContain('{ text: s.montage.tooLittle, back: \'frames\' }');
-  expect(summary).toContain('{ text: s.montage.lengthOff, back: \'length\' }');
+  // What the api can answer either call with: the material under the floor, a length the frames no
+  // longer carry, and frames that are no longer there — the two 400s told apart by what the body
+  // carries, never by the status alone. All said in this app's words and not in the api's numbers.
+  expect(summary).toContain("if (e.status === 409) return { text: s.montage.tooLittle, back: 'frames' };");
+  expect(summary).toContain("carries('max_seconds')) return { text: s.montage.lengthOff, back: 'length' };");
+  expect(summary).toContain("carries('media_ids')) return { text: s.montage.framesGone, back: 'frames' };");
   // The way back is a jump to that step and not a walk: after the autopilot there may be no step
-  // behind this screen at all.
+  // behind this screen at all. And the material is read again on the way, so the step shows what
+  // is there now rather than what it was refused for.
   expect(summary).toContain("{ pathname: '/memory/[id]/order/frames', params: { id } }");
   expect(summary).toContain("{ pathname: '/memory/[id]/order/build', params: { id } }");
-  expect(summary).toContain('router.dismissTo(');
+  expect(summary).toContain('reread();\n    router.dismissTo(');
   // Refused, the screen is a line and a button and never an empty summary of nothing.
   expect(summary).toContain('<Banner tone="error" text={stopped.text}');
 

@@ -49,7 +49,7 @@ export default function SummaryStep() {
   const { token } = useAuth();
   const router = useRouter();
   const s = useStrings();
-  const { id, items, material, order } = useOrder();
+  const { id, items, reread, material, order } = useOrder();
   const { color } = useTheme();
   const styles = useStyles();
   const [preview, setPreview] = useState<MontagePreview | null>(null);
@@ -65,17 +65,21 @@ export default function SummaryStep() {
   /**
    * What a refusal means to whoever is reading it, and which step can undo it. Both calls this
    * screen makes are refused in the same words by the api — the summary is the order, costed — so
-   * one reading serves both: 409 is the material under the floor, and the only 400 an order built
-   * by this wizard can earn is a length the frames no longer carry.
+   * one reading serves both. 409 is the material under the floor. A 400 is told apart by what its
+   * body carries (api README, the order's table of refusals): the two edges of the range are a
+   * length the frames no longer carry, and named frames are ones that are no longer there — deleted
+   * while the wizard stood open. Any other 400 has no step here that could undo it, so it leads
+   * nowhere rather than to a step that cannot.
    */
-  const refusal = (e: unknown): Refusal =>
-    e instanceof ApiError && e.status === 409
-      ? { text: s.montage.tooLittle, back: 'frames' }
-      : e instanceof ApiError && e.status === 400
-        ? { text: s.montage.lengthOff, back: 'length' }
-        : e instanceof ApiError && e.status === 403
-          ? { text: s.montage.orderDenied, back: null }
-          : { text: errorMessage(e), back: null };
+  const refusal = (e: unknown): Refusal => {
+    if (!(e instanceof ApiError)) return { text: errorMessage(e), back: null };
+    const carries = (key: string) => typeof e.body === 'object' && e.body !== null && key in e.body;
+    if (e.status === 409) return { text: s.montage.tooLittle, back: 'frames' };
+    if (e.status === 403) return { text: s.montage.orderDenied, back: null };
+    if (e.status === 400 && carries('max_seconds')) return { text: s.montage.lengthOff, back: 'length' };
+    if (e.status === 400 && carries('media_ids')) return { text: s.montage.framesGone, back: 'frames' };
+    return { text: errorMessage(e), back: null };
+  };
 
   /**
    * The total of the order as it stands, asked again whenever it moves. Nothing on this screen
@@ -144,13 +148,19 @@ export default function SummaryStep() {
     }
   }
 
-  /** Straight to the step that can undo a refusal, however many steps of the walk are behind. */
-  const goBackTo = (step: Refusal['back']) =>
+  /**
+   * Straight to the step that can undo a refusal, however many steps of the walk are behind — and
+   * with the material read again: a refusal is the api saying it moved under the order, and the
+   * step would otherwise offer the frames and the range it was just refused for.
+   */
+  const goBackTo = (step: Refusal['back']) => {
+    reread();
     router.dismissTo(
       step === 'frames'
         ? { pathname: '/memory/[id]/order/frames', params: { id } }
         : { pathname: '/memory/[id]/order/build', params: { id } },
     );
+  };
 
   const story = order.story.trim();
   const template = order.template;

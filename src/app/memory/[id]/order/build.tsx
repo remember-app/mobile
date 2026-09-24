@@ -11,7 +11,7 @@ import {
 } from '@/api';
 import { useAuth } from '@/auth';
 import { formatRuntime } from '@/dates';
-import { Button, LengthSlider, Segment, Text, Waiting } from '@/kit';
+import { Banner, Button, LengthSlider, Segment, Text, Waiting } from '@/kit';
 import { useStrings } from '@/language';
 import { PRESETS, taken, wishes } from '@/montage';
 import { useOrder, WizardStep } from '@/order-wizard';
@@ -36,9 +36,10 @@ export default function BuildStep() {
   const router = useRouter();
   const s = useStrings();
   const { token } = useAuth();
-  const { id, items, material, order, change } = useOrder();
+  const { id, items, reread, material, order, change } = useOrder();
   const styles = useStyles();
-  const [notice, setNotice] = useState<string | null>(null);
+  /** The range could not be asked for — said in place of the slider, with the way to ask again. */
+  const [failed, setFailed] = useState<string | null>(null);
   /** What the api says this order comes to. Null until it has answered — there is no guess here. */
   const [preview, setPreview] = useState<MontagePreview | null>(null);
   /** The frames going in, as one word: the range is worked out from exactly these and nothing else. */
@@ -49,6 +50,10 @@ export default function BuildStep() {
   useEffect(() => {
     if (!token || items === null) return;
     let here = true;
+    // The old answer goes with the question: a range standing while the new one is asked is a
+    // range the order may already have been refused for.
+    setPreview(null);
+    setFailed(null);
     previewMontage(token, id, {
       ...wishes(items, order),
       // The question is what the material can carry, so the length is left out of it: asked with
@@ -59,16 +64,18 @@ export default function BuildStep() {
         if (here) setPreview(answer);
       },
       (e: unknown) => {
-        if (here) setNotice(errorMessage(e));
+        if (here) setFailed(errorMessage(e));
       },
     );
     return () => {
       here = false;
     };
-    // The frames are the whole of what the range depends on, so they are the whole of the key: the
-    // rest of the order is read at the moment the question is asked, and asking again because the
-    // length moved would be asking what the length may be with that length already in the question.
-  }, [token, id, going]);
+    // The frames, as read, are the whole of what the range depends on, so they are the whole of the
+    // key: a new read of the material asks again even when the same frames came back, because the
+    // same frames can carry less than they did. The rest of the order is read at the moment the
+    // question is asked, and asking again because the length moved would be asking what the length
+    // may be with that length already in the question.
+  }, [token, id, items, going]);
 
   /**
    * A length standing outside what the api just named comes back inside it. Two ways in: the
@@ -92,7 +99,6 @@ export default function BuildStep() {
     <WizardStep
       step={4}
       title={s.montage.buildTitle}
-      notice={notice}
       action={
         <Button
           variant="primary"
@@ -116,7 +122,13 @@ export default function BuildStep() {
             ) : null}
           </View>
 
-          {preview === null || seconds === null ? (
+          {failed !== null ? (
+            // Asked again off a fresh read of the material, not with the same body: a frame the
+            // body still names may be the very reason it was refused.
+            <Banner tone="error" text={failed}>
+              <Button size="xs" variant="quiet" label={s.action.retry} onPress={reread} />
+            </Banner>
+          ) : preview === null || seconds === null ? (
             <Waiting text={s.state.loading} size={26} />
           ) : (
             <LengthSlider
