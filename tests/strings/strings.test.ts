@@ -47,9 +47,17 @@ test('Russian counts in three forms, English in two', () => {
  * `_layout.tsx` is the one screen left out, and on purpose: its `Stack.Screen options.title`
  * strings are never drawn (`headerShown` is false across the app), so they are chrome and not
  * something anybody reads.
+ *
+ * `src/screens/` is swept with the routes, for the reason `tests/routes/screen-theme.test.tsx`
+ * gives: what lives there is screen-sized pieces standing outside `src/app` only because
+ * everything inside it is a route, and the rule they keep is the routes' own.
  */
 const screens = Object.entries(
-  import.meta.glob<string>('@/app/**/*.tsx', { query: '?raw', import: 'default', eager: true }),
+  import.meta.glob<string>('@/{app,screens}/**/*.tsx', {
+    query: '?raw',
+    import: 'default',
+    eager: true,
+  }),
 ).filter(([path]) => !path.endsWith('_layout.tsx'));
 
 /** The props a person actually reads out of, or has read out to them. */
@@ -57,7 +65,11 @@ const TEXT_PROP =
   /\b(label|title|text|caption|hint|placeholder|confirmLabel|cancelLabel|playLabel|submitLabel|accessibilityLabel)="/g;
 
 test('no screen writes its own words — every readable prop comes from the dictionary', () => {
-  expect(screens.length).toBeGreaterThan(0);
+  // A floor near the real count — 42 files as this is written — and not `> 0`: a pattern that
+  // quietly stops matching half the tree leaves every case below passing over nothing, which is
+  // how the upload screen's four messages slipped out of this sweep when they moved to
+  // `src/screens/upload/message.tsx`.
+  expect(screens.length).toBeGreaterThan(38);
   const hardcoded = screens.flatMap(([path, source]) =>
     (source.match(TEXT_PROP) ?? []).map((hit) => `${path}: ${hit}…"`),
   );
