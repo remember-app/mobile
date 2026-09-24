@@ -25,10 +25,12 @@ import { Text } from './text';
  * in as a word already formatted, because «2:30» and «9:10 · всё, что есть» are the screen's to
  * write. What it holds is a number of seconds and the two walls it runs between.
  *
- * `step` of 5 is the same step the two buttons take and the same one a screen reader's increment
- * takes, so there is only ever one way this thing moves.
+ * The figure is any whole number of seconds between the walls. The line moves it by the second, and
+ * the two buttons and a screen reader's increment by five from wherever it stands, never onto a
+ * multiple of five: a figure this control did not set — a template's 2:32 — stays exactly what it
+ * was until somebody moves it.
  */
-export const STEP = 5;
+const NUDGE = 5;
 
 export type LengthSliderProps = {
   /** Seconds. */
@@ -53,9 +55,39 @@ export type LengthSliderProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-/** Held to the step and to both walls, which is the one place any of those three is decided. */
+/** A whole number of seconds between both walls — the one place either of those is decided. */
 function clamp(seconds: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, Math.round(seconds / STEP) * STEP));
+  return Math.max(min, Math.min(max, Math.round(seconds)));
+}
+
+/** How far along the line a figure stands, 0 to 1 — which is where its handle is drawn. */
+function place(seconds: number, min: number, max: number): number {
+  return Math.max(0, Math.min(1, (seconds - min) / Math.max(1, max - min)));
+}
+
+/**
+ * What a finger that lands at `x` on a line `width` wide does to the figure: the figure at each
+ * later point of it, or `null` while that is still the one already standing — a finger that has not
+ * moved it has nothing to say. Landing within a touch target of the handle takes the figure where it
+ * stands, because the point the finger happened to hit is not a length anybody chose; anywhere else
+ * on the line the figure goes to the finger.
+ */
+export function grabLength(
+  x: number,
+  width: number,
+  { value, min, max }: { value: number; min: number; max: number },
+): (to: number) => number | null {
+  const under = (at: number) => min + (width === 0 ? 0 : at / width) * Math.max(1, max - min);
+  const from = Math.abs(x - place(value, min, max) * width) <= TAP / 2 ? under(x) - value : 0;
+  let last = value;
+  return (to) => {
+    // Spec 7.3: at the wall the handle simply stops — the figure never runs past what there is
+    // material for.
+    const next = clamp(under(to) - from, min, max);
+    if (next === last) return null;
+    last = next;
+    return next;
+  };
 }
 
 export function LengthSlider({
@@ -78,18 +110,15 @@ export function LengthSlider({
   const { focused, props } = useHoverFocus();
   /** How wide the line is, measured rather than assumed: it is whatever the card leaves it. */
   const width = useRef(0);
+  /** What the finger that is down makes of the figure, taken the moment it lands. */
+  const hold = useRef<(x: number) => number | null>(() => null);
   /** Where the finger is holding it, and `null` when nothing is. */
   const [held, setHeld] = useState<number | null>(null);
-  const shown = held ?? value;
-  const span = Math.max(1, max - min);
-  const at = Math.max(0, Math.min(1, (shown - min) / span));
+  const at = place(held ?? value, min, max);
 
-  const take = (e: GestureResponderEvent) => {
-    const to =
-      width.current === 0 ? 0 : Math.max(0, Math.min(1, e.nativeEvent.locationX / width.current));
-    // Spec 7.3: at the wall the handle simply stops — the figure never runs past what there is
-    // material for.
-    const seconds = clamp(min + to * span, min, max);
+  const follow = (e: GestureResponderEvent) => {
+    const seconds = hold.current(e.nativeEvent.locationX);
+    if (seconds === null) return;
     setHeld(seconds);
     onChange(seconds);
   };
@@ -98,10 +127,13 @@ export function LengthSlider({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
     onPanResponderTerminationRequest: () => false,
-    onPanResponderGrant: take,
-    onPanResponderMove: take,
+    onPanResponderGrant: (e) => {
+      hold.current = grabLength(e.nativeEvent.locationX, width.current, { value, min, max });
+      follow(e);
+    },
+    onPanResponderMove: follow,
     onPanResponderRelease: (e) => {
-      take(e);
+      follow(e);
       setHeld(null);
     },
     onPanResponderTerminate: () => setHeld(null),
@@ -116,7 +148,7 @@ export function LengthSlider({
           icon={Minus}
           label={shorterLabel}
           tone="raise"
-          onPress={() => move(-STEP)}
+          onPress={() => move(-NUDGE)}
           disabled={value <= min}
         />
         <View style={styles.figureWords}>
@@ -127,7 +159,7 @@ export function LengthSlider({
           icon={Plus}
           label={longerLabel}
           tone="raise"
-          onPress={() => move(STEP)}
+          onPress={() => move(NUDGE)}
           disabled={value >= max}
         />
       </View>
@@ -144,7 +176,7 @@ export function LengthSlider({
           aria-valuetext={valueLabel}
           accessibilityActions={STEPS}
           onAccessibilityAction={(e) =>
-            move(e.nativeEvent.actionName === 'decrement' ? -STEP : STEP)
+            move(e.nativeEvent.actionName === 'decrement' ? -NUDGE : NUDGE)
           }
           {...props}
           style={[styles.pad, focused ? focusRing : null]}
