@@ -16,7 +16,7 @@ import {
   Waveform,
   type StepState,
 } from '@/kit/rows';
-import { allDifferent, story } from '@/kit/story';
+import { allDifferent, compiled, story } from '@/kit/story';
 import { setTheme } from '@/theme';
 
 /** Spec 7.7 — the rows, each of them one line of a list somewhere in the product. */
@@ -131,6 +131,19 @@ test('the four states of a build step are four states, and three of them lead so
   expect(story(<RowStep title="Отсев брака" state="done" meta="1 мин" onPress={() => {}} />)).toContain(
     'role="button"',
   );
+});
+
+test('a stage that fell over wears the danger cross, never the spark of a stage it got through', () => {
+  const failed = story(<RowStep title="Анализ кадров" state="failed" onPress={() => {}} />);
+  const done = story(<RowStep title="Отсев брака" state="done" onPress={() => {}} />);
+  // Spec detail 56: `dangerText` with a cross against `spark` with a check.
+  const cross = 'stroke="#FF8D8D"';
+  expect(failed).toContain(cross);
+  expect(done).not.toContain(cross);
+  const sparkFill = compiled().match(/\.(r-backgroundColor-[a-z0-9]+)\{background-color:rgba\(228,255,79,1\.00\);\}/)?.[1];
+  expect(sparkFill).toBeDefined();
+  expect(done).toContain(sparkFill);
+  expect(failed).not.toContain(sparkFill);
 });
 
 test('the stage in hand opens out, and the ones around it do not', () => {

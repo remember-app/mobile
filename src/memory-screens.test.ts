@@ -967,10 +967,10 @@ test('the four standings of a montage on air are four different screens', () => 
   expect(live).toContain('s.montage.live.lost');
   expect(live).toContain('<Spinner size={16} />');
 
-  // It fell over: the card goes only when there is no frame left to hold, and the stage that broke
-  // is what says where.
+  // It fell over: «Сейчас» goes whole, frame or no frame — nobody is at work on it — and the stage
+  // that broke is what says where.
   expect(live).toContain("const failed = journal.standing === 'failed';");
-  expect(live).toContain('{held === null && failed ? null : (');
+  expect(live).toContain('{failed ? null : (');
   expect(live).toContain('{failed && montage?.error_text ? (');
 
   // And the thing chief struck off this screen: there is no «Сообщить, когда будет готово» on it,
