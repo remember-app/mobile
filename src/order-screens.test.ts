@@ -38,9 +38,14 @@ test('the wizard is a folder of steps, and no step declares another', () => {
 
   // Inside it, a step is a file. The layout names none of them, which is the point: a step added
   // by the cards after this one is a file added to the folder and nothing else touched.
-  expect(wizardLayout).toContain('<Stack screenOptions={{ headerShown: false }} />');
+  expect(wizardLayout).toContain('headerShown: false,');
   expect(wizardLayout).not.toContain('Stack.Screen');
   expect(wizard).toContain('export const STEPS = 4;');
+
+  // Spec 6: a step slides in sideways, the same way on both phones, and under «reduce motion» it
+  // is simply there (TASK-279).
+  expect(wizardLayout).toContain("animation: reduced ? 'none' : 'slide_from_right',");
+  expect(wizardLayout).toContain('animationDuration: duration.step,');
 
   // Each step draws itself in the shared shell and gets its bar, its way back and its way out
   // from it — «Шаг N из 4» is written in one place for all four.
@@ -175,14 +180,21 @@ test('the autopilot fills each step on the step, and ends on the summary', () =>
   expect(flying).toContain('change({ story: fill.story.slice(0, at) });');
   expect(flying).toContain('change({ tracks: fill.tracks.slice(0, n) });');
   expect(flying).toContain('change({ seconds: Math.round((fill.seconds * n) / RIDE_STEPS) });');
-  // With motion off none of that happens: every field lands whole, and the wait between steps is
-  // the one pause long enough to read what landed (spec 6).
+  // Every step has the same three beats: turned to, filled in, then left standing long enough for
+  // what landed on it to be read before the next one takes its place (TASK-279).
+  expect(flying).toContain('if (!(await going(ENTER_MS)))');
+  expect((flying.match(/if \(!\(await going\(READ_MS\)\)\)/g) ?? []).length).toBe(3);
+  expect(flying).toContain('if (!(await going(ENTER_MS + READ_MS)))');
+  // A track landing is the layout moving, so it is moved into rather than snapped to.
+  expect(flying).toContain('soften(FILL_MS);');
+  // With motion off none of the filling moves: every field lands whole. The beat itself is the
+  // same length either way — that setting is about movement, not about time to read (spec 6).
   expect(flying).toContain('if (reduced) change({ story: fill.story });');
   expect(flying).toContain('if (reduced) change({ tracks: fill.tracks, note: fill.note });');
   expect(flying).toContain('if (reduced) change({ seconds: fill.seconds });');
-  expect(wizard).toContain('setTimeout(done, reduced ? CALM_MS : ms)');
-  expect(wizard).toContain('const CALM_MS = 400;');
-  expect(wizard).toContain('const STEP_MS = 240;');
+  // One clock for both, and no second set of numbers for the setting to be walked on.
+  expect(wizard).toContain('setTimeout(done, ms)');
+  expect(wizard).not.toContain('CALM_MS');
 
   // Stopping is not cancelling: a timer cannot be un-fired, so the walk asks after every wait
   // whether it is still the walk being made, and «Стоп» is that number moving on.

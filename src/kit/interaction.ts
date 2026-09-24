@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { AccessibilityInfo, Animated, Easing, type ViewStyle } from 'react-native';
+import { AccessibilityInfo, Animated, Easing, LayoutAnimation, type ViewStyle } from 'react-native';
 
 import { duration, ease, themed } from '@/theme';
 
@@ -61,6 +61,23 @@ export function useReducedMotion(): boolean {
     // Same answer off the render path: the module-scope slot is not the DOM's and reads fine
     // without one. Without this third argument a static render throws instead of drawing.
     () => reduced,
+  );
+}
+
+/**
+ * The next change of layout, moved into rather than snapped to: a row landing in a list, a block
+ * giving way to another one. Whatever appears fades in, whatever was already there slides to where
+ * it now stands — the platform's own doing, one call, no component wrapped in anything.
+ *
+ * Called just before the state that changes the layout, and never on something that changes every
+ * frame — a text box growing under a letter being typed would be thirty of these a second, each
+ * animating over the last. Silent under reduced motion, like everything else here, and it reads the
+ * slot above directly because a caller of this is not always a component.
+ */
+export function soften(ms: number): void {
+  if (reduced) return;
+  LayoutAnimation.configureNext(
+    LayoutAnimation.create(ms, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity),
   );
 }
 
