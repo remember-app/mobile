@@ -24,13 +24,14 @@ import {
 import { StyleSheet, View } from 'react-native';
 
 import {
-  errorMessage,
+  ApiError,
   listMedia,
   type MediaItem,
   type MontageTemplate,
   type MontageTemplateId,
 } from '@/api';
 import { useAuth } from '@/auth';
+import { formatRuntime } from '@/dates';
 import {
   ActionBar,
   Banner,
@@ -46,8 +47,9 @@ import {
   WizardBar,
   type IconComponent,
 } from '@/kit';
-import { useStrings } from '@/language';
+import { currentLanguage, useStrings } from '@/language';
 import { blankOrder, entered, enoughMaterial, fromTemplate, usable, type Order } from '@/montage';
+import { strings } from '@/strings';
 import { radius, space, themed, useTheme } from '@/theme';
 
 /**
@@ -66,7 +68,8 @@ import { radius, space, themed, useTheme } from '@/theme';
  * material as it stands, and a re-read landing between two steps would move the ground under a
  * selection already made; the api checks every named frame at the order anyway. It is read again
  * only when that ground is already known to have moved or never arrived: «Повторить» over a read
- * that failed, and a refusal of the total leading back to a step (`reread`).
+ * that failed — of the material, the range or the total — and a refusal of the total leading back
+ * to a step (`reread`).
  */
 export type Wizard = {
   id: string;
@@ -157,6 +160,39 @@ export function useStillHere(): RefObject<boolean> {
   return gone;
 }
 
+/** A refusal in the words a person reads, and the step that can take it back. */
+export type Refusal = { text: string; back: 'frames' | 'length' | null };
+
+/**
+ * What a failed call of the wizard means to whoever is reading it, and which step can undo it —
+ * always in the app's own words: the api writes its `error` in English, and a Russian screen with
+ * an English line on it is the language falling off. What the api does say usefully is beside that
+ * line, and a refusal is told apart by it (api README, the order's table of refusals): 409 with
+ * `ready_items` is the material under the floor, a 400 with both edges of the range is a length the
+ * frames no longer carry — said with those edges — and a 400 naming frames is frames no longer
+ * there. A body this side does not know is the plain line about the answer: nothing a step here
+ * could undo, and nothing it could say in the reader's language either.
+ *
+ * Read in the language of the moment, the way `@/api` words its own lines: it is called from inside
+ * the answer to a call, where no `useStrings()` reaches.
+ */
+export function refusal(e: unknown): Refusal {
+  const s = strings[currentLanguage()];
+  if (!(e instanceof ApiError)) return { text: s.error.offline, back: null };
+  const body = (
+    typeof e.body === 'object' && e.body !== null ? e.body : {}
+  ) as Record<string, unknown>;
+  const { min_seconds: min, max_seconds: max } = body;
+  if (e.status === 409 && 'ready_items' in body) return { text: s.montage.tooLittle, back: 'frames' };
+  if (e.status === 403) return { text: s.montage.orderDenied, back: null };
+  if (e.status === 400 && typeof min === 'number' && typeof max === 'number') {
+    const [from, to] = [formatRuntime(min) ?? '', formatRuntime(max) ?? ''];
+    return { text: s.montage.lengthOff(from, to), back: 'length' };
+  }
+  if (e.status === 400 && 'media_ids' in body) return { text: s.montage.framesGone, back: 'frames' };
+  return { text: e.status === 429 ? s.error.tooMany : s.error.status(e.status), back: null };
+}
+
 export function OrderProvider({ id, children }: { id: string; children: ReactNode }) {
   const { token } = useAuth();
   const router = useRouter();
@@ -171,7 +207,7 @@ export function OrderProvider({ id, children }: { id: string; children: ReactNod
     if (!token) return;
     setItems(null);
     setError(null);
-    listMedia(token, id).then(setItems, (e: unknown) => setError(errorMessage(e)));
+    listMedia(token, id).then(setItems, (e: unknown) => setError(refusal(e).text));
   }, [token, id]);
   useEffect(reread, [reread]);
 

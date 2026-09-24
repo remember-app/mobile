@@ -4,7 +4,7 @@ import { Check, ChevronRight, Pause, Pencil, Play, Plus, VolumeX, X } from 'luci
 import { useRef, useState } from 'react';
 import { PanResponder, ScrollView, StyleSheet, View } from 'react-native';
 
-import { errorMessage, type MusicTrackId } from '@/api';
+import type { MusicTrackId } from '@/api';
 import { useAuth } from '@/auth';
 import { formatRuntime } from '@/dates';
 import {
@@ -27,7 +27,7 @@ import {
   type PickedTrack,
 } from '@/montage';
 import { sendOwnTrack, useTrackPreview } from '@/music';
-import { useOrder, useStillHere, WizardStep } from '@/order-wizard';
+import { refusal, useOrder, useStillHere, WizardStep } from '@/order-wizard';
 import { radius, space, themed, useTheme } from '@/theme';
 
 /**
@@ -137,7 +137,7 @@ export default function MusicStep() {
       // Onto the list as it is now: the shelf stays pressable while the file goes up.
       change((was) => ({ tracks: [...was.tracks, { key, name: file.name }] }));
     } catch (e) {
-      if (!gone.current) setNotice(errorMessage(e));
+      if (!gone.current) setNotice(refusal(e).text);
     } finally {
       setBusy(false);
     }
@@ -146,7 +146,7 @@ export default function MusicStep() {
   /** One press on «Послушать», and whatever it fails at is this screen's line to say. */
   function listen(track: MusicTrackId) {
     setNotice(null);
-    void toggle(track).catch((e: unknown) => setNotice(errorMessage(e)));
+    void toggle(track).catch((e: unknown) => setNotice(refusal(e).text));
   }
 
   const total = pickedSeconds(picked);

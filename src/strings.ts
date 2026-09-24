@@ -864,9 +864,10 @@ export const en = {
     startCut: 'Start the cut',
     /**
      * The length was fine when it was picked and is not any more — the frames changed under it.
-     * Said without numbers on purpose: the range is the api's and it has already moved once.
+     * The two edges are the ones the api refused with, drawn the way step 4 draws a length.
      */
-    lengthOff: 'That length does not fit the frames you picked — go back and choose another.',
+    lengthOff: (min: string, max: string) =>
+      `That length does not fit the frames you picked — it can be ${min} to ${max} now. Go back and choose another.`,
     /** Frames the order names were deleted while the wizard stood open. */
     framesGone: 'Some of the frames in this order are gone — go back and check the selection.',
     /** The two ways back out of a refusal, straight to the step that can undo it. */
@@ -1611,7 +1612,8 @@ export const ru: Strings = {
     readyIn: (minutes: number) =>
       `Соберём примерно за ${count(minutes, 'минуту', 'минуты', 'минут')} и пришлём уведомление.`,
     startCut: 'Начать монтаж',
-    lengthOff: 'Такая длина не подходит к выбранным кадрам — вернитесь и выберите другую.',
+    lengthOff: (min: string, max: string) =>
+      `Такая длина не подходит к выбранным кадрам — сейчас можно от ${min} до ${max}. Вернитесь и выберите другую.`,
     framesGone: 'Части кадров из заказа уже нет — вернитесь и проверьте выбор.',
     toFrames: 'К кадрам',
     toLength: 'К длине',

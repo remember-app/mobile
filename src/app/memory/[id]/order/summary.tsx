@@ -3,14 +3,7 @@ import { Clock, LayoutGrid } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
-import {
-  ApiError,
-  errorMessage,
-  listMemories,
-  orderMontage,
-  previewMontage,
-  type MontagePreview,
-} from '@/api';
+import { listMemories, orderMontage, previewMontage, type MontagePreview } from '@/api';
 import { useAuth } from '@/auth';
 import { formatRuntime } from '@/dates';
 import {
@@ -28,7 +21,14 @@ import {
 } from '@/kit';
 import { useStrings } from '@/language';
 import { RATIO, shelfTrack, taken, wishes } from '@/montage';
-import { TEMPLATE_SIGN, useOrder, useStillHere, WizardStep } from '@/order-wizard';
+import {
+  refusal,
+  TEMPLATE_SIGN,
+  useOrder,
+  useStillHere,
+  WizardStep,
+  type Refusal,
+} from '@/order-wizard';
 import { space, themed, useTheme } from '@/theme';
 
 /**
@@ -61,25 +61,6 @@ export default function SummaryStep() {
   const gone = useStillHere();
   const inMovie = taken(material, order);
   const shots = inMovie.map((item) => item.thumbnail_url).filter((uri) => uri !== null);
-
-  /**
-   * What a refusal means to whoever is reading it, and which step can undo it. Both calls this
-   * screen makes are refused in the same words by the api — the summary is the order, costed — so
-   * one reading serves both. 409 is the material under the floor. A 400 is told apart by what its
-   * body carries (api README, the order's table of refusals): the two edges of the range are a
-   * length the frames no longer carry, and named frames are ones that are no longer there — deleted
-   * while the wizard stood open. Any other 400 has no step here that could undo it, so it leads
-   * nowhere rather than to a step that cannot.
-   */
-  const refusal = (e: unknown): Refusal => {
-    if (!(e instanceof ApiError)) return { text: errorMessage(e), back: null };
-    const carries = (key: string) => typeof e.body === 'object' && e.body !== null && key in e.body;
-    if (e.status === 409) return { text: s.montage.tooLittle, back: 'frames' };
-    if (e.status === 403) return { text: s.montage.orderDenied, back: null };
-    if (e.status === 400 && carries('max_seconds')) return { text: s.montage.lengthOff, back: 'length' };
-    if (e.status === 400 && carries('media_ids')) return { text: s.montage.framesGone, back: 'frames' };
-    return { text: errorMessage(e), back: null };
-  };
 
   /**
    * The total of the order as it stands, asked again whenever it moves. Nothing on this screen
@@ -185,9 +166,13 @@ export default function SummaryStep() {
     >
       {stopped !== null ? (
         // Refused, and said in words with the way out of it under them — never the empty screen a
-        // summary of nothing would be.
+        // summary of nothing would be. Where no step can undo it — the network, the api falling
+        // over — the way out is asking again, off a fresh read of the material, so the body is the
+        // order as it stands then and never the one that failed.
         <Banner tone="error" text={stopped.text} style={styles.banner}>
-          {stopped.back === null ? null : (
+          {stopped.back === null ? (
+            <Button size="xs" variant="quiet" label={s.action.retry} onPress={reread} />
+          ) : (
             <Button
               size="xs"
               variant="quiet"
@@ -268,9 +253,6 @@ export default function SummaryStep() {
     </WizardStep>
   );
 }
-
-/** A refusal in the words a person reads, and the step that can take it back. */
-type Refusal = { text: string; back: 'frames' | 'length' | null };
 
 const useStyles = themed(() =>
   StyleSheet.create({
