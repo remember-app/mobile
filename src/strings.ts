@@ -865,6 +865,8 @@ export const en = {
      * Said without numbers on purpose: the range is the api's and it has already moved once.
      */
     lengthOff: 'That length does not fit the frames you picked — go back and choose another.',
+    /** Frames the order names were deleted while the wizard stood open. */
+    framesGone: 'Some of the frames in this order are gone — go back and check the selection.',
     /** The two ways back out of a refusal, straight to the step that can undo it. */
     toFrames: 'Back to the frames',
     toLength: 'Back to the length',
@@ -1604,6 +1606,7 @@ export const ru: Strings = {
       `Соберём примерно за ${count(minutes, 'минуту', 'минуты', 'минут')} и пришлём уведомление.`,
     startCut: 'Начать монтаж',
     lengthOff: 'Такая длина не подходит к выбранным кадрам — вернитесь и выберите другую.',
+    framesGone: 'Части кадров из заказа уже нет — вернитесь и проверьте выбор.',
     toFrames: 'К кадрам',
     toLength: 'К длине',
     leaveAsk: 'Выйти из заказа?',
