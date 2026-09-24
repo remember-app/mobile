@@ -366,8 +366,6 @@ export const en = {
       `This memory has ${n} ${n === 1 ? 'frame' : 'frames'} — there is no story in that. Add a few more photos or videos and the order goes through.`,
     later: 'Later',
   },
-
-  /** Picking material off the phone, and the queue that sends it (`@/lib/upload/send`). */
 };
 
 export const ru: typeof en = {

@@ -14,21 +14,7 @@ export type MusicTrackId = 'bright' | 'warm' | 'calm' | 'night' | 'road';
  * Which way up the finished video stands (doc-03). The api takes these two and nothing else, and
  * leaves it out as «horizontal» — which is what every montage was before the choice existed.
  */
-
-/**
- * Which way up the finished video stands (doc-03). The api takes these two and nothing else, and
- * leaves it out as «horizontal» — which is what every montage was before the choice existed.
- */
 export type MontageOrientation = 'landscape' | 'portrait';
-
-/**
- * What was asked for at the order — the wishes doc-03 allows, every one of them optional. This is
- * the body `orderMontage` sends, and `Montage.params` coming back is the same shape plus the two
- * fields an older order may still carry.
- *
- * The four steps of the order (spec 8) fill them in: the frames picked out by hand, the story, the
- * music, the length and the shape. `@/lib/montage/order` is what turns a wizard's state into this.
- */
 
 /**
  * What was asked for at the order — the wishes doc-03 allows, every one of them optional. This is
@@ -70,14 +56,6 @@ export type MontageWishes = {
  * gallery's missing derivatives are. `duration_seconds` is the length the worker actually made,
  * so it too arrives only with the finished video; `params` is what was asked for at the order.
  */
-
-/**
- * A video assembled out of a memory (doc-03). The row as the api hands it out, minus its storage
- * key: `video_url` is the signed link standing in for it, and it is there only while the montage is
- * `ready` — before that it is null, which is «ещё не готово» and not an error, exactly as the
- * gallery's missing derivatives are. `duration_seconds` is the length the worker actually made,
- * so it too arrives only with the finished video; `params` is what was asked for at the order.
- */
 export type Montage = {
   id: string;
   memory_id: string;
@@ -109,14 +87,7 @@ export type Montage = {
 };
 
 /** One of the five as the list reports it: where it stands, and not a word more. */
-
-/** One of the five as the list reports it: where it stands, and not a word more. */
 export type MontageStep = { stage: MontageStageCode; state: MontageStage['state'] };
-
-/**
- * Every montage of a memory, newest first. Any member reads it, a viewer included — the video is
- * the reward for everybody who brought material. 503 while the api has no bucket configured.
- */
 
 /**
  * Every montage of a memory, newest first. Any member reads it, a viewer included — the video is
@@ -125,11 +96,6 @@ export type MontageStep = { stage: MontageStageCode; state: MontageStage['state'
 export function listMontages(token: string, memoryId: string): Promise<Montage[]> {
   return request(`/memories/${memoryId}/montages`, { token });
 }
-
-/**
- * The six ready-made films of `MontageTemplate` (spec 8), by the api's own ids and in the order the
- * screen draws them. The order of the answer is the order of the tiles and does not change.
- */
 
 /**
  * The six ready-made films of `MontageTemplate` (spec 8), by the api's own ids and in the order the
@@ -152,16 +118,6 @@ export type MontageTemplateId =
  * dates already in it, and the length comes clamped to what the material can carry. What is *not*
  * here is the name on the tile: those six words are the app's own, kept in `@/strings` by id.
  */
-
-/**
- * One template: a filled-in order and nothing more than one. What comes back here is what goes out
- * in `orderMontage`, minus the `id` and plus whatever the person changed on the way — which is the
- * whole of the autopilot (doc-03).
- *
- * The story is written on the server, in the reader's own language and with this memory's name and
- * dates already in it, and the length comes clamped to what the material can carry. What is *not*
- * here is the name on the tile: those six words are the app's own, kept in `@/strings` by id.
- */
 export type MontageTemplate = {
   id: MontageTemplateId;
   story_text: string;
@@ -172,22 +128,9 @@ export type MontageTemplate = {
 };
 
 /** The organizer's alone, 403 for anybody else — nobody but them can order the film. */
-
-/** The organizer's alone, 403 for anybody else — nobody but them can order the film. */
 export function listMontageTemplates(token: string, memoryId: string): Promise<MontageTemplate[]> {
   return request(`/memories/${memoryId}/montage-templates`, { token });
 }
-
-/**
- * «Итог перед монтажом» (spec 8, `MontageSummary`): what the order would come to, worked out by the
- * api off the very same body the order sends. The numbers are the frames that would actually go in
- * — everything ready, minus `exclude_media_ids` — and the length range is this memory's own.
- *
- * The app never counts any of this itself: the floor and the ceiling of the length step, the people
- * in the film and the wait in minutes all have one source, and it is this. Nothing is written by
- * it, so a screen may ask as often as it likes; every refusal the order has, this has too, in the
- * same words — a summary that agreed to something the order would turn down is worse than none.
- */
 
 /**
  * «Итог перед монтажом» (spec 8, `MontageSummary`): what the order would come to, worked out by the
@@ -233,15 +176,6 @@ export function previewMontage(
  * a frame named as both in and out, for a frame that is not this memory's, for a track that is
  * neither off the shelf nor this memory's, and for a note about music nobody picked.
  */
-
-/**
- * «Смонтируй ролик» — the organizer's alone, 403 for anybody else. Every wish may be left out: the
- * api fills the length in itself and clamps it, an empty list of tracks is a film with the video's
- * own sound, and no orientation is horizontal. 409 when there is too little material to cut
- * anything out of, and the body then carries how much there is against how much is needed; 400 for
- * a frame named as both in and out, for a frame that is not this memory's, for a track that is
- * neither off the shelf nor this memory's, and for a note about music nobody picked.
- */
 export function orderMontage(
   token: string,
   memoryId: string,
@@ -249,12 +183,6 @@ export function orderMontage(
 ): Promise<Montage> {
   return request(`/memories/${memoryId}/montages`, { method: 'POST', body: wishes, token });
 }
-
-/**
- * Queue a fallen montage again — the organizer's too. The same row goes back in the queue rather
- * than a second one being written, so the answer is the montage as it now stands. 409 when it is
- * not a failed one, which is «somebody already pressed this».
- */
 
 /**
  * Queue a fallen montage again — the organizer's too. The same row goes back in the queue rather
@@ -270,12 +198,6 @@ export function retryMontage(token: string, memoryId: string, montageId: string)
  * монтажа»). The order is itself the contract: «этап 3 из 5» on screen is a position in this list,
  * and the api sorts its own answer by it rather than by when the worker got round to each one.
  */
-
-/**
- * The five stages of making a video, in the order the worker walks them (api README, «Журнал
- * монтажа»). The order is itself the contract: «этап 3 из 5» on screen is a position in this list,
- * and the api sorts its own answer by it rather than by when the worker got round to each one.
- */
 export const MONTAGE_STAGES = [
   'screening',
   'understanding',
@@ -285,12 +207,6 @@ export const MONTAGE_STAGES = [
 ] as const;
 
 export type MontageStageCode = (typeof MONTAGE_STAGES)[number];
-
-/**
- * What a stage came to, free-form on the wire because each stage's result is its own shape. These
- * are the keys the api names as the ones an app may count on; a key that is not there is simply not
- * drawn, and the phrase itself is built on this side.
- */
 
 /**
  * What a stage came to, free-form on the wire because each stage's result is its own shape. These
@@ -328,14 +244,6 @@ export type MontageStageOutcome = {
  * the rest it stays the estimate of the whole of it (`minutesLeft`). The three counts at the end are
  * the api's own tally over the records — the worker never writes those, so they cannot disagree.
  */
-
-/**
- * One of the five stages as the journal reports it. `done_count` moves only on the two stages the
- * worker counts as it goes, screening and assembly; the other three hold it at 0 until they are
- * done. On those two `eta_seconds` is reckoned again at every step as what is left of the stage; on
- * the rest it stays the estimate of the whole of it (`minutesLeft`). The three counts at the end are
- * the api's own tally over the records — the worker never writes those, so they cannot disagree.
- */
 export type MontageStage = {
   stage: MontageStageCode;
   state: 'pending' | 'running' | 'done' | 'failed';
@@ -351,12 +259,3 @@ export type MontageStage = {
   skipped_count: number;
   thought_count: number;
 };
-
-/**
- * One thing the director said, out loud, while putting the video together. Everything but the stage
- * is optional: a record with no `media_id` is a thought about the plan rather than about a frame,
- * and one with no `decision` is a thought with nothing settled in it.
- *
- * `id` is a number and it is the cursor — the largest one held is what the next poll asks after.
- * The four fractions of the gaze arrive as one `focus`, or as nothing at all.
- */

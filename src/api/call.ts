@@ -16,12 +16,6 @@ export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000
  * `useStrings()` to hang it on — and a call, not a captured set, is what keeps a language switched
  * after this module was imported from being missed.
  */
-
-/**
- * The words, read at the moment one is needed. Nothing in this file is a component, so there is no
- * `useStrings()` to hang it on — and a call, not a captured set, is what keeps a language switched
- * after this module was imported from being missed.
- */
 export const say = () => strings[currentLanguage()];
 
 const TIMEOUT_MS = 5000;
@@ -48,16 +42,6 @@ export class ApiError extends Error {
  * unprompted — the mails and the pushes — and not on its answer to a request. The two lines this
  * side words itself are already both.
  */
-
-/**
- * The api's own sentence for a failure, when it sent one. Handed out on its own as well as inside
- * the message, for the one place that has to keep a failure and word it later (`@/lib/upload/queue`).
- *
- * ponytail: it comes down the wire in whatever language the api writes — English today. The api is
- * now told which language the caller reads (TASK-91), but it spends that on what it writes
- * unprompted — the mails and the pushes — and not on its answer to a request. The two lines this
- * side words itself are already both.
- */
 export function apiReason(body: unknown): string | undefined {
   const reason =
     typeof body === 'object' && body !== null && 'error' in body
@@ -72,21 +56,11 @@ function describe(status: number, body: unknown): string {
 }
 
 /** The line a screen can show for a failed call: the api's own wording, or a network one. */
-
-/** The line a screen can show for a failed call: the api's own wording, or a network one. */
 export function errorMessage(error: unknown): string {
   return error instanceof ApiError ? error.message : say().error.offline;
 }
 
 const refusals = new Set<(token: string) => void>();
-
-/**
- * Hear that the api has stopped honouring a session token — signed out on another phone, revoked,
- * past its thirty days. Only a request that carried a token can say that: the way-in routes carry
- * none, and their 401 is a refused code or identity token, which belongs to the screen that asked.
- * Heard before the caller gets its `ApiError`, so the session can be gone by the time a screen
- * would word the failure.
- */
 
 /**
  * Hear that the api has stopped honouring a session token — signed out on another phone, revoked,
@@ -145,16 +119,3 @@ export async function request<T>(
     clearTimeout(timer);
   }
 }
-
-/**
- * Ask for the six digits that open the way in (TASK-138). The api answers 200 whether or not the
- * address is registered, so this says nothing about who is already here.
- *
- * The language rides along because at this point there is no session to hang it on — the address
- * is all the api knows about whoever asked, and the letter has to be written in the language of
- * the app that asked (TASK-85). Every later sync goes through `putLanguage` instead.
- *
- * `code` comes back only where the api has its development door open — an address on `test.test`,
- * off a production server — and it is the same digits the letter would have carried, handed
- * straight back. Anywhere that really posts the letter, the answer is the bare `ok`.
- */

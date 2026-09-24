@@ -31,12 +31,6 @@ export function startMusicUpload(
  * it by, in `music_tracks`. Idempotent — a repeat only reports where the row stands — and on the
  * same long leash `finishUpload` has, since the api is waiting on R2 assembling the object.
  */
-
-/**
- * «Загружено» for a track: seals the parts into one object and answers with the key the order names
- * it by, in `music_tracks`. Idempotent — a repeat only reports where the row stands — and on the
- * same long leash `finishUpload` has, since the api is waiting on R2 assembling the object.
- */
 export function finishMusicUpload(
   token: string,
   memoryId: string,
@@ -57,18 +51,6 @@ export function finishMusicUpload(
  * one for the whole product, the same five for everyone, so there is no memory to be a member of
  * and no role to weigh. 404 for an id that is not on it, 503 while the api has no bucket.
  */
-
-/**
- * «Послушать» on step 3 (TASK-171): a signed link to one of the five off the shelf, good for the
- * hour the api signs its links for. Outside `/memories` and behind the plain token — the shelf is
- * one for the whole product, the same five for everyone, so there is no memory to be a member of
- * and no role to weigh. 404 for an id that is not on it, 503 while the api has no bucket.
- */
 export function previewMusicTrack(token: string, trackId: MusicTrackId): Promise<{ url: string }> {
   return request(`/music/tracks/${trackId}`, { token });
 }
-
-/**
- * Tell the api where to push to. Idempotent: the same device token registered twice is one row,
- * so this can run on every launch without asking whether it already ran.
- */

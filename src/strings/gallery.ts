@@ -120,12 +120,6 @@ export const en = {
    * phone, the three things that can be done with it, everything the picture does not say about it,
    * and what a video carries on top of all that.
    */
-
-  /**
-   * `Viewer`, `ViewerVideo`, `SheetFrame` and `SheetFrameInfo` — one frame on the whole of the
-   * phone, the three things that can be done with it, everything the picture does not say about it,
-   * and what a video carries on top of all that.
-   */
   viewer: {
     /** The right-hand glass button of the floating bar. It drops the menu of what can be done. */
     more: 'More',
@@ -167,12 +161,6 @@ export const en = {
     /** Spec 8: a frame whose picture never arrived says so, and the strip stays where it is. */
     notOpened: 'This frame would not open',
   },
-
-  /**
-   * `SheetLabels` and `SheetLabelNew` (spec 7.7, 10.8.1) — the boxes frames are filed into, raised
-   * from picking mode. A label is a box: it holds nothing back from anybody and takes nothing away,
-   * so every word here is about filing and never about permission.
-   */
 
   /**
    * `SheetLabels` and `SheetLabelNew` (spec 7.7, 10.8.1) — the boxes frames are filed into, raised
@@ -234,15 +222,6 @@ export const en = {
       'Only people who can add photos may make a shared label. You can make a private one.',
     gone: 'This label is no longer here.',
   },
-
-  /**
-   * The assembled videos of one memory, and the ordering of one more.
-   *
-   * English calls the finished thing a **movie**, never a «video» or a «montage» — the api's push
-   * settled that word (TASK-88) and the app must not call one thing two things: «video» is already
-   * taken by what people upload («Photos and videos», `media.video`). The Russian «ролик» carries
-   * that separation on its own, which is why only the English side needed deciding.
-   */
 };
 
 export const ru: typeof en = {

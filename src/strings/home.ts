@@ -32,8 +32,6 @@ export const en = {
   },
 
   /** The service page. «Remember» is the product's name and stays itself in both languages. */
-
-  /** The service page. «Remember» is the product's name and stays itself in both languages. */
   about: {
     lead: 'Mobile client.',
     apiUrl: 'API base URL',
@@ -71,8 +69,6 @@ export const en = {
     nextMonth: 'Next month',
     submit: 'Create',
   },
-
-  /** The guest list: who is in a memory, how to get more people in, and how to take somebody out. */
 };
 
 export const ru: typeof en = {

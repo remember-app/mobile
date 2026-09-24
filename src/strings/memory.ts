@@ -59,12 +59,6 @@ export const en = {
    * one way to bring more people. The people used to be a face of the memory itself and live here
    * now, behind the capsule over the feed.
    */
-
-  /**
-   * The memory's own settings (spec 8, `MemorySettings`): what the event is, who is in it, and the
-   * one way to bring more people. The people used to be a face of the memory itself and live here
-   * now, behind the capsule over the feed.
-   */
   settings: {
     /** The bar, and deliberately not the memory's name: the name is on the card right under it. */
     title: 'Memory',
@@ -102,12 +96,6 @@ export const en = {
    * cover, all three at once. The heading pairs with «Новое воспоминание» on `Create` rather than
    * repeating the name of the screen it was opened from.
    */
-
-  /**
-   * Editing a memory (spec 10.8.3, `MemoryEdit` and `SheetCover`) — the name, the days and the
-   * cover, all three at once. The heading pairs with «Новое воспоминание» on `Create` rather than
-   * repeating the name of the screen it was opened from.
-   */
   edit: {
     title: 'Edit the memory',
     save: 'Save',
@@ -136,12 +124,6 @@ export const en = {
     leaveDo: 'Leave',
     stay: 'Stay',
   },
-
-  /**
-   * The contact sheet, and the open frame over it. What the screen is *called* is not here: it is
-   * the memory's own title, over `memory.framesPlain` — the same word the card and the guest list
-   * use for the material (TASK-76).
-   */
 };
 
 export const ru: typeof en = {

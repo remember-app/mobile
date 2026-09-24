@@ -11,8 +11,6 @@ export type User = {
 };
 
 /** What every sign-in endpoint answers with: the session token plus the account it belongs to. */
-
-/** What every sign-in endpoint answers with: the session token plus the account it belongs to. */
 export type Session = { token: string; user: User };
 
 /** A non-2xx answer. Carries the status and parsed body so screens can branch on 401/409/501/… */
@@ -44,28 +42,9 @@ export function startEmailSignIn(email: string): Promise<{ ok: true; code?: stri
  * 401 for every way of failing — wrong digits, expired, spent, attempts used up, address unknown.
  * The api answers one way on purpose, and so this side says one thing back.
  */
-
-/**
- * Trade the address and the code from the letter for a session. The address goes with it because
- * the code is only ever the secret *of an address*: six digits on their own would be a million
- * codes shared by everybody signing in at once.
- *
- * 401 for every way of failing — wrong digits, expired, spent, attempts used up, address unknown.
- * The api answers one way on purpose, and so this side says one thing back.
- */
 export function verifyEmailCode(email: string, code: string): Promise<Session> {
   return request('/auth/email/verify', { method: 'POST', body: { email, code } });
 }
-
-/**
- * Accept the one user agreement there is (doc-04, decision-9, TASK-139). No body at all: what is
- * being accepted is the pilot's single agreement, whose text the app ships, and a version the
- * client names is a version the client could get wrong.
- *
- * Idempotent — the moment it answers with is the one the person actually agreed at, so pressing
- * «Принимаю» a second time (a lost answer, a session picked up again before the username was
- * claimed) costs nothing and moves nothing.
- */
 
 /**
  * Accept the one user agreement there is (doc-04, decision-9, TASK-139). No body at all: what is
@@ -81,13 +60,9 @@ export function acceptConsent(token: string): Promise<{ accepted_at: string }> {
 }
 
 /** Trade an Apple identity token for a session. 501 while the provider has no keys. */
-
-/** Trade an Apple identity token for a session. 501 while the provider has no keys. */
 export function signInWithApple(idToken: string): Promise<Session> {
   return request('/auth/apple', { method: 'POST', body: { idToken } });
 }
-
-/** Trade a Google identity token for a session. 501 while the provider has no keys. */
 
 /** Trade a Google identity token for a session. 501 while the provider has no keys. */
 export function signInWithGoogle(idToken: string): Promise<Session> {
@@ -95,18 +70,9 @@ export function signInWithGoogle(idToken: string): Promise<Session> {
 }
 
 /** The account behind a session token. 401 once the token stops being honoured. */
-
-/** The account behind a session token. 401 once the token stops being honoured. */
 export function fetchMe(token: string): Promise<User> {
   return request('/me', { token });
 }
-
-/**
- * Claim or change the username. 409 when taken, 400 when the format is wrong, and 403
- * («consent required») on a first claim by an account that has not accepted the agreement —
- * holding a username *is* being registered, so that is the one gate registration has (TASK-139).
- * Changing a name later never asks again.
- */
 
 /**
  * Claim or change the username. 409 when taken, 400 when the format is wrong, and 403
@@ -124,23 +90,9 @@ export function putUsername(token: string, username: string): Promise<User> {
  * lands in their own language and not in the sender's. Answers with the account, same as
  * `putUsername`; nothing here reads it, the app already turned before the call was made.
  */
-
-/**
- * Tell the account which of the two languages its owner reads in. What it is for is everything the
- * api writes to a person who is not looking at the app — the invite mails, the pushes — so each one
- * lands in their own language and not in the sender's. Answers with the account, same as
- * `putUsername`; nothing here reads it, the app already turned before the call was made.
- */
 export function putLanguage(token: string, language: Language): Promise<User> {
   return request('/me/language', { method: 'POST', body: { language }, token });
 }
-
-/**
- * The question `putUsername` answers by trying, asked without trying — so the field can say «free»
- * while it is still being typed. The caller's own current username is free (re-sending it claims
- * nothing), and a malformed one is a 400 rather than a `true` the submit would then refuse. Only an
- * answer about the name still in the field is worth anything: the claim is what the 409 guards.
- */
 
 /**
  * The question `putUsername` answers by trying, asked without trying — so the field can say «free»
@@ -167,8 +119,6 @@ export function endSession(token: string): Promise<{ ok: true }> {
 
 // 3–30 chars: an alphanumeric at each end with separators allowed only between them.
 const USERNAME = /^[A-Za-z0-9][A-Za-z0-9._-]{1,28}[A-Za-z0-9]$/;
-
-/** A cheap client-side mirror of the server rule. The server stays the authority. */
 
 /** A cheap client-side mirror of the server rule. The server stays the authority. */
 export function isValidUsername(username: string): boolean {
