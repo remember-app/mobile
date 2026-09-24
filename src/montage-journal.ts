@@ -22,6 +22,7 @@ import {
   type MontageJournal,
   type MontageStage,
   type MontageStageCode,
+  type MontageStep,
   type Viewer,
 } from '@/api';
 import { formatRuntime } from '@/dates';
@@ -202,8 +203,12 @@ export const stageNumber = (stage: MontageStageCode): number => MONTAGE_STAGES.i
  * worker writes all five as it opens the job, so between two stages the answer is the one just
  * done and not the last row of the five. Null before anything is known, which is a montage still
  * standing in the queue as much as a journal not read yet.
+ *
+ * The one place «этап N из 5» is counted: the journal's five rows on the screen of the making, and
+ * the list's five on the card in the strip that leads there, so the two cannot name different
+ * stages for the same moment.
  */
-export function currentStage(stages: readonly MontageStage[]): MontageStage | null {
+export function currentStage<Row extends MontageStep>(stages: readonly Row[]): Row | null {
   const inOrder = [...stages].sort((a, b) => stageNumber(a.stage) - stageNumber(b.stage));
   return (
     inOrder.find((stage) => stage.state === 'running') ??

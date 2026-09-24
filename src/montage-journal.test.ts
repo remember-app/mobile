@@ -314,6 +314,19 @@ describe('currentStage', () => {
     expect(currentStage([stage('screening', 'pending'), ...ahead])).toBe(null);
     expect(currentStage([done, ...ahead])?.stage).toBe('screening');
   });
+
+  // The list of montages carries the same five with nothing but a state each, and the card in the
+  // strip reads its stage off them through this very function (spec detail 38).
+  test('reads the list’s bare five the same as the journal’s full ones', () => {
+    const bare = (rows: MontageStage[]) => rows.map(({ stage: code, state }) => ({ stage: code, state }));
+    for (const rows of [
+      [done, running, stage('rhythm', 'pending')],
+      [done, stage('understanding', 'failed'), stage('directing', 'pending')],
+      [done, stage('understanding', 'pending')],
+    ]) {
+      expect(currentStage(bare(rows))?.stage).toBe(currentStage(rows)?.stage);
+    }
+  });
 });
 
 describe('minutesLeft', () => {

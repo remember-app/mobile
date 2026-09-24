@@ -3,7 +3,7 @@ import { Download } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { Modal, StyleSheet, View } from 'react-native';
 
-import type { Memory, Montage } from '@/api';
+import type { Montage } from '@/api';
 import { formatDay, formatRuntime } from '@/dates';
 import { maySaveToPhone, saveAndShare, saveToPhone, shareFile } from '@/downloads';
 import { ActionBar, Banner, Button } from '@/kit';
@@ -41,7 +41,7 @@ export type WithFilm = 'save' | 'share' | 'both';
  * The share sheet is opened on the local copy and never on `video_url`: the link is signed and dies
  * in a quarter of an hour, so whoever it was sent to would get a refusal instead of a video.
  */
-export function useFilmActions(memory: Memory | null) {
+export function useFilmActions() {
   const s = useStrings();
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -73,7 +73,7 @@ export function useFilmActions(memory: Memory | null) {
         setBusy(false);
       }
     },
-    [memory, s],
+    [s],
   );
 
   return { busy, notice, run };
@@ -89,17 +89,9 @@ export function useFilmActions(memory: Memory | null) {
  * the screen under it mounted, and a playing montage would otherwise stand over whatever came next
  * (TASK-94).
  */
-export function FilmPlayer({
-  film,
-  memory,
-  onClose,
-}: {
-  film: Montage | null;
-  memory: Memory | null;
-  onClose: () => void;
-}) {
+export function FilmPlayer({ film, onClose }: { film: Montage | null; onClose: () => void }) {
   const s = useStrings();
-  const { busy, notice, run } = useFilmActions(memory);
+  const { busy, notice, run } = useFilmActions();
 
   // A wide montage is worth turning the phone for — and since TASK-126 wide is what was asked for at
   // the order rather than what every montage is. The player is left free both ways all the same: a

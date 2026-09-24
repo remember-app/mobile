@@ -5,12 +5,10 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 
 import {
   listMembers,
-  listMemories,
   listMontages,
   memberName,
   type JournalFile,
   type Member,
-  type Memory,
   type Montage,
 } from '@/api';
 import { useAuth } from '@/auth';
@@ -57,7 +55,6 @@ export default function MontageDoneScreen() {
   /** The same journal the live screen read, and it is read the same way — it just no longer moves. */
   const journal = useMontageJournal(token, id, montageId);
 
-  const [memory, setMemory] = useState<Memory | null>(null);
   const [montage, setMontage] = useState<Montage | null>(null);
   const [roster, setRoster] = useState<Member[] | null>(null);
   /** Whether the film is being watched — the player is the one in `film-player`, and it is a window. */
@@ -66,20 +63,16 @@ export default function MontageDoneScreen() {
   const [opened, setOpened] = useState<number | null>(null);
 
   /** Keeping the film and handing it on — the two buttons under the poster, one busy line for both. */
-  const { busy, notice, run } = useFilmActions(memory);
+  const { busy, notice, run } = useFilmActions();
 
   /**
-   * What the journal does not carry: who is reading, what was ordered and how long it came out, and
-   * the names of everybody in the memory — the journal names an author by id. On focus and not on
+   * What the journal does not carry: what was ordered and how long it came out, and the names of
+   * everybody in the memory — the journal names an author by id. On focus and not on
    * mount, like every other screen of a memory: `video_url` is signed for a quarter of an hour, so
    * coming back to this page an hour later re-reads the link it is watched and saved through.
    */
   const read = useCallback(() => {
     if (!token) return;
-    listMemories(token).then(
-      (memories) => setMemory(memories.find((one) => one.id === id) ?? null),
-      () => {},
-    );
     listMontages(token, id).then(
       (list) => setMontage(list.find((one) => one.id === montageId) ?? null),
       () => {},
@@ -216,11 +209,7 @@ export default function MontageDoneScreen() {
         )}
       </ScrollView>
 
-      <FilmPlayer
-        film={playing ? film : null}
-        memory={memory}
-        onClose={() => setPlaying(false)}
-      />
+      <FilmPlayer film={playing ? film : null} onClose={() => setPlaying(false)} />
 
       {card ? (
         <SheetLiveFile
