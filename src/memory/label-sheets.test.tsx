@@ -21,6 +21,14 @@ beforeAll(async () => {
   await setTheme('dark');
 });
 
+/**
+ * Whether the row of a label is a button in this markup. Read by the name the row is announced
+ * under, whatever the kit adds after it (its count, who sees it) — so the words after the name can
+ * change without this test caring.
+ */
+const isButton = (markup: string, name: string) =>
+  new RegExp(`aria-label="${name}[,"]`).test(markup);
+
 const mine = label({ id: '2', title: 'Любимые', shared: false, color: 6, media_count: 9 });
 
 const sheet = (over: Partial<Parameters<typeof LabelsSheet>[0]> = {}) => (
@@ -75,7 +83,7 @@ test('a label the server will not let this person fill is a row and not a button
   // `can_add_media` and is never worked out here.
   const shut = story(sheet({ labels: [label({ can_add_media: false, can_edit: false })] }));
   expect(shut).toContain('Лучшее');
-  expect(shut).not.toContain('aria-label="Лучшее"');
+  expect(isButton(shut, 'Лучшее')).toBe(false);
   allDifferent({
     shut: sheet({ labels: [label({ can_add_media: false, can_edit: false })] }),
     filing: sheet({ labels: [label()] }),
@@ -100,7 +108,7 @@ test('the edit mode puts the pair where the circle was and goes quiet about the 
   expect(editing).toContain('Удалить «Лучшее»');
   expect(editing).toContain('Готово');
   // The row is no longer filing anything: its name is not a button's name any more.
-  expect(editing).not.toMatch(/aria-label="Лучшее[,"]/);
+  expect(isButton(editing, 'Лучшее')).toBe(false);
   allDifferent({ filing: sheet(), editing: sheet({ editing: true }) });
 });
 
@@ -109,7 +117,7 @@ test('a label the server will not let this person edit keeps no pair, and goes o
   const shut = label({ can_edit: false });
   const editing = story(sheet({ labels: [shut], editing: true }));
   expect(editing).not.toContain('Переименовать «Лучшее»');
-  expect(editing).toMatch(/aria-label="Лучшее[,"]/);
+  expect(isButton(editing, 'Лучшее')).toBe(true);
   // With nothing this person may edit, the button that turns the mode on is not drawn either.
   expect(story(sheet({ labels: [shut] }))).not.toContain('Править');
 });
@@ -121,7 +129,7 @@ test('rights come from the flags the server sent and not from who made the label
   const editing = story(sheet({ labels: [theirs], editing: true }));
   expect(editing).toContain('Переименовать «Лучшее»');
   expect(editing).toContain('Удалить «Лучшее»');
-  expect(story(sheet({ labels: [theirs] }))).toContain('aria-label="Лучшее"');
+  expect(isButton(story(sheet({ labels: [theirs] })), 'Лучшее')).toBe(true);
   // And the other way round: mine, and still no pair where the server withheld `can_edit`.
   const withheld = story(sheet({ labels: [label({ mine: true, can_edit: false })], editing: true }));
   expect(withheld).not.toContain('Переименовать');
