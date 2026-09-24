@@ -1,8 +1,11 @@
 import { beforeAll, expect, test, vi } from 'vitest';
 
+import TestRenderer, { act } from 'react-test-renderer';
+
 import { grabLength, LengthSlider } from '@/kit/slider';
 import { allDifferent, story } from '@/kit/story';
 import { setTheme } from '@/theme';
+import { mountsTrees } from '@/test-renderer';
 
 /** Spec 7.3, detail 19 — how long the film should be. */
 
@@ -25,6 +28,7 @@ vi.mock('@/kit/button', async (importOriginal) => {
 beforeAll(async () => {
   await setTheme('dark');
 });
+mountsTrees();
 
 const PRESETS = [
   { label: '0:30', value: 30 },
@@ -165,4 +169,46 @@ test('a card without ready answers is the same card, minus the row of them', () 
   const bare = story(slider({ presets: undefined }));
   expect(bare).not.toContain('>0:30<');
   expect(bare).toContain('2:32');
+});
+
+test('on a line narrower than the range every position is still a whole second inside the walls', () => {
+  // 540 seconds on 200 points: 2.7 seconds to a point, so any figure a finger works out is rounded.
+  const drag = grabLength(0, 200, { ...LINE, value: 10 });
+  const figures = Array.from({ length: 201 }, (_, x) => drag(x)).filter((seconds) => seconds !== null);
+  expect(figures.length).toBeGreaterThan(50);
+  for (const seconds of figures) {
+    expect(Number.isInteger(seconds)).toBe(true);
+    expect(seconds).toBeGreaterThanOrEqual(10);
+    expect(seconds).toBeLessThanOrEqual(550);
+  }
+  // And before the line has been measured there is nothing to divide by, and no figure of NaN.
+  const unmeasured = grabLength(30, 0, { ...LINE, value: 152 });
+  expect(unmeasured(80)).toSatisfy((seconds: number | null) => seconds === null || Number.isInteger(seconds));
+});
+
+test('a material with exactly one length in it has no way to move the figure', () => {
+  // Three photos are seven seconds: the api's band is 7…7, and the figure is stuck to both walls.
+  const drag = grabLength(90, WIDE, { min: 7, max: 7, value: 7 });
+  expect(drag(0)).toBeNull();
+  expect(drag(WIDE)).toBeNull();
+  const card = story(slider({ min: 7, max: 7, value: 7, valueLabel: '0:07', presets: undefined }));
+  expect(card.match(/aria-disabled="true"/g)).toHaveLength(2);
+});
+
+test('a screen reader and the ready answers move the figure the way the buttons and the finger do', () => {
+  const said: number[] = [];
+  let tree!: TestRenderer.ReactTestRenderer;
+  act(() => {
+    tree = TestRenderer.create(slider({ value: 157, onChange: (seconds) => said.push(seconds) }));
+  });
+  const line = tree.root.findAll((node) => typeof node.props.onAccessibilityAction === 'function')[0]!;
+  const action = (actionName: string) => line.props.onAccessibilityAction({ nativeEvent: { actionName } });
+  action('increment');
+  action('decrement');
+  const answer = (label: string) =>
+    tree.root.findAll((node) => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function')[0]!;
+  act(() => answer('1:00').props.onPress());
+  // «Всё» is the ceiling itself, whatever the material is.
+  act(() => answer('Всё').props.onPress());
+  expect(said).toEqual([162, 152, 60, 550]);
 });
