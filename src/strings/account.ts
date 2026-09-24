@@ -23,14 +23,6 @@ export const en = {
    * standing or a count. «Такого ника нет» is `members.noSuchUser`: one fact, one wording, whether
    * the invite sheet or this field is the one that found nothing.
    */
-
-  /**
-   * The one list a person keeps about themselves rather than about an event (doc-10): the names
-   * they invite from, so a username never has to be remembered or typed twice. Not friends — nobody
-   * on it is asked, told or granted anything, which is why there is no word here for a request, a
-   * standing or a count. «Такого ника нет» is `members.noSuchUser`: one fact, one wording, whether
-   * the invite sheet or this field is the one that found nothing.
-   */
   contacts: {
     title: 'Contacts',
     /** The rule over the row the field turned up when what was typed is somebody else. */
@@ -59,12 +51,6 @@ export const en = {
    * any more: the onboarding head says where a person is (spec 8, `Username`), and `lead` is the
    * line under the field saying what the name is for.
    */
-
-  /**
-   * The one username field, shared by the first claim and the change. There is no heading over it
-   * any more: the onboarding head says where a person is (spec 8, `Username`), and `lead` is the
-   * line under the field saying what the name is for.
-   */
   username: {
     label: 'Username',
     placeholder: 'username',
@@ -77,11 +63,6 @@ export const en = {
    * The two languages name themselves. A person looking for their own language reads it in that
    * language, so these two lines are the same in both sets on purpose.
    */
-
-  /**
-   * The two languages name themselves. A person looking for their own language reads it in that
-   * language, so these two lines are the same in both sets on purpose.
-   */
   language: {
     label: 'Language',
     ru: 'Русский',
@@ -89,8 +70,6 @@ export const en = {
     /** Where the pick reaches past this screen — the mails and the pushes the api writes (TASK-91). */
     hint: 'Letters and notifications come in it too.',
   },
-
-  /** doc-9. The third one is not a light but the phone going on deciding. */
 
   /** doc-9. The third one is not a light but the phone going on deciding. */
   theme: {

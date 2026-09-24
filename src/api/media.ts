@@ -21,8 +21,6 @@ export type UploadPlan = {
 };
 
 /** The file as the api wants it declared, before a single byte is sent. */
-
-/** The file as the api wants it declared, before a single byte is sent. */
 export type UploadIntent = {
   kind: 'photo' | 'video';
   size_bytes: number;
@@ -42,11 +40,6 @@ export type UploadIntent = {
  * Announce a file and get the links to send it with. 403 for a viewer, 413 when the file is over
  * a limit, 409 when the memory is full or out of space.
  */
-
-/**
- * Announce a file and get the links to send it with. 403 for a viewer, 413 when the file is over
- * a limit, 409 when the memory is full or out of space.
- */
 export function startUpload(
   token: string,
   memoryId: string,
@@ -54,12 +47,6 @@ export function startUpload(
 ): Promise<UploadPlan> {
   return request(`/memories/${memoryId}/media`, { method: 'POST', body: file, token });
 }
-
-/**
- * Fresh links for the same upload — the answer to one that expired mid-file, and the way a resume
- * gets its links back at all. 409 once there is nothing left to send, and the body then carries
- * the status the row has moved on to.
- */
 
 /**
  * Fresh links for the same upload — the answer to one that expired mid-file, and the way a resume
@@ -83,16 +70,6 @@ export function refreshUpload(
  * off `not_started` — and is the api telling the app to ask the doc-06 question. A repeat of the
  * same call, or anybody's second file, answers false.
  */
-
-/**
- * «Загружено»: seals the parts into one object and starts the preview. Idempotent — a repeat only
- * reports where the row stands. Given a longer leash than the rest: the api is waiting on R2
- * assembling the object, which for a big video is not a five-second job.
- *
- * `first_upload` is true exactly once per person per memory — on the completion that moved them
- * off `not_started` — and is the api telling the app to ask the doc-06 question. A repeat of the
- * same call, or anybody's second file, answers false.
- */
 export function finishUpload(
   token: string,
   memoryId: string,
@@ -106,15 +83,6 @@ export function finishUpload(
     timeout: 60_000,
   });
 }
-
-/**
- * One record in a memory's gallery. `pending_upload` never appears — those are uploads still in
- * flight, with no bytes in the store to show — so the three statuses here are the whole set.
- *
- * The two urls are the derivatives, signed and short-lived (~15 minutes, architecture.md); the
- * original is deliberately not linked from here. Both are null until the worker has made them,
- * which is what `processing` and `failed` look like on screen.
- */
 
 /**
  * One record in a memory's gallery. `pending_upload` never appears — those are uploads still in
@@ -160,25 +128,9 @@ export type MediaItem = {
  * Everything in a memory, oldest shot first — the order the montage would play it in. Any member
  * reads it, a viewer included. 503 while the api has no bucket configured.
  */
-
-/**
- * Everything in a memory, oldest shot first — the order the montage would play it in. Any member
- * reads it, a viewer included. 503 while the api has no bucket configured.
- */
 export function listMedia(token: string, memoryId: string): Promise<MediaItem[]> {
   return request(`/memories/${memoryId}/media`, { token });
 }
-
-/**
- * Everything about one frame the picture itself does not say — the sheet «Сведения о кадре» (spec 8,
- * `SheetFrameInfo`). Read by every member, a viewer included.
- *
- * Half of it is written by the montage worker rather than by the api, exactly as `width` and
- * `height` are: the camera, the place, and which finished videos this frame stands in. A record
- * older than that worker carries `null` in every one of those fields, and `file_name` is missing
- * outright for anything uploaded before the app started sending a name — so «нет такого поля» and
- * «поле пустое» are one thing here, and the sheet draws neither.
- */
 
 /**
  * Everything about one frame the picture itself does not say — the sheet «Сведения о кадре» (spec 8,
@@ -218,11 +170,6 @@ export type FrameInfo = {
  * The sheet's one read. Nothing signed comes back and no bucket is asked, so this is the one media
  * route with no 503 in it: the sheet opens over a frame the app is already showing.
  */
-
-/**
- * The sheet's one read. Nothing signed comes back and no bucket is asked, so this is the one media
- * route with no 503 in it: the sheet opens over a frame the app is already showing.
- */
 export function fetchFrameInfo(
   token: string,
   memoryId: string,
@@ -230,13 +177,6 @@ export function fetchFrameInfo(
 ): Promise<FrameInfo> {
   return request(`/memories/${memoryId}/media/${mediaId}`, { token });
 }
-
-/**
- * A signed link to the *original* — the file as it was sent, not the derivative the gallery draws.
- * Any member may ask, a viewer included. 404 for a record that is still uploading (there are no
- * bytes to sign yet) and for one of another memory; 503 while the api has no bucket. The link is
- * as short-lived as the gallery's own (~15 minutes), so it is fetched at the moment of saving.
- */
 
 /**
  * A signed link to the *original* — the file as it was sent, not the derivative the gallery draws.
@@ -257,25 +197,7 @@ export function downloadMedia(
  * Named here rather than beside the screen that saves them: it is the shape on the wire, and the
  * two are the same shape on purpose.
  */
-
-/**
- * An original to save, as both download routes hand it out — the whole-gallery one row for row.
- * Named here rather than beside the screen that saves them: it is the shape on the wire, and the
- * two are the same shape on purpose.
- */
 export type Original = { id: string; kind: MediaItem['kind']; url: string };
-
-/**
- * Every original in one answer, in the gallery's own order — «скачать всю галерею» without a round
- * trip per file. Same set as `listMedia`, cut down to what the saving needs: the extension comes
- * from `kind`, since neither this nor the record carries the name the file had.
- *
- * The long leash for the reason `finishUpload` has one: a memory may hold up to a thousand records
- * (MEMORY_MAX_FILES), and this signs and ships a link for every one of them in a single answer —
- * the one request the whole «download all» hangs on must not be the one that times out at five
- * seconds. ponytail: the real answer is a page at a time; the client already saves file by file,
- * so paging costs it nothing. Add it when a gallery that big exists to test against.
- */
 
 /**
  * Every original in one answer, in the gallery's own order — «скачать всю галерею» without a round
@@ -296,11 +218,6 @@ export function downloadAllMedia(token: string, memoryId: string): Promise<Origi
  * Take one record out for good, bytes and all. Whoever uploaded it may, and so may the organizer;
  * 403 for anybody else, 404 once it is already gone.
  */
-
-/**
- * Take one record out for good, bytes and all. Whoever uploaded it may, and so may the organizer;
- * 403 for anybody else, 404 once it is already gone.
- */
 export function deleteMedia(
   token: string,
   memoryId: string,
@@ -308,15 +225,3 @@ export function deleteMedia(
 ): Promise<{ ok: true }> {
   return request(`/memories/${memoryId}/media/${mediaId}`, { method: 'DELETE', token });
 }
-
-/**
- * A label (doc-13) — a box with a name and a colour inside one memory, as the asker sees it. Shared
- * means everybody in the memory sees it; private means nobody but its owner does, and somebody
- * else's private label leaves no trace in any answer at all.
- *
- * `can_edit` (rename, recolour, delete) and `can_add_media` (put frames in) are **the server's own
- * answer about this asker**, worked out by the same function that refuses the write routes
- * (`labelDenial`, api README). The app never repeats the rule: a button is drawn where the server
- * said it may be. Neither of them is `mine` — a shared label is edited and filled by every member,
- * a viewer included (decision-12).
- */

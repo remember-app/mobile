@@ -16,9 +16,3 @@ export function registerPushToken(
     token,
   });
 }
-
-/**
- * Join by invite link. Answers with the memory as its new member sees it — the same shape
- * `/memories` hands out, so the screen it lands on has nothing extra to fetch. 404 once the
- * link has been rotated, and being a member already is a plain 200 that changes no role.
- */

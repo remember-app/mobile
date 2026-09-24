@@ -37,13 +37,6 @@ export type JournalEntry = {
  * re-signed in full on every poll — and a frame that has since been deleted simply has no entry
  * here, which is not an error: the record about it stays either way.
  */
-
-/**
- * A file one of those records is about, signed the way the gallery's frames are. Only the files met
- * in the page just handed over, so a journal of hundreds of records about the same frames is not
- * re-signed in full on every poll — and a frame that has since been deleted simply has no entry
- * here, which is not an error: the record about it stays either way.
- */
 export type JournalFile = {
   id: string;
   kind: MediaItem['kind'];
@@ -61,11 +54,7 @@ export type JournalFile = {
 };
 
 /** Somebody watching the assembly right now. The api hands out no more than this about them. */
-
-/** Somebody watching the assembly right now. The api hands out no more than this about them. */
 export type Viewer = Pick<Contact, 'id' | 'username'>;
-
-/** One page of the journal, as the route answers. */
 
 /** One page of the journal, as the route answers. */
 export type MontageJournal = {
@@ -78,11 +67,6 @@ export type MontageJournal = {
   files: JournalFile[];
   viewers: Viewer[];
 };
-
-/**
- * The cursor and the one narrowing the app asks for, as the route takes them. The route also takes
- * `limit` and `media_id`; nothing here sends either, so neither is here.
- */
 
 /**
  * The cursor and the one narrowing the app asks for, as the route takes them. The route also takes
@@ -104,13 +88,6 @@ export type JournalQuery = {
  * is no «я смотрю» to send. A montage with no journal at all answers with an empty one rather than
  * an error, and a finished video's journal is read the same way years later.
  */
-
-/**
- * How the video was put together, live and afterwards (api README, «Журнал монтажа»). Any member
- * reads it, a viewer included, and the reading itself is what marks the reader as watching — there
- * is no «я смотрю» to send. A montage with no journal at all answers with an empty one rather than
- * an error, and a finished video's journal is read the same way years later.
- */
 export function fetchJournal(
   token: string,
   memoryId: string,
@@ -125,15 +102,3 @@ export function fetchJournal(
     token,
   });
 }
-
-/**
- * «Свой трек с телефона» (doc-03, spec 8 step 3): the organizer's own music instead of one off the
- * shelf. It goes into R2 the way material does — this announces the file and hands back the signed
- * links to send it with — and it is the organizer's alone, 403 for anybody else. 413 over the
- * file ceiling, 503 while the api has no bucket.
- *
- * The plan is the same shape the media intent answers with, deliberately: the parts are cut and
- * sent by the same arithmetic (`@/lib/upload/queue`), and `@/lib/music` is what does the sending. There is
- * no re-issue route for these links — a track is small and the hour is long — so an upload that
- * breaks is started again rather than resumed.
- */

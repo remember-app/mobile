@@ -33,8 +33,6 @@ export const en = {
   },
 
   /** What a screen says while it has nothing to show yet. */
-
-  /** What a screen says while it has nothing to show yet. */
   state: {
     loading: 'Loading…',
     gathering: 'Gathering your memories…',
@@ -46,8 +44,6 @@ export const en = {
   },
 
   /** Trouble: what happened, and what to do about it. */
-
-  /** Trouble: what happened, and what to do about it. */
   error: {
     offline: 'Cannot reach the API — check that it is running and try again.',
     tooMany: 'Too many attempts — wait a minute and try again.',
@@ -56,8 +52,6 @@ export const en = {
     usernameFormat: '3–30 Latin letters, digits, . _ -, and not at the ends',
     galleryRefused: 'Remember may not add to this phone’s gallery — that is turned on in Settings.',
   },
-
-  /** The product's own nouns, and the counts drawn next to them. */
 
   /** The product's own nouns, and the counts drawn next to them. */
   memory: {
@@ -95,14 +89,7 @@ export const en = {
   },
 
   /** What one record is, said out loud — the tile's own name for a screen reader. */
-
-  /** What one record is, said out loud — the tile's own name for a screen reader. */
   media: { photo: 'Photo', video: 'Video' },
-
-  /**
-   * Putting a file on the phone, said the same by both screens that do it (`@/lib/downloads`): the
-   * gallery saves originals one at a time and by the armful, the montage screen saves the video.
-   */
 
   /**
    * Putting a file on the phone, said the same by both screens that do it (`@/lib/downloads`): the
@@ -126,21 +113,7 @@ export const en = {
    * as in section 7 of the kit: the chip stands at the end of a member row and every letter it
    * takes is a letter the name and the standing beside it lose.
    */
-
-  /**
-   * The three levels of doc-01 «Права доступа», keyed by what the api calls them. One word each,
-   * as in section 7 of the kit: the chip stands at the end of a member row and every letter it
-   * takes is a letter the name and the standing beside it lose.
-   */
   role: { organizer: 'Organizer', contributor: 'Contributor', viewer: 'Viewer' },
-
-  /**
-   * The four standings of doc-06 — «прогресс у организатора», keyed by the api's own values. Three
-   * words on screen, not four: the first two both read as «still to come», because the difference
-   * between «has not started» and «is still adding» is the api's bookkeeping and not anything the
-   * organizer does differently — the count beside the standing already says how far along they are
-   * (doc-06, уточнено 2026-09-08).
-   */
 
   /**
    * The four standings of doc-06 — «прогресс у организатора», keyed by the api's own values. Three
@@ -155,8 +128,6 @@ export const en = {
     done: 'All uploaded',
     nothing: 'Nothing to add',
   },
-
-  /** The main screen: every memory this account organizes or was invited to. */
 };
 
 export const ru: typeof en = {

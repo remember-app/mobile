@@ -31,26 +31,9 @@ export type Label = {
  * member may read it, a viewer included: everybody has boxes of their own. No labels is an empty
  * array and not a 404.
  */
-
-/**
- * Every label of a memory the asker is allowed to see — shared first, by title within each, which
- * is the order `SheetLabels` lays its two groups out in and the order `label_ids` comes in. Any
- * member may read it, a viewer included: everybody has boxes of their own. No labels is an empty
- * array and not a 404.
- */
 export function listLabels(token: string, memoryId: string): Promise<Label[]> {
   return request(`/memories/${memoryId}/labels`, { token });
 }
-
-/**
- * Make one — and, from picking mode, fill it in the same breath: the label and its frames appear
- * together or not at all. Answers with the row the listing would give, so the sheet that made it
- * puts it straight into its own list without asking again.
- *
- * `shared` is settled here and never again: moving a box between shared and private after the fact
- * is not allowed (decision-12). 403 when a viewer tries to make a shared one — a viewer makes
- * private ones only.
- */
 
 /**
  * Make one — and, from picking mode, fill it in the same breath: the label and its frames appear
@@ -70,8 +53,6 @@ export function createLabel(
 }
 
 /** Rename and recolour, and nothing else — visibility is not a thing this route takes. */
-
-/** Rename and recolour, and nothing else — visibility is not a thing this route takes. */
 export function updateLabel(
   token: string,
   memoryId: string,
@@ -86,8 +67,6 @@ export function updateLabel(
 }
 
 /** Take the box away. The frames stay in the memory — only the box goes. */
-
-/** Take the box away. The frames stay in the memory — only the box goes. */
 export function deleteLabel(
   token: string,
   memoryId: string,
@@ -95,12 +74,6 @@ export function deleteLabel(
 ): Promise<{ ok: true }> {
   return request(`/memories/${memoryId}/labels/${labelId}`, { method: 'DELETE', token });
 }
-
-/**
- * Put a batch in, one request for the whole selection. A frame already in the box is neither an
- * error nor a duplicate; a frame from another memory or one still uploading refuses the whole batch
- * (400), and nothing is filed half way.
- */
 
 /**
  * Put a batch in, one request for the whole selection. A frame already in the box is neither an
@@ -124,11 +97,6 @@ export function addLabelMedia(
  * Take a batch back out of the box — out of the label and never out of the memory. A frame that was
  * not in it is not an error. Any member takes frames out of a shared label, whoever put them in.
  */
-
-/**
- * Take a batch back out of the box — out of the label and never out of the memory. A frame that was
- * not in it is not an error. Any member takes frames out of a shared label, whoever put them in.
- */
 export function removeLabelMedia(
   token: string,
   memoryId: string,
@@ -141,11 +109,3 @@ export function removeLabelMedia(
     token,
   });
 }
-
-/**
- * The tracks the montage worker holds, by id. Five strings the api enumerates and refuses anything
- * outside of, so they are written out here rather than typed as `string` — what each one sounds
- * like is the worker's (`projects/montage/tracks`), and what each one is called on screen is the
- * screen's. The shelf's own order is the layout's, and it lives in `@/lib/montage/order` beside the running
- * time of each one.
- */

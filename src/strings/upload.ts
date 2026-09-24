@@ -59,8 +59,6 @@ export const en = {
     moreToCome: 'More to come',
     thatsAll: 'That’s all',
   },
-
-  /** The account: who you are here, what the app is set to, and the way out. */
 };
 
 export const ru: typeof en = {

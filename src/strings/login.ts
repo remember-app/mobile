@@ -59,12 +59,6 @@ export const en = {
    * (doc-04, decision-9). The screen carries the short version of each of the three points and the
    * sheet carries the text itself — the app ships it, nothing is fetched.
    */
-
-  /**
-   * The agreement, which is the one thing that has to happen before a person may register
-   * (doc-04, decision-9). The screen carries the short version of each of the three points and the
-   * sheet carries the text itself — the app ships it, nothing is fetched.
-   */
   consent: {
     lead: 'Before you come in — three things you are agreeing to.',
     /**
@@ -107,8 +101,6 @@ export const en = {
   },
 
   /** Where an invite link lands. */
-
-  /** Where an invite link lands. */
   join: {
     noToken: 'This link has no token in it — ask for a new one.',
     deadTitle: 'This invite no longer works',
@@ -116,8 +108,6 @@ export const en = {
     dead: 'The link was called back, or replaced with a newer one. Ask whoever invited you for a fresh one.',
     home: 'Go to my memories',
   },
-
-  /** Starting a memory: a title and the day (or span) the event happened on. */
 };
 
 export const ru: typeof en = {
