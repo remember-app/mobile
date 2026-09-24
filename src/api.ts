@@ -58,6 +58,22 @@ export function errorMessage(error: unknown): string {
   return error instanceof ApiError ? error.message : say().error.offline;
 }
 
+const refusals = new Set<(token: string) => void>();
+
+/**
+ * Hear that the api has stopped honouring a session token — signed out on another phone, revoked,
+ * past its thirty days. Only a request that carried a token can say that: the way-in routes carry
+ * none, and their 401 is a refused code or identity token, which belongs to the screen that asked.
+ * Heard before the caller gets its `ApiError`, so the session can be gone by the time a screen
+ * would word the failure.
+ */
+export function onSessionRefused(listener: (token: string) => void): () => void {
+  refusals.add(listener);
+  return () => {
+    refusals.delete(listener);
+  };
+}
+
 type Options = {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: unknown;
@@ -91,6 +107,9 @@ async function request<T>(
     } catch {
       // A proxy or a crash can answer with something that is not JSON; keep it as the raw text.
       parsed = text;
+    }
+    if (response.status === 401 && token !== undefined) {
+      for (const listener of refusals) listener(token);
     }
     if (!response.ok) throw new ApiError(response.status, parsed);
     return parsed as T;
