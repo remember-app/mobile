@@ -15,7 +15,7 @@ import {
   VolumeX,
 } from 'lucide-react-native';
 import { useMemo, useRef, useState } from 'react';
-import { Modal, PanResponder, StyleSheet, View } from 'react-native';
+import { Modal, PanResponder, Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -116,6 +116,8 @@ export function FrameViewer({
   const [menu, setMenu] = useState(false);
   const [details, setDetails] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  /** The film the sheet asked for, held while this window shuts and raised once it is gone. */
+  const [film, setFilm] = useState<string | null>(null);
   /** What the sheet shows, and the api's word when the one read behind it failed. */
   const [info, setInfo] = useState<FrameInfo | null>(null);
   const [infoFailed, setInfoFailed] = useState<string | null>(null);
@@ -268,10 +270,18 @@ export function FrameViewer({
    * pushed: this window is a part of the memory's route, and a push to that route would stack a
    * second feed of the same memory under the film.
    *
-   * The window goes first, and the feed under it is left on the frame it was on.
+   * The window goes first, and only once it is gone is the ask made: the player is a `Modal` too,
+   * and iOS swallows a `Modal` raised while another is still being dismissed. So this one shuts and
+   * says so (`onDismiss`), and `raiseFilm` runs then. Android has no such event and no such
+   * trouble, so it runs at once. The feed under is left on the frame it was on either way.
    */
   function openFilm(montageId: string) {
     setDetails(false);
+    setFilm(montageId);
+    if (Platform.OS !== 'ios') raiseFilm(montageId);
+  }
+
+  function raiseFilm(montageId: string) {
     onClose();
     router.setParams({ montage: montageId });
   }
@@ -356,9 +366,14 @@ export function FrameViewer({
 
   return (
     <Modal
-      visible
+      // Shut, and not unmounted, when a film is asked for: the event that says the window is gone
+      // is only heard from a `Modal` that is still there to hear it.
+      visible={film === null}
       animationType="fade"
       onRequestClose={onClose}
+      onDismiss={() => {
+        if (film !== null) raiseFilm(film);
+      }}
       // Landscape too: a frame shot sideways is worth turning the phone for.
       supportedOrientations={['portrait', 'landscape']}
     >

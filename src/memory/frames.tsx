@@ -43,7 +43,7 @@ import {
   formatRuntime,
   formatWeekday,
 } from '@/dates';
-import { maySaveToPhone, saveToPhone, shareFile } from '@/downloads';
+import { maySaveToPhone, saveToPhone, shareFiles } from '@/downloads';
 import {
   allTaken,
   arranged,
@@ -645,19 +645,16 @@ export function Frames({ id, head }: { id: string; head: Head }) {
    * so whoever it reached would get a refusal instead of a photograph.
    *
    * ponytail: one system sheet per file, because `expo-sharing` takes one file per call — several
-   * frames means several sheets, one after the other. A native share of many items is the upgrade;
-   * until then this at least hands every marked frame on instead of silently dropping all but the
-   * first.
+   * frames means several sheets, one after the other, and leaving the screen is what breaks the
+   * chain. A native share of many items is the upgrade; until then this at least hands every marked
+   * frame on instead of silently dropping all but the first.
    */
   async function sharePicked() {
     if (!token) return;
     setBusy(true);
     setNotice(s.viewer.sharing);
     try {
-      for (const file of await markedFiles(token)) {
-        if (!onScreen.current) return;
-        await shareFile(file);
-      }
+      await shareFiles(await markedFiles(token), () => onScreen.current);
       setNotice(null);
     } catch (e) {
       setNotice(e instanceof ApiError ? e.message : s.viewer.shareFailed);

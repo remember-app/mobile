@@ -332,7 +332,9 @@ test('the picking footer is share, a download that carries its count, and delete
   expect(frames).toContain(
     '(await downloadAllMedia(session, id)).filter((file) => picked.has(file.id))',
   );
-  expect(frames).toContain('await shareFile(file);');
+  // All of one armful is one share, so the folder the copies go to is wiped once for the lot
+  // (`downloads.test.ts`), and leaving the screen is what breaks the chain of sheets.
+  expect(frames).toContain('await shareFiles(await markedFiles(token), () => onScreen.current);');
 });
 
 test('deleting an armful asks first, counts the price, and takes only what may be taken', () => {
@@ -1101,6 +1103,10 @@ test('a finished film has a page of its own, and it is where the film is watched
   expect(done).toContain("void run(film, 'save')");
   expect(done).toContain("void run(film, 'share')");
   expect(player).toContain('export function useFilmActions');
+  // «Сохранить и поделиться» hands the file to the phone's sheet through `@/downloads` like every
+  // other share: React Native's own `Share` drops the file on Android and sends the line alone.
+  expect(player).toContain("await (what === 'both' ? saveAndShare : saveToPhone)(file);");
+  expect(player).not.toContain('Share.share');
   expect(done).not.toContain("role === 'organizer'");
 });
 
@@ -1416,11 +1422,20 @@ test('a movie the frame stands in is named by its length and opens the one playe
   // One frame may stand in one montage twice — the api's own key is the pair, and so is this one.
   expect(sheet).toContain('key={`${film.id}:${film.start_seconds}`}');
   // And the row opens the player the movies face already has: no second player is drawn for a
-  // frame (chief, 21.09.2026). The window goes first, then the ask is set on the screen this window
-  // is a part of — a push to the same route would stack a second feed of the memory under the film.
-  expect(viewer.replace(/\s+/g, ' ')).toContain(
-    "function openFilm(montageId: string) { setDetails(false); onClose(); router.setParams({ montage: montageId }); }",
+  // frame (chief, 21.09.2026). The ask is set on the screen this window is a part of — a push to
+  // the same route would stack a second feed of the memory under the film — and only once the
+  // window is gone: the player is a `Modal` too, and iOS swallows one raised while another is still
+  // being dismissed. So the window is shut and not unmounted, says when it is gone, and Android,
+  // which has no such event, goes on at once.
+  const shut = viewer.replace(/\s+/g, ' ');
+  expect(shut).toContain(
+    "function openFilm(montageId: string) { setDetails(false); setFilm(montageId); if (Platform.OS !== 'ios') raiseFilm(montageId); }",
   );
+  expect(shut).toContain(
+    'function raiseFilm(montageId: string) { onClose(); router.setParams({ montage: montageId }); }',
+  );
+  expect(shut).toContain('visible={film === null}');
+  expect(shut).toContain('onDismiss={() => { if (film !== null) raiseFilm(film); }}');
   expect(films).toContain("const { montage: asked } = useLocalSearchParams<{ montage?: string }>();");
   // The block is already mounted when the ask arrives, so it follows the parameter rather than
   // reading it once as it mounts — and spends it, or the switch back onto this face would raise

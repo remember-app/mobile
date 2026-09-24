@@ -1,11 +1,11 @@
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { Download } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
-import { Modal, Share, StyleSheet, View } from 'react-native';
+import { Modal, StyleSheet, View } from 'react-native';
 
 import type { Memory, Montage } from '@/api';
 import { formatDay, formatRuntime } from '@/dates';
-import { maySaveToPhone, saveToPhone, shareFile } from '@/downloads';
+import { maySaveToPhone, saveAndShare, saveToPhone, shareFile } from '@/downloads';
 import { ActionBar, Banner, Button } from '@/kit';
 import { useStrings } from '@/language';
 import { useTurnsWithPhone } from '@/orientation';
@@ -40,11 +40,6 @@ export type WithFilm = 'save' | 'share' | 'both';
  *
  * The share sheet is opened on the local copy and never on `video_url`: the link is signed and dies
  * in a quarter of an hour, so whoever it was sent to would get a refusal instead of a video.
- *
- * ponytail: React Native's own `Share` attaches a file on iOS only — on Android the sheet goes out
- * with the line and without the video, which after `both` is in the phone's gallery and shareable
- * from there. `expo-sharing` is the upgrade when that is not good enough, and `shareFile` in
- * `@/downloads` already uses it.
  */
 export function useFilmActions(memory: Memory | null) {
   const s = useStrings();
@@ -70,20 +65,7 @@ export function useFilmActions(memory: Memory | null) {
           setNotice(s.error.galleryRefused);
           return;
         }
-        await saveToPhone(
-          file,
-          what === 'both'
-            ? // The local copy the share sheet needs exists only between the save and this line.
-              async (uri) => {
-                // Dismissing the sheet is not a failure, and neither is a phone with nowhere to
-                // send it. The memory's own title is what a person wrote; it goes out as it stands.
-                await Share.share({
-                  url: uri,
-                  message: memory ? s.montage.shareText(memory.title) : montageTitle(film, s),
-                }).catch(() => {});
-              }
-            : undefined,
-        );
+        await (what === 'both' ? saveAndShare : saveToPhone)(file);
         setNotice(s.save.done);
       } catch {
         setNotice(what === 'share' ? s.montage.shareFailed : s.save.failedMontage);
