@@ -3,7 +3,7 @@ import { Pencil } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import { errorMessage, listMontageTemplates, type MontageTemplate } from '@/api';
+import { ApiError, errorMessage, listMontageTemplates, type MontageTemplate } from '@/api';
 import { useAuth } from '@/auth';
 import { formatRuntime } from '@/dates';
 import { Banner, Button, TileTemplate, Waiting } from '@/kit';
@@ -29,13 +29,14 @@ import { space, themed } from '@/theme';
  *
  * Too little material is answered above this screen rather than on it — `SheetTooLittle` stands
  * in place of the body the moment the gallery is read, so no tile can be pressed into an order
- * the api would refuse.
+ * the api would refuse. The api weighs the six as an order with nothing said and refuses them with
+ * that order's own 409 where the count of frames cannot see it, and that raises the same sheet.
  */
 export default function TemplatesScreen() {
   const router = useRouter();
   const s = useStrings();
   const { token } = useAuth();
-  const { id, material, change, auto, start, stop } = useOrder();
+  const { id, material, change, auto, start, stop, tooLittle } = useOrder();
   const styles = useStyles();
   const gone = useStillHere();
   /** The six, in the api's own order — null until it has answered, because there is no guess. */
@@ -54,10 +55,12 @@ export default function TemplatesScreen() {
         if (!gone.current) setTemplates(came);
       },
       (e: unknown) => {
-        if (!gone.current) setNotice(errorMessage(e));
+        if (gone.current) return;
+        if (e instanceof ApiError && e.status === 409) tooLittle();
+        else setNotice(errorMessage(e));
       },
     );
-  }, [token, id, again]);
+  }, [token, id, again, tooLittle]);
 
   return (
     <WizardStep
