@@ -243,6 +243,18 @@ describe.each(SCENARIOS)('%s — the worker’s words, in the app’s', (scenari
     }
   });
 
+  test('the rhythm says what it came to — the cuts to the music, or that there was none to fit to', () => {
+    const rhythm = full.stages.find((one) => one.stage === 'rhythm')!;
+    // One film of each: the director's was ordered with no music, the other to a track off the shelf.
+    const music = scenario === 'algorithm';
+    expect(rhythm.outcome.track).toHaveLength(music ? 1 : 0);
+    for (const s of [ru, en]) {
+      const line = stageLine(rhythm, s, Date.parse(rhythm.finished_at!));
+      expect(line).toContain(music ? s.montage.live.cuts(rhythm.outcome.cuts!) : s.montage.live.noTrack);
+      expect(line).not.toContain(s.montage.live.cuts(0));
+    }
+  });
+
   test('every frame laid out in the film says where, in seconds of the film, thought or no thought', () => {
     const file = (id: string | null) => full.files.find((one) => one.id === id);
     /** «1:12» — written here on its own, to the whole second, as the film's own length is. */

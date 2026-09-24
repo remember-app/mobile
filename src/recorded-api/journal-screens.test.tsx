@@ -527,6 +527,16 @@ describe.each(SCENARIOS)('%s — the journal of one stage and the card of a file
     await screen.unmount();
   });
 
+  test('the rhythm is the fourth of five with music or without, and says under its name what it came to', async () => {
+    const { screen } = await open('rhythm');
+    const { track, cuts } = whole.stages.find((one) => one.stage === 'rhythm')!.outcome;
+    const bar = screen.root.findByType(AppBar).props;
+    expect(bar.subtitle).toContain(ru.montage.live.stageOf(4, 5));
+    expect(bar.subtitle).toContain(track!.length === 0 ? ru.montage.live.noTrack : ru.montage.live.cuts(cuts!));
+    expect(bar.subtitle).not.toContain(ru.montage.live.cuts(0));
+    await screen.unmount();
+  });
+
   test('a stage that came to no records at all is an empty list, not a wait and not an error', async () => {
     const { screen } = await open('assembly');
     expect(inList(screen)).toEqual([]);
@@ -622,6 +632,12 @@ describe.each(SCENARIOS)('%s — «Ролик готов» and «Как соби
     expect(rows.map((one) => [one.props.title, one.props.state])).toEqual(
       MONTAGE_STAGES.map((code) => [ru.montage.stage[code], 'done']),
     );
+    // Five stages with or without music; the rhythm of a film with none says there was nothing to fit
+    // to rather than «0 склеек», and one with music counts the cuts that moved to it.
+    const rhythm = rows[MONTAGE_STAGES.indexOf('rhythm')].props.meta as string;
+    const { track, cuts } = outcome('rhythm');
+    expect(rhythm).toContain(track!.length === 0 ? ru.montage.live.noTrack : ru.montage.live.cuts(cuts!));
+    expect(rhythm).not.toContain(ru.montage.live.cuts(0));
     // The two last records of each stage that has any, freshest first — every stage is opened out.
     const drawn = rows.map((row) => row.findAllByType(StepNote).map((one) => one.props.text));
     MONTAGE_STAGES.forEach((code, at) => {

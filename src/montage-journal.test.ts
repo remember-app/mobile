@@ -438,6 +438,21 @@ describe('the line under a stage', () => {
     expect(stageLine(directing, ru)).toBe('3 части');
   });
 
+  test('the rhythm of a film with no music says there was nothing to fit to, not «0 склеек»', () => {
+    // What the worker writes for it (montage README, «Ритм ролика без музыки»).
+    const silent: MontageStage = { ...stage('rhythm', 'done'), outcome: { cuts: 0, track: [] } };
+    expect(stageLine(silent, ru)).toBe('без музыки, подгонять не подо что');
+    expect(stageLine(silent, en)).toBe('no music, nothing to fit to');
+    // With music it counts what moved to it, as before — and an outcome without the key is read
+    // the way it always was.
+    const scored: MontageStage = {
+      ...stage('rhythm', 'done'),
+      outcome: { bpm: 81, cuts: 3, track: ['warm'] },
+    };
+    expect(stageLine(scored, ru)).toBe('3 склейки');
+    expect(stageLine({ ...stage('rhythm', 'done'), outcome: { cuts: 0 } }, ru)).toBe('0 склеек');
+  });
+
   test('a stage nobody has reached has no line at all rather than a line of nothing', () => {
     expect(stageLine(stage('assembly', 'pending'), ru, now)).toBe(undefined);
   });

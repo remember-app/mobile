@@ -324,6 +324,9 @@ function cameOf(stage: MontageStage, s: Strings): string | undefined {
     case 'directing':
       return came.parts === undefined ? undefined : live.parts(came.parts);
     case 'rhythm':
+      // A film with no music has nothing to lay out to: the stage still runs, and «0 склеек» would
+      // be a count of what never could have happened.
+      if (came.track?.length === 0) return live.noTrack;
       return came.cuts === undefined ? undefined : live.cuts(came.cuts);
     case 'assembly':
       return formatRuntime(came.seconds ?? null);

@@ -950,6 +950,8 @@ export const en = {
       faces: (n: number) => `${n} ${n === 1 ? 'face' : 'faces'}`,
       parts: (n: number) => `${n} ${n === 1 ? 'part' : 'parts'}`,
       cuts: (n: number) => `${n} ${n === 1 ? 'cut' : 'cuts'}`,
+      /** What the rhythm of a film with no music came to — in place of «0 cuts», which is no answer. */
+      noTrack: 'no music, nothing to fit to',
       doneOf: (n: number, of: number) => `${n} of ${of}`,
       /** Under the stage in hand: the way into everything it has said. */
       wholeStage: (n: number) => `The whole stage journal · ${n} ${n === 1 ? 'record' : 'records'}`,
@@ -1653,6 +1655,7 @@ export const ru: Strings = {
       faces: (n: number) => count(n, 'лицо', 'лица', 'лиц'),
       parts: (n: number) => count(n, 'часть', 'части', 'частей'),
       cuts: (n: number) => count(n, 'склейка', 'склейки', 'склеек'),
+      noTrack: 'без музыки, подгонять не подо что',
       doneOf: (n: number, of: number) => `${n} из ${of}`,
       wholeStage: (n: number) =>
         `Весь журнал этапа · ${count(n, 'запись', 'записи', 'записей')}`,
