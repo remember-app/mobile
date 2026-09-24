@@ -6,11 +6,12 @@ const focus = vi.hoisted(() => ({ now: true }));
 vi.mock('expo-router', () => ({ useFocusEffect: () => {}, useIsFocused: () => focus.now }));
 
 import { AppState } from 'react-native';
-import TestRenderer, { act } from 'react-test-renderer';
+import TestRenderer from 'react-test-renderer';
 
 import { MONTAGE_STAGES, type JournalEntry, type MontageJournal } from '@/api';
 import { useMontageJournal, WHILE_LIVE_MS } from '@/montage-journal';
-import { mountsTrees } from '@/test-renderer';
+import { mounted, mountsTrees } from '@/test-renderer';
+import { act, BEAT_BY_BEAT, drives, settle } from '@/test-drive';
 
 import {
   bodyOf,
@@ -57,14 +58,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.mocked(AppState.addEventListener).mockRestore();
 });
-
-async function settle() {
-  for (let i = 0; i < 6; i++) {
-    await act(async () => {
-      await new Promise((done) => setImmediate(done));
-    });
-  }
-}
+drives();
 
 type Held = ReturnType<typeof useMontageJournal>;
 
@@ -79,7 +73,7 @@ async function watch(fetch: typeof globalThis.fetch) {
   const into: { now?: Held } = {};
   let tree!: TestRenderer.ReactTestRenderer;
   await act(async () => {
-    tree = TestRenderer.create(<Probe into={into} />);
+    tree = mounted(TestRenderer.create(<Probe into={into} />));
   });
   await settle();
   return {
@@ -210,7 +204,7 @@ describe.each(SCENARIOS)('%s — the film begun again under an open journal', (s
     expect(idsOf(phone.journal().entries)).toEqual(desc(1, cursor));
   }
 
-  test('the worker retrying its job: the stages go back to waiting, and the old records go with them', async () => {
+  test('the worker retrying its job: the stages go back to waiting, and the old records go with them', BEAT_BY_BEAT, async () => {
     const api = replay([
       ...first,
       said('begun_after_cursor', { after: cursor }, begun),
@@ -239,7 +233,7 @@ describe.each(SCENARIOS)('%s — the film begun again under an open journal', (s
     await phone.unmount();
   });
 
-  test('the moment of waiting missed: the new attempt already under way is seen by its new start', async () => {
+  test('the moment of waiting missed: the new attempt already under way is seen by its new start', BEAT_BY_BEAT, async () => {
     // The phone was in a pocket while the worker began again, and the first answer it gets after its
     // cursor is the new attempt's first records — ids past the cursor, stages started anew.
     const seen = again(sitting[1]);
@@ -258,7 +252,7 @@ describe.each(SCENARIOS)('%s — the film begun again under an open journal', (s
     await phone.unmount();
   });
 
-  test('«Повторить» pressed on another phone: the fallen journal gives way to the new attempt when the screen is back', async () => {
+  test('«Повторить» pressed on another phone: the fallen journal gives way to the new attempt when the screen is back', BEAT_BY_BEAT, async () => {
     const api = replay([
       said('fallen', {}, fallen('all')),
       said('retried_after_cursor', { after: cursor }, queued),
@@ -280,7 +274,7 @@ describe.each(SCENARIOS)('%s — the film begun again under an open journal', (s
   });
 
   describe('and nothing is read over again when it is not', () => {
-    test('a making that goes on to ready: every stage waiting, at work, done — one reading, every record', async () => {
+    test('a making that goes on to ready: every stage waiting, at work, done — one reading, every record', BEAT_BY_BEAT, async () => {
       const api = replay(sitting);
       const phone = await watch(api.fetch);
       await phone.untilReady();
@@ -290,7 +284,7 @@ describe.each(SCENARIOS)('%s — the film begun again under an open journal', (s
       await phone.unmount();
     });
 
-    test('a making that falls over keeps what it said, and stops', async () => {
+    test('a making that falls over keeps what it said, and stops', BEAT_BY_BEAT, async () => {
       const api = replay([...first, said('fell_over', { after: cursor }, fallen('none'))]);
       const phone = await watch(api.fetch);
       await readFirstAttempt(phone);
@@ -302,7 +296,7 @@ describe.each(SCENARIOS)('%s — the film begun again under an open journal', (s
       await phone.unmount();
     });
 
-    test('a late answer to a read sent before this phone’s own «Повторить» resets nothing', async () => {
+    test('a late answer to a read sent before this phone’s own «Повторить» resets nothing', BEAT_BY_BEAT, async () => {
       const api = replay([
         said('fallen', {}, fallen('all')),
         said('late_after_cursor', { after: cursor }, queued),

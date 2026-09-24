@@ -12,7 +12,8 @@ import { afterEach, beforeEach } from 'vitest';
  * So a test is stopped from the inside: every `act` here refuses to start once the test's signal is
  * aborted (which vitest does the moment the time is up), and `drives()` waits, before the next test
  * begins, for the `act` that was already running to finish. Used by `recorded-api/` and
- * `order-flow.test.tsx`, the two files whose tests are made of dozens of beats.
+ * `order-flow.test.tsx`, the files whose tests are made of dozens of beats; a file that drives the clock
+ * that way takes `act`, `drives()` and `BEAT_BY_BEAT` from here and not from the test renderer.
  */
 
 /**

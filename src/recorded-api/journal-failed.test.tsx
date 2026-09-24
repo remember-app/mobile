@@ -27,13 +27,14 @@ vi.mock('@/downloads', () => ({
 }));
 
 import { AppState } from 'react-native';
-import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
+import TestRenderer, { type ReactTestInstance } from 'react-test-renderer';
 
 import MontageLiveScreen from '@/app/memory/[id]/montage/[montageId]/index';
 import { CardMontage, CardNow, LiveDot, RowStep, StepNote, Text } from '@/kit';
 import { Films } from '@/memory/films';
 import { ru } from '@/strings';
 import { mounted, mountsTrees } from '@/test-renderer';
+import { act, BEAT_BY_BEAT, drives, settle } from '@/test-drive';
 
 import { bodyOf, BROKE, fellOver, load, MEMORY, MONTAGE, replay, TOKEN, type Replay, type Role, type Scenario } from './recorded';
 
@@ -64,15 +65,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
-
-/** Lets the requests that went out come back and the state they moved be drawn. */
-async function settle() {
-  for (let i = 0; i < 6; i++) {
-    await act(async () => {
-      await new Promise((done) => setImmediate(done));
-    });
-  }
-}
+drives();
 
 async function mount(element: React.ReactElement, api: Replay, as: Role) {
   session.token = TOKEN[as];
@@ -99,7 +92,7 @@ function words(root: ReactTestInstance): string {
 describe.each(SCENARIOS)('%s — a montage that fell over', (scenario) => {
   const steps = load(scenario);
 
-  test.each(['organizer', 'viewer'] as const)('its screen is not on air, for the %s: no «Сейчас», no live dot, nobody thinking', async (role) => {
+  test.each(['organizer', 'viewer'] as const)('its screen is not on air, for the %s: no «Сейчас», no live dot, nobody thinking', BEAT_BY_BEAT, async (role) => {
     route.params = { id: MEMORY, montageId: MONTAGE };
     const api = replay(fellOver(steps, role), { extra: extra(role) });
     const screen = await mount(<MontageLiveScreen />, api, role);
