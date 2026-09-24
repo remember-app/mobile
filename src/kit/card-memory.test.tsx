@@ -2,7 +2,7 @@ import { beforeAll, expect, test } from 'vitest';
 
 import { BadgeFilms, BadgeOrganizer } from '@/kit/badge';
 import { CardMemory } from '@/kit/card-memory';
-import { allDifferent, story } from '@/kit/story';
+import { allDifferent, compiled, story } from '@/kit/story';
 import { setTheme } from '@/theme';
 
 /** Spec 7.6 — a memory in the list, large and ordinary, in every state each of them has. */
@@ -144,4 +144,22 @@ test('a card that leads somewhere is a button, and one that does not is not', ()
     'role="button"',
   );
   expect(story(<CardMemory title="Поход" thumbs={SHOTS} />)).toContain('aria-disabled="true"');
+});
+
+test('the meta and the count on a cover are read at the photograph’s quiet white, and not at the dot’s 45%', () => {
+  // The layout writes them in rgba(255,255,255,.72….76). 45% is the colour of the dot *between* two
+  // pieces of meta, and a line of words drawn in it over a bright frame is a line nobody can read.
+  story(
+    <CardMemory
+      title="Свадьба Лизы и Марка"
+      meta={['12–14 сентября', '486 кадров']}
+      thumbs={SHOTS}
+      large
+      progress={0.78}
+      progressLabel="7 из 9 уже скинули свои кадры"
+    />,
+  );
+  const rules = compiled();
+  expect(rules).toContain('{color:rgba(255,255,255,0.72);}');
+  expect(rules).not.toContain('{color:rgba(255,255,255,0.45);}');
 });

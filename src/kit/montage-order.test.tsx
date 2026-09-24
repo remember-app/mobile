@@ -146,3 +146,18 @@ test('the plate over the story names the template, or says the words are the per
     own: <ChipTemplate label="Свой текст" />,
   });
 });
+
+test('the glyphs on a template and on the poster of an order are the night’s paper in daylight too', async () => {
+  // Both stand on a photograph under a darkening — a template's glass, the poster's plate — and
+  // those are dark in both themes. The day's `paper` is a near black, and a near-black glyph on
+  // that glass is a template with no sign of what kind it is.
+  const template = <TileTemplate title="Для родителей" icon={Heart} uri={SHOTS[0]} onPress={() => {}} />;
+  const poster = <PosterOrder photos={SHOTS} template="Для родителей" templateIcon={Heart} length="2:30" />;
+  await setTheme('light');
+  for (const node of [template, poster]) {
+    expect(story(node)).toContain('stroke="#F5F3EE"');
+    expect(story(node)).not.toContain('stroke="#15151C"');
+  }
+  await setTheme('dark');
+});
+

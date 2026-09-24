@@ -199,6 +199,6 @@ const useStyles = themed(({ color }) =>
     meta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     centred: { textAlign: 'center' },
     onPhoto: { color: photo.on },
-    onPhotoMeta: { color: photo.dot },
+    onPhotoMeta: { color: photo.onQuiet },
   }),
 );

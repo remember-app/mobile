@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { StyleSheet } from 'react-native';
 import { expect } from 'vitest';
 
 /**
@@ -21,6 +22,15 @@ import { expect } from 'vitest';
 /** One state of one part, rendered the way a story would show it. */
 export function story(node: ReactElement): string {
   return renderToStaticMarkup(node);
+}
+
+/**
+ * Every rule the styles drawn so far in this file have compiled to. A style from `StyleSheet.create`
+ * is a class in the markup and its values live here, so this is how a colour a component put in a
+ * sheet — the text colour of a line over a photograph, say — is read at all.
+ */
+export function compiled(): string {
+  return (StyleSheet as unknown as { getSheet(): { textContent: string } }).getSheet().textContent;
 }
 
 /**

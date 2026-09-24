@@ -123,3 +123,18 @@ test('the mark in the corner is a running time or a reason, never both', () => {
   // In the feed the timecode owns no plate at all — a shadow on the letters carries it.
   expect(story(<FrameMark length="0:24" lane="feed" />)).not.toBe(length);
 });
+
+test('what stands on a frame’s dark plates is drawn the same in daylight as at night', async () => {
+  // The plate under a reason and the circle of a frame taken out by hand are dark in both themes
+  // (spec 2), so the words and the cross on them are the night's. The day's `muted` is a mid grey
+  // that falls to 3.6 : 1 on those plates, under what a 10px word needs.
+  const marks = () => [
+    story(<FrameMark icon={Copy} label="Дубль" lane="pick" />),
+    story(<PickCircle kind="hand" size={22} />),
+  ];
+  const night = marks();
+  await setTheme('light');
+  expect(marks()).toEqual(night);
+  await setTheme('dark');
+});
+

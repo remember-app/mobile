@@ -4,7 +4,7 @@ import { beforeAll, expect, test } from 'vitest';
 import { ActionBar, AppBar, Board, GlassBar, ViewerBar, WizardBar } from '@/kit/bars';
 import { Button, IconButton } from '@/kit/button';
 import { WatchingPill } from '@/kit/member';
-import { allDifferent, story } from '@/kit/story';
+import { allDifferent, compiled, story } from '@/kit/story';
 import { Text } from '@/kit/text';
 import { height, setTheme } from '@/theme';
 
@@ -66,7 +66,7 @@ test('the name at the top of a screen is its heading, and a long one is cut rath
   expect(bar).toContain('r-textOverflow');
 });
 
-test('an inner bar closes to 8 and hangs its round buttons outside the screen’s margin', () => {
+test('an inner bar closes to 8 and hangs its «Назад» outside the screen’s margin — and only it', () => {
   const inner = story(
     <AppBar
       title="Свадьба Лизы и Марка"
@@ -74,10 +74,14 @@ test('an inner bar closes to 8 and hangs its round buttons outside the screen’
       right={<IconButton icon={User} label="Выбрать" />}
     />,
   );
-  // Spec 7.1: −10 on each side, so the glyph in the button lines up with the words of the body
-  // rather than the button's own edge.
+  // Spec 7.1: −10 on the back button, so the glyph in it lines up with the words of the body rather
+  // than the button's own edge. Nothing on the right is pulled: the layout draws the pill over a
+  // montage on air on the margin, and a pill hung 10 outside it would stand 6 from the screen edge.
   expect(inner).toContain('r-marginLeft-');
-  expect(inner).toContain('r-marginRight-');
+  expect(inner).not.toContain('r-marginRight-');
+  expect(
+    story(<AppBar title="Свадьба Лизы и Марка" right={<IconButton icon={User} label="Выбрать" />} />),
+  ).not.toContain('r-marginLeft-');
 
   // The root bar keeps 12 and its one button inside the margin: that one is filled, and a filled
   // button hung over the edge reads as falling off the screen.
@@ -159,6 +163,52 @@ test('the viewer’s bar floats on glass, because a photograph is the only surfa
   expect(viewer).toContain('13 сентября');
   expect(viewer).toContain('21:47 · Марк Ковалёв');
   expect(viewer).toContain('Закрыть');
+});
+
+test('the viewer’s bar and the glass bar over the feed read the same in daylight as at night', async () => {
+  // Both are glass over a photograph, and glass is dark in both themes (spec 2) — so the words and
+  // the round buttons on it are read in the night's ink. A `paper` that turned dark in daylight
+  // would put a dark glyph on dark glass, which is a bar with nothing on it.
+  const viewer = (
+    <ViewerBar
+      date="13 сентября"
+      meta="21:47 · Марк Ковалёв"
+      label="Сведения"
+      onPress={() => {}}
+      left={<IconButton icon={ChevronLeft} label="Закрыть" tone="viewer" size={48} />}
+    />
+  );
+  const glass = (
+    <GlassBar
+      title="Свадьба Лизы и Марка"
+      meta="12–14 сентября · 6 человек"
+      capsuleLabel="Свадьба Лизы и Марка"
+      onCapsule={() => {}}
+      left={<IconButton icon={ChevronLeft} label="Назад" tone="glass" size={48} />}
+      right={<IconButton icon={SquareCheckBig} label="Выбрать" tone="glass" size={48} on />}
+    />
+  );
+  const alone = <IconButton icon={ChevronLeft} label="Назад" tone="glass" size={48} />;
+  const night = [story(viewer), story(glass), story(alone)];
+  await setTheme('light');
+  expect([story(viewer), story(glass)]).toEqual(night.slice(0, 2));
+  // The pin is the bar's and not the button's: the same button on its own follows the theme, which
+  // is what makes the comparison above a test of something.
+  expect(story(alone)).not.toBe(night[2]);
+  await setTheme('dark');
+});
+
+test('the viewer’s pill wears the layout’s hairline and reads its second line at the photograph’s quiet white', () => {
+  // Spec 7.1, detail 5 and `Viewer`: the capsule has a 1px edge that the two round buttons do not.
+  const pill = story(<ViewerBar date="13 сентября" meta="21:47 · Марк Ковалёв" label="Сведения" onPress={() => {}} />);
+  expect(pill).toContain('r-borderColor-');
+  expect(pill).toContain('r-borderWidth-');
+  // The chevron beside the words is drawn at the same quiet white as the words themselves — 72%, not
+  // the 45% the meta dot is drawn in: a glyph or a line at 45% is unreadable over a bright frame.
+  expect(pill).toContain('stroke="rgba(255,255,255,0.72)"');
+  expect(pill).not.toContain('rgba(255,255,255,0.45)');
+  expect(compiled()).toContain('{color:rgba(255,255,255,0.72);}');
+  expect(compiled()).not.toContain('{color:rgba(255,255,255,0.45);}');
 });
 
 test('the pill in the middle of it is a button where it leads somewhere', () => {

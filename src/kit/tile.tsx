@@ -7,7 +7,7 @@ import { Image } from 'expo-image';
 import { Check, ImageIcon, Play, X } from 'lucide-react-native';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { duration as motion, font, photo, radius, space, themed, useTheme } from '@/theme';
+import { duration as motion, font, night, photo, radius, space, themed, useTheme } from '@/theme';
 
 import { Spinner } from './empty';
 import { Icon, type IconComponent } from './icon';
@@ -219,12 +219,12 @@ export function PickCircle({
         kind === 'send' && tiny ? styles.pickBare : null,
         kind === 'keep' ? { backgroundColor: color.spark } : null,
         kind === 'off' ? (tiny ? { borderWidth: 1.5, borderColor: color.faint } : styles.pickOff) : null,
-        kind === 'hand' ? [styles.pickHand, { borderColor: color.lineStrong }] : null,
+        kind === 'hand' ? [styles.pickHand, { borderColor: night.lineStrong }] : null,
       ]}
     >
       {kind === 'send' ? <Icon icon={Check} size={tick} color={color.onFill} /> : null}
       {kind === 'keep' ? <Icon icon={Check} size={tick} color={color.sparkInk} /> : null}
-      {kind === 'hand' ? <Icon icon={X} size={tick} color={color.muted} /> : null}
+      {kind === 'hand' ? <Icon icon={X} size={tick} color={night.muted} /> : null}
     </View>
   );
 }
@@ -321,6 +321,6 @@ const useStyles = themed(({ color }) =>
     markWide: { left: 0, right: 0, bottom: 0, borderRadius: 0, justifyContent: 'center', backgroundColor: photo.markStrong },
     markText: { color: photo.on, fontSize: 11, fontFamily: font.semi },
     markShadow: { textShadowColor: 'rgba(0,0,0,0.7)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
-    markTextSm: { color: color.muted, fontSize: 10 },
+    markTextSm: { color: night.muted, fontSize: 10 },
   }),
 );
