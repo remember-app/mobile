@@ -1,7 +1,6 @@
-import { flat } from '@tests/helpers/source';
+import { api, flat } from '@tests/helpers/source';
 import { expect, test } from 'vitest';
 
-import api from '@/api/index.ts?raw';
 import layout from '@/app/_layout.tsx?raw';
 import notFound from '@/app/+not-found.tsx?raw';
 import consent from '@/app/consent.tsx?raw';

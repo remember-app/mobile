@@ -1,7 +1,6 @@
-import { flat } from '@tests/helpers/source';
+import { api, flat } from '@tests/helpers/source';
 import { expect, test } from 'vitest';
 
-import api from '@/api/index.ts?raw';
 import layout from '@/app/_layout.tsx?raw';
 // Where the order lands. The waiting screen became `MontageLive` in TASK-221 and moved into a
 // folder of its own, because the journal of one stage lives under it.

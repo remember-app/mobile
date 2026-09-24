@@ -7,3 +7,12 @@
  * written as one line would fail the day a name in it grows two characters.
  */
 export const flat = (source: string): string => source.replace(/\s+/g, ' ');
+
+/**
+ * The whole api folder read as one text. The tests that pin a route or a field read it this way and
+ * not file by file: which area of `@/api` a call lives in is the folder's own business, and an
+ * assertion naming the file would break the day a route moved between two of them.
+ */
+export const api = Object.values(
+  import.meta.glob<string>('@/api/*.ts', { query: '?raw', import: 'default', eager: true }),
+).join('\n');

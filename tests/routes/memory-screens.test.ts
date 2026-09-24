@@ -1,6 +1,5 @@
-import { flat } from '@tests/helpers/source';
+import { api, flat } from '@tests/helpers/source';
 import { expect, test } from 'vitest';
-import api from '@/api/index.ts?raw';
 import layout from '@/app/_layout.tsx?raw';
 import create from '@/app/create.tsx?raw';
 import home from '@/app/index.tsx?raw';

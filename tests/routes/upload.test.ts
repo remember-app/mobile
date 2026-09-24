@@ -1,6 +1,6 @@
+import { api } from '@tests/helpers/source';
 import { expect, test } from 'vitest';
 
-import api from '@/api/index.ts?raw';
 import upload from '@/app/memory/[id]/upload.tsx?raw';
 import uploads from '@/lib/upload/send.ts?raw';
 import { strings } from '@/strings';

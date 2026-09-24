@@ -1,0 +1,322 @@
+import { request } from './call';
+import type { Contact } from './contacts';
+
+/** The material: declaring a file, sending it, reading it back, and taking it away. */
+/**
+ * How a file gets into R2 without the bytes passing through the api: the row it minted, and a
+ * signed `PUT` for every slice of the file, cut at `part_size`. The links die at `expires_at`
+ * (about an hour), and asking for them again re-issues them against the *same* multipart upload —
+ * which is what lets an interrupted upload carry on instead of starting over.
+ */
+export type UploadPlan = {
+  id: string;
+  status: string;
+  upload: {
+    key: string;
+    upload_id: string;
+    part_size: number;
+    parts: { part_number: number; url: string }[];
+    expires_at: string;
+  };
+};
+
+/** The file as the api wants it declared, before a single byte is sent. */
+
+/** The file as the api wants it declared, before a single byte is sent. */
+export type UploadIntent = {
+  kind: 'photo' | 'video';
+  size_bytes: number;
+  /** RFC 3339 with an offset, or null when the file carries no capture date at all. */
+  captured_at?: string | null;
+  /** Required for a video and ignored for a photo — the api answers 400 without it. */
+  duration_seconds?: number | null;
+  /**
+   * What the file is called on the phone, up to 255 characters — the one line «сведения о кадре»
+   * has no other source for. Optional on the api's side and staying that way: everything uploaded
+   * before the app started sending it lives without one.
+   */
+  file_name?: string;
+};
+
+/**
+ * Announce a file and get the links to send it with. 403 for a viewer, 413 when the file is over
+ * a limit, 409 when the memory is full or out of space.
+ */
+
+/**
+ * Announce a file and get the links to send it with. 403 for a viewer, 413 when the file is over
+ * a limit, 409 when the memory is full or out of space.
+ */
+export function startUpload(
+  token: string,
+  memoryId: string,
+  file: UploadIntent,
+): Promise<UploadPlan> {
+  return request(`/memories/${memoryId}/media`, { method: 'POST', body: file, token });
+}
+
+/**
+ * Fresh links for the same upload — the answer to one that expired mid-file, and the way a resume
+ * gets its links back at all. 409 once there is nothing left to send, and the body then carries
+ * the status the row has moved on to.
+ */
+
+/**
+ * Fresh links for the same upload — the answer to one that expired mid-file, and the way a resume
+ * gets its links back at all. 409 once there is nothing left to send, and the body then carries
+ * the status the row has moved on to.
+ */
+export function refreshUpload(
+  token: string,
+  memoryId: string,
+  mediaId: string,
+): Promise<UploadPlan> {
+  return request(`/memories/${memoryId}/media/${mediaId}/upload`, { token });
+}
+
+/**
+ * «Загружено»: seals the parts into one object and starts the preview. Idempotent — a repeat only
+ * reports where the row stands. Given a longer leash than the rest: the api is waiting on R2
+ * assembling the object, which for a big video is not a five-second job.
+ *
+ * `first_upload` is true exactly once per person per memory — on the completion that moved them
+ * off `not_started` — and is the api telling the app to ask the doc-06 question. A repeat of the
+ * same call, or anybody's second file, answers false.
+ */
+
+/**
+ * «Загружено»: seals the parts into one object and starts the preview. Idempotent — a repeat only
+ * reports where the row stands. Given a longer leash than the rest: the api is waiting on R2
+ * assembling the object, which for a big video is not a five-second job.
+ *
+ * `first_upload` is true exactly once per person per memory — on the completion that moved them
+ * off `not_started` — and is the api telling the app to ask the doc-06 question. A repeat of the
+ * same call, or anybody's second file, answers false.
+ */
+export function finishUpload(
+  token: string,
+  memoryId: string,
+  mediaId: string,
+  parts: { part_number: number; etag: string }[],
+): Promise<{ id: string; status: string; first_upload: boolean }> {
+  return request(`/memories/${memoryId}/media/${mediaId}/complete`, {
+    method: 'POST',
+    body: { parts },
+    token,
+    timeout: 60_000,
+  });
+}
+
+/**
+ * One record in a memory's gallery. `pending_upload` never appears — those are uploads still in
+ * flight, with no bytes in the store to show — so the three statuses here are the whole set.
+ *
+ * The two urls are the derivatives, signed and short-lived (~15 minutes, architecture.md); the
+ * original is deliberately not linked from here. Both are null until the worker has made them,
+ * which is what `processing` and `failed` look like on screen.
+ */
+
+/**
+ * One record in a memory's gallery. `pending_upload` never appears — those are uploads still in
+ * flight, with no bytes in the store to show — so the three statuses here are the whole set.
+ *
+ * The two urls are the derivatives, signed and short-lived (~15 minutes, architecture.md); the
+ * original is deliberately not linked from here. Both are null until the worker has made them,
+ * which is what `processing` and `failed` look like on screen.
+ */
+export type MediaItem = {
+  id: string;
+  kind: 'photo' | 'video';
+  status: 'processing' | 'ready' | 'failed';
+  uploaded_by: string;
+  size_bytes: string;
+  captured_at: string | null;
+  width: number | null;
+  height: number | null;
+  duration_seconds: number | null;
+  created_at: string;
+  /**
+   * The boxes this frame lies in (doc-13), and only the ones the asker may see: the memory's shared
+   * labels and their own private ones. A frame in none of them comes with an empty array, never a
+   * null, and it is listed once however many labels hold it — the gallery is not joined on them.
+   */
+  label_ids: string[];
+  /** A photo's thumbnail, a video's poster frame. */
+  thumbnail_url: string | null;
+  /** The 720p H.264 the gallery plays progressively. A photo has none. */
+  preview_url: string | null;
+  /**
+   * What the automatic pass made of this frame (doc-03), handed over as the worker left it: whether
+   * it would drop it, and the word for why — `blur`, `exposure`, `unreadable`. Null on both while
+   * the analysis has not looked yet, which is «ещё не готово» and deliberately not `false`: that
+   * would read as «looked at and kept». A proposal and not a verdict — the organizer overrules it in
+   * either direction on the first step of the order (`@/lib/montage/order`).
+   */
+  screening_rejected: boolean | null;
+  screening_reason: string | null;
+};
+
+/**
+ * Everything in a memory, oldest shot first — the order the montage would play it in. Any member
+ * reads it, a viewer included. 503 while the api has no bucket configured.
+ */
+
+/**
+ * Everything in a memory, oldest shot first — the order the montage would play it in. Any member
+ * reads it, a viewer included. 503 while the api has no bucket configured.
+ */
+export function listMedia(token: string, memoryId: string): Promise<MediaItem[]> {
+  return request(`/memories/${memoryId}/media`, { token });
+}
+
+/**
+ * Everything about one frame the picture itself does not say — the sheet «Сведения о кадре» (spec 8,
+ * `SheetFrameInfo`). Read by every member, a viewer included.
+ *
+ * Half of it is written by the montage worker rather than by the api, exactly as `width` and
+ * `height` are: the camera, the place, and which finished videos this frame stands in. A record
+ * older than that worker carries `null` in every one of those fields, and `file_name` is missing
+ * outright for anything uploaded before the app started sending a name — so «нет такого поля» and
+ * «поле пустое» are one thing here, and the sheet draws neither.
+ */
+
+/**
+ * Everything about one frame the picture itself does not say — the sheet «Сведения о кадре» (spec 8,
+ * `SheetFrameInfo`). Read by every member, a viewer included.
+ *
+ * Half of it is written by the montage worker rather than by the api, exactly as `width` and
+ * `height` are: the camera, the place, and which finished videos this frame stands in. A record
+ * older than that worker carries `null` in every one of those fields, and `file_name` is missing
+ * outright for anything uploaded before the app started sending a name — so «нет такого поля» and
+ * «поле пустое» are one thing here, and the sheet draws neither.
+ */
+export type FrameInfo = {
+  id: string;
+  /** Absent, never null, when the file arrived without a name. */
+  file_name?: string;
+  size_bytes: string;
+  captured_at: string | null;
+  created_at: string;
+  width: number | null;
+  height: number | null;
+  camera_model: string | null;
+  focal_length_mm: number | null;
+  aperture: number | null;
+  /** The place as coordinates and nothing else: the name is the phone's geocoder's (`@/lib/geocoder`). */
+  latitude: number | null;
+  longitude: number | null;
+  /** Who brought it, and how many frames that person brought to *this* memory. */
+  uploaded_by: Contact & { media_count: number };
+  /**
+   * The finished montages this frame stands in, newest first, and the second it stands at in each.
+   * One frame can legitimately appear twice in the same montage, so the id alone is not a key.
+   */
+  montages: { id: string; duration_seconds: number | null; start_seconds: number }[];
+};
+
+/**
+ * The sheet's one read. Nothing signed comes back and no bucket is asked, so this is the one media
+ * route with no 503 in it: the sheet opens over a frame the app is already showing.
+ */
+
+/**
+ * The sheet's one read. Nothing signed comes back and no bucket is asked, so this is the one media
+ * route with no 503 in it: the sheet opens over a frame the app is already showing.
+ */
+export function fetchFrameInfo(
+  token: string,
+  memoryId: string,
+  mediaId: string,
+): Promise<FrameInfo> {
+  return request(`/memories/${memoryId}/media/${mediaId}`, { token });
+}
+
+/**
+ * A signed link to the *original* — the file as it was sent, not the derivative the gallery draws.
+ * Any member may ask, a viewer included. 404 for a record that is still uploading (there are no
+ * bytes to sign yet) and for one of another memory; 503 while the api has no bucket. The link is
+ * as short-lived as the gallery's own (~15 minutes), so it is fetched at the moment of saving.
+ */
+
+/**
+ * A signed link to the *original* — the file as it was sent, not the derivative the gallery draws.
+ * Any member may ask, a viewer included. 404 for a record that is still uploading (there are no
+ * bytes to sign yet) and for one of another memory; 503 while the api has no bucket. The link is
+ * as short-lived as the gallery's own (~15 minutes), so it is fetched at the moment of saving.
+ */
+export function downloadMedia(
+  token: string,
+  memoryId: string,
+  mediaId: string,
+): Promise<{ url: string }> {
+  return request(`/memories/${memoryId}/media/${mediaId}/download`, { token });
+}
+
+/**
+ * An original to save, as both download routes hand it out — the whole-gallery one row for row.
+ * Named here rather than beside the screen that saves them: it is the shape on the wire, and the
+ * two are the same shape on purpose.
+ */
+
+/**
+ * An original to save, as both download routes hand it out — the whole-gallery one row for row.
+ * Named here rather than beside the screen that saves them: it is the shape on the wire, and the
+ * two are the same shape on purpose.
+ */
+export type Original = { id: string; kind: MediaItem['kind']; url: string };
+
+/**
+ * Every original in one answer, in the gallery's own order — «скачать всю галерею» without a round
+ * trip per file. Same set as `listMedia`, cut down to what the saving needs: the extension comes
+ * from `kind`, since neither this nor the record carries the name the file had.
+ *
+ * The long leash for the reason `finishUpload` has one: a memory may hold up to a thousand records
+ * (MEMORY_MAX_FILES), and this signs and ships a link for every one of them in a single answer —
+ * the one request the whole «download all» hangs on must not be the one that times out at five
+ * seconds. ponytail: the real answer is a page at a time; the client already saves file by file,
+ * so paging costs it nothing. Add it when a gallery that big exists to test against.
+ */
+
+/**
+ * Every original in one answer, in the gallery's own order — «скачать всю галерею» without a round
+ * trip per file. Same set as `listMedia`, cut down to what the saving needs: the extension comes
+ * from `kind`, since neither this nor the record carries the name the file had.
+ *
+ * The long leash for the reason `finishUpload` has one: a memory may hold up to a thousand records
+ * (MEMORY_MAX_FILES), and this signs and ships a link for every one of them in a single answer —
+ * the one request the whole «download all» hangs on must not be the one that times out at five
+ * seconds. ponytail: the real answer is a page at a time; the client already saves file by file,
+ * so paging costs it nothing. Add it when a gallery that big exists to test against.
+ */
+export function downloadAllMedia(token: string, memoryId: string): Promise<Original[]> {
+  return request(`/memories/${memoryId}/media/download`, { token, timeout: 60_000 });
+}
+
+/**
+ * Take one record out for good, bytes and all. Whoever uploaded it may, and so may the organizer;
+ * 403 for anybody else, 404 once it is already gone.
+ */
+
+/**
+ * Take one record out for good, bytes and all. Whoever uploaded it may, and so may the organizer;
+ * 403 for anybody else, 404 once it is already gone.
+ */
+export function deleteMedia(
+  token: string,
+  memoryId: string,
+  mediaId: string,
+): Promise<{ ok: true }> {
+  return request(`/memories/${memoryId}/media/${mediaId}`, { method: 'DELETE', token });
+}
+
+/**
+ * A label (doc-13) — a box with a name and a colour inside one memory, as the asker sees it. Shared
+ * means everybody in the memory sees it; private means nobody but its owner does, and somebody
+ * else's private label leaves no trace in any answer at all.
+ *
+ * `can_edit` (rename, recolour, delete) and `can_add_media` (put frames in) are **the server's own
+ * answer about this asker**, worked out by the same function that refuses the write routes
+ * (`labelDenial`, api README). The app never repeats the rule: a button is drawn where the server
+ * said it may be. Neither of them is `mine` — a shared label is edited and filled by every member,
+ * a viewer included (decision-12).
+ */
