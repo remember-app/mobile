@@ -208,6 +208,21 @@ test('while the autopilot walks, the bottom layer says so and hands the wheel ba
   expect(stopping.slice(0, stopping.indexOf('}, []);'))).not.toContain('change(');
 });
 
+test('the walk stops however the person gets out from under it, and never writes over a hand', () => {
+  // The walk only pushes, so a step going away is somebody leaving — the system back gesture, or
+  // the whole wizard closing — and a walk still running would push its next step onto the memory.
+  expect(wizard).toContain('useEffect(() => stop, [stop]);');
+  // Typing into the story while the template types is taking the wheel.
+  expect(story).toContain('onChangeText={(story) => {\n            stop();');
+
+  const flying = wizard.slice(wizard.indexOf('const start = useCallback('));
+  // A second template starts clean: nothing of the first one's words, and the words and the figure
+  // are the template's again rather than still somebody's own.
+  expect(flying).toContain("change({ ...fill, story: '', tracks: [], note: '', seconds: null });");
+  // «Стоп» mid-word leaves the template's whole text, not half a word — unless a hand has it.
+  expect(flying).toContain('change((was) => (was.ownStory ? {} : { story: fill.story }));');
+});
+
 test('the wizard’s bar wears three faces, and only the total has nothing on its right', () => {
   // Spec 7.1, detail 3: the four steps carry the scale and the counter, the way in and the total
   // carry neither — and «Отмена» stands on every screen of the walk but the last.
@@ -260,7 +275,7 @@ test('step 2 is skippable, and the plate says whose words are in the box', () =>
   expect(story).toContain('icon={order.ownStory ? undefined : TEMPLATE_SIGN[template]}');
   expect(story).toContain('? s.montage.ownText');
   expect(story).toContain(': s.montage.fromTemplate(s.montage.template[template])');
-  expect(story).toContain('onChangeText={(story) => change({ story, ownStory: true })}');
+  expect(story).toContain('stop();\n            change({ story, ownStory: true });');
   // The six templates the api hands out have a word each in both sets, by its own ids.
   const ids = [...api.matchAll(/^  \| '(\w+)'/gm)].map(([, id]) => id);
   expect(ids).toEqual(['for_myself', 'quick', 'report', 'short_form', 'parents', 'dopamine']);
