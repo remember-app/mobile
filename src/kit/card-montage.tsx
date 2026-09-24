@@ -56,8 +56,8 @@ export function CardMontage({
   caption?: string;
   /** The state badge — its words belong to the screen. */
   badge?: ReactNode;
-  /** How far the building has got: five bars and «3 из 5». */
-  step?: { done: number; of: number; count: string };
+  /** Which stage the building is on: «3 из 5», and five bars lit up to it, that one included. */
+  step?: { at: number; of: number; count: string };
   large?: boolean;
   /**
    * What the whole card says to a screen reader, where its own words are not what pressing it does —
@@ -137,7 +137,7 @@ export function CardMontage({
                 {caption}
               </Text>
             ) : null}
-            {step ? <StageScale done={step.done} of={step.of} /> : null}
+            {step ? <StageScale at={step.at} of={step.of} /> : null}
             <ThemePin value="dark">{children}</ThemePin>
           </>
         )}
@@ -187,21 +187,22 @@ function PlayCircle({ size }: { size: 34 | 60 }) {
 }
 
 /**
- * Spec 7.6 — five 3px bars over the poster, the ones behind in `spark`. Not the wizard's `StepScale`
- * (spec 7.10): that one runs on `line` over a surface and marks the step in hand in `accent`, and
- * here every stage that is done is done — `spark` is «взято», and the track is white on a picture.
+ * Spec 7.6 and detail 38 — five 3px bars over the poster, `spark` up to the stage in hand and that
+ * one included, as many as the count beside them says. Not the wizard's `StepScale` (spec 7.10):
+ * that one runs on `line` over a surface and marks the step in hand in `accent`; here the stage in
+ * hand is lit like the ones behind it, and the track is white on a picture.
  */
-function StageScale({ done, of }: { done: number; of: number }) {
+function StageScale({ at, of }: { at: number; of: number }) {
   const styles = useStyles();
 
   return (
     <View
       accessibilityRole="progressbar"
-      accessibilityValue={{ min: 0, max: of, now: done }}
+      accessibilityValue={{ min: 0, max: of, now: at }}
       style={styles.scale}
     >
       {Array.from({ length: of }, (_, i) => (
-        <View key={i} style={[styles.scaleBar, i < done ? styles.scaleDone : null]} />
+        <View key={i} style={[styles.scaleBar, i < at ? styles.scaleLit : null]} />
       ))}
     </View>
   );
@@ -322,7 +323,7 @@ const useStyles = themed(({ color }) =>
     onPhotoMeta: { color: photo.onQuiet },
     scale: { flexDirection: 'row', gap: 3 },
     scaleBar: { flex: 1, height: 3, borderRadius: radius.pill, backgroundColor: photo.track },
-    scaleDone: { backgroundColor: color.spark },
+    scaleLit: { backgroundColor: color.spark },
     new: {
       width: 92,
       height: CARD.height,

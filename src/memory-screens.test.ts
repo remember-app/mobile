@@ -1163,11 +1163,17 @@ test('a card still being cut says which of the five stages it is on', () => {
   // opening anybody's journal. `null` is a finished film and one the worker has not opened yet —
   // neither has a scale to draw.
   expect(api).toContain('stages?: MontageStep[] | null;');
-  expect(films).toContain("montage.stages?.filter((stage) => stage.state === 'done').length ?? null");
-  expect(films).toContain('{ done, of: STAGE_COUNT, count: s.montage.live.doneOf(done, STAGE_COUNT) }');
+  // The stage in hand and not the count of the ones behind it — worked out by the very function the
+  // screen the card leads to says «Этап N из 5» with, so the two cannot disagree (spec detail 38).
+  expect(films).toContain('const stage = currentStage(montage.stages ?? []);');
+  expect(films).toContain('stageNumber(stage.stage)');
+  expect(live).toContain('const stage = currentStage(journal.stages);');
+  expect(live).toContain('s.montage.live.stageOf(stageNumber(stage.stage), STAGE_COUNT)');
+  expect(films).not.toContain("stage.state === 'done'");
+  expect(films).toContain('{ at, of: STAGE_COUNT, count: s.montage.live.doneOf(at, STAGE_COUNT) }');
   expect(ru.montage.live.doneOf(3, 5)).toBe('3 из 5');
   // The count and the scale read the one number, so the card cannot say «3» and paint four.
-  expect(cardMontage).toContain('{step ? <StageScale done={step.done} of={step.of} /> : null}');
+  expect(cardMontage).toContain('{step ? <StageScale at={step.at} of={step.of} /> : null}');
   expect(cardMontage).toContain('{step.count}');
 });
 

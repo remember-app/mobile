@@ -32,7 +32,7 @@ test('ready, building and broken are three cards and not three colours of one', 
         state="pending"
         poster={POSTER}
         badge={<BadgeMontage state="pending" label="Собирается" />}
-        step={{ done: 3, of: 5, count: '3 из 5' }}
+        step={{ at: 3, of: 5, count: '3 из 5' }}
       />
     ),
     failed: (
@@ -60,7 +60,7 @@ test('ready, building and broken are three cards and not three colours of one', 
 
 test('a card still being cut shows its own frame out of focus rather than no frame at all', () => {
   const pending = story(
-    <CardMontage title="Ролик" state="pending" poster={POSTER} step={{ done: 3, of: 5, count: '3 из 5' }} />,
+    <CardMontage title="Ролик" state="pending" poster={POSTER} step={{ at: 3, of: 5, count: '3 из 5' }} />,
   );
   const ready = story(<CardMontage title="Ролик" state="ready" poster={POSTER} />);
   // Same still, drawn differently: there is something there and it is not ready to be looked at.
@@ -68,19 +68,21 @@ test('a card still being cut shows its own frame out of focus rather than no fra
   expect(pending).toContain('3 из 5');
 });
 
-test('the scale of five says how far along, and the done ones are spark', () => {
-  const scale = story(
-    <CardMontage title="Ролик" state="pending" step={{ done: 3, of: 5, count: '3 из 5' }} />,
-  );
-  expect(scale).toContain('role="progressbar"');
+test('the scale of five is lit up to the stage in hand, as many bars as the count says', () => {
+  const scale = (at: number) =>
+    story(<CardMontage title="Ролик" state="pending" step={{ at, of: 5, count: `${at} из 5` }} />);
+  const barsOf = (markup: string) =>
+    markup.slice(markup.indexOf('role="progressbar"')).match(/<div class="[^"]*"><\/div>/g) ?? [];
+  expect(scale(3)).toContain('role="progressbar"');
   // Five bars and not four: the scale says «of five» by being five, whatever the count beside it
   // reads. The bars are the only children it has, so counting them is counting these.
-  const bars = scale.slice(scale.indexOf('role="progressbar"'));
-  expect((bars.match(/<div class="css-view/g) ?? []).length).toBe(5);
-  allDifferent({
-    started: <CardMontage title="Ролик" state="pending" step={{ done: 1, of: 5, count: '1 из 5' }} />,
-    nearly: <CardMontage title="Ролик" state="pending" step={{ done: 4, of: 5, count: '4 из 5' }} />,
-  });
+  expect(barsOf(scale(3))).toHaveLength(5);
+  // Spec detail 38: «3 из 5» is three bars of `spark` — the stage in hand is lit with the ones
+  // behind it. The lit ones share the first bar's look; the rest are the track.
+  for (const at of [1, 2, 3, 4, 5]) {
+    const bars = barsOf(scale(at));
+    expect(bars.filter((bar) => bar === bars[0]), `${at} из 5`).toHaveLength(at);
+  }
 });
 
 test('a card with a still and one without are not the same card', () => {

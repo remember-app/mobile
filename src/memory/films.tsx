@@ -23,7 +23,7 @@ import { useStrings } from '@/language';
 import { FilmPlayer, montageTitle } from '@/memory/film-player';
 import { BlockHead } from '@/memory/head';
 import { beingMade, shelfTrack, WHILE_MAKING_MS } from '@/montage';
-import { STAGE_COUNT } from '@/montage-journal';
+import { currentStage, STAGE_COUNT, stageNumber } from '@/montage-journal';
 import { type Strings } from '@/strings';
 import { space } from '@/theme';
 
@@ -44,13 +44,16 @@ const stillMaking = (montages: readonly Montage[] | null) =>
   montages?.some((montage) => beingMade(montage.status)) ?? false;
 
 /**
- * How far the making has got, off the list's own answer — five states in pipeline order, and the
- * card draws «3 из 5» and five bars out of them (api README, TASK-223). `null` on a finished one and
- * on one the worker has not opened yet: on the first there is nothing left to show, on the second
- * nothing yet. Never the journal — the strip must not open five journals to draw five scales.
+ * Which of the five the making is on, off the list's own answer — the same stage, counted the same
+ * way, as «Этап N из 5» on the screen the card leads to (spec 7.6, detail 38). `null` on a finished
+ * one and on one the worker has not reached a stage of yet: on the first there is nothing left to
+ * show, on the second nothing yet. Never the journal — the strip must not open five journals to
+ * draw five scales.
  */
-const stagesDone = (montage: Montage): number | null =>
-  montage.stages?.filter((stage) => stage.state === 'done').length ?? null;
+const stageAt = (montage: Montage): number | null => {
+  const stage = currentStage(montage.stages ?? []);
+  return stage === null ? null : stageNumber(stage.stage);
+};
 
 /**
  * What a finished montage was made of — «14 сентября · горизонтальный · Тёплая» (spec 7.6). The day
@@ -338,7 +341,7 @@ export function Films({ id, memory }: { id: string; memory: Memory | null }) {
 
           {montages.map((montage) => {
             const state = MONTAGE_STATE[montage.status];
-            const done = stagesDone(montage);
+            const at = stageAt(montage);
 
             return (
               <CardMontage
@@ -362,9 +365,9 @@ export function Films({ id, memory }: { id: string; memory: Memory | null }) {
                 // list. The count and the scale read the one number, so the card cannot say «3» and
                 // paint four; a row the worker has not opened yet has no stages and no scale.
                 step={
-                  done === null
+                  at === null
                     ? undefined
-                    : { done, of: STAGE_COUNT, count: s.montage.live.doneOf(done, STAGE_COUNT) }
+                    : { at, of: STAGE_COUNT, count: s.montage.live.doneOf(at, STAGE_COUNT) }
                 }
                 // Walking into the making of one that is still owed, or onto the page of one that is
                 // finished. Either way it is the whole card, which is what the layout gives it.

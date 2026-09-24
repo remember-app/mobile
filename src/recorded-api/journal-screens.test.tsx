@@ -32,7 +32,7 @@ vi.mock('@/downloads', () => ({
 import { AppState } from 'react-native';
 import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
 
-import type { JournalEntry, JournalFile, MontageJournal, MontageStage } from '@/api';
+import type { JournalEntry, JournalFile, Montage, MontageJournal, MontageStage, MontageStep } from '@/api';
 import MontageDoneScreen from '@/app/memory/[id]/montage/[montageId]/done';
 import MontageLiveScreen from '@/app/memory/[id]/montage/[montageId]/index';
 import MontageLiveStageScreen from '@/app/memory/[id]/montage/[montageId]/stage/[stage]';
@@ -623,9 +623,10 @@ describe.each(SCENARIOS)('%s — the strip of films on the memory', (scenario) =
     const cards = () => screen.root.findAllByType(CardMontage);
     // Newest first: the one in the queue, the one being cut, the old ready one.
     expect(cards().map((one) => one.props.state)).toEqual(['pending', 'pending', 'ready']);
-    // The one being cut says «1 из 5» over five bars — one stage done, the second at work — straight
-    // off the list; the one waiting has no stages yet and no scale, and a finished one has none left.
-    expect(cards().map((one) => one.props.step)).toEqual([undefined, { done: 1, of: 5, count: ru.montage.live.doneOf(1, 5) }, undefined]);
+    // The one being cut says «2 из 5» over two lit bars of five — one stage done, the second at work,
+    // and it is the one at work that is counted — straight off the list; the one waiting has no
+    // stages yet and no scale, and a finished one has none left.
+    expect(cards().map((one) => one.props.step)).toEqual([undefined, { at: 2, of: 5, count: ru.montage.live.doneOf(2, 5) }, undefined]);
     const building = cards()[1];
     await screen.press(building);
     expect(router.push).toHaveBeenCalledWith({ pathname: '/memory/[id]/montage/[montageId]', params: { id: MEMORY, montageId: MONTAGE } });
@@ -639,6 +640,35 @@ describe.each(SCENARIOS)('%s — the strip of films on the memory', (scenario) =
     }
     expect(cards().map((one) => one.props.state)).toEqual(['pending', 'ready', 'ready']);
     expect(cards().map((one) => one.props.step)).toEqual([undefined, undefined, undefined]);
+    expect(api.unmatched).toEqual([]);
+    await screen.unmount();
+  });
+
+  // The list and the journal are two answers about one making. At the moment the list was recorded,
+  // the card in the strip and the screen it opens must name the same stage (spec 7.6, detail 38):
+  // the screen reads the sitting beat by beat until its journal has reached what the list says.
+  test('the card and the screen it opens name the same stage at the same moment', async () => {
+    const reached = (stages: readonly MontageStep[]) =>
+      stages.filter((one) => one.state !== 'pending').map((one) => `${one.stage}:${one.state}`).join(' ');
+    const list = step(steps, 'montage_list_while_building').response.body as Montage[];
+    const moment = reached(list.find((one) => one.id === MONTAGE)!.stages!);
+
+    route.params = { id: MEMORY };
+    const strip = await mount(<Films id={MEMORY} memory={memory} />, replay(steps, { only: ['montage_list_while_building'], extra }));
+    const card = strip.root.findAllByType(CardMontage)[1].props.step;
+    await strip.unmount();
+
+    const api = replay(steps, { only: [...sitting(steps), 'montage_list_while_building'], extra });
+    route.params = { id: MEMORY, montageId: MONTAGE };
+    const screen = await mount(<MontageLiveScreen />, api);
+    for (let beat = 0; reached(truthOf(steps, api.served).last?.stages ?? []) !== moment; beat++) {
+      if (beat > sitting(steps).length) throw new Error('the journal never reached the moment of the list');
+      await screen.tick();
+    }
+
+    // One stage done and the second at work: both say the second, and neither says «1».
+    expect(card).toEqual({ at: 2, of: 5, count: ru.montage.live.doneOf(2, 5) });
+    expect(words(screen.root)).toContain(ru.montage.live.stageOf(card.at, 5));
     expect(api.unmatched).toEqual([]);
     await screen.unmount();
   });
