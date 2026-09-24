@@ -143,7 +143,9 @@ describe.each(SCENARIOS)('%s — a screen open through the whole making', (scena
     expect(live.stages).toEqual(full.stages);
     expect(live.viewers).toEqual(full.viewers);
     expect([live.cursor, live.oldest, live.hasOlder]).toEqual([full.cursor, full.oldest, full.hasOlder]);
-    // The same files — every frame a record is about — and the same thumbnails on them.
+    // The same files — every frame a record is about — and the same thumbnails on them. Not their
+    // places: the layout comes after the records the screen has read, and the plain poll never
+    // hears of it. What brings it in is `journal-screens.test.tsx`, on the screen of one stage.
     expect(Object.keys(live.files).sort()).toEqual(Object.keys(full.files).sort());
     for (const [id, file] of Object.entries(full.files)) {
       expect({ ...live.files[id], places: null }).toEqual({ ...file, places: null });
@@ -151,21 +153,6 @@ describe.each(SCENARIOS)('%s — a screen open through the whole making', (scena
     // The five stages are the five the pipeline has, each done and each with what it came to.
     expect(full.stages.map((one) => one.stage)).toEqual([...MONTAGE_STAGES]);
     expect(full.stages.every((one) => one.state === 'done')).toBe(true);
-  });
-
-  // The api lays a frame's places out when the `rhythm` stage begins, and the records the screen held
-  // were about frames read before that — so what the screen is holding must be brought up to what
-  // the api says about them now, or the sheet of a frame says which part it went into and not where.
-  test('the places of the frames it holds are the ones the ready montage has', async () => {
-    const { steps, held: live } = await sitThroughTheMaking(scenario);
-    const api = replay(steps, { only: ['journal_of_ready_montage'] });
-    vi.stubGlobal('fetch', api.fetch);
-    const full = await pull(NO_JOURNAL, asking('organizer'));
-
-    const places = (journal: Journal) =>
-      Object.fromEntries(Object.entries(journal.files).map(([id, file]) => [id, file.places]));
-    expect(Object.values(full.files).some((file) => file.places.length > 0)).toBe(true);
-    expect(places(live)).toEqual(places(full));
   });
 
   test('the order of `files` in an answer means nothing: reshuffled, the app holds the same', async () => {

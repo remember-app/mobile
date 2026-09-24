@@ -80,6 +80,10 @@ export type Replay = {
   /** Every request that went out: the recorded step that answered it, or `?` when none did. */
   served: string[];
   unmatched: string[];
+  /** Every request, answered or refused. */
+  calls: number;
+  /** Which of `moments` the api is at: what a narrowed read is answered from. Moved by the test. */
+  moment: number;
   fetch: typeof fetch;
 };
 
@@ -89,13 +93,24 @@ type Options = {
   /** Files of every journal answer come back in another order. */
   shuffleFiles?: boolean;
   /**
-   * The recording has no answer to `before=` (the poller never paged back) nor to `stage=` (the
-   * screen of one stage narrows the journal on the server, and the poller never did). Such a request
-   * is answered by cutting the recorded whole journal of the ready montage by the rule the api README
-   * gives: the records of that stage, older than the cursor, newest first, `limit` of them,
-   * `has_more` while some remain. Everything else in the answer is the recorded one's.
+   * NOT WORDS OF THE API — a cut. The recording has no answer to `before=` (the poller never paged
+   * back) nor to `stage=` (the screen of one stage narrows the journal on the server, and the poller
+   * never did). Such a request is answered by cutting the recorded whole journal of the ready
+   * montage by the rule the api README gives: the records of that stage; with `after` the ones next
+   * to the cursor upwards, with `before` the newest of the older ones, otherwise the newest; `limit`
+   * of them, newest first, `has_more` while some remain. The rest of the answer is the recorded one's.
    */
   cutFrom?: string;
+  /**
+   * NOT WORDS OF THE API — a cut, made moment by moment. The journal steps of one sitting, in time:
+   * a narrowed read is answered from what the api had said by `replay.moment` — the records of those
+   * steps, their stages and viewers, and the files as the pages carried them (no layout yet). At the
+   * moment the montage is `ready` the files are the ready montage's own (`cutFrom`), places and all:
+   * the api signs and lays out a file when it sends it.
+   */
+  moments?: readonly string[];
+  /** A request the api refuses or the network drops, before any recorded answer is looked for. */
+  refuse?: (query: URLSearchParams) => number | 'offline' | undefined;
   /** Answers for routes the recording does not cover (`/memories`, `/members`) — plain data. */
   extra?: Record<string, unknown>;
   /** Answers instead of the recorded one, for a step named here — a mutation of real data. */
@@ -115,16 +130,52 @@ const askedOf = (search: URLSearchParams) =>
 const recordedAskedOf = (query: Step['request']['query']) =>
   askedOf(new URLSearchParams(Object.entries(query).map(([key, value]) => [key, String(value)])));
 
+/** The page of `whole` a narrowed or paged-back request asks for — the README's rule, see `cutFrom`. */
+function cutPage(whole: MontageJournal, search: URLSearchParams) {
+  const limit = Number(search.get('limit') ?? 200);
+  const stage = search.get('stage');
+  const after = search.get('after');
+  const inStage = whole.entries.filter((entry) => stage === null || entry.stage === stage);
+  if (after !== null) {
+    const newer = inStage.filter((entry) => entry.id > Number(after)).reverse();
+    const page = newer.slice(0, limit);
+    return { entries: page.reverse(), has_more: newer.length > page.length };
+  }
+  const older = inStage.filter((entry) => entry.id < Number(search.get('before') ?? Infinity));
+  const page = older.slice(0, limit);
+  return { entries: page, has_more: older.length > page.length };
+}
+
 export function replay(steps: readonly Step[], options: Options = {}): Replay {
   const pool = options.only ? steps.filter((one) => options.only?.includes(one.name)) : steps;
   const consumed = new Set<string>();
-  const state: Replay = { served: [], unmatched: [], fetch: undefined as never };
+  const state: Replay = { served: [], unmatched: [], calls: 0, moment: 0, fetch: undefined as never };
   /** What the last journal answer said, for the page cut out of the whole journal. */
   let last: MontageJournal | undefined;
 
   const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
+  const patched = (name: string) => {
+    const recorded = bodyOf(steps, name);
+    return (options.patch?.[name]?.(recorded) ?? recorded) as MontageJournal;
+  };
+
+  /** What the journal was at `moment`, as one whole: everything the sitting's answers said by then. */
+  const atMoment = (): MontageJournal => {
+    const seen = options.moments!.slice(0, state.moment + 1).map(patched);
+    const now = seen.at(-1)!;
+    const entries = new Map(seen.flatMap((page) => page.entries.map((one) => [one.id, one] as const)));
+    const files = new Map(seen.flatMap((page) => page.files.map((one) => [one.id, one] as const)));
+    const laidOut = now.montage.status === 'ready' && options.cutFrom ? patched(options.cutFrom).files : [];
+    for (const file of laidOut) files.set(file.id, file);
+    return {
+      ...now,
+      entries: [...entries.values()].sort((a, b) => b.id - a.id),
+      files: [...files.values()],
+    };
+  };
 
   state.fetch = (async (input: string, init?: { headers?: Record<string, string> }) => {
+    state.calls += 1;
     const url = new URL(input);
     const token = init?.headers?.Authorization?.replace(/^Bearer /, '');
     const role = token ? (ROLE_OF.get(token) ?? null) : null;
@@ -137,22 +188,23 @@ export function replay(steps: readonly Step[], options: Options = {}): Replay {
       return json(extra);
     }
 
-    if ((url.searchParams.has('before') || url.searchParams.has('stage')) && options.cutFrom) {
-      const recorded = bodyOf(steps, options.cutFrom);
-      const whole = (options.patch?.[options.cutFrom]?.(recorded) ?? recorded) as MontageJournal;
-      const limit = Number(url.searchParams.get('limit') ?? 200);
-      const before = Number(url.searchParams.get('before') ?? Infinity);
-      const stage = url.searchParams.get('stage');
-      const older = whole.entries.filter(
-        (entry) => entry.id < before && (stage === null || entry.stage === stage),
-      );
-      const page = older.slice(0, limit);
-      const met = new Set(page.map((entry) => entry.media_id));
-      state.served.push(`${label} (cut from ${options.cutFrom})`);
+    const refused = url.pathname.endsWith('/journal') ? options.refuse?.(url.searchParams) : undefined;
+    if (refused !== undefined) {
+      state.served.push(`${label} (refused)`);
+      if (refused === 'offline') throw new TypeError('Network request failed');
+      return json({ error: 'refused by the test' }, refused);
+    }
+
+    const narrowed = url.searchParams.has('before') || url.searchParams.has('stage');
+    if (narrowed && (options.cutFrom || options.moments)) {
+      const whole = options.moments ? atMoment() : patched(options.cutFrom!);
+      const { entries, has_more } = cutPage(whole, url.searchParams);
+      const met = new Set(entries.map((entry) => entry.media_id));
+      state.served.push(`${label} (cut)`);
       return json({
-        ...(last ?? whole),
-        entries: page,
-        has_more: older.length > page.length,
+        ...(options.moments ? whole : (last ?? whole)),
+        entries,
+        has_more,
         files: whole.files.filter((file) => met.has(file.id)),
       });
     }

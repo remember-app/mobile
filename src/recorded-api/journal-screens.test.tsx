@@ -53,7 +53,7 @@ import {
 } from '@/kit';
 import { Films } from '@/memory/films';
 import { SheetLiveFile } from '@/memory/live-file';
-import { marksOf, WHILE_LIVE_MS } from '@/montage-journal';
+import { marksOf, useMontageJournal, WHILE_LIVE_MS } from '@/montage-journal';
 import { MONTAGE_STAGES } from '@/api';
 import { ru } from '@/strings';
 import { mountsTrees } from '@/test-renderer';
@@ -475,6 +475,61 @@ describe.each(SCENARIOS)('%s — the journal of one stage and the card of a file
     expect(words(screen.root)).not.toContain(ru.montage.live.lost);
     await screen.unmount();
   });
+
+  // Ready under the journal of one stage that was read while the film was being made. The files it
+  // holds were sent with their records, before the film was laid out, so they have no places; the
+  // ready montage has them. What is asked of the screen: at «готов» the frames' cards know where the
+  // frames went, for the price of one more read — and the screen of the making itself, which leaves
+  // for the film's page and reads there, does not read again (see «Монтаж идёт» above). The narrowed
+  // answers here are cut moment by moment from the recording (`moments` in `recorded.ts`), not words
+  // of the api.
+  test('read through the making, it learns where the frames went with one more read at «готов»', async () => {
+    const names = sitting(steps);
+    const api = replay(steps, { only: [], moments: names, cutFrom: 'journal_of_ready_montage', extra });
+    route.params = { id: MEMORY, montageId: MONTAGE, stage: 'directing' };
+    const screen = await mount(<MontageLiveStageScreen />, api);
+    const reads = () => api.served.filter((one) => one.includes('/journal')).length;
+    const files = new Map(whole.files.map((one) => [one.id, one]));
+    const placed = (id: string | null) => (id ? (files.get(id)?.places.length ?? 0) : 0);
+    const cardOf = async (log: ReactTestInstance) => {
+      await screen.press(log);
+      const sheet = screen.root.findByType(SheetLiveFile);
+      const file = sheet.props.file as JournalFile;
+      await act(async () => sheet.props.onCancel());
+      return file;
+    };
+
+    // Through the making one read a beat, and none of the frames has a place yet.
+    for (let moment = 1; moment < names.length - 1; moment++) {
+      api.moment = moment;
+      const from = reads();
+      await screen.tick();
+      expect(reads() - from, names[moment]).toBe(1);
+    }
+    const pressable = () => inList(screen).filter((log) => log.props.onPress);
+    expect(pressable().length).toBeGreaterThan(0);
+    expect((await cardOf(pressable()[0])).places).toEqual([]);
+
+    // «Готов»: the beat's own read, and one more.
+    api.moment = names.length - 1;
+    const from = reads();
+    await screen.tick();
+    expect(reads() - from).toBe(2);
+
+    // Every frame on the list is now the ready montage's own, the layout in it.
+    const shown = recordsOn('directing').slice(0, inList(screen).length);
+    expect(shown.some((one) => placed(one.media_id) > 0), 'some of these frames are in the film').toBe(true);
+    for (const [at, record] of shown.entries()) {
+      if (record.media_id === null) continue;
+      expect(await cardOf(inList(screen)[at]), `record ${record.id}`).toEqual(files.get(record.media_id));
+    }
+
+    // And that was the last: a ready montage is not asked about again.
+    await screen.tick();
+    await screen.tick();
+    expect(reads() - from).toBe(2);
+    await screen.unmount();
+  });
 });
 
 describe.each(SCENARIOS)('%s — «Ролик готов» and «Как собирался»', (scenario) => {
@@ -604,6 +659,7 @@ describe('a journal the api will not give', () => {
     const { api, screen } = await sitInFront();
     expect(knocks(api)).toBe(1);
     expect(words(screen.root)).not.toContain(ru.montage.live.lost);
+    expect(words(screen.root)).toContain(ru.memory.gone);
     await screen.unmount();
   });
 
@@ -611,6 +667,122 @@ describe('a journal the api will not give', () => {
     const { api, screen } = await sitInFront();
     for (let beat = 0; beat < 5; beat++) await screen.tick();
     expect(knocks(api)).toBe(1);
+    await screen.unmount();
+  });
+
+  test('the journal of one stage says the same, and stops asking the same', async () => {
+    const api = replay(load('director'), { only: ['journal_of_stranger'], cutFrom: 'journal_of_stranger', extra, refuse: () => 404 });
+    route.params = { id: MEMORY, montageId: MONTAGE, stage: 'directing' };
+    const screen = await mount(<MontageLiveStageScreen />, api, 'stranger');
+    for (let beat = 0; beat < 3; beat++) await screen.tick();
+
+    expect(api.served.filter((one) => one.includes('/journal'))).toHaveLength(1);
+    expect(words(screen.root)).toContain(ru.memory.gone);
+    expect(words(screen.root)).not.toContain(ru.montage.live.lost);
+    await screen.unmount();
+  });
+});
+
+/**
+ * How the journal is held when a read goes wrong — the hook itself, read off a bare component, so
+ * what is looked at is what it hands a screen: the standing, what is still held, and whether it keeps
+ * asking. A 404 (`refused`) is the api saying this reader is not in the memory: it says the same the
+ * next time, and it is said on the page further back as on the poll. A 500 or a dropped connection
+ * (`offline`) is a moment: what was read stays, and the asking goes on until it comes back.
+ */
+describe('a read that goes wrong in the middle of a journal', () => {
+  const steps = load('director');
+  let failing: number | 'offline' | undefined;
+  beforeEach(() => {
+    failing = undefined;
+  });
+
+  function Probe({ montageId, into }: { montageId: string; into: { now?: ReturnType<typeof useMontageJournal> } }) {
+    into.now = useMontageJournal(session.token, MEMORY, montageId);
+    return null;
+  }
+  async function watch(api: Replay, as: 'organizer' | 'viewer') {
+    const into: { now?: ReturnType<typeof useMontageJournal> } = {};
+    const screen = await mount(<Probe montageId={MONTAGE} into={into} />, api, as);
+    return { screen, journal: () => into.now! };
+  }
+  const idsOf = (entries: JournalEntry[]) => entries.map((one) => one.id);
+
+  /** A viewer half way through: the newest page held, and the rest of the journal behind it. */
+  const halfWay = () =>
+    replay(steps, {
+      only: ['live_viewer_opens_mid_build'],
+      cutFrom: 'journal_of_ready_montage',
+      extra,
+      refuse: (query) => (query.has('before') ? failing : undefined),
+    });
+
+  test('a 404 on the page further back stops the asking, keeps what was read, and is not a lost connection', async () => {
+    const api = halfWay();
+    const { screen, journal } = await watch(api, 'viewer');
+    const read = idsOf(journal().entries);
+    expect(journal().hasOlder).toBe(true);
+
+    failing = 404;
+    await act(async () => journal().loadOlder());
+    await settle();
+    expect(journal().standing).toBe('refused');
+    expect(journal().offline).toBe(false);
+    expect(idsOf(journal().entries)).toEqual(read);
+
+    const asked = api.calls;
+    for (let beat = 0; beat < 5; beat++) await screen.tick();
+    expect(api.calls).toBe(asked);
+    await screen.unmount();
+  });
+
+  test('a 500 on the page further back is «нет связи»: what was read stays, the asking goes on, and it comes back', async () => {
+    const api = halfWay();
+    const { screen, journal } = await watch(api, 'viewer');
+    const read = idsOf(journal().entries);
+
+    failing = 500;
+    await act(async () => journal().loadOlder());
+    await settle();
+    expect(journal().standing).toBe('offline');
+    expect(journal().refused).toBe(false);
+    expect(idsOf(journal().entries)).toEqual(read);
+
+    const asked = api.calls;
+    for (let beat = 0; beat < 3; beat++) await screen.tick();
+    expect(api.calls - asked).toBe(3);
+
+    failing = undefined;
+    await act(async () => journal().loadOlder());
+    await settle();
+    expect(journal().offline).toBe(false);
+    expect(Math.min(...idsOf(journal().entries))).toBeLessThan(Math.min(...read));
+    await screen.unmount();
+  });
+
+  test.each([500, 'offline'] as const)('%s on the live poll is «нет связи»: what was read stays, the asking goes on, and it comes back', async (kind) => {
+    const names = sitting(steps);
+    const api = replay(steps, { only: names, extra, refuse: () => failing });
+    const { screen, journal } = await watch(api, 'organizer');
+    await screen.tick();
+    await screen.tick();
+    const read = idsOf(journal().entries);
+    expect(read.length).toBeGreaterThan(0);
+    expect(journal().standing).toBe('live');
+
+    failing = kind;
+    const asked = api.calls;
+    for (let beat = 0; beat < 3; beat++) await screen.tick();
+    expect(api.calls - asked).toBe(3);
+    expect(journal().standing).toBe('offline');
+    expect(journal().refused).toBe(false);
+    expect(idsOf(journal().entries)).toEqual(read);
+
+    // The connection is back: the next beat asks after the same cursor and the journal moves on.
+    failing = undefined;
+    await screen.tick();
+    expect(journal().standing).toBe('live');
+    expect(journal().entries.length).toBeGreaterThan(read.length);
     await screen.unmount();
   });
 });
