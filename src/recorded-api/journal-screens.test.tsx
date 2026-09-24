@@ -51,6 +51,7 @@ import {
   NoteThought,
   RowStep,
   ShotGaze,
+  StepLink,
   StepNote,
   Tag,
   TileNumber,
@@ -673,6 +674,92 @@ describe.each(SCENARIOS)('%s — «Ролик готов» and «Как соби
     expect(sheet.props.file).toEqual(file);
     expect(sheet.props.author).toBe(nameOf(file.uploaded_by));
     expect(sheet.findByType(ShotGaze).props.uri).toBe(file.thumbnail_url);
+    await screen.unmount();
+  });
+
+  // NOT WORDS OF THE API — the recording's journal is a single page, and a film's runs to hundreds of
+  // records. This one is the recorded journal said over `TIMES` times, stage by stage, under ids of its
+  // own, with the stages' counts multiplied to match; every read of it is a page cut out of it by the
+  // api's rule (`cutEvery` in `recorded.ts`). Its newest page is the directing and nothing else.
+  const TIMES = 30;
+  const oldestFirst = [...whole.entries].reverse();
+  const hundreds: MontageJournal = {
+    ...whole,
+    entries: MONTAGE_STAGES.flatMap((code) =>
+      Array<JournalEntry[]>(TIMES).fill(oldestFirst.filter((one) => one.stage === code)).flat(),
+    )
+      .map((one, at) => ({ ...one, id: at + 1 }))
+      .reverse(),
+    stages: whole.stages.map((one) => ({
+      ...one,
+      taken_count: one.taken_count * TIMES,
+      skipped_count: one.skipped_count * TIMES,
+      thought_count: one.thought_count * TIMES,
+    })),
+  };
+
+  /** The film's page over `hundreds`, and every read of the journal it sent, limit and all. */
+  async function openHundreds(refuse?: (query: URLSearchParams) => number | undefined) {
+    const api = replay(steps, {
+      only,
+      cutFrom: 'journal_of_ready_montage',
+      cutEvery: true,
+      patch: { journal_of_ready_montage: () => hundreds },
+      refuse,
+      extra,
+    });
+    const reads: Record<string, string>[] = [];
+    const answer = api.fetch;
+    api.fetch = ((input: string, init?: RequestInit) => {
+      const url = new URL(input);
+      if (url.pathname.endsWith('/journal')) reads.push(Object.fromEntries(url.searchParams));
+      return answer(input, init);
+    }) as typeof fetch;
+    route.params = { id: MEMORY, montageId: MONTAGE };
+    return { api, reads, screen: await mount(<MontageDoneScreen />, api) };
+  }
+
+  test('a journal of hundreds still shows every stage’s own last two, for one small read a stage the first page left short', async () => {
+    expect(hundreds.entries.slice(0, 200).every((one) => one.stage === 'directing')).toBe(true);
+    const { api, reads, screen } = await openHundreds();
+
+    const files = new Map(hundreds.files.map((one) => [one.id, one]));
+    const rows = screen.root.findAllByType(RowStep);
+    MONTAGE_STAGES.forEach((code, at) => {
+      const own = hundreds.entries.filter((one) => one.stage === code);
+      expect(
+        rows[at].findAllByType(StepNote).map((one) => [one.props.text, one.props.uri]),
+        code,
+      ).toEqual(
+        own.slice(0, 2).map((one) => [one.thought ?? '', files.get(one.media_id!)?.thumbnail_url ?? undefined]),
+      );
+      // How many records a stage holds is the api's count, not what this page has read of it.
+      expect(rows[at].findAllByType(StepLink).map((one) => one.props.label), code).toEqual(
+        own.length === 0 ? [] : [ru.montage.live.wholeStage(own.length)],
+      );
+    });
+
+    // The whole journal's newest page, then one read of two for each stage it held too few of — and
+    // nothing more: the film is finished and its journal does not move.
+    const shortOf = [
+      { stage: 'screening', limit: '2' },
+      { stage: 'understanding', limit: '2' },
+    ];
+    expect(reads).toEqual([{}, ...shortOf]);
+    await screen.tick();
+    await screen.tick();
+    expect(reads).toEqual([{}, ...shortOf]);
+    expect(api.unmatched).toEqual([]);
+    await screen.unmount();
+  });
+
+  test('a stage’s read that fails leaves «Как собирался» out, and the film is still there', async () => {
+    const { screen } = await openHundreds((query) => (query.get('stage') === 'understanding' ? 500 : undefined));
+
+    expect(words(screen.root)).not.toContain(ru.montage.live.howMade);
+    expect(screen.root.findAllByType(RowStep)).toEqual([]);
+    const film = step(steps, 'montage_list_after_ready').response.body as { id: string; poster_url: string }[];
+    expect(screen.root.findByType(CardMontage).props.poster).toBe(film.find((one) => one.id === MONTAGE)!.poster_url);
     await screen.unmount();
   });
 

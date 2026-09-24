@@ -102,6 +102,11 @@ type Options = {
    */
   cutFrom?: string;
   /**
+   * NOT WORDS OF THE API — a journal bigger than any recorded one, which is a single page. Every read
+   * of a journal, the first unnarrowed one too, is a page cut out of `cutFrom` by the same rule.
+   */
+  cutEvery?: boolean;
+  /**
    * NOT WORDS OF THE API — a cut, made moment by moment. The journal steps of one sitting, in time:
    * a narrowed read is answered from what the api had said by `replay.moment` — the records of those
    * steps, their stages and viewers, and the files as the pages carried them (no layout yet). At the
@@ -195,7 +200,9 @@ export function replay(steps: readonly Step[], options: Options = {}): Replay {
       return json({ error: 'refused by the test' }, refused);
     }
 
-    const narrowed = url.searchParams.has('before') || url.searchParams.has('stage');
+    const narrowed = options.cutEvery
+      ? url.pathname.endsWith('/journal')
+      : url.searchParams.has('before') || url.searchParams.has('stage');
     if (narrowed && (options.cutFrom || options.moments)) {
       const whole = options.moments ? atMoment() : patched(options.cutFrom!);
       const { entries, has_more } = cutPage(whole, url.searchParams);
