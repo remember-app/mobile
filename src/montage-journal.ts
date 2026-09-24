@@ -533,6 +533,14 @@ export const whyTaken = (entry: JournalEntry, s: Strings): string | undefined =>
     : undefined;
 
 /**
+ * Why a record went the way it did — the one pill a sheet about a single file stands under its
+ * decision: why a frame was passed over, or why it was taken (`whyTaken`). The same words the
+ * journal's own pills say it in (`marksOf`), so the two can never name the reason differently.
+ */
+export const whyDecided = (entry: JournalEntry, s: Strings): string | undefined =>
+  entry.decision === 'skip' ? reasonWord(entry.reason, s) : whyTaken(entry, s);
+
+/**
  * What a record wears as pills (spec 7.7): the decision first, then what qualifies it. «Беру» alone
  * for a photograph, «Беру 0:04–0:07» where a piece of a video was taken, «Взял 1 из 4» where it was
  * one of a burst, and beside either why it was taken and the part of the story it went into. A

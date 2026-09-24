@@ -1,4 +1,12 @@
-import { Lock, Pencil, Trash2, Unlink, Users } from 'lucide-react-native';
+import {
+  Lock,
+  Pencil,
+  Tag as TagIcon,
+  Trash2,
+  TriangleAlert,
+  Unlink,
+  Users,
+} from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -28,9 +36,11 @@ import {
   Sheet,
   Text,
   Waiting,
+  type IconComponent,
 } from '@/kit';
 import { filing, labelGroups, labelNameOk, labelTint, withLabel, LABEL_NAME_MAX } from '@/labels';
 import { useStrings } from '@/language';
+import type { Strings } from '@/strings';
 import { height, labelColors, radius, space, themed, useTheme } from '@/theme';
 
 /**
@@ -53,21 +63,28 @@ import { height, labelColors, radius, space, themed, useTheme } from '@/theme';
 /** `SheetLabelNew`: shut, making one (`label: null`), or editing the one it holds. */
 type Writing = { label: Label | null } | null;
 
-/** The statuses a write words itself, because the api's bare «forbidden» or «not found» says nothing. */
-type Refusals = Partial<Record<number, string>>;
+/**
+ * A failure as a sheet says it: the words, and the glyph beside them. No glyph is the banner's own
+ * «no signal», which only a request that never got an answer has earned.
+ */
+export type Failure = { text: string; icon?: IconComponent };
 
-function worded(e: unknown, refused: Refusals): string {
-  return (e instanceof ApiError && refused[e.status]) || errorMessage(e);
-}
+/** The statuses a route words itself, because the api's bare «forbidden» or «not found» says nothing. */
+type Refusals = Partial<Record<number, Failure>>;
 
 /**
- * A failure, said on a sheet. «Вас больше нет в этом воспоминании» is about the person and not the
- * connection, so it wears the glyph of a tie that is cut rather than the banner's own «no signal».
+ * Told apart by what came back and never by the words: anything the api answered is not the
+ * connection. A 403 is about rights; a 404 is something that is not there, and what that is depends
+ * on the route, so every route names its own; anything else the api refused is said in its words
+ * beside a plain warning.
  */
-function Refusal({ text }: { text: string }) {
-  const s = useStrings();
-  return <Banner tone="error" text={text} icon={text === s.memory.gone ? Unlink : undefined} />;
+function failure(e: unknown, refused: Refusals): Failure {
+  if (!(e instanceof ApiError)) return { text: errorMessage(e) };
+  return refused[e.status] ?? { text: e.message, icon: e.status === 403 ? Lock : TriangleAlert };
 }
+
+/** The api's one answer to somebody not in the memory: about the person, so a tie that is cut. */
+const notMember = (s: Strings): Failure => ({ text: s.memory.gone, icon: Unlink });
 
 export function LabelSheets({
   memoryId,
@@ -89,7 +106,7 @@ export function LabelSheets({
   const s = useStrings();
   const theme = useTheme();
   const [labels, setLabels] = useState<Label[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Failure | null>(null);
   const [busy, setBusy] = useState(false);
   /** The edit mode of the same sheet (spec 10.8.1) — a mode and not a second sheet. */
   const [editing, setEditing] = useState(false);
@@ -101,7 +118,7 @@ export function LabelSheets({
     if (!token) return;
     setError(null);
     listLabels(token, memoryId).then(setLabels, (e: unknown) =>
-      setError(worded(e, { 404: s.memory.gone })),
+      setError(failure(e, { 404: notMember(s) })),
     );
   }, [token, memoryId, s]);
 
@@ -120,12 +137,12 @@ export function LabelSheets({
   /**
    * One errand at the api, with the sheet's own answer to it going wrong. By default a 404 is the
    * label's: somebody deleted it — or, for a private one that was never ours, the api's own way of
-   * saying it does not exist (api README, «Кто что может»). Whatever happens, the sheet stops being
-   * busy — the one thing it must never do is sit there.
+   * saying it does not exist (api README, «Кто что может») — so it wears the label's own glyph.
+   * Whatever happens, the sheet stops being busy — the one thing it must never do is sit there.
    */
   async function errand<T>(
     run: (session: string) => Promise<T>,
-    refused: Refusals = { 404: s.labels.gone },
+    refused: Refusals = { 404: { text: s.labels.gone, icon: TagIcon } },
   ): Promise<T | null> {
     if (!token) return null;
     setBusy(true);
@@ -133,7 +150,7 @@ export function LabelSheets({
     try {
       return await run(token);
     } catch (e) {
-      setError(worded(e, refused));
+      setError(failure(e, refused));
       return null;
     } finally {
       setBusy(false);
@@ -169,8 +186,9 @@ export function LabelSheets({
           shared,
           media_ids: ids.length > 0 ? ids : undefined,
         }),
-      // No label in the path, so a 404 is the membership check; a 403 is a viewer asking for «Общий».
-      { 403: s.labels.sharedDenied, 404: s.memory.gone },
+      // No label in the path, so a 404 is the membership check; a 403 is a viewer asking for «Общий»,
+      // and the lock is the private label the words offer instead.
+      { 403: { text: s.labels.sharedDenied, icon: Lock }, 404: notMember(s) },
     );
     if (made === null) return;
     setLabels((have) => withLabel(have ?? [], made));
@@ -276,7 +294,7 @@ export function LabelsSheet({
   inside: (labelId: string) => boolean;
   editing: boolean;
   busy: boolean;
-  error: string | null;
+  error: Failure | null;
   onToggleEdit: () => void;
   onFile: (label: Label) => void;
   onNew: () => void;
@@ -371,7 +389,7 @@ export function LabelsSheet({
         <Button variant="dashed" label={s.labels.newOne} disabled={busy} onPress={onNew} />
       }
     >
-      {error === null ? null : <Refusal text={error} />}
+      {error === null ? null : <Banner tone="error" text={error.text} icon={error.icon} />}
       {labels === null ? (
         error === null ? (
           <Waiting text={s.state.loading} />
@@ -413,7 +431,7 @@ export function LabelNewSheet({
   /** How many frames the button is about to file — a new label only. */
   count: number;
   busy: boolean;
-  error: string | null;
+  error: Failure | null;
   onSubmit: (title: string, color: number, shared: boolean) => void;
   onCancel: () => void;
 }) {
@@ -443,7 +461,7 @@ export function LabelNewSheet({
         />
       }
     >
-      {error === null ? null : <Refusal text={error} />}
+      {error === null ? null : <Banner tone="error" text={error.text} icon={error.icon} />}
 
       <Field
         label={s.labels.name}
