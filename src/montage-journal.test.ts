@@ -334,6 +334,10 @@ describe('minutesLeft', () => {
 
   test('a stage that fell over is not something anybody is still waiting for', () => {
     expect(minutesLeft([stage('directing', 'failed', 500)])).toBe(null);
+    // Nor are the ones after it, though they still carry the worker's opening estimates.
+    expect(
+      minutesLeft([stage('directing', 'failed'), stage('rhythm', 'pending', 120), stage('assembly', 'pending', 60)]),
+    ).toBe(null);
   });
 });
 

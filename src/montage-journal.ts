@@ -216,10 +216,12 @@ export const lastOfStage = (
  * while there is anything at all to wait for.
  *
  * Null when not a single stage has an estimate: no number is better than a made-up one, and the
- * screen simply does not draw the line.
+ * screen simply does not draw the line. Null too once a stage has fallen over — the ones after it
+ * still carry the worker's opening guesses, but nobody is waiting for them any more.
  */
 export function minutesLeft(stages: readonly MontageStage[]): number | null {
-  const ahead = stages.filter((stage) => stage.state !== 'done' && stage.state !== 'failed');
+  if (stages.some((stage) => stage.state === 'failed')) return null;
+  const ahead = stages.filter((stage) => stage.state !== 'done');
   if (!ahead.some((stage) => stage.eta_seconds !== null)) return null;
   const seconds = ahead.reduce((sum, stage) => sum + (stage.eta_seconds ?? 0), 0);
   return Math.max(1, Math.ceil(seconds / 60));
