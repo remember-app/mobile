@@ -499,6 +499,13 @@ test('the summary only shows — every number on it is the api’s answer', () =
 
   // One call, with the very body the order sends — so what is totalled is what would be made.
   expect(summary).toContain('previewMontage(token, id, wishes(items, order))');
+  // And asked again when that body moves under it: after the autopilot, step 4 beneath holds the
+  // length back into range only when its own answer lands, and a total of the order as it was would
+  // then refuse — or stand over — a different order than the button sends. The old answer goes the
+  // moment the order moves, and with it the button.
+  expect(summary).toContain('}, [token, items, id, order]);');
+  expect(summary).toContain('setPreview(null);\n    setStopped(null);');
+  expect(summary).toContain('if (here) setPreview(came);');
   // And nothing on the screen is counted here: the photos, the videos, the people, the length and
   // the wait are all read off that answer (doc-03).
   expect(summary).toContain('s.montage.shots(preview.photos, preview.videos)');
