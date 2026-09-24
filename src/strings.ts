@@ -575,7 +575,7 @@ export const en = {
     /** The units are words and the api hands over bare numbers, so they are put on here. */
     focal: (mm: number) => `${mm} mm`,
     aperture: (f: number) => `f/${f}`,
-    /** The place is coordinates and nothing else: naming one takes a geocoder the product has not got. */
+    /** The place as numbers: what stands until the phone's geocoder names it, and when it cannot. */
     coords: (lat: number, lon: number) => `${lat}, ${lon}`,
     inFilms: 'In movies',
     /** The second a frame stands at inside a movie, on the row that opens it. */

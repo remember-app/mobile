@@ -290,7 +290,7 @@ test('the sheet says only what the server knows, and never a line with a dash in
     { label: 'Файл', value: 'IMG_4471.HEIC · 4,2 МБ' },
     { label: 'Размер', value: '4032 × 3024' },
     { label: 'Камера', value: 'iPhone 15 Pro · 24 мм · f/1.8' },
-    // Coordinates as the numbers they are: naming a place takes a geocoder the product has not got.
+    // No name handed in: the point stands as the numbers it is.
     { label: 'Место', value: '55.518, 37.53' },
   ]);
 
@@ -310,6 +310,27 @@ test('a line is built out of the pieces that are there, and dropped when none ar
   expect(half.map((fact) => fact.label)).toEqual(['Файл']);
   // And a record whose size never came down the wire loses «Файл» too, rather than saying «0 МБ».
   expect(frameFacts(told({ size_bytes: '' }), ru, 'ru')).toEqual([]);
+});
+
+test('the place is the name the phone gave it — the coordinates until then, and when it gave none', () => {
+  const at = told({ latitude: 55.518, longitude: 37.53 });
+  const place = (name?: string | null) =>
+    frameFacts(at, ru, 'ru', name).filter((fact) => fact.label === 'Место');
+  expect(place('Усадьба «Остафьево», Москва')).toEqual([
+    { label: 'Место', value: 'Усадьба «Остафьево», Москва' },
+  ]);
+  // Not answered yet, answered with nothing, or never asked: the row is the coordinates, not a
+  // blank and not a placeholder.
+  for (const none of [undefined, null, '']) {
+    expect(place(none)).toEqual([{ label: 'Место', value: '55.518, 37.53' }]);
+  }
+  // The name has no row of its own: a frame with no point, or half of one, has no place line at
+  // all, whatever the geocoder is holding.
+  for (const partial of [{}, { latitude: 55.518 }, { longitude: 37.53 }]) {
+    expect(frameFacts(told(partial), ru, 'ru', 'Москва')).toEqual([
+      { label: 'Файл', value: '4,2 МБ' },
+    ]);
+  }
 });
 
 /** The memory the gallery is open on, cut down to what the line over a frame reads off it. */
