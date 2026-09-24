@@ -24,7 +24,7 @@ import {
   type Viewer,
 } from '@/api';
 import { formatRuntime } from '@/dates';
-import { useReducedMotion, type StepState } from '@/kit';
+import { GAZE, useReducedMotion, type StepState } from '@/kit';
 import { beingMade } from '@/montage';
 import type { Strings } from '@/strings';
 
@@ -34,9 +34,6 @@ import type { Strings } from '@/strings';
  * in front of watching a machine work, so the slow end of that would already read as a stutter.
  */
 export const WHILE_LIVE_MS = 1500;
-
-/** The 96 square the kit draws the gaze in (`kit/montage-live.tsx`), in points of the card. */
-export const GAZE = 96;
 
 /**
  * How many pages one poll will chase before it hands the phone back. `has_more` is followed at once
@@ -96,8 +93,8 @@ export const NO_JOURNAL: Journal = {
 /** One word for the whole thing, for a screen that has one line to say it in. */
 export type Standing = 'opening' | 'live' | 'ready' | 'failed' | 'offline';
 
-/** Which narrowing the journal is being read under — one stage, one file, or the whole of it. */
-export type Narrow = Pick<JournalQuery, 'stage' | 'media_id'>;
+/** Which narrowing the journal is being read under — one stage, or the whole of it. */
+export type Narrow = Pick<JournalQuery, 'stage'>;
 
 /** Asking the api for one page. A parameter so the reading can be run without a network. */
 export type Ask = (query: JournalQuery) => Promise<MontageJournal>;
@@ -179,15 +176,17 @@ export const stageNumber = (stage: MontageStageCode): number => MONTAGE_STAGES.i
 
 /**
  * The stage the video is on now: the one being worked on, or — when none is — the one that fell
- * over, and failing that the last one the worker has reached. Null before anything is known, which
- * is a montage still standing in the queue as much as a journal not read yet.
+ * over, and failing that the last one the worker has reached. A `pending` row is not reached: the
+ * worker writes all five as it opens the job, so between two stages the answer is the one just
+ * done and not the last row of the five. Null before anything is known, which is a montage still
+ * standing in the queue as much as a journal not read yet.
  */
 export function currentStage(stages: readonly MontageStage[]): MontageStage | null {
   const inOrder = [...stages].sort((a, b) => stageNumber(a.stage) - stageNumber(b.stage));
   return (
     inOrder.find((stage) => stage.state === 'running') ??
     inOrder.find((stage) => stage.state === 'failed') ??
-    inOrder[inOrder.length - 1] ??
+    inOrder.filter((stage) => stage.state !== 'pending').pop() ??
     null
   );
 }
@@ -214,10 +213,12 @@ export const lastOfStage = (
  * while there is anything at all to wait for.
  *
  * Null when not a single stage has an estimate: no number is better than a made-up one, and the
- * screen simply does not draw the line.
+ * screen simply does not draw the line. Null too once a stage has fallen over — the ones after it
+ * still carry the worker's opening guesses, but nobody is waiting for them any more.
  */
 export function minutesLeft(stages: readonly MontageStage[]): number | null {
-  const ahead = stages.filter((stage) => stage.state !== 'done' && stage.state !== 'failed');
+  if (stages.some((stage) => stage.state === 'failed')) return null;
+  const ahead = stages.filter((stage) => stage.state !== 'done');
   if (!ahead.some((stage) => stage.eta_seconds !== null)) return null;
   const seconds = ahead.reduce((sum, stage) => sum + (stage.eta_seconds ?? 0), 0);
   return Math.max(1, Math.ceil(seconds / 60));
@@ -366,10 +367,11 @@ export function howMade(
 ): { figure: number; label: string }[] {
   const { live } = s.montage;
   const outcomeOf = (code: MontageStageCode) => stages.find((one) => one.stage === code)?.outcome;
+  const cuts = outcomeOf('assembly')?.cuts;
   const three = [
     { figure: outcomeOf('screening')?.of, label: live.watched },
     { figure: outcomeOf('directing')?.frames, label: live.tookIn },
-    { figure: outcomeOf('assembly')?.cuts, label: live.glued },
+    { figure: cuts, label: live.glued(cuts ?? 0) },
   ];
   return three.filter(
     (tile): tile is { figure: number; label: string } => tile.figure !== undefined,
@@ -433,11 +435,16 @@ export const isFresh = (journal: Journal, entry: JournalEntry): boolean =>
  * Why a frame was passed over. The worker's vocabulary is open — the api puts no check on the
  * column — so a code this app has no word for is read as «not suitable» rather than shown raw or
  * dropped: it is still an honest thing to say about a frame nobody took.
+ *
+ * Own keys only: the code is the model's own words, and `in` would hand `__proto__` or
+ * `constructor` back as an object or a function for the screen to render.
  */
 export function reasonWord(reason: string | null, s: Strings): string | undefined {
   if (!reason) return undefined;
   const words = s.montage.live.reason;
-  return reason in words ? words[reason as keyof typeof words] : words.other;
+  return Object.prototype.hasOwnProperty.call(words, reason)
+    ? words[reason as keyof typeof words]
+    : words.other;
 }
 
 /**
@@ -495,8 +502,8 @@ export function useMontageJournal(
   token: string | null,
   memoryId: string,
   montageId: string,
-  { stage, media_id }: Narrow = {},
-): Journal & { standing: Standing; loadOlder: () => void } {
+  { stage }: Narrow = {},
+): Journal & { standing: Standing; loadOlder: () => void; restart: () => void } {
   const [state, setState] = useState<Journal>(NO_JOURNAL);
   /** The same thing a poll reads and folds into — state itself is a render behind. */
   const held = useRef<Journal>(NO_JOURNAL);
@@ -518,7 +525,7 @@ export function useMontageJournal(
       // flight — another video, another narrowing — its answer belongs to the journal that is gone.
       const from = held.current;
       try {
-        const narrow = { stage, media_id };
+        const narrow = { stage };
         // A poll that breaks halfway through its pages is dropped whole rather than kept in part:
         // the cursor then stays where it was and the next one asks for the same records again.
         const next = await (older ? pullOlder : pull)(from, ask, narrow);
@@ -533,15 +540,23 @@ export function useMontageJournal(
         reading.current = false;
       }
     },
-    [token, ask, stage, media_id],
+    [token, ask, stage],
   );
 
-  // Another video, or the same one under a different narrowing, is another journal — and holding
-  // one screen's records under the next one's cursor is the one way this could show a lie.
-  useEffect(() => {
-    held.current = NO_JOURNAL;
-    setState(NO_JOURNAL);
-  }, [ask, stage, media_id]);
+  /**
+   * Everything held thrown away, and the journal read again from nothing. Another video, or the same
+   * one under a different narrowing, is another journal — and so is a fallen one queued again: the
+   * api wipes the last attempt's records with it, and a screen still holding them would be showing
+   * a making that no longer exists, stopped at `failed` with nothing left to poll for.
+   */
+  const restart = useCallback(() => {
+    // A fresh object and not `NO_JOURNAL` itself: a first read still in the air started from that
+    // very object, and `held.current !== from` must see the journal it read for as gone.
+    held.current = { ...NO_JOURNAL };
+    setState(held.current);
+  }, []);
+
+  useEffect(restart, [restart, ask, stage]);
 
   // On the way in, and again the moment the screen comes back in front or the app wakes up.
   useEffect(() => {
@@ -571,7 +586,7 @@ export function useMontageJournal(
 
   const loadOlder = useCallback(() => void read(true), [read]);
 
-  return { ...state, standing, loadOlder };
+  return { ...state, standing, loadOlder, restart };
 }
 
 /** How long one step of the typing takes, and how many steps a thought is spread over. */
@@ -589,30 +604,37 @@ const TYPE_STEPS = 60;
  * run to 500 characters, and a sentence that takes fifteen seconds to appear is not being said, it
  * is being withheld. «Reduce motion» puts the whole of it up at once, which is also what the kit's
  * own cursor does under that setting.
+ *
+ * The sentence comes back in two halves, `said` and `unsaid`, and the kit lays the second out
+ * without drawing it: the words take their final room from the first letter, so nothing under them
+ * moves while they arrive (spec 7.6, «экран не прыгает»). A new sentence starts from nothing on the
+ * very render it arrives on, not one frame later with the last one's length.
  */
 export function useTypedThought(
   text: string | null | undefined,
   fresh: boolean,
-): { shown: string; typing: boolean } {
+): { said: string; unsaid: string } {
   const reduced = useReducedMotion();
   const whole = text ?? '';
-  const [shown, setShown] = useState(() => (fresh && !reduced ? '' : whole));
+  const typing = fresh && !reduced && whole !== '';
+  const [typed, setTyped] = useState({ of: whole, at: typing ? 0 : whole.length });
+  const at = typed.of === whole ? typed.at : typing ? 0 : whole.length;
 
   useEffect(() => {
-    if (!fresh || reduced || whole === '') {
-      setShown(whole);
+    if (!typing) {
+      setTyped({ of: whole, at: whole.length });
       return;
     }
-    setShown('');
+    setTyped({ of: whole, at: 0 });
     const step = Math.max(1, Math.ceil(whole.length / TYPE_STEPS));
-    let at = 0;
+    let upTo = 0;
     const timer = setInterval(() => {
-      at = Math.min(whole.length, at + step);
-      setShown(whole.slice(0, at));
-      if (at === whole.length) clearInterval(timer);
+      upTo = Math.min(whole.length, upTo + step);
+      setTyped({ of: whole, at: upTo });
+      if (upTo === whole.length) clearInterval(timer);
     }, TYPE_MS);
     return () => clearInterval(timer);
-  }, [whole, fresh, reduced]);
+  }, [whole, typing]);
 
-  return { shown, typing: shown.length < whole.length };
+  return { said: whole.slice(0, at), unsaid: whole.slice(at) };
 }

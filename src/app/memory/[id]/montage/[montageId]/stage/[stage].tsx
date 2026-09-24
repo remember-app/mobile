@@ -181,10 +181,11 @@ export default function MontageLiveStageScreen() {
             if (journal.hasOlder) journal.loadOlder();
           }}
           onEndReachedThreshold={0.6}
+          // Only the first answer is waited for here. A stage with no records once it is known has
+          // simply said nothing — rhythm and assembly never do — and «Ждём очереди» over a
+          // finished film's stage would be a lie; the only way in is a stage already reached.
           ListEmptyComponent={
-            <Text role="note">
-              {journal.standing === 'opening' ? s.state.loading : s.montage.live.inQueue}
-            </Text>
+            journal.status === null ? <Text role="note">{s.state.loading}</Text> : null
           }
         />
       </View>
@@ -235,7 +236,7 @@ function Record({
   if (entry.media_id === null) {
     return (
       <LogEntry time={time} fresh={newest}>
-        <NoteThought text={thought.shown} />
+        <NoteThought text={thought.said} unsaid={thought.unsaid} />
       </LogEntry>
     );
   }
@@ -249,8 +250,8 @@ function Record({
       uri={file?.thumbnail_url ?? undefined}
       length={formatRuntime(file?.duration_seconds ?? null)}
       source={author}
-      text={thought.shown}
-      typing={thought.typing}
+      text={thought.said}
+      unsaid={thought.unsaid}
       marks={marks.map((mark, at) => (
         <BadgeDecision
           key={mark}

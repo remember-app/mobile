@@ -34,8 +34,8 @@ test('«Сейчас» has three states and they are three cards', () => {
         gaze={{ left: 118, top: 44 }}
         who="Режиссёр"
         standing="думает…"
-        thought="Бабушка смеётся, Лиза обнимает её — лица в фокусе, свет тёплый"
-        typing
+        thought="Бабушка смеётся, Лиза обнимает её"
+        unsaid=" — лица в фокусе, свет тёплый"
       />
     ),
     decided: (
@@ -73,8 +73,23 @@ test('the gaze square stands where it is told to and dims everything outside its
 test('the thought is the one thing on the card a screen reader is told as it arrives', () => {
   // Spec 10.4: the square on the frame cannot be read out — what it is pointing at is the sentence
   // being said about it, so that sentence is the live area and the square stays silent.
-  const card = story(<CardNow uri={SHOT} who="Режиссёр" thought="Бабушка смеётся" typing />);
+  const card = story(<CardNow uri={SHOT} who="Режиссёр" thought="Бабушка" unsaid=" смеётся" />);
   expect(card).toContain('aria-live="polite"');
+});
+
+test('a thought still arriving already stands at its full height — the rest is laid out, not drawn', () => {
+  // Spec 7.6, «экран не прыгает»: the sentence takes its final room from the first letter, so the
+  // five stages under the card do not slide down a line at a time — nor jump back up the moment
+  // the next sentence starts from nothing.
+  const said = /Бабушка<[^]*?color:rgba\(0,0,0,0\.00\)"> смеётся</;
+  expect(story(<CardNow uri={SHOT} who="Режиссёр" thought="Бабушка" unsaid=" смеётся" />)).toMatch(said);
+  expect(story(<CardNow uri={SHOT} who="Режиссёр" unsaid="Бабушка смеётся" />)).toContain('Бабушка смеётся');
+  expect(story(<LogEntry time="сейчас" uri={SHOT} text="Бабушка" unsaid=" смеётся" />)).toMatch(said);
+  expect(story(<NoteThought text="Бабушка" unsaid=" смеётся" />)).toMatch(said);
+  // Said in full, nothing is hidden and nothing blinks at the end of it.
+  expect(story(<CardNow uri={SHOT} who="Режиссёр" thought="Бабушка смеётся" />)).not.toContain(
+    'color:rgba(0,0,0,0.00)',
+  );
 });
 
 test('the sheet draws the same frame bigger, with the same eye on it', () => {
@@ -142,7 +157,7 @@ test('a journal record comes in the three bodies the journal has', () => {
 
 test('the freshest record is the one wearing the spark dot', () => {
   allDifferent({
-    fresh: <LogEntry time="сейчас" fresh uri={SHOT} text="Бабушка смеётся" typing />,
+    fresh: <LogEntry time="сейчас" fresh uri={SHOT} text="Бабушка" unsaid=" смеётся" />,
     older: <LogEntry time="16:43" uri={SHOT} text="Бабушка смеётся" />,
   });
   // The dot's own fill is a compiled class here (`story.tsx`), so what is asked is that the fresh

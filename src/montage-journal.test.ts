@@ -303,6 +303,16 @@ describe('currentStage', () => {
   test('is nothing at all for a montage still in the queue', () => {
     expect(currentStage([])).toBe(null);
   });
+
+  // The worker writes all five rows `pending` as it opens the job (`journal.begin`), so the last
+  // row is always «assembly» — «этап 5 из 5» before the first frame and between every two stages.
+  test('a row still pending is not a stage reached', () => {
+    const ahead = (['understanding', 'directing', 'rhythm', 'assembly'] as const).map((code) =>
+      stage(code, 'pending'),
+    );
+    expect(currentStage([stage('screening', 'pending'), ...ahead])).toBe(null);
+    expect(currentStage([done, ...ahead])?.stage).toBe('screening');
+  });
 });
 
 describe('minutesLeft', () => {
@@ -324,6 +334,10 @@ describe('minutesLeft', () => {
 
   test('a stage that fell over is not something anybody is still waiting for', () => {
     expect(minutesLeft([stage('directing', 'failed', 500)])).toBe(null);
+    // Nor are the ones after it, though they still carry the worker's opening estimates.
+    expect(
+      minutesLeft([stage('directing', 'failed'), stage('rhythm', 'pending', 120), stage('assembly', 'pending', 60)]),
+    ).toBe(null);
   });
 });
 
@@ -522,6 +536,14 @@ describe('how the film was made', () => {
     ]);
   });
 
+  test('«склеек» agrees with its number, the way every counted word does', () => {
+    const cut = (cuts: number) => [{ ...stage('assembly', 'done'), outcome: { cuts } }];
+    expect(howMade(cut(21), ru)).toEqual([{ figure: 21, label: 'склейка' }]);
+    expect(howMade(cut(22), ru)).toEqual([{ figure: 22, label: 'склейки' }]);
+    expect(howMade(cut(12), ru)).toEqual([{ figure: 12, label: 'склеек' }]);
+    expect(howMade(cut(1), en)).toEqual([{ figure: 1, label: 'cut' }]);
+  });
+
   test('a number the worker never wrote leaves its tile out rather than standing a dash in it', () => {
     expect(howMade([{ ...stage('assembly', 'done'), outcome: { cuts: 138 } }], ru)).toEqual([
       { figure: 138, label: 'склеек' },
@@ -624,6 +646,17 @@ describe('the record in words', () => {
     ]);
   });
 
+  test('a frame the director left out says so, and its own words about why are the thought', () => {
+    const left = entry(1, {
+      decision: 'skip',
+      reason: 'left_out',
+      media_id: 'f1',
+      thought: 'собака не про этот вечер',
+    });
+    expect(marksOf(left, ru)).toEqual(['Мимо', 'Не в истории']);
+    expect(marksOf(left, en)).toEqual(['Passing', 'Not in the story']);
+  });
+
   test('a thought with nothing settled in it wears no pill', () => {
     expect(marksOf(entry(1), ru)).toEqual([]);
   });
@@ -637,10 +670,17 @@ describe('the record in words', () => {
     expect(reasonWord('shaky_pan', ru)).toBe(ru.montage.live.reason.other);
     expect(reasonWord('shaky_pan', en)).toBe(en.montage.live.reason.other);
     expect(reasonWord(null, ru)).toBe(undefined);
+    // The code is the model's own words: a name off the object's prototype is just another unknown
+    // word, not an object or a function handed to a `<Text>`.
+    for (const code of ['__proto__', 'constructor', 'toString']) {
+      expect(reasonWord(code, ru)).toBe(ru.montage.live.reason.other);
+    }
   });
 
   test('every reason the api names has a word in both languages', () => {
-    for (const code of ['blur', 'exposure', 'unreadable', 'duplicate', 'excluded', 'no_room']) {
+    // The worker's whole vocabulary for «мимо» (its README, «Журнал»): three from the screening,
+    // four from the director.
+    for (const code of ['blur', 'exposure', 'unreadable', 'duplicate', 'excluded', 'no_room', 'left_out']) {
       expect(reasonWord(code, ru)).not.toBe(ru.montage.live.reason.other);
       expect(reasonWord(code, en)).not.toBe(en.montage.live.reason.other);
     }

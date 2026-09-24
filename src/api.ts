@@ -1102,16 +1102,16 @@ export type MontageJournal = {
   viewers: Viewer[];
 };
 
-/** The cursor and the two narrowings, exactly as the route takes them. */
+/**
+ * The cursor and the one narrowing the app asks for, as the route takes them. The route also takes
+ * `limit` and `media_id`; nothing here sends either, so neither is here.
+ */
 export type JournalQuery = {
   /** Records newer than this one, and of those the ones *next to* the cursor — see `@/montage-journal`. */
   after?: number;
   /** Records older than this one — paging back through a journal already being read. */
   before?: number;
-  /** Up to 500; the api fills in 200. */
-  limit?: number;
   stage?: MontageStageCode;
-  media_id?: string;
 };
 
 /**

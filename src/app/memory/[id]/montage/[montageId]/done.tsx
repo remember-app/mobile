@@ -1,6 +1,6 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, Download, Share } from 'lucide-react-native';
-import { Fragment, useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import {
@@ -8,45 +8,31 @@ import {
   listMemories,
   listMontages,
   memberName,
-  MONTAGE_STAGES,
   type JournalFile,
   type Member,
   type Memory,
   type Montage,
-  type MontageOrientation,
 } from '@/api';
 import { useAuth } from '@/auth';
 import { formatRuntime } from '@/dates';
 import {
   AppBar,
-  BadgeDecision,
   BadgeMontage,
   Banner,
   Board,
   Button,
   CardMontage,
-  Divider,
   IconButton,
-  RowStep,
-  StepLink,
-  StepNote,
   Text,
   TileNumber,
 } from '@/kit';
 import { useStrings } from '@/language';
 import { FilmPlayer, montageTitle, useFilmActions } from '@/memory/film-player';
 import { SheetLiveFile } from '@/memory/live-file';
-import {
-  howMade,
-  lastOfStage,
-  madeInMinutes,
-  marksOf,
-  recordsOf,
-  stageLine,
-  stageStanding,
-  useMontageJournal,
-} from '@/montage-journal';
-import { radius, space, themed } from '@/theme';
+import { StageRows } from '@/memory/stage-rows';
+import { RATIO } from '@/montage';
+import { howMade, madeInMinutes, useMontageJournal } from '@/montage-journal';
+import { space } from '@/theme';
 
 /**
  * `MontageLiveDone` (spec 7.6) — the page of a finished film. The reward itself is at the top of it,
@@ -67,7 +53,6 @@ export default function MontageDoneScreen() {
   const router = useRouter();
   const { token } = useAuth();
   const s = useStrings();
-  const styles = useStyles();
 
   /** The same journal the live screen read, and it is read the same way — it just no longer moves. */
   const journal = useMontageJournal(token, id, montageId);
@@ -219,71 +204,14 @@ export default function MontageDoneScreen() {
             )}
 
             {/* All five, the way the live screen draws them — the journal of each is still there and
-                still opens. The records under a stage are the last ones this screen has in hand, and
-                each is the way into that frame's own card. */}
-            <View style={styles.stages}>
-              {MONTAGE_STAGES.map((code, at) => {
-                const row = journal.stages.find((one) => one.stage === code);
-                const last = lastOfStage(journal.entries, code);
-
-                return (
-                  <Fragment key={code}>
-                    {/* Spec detail 56: the rule between two stages starts where their names do. */}
-                    {at > 0 ? <Divider soft style={styles.between} /> : null}
-                    <RowStep
-                      title={s.montage.stage[code]}
-                      meta={row && stageLine(row, s)}
-                      state={stageStanding(row)}
-                      open={last.length > 0}
-                      onPress={() =>
-                        router.push({
-                          pathname: '/memory/[id]/montage/[montageId]/stage/[stage]',
-                          params: { id, montageId, stage: code },
-                        })
-                      }
-                    >
-                      {last.map((entry) => {
-                        const shot = entry.media_id ? journal.files[entry.media_id] : undefined;
-                        const [mark] = marksOf(entry, s);
-
-                        return (
-                          <StepNote
-                            key={entry.id}
-                            uri={shot?.thumbnail_url ?? undefined}
-                            length={formatRuntime(shot?.duration_seconds ?? null)}
-                            text={entry.thought ?? ''}
-                            mark={
-                              mark ? (
-                                <BadgeDecision
-                                  kind={entry.decision === 'take' ? 'take' : 'pass'}
-                                  label={mark}
-                                />
-                              ) : undefined
-                            }
-                            // A record about a frame opens that frame's card; a thought about the
-                            // plan as a whole has no frame to open (the same rule the journal keeps).
-                            onPress={
-                              entry.media_id === null ? undefined : () => setOpened(entry.id)
-                            }
-                          />
-                        );
-                      })}
-                      {row ? (
-                        <StepLink
-                          label={s.montage.live.wholeStage(recordsOf(row))}
-                          onPress={() =>
-                            router.push({
-                              pathname: '/memory/[id]/montage/[montageId]/stage/[stage]',
-                              params: { id, montageId, stage: code },
-                            })
-                          }
-                        />
-                      ) : null}
-                    </RowStep>
-                  </Fragment>
-                );
-              })}
-            </View>
+                still opens, and a record with a frame on it opens that frame's card. */}
+            <StageRows
+              memoryId={id}
+              montageId={montageId}
+              journal={journal}
+              opens={() => true}
+              onRecord={(entry) => setOpened(entry.id)}
+            />
           </>
         )}
       </ScrollView>
@@ -317,40 +245,22 @@ function madeTo(montage: Montage | null): string | undefined {
   return [runtime, RATIO[montage.params.orientation ?? 'landscape']].filter(Boolean).join(' · ');
 }
 
-/**
- * The shape of the finished film as a ratio, the way the last step of the order says it
- * (`order/summary.tsx`): the worker cuts onto one of two fixed canvases, so these are facts about
- * the order and not measurements of anything on screen — and they are digits, not words, so they
- * stand outside the dictionary.
- */
-const RATIO: Record<MontageOrientation, string> = { landscape: '16:9', portrait: '9:16' };
-
-const useStyles = themed(({ color }) =>
-  StyleSheet.create({
-    body: {
-      flexGrow: 1,
-      paddingHorizontal: space.s4,
-      paddingTop: space.s3,
-      paddingBottom: space.s6,
-      // The layout stands everything on this screen 12 apart, and the two rows that hold several
-      // things in one line — the buttons, the tiles — keep 8 inside themselves.
-      gap: space.s3,
-    },
-    // The two buttons stand in one row of equal halves, as the layout draws them.
-    actions: { flexDirection: 'row', gap: space.s2 },
-    grow: { flex: 1, minWidth: 0 },
-    // The heading of the journal keeps the layout's own breath over it, and its left edge is the
-    // two points the rest of the words on this screen start at.
-    head: { paddingTop: 6, paddingHorizontal: 2 },
-    tiles: { flexDirection: 'row', gap: space.s2 },
-    between: { marginLeft: 50 },
-    // Spec 7.6: the five stages are one block of surface with the rows inside it, not five cards.
-    stages: {
-      borderRadius: radius.field,
-      borderWidth: 1,
-      borderColor: color.line,
-      backgroundColor: color.surface,
-      overflow: 'hidden',
-    },
-  }),
-);
+// Nothing here carries a colour of its own — every piece on this page brings the kit's with it.
+const styles = StyleSheet.create({
+  body: {
+    flexGrow: 1,
+    paddingHorizontal: space.s4,
+    paddingTop: space.s3,
+    paddingBottom: space.s6,
+    // The layout stands everything on this screen 12 apart, and the two rows that hold several
+    // things in one line — the buttons, the tiles — keep 8 inside themselves.
+    gap: space.s3,
+  },
+  // The two buttons stand in one row of equal halves, as the layout draws them.
+  actions: { flexDirection: 'row', gap: space.s2 },
+  grow: { flex: 1, minWidth: 0 },
+  // The heading of the journal keeps the layout's own breath over it, and its left edge is the
+  // two points the rest of the words on this screen start at.
+  head: { paddingTop: 6, paddingHorizontal: 2 },
+  tiles: { flexDirection: 'row', gap: space.s2 },
+});
