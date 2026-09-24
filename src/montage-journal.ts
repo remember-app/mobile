@@ -12,6 +12,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import { AppState } from 'react-native';
 
 import {
+  ApiError,
   fetchJournal,
   MONTAGE_STAGES,
   type JournalEntry,
@@ -74,6 +75,12 @@ export type Journal = {
   settled: number | null;
   /** The last read never came back. What is above stays exactly as it was. */
   offline: boolean;
+  /**
+   * The api will not give this journal to whoever is reading it: 404, its one answer to somebody
+   * not in the memory — never in it, or taken out of it while the screen was open. It will answer
+   * the same the next time, so nothing is asked again until the screen comes back in front.
+   */
+  refused: boolean;
 };
 
 /** Nothing read yet. */
@@ -88,10 +95,11 @@ export const NO_JOURNAL: Journal = {
   hasOlder: false,
   settled: null,
   offline: false,
+  refused: false,
 };
 
 /** One word for the whole thing, for a screen that has one line to say it in. */
-export type Standing = 'opening' | 'live' | 'ready' | 'failed' | 'offline';
+export type Standing = 'opening' | 'live' | 'ready' | 'failed' | 'offline' | 'refused';
 
 /** Which narrowing the journal is being read under — one stage, or the whole of it. */
 export type Narrow = Pick<JournalQuery, 'stage'>;
@@ -128,6 +136,7 @@ function fold(state: Journal, page: MontageJournal, mode: 'first' | 'forward' | 
     // answer — an empty journal at that moment leaves it unset, and everything later is new.
     settled: state.status === null ? top : state.settled,
     offline: false,
+    refused: false,
   };
 }
 
@@ -164,6 +173,19 @@ export async function pull(state: Journal, ask: Ask, narrow: Narrow = {}): Promi
 export async function pullOlder(state: Journal, ask: Ask, narrow: Narrow = {}): Promise<Journal> {
   if (state.oldest === null) return state;
   return fold(state, await ask({ ...narrow, before: state.oldest }), 'back');
+}
+
+/**
+ * Where the frames went, brought up to date for every file held. The worker lays the film out only
+ * at `rhythm`, after the directing, and the api sends a file along with a new record about it and
+ * never otherwise — so the files of a journal read while the film was being made stay as they were
+ * before there was any layout, `places: []`, and no poll after that brings them in. One reading of
+ * the journal from its start, under the same narrowing, does: the records are the ones already
+ * held, the files are what the api says about them now.
+ */
+export async function relaid(state: Journal, ask: Ask, narrow: Narrow = {}): Promise<Journal> {
+  const again = await pull({ ...NO_JOURNAL, cursor: 0 }, ask, narrow);
+  return { ...state, files: { ...state.files, ...again.files } };
 }
 
 /* ── What the screens work out of it ──────────────────────────────────── */
@@ -496,7 +518,9 @@ function useAppActive(): boolean {
  * A read that never comes back changes one word and nothing else (`offline`): the journal on screen
  * is the truth as of the last answer, and throwing it away because the lift has no signal would be
  * the one thing a person watching would never forgive. The next poll that succeeds takes the word
- * off again.
+ * off again. A 404 is not that (`refused`): the api is saying this reader is not in the memory, and
+ * polling stops until the screen comes back in front — on either road the journal is read by, the
+ * poll and the page further back.
  */
 export function useMontageJournal(
   token: string | null,
@@ -528,13 +552,28 @@ export function useMontageJournal(
         const narrow = { stage };
         // A poll that breaks halfway through its pages is dropped whole rather than kept in part:
         // the cursor then stays where it was and the next one asks for the same records again.
-        const next = await (older ? pullOlder : pull)(from, ask, narrow);
+        let next = await (older ? pullOlder : pull)(from, ask, narrow);
+        // Ready under the journal of a stage that was read while the film was being made: its
+        // files predate the layout, and this is the last read there will be (`relaid`). The whole
+        // journal is not read again — the one screen that reads it through the making leaves for
+        // the film's page the moment it is ready, and that page reads it from nothing.
+        if (
+          stage !== undefined &&
+          from.cursor !== null &&
+          from.status !== 'ready' &&
+          next.status === 'ready'
+        ) {
+          next = await relaid(next, ask, narrow);
+        }
         if (held.current !== from) return;
         held.current = next;
         setState(next);
-      } catch {
+      } catch (e) {
         if (held.current !== from) return;
-        held.current = { ...from, offline: true };
+        held.current =
+          e instanceof ApiError && e.status === 404
+            ? { ...from, refused: true }
+            : { ...from, offline: true };
         setState(held.current);
       } finally {
         reading.current = false;
@@ -566,15 +605,16 @@ export function useMontageJournal(
   // And on its own while the worker still owes this one. An interval rather than a timeout chained
   // off each read, the same reasoning the gallery's own loop carries: one read failing on a bad
   // connection would end the chain, and end it silently.
-  const making = state.status === null || beingMade(state.status);
+  const making = !state.refused && (state.status === null || beingMade(state.status));
   useEffect(() => {
     if (!focused || !active || !making) return;
     const timer = setInterval(() => void read(), WHILE_LIVE_MS);
     return () => clearInterval(timer);
   }, [focused, active, making, read]);
 
-  const standing: Standing =
-    state.status === 'failed'
+  const standing: Standing = state.refused
+    ? 'refused'
+    : state.status === 'failed'
       ? 'failed'
       : state.status === 'ready'
         ? 'ready'

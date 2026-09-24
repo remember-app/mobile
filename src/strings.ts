@@ -105,6 +105,12 @@ export const en = {
     /** The same word with nothing counted yet: a section's name, and a button before its count. */
     framesPlain: 'Frames',
     people: (n: number) => `${n} ${n === 1 ? 'person' : 'people'}`,
+    /**
+     * A 404 from the memory's own check — with nothing else in the path that could be the one
+     * missing, it means this person is not in the memory (any more). Every screen of a memory that
+     * meets it says the same.
+     */
+    gone: 'You are no longer in this memory.',
   },
 
   /** What one record is, said out loud — the tile's own name for a screen reader. */
@@ -632,8 +638,6 @@ export const en = {
     sharedDenied:
       'Only people who can add photos may make a shared label. You can make a private one.',
     gone: 'This label is no longer here.',
-    /** A 404 with no label in the path: the memory's own check, so this person was taken out of it. */
-    memoryGone: 'You are no longer in this memory.',
   },
 
   /**
@@ -865,6 +869,8 @@ export const en = {
      * Said without numbers on purpose: the range is the api's and it has already moved once.
      */
     lengthOff: 'That length does not fit the frames you picked — go back and choose another.',
+    /** Frames the order names were deleted while the wizard stood open. */
+    framesGone: 'Some of the frames in this order are gone — go back and check the selection.',
     /** The two ways back out of a refusal, straight to the step that can undo it. */
     toFrames: 'Back to the frames',
     toLength: 'Back to the length',
@@ -1176,6 +1182,7 @@ export const ru: Strings = {
     frames: (n: number) => count(n, 'кадр', 'кадра', 'кадров'),
     framesPlain: 'Кадры',
     people: (n: number) => count(n, 'человек', 'человека', 'человек'),
+    gone: 'Вас больше нет в этом воспоминании.',
   },
 
   media: { photo: 'Фото', video: 'Видео' },
@@ -1475,7 +1482,6 @@ export const ru: Strings = {
 
     sharedDenied: 'Общий лейбл могут завести те, кто добавляет фото. Вы можете завести личный.',
     gone: 'Этого лейбла больше нет.',
-    memoryGone: 'Вас больше нет в этом воспоминании.',
   },
 
   montage: {
@@ -1604,6 +1610,7 @@ export const ru: Strings = {
       `Соберём примерно за ${count(minutes, 'минуту', 'минуты', 'минут')} и пришлём уведомление.`,
     startCut: 'Начать монтаж',
     lengthOff: 'Такая длина не подходит к выбранным кадрам — вернитесь и выберите другую.',
+    framesGone: 'Части кадров из заказа уже нет — вернитесь и проверьте выбор.',
     toFrames: 'К кадрам',
     toLength: 'К длине',
     leaveAsk: 'Выйти из заказа?',

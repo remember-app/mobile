@@ -64,17 +64,29 @@ import { radius, space, themed, useTheme } from '@/theme';
  * The material is read once, here, on the way into the wizard — deliberately not on every focus
  * the way the three faces of a memory read themselves. An order is a decision taken about the
  * material as it stands, and a re-read landing between two steps would move the ground under a
- * selection already made; the api checks every named frame at the order anyway.
+ * selection already made; the api checks every named frame at the order anyway. It is read again
+ * only when that ground is already known to have moved or never arrived: «Повторить» over a read
+ * that failed, and a refusal of the total leading back to a step (`reread`).
  */
 export type Wizard = {
   id: string;
   /** null means «not read yet»: until it is, there is no step to draw and no count to draw it with. */
   items: MediaItem[] | null;
+  /**
+   * The material read again, from nothing: every step waits until it lands, and whatever was worked
+   * out from the old read — step 4's range above all — is asked again off the new one.
+   */
+  reread: () => void;
   /** The `ready` half of them — the only frames an order can be made of. */
   material: MediaItem[];
   error: string | null;
   /** Too little to cut anything out of: `SheetTooLittle` stands in place of the whole wizard. */
   short: boolean;
+  /**
+   * The api's word that an order here would be refused for too little material (409), where the
+   * count of frames cannot tell: three videos it never measured are three frames and no length.
+   */
+  tooLittle: () => void;
   order: Order;
   /** A patch, or one worked out from the order as it lands — for an answer that comes back late. */
   change: (patch: Partial<Order> | ((was: Order) => Partial<Order>)) => void;
@@ -155,11 +167,17 @@ export function OrderProvider({ id, children }: { id: string; children: ReactNod
   const [items, setItems] = useState<MediaItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [order, setOrder] = useState<Order>(blankOrder);
-
-  useEffect(() => {
+  const read = useCallback(() => {
     if (!token) return;
     listMedia(token, id).then(setItems, (e: unknown) => setError(errorMessage(e)));
   }, [token, id]);
+  useEffect(read, [read]);
+
+  const reread = useCallback(() => {
+    setItems(null);
+    setError(null);
+    read();
+  }, [read]);
 
   const change = useCallback(
     (patch: Partial<Order> | ((was: Order) => Partial<Order>)) =>
@@ -277,11 +295,27 @@ export function OrderProvider({ id, children }: { id: string; children: ReactNod
     [change, id, reduced, router],
   );
 
+  const [refused, setRefused] = useState(false);
+  const tooLittle = useCallback(() => setRefused(true), []);
   const material = useMemo(() => usable(items ?? []), [items]);
-  const short = items !== null && !enoughMaterial(items);
+  const short = items !== null && (refused || !enoughMaterial(items));
   const held = useMemo(
-    () => ({ id, items, material, error, short, order, change, leave, auto, start, stop }),
-    [id, items, material, error, short, order, change, leave, auto, start, stop],
+    () => ({
+      id,
+      items,
+      reread,
+      material,
+      error,
+      short,
+      tooLittle,
+      order,
+      change,
+      leave,
+      auto,
+      start,
+      stop,
+    }),
+    [id, items, reread, material, error, short, tooLittle, order, change, leave, auto, start, stop],
   );
 
   return (
@@ -376,7 +410,7 @@ export function WizardStep({
 }) {
   const router = useRouter();
   const s = useStrings();
-  const { items, error, short, order, leave, auto, stop } = useOrder();
+  const { items, reread, error, short, order, leave, auto, stop } = useOrder();
   const styles = useStyles();
   const summary = step === 'summary';
   /** A numbered step of the four, as against the two screens that only look like one. */
@@ -437,7 +471,9 @@ export function WizardStep({
       />
 
       {error !== null ? (
-        <Banner tone="error" text={error} style={styles.banner} />
+        <Banner tone="error" text={error} style={styles.banner}>
+          <Button size="xs" variant="quiet" label={s.action.retry} onPress={reread} />
+        </Banner>
       ) : items === null ? (
         <View style={styles.middle}>
           <Waiting text={s.state.loading} />
