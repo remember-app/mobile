@@ -32,6 +32,14 @@ test('the circle is drawn at every size the layout uses', () => {
   expect(story(<Avatar name="Марк Ковалёв" size={42} />)).toContain('width:42px');
 });
 
+test('a removed contact’s circle is still a circle on the screen’s ink', () => {
+  // The layout draws it #1B1B24 — a step above the `ink` of the list it stands in. Drawn in `ink`
+  // itself the circle vanishes and two faint letters float where a person was.
+  const gone = story(<Avatar name="Марк Ковалёв" gone />);
+  expect(gone).toContain('background-color:rgba(22,22,31,1.00)');
+  expect(gone).not.toContain('background-color:rgba(11,11,18,1.00)');
+});
+
 test('the five kinds of circle are five kinds', () => {
   allDifferent({
     plain: <Avatar name="Марк Ковалёв" />,

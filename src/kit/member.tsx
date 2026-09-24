@@ -81,7 +81,9 @@ export function Avatar({
         // Spec 7.5: the organizer's collar is a shadow and not a border, so it can stand outside the
         // hairline instead of replacing it.
         ring ? { boxShadow: `0 0 0 1.5px ${color.spark}` } : null,
-        gone ? styles.avatarGone : { backgroundColor: faceOf(name) },
+        // A removed contact's circle goes a step down from `raise` and no further: the layout draws it
+        // #1B1B24, between `surface` and `raise`, so it is still a circle on the `ink` of a list.
+        { backgroundColor: gone ? color.surface : faceOf(name) },
         style,
       ]}
     >
@@ -344,9 +346,6 @@ export function RowContact({
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
     avatar: { backgroundColor: color.raise, alignItems: 'center', justifyContent: 'center' },
-    // A removed contact goes a step under the surface rather than simply translucent: the row still
-    // has to be read while it stands there offering the way back.
-    avatarGone: { backgroundColor: color.ink },
     row: {
       minHeight: height.row,
       flexDirection: 'row',

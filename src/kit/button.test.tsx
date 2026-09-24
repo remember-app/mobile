@@ -18,11 +18,10 @@ const VARIANTS: ButtonVariant[] = [
   'small',
   'quiet',
   'danger',
-  'danger-outline',
   'dashed',
 ];
 
-test('the eight buttons are eight different buttons', () => {
+test('the seven buttons are seven different buttons', () => {
   allDifferent(
     Object.fromEntries(
       VARIANTS.map((variant) => [variant, <Button variant={variant} label="Смонтировать" />]),
@@ -42,17 +41,13 @@ test('the main button is the only one carrying the accent and the shadow with it
   }
 });
 
-test('the dangerous button is filled and shadowless, and the outlined one is neither', () => {
+test('the dangerous button is filled and shadowless', () => {
   const solid = story(<Button variant="danger" label="Удалить" />);
-  // #CE3028 under white — the fill of an irreversible action.
+  // #CE3028 under white — the fill of an irreversible action. The way out beside it is the outlined
+  // `secondary`, and there is no outlined red: red means «навсегда» and is spent on one thing.
   expect(solid).toContain('rgba(206,48,40,1.00)');
   expect(solid).not.toContain('px 28px');
   expect(solid).not.toContain('px 32px');
-
-  const outline = story(<Button variant="danger-outline" label="Удалить" />);
-  expect(outline).not.toContain('rgba(206,48,40,1.00)');
-  // #FF8D8D — danger read as text, which is what the base danger cannot be.
-  expect(outline).toContain('rgba(255,141,141,1.00)');
 });
 
 test('a button that cannot be pressed says so, loses its fill and keeps its words', () => {

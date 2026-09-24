@@ -43,7 +43,7 @@ export type FieldVariant =
   | 'wish';
 
 const BOX: Record<FieldVariant, { minHeight: number; borderRadius: number }> = {
-  name: { minHeight: height.primary, borderRadius: radius.cell },
+  name: { minHeight: height.primary, borderRadius: radius.field },
   email: { minHeight: height.fieldTall, borderRadius: radius.section },
   username: { minHeight: height.fieldTall, borderRadius: radius.section },
   handle: { minHeight: 54, borderRadius: radius.field },

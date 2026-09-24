@@ -19,7 +19,6 @@ export type ButtonVariant =
   | 'small'
   | 'quiet'
   | 'danger'
-  | 'danger-outline'
   | 'dashed';
 
 /** The heights of spec 4, by the place a button stands in rather than by the number. */
@@ -45,7 +44,6 @@ const DEFAULT_SIZE: Record<ButtonVariant, ButtonSize> = {
   small: 'sm',
   quiet: 'sm',
   danger: 'lg',
-  'danger-outline': 'lg',
   // «Новый лейбл», the taller of the two dashed ones.
   dashed: 'md',
 };
@@ -58,7 +56,6 @@ const DEFAULT_WIDE: Record<ButtonVariant, boolean> = {
   small: false,
   quiet: false,
   danger: true,
-  'danger-outline': true,
   dashed: true,
 };
 
@@ -155,8 +152,6 @@ function contentColor({ color }: Theme, variant: ButtonVariant, disabled: boolea
       return color.ink;
     case 'quiet':
       return color.muted;
-    case 'danger-outline':
-      return color.dangerText;
     default:
       return color.paper;
   }
@@ -189,8 +184,6 @@ function fill(
     // No shadow: a shadow would make it the main action of the screen, and it never is.
     case 'danger':
       return { backgroundColor: color.dangerFill };
-    case 'danger-outline':
-      return { borderColor: color.danger, backgroundColor: 'transparent' };
     case 'dashed':
       return { ...DASHED, borderColor: color.lineQuiet };
     case 'quiet':
@@ -203,9 +196,11 @@ function fill(
  * 48 on the glass bar and in the viewer, 44 in a bar, 40 in a track row, 36 in a row, 32 on a
  * banner. Under 44 the drawn size stays and the finger target grows out to 44 (spec 10.2).
  *
- * The two glasses are two tones and not one: `glass` is the bar over the feed — `ink` at 62% behind
- * a blur, which is what keeps a white glyph readable over a wall of photographs — and `viewer` is
- * the paper-tinted glass of the frame window, where the picture underneath is the whole point.
+ * The two glasses are two tones and not one: `glass` is the bar over the feed — `ink` at 62%, with a
+ * darkening of its own under the bar, which is what keeps a white glyph readable over a wall of
+ * photographs — and `viewer` is the paper-tinted glass of the frame window, where the picture
+ * underneath is the whole point. Neither is blurred: the spec's 20–28 of backdrop blur has no
+ * React Native equivalent without `expo-blur`, which is not a dependency.
  *
  * `label` is not optional: a glyph alone says nothing to a screen reader.
  */
@@ -374,7 +369,7 @@ function roundFill(
     // Spec 7.2: raised, and without a border — the lift is the fill.
     case 'raise':
       return { backgroundColor: color.raise };
-    // The glass of a bar standing over the feed — `ink` behind a blur, with its own hairline.
+    // The glass of a bar standing over the feed — `ink` at 62%, with its own hairline.
     case 'glass':
       return { backgroundColor: photo.bar, borderColor: photo.barEdge };
     // The viewer's glass: there is no surface behind a button standing over a photograph.
