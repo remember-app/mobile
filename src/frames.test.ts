@@ -14,6 +14,7 @@ import { ApiError, type FrameInfo, type MediaItem, type Member, type Memory } fr
 // day the line carries, not how this phone's locale spells it.
 import { formatEventDates, startOfDay } from '@/dates';
 import {
+  allTaken,
   arranged,
   dateMarks,
   FILTER_NONE,
@@ -35,6 +36,7 @@ import {
   shotBy,
   SORT_DEFAULT,
   stillPreparing,
+  toggleDay,
   toggleEvery,
   type Filter,
   type Sort,
@@ -690,6 +692,34 @@ test('ids of frames that are gone do not make «все взято» true while a
 test('nothing to take is nothing taken, never a selection made of stale ids', () => {
   expect(toggleEvery([], new Set())).toEqual(new Set());
   expect(toggleEvery([], new Set(['gone']))).toEqual(new Set());
+});
+
+// The seam over a strip (spec 7.8) is a switch over that strip's frames: it takes them, and once the
+// whole strip is taken the same press gives them back — without touching a mark made anywhere else.
+
+test('a seam takes its whole strip and keeps what is marked elsewhere', () => {
+  const strip = [ready('a'), ready('b')];
+  expect(toggleDay(strip, new Set())).toEqual(new Set(['a', 'b']));
+  expect(toggleDay(strip, new Set(['other']))).toEqual(new Set(['other', 'a', 'b']));
+});
+
+test('a seam with part of its strip taken completes it instead of clearing it', () => {
+  expect(toggleDay([ready('a'), ready('b')], new Set(['a']))).toEqual(new Set(['a', 'b']));
+});
+
+test('a second press on a fully taken seam gives back its own strip and nothing else', () => {
+  expect(toggleDay([ready('a'), ready('b')], new Set(['a', 'b', 'other']))).toEqual(
+    new Set(['other']),
+  );
+});
+
+test('the seam’s circle is full only when every frame of its strip is marked', () => {
+  const strip = [ready('a'), ready('b')];
+  expect(allTaken(strip, new Set(['a', 'b', 'other']))).toBe(true);
+  expect(allTaken(strip, new Set(['a']))).toBe(false);
+  // Nothing markable is not «everything marked»: an empty strip never shows a full circle.
+  expect(allTaken([], new Set(['a']))).toBe(false);
+  expect(toggleDay([], new Set(['a']))).toEqual(new Set(['a']));
 });
 
 // Taking marked frames out of the memory, one call after another.

@@ -45,6 +45,7 @@ import {
 } from '@/dates';
 import { maySaveToPhone, saveToPhone, shareFile } from '@/downloads';
 import {
+  allTaken,
   arranged,
   COLUMNS,
   dateMarks,
@@ -62,6 +63,7 @@ import {
   removeFrames,
   SORT_DEFAULT,
   stillPreparing,
+  toggleDay,
   toggleEvery,
   type Filter,
   type Frame,
@@ -562,17 +564,6 @@ export function Frames({ id, head }: { id: string; head: Head }) {
     });
 
   /**
-   * The group's own action, «Выбрать все 174» — and what it means is the strip it stands over,
-   * never the whole feed. It only ever adds: what is marked under another heading stays marked, and
-   * the way anything leaves the selection is a second tap on it or the capsule. Handed the markable
-   * frames rather than the group, so the button's count and the button's press cannot disagree
-   * about what «все» is.
-   */
-  function pickDay(frames: readonly MediaItem[]) {
-    setPicked((have) => new Set([...have, ...frames.map((item) => item.id)]));
-  }
-
-  /**
    * The capsule while the mode is on (spec 8, `FramesPicking`): it takes every frame on the feed,
    * and once they are all taken the same press gives them back. Everything the filter is holding
    * back is left alone — «все» is what is on the screen, which is what the count over it says too.
@@ -837,7 +828,14 @@ export function Frames({ id, head }: { id: string; head: Head }) {
                     ? String(picking ? markable.length : group.frames.length)
                     : undefined
                 }
-                onPress={picking && markable.length > 0 ? () => pickDay(markable) : undefined}
+                // The seam is the group's own switch: its circle says whether all of it is taken,
+                // and a second press gives it back.
+                picked={allTaken(markable, picked)}
+                onPress={
+                  picking && markable.length > 0
+                    ? () => setPicked((have) => toggleDay(markable, have))
+                    : undefined
+                }
                 pressLabel={s.gallery.selectDay(markable.length)}
               />
             );

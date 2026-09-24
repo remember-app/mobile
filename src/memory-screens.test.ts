@@ -486,20 +486,19 @@ test('a heading is a day, a person with their circle, or one of the two kinds', 
   expect(frames).toContain('s.memory.frames(');
 });
 
-test('«Выбрать все N» counts and marks the frames a tap could reach, and only adds', () => {
+test('«Выбрать все N» counts the frames a tap could reach, and the seam is a switch over them', () => {
   // The count, the gate and the press all read the one list, so the button cannot say «9» and mark
   // eight. The rule itself is `mayPick` — the same one the single tap is gated on.
   expect(frames).toContain('const markable = group.frames.filter(mayPick);');
   // A seam with nothing a tap could reach takes no press at all — the same answer the footer
   // gives to the same emptiness, and the band is the press now (spec 7.8).
-  expect(frames).toContain('picking && markable.length > 0 ? () => pickDay(markable) : undefined');
-  // Never unmarks: what is marked on another day stays marked, and taking a mark off is a second
-  // tap on the frame or the footer's «Снять».
-  const pickDay = frames.slice(frames.indexOf('function pickDay'));
-  expect(pickDay.slice(0, pickDay.indexOf('\n  }'))).toContain(
-    'setPicked((have) => new Set([...have, ...frames.map((item) => item.id)]));',
-  );
-  expect(pickDay).not.toContain('next.delete');
+  const daymark = frames.slice(frames.indexOf('<DayMark'), frames.indexOf('/>', frames.indexOf('<DayMark')));
+  expect(daymark).toContain('picking && markable.length > 0');
+  // The circle says whether the whole group is taken and a second press gives it back — the kit's
+  // contract for `DayMark`, and what «Ваши кадры» does. What the press does to the selection is
+  // `toggleDay` (`frames.test.ts`), which only ever touches this group's frames.
+  expect(daymark).toContain('picked={allTaken(markable, picked)}');
+  expect(daymark).toContain('setPicked((have) => toggleDay(markable, have))');
   // The kit's quiet action of the day, and the same words on both sheets that have one — «тем же
   // тихим действием дня, что и на „Выборе кадров“». Two keys because each face keeps its own words,
   // held equal here so they cannot drift apart in one language only.

@@ -153,6 +153,11 @@ export function mayPick(item: MediaItem): boolean {
   return frameOf(item).state === 'ready';
 }
 
+/** Whether every one of these frames is marked — and none being markable is not «all of them». */
+export function allTaken(markable: readonly MediaItem[], have: ReadonlySet<string>): boolean {
+  return markable.length > 0 && markable.every((item) => have.has(item.id));
+}
+
 /**
  * What the capsule's «выбрать все» does to the selection (spec 8, `FramesPicking`): takes every frame
  * a mark could mean something on, and once they are all taken the same press gives them back.
@@ -166,8 +171,25 @@ export function toggleEvery(
   markable: readonly MediaItem[],
   have: ReadonlySet<string>,
 ): Set<string> {
-  const all = markable.length > 0 && markable.every((item) => have.has(item.id));
-  return all ? new Set() : new Set(markable.map((item) => item.id));
+  return allTaken(markable, have) ? new Set() : new Set(markable.map((item) => item.id));
+}
+
+/**
+ * What a seam's «Выбрать все 174» does to the selection: takes the strip under it, and once the
+ * whole strip is taken the same press puts it back. It is the strip's own gesture and touches
+ * nothing else — what is marked under another heading stays marked either way.
+ */
+export function toggleDay(
+  markable: readonly MediaItem[],
+  have: ReadonlySet<string>,
+): Set<string> {
+  const next = new Set(have);
+  const whole = allTaken(markable, have);
+  for (const item of markable) {
+    if (whole) next.delete(item.id);
+    else next.add(item.id);
+  }
+  return next;
 }
 
 /**
