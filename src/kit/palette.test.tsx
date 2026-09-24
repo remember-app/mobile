@@ -1,7 +1,7 @@
 import { beforeAll, expect, test } from 'vitest';
 
 import { Palette } from '@/kit/palette';
-import { allDifferent, story } from '@/kit/story';
+import { allDifferent, compiled, story } from '@/kit/story';
 import { labelColors, setTheme, themes } from '@/theme';
 
 /** Spec 7.3, detail 20 — the eight colours a label can be. */
@@ -71,4 +71,11 @@ test('the inner ring is drawn in whatever the circles stand on', () => {
   );
   expect(inSheet).toContain('3px #16161F');
   expect(onScreen).toContain('3px #0B0B12');
+});
+
+test('the row is as tall as the finger, because the slop round a 36 circle cannot leave it', () => {
+  // Spec 1.6 and 10.2: drawn 36, felt 44. `hitSlop` is clipped to the view the button stands in, so
+  // on a row exactly 36 tall the four points above and below each circle would be dead.
+  story(<Palette colors={COLORS} names={NAMES} value={COLORS[0]} onChange={() => {}} label="Цвет лейбла" />);
+  expect(compiled()).toContain('min-height:44px');
 });

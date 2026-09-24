@@ -303,7 +303,10 @@ export function StepNote({
   const styles = useStyles();
 
   return (
-    <Tappable label={text} onPress={onPress} style={styles.note}>
+    // No label of its own: the thought is what a person means by the row, but the decision beside it
+    // — «Беру», «Мимо» — is the other half of what the record says, and a label of the thought alone
+    // would keep it from a screen reader.
+    <Tappable onPress={onPress} style={styles.note}>
       <View style={styles.noteShot}>
         {uri ? <Image source={{ uri }} contentFit="cover" style={StyleSheet.absoluteFill} /> : null}
         {length ? (
@@ -429,7 +432,12 @@ function Tappable({
   style,
   children,
 }: {
-  label: string;
+  /**
+   * What the row is called out as. Left off, a screen reader is given the words on it as they
+   * stand — which is the right answer for a row whose parts are all words and a mark, where a label
+   * of one part would drop the rest.
+   */
+  label?: string;
   onPress?: () => void;
   selected?: boolean;
   style?: StyleProp<ViewStyle>;

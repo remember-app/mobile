@@ -112,7 +112,7 @@ test('the edit mode puts the pair where the circle was and goes quiet about the 
   expect(editing).toContain('Удалить «Лучшее»');
   expect(editing).toContain('Готово');
   // The row is no longer filing anything: its name is not a button's name any more.
-  expect(editing).not.toContain('aria-label="Лучшее"');
+  expect(editing).not.toMatch(/aria-label="Лучшее[,"]/);
   allDifferent({ filing: sheet(), editing: sheet({ editing: true }) });
 });
 
@@ -121,7 +121,7 @@ test('a label the server will not let this person edit keeps no pair, and goes o
   const shut = label({ can_edit: false });
   const editing = story(sheet({ labels: [shut], editing: true }));
   expect(editing).not.toContain('Переименовать «Лучшее»');
-  expect(editing).toContain('aria-label="Лучшее"');
+  expect(editing).toMatch(/aria-label="Лучшее[,"]/);
   // With nothing this person may edit, the button that turns the mode on is not drawn either.
   expect(story(sheet({ labels: [shut] }))).not.toContain('Править');
 });

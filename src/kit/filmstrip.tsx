@@ -141,11 +141,10 @@ function PlayDot() {
 }
 
 /**
- * Spec 7.7 — the three mosaics the layout builds out of a memory's own frames:
+ * Spec 7.7 — the mosaics the layout builds out of a memory's own frames:
  *
  * - `cover` — 3 × 2 with one 2 × 2 cell on the left, behind the large memory card;
- * - `strip` — four in a row inside an ordinary card, 96 tall;
- * - `banner` — four in a row under a solid, 176 tall, behind «Собираем ролик».
+ * - `strip` — four in a row inside an ordinary card, 96 tall.
  *
  * A cell with nothing to put in it is left as plain `surface`: spec 7.6 says a memory with fewer
  * than three frames fills what it can and leaves the rest empty rather than repeating a picture.
@@ -156,7 +155,7 @@ export function Mosaic({
   style,
 }: {
   photos: readonly string[];
-  layout?: 'cover' | 'strip' | 'banner';
+  layout?: 'cover' | 'strip';
   style?: StyleProp<ViewStyle>;
 }) {
   const styles = useStyles();
@@ -170,7 +169,6 @@ export function Mosaic({
         StyleSheet.absoluteFill,
         styles.mosaic,
         layout === 'cover' ? styles.mosaicCover : null,
-        layout === 'banner' ? styles.mosaicBanner : null,
         style,
       ]}
     >
@@ -228,7 +226,6 @@ const useStyles = themed(({ color }) =>
     // column, the two small ones stack in the second. A row cannot draw that — the big cell makes
     // its line as tall as the whole cover, which puts the wrapped line under the bottom edge.
     mosaicCover: { flexDirection: 'column', flexWrap: 'wrap', gap: 2 },
-    mosaicBanner: { gap: 2 },
     cell: { flexGrow: 1, flexBasis: 0, backgroundColor: color.surface, overflow: 'hidden' },
     // The 2 × 2 cell on the left of a cover, and the two stacked beside it. Sized outright, both
     // ways: inside the wrap above there is no line to be stretched to.

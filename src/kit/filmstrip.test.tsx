@@ -55,12 +55,11 @@ test('each frame of the strip says which one it is, and whether it is the open o
   expect(strip).toContain('role="button"');
 });
 
-test('the three mosaics are three layouts', () => {
+test('the two mosaics are two layouts', () => {
   const photos = FRAMES.map((frame) => frame.uri);
   allDifferent({
     cover: <Mosaic photos={photos} layout="cover" />,
     strip: <Mosaic photos={photos} layout="strip" />,
-    banner: <Mosaic photos={photos} layout="banner" />,
   });
 });
 
@@ -91,13 +90,13 @@ test('a mosaic never leaves a cell to be measured by a line that wrapped', () =>
   // outright how big it is. Never the half of that which looks right on the web.
   const photos = FRAMES.map((frame) => frame.uri);
 
-  // The two rows. Four cells across the full height of the slot, none of them sized by hand — so
-  // nothing here may wrap.
-  for (const layout of ['strip', 'banner'] as const) {
-    const { container, cells } = mosaic(story(<Mosaic photos={photos} layout={layout} />));
-    expect(container['flex-direction'], layout).toBe('row');
-    expect(container['flex-wrap'], layout).toBeUndefined();
-    expect(cells, layout).toHaveLength(4);
+  // The row. Four cells across the full height of the slot, none of them sized by hand — so nothing
+  // here may wrap.
+  {
+    const { container, cells } = mosaic(story(<Mosaic photos={photos} layout="strip" />));
+    expect(container['flex-direction']).toBe('row');
+    expect(container['flex-wrap']).toBeUndefined();
+    expect(cells).toHaveLength(4);
   }
 
   // The cover is the one that wraps, and it wraps down a column: the big cell fills the first one

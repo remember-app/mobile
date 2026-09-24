@@ -926,8 +926,8 @@ test('a card still being made is the second road onto the montage being watched'
   expect(films).toContain('onPress={() => void retry(montage)}');
   // And the kit is what makes that true: without a press handed over, the card is not a button and
   // takes no finger at all.
-  expect(cardMontage).toContain("accessibilityRole={onPress ? 'button' : undefined}");
-  expect(cardMontage).toContain('disabled={!onPress}');
+  expect(cardMontage).toContain('if (!onPress) return <View');
+  expect(cardMontage).toContain('accessibilityRole="button"');
 });
 
 test('the montage being watched is read through the journal’s own hook and nothing else', () => {

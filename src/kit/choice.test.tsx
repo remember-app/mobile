@@ -69,6 +69,17 @@ test('the row carries a tick on the right and the tile does not', () => {
   ).toHaveLength(1);
 });
 
+test('a read-only card is the choice that was made, whether or not it is also told it is selected', () => {
+  // The sheet that edits a label hands it in as just `readOnly`: the value is fixed, so there is no
+  // unchosen state to fall back on, and a card drawn as unchosen would say «not this one».
+  const bare = story(<ChoiceCard icon={Users} title="Общий" note="видят все участники" variant="row" readOnly />);
+  const told = story(
+    <ChoiceCard icon={Users} title="Общий" note="видят все участники" variant="row" selected readOnly />,
+  );
+  expect(bare).toBe(told);
+  expect(bare).not.toBe(story(<ChoiceCard icon={Users} title="Общий" note="видят все участники" variant="row" />));
+});
+
 test('read-only is a value and not a button, and never a greyed-out one', () => {
   const fixed = story(
     <ChoiceCard icon={Users} title="Общий" note="видят все участники" selected readOnly />,

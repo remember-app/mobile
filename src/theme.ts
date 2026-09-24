@@ -274,6 +274,7 @@ export const photo = {
   /** The glass of the action menu, which floats deeper than a bar does. */
   menu: 'rgba(30,30,40,0.86)',
   menuEdge: 'rgba(255,255,255,0.10)',
+  menuShadow: '0 18px 50px rgba(0,0,0,0.55)',
   /** The rule between two rows of that menu, and the gap before its dangerous row. */
   menuLine: 'rgba(255,255,255,0.08)',
   menuGap: 'rgba(0,0,0,0.28)',
@@ -283,7 +284,7 @@ export const photo = {
   mark: 'rgba(9,9,14,0.72)',
   /** the same plate under a reason a frame was dropped — denser, it carries smaller type */
   markStrong: 'rgba(9,9,14,0.86)',
-  /** the blurred plate a whole phrase stands on over a photograph — an author, a length, a date */
+  /** the plate a whole phrase stands on over a photograph — an author, a length, a date */
   plate: 'rgba(11,11,18,0.58)',
   /** the date spine's hairline down the edge of the feed, and the tick that leaves it */
   spine: 'rgba(245,243,238,0.22)',
@@ -299,8 +300,6 @@ export const photo = {
   pickHand: 'rgba(9,9,14,0.86)',
   /** the viewer's glass: a button over a photograph has no surface under it */
   glass: 'rgba(245,243,238,0.10)',
-  /** the solid that puts out the mosaic under «Собираем ролик» */
-  mosaic: 'rgba(9,9,14,0.72)',
   /** read on any of the above */
   on: '#FFFFFF',
   /** the second line read on any of the above — a date, a count, what a montage was made of */
@@ -413,7 +412,7 @@ const dark: Color = {
   handle: '#3A3747',
   dangerSoft: 'rgba(206,48,40,0.14)',
   dangerEdge: 'rgba(206,48,40,0.45)',
-  failedSoft: 'rgba(255,90,90,0.16)',
+  failedSoft: 'rgba(206,48,40,0.16)',
   pendingSoft: 'rgba(75,91,255,0.20)',
   sparkSoft: 'rgba(228,255,79,0.12)',
   sparkEdge: 'rgba(228,255,79,0.40)',
@@ -448,13 +447,13 @@ const light: Color = {
   accentNote: '#F3F3FC',
   accentEdge: 'rgba(59,63,224,0.35)',
   spark: '#DCF531',
-  sparkInk: '#15151C',
+  sparkInk: '#16180A',
   danger: '#D93A3A',
   // The spec's `dangerTextOnLight` — the day's danger is too bright to be read at 13px.
   dangerText: '#A82C2C',
   dangerFill: '#CE3028',
   onFill: '#FFFFFF',
-  dashed: '#D2CBBB',
+  dashed: '#D3CCBB',
   // A hole is darker than the screen at night and lighter than it in daylight — either way it is
   // the one step away from `ink` that says «nothing lives here yet».
   hollow: '#ECE8DE',
@@ -480,8 +479,6 @@ export type Shadow = {
   primary: string;
   /** The round button held in — the shallower cousin of `primary` (spec 2). */
   round: string;
-  /** The action menu, which floats higher than anything else in the product (spec 7.1). */
-  menu: string;
 };
 
 const shadow: Record<'dark' | 'light', Shadow> = {
@@ -491,7 +488,6 @@ const shadow: Record<'dark' | 'light', Shadow> = {
     cardLarge: 'none',
     primary: '0 12px 32px rgba(75,91,255,0.38)',
     round: '0 6px 18px rgba(75,91,255,0.40)',
-    menu: '0 18px 50px rgba(0,0,0,0.55)',
   },
   light: {
     card: '0 2px 10px rgba(28,24,14,0.05)',
@@ -499,7 +495,6 @@ const shadow: Record<'dark' | 'light', Shadow> = {
     primary: '0 12px 28px rgba(59,63,224,0.28)',
     // The day's accent shadow is the softer one, by the same rule the main button follows.
     round: '0 6px 16px rgba(59,63,224,0.30)',
-    menu: '0 18px 44px rgba(28,24,14,0.28)',
   },
 };
 
@@ -520,6 +515,14 @@ export const themes: Record<ThemeName, Theme> = {
   dark: { name: 'dark', color: dark, shadow: shadow.dark },
   light: { name: 'light', color: light, shadow: shadow.light },
 };
+
+/**
+ * The night's colours as a fixed set, for what stands on a photograph or on glass. Those layers are
+ * dark in both themes (spec 2), so the paper and the muted read on them are the night's whichever
+ * theme the app is in. A subtree gets the same through `<ThemePin value="dark">`; this is for the
+ * one colour a component works out for itself.
+ */
+export const night: Color = dark;
 
 /**
  * The six backgrounds a face without a photograph is given (spec 2). They carry no meaning at all —

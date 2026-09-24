@@ -81,6 +81,9 @@ export function RowToggle({
     <Pressable
       accessibilityRole="switch"
       accessibilityLabel={label}
+      // The line under the name says what the setting reaches — it is the only place it is explained,
+      // and a label alone would keep it from a screen reader.
+      accessibilityHint={note}
       accessibilityState={{ checked: value, disabled: !!disabled }}
       disabled={disabled}
       onPress={() => onValueChange(!value)}

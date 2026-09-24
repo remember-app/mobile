@@ -9,7 +9,7 @@ import {
   type TextStyle,
 } from 'react-native';
 
-import { height, radius, space, themed, type, useTheme, type Theme } from '@/theme';
+import { height, night, radius, space, themed, type, useTheme, type Theme } from '@/theme';
 
 import { Icon, type IconComponent } from './icon';
 import { Text } from './text';
@@ -43,7 +43,7 @@ export type FieldVariant =
   | 'wish';
 
 const BOX: Record<FieldVariant, { minHeight: number; borderRadius: number }> = {
-  name: { minHeight: height.primary, borderRadius: radius.cell },
+  name: { minHeight: height.primary, borderRadius: radius.field },
   email: { minHeight: height.fieldTall, borderRadius: radius.section },
   username: { minHeight: height.fieldTall, borderRadius: radius.section },
   handle: { minHeight: 54, borderRadius: radius.field },
@@ -156,7 +156,7 @@ export function Field({
             importantForAccessibility="no-hide-descendants"
             style={[styles.swatch, { backgroundColor: swatch }]}
           >
-            <Icon icon={Tag} size={15} color={theme.color.ink} />
+            <Icon icon={Tag} size={15} color={night.ink} />
           </View>
         ) : null}
         {icon ? (

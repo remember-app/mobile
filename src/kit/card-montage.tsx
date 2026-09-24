@@ -3,7 +3,7 @@ import { Play, Plus } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { photo, radius, space, themed, useTheme } from '@/theme';
+import { night, photo, radius, space, themed, ThemePin, useTheme } from '@/theme';
 
 import { type MontageState } from './badge';
 import { Icon } from './icon';
@@ -77,22 +77,8 @@ export function CardMontage({
   const focusRing = useFocusRing();
   const ready = state === 'ready';
 
-  return (
-    <Pressable
-      accessibilityRole={onPress ? 'button' : undefined}
-      accessibilityLabel={label ?? [title, meta].filter(Boolean).join(' · ')}
-      disabled={!onPress}
-      onPress={onPress}
-      {...props}
-      style={({ pressed }) => [
-        styles.card,
-        large ? styles.large : styles.strip,
-        hovered && onPress ? styles.hover : null,
-        pressed && !reduced ? PRESS : null,
-        focused ? focusRing : null,
-        style,
-      ]}
-    >
+  const body = (
+    <>
       {poster ? (
         // Spec 7.6 — a montage still being cut shows its own frame pushed out of focus: there is
         // something there, and it is not ready to be looked at. `expo-image` blurs it natively;
@@ -106,7 +92,12 @@ export function CardMontage({
       ) : null}
       <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.scrim]} />
 
-      <View style={large ? styles.largeBadge : styles.stripBadge}>{badge}</View>
+      {/* The badge and the button under a fallen card lie on the poster, which is a photograph in both
+          themes: they are read in the night's ink, or «Собирается» in the day's blue would be a dark
+          word on a dark frame. */}
+      <View style={large ? styles.largeBadge : styles.stripBadge}>
+        <ThemePin value="dark">{badge}</ThemePin>
+      </View>
 
       {ready && large ? (
         <View style={styles.playLarge}>
@@ -147,22 +138,50 @@ export function CardMontage({
               </Text>
             ) : null}
             {step ? <StageScale done={step.done} of={step.of} /> : null}
-            {children}
+            <ThemePin value="dark">{children}</ThemePin>
           </>
         )}
       </View>
+    </>
+  );
+
+  // A card nobody can press is a group and not a button: its words are read as words and, on a
+  // fallen one, the button under them stays reachable — pressable or not, the whole card as one
+  // accessible element would swallow it.
+  if (!onPress) return <View style={[styles.card, large ? styles.large : styles.strip, style]}>{body}</View>;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label ?? [title, meta].filter(Boolean).join(' · ')}
+      onPress={onPress}
+      {...props}
+      style={({ pressed }) => [
+        styles.card,
+        large ? styles.large : styles.strip,
+        hovered ? styles.hover : null,
+        pressed && !reduced ? PRESS : null,
+        focused ? focusRing : null,
+        style,
+      ]}
+    >
+      {body}
     </Pressable>
   );
 }
 
-/** The `paper` circle a finished montage is watched from — 34 in the strip, 60 when it is the screen. */
+/**
+ * The `paper` circle a finished montage is watched from — 34 in the strip, 60 when it is the screen.
+ * It lies on the poster, so it is the night's paper with the night's ink in it in both themes (the
+ * layout draws it `rgba(245,243,238,.95)` with `#0B0B12` inside): in daylight the theme's own `ink`
+ * is a cream, and a cream triangle on a cream circle is a circle with nothing in it.
+ */
 function PlayCircle({ size }: { size: 34 | 60 }) {
-  const { color } = useTheme();
   const styles = useStyles();
 
   return (
     <View style={[styles.play, { width: size, height: size }]}>
-      <Icon icon={Play} size={size === 60 ? 24 : 15} color={color.ink} fill={color.ink} />
+      <Icon icon={Play} size={size === 60 ? 24 : 15} color={night.ink} fill={night.ink} />
     </View>
   );
 }
@@ -291,7 +310,7 @@ const useStyles = themed(({ color }) =>
     },
     play: {
       borderRadius: radius.pill,
-      backgroundColor: photo.on,
+      backgroundColor: night.paper,
       alignItems: 'center',
       justifyContent: 'center',
     },

@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { board, height, photo, radius, space, themed, useTheme } from '@/theme';
+import { board, height, night, photo, radius, space, themed, ThemePin, useTheme } from '@/theme';
 
 import { StepScale } from './bits';
 import { Icon } from './icon';
@@ -65,9 +65,10 @@ export function AppBar({
   style?: StyleProp<ViewStyle>;
 }) {
   const styles = useStyles();
-  // Spec 7.1: an inner bar closes to 8 and hangs its round buttons 10 outside the screen's margin,
-  // so the glyph inside them lines up with the words below rather than the button's own edge. The
-  // root bar keeps 12 and its one button stays inside the margin — it is filled, and a filled
+  // Spec 7.1: an inner bar closes to 8 and hangs its «Назад» 10 outside the screen's margin, so the
+  // glyph inside it lines up with the words below rather than the button's own edge. Nothing on the
+  // right is pulled: the pill over a montage on air stands on the margin, the way the layout has it.
+  // The root bar keeps 12 and its one button stays inside the margin — it is filled, and a filled
   // button pulled out would read as falling off the screen.
   const inner = variant !== 'root';
 
@@ -91,7 +92,7 @@ export function AppBar({
           </Text>
         ) : null}
       </View>
-      {right ? <View style={inner ? styles.pullRight : null}>{right}</View> : null}
+      {right}
     </View>
   );
 }
@@ -205,7 +206,6 @@ export function GlassBar({
   style?: StyleProp<ViewStyle>;
 }) {
   const insets = useSafeAreaInsets();
-  const { color } = useTheme();
   const styles = useStyles();
   // A plate and a button are the same capsule; only one of them is pressed, and the chevron says
   // there is something under it — so a plate never wears one, and neither does the one press that
@@ -216,7 +216,7 @@ export function GlassBar({
         <Text role="pillTitle" numberOfLines={1} style={styles.shrink}>
           {title}
         </Text>
-        {onCapsule && chevron ? <Icon icon={ChevronDown} size={12} color={color.muted} /> : null}
+        {onCapsule && chevron ? <Icon icon={ChevronDown} size={12} color={night.muted} /> : null}
       </View>
       {meta ? (
         <Text role="meta" numberOfLines={1}>
@@ -227,38 +227,43 @@ export function GlassBar({
   );
 
   return (
-    <View style={[styles.glassBar, { paddingTop: insets.top }, style]}>
-      <View
-        pointerEvents="none"
-        style={[
-          StyleSheet.absoluteFill,
-          { bottom: undefined, height: board.headGallery, experimental_backgroundImage: photo.headGallery },
-        ]}
-      />
-      {left}
-      {onCapsule ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={capsuleLabel}
-          onPress={onCapsule}
-          style={styles.capsule}
-        >
-          {words}
-        </Pressable>
-      ) : (
-        <View accessibilityRole="header" accessibilityLabel={capsuleLabel} style={styles.capsule}>
-          {words}
-        </View>
-      )}
-      {right}
-    </View>
+    // Glass is dark in both themes (spec 2), so everything drawn on it — the capsule's words and
+    // the two round buttons a screen hands in — is read in the night's ink, whatever the app is in.
+    <ThemePin value="dark">
+      <View style={[styles.glassBar, { paddingTop: insets.top }, style]}>
+        <View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            { bottom: undefined, height: board.headGallery, experimental_backgroundImage: photo.headGallery },
+          ]}
+        />
+        {left}
+        {onCapsule ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={capsuleLabel}
+            onPress={onCapsule}
+            style={styles.capsule}
+          >
+            {words}
+          </Pressable>
+        ) : (
+          <View accessible accessibilityRole="header" accessibilityLabel={capsuleLabel} style={styles.capsule}>
+            {words}
+          </View>
+        )}
+        {right}
+      </View>
+    </ThemePin>
   );
 }
 
 /**
- * The viewer's floating bar (spec 7.1, kind 6): three pieces of glass over the photograph — close
+ * The viewer's floating bar (spec 7.1, kind 5): three pieces of glass over the photograph — close
  * on the left, a pill carrying when and who in the middle, «ещё» on the right. It floats because
- * there is no surface under it; the frame is the surface.
+ * there is no surface under it; the frame is the surface. It keeps 12 at the sides and 10 between
+ * the pieces, the same margin the glass bar over the feed keeps and not the screen's 16.
  */
 export function ViewerBar({
   date,
@@ -285,30 +290,36 @@ export function ViewerBar({
   const styles = useStyles();
 
   return (
-    <View style={[styles.bar, style]}>
-      {left}
-      {/* Spec 7.1, detail 5: the pill is a button — it is the road to the frame's own sheet, and
-          the `chevron-down` on it is what says so. A `Pressable` with nothing to press stays a
-          plain block of glass, which is what the layout draws where there is nowhere to go. */}
-      <Pressable
-        accessibilityRole={onPress ? 'button' : undefined}
-        accessibilityLabel={onPress ? label : undefined}
-        onPress={onPress}
-        disabled={!onPress}
-        style={styles.viewerPill}
-      >
-        <View style={styles.viewerWords}>
-          <Text role="label" numberOfLines={1} style={styles.onPhoto}>
-            {date}
-          </Text>
-          <Text role="meta" numberOfLines={1} style={styles.onPhotoMeta}>
-            {meta}
-          </Text>
+    // Over a photograph in both themes, like the glass bar: the round buttons a screen hands in are
+    // read in the night's ink whatever the app is in.
+    <ThemePin value="dark">
+      <View style={[styles.viewerBar, style]}>
+        {left}
+        <View style={styles.viewerMiddle}>
+          {/* Spec 7.1, detail 5: the pill is a button — it is the road to the frame's own sheet, and
+              the `chevron-down` on it is what says so. A `Pressable` with nothing to press stays a
+              plain block of glass, which is what the layout draws where there is nowhere to go. */}
+          <Pressable
+            accessibilityRole={onPress ? 'button' : undefined}
+            accessibilityLabel={onPress ? label : undefined}
+            onPress={onPress}
+            disabled={!onPress}
+            style={[styles.viewerPill, onPress ? null : styles.viewerPillPlain]}
+          >
+            <View style={styles.viewerWords}>
+              <Text role="row" numberOfLines={1} style={styles.onPhoto}>
+                {date}
+              </Text>
+              <Text role="meta" numberOfLines={1} style={styles.onPhotoMeta}>
+                {meta}
+              </Text>
+            </View>
+            {onPress ? <Icon icon={ChevronDown} size={12} color={photo.onQuiet} /> : null}
+          </Pressable>
         </View>
-        {onPress ? <Icon icon={ChevronDown} size={12} color={photo.dot} /> : null}
-      </Pressable>
-      {right}
-    </View>
+        {right}
+      </View>
+    </ThemePin>
   );
 }
 
@@ -390,7 +401,6 @@ const useStyles = themed(({ color }) =>
     },
     barInner: { gap: space.s2 },
     pullLeft: { marginLeft: -10 },
-    pullRight: { marginRight: -10 },
     // `flex: 1` with `minWidth: 0` is what makes a long name truncate instead of pushing the button
     // on the right off the screen.
     barWords: { flex: 1, minWidth: 0, gap: 2 },
@@ -425,22 +435,36 @@ const useStyles = themed(({ color }) =>
     wizardSide: { width: 74, alignItems: 'flex-start' },
     wizardRight: { alignItems: 'flex-end' },
     wizardStep: { flex: 1, textAlign: 'center', fontVariant: ['tabular-nums'] },
-    viewerPill: {
-      flex: 1,
+    viewerBar: {
+      minHeight: height.roundViewer,
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
+      gap: 10,
+      paddingHorizontal: space.s3,
+    },
+    // The pill is as wide as its words and stands in the middle of what the two buttons leave —
+    // it is not a strip laid across the bar. The hairline is the layout's, and only the pill has it.
+    viewerMiddle: { flex: 1, minWidth: 0, alignItems: 'center' },
+    viewerPill: {
+      height: height.roundViewer,
+      maxWidth: '100%',
+      flexDirection: 'row',
+      alignItems: 'center',
       gap: space.s2,
-      paddingVertical: space.s2,
-      paddingHorizontal: space.s4,
+      paddingLeft: 20,
+      paddingRight: 14,
       borderRadius: radius.pill,
       backgroundColor: photo.glass,
+      borderWidth: 1,
+      borderColor: photo.barEdge,
     },
+    // No chevron on the right, so the words are centred by the same 20 on both sides.
+    viewerPillPlain: { paddingRight: 20 },
     // Two floors beside the chevron, not above it — and they give way first: a long name is
     // truncated, the sign that the pill opens something never is.
-    viewerWords: { flexShrink: 1, minWidth: 0, alignItems: 'center', gap: 2 },
+    viewerWords: { flexShrink: 1, minWidth: 0, alignItems: 'center', gap: 1 },
     onPhoto: { color: photo.on },
-    onPhotoMeta: { color: photo.dot },
+    onPhotoMeta: { color: photo.onQuiet },
     layer: { paddingHorizontal: space.s4, paddingTop: space.s3, gap: space.s3 },
     layerAbove: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },
     layerRow: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },

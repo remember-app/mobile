@@ -368,7 +368,9 @@ export function LogEntry({
       {children ?? (
         // A record about a file opens that file's own card; one about a series or a thought alone
         // does not, so the press is only ever offered where there is somewhere to go.
-        <Touch label={source ?? text ?? time} onPress={uri ? onPress : undefined}>
+        // Nothing is said in place of the record: its file, its thought and the decision pills are
+        // all words, and a label of the first of them would keep the rest from a screen reader.
+        <Touch onPress={uri ? onPress : undefined}>
           {uri ? (
             <View style={styles.entryFile}>
               <View style={styles.shotSmall}>
@@ -435,7 +437,8 @@ function Touch({
   style,
   children,
 }: {
-  label: string;
+  /** Left off, the words on the row are read as they stand — see `Tappable` in `rows.tsx`. */
+  label?: string;
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
   children: ReactNode;

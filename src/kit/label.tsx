@@ -2,7 +2,7 @@ import { Check, Lock, Plus, Tag as TagIcon, Users } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { radius, space, themed, useTheme } from '@/theme';
+import { night, radius, space, themed, useTheme } from '@/theme';
 
 import { Divider } from './bits';
 import { Icon } from './icon';
@@ -20,11 +20,11 @@ export type LabelScope = 'shared' | 'own';
 /**
  * The coloured square a label is known by: 30 in its own row, 64 on the sheet that asks whether to
  * delete it, 18 on the chip that filters by it (spec 10.8.1, 10.8.2). The `tag` glyph inside it is
- * always read in `ink` — the eight label colours are all light, and this is the one place the
- * product puts dark on colour.
+ * always the night's `ink` — the eight label colours are light in either theme, and this is the one
+ * place the product puts dark on colour: the day's own `ink` is a cream, and a cream tag on an
+ * amber square is a square with nothing on it.
  */
 export function LabelMark({ tint, size = 30 }: { tint: string; size?: 30 | 64 | 18 }) {
-  const { color } = useTheme();
   const styles = useStyles();
 
   return (
@@ -37,7 +37,7 @@ export function LabelMark({ tint, size = 30 }: { tint: string; size?: 30 | 64 | 
         { backgroundColor: tint },
       ]}
     >
-      <Icon icon={TagIcon} size={size === 64 ? 30 : size === 18 ? 10 : 15} color={color.ink} />
+      <Icon icon={TagIcon} size={size === 64 ? 30 : size === 18 ? 10 : 15} color={night.ink} />
     </View>
   );
 }
@@ -126,7 +126,9 @@ export function RowLabel({
           // standing for a value of its own (spec 7.7).
           accessibilityRole="button"
           accessibilityState={{ selected: !!inside }}
-          accessibilityLabel={name}
+          // Who can see the label is what a person is deciding when they file into it, so it is said
+          // out loud with the name and the count, not left to the glyph beside them.
+          accessibilityLabel={[name, count, scopeLabel].filter(Boolean).join(', ')}
           onPress={onPress}
           {...props}
           style={({ pressed }) => [

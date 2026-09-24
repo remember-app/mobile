@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { photo, radius, space, themed, useTheme } from '@/theme';
+import { night, photo, radius, space, themed, useTheme } from '@/theme';
 
 import { Icon, type IconComponent } from './icon';
 import { PRESS, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
@@ -48,7 +48,6 @@ export function TileTemplate({
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
 }) {
-  const { color } = useTheme();
   const { focused, props } = useHoverFocus();
   const reduced = useReducedMotion();
   const styles = useStyles();
@@ -77,7 +76,8 @@ export function TileTemplate({
       <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.templateScrim]} />
       {icon ? (
         <View style={styles.glass}>
-          <Icon icon={icon} size={16} color={color.paper} />
+          {/* On glass over a photograph: the night's paper in both themes, like the words beside it. */}
+          <Icon icon={icon} size={16} color={night.paper} />
         </View>
       ) : null}
       {spec ? (
@@ -130,7 +130,6 @@ export function PosterOrder({
   about?: string;
   style?: StyleProp<ViewStyle>;
 }) {
-  const { color } = useTheme();
   const styles = useStyles();
   const cells = photos ?? [];
 
@@ -152,7 +151,7 @@ export function PosterOrder({
       <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.posterScrim]} />
       {template ? (
         <View style={styles.posterPlate}>
-          {templateIcon ? <Icon icon={templateIcon} size={14} color={color.paper} /> : null}
+          {templateIcon ? <Icon icon={templateIcon} size={14} color={night.paper} /> : null}
           <Text role="label" style={styles.onPhoto}>
             {template}
           </Text>

@@ -43,6 +43,16 @@ test('the darkness before the dangerous row is a cut and not a rule', () => {
   expect(story(menu({ gapBefore: 2 }))).not.toBe(story(menu()));
 });
 
+test('the menu is glass over a photograph in both themes, and reads the same in daylight', async () => {
+  // Its glass is `rgba(30,30,40,.86)` whatever the app is in (spec 2), so a row read in the day's
+  // `paper` — near black — would stand on a dark pane in a colour nobody can see. The menu holds
+  // its rows in the night's ink itself; the viewer that raises it happens to hold the same pin.
+  const night = story(menu());
+  await setTheme('light');
+  expect(story(menu())).toBe(night);
+  await setTheme('dark');
+});
+
 test('a menu nobody opened draws nothing at all', () => {
   const shut = story(
     <ActionMenu visible={false} onCancel={() => {}} top={66}>

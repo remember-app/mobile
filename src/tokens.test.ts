@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { expect, test } from 'vitest';
 
-import { font, height, photo, radius, space, themes, type } from '@/theme';
+import { font, height, night, photo, radius, space, themes, type } from '@/theme';
 
 /**
  * The tokens themselves, held against the two things about them that can be wrong without anybody
@@ -80,6 +80,49 @@ test('the two themes are the same tokens with other values in them', () => {
       expect(themes.dark.color[key], key).not.toBe(themes.light.color[key]);
     }
   }
+});
+
+test('the values the spec writes out for the day are the day’s, digit for digit', () => {
+  // Spec 2, «День»: the twelve tokens it names. Two of them were once a digit off in the code
+  // (`sparkInk` #15151C for #16180A, `dashed` #D2CBBB for #D3CCBB), and a contrast test does not
+  // notice a digit.
+  const { color } = themes.light;
+  expect({
+    ink: color.ink,
+    surface: color.surface,
+    raise: color.raise,
+    line: color.line,
+    paper: color.paper,
+    muted: color.muted,
+    accent: color.accent,
+    spark: color.spark,
+    sparkInk: color.sparkInk,
+    danger: color.danger,
+    dangerText: color.dangerText,
+    dashed: color.dashed,
+  }).toEqual({
+    ink: '#F2EFE7',
+    surface: '#FFFFFF',
+    raise: '#F7F4EC',
+    line: '#E4DFD3',
+    paper: '#15151C',
+    muted: '#6C6979',
+    accent: '#3B3FE0',
+    spark: '#DCF531',
+    sparkInk: '#16180A',
+    danger: '#D93A3A',
+    dangerText: '#A82C2C',
+    dashed: '#D3CCBB',
+  });
+  // And the night's «Не собрался» plate is the spec's rgba(206,48,40,.16) — the same red as the
+  // day's, and not a brighter one.
+  expect(themes.dark.color.failedSoft).toBe('rgba(206,48,40,0.16)');
+});
+
+test('`night` is the dark set, and the action menu’s shadow is one value in both themes', () => {
+  // What is drawn on glass or on a photograph reads in the night's colours in either theme (spec 2).
+  expect(night).toBe(themes.dark.color);
+  expect(photo.menuShadow).toBe('0 18px 50px rgba(0,0,0,0.55)');
 });
 
 test('the day lifts a card with a shadow where the night lifts it with a border', () => {

@@ -33,6 +33,21 @@ test('the seven fields differ by height and by the face they are typed in', () =
   expect(type.subtitle.fontFamily).toMatch(/^Onest/);
 });
 
+test('the memory’s name is 56 tall and 18 round, and the e-mail is 60 and 20', () => {
+  // Spec 7.3, «Название 56 / 18» and «Почта 60 / 20», and `Create` draws the first with an 18 radius.
+  expect(story(<Field label="Название" variant="name" value="" />)).toContain('border-top-left-radius:18px');
+  expect(story(<Field label="Почта" variant="email" value="" />)).toContain('border-top-left-radius:20px');
+  expect(story(<Field label="Поиск" variant="search" value="" />)).toContain('border-top-left-radius:16px');
+});
+
+test('the label’s colour square in its field carries the night’s dark glyph in daylight too', async () => {
+  await setTheme('light');
+  const field = story(<Field label="Имя" variant="labelName" swatch="#FFB547" value="" />);
+  expect(field).toContain('stroke="#0B0B12"');
+  expect(field).not.toContain('stroke="#F2EFE7"');
+  await setTheme('dark');
+});
+
 test('every state of a field is its own state, and none of them is the placeholder', () => {
   allDifferent({
     empty: <Field label="Ник" value="" placeholder="ваш-ник" />,

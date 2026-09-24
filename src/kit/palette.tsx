@@ -94,7 +94,14 @@ function Swatch({
 
 // Shape only: the one colour this draws is the one it is handed.
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  // 44 tall for a row of 36 circles: `hitSlop` never reaches past the view it is inside (React
+  // Native's own note on it), so the four points above and below each circle have to be the row's.
+  row: {
+    minHeight: TAP,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   swatch: { width: 36, height: 36, borderRadius: radius.pill },
   hover: { opacity: 0.85 },
 });

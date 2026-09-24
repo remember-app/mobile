@@ -1,7 +1,7 @@
 import { Children, type ReactNode } from 'react';
 import { Animated, Modal, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { duration as motion, photo, radius, space, useTheme } from '@/theme';
+import { duration as motion, photo, radius, space, ThemePin } from '@/theme';
 
 import { useFadeIn } from './interaction';
 import { useScrimTap, useShutOnBlur } from './sheet';
@@ -44,9 +44,13 @@ export function ActionMenu({
     <Modal visible={visible} transparent animationType="none" onRequestClose={onCancel}>
       {/* Like the sheet: `Modal` renders nothing while hidden, so this mounts on each open and the
           opening plays once. */}
-      <Fall onCancel={onCancel} top={top} right={right} gapBefore={gapBefore} style={style}>
-        {children}
-      </Fall>
+      {/* The menu is glass over a photograph in both themes — see the styles below — so the rows in
+          it are read in the night's ink whatever the app is in, and a caller does not have to know. */}
+      <ThemePin value="dark">
+        <Fall onCancel={onCancel} top={top} right={right} gapBefore={gapBefore} style={style}>
+          {children}
+        </Fall>
+      </ThemePin>
     </Modal>
   );
 }
@@ -66,7 +70,6 @@ function Fall({
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
-  const { shadow } = useTheme();
   const fall = useFadeIn(motion.menu);
   const onScrimTap = useScrimTap(onCancel);
   const rows = Children.toArray(children);
@@ -85,7 +88,7 @@ function Fall({
         accessibilityViewIsModal
         style={[
           styles.menu,
-          { top, right, boxShadow: shadow.menu },
+          { top, right, boxShadow: photo.menuShadow },
           {
             opacity: fall,
             // Spec 6: it opens from its own top right corner — the corner the button is at.
