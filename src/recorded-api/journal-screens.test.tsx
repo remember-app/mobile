@@ -417,6 +417,36 @@ describe.each(SCENARIOS)('%s — the journal of one stage and the card of a file
     await screen.unmount();
   });
 
+  test('a frame the organizer asked for wears «Взят по слову организатора» beside «Беру», in the journal and on its card', async () => {
+    const { screen } = await open('directing');
+    const first = recordsOn('directing').slice(0, inList(screen).length);
+    const kindsOf = (log: ReactTestInstance) =>
+      (log.props.marks as { props: { kind: string } }[]).map((one) => one.props.kind);
+    const asked = first.filter((one) => one.reason === 'included');
+    expect(asked.length, 'the recording has a frame the organizer asked for').toBeGreaterThan(0);
+
+    for (const record of asked) {
+      const log = inList(screen)[first.indexOf(record)];
+      expect(record.decision).toBe('take');
+      expect(pillsOf(log)).toEqual([marksOf(record, ru)[0], ru.montage.live.reason.included]);
+      expect(kindsOf(log)).toEqual(['take', 'part']);
+
+      await screen.press(log);
+      const sheet = screen.root.findByType(SheetLiveFile);
+      expect(sheet.findAllByType(BadgeDecision).map((one) => [one.props.kind, one.props.label])).toEqual([
+        ['take', marksOf(record, ru)[0]],
+        ['part', ru.montage.live.reason.included],
+      ]);
+      await act(async () => sheet.props.onCancel());
+    }
+
+    // Every other frame taken is taken with no reason pill: the organizer's word is theirs alone.
+    for (const record of first.filter((one) => one.decision === 'take' && one.reason !== 'included')) {
+      expect(pillsOf(inList(screen)[first.indexOf(record)])).not.toContain(ru.montage.live.reason.included);
+    }
+    await screen.unmount();
+  });
+
   test('the three narrow chips cut by the decision, as the api counts them', async () => {
     const { screen } = await open('directing');
     const row = whole.stages.find((one) => one.stage === 'directing')!;
@@ -453,7 +483,11 @@ describe.each(SCENARIOS)('%s — the journal of one stage and the card of a file
     expect(sheet.findByType(ShotGaze).props.uri).toBe(file.thumbnail_url);
     expect(sheet.findByType(ShotGaze).props.gaze !== undefined).toBe(target.focus !== null);
     expect(sheet.findAllByType(Tag).map((one) => one.props.label)).toEqual(target.labels ?? []);
-    expect(sheet.findByType(BadgeDecision).props.label).toBe(marksOf(target, ru)[0]);
+    // The decision, and beside it the organizer's word where that is why it was taken.
+    expect(sheet.findAllByType(BadgeDecision).map((one) => [one.props.kind, one.props.label])).toEqual([
+      ['take', marksOf(target, ru)[0]],
+      ...(target.reason === 'included' ? [['part', ru.montage.live.reason.included]] : []),
+    ]);
     // The thought, where there is one, and where the frame went: the part of the story, and the
     // seconds of the film it plays for.
     expect(sheet.findAllByType(NoteThought).map((one) => one.props.text)).toEqual(target.thought ? [target.thought] : []);

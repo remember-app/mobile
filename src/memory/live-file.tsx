@@ -14,7 +14,7 @@ import {
   Text,
 } from '@/kit';
 import { useStrings } from '@/language';
-import { gazeAt, marksOf, placeLine } from '@/montage-journal';
+import { gazeAt, marksOf, placeLine, whyTaken } from '@/montage-journal';
 import { space } from '@/theme';
 
 /**
@@ -44,6 +44,7 @@ export function SheetLiveFile({
   const s = useStrings();
   const { width } = useWindowDimensions();
   const [mark] = marksOf(entry, s);
+  const why = whyTaken(entry, s);
   const place = placeLine(entry, file, s);
   // The frame runs the width of the sheet inside its own margins, and the sheet itself stops at the
   // 420 `kit/sheet.tsx` holds it to. The gaze arrives as fractions of the picture, so this is what
@@ -58,26 +59,38 @@ export function SheetLiveFile({
     <Sheet visible onCancel={onCancel} scroll>
       <ShotGaze uri={file?.thumbnail_url ?? undefined} gaze={gaze} />
 
-      <View style={styles.who}>
-        <Avatar name={author} size={32} />
-        <View style={styles.grow}>
-          <Text role="subtitle" numberOfLines={1}>
-            {file === undefined ? author : s.media[file.kind]}
-          </Text>
-          {/* A file that is gone takes this line with it: there is nobody to name and nothing to
-              date, and «Someone · » would be a sentence about the hole rather than about the frame. */}
-          {file === undefined ? null : (
-            <Text role="meta" numberOfLines={1}>
-              {file.captured_at
-                ? `${author} · ${formatDayShort(file.captured_at)}, ${formatTime(file.captured_at)}`
-                : author}
+      <View style={styles.decided}>
+        <View style={styles.who}>
+          <Avatar name={author} size={32} />
+          <View style={styles.grow}>
+            <Text role="subtitle" numberOfLines={1}>
+              {file === undefined ? author : s.media[file.kind]}
             </Text>
-          )}
+            {/* A file that is gone takes this line with it: there is nobody to name and nothing
+                to date, and «Someone · » would be a sentence about the hole rather than about the
+                frame. */}
+            {file === undefined ? null : (
+              <Text role="meta" numberOfLines={1}>
+                {file.captured_at
+                  ? `${author} · ${formatDayShort(file.captured_at)}, ${formatTime(file.captured_at)}`
+                  : author}
+              </Text>
+            )}
+          </View>
+          {/* The decision alone, whatever else qualified it: the part of the story is in the place
+              line below, and a sheet that says it twice says it once. */}
+          {mark ? (
+            <BadgeDecision kind={entry.decision === 'take' ? 'take' : 'pass'} label={mark} />
+          ) : null}
         </View>
-        {/* The decision alone, whatever else qualified it: the part of the story is in the place
-            line below, and a sheet that says it twice says it once. */}
-        {mark ? (
-          <BadgeDecision kind={entry.decision === 'take' ? 'take' : 'pass'} label={mark} />
+        {/* Why it was taken, where there is a why (spec 28): beside «Беру» and in the journal's own
+            colour for what stands next to it — just under it rather than in its row, where a pill
+            this long would squeeze the author and the date down to a letter or two. A frame passed
+            over has none here: the plate under it says why (spec 7.6). */}
+        {why ? (
+          <View style={styles.why}>
+            <BadgeDecision kind="part" label={why} />
+          </View>
         ) : null}
       </View>
 
@@ -115,7 +128,9 @@ const SHEET_WIDE = 420;
 // No colour of its own: every piece on this sheet carries the kit's, so the sheet only arranges
 // them — which is why this one may be built once instead of per theme.
 const styles = StyleSheet.create({
+  decided: { gap: 6 },
   who: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  why: { alignSelf: 'flex-end' },
   grow: { flex: 1, minWidth: 0 },
   seen: { gap: space.s2 },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },

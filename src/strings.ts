@@ -972,9 +972,10 @@ export const en = {
       tookFrom: (from: string, to: string) => `Taking ${from}–${to}`,
       part: (n: number) => `part ${n}`,
       /**
-       * Why a frame was passed over, by the worker's own codes. The list is the worker's vocabulary
-       * and not a closed set — the api puts no check on it — so anything this side has no word for
-       * is `other`, which is still an honest answer about a frame nobody took.
+       * Why the director decided as it did, by the worker's own codes — every one of them about a
+       * frame passed over but `included`. The list is the worker's vocabulary and not a closed set —
+       * the api puts no check on it — so anything this side has no word for is `other`, which is
+       * still an honest answer about a frame nobody took.
        */
       reason: {
         blur: 'Blurred',
@@ -987,6 +988,8 @@ export const en = {
         no_room: 'No room left',
         /** The director's own choice to leave it out — its words about why are the record's thought. */
         left_out: 'Not in the story',
+        /** The one reason on a frame that was taken: the organizer asked for it at the order. */
+        included: 'Taken at the organizer’s word',
         other: 'Not suitable',
       },
     },
@@ -1673,6 +1676,7 @@ export const ru: Strings = {
         excluded: 'Убрали при заказе',
         no_room: 'Не влез',
         left_out: 'Не в истории',
+        included: 'Взят по слову организатора',
         other: 'Не подошёл',
       },
     },

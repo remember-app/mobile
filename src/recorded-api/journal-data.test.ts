@@ -214,11 +214,18 @@ describe.each(SCENARIOS)('%s — the worker’s words, in the app’s', (scenari
           expect(marks[1], `${lang} ${record.reason}`).not.toBe(s.montage.live.reason.other);
           said.add(`${record.reason}`);
         } else {
-          // `reason: "included"` rides on a taken record: it is no reason for anything being passed.
+          // A take wears a reason only where the organizer asked for the frame (`included`) — beside
+          // «Беру», in words — and never the catch-all.
           expect(marks).not.toContain(s.montage.live.reason.other);
+          expect(marks.includes(s.montage.live.reason.included), `${lang} record ${record.id}`).toBe(
+            record.reason === 'included',
+          );
+          if (record.reason === 'included') said.add(record.reason);
         }
       }
       expect(said.size).toBeGreaterThan(1);
+      // The organizer's word is on both roads, and it is said.
+      expect(said.has('included')).toBe(true);
     }
   });
 
