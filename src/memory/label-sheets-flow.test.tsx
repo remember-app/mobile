@@ -294,7 +294,7 @@ test('a viewer asking for a shared label is told in words what they can make, an
   // api's 404 is about the membership — and it is not «этого лейбла больше нет».
   server.refuse = (asked) => (asked.method === 'POST' ? json({}, 404) : undefined);
   await sheet.act(() => sheet.making()[0].props.onSubmit('Личное', 1, false));
-  expect(sheet.banner()).toEqual([ru.labels.memoryGone]);
+  expect(sheet.banner()).toEqual([ru.memory.gone]);
 });
 
 test('deleting a label asks first, takes only the box, and tells the feed every frame lost it', async () => {

@@ -318,7 +318,7 @@ test('labels that cannot be read leave the feed as it is, offer none on the filt
   db.refuse = (asked) => (asked.path === '/labels' ? json({}, 404) : undefined);
   await screen.closeLabels();
   await screen.openLabels();
-  expect(screen.banner()).toEqual([ru.labels.memoryGone]);
+  expect(screen.banner()).toEqual([ru.memory.gone]);
 });
 
 test('a viewer who may not file into a label has a row that does nothing and sends nothing', async () => {
