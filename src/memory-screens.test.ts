@@ -920,10 +920,13 @@ test('the montage being watched is read through the journal’s own hook and not
 
 test('the four standings of a montage on air are four different screens', () => {
   // In the queue with nothing in hand — and the first answer not yet landed, which is a different
-  // wait and says so rather than promising a queue nobody has confirmed.
+  // wait and says so rather than promising a queue nobody has confirmed; nor does a worker still
+  // fetching the material before its first frame, which is making it and not queueing.
+  expect(live).toContain("journal.status === 'queued'");
   expect(live).toContain('s.montage.live.inQueue');
-  expect(live).toContain("journal.standing === 'opening'");
+  expect(live).toContain('journal.status === null');
   expect(live).toContain('s.state.loading');
+  expect(live).toContain(': s.montage.status.processing');
 
   // The connection went: what was read stays exactly where it is and one line stands under it.
   expect(live).toContain("journal.standing === 'offline'");

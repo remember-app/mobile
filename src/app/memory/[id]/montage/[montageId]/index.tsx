@@ -233,14 +233,17 @@ export default function MontageLiveScreen() {
                 />
               ) : undefined
             }
-            // Nothing in hand: either this montage is still standing in the queue, or the first
-            // answer has not landed yet — and those are two different waits.
+            // Nothing in hand, and three different waits: no answer yet (the connection may have
+            // gone before the first one), the queue, or a worker still fetching the material before
+            // the first frame — which is being made, not waiting its turn.
             waiting={
               held !== null
                 ? undefined
-                : journal.standing === 'opening'
+                : journal.status === null
                   ? s.state.loading
-                  : s.montage.live.inQueue
+                  : journal.status === 'queued'
+                    ? s.montage.live.inQueue
+                    : s.montage.status.processing
             }
           />
         )}
