@@ -1369,7 +1369,10 @@ test('the frame’s own sheet is who, when, what and where — and draws nothing
   const sheet = sheets.slice(sheets.indexOf('export function FrameInfoSheet'));
   // Who brought it and how much they brought in all, then the summary rows, then the movies.
   expect(sheet).toContain('s.viewer.brought(formatDayShort(info.created_at), info.uploaded_by.media_count)');
-  expect(sheet.indexOf('frameFacts(info, s)')).toBeLessThan(sheet.indexOf('s.viewer.inFilms'));
+  expect(sheet.indexOf('frameFacts(info, s, undefined, place)')).toBeLessThan(sheet.indexOf('s.viewer.inFilms'));
+  // The place is the name the phone's geocoder gives the frame's point, asked for by the sheet
+  // itself (`@/geocoder`) — the api sends coordinates only.
+  expect(sheet).toContain('usePlaceName(info?.latitude, info?.longitude)');
   // «Только смотреть»: not one control on it, and no way out but the ways every sheet has.
   expect(sheet).not.toContain('<Button');
   expect(sheet).not.toContain('<RowAction');
@@ -1916,15 +1919,14 @@ test('a deleted label leaves the frames where they are, on every one of them', (
   expect(labelSheets).not.toContain('price=');
 });
 
-test('the sheet says a refusal in words of its own and never gets stuck on one', () => {
-  // The api answers a bare «forbidden», which tells nobody who *can* do the thing they just tried.
-  expect(labelSheets).toContain(
-    'setError(status === 403 ? denied : status === 404 ? s.labels.gone : errorMessage(e));',
-  );
+test('the one refusal left — a viewer making a shared label — is said in words, and never sticks', () => {
+  // Any member edits and fills a shared label (decision-12), so making one is the only write a
+  // member can still be refused. The api answers a bare «forbidden», which tells nobody what to do.
+  expect(labelSheets).toContain('status === 403 && denied ? denied : status === 404');
+  expect(labelSheets).toContain('s.labels.sharedDenied,');
+  expect(labelSheets.match(/s\.labels\.\w+Denied/g)).toEqual(['s.labels.sharedDenied']);
   expect(labelSheets).toContain('setBusy(false);');
-  for (const line of [ru.labels.addDenied, ru.labels.takeDenied, ru.labels.editDenied]) {
-    expect(line.endsWith('.')).toBe(true);
-  }
+  expect(ru.labels.sharedDenied).toContain('личный');
   expect(en.labels.gone).toBe('This label is no longer here.');
 });
 

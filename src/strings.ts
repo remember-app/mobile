@@ -575,7 +575,7 @@ export const en = {
     /** The units are words and the api hands over bare numbers, so they are put on here. */
     focal: (mm: number) => `${mm} mm`,
     aperture: (f: number) => `f/${f}`,
-    /** The place is coordinates and nothing else: naming one takes a geocoder the product has not got. */
+    /** The place as numbers: what stands until the phone's geocoder names it, and when it cannot. */
     coords: (lat: number, lon: number) => `${lat}, ${lon}`,
     inFilms: 'In movies',
     /** The second a frame stands at inside a movie, on the row that opens it. */
@@ -622,8 +622,9 @@ export const en = {
     ownCard: 'Private',
     ownNote: 'only you',
     /**
-     * Why «Кто видит» cannot be pressed while editing (spec 10.8.1, decision-12): the answer was
-     * given when the label was made and the api has no way back. Said as a fact, not as a refusal.
+     * Why «Кто видит» cannot be pressed while editing (spec 10.8.1): visibility is chosen once, when
+     * the label is made, and changing it afterwards is not allowed (decision-12). Said as a fact,
+     * not as a refusal.
      */
     whoFixed: 'Settled when the label was made.',
     /** The glowing button: one press makes the box and files what is marked into it. */
@@ -636,12 +637,11 @@ export const en = {
     deleteConfirm: 'Delete the label',
 
     /**
-     * What the api refuses, in words a person can act on. It answers a bare «forbidden», so the
-     * sentence is written here and picked by what was being done.
+     * The one refusal the labels still have — a viewer making a shared one — in words a person can
+     * act on. The api answers a bare «forbidden», so the sentence is written here.
      */
-    addDenied: 'Only someone who may add material can file frames into a shared label.',
-    takeDenied: 'Frames are taken back out by whoever filed them, or by the organizer.',
-    editDenied: 'A shared label is renamed by whoever made it, or by the organizer.',
+    sharedDenied:
+      'Only people who can add photos may make a shared label. You can make a private one.',
     gone: 'This label is no longer here.',
   },
 
@@ -1487,9 +1487,7 @@ export const ru: Strings = {
     deleteText: 'Кадры останутся в воспоминании — исчезнет только коробка.',
     deleteConfirm: 'Удалить лейбл',
 
-    addDenied: 'Складывать кадры в общий лейбл может тот, кто добавляет материал.',
-    takeDenied: 'Убрать кадры может тот, кто их положил, или организатор.',
-    editDenied: 'Переименовать общий лейбл может тот, кто его завёл, или организатор.',
+    sharedDenied: 'Общий лейбл могут завести те, кто добавляет фото. Вы можете завести личный.',
     gone: 'Этого лейбла больше нет.',
   },
 
