@@ -315,6 +315,13 @@ describe('currentStage', () => {
     expect(currentStage([done, ...ahead])?.stage).toBe('screening');
   });
 
+  // The recorded answers carry the five in the pipeline's order, so they cannot show whether the count
+  // leans on it: the card and the screen must still agree if the rows come in another one.
+  test('is the furthest one reached, wherever it stands among the rows', () => {
+    const rows = [done, stage('understanding', 'done'), stage('directing', 'pending')];
+    expect(currentStage([...rows].reverse())?.stage).toBe('understanding');
+  });
+
   // The list of montages carries the same five with nothing but a state each, and the card in the
   // strip reads its stage off them through this very function (spec detail 38).
   test('reads the list’s bare five the same as the journal’s full ones', () => {
@@ -629,6 +636,8 @@ describe('where a frame ended up', () => {
   test('is the layout’s and not the thought’s: a record with nothing said still has its place', () => {
     // The road without the director: «беру» and no thought, no part of any story.
     expect(placeLine(entry(1, { decision: 'take', thought: null }), file, ru)).toBe('1:12–1:16');
+    // And the part of the story it went into is the layout's as well: it is not left off with the thought.
+    expect(placeLine(entry(1, { decision: 'take', thought: null, story_part: 2 }), file, ru)).toBe('Часть 2 · 1:12–1:16');
     // A record that settled nothing — what was seen on the frame — is about a frame laid out all the same.
     expect(placeLine(entry(1, { stage: 'understanding', media_id: 'f1' }), file, ru)).toBe('1:12–1:16');
   });

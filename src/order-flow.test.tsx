@@ -111,7 +111,7 @@ vi.mock('@/kit', async (original) => {
 });
 
 import { Fragment, useSyncExternalStore, type ReactElement } from 'react';
-import TestRenderer, { act } from 'react-test-renderer';
+import TestRenderer, { act as reactAct } from 'react-test-renderer';
 
 import type {
   Montage,
@@ -141,6 +141,7 @@ import { frame } from '@/label-fixtures';
 import { currentLanguage, setLanguage } from '@/language';
 import { OrderProvider, useOrder, type Wizard } from '@/order-wizard';
 import { ru, strings } from '@/strings';
+import { act, BEAT_BY_BEAT, drives } from '@/test-drive';
 import { mountsTrees } from '@/test-renderer';
 
 /**
@@ -356,11 +357,12 @@ beforeEach(async () => {
   await setLanguage('ru');
 });
 afterEach(() => {
-  act(() => tree?.unmount());
+  reactAct(() => tree?.unmount());
   tree = undefined;
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
+drives();
 
 async function open() {
   await act(async () => {
@@ -431,7 +433,7 @@ async function walkToSummary() {
 
 test.each(
   SIX.map(([id]) => id),
-)('template %s: one press walks the steps, and the order sent is the total the summary showed', async (id) => {
+)('template %s: one press walks the steps, and the order sent is the total the summary showed', BEAT_BY_BEAT, async (id) => {
   const server = serve();
   await open();
   await act(async () => tile(id).props.onPress());
@@ -464,7 +466,7 @@ test.each(
   });
 });
 
-test('a template’s length the material cannot carry is held inside what it can, before the order', async () => {
+test('a template’s length the material cannot carry is held inside what it can, before the order', BEAT_BY_BEAT, async () => {
   const raw = (seconds: number): MontageTemplate => ({
     id: 'for_myself',
     story_text: 'История.',
@@ -494,7 +496,7 @@ test('a template’s length the material cannot carry is held inside what it can
   }
 });
 
-test('with motion reduced nothing is typed: each step lands whole and the order is the same', async () => {
+test('with motion reduced nothing is typed: each step lands whole and the order is the same', BEAT_BY_BEAT, async () => {
   calm.on = true;
   const server = serve();
   await open();
@@ -579,7 +581,7 @@ test.each([
 
 /* ── Ordering by hand ───────────────────────────────────────────────────── */
 
-test('«Настроить самому»: frames, story, several tracks, length and shape reach the api as one order', async () => {
+test('«Настроить самому»: frames, story, several tracks, length and shape reach the api as one order', BEAT_BY_BEAT, async () => {
   const server = serve();
   await open();
   await press(ru.montage.ownSetup);
@@ -630,7 +632,7 @@ test('«Настроить самому»: frames, story, several tracks, length
   expect(nav.state.landed?.params).toMatchObject({ montageId: 'made' });
 });
 
-test('nothing said is a legal order: no music goes out as an empty list, and the length is the api’s', async () => {
+test('nothing said is a legal order: no music goes out as an empty list, and the length is the api’s', BEAT_BY_BEAT, async () => {
   const server = serve();
   await open();
   await press(ru.montage.ownSetup);
@@ -664,7 +666,7 @@ async function startTyping(id: MontageTemplateId = 'dopamine') {
   expect(nav.top()).toBe('story');
 }
 
-test('«Стоп» in the middle of the story leaves the whole story and the walk where it stands', async () => {
+test('«Стоп» in the middle of the story leaves the whole story and the walk where it stands', BEAT_BY_BEAT, async () => {
   await startTyping();
   await press(ru.montage.autoStop);
   await settle();
@@ -680,7 +682,7 @@ test('«Стоп» in the middle of the story leaves the whole story and the wal
   expect(has(ru.montage.autoStop)).toBe(false);
 });
 
-test('typing into the story takes the wheel, and what was typed is not written over', async () => {
+test('typing into the story takes the wheel, and what was typed is not written over', BEAT_BY_BEAT, async () => {
   await startTyping();
   await type('Мой текст');
   await settle();
@@ -691,7 +693,7 @@ test('typing into the story takes the wheel, and what was typed is not written o
   expect(wizard.auto).toBeNull();
 });
 
-test('«Стоп» on the music leaves the tracks that had landed, and the rest is the person’s', async () => {
+test('«Стоп» on the music leaves the tracks that had landed, and the rest is the person’s', BEAT_BY_BEAT, async () => {
   const server = serve();
   await open();
   await act(async () => tile('dopamine').props.onPress());
@@ -716,7 +718,7 @@ test('«Стоп» on the music leaves the tracks that had landed, and the rest 
   expect(server.orders[0]).not.toHaveProperty('target_seconds');
 });
 
-test('«Стоп» while the length rides up leaves it where it got to, and the walk goes no further', async () => {
+test('«Стоп» while the length rides up leaves it where it got to, and the walk goes no further', BEAT_BY_BEAT, async () => {
   serve();
   await open();
   await act(async () => tile('for_myself').props.onPress());
@@ -730,7 +732,7 @@ test('«Стоп» while the length rides up leaves it where it got to, and the 
   expect(nav.top()).toBe('build');
 });
 
-test('«Назад» and «Отмена» are hands on the wheel too, and nothing comes back to life after them', async () => {
+test('«Назад» and «Отмена» are hands on the wheel too, and nothing comes back to life after them', BEAT_BY_BEAT, async () => {
   await startTyping('parents');
   await press(ru.action.back);
   await settle();
@@ -764,7 +766,7 @@ test('«Назад» and «Отмена» are hands on the wheel too, and nothin
 
 /* ── When the total is refused ──────────────────────────────────────────── */
 
-test('409 on the total leads back to the frames, and after a change the total is asked again', async () => {
+test('409 on the total leads back to the frames, and after a change the total is asked again', BEAT_BY_BEAT, async () => {
   const server = serve({ refuse: { status: 409 } });
   await open();
   await walkToSummary();
@@ -802,7 +804,7 @@ async function walkToLength() {
   await run(0);
 }
 
-test('the ceiling falls while the wizard stands open: back on the length, the range is the new one', async () => {
+test('the ceiling falls while the wizard stands open: back on the length, the range is the new one', BEAT_BY_BEAT, async () => {
   const server = serve();
   await open();
   await walkToLength();
@@ -833,7 +835,7 @@ test('the ceiling falls while the wizard stands open: back on the length, the ra
   expect(server.orders).toEqual([server.previews.at(-1)]);
 });
 
-test('a frame deleted under the order is a 400 about frames: it leads to the frames, read again', async () => {
+test('a frame deleted under the order is a 400 about frames: it leads to the frames, read again', BEAT_BY_BEAT, async () => {
   const server = serve();
   await open();
   await walkToLength();
@@ -858,7 +860,7 @@ test('a frame deleted under the order is a 400 about frames: it leads to the fra
   expect(server.orders).toEqual([{ orientation: 'landscape', music_tracks: [] }]);
 });
 
-test.each(['ru', 'en'] as const)('409 on the length step and on the total is the app’s «too little», in %s', async (language) => {
+test.each(['ru', 'en'] as const)('409 on the length step and on the total is the app’s «too little», in %s', BEAT_BY_BEAT, async (language) => {
   await setLanguage(language);
   const s = strings[language];
   serve({ refuse: { status: 409 } });
@@ -874,7 +876,7 @@ test.each(['ru', 'en'] as const)('409 on the length step and on the total is the
   expect(shown()).not.toContain('not enough material');
 });
 
-test.each(['ru', 'en'] as const)('a length out of range is said with the edges the api refused it with, on both steps, in %s', async (language) => {
+test.each(['ru', 'en'] as const)('a length out of range is said with the edges the api refused it with, on both steps, in %s', BEAT_BY_BEAT, async (language) => {
   await setLanguage(language);
   const s = strings[language];
   const server = serve({ refuse: { status: 400 } });
@@ -916,7 +918,7 @@ test.each([
 test.each([
   ['cannot be reached', { offline: 'preview' }, ru.error.offline],
   ['falls over', { failing: 'preview' }, ru.error.status(500)],
-] as const)('a total the api %s on is asked again with «Повторить», off the order as it is now', async (_, over, said) => {
+] as const)('a total the api %s on is asked again with «Повторить», off the order as it is now', BEAT_BY_BEAT, async (_, over, said) => {
   const server = serve();
   await open();
   await walkToLength();
@@ -944,7 +946,7 @@ test.each([
   expect(server.orders).toEqual([server.previews.at(-1)]);
 });
 
-test('the material that could not be read is asked for again with «Повторить»', async () => {
+test('the material that could not be read is asked for again with «Повторить»', BEAT_BY_BEAT, async () => {
   const server = serve({ offline: 'media' });
   await open();
   expect(shown()).toContain(ru.error.offline);
@@ -961,7 +963,7 @@ test('the material that could not be read is asked for again with «Повтор
 test.each([
   ['cannot be reached', { offline: 'preview' }, ru.error.offline],
   ['falls over', { failing: 'preview' }, ru.error.status(500)],
-] as const)('the range the api %s on is asked again with «Повторить», not waited on', async (_, over, said) => {
+] as const)('the range the api %s on is asked again with «Повторить», not waited on', BEAT_BY_BEAT, async (_, over, said) => {
   const server = serve(over);
   await open();
   await walkToLength();

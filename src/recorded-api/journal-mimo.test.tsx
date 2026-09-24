@@ -17,7 +17,7 @@ vi.mock('expo-router', async () => {
 });
 
 import { AppState } from 'react-native';
-import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
+import TestRenderer, { type ReactTestInstance } from 'react-test-renderer';
 
 import type { JournalEntry, MontageStageCode } from '@/api';
 import MontageLiveStageScreen from '@/app/memory/[id]/montage/[montageId]/stage/[stage]';
@@ -26,6 +26,7 @@ import { setLanguage, type Language } from '@/language';
 import { SheetLiveFile } from '@/memory/live-file';
 import { strings } from '@/strings';
 import { mounted, mountsTrees } from '@/test-renderer';
+import { act, BEAT_BY_BEAT, drives, settle } from '@/test-drive';
 
 import { bodyOf, load, MEMORY, MONTAGE, PEOPLE, replay, type Scenario } from './recorded';
 
@@ -61,14 +62,7 @@ afterEach(async () => {
   vi.restoreAllMocks();
   await setLanguage('ru');
 });
-
-async function settle() {
-  for (let i = 0; i < 6; i++) {
-    await act(async () => {
-      await new Promise((done) => setImmediate(done));
-    });
-  }
-}
+drives();
 
 const press = async (instance: ReactTestInstance) => {
   await act(async () => instance.props.onPress());
@@ -83,7 +77,7 @@ describe.each(SCENARIOS)('%s — on the recorded answers', (scenario) => {
   const steps = load(scenario);
   const whole = bodyOf(steps, 'journal_of_ready_montage');
 
-  test.each(LANGUAGES)('every frame passed over says why on its card, as the journal says it (%s)', async (lang) => {
+  test.each(LANGUAGES)('every frame passed over says why on its card, as the journal says it (%s)', BEAT_BY_BEAT, async (lang) => {
     await setLanguage(lang);
     const { live } = strings[lang].montage;
     let seen = 0;
@@ -118,7 +112,7 @@ describe.each(SCENARIOS)('%s — on the recorded answers', (scenario) => {
         seen++;
       }
       expect(api.unmatched).toEqual([]);
-      act(() => tree.unmount());
+      await act(() => tree.unmount());
     }
     expect(seen, 'the recording has frames passed over').toBeGreaterThan(0);
   });

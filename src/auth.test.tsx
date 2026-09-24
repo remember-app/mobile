@@ -181,6 +181,19 @@ test('a token refused at launch is forgotten the same way, and the app comes up 
   expect(api.calls).toEqual(['GET /me']);
 });
 
+// Only a refusal kills the stored token: a phone that launches with no signal must not be signed out
+// for good, and the next launch with the api up restores the session.
+test.each([
+  ['unreachable', () => Promise.reject(new TypeError('Network request failed'))],
+  ['falling over', () => Promise.resolve(json(500, { error: 'internal server error' }))],
+])('a launch with the api %s keeps the stored session for the next one', async (_, failing) => {
+  vi.stubGlobal('fetch', vi.fn(failing));
+  await launch(SESSION);
+
+  expect(auth.status).toBe('signed-out');
+  expect(keychain).toEqual({ token: SESSION, deleted: 0 });
+});
+
 test('signing out by hand still tells the api, and leaves the phone where a refusal does', async () => {
   await signedIn();
 

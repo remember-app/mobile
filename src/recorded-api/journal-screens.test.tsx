@@ -31,7 +31,7 @@ vi.mock('@/downloads', () => ({
 
 import { Unlink, WifiOff } from 'lucide-react-native';
 import { AppState } from 'react-native';
-import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
+import TestRenderer, { type ReactTestInstance } from 'react-test-renderer';
 
 import type { JournalEntry, JournalFile, Montage, MontageJournal, MontageStage, MontageStep } from '@/api';
 import MontageDoneScreen from '@/app/memory/[id]/montage/[montageId]/done';
@@ -62,8 +62,9 @@ import { SheetLiveFile } from '@/memory/live-file';
 import { marksOf, useMontageJournal, WHILE_LIVE_MS } from '@/montage-journal';
 import { MONTAGE_STAGES } from '@/api';
 import { ru } from '@/strings';
-import { mountsTrees } from '@/test-renderer';
+import { mounted, mountsTrees } from '@/test-renderer';
 
+import { act, BEAT_BY_BEAT, drives, settle } from '@/test-drive';
 import {
   bodyOf,
   liveSteps,
@@ -123,24 +124,16 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
+drives();
 
 /* ── driving the tree ──────────────────────────────────────────────────── */
-
-/** Lets the requests a poll sent come back and the state they moved be drawn. */
-async function settle() {
-  for (let i = 0; i < 6; i++) {
-    await act(async () => {
-      await new Promise((done) => setImmediate(done));
-    });
-  }
-}
 
 async function mount(element: React.ReactElement, api: Replay, as: keyof typeof TOKEN = 'organizer') {
   session.token = TOKEN[as];
   vi.stubGlobal('fetch', api.fetch);
   let tree!: TestRenderer.ReactTestRenderer;
   await act(async () => {
-    tree = TestRenderer.create(element);
+    tree = mounted(TestRenderer.create(element));
   });
   await settle();
   return {
@@ -231,7 +224,7 @@ describe.each(SCENARIOS)('%s — «Монтаж идёт»', (scenario) => {
     };
   };
 
-  test('at every beat it draws what the api last said: the frame in hand, the stage, the five rows', async () => {
+  test('at every beat it draws what the api last said: the frame in hand, the stage, the five rows', BEAT_BY_BEAT, async () => {
     const api = replay(steps, { only, extra });
     route.params = { id: MEMORY, montageId: MONTAGE };
     const screen = await mount(<MontageLiveScreen />, api);
@@ -559,7 +552,7 @@ describe.each(SCENARIOS)('%s — the journal of one stage and the card of a file
   // for the film's page and reads there, does not read again (see «Монтаж идёт» above). The narrowed
   // answers here are cut moment by moment from the recording (`moments` in `recorded.ts`), not words
   // of the api.
-  test('read through the making, it learns where the frames went with one more read at «готов»', async () => {
+  test('read through the making, it learns where the frames went with one more read at «готов»', BEAT_BY_BEAT, async () => {
     const names = sitting(steps);
     const api = replay(steps, { only: [], moments: names, cutFrom: 'journal_of_ready_montage', extra });
     route.params = { id: MEMORY, montageId: MONTAGE, stage: 'directing' };
@@ -783,7 +776,7 @@ describe.each(SCENARIOS)('%s — the strip of films on the memory', (scenario) =
   const steps = load(scenario);
   const memory = { id: MEMORY, role: 'organizer' } as never;
 
-  test('the film being cut shows how far along it is; once it is ready the strip shows none', async () => {
+  test('the film being cut shows how far along it is; once it is ready the strip shows none', BEAT_BY_BEAT, async () => {
     const api = replay(steps, { only: ['montage_list_while_building', 'montage_list_after_ready'], extra });
     route.params = { id: MEMORY };
     const screen = await mount(<Films id={MEMORY} memory={memory} />, api);
@@ -815,7 +808,7 @@ describe.each(SCENARIOS)('%s — the strip of films on the memory', (scenario) =
   // The list and the journal are two answers about one making. At the moment the list was recorded,
   // the card in the strip and the screen it opens must name the same stage (spec 7.6, detail 38):
   // the screen reads the sitting beat by beat until its journal has reached what the list says.
-  test('the card and the screen it opens name the same stage at the same moment', async () => {
+  test('the card and the screen it opens name the same stage at the same moment', BEAT_BY_BEAT, async () => {
     const reached = (stages: readonly MontageStep[]) =>
       stages.filter((one) => one.state !== 'pending').map((one) => `${one.stage}:${one.state}`).join(' ');
     const list = step(steps, 'montage_list_while_building').response.body as Montage[];
@@ -892,7 +885,7 @@ describe.each(SCENARIOS)('%s — a montage that fell over', (scenario) => {
   const whole = bodyOf(steps, 'journal_of_ready_montage');
   const journalReads = (api: Replay) => api.served.filter((one) => one === 'journal_of_ready_montage').length;
 
-  test.each(['organizer', 'contributor', 'viewer'] as const)('its card opens the journal of the attempt that broke, for the %s', async (role) => {
+  test.each(['organizer', 'contributor', 'viewer'] as const)('its card opens the journal of the attempt that broke, for the %s', BEAT_BY_BEAT, async (role) => {
     route.params = { id: MEMORY };
     const strip = await mount(<Films id={MEMORY} memory={{ id: MEMORY, role } as never} />, replay(fellOver(steps, role), { extra }), role);
     const card = strip.root.findAllByType(CardMontage)[1];
@@ -966,14 +959,14 @@ describe('a journal the api will not give', () => {
     await screen.unmount();
   });
 
-  test('is not asked for again every second and a half', async () => {
+  test('is not asked for again every second and a half', BEAT_BY_BEAT, async () => {
     const { api, screen } = await sitInFront();
     for (let beat = 0; beat < 5; beat++) await screen.tick();
     expect(knocks(api)).toBe(1);
     await screen.unmount();
   });
 
-  test('the journal of one stage says the same, and stops asking the same', async () => {
+  test('the journal of one stage says the same, and stops asking the same', BEAT_BY_BEAT, async () => {
     const api = replay(load('director'), { only: ['journal_of_stranger'], cutFrom: 'journal_of_stranger', extra, refuse: () => 404 });
     route.params = { id: MEMORY, montageId: MONTAGE, stage: 'directing' };
     const screen = await mount(<MontageLiveStageScreen />, api, 'stranger');
@@ -1021,7 +1014,7 @@ describe('a read that goes wrong in the middle of a journal', () => {
       refuse: (query) => (query.has('before') ? failing : undefined),
     });
 
-  test('a 404 on the page further back stops the asking, keeps what was read, and is not a lost connection', async () => {
+  test('a 404 on the page further back stops the asking, keeps what was read, and is not a lost connection', BEAT_BY_BEAT, async () => {
     const api = halfWay();
     const { screen, journal } = await watch(api, 'viewer');
     const read = idsOf(journal().entries);
@@ -1040,7 +1033,7 @@ describe('a read that goes wrong in the middle of a journal', () => {
     await screen.unmount();
   });
 
-  test('a 500 on the page further back is «нет связи»: what was read stays, the asking goes on, and it comes back', async () => {
+  test('a 500 on the page further back is «нет связи»: what was read stays, the asking goes on, and it comes back', BEAT_BY_BEAT, async () => {
     const api = halfWay();
     const { screen, journal } = await watch(api, 'viewer');
     const read = idsOf(journal().entries);
@@ -1064,7 +1057,7 @@ describe('a read that goes wrong in the middle of a journal', () => {
     await screen.unmount();
   });
 
-  test.each([500, 'offline'] as const)('%s on the live poll is «нет связи»: what was read stays, the asking goes on, and it comes back', async (kind) => {
+  test.each([500, 'offline'] as const)('%s on the live poll is «нет связи»: what was read stays, the asking goes on, and it comes back', BEAT_BY_BEAT, async (kind) => {
     const names = sitting(steps);
     const api = replay(steps, { only: names, extra, refuse: () => failing });
     const { screen, journal } = await watch(api, 'organizer');

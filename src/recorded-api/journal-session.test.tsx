@@ -19,12 +19,13 @@ vi.mock('expo-secure-store', () => ({
 vi.mock('expo-router', () => ({ useFocusEffect: () => {}, useIsFocused: () => true }));
 
 import { AppState } from 'react-native';
-import TestRenderer, { act } from 'react-test-renderer';
+import TestRenderer from 'react-test-renderer';
 
 import { AuthProvider, useAuth, type AuthStatus } from '@/auth';
 import { useMontageJournal, WHILE_LIVE_MS, type Standing } from '@/montage-journal';
-import { mountsTrees } from '@/test-renderer';
+import { mounted, mountsTrees } from '@/test-renderer';
 
+import { act, BEAT_BY_BEAT, drives, settle } from '@/test-drive';
 import { liveSteps, load, MEMORY, MONTAGE, PEOPLE, replay, TOKEN } from './recorded';
 
 /**
@@ -54,16 +55,9 @@ afterEach(() => {
   vi.mocked(AppState.addEventListener).mockRestore();
   vi.mocked(console.info).mockRestore();
 });
+drives();
 
-async function settle() {
-  for (let i = 0; i < 6; i++) {
-    await act(async () => {
-      await new Promise((done) => setImmediate(done));
-    });
-  }
-}
-
-test('a 401 on the live poll ends the session once, the journal is left for the way in, and nothing is asked again', async () => {
+test('a 401 on the live poll ends the session once, the journal is left for the way in, and nothing is asked again', BEAT_BY_BEAT, async () => {
   const steps = load('director');
   let revoked = false;
   const api = replay(steps, {
@@ -91,11 +85,11 @@ test('a 401 on the live poll ends the session once, the journal is left for the 
 
   let tree!: TestRenderer.ReactTestRenderer;
   await act(async () => {
-    tree = TestRenderer.create(
+    tree = mounted(TestRenderer.create(
       <AuthProvider>
         <Gate />
       </AuthProvider>,
-    );
+    ));
   });
   await settle();
   const beat = async () => {
@@ -123,5 +117,5 @@ test('a 401 on the live poll ends the session once, the journal is left for the 
   expect(seen).not.toContain('offline');
   expect(seen).not.toContain('refused');
   expect(api.unmatched).toEqual([]);
-  act(() => tree.unmount());
+  await act(() => tree.unmount());
 });
