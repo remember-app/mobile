@@ -370,10 +370,11 @@ export function howMade(
 ): { figure: number; label: string }[] {
   const { live } = s.montage;
   const outcomeOf = (code: MontageStageCode) => stages.find((one) => one.stage === code)?.outcome;
+  const cuts = outcomeOf('assembly')?.cuts;
   const three = [
     { figure: outcomeOf('screening')?.of, label: live.watched },
     { figure: outcomeOf('directing')?.frames, label: live.tookIn },
-    { figure: outcomeOf('assembly')?.cuts, label: live.glued },
+    { figure: cuts, label: live.glued(cuts ?? 0) },
   ];
   return three.filter(
     (tile): tile is { figure: number; label: string } => tile.figure !== undefined,

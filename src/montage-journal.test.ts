@@ -536,6 +536,14 @@ describe('how the film was made', () => {
     ]);
   });
 
+  test('«склеек» agrees with its number, the way every counted word does', () => {
+    const cut = (cuts: number) => [{ ...stage('assembly', 'done'), outcome: { cuts } }];
+    expect(howMade(cut(21), ru)).toEqual([{ figure: 21, label: 'склейка' }]);
+    expect(howMade(cut(22), ru)).toEqual([{ figure: 22, label: 'склейки' }]);
+    expect(howMade(cut(12), ru)).toEqual([{ figure: 12, label: 'склеек' }]);
+    expect(howMade(cut(1), en)).toEqual([{ figure: 1, label: 'cut' }]);
+  });
+
   test('a number the worker never wrote leaves its tile out rather than standing a dash in it', () => {
     expect(howMade([{ ...stage('assembly', 'done'), outcome: { cuts: 138 } }], ru)).toEqual([
       { figure: 138, label: 'склеек' },

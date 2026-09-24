@@ -16,12 +16,16 @@
 /**
  * Russian counts in three forms where English has two: 1 кадр, 2 кадра, 5 кадров. The rule is the
  * language's own and never changes, so it is four lines here rather than `Intl.PluralRules`, which
- * Hermes does not carry on every platform.
+ * Hermes does not carry on every platform. `form` is the word alone, for a number drawn apart from it.
  */
-function count(n: number, one: string, few: string, many: string): string {
+function form(n: number, one: string, few: string, many: string): string {
   const teen = n % 100 >= 11 && n % 100 <= 14;
   const last = n % 10;
-  return `${n} ${teen ? many : last === 1 ? one : last >= 2 && last <= 4 ? few : many}`;
+  return teen ? many : last === 1 ? one : last >= 2 && last <= 4 ? few : many;
+}
+
+function count(n: number, one: string, few: string, many: string): string {
+  return `${n} ${form(n, one, few, many)}`;
 }
 
 export const en = {
@@ -918,11 +922,12 @@ export const en = {
       howMade: 'How it was made',
       /**
        * The three numbers under that heading, each the answer to one word: how many frames were
-       * looked at in all, how many the director took, and how many cuts came of them.
+       * looked at in all, how many the director took, and how many cuts came of them. The last is
+       * the one noun of the three, so it agrees with its number.
        */
       watched: 'looked at',
       tookIn: 'taken in',
-      glued: 'cuts',
+      glued: (n: number): string => (n === 1 ? 'cut' : 'cuts'),
       /** The pill of faces in the bar, said as one sentence to a screen reader. */
       watching: (n: number) => `Watching now: ${n}`,
       /** On the frame the director is holding, beside the live dot. */
@@ -1642,7 +1647,7 @@ export const ru: Strings = {
       howMade: 'Как собирался',
       watched: 'просмотрел',
       tookIn: 'взял в ролик',
-      glued: 'склеек',
+      glued: (n: number) => form(n, 'склейка', 'склейки', 'склеек'),
       watching: (n: number) => `Смотрят сейчас: ${n}`,
       now: 'СЕЙЧАС',
       director: 'Режиссёр',
