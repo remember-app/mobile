@@ -646,6 +646,17 @@ describe('the record in words', () => {
     ]);
   });
 
+  test('a frame the director left out says so, and its own words about why are the thought', () => {
+    const left = entry(1, {
+      decision: 'skip',
+      reason: 'left_out',
+      media_id: 'f1',
+      thought: 'собака не про этот вечер',
+    });
+    expect(marksOf(left, ru)).toEqual(['Мимо', 'Не в истории']);
+    expect(marksOf(left, en)).toEqual(['Passing', 'Not in the story']);
+  });
+
   test('a thought with nothing settled in it wears no pill', () => {
     expect(marksOf(entry(1), ru)).toEqual([]);
   });
@@ -667,7 +678,9 @@ describe('the record in words', () => {
   });
 
   test('every reason the api names has a word in both languages', () => {
-    for (const code of ['blur', 'exposure', 'unreadable', 'duplicate', 'excluded', 'no_room']) {
+    // The worker's whole vocabulary for «мимо» (its README, «Журнал»): three from the screening,
+    // four from the director.
+    for (const code of ['blur', 'exposure', 'unreadable', 'duplicate', 'excluded', 'no_room', 'left_out']) {
       expect(reasonWord(code, ru)).not.toBe(ru.montage.live.reason.other);
       expect(reasonWord(code, en)).not.toBe(en.montage.live.reason.other);
     }

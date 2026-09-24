@@ -1023,6 +1023,11 @@ test('a record about a file opens that file’s card, and a deleted file is stil
   for (const reading of ['listMembers', 'listMontages', 'useMontageJournal']) {
     expect(liveFile).not.toContain(reading);
   }
+  // The thought is drawn whatever was decided — a frame the director left out («мимо», `left_out`)
+  // carries its words about why in it — on the journal, under the stage row and on the sheet.
+  expect(stageLog).toContain('useTypedThought(entry.thought, now)');
+  expect(stageRows).toContain("text={entry.thought ?? ''}");
+  expect(liveFile).toContain('<NoteThought text={entry.thought} outcome={outcomeLine(entry, file, s)} />');
   // «Что увидел» in tags, and under the thought where the frame ended up.
   expect(liveFile).toContain('s.montage.live.saw.toUpperCase()');
   // Keyed by place: the words are the model's, and the same one twice is two tags, not one key.
