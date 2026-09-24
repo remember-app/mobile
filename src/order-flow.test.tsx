@@ -162,8 +162,12 @@ type Server = {
   templates: MontageTemplate[];
   /** What the api holds the length under, whatever the frames add up to. */
   ceiling: number;
-  /** A refusal of the next totals, until it is set back to `undefined`. */
-  refuse?: { status: 409 | 400 };
+  /** A refusal of the next totals, until it is set back to `undefined` — with this body, if given. */
+  refuse?: { status: 409 | 400; body?: object };
+  /** A call that never reaches the api, until it is set back to `undefined`. */
+  offline?: 'media' | 'preview';
+  /** How many times the wizard has read the material. */
+  reads: number;
   previews: Body[];
   orders: Body[];
 };
@@ -183,11 +187,20 @@ const SIX: [MontageTemplateId, number, 'landscape' | 'portrait', string[]][] = [
 ];
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
+/** The two reads a test can cut off: the material, and the range it carries. */
+const CALLS = { media: '/m1/media', preview: '/m1/montages/preview' } as const;
 
 /** `checkOrder` of the api's `montages.ts`, cut to the refusals a wizard can earn. */
 function total(server: Server, body: Body): Response {
+  if (server.refuse?.body) return json(server.refuse.body, server.refuse.status);
   const exclude = new Set(body.exclude_media_ids);
   if (body.include_media_ids?.some((id) => exclude.has(id))) return json({ error: 'both' }, 400);
+  const named = [...(body.include_media_ids ?? []), ...exclude];
+  const missing = named.filter(
+    (id) => !server.material.some((item) => item.id === id && item.status === 'ready'),
+  );
+  if (missing.length > 0)
+    return json({ error: 'no such ready media in this memory', media_ids: missing }, 400);
   if (body.music_note && !body.music_tracks?.length)
     return json({ error: 'note needs tracks' }, 400);
 
@@ -232,6 +245,7 @@ function serve(over: Partial<Server> = {}): Server {
     material: material(),
     templates: [],
     ceiling: 600,
+    reads: 0,
     previews: [],
     orders: [],
     ...over,
@@ -251,7 +265,11 @@ function serve(over: Partial<Server> = {}): Server {
   vi.stubGlobal('fetch', async (url: string, init: { method?: string; body?: string }) => {
     const path = url.replace(/^.*\/memories/, '');
     const body = init.body ? (JSON.parse(init.body) as Body) : {};
-    if (path === '/m1/media') return json(server.material);
+    if (server.offline && path === CALLS[server.offline]) throw new TypeError('Network request failed');
+    if (path === '/m1/media') {
+      server.reads += 1;
+      return json(server.material);
+    }
     if (path === '/m1/montage-templates') return json(server.templates);
     if (path === '') return json([{ id: 'm1', title: 'Море' }]);
     if (path === '/m1/montages/preview') {
@@ -669,14 +687,25 @@ test('409 on the total leads back to the frames, and after a change the total is
   expect(server.orders[0]).toEqual(server.previews.at(-1));
 });
 
-test('400 on the total leads back to the length, and after moving it the total is asked again', async () => {
+/** The slider on step 4 as it stands: the two walls, the figure, and what «Всё» would set. */
+const slider = () => {
+  const found = root().findAllByType(LengthSlider).at(-1);
+  if (!found) return null;
+  const { min, max, value, presets } = found.props;
+  return { min, max, value, all: presets.at(-1).value };
+};
+
+async function walkToLength() {
+  await press(ru.montage.ownSetup);
+  while (nav.top() !== 'build') await forward();
+  await run(0);
+}
+
+test('the ceiling falls while the wizard stands open: back on the length, the range is the new one', async () => {
   const server = serve();
   await open();
-  await press(ru.montage.ownSetup);
-  await forward();
-  await forward();
-  await forward();
-  await run(0);
+  await walkToLength();
+  expect(slider()).toEqual({ min: 10, max: CEILING, value: 60, all: CEILING });
   await act(async () => root().findByType(LengthSlider).props.onChange(120));
 
   // Somebody deleted material while the wizard stood open: the ceiling is under 120 now.
@@ -686,13 +715,87 @@ test('400 on the total leads back to the length, and after moving it the total i
   expect(shown()).toContain(ru.montage.lengthOff);
   expect(has(ru.montage.startCut)).toBe(false);
 
+  const reads = server.reads;
   await press(ru.montage.toLength);
   expect(nav.top()).toBe('build');
-  await act(async () => root().findByType(LengthSlider).props.onChange(60));
+  await until(() => slider()?.max === 60);
+  // The material was read again and the range asked again off it: the walls are the api's new ones,
+  // «Всё» is what is there now, and the figure already chosen is held inside them.
+  expect(server.reads).toBe(reads + 1);
+  expect(slider()).toEqual({ min: 10, max: 60, value: 60, all: 60 });
+
+  // Nothing more to do by hand: the total agrees, and the order goes out with the length it showed.
   await forward();
   await run(0);
-
   expect(server.previews.at(-1)?.target_seconds).toBe(60);
   await press(ru.montage.startCut);
   expect(server.orders).toEqual([server.previews.at(-1)]);
+});
+
+test('a frame deleted under the order is a 400 about frames: it leads to the frames, read again', async () => {
+  const server = serve();
+  await open();
+  await walkToLength();
+
+  // Somebody deleted p7 — the one the automatic pass dropped, which the order names to leave out.
+  server.material = server.material.filter((item) => item.id !== 'p7');
+  await forward();
+  await run(0);
+  expect(shown()).toContain(ru.montage.framesGone);
+  expect(has(ru.montage.toLength)).toBe(false);
+
+  await press(ru.montage.toFrames);
+  expect(nav.top()).toBe('frames');
+  await until(() => root().findAllByType(Tile).length === 7);
+  expect(root().findAllByType(Tile).map((one) => one.props.label)).not.toContain(ru.montage.outOfMovie);
+
+  // What is there now is what is ordered: the deleted frame is named nowhere any more.
+  while (nav.top() !== 'summary') await forward();
+  await run(0);
+  expect(has(ru.montage.startCut)).toBe(true);
+  await press(ru.montage.startCut);
+  expect(server.orders).toEqual([{ orientation: 'landscape', music_tracks: [] }]);
+});
+
+test('a 400 no step of the wizard can undo leads to none of them', async () => {
+  const server = serve();
+  await open();
+  await walkToLength();
+  server.refuse = { status: 400, body: { error: 'no such music track', music_tracks: ['calm'] } };
+  await forward();
+  await run(0);
+
+  expect(nav.top()).toBe('summary');
+  expect(shown()).toContain('no such music track');
+  for (const way of [ru.montage.toLength, ru.montage.toFrames, ru.montage.startCut]) {
+    expect(has(way)).toBe(false);
+  }
+});
+
+test('the material that could not be read is asked for again with «Повторить»', async () => {
+  const server = serve({ offline: 'media' });
+  await open();
+  expect(shown()).toContain(ru.error.offline);
+  expect(has(ru.montage.ownSetup)).toBe(false);
+
+  server.offline = undefined;
+  await press(ru.action.retry);
+  await run(0);
+  expect(shown()).not.toContain(ru.error.offline);
+  expect(has(ru.montage.ownSetup)).toBe(true);
+  expect(server.reads).toBe(1);
+});
+
+test('the range that could not be asked for is asked again with «Повторить», not waited on', async () => {
+  const server = serve({ offline: 'preview' });
+  await open();
+  await walkToLength();
+  expect(slider()).toBeNull();
+  expect(shown()).toContain(ru.error.offline);
+
+  server.offline = undefined;
+  await press(ru.action.retry);
+  await until(() => slider() !== null);
+  expect(slider()).toEqual({ min: 10, max: CEILING, value: 60, all: CEILING });
+  expect(shown()).not.toContain(ru.error.offline);
 });
