@@ -6,7 +6,7 @@ import { Image } from 'expo-image';
 // `getAssetsAsync` only to throw, and the replacement hands back lazy asset *handles* whose uri and
 // capture time are a native round trip each — one per tile in a grid of thousands. The legacy call
 // answers with the whole plain row (id, uri, filename, mediaType, creationTime) in one go, which is
-// also the shape `@/media-window` was written against.
+// also the shape `@/lib/media-window` was written against.
 // ponytail: legacy goes away in some later SDK; the day it does, this screen moves to `Query` and
 // pays for the uris with `getInfo()`.
 import * as MediaLibrary from 'expo-media-library/legacy';
@@ -26,8 +26,8 @@ import { FlatList, Linking, Modal, StyleSheet, useWindowDimensions, View } from 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { errorMessage, listMemories, type Memory } from '@/api';
-import { useAuth } from '@/auth';
-import { formatDay, formatEventDates, formatRuntime } from '@/dates';
+import { useAuth } from '@/lib/auth';
+import { formatDay, formatEventDates, formatRuntime } from '@/lib/dates';
 import {
   ActionBar,
   AppBar,
@@ -50,11 +50,11 @@ import {
   Upload,
   Waiting,
 } from '@/kit';
-import { useStrings } from '@/language';
-import { assetsByDay, type ShootingDay } from '@/media-window';
+import { useStrings } from '@/lib/language';
+import { assetsByDay, type ShootingDay } from '@/lib/media-window';
 import { board, height, radius, space, themed, themes, ThemePin, useTheme } from '@/theme';
-import { failureText, progress, type QueuedFile, type UploadFailure } from '@/upload-queue';
-import { answerAskAll, drop, enqueue, useAskAll, useUploads, wake } from '@/uploads';
+import { failureText, progress, type QueuedFile, type UploadFailure } from '@/lib/upload/queue';
+import { answerAskAll, drop, enqueue, useAskAll, useUploads, wake } from '@/lib/upload/send';
 
 /**
  * Photos and videos, and nothing else — the same list twice on purpose. It is what the grid asks
@@ -84,7 +84,7 @@ type Row =
 /**
  * Putting material into a memory: consent, the camera roll drawn the way a memory's own feed is —
  * three to a row, edge to edge, the date standing between one day and the next — the selection to
- * trim, the sending itself (handed to `@/uploads`, which carries on without this screen) and the
+ * trim, the sending itself (handed to `@/lib/upload/send`, which carries on without this screen) and the
  * one question doc-06 asks afterwards. Nothing here asks what the memory's status is: material goes
  * in during the event and long after the montage was made (doc-02).
  *
@@ -197,7 +197,7 @@ export default function UploadScreen() {
         // many photos were taken since — an unread tail would leave the event's own days off the
         // top of the screen without saying so.
         // ponytail: a huge camera roll spends a few seconds on this. If that ever bites, page only
-        // until the window is passed — but the window belongs to `@/media-window`, so that stop
+        // until the window is passed — but the window belongs to `@/lib/media-window`, so that stop
         // condition has to come from there and not from a second copy of the day maths here.
         do {
           const page = await MediaLibrary.getAssetsAsync({
@@ -243,7 +243,7 @@ export default function UploadScreen() {
   /**
    * doc-06, and the layout's `SheetAskAll`: asked once, and only once everything this visit sent is
    * actually in — «блок отправки уступает место листу „Это всё?“». The api decides *whether* to ask
-   * (`@/uploads`), this decides *when*, and the count beside the question is what went.
+   * (`@/lib/upload/send`), this decides *when*, and the count beside the question is what went.
    *
    * A question raised while somebody was on another screen waits in the queue's own state until the
    * next time they send something from here, which is the next moment the sheet can count anything.
@@ -682,7 +682,7 @@ export default function UploadScreen() {
 /**
  * The line under «Ваши кадры» on the plain bar: which memory this is going into and when it
  * happened. The separator goes with the dates, so a memory whose dates will not read is never left
- * hanging off a «·» — `@/frames` learnt that one the hard way.
+ * hanging off a «·» — `@/lib/frames` learnt that one the hard way.
  */
 function subtitleFor(memory: Memory | null): string | undefined {
   if (memory === null) return undefined;

@@ -5,8 +5,8 @@ import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 
 import { ApiError, errorMessage, startEmailSignIn } from '@/api';
 import { ActionBar, Banner, Board, Button, Field, IconButton } from '@/kit';
-import { useStrings } from '@/language';
-import { OnboardingHead } from '@/onboarding-head';
+import { useStrings } from '@/lib/language';
+import { OnboardingHead } from '@/screens/onboarding/head';
 import { space } from '@/theme';
 
 /**

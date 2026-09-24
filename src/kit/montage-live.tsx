@@ -33,7 +33,7 @@ const BLINK = 1000;
 /**
  * How tall the frame in hand is drawn (detail 49) and the square over it, and the same two given the
  * room of a sheet (`SheetLiveFile`). Exported because the gaze arrives as fractions of the picture
- * and the screen is what turns those into points — `gazeAt` in `@/montage-journal`.
+ * and the screen is what turns those into points — `gazeAt` in `@/lib/montage/journal`.
  */
 export const SHOT = 150;
 export const GAZE = 96;

@@ -19,8 +19,8 @@ import {
   type Member,
   type Memory,
 } from '@/api';
-import { useAuth } from '@/auth';
-import { formatEventDates } from '@/dates';
+import { useAuth } from '@/lib/auth';
+import { formatEventDates } from '@/lib/dates';
 import {
   ActionBar,
   AppBar,
@@ -38,9 +38,9 @@ import {
   useReducedMotion,
   Waiting,
 } from '@/kit';
-import { useStrings } from '@/language';
-import { CoverSlot } from '@/memory/cover';
-import { InviteSheet } from '@/memory/invite-sheet';
+import { useStrings } from '@/lib/language';
+import { CoverSlot } from '@/screens/memory/cover';
+import { InviteSheet } from '@/screens/memory/invite-sheet';
 import { radius, space, themed } from '@/theme';
 
 /**

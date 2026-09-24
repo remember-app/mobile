@@ -15,8 +15,8 @@ import {
   type Memory,
   type Montage,
 } from '@/api';
-import { useAuth } from '@/auth';
-import { formatDayShort, formatRuntime, formatTime } from '@/dates';
+import { useAuth } from '@/lib/auth';
+import { formatDayShort, formatRuntime, formatTime } from '@/lib/dates';
 import {
   ActionBar,
   AppBar,
@@ -31,8 +31,8 @@ import {
   Text,
   WatchingPill,
 } from '@/kit';
-import { useStrings } from '@/language';
-import { StageRows } from '@/memory/stage-rows';
+import { useStrings } from '@/lib/language';
+import { StageRows } from '@/screens/memory/stage-rows';
 import {
   currentStage,
   gazeAt,
@@ -44,8 +44,8 @@ import {
   STAGE_COUNT,
   useMontageJournal,
   useTypedThought,
-} from '@/montage-journal';
-import { LENGTHS, type Length } from '@/montage';
+} from '@/lib/montage/journal';
+import { LENGTHS, type Length } from '@/lib/montage/order';
 import { type Strings } from '@/strings';
 import { space } from '@/theme';
 
@@ -78,7 +78,7 @@ export default function MontageLiveScreen() {
   const s = useStrings();
   const { width } = useWindowDimensions();
 
-  /** The whole journal of this montage, read and kept up to date — `@/montage-journal` does it all. */
+  /** The whole journal of this montage, read and kept up to date — `@/lib/montage/journal` does it all. */
   const journal = useMontageJournal(token, id, montageId);
 
   const [memory, setMemory] = useState<Memory | null>(null);

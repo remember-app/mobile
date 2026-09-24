@@ -5,7 +5,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { errorMessage, listContacts, memberHandle, memberName, type Contact } from '@/api';
-import { useAuth } from '@/auth';
+import { useAuth } from '@/lib/auth';
 import {
   AppBar,
   Avatar,
@@ -18,7 +18,7 @@ import {
   Segment,
   Text,
 } from '@/kit';
-import { setLanguage, useLanguage, useStrings } from '@/language';
+import { setLanguage, useLanguage, useStrings } from '@/lib/language';
 import { board, setTheme, space, themed, useThemeChoice } from '@/theme';
 
 /**

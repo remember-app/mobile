@@ -13,8 +13,8 @@ import {
   type Member,
   type MontageStageCode,
 } from '@/api';
-import { useAuth } from '@/auth';
-import { formatRuntime, formatTime } from '@/dates';
+import { useAuth } from '@/lib/auth';
+import { formatRuntime, formatTime } from '@/lib/dates';
 import {
   AppBar,
   BadgeDecision,
@@ -28,8 +28,8 @@ import {
   Text,
   WatchingPill,
 } from '@/kit';
-import { useStrings } from '@/language';
-import { SheetLiveFile } from '@/memory/live-file';
+import { useStrings } from '@/lib/language';
+import { SheetLiveFile } from '@/screens/memory/live-file';
 import {
   isFresh,
   marksOf,
@@ -41,7 +41,7 @@ import {
   useTypedThought,
   type Journal as Held,
   type Sift,
-} from '@/montage-journal';
+} from '@/lib/montage/journal';
 import { space } from '@/theme';
 
 /**

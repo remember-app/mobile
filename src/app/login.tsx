@@ -7,10 +7,10 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ApiError, errorMessage, signInWithApple, signInWithGoogle } from '@/api';
-import { useAuth } from '@/auth';
+import { useAuth } from '@/lib/auth';
 import { ActionBar, Banner, Board, Button } from '@/kit';
-import { useStrings } from '@/language';
-import { OnboardingHead } from '@/onboarding-head';
+import { useStrings } from '@/lib/language';
+import { OnboardingHead } from '@/screens/onboarding/head';
 import { type Strings } from '@/strings';
 import { space } from '@/theme';
 

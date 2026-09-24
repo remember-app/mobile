@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { listMemories, orderMontage, previewMontage, type MontagePreview } from '@/api';
-import { useAuth } from '@/auth';
-import { formatRuntime } from '@/dates';
+import { useAuth } from '@/lib/auth';
+import { formatRuntime } from '@/lib/dates';
 import {
   Banner,
   BlockSummary,
@@ -19,8 +19,8 @@ import {
   Text,
   Waiting,
 } from '@/kit';
-import { useStrings } from '@/language';
-import { RATIO, shelfTrack, taken, wishes } from '@/montage';
+import { useStrings } from '@/lib/language';
+import { RATIO, shelfTrack, taken, wishes } from '@/lib/montage/order';
 import {
   refusal,
   TEMPLATE_SIGN,
@@ -28,7 +28,7 @@ import {
   useStillHere,
   WizardStep,
   type Refusal,
-} from '@/order-wizard';
+} from '@/screens/order/wizard';
 import { space, themed, useTheme } from '@/theme';
 
 /**

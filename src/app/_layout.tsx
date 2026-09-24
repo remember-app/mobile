@@ -9,17 +9,17 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
 
-import { AuthProvider, useAuth } from '@/auth';
-import { lockPortrait } from '@/orientation';
-import { usePush } from '@/push';
+import { AuthProvider, useAuth } from '@/lib/auth';
+import { lockPortrait } from '@/lib/orientation';
+import { usePush } from '@/lib/push';
 import { useTheme } from '@/theme';
-import { useUploads } from '@/uploads';
+import { useUploads } from '@/lib/upload/send';
 
 // Hold the splash until the stored session has been checked, so no screen flashes
 // before the gate below knows which ones to allow.
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-// The product is portrait, and `app.json` no longer holds it there — `@/orientation` says why. Here
+// The product is portrait, and `app.json` no longer holds it there — `@/lib/orientation` says why. Here
 // beside the splash and not in an effect: this is the app coming up, and it has to be true of the
 // first screen drawn as much as of the fourteenth.
 lockPortrait();

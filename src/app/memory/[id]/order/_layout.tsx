@@ -1,7 +1,7 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
 
 import { useReducedMotion } from '@/kit';
-import { OrderProvider } from '@/order-wizard';
+import { OrderProvider } from '@/screens/order/wizard';
 import { duration } from '@/theme';
 
 /**
@@ -33,7 +33,7 @@ export default function OrderLayout() {
           // said out loud because android's own default is a fade up from the bottom, and a wizard
           // whose steps arrive from two different directions is two different wizards. Under
           // «reduce motion» it is the instant swap that section asks for; the autopilot's beat
-          // (`@/order-wizard`) stays the same length either way, because the time to read what
+          // (`@/screens/order/wizard`) stays the same length either way, because the time to read what
           // landed is not what that setting is about.
           animation: reduced ? 'none' : 'slide_from_right',
           // Android's alone — ios runs its own slide at its own length, which is under the beat the

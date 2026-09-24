@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { API_URL } from '@/api';
 import { Button, Text } from '@/kit';
-import { useStrings } from '@/language';
+import { useStrings } from '@/lib/language';
 import { space, themed } from '@/theme';
 
 /** Which api this build talks to. Service page — the kit's tokens, and nothing it does not need. */

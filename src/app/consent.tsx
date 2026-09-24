@@ -4,7 +4,7 @@ import { useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { acceptConsent, errorMessage } from '@/api';
-import { useAuth } from '@/auth';
+import { useAuth } from '@/lib/auth';
 import {
   ActionBar,
   Banner,
@@ -19,8 +19,8 @@ import {
   Text,
   type IconComponent,
 } from '@/kit';
-import { useStrings } from '@/language';
-import { OnboardingHead } from '@/onboarding-head';
+import { useStrings } from '@/lib/language';
+import { OnboardingHead } from '@/screens/onboarding/head';
 import { font, radius, space, themed, useTheme } from '@/theme';
 
 /**

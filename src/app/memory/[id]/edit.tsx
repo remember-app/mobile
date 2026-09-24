@@ -12,9 +12,9 @@ import {
   type MediaItem,
   type Memory,
 } from '@/api';
-import { useAuth } from '@/auth';
-import { endOfDay, formatDay, startOfDay } from '@/dates';
-import { mayPick, shotAt } from '@/frames';
+import { useAuth } from '@/lib/auth';
+import { endOfDay, formatDay, startOfDay } from '@/lib/dates';
+import { mayPick, shotAt } from '@/lib/frames';
 import {
   ActionBar,
   AppBar,
@@ -28,9 +28,9 @@ import {
   Text,
   Waiting,
 } from '@/kit';
-import { useStrings } from '@/language';
-import { CoverSheet, CoverSlot } from '@/memory/cover';
-import { EventWhen, type Span } from '@/memory/when';
+import { useStrings } from '@/lib/language';
+import { CoverSheet, CoverSlot } from '@/screens/memory/cover';
+import { EventWhen, type Span } from '@/screens/memory/when';
 import { radius, space, themed } from '@/theme';
 
 /**

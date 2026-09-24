@@ -11,8 +11,8 @@ import {
   type Member,
   type Montage,
 } from '@/api';
-import { useAuth } from '@/auth';
-import { formatRuntime } from '@/dates';
+import { useAuth } from '@/lib/auth';
+import { formatRuntime } from '@/lib/dates';
 import {
   AppBar,
   BadgeMontage,
@@ -24,12 +24,12 @@ import {
   Text,
   TileNumber,
 } from '@/kit';
-import { useStrings } from '@/language';
-import { FilmPlayer, montageTitle, useFilmActions } from '@/memory/film-player';
-import { SheetLiveFile } from '@/memory/live-file';
-import { StageRows } from '@/memory/stage-rows';
-import { RATIO } from '@/montage';
-import { howMade, madeInMinutes, useMontageJournal } from '@/montage-journal';
+import { useStrings } from '@/lib/language';
+import { FilmPlayer, montageTitle, useFilmActions } from '@/screens/memory/film-player';
+import { SheetLiveFile } from '@/screens/memory/live-file';
+import { StageRows } from '@/screens/memory/stage-rows';
+import { RATIO } from '@/lib/montage/order';
+import { howMade, madeInMinutes, useMontageJournal } from '@/lib/montage/journal';
 import { space } from '@/theme';
 
 /**

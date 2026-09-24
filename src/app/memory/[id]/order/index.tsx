@@ -4,18 +4,18 @@ import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { ApiError, listMontageTemplates, type MontageTemplate } from '@/api';
-import { useAuth } from '@/auth';
-import { formatRuntime } from '@/dates';
+import { useAuth } from '@/lib/auth';
+import { formatRuntime } from '@/lib/dates';
 import { Banner, Button, TileTemplate, Waiting } from '@/kit';
-import { useStrings } from '@/language';
-import { blankOrder, RATIO } from '@/montage';
-import { refusal, TEMPLATE_SIGN, useOrder, useStillHere, WizardStep } from '@/order-wizard';
+import { useStrings } from '@/lib/language';
+import { blankOrder, RATIO } from '@/lib/montage/order';
+import { refusal, TEMPLATE_SIGN, useOrder, useStillHere, WizardStep } from '@/screens/order/wizard';
 import { space, themed } from '@/theme';
 
 /**
  * `MontageTemplate` (spec 8) — the way into an order and the biggest decision in it: six
  * ready-made films, and pressing one is the whole order made. The autopilot then fills the four
- * steps in and walks them in front of whoever pressed it (`@/order-wizard`), so this screen's
+ * steps in and walks them in front of whoever pressed it (`@/screens/order/wizard`), so this screen's
  * work ends at the press.
  *
  * What is on a tile comes from two places on purpose: the name and the line under it are the

@@ -10,7 +10,7 @@ import {
 import { useMemo, useState } from 'react';
 import { FlatList, StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import { formatRuntime } from '@/dates';
+import { formatRuntime } from '@/lib/dates';
 import {
   Button,
   GRID_GAP,
@@ -20,7 +20,7 @@ import {
   Tile,
   type IconComponent,
 } from '@/kit';
-import { useStrings } from '@/language';
+import { useStrings } from '@/lib/language';
 import {
   afterTap,
   droppedByPass,
@@ -30,8 +30,8 @@ import {
   rejectedGroups,
   taken,
   type Reason,
-} from '@/montage';
-import { useOrder, WizardStep } from '@/order-wizard';
+} from '@/lib/montage/order';
+import { useOrder, WizardStep } from '@/screens/order/wizard';
 import { space, themed } from '@/theme';
 
 /**
