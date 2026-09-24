@@ -1,6 +1,6 @@
 // What the four steps of an order add up to (spec 8, «Ролик: заказ по шагам»): which frames go in,
-// what the video is about, what it is cut to, how long it runs and which way up. The screen
-// (`app/memory/[id]/order.tsx`) draws the steps; everything here is the arithmetic behind them, and
+// what the video is about, what it is cut to, how long it runs and which way up. The screens
+// (`app/memory/[id]/order/`) draw the steps; everything here is the arithmetic behind them, and
 // the one place that turns what was picked into the body the api takes. The waiting that follows an
 // order is at the foot of this file — the same subject, on the other side of the one call.
 //

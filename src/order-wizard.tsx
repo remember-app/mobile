@@ -76,7 +76,8 @@ export type Wizard = {
   /** Too little to cut anything out of: `SheetTooLittle` stands in place of the whole wizard. */
   short: boolean;
   order: Order;
-  change: (patch: Partial<Order>) => void;
+  /** A patch, or one worked out from the order as it lands — for an answer that comes back late. */
+  change: (patch: Partial<Order> | ((was: Order) => Partial<Order>)) => void;
   /** Out of the wizard with nothing ordered, from whichever step is on top. */
   leave: () => void;
   /** Which template is walking the wizard by itself right now, and null while nobody is. */
@@ -161,20 +162,21 @@ export function OrderProvider({ id, children }: { id: string; children: ReactNod
   }, [token, id]);
 
   const change = useCallback(
-    (patch: Partial<Order>) => setOrder((was) => ({ ...was, ...patch })),
+    (patch: Partial<Order> | ((was: Order) => Partial<Order>)) =>
+      setOrder((was) => ({ ...was, ...(typeof patch === 'function' ? patch(was) : patch) })),
     [],
   );
 
   /**
    * «Отмена» leaves the wizard and not the step: the steps are routes now, so the ones underneath
    * are dismissed first and the wizard itself goes after them. With nothing behind it at all — a
-   * push or a link that opened the order cold — the movies face of the memory is where it lands,
-   * which is where the order was asked for.
+   * push or a link that opened the order cold — the memory is where it lands, which is where the
+   * order was asked for.
    */
   const leave = useCallback(() => {
     router.dismissAll();
     if (router.canGoBack()) router.back();
-    else router.replace({ pathname: '/memory/[id]', params: { id, face: 'films' } });
+    else router.replace({ pathname: '/memory/[id]', params: { id } });
   }, [router, id]);
 
   /**
@@ -219,7 +221,9 @@ export function OrderProvider({ id, children }: { id: string; children: ReactNod
       };
 
       setAuto(template.id);
-      change({ template: fill.template, orientation: fill.orientation });
+      // What the walk types in starts empty, so a walk stopped early leaves only what it wrote —
+      // never an earlier template's words under this one's plate, or a hand's claim on them.
+      change({ ...fill, story: '', tracks: [], note: '', seconds: null });
 
       void (async () => {
         router.push({ pathname: '/memory/[id]/order/frames', params: { id } });
@@ -234,7 +238,11 @@ export function OrderProvider({ id, children }: { id: string; children: ReactNod
           const stroke = Math.max(1, Math.ceil(fill.story.length / TYPE_STROKES));
           for (let at = stroke; at < fill.story.length + stroke; at += stroke) {
             change({ story: fill.story.slice(0, at) });
-            if (!(await going(TYPE_MS))) return;
+            if (!(await going(TYPE_MS))) {
+              // Stopped mid-word, the template's words land whole — unless a hand took the box.
+              change((was) => (was.ownStory ? {} : { story: fill.story }));
+              return;
+            }
           }
         }
 
@@ -375,6 +383,10 @@ export function WizardStep({
   const counted = typeof step === 'number';
   /** «Отмена» pressed over a walk that has something in it — asked before it is thrown away. */
   const [leaving, setLeaving] = useState(false);
+  // The walk only ever pushes, so a step going away is somebody leaving it — the system's back
+  // gesture, or the wizard itself closing — and a walk left running would push its next step onto
+  // whatever is there now.
+  useEffect(() => stop, [stop]);
 
   return (
     <Board>
