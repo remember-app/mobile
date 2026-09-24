@@ -410,14 +410,19 @@ test('tracks go in in any number, in the order they play, and that order is drag
   // The shelf adds to the end of the list rather than replacing one answer with another — several
   // at once is the whole of the new step — and their own track lands in the same list.
   expect(music).toContain('change({ tracks: [...picked, { key, name: null }] })');
-  expect(music).toContain('change({ tracks: [...picked, { key, name: file.name }] });');
+  // Their own track lands on the list as it is when the upload ends, not as it was when the picker
+  // opened: the shelf stays pressable meanwhile, and what was added there must not be dropped.
+  expect(music).toContain('change((was) => ({ tracks: [...was.tracks, { key, name: file.name }] }));');
 
   // The row is dragged by its wave (spec 7.7), and rows are counted rather than measured: every
   // one of them is exactly `TRACK_ROW` tall, which is the kit's own number and not a copy of it.
   expect(music).toContain('grip={{');
   expect(music).toContain('...gripFor(i),');
-  expect(music).toContain('Math.round(gesture.dy / TRACK_ROW)');
-  expect(music).toContain('change({ tracks: movedTrack(picked, from, to) });');
+  // Counted from where the finger came down, and not off `gesture.dy`: each swap re-renders the
+  // list, the next move reaches the new render's handler, and its own `dy` starts again from zero.
+  expect(music).toContain('held.from + Math.round((e.nativeEvent.pageY - held.y) / TRACK_ROW)');
+  expect(music).not.toContain('gesture.dy / TRACK_ROW');
+  expect(music).toContain('change({ tracks: movedTrack(held.list, held.from, to) });');
   // Dragging says nothing to a screen reader, so the same two moves stand as actions on the wave.
   expect(music).toContain('accessibilityActions: MOVES');
   expect(music).toContain('s.montage.moveTrack(name)');
