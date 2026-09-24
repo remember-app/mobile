@@ -1018,7 +1018,8 @@ test('a record about a file opens that file’s card, and a deleted file is stil
   }
   // «Что увидел» in tags, and under the thought where the frame ended up.
   expect(liveFile).toContain('s.montage.live.saw.toUpperCase()');
-  expect(liveFile).toContain('<Tag key={label} label={label} />');
+  // Keyed by place: the words are the model's, and the same one twice is two tags, not one key.
+  expect(liveFile).toContain('<Tag key={at} label={label} />');
   expect(liveFile).toContain('outcome={outcomeLine(entry, file, s)}');
 });
 

@@ -85,8 +85,10 @@ export function SheetLiveFile({
             {s.montage.live.saw.toUpperCase()}
           </Text>
           <View style={styles.tags}>
-            {entry.labels.map((label) => (
-              <Tag key={label} label={label} />
+            {/* By place and not by word: the words are the model's, and nothing stops it from
+                saying «смех» twice. */}
+            {entry.labels.map((label, at) => (
+              <Tag key={at} label={label} />
             ))}
           </View>
         </View>
