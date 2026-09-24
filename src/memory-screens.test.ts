@@ -640,11 +640,9 @@ test('nobody is shown a way out of a memory, and the organizer keeps the crosses
   // The one red button the screen has is not a way out of the memory but the end of it (TASK-281,
   // doc-01): the organizer's alone, at the foot of the body under a hairline of its own, the way
   // `Account` stands its own dangerous one — and asked for on a sheet that names the price.
+  // What it then does is proven by rendering it, in `settings-flow.test.tsx`; the count here is
+  // the one thing a render cannot ask — that there is no *second* red button anywhere on it.
   expect(settings.match(/variant="danger"/g)).toHaveLength(1);
-  expect(settings).toContain('label={s.settings.delete}');
-  expect(settings).toContain('deleteMemory(session, id)');
-  expect(settings).toContain('s.settings.deletePrice(memory.media_count, memory.montage_count)');
-  expect(settings).toContain("router.replace('/')");
 });
 
 // The settings screen (spec 8, `MemorySettings`, TASK-209): what the event is and who is in it.
