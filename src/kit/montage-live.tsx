@@ -31,11 +31,12 @@ import { Text } from './text';
 const BLINK = 1000;
 
 /**
- * How tall the frame in hand is drawn (detail 49), and the same frame given the room of a sheet
- * (`SheetLiveFile`) with the square over it. Exported because the gaze arrives as fractions of the
- * picture and the screen is what turns those into points — `gazeAt` in `@/montage-journal`.
+ * How tall the frame in hand is drawn (detail 49) and the square over it, and the same two given the
+ * room of a sheet (`SheetLiveFile`). Exported because the gaze arrives as fractions of the picture
+ * and the screen is what turns those into points — `gazeAt` in `@/montage-journal`.
  */
 export const SHOT = 150;
+export const GAZE = 96;
 export const SHOT_SHEET = 220;
 export const GAZE_SHEET = 110;
 
@@ -548,8 +549,8 @@ const useStyles = themed(({ color }) =>
     onPhoto: { color: photo.on },
     gaze: {
       position: 'absolute',
-      width: 96,
-      height: 96,
+      width: GAZE,
+      height: GAZE,
       borderWidth: 2,
       borderColor: color.spark,
       borderRadius: radius.strip,

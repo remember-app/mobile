@@ -24,7 +24,7 @@ import {
   type Viewer,
 } from '@/api';
 import { formatRuntime } from '@/dates';
-import { useReducedMotion, type StepState } from '@/kit';
+import { GAZE, useReducedMotion, type StepState } from '@/kit';
 import { beingMade } from '@/montage';
 import type { Strings } from '@/strings';
 
@@ -34,9 +34,6 @@ import type { Strings } from '@/strings';
  * in front of watching a machine work, so the slow end of that would already read as a stutter.
  */
 export const WHILE_LIVE_MS = 1500;
-
-/** The 96 square the kit draws the gaze in (`kit/montage-live.tsx`), in points of the card. */
-export const GAZE = 96;
 
 /**
  * How many pages one poll will chase before it hands the phone back. `has_more` is followed at once
