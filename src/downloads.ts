@@ -54,9 +54,11 @@ export async function saveToPhone(file: Original, andThen?: (uri: string) => Pro
  * Dismissing the sheet is not a failure and neither is a phone with nowhere to send it, so the
  * sheet's own answer is swallowed the way the montage screen swallows it.
  *
- * ponytail: React Native's own `Share` attaches a file on iOS only — on Android the sheet goes out
- * with the link alone. `expo-sharing` is the upgrade when that is not good enough, and it is the
- * same ceiling the finished montage already shares.
+ * ponytail: React Native's own `Share` attaches a file on iOS only. On Android it reads `message` and
+ * nothing else (`url` is dropped before it reaches the intent), so the chooser opens with nothing to
+ * send, and it resolves the moment the chooser is up — before anyone has picked an app, which is
+ * also before the cached copy is deleted below. `expo-sharing` is the upgrade, and it is the same
+ * ceiling the finished montage already shares.
  */
 export async function shareFile(file: Original) {
   await inCache(file, async (uri) => {

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import {
+  ApiError,
   errorMessage,
   listMedia,
   listMemories,
@@ -71,7 +72,9 @@ export default function MemoryEditScreen() {
     listMemories(token).then((list) => {
       const one = list.find((each) => each.id === id) ?? null;
       setMemory(one);
-      if (one === null) return;
+      // Not on the list is not «still loading»: the listing answered, and this person is not in the
+      // memory any more (or never was). Left as it was, the screen waited on it for ever.
+      if (one === null) return setError(errorMessage(new ApiError(404, null)));
       setTitle(one.title);
       setSpan(spanOf(one));
       setCover(one.cover_media_id);
@@ -213,7 +216,10 @@ export default function MemoryEditScreen() {
                   onPress={() => setCover(null)}
                 />
               )}
-              {pickable.length === 0 ? <Hint>{s.edit.coverNeedsFrames}</Hint> : null}
+              {/* Only once the gallery has answered: while it is still on its way, and when it could
+                  not be read at all, «сначала нужен хотя бы один кадр» would be a statement about a
+                  memory nobody has looked into. */}
+              {media !== null && pickable.length === 0 ? <Hint>{s.edit.coverNeedsFrames}</Hint> : null}
             </View>
           </>
         )}

@@ -58,8 +58,10 @@ import {
   mayOpen,
   mayPick,
   megabytesOf,
+  removeFrames,
   SORT_DEFAULT,
   stillPreparing,
+  toggleEvery,
   withoutLabel,
   type Filter,
   type Frame,
@@ -553,9 +555,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
    */
   function pickEverything() {
     const markable = kept.filter(mayPick);
-    setPicked((have) =>
-      have.size >= markable.length ? new Set() : new Set(markable.map((item) => item.id)),
-    );
+    setPicked((have) => toggleEvery(markable, have));
   }
 
   /**
@@ -664,21 +664,21 @@ export function Frames({ id, head }: { id: string; head: Head }) {
     setDropping(false);
     setBusy(true);
     setNotice(null);
-    const gone = new Set<string>();
-    try {
-      for (const item of deletable) {
-        if (!onScreen.current) break;
-        await deleteMedia(token, id, item.id);
-        gone.add(item.id);
-      }
-    } catch (e) {
+    // A frame somebody else already took out is gone all the same, and does not stop the run.
+    const { gone, failure } = await removeFrames(
+      deletable,
+      (item) => deleteMedia(token, id, item.id),
+      () => onScreen.current,
+    );
+    if (gone.size > 0) setItems((have) => have?.filter((one) => !gone.has(one.id)) ?? null);
+    if (failure !== undefined) {
       setNotice(
-        e instanceof ApiError && e.status === 403 ? s.gallery.deleteDenied : errorMessage(e),
+        failure instanceof ApiError && failure.status === 403
+          ? s.gallery.deleteDenied
+          : errorMessage(failure),
       );
-    } finally {
-      if (gone.size > 0) setItems((have) => have?.filter((one) => !gone.has(one.id)) ?? null);
-      setBusy(false);
     }
+    setBusy(false);
   }
 
   /** The days of the event under the memory's name, and what it holds — the capsule's second line. */

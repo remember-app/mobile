@@ -9,7 +9,7 @@ vi.mock('expo-secure-store', () => ({
   setItemAsync: async () => {},
 }));
 
-import type { FrameInfo, MediaItem, Member, Memory } from '@/api';
+import { ApiError, type FrameInfo, type MediaItem, type Member, type Memory } from '@/api';
 // The day is written by `@/dates` and read here from the same place: what is pinned below is which
 // day the line carries, not how this phone's locale spells it.
 import { formatEventDates, startOfDay } from '@/dates';
@@ -30,9 +30,11 @@ import {
   megabytes,
   megabytesOf,
   openFrameOf,
+  removeFrames,
   shotBy,
   SORT_DEFAULT,
   stillPreparing,
+  toggleEvery,
   withoutLabel,
   type Filter,
   type Sort,
@@ -639,4 +641,96 @@ test('the spark dot means «no longer at its default», and nothing else', () =>
   // The dates between the days are an arrangement like any other, and `MemoryDated` is drawn with
   // the dot burning on the round button they were turned on from.
   expect(arranged({ ...SORT_DEFAULT, dates: true })).toBe(true);
+});
+
+// «Выбрать все» in the capsule of the picking mode (spec 8, `FramesPicking`): every frame a mark could
+// mean something on, and the same press gives them back once they are all taken.
+
+const ready = (id: string) =>
+  record({ id, status: 'ready', thumbnail_url: `https://r2.example/${id}` });
+
+test('the capsule takes every frame, and once they are all taken it gives them back', () => {
+  const feed = [ready('a'), ready('b'), ready('c')];
+  expect(toggleEvery(feed, new Set())).toEqual(new Set(['a', 'b', 'c']));
+  expect(toggleEvery(feed, new Set(['a']))).toEqual(new Set(['a', 'b', 'c']));
+  expect(toggleEvery(feed, new Set(['a', 'b', 'c']))).toEqual(new Set());
+});
+
+test('ids of frames that are gone do not make «все взято» true while a frame is still bare', () => {
+  // Three markable frames, three ids held — but two of the ids are frames somebody else deleted. Read
+  // as a count, that was «everything is taken» and the press wiped the selection instead of taking `c`.
+  const feed = [ready('a'), ready('b'), ready('c')];
+  expect(toggleEvery(feed, new Set(['a', 'gone-1', 'gone-2']))).toEqual(new Set(['a', 'b', 'c']));
+});
+
+test('nothing to take is nothing taken, never a selection made of stale ids', () => {
+  expect(toggleEvery([], new Set())).toEqual(new Set());
+  expect(toggleEvery([], new Set(['gone']))).toEqual(new Set());
+});
+
+// Taking marked frames out of the memory, one call after another.
+
+test('every frame that goes is reported gone, in the order it went', async () => {
+  const sent: string[] = [];
+  const { gone, failure } = await removeFrames([ready('a'), ready('b')], async (item) => {
+    sent.push(item.id);
+  });
+  expect(sent).toEqual(['a', 'b']);
+  expect(gone).toEqual(new Set(['a', 'b']));
+  expect(failure).toBeUndefined();
+});
+
+test('a frame the api no longer has is gone all the same, and the run carries on past it', async () => {
+  // Somebody else deleted `b` a moment ago: 404 is what was wanted, not a reason to leave `c` behind.
+  const sent: string[] = [];
+  const { gone, failure } = await removeFrames(
+    [ready('a'), ready('b'), ready('c')],
+    async (item) => {
+      sent.push(item.id);
+      if (item.id === 'b') throw new ApiError(404, { error: 'not found' });
+    },
+  );
+  expect(sent).toEqual(['a', 'b', 'c']);
+  expect(gone).toEqual(new Set(['a', 'b', 'c']));
+  expect(failure).toBeUndefined();
+});
+
+test('a refusal stops the run, and what went before it still leaves the feed', async () => {
+  const sent: string[] = [];
+  const denied = new ApiError(403, { error: 'forbidden' });
+  const { gone, failure } = await removeFrames(
+    [ready('a'), ready('b'), ready('c')],
+    async (item) => {
+      sent.push(item.id);
+      if (item.id === 'b') throw denied;
+    },
+  );
+  // `c` would have met the same answer, so it is not asked; `b` stayed, so it is not gone.
+  expect(sent).toEqual(['a', 'b']);
+  expect(gone).toEqual(new Set(['a']));
+  expect(failure).toBe(denied);
+});
+
+test('no connection is a failure of the run too, not a frame that went', async () => {
+  const offline = new TypeError('Network request failed');
+  const { gone, failure } = await removeFrames([ready('a'), ready('b')], async () => {
+    throw offline;
+  });
+  expect(gone).toEqual(new Set());
+  expect(failure).toBe(offline);
+});
+
+test('a screen that has been left stops the errand between frames, not inside one', async () => {
+  let here = true;
+  const sent: string[] = [];
+  const { gone } = await removeFrames(
+    [ready('a'), ready('b'), ready('c')],
+    async (item) => {
+      sent.push(item.id);
+      here = false; // walked out while `a` was in flight
+    },
+    () => here,
+  );
+  expect(sent).toEqual(['a']);
+  expect(gone).toEqual(new Set(['a']));
 });

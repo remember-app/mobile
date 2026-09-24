@@ -184,9 +184,11 @@ test('the capsule says what the memory holds, and what is marked while picking',
   expect(ru.gallery.pickedKinds(3, 1)).toBe('3 фото и 1 видео');
   expect(ru.gallery.pickedKinds(3, 0)).toBe('3 фото');
   expect(en.gallery.pickedKinds(0, 1)).toBe('1 video');
+  // What the press does to the selection is `toggleEvery` (`frames.test.ts`), asked of the frames on
+  // the feed and not of how many ids the set happens to hold.
   const everything = frames.slice(frames.indexOf('function pickEverything'));
   expect(everything.slice(0, everything.indexOf('\n  }'))).toContain(
-    'have.size >= markable.length ? new Set() : new Set(markable.map((item) => item.id))',
+    'setPicked((have) => toggleEvery(markable, have));',
   );
 });
 
@@ -782,13 +784,24 @@ test('a cover is picked on a sheet, waits in the slot, and comes off again quiet
   // Spec 10.8.3: «кадров в воспоминании нет вовсе — листа не бывает», so the button that opens it is
   // unavailable and a line under the card says what is missing.
   expect(edit).toContain('disabled={saving || pickable.length === 0}');
-  expect(edit).toContain('{pickable.length === 0 ? <Hint>{s.edit.coverNeedsFrames}</Hint> : null}');
+  // Said only once the gallery has answered: before that, and when it never does, there is nothing
+  // to say about how many frames the memory holds.
+  expect(edit).toContain(
+    '{media !== null && pickable.length === 0 ? <Hint>{s.edit.coverNeedsFrames}</Hint> : null}',
+  );
   // One frame at a time on that sheet: a tap moves the pick rather than adding to it.
   expect(cover).toContain("picked === item.id ? 'send' : 'off'");
   expect(cover).toContain('onPress={takeable ? () => setPicked(item.id) : undefined}');
   // Newest first, the way the feed reads — and no day gaps: here a picture is chosen, not a day.
   expect(cover).toContain('[...media].sort((a, b) => shotAt(b) - shotAt(a))');
   expect(cover).not.toContain('Daymark');
+});
+
+test('a memory that is not on the list is an error, not a spinner that never ends', () => {
+  // The listing answered and the memory is not in it — removed from it, or never there. That is a
+  // failure to say out loud with the api's own «404» line; only a read still in flight is «Loading».
+  expect(edit).toContain('if (one === null) return setError(errorMessage(new ApiError(404, null)));');
+  expect(ru.error.status(404)).toBe('Сервер ответил 404.');
 });
 
 test('walking away from unsaved edits asks, and asks gently', () => {

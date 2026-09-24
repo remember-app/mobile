@@ -1,4 +1,11 @@
-import { memberName, type FrameInfo, type MediaItem, type Member, type Memory } from '@/api';
+import {
+  ApiError,
+  memberName,
+  type FrameInfo,
+  type MediaItem,
+  type Member,
+  type Memory,
+} from '@/api';
 import { formatEventDates, startOfDay } from '@/dates';
 import type { TileState } from '@/kit/tile';
 import { currentLanguage } from '@/language';
@@ -144,6 +151,51 @@ export function mayOpen(item: MediaItem): boolean {
  */
 export function mayPick(item: MediaItem): boolean {
   return frameOf(item).state === 'ready';
+}
+
+/**
+ * What the capsule's «выбрать все» does to the selection (spec 8, `FramesPicking`): takes every frame
+ * a mark could mean something on, and once they are all taken the same press gives them back.
+ *
+ * Asked of the frames themselves and not of the size of the set: the selection is only ever trimmed
+ * by hand, so it can hold ids of frames that have since been deleted by somebody else — counted, they
+ * made «все взято» true while a frame was still bare, and the press cleared the lot instead of taking
+ * the rest.
+ */
+export function toggleEvery(
+  markable: readonly MediaItem[],
+  have: ReadonlySet<string>,
+): Set<string> {
+  const all = markable.length > 0 && markable.every((item) => have.has(item.id));
+  return all ? new Set() : new Set(markable.map((item) => item.id));
+}
+
+/**
+ * Takes frames out of the memory one after another and reports what went. A frame the api no longer
+ * has (404) is gone all the same — somebody else got there first, which is what was asked for — so it
+ * counts as removed and the run carries on; anything else (a refusal, no connection) stops the run,
+ * because the rest would meet the same answer, and hands that failure back for the screen to say.
+ *
+ * `carryOn` is asked between frames, so a screen that has been left stops the errand without
+ * abandoning the frame already in flight. Never throws: whatever was removed before the failure has
+ * to leave the feed even when the run stopped halfway.
+ */
+export async function removeFrames(
+  items: readonly MediaItem[],
+  remove: (item: MediaItem) => Promise<unknown>,
+  carryOn: () => boolean = () => true,
+): Promise<{ gone: Set<string>; failure?: unknown }> {
+  const gone = new Set<string>();
+  for (const item of items) {
+    if (!carryOn()) break;
+    try {
+      await remove(item);
+    } catch (failure) {
+      if (!(failure instanceof ApiError && failure.status === 404)) return { gone, failure };
+    }
+    gone.add(item.id);
+  }
+  return { gone };
 }
 
 /** One day of a memory's material: the day itself, and the frames shot on it. */
