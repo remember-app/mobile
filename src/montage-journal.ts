@@ -93,8 +93,8 @@ export const NO_JOURNAL: Journal = {
 /** One word for the whole thing, for a screen that has one line to say it in. */
 export type Standing = 'opening' | 'live' | 'ready' | 'failed' | 'offline';
 
-/** Which narrowing the journal is being read under — one stage, one file, or the whole of it. */
-export type Narrow = Pick<JournalQuery, 'stage' | 'media_id'>;
+/** Which narrowing the journal is being read under — one stage, or the whole of it. */
+export type Narrow = Pick<JournalQuery, 'stage'>;
 
 /** Asking the api for one page. A parameter so the reading can be run without a network. */
 export type Ask = (query: JournalQuery) => Promise<MontageJournal>;
@@ -502,7 +502,7 @@ export function useMontageJournal(
   token: string | null,
   memoryId: string,
   montageId: string,
-  { stage, media_id }: Narrow = {},
+  { stage }: Narrow = {},
 ): Journal & { standing: Standing; loadOlder: () => void; restart: () => void } {
   const [state, setState] = useState<Journal>(NO_JOURNAL);
   /** The same thing a poll reads and folds into — state itself is a render behind. */
@@ -525,7 +525,7 @@ export function useMontageJournal(
       // flight — another video, another narrowing — its answer belongs to the journal that is gone.
       const from = held.current;
       try {
-        const narrow = { stage, media_id };
+        const narrow = { stage };
         // A poll that breaks halfway through its pages is dropped whole rather than kept in part:
         // the cursor then stays where it was and the next one asks for the same records again.
         const next = await (older ? pullOlder : pull)(from, ask, narrow);
@@ -540,7 +540,7 @@ export function useMontageJournal(
         reading.current = false;
       }
     },
-    [token, ask, stage, media_id],
+    [token, ask, stage],
   );
 
   /**
@@ -556,7 +556,7 @@ export function useMontageJournal(
     setState(held.current);
   }, []);
 
-  useEffect(restart, [restart, ask, stage, media_id]);
+  useEffect(restart, [restart, ask, stage]);
 
   // On the way in, and again the moment the screen comes back in front or the app wakes up.
   useEffect(() => {
