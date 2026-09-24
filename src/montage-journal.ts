@@ -605,30 +605,37 @@ const TYPE_STEPS = 60;
  * run to 500 characters, and a sentence that takes fifteen seconds to appear is not being said, it
  * is being withheld. «Reduce motion» puts the whole of it up at once, which is also what the kit's
  * own cursor does under that setting.
+ *
+ * The sentence comes back in two halves, `said` and `unsaid`, and the kit lays the second out
+ * without drawing it: the words take their final room from the first letter, so nothing under them
+ * moves while they arrive (spec 7.6, «экран не прыгает»). A new sentence starts from nothing on the
+ * very render it arrives on, not one frame later with the last one's length.
  */
 export function useTypedThought(
   text: string | null | undefined,
   fresh: boolean,
-): { shown: string; typing: boolean } {
+): { said: string; unsaid: string } {
   const reduced = useReducedMotion();
   const whole = text ?? '';
-  const [shown, setShown] = useState(() => (fresh && !reduced ? '' : whole));
+  const typing = fresh && !reduced && whole !== '';
+  const [typed, setTyped] = useState({ of: whole, at: typing ? 0 : whole.length });
+  const at = typed.of === whole ? typed.at : typing ? 0 : whole.length;
 
   useEffect(() => {
-    if (!fresh || reduced || whole === '') {
-      setShown(whole);
+    if (!typing) {
+      setTyped({ of: whole, at: whole.length });
       return;
     }
-    setShown('');
+    setTyped({ of: whole, at: 0 });
     const step = Math.max(1, Math.ceil(whole.length / TYPE_STEPS));
-    let at = 0;
+    let upTo = 0;
     const timer = setInterval(() => {
-      at = Math.min(whole.length, at + step);
-      setShown(whole.slice(0, at));
-      if (at === whole.length) clearInterval(timer);
+      upTo = Math.min(whole.length, upTo + step);
+      setTyped({ of: whole, at: upTo });
+      if (upTo === whole.length) clearInterval(timer);
     }, TYPE_MS);
     return () => clearInterval(timer);
-  }, [whole, fresh, reduced]);
+  }, [whole, typing]);
 
-  return { shown, typing: shown.length < whole.length };
+  return { said: whole.slice(0, at), unsaid: whole.slice(at) };
 }

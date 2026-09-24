@@ -234,8 +234,8 @@ export default function MontageLiveScreen() {
                   ? s.montage.live.thinking
                   : s.montage.live.decided
             }
-            thought={thought.shown}
-            typing={thought.typing}
+            thought={thought.said}
+            unsaid={thought.unsaid}
             decision={
               decision ? (
                 <BadgeDecision

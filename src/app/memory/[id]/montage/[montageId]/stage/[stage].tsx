@@ -236,7 +236,7 @@ function Record({
   if (entry.media_id === null) {
     return (
       <LogEntry time={time} fresh={newest}>
-        <NoteThought text={thought.shown} />
+        <NoteThought text={thought.said} unsaid={thought.unsaid} />
       </LogEntry>
     );
   }
@@ -250,8 +250,8 @@ function Record({
       uri={file?.thumbnail_url ?? undefined}
       length={formatRuntime(file?.duration_seconds ?? null)}
       source={author}
-      text={thought.shown}
-      typing={thought.typing}
+      text={thought.said}
+      unsaid={thought.unsaid}
       marks={marks.map((mark, at) => (
         <BadgeDecision
           key={mark}

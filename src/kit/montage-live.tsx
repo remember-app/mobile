@@ -1,7 +1,15 @@
 import { Image } from 'expo-image';
 import { Play, Sparkles } from 'lucide-react-native';
 import type { ReactNode } from 'react';
-import { Animated, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  Animated,
+  Pressable,
+  Text as RNText,
+  StyleSheet,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 
 import { photo, radius, space, themed, useTheme } from '@/theme';
 
@@ -49,7 +57,7 @@ export function CardNow({
   who,
   standing,
   thought,
-  typing,
+  unsaid,
   decision,
   waiting,
   style,
@@ -71,10 +79,10 @@ export function CardNow({
   who: string;
   /** «думает…» / «решил» — the same voice in two tenses. */
   standing?: string;
-  /** What they are saying about this frame. */
+  /** What they have said about this frame so far. */
   thought?: string;
-  /** Still arriving: the thought carries the blinking cursor at the end of it. */
-  typing?: boolean;
+  /** The rest of that sentence, still arriving — see {@link Said}. */
+  unsaid?: string;
   /** The decision pill once there is one — `BadgeDecision`, handed in. */
   decision?: ReactNode;
   /** «Ждём очереди» — nothing is in hand, so there is no frame and no thought. */
@@ -127,13 +135,12 @@ export function CardNow({
             <View style={styles.grow} />
             {decision}
           </View>
-          {thought ? (
+          {thought || unsaid ? (
             // Spec 10.4: the square on the frame says nothing out loud, and what it is pointing at
             // is exactly what the thought is about — so the thought is the live area, and a screen
             // reader is told the director's sentence as it arrives rather than told about a square.
             <Text accessibilityLiveRegion="polite" role="note" tone="paper">
-              {thought}
-              {typing ? <Cursor /> : null}
+              <Said said={thought} unsaid={unsaid} />
             </Text>
           ) : null}
         </View>
@@ -197,6 +204,28 @@ function Gaze({ left, top }: { left: number; top: number }) {
   );
 }
 
+/**
+ * A thought still arriving, inside the `Text` that holds it: what is said so far, the cursor, and
+ * the rest of the sentence laid out but not drawn. The words take their final room from the first
+ * letter, so nothing under them moves while they arrive (spec 7.6, «экран не прыгает»). The hidden
+ * half is a bare `Text`, so it inherits the size and the line height of the words it continues.
+ */
+function Said({ said, unsaid }: { said?: string; unsaid?: string }) {
+  return (
+    <>
+      {said}
+      {unsaid ? (
+        <>
+          <Cursor />
+          <RNText style={unsaidStyle}>{unsaid}</RNText>
+        </>
+      ) : null}
+    </>
+  );
+}
+
+const unsaidStyle = { color: 'transparent' } as const;
+
 /** The 2 × 15 `spark` cursor at the end of a thought still arriving. Blinks once a second (spec 6). */
 function Cursor() {
   const styles = useStyles();
@@ -235,10 +264,13 @@ function SparkMark({ size }: { size: 20 | 22 }) {
  */
 export function NoteThought({
   text,
+  unsaid,
   outcome,
   style,
 }: {
   text: string;
+  /** The rest of the sentence, still arriving — see {@link Said}. */
+  unsaid?: string;
   /** «Часть 2 „Клятвы“ · 1:12–1:16 · крупный план» — where the thought ended up. */
   outcome?: string;
   style?: StyleProp<ViewStyle>;
@@ -250,7 +282,7 @@ export function NoteThought({
       <SparkMark size={20} />
       <View style={styles.grow}>
         <Text role="note" tone="paper">
-          {text}
+          <Said said={text} unsaid={unsaid} />
         </Text>
         {outcome ? (
           <Text role="meta" tone="accent" style={styles.outcome}>
@@ -279,7 +311,7 @@ export function LogEntry({
   photos,
   source,
   text,
-  typing,
+  unsaid,
   marks,
   children,
   onPress,
@@ -297,8 +329,8 @@ export function LogEntry({
   /** «IMG_2041 · Аня» — the file and who brought it. */
   source?: string;
   text?: string;
-  /** The freshest thought is still being said, so it carries the cursor. */
-  typing?: boolean;
+  /** The freshest thought is still being said: the rest of it — see {@link Said}. */
+  unsaid?: string;
   /** The decision pills, in a row that wraps — `BadgeDecision` each. */
   marks?: ReactNode;
   /** A thought with no file: the plate, full width. */
@@ -317,10 +349,9 @@ export function LogEntry({
         </View>
       ) : null}
       {source ? <Text role="meta">{source}</Text> : null}
-      {text ? (
+      {text || unsaid ? (
         <Text role="note" tone="paper">
-          {text}
-          {typing ? <Cursor /> : null}
+          <Said said={text} unsaid={unsaid} />
         </Text>
       ) : null}
       {marks ? <View style={styles.marks}>{marks}</View> : null}
