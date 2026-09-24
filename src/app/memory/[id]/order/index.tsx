@@ -3,13 +3,13 @@ import { Pencil } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import { ApiError, errorMessage, listMontageTemplates, type MontageTemplate } from '@/api';
+import { ApiError, listMontageTemplates, type MontageTemplate } from '@/api';
 import { useAuth } from '@/auth';
 import { formatRuntime } from '@/dates';
 import { Banner, Button, TileTemplate, Waiting } from '@/kit';
 import { useStrings } from '@/language';
 import { blankOrder, RATIO } from '@/montage';
-import { TEMPLATE_SIGN, useOrder, useStillHere, WizardStep } from '@/order-wizard';
+import { refusal, TEMPLATE_SIGN, useOrder, useStillHere, WizardStep } from '@/order-wizard';
 import { space, themed } from '@/theme';
 
 /**
@@ -57,7 +57,7 @@ export default function TemplatesScreen() {
       (e: unknown) => {
         if (gone.current) return;
         if (e instanceof ApiError && e.status === 409) tooLittle();
-        else setNotice(errorMessage(e));
+        else setNotice(refusal(e).text);
       },
     );
   }, [token, id, again, tooLittle]);

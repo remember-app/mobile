@@ -3,18 +3,13 @@ import { ChevronRight } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
-import {
-  errorMessage,
-  previewMontage,
-  type MontageOrientation,
-  type MontagePreview,
-} from '@/api';
+import { previewMontage, type MontageOrientation, type MontagePreview } from '@/api';
 import { useAuth } from '@/auth';
 import { formatRuntime } from '@/dates';
 import { Banner, Button, LengthSlider, Segment, Text, Waiting } from '@/kit';
 import { useStrings } from '@/language';
 import { PRESETS, taken, wishes } from '@/montage';
-import { useOrder, WizardStep } from '@/order-wizard';
+import { refusal, useOrder, WizardStep } from '@/order-wizard';
 import { space, themed } from '@/theme';
 
 /**
@@ -64,7 +59,7 @@ export default function BuildStep() {
         if (here) setPreview(answer);
       },
       (e: unknown) => {
-        if (here) setFailed(errorMessage(e));
+        if (here) setFailed(refusal(e).text);
       },
     );
     return () => {

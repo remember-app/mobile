@@ -138,8 +138,9 @@ import {
   TileTemplate,
 } from '@/kit';
 import { frame } from '@/label-fixtures';
+import { currentLanguage, setLanguage } from '@/language';
 import { OrderProvider, useOrder, type Wizard } from '@/order-wizard';
-import { ru } from '@/strings';
+import { ru, strings } from '@/strings';
 import { mountsTrees } from '@/test-renderer';
 
 /**
@@ -171,8 +172,11 @@ type Server = {
   templates: MontageTemplate[];
   /** What the api holds the length under, whatever the frames add up to. */
   ceiling: number;
-  /** A refusal of the next totals, until it is set back to `undefined` — with this body, if given. */
-  refuse?: { status: 409 | 400; body?: object };
+  /**
+   * A refusal of the next totals, until it is set back to `undefined` — with this body, if given:
+   * one the api would send, or one this app has never seen.
+   */
+  refuse?: { status: 409 | 400; body?: object | string };
   /** A call that never reaches the api, until it is set back to `undefined`. */
   offline?: keyof typeof CALLS;
   /** A call the api falls over on (500), until it is set back to `undefined`. */
@@ -345,10 +349,11 @@ function Host() {
 
 let tree: TestRenderer.ReactTestRenderer | undefined;
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.useFakeTimers();
   calm.on = false;
   nav.reset();
+  await setLanguage('ru');
 });
 afterEach(() => {
   act(() => tree?.unmount());
@@ -402,18 +407,22 @@ const tile = (id: MontageTemplateId) =>
     .findAllByType(TileTemplate)
     .find((one) => one.props.title === ru.montage.template[id])!;
 
-const NEXT: Record<string, string | RegExp> = {
-  frames: /^Дальше — /,
-  story: ru.montage.next,
-  music: ru.montage.next,
-  build: ru.montage.toSummary,
-};
+/** The app's words in the language it is speaking: Russian, unless a test switches it. */
+const say = () => strings[currentLanguage()];
+const NEXT = (): Record<string, string | RegExp> => ({
+  frames: new RegExp(`^${say().montage.next} — `),
+  story: say().montage.next,
+  music: say().montage.next,
+  build: say().montage.toSummary,
+});
 /** One press of the step's own button — what a person does with nothing to change. */
-const forward = () => press(NEXT[nav.top()!]!);
+const forward = () => press(NEXT()[nav.top()!]!);
+/** The line of the banner on top: the step's own, over whatever stands under it. */
+const banner = () => root().findAllByType(Banner).at(-1)?.props.text;
 
 /** The wizard walked by hand up to the total, with nothing said on any step. */
 async function walkToSummary() {
-  await press(ru.montage.ownSetup);
+  await press(say().montage.ownSetup);
   while (nav.top() !== 'summary') await forward();
   await run(0);
 }
@@ -552,11 +561,12 @@ test('the same three videos, measured, are enough: the six are drawn and the ord
 
 test.each([
   ['cannot be reached', { offline: 'templates' }, ru.error.offline],
-  ['falls over', { failing: 'templates' }, 'internal server error'],
+  ['falls over', { failing: 'templates' }, ru.error.status(500)],
 ] as const)('the six the api %s on are a banner with «Повторить», not the sheet', async (_, over, said) => {
   const server = serve(over);
   await open();
   expect(shown()).toContain(said);
+  expect(shown()).not.toContain('internal server error');
   expect(shown()).not.toContain(ru.montage.tooLittleTitle);
   expect(has(ru.montage.ownSetup)).toBe(true);
 
@@ -787,7 +797,7 @@ const slider = () => {
 };
 
 async function walkToLength() {
-  await press(ru.montage.ownSetup);
+  await press(say().montage.ownSetup);
   while (nav.top() !== 'build') await forward();
   await run(0);
 }
@@ -803,7 +813,7 @@ test('the ceiling falls while the wizard stands open: back on the length, the ra
   server.ceiling = 60;
   await forward();
   await run(0);
-  expect(shown()).toContain(ru.montage.lengthOff);
+  expect(shown()).toContain(ru.montage.lengthOff('0:10', '1:00'));
   expect(has(ru.montage.startCut)).toBe(false);
 
   const reads = server.reads;
@@ -848,16 +858,56 @@ test('a frame deleted under the order is a 400 about frames: it leads to the fra
   expect(server.orders).toEqual([{ orientation: 'landscape', music_tracks: [] }]);
 });
 
-test('a 400 no step of the wizard can undo leads to none of them', async () => {
-  const server = serve();
+test.each(['ru', 'en'] as const)('409 on the length step and on the total is the app’s «too little», in %s', async (language) => {
+  await setLanguage(language);
+  const s = strings[language];
+  serve({ refuse: { status: 409 } });
   await open();
   await walkToLength();
-  server.refuse = { status: 400, body: { error: 'no such music track', music_tracks: ['calm'] } };
+  expect(banner()).toBe(s.montage.tooLittle);
+
   await forward();
   await run(0);
-
   expect(nav.top()).toBe('summary');
-  expect(shown()).toContain('no such music track');
+  expect(banner()).toBe(s.montage.tooLittle);
+  expect(has(s.montage.toFrames)).toBe(true);
+  expect(shown()).not.toContain('not enough material');
+});
+
+test.each(['ru', 'en'] as const)('a length out of range is said with the edges the api refused it with, on both steps, in %s', async (language) => {
+  await setLanguage(language);
+  const s = strings[language];
+  const server = serve({ refuse: { status: 400 } });
+  await open();
+  await walkToLength();
+  // Asked with no length at all and refused all the same: the line carries the range it was given.
+  expect(banner()).toBe(s.montage.lengthOff('0:10', '2:12'));
+
+  server.ceiling = 60;
+  await forward();
+  await run(0);
+  expect(nav.top()).toBe('summary');
+  expect(banner()).toBe(s.montage.lengthOff('0:10', '1:00'));
+  expect(has(s.montage.toLength)).toBe(true);
+  expect(shown()).not.toContain('out of range');
+});
+
+test.each([
+  [400, { error: 'no such music track', music_tracks: ['calm'] }],
+  [400, { error: 'target_seconds out of range', max_seconds: 'a lot' }],
+  [400, 'Bad Request'],
+  [409, { error: 'montage has not failed' }],
+] as const)('a %i this app does not know is its own plain line on both steps, and leads nowhere', async (status, body) => {
+  serve({ refuse: { status, body } });
+  await open();
+  await walkToLength();
+  expect(banner()).toBe(ru.error.status(status));
+
+  await forward();
+  await run(0);
+  expect(nav.top()).toBe('summary');
+  expect(banner()).toBe(ru.error.status(status));
+  expect(shown()).not.toContain(typeof body === 'string' ? body : body.error);
   for (const way of [ru.montage.toLength, ru.montage.toFrames, ru.montage.startCut]) {
     expect(has(way)).toBe(false);
   }
@@ -877,16 +927,20 @@ test('the material that could not be read is asked for again with «Повтор
   expect(server.reads).toBe(1);
 });
 
-test('the range that could not be asked for is asked again with «Повторить», not waited on', async () => {
-  const server = serve({ offline: 'preview' });
+test.each([
+  ['cannot be reached', { offline: 'preview' }, ru.error.offline],
+  ['falls over', { failing: 'preview' }, ru.error.status(500)],
+] as const)('the range the api %s on is asked again with «Повторить», not waited on', async (_, over, said) => {
+  const server = serve(over);
   await open();
   await walkToLength();
   expect(slider()).toBeNull();
-  expect(shown()).toContain(ru.error.offline);
+  expect(banner()).toBe(said);
+  expect(shown()).not.toContain('internal server error');
 
-  server.offline = undefined;
+  server.offline = server.failing = undefined;
   await press(ru.action.retry);
   await until(() => slider() !== null);
   expect(slider()).toEqual({ min: 10, max: CEILING, value: 60, all: CEILING });
-  expect(shown()).not.toContain(ru.error.offline);
+  expect(shown()).not.toContain(said);
 });

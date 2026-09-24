@@ -363,7 +363,7 @@ test('neither screen of an order moves the app once the person has walked out of
   expect(summary.slice(sentAt, summary.indexOf('router.replace', sentAt))).toContain(
     'if (gone.current) return;',
   );
-  expect(music).toContain('if (!gone.current) setNotice(errorMessage(e));');
+  expect(music).toContain('if (!gone.current) setNotice(refusal(e).text);');
 });
 
 test('the shelf can be listened to, and the listening ends with the step', () => {
@@ -554,10 +554,19 @@ test('the summary only shows — every number on it is the api’s answer', () =
 test('a refusal of the summary explains itself and leads back to the step that can undo it', () => {
   // What the api can answer either call with: the material under the floor, a length the frames no
   // longer carry, and frames that are no longer there — the two 400s told apart by what the body
-  // carries, never by the status alone. All said in this app's words and not in the api's numbers.
-  expect(summary).toContain("if (e.status === 409) return { text: s.montage.tooLittle, back: 'frames' };");
-  expect(summary).toContain("carries('max_seconds')) return { text: s.montage.lengthOff, back: 'length' };");
-  expect(summary).toContain("carries('media_ids')) return { text: s.montage.framesGone, back: 'frames' };");
+  // carries, never by the status alone. All said in this app's words and never in the api's
+  // English — the length with the two edges it was refused with, drawn the way step 4 draws one.
+  expect(summary).toContain('setStopped(refusal(e));');
+  expect(wizard).toContain(
+    "if (e.status === 409 && 'ready_items' in body) return { text: s.montage.tooLittle, back: 'frames' };",
+  );
+  expect(wizard).toContain("return { text: s.montage.lengthOff(from, to), back: 'length' };");
+  expect(wizard).toContain(
+    "if (e.status === 400 && 'media_ids' in body) return { text: s.montage.framesGone, back: 'frames' };",
+  );
+  expect(wizard).toContain('s.error.status(e.status)');
+  // One reading for every call the wizard makes: no screen of it hands the api's line on as it came.
+  for (const screen of [wizard, ...Object.values(steps)]) expect(screen).not.toContain('errorMessage');
   // The way back is a jump to that step and not a walk: after the autopilot there may be no step
   // behind this screen at all. And the material is read again on the way, so the step shows what
   // is there now rather than what it was refused for.
