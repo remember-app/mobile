@@ -127,7 +127,16 @@ import TemplatesScreen from '@/app/memory/[id]/order/index';
 import MusicStep from '@/app/memory/[id]/order/music';
 import StoryStep from '@/app/memory/[id]/order/story';
 import SummaryStep from '@/app/memory/[id]/order/summary';
-import { Button, ConfirmSheet, IconButton, LengthSlider, Segment, Tile, TileTemplate } from '@/kit';
+import {
+  Banner,
+  Button,
+  ConfirmSheet,
+  IconButton,
+  LengthSlider,
+  Segment,
+  Tile,
+  TileTemplate,
+} from '@/kit';
 import { frame } from '@/label-fixtures';
 import { OrderProvider, useOrder, type Wizard } from '@/order-wizard';
 import { ru } from '@/strings';
@@ -165,7 +174,9 @@ type Server = {
   /** A refusal of the next totals, until it is set back to `undefined` — with this body, if given. */
   refuse?: { status: 409 | 400; body?: object };
   /** A call that never reaches the api, until it is set back to `undefined`. */
-  offline?: 'media' | 'preview';
+  offline?: keyof typeof CALLS;
+  /** A call the api falls over on (500), until it is set back to `undefined`. */
+  failing?: keyof typeof CALLS;
   /** How many times the wizard has read the material. */
   reads: number;
   previews: Body[];
@@ -187,8 +198,31 @@ const SIX: [MontageTemplateId, number, 'landscape' | 'portrait', string[]][] = [
 ];
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
-/** The two reads a test can cut off: the material, and the range it carries. */
-const CALLS = { media: '/m1/media', preview: '/m1/montages/preview' } as const;
+/** The reads a test can cut off: the material, the six, and the range the material carries. */
+const CALLS = {
+  media: '/m1/media',
+  templates: '/m1/montage-templates',
+  preview: '/m1/montages/preview',
+} as const;
+
+/**
+ * `materialLeft` of the api's `montages.ts`: what is ready once the crossed-out frames are gone,
+ * and the longest film it makes — every frame's own length, less a half-second crossfade on each
+ * join, never under nothing. Too little is under three frames or a ceiling of nothing.
+ */
+function weigh(server: Server, exclude: ReadonlySet<string> = new Set()) {
+  const left = server.material.filter((item) => item.status === 'ready' && !exclude.has(item.id));
+  const seconds = left.reduce(
+    (sum, item) => sum + (item.kind === 'video' ? (item.duration_seconds ?? 0) : 2.5),
+    -0.5 * Math.max(left.length - 1, 0),
+  );
+  const max = Math.max(0, Math.floor(Math.min(600, server.ceiling, seconds)));
+  return { left, max, min: Math.min(10, max), short: left.length < 3 || max === 0 };
+}
+
+/** The order's 409, body and all. */
+const tooLittle = (ready: number) =>
+  json({ error: 'not enough material for a montage', ready_items: ready, need: 3 }, 409);
 
 /** `checkOrder` of the api's `montages.ts`, cut to the refusals a wizard can earn. */
 function total(server: Server, body: Body): Response {
@@ -204,15 +238,8 @@ function total(server: Server, body: Body): Response {
   if (body.music_note && !body.music_tracks?.length)
     return json({ error: 'note needs tracks' }, 400);
 
-  const left = server.material.filter((item) => item.status === 'ready' && !exclude.has(item.id));
-  const seconds = left.reduce(
-    (sum, item) => sum + (item.kind === 'video' ? (item.duration_seconds ?? 0) : 2.5),
-    0,
-  );
-  const max = Math.floor(Math.min(600, server.ceiling, seconds));
-  const min = Math.min(10, max);
-  if (server.refuse?.status === 409 || left.length < 3 || max === 0)
-    return json({ error: 'not enough material' }, 409);
+  const { left, max, min, short } = weigh(server, exclude);
+  if (server.refuse?.status === 409 || short) return tooLittle(left.length);
   const target = body.target_seconds ?? Math.min(Math.max(60, min), max);
   if (server.refuse?.status === 400 || target < min || target > max) {
     return json({ error: 'target_seconds out of range', min_seconds: min, max_seconds: max }, 400);
@@ -237,8 +264,9 @@ const material = (): MediaItem[] => [
   { ...frame('v1'), kind: 'video' as const, duration_seconds: 120, uploaded_by: 'bob' },
   { ...frame('busy'), status: 'processing' as const },
 ];
-// What an order that leaves p7 out can carry: 6 photos × 2.5 s + the video's 120 s.
-const CEILING = 135;
+// What an order that leaves p7 out can carry: 6 photos × 2.5 s + the video's 120 s, less 0.5 s on
+// each of the six joins between those seven frames.
+const CEILING = 132;
 
 function serve(over: Partial<Server> = {}): Server {
   const server: Server = {
@@ -266,11 +294,17 @@ function serve(over: Partial<Server> = {}): Server {
     const path = url.replace(/^.*\/memories/, '');
     const body = init.body ? (JSON.parse(init.body) as Body) : {};
     if (server.offline && path === CALLS[server.offline]) throw new TypeError('Network request failed');
+    if (server.failing && path === CALLS[server.failing])
+      return json({ error: 'internal server error' }, 500);
     if (path === '/m1/media') {
       server.reads += 1;
       return json(server.material);
     }
-    if (path === '/m1/montage-templates') return json(server.templates);
+    if (path === '/m1/montage-templates') {
+      // Weighed as an order with nothing said, the way the api's `templates.ts` weighs the six.
+      const { left, short } = weigh(server);
+      return short ? tooLittle(left.length) : json(server.templates);
+    }
     if (path === '') return json([{ id: 'm1', title: 'Море' }]);
     if (path === '/m1/montages/preview') {
       server.previews.push(body);
@@ -474,6 +508,63 @@ test('with motion reduced nothing is typed: each step lands whole and the order 
     target_seconds: 45,
     orientation: 'portrait',
   });
+});
+
+/* ── Too little material at the way in ──────────────────────────────────── */
+
+/** Three videos: enough frames by the count, and only as long as the worker has measured them. */
+const videos = (seconds: number | null): MediaItem[] =>
+  ['v1', 'v2', 'v3'].map((id) => ({
+    ...frame(id),
+    kind: 'video' as const,
+    duration_seconds: seconds,
+  }));
+
+test.each([
+  [ru.gallery.add, { pathname: '/memory/[id]/upload', params: { id: 'm1' } }],
+  [ru.montage.later, { pathname: '/memory/[id]', params: { id: 'm1' } }],
+])('three videos nobody measured: the api’s 409 on the six raises «Материала пока мало», and «%s» works as ever', async (label, landed) => {
+  serve({ material: videos(null) });
+  await open();
+
+  // The count of frames lets it through; the api's weighing does not, and its refusal is the sheet.
+  expect(shown()).toContain(ru.montage.tooLittleTitle);
+  expect(shown()).toContain(ru.montage.tooLittleText(3));
+  // Nothing of the wizard stands under it: no tile, no door beside them, no line about a failure.
+  expect(root().findAllByType(TileTemplate)).toHaveLength(0);
+  expect(has(ru.montage.ownSetup)).toBe(false);
+  expect(root().findAllByType(Banner)).toHaveLength(0);
+
+  await press(label);
+  expect(nav.state.landed).toEqual(landed);
+});
+
+test('the same three videos, measured, are enough: the six are drawn and the order goes through', async () => {
+  const server = serve({ material: videos(5) });
+  await open();
+  expect(shown()).not.toContain(ru.montage.tooLittleTitle);
+  expect(root().findAllByType(TileTemplate)).toHaveLength(6);
+
+  await walkToSummary();
+  await press(ru.montage.startCut);
+  expect(server.orders).toHaveLength(1);
+});
+
+test.each([
+  ['cannot be reached', { offline: 'templates' }, ru.error.offline],
+  ['falls over', { failing: 'templates' }, 'internal server error'],
+] as const)('the six the api %s on are a banner with «Повторить», not the sheet', async (_, over, said) => {
+  const server = serve(over);
+  await open();
+  expect(shown()).toContain(said);
+  expect(shown()).not.toContain(ru.montage.tooLittleTitle);
+  expect(has(ru.montage.ownSetup)).toBe(true);
+
+  server.offline = server.failing = undefined;
+  await press(ru.action.retry);
+  await run(0);
+  expect(shown()).not.toContain(said);
+  expect(root().findAllByType(TileTemplate)).toHaveLength(6);
 });
 
 /* ── Ordering by hand ───────────────────────────────────────────────────── */

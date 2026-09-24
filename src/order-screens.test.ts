@@ -99,7 +99,8 @@ test('«Отмена» over a walk with something in it asks before it throws it
 test('too little material stops the wizard before its first step, not after its last', () => {
   // Asked once, above every step: `SheetTooLittle` stands in place of the whole wizard, so nobody
   // picks frames, writes a story and chooses music only to be told at the end.
-  expect(wizard).toContain('const short = items !== null && !enoughMaterial(items);');
+  // The count of frames, or the api's own 409 where the count cannot see it (`tooLittle`).
+  expect(wizard).toContain('const short = items !== null && (refused || !enoughMaterial(items));');
   expect(wizard).toContain('<Sheet\n        visible={short}');
   expect(wizard).toContain("router.replace({ pathname: '/memory/[id]/upload', params: { id } })");
   // And no step draws itself while that sheet is up — the shell holds its body and its button
@@ -140,7 +141,7 @@ test('an order starts from six templates, and the tile is the api’s figures in
   expect(templates).toContain('<Banner tone="error" text={notice}');
   expect(templates).toContain('label={s.action.retry}');
   expect(templates).toContain('setAgain((n) => n + 1);');
-  expect(templates).toContain('}, [token, id, again]);');
+  expect(templates).toContain('}, [token, id, again, tooLittle]);');
   // Nothing else on the screen asks the api anything: the material behind the tiles is the
   // wizard's own read, and the order itself is sent from the summary.
   expect(templates).not.toContain('orderMontage');

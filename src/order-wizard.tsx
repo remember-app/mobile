@@ -82,6 +82,11 @@ export type Wizard = {
   error: string | null;
   /** Too little to cut anything out of: `SheetTooLittle` stands in place of the whole wizard. */
   short: boolean;
+  /**
+   * The api's word that an order here would be refused for too little material (409), where the
+   * count of frames cannot tell: three videos it never measured are three frames and no length.
+   */
+  tooLittle: () => void;
   order: Order;
   /** A patch, or one worked out from the order as it lands — for an answer that comes back late. */
   change: (patch: Partial<Order> | ((was: Order) => Partial<Order>)) => void;
@@ -290,11 +295,27 @@ export function OrderProvider({ id, children }: { id: string; children: ReactNod
     [change, id, reduced, router],
   );
 
+  const [refused, setRefused] = useState(false);
+  const tooLittle = useCallback(() => setRefused(true), []);
   const material = useMemo(() => usable(items ?? []), [items]);
-  const short = items !== null && !enoughMaterial(items);
+  const short = items !== null && (refused || !enoughMaterial(items));
   const held = useMemo(
-    () => ({ id, items, reread, material, error, short, order, change, leave, auto, start, stop }),
-    [id, items, reread, material, error, short, order, change, leave, auto, start, stop],
+    () => ({
+      id,
+      items,
+      reread,
+      material,
+      error,
+      short,
+      tooLittle,
+      order,
+      change,
+      leave,
+      auto,
+      start,
+      stop,
+    }),
+    [id, items, reread, material, error, short, tooLittle, order, change, leave, auto, start, stop],
   );
 
   return (
