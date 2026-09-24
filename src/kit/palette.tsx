@@ -1,8 +1,8 @@
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
 import { radius, useTheme } from '@/theme';
 
-import { PRESS, TAP, hitSlop, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
+import { hitSlop, PRESS, TAP, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
 
 /**
  * Spec 7.3, detail 20 — the eight colours a label can be. Circles of 36 in one row with the room

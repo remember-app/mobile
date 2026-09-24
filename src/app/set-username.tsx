@@ -2,10 +2,10 @@ import { useRouter } from 'expo-router';
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 
 import { ActionBar, Board } from '@/kit';
-import { useStrings } from '@/language';
-import { OnboardingHead } from '@/onboarding-head';
+import { useStrings } from '@/lib/language';
+import { OnboardingHead } from '@/screens/onboarding/head';
+import { UsernameForm } from '@/screens/onboarding/username-form';
 import { space } from '@/theme';
-import { UsernameForm } from '@/username-form';
 
 /**
  * `Username` — the last screen of the way in (spec 8), and the only screen a signed-in account

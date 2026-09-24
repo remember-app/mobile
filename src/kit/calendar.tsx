@@ -1,10 +1,10 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
 import { font, height, radius, space, themed } from '@/theme';
 
 import { IconButton } from './button';
-import { dayKey, laneOf, weeksOf, type Lane } from './calendar-grid';
+import { dayKey, type Lane, laneOf, weeksOf } from './calendar-grid';
 import { PRESS, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
 import { Text } from './text';
 

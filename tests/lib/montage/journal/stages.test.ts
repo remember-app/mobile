@@ -1,0 +1,453 @@
+import { describe, expect, test, vi } from 'vitest';
+
+// `@/lib/montage/journal` reaches `@/api`, which asks `@/lib/language` which language to word a
+// failure in, and that one stands on two native expo modules vitest has nothing to run — the same
+// two lines `tests/api/api.test.ts` carries, for the same reason. `expo-router` is stood in for as
+// well: the hook in that folder asks it whether its screen is in front, and the mock in
+// `vitest.setup.ts` only answers for `useFocusEffect`.
+vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'en-US' }] }));
+vi.mock('expo-secure-store', () => ({
+  getItemAsync: async () => null,
+  setItemAsync: async () => {},
+}));
+vi.mock('expo-router', () => ({ useFocusEffect: () => {}, useIsFocused: () => true }));
+
+import { entry, stage } from '@tests/helpers/journal';
+import type { MontageStage } from '@/api';
+import {
+  currentStage,
+  gazeAt,
+  howMade,
+  inHand,
+  lastOfStage,
+  madeInMinutes,
+  minutesLeft,
+  placeLine,
+  recordsOf,
+  sifted,
+  stageLine,
+  stageMinutes,
+  stageNumber,
+  stageStanding,
+} from '@/lib/montage/journal';
+import { en, ru } from '@/strings';
+
+/**
+ * What a screen works out of one answer: which stage is on, how long is left, what is in the
+ * director's hands, where on a frame the eye is, and the line written under each of the five.
+ */
+
+test('«этап 3 из 5» is a place in the pipeline and not the order the worker got to them', () => {
+  expect(stageNumber('screening')).toBe(1);
+  expect(stageNumber('directing')).toBe(3);
+  expect(stageNumber('assembly')).toBe(5);
+});
+
+describe('currentStage', () => {
+  const done = stage('screening', 'done');
+  const running = stage('directing', 'running');
+
+  test('is the one being worked on', () => {
+    expect(currentStage([done, running, stage('rhythm', 'pending')])?.stage).toBe('directing');
+  });
+
+  test('is the one that fell over, when none is running', () => {
+    expect(currentStage([done, stage('rhythm', 'failed')])?.stage).toBe('rhythm');
+  });
+
+  test('is the last one reached once everything is behind', () => {
+    expect(currentStage([done, stage('assembly', 'done')])?.stage).toBe('assembly');
+  });
+
+  test('is nothing at all for a montage still in the queue', () => {
+    expect(currentStage([])).toBe(null);
+  });
+
+  // The worker writes all five rows `pending` as it opens the job (`journal.begin`), so the last
+  // row is always «assembly» — «этап 5 из 5» before the first frame and between every two stages.
+  test('a row still pending is not a stage reached', () => {
+    const ahead = (['understanding', 'directing', 'rhythm', 'assembly'] as const).map((code) =>
+      stage(code, 'pending'),
+    );
+    expect(currentStage([stage('screening', 'pending'), ...ahead])).toBe(null);
+    expect(currentStage([done, ...ahead])?.stage).toBe('screening');
+  });
+
+  // The recorded answers carry the five in the pipeline's order, so they cannot show whether the count
+  // leans on it: the card and the screen must still agree if the rows come in another one.
+  test('is the furthest one reached, wherever it stands among the rows', () => {
+    const rows = [done, stage('understanding', 'done'), stage('directing', 'pending')];
+    expect(currentStage([...rows].reverse())?.stage).toBe('understanding');
+  });
+
+  // The list of montages carries the same five with nothing but a state each, and the card in the
+  // strip reads its stage off them through this very function (spec detail 38).
+  test('reads the list’s bare five the same as the journal’s full ones', () => {
+    const bare = (rows: MontageStage[]) =>
+      rows.map(({ stage: code, state }) => ({ stage: code, state }));
+    for (const rows of [
+      [done, running, stage('rhythm', 'pending')],
+      [done, stage('understanding', 'failed'), stage('directing', 'pending')],
+      [done, stage('understanding', 'pending')],
+    ]) {
+      expect(currentStage(bare(rows))?.stage).toBe(currentStage(rows)?.stage);
+    }
+  });
+});
+
+describe('minutesLeft', () => {
+  test('adds up what is still ahead and rounds the minute up', () => {
+    // 90 + 130 = 220 seconds, which is «≈ 4 мин» and never «3»: an estimate that runs out while
+    // somebody is still waiting is worse than one that is generous.
+    const stages = [
+      stage('screening', 'done', 30),
+      stage('directing', 'running', 90),
+      stage('assembly', 'pending', 130),
+    ];
+    expect(minutesLeft(stages)).toBe(4);
+  });
+
+  test('never says «0 мин» while there is anything left to wait for', () => {
+    expect(minutesLeft([stage('assembly', 'running', 4)])).toBe(1);
+  });
+
+  test('says nothing rather than a guess when the worker gave no estimate', () => {
+    expect(minutesLeft([stage('directing', 'running'), stage('assembly', 'pending')])).toBe(null);
+    expect(minutesLeft([])).toBe(null);
+  });
+
+  test('a stage that fell over is not something anybody is still waiting for', () => {
+    expect(minutesLeft([stage('directing', 'failed', 500)])).toBe(null);
+    // Nor are the ones after it, though they still carry the worker's opening estimates.
+    expect(
+      minutesLeft([
+        stage('directing', 'failed'),
+        stage('rhythm', 'pending', 120),
+        stage('assembly', 'pending', 60),
+      ]),
+    ).toBe(null);
+  });
+});
+
+describe('what is in the director’s hands', () => {
+  // Newest first, the way the journal is held: a thought about the plan on top of a record about a
+  // frame.
+  const entries = [
+    entry(4, { thought: 'План: три части' }),
+    entry(3, { media_id: 'f3' }),
+    entry(2, { media_id: 'f2', stage: 'rhythm' }),
+    entry(1, { media_id: 'f1' }),
+  ];
+
+  test('is the freshest record that is about a frame at all', () => {
+    expect(inHand(entries)?.id).toBe(3);
+  });
+
+  test('is nothing while every record so far is a thought about the plan', () => {
+    expect(inHand([entry(4)])).toBe(null);
+  });
+
+  test('the two last records of a stage are that stage’s own, freshest first', () => {
+    expect(lastOfStage(entries, 'directing').map((one) => one.id)).toEqual([4, 3]);
+    expect(lastOfStage(entries, 'rhythm').map((one) => one.id)).toEqual([2]);
+    expect(lastOfStage(entries, 'assembly')).toEqual([]);
+  });
+});
+
+describe('gazeAt', () => {
+  const frame = { width: 300, height: 150 };
+
+  test('puts the middle of the 96 square where the director is looking', () => {
+    // The middle of the fractions is 0.4 of 300 = 120 across, 0.5 of 150 = 75 down; the square is
+    // hung by its own middle, so 48 comes off each.
+    expect(gazeAt({ x: 0.3, y: 0.25, w: 0.2, h: 0.5 }, frame)).toEqual({ left: 72, top: 27 });
+  });
+
+  test('holds the square inside the frame at either edge', () => {
+    expect(gazeAt({ x: 0, y: 0, w: 0.05, h: 0.05 }, frame)).toEqual({ left: 0, top: 0 });
+    expect(gazeAt({ x: 0.95, y: 0.95, w: 0.05, h: 0.05 }, frame)).toEqual({ left: 204, top: 54 });
+  });
+
+  test('is nothing where the record carries no frame at all', () => {
+    expect(gazeAt(null, frame)).toBe(undefined);
+  });
+
+  test('draws the same eye at the size the sheet gives the picture', () => {
+    // `SheetLiveFile` shows the frame at 220 with a 110 square on it — the same fractions, another
+    // ruler. The middle stays where it was; only how much is taken off it changes.
+    const sheet = { width: 358, height: 220 };
+    expect(gazeAt({ x: 0.3, y: 0.25, w: 0.2, h: 0.5 }, sheet, 110)).toEqual({
+      left: 0.4 * 358 - 55,
+      top: 0.5 * 220 - 55,
+    });
+    // And it is still held inside the picture at the edge, whatever the square's size.
+    expect(gazeAt({ x: 0.99, y: 0.99, w: 0.01, h: 0.01 }, sheet, 110)).toEqual({
+      left: 358 - 110,
+      top: 110,
+    });
+  });
+});
+
+describe('the line under a stage', () => {
+  // «2026-09-21T16:42:00Z» plus four minutes, so a running stage has a length to say.
+  const began = '2026-09-21T16:38:00Z';
+  const now = Date.parse('2026-09-21T16:42:00Z');
+
+  test('says what came of the stage and how long it has been at it', () => {
+    const screening: MontageStage = {
+      ...stage('screening', 'done'),
+      started_at: began,
+      finished_at: '2026-09-21T16:39:00Z',
+      outcome: { kept: 212, of: 214 },
+    };
+    expect(stageLine(screening, ru, now)).toBe('212 из 214 годятся · 1 мин');
+    expect(stageLine(screening, en, now)).toBe('212 of 214 are usable · 1 min');
+  });
+
+  test('a stage still running is counted rather than concluded', () => {
+    const directing: MontageStage = {
+      ...stage('directing', 'running'),
+      started_at: began,
+      done_count: 61,
+      total_count: 212,
+    };
+    // «идёт» and not «за»: it is still happening, and the number is what has gone by so far.
+    expect(stageLine(directing, ru, now)).toBe('61 из 212 · идёт 4 мин');
+  });
+
+  test('what the worker has said wins over how far through it is', () => {
+    const directing: MontageStage = {
+      ...stage('directing', 'running'),
+      done_count: 61,
+      total_count: 212,
+      outcome: { parts: 3, frames: 61 },
+    };
+    expect(stageLine(directing, ru)).toBe('3 части');
+  });
+
+  test('the rhythm of a film with no music says there was nothing to fit to, not «0 склеек»', () => {
+    // What the worker writes for it (montage README, «Ритм ролика без музыки»).
+    const silent: MontageStage = { ...stage('rhythm', 'done'), outcome: { cuts: 0, track: [] } };
+    expect(stageLine(silent, ru)).toBe('без музыки, подгонять не подо что');
+    expect(stageLine(silent, en)).toBe('no music, nothing to fit to');
+    // With music it counts what moved to it, as before — and an outcome without the key is read
+    // the way it always was.
+    const scored: MontageStage = {
+      ...stage('rhythm', 'done'),
+      outcome: { bpm: 81, cuts: 3, track: ['warm'] },
+    };
+    expect(stageLine(scored, ru)).toBe('3 склейки');
+    expect(stageLine({ ...stage('rhythm', 'done'), outcome: { cuts: 0 } }, ru)).toBe('0 склеек');
+  });
+
+  test('a stage nobody has reached has no line at all rather than a line of nothing', () => {
+    expect(stageLine(stage('assembly', 'pending'), ru, now)).toBe(undefined);
+  });
+
+  test('under a minute is not a length worth printing', () => {
+    const rhythm: MontageStage = {
+      ...stage('rhythm', 'running'),
+      started_at: '2026-09-21T16:41:50Z',
+    };
+    expect(stageMinutes(rhythm, now)).toBe(null);
+    expect(stageLine(rhythm, ru, now)).toBe(undefined);
+  });
+
+  test('every one of the five has something to say out of its own keys', () => {
+    const came: Record<string, MontageStage['outcome']> = {
+      screening: { kept: 1, of: 2 },
+      understanding: { faces: 37 },
+      directing: { parts: 3 },
+      rhythm: { cuts: 38 },
+      assembly: { seconds: 150 },
+    };
+    for (const [code, outcome] of Object.entries(came)) {
+      const row = { ...stage(code as MontageStage['stage'], 'done'), outcome };
+      expect(stageLine(row, ru)).toBeTruthy();
+      expect(stageLine(row, en)).toBeTruthy();
+    }
+    expect(stageLine({ ...stage('assembly', 'done'), outcome: { seconds: 150 } }, ru)).toBe('2:30');
+  });
+
+  test('the way into a stage’s journal is counted in every record it holds', () => {
+    expect(
+      recordsOf({
+        ...stage('directing', 'running'),
+        taken_count: 61,
+        skipped_count: 87,
+        thought_count: 4,
+      }),
+    ).toBe(152);
+    expect(ru.montage.live.wholeStage(152)).toBe('Весь журнал этапа · 152 записи');
+  });
+
+  test('where a stage stands is the kit’s word for a step, and «ahead» is a row that is missing', () => {
+    expect(stageStanding(undefined)).toBe('waiting');
+    expect(stageStanding(stage('assembly', 'pending'))).toBe('waiting');
+    expect(stageStanding(stage('directing', 'running'))).toBe('running');
+    expect(stageStanding(stage('screening', 'done'))).toBe('done');
+    expect(stageStanding(stage('rhythm', 'failed'))).toBe('failed');
+  });
+});
+
+/**
+ * `MontageLiveDone` (TASK-222) — what the finished film's own page says about how it was made. Both
+ * of these are read off the journal a montage keeps for ever, and both are worked out here rather
+ * than on the screen.
+ */
+describe('how the film was made', () => {
+  const ran = (
+    code: MontageStage['stage'],
+    from: string,
+    to: string | null,
+    outcome: MontageStage['outcome'] = {},
+  ): MontageStage => ({
+    ...stage(code, to === null ? 'running' : 'done'),
+    started_at: from,
+    finished_at: to,
+    outcome,
+  });
+
+  test('«собран за 14 мин» is every stage’s own time added up', () => {
+    const stages = [
+      ran('screening', '2026-09-21T16:00:00Z', '2026-09-21T16:01:00Z'),
+      ran('understanding', '2026-09-21T16:01:00Z', '2026-09-21T16:04:00Z'),
+      // The worker stood in a queue between these two: that wait is not what the making took.
+      ran('directing', '2026-09-21T16:20:00Z', '2026-09-21T16:26:00Z'),
+      ran('rhythm', '2026-09-21T16:26:00Z', '2026-09-21T16:28:00Z'),
+      ran('assembly', '2026-09-21T16:28:00Z', '2026-09-21T16:30:00Z'),
+    ];
+    expect(madeInMinutes(stages)).toBe(14);
+    expect(ru.montage.live.madeIn(14)).toBe('собран за 14 мин');
+  });
+
+  test('a film cut in forty seconds was still cut', () => {
+    expect(madeInMinutes([ran('assembly', '2026-09-21T16:00:00Z', '2026-09-21T16:00:40Z')])).toBe(
+      1,
+    );
+  });
+
+  test('a stage still running is not a length, and no stage at all is no line', () => {
+    expect(madeInMinutes([ran('assembly', '2026-09-21T16:00:00Z', null)])).toBe(null);
+    expect(madeInMinutes([])).toBe(null);
+  });
+
+  test('the three numbers are three stages’ own outcomes', () => {
+    const stages = [
+      { ...stage('screening', 'done'), outcome: { kept: 212, of: 214 } },
+      { ...stage('understanding', 'done'), outcome: { faces: 37 } },
+      { ...stage('directing', 'done'), outcome: { parts: 3, frames: 61 } },
+      { ...stage('assembly', 'done'), outcome: { cuts: 138, seconds: 150 } },
+    ];
+    expect(howMade(stages, ru)).toEqual([
+      { figure: 214, label: 'просмотрел' },
+      { figure: 61, label: 'взял в ролик' },
+      { figure: 138, label: 'склеек' },
+    ]);
+    expect(howMade(stages, en).map((tile) => tile.label)).toEqual([
+      'looked at',
+      'taken in',
+      'cuts',
+    ]);
+  });
+
+  test('«склеек» agrees with its number, the way every counted word does', () => {
+    const cut = (cuts: number) => [{ ...stage('assembly', 'done'), outcome: { cuts } }];
+    expect(howMade(cut(21), ru)).toEqual([{ figure: 21, label: 'склейка' }]);
+    expect(howMade(cut(22), ru)).toEqual([{ figure: 22, label: 'склейки' }]);
+    expect(howMade(cut(12), ru)).toEqual([{ figure: 12, label: 'склеек' }]);
+    expect(howMade(cut(1), en)).toEqual([{ figure: 1, label: 'cut' }]);
+  });
+
+  test('a number the worker never wrote leaves its tile out rather than standing a dash in it', () => {
+    expect(howMade([{ ...stage('assembly', 'done'), outcome: { cuts: 138 } }], ru)).toEqual([
+      { figure: 138, label: 'склеек' },
+    ]);
+    // A film cut before the journal existed has no stages at all — and then there is no block.
+    expect(howMade([], ru)).toEqual([]);
+  });
+});
+
+describe('the four chips over the journal', () => {
+  const entries = [
+    entry(4, { decision: null, media_id: null }),
+    entry(3, { decision: 'take', media_id: 'f3' }),
+    entry(2, { decision: 'skip', media_id: 'f2' }),
+    entry(1, { decision: 'take', media_id: 'f1' }),
+  ];
+
+  test('«всё» is every record, in the order they were already in', () => {
+    expect(sifted(entries, 'all').map((one) => one.id)).toEqual([4, 3, 2, 1]);
+  });
+
+  test('the three narrow ones cut by the decision, the way the api counts them', () => {
+    // `taken_count` / `skipped_count` / `thought_count` are counted by the api over `decision`
+    // («Журнал монтажа»), so a chip drawn against one of those numbers has to cut the same way, or
+    // «Взял 61» would show sixty other records.
+    expect(sifted(entries, 'take').map((one) => one.id)).toEqual([3, 1]);
+    expect(sifted(entries, 'skip').map((one) => one.id)).toEqual([2]);
+    expect(sifted(entries, 'thoughts').map((one) => one.id)).toEqual([4]);
+  });
+
+  test('and the three of them add up to all of it', () => {
+    const cut = (['take', 'skip', 'thoughts'] as const).flatMap((sift) => sifted(entries, sift));
+    expect(cut).toHaveLength(entries.length);
+  });
+});
+
+describe('where a frame ended up', () => {
+  const file = {
+    id: 'f1',
+    kind: 'video' as const,
+    uploaded_by: 'u1',
+    captured_at: null,
+    duration_seconds: 12.5,
+    thumbnail_url: null,
+    places: [{ start_seconds: 72, duration_seconds: 4 }],
+  };
+
+  test('is the part of the story and the seconds it plays for', () => {
+    const took = entry(1, { decision: 'take', story_part: 2, story_part_title: 'Клятвы' });
+    expect(placeLine(took, file, ru)).toBe('Часть 2 «Клятвы» · 1:12–1:16');
+    expect(placeLine(took, file, en)).toBe('Part 2 «Клятвы» · 1:12–1:16');
+  });
+
+  test('is the layout’s and not the thought’s: a record with nothing said still has its place', () => {
+    // The road without the director: «беру» and no thought, no part of any story.
+    expect(placeLine(entry(1, { decision: 'take', thought: null }), file, ru)).toBe('1:12–1:16');
+    // And the part of the story it went into is the layout's as well: it is not left off with the thought.
+    expect(placeLine(entry(1, { decision: 'take', thought: null, story_part: 2 }), file, ru)).toBe(
+      'Часть 2 · 1:12–1:16',
+    );
+    // A record that settled nothing — what was seen on the frame — is about a frame laid out all the same.
+    expect(placeLine(entry(1, { stage: 'understanding', media_id: 'f1' }), file, ru)).toBe(
+      '1:12–1:16',
+    );
+  });
+
+  test('a frame that stands in the video twice says so by a count, not by a second line', () => {
+    const twice = {
+      ...file,
+      places: [...file.places, { start_seconds: 150, duration_seconds: 3 }],
+    };
+    expect(placeLine(entry(1, { decision: 'take', story_part: 2 }), twice, ru)).toBe(
+      'Часть 2 · 1:12–1:16 · и ещё 1',
+    );
+  });
+
+  test('a record that passed the frame over has no place, however the file is laid out', () => {
+    expect(placeLine(entry(1, { decision: 'skip', reason: 'blur' }), file, ru)).toBe(undefined);
+    expect(
+      placeLine(entry(1, { decision: 'skip', reason: 'exposure', thought: null }), file, ru),
+    ).toBe(undefined);
+  });
+
+  test('a frame with no place yet says only which part it is going into', () => {
+    expect(
+      placeLine(entry(1, { decision: 'take', story_part: 1 }), { ...file, places: [] }, ru),
+    ).toBe('Часть 1');
+    // And one the layout has not reached at all has nothing to say rather than an empty line.
+    expect(placeLine(entry(1, { decision: 'take' }), undefined, ru)).toBe(undefined);
+    expect(placeLine(entry(1, { decision: 'take' }), { ...file, places: [] }, ru)).toBe(undefined);
+  });
+});

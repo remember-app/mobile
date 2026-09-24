@@ -3,13 +3,13 @@ import { ChevronRight } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
-import { previewMontage, type MontageOrientation, type MontagePreview } from '@/api';
-import { useAuth } from '@/auth';
-import { formatRuntime } from '@/dates';
+import { type MontageOrientation, type MontagePreview, previewMontage } from '@/api';
 import { Banner, Button, LengthSlider, Segment, Text, Waiting } from '@/kit';
-import { useStrings } from '@/language';
-import { PRESETS, taken, wishes } from '@/montage';
-import { refusal, useOrder, WizardStep } from '@/order-wizard';
+import { useAuth } from '@/lib/auth';
+import { formatRuntime } from '@/lib/dates';
+import { useStrings } from '@/lib/language';
+import { PRESETS, taken, wishes } from '@/lib/montage/order';
+import { refusal, useOrder, WizardStep } from '@/screens/order/wizard';
 import { space, themed } from '@/theme';
 
 /**

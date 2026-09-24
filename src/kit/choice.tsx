@@ -1,5 +1,5 @@
 import { Check } from 'lucide-react-native';
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
 import { radius, space, themed, useTheme } from '@/theme';
 
@@ -162,7 +162,13 @@ const useStyles = themed(({ color }) =>
     // meta sizes, or the two of them together push the glyph off.
     tileNote: { fontSize: 11, lineHeight: 14 },
     rowWords: { flex: 1, minWidth: 0, gap: 2 },
-    round: { width: 40, height: 40, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
+    round: {
+      width: 40,
+      height: 40,
+      borderRadius: radius.pill,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     roundOn: { backgroundColor: color.accent },
     roundOff: { backgroundColor: color.raise },
     tick: {

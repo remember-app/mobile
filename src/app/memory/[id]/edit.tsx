@@ -8,13 +8,10 @@ import {
   errorMessage,
   listMedia,
   listMemories,
-  updateMemory,
   type MediaItem,
   type Memory,
+  updateMemory,
 } from '@/api';
-import { useAuth } from '@/auth';
-import { endOfDay, formatDay, startOfDay } from '@/dates';
-import { mayPick, shotAt } from '@/frames';
 import {
   ActionBar,
   AppBar,
@@ -28,9 +25,12 @@ import {
   Text,
   Waiting,
 } from '@/kit';
-import { useStrings } from '@/language';
-import { CoverSheet, CoverSlot } from '@/memory/cover';
-import { EventWhen, type Span } from '@/memory/when';
+import { useAuth } from '@/lib/auth';
+import { endOfDay, formatDay, startOfDay } from '@/lib/dates';
+import { mayPick, shotAt } from '@/lib/frames';
+import { useStrings } from '@/lib/language';
+import { CoverSheet, CoverSlot } from '@/screens/memory/cover';
+import { EventWhen, type Span } from '@/screens/memory/when';
 import { radius, space, themed } from '@/theme';
 
 /**
@@ -69,16 +69,19 @@ export default function MemoryEditScreen() {
   // somebody is in the middle of typing, and a refetch under their hands would take it away.
   useEffect(() => {
     if (!token) return;
-    listMemories(token).then((list) => {
-      const one = list.find((each) => each.id === id) ?? null;
-      setMemory(one);
-      // Not on the list is not «still loading»: the listing answered, and this person is not in the
-      // memory any more (or never was). Left as it was, the screen waited on it for ever.
-      if (one === null) return setError(errorMessage(new ApiError(404, null)));
-      setTitle(one.title);
-      setSpan(spanOf(one));
-      setCover(one.cover_media_id);
-    }, (e: unknown) => setError(errorMessage(e)));
+    listMemories(token).then(
+      (list) => {
+        const one = list.find((each) => each.id === id) ?? null;
+        setMemory(one);
+        // Not on the list is not «still loading»: the listing answered, and this person is not in the
+        // memory any more (or never was). Left as it was, the screen waited on it for ever.
+        if (one === null) return setError(errorMessage(new ApiError(404, null)));
+        setTitle(one.title);
+        setSpan(spanOf(one));
+        setCover(one.cover_media_id);
+      },
+      (e: unknown) => setError(errorMessage(e)),
+    );
     listMedia(token, id).then(setMedia, () => {});
   }, [token, id]);
 
@@ -86,19 +89,16 @@ export default function MemoryEditScreen() {
   // What the sheet would offer: a memory whose frames are all still developing has none to promote,
   // and neither has one with nothing in it at all.
   const pickable = (media ?? []).filter(mayPick);
-  const chosen = cover === null ? null : (media ?? []).find((item) => item.id === cover) ?? null;
+  const chosen = cover === null ? null : ((media ?? []).find((item) => item.id === cover) ?? null);
   // The chosen frame's own picture, and — until the gallery answers — the one the listing signed for
   // the cover that is already set, so the slot is never empty on a memory that has one.
   const coverUri =
-    chosen?.thumbnail_url ?? (cover !== null && cover === memory?.cover_media_id
-      ? memory.cover_thumbnail_url
-      : null);
+    chosen?.thumbnail_url ??
+    (cover !== null && cover === memory?.cover_media_id ? memory.cover_thumbnail_url : null);
   const named = title?.trim() ?? '';
   const changed =
     ready &&
-    (named !== memory.title ||
-      cover !== memory.cover_media_id ||
-      !sameSpan(span, spanOf(memory)));
+    (named !== memory.title || cover !== memory.cover_media_id || !sameSpan(span, spanOf(memory)));
 
   /** «Назад» with edits nobody saved asks first; with none it simply goes. */
   const leave = () =>
@@ -219,7 +219,9 @@ export default function MemoryEditScreen() {
               {/* Only once the gallery has answered: while it is still on its way, and when it could
                   not be read at all, «сначала нужен хотя бы один кадр» would be a statement about a
                   memory nobody has looked into. */}
-              {media !== null && pickable.length === 0 ? <Hint>{s.edit.coverNeedsFrames}</Hint> : null}
+              {media !== null && pickable.length === 0 ? (
+                <Hint>{s.edit.coverNeedsFrames}</Hint>
+              ) : null}
             </View>
           </>
         )}

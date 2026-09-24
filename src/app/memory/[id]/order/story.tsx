@@ -3,9 +3,9 @@ import { ChevronRight } from 'lucide-react-native';
 import { ScrollView, StyleSheet } from 'react-native';
 
 import { Button, ChipTemplate, TextArea } from '@/kit';
-import { useStrings } from '@/language';
-import { STORY_LIMIT } from '@/montage';
-import { TEMPLATE_SIGN, useOrder, WizardStep } from '@/order-wizard';
+import { useStrings } from '@/lib/language';
+import { STORY_LIMIT } from '@/lib/montage/order';
+import { TEMPLATE_SIGN, useOrder, WizardStep } from '@/screens/order/wizard';
 import { space, themed } from '@/theme';
 
 /**

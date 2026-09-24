@@ -1,10 +1,10 @@
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
-import { height, photo, radius, space, themed, useTheme, type Theme } from '@/theme';
+import { height, photo, radius, space, type Theme, themed, useTheme } from '@/theme';
 
 import { Spinner } from './empty';
 import { ICO_S, Icon, type IconComponent } from './icon';
-import { PRESS, hitSlop, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
+import { hitSlop, PRESS, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
 import { Text } from './text';
 
 /**

@@ -3,7 +3,7 @@ import { AccessibilityInfo, Animated, Easing, LayoutAnimation, type ViewStyle } 
 
 import { duration, ease, themed } from '@/theme';
 
-export { TAP, hitSlop } from './tap';
+export { hitSlop, TAP } from './tap';
 
 /**
  * What every component of the library needs in order to answer a person: motion that obeys the OS,
@@ -77,7 +77,11 @@ export function useReducedMotion(): boolean {
 export function soften(ms: number): void {
   if (reduced) return;
   LayoutAnimation.configureNext(
-    LayoutAnimation.create(ms, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity),
+    LayoutAnimation.create(
+      ms,
+      LayoutAnimation.Types.easeInEaseOut,
+      LayoutAnimation.Properties.opacity,
+    ),
   );
 }
 
@@ -197,7 +201,12 @@ const useRings = themed(
     base: { outlineWidth: 2, outlineColor: color.accent, outlineOffset: 2, outlineStyle: 'solid' },
     // Spec 2.5: on an element that is itself filled with `accent` — the main button — an accent
     // ring would be invisible, so that one is ringed in `paper`.
-    onAccent: { outlineWidth: 2, outlineColor: color.paper, outlineOffset: 2, outlineStyle: 'solid' },
+    onAccent: {
+      outlineWidth: 2,
+      outlineColor: color.paper,
+      outlineOffset: 2,
+      outlineStyle: 'solid',
+    },
   }),
 );
 

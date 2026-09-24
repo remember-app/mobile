@@ -1,7 +1,12 @@
 // ponytail: each package index `require`s every weight it ships, so all of them land in the bundle
 // though only these six are loaded. Import the faces by their own paths and add a `*.ttf` module
 // declaration if the bundle size ever starts to matter.
-import { Onest_400Regular, Onest_500Medium, Onest_600SemiBold, Onest_700Bold } from '@expo-google-fonts/onest';
+import {
+  Onest_400Regular,
+  Onest_500Medium,
+  Onest_600SemiBold,
+  Onest_700Bold,
+} from '@expo-google-fonts/onest';
 import { Unbounded_600SemiBold, Unbounded_700Bold, useFonts } from '@expo-google-fonts/unbounded';
 import { Image } from 'expo-image';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
@@ -9,17 +14,17 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
 
-import { AuthProvider, useAuth } from '@/auth';
-import { lockPortrait } from '@/orientation';
-import { usePush } from '@/push';
+import { AuthProvider, useAuth } from '@/lib/auth';
+import { lockPortrait } from '@/lib/orientation';
+import { usePush } from '@/lib/push';
+import { useUploads } from '@/lib/upload/send';
 import { useTheme } from '@/theme';
-import { useUploads } from '@/uploads';
 
 // Hold the splash until the stored session has been checked, so no screen flashes
 // before the gate below knows which ones to allow.
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-// The product is portrait, and `app.json` no longer holds it there — `@/orientation` says why. Here
+// The product is portrait, and `app.json` no longer holds it there — `@/lib/orientation` says why. Here
 // beside the splash and not in an effect: this is the app coming up, and it has to be true of the
 // first screen drawn as much as of the fourteenth.
 lockPortrait();

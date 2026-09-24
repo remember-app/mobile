@@ -1,11 +1,11 @@
 import { Image } from 'expo-image';
 import { Play, Plus } from 'lucide-react-native';
-import { useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { type ReactNode, useState } from 'react';
+import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
-import { night, photo, radius, space, themed, ThemePin, useTheme } from '@/theme';
+import { night, photo, radius, space, ThemePin, themed, useTheme } from '@/theme';
 
-import { type MontageState } from './badge';
+import type { MontageState } from './badge';
 import { Icon } from './icon';
 import { PRESS, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
 import { Text } from './text';
@@ -173,7 +173,9 @@ export function CardMontage({
       {onPress ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={label ?? [title, meta, caption, step?.count].filter(Boolean).join(' · ')}
+          accessibilityLabel={
+            label ?? [title, meta, caption, step?.count].filter(Boolean).join(' · ')
+          }
           onPress={onPress}
           onPressIn={() => setPressed(true)}
           onPressOut={() => setPressed(false)}

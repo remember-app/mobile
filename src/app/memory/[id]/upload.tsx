@@ -6,10 +6,10 @@ import { Image } from 'expo-image';
 // `getAssetsAsync` only to throw, and the replacement hands back lazy asset *handles* whose uri and
 // capture time are a native round trip each — one per tile in a grid of thousands. The legacy call
 // answers with the whole plain row (id, uri, filename, mediaType, creationTime) in one go, which is
-// also the shape `@/media-window` was written against.
+// also the shape `@/lib/media-window` was written against.
 // ponytail: legacy goes away in some later SDK; the day it does, this screen moves to `Query` and
 // pays for the uris with `getInfo()`.
-import * as MediaLibrary from 'expo-media-library/legacy';
+import type * as MediaLibrary from 'expo-media-library/legacy';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   ArrowUp,
@@ -18,26 +18,21 @@ import {
   CircleCheckBig,
   ImageIcon,
   Info,
-  Smartphone,
   X,
 } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, Linking, Modal, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { FlatList, Modal, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { errorMessage, listMemories, type Memory } from '@/api';
-import { useAuth } from '@/auth';
-import { formatDay, formatEventDates, formatRuntime } from '@/dates';
 import {
   ActionBar,
   AppBar,
   Banner,
   Board,
   Button,
-  CardMessage,
   DashedFrame,
   DayMark,
-  Empty,
   FEED_GAP,
   GlassBar,
   HintNote,
@@ -48,23 +43,16 @@ import {
   Text,
   Tile,
   Upload,
-  Waiting,
 } from '@/kit';
-import { useStrings } from '@/language';
-import { assetsByDay, type ShootingDay } from '@/media-window';
-import { board, height, radius, space, themed, themes, ThemePin, useTheme } from '@/theme';
-import { failureText, progress, type QueuedFile, type UploadFailure } from '@/upload-queue';
-import { answerAskAll, drop, enqueue, useAskAll, useUploads, wake } from '@/uploads';
-
-/**
- * Photos and videos, and nothing else — the same list twice on purpose. It is what the grid asks
- * the library for, and on Android 13+ it is also what the phone asks the person for, so this app
- * never turns up wanting their voice recordings. `app.json` declares the matching pair.
- */
-const WANTED = ['photo', 'video'] as const;
-
-/** Big enough that the first page fills the screen, small enough that it arrives quickly. */
-const PAGE = 500;
+import { useAuth } from '@/lib/auth';
+import { formatDay, formatEventDates, formatRuntime } from '@/lib/dates';
+import { useStrings } from '@/lib/language';
+import { assetsByDay, type ShootingDay } from '@/lib/media-window';
+import { failureText, progress, type QueuedFile, type UploadFailure } from '@/lib/upload/queue';
+import { answerAskAll, drop, enqueue, useAskAll, useUploads, wake } from '@/lib/upload/send';
+import { NoFeed } from '@/screens/upload/message';
+import { useRoll } from '@/screens/upload/roll';
+import { board, height, radius, space, ThemePin, themed, themes, useTheme } from '@/theme';
 
 /**
  * A frame opened full screen stays a dark room whatever the app's theme is (spec 2, and the kit's
@@ -84,7 +72,7 @@ type Row =
 /**
  * Putting material into a memory: consent, the camera roll drawn the way a memory's own feed is —
  * three to a row, edge to edge, the date standing between one day and the next — the selection to
- * trim, the sending itself (handed to `@/uploads`, which carries on without this screen) and the
+ * trim, the sending itself (handed to `@/lib/upload/send`, which carries on without this screen) and the
  * one question doc-06 asks afterwards. Nothing here asks what the memory's status is: material goes
  * in during the event and long after the montage was made (doc-02).
  *
@@ -112,12 +100,22 @@ export default function UploadScreen() {
   const cell = { width: (width - FEED_GAP * 2) / 3 };
   // The whole app's queue; the rows below are this memory's share of it.
   const uploads = useUploads();
-  // Checked on mount, asked for only on the button — that is the difference between knowing
-  // whether we may look and looking. Nothing below runs until `granted`.
-  const [access, ask] = MediaLibrary.usePermissions({ granularPermissions: [...WANTED] });
+  /**
+   * The phone's own roll, whole — its own module: the grant, the paging and the one line for a
+   * gallery that would not open are a subject apart from what this screen does with what it finds.
+   */
+  const {
+    access,
+    ask,
+    granted,
+    limited,
+    assets: gallery,
+    reading,
+    error: galleryError,
+    again,
+    chooseMore,
+  } = useRoll();
   const [memory, setMemory] = useState<Memory | null>(null);
-  const [gallery, setGallery] = useState<MediaLibrary.Asset[]>([]);
-  const [reading, setReading] = useState(true);
   const [picked, setPicked] = useState<ReadonlySet<string>>(() => new Set());
   /**
    * Picking is on from the first moment (spec, `Upload`): this screen exists to hand material over,
@@ -129,19 +127,10 @@ export default function UploadScreen() {
   const [open, setOpen] = useState<MediaLibrary.Asset | null>(null);
   // What this visit has handed to the queue — the number the «Это всё?» sheet counts out loud.
   const [sent, setSent] = useState(0);
-  // Bumped whenever the library must be read from the top again: a retry, or a wider grant.
-  const [rereads, setRereads] = useState(0);
-  // Two of them, because they cost different things. A gallery that will not open leaves nothing
-  // to put on the screen; an api that cannot be reached only costs the event dates — picking and
-  // queueing carry on, which is the whole point of a queue that waits for the network.
-  const [galleryError, setGalleryError] = useState<string | null>(null);
+  // Its own and not the roll's, because the two cost different things. A gallery that will not
+  // open leaves nothing to put on the screen; an api that cannot be reached only costs the event
+  // dates — picking and queueing carry on, which is the whole point of a queue that waits.
   const [apiError, setApiError] = useState<string | null>(null);
-
-  const granted = access?.granted ?? false;
-  // iOS and Android 14 both let somebody hand over a handful of photos instead of the roll. Said
-  // out loud (`UploadLimited`), because otherwise a day comes up counting three frames out of the
-  // sixty that were shot on it, and the grant is the only thing that would explain it.
-  const limited = access?.accessPrivileges === 'limited';
 
   /**
    * The roll as the kit lays it out: the day it was shot on, then that day's frames three to a row,
@@ -182,53 +171,9 @@ export default function UploadScreen() {
 
   useEffect(load, [load]);
 
-  useEffect(() => {
-    if (!granted) return;
-    let live = true;
-    setGallery([]);
-    setGalleryError(null);
-    setReading(true);
-
-    void (async () => {
-      try {
-        let after: string | undefined;
-        // The whole library, newest first, one page at a time. All of it and not the first page:
-        // the days are cut out of what is in hand, and an event two months back sits behind however
-        // many photos were taken since — an unread tail would leave the event's own days off the
-        // top of the screen without saying so.
-        // ponytail: a huge camera roll spends a few seconds on this. If that ever bites, page only
-        // until the window is passed — but the window belongs to `@/media-window`, so that stop
-        // condition has to come from there and not from a second copy of the day maths here.
-        do {
-          const page = await MediaLibrary.getAssetsAsync({
-            first: PAGE,
-            after,
-            mediaType: [...WANTED],
-            sortBy: ['creationTime'],
-          });
-          if (!live) return;
-          setGallery((have) => have.concat(page.assets));
-          after = page.hasNextPage ? page.endCursor : undefined;
-        } while (after !== undefined);
-      } catch {
-        // Not `errorMessage`: that one is worded for the api and would blame the network for a
-        // phone that would not open its own gallery.
-        if (live) setGalleryError(s.upload.cannotRead);
-      } finally {
-        if (live) setReading(false);
-      }
-    })();
-
-    return () => {
-      live = false;
-    };
-    // `s` is deliberately out of it: re-running this would read the whole camera roll again to
-    // re-word one line, and on a big library that is seconds of paging.
-  }, [granted, rereads]);
-
   function retry() {
     load();
-    setRereads((n) => n + 1);
+    again();
   }
 
   // This memory's share of the queue: the one going up right now, and the ones parked. One bar for
@@ -243,7 +188,7 @@ export default function UploadScreen() {
   /**
    * doc-06, and the layout's `SheetAskAll`: asked once, and only once everything this visit sent is
    * actually in — «блок отправки уступает место листу „Это всё?“». The api decides *whether* to ask
-   * (`@/uploads`), this decides *when*, and the count beside the question is what went.
+   * (`@/lib/upload/send`), this decides *when*, and the count beside the question is what went.
    *
    * A question raised while somebody was on another screen waits in the queue's own state until the
    * next time they send something from here, which is the next moment the sheet can count anything.
@@ -273,12 +218,6 @@ export default function UploadScreen() {
       }
       return next;
     });
-  }
-
-  /** Widen a `limited` grant. Whatever it changed, the library is read again from the top. */
-  async function chooseMore() {
-    await MediaLibrary.presentPermissionsPickerAsync([...WANTED]).catch(() => {});
-    setRereads((n) => n + 1);
   }
 
   /**
@@ -395,60 +334,6 @@ export default function UploadScreen() {
     );
   }
 
-  /** The body of the screen with no feed on it, in the four states the layout draws it in. */
-  function message() {
-    // Nothing to put on the screen at all. The message stands in the flow and carries what can be
-    // done about it, the same shape `UploadAccess` uses — this one can only be tried again.
-    if (galleryError !== null) {
-      return (
-        <CardMessage icon={ImageIcon} text={galleryError}>
-          <Button variant="primary" size="md" label={s.action.retry} onPress={retry} />
-        </CardMessage>
-      );
-    }
-
-    // The phone has not said yet whether we may look.
-    if (access === null) {
-      return (
-        <View style={styles.centre}>
-          <Waiting text={s.state.checking} />
-        </View>
-      );
-    }
-
-    // `UploadAccess`: the phone's own dialog while it is still worth asking, and Settings once the
-    // phone has stopped asking.
-    if (!granted) {
-      return (
-        <CardMessage
-          icon={ImageIcon}
-          text={access.canAskAgain ? s.upload.explain : s.upload.refused}
-        >
-          <Button
-            variant="primary"
-            size="md"
-            label={access.canAskAgain ? s.upload.allow : s.action.openSettings}
-            onPress={() => void (access.canAskAgain ? ask() : Linking.openSettings())}
-          />
-        </CardMessage>
-      );
-    }
-
-    if (reading) {
-      return (
-        <View style={styles.centre}>
-          <Waiting text={s.upload.reading} />
-        </View>
-      );
-    }
-
-    // `UploadEmpty` — access given and nothing to give back. No bottom layer under it: there is
-    // nothing to offer.
-    return (
-      <Empty sign="dashed" icon={Smartphone} title={s.upload.emptyTitle} text={s.upload.emptyText} />
-    );
-  }
-
   const feed = granted && rows.length > 0;
 
   return (
@@ -533,7 +418,13 @@ export default function UploadScreen() {
           />
           <View style={styles.body}>
             <View style={[styles.head, said ? styles.headSaid : null]}>{blocks()}</View>
-            {message()}
+            <NoFeed
+              error={galleryError}
+              access={access}
+              ask={ask}
+              reading={reading}
+              onRetry={retry}
+            />
           </View>
         </>
       )}
@@ -546,7 +437,9 @@ export default function UploadScreen() {
           style={styles.glass}
           title={s.upload.title}
           meta={memory ? s.upload.into(memory.title) : undefined}
-          capsuleLabel={memory ? `${s.upload.title}, ${s.upload.into(memory.title)}` : s.upload.title}
+          capsuleLabel={
+            memory ? `${s.upload.title}, ${s.upload.into(memory.title)}` : s.upload.title
+          }
           left={
             <IconButton
               icon={ChevronLeft}
@@ -587,7 +480,11 @@ export default function UploadScreen() {
                     ? s.upload.picked(picked.size)
                     : s.upload.pickedOf(picked.size, gallery.length)}
                 </Text>
-                <Button variant="quiet" label={s.action.clear} onPress={() => setPicked(new Set())} />
+                <Button
+                  variant="quiet"
+                  label={s.action.clear}
+                  onPress={() => setPicked(new Set())}
+                />
               </>
             ) : undefined
           }
@@ -607,7 +504,7 @@ export default function UploadScreen() {
 
       {/* Picking off, a tap opens the frame instead — the phone's own copy, at the size it was shot.
           ponytail: a video shows the poster the library hands back and does not play; the frame that
-          plays is the one already in a memory (`src/memory/frame-viewer.tsx`). The day somebody
+          plays is the one already in a memory (`src/screens/memory/frame-viewer.tsx`). The day somebody
           wants playback here, it is `expo-video` over `getAssetInfoAsync().localUri`. */}
       <Modal
         visible={open !== null}
@@ -682,7 +579,7 @@ export default function UploadScreen() {
 /**
  * The line under «Ваши кадры» on the plain bar: which memory this is going into and when it
  * happened. The separator goes with the dates, so a memory whose dates will not read is never left
- * hanging off a «·» — `@/frames` learnt that one the hard way.
+ * hanging off a «·» — `@/lib/frames` learnt that one the hard way.
  */
 function subtitleFor(memory: Memory | null): string | undefined {
   if (memory === null) return undefined;
@@ -697,7 +594,6 @@ const useStyles = themed(({ color }) =>
     // Spec 4: the body of the plain-bar face starts at 124, which is the bar's own 44 and this
     // under it. The screen's margin is the app's 16.
     body: { flex: 1, paddingHorizontal: space.s4, paddingTop: space.s5 },
-    centre: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     // The feed is the kit's own: 2px between frames, no margins, nothing between a day's strip and
     // the next day but the seam's own height.
     feed: { flexGrow: 1, gap: FEED_GAP },

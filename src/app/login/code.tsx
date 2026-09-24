@@ -4,10 +4,10 @@ import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 
 import { ApiError, errorMessage, startEmailSignIn, verifyEmailCode } from '@/api';
-import { useAuth } from '@/auth';
 import { ActionBar, Banner, Board, Button, CodeField, IconButton, Text } from '@/kit';
-import { useStrings } from '@/language';
-import { OnboardingHead } from '@/onboarding-head';
+import { useAuth } from '@/lib/auth';
+import { useStrings } from '@/lib/language';
+import { OnboardingHead } from '@/screens/onboarding/head';
 import { space } from '@/theme';
 
 /** A repeated query key arrives as an array; everything here takes one string. */
@@ -40,9 +40,7 @@ export default function LoginCodeScreen() {
   // no connection, no mail keys — stands over the block as a line of its own.
   const [bad, setBad] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [note, setNote] = useState<string | null>(
-    one(params.code) === '' ? null : s.login.devCode,
-  );
+  const [note, setNote] = useState<string | null>(one(params.code) === '' ? null : s.login.devCode);
 
   async function confirm() {
     setBusy(true);

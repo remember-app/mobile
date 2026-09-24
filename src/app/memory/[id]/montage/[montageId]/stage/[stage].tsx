@@ -5,16 +5,14 @@ import { FlatList, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
-  listMembers,
-  memberName,
-  MONTAGE_STAGES,
   type JournalEntry,
   type JournalFile,
+  listMembers,
   type Member,
+  MONTAGE_STAGES,
   type MontageStageCode,
+  memberName,
 } from '@/api';
-import { useAuth } from '@/auth';
-import { formatRuntime, formatTime } from '@/dates';
 import {
   AppBar,
   BadgeDecision,
@@ -28,20 +26,22 @@ import {
   Text,
   WatchingPill,
 } from '@/kit';
-import { useStrings } from '@/language';
-import { SheetLiveFile } from '@/memory/live-file';
+import { useAuth } from '@/lib/auth';
+import { formatRuntime, formatTime } from '@/lib/dates';
+import { useStrings } from '@/lib/language';
 import {
+  type Journal as Held,
   isFresh,
   marksOf,
+  type Sift,
+  STAGE_COUNT,
   sifted,
   stageLine,
   stageNumber,
-  STAGE_COUNT,
   useMontageJournal,
   useTypedThought,
-  type Journal as Held,
-  type Sift,
-} from '@/montage-journal';
+} from '@/lib/montage/journal';
+import { SheetLiveFile } from '@/screens/memory/live-file';
 import { space } from '@/theme';
 
 /**
@@ -123,9 +123,7 @@ export default function MontageLiveStageScreen() {
         subtitle={[s.montage.live.stageOf(stageNumber(code), STAGE_COUNT), row && stageLine(row, s)]
           .filter(Boolean)
           .join(' · ')}
-        left={
-          <IconButton icon={ChevronLeft} label={s.action.back} onPress={() => router.back()} />
-        }
+        left={<IconButton icon={ChevronLeft} label={s.action.back} onPress={() => router.back()} />}
         right={
           journal.viewers.length > 0 ? (
             <WatchingPill

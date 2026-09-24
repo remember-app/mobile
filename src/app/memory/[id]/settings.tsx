@@ -1,26 +1,24 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, Pencil, UserPlus, X } from 'lucide-react-native';
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import {
   ApiError,
+  type ContributionStatus,
   deleteMemory,
   errorMessage,
   hasShared,
-  listMemories,
   listMembers,
+  listMemories,
+  type Member,
+  type Memory,
   mayContribute,
   memberHandle,
   memberName,
   removeMember,
   setContributionStatus,
-  type ContributionStatus,
-  type Member,
-  type Memory,
 } from '@/api';
-import { useAuth } from '@/auth';
-import { formatEventDates } from '@/dates';
 import {
   ActionBar,
   AppBar,
@@ -38,9 +36,11 @@ import {
   useReducedMotion,
   Waiting,
 } from '@/kit';
-import { useStrings } from '@/language';
-import { CoverSlot } from '@/memory/cover';
-import { InviteSheet } from '@/memory/invite-sheet';
+import { useAuth } from '@/lib/auth';
+import { formatEventDates } from '@/lib/dates';
+import { useStrings } from '@/lib/language';
+import { CoverSlot } from '@/screens/memory/cover';
+import { InviteSheet } from '@/screens/memory/invite-sheet';
 import { radius, space, themed } from '@/theme';
 
 /**
@@ -295,9 +295,7 @@ export default function MemorySettingsScreen() {
                   tone="raise"
                   label={s.settings.edit}
                   disabled={busy}
-                  onPress={() =>
-                    router.push({ pathname: '/memory/[id]/edit', params: { id } })
-                  }
+                  onPress={() => router.push({ pathname: '/memory/[id]/edit', params: { id } })}
                 />
               ) : null}
             </View>
@@ -429,9 +427,7 @@ export default function MemorySettingsScreen() {
           meta={[memberHandle(dropping), dropping.role === 'viewer' ? null : framesOf(dropping)]
             .filter(Boolean)
             .join(' · ')}
-          price={
-            dropping.media_count ? s.members.priceFrames(dropping.media_count) : undefined
-          }
+          price={dropping.media_count ? s.members.priceFrames(dropping.media_count) : undefined}
           title={s.members.removeAsk(memberName(dropping))}
           text={dropping.role === 'viewer' ? s.members.removeViewerText : s.members.removeText}
           confirmLabel={s.members.removeDo}
@@ -519,7 +515,13 @@ const useStyles = themed(({ color }) =>
     block: { gap: 10 },
     head: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     // The heading and its count share a baseline, the way the layout sets every pair of them.
-    headWords: { flex: 1, flexDirection: 'row', alignItems: 'baseline', gap: space.s2, minWidth: 0 },
+    headWords: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'baseline',
+      gap: space.s2,
+      minWidth: 0,
+    },
     // The rows stand inside one surface with the corners cut off it, so the hairline between two of
     // them never reaches the rounding.
     card: {

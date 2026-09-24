@@ -4,8 +4,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 
 import { errorMessage, listMemories, type Memory } from '@/api';
-import { useAuth } from '@/auth';
-import { formatEventDates } from '@/dates';
 import {
   ActionBar,
   AppBar,
@@ -19,7 +17,9 @@ import {
   IconButton,
   Waiting,
 } from '@/kit';
-import { useStrings } from '@/language';
+import { useAuth } from '@/lib/auth';
+import { formatEventDates } from '@/lib/dates';
+import { useStrings } from '@/lib/language';
 import { duration, height, space } from '@/theme';
 
 /**

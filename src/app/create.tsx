@@ -4,11 +4,11 @@ import { useState } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 
 import { createMemory, errorMessage } from '@/api';
-import { useAuth } from '@/auth';
-import { endOfDay, startOfDay } from '@/dates';
 import { ActionBar, AppBar, Banner, Board, Button, Field, IconButton } from '@/kit';
-import { useStrings } from '@/language';
-import { EventWhen, type Span } from '@/memory/when';
+import { useAuth } from '@/lib/auth';
+import { endOfDay, startOfDay } from '@/lib/dates';
+import { useStrings } from '@/lib/language';
+import { EventWhen, type Span } from '@/screens/memory/when';
 import { space } from '@/theme';
 
 /** Spec 8, `Create` — naming an event and saying when it was, and nothing else. */

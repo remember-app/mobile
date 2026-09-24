@@ -9,14 +9,12 @@ import {
   listMembers,
   listMemories,
   listMontages,
-  memberName,
-  retryMontage,
   type Member,
   type Memory,
   type Montage,
+  memberName,
+  retryMontage,
 } from '@/api';
-import { useAuth } from '@/auth';
-import { formatDayShort, formatRuntime, formatTime } from '@/dates';
 import {
   ActionBar,
   AppBar,
@@ -31,8 +29,9 @@ import {
   Text,
   WatchingPill,
 } from '@/kit';
-import { useStrings } from '@/language';
-import { StageRows } from '@/memory/stage-rows';
+import { useAuth } from '@/lib/auth';
+import { formatDayShort, formatRuntime, formatTime } from '@/lib/dates';
+import { useStrings } from '@/lib/language';
 import {
   currentStage,
   gazeAt,
@@ -40,13 +39,14 @@ import {
   isFresh,
   marksOf,
   minutesLeft,
-  stageNumber,
   STAGE_COUNT,
+  stageNumber,
   useMontageJournal,
   useTypedThought,
-} from '@/montage-journal';
-import { LENGTHS, type Length } from '@/montage';
-import { type Strings } from '@/strings';
+} from '@/lib/montage/journal';
+import { LENGTHS, type Length } from '@/lib/montage/order';
+import { StageRows } from '@/screens/memory/stage-rows';
+import type { Strings } from '@/strings';
 import { space } from '@/theme';
 
 /**
@@ -78,7 +78,7 @@ export default function MontageLiveScreen() {
   const s = useStrings();
   const { width } = useWindowDimensions();
 
-  /** The whole journal of this montage, read and kept up to date — `@/montage-journal` does it all. */
+  /** The whole journal of this montage, read and kept up to date — `@/lib/montage/journal` does it all. */
   const journal = useMontageJournal(token, id, montageId);
 
   const [memory, setMemory] = useState<Memory | null>(null);

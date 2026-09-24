@@ -3,11 +3,11 @@ import { Link2Off } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { acceptInvite, ApiError, errorMessage } from '@/api';
-import { useAuth } from '@/auth';
+import { ApiError, acceptInvite, errorMessage } from '@/api';
 import { ActionBar, Board, Button, Empty, Text, Waiting } from '@/kit';
-import { useStrings } from '@/language';
-import { clearInvite, peekInvite, stashInvite } from '@/push';
+import { useAuth } from '@/lib/auth';
+import { useStrings } from '@/lib/language';
+import { clearInvite, peekInvite, stashInvite } from '@/lib/push';
 import { space } from '@/theme';
 
 /**

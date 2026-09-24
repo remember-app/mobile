@@ -7,16 +7,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ApiError,
   addContact,
+  type Contact,
   errorMessage,
   isValidUsername,
   listContacts,
   memberHandle,
   memberName,
   removeContact,
-  type Contact,
 } from '@/api';
-import { useAuth } from '@/auth';
-import { matches, useFindUser } from '@/find-user';
 import {
   AppBar,
   Banner,
@@ -29,7 +27,9 @@ import {
   RowContact,
   Text,
 } from '@/kit';
-import { useStrings } from '@/language';
+import { useAuth } from '@/lib/auth';
+import { matches, useFindUser } from '@/lib/find-user';
+import { useStrings } from '@/lib/language';
 import { board, duration, space, themed } from '@/theme';
 
 /**
@@ -90,7 +90,7 @@ export default function ContactsScreen() {
   // «Уже сохранённого ник вводом не задваивает»: an exact hit among the saved is answered by the
   // list itself, so nothing is asked of the api and no second row is offered.
   const saved = list.some((contact) => contact.username?.toLowerCase() === needle);
-  // The other half of the field's job, shared with the invite sheet's own (`@/find-user`). Oneself
+  // The other half of the field's job, shared with the invite sheet's own (`@/lib/find-user`). Oneself
   // comes back as nothing to say: the api refuses to save you (400), so the row is not offered at
   // all rather than offered and then refused, and silently — «нет такого ника» would be a lie.
   const { found, looking } = useFindUser(token, query, { skip: saved, selfId: user?.id });

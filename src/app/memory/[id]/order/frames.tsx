@@ -1,37 +1,21 @@
 import { useRouter } from 'expo-router';
-import {
-  Aperture,
-  ChevronRight,
-  CircleSlash,
-  Copy,
-  ImageOff,
-  SunDim,
-} from 'lucide-react-native';
+import { Aperture, ChevronRight, CircleSlash, Copy, ImageOff, SunDim } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { FlatList, StyleSheet, useWindowDimensions, View } from 'react-native';
-
-import { formatRuntime } from '@/dates';
-import {
-  Button,
-  GRID_GAP,
-  RowRejected,
-  Sheet,
-  Text,
-  Tile,
-  type IconComponent,
-} from '@/kit';
-import { useStrings } from '@/language';
+import { Button, GRID_GAP, type IconComponent, RowRejected, Sheet, Text, Tile } from '@/kit';
+import { formatRuntime } from '@/lib/dates';
+import { useStrings } from '@/lib/language';
 import {
   afterTap,
   droppedByPass,
   MIN_FRAMES,
   pickOf,
+  type Reason,
   reasonOf,
   rejectedGroups,
   taken,
-  type Reason,
-} from '@/montage';
-import { useOrder, WizardStep } from '@/order-wizard';
+} from '@/lib/montage/order';
+import { useOrder, WizardStep } from '@/screens/order/wizard';
 import { space, themed } from '@/theme';
 
 /**
@@ -111,9 +95,7 @@ export default function PickFramesStep() {
           trailingIcon={ChevronRight}
           label={s.montage.nextWith(inMovie.length)}
           disabled={!enough}
-          onPress={() =>
-            router.push({ pathname: '/memory/[id]/order/story', params: { id } })
-          }
+          onPress={() => router.push({ pathname: '/memory/[id]/order/story', params: { id } })}
         />
       }
     >

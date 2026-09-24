@@ -1,9 +1,9 @@
 import { ChevronDown } from 'lucide-react-native';
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { board, height, night, photo, radius, space, themed, ThemePin, useTheme } from '@/theme';
+import { board, height, night, photo, radius, space, ThemePin, themed, useTheme } from '@/theme';
 
 import { StepScale } from './bits';
 import { Icon } from './icon';
@@ -22,13 +22,7 @@ import { Text } from './text';
  * The spec's 52 is the drawn phone's status bar; here the phone says how tall its own is, which is
  * the same thing measured rather than assumed.
  */
-export function Board({
-  children,
-  style,
-}: {
-  children: ReactNode;
-  style?: StyleProp<ViewStyle>;
-}) {
+export function Board({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
   const insets = useSafeAreaInsets();
   const styles = useStyles();
 
@@ -235,7 +229,11 @@ export function GlassBar({
           pointerEvents="none"
           style={[
             StyleSheet.absoluteFill,
-            { bottom: undefined, height: board.headGallery, experimental_backgroundImage: photo.headGallery },
+            {
+              bottom: undefined,
+              height: board.headGallery,
+              experimental_backgroundImage: photo.headGallery,
+            },
           ]}
         />
         {left}
@@ -249,7 +247,12 @@ export function GlassBar({
             {words}
           </Pressable>
         ) : (
-          <View accessible accessibilityRole="header" accessibilityLabel={capsuleLabel} style={styles.capsule}>
+          <View
+            accessible
+            accessibilityRole="header"
+            accessibilityLabel={capsuleLabel}
+            style={styles.capsule}
+          >
             {words}
           </View>
         )}

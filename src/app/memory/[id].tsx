@@ -3,8 +3,8 @@ import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { errorMessage, listMemories, type Memory } from '@/api';
-import { useAuth } from '@/auth';
-import { Frames } from '@/memory/frames';
+import { useAuth } from '@/lib/auth';
+import { Frames } from '@/screens/memory/frames';
 import { themed } from '@/theme';
 
 /**

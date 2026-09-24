@@ -7,11 +7,11 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ApiError, errorMessage, signInWithApple, signInWithGoogle } from '@/api';
-import { useAuth } from '@/auth';
 import { ActionBar, Banner, Board, Button } from '@/kit';
-import { useStrings } from '@/language';
-import { OnboardingHead } from '@/onboarding-head';
-import { type Strings } from '@/strings';
+import { useAuth } from '@/lib/auth';
+import { useStrings } from '@/lib/language';
+import { OnboardingHead } from '@/screens/onboarding/head';
+import type { Strings } from '@/strings';
 import { space } from '@/theme';
 
 // Closes the auth browser tab once Google redirects back.
@@ -107,9 +107,7 @@ export default function LoginScreen() {
 
       {/* The room between the head and the doors. Anything that has to be said stands at the foot
           of it — over the buttons it is about, never over the name. */}
-      <View style={styles.room}>
-        {error ? <Banner tone="error" text={error} /> : null}
-      </View>
+      <View style={styles.room}>{error ? <Banner tone="error" text={error} /> : null}</View>
 
       <ActionBar>
         <View style={styles.doors}>
