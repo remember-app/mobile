@@ -59,8 +59,9 @@ test('what was answered lives above the steps, so walking back and forth loses n
   expect(wizardLayout).toContain('<OrderProvider id={id}>');
   expect(wizard).toContain('const [order, setOrder] = useState<Order>(blankOrder);');
   expect(wizard).toContain('listMedia(token, id).then(setItems');
-  // Read again only by `reread` — «Повторить» over a failed read, and a refusal leading back.
-  expect(wizard).toContain('useEffect(read, [read]);');
+  // Read on the way in, and again only by `reread` — «Повторить» over a failed read, and a refusal
+  // leading back.
+  expect(wizard).toContain('useEffect(reread, [reread]);');
   expect(wizard).toContain('label={s.action.retry} onPress={reread}');
   for (const step of Object.values(steps)) {
     expect(step).toContain('useOrder()');

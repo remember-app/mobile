@@ -167,17 +167,13 @@ export function OrderProvider({ id, children }: { id: string; children: ReactNod
   const [items, setItems] = useState<MediaItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [order, setOrder] = useState<Order>(blankOrder);
-  const read = useCallback(() => {
-    if (!token) return;
-    listMedia(token, id).then(setItems, (e: unknown) => setError(errorMessage(e)));
-  }, [token, id]);
-  useEffect(read, [read]);
-
   const reread = useCallback(() => {
+    if (!token) return;
     setItems(null);
     setError(null);
-    read();
-  }, [read]);
+    listMedia(token, id).then(setItems, (e: unknown) => setError(errorMessage(e)));
+  }, [token, id]);
+  useEffect(reread, [reread]);
 
   const change = useCallback(
     (patch: Partial<Order> | ((was: Order) => Partial<Order>)) =>
