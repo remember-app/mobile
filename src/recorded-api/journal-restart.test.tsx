@@ -132,21 +132,10 @@ describe.each(SCENARIOS)('%s — the film begun again under an open journal', (s
   const cursor = Math.max(...reached.flatMap((one) => idsOf(one.entries)));
   const atCursor = reached.at(-1)!;
 
-  /** NOT WORDS OF THE API — right after the worker's `begin`: five stages waiting, nothing said. */
+  /** Right after the worker's `begin`: five stages waiting, nothing said — the recording's own first opening. */
   const begun: MontageJournal = {
     ...atCursor,
-    stages: whole.stages.map((row) => ({
-      ...row,
-      state: 'pending',
-      started_at: null,
-      finished_at: null,
-      done_count: 0,
-      total_count: null,
-      outcome: {},
-      taken_count: 0,
-      skipped_count: 0,
-      thought_count: 0,
-    })),
+    stages: bodyOf(steps, 'live_first_open_empty').stages,
     entries: [],
     has_more: false,
     files: [],

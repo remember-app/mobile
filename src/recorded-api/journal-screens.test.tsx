@@ -67,6 +67,9 @@ import { mounted, mountsTrees } from '@/test-renderer';
 import { act, BEAT_BY_BEAT, drives, settle } from '@/test-drive';
 import {
   bodyOf,
+  BROKE,
+  fellOver,
+  listPath,
   liveSteps,
   load,
   MEMORY,
@@ -78,7 +81,6 @@ import {
   step,
   TOKEN,
   type Replay,
-  type Role,
   type Scenario,
   type Step,
 } from './recorded';
@@ -207,6 +209,23 @@ const sitting = (steps: Step[]) => [
   'journal_after_ready_nothing_new',
 ];
 
+/** The screen of the making left open beat by beat until it leaves for the film's page, looked at on every beat. */
+async function sitThrough(screen: Screen, steps: Step[], look: () => void) {
+  let beats = 0;
+  while (router.replace.mock.calls.length === 0) {
+    if (beats++ > sitting(steps).length + 2) throw new Error('the screen never left the making');
+    look();
+    await screen.tick();
+  }
+  return beats;
+}
+
+/** What the screen says of where the making is: the number in «Этап N из 5» and the minutes of «осталось ≈», each null when unsaid. */
+const whereOf = (text: string) => ({
+  stage: [1, 2, 3, 4, 5].find((n) => text.includes(ru.montage.live.stageOf(n, 5))) ?? null,
+  minutes: Array.from({ length: 30 }, (_, i) => i).find((n) => text.includes(ru.montage.live.leftAbout(n))) ?? null,
+});
+
 describe.each(SCENARIOS)('%s — «Монтаж идёт»', (scenario) => {
   const steps = load(scenario);
   const only = [...sitting(steps), 'montage_list_while_building'];
@@ -229,9 +248,8 @@ describe.each(SCENARIOS)('%s — «Монтаж идёт»', (scenario) => {
     route.params = { id: MEMORY, montageId: MONTAGE };
     const screen = await mount(<MontageLiveScreen />, api);
 
-    let beats = 0;
-    while (router.replace.mock.calls.length === 0) {
-      if (beats++ > sitting(steps).length + 2) throw new Error('the screen never left the making');
+    const where: ReturnType<typeof whereOf>[] = [];
+    const beats = await sitThrough(screen, steps, () => {
       const truth = truthOf(steps, api.served);
       const now = shown(screen);
 
@@ -256,11 +274,13 @@ describe.each(SCENARIOS)('%s — «Монтаж идёт»', (scenario) => {
           expect(now.card.waiting).toBe(ru.montage.status.processing);
         }
 
-        // «Этап N из 5»: the place of the stage at work in the pipeline.
+        // «Этап N из 5»: the place of the stage at work in the pipeline — and none while all five
+        // still wait, when the worker has opened the job and not yet begun a stage. «осталось ≈» is
+        // said with it, for as long as some stage is not done.
         const at = atWork(truth.last.stages);
-        if (at) {
-          expect(now.text).toContain(ru.montage.live.stageOf(MONTAGE_STAGES.indexOf(at.stage) + 1, 5));
-        }
+        const said = whereOf(now.text);
+        expect(said.stage).toBe(at ? MONTAGE_STAGES.indexOf(at.stage) + 1 : null);
+        expect(said.minutes !== null).toBe(at !== undefined && truth.last.stages.some((one) => one.state !== 'done'));
 
         // Five rows, always, named and standing as the api's five stages say — one not yet reached
         // is `waiting`, which is a row the api has not written.
@@ -287,9 +307,24 @@ describe.each(SCENARIOS)('%s — «Монтаж идёт»', (scenario) => {
         expect(now.watching?.names).toEqual(truth.last.viewers.length ? truth.last.viewers.map((one) => one.username) : undefined);
         expect(now.watching?.label).toBe(truth.last.viewers.length ? ru.montage.live.watching(truth.last.viewers.length) : undefined);
         expect(now.text).not.toContain(ru.montage.live.lost);
+        // A making on air has nothing to carry at the bottom, so there is no bottom layer to see.
+        expect(screen.root.findAllByType(ActionBar)).toEqual([]);
+        where.push(whereOf(now.text));
       }
-      await screen.tick();
-    }
+    });
+
+    // The very first look is the job opened and nothing begun: five rows waiting, no stage named, no
+    // time promised. From there the number only goes forward and the minutes never grow or go under one.
+    expect(where[0]).toEqual({ stage: null, minutes: null });
+    const numbers = where.flatMap((one) => one.stage ?? []);
+    expect(numbers).toEqual([...numbers].sort());
+    expect(numbers.at(-1)).toBe(5);
+    const minutes = where.flatMap((one) => one.minutes ?? []);
+    expect(minutes.length).toBeGreaterThan(0);
+    minutes.forEach((one, at) => {
+      expect(one).toBeGreaterThanOrEqual(1);
+      if (at > 0) expect(one).toBeLessThanOrEqual(minutes[at - 1]);
+    });
 
     // The whole making was sat through, beat by beat — not a first look and out.
     // A poll is one read and then every page `has_more` promised, so it takes fewer beats than there
@@ -805,80 +840,40 @@ describe.each(SCENARIOS)('%s — the strip of films on the memory', (scenario) =
     await screen.unmount();
   });
 
-  // The list and the journal are two answers about one making. At the moment the list was recorded,
-  // the card in the strip and the screen it opens must name the same stage (spec 7.6, detail 38):
-  // the screen reads the sitting beat by beat until its journal has reached what the list says.
-  test('the card and the screen it opens name the same stage at the same moment', BEAT_BY_BEAT, async () => {
-    const reached = (stages: readonly MontageStep[]) =>
-      stages.filter((one) => one.state !== 'pending').map((one) => `${one.stage}:${one.state}`).join(' ');
-    const list = step(steps, 'montage_list_while_building').response.body as Montage[];
-    const moment = reached(list.find((one) => one.id === MONTAGE)!.stages!);
-
-    route.params = { id: MEMORY };
-    const strip = await mount(<Films id={MEMORY} memory={memory} />, replay(steps, { only: ['montage_list_while_building'], extra }));
-    const card = strip.root.findAllByType(CardMontage)[1].props.step;
-    await strip.unmount();
-
+  // The list and the journal are two answers about one making, and the card in the strip and the
+  // screen it opens must name the same stage at every step of it (spec 7.6, detail 38): with all
+  // five waiting, between two stages, and with a counter that has come to its end before its stage.
+  // The screen reads the sitting beat by beat; at each of its states the strip is handed the list the
+  // api would send at that moment — the recorded list with the five stages taken from that answer.
+  test('the card and the screen it opens name the same stage at every step of the making', BEAT_BY_BEAT, async () => {
+    const recorded = step(steps, 'montage_list_while_building').response.body as Montage[];
     const api = replay(steps, { only: [...sitting(steps), 'montage_list_while_building'], extra });
     route.params = { id: MEMORY, montageId: MONTAGE };
     const screen = await mount(<MontageLiveScreen />, api);
-    for (let beat = 0; reached(truthOf(steps, api.served).last?.stages ?? []) !== moment; beat++) {
-      if (beat > sitting(steps).length) throw new Error('the journal never reached the moment of the list');
-      await screen.tick();
-    }
-
-    // One stage done and the second at work: both say the second, and neither says «1».
-    expect(card).toEqual({ at: 2, of: 5, count: ru.montage.live.doneOf(2, 5) });
-    expect(words(screen.root)).toContain(ru.montage.live.stageOf(card.at, 5));
-    // A making on air has nothing to carry at the bottom, so there is no bottom layer to see.
-    expect(screen.root.findAllByType(ActionBar)).toEqual([]);
+    const moments: { stages: { stage: MontageStep['stage']; state: MontageStep['state'] }[]; on: number | null }[] = [];
+    await sitThrough(screen, steps, () => {
+      const { stages } = truthOf(steps, api.served).last;
+      moments.push({ stages: stages.map(({ stage, state }) => ({ stage, state })), on: whereOf(words(screen.root)).stage });
+    });
     expect(api.unmatched).toEqual([]);
     await screen.unmount();
+
+    const distinct = new Map(moments.map((one) => [JSON.stringify(one.stages), one]));
+    expect(distinct.size, 'the sitting has more than a few different moments').toBeGreaterThan(8);
+    route.params = { id: MEMORY };
+    for (const { stages, on } of distinct.values()) {
+      const list = recorded.map((one) => (one.id === MONTAGE ? { ...one, stages } : one));
+      const strip = await mount(<Films id={MEMORY} memory={memory} />, replay(steps, { only: [], extra: { ...extra, [listPath]: list } }));
+      const card = strip.root.findAllByType(CardMontage)[1].props.step;
+      await strip.unmount();
+      const asked = stages.map((one) => `${one.stage}:${one.state}`).join(' ');
+      expect(card?.at ?? null, asked).toBe(on);
+      if (card) expect(card, asked).toEqual({ at: on, of: 5, count: ru.montage.live.doneOf(on!, 5) });
+    }
+    // Both ends are in it: all five waiting is no stage on either, and the last is the fifth on both.
+    expect([...distinct.values()].map((one) => one.on)).toEqual(expect.arrayContaining([null, 1, 2, 3, 4, 5]));
   });
 });
-
-/** What the worker said about why it broke — the list's `error_text`. */
-const BROKE = 'Режиссёр не ответил';
-
-/**
- * NOT WORDS OF THE API — the recording has no montage that fell over, so these two answers about one
- * are cut out of recorded ones: the list taken while `understanding` was at work, with that stage
- * fallen over and the worker's line beside it, and the ready montage's own journal cut back to the
- * same moment — the two stages it reached, their records, and the files those name without a
- * layout. Any member reads both (api README, «Журнал монтажа»), so they are served to `as`.
- */
-function fellOver(steps: readonly Step[], as: Role): Step[] {
-  const list = step(steps, 'montage_list_while_building');
-  const journal = step(steps, 'journal_of_ready_montage');
-  const whole = journal.response.body as MontageJournal;
-  const at = MONTAGE_STAGES.indexOf('understanding');
-  const fell = <Row extends MontageStep>(row: Row, i: number) => ({
-    ...row,
-    state: i < at ? 'done' : i === at ? 'failed' : 'pending',
-  });
-  const entries = whole.entries.filter((one) => MONTAGE_STAGES.indexOf(one.stage) <= at);
-  const met = new Set(entries.map((one) => one.media_id));
-  const answer = (recorded: Step, body: unknown): Step => ({
-    ...recorded,
-    request: { ...recorded.request, as },
-    response: { status: 200, body },
-  });
-  return [
-    answer(
-      list,
-      (list.response.body as Montage[]).map((one) =>
-        one.id === MONTAGE ? { ...one, status: 'failed', error_text: BROKE, stages: one.stages!.map(fell) } : one,
-      ),
-    ),
-    answer(journal, {
-      ...whole,
-      montage: { ...whole.montage, status: 'failed' },
-      stages: whole.stages.slice(0, at + 1).map(fell),
-      entries,
-      files: whole.files.filter((one) => met.has(one.id)).map((one) => ({ ...one, places: [] })),
-    }),
-  ];
-}
 
 describe.each(SCENARIOS)('%s — a montage that fell over', (scenario) => {
   const steps = load(scenario);

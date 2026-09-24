@@ -274,10 +274,14 @@ export const lastOfStage = (
 ): JournalEntry[] => entries.filter((entry) => entry.stage === stage).slice(0, LAST);
 
 /**
- * «Осталось ≈ 8 мин»: what the stages that are not behind us still add up to. The worker's estimate
- * for the stage being worked on is what is *left* of it, not its whole length, so this is a plain
- * sum — rounded up, because a minute and a half left is «2 мин» and never «1», and never below one
- * while there is anything at all to wait for.
+ * «Осталось ≈ 8 мин»: the worker's estimates for the stages that are not behind us, added up —
+ * rounded up, because a minute and a half left is «2 мин» and never «1», and never below one while
+ * there is anything at all to wait for.
+ *
+ * The worker writes an estimate of each whole stage as it opens the job. Screening and assembly it
+ * counts as they go, and at every step it reckons again what is left of them from how they are
+ * really going; the other three keep the opening estimate of the whole stage until they are done. So
+ * while understanding, directing or rhythm is at work, the sum is an upper bound, not what is left.
  *
  * Null when not a single stage has an estimate: no number is better than a made-up one, and the
  * screen simply does not draw the line. Null too once a stage has fallen over — the ones after it
@@ -378,9 +382,14 @@ function cameOf(stage: MontageStage, s: Strings): string | undefined {
   }
 }
 
-/** «61 из 212» — how far through it is, for a stage that has not come to anything yet. */
+/**
+ * «61 из 212» — how far through it is, for a stage that has not come to anything yet, and only once
+ * its counter has moved. The worker counts screening by the file and assembly by the piece; the
+ * other three stand at nothing until they are done, and «0 из 13» there would say nothing has been
+ * done while the stage's records pile up under it.
+ */
 function soFar(stage: MontageStage, s: Strings): string | undefined {
-  return stage.total_count === null
+  return stage.total_count === null || stage.done_count === 0
     ? undefined
     : s.montage.live.doneOf(stage.done_count, stage.total_count);
 }
