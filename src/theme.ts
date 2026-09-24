@@ -100,8 +100,6 @@ export const height = {
   chipXs: 34,
   /** the «смотрят сейчас» pill in a bar */
   watchPill: 36,
-  /** the pill carrying a switch — «Сообщить, когда будет готово» */
-  togglePill: 52,
 } as const;
 
 /**
