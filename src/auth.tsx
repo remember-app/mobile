@@ -40,6 +40,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const language = useLanguage();
 
+  /** The session gone from this phone, which is what the gate turns into /login. */
+  const forget = useCallback(async () => {
+    await SecureStore.deleteItemAsync(TOKEN_KEY);
+    setToken(null);
+    setUser(null);
+  }, []);
+
   // Restore the stored session once at startup.
   useEffect(() => {
     let live = true;
@@ -56,9 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           } catch (error) {
             // Only a refusal kills the stored token. A network blip must not log the pilot out
             // for good — this launch lands on /login, the next one with the api up restores it.
-            if (error instanceof ApiError && error.status === 401) {
-              await SecureStore.deleteItemAsync(TOKEN_KEY);
-            }
+            if (error instanceof ApiError && error.status === 401) await forget();
           }
         }
       } catch {
@@ -69,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       live = false;
     };
-  }, []);
+  }, [forget]);
 
   /**
    * Keep the account's language level with the app's. It runs as soon as there is a session —
@@ -102,10 +107,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     // Best effort: the local session goes whether or not the api hears about it.
     if (token) await endSession(token).catch(() => {});
-    await SecureStore.deleteItemAsync(TOKEN_KEY);
-    setToken(null);
-    setUser(null);
-  }, [token]);
+    await forget();
+  }, [token, forget]);
 
   const setUsername = useCallback(
     async (username: string) => {
