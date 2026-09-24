@@ -28,6 +28,51 @@ test('the eight states of a frame are eight different frames', () => {
   });
 });
 
+test('each state draws what it is: a picture, a spinner and its words, or a glyph and its words — and nothing else does', () => {
+  const ready = story(<Tile state="ready" uri={A} caption="Проявляем…" label="Фото" />);
+  const developing = story(<Tile state="processing" uri={A} caption="Проявляем…" label="Кадр" />);
+  const broken = story(<Tile state="failed" uri={A} caption="Не загрузилось" label="Кадр" />);
+  const bare = story(<Tile state="ready" caption="Проявляем…" label="Кадр" />);
+  // The picture is there only for a ready frame that has one, whatever else it was handed.
+  expect(ready).toContain('data-testid="image"');
+  for (const other of [developing, broken, bare]) expect(other).not.toContain('data-testid="image"');
+  // The words are for the two frames that are not there yet, never for one that is.
+  expect(ready).not.toContain('Проявляем…');
+  expect(developing).toContain('Проявляем…');
+  expect(broken).toContain('Не загрузилось');
+  expect(broken).not.toContain('Проявляем…');
+  // A fallen frame carries the frame glyph, and the other three have none of it.
+  expect(broken).toContain('data-glyph');
+  for (const other of [ready, developing, bare]) expect(other).not.toContain('data-glyph');
+  // A developing frame turns; a fallen one is still.
+  const spinner = 'width:16px;height:16px';
+  expect(developing).toContain(spinner);
+  expect(broken).not.toContain(spinner);
+  // A ready frame that lost its picture is a bare square and says nothing — the feed never draws
+  // one, because it reads that frame as a fallen one first.
+  expect(bare).not.toContain(spinner);
+  expect(bare).not.toContain('Проявляем…');
+});
+
+test('a running time stands on a ready frame only, and a circle only where a frame is in a picking mode', () => {
+  expect(story(<Tile state="ready" uri={A} length="0:24" label="Видео" />)).toContain('0:24');
+  for (const state of ['processing', 'failed'] as const) {
+    expect(story(<Tile state={state} length="0:24" label="Видео" />)).not.toContain('0:24');
+  }
+  // With a reason the mark is the reason and the time goes.
+  expect(story(<Tile state="ready" uri={A} length="0:24" reason={{ icon: Copy, label: 'Дубль' }} label="Видео" />)).not.toContain('0:24');
+  // No `pick` at all: not in a picking mode, so no circle — the same frame with «off» is the empty
+  // circle in its corner, 22 in the wizard and 24 in the feed. A frame the pass dropped has its
+  // reason where the circle would be, and no circle either.
+  const none = story(<Tile state="ready" uri={A} label="Фото" />);
+  expect(none).not.toContain('width:22px');
+  expect(none).not.toContain('width:24px');
+  expect(story(<Tile state="ready" uri={A} pick="off" label="Фото" />)).toContain('width:22px');
+  expect(story(<Tile state="ready" uri={A} lane="feed" pick="off" label="Фото" />)).toContain('width:24px');
+  const dropped = story(<Tile state="ready" uri={A} pick="auto" reason={{ icon: Copy, label: 'Дубль' }} label="Фото" />);
+  expect(dropped).not.toContain('width:22px');
+});
+
 test('a picked frame goes down under a scrim, and the queue’s frame is ringed over the picture', () => {
   // Spec 7.4 — a picked frame darkens so the circle on it stays the brightest thing in the square.
   const picked = story(<Tile state="ready" uri={A} pick="send" label="Фото" />);
