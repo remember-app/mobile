@@ -920,14 +920,17 @@ test('a card still being made is the second road onto the montage being watched'
   expect(road).not.toContain('frames');
   expect(live).not.toContain('frames?: string;');
 
-  // The other two states keep their own roads: a finished montage has a page of its own since
-  // TASK-222 — spec 7.6 gives the whole card to that press, and it is the journal of how it was cut
-  // that made the page necessary — and a fallen one is started again from its own button.
-  expect(films).toContain('() => openFilm(montage)');
+  // A finished montage has a page of its own since TASK-222 — spec 7.6 gives the whole card to that
+  // press, and it is the journal of how it was cut that made the page necessary. A fallen one leads
+  // to the same screen as one being made, stopped at `failed` over the journal of the attempt that
+  // broke (spec detail 38), and is still started again from its own button.
+  expect(films).toContain(
+    "onPress={state === 'ready' ? () => openFilm(montage) : () => watchMaking(montage)}",
+  );
   expect(films).toContain('onPress={() => void retry(montage)}');
   // And the kit is what makes that true: without a press handed over, the card is not a button and
   // takes no finger at all.
-  expect(cardMontage).toContain('if (!onPress) return <View');
+  expect(cardMontage).toContain('<View style={styles.face}>{face}</View>');
   expect(cardMontage).toContain('accessibilityRole="button"');
 });
 
@@ -978,6 +981,11 @@ test('only the organizer starts a fallen montage again', () => {
   // button is not drawn for them rather than drawn and refused.
   expect(live).toContain("failed && memory?.role === 'organizer' ?");
   expect(live).toContain('label={s.montage.live.retry}');
+  // In the kit's ordinary bottom layer, the one every screen with one button stands it on. The
+  // shallow one drawn under the «Сообщить» pill went with the pill, and with nothing to carry the
+  // screen has no bottom layer at all — so it is this one, and only this one.
+  expect(live).toMatch(/<ActionBar>\s*<Button label=\{s\.montage\.live\.retry\}/);
+  expect(live.match(/<ActionBar/g)).toHaveLength(1);
   expect(live).toContain('retryMontage(token, id, montageId)');
   // The two answers a second press can get, said in words rather than as a status.
   expect(live).toContain('409: s.montage.movedOn');
@@ -1163,11 +1171,17 @@ test('a card still being cut says which of the five stages it is on', () => {
   // opening anybody's journal. `null` is a finished film and one the worker has not opened yet —
   // neither has a scale to draw.
   expect(api).toContain('stages?: MontageStep[] | null;');
-  expect(films).toContain("montage.stages?.filter((stage) => stage.state === 'done').length ?? null");
-  expect(films).toContain('{ done, of: STAGE_COUNT, count: s.montage.live.doneOf(done, STAGE_COUNT) }');
+  // The stage in hand and not the count of the ones behind it — worked out by the very function the
+  // screen the card leads to says «Этап N из 5» with, so the two cannot disagree (spec detail 38).
+  expect(films).toContain('const stage = currentStage(montage.stages ?? []);');
+  expect(films).toContain('stageNumber(stage.stage)');
+  expect(live).toContain('const stage = currentStage(journal.stages);');
+  expect(live).toContain('s.montage.live.stageOf(stageNumber(stage.stage), STAGE_COUNT)');
+  expect(films).not.toContain("stage.state === 'done'");
+  expect(films).toContain('{ at, of: STAGE_COUNT, count: s.montage.live.doneOf(at, STAGE_COUNT) }');
   expect(ru.montage.live.doneOf(3, 5)).toBe('3 из 5');
   // The count and the scale read the one number, so the card cannot say «3» and paint four.
-  expect(cardMontage).toContain('{step ? <StageScale done={step.done} of={step.of} /> : null}');
+  expect(cardMontage).toContain('{step ? <StageScale at={step.at} of={step.of} /> : null}');
   expect(cardMontage).toContain('{step.count}');
 });
 

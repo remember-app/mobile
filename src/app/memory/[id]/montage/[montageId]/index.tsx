@@ -62,8 +62,10 @@ import { space } from '@/theme';
  * hour later reads the journal from wherever it has got to.
  *
  * Two roads in, and the memory is under it both ways: `replace` from the last step of the order, so
- * the way back is never the four steps of an order already placed, and a `push` off the «Собирается»
- * card in the memory's own strip of films, for whoever walked out and came back.
+ * the way back is never the four steps of an order already placed, and a `push` off a card in the
+ * memory's own strip of films — «Собирается», for whoever walked out and came back, or «Не собрался»,
+ * opened cold: the journal of the attempt that broke, read once and not polled, and nothing here
+ * leaves it but «Назад».
  */
 export default function MontageLiveScreen() {
   // The two ids and nothing else. The order wizard hands over more than that — it carries the count
@@ -308,7 +310,7 @@ export default function MontageLiveScreen() {
       {/* The bottom layer carries one thing or nothing at all: a fallen montage is started again by
           the organizer, and everybody else is told by the stage that wears the cross. */}
       {failed && memory?.role === 'organizer' ? (
-        <ActionBar footer="live">
+        <ActionBar>
           <Button label={s.montage.live.retry} disabled={busy} onPress={() => void again()} />
         </ActionBar>
       ) : null}
