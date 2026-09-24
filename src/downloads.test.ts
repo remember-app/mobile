@@ -1,17 +1,23 @@
 import { afterEach, expect, test, vi } from 'vitest';
 
-// Both expo modules touch native code that does not exist under vitest, so the module under test
+// The expo modules touch native code that does not exist under vitest, so the module under test
 // cannot be imported without replacing them first. `vi.hoisted` is what lets the mock factories
 // below (which vitest hoists above these imports) reach back into variables the tests also use.
-const { downloadFileAsync, deleteMock, requestPermissionsAsync, saveToLibraryAsync, share, events } =
-  vi.hoisted(() => ({
-    downloadFileAsync: vi.fn(),
-    deleteMock: vi.fn(),
-    requestPermissionsAsync: vi.fn(),
-    saveToLibraryAsync: vi.fn(),
-    share: vi.fn(),
-    events: [] as string[],
-  }));
+const {
+  downloadFileAsync,
+  deleteMock,
+  requestPermissionsAsync,
+  saveToLibraryAsync,
+  shareAsync,
+  events,
+} = vi.hoisted(() => ({
+  downloadFileAsync: vi.fn(),
+  deleteMock: vi.fn(),
+  requestPermissionsAsync: vi.fn(),
+  saveToLibraryAsync: vi.fn(),
+  shareAsync: vi.fn(),
+  events: [] as string[],
+}));
 
 vi.mock('expo-file-system', () => {
   class File {
@@ -30,9 +36,8 @@ vi.mock('expo-file-system', () => {
 
 vi.mock('expo-media-library/legacy', () => ({ requestPermissionsAsync, saveToLibraryAsync }));
 
-// The phone's own share sheet. Only the one call is wanted here, and nothing else in this module
-// touches React Native at all.
-vi.mock('react-native', () => ({ Share: { share } }));
+// The phone's own share sheet. Only the one call is wanted here.
+vi.mock('expo-sharing', () => ({ shareAsync }));
 
 const { maySaveToPhone, saveToPhone, shareFile } = await import('@/downloads');
 
@@ -91,27 +96,30 @@ test('a frame handed on goes out as the local copy, and the phone’s gallery is
   // would get a refusal instead of a photograph. And sharing is not keeping — nothing is written to
   // the phone's own gallery, so nothing here asks for that permission either.
   downloadFileAsync.mockResolvedValue({ uri: 'file://cache/a.jpg' });
-  share.mockImplementation(async () => events.push('share'));
+  shareAsync.mockImplementation(async () => events.push('share'));
   deleteMock.mockImplementation(() => events.push('delete'));
 
   await shareFile({ id: UUID, kind: 'photo', url: 'https://example/x' });
 
-  expect(share).toHaveBeenCalledWith({ url: 'file://cache/a.jpg' });
+  expect(shareAsync).toHaveBeenCalledWith('file://cache/a.jpg');
   expect(events).toEqual(['share', 'delete']);
   expect(saveToLibraryAsync).not.toHaveBeenCalled();
   expect(requestPermissionsAsync).not.toHaveBeenCalled();
 });
 
-test('a share sheet nobody answered is not a failure, and still sweeps the copy', async () => {
-  // Dismissing the sheet, and a phone with nowhere to send it, both come back as a rejection —
-  // neither is something to tell the person about under the frame they are looking at.
+test('a share sheet that would not open is not a failure, is logged, and still sweeps the copy', async () => {
+  // Nothing under the frame the person is looking at is theirs to fix, so the screen carries on —
+  // but the reason is said where a developer reads it instead of vanishing.
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
   downloadFileAsync.mockResolvedValue({ uri: 'file://cache/a.jpg' });
-  share.mockRejectedValue(new Error('dismissed'));
+  shareAsync.mockRejectedValue(new Error('no sheet'));
 
   await expect(
     shareFile({ id: UUID, kind: 'photo', url: 'https://example/x' }),
   ).resolves.toBeUndefined();
+  expect(warn).toHaveBeenCalledWith('share sheet skipped:', expect.any(Error));
   expect(deleteMock).toHaveBeenCalledTimes(1);
+  warn.mockRestore();
 });
 
 test('a delete that throws does not turn a save that already worked into a failure', async () => {

@@ -653,10 +653,10 @@ export function Frames({ id, head }: { id: string; head: Head }) {
    * out as a local copy and never as the link the api signed: that one dies in a quarter of an hour,
    * so whoever it reached would get a refusal instead of a photograph.
    *
-   * ponytail: one system sheet per file, because neither React Native's own `Share` nor
-   * `expo-sharing` takes more than one attachment — several frames means several sheets, one after
-   * the other. A native share of many items is the upgrade; until then this at least hands every
-   * marked frame on instead of silently dropping all but the first.
+   * ponytail: one system sheet per file, because `expo-sharing` takes one file per call — several
+   * frames means several sheets, one after the other. A native share of many items is the upgrade;
+   * until then this at least hands every marked frame on instead of silently dropping all but the
+   * first.
    */
   async function sharePicked() {
     if (!token) return;

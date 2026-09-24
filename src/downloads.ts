@@ -2,7 +2,7 @@ import { File, Paths } from 'expo-file-system';
 // `expo-media-library/legacy` for the reason the upload screen gives at length: the SDK 57 root
 // throws from the calls this app was written against. Only these two are wanted here.
 import * as MediaLibrary from 'expo-media-library/legacy';
-import { Share } from 'react-native';
+import * as Sharing from 'expo-sharing';
 
 import type { Original } from '@/api';
 
@@ -51,18 +51,14 @@ export async function saveToPhone(file: Original, andThen?: (uri: string) => Pro
  * local copy and never as the link the api signed: that one dies in a quarter of an hour, so
  * whoever it reached would get a refusal instead of a photograph.
  *
- * Dismissing the sheet is not a failure and neither is a phone with nowhere to send it, so the
- * sheet's own answer is swallowed the way the montage screen swallows it.
- *
- * ponytail: React Native's own `Share` attaches a file on iOS only. On Android it reads `message` and
- * nothing else (`url` is dropped before it reaches the intent), so the chooser opens with nothing to
- * send, and it resolves the moment the chooser is up — before anyone has picked an app, which is
- * also before the cached copy is deleted below. `expo-sharing` is the upgrade, and it is the same
- * ceiling the finished montage already shares.
+ * Through `expo-sharing` and not React Native's own `Share`, which attaches a file on iOS only: on
+ * Android it drops `url` before the intent and the chooser opens with nothing to send. Closing the
+ * sheet is not a failure and resolves; a sheet that could not open at all is logged and not shown,
+ * because there is nothing under the frame the person is looking at that they could do about it.
  */
 export async function shareFile(file: Original) {
   await inCache(file, async (uri) => {
-    await Share.share({ url: uri }).catch(() => {});
+    await Sharing.shareAsync(uri).catch((e) => console.warn('share sheet skipped:', e));
   });
 }
 

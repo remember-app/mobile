@@ -23,6 +23,10 @@ vi.mock('expo-secure-store', () => ({
 // the coordinates; the test that is about the geocoder itself mocks it again with answers of its own.
 vi.mock('expo-location', () => ({ reverseGeocodeAsync: async () => [] }));
 
+// The phone's own share sheet. Here it opens and is closed at once; the test that is about what
+// goes into it mocks it again and watches the call.
+vi.mock('expo-sharing', () => ({ shareAsync: async () => {} }));
+
 // Photos and posters. `expo-image` and not React Native's own — `kit/tile.tsx` says why. It stands
 // in as a plain view wearing the same style, so what a part does *to* a picture — dimming a dropped
 // frame, rounding a thumbnail — is still there to be read off the markup.

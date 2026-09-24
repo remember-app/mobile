@@ -43,8 +43,8 @@ export type WithFilm = 'save' | 'share' | 'both';
  *
  * ponytail: React Native's own `Share` attaches a file on iOS only — on Android the sheet goes out
  * with the line and without the video, which after `both` is in the phone's gallery and shareable
- * from there. `expo-sharing` is the upgrade when that is not good enough, and `@/downloads` carries
- * the same ceiling for a single frame.
+ * from there. `expo-sharing` is the upgrade when that is not good enough, and `shareFile` in
+ * `@/downloads` already uses it.
  */
 export function useFilmActions(memory: Memory | null) {
   const s = useStrings();
