@@ -71,6 +71,10 @@ test('what is drawn while the finger is down is the finger’s own place, and th
 test('to a screen reader the bar is a control that steps five percent either way and stops at the ends', async () => {
   const seeks: number[] = [];
   const at = async (value: number) => scrubber(value, (to) => seeks.push(to));
+  // What a screen reader is told it may do to the bar, and how far along it is — on a scale from nought.
+  const bar = await at(0.35);
+  expect(bar.pad().props.accessibilityActions).toEqual([{ name: 'increment' }, { name: 'decrement' }]);
+  expect(bar.pad().props.accessibilityValue).toEqual({ min: 0, max: 100, now: 35 });
   await (await at(0.5)).step('increment');
   await (await at(0.5)).step('decrement');
   await (await at(0.98)).step('increment');
