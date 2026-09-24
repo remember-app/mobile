@@ -118,7 +118,7 @@ export default function MontageLiveStageScreen() {
       <AppBar
         variant="live"
         title={s.montage.stage[code]}
-        // «Этап 3 из 5 · 61 из 212 · идёт 4 мин» — where this stage stands, said the same way the
+        // «Этап 5 из 5 · 12 из 38 · идёт 2 мин» — where this stage stands, said the same way the
         // row it was opened from says it.
         subtitle={[s.montage.live.stageOf(stageNumber(code), STAGE_COUNT), row && stageLine(row, s)]
           .filter(Boolean)

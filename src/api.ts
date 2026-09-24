@@ -1040,9 +1040,11 @@ export type MontageStageOutcome = {
 };
 
 /**
- * One of the five stages as the journal reports it. `eta_seconds` on the stage being worked on is
- * what is *left* of it rather than what it will take in all, and the three counts at the end are the
- * api's own tally over the records — the worker never writes those, so they cannot disagree.
+ * One of the five stages as the journal reports it. `done_count` moves only on the two stages the
+ * worker counts as it goes, screening and assembly; the other three hold it at 0 until they are
+ * done. On those two `eta_seconds` is reckoned again at every step as what is left of the stage; on
+ * the rest it stays the estimate of the whole of it (`minutesLeft`). The three counts at the end are
+ * the api's own tally over the records — the worker never writes those, so they cannot disagree.
  */
 export type MontageStage = {
   stage: MontageStageCode;
