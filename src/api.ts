@@ -1134,6 +1134,8 @@ export type JournalQuery = {
   /** Records older than this one — paging back through a journal already being read. */
   before?: number;
   stage?: MontageStageCode;
+  /** How many records at most. The api's own page is 200, and it takes up to 500. */
+  limit?: number;
 };
 
 /**

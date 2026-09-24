@@ -52,8 +52,12 @@ export default function MontageDoneScreen() {
   const { token } = useAuth();
   const s = useStrings();
 
-  /** The same journal the live screen read, and it is read the same way — it just no longer moves. */
-  const journal = useMontageJournal(token, id, montageId);
+  /**
+   * The same journal the live screen read, and it is read the same way — it just no longer moves.
+   * All five stages are opened out here, so each of them brings its own last records along, however
+   * far behind the newest page they lie.
+   */
+  const journal = useMontageJournal(token, id, montageId, { everyStage: true });
 
   const [montage, setMontage] = useState<Montage | null>(null);
   const [roster, setRoster] = useState<Member[] | null>(null);
