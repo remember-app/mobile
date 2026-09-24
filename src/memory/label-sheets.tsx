@@ -1,4 +1,4 @@
-import { Lock, Pencil, Trash2, Users } from 'lucide-react-native';
+import { Lock, Pencil, Trash2, Unlink, Users } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -58,6 +58,15 @@ type Refusals = Partial<Record<number, string>>;
 
 function worded(e: unknown, refused: Refusals): string {
   return (e instanceof ApiError && refused[e.status]) || errorMessage(e);
+}
+
+/**
+ * A failure, said on a sheet. «Вас больше нет в этом воспоминании» is about the person and not the
+ * connection, so it wears the glyph of a tie that is cut rather than the banner's own «no signal».
+ */
+function Refusal({ text }: { text: string }) {
+  const s = useStrings();
+  return <Banner tone="error" text={text} icon={text === s.memory.gone ? Unlink : undefined} />;
 }
 
 export function LabelSheets({
@@ -362,7 +371,7 @@ export function LabelsSheet({
         <Button variant="dashed" label={s.labels.newOne} disabled={busy} onPress={onNew} />
       }
     >
-      {error === null ? null : <Banner tone="error" text={error} />}
+      {error === null ? null : <Refusal text={error} />}
       {labels === null ? (
         error === null ? (
           <Waiting text={s.state.loading} />
@@ -434,7 +443,7 @@ export function LabelNewSheet({
         />
       }
     >
-      {error === null ? null : <Banner tone="error" text={error} />}
+      {error === null ? null : <Refusal text={error} />}
 
       <Field
         label={s.labels.name}

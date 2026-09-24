@@ -23,10 +23,11 @@ vi.mock('@/downloads', () => ({
 // handed to the sheet's `onSubmit` directly below.
 vi.mock('@/kit', async (original) => ({ ...(await original<typeof import('@/kit')>()), Field: () => null }));
 
+import { Unlink, WifiOff } from 'lucide-react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 
 import type { Label, MediaItem } from '@/api';
-import { Banner, Button, Chip, ConfirmSheet, IconButton, RowLabel, Tile } from '@/kit';
+import { Banner, Button, Chip, ConfirmSheet, Icon, IconButton, RowLabel, Tile } from '@/kit';
 import { label } from '@/label-fixtures';
 import { Frames } from '@/memory/frames';
 import { FilterSheet } from '@/memory/frames-sheets';
@@ -188,6 +189,9 @@ async function open() {
     press,
     tap: (name: string) => press(screen.row(name)),
     banner: () => tree.root.findByType(LabelSheets).findAllByType(Banner).map((one) => one.props.text as string),
+    /** The glyph each banner on the labels sheet draws beside its words. */
+    glyph: () =>
+      tree.root.findByType(LabelSheets).findAllByType(Banner).map((one) => one.findByType(Icon).props.icon),
     /** «Фильтры» → pick these label chips → «Показать». Returns the chips the sheet offered. */
     filterBy: async (...titles: string[]) => {
       await openFilter();
@@ -314,11 +318,14 @@ test('labels that cannot be read leave the feed as it is, offer none on the filt
   await screen.pick('a');
   await screen.openLabels();
   expect(screen.banner()).toEqual([ru.error.offline]);
-  // Removed from the memory meanwhile: the api's 404 on the list is «you are not in it any more».
+  expect(screen.glyph()).toEqual([WifiOff]);
+  // Removed from the memory meanwhile: the api's 404 on the list is «you are not in it any more» —
+  // about the person and not the connection, and the glyph says so too.
   db.refuse = (asked) => (asked.path === '/labels' ? json({}, 404) : undefined);
   await screen.closeLabels();
   await screen.openLabels();
   expect(screen.banner()).toEqual([ru.memory.gone]);
+  expect(screen.glyph()).toEqual([Unlink]);
 });
 
 test('a viewer who may not file into a label has a row that does nothing and sends nothing', async () => {

@@ -1,5 +1,5 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft, Unlink } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
@@ -184,7 +184,8 @@ export default function MontageLiveScreen() {
   const minutes = minutesLeft(journal.stages);
 
   // Not in the memory, or no longer: the api's 404, and not a connection that will come back. The
-  // journal gives way to the one line every screen of a memory says it with.
+  // journal gives way to the one line every screen of a memory says it with — under the glyph of a
+  // tie that is cut, not of a signal that is lost.
   if (journal.standing === 'refused') {
     return (
       <Board>
@@ -194,7 +195,7 @@ export default function MontageLiveScreen() {
           left={<IconButton icon={ChevronLeft} label={s.action.back} onPress={leave} />}
         />
         <View style={styles.body}>
-          <Banner tone="error" text={s.memory.gone} />
+          <Banner tone="error" icon={Unlink} text={s.memory.gone} />
         </View>
       </Board>
     );

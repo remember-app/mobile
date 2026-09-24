@@ -29,6 +29,7 @@ vi.mock('@/downloads', () => ({
   shareFile: async () => {},
 }));
 
+import { Unlink, WifiOff } from 'lucide-react-native';
 import { AppState } from 'react-native';
 import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
 
@@ -39,9 +40,11 @@ import MontageLiveStageScreen from '@/app/memory/[id]/montage/[montageId]/stage/
 import {
   AppBar,
   BadgeDecision,
+  Banner,
   CardMontage,
   CardNow,
   Chip,
+  Icon,
   LogEntry,
   NoteThought,
   RowStep,
@@ -730,11 +733,18 @@ describe('a journal the api will not give', () => {
   }
   const knocks = (api: Replay) => api.served.filter((one) => one === 'journal_of_stranger').length;
 
+  /** The glyph each banner on the screen draws beside its words. */
+  const glyphs = (screen: Screen) =>
+    screen.root.findAllByType(Banner).map((one) => one.findByType(Icon).props.icon);
+
   test('is not said to be a lost connection', async () => {
     const { api, screen } = await sitInFront();
     expect(knocks(api)).toBe(1);
     expect(words(screen.root)).not.toContain(ru.montage.live.lost);
     expect(words(screen.root)).toContain(ru.memory.gone);
+    // One banner, and not under the «no signal» glyph either: a tie that is cut.
+    expect(glyphs(screen)).toEqual([Unlink]);
+    expect(glyphs(screen)).not.toContain(WifiOff);
     await screen.unmount();
   });
 
@@ -754,6 +764,7 @@ describe('a journal the api will not give', () => {
     expect(api.served.filter((one) => one.includes('/journal'))).toHaveLength(1);
     expect(words(screen.root)).toContain(ru.memory.gone);
     expect(words(screen.root)).not.toContain(ru.montage.live.lost);
+    expect(glyphs(screen)).toEqual([Unlink]);
     await screen.unmount();
   });
 });

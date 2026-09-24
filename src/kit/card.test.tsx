@@ -1,4 +1,4 @@
-import { ImageIcon, UserPlus } from 'lucide-react-native';
+import { ImageIcon, Unlink, UserPlus } from 'lucide-react-native';
 import { beforeAll, expect, test } from 'vitest';
 
 import { Button, IconButton } from '@/kit/button';
@@ -64,6 +64,14 @@ test('the two connection banners are two banners, and only one of them can be pu
   );
   expect(online).not.toContain('aria-label="Скрыть сообщение"');
   expect(online).toContain('Соединение установлено');
+});
+
+test('an error banner that is not about the connection draws its own glyph, in the same voice', () => {
+  allDifferent({
+    offline: <Banner text="Вас больше нет в этом воспоминании." />,
+    gone: <Banner icon={Unlink} text="Вас больше нет в этом воспоминании." />,
+  });
+  expect(story(<Banner icon={Unlink} text="Вас больше нет" />)).toContain('stroke="#FF8D8D"');
 });
 
 test('a banner says it is a banner, and the offline one is read in the dangerous voice', () => {
