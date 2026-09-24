@@ -437,11 +437,16 @@ export const isFresh = (journal: Journal, entry: JournalEntry): boolean =>
  * Why a frame was passed over. The worker's vocabulary is open — the api puts no check on the
  * column — so a code this app has no word for is read as «not suitable» rather than shown raw or
  * dropped: it is still an honest thing to say about a frame nobody took.
+ *
+ * Own keys only: the code is the model's own words, and `in` would hand `__proto__` or
+ * `constructor` back as an object or a function for the screen to render.
  */
 export function reasonWord(reason: string | null, s: Strings): string | undefined {
   if (!reason) return undefined;
   const words = s.montage.live.reason;
-  return reason in words ? words[reason as keyof typeof words] : words.other;
+  return Object.prototype.hasOwnProperty.call(words, reason)
+    ? words[reason as keyof typeof words]
+    : words.other;
 }
 
 /**

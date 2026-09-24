@@ -651,6 +651,11 @@ describe('the record in words', () => {
     expect(reasonWord('shaky_pan', ru)).toBe(ru.montage.live.reason.other);
     expect(reasonWord('shaky_pan', en)).toBe(en.montage.live.reason.other);
     expect(reasonWord(null, ru)).toBe(undefined);
+    // The code is the model's own words: a name off the object's prototype is just another unknown
+    // word, not an object or a function handed to a `<Text>`.
+    for (const code of ['__proto__', 'constructor', 'toString']) {
+      expect(reasonWord(code, ru)).toBe(ru.montage.live.reason.other);
+    }
   });
 
   test('every reason the api names has a word in both languages', () => {
