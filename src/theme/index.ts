@@ -2,14 +2,7 @@ import * as SecureStore from 'expo-secure-store';
 import { createContext, useContext, useSyncExternalStore } from 'react';
 import { Appearance, type ColorSchemeName } from 'react-native';
 
-import {
-  type Color,
-  type Shadow,
-  type Theme,
-  type ThemeChoice,
-  type ThemeName,
-  themes,
-} from './colors';
+import { type Theme, type ThemeChoice, type ThemeName, themes } from './colors';
 
 /**
  * Which of the two themes the app is drawing in, and the two hooks everything reads it through.

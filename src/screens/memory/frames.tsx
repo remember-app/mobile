@@ -1,4 +1,4 @@
-import { useFocusEffect, useIsFocused, useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import {
   ArrowUpDown,
   CircleCheckBig,
@@ -11,59 +11,28 @@ import {
   Trash2,
 } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Animated,
-  PanResponder,
-  RefreshControl,
-  StyleSheet,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { Animated, RefreshControl, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import {
-  ApiError,
-  deleteMedia,
-  downloadAllMedia,
-  errorMessage,
-  type Label,
-  listLabels,
-  listMedia,
-  listMembers,
-  type MediaItem,
-  type Member,
-  mayContribute,
-  memberName,
-} from '@/api';
+import { type Label, type MediaItem, mayContribute, memberName } from '@/api';
 import {
   ActionBar,
   Banner,
   Button,
   ConfirmSheet,
-  DateSpine,
   DayMark,
-  EASE,
   Empty,
   FEED_GAP,
   IconButton,
   Tile,
-  useReducedMotion,
   Waiting,
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
-import {
-  formatDayShort,
-  formatDayTiny,
-  formatEventDates,
-  formatRuntime,
-  formatWeekday,
-} from '@/lib/dates';
-import { maySaveToPhone, saveToPhone, shareFiles } from '@/lib/downloads';
+import { formatDayShort, formatEventDates, formatRuntime, formatWeekday } from '@/lib/dates';
 import {
   allTaken,
   arranged,
   COLUMNS,
-  dateMarks,
   FILTER_NONE,
   type Filter,
   type Frame,
@@ -74,14 +43,11 @@ import {
   framesMatching,
   groupFrames,
   keepLabels,
-  keepReady,
   mayOpen,
   mayPick,
   megabytesOf,
-  removeFrames,
   SORT_DEFAULT,
   type Sort,
-  stillPreparing,
   toggleDay,
   toggleEvery,
 } from '@/lib/frames';
@@ -89,35 +55,13 @@ import { filed } from '@/lib/labels';
 import { useStrings } from '@/lib/language';
 import { Films } from '@/screens/memory/films';
 import { FrameViewer } from '@/screens/memory/frame-viewer';
+import { useMarkedErrands } from '@/screens/memory/frames-errands';
+import { useMaterial } from '@/screens/memory/frames-material';
 import { FilterSheet, SortSheet } from '@/screens/memory/frames-sheets';
+import { SpineLayer, useSpine } from '@/screens/memory/frames-spine';
 import { BlockHead, type Head, MemoryHead } from '@/screens/memory/head';
 import { LabelSheets } from '@/screens/memory/label-sheets';
-import { board, duration, height, space, themed, useTheme } from '@/theme';
-
-/**
- * How long the feed waits before looking again while the worker is still making something. A
- * thumbnail takes it seconds, so this is about the time somebody spends noticing the frame is not
- * finished yet.
- */
-const WHILE_PREPARING_MS = 3000;
-
-/** How long the date spine stands after the feed stops, before it goes (spec 6). */
-const SPINE_HOLD_MS = 1000;
-
-/**
- * How wide a strip of the right edge the spine answers a finger in. Wider than the hairline and the
- * pills it carries, narrower than a tap target: it is live only while the spine itself is visible,
- * and a strip as wide as a thumb would be swallowing flicks meant for the feed underneath.
- */
-const SPINE_GRAB = 32;
-
-/**
- * A pill on the spine is 16 tall and stands centred on the seam between two rows (spec 7.8, detail
- * 66): half a gutter above the row that opens the day, and half its own height above that. What
- * `dateMarks` hands over is where the row starts, so this is how far above it the pill's top edge
- * goes — without it the pill sits inside the first row of its day, 9 short of the layout.
- */
-const SEAM_LIFT = FEED_GAP / 2 + 8;
+import { board, height, space, themed, useTheme } from '@/theme';
 
 /** A seam over a strip of frames — every cut but the one that has no seam at all. */
 type Seam = Exclude<FrameGroup, { by: 'all' }>;
@@ -161,21 +105,8 @@ export function Frames({ id, head }: { id: string; head: Head }) {
    * gaps to leave — so the last frame of the feed came out wider than every frame above it, which is
    * what the designer measured. Rotating the phone re-reads the width.
    */
-  const { width, height: screen } = useWindowDimensions();
+  const { width } = useWindowDimensions();
   const cell = { width: (width - FEED_GAP * 2) / 3 };
-  // null means «not loaded yet», the distinction the montage block draws too: a reload after a
-  // delete keeps the feed on screen instead of flashing the spinner over it.
-  const [items, setItems] = useState<MediaItem[] | null>(null);
-  /** Everybody in this memory: where the caller stands, the names over the groups and the frames. */
-  const [roster, setRoster] = useState<Member[] | null>(null);
-  /**
-   * The boxes of this memory as this person may see them — the «ЛЕЙБЛЫ» row of the filter sheet
-   * (spec 10.8.2). Nothing but that row is cut from them: which frames lie in a box is the frames'
-   * own `label_ids`, and that comes down with the gallery.
-   */
-  const [labels, setLabels] = useState<Label[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   /** The record the viewer is showing, held by id so a reload hands it a fresh signed url. */
   const [open, setOpen] = useState<string | null>(null);
   /**
@@ -193,8 +124,6 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   const [filter, setFilter] = useState<Filter>(FILTER_NONE);
   const [sort, setSort] = useState<Sort>(SORT_DEFAULT);
   const [tuning, setTuning] = useState<Tuning | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
   /**
    * Whether this screen is still the one the errand below is running for. `busy` cannot answer
    * that: it lives in state that goes with the screen, and saving or sharing an armful outlives it —
@@ -210,169 +139,39 @@ export function Frames({ id, head }: { id: string; head: Head }) {
     },
     [],
   );
-  /**
-   * How many times this screen has written the feed itself — a frame deleted, a label filed. That
-   * answer is newer than any quiet read already in flight, and such a read landing afterwards would
-   * put the api's older snapshot back over it: the deleted frame would come back, and with nothing
-   * left developing in that snapshot the loop below would stop and never read again. So a quiet read
-   * carries the count it started under and drops its answer when that has moved (the films strip
-   * keeps the same guard for the same reason).
-   */
-  const writes = useRef(0);
-
-  /**
-   * The date spine (spec 7.8, detail 66, and `MemoryScrub`). Four things are needed to draw it and
-   * none of them is in the material: how far the list has been moved, how tall the block of films
-   * over the frames came out, and how the whole of the feed compares to the screen it is being read
-   * through — a feed shorter than the screen has no spine at all.
-   *
-   * The offset is an `Animated.Value` written straight from the scroll on the native side, and the
-   * marks ride on it as one translated layer: they stand on the seams of the feed, so they have to
-   * move exactly as the photographs do, and doing that through React state would be re-rendering
-   * this whole screen sixty times a second.
-   */
+  /** The feed itself, for the one thing outside it that moves it: a finger on the spine. */
   const list = useRef<Animated.FlatList<Row>>(null);
-  const scrolled = useRef(new Animated.Value(0)).current;
-  const spineFade = useRef(new Animated.Value(0)).current;
-  const [scrolling, setScrolling] = useState(false);
-  const [headerHeight, setHeaderHeight] = useState(0);
-  const [feed, setFeed] = useState({ content: 0, view: 0 });
-  const reduced = useReducedMotion();
-  /** The timer that ends the spine's stay; null while it is not standing. */
-  const stay = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  /**
-   * Spec 6 — the spine proves while a finger is moving the feed and goes a second after it stops:
-   * 120 coming, 400 going, and neither under «уменьшить движение», where it simply is or is not.
-   * Every scroll event lands here, so the arrival is only played once a burst and the rest of the
-   * burst just pushes the departure back.
-   */
-  const moving = useCallback(() => {
-    const fade = (toValue: number, ms: number) =>
-      Animated.timing(spineFade, {
-        toValue,
-        duration: reduced ? 0 : ms,
-        easing: EASE,
-        useNativeDriver: true,
-      }).start();
-    // The arrival, and the one re-render the whole burst costs: sixty events a second must not be
-    // sixty dispatches at a screen holding a wall of photographs.
-    if (stay.current === null) {
-      fade(1, duration.spineIn);
-      setScrolling(true);
-    } else {
-      clearTimeout(stay.current);
-    }
-    stay.current = setTimeout(() => {
-      stay.current = null;
-      setScrolling(false);
-      fade(0, duration.spineOut);
-    }, SPINE_HOLD_MS);
-  }, [spineFade, reduced]);
-
-  // The timer outlives the screen otherwise: it holds `setScrolling`, and a memory left while the
-  // spine is still up would be writing state into a screen that has gone.
-  useEffect(
-    () => () => {
-      if (stay.current !== null) clearTimeout(stay.current);
-    },
+  const scrollTo = useCallback(
+    (offset: number) => list.current?.scrollToOffset({ offset, animated: false }),
     [],
   );
 
-  const load = useCallback(
-    // `quiet` belongs to the re-read below: that one happens on its own every few seconds, and it
-    // must not light the pull-to-refresh spinner over a feed somebody is looking at, nor blank it
-    // back to «Loading…» on the one read that fails.
-    (quiet = false) => {
-      if (!token) return;
-      if (!quiet) {
-        setError(null);
-        setLoading(true);
-      }
-      // The listing carries neither a role nor a name, and this screen needs both: who may delete
-      // what, and who brought the frame that is open or the strip that is grouped by them. The
-      // roster answers all of it in one read.
-      const startedAt = writes.current;
-      Promise.all([listMedia(token, id), listMembers(token, id)])
-        .then(
-          ([media, members]) => {
-            // Stale by the time it landed — see `writes`. A read somebody asked for is never stale.
-            if (quiet && writes.current !== startedAt) return;
-            // A quiet read is looking for what the worker has finished, and it must not disturb
-            // what was already finished: `keepReady` holds every `ready` record's own object, so
-            // the urls behind the frames on screen do not move and nothing is fetched twice.
-            setItems((have) => (quiet ? keepReady(have, media) : media));
-            setRoster(members);
-            setError(null);
-          },
-          (e: unknown) => {
-            if (!quiet) setError(errorMessage(e));
-          },
-        )
-        .finally(() => {
-          if (!quiet) setLoading(false);
-        });
-    },
-    [token, id],
-  );
-
   /**
-   * The labels, read on their own rather than as a third hand in the listing above. Three reasons,
-   * and each of them is why this is not in `load`: the quiet re-read runs every three seconds while
-   * the worker is finishing something and a box does not move on its own; a labels read that will
-   * not come back must not put an error over a feed that is perfectly fine — the row simply is not
-   * offered; and this is read again at the one moment the boxes actually change, which is the labels
-   * sheet closing over this very screen (spec 10.8.2: the row answers a box made, renamed, deleted
-   * or filled without the app being restarted).
+   * What the memory holds and how it is kept fresh — its own module: when to read, what a read may
+   * overwrite and what to do with one that comes back too late is a subject of its own, and none of
+   * it is about drawing a wall of frames.
    */
-  const loadLabels = useCallback(() => {
-    if (!token) return;
-    listLabels(token, id).then(
-      (all) => {
-        setLabels(all);
-        // A box somebody else deleted leaves the filter too, the way one deleted here does.
-        setFilter((have) => keepLabels(have, (one) => all.some((label) => label.id === one)));
-      },
-      () => {},
-    );
-  }, [token, id]);
+  const { items, roster, labels, error, loading, read, readLabels, wrote } = useMaterial({
+    memoryId: id,
+    token,
+    // A box somebody else deleted leaves the filter too, the way one deleted here does.
+    onLabels: useCallback(
+      (all: Label[]) =>
+        setFilter((have) => keepLabels(have, (one) => all.some((label) => label.id === one))),
+      [],
+    ),
+  });
 
-  // On focus rather than on mount, the way the home screen does it: what is drawn here changes on
-  // the worker's side, and the signed urls die in a quarter hour, so a screen that read once when it
-  // was first opened is showing whatever was true then.
-  //
-  // And the open frame is shut on the way out (TASK-94, extended in review): leaving without
-  // closing it — a tapped push, a deep link, anything that is not the cross, the delete or the
-  // hardware key — left the frame standing on a window of its own over whatever screen came next,
-  // because the memory stays mounted behind a `router.push`. Since TASK-124 it cost a second thing
-  // as well: the window is what hands the app its freedom to turn, and nothing was giving it back.
+  // The open frame is shut on the way out of the screen (TASK-94, extended in review): leaving
+  // without closing it — a tapped push, a deep link, anything that is not the cross, the delete or
+  // the hardware key — left the frame standing on a window of its own over whatever screen came
+  // next, because the memory stays mounted behind a `router.push`. Since TASK-124 it cost a second
+  // thing as well: the window is what hands the app its freedom to turn, and nothing was giving it
+  // back.
   //
   // The sheets are not in here: they are the kit's own `Sheet`, and since TASK-129 a sheet shuts
   // itself when the screen under it loses focus.
-  useFocusEffect(
-    useCallback(() => {
-      load();
-      loadLabels();
-      return () => setOpen(null);
-    }, [load, loadLabels]),
-  );
-
-  // And the same reason again with nobody navigating: a record turns `ready` while this screen is
-  // open and in front, and until this loop existed nothing ever told it — the frame stayed in
-  // «Проявляем…» for as long as the person kept looking, which is exactly what they reported. Only
-  // while something is actually being made, and only while this screen is the one in front:
-  // «Добавить ещё» leaves the whole memory mounted behind it.
-  const preparing = stillPreparing(items);
-  const focused = useIsFocused();
-  useEffect(() => {
-    if (!preparing || !focused) return;
-    // An interval and not a timeout chained off each read: a single read that comes back on a bad
-    // connection would end the chain, and it would end it silently — the quiet read is quiet about
-    // failing too. This one keeps its own time and is cleared the moment there is nothing left
-    // being made, the screen goes behind another, or it unmounts.
-    const timer = setInterval(() => load(true), WHILE_PREPARING_MS);
-    return () => clearInterval(timer);
-  }, [preparing, focused, load]);
+  useFocusEffect(useCallback(() => () => setOpen(null), []));
 
   const memory = head.memory;
   // The caller's own standing, read off their row the way the roster is read.
@@ -438,71 +237,18 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   const sheet = useMemo(() => rows.flatMap((row) => row.frames ?? []), [rows]);
 
   /**
-   * Where the first row of frames starts, in points down the list's own content: the top the feed
-   * is pushed down by to clear the glass, the block of films over it as it actually came out, and
-   * the one gutter between that block and the frames. Everything below rides a row's pitch — a
-   * square tile and the gutter under it.
+   * The date spine at the right edge (spec 7.8, detail 66, `MemoryScrub`): its own module, because
+   * none of it is about the frames — it measures the feed, fades itself in and out and answers a
+   * finger, and all it wants from here is what is being drawn and how tall a row of it is.
    */
-  const feedTop = insets.top + height.roundViewer + space.s4 + headerHeight + FEED_GAP;
-  const rowPitch = cell.width + FEED_GAP;
-  /** How much of the feed is out of sight — nothing at all, on one shorter than the screen. */
-  const reach = feed.content - feed.view;
-
-  /**
-   * The marks on the spine: one per day, on the seam between the two rows where that day begins
-   * (spec 7.8). Only on the wall — cut into days, people or kinds, the seam itself says where a day
-   * begins — and only when there is something to scroll: «лента короче экрана — стержня нет вовсе».
-   */
-  const spine = useMemo(
-    () =>
-      sort.by !== 'none' || sort.dates || headerHeight === 0 || reach <= 0
-        ? []
-        : dateMarks(sheet, { top: feedTop, row: rowPitch }).map((mark) => ({
-            label: formatDayTiny(new Date(mark.at)),
-            top: mark.top - SEAM_LIFT,
-          })),
-    [sort, sheet, headerHeight, reach, feedTop, rowPitch],
-  );
-
-  /** Where the strip the spine is grabbed by begins and how tall it is: between the two glasses. */
-  const grabTop = insets.top + height.roundViewer;
-  const grabSpan = Math.max(1, screen - board.footerGallery - grabTop);
-
-  /**
-   * Dragging the spine throws the feed (spec 7.8): where the finger stands on the strip is where the
-   * feed stands in itself. It only answers touches that *begin* on the strip, and only while the
-   * spine is visible — otherwise a flick along the right edge would stop being a flick halfway
-   * through it.
-   */
-  const pan = useMemo(() => {
-    const jump = (pageY: number) => {
-      if (reach <= 0) return;
-      const part = Math.min(1, Math.max(0, (pageY - grabTop) / grabSpan));
-      list.current?.scrollToOffset({ offset: part * reach, animated: false });
-      // A finger holding the spine still is holding the spine: the feed sends nothing while it
-      // does not move, and the thing being held must not fade out from under it.
-      moving();
-    };
-    return PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onPanResponderGrant: (e) => jump(e.nativeEvent.pageY),
-      onPanResponderMove: (e) => jump(e.nativeEvent.pageY),
-    });
-  }, [reach, grabTop, grabSpan, moving]);
-
-  /**
-   * The scroll itself, hung once rather than rebuilt on every render: it carries a native animation
-   * on one end and this screen's own fade on the other, and re-attaching it mid-flick is a dropped
-   * frame under the finger.
-   */
-  const onScroll = useMemo(
-    () =>
-      Animated.event([{ nativeEvent: { contentOffset: { y: scrolled } } }], {
-        useNativeDriver: true,
-        listener: moving,
-      }),
-    [scrolled, moving],
-  );
+  const { spine, onScroll, onContentSizeChange, onLayout, onHeaderLayout } = useSpine({
+    frames: sheet,
+    // Cut into people or kinds, or with the dates written between the days, the seams already say
+    // where a day begins and there is nothing for a spine to add.
+    plain: sort.by === 'none' && !sort.dates,
+    rowPitch: cell.width + FEED_GAP,
+    scrollTo,
+  });
 
   /** Everybody who actually brought something, for the chips the filter sheet offers. */
   const brought = useMemo(() => {
@@ -589,118 +335,19 @@ export function Frames({ id, head }: { id: string; head: Head }) {
     setPicking((on) => !on);
   }
 
-  /** The grant, asked for at the moment it is needed, with this screen's place to say «no». */
-  async function maySave(): Promise<boolean> {
-    const granted = await maySaveToPhone();
-    if (!granted) setNotice(s.error.galleryRefused);
-    return granted;
-  }
-
   /**
-   * The links to the originals of what is marked. One ask for the lot rather than one per file,
-   * which is what «скачать всё» has always cost and is why the route exists at all.
-   *
-   * ponytail: a link per marked record is the upgrade, and it would fix the expiry below too —
-   * worth it the day a memory is big enough for the signing itself to be felt.
+   * Keeping what is marked, handing it on, taking it out — the three errands of the picking mode,
+   * in their own module: each outlives the press that started it, and all three share one «busy»
+   * and one banner.
    */
-  async function markedFiles(session: string) {
-    return (await downloadAllMedia(session, id)).filter((file) => picked.has(file.id));
-  }
-
-  /**
-   * What is marked, one file after another onto the phone. A file that will not come down is
-   * counted rather than fatal, because the person wanting several of them wants the rest of them
-   * too. The count is the only progress there is: a save is atomic here.
-   */
-  async function savePicked() {
-    if (!token) return;
-    setBusy(true);
-    setNotice(null);
-    try {
-      if (!(await maySave())) return;
-      const files = await markedFiles(token);
-      let failed = 0;
-      for (const [index, file] of files.entries()) {
-        // Between files and not mid-file: whoever walked out of the memory is not waiting on the
-        // rest of it, and the one already coming down may as well land. What must not happen is
-        // this going on unattended — see `onScreen`.
-        if (!onScreen.current) return;
-        setNotice(s.save.nth(index + 1, files.length));
-        try {
-          await saveToPhone(file);
-        } catch {
-          // ponytail: the links are signed in one go and live about fifteen minutes, so a selection
-          // too big to save inside that window loses its tail to this counter. Re-signing per file
-          // is the upgrade, and the summary already tells the person to tap again.
-          failed += 1;
-        }
-      }
-      setNotice(
-        failed === 0 ? s.save.all(files.length) : s.save.some(files.length - failed, files.length),
-      );
-    } catch (e) {
-      setNotice(e instanceof ApiError ? e.message : s.save.failedAll);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  /**
-   * The same armful handed on instead of kept — the left button of the picking mode. Each file goes
-   * out as a local copy and never as the link the api signed: that one dies in a quarter of an hour,
-   * so whoever it reached would get a refusal instead of a photograph.
-   *
-   * ponytail: one system sheet per file, because `expo-sharing` takes one file per call — several
-   * frames means several sheets, one after the other, and leaving the screen is what breaks the
-   * chain. A native share of many items is the upgrade; until then this at least hands every marked
-   * frame on instead of silently dropping all but the first.
-   */
-  async function sharePicked() {
-    if (!token) return;
-    setBusy(true);
-    setNotice(s.viewer.sharing);
-    try {
-      await shareFiles(await markedFiles(token), () => onScreen.current);
-      setNotice(null);
-    } catch (e) {
-      setNotice(e instanceof ApiError ? e.message : s.viewer.shareFailed);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  /**
-   * What is marked, out of the memory for good — and only what this person may take out: their own
-   * frames, or anybody's if they are the organizer. The api refuses the rest, so the sheet counts
-   * what will actually go and never promises the rest.
-   *
-   * Whatever did go leaves the feed even if the run stopped halfway: the records are gone on the
-   * server, and a feed still drawing them would open windows onto nothing.
-   */
-  async function deletePicked() {
-    if (!token) return;
-    setDropping(false);
-    setBusy(true);
-    setNotice(null);
-    // A frame somebody else already took out is gone all the same, and does not stop the run.
-    const { gone, failure } = await removeFrames(
-      deletable,
-      (item) => deleteMedia(token, id, item.id),
-      () => onScreen.current,
-    );
-    if (gone.size > 0) {
-      writes.current += 1;
-      setItems((have) => have?.filter((one) => !gone.has(one.id)) ?? null);
-    }
-    if (failure !== undefined) {
-      setNotice(
-        failure instanceof ApiError && failure.status === 403
-          ? s.gallery.deleteDenied
-          : errorMessage(failure),
-      );
-    }
-    setBusy(false);
-  }
+  const { busy, notice, save, share, drop } = useMarkedErrands({
+    memoryId: id,
+    token,
+    picked,
+    deletable,
+    onScreen,
+    onGone: (gone) => wrote((have) => have?.filter((one) => !gone.has(one.id)) ?? null),
+  });
 
   /** The days of the event under the memory's name, and what it holds — the capsule's second line. */
   const dates = memory === null ? '' : formatEventDates(memory.event_start, memory.event_end);
@@ -739,15 +386,10 @@ export function Frames({ id, head }: { id: string; head: Head }) {
         // with the photographs, and the listener is what lights the thing and puts it out again.
         onScroll={onScroll}
         scrollEventThrottle={16}
-        // The two numbers that say whether there is anything to scroll at all, and how far a drag
-        // on the spine reaches. Guarded, because a list writes both on every layout pass.
-        onContentSizeChange={(_width, content) =>
-          setFeed((was) => (was.content === content ? was : { ...was, content }))
-        }
-        onLayout={(e) => {
-          const view = e.nativeEvent.layout.height;
-          setFeed((was) => (was.view === view ? was : { ...was, view }));
-        }}
+        // What the spine measures itself against: how much there is to scroll, and how much of it
+        // is in view.
+        onContentSizeChange={onContentSizeChange}
+        onLayout={onLayout}
         // The feed runs under the glass bar and under the bottom layer, and starts far enough down
         // for the block over it to clear the bar. An empty one is one block in the middle instead.
         contentContainerStyle={[
@@ -763,7 +405,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
         refreshControl={
           <RefreshControl
             refreshing={loading}
-            onRefresh={() => load()}
+            onRefresh={() => read()}
             tintColor={color.accent}
             colors={[color.accent]}
             progressBackgroundColor={color.surface}
@@ -777,12 +419,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
             // Measured rather than reckoned: the films are a block whose height is its own business
             // — a strip, an empty state, nothing at all while it reads — and the spine's marks are
             // counted from the first row of frames, which stands under it.
-            <View
-              onLayout={(e) => {
-                const tall = e.nativeEvent.layout.height;
-                setHeaderHeight((was) => (was === tall ? was : tall));
-              }}
-            >
+            <View onLayout={onHeaderLayout}>
               <Films id={id} memory={memory} />
               <BlockHead
                 title={s.memory.framesPlain}
@@ -801,7 +438,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
             <Banner tone="error" text={error}>
               {/* Wrapped rather than handed `load` itself: a press hands its own argument along,
                   and the first one here is «read quietly». */}
-              <Button variant="quiet" size="xs" label={s.action.retry} onPress={() => load()} />
+              <Button variant="quiet" size="xs" label={s.action.retry} onPress={() => read()} />
             </Banner>
           ) : items === null ? (
             <Waiting text={s.state.loading} />
@@ -900,35 +537,8 @@ export function Frames({ id, head }: { id: string; head: Head }) {
         }}
       />
 
-      {/* `MemoryScrub` — the spine at the right edge: a hairline with a pill on every seam where a
-          day begins, proving while the feed is moving and gone a second after it stops. It lies
-          over the photographs and takes no room from them, and it is not there at all when the
-          dates are written between the days, when the feed is cut by people or by kind, or when
-          there is less of it than a screen.
-
-          The marks are moved by the scroll itself rather than by this screen re-rendering: they are
-          drawn where the feed's own seams are, and translated by however far it has been moved. */}
-      {spine.length === 0 ? null : (
-        <Animated.View
-          // Dead to a finger unless the spine can be seen: what is drawn at nought opacity is still
-          // a thing in the way of the feed underneath.
-          pointerEvents={scrolling ? 'box-none' : 'none'}
-          style={[styles.spine, { opacity: spineFade }]}
-        >
-          <Animated.View
-            style={[
-              styles.spineFeed,
-              {
-                height: feed.content,
-                transform: [{ translateY: Animated.multiply(scrolled, -1) }],
-              },
-            ]}
-          >
-            <DateSpine marks={spine} />
-          </Animated.View>
-          <View style={[styles.grab, { top: grabTop, height: grabSpan }]} {...pan.panHandlers} />
-        </Animated.View>
-      )}
+      {/* The spine at the right edge, over the photographs and taking no room from them. */}
+      <SpineLayer {...spine} />
 
       {/* Spec 7.1, detail 4 — the glass over the feed. In the feed it is «Назад», the memory's name
           and the way into picking; while picking it is the labels, what is marked, and the same
@@ -1004,7 +614,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
               tone="glass"
               size={height.round}
               label={s.action.share}
-              onPress={() => void sharePicked()}
+              onPress={() => void share()}
               disabled={busy || marked.length === 0}
             />
             <Button
@@ -1017,7 +627,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
               label={
                 marked.length === 0 ? s.gallery.nothingPicked : s.gallery.download(marked.length)
               }
-              onPress={() => void savePicked()}
+              onPress={() => void save()}
               disabled={busy || marked.length === 0}
             />
             {/* Spec 7.2 — the dangerous round one is glass with a `dangerText` glyph: red is the
@@ -1109,8 +719,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
           memoryId={id}
           frames={marked}
           onFiled={(labelId, ids, now) => {
-            writes.current += 1;
-            setItems((have) => filed(have, labelId, ids, now));
+            wrote((have) => filed(have, labelId, ids, now));
             // A box that has gone — «ids null» is the whole feed losing it — takes itself out of the
             // filter as well (spec 10.8.2). Left in, it would be narrowing the feed to a label no
             // frame carries any more, with no chip anywhere to press it off again.
@@ -1121,7 +730,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
           // being restarted.
           onClose={() => {
             setLabelling(false);
-            loadLabels();
+            readLabels();
           }}
         />
       ) : null}
@@ -1142,7 +751,10 @@ export function Frames({ id, head }: { id: string; head: Head }) {
         text={s.gallery.deleteText}
         confirmLabel={s.action.delete}
         cancelLabel={s.gallery.keep}
-        onConfirm={() => void deletePicked()}
+        onConfirm={() => {
+          setDropping(false);
+          void drop();
+        }}
         onCancel={() => setDropping(false)}
       />
 
@@ -1162,8 +774,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
           onOpen={setOpen}
           onClose={() => setOpen(null)}
           onRemoved={(gone) => {
-            writes.current += 1;
-            setItems((have) => have?.filter((one) => one.id !== gone) ?? null);
+            wrote((have) => have?.filter((one) => one.id !== gone) ?? null);
             setOpen(null);
           }}
         />
@@ -1192,14 +803,6 @@ const useStyles = themed(() =>
     // The bottom layer stands over the feed and takes no room from it: the gradient inside it is
     // what the last frames pass under.
     bottom: { position: 'absolute', left: 0, right: 0, bottom: 0 },
-    // The spine's own layer: the whole screen, so the hairline runs its full height (spec 7.8).
-    spine: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-    // And inside it the feed's own coordinates — as tall as everything there is to scroll, moved
-    // up by however much of it has been. The line and the marks live in here together, so both
-    // stand still against the photographs instead of against the phone.
-    spineFeed: { position: 'absolute', top: 0, left: 0, right: 0 },
-    // Where a finger takes hold of it: the right edge between the two glasses, drawn by nothing.
-    grab: { position: 'absolute', right: 0, width: SPINE_GRAB },
     notice: { marginHorizontal: space.s4, marginTop: space.s3 },
     // Where the one action of the screen would stand for somebody who may add to it.
     grow: { flex: 1 },

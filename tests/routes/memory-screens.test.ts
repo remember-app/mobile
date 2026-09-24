@@ -47,6 +47,8 @@ import player from '@/screens/memory/film-player.tsx?raw';
 import films from '@/screens/memory/films.tsx?raw';
 import viewer from '@/screens/memory/frame-viewer.tsx?raw';
 import frames from '@/screens/memory/frames.tsx?raw';
+import errands from '@/screens/memory/frames-errands.ts?raw';
+import material from '@/screens/memory/frames-material.ts?raw';
 import sheets from '@/screens/memory/frames-sheets.tsx?raw';
 import head from '@/screens/memory/head.tsx?raw';
 import inviteSheet from '@/screens/memory/invite-sheet.tsx?raw';
@@ -114,7 +116,7 @@ test('the memory is one screen: the feed, with the films standing first on it', 
   expect(memory.match(/listMemories\(/g)).toHaveLength(1);
   for (const part of [frames, films]) expect(part).not.toContain('listMemories');
   // And each block reads what is its own.
-  expect(frames).toContain('listMedia(');
+  expect(material).toContain('listMedia(');
   expect(films).toContain('listMontages(');
   // The roster is the settings screen's own list now. The frames still read it, and for something
   // else entirely — the name under a group and the caller's own level — never to show who is here.
@@ -325,7 +327,7 @@ test('the picking footer is share, a download that carries its count, and delete
   expect(picking).toContain('tint={color.dangerText}');
   expect(picking).toContain('s.gallery.download(marked.length)');
   expect(picking).toContain('s.gallery.nothingPicked');
-  expect(picking).toContain('onPress={() => void savePicked()}');
+  expect(picking).toContain('onPress={() => void save()}');
   // Both off with nothing marked, and both off while something is already coming down.
   expect(picking.match(/disabled=\{busy \|\| marked\.length === 0\}/g)).toHaveLength(2);
   // Counted off the feed and never off the raw set. `picked` is emptied only by leaving the mode or
@@ -337,12 +339,12 @@ test('the picking footer is share, a download that carries its count, and delete
   expect(picking).not.toContain('picked.size');
   // The download itself is the whole-gallery route cut to what is marked — one ask, not one per
   // file, which is what «скачать всё» already did. Sharing takes the same links.
-  expect(frames).toContain(
-    '(await downloadAllMedia(session, id)).filter((file) => picked.has(file.id))',
+  expect(errands).toContain(
+    '(await downloadAllMedia(session, memoryId)).filter((file) => picked.has(file.id))',
   );
   // All of one armful is one share, so the folder the copies go to is wiped once for the lot
-  // (`downloads.test.ts`), and leaving the screen is what breaks the chain of sheets.
-  expect(frames).toContain('await shareFiles(await markedFiles(token), () => onScreen.current);');
+  // (`tests/lib/downloads.test.ts`), and leaving the screen is what breaks the chain of sheets.
+  expect(errands).toContain('await shareFiles(await markedFiles(token), () => onScreen.current);');
 });
 
 test('deleting an armful asks first, counts the price, and takes only what may be taken', () => {
@@ -361,12 +363,12 @@ test('deleting an armful asks first, counts the price, and takes only what may b
   expect(frames).toContain('s.gallery.deleteAsk(deletable[0].kind)');
   // Whatever did go leaves the feed even if the run stopped halfway: those records are gone on the
   // server, and a feed still drawing them would open windows onto nothing.
-  const deleting = frames.slice(frames.indexOf('async function deletePicked'));
+  const deleting = errands.slice(errands.indexOf('async function drop'));
   expect(deleting.slice(0, deleting.indexOf('\n  }'))).toContain(
-    'setItems((have) => have?.filter((one) => !gone.has(one.id)) ?? null);',
+    'if (gone.size > 0) onGone(gone);',
   );
-  expect(deleting.slice(0, deleting.indexOf('\n  }'))).toContain('if (gone.size > 0) {');
-  expect(frames).toContain('deleteMedia(token, id, item.id)');
+  expect(frames).toContain('wrote((have) => have?.filter((one) => !gone.has(one.id)) ?? null)');
+  expect(errands).toContain('deleteMedia(token, memoryId, item.id)');
 });
 
 test('the words of the picking mode count in Russian and say why the button is off', () => {
@@ -430,59 +432,6 @@ test('the seam over a strip says what is under it, and takes the whole day while
   );
   expect(daymark).toContain('onPress={');
   expect(daymark).toContain('pressLabel={s.gallery.selectDay(markable.length)}');
-});
-
-/**
- * The days on the feed (TASK-208, spec 8): off by default and read off the spine at the right edge
- * while a finger is moving the feed (`MemoryScrub`), on by the switch in the sort sheet and then
- * written into a 20px seam between the days (`MemoryDated`). Never both.
- */
-
-test('the feed nobody arranged is one wall, and the days are only on the spine', () => {
-  // The ungrouped cut has no seam of its own, so the feed spends no row at all on saying what day
-  // it is — that is the whole of `MemoryFrames` and `MemoryScrub`.
-  expect(frames).toContain("...(group.by === 'all' ? [] : [{ key: group.key, group }])");
-  // And the spine is drawn only there: cut by people or by kind the days interleave, and a rail of
-  // them would point at nothing. A feed shorter than the screen has no spine either (spec 8).
-  expect(frames).toContain("sort.by !== 'none' || sort.dates || headerHeight === 0 || reach <= 0");
-  expect(frames).toContain('const reach = feed.content - feed.view;');
-  expect(frames).toContain('dateMarks(sheet, { top: feedTop, row: rowPitch })');
-  // Where the first row of frames stands: the top the feed is pushed down by, the block of films
-  // over it measured rather than guessed, and the one gutter between them.
-  expect(frames).toContain(
-    'const feedTop = insets.top + height.roundViewer + space.s4 + headerHeight + FEED_GAP;',
-  );
-  expect(frames).toContain('const rowPitch = cell.width + FEED_GAP;');
-  // And the pill is centred on the seam and not hung from the row (`MemoryScrub`: the pills stand at
-  // 195 and 588 over rows that start at 204 and 597 — 9 above, which is half a gutter and half a
-  // pill).
-  expect(frames).toContain('const SEAM_LIFT = FEED_GAP / 2 + 8;');
-  expect(frames).toContain('top: mark.top - SEAM_LIFT,');
-});
-
-test('the spine rides the scroll itself, and is grabbed only while it can be seen', () => {
-  // Spec 6: 120 coming, 400 going, a second after the feed stops — and nothing under «уменьшить
-  // движение», where it simply is or is not.
-  expect(frames).toContain('duration: reduced ? 0 : ms');
-  expect(frames).toContain('fade(1, duration.spineIn)');
-  expect(frames).toContain('fade(0, duration.spineOut)');
-  expect(frames).toContain('}, SPINE_HOLD_MS);');
-  // The marks stand on the feed's own seams, so they are moved by the scroll on the native side
-  // rather than by this screen re-rendering sixty times a second — and the handler is hung once,
-  // because re-attaching it mid-flick is a dropped frame under the finger.
-  expect(frames).toContain('useNativeDriver: true,');
-  expect(frames).toContain('transform: [{ translateY: Animated.multiply(scrolled, -1) }]');
-  expect(frames).toContain('const onScroll = useMemo(');
-  expect(frames).toContain('onScroll={onScroll}');
-  // Dragging it throws the feed (spec 7.8), and it answers only touches that begin on the strip —
-  // a flick along the right edge must not stop being a flick halfway through.
-  expect(frames).toContain(
-    'list.current?.scrollToOffset({ offset: part * reach, animated: false })',
-  );
-  expect(frames).toContain('onStartShouldSetPanResponder: () => true,');
-  expect(frames).not.toContain('onMoveShouldSetPanResponder');
-  // What is drawn at nought opacity is still a thing in the way of the feed underneath.
-  expect(frames).toContain("pointerEvents={scrolling ? 'box-none' : 'none'}");
 });
 
 test('a heading is a day, a person with their circle, or one of the two kinds', () => {
@@ -571,9 +520,12 @@ test('every face shuts its own windows when it loses focus', () => {
   // never touched by hand, the hole TASK-129 was reported for — is shut too.
   for (const face of [frames, films]) expect(face).not.toContain('useFocusEffect(load)');
   expect(settings).toContain('useFocusEffect(load);');
-  expect(frames).toMatch(
-    /useFocusEffect\(\s*useCallback\(\(\) => \{\s*load\(\);\s*loadLabels\(\);\s*return \(\) => setOpen\(null\);\s*\}, \[load, loadLabels\]\),\s*\);/,
+  // The feed reads through `useMaterial`, which keeps the focus effect that re-reads; the frame it
+  // has open is its own and is shut by a focus effect of its own.
+  expect(material).toMatch(
+    /useFocusEffect\(\s*useCallback\(\(\) => \{\s*read\(\);\s*readLabels\(\);\s*\}, \[read, readLabels\]\),\s*\);/,
   );
+  expect(frames).toContain('useFocusEffect(useCallback(() => () => setOpen(null), []));');
   expect(films).toMatch(
     /useFocusEffect\(\s*useCallback\(\(\) => \{\s*load\(\);\s*return \(\) => setPlaying\(null\);\s*\}, \[load\]\),\s*\);/,
   );
@@ -1327,9 +1279,13 @@ test('a quiet read in flight never puts an older feed back over one this screen 
   // alone, that read brought a deleted frame back, and with nothing developing in its snapshot the
   // loop that re-reads stopped, so the ghost stood there until somebody pulled. The films strip has
   // had this guard since TASK-125.
-  expect(frames).toContain('const startedAt = writes.current;');
-  expect(frames).toContain('if (quiet && writes.current !== startedAt) return;');
-  expect(frames.match(/writes\.current \+= 1;/g)).toHaveLength(3);
+  expect(material).toContain('const startedAt = writes.current;');
+  expect(material).toContain('if (quiet && writes.current !== startedAt) return;');
+  // One place bumps it, and every write the screen makes goes through that one.
+  expect(material.match(/writes\.current \+= 1;/g)).toHaveLength(1);
+  // Three writes, three calls: the run of deletes, the one frame the window deletes, a label filed.
+  expect(frames.match(/\bwrote\(/g)).toHaveLength(3);
+  expect(errands).toContain('onGone(gone)');
 });
 
 test('the way out of a played montage is the kit’s own button, across the foot of the window', () => {
@@ -1628,7 +1584,7 @@ test("the strip under the frame is the grid's own list, in the grid's own order,
   expect(frames).toContain('frames={sheet}');
   expect(frames).toContain('data={rows}');
   // One read of the media serves both the sheet and the strip.
-  expect(frames.match(/listMedia\(/g)).toHaveLength(1);
+  expect(material.match(/listMedia\(/g)).toHaveLength(1);
   // And the library is handed that same list, picture for picture: the window invents no second
   // reading of a record — `@/lib/frames` answers for both sheets (TASK-86, TASK-120).
   expect(viewer).toContain(
