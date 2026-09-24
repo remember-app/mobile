@@ -13,28 +13,15 @@
 
 import { expect, test } from 'vitest';
 import layout from '@/app/_layout.tsx?raw';
-import create from '@/app/create.tsx?raw';
 import home from '@/app/index.tsx?raw';
-import memory from '@/app/memory/[id].tsx?raw';
 // The viewer's strip is the library's own part, and what it does with a finger was learned three
 // times over on a real phone — so it is read here, beside the window that mounts it.
 import filmstrip from '@/kit/filmstrip.tsx?raw';
-// Where both gutters of spec 7.8 are named, so a screen that measures a column out of one of them
-// is measuring it out of the library rather than out of a number it chose.
-import tile from '@/kit/tile.tsx?raw';
-// The arithmetic both the movies face and the waiting screen ask their «is it still being made»
-// question through, so the two cannot drift apart about what the answer is.
-import montage from '@/lib/montage/order.ts?raw';
-// The one player this product has: the strip on the feed and the film's own page both raise it,
-// which is why neither of them holds a `Modal` of its own any more (TASK-222).
-import player from '@/screens/memory/film-player.tsx?raw';
 import films from '@/screens/memory/films.tsx?raw';
 import viewer from '@/screens/memory/frame-viewer.tsx?raw';
 import frames from '@/screens/memory/frames.tsx?raw';
-import errands from '@/screens/memory/frames-errands.ts?raw';
 import material from '@/screens/memory/frames-material.ts?raw';
 import sheets from '@/screens/memory/frames-sheets.tsx?raw';
-import when from '@/screens/memory/when.tsx?raw';
 import { en, ru } from '@/strings';
 
 test('the material of a memory has one name — on the card, on the switch, over the sheet', () => {

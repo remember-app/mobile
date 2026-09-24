@@ -12,18 +12,12 @@
 
 import { api, flat } from '@tests/helpers/source';
 import { expect, test } from 'vitest';
-import layout from '@/app/_layout.tsx?raw';
 import create from '@/app/create.tsx?raw';
 import home from '@/app/index.tsx?raw';
 import edit from '@/app/memory/[id]/edit.tsx?raw';
-import done from '@/app/memory/[id]/montage/[montageId]/done.tsx?raw';
 import settings from '@/app/memory/[id]/settings.tsx?raw';
-import memory from '@/app/memory/[id].tsx?raw';
 import member from '@/kit/member.tsx?raw';
-import push from '@/lib/push.ts?raw';
 import cover from '@/screens/memory/cover.tsx?raw';
-import viewer from '@/screens/memory/frame-viewer.tsx?raw';
-import frames from '@/screens/memory/frames.tsx?raw';
 import when from '@/screens/memory/when.tsx?raw';
 import { en, ru } from '@/strings';
 

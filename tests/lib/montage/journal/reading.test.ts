@@ -12,7 +12,7 @@ vi.mock('expo-secure-store', () => ({
 }));
 vi.mock('expo-router', () => ({ useFocusEffect: () => {}, useIsFocused: () => true }));
 
-import { entry, idsOf, page, run, serving, stage } from '@tests/helpers/journal';
+import { entry, idsOf, page, run, serving } from '@tests/helpers/journal';
 import { isFresh, NO_JOURNAL, pull, pullOlder } from '@/lib/montage/journal';
 
 /**

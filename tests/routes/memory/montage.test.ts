@@ -11,22 +11,16 @@
  * where a thing stands, and what is no longer in the file.
  */
 
-import { api, flat } from '@tests/helpers/source';
+import { api } from '@tests/helpers/source';
 import { expect, test } from 'vitest';
 import layout from '@/app/_layout.tsx?raw';
 import done from '@/app/memory/[id]/montage/[montageId]/done.tsx?raw';
 import live from '@/app/memory/[id]/montage/[montageId]/index.tsx?raw';
 import stageLog from '@/app/memory/[id]/montage/[montageId]/stage/[stage].tsx?raw';
-import memory from '@/app/memory/[id].tsx?raw';
 import cardMontage from '@/kit/card-montage.tsx?raw';
-// Where both gutters of spec 7.8 are named, so a screen that measures a column out of one of them
-// is measuring it out of the library rather than out of a number it chose.
-import tile from '@/kit/tile.tsx?raw';
 // The arithmetic both the movies face and the waiting screen ask their «is it still being made»
 // question through, so the two cannot drift apart about what the answer is.
 import montage from '@/lib/montage/order.ts?raw';
-import push from '@/lib/push.ts?raw';
-import cover from '@/screens/memory/cover.tsx?raw';
 // The one player this product has: the strip on the feed and the film's own page both raise it,
 // which is why neither of them holds a `Modal` of its own any more (TASK-222).
 import player from '@/screens/memory/film-player.tsx?raw';

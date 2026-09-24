@@ -11,11 +11,9 @@
  * where a thing stands, and what is no longer in the file.
  */
 
-import { api, flat } from '@tests/helpers/source';
+import { flat } from '@tests/helpers/source';
 import { expect, test } from 'vitest';
-import done from '@/app/memory/[id]/montage/[montageId]/done.tsx?raw';
 import upload from '@/app/memory/[id]/upload.tsx?raw';
-import memory from '@/app/memory/[id].tsx?raw';
 // The kit files read here: the sheet's offset from the header is the appbar's own padding, and the
 // montage card is where the poster a face hands over actually lands.
 import bars from '@/kit/bars.tsx?raw';
@@ -25,7 +23,7 @@ import tile from '@/kit/tile.tsx?raw';
 import viewer from '@/screens/memory/frame-viewer.tsx?raw';
 import frames from '@/screens/memory/frames.tsx?raw';
 import sheets from '@/screens/memory/frames-sheets.tsx?raw';
-import { en, ru } from '@/strings';
+import { ru } from '@/strings';
 
 test('every column of a contact sheet is the same width, the last row included', () => {
   for (const sheet of [frames, upload]) {
