@@ -58,8 +58,10 @@ import { en, ru } from '@/strings';
  * Their text and not their rendered output, because this file has no renderer: every test here
  * runs pure logic, and a screen would need `react-native` transformed and `expo-router`,
  * `expo-video` and the safe area all faked before its first line ran. What is worth pinning about a
- * reorganisation is the shape of it — that much the text answers. These go the day a render harness
- * arrives — which it has, for the labels alone (`memory/*-flow.test.tsx`, `react-test-renderer`).
+ * reorganisation is the shape of it — that much the text answers. A render harness has arrived since
+ * (`react-test-renderer`, README «Истории»), and what these screens *do* — the picking mode, the
+ * delete, the roster, the save, the sheets — is read there, in `*-flow.test.tsx`. What stays here is
+ * what only the text can say: where a thing stands, and what is no longer in the file.
  */
 
 /**

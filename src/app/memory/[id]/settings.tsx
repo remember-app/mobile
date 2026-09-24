@@ -151,7 +151,15 @@ export default function MemorySettingsScreen() {
   const drop = (target: Member) =>
     act(
       async (session) => {
-        await removeMember(session, id, target.id);
+        try {
+          await removeMember(session, id, target.id);
+        } catch (e) {
+          // 404 is «they are not in it any more»: somebody got there first. The line saying so is
+          // about a roster this screen is still drawing wrong, so it is read again — left alone, the
+          // row and its cross stood there under a line that contradicted them.
+          if (e instanceof ApiError && e.status === 404) load();
+          throw e;
+        }
         load();
         return null;
       },

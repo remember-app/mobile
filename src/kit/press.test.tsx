@@ -12,6 +12,7 @@ import { ActionMenu } from '@/kit/menu';
 import { Palette } from '@/kit/palette';
 import { RowAction } from '@/kit/rows';
 import { Segment } from '@/kit/segment';
+import { RowToggle, Toggle } from '@/kit/toggle';
 import { LengthSlider } from '@/kit/slider';
 import { labelColors, themes } from '@/theme';
 import { mounted, mountsTrees } from '@/test-renderer';
@@ -195,4 +196,24 @@ test('a segment says which of its values is the chosen one to a screen reader, a
   await act(async () => pill('Сначала новые').props.onPress());
   expect(said).toEqual(['newest']);
   expect(root.findByProps({ accessibilityRole: 'radiogroup' }).props.accessibilityLabel).toBe('Порядок');
+});
+
+test('a switch flips to the other value when its row is pressed, says which it is on to a screen reader, and does nothing while it is unavailable', async () => {
+  for (const [name, node] of [
+    ['bare', (value: boolean, disabled: boolean, said: boolean[]) => <Toggle label="Сможет добавлять фото" value={value} disabled={disabled} onValueChange={(v) => said.push(v)} />],
+    ['in a card', (value: boolean, disabled: boolean, said: boolean[]) => <RowToggle label="Даты между днями" note="Выключено — дата видна только на полосе" value={value} disabled={disabled} onValueChange={(v) => said.push(v)} />],
+  ] as const) {
+    const said: boolean[] = [];
+    const off = (await draw(node(false, false, said))).findByProps({ accessibilityRole: 'switch' });
+    expect(off.props.accessibilityState).toEqual({ checked: false, disabled: false });
+    await act(async () => off.props.onPress());
+    const on = (await draw(node(true, false, said))).findByProps({ accessibilityRole: 'switch' });
+    expect(on.props.accessibilityState.checked).toBe(true);
+    await act(async () => on.props.onPress());
+    expect(said, name).toEqual([true, false]);
+    // Unavailable: the row is disabled, and says so.
+    const shut = (await draw(node(false, true, said))).findByProps({ accessibilityRole: 'switch' });
+    expect(shut.props.disabled).toBe(true);
+    expect(shut.props.accessibilityState.disabled).toBe(true);
+  }
 });
