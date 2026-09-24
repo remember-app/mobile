@@ -628,6 +628,8 @@ export const en = {
     sharedDenied:
       'Only people who can add photos may make a shared label. You can make a private one.',
     gone: 'This label is no longer here.',
+    /** A 404 with no label in the path: the memory's own check, so this person was taken out of it. */
+    memoryGone: 'You are no longer in this memory.',
   },
 
   /**
@@ -1467,6 +1469,7 @@ export const ru: Strings = {
 
     sharedDenied: 'Общий лейбл могут завести те, кто добавляет фото. Вы можете завести личный.',
     gone: 'Этого лейбла больше нет.',
+    memoryGone: 'Вас больше нет в этом воспоминании.',
   },
 
   montage: {

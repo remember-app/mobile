@@ -54,6 +54,7 @@ import {
   framesByDay,
   framesMatching,
   groupFrames,
+  keepLabels,
   keepReady,
   mayOpen,
   mayPick,
@@ -62,7 +63,6 @@ import {
   SORT_DEFAULT,
   stillPreparing,
   toggleEvery,
-  withoutLabel,
   type Filter,
   type Frame,
   type FrameGroup,
@@ -322,7 +322,11 @@ export function Frames({ id, head }: { id: string; head: Head }) {
    */
   const loadLabels = useCallback(() => {
     if (!token) return;
-    listLabels(token, id).then(setLabels, () => {});
+    listLabels(token, id).then((all) => {
+      setLabels(all);
+      // A box somebody else deleted leaves the filter too, the way one deleted here does.
+      setFilter((have) => keepLabels(have, (one) => all.some((label) => label.id === one)));
+    }, () => {});
   }, [token, id]);
 
   // On focus rather than on mount, the way the home screen does it: what is drawn here changes on
@@ -1102,7 +1106,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
             // A box that has gone — «ids null» is the whole feed losing it — takes itself out of the
             // filter as well (spec 10.8.2). Left in, it would be narrowing the feed to a label no
             // frame carries any more, with no chip anywhere to press it off again.
-            if (ids === null) setFilter((have) => withoutLabel(have, labelId));
+            if (ids === null) setFilter((have) => keepLabels(have, (one) => one !== labelId));
           }}
           // The row of boxes on the filter sheet is read again on the way out: this is the one place
           // a label is made, renamed, deleted or filled, and the row has to say so without the app

@@ -24,6 +24,7 @@ import {
   framesByDay,
   framesMatching,
   groupFrames,
+  keepLabels,
   keepReady,
   mayOpen,
   mayPick,
@@ -35,7 +36,6 @@ import {
   SORT_DEFAULT,
   stillPreparing,
   toggleEvery,
-  withoutLabel,
   type Filter,
   type Sort,
 } from '@/frames';
@@ -639,13 +639,16 @@ test('a box that has gone takes itself out of the filter, and nothing else with 
     labels: new Set(['best', 'mine']),
     people: new Set(['liza']),
   };
-  const left = withoutLabel(had, 'best');
+  const left = keepLabels(had, (one) => one !== 'best');
   expect([...left.labels]).toEqual(['mine']);
   expect(left.people).toBe(had.people);
-  // One it was never narrowed by comes back as it is — the screen holding it re-renders over
-  // nothing otherwise.
-  expect(withoutLabel(had, 'other')).toBe(had);
-  expect(filtering(withoutLabel({ ...FILTER_NONE, labels: new Set(['best']) }, 'best'))).toBe(false);
+  // Deleted by somebody else: the list read afresh no longer has it, and that is what is kept.
+  const listed = new Set(['mine', 'other']);
+  expect([...keepLabels(had, (one) => listed.has(one)).labels]).toEqual(['mine']);
+  // Nothing to drop comes back as it is — the screen holding it re-renders over nothing otherwise.
+  expect(keepLabels(had, (one) => one !== 'other')).toBe(had);
+  const only: Filter = { ...FILTER_NONE, labels: new Set(['best']) };
+  expect(filtering(keepLabels(only, (one) => one !== 'best'))).toBe(false);
 });
 
 test('the spark dot means «no longer at its default», and nothing else', () => {
