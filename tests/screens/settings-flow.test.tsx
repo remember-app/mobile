@@ -544,13 +544,20 @@ test('the sheet names the price in figures — how many frames and movies go —
   expect(state.log.filter((one) => one.method === 'DELETE')).toEqual([]);
 });
 
-test('a memory with nothing in it names no price: there is nothing to lose', async () => {
+test('a memory with no frames in it names no price: there is nothing to count it in', async () => {
   world({ card: { media_count: 0, montage_count: 0 } });
-  const screen = await open();
+  let screen = await open();
   await screen.press(() => screen.button(ru.settings.delete)[0]);
   expect(screen.sheet()[0].props.price).toBeUndefined();
   // No cover and no frames — the sheet is the plain one, with the words alone.
   expect(screen.sheet()[0].props.thumb).toBeUndefined();
+
+  // And the same with movies still on it: the price is written in frames first, so «0 кадров и
+  // 1 ролик» is what naming one here would read as.
+  world({ card: { media_count: 0, montage_count: 2 } });
+  screen = await open();
+  await screen.press(() => screen.button(ru.settings.delete)[0]);
+  expect(screen.sheet()[0].props.price).toBeUndefined();
 });
 
 test('confirming deletes it in one request and leaves for the main screen', async () => {
