@@ -86,8 +86,8 @@ test('the edit mode puts the pair of buttons where the circle was, and stops the
 });
 
 test('a row nobody can press is not a button, and wears no circle either', () => {
-  // A viewer on somebody else's shared label: the server says «нельзя класть», so the row keeps the
-  // colour, the name and the meta and loses the one thing that promised a press.
+  // Where the server says «нельзя класть», the row keeps the colour, the name and the meta and
+  // loses the one thing that promised a press.
   const shut = story(<RowLabel tint={AMBER} name="Лучшее" scope="own" scopeLabel="только вы" />);
   expect(shut).not.toContain('role="button"');
   expect(shut).toContain('Лучшее');

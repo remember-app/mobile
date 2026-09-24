@@ -679,8 +679,8 @@ export function deleteMedia(
  * `can_edit` (rename, recolour, delete) and `can_add_media` (put frames in) are **the server's own
  * answer about this asker**, worked out by the same function that refuses the write routes
  * (`labelDenial`, api README). The app never repeats the rule: a button is drawn where the server
- * said it may be. Neither of them is `mine` — a shared label is edited by its maker and by the
- * organizer, and filled by anybody who may add material at all.
+ * said it may be. Neither of them is `mine` — a shared label is edited and filled by every member,
+ * a viewer included (decision-12).
  */
 export type Label = {
   id: string;
@@ -710,8 +710,9 @@ export function listLabels(token: string, memoryId: string): Promise<Label[]> {
  * together or not at all. Answers with the row the listing would give, so the sheet that made it
  * puts it straight into its own list without asking again.
  *
- * `shared` is settled here and never again (decision-12): the api has no way to move a box between
- * shared and private after the fact. 403 when a viewer tries to make a shared one.
+ * `shared` is settled here and never again: moving a box between shared and private after the fact
+ * is not allowed (decision-12). 403 when a viewer tries to make a shared one — a viewer makes
+ * private ones only.
  */
 export function createLabel(
   token: string,
@@ -764,8 +765,7 @@ export function addLabelMedia(
 
 /**
  * Take a batch back out of the box — out of the label and never out of the memory. A frame that was
- * not in it is not an error. One frame in the batch this person may not take out refuses the whole
- * batch (403): they marked frames and have to hear «нельзя», not find half of them still filed.
+ * not in it is not an error. Any member takes frames out of a shared label, whoever put them in.
  */
 export function removeLabelMedia(
   token: string,
