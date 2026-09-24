@@ -77,8 +77,6 @@ export default function MemorySettingsScreen() {
   // Who the confirm sheet is asking about; null is «no sheet». The sheet is the whole state: holding
   // a boolean beside the member would let the two disagree.
   const [dropping, setDropping] = useState<Member | null>(null);
-  // Whether the memory itself is being asked about. Its own flag and not a second use of the one
-  // above: the two sheets ask about different things and must never be open at once.
   const [wiping, setWiping] = useState(false);
 
   const load = useCallback(() => {
@@ -393,8 +391,9 @@ export default function MemorySettingsScreen() {
 
       {/* The sheet that asks about the memory: the thing on it is its cover — or, with none chosen,
           the first of the frames its card is drawn from — the meta is its name and its days, and the
-          price is in figures, how many frames and movies go. An empty memory names no price: there
-          is nothing in it to lose, and «0 кадров исчезнут» would be a price nobody is paying. */}
+          price is in figures, how many frames and movies go. Counted off the frames, as the sheet
+          beside it counts a departure: the price always opens with them, so a memory with none says
+          «0 кадров исчезнут» — a price nobody is paying — however many movies were cut from them. */}
       {wiping && memory !== null ? (
         <ConfirmSheet
           visible
@@ -403,7 +402,7 @@ export default function MemorySettingsScreen() {
             .filter(Boolean)
             .join(' · ')}
           price={
-            memory.media_count + memory.montage_count > 0
+            memory.media_count
               ? s.settings.deletePrice(memory.media_count, memory.montage_count)
               : undefined
           }

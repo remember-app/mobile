@@ -1374,9 +1374,9 @@ export const ru: Strings = {
     deletePrice: (frames: number, movies: number) => {
       const parts = [count(frames, 'кадр', 'кадра', 'кадров')];
       if (movies > 0) parts.push(count(movies, 'ролик', 'ролика', 'роликов'));
-      // «1 кадр исчезнет», но «1 кадр и 1 ролик исчезнут» — считается последнее слово пары.
-      const alone = parts.length === 1 && frames % 10 === 1 && frames % 100 !== 11;
-      return `${parts.join(' и ')} ${alone ? 'исчезнет' : 'исчезнут'} навсегда`;
+      // «1 кадр исчезнет», но «1 кадр и 1 ролик исчезнут» — считается вся пара.
+      const verb = movies > 0 ? 'исчезнут' : form(frames, 'исчезнет', 'исчезнут', 'исчезнут');
+      return `${parts.join(' и ')} ${verb} навсегда`;
     },
     deleteDo: 'Удалить',
     keep: 'Оставить',
