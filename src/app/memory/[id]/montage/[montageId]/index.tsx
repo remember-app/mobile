@@ -1,6 +1,6 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
-import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import {
@@ -10,12 +10,10 @@ import {
   listMemories,
   listMontages,
   memberName,
-  MONTAGE_STAGES,
   retryMontage,
   type Member,
   type Memory,
   type Montage,
-  type MontageStage,
 } from '@/api';
 import { useAuth } from '@/auth';
 import { formatDayShort, formatRuntime, formatTime } from '@/dates';
@@ -27,37 +25,29 @@ import {
   Board,
   Button,
   CardNow,
-  Divider,
   IconButton,
-  RowStep,
   SHOT,
   Spinner,
-  StepLink,
-  StepNote,
   Text,
   WatchingPill,
-  type StepState,
 } from '@/kit';
 import { useStrings } from '@/language';
+import { StageRows } from '@/memory/stage-rows';
 import {
   currentStage,
   gazeAt,
   inHand,
   isFresh,
-  lastOfStage,
   marksOf,
   minutesLeft,
-  recordsOf,
-  stageLine,
   stageNumber,
-  stageStanding,
   STAGE_COUNT,
   useMontageJournal,
   useTypedThought,
 } from '@/montage-journal';
 import { LENGTHS, type Length } from '@/montage';
 import { type Strings } from '@/strings';
-import { radius, space, themed } from '@/theme';
+import { space } from '@/theme';
 
 /**
  * `MontageLive` (spec 7.6) — the montage as a spectacle. It replaced the waiting screen an order used
@@ -84,7 +74,6 @@ export default function MontageLiveScreen() {
   const router = useRouter();
   const { token } = useAuth();
   const s = useStrings();
-  const styles = useStyles();
   const { width } = useWindowDimensions();
 
   /** The whole journal of this montage, read and kept up to date — `@/montage-journal` does it all. */
@@ -278,69 +267,12 @@ export default function MontageLiveScreen() {
           </View>
         )}
 
-        {/* All five, always, whether the worker has reached them or not: what is ahead is part of
-            the answer to «how far along is it», and a list that grows a row at a time would move
-            under the finger every minute. */}
-        <View style={styles.stages}>
-          {MONTAGE_STAGES.map((code, at) => {
-            const row = journal.stages.find((one) => one.stage === code);
-            const last = lastOfStage(journal.entries, code);
-            const open = stage?.stage === code && last.length > 0;
-
-            return (
-              <Fragment key={code}>
-                {/* The hairline between two stages, inset to where their names start — the kit's
-                    soft rule, because five of `line` in a row would read as a grid. */}
-                {at > 0 ? <Divider soft style={styles.between} /> : null}
-                <RowStep
-                  title={s.montage.stage[code]}
-                  meta={row && stageLine(row, s)}
-                  state={stageStanding(row)}
-                  open={open}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/memory/[id]/montage/[montageId]/stage/[stage]',
-                      params: { id, montageId, stage: code },
-                    })
-                  }
-                >
-                  {last.map((entry) => {
-                    const shot = entry.media_id ? journal.files[entry.media_id] : undefined;
-                    const [mark] = marksOf(entry, s);
-
-                    return (
-                      <StepNote
-                        key={entry.id}
-                        uri={shot?.thumbnail_url ?? undefined}
-                        length={formatRuntime(shot?.duration_seconds ?? null)}
-                        text={entry.thought ?? ''}
-                        mark={
-                          mark ? (
-                            <BadgeDecision
-                              kind={entry.decision === 'take' ? 'take' : 'pass'}
-                              label={mark}
-                            />
-                          ) : undefined
-                        }
-                      />
-                    );
-                  })}
-                  {row ? (
-                    <StepLink
-                      label={s.montage.live.wholeStage(recordsOf(row))}
-                      onPress={() =>
-                        router.push({
-                          pathname: '/memory/[id]/montage/[montageId]/stage/[stage]',
-                          params: { id, montageId, stage: code },
-                        })
-                      }
-                    />
-                  ) : null}
-                </RowStep>
-              </Fragment>
-            );
-          })}
-        </View>
+        <StageRows
+          memoryId={id}
+          montageId={montageId}
+          journal={journal}
+          opens={(code) => code === stage?.stage}
+        />
 
         {/* The worker's own line about what went wrong, where there is room for it — the kit's rule
             is that a screen names the failure and the worker explains it, never a code. */}
@@ -379,28 +311,17 @@ function orderedTo(montage: Montage, s: Strings): string {
   return parts.join(' · ');
 }
 
-const useStyles = themed(({ color }) =>
-  StyleSheet.create({
-    body: {
-      flexGrow: 1,
-      paddingHorizontal: space.s4,
-      paddingTop: space.s3,
-      paddingBottom: space.s6,
-      gap: space.s3,
-    },
-    // Spec detail 56: the rule between two stages starts where their names do.
-    between: { marginLeft: 50 },
-    lost: { flexDirection: 'row', alignItems: 'center', gap: space.s2, paddingHorizontal: 2 },
-    where: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 2 },
-    grow: { flex: 1, minWidth: 0 },
-    // Spec 7.6: the five stages are one block of surface with the rows inside it, not five cards.
-    stages: {
-      borderRadius: radius.field,
-      borderWidth: 1,
-      borderColor: color.line,
-      backgroundColor: color.surface,
-      overflow: 'hidden',
-    },
-    banner: { marginHorizontal: space.s4, marginBottom: space.s3 },
-  }),
-);
+// Nothing here carries a colour of its own — every piece on this screen brings the kit's with it.
+const styles = StyleSheet.create({
+  body: {
+    flexGrow: 1,
+    paddingHorizontal: space.s4,
+    paddingTop: space.s3,
+    paddingBottom: space.s6,
+    gap: space.s3,
+  },
+  lost: { flexDirection: 'row', alignItems: 'center', gap: space.s2, paddingHorizontal: 2 },
+  where: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 2 },
+  grow: { flex: 1, minWidth: 0 },
+  banner: { marginHorizontal: space.s4, marginBottom: space.s3 },
+});
