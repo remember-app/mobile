@@ -292,20 +292,17 @@ export function framesMatching(items: readonly MediaItem[], filter: Filter): Med
 }
 
 /**
- * The same filter with one label out of it — what a box being deleted does to the feed it was
- * filtering (spec 10.8.2). Nothing else is touched: a label is gone, not the choice of day or of
- * who brought it.
+ * The same filter holding only the labels `keep` still answers for — what a box that has gone, here
+ * or by somebody else's hand, does to the feed it was filtering (spec 10.8.2). Nothing else is
+ * touched: a label is gone, not the choice of day or of who brought it.
  *
- * Needed because the two ends of a delete would otherwise disagree: every frame loses the box
- * (`filed` in `@/labels`), so a filter still holding its id matches nothing at all, and the chip
- * that could take it off again is no longer on the sheet to press. The filter it was never in comes
- * back as it is, so a screen holding it re-renders over nothing.
+ * Needed because a filter still holding a dead id matches nothing at all — no frame carries it any
+ * more — and the chip that could take it off again is no longer on the sheet to press. A filter
+ * with nothing to drop comes back as it is, so a screen holding it re-renders over nothing.
  */
-export function withoutLabel(filter: Filter, labelId: string): Filter {
-  if (!filter.labels.has(labelId)) return filter;
-  const labels = new Set(filter.labels);
-  labels.delete(labelId);
-  return { ...filter, labels };
+export function keepLabels(filter: Filter, keep: (labelId: string) => boolean): Filter {
+  const labels = new Set([...filter.labels].filter(keep));
+  return labels.size === filter.labels.size ? filter : { ...filter, labels };
 }
 
 /**
