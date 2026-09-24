@@ -12,7 +12,6 @@
  * where a thing stands, and what is no longer in the file.
  */
 
-import { api, flat } from '@tests/helpers/source';
 import { expect, test } from 'vitest';
 import layout from '@/app/_layout.tsx?raw';
 import home from '@/app/index.tsx?raw';
@@ -26,13 +25,7 @@ import memory from '@/app/memory/[id].tsx?raw';
 // The kit files read here: the sheet's offset from the header is the appbar's own padding, and the
 // montage card is where the poster a face hands over actually lands.
 import bars from '@/kit/bars.tsx?raw';
-// Where both gutters of spec 7.8 are named, so a screen that measures a column out of one of them
-// is measuring it out of the library rather than out of a number it chose.
-import tile from '@/kit/tile.tsx?raw';
 import toggle from '@/kit/toggle.tsx?raw';
-// The arithmetic both the movies face and the waiting screen ask their «is it still being made»
-// question through, so the two cannot drift apart about what the answer is.
-import montage from '@/lib/montage/order.ts?raw';
 import push from '@/lib/push.ts?raw';
 import cover from '@/screens/memory/cover.tsx?raw';
 // The one player this product has: the strip on the feed and the film's own page both raise it,
@@ -45,7 +38,6 @@ import errands from '@/screens/memory/frames-errands.ts?raw';
 import material from '@/screens/memory/frames-material.ts?raw';
 import head from '@/screens/memory/head.tsx?raw';
 import inviteSheet from '@/screens/memory/invite-sheet.tsx?raw';
-import when from '@/screens/memory/when.tsx?raw';
 import { en, ru } from '@/strings';
 
 /**

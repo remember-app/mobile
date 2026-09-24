@@ -11,14 +11,6 @@
  */
 
 import { expect, test } from 'vitest';
-import layout from '@/app/_layout.tsx?raw';
-import create from '@/app/create.tsx?raw';
-import invite from '@/app/invite.tsx?raw';
-import memory from '@/app/memory/[id].tsx?raw';
-import member from '@/kit/member.tsx?raw';
-// Where both gutters of spec 7.8 are named, so a screen that measures a column out of one of them
-// is measuring it out of the library rather than out of a number it chose.
-import tile from '@/kit/tile.tsx?raw';
 import viewer from '@/screens/memory/frame-viewer.tsx?raw';
 import frames from '@/screens/memory/frames.tsx?raw';
 import inviteSheet from '@/screens/memory/invite-sheet.tsx?raw';
