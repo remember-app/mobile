@@ -1,6 +1,12 @@
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
+
+// `@/frames` words dates in the app's language, and that stands on a native expo module vitest cannot
+// run. Nothing below reads a date.
+vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'en-US' }] }));
 
 import type { Label, MediaItem } from '@/api';
+import { FILTER_NONE, framesMatching, keepLabels } from '@/frames';
+import { frame } from '@/label-fixtures';
 import { filed, filing, labelGroups, labelNameOk, labelTint, withLabel } from '@/labels';
 import { themes } from '@/theme';
 
@@ -9,24 +15,6 @@ import { themes } from '@/theme';
  * (doc-13, spec 7.7). The sheet itself is words and shapes; these are the rules underneath it, and
  * the one that cost the most to get right is the half-filed selection.
  */
-
-const frame = (id: string, labels: string[] = []): MediaItem => ({
-  id,
-  kind: 'photo',
-  status: 'ready',
-  uploaded_by: 'u',
-  size_bytes: '1',
-  captured_at: null,
-  width: null,
-  height: null,
-  duration_seconds: null,
-  created_at: '2026-09-20T10:00:00.000Z',
-  label_ids: labels,
-  thumbnail_url: null,
-  preview_url: null,
-  screening_rejected: null,
-  screening_reason: null,
-});
 
 test('the circle is lit only when every marked frame is already in the box', () => {
   const best = 'best';
@@ -143,4 +131,67 @@ test('a label the api answered with lands where a re-read would have put it', ()
     'Ящик',
     'Любимые',
   ]);
+});
+
+/**
+ * The promises of doc-13 read as one story on the records the feed holds: what a press names, what
+ * the feed looks like once the api has answered, and what the filter then shows. Only the rules —
+ * the api's own answers are handed in as the records they come back as.
+ */
+const feed = () => [frame('a'), frame('b', ['funny']), frame('c', ['best']), frame('d')];
+const listed = (items: readonly MediaItem[], labels: string[]) =>
+  framesMatching(items, { ...FILTER_NONE, labels: new Set(labels) }).map((item) => item.id);
+
+test('several frames go into a label in one press, and then that label shows exactly them', () => {
+  const marked = feed().slice(0, 3);
+  // «c» already lies in it, so the one request names the two that are missing, nobody twice.
+  const press = filing('best', marked);
+  expect(press).toEqual({ inside: false, ids: ['a', 'b'] });
+
+  const after = filed(feed(), 'best', press.ids, true)!;
+  expect(listed(after, ['best'])).toEqual(['a', 'b', 'c']);
+  // The feed is the same four frames, each listed once, and the one in another box still is.
+  expect(after.map((item) => item.id)).toEqual(['a', 'b', 'c', 'd']);
+  expect(after[1].label_ids).toEqual(['funny', 'best']);
+  // Now the whole selection lies in it: the circle lights, and the next press takes all three out.
+  const next = filing('best', after.slice(0, 3));
+  expect(next).toEqual({ inside: true, ids: ['a', 'b', 'c'] });
+  expect(listed(filed(after, 'best', next.ids, false)!, ['best'])).toEqual([]);
+});
+
+test('a frame put into one more label is one frame on the feed, whichever boxes are looked at', () => {
+  const after = filed(feed(), 'funny', ['c'], true)!;
+  expect(after.filter((item) => item.id === 'c')).toHaveLength(1);
+  expect(after[2].label_ids).toEqual(['best', 'funny']);
+  // Looked at through both of its boxes it is still listed once.
+  expect(listed(after, ['best', 'funny'])).toEqual(['b', 'c']);
+  // And a label nobody filed anything into is «nothing», not «everything».
+  expect(listed(after, ['printing'])).toEqual([]);
+});
+
+test('a deleted label leaves the feed and the filter, and not one frame goes with it', () => {
+  const before = feed();
+  const after = filed(before, 'best', null, false)!;
+  expect(after.map((item) => item.id)).toEqual(before.map((item) => item.id));
+  expect(after.every((item) => !item.label_ids.includes('best'))).toBe(true);
+  // A filter that was looking at just that label falls back to the whole feed instead of staying
+  // narrowed to a box with nothing in it; one looking at two keeps the other.
+  const only = keepLabels({ ...FILTER_NONE, labels: new Set(['best']) }, (one) => one !== 'best');
+  expect(framesMatching(after, only)).toHaveLength(4);
+  const both = keepLabels(
+    { ...FILTER_NONE, labels: new Set(['best', 'funny']) },
+    (one) => one !== 'best',
+  );
+  expect(framesMatching(after, both).map((item) => item.id)).toEqual(['b']);
+});
+
+test('the sheet splits what the server sent by «общий», and adds nothing of its own', () => {
+  // A contributor sees shared labels somebody else made beside their own private one; somebody
+  // else's private label never comes down at all, so there is nothing here to leave out or invent.
+  const theirs = { ...label('o', true, 'Чужой общий'), mine: false };
+  const own = { ...label('p', false, 'Мой личный'), mine: true };
+  const { shared, own: privates } = labelGroups([theirs, own]);
+  expect(shared).toEqual([theirs]);
+  expect(privates).toEqual([own]);
+  expect(labelGroups([])).toEqual({ shared: [], own: [] });
 });

@@ -3,8 +3,8 @@ import { beforeAll, expect, test, vi } from 'vitest';
 // The words come from the dictionary, and the dictionary asks the phone which language it is in.
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
 
-import type { Label } from '@/api';
 import { allDifferent, story } from '@/kit/story';
+import { label } from '@/label-fixtures';
 import { LabelNewSheet, LabelsSheet } from '@/memory/label-sheets';
 import { setTheme, ThemePin } from '@/theme';
 
@@ -19,18 +19,6 @@ import { setTheme, ThemePin } from '@/theme';
 
 beforeAll(async () => {
   await setTheme('dark');
-});
-
-const label = (over: Partial<Label> = {}): Label => ({
-  id: '1',
-  title: 'Лучшее',
-  color: 1,
-  shared: true,
-  mine: true,
-  can_edit: true,
-  can_add_media: true,
-  media_count: 23,
-  ...over,
 });
 
 const mine = label({ id: '2', title: 'Любимые', shared: false, color: 6, media_count: 9 });
@@ -124,6 +112,24 @@ test('a label the server will not let this person edit keeps no pair, and goes o
   expect(editing).toContain('aria-label="Лучшее"');
   // With nothing this person may edit, the button that turns the mode on is not drawn either.
   expect(story(sheet({ labels: [shut] }))).not.toContain('Править');
+});
+
+test('rights come from the flags the server sent and not from who made the label', () => {
+  // Somebody else's shared label, which the server lets this person fill and edit (decision-12): the
+  // circle and the pair are there although `mine` is false.
+  const theirs = label({ mine: false });
+  const editing = story(sheet({ labels: [theirs], editing: true }));
+  expect(editing).toContain('Переименовать «Лучшее»');
+  expect(editing).toContain('Удалить «Лучшее»');
+  expect(story(sheet({ labels: [theirs] }))).toContain('aria-label="Лучшее"');
+  // And the other way round: mine, and still no pair where the server withheld `can_edit`.
+  const withheld = story(sheet({ labels: [label({ mine: true, can_edit: false })], editing: true }));
+  expect(withheld).not.toContain('Переименовать');
+  // Only what came down is drawn: a viewer who has nobody's private label sees no «МОИ» group at all.
+  const seen = story(sheet({ labels: [theirs] }));
+  expect(seen).toContain('ОБЩИЕ');
+  expect(seen).not.toContain('МОИ');
+  expect(seen).not.toContain('Любимые');
 });
 
 test('a failure from the server is said in words, over a sheet that still works', () => {
