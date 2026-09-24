@@ -154,7 +154,7 @@ test('the dashed «Новый ролик» stands first in the strip for the org
   }
 });
 
-test('the three states of a film are three cards, each one leading where its state says', async () => {
+test('the three states of a film are three cards, and each leads where it should: the making, the film’s page, or the journal of the attempt that broke', async () => {
   world([film('q', 'queued'), film('p', 'processing'), film('r', 'ready', { params: { orientation: 'landscape', music_tracks: ['warm'] } }), film('f', 'failed')]);
   const screen = await open();
   expect(screen.cards().map((one) => one.props.state)).toEqual(['pending', 'pending', 'ready', 'failed']);
@@ -166,8 +166,9 @@ test('the three states of a film are three cards, each one leading where its sta
   // Finished: the film’s own page.
   await screen.press(() => screen.card('r'));
   expect(router.push).toHaveBeenLastCalledWith({ pathname: '/memory/[id]/montage/[montageId]/done', params: { id: 'm1', montageId: 'r' } });
-  // Fallen: nothing to open, and the words say where it broke.
-  expect(screen.card('f').props.onPress).toBeUndefined();
+  // Fallen: the same screen as a film being cut, stopped at the stage that broke — and the words say where.
+  await screen.press(() => screen.card('f'));
+  expect(router.push).toHaveBeenLastCalledWith({ pathname: '/memory/[id]/montage/[montageId]', params: { id: 'm1', montageId: 'f' } });
   expect(screen.card('f').props.caption).toBe(ru.montage.broke);
   expect(screen.card('q').props.caption).toBe(ru.montage.caption);
   expect(screen.card('r').props.caption).toBeUndefined();
@@ -189,14 +190,25 @@ test('a finished film says what it was made of, and the ones that have nothing t
   expect(screen.card('p').props.meta).toBeUndefined();
 });
 
-test('a film being cut carries «N из 5» and the scale off the list’s own answer, and one the worker has not opened carries none', async () => {
-  const stages = (done: number) =>
-    MONTAGE_STAGES.map((stage, i) => ({ stage, state: i < done ? ('done' as const) : ('pending' as const) }));
-  world([film('a', 'processing', { stages: stages(3) }), film('b', 'queued', { stages: null }), film('c', 'ready')]);
+test('a film being cut carries the stage it is on, «N из 5», counted the way the screen it leads to counts it — and one the worker has not opened carries none', async () => {
+  // Five rows written at once: the stage being worked on is the one, and between two stages it is the one just done.
+  const stages = (...states: ('done' | 'running' | 'failed' | 'pending')[]) =>
+    MONTAGE_STAGES.map((stage, i) => ({ stage, state: states[i] ?? ('pending' as const) }));
+  world([
+    film('a', 'processing', { stages: stages('done', 'done', 'running') }),
+    film('between', 'processing', { stages: stages('done', 'done') }),
+    film('broke', 'failed', { stages: stages('done', 'failed') }),
+    film('b', 'queued', { stages: null }),
+    film('c', 'ready'),
+  ]);
   const screen = await open();
-  expect(screen.card('a').props.step).toEqual({ done: 3, of: 5, count: ru.montage.live.doneOf(3, 5) });
-  expect(screen.card('b').props.step).toBeUndefined();
-  expect(screen.card('c').props.step).toBeUndefined();
+  const step = (id: string) => screen.card(id).props.step;
+  expect(step('a')).toEqual({ at: 3, of: 5, count: ru.montage.live.doneOf(3, 5) });
+  expect(step('between')).toEqual({ at: 2, of: 5, count: ru.montage.live.doneOf(2, 5) });
+  // A fallen film stands at the stage that fell over.
+  expect(step('broke')).toEqual({ at: 2, of: 5, count: ru.montage.live.doneOf(2, 5) });
+  expect(step('b')).toBeUndefined();
+  expect(step('c')).toBeUndefined();
 });
 
 test('only the organizer has the button under a fallen card, and it queues that very film again', async () => {
