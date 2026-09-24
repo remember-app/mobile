@@ -22,7 +22,7 @@ import { en, ru } from '@/strings';
 /**
  * Ordering a movie, as spec 8 asks for it: a route per step, one set of answers above all of them,
  * and one call at the end. Read as text and not as rendered screens, for the reason
- * `memory-screens.test.ts` gives at length — this project has no renderer, and what is worth
+ * `tests/routes/memory/screen.test.ts` gives at length — this project has no renderer, and what is worth
  * pinning about a reorganisation is its shape. The arithmetic these screens stand on is checked
  * where it lives, in `montage.test.ts`.
  */

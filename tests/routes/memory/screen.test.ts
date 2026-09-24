@@ -171,7 +171,7 @@ test('the capsule says what the memory holds, and what is marked while picking',
   expect(ru.gallery.pickedKinds(3, 1)).toBe('3 фото и 1 видео');
   expect(ru.gallery.pickedKinds(3, 0)).toBe('3 фото');
   expect(en.gallery.pickedKinds(0, 1)).toBe('1 video');
-  // What the press does to the selection is `toggleEvery` (`frames.test.ts`), asked of the frames on
+  // What the press does to the selection is `toggleEvery` (`tests/lib/frames.test.ts`), asked of the frames on
   // the feed and not of how many ids the set happens to hold.
   const everything = frames.slice(frames.indexOf('function pickEverything'));
   expect(everything.slice(0, everything.indexOf('\n  }'))).toContain(
@@ -278,7 +278,7 @@ test('while picking, a tap marks the frame instead of opening it — and only a 
   // record's status, so a `ready` record whose derivative never arrived is out of it too — and
   // asked of `@/lib/frames` rather than spelled out here, because the day's «Выбрать все N» above the
   // strip counts with the same rule and the two must not drift (TASK-121). `mayPick` is where that
-  // reading lives, and `frames.test.ts` pins it.
+  // reading lives, and `tests/lib/frames.test.ts` pins it.
   expect(frames).toContain('const pickable = picking && mayPick(item);');
   expect(frames).toContain("pick={pickable ? (picked.has(item.id) ? 'keep' : 'off') : undefined}");
   // The mark is the tile's own — one ring and one circle, never a second mark drawn by a face.
@@ -358,7 +358,7 @@ test('the words of the picking mode count in Russian and say why the button is o
 /**
  * The contact sheet cut into groups (TASK-121 cut it into days, TASK-144 into whatever the sort
  * asks for): the face drew one flat grid, so there was no heading over a strip and no «Выбрать все
- * N» to mark a whole one with. The cut itself is `groupFrames` and pinned in `frames.test.ts`;
+ * N» to mark a whole one with. The cut itself is `groupFrames` and pinned in `tests/lib/frames.test.ts`;
  * these read how the sheet is wired to it — the same way the «Выбор кадров» screen is wired to
  * `assetsByDay`.
  */
@@ -436,7 +436,7 @@ test('«Выбрать все N» counts the frames a tap could reach, and the s
   expect(daymark).toContain('picking && markable.length > 0');
   // The circle says whether the whole group is taken and a second press gives it back — the kit's
   // contract for `DayMark`, and what «Ваши кадры» does. What the press does to the selection is
-  // `toggleDay` (`frames.test.ts`), which only ever touches this group's frames.
+  // `toggleDay` (`tests/lib/frames.test.ts`), which only ever touches this group's frames.
   expect(daymark).toContain('picked={allTaken(markable, picked)}');
   expect(daymark).toContain('setPicked((have) => toggleDay(markable, have))');
   // The kit's quiet action of the day, and the same words on both sheets that have one — «тем же

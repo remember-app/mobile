@@ -504,7 +504,7 @@ export default function UploadScreen() {
 
       {/* Picking off, a tap opens the frame instead — the phone's own copy, at the size it was shot.
           ponytail: a video shows the poster the library hands back and does not play; the frame that
-          plays is the one already in a memory (`src/memory/frame-viewer.tsx`). The day somebody
+          plays is the one already in a memory (`src/screens/memory/frame-viewer.tsx`). The day somebody
           wants playback here, it is `expo-video` over `getAssetInfoAsync().localUri`. */}
       <Modal
         visible={open !== null}

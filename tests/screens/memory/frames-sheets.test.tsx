@@ -15,7 +15,7 @@ import { setTheme, ThemePin } from '@/theme';
  * surfaces that hold nothing of their own but the draft, so all three can be rendered here as the
  * states they have.
  *
- * The rows of the first are `frames.test.ts`'s (`frameFacts`) and so is everything the other two
+ * The rows of the first are `tests/lib/frames.test.ts`'s (`frameFacts`) and so is everything the other two
  * decide (`framesMatching`, `groupFrames`); what is read here is the sheets — what stands on them,
  * what the buttons say in each state, and that every one of them is drawn in the theme the app is
  * in.

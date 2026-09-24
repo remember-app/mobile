@@ -88,7 +88,7 @@ import { board, height, space } from '@/theme';
  * whole screen, the real api client, and a stand-in server behind `fetch`. What is asserted is what
  * is drawn — which frames, in what order, what the capsule says, which buttons are off — and what
  * went over the wire. The rules underneath (`toggleEvery`, `removeFrames`, `groupFrames`,
- * `framesMatching`) are `frames.test.ts`'s; this file is that they are joined to the screen the way
+ * `framesMatching`) are `tests/lib/frames.test.ts`'s; this file is that they are joined to the screen the way
  * the layout says, which the text of the screen cannot show.
  */
 

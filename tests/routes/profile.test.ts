@@ -6,7 +6,7 @@ import form from '@/screens/onboarding/username-form.tsx?raw';
 /**
  * Both of these break silently: nothing throws, the screen just says the wrong thing in the wrong
  * colour, and only an eye on the simulator catches it. Read as text for the reason
- * `memory-screens.test.ts` reads its routes that way — a screen wired to auth and `expo-router` has
+ * `tests/routes/memory/screen.test.ts` reads its routes that way — a screen wired to auth and `expo-router` has
  * no renderer here, and neither has a debounced effect.
  */
 

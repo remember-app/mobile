@@ -4,7 +4,7 @@ import contacts from '@/app/contacts.tsx?raw';
 import { en, ru } from '@/strings';
 
 /**
- * Read as text, the idiom `memory-screens.test.ts` explains: a screen wired to auth, `expo-router`
+ * Read as text, the idiom `tests/routes/memory/screen.test.ts` explains: a screen wired to auth, `expo-router`
  * and a debounced effect has no renderer here. What this file pins is the handful of rules on the
  * contacts screen that break silently — the screen keeps working and says the wrong thing, or asks
  * for the wrong thing, and only an eye on the simulator would catch it.

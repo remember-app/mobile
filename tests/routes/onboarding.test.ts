@@ -14,7 +14,7 @@ import { en, ru } from '@/strings';
 
 /**
  * The five screens of the way in (spec 8, «Онбординг») — `Login`, `LoginEmail`, `LoginCode`,
- * `Consent`, `Username` — read as text, the idiom `memory-screens.test.ts` explains at length: these
+ * `Consent`, `Username` — read as text, the idiom `tests/routes/memory/screen.test.ts` explains at length: these
  * are `expo-router` screens wired to auth, and there is no renderer for one here.
  *
  * What they are about is what breaks quietly: a way in drawn that this build cannot walk, a code

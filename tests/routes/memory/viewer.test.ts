@@ -55,7 +55,7 @@ test('the material of a memory has one name — on the card, on the switch, over
  * `SheetFrame` and `SheetFrameInfo` of spec 8, in a file of their own — «во весь экран, без кнопок
  * снизу, а снизу лента» is what was asked for, and a shape is what these pin. What the strip does
  * with a finger lives in the library now and is read there; everything the gallery decides about a
- * record is pinned in `frames.test.ts`.
+ * record is pinned in `tests/lib/frames.test.ts`.
  */
 
 test('the whole window is three buttons on glass, and under the picture only the strip', () => {

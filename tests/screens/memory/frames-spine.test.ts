@@ -8,7 +8,7 @@ import spine from '@/screens/memory/frames-spine.tsx?raw';
  * while a finger is moving the feed (`MemoryScrub`), on by the switch in the sort sheet and then
  * written into a 20px seam between the days (`MemoryDated`). Never both.
  *
- * Read as text, the idiom `tests/routes/memory-screens.test.ts` explains at length: the spine is
+ * Read as text, the idiom `tests/routes/memory/screen.test.ts` explains at length: the spine is
  * measurement, a native animation and a pan responder, and none of the three is a thing node can be
  * shown. What is pinned here is the arithmetic and the two rules it has to keep.
  */

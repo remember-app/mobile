@@ -41,7 +41,7 @@ test('Russian counts in three forms, English in two', () => {
 });
 
 /**
- * Every route file, read as text — the idiom `memory-screens.test.ts` explains at length: this
+ * Every route file, read as text — the idiom `tests/routes/memory/screen.test.ts` explains at length: this
  * project has no renderer, and what is worth pinning here is answered by the source anyway.
  *
  * `_layout.tsx` is the one screen left out, and on purpose: its `Stack.Screen options.title`

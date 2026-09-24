@@ -100,7 +100,7 @@ import { createPreview, type Playing, sendOwnTrack } from '@/lib/music';
 /**
  * The four steps of an order, checked where they can be: what the organizer settled about the
  * material, and the body that goes out because of it. The screen itself is read as text in
- * `memory-screens.test.ts` — this is the part that decides what actually reaches the worker.
+ * `tests/routes/memory/screen.test.ts` — this is the part that decides what actually reaches the worker.
  */
 
 /** A record as `listMedia` hands it over, cut down to what an order reads. */

@@ -6,7 +6,7 @@ import { en, ru } from '@/strings';
 /**
  * `card-memory.test.tsx` proves the card itself draws whatever it is handed — this proves the home
  * screen hands it the right thing, and that the three silences of spec «Ожидание и отказы» stay
- * three. Read as text, the same reason `memory-screens.test.ts` reads the other routes that way: no
+ * three. Read as text, the same reason `tests/routes/memory/screen.test.ts` reads the other routes that way: no
  * renderer here for a screen wired to `expo-router` and auth.
  */
 

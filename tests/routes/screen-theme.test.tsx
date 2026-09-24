@@ -32,7 +32,7 @@ vi.mock('expo-secure-store', () => ({
  * as a dark screen under light chrome on somebody else's phone. A test naming the routes by hand
  * would not see it; the glob sweeps whatever is there, so a new screen is covered by existing.
  *
- * As text and not rendered, the same reason `memory-screens.test.ts` gives: these are `expo-router`
+ * As text and not rendered, the same reason `tests/routes/memory/screen.test.ts` gives: these are `expo-router`
  * routes wired to auth and the api, and there is no renderer here for one. `?raw` through the
  * bundler and not `node:fs`, for the reason `raw.d.ts` gives: nothing under `src/` may reach the
  * filesystem, because everything under `src/` runs on a phone.

@@ -17,7 +17,7 @@ import { matches } from '@/lib/find-user';
  * `matches` is the one piece of `@/lib/find-user` with no hook and no timer in it — the sieve both the
  * contacts screen and the invite sheet run their needle through. Everything else in the module is
  * `useFindUser`, whose whole reason to exist is a debounce and a stale-response race that only a
- * real render loop can exercise; this project has none (see `memory-screens.test.ts`). So this file
+ * real render loop can exercise; this project has none (see `tests/routes/memory/screen.test.ts`). So this file
  * holds the one thing here that can be run rather than read.
  */
 

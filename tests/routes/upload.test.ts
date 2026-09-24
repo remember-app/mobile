@@ -9,7 +9,7 @@ import { strings } from '@/strings';
 
 /**
  * «Ваши кадры» — the camera roll drawn the way a memory's own feed is (TASK-210). Read as text, the
- * way `memory-screens.test.ts` gives at length: this is an `expo-router` screen wired to a native
+ * way `tests/routes/memory/screen.test.ts` gives at length: this is an `expo-router` screen wired to a native
  * gallery module, and there is no renderer for one here. What is worth pinning is what the layout
  * decided and what a later reader would undo by accident.
  */
