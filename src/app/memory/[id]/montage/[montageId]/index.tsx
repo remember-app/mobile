@@ -183,6 +183,23 @@ export default function MontageLiveScreen() {
   const stage = currentStage(journal.stages);
   const minutes = minutesLeft(journal.stages);
 
+  // Not in the memory, or no longer: the api's 404, and not a connection that will come back. The
+  // journal gives way to the one line every screen of a memory says it with.
+  if (journal.standing === 'refused') {
+    return (
+      <Board>
+        <AppBar
+          variant="live"
+          title={s.montage.live.title}
+          left={<IconButton icon={ChevronLeft} label={s.action.back} onPress={leave} />}
+        />
+        <View style={styles.body}>
+          <Banner tone="error" text={s.memory.gone} />
+        </View>
+      </Board>
+    );
+  }
+
   return (
     <Board>
       <AppBar

@@ -12,6 +12,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import { AppState } from 'react-native';
 
 import {
+  ApiError,
   fetchJournal,
   MONTAGE_STAGES,
   type JournalEntry,
@@ -74,6 +75,12 @@ export type Journal = {
   settled: number | null;
   /** The last read never came back. What is above stays exactly as it was. */
   offline: boolean;
+  /**
+   * The api will not give this journal to whoever is reading it: 404, its one answer to somebody
+   * not in the memory — never in it, or taken out of it while the screen was open. It will answer
+   * the same the next time, so nothing is asked again until the screen comes back in front.
+   */
+  refused: boolean;
 };
 
 /** Nothing read yet. */
@@ -88,10 +95,11 @@ export const NO_JOURNAL: Journal = {
   hasOlder: false,
   settled: null,
   offline: false,
+  refused: false,
 };
 
 /** One word for the whole thing, for a screen that has one line to say it in. */
-export type Standing = 'opening' | 'live' | 'ready' | 'failed' | 'offline';
+export type Standing = 'opening' | 'live' | 'ready' | 'failed' | 'offline' | 'refused';
 
 /** Which narrowing the journal is being read under — one stage, or the whole of it. */
 export type Narrow = Pick<JournalQuery, 'stage'>;
@@ -128,6 +136,7 @@ function fold(state: Journal, page: MontageJournal, mode: 'first' | 'forward' | 
     // answer — an empty journal at that moment leaves it unset, and everything later is new.
     settled: state.status === null ? top : state.settled,
     offline: false,
+    refused: false,
   };
 }
 
@@ -509,7 +518,9 @@ function useAppActive(): boolean {
  * A read that never comes back changes one word and nothing else (`offline`): the journal on screen
  * is the truth as of the last answer, and throwing it away because the lift has no signal would be
  * the one thing a person watching would never forgive. The next poll that succeeds takes the word
- * off again.
+ * off again. A 404 is not that (`refused`): the api is saying this reader is not in the memory, and
+ * polling stops until the screen comes back in front — on either road the journal is read by, the
+ * poll and the page further back.
  */
 export function useMontageJournal(
   token: string | null,
@@ -557,9 +568,12 @@ export function useMontageJournal(
         if (held.current !== from) return;
         held.current = next;
         setState(next);
-      } catch {
+      } catch (e) {
         if (held.current !== from) return;
-        held.current = { ...from, offline: true };
+        held.current =
+          e instanceof ApiError && e.status === 404
+            ? { ...from, refused: true }
+            : { ...from, offline: true };
         setState(held.current);
       } finally {
         reading.current = false;
@@ -591,15 +605,16 @@ export function useMontageJournal(
   // And on its own while the worker still owes this one. An interval rather than a timeout chained
   // off each read, the same reasoning the gallery's own loop carries: one read failing on a bad
   // connection would end the chain, and end it silently.
-  const making = state.status === null || beingMade(state.status);
+  const making = !state.refused && (state.status === null || beingMade(state.status));
   useEffect(() => {
     if (!focused || !active || !making) return;
     const timer = setInterval(() => void read(), WHILE_LIVE_MS);
     return () => clearInterval(timer);
   }, [focused, active, making, read]);
 
-  const standing: Standing =
-    state.status === 'failed'
+  const standing: Standing = state.refused
+    ? 'refused'
+    : state.status === 'failed'
       ? 'failed'
       : state.status === 'ready'
         ? 'ready'
