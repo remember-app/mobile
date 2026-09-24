@@ -550,8 +550,10 @@ export function useMontageJournal(
    * a making that no longer exists, stopped at `failed` with nothing left to poll for.
    */
   const restart = useCallback(() => {
-    held.current = NO_JOURNAL;
-    setState(NO_JOURNAL);
+    // A fresh object and not `NO_JOURNAL` itself: a first read still in the air started from that
+    // very object, and `held.current !== from` must see the journal it read for as gone.
+    held.current = { ...NO_JOURNAL };
+    setState(held.current);
   }, []);
 
   useEffect(restart, [restart, ask, stage, media_id]);
