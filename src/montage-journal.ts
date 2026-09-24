@@ -166,6 +166,19 @@ export async function pullOlder(state: Journal, ask: Ask, narrow: Narrow = {}): 
   return fold(state, await ask({ ...narrow, before: state.oldest }), 'back');
 }
 
+/**
+ * Where the frames went, brought up to date for every file held. The worker lays the film out only
+ * at `rhythm`, after the directing, and the api sends a file along with a new record about it and
+ * never otherwise — so the files of a journal read while the film was being made stay as they were
+ * before there was any layout, `places: []`, and no poll after that brings them in. One reading of
+ * the journal from its start, under the same narrowing, does: the records are the ones already
+ * held, the files are what the api says about them now.
+ */
+export async function relaid(state: Journal, ask: Ask, narrow: Narrow = {}): Promise<Journal> {
+  const again = await pull({ ...NO_JOURNAL, cursor: 0 }, ask, narrow);
+  return { ...state, files: { ...state.files, ...again.files } };
+}
+
 /* ── What the screens work out of it ──────────────────────────────────── */
 
 /** How many stages there are in all — the «из 5». */
@@ -528,7 +541,19 @@ export function useMontageJournal(
         const narrow = { stage };
         // A poll that breaks halfway through its pages is dropped whole rather than kept in part:
         // the cursor then stays where it was and the next one asks for the same records again.
-        const next = await (older ? pullOlder : pull)(from, ask, narrow);
+        let next = await (older ? pullOlder : pull)(from, ask, narrow);
+        // Ready under the journal of a stage that was read while the film was being made: its
+        // files predate the layout, and this is the last read there will be (`relaid`). The whole
+        // journal is not read again — the one screen that reads it through the making leaves for
+        // the film's page the moment it is ready, and that page reads it from nothing.
+        if (
+          stage !== undefined &&
+          from.cursor !== null &&
+          from.status !== 'ready' &&
+          next.status === 'ready'
+        ) {
+          next = await relaid(next, ask, narrow);
+        }
         if (held.current !== from) return;
         held.current = next;
         setState(next);
