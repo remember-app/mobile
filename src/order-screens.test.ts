@@ -573,8 +573,12 @@ test('a refusal of the summary explains itself and leads back to the step that c
   expect(summary).toContain("{ pathname: '/memory/[id]/order/frames', params: { id } }");
   expect(summary).toContain("{ pathname: '/memory/[id]/order/build', params: { id } }");
   expect(summary).toContain('reread();\n    router.dismissTo(');
-  // Refused, the screen is a line and a button and never an empty summary of nothing.
+  // Refused, the screen is a line and a button and never an empty summary of nothing. Where no step
+  // can undo it, the button asks again — off a fresh read, so the body is the order as it is then.
   expect(summary).toContain('<Banner tone="error" text={stopped.text}');
+  expect(summary).toContain(
+    '<Button size="xs" variant="quiet" label={s.action.retry} onPress={reread} />',
+  );
 
   // A refused order leaves the button pressable again — nothing was placed, so there is something
   // to press. A double tap does not place two: the button goes busy, and the press that got in

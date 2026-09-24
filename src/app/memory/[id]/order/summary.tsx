@@ -166,9 +166,13 @@ export default function SummaryStep() {
     >
       {stopped !== null ? (
         // Refused, and said in words with the way out of it under them — never the empty screen a
-        // summary of nothing would be.
+        // summary of nothing would be. Where no step can undo it — the network, the api falling
+        // over — the way out is asking again, off a fresh read of the material, so the body is the
+        // order as it stands then and never the one that failed.
         <Banner tone="error" text={stopped.text} style={styles.banner}>
-          {stopped.back === null ? null : (
+          {stopped.back === null ? (
+            <Button size="xs" variant="quiet" label={s.action.retry} onPress={reread} />
+          ) : (
             <Button
               size="xs"
               variant="quiet"

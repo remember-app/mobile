@@ -68,7 +68,8 @@ import { radius, space, themed, useTheme } from '@/theme';
  * material as it stands, and a re-read landing between two steps would move the ground under a
  * selection already made; the api checks every named frame at the order anyway. It is read again
  * only when that ground is already known to have moved or never arrived: «Повторить» over a read
- * that failed, and a refusal of the total leading back to a step (`reread`).
+ * that failed — of the material, the range or the total — and a refusal of the total leading back
+ * to a step (`reread`).
  */
 export type Wizard = {
   id: string;

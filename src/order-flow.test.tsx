@@ -913,6 +913,37 @@ test.each([
   }
 });
 
+test.each([
+  ['cannot be reached', { offline: 'preview' }, ru.error.offline],
+  ['falls over', { failing: 'preview' }, ru.error.status(500)],
+] as const)('a total the api %s on is asked again with «Повторить», off the order as it is now', async (_, over, said) => {
+  const server = serve();
+  await open();
+  await walkToLength();
+  Object.assign(server, over);
+  await forward();
+  await run(0);
+  expect(nav.top()).toBe('summary');
+  expect(banner()).toBe(said);
+  expect(has(ru.montage.startCut)).toBe(false);
+
+  // Meanwhile somebody deleted p7, which the order names to leave out: the body that failed would
+  // now be refused for it, and the one asked again is built from what is there.
+  server.offline = server.failing = undefined;
+  server.material = server.material.filter((item) => item.id !== 'p7');
+  await press(ru.action.retry);
+  await until(() => has(ru.montage.startCut));
+  expect(server.previews.at(-1)).toEqual({ orientation: 'landscape', music_tracks: [] });
+
+  // Asked again once, and nothing goes on asking by itself.
+  const asked = server.previews.length;
+  await run(5_000);
+  expect(server.previews.length).toBe(asked);
+
+  await press(ru.montage.startCut);
+  expect(server.orders).toEqual([server.previews.at(-1)]);
+});
+
 test('the material that could not be read is asked for again with «Повторить»', async () => {
   const server = serve({ offline: 'media' });
   await open();
