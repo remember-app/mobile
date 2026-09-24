@@ -64,7 +64,7 @@ import { MONTAGE_STAGES } from '@/api';
 import { ru } from '@/strings';
 import { mounted, mountsTrees } from '@/test-renderer';
 
-import { act, BEAT_BY_BEAT, drives, settle } from './drive';
+import { act, BEAT_BY_BEAT, drives, settle } from '@/test-drive';
 import {
   bodyOf,
   liveSteps,
@@ -94,7 +94,6 @@ import {
  */
 
 mountsTrees();
-drives();
 
 const SCENARIOS: Scenario[] = ['director', 'algorithm'];
 /** Not part of the recording: who the memory's people are called, which the journal names by id. */
@@ -125,6 +124,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
+drives();
 
 /* ── driving the tree ──────────────────────────────────────────────────── */
 

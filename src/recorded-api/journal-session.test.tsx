@@ -25,7 +25,7 @@ import { AuthProvider, useAuth, type AuthStatus } from '@/auth';
 import { useMontageJournal, WHILE_LIVE_MS, type Standing } from '@/montage-journal';
 import { mounted, mountsTrees } from '@/test-renderer';
 
-import { act, BEAT_BY_BEAT, drives, settle } from './drive';
+import { act, BEAT_BY_BEAT, drives, settle } from '@/test-drive';
 import { liveSteps, load, MEMORY, MONTAGE, PEOPLE, replay, TOKEN } from './recorded';
 
 /**
@@ -39,7 +39,6 @@ import { liveSteps, load, MEMORY, MONTAGE, PEOPLE, replay, TOKEN } from './recor
  */
 
 mountsTrees();
-drives();
 
 /** Who the organizer's token is — not part of the recording, which never asked. */
 const ME = { id: PEOPLE.organizer, username: 'anya', name: 'Аня Петрова', email: null, language: 'ru' };
@@ -56,6 +55,7 @@ afterEach(() => {
   vi.mocked(AppState.addEventListener).mockRestore();
   vi.mocked(console.info).mockRestore();
 });
+drives();
 
 test('a 401 on the live poll ends the session once, the journal is left for the way in, and nothing is asked again', BEAT_BY_BEAT, async () => {
   const steps = load('director');
