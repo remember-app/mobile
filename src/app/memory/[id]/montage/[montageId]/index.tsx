@@ -164,18 +164,21 @@ export default function MontageLiveScreen() {
     setNotice(null);
     try {
       await retryMontage(token, id, montageId);
-      // The journal is what says where it now stands, and it is already reading — but the row
-      // behind the subtitle is this screen's own, and it has just moved.
-      read();
     } catch (e) {
       setNotice(
         (e instanceof ApiError
           ? { 409: s.montage.movedOn, 403: s.montage.retryDenied }[e.status]
           : undefined) ?? errorMessage(e),
       );
+      // 409 is the montage having moved on without this press — somebody else's landed first.
+      if (!(e instanceof ApiError && e.status === 409)) return;
     } finally {
       setBusy(false);
     }
+    // The api wiped the fallen attempt's journal with that, and the hook stopped polling at
+    // `failed` — so the journal starts over, and the row behind the subtitle is read again.
+    journal.restart();
+    read();
   }
 
   const failed = journal.standing === 'failed';

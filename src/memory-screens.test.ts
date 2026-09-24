@@ -947,6 +947,12 @@ test('only the organizer starts a fallen montage again', () => {
   // The two answers a second press can get, said in words rather than as a status.
   expect(live).toContain('409: s.montage.movedOn');
   expect(live).toContain('403: s.montage.retryDenied');
+  // Queued again — by this press or an earlier one (409) — the fallen attempt's journal is gone on
+  // the api, and the hook polls nothing at `failed`: the journal starts over, or the screen would
+  // stay «не собрался» with the button still under it.
+  const again = live.slice(live.indexOf('async function again()'));
+  expect(again).toContain('journal.restart();');
+  expect(again).toContain("if (!(e instanceof ApiError && e.status === 409)) return;");
   // Where each stage stands is the api's own word, never this screen's reading of the montage — and
   // it is worked out in the journal's own module, because the finished film's page asks the same
   // question of the same five rows (TASK-222).

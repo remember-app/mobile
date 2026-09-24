@@ -496,7 +496,7 @@ export function useMontageJournal(
   memoryId: string,
   montageId: string,
   { stage, media_id }: Narrow = {},
-): Journal & { standing: Standing; loadOlder: () => void } {
+): Journal & { standing: Standing; loadOlder: () => void; restart: () => void } {
   const [state, setState] = useState<Journal>(NO_JOURNAL);
   /** The same thing a poll reads and folds into — state itself is a render behind. */
   const held = useRef<Journal>(NO_JOURNAL);
@@ -536,12 +536,18 @@ export function useMontageJournal(
     [token, ask, stage, media_id],
   );
 
-  // Another video, or the same one under a different narrowing, is another journal — and holding
-  // one screen's records under the next one's cursor is the one way this could show a lie.
-  useEffect(() => {
+  /**
+   * Everything held thrown away, and the journal read again from nothing. Another video, or the same
+   * one under a different narrowing, is another journal — and so is a fallen one queued again: the
+   * api wipes the last attempt's records with it, and a screen still holding them would be showing
+   * a making that no longer exists, stopped at `failed` with nothing left to poll for.
+   */
+  const restart = useCallback(() => {
     held.current = NO_JOURNAL;
     setState(NO_JOURNAL);
-  }, [ask, stage, media_id]);
+  }, []);
+
+  useEffect(restart, [restart, ask, stage, media_id]);
 
   // On the way in, and again the moment the screen comes back in front or the app wakes up.
   useEffect(() => {
@@ -571,7 +577,7 @@ export function useMontageJournal(
 
   const loadOlder = useCallback(() => void read(true), [read]);
 
-  return { ...state, standing, loadOlder };
+  return { ...state, standing, loadOlder, restart };
 }
 
 /** How long one step of the typing takes, and how many steps a thought is spread over. */
