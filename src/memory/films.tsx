@@ -390,9 +390,8 @@ export function Films({ id, memory }: { id: string; memory: Memory | null }) {
         </ScrollView>
       )}
 
-      {/* What a press here answered with. Only while the player is down: with it up, the copy
-          inside the window is the one that can be read. */}
-      {notice && watching === null ? <Banner text={notice} style={styles.aside} /> : null}
+      {/* What a press here answered with — the player carries its own line (`useFilmActions`). */}
+      {notice ? <Banner text={notice} style={styles.aside} /> : null}
 
       {/* The one player this product has (`memory/film-player.tsx`), raised over the strip by the
           one road that names a film on the way in — «В роликах» on a frame's own sheet (TASK-211).
