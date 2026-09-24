@@ -114,17 +114,12 @@ test('the journal’s line is one line, whether the records are a block or a lis
   expect(story(<Journal>{null}</Journal>)).toContain(alone.slice(alone.indexOf('class=')));
 });
 
-test('a thought is a plate, and it sometimes says where it landed', () => {
+test('a thought is a plate with the sentence in it, and nothing else', () => {
   allDifferent({
-    plain: <NoteThought text="План: три части — сборы, клятвы, танцы." />,
-    withOutcome: (
-      <NoteThought
-        text="Бабушка смеётся, Лиза обнимает её."
-        outcome="Часть 2 «Клятвы» · 1:12–1:16 · крупный план"
-      />
-    ),
+    plan: <NoteThought text="План: три части — сборы, клятвы, танцы." />,
+    file: <NoteThought text="Бабушка смеётся, Лиза обнимает её." />,
   });
-  expect(story(<NoteThought text="План" outcome="Часть 2" />)).toContain('Часть 2');
+  expect(story(<NoteThought text="План" />)).toContain('План');
 });
 
 test('a journal record comes in the three bodies the journal has', () => {

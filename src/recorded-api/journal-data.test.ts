@@ -25,7 +25,7 @@ import {
   madeInMinutes,
   marksOf,
   NO_JOURNAL,
-  outcomeLine,
+  placeLine,
   pull,
   pullOlder,
   reasonWord,
@@ -214,11 +214,18 @@ describe.each(SCENARIOS)('%s — the worker’s words, in the app’s', (scenari
           expect(marks[1], `${lang} ${record.reason}`).not.toBe(s.montage.live.reason.other);
           said.add(`${record.reason}`);
         } else {
-          // `reason: "included"` rides on a taken record: it is no reason for anything being passed.
+          // A take wears a reason only where the organizer asked for the frame (`included`) — beside
+          // «Беру», in words — and never the catch-all.
           expect(marks).not.toContain(s.montage.live.reason.other);
+          expect(marks.includes(s.montage.live.reason.included), `${lang} record ${record.id}`).toBe(
+            record.reason === 'included',
+          );
+          if (record.reason === 'included') said.add(record.reason);
         }
       }
       expect(said.size).toBeGreaterThan(1);
+      // The organizer's word is on both roads, and it is said.
+      expect(said.has('included')).toBe(true);
     }
   });
 
@@ -236,24 +243,41 @@ describe.each(SCENARIOS)('%s — the worker’s words, in the app’s', (scenari
     }
   });
 
-  test('the frames the director took say where they went, in seconds of the film', () => {
+  test('the rhythm says what it came to — the cuts to the music, or that there was none to fit to', () => {
+    const rhythm = full.stages.find((one) => one.stage === 'rhythm')!;
+    // One film of each: the director's was ordered with no music, the other to a track off the shelf.
+    const music = scenario === 'algorithm';
+    expect(rhythm.outcome.track).toHaveLength(music ? 1 : 0);
+    for (const s of [ru, en]) {
+      const line = stageLine(rhythm, s, Date.parse(rhythm.finished_at!));
+      expect(line).toContain(music ? s.montage.live.cuts(rhythm.outcome.cuts!) : s.montage.live.noTrack);
+      expect(line).not.toContain(s.montage.live.cuts(0));
+    }
+  });
+
+  test('every frame laid out in the film says where, in seconds of the film, thought or no thought', () => {
     const file = (id: string | null) => full.files.find((one) => one.id === id);
     /** «1:12» — written here on its own, to the whole second, as the film's own length is. */
     const clock = (seconds: number) =>
       `${Math.floor(Math.round(seconds) / 60)}:${String(Math.round(seconds) % 60).padStart(2, '0')}`;
 
-    const placed = full.entries.filter((one) => one.decision === 'take' && file(one.media_id)?.places.length);
-    expect(placed.length).toBeGreaterThan(0);
+    const placed = full.entries.filter((one) => one.decision !== 'skip' && file(one.media_id)?.places.length);
+    // Taken frames with nothing said about them are among these on both roads — the organizer's own
+    // on either, and every one of them where there is no director at all.
+    expect(placed.some((one) => one.decision === 'take' && one.thought === null)).toBe(true);
     for (const record of placed) {
       const [first] = file(record.media_id)!.places;
-      const line = outcomeLine(record, file(record.media_id), ru);
-      expect(line).toContain(`${clock(first.start_seconds)}–${clock(first.start_seconds + first.duration_seconds)}`);
+      const line = placeLine(record, file(record.media_id), ru);
+      expect(line, `record ${record.id}`).toContain(
+        `${clock(first.start_seconds)}–${clock(first.start_seconds + first.duration_seconds)}`,
+      );
       if (record.story_part !== null) expect(line).toContain(`Часть ${record.story_part}`);
     }
-    // A frame nobody took has no place to name, however the file is laid out.
-    for (const record of full.entries.filter((one) => one.decision === 'skip')) {
-      expect(outcomeLine(record, file(record.media_id), ru)).toBeUndefined();
-    }
+    // A record that passed the frame over has no place to name, however the file is laid out — the
+    // recording has one: a frame the screening passed over that the organizer then asked for.
+    const passed = full.entries.filter((one) => one.decision === 'skip');
+    expect(passed.some((one) => file(one.media_id)?.places.length)).toBe(true);
+    for (const record of passed) expect(placeLine(record, file(record.media_id), ru)).toBeUndefined();
   });
 
   test('the three numbers of «Как собирался» are the worker’s own tallies', () => {

@@ -29,6 +29,7 @@ vi.mock('@/downloads', () => ({
   shareFile: async () => {},
 }));
 
+import { Unlink, WifiOff } from 'lucide-react-native';
 import { AppState } from 'react-native';
 import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
 
@@ -40,10 +41,12 @@ import {
   ActionBar,
   AppBar,
   BadgeDecision,
+  Banner,
   Button,
   CardMontage,
   CardNow,
   Chip,
+  Icon,
   LogEntry,
   NoteThought,
   RowStep,
@@ -420,6 +423,36 @@ describe.each(SCENARIOS)('%s — the journal of one stage and the card of a file
     await screen.unmount();
   });
 
+  test('a frame the organizer asked for wears «Взят по слову организатора» beside «Беру», in the journal and on its card', async () => {
+    const { screen } = await open('directing');
+    const first = recordsOn('directing').slice(0, inList(screen).length);
+    const kindsOf = (log: ReactTestInstance) =>
+      (log.props.marks as { props: { kind: string } }[]).map((one) => one.props.kind);
+    const asked = first.filter((one) => one.reason === 'included');
+    expect(asked.length, 'the recording has a frame the organizer asked for').toBeGreaterThan(0);
+
+    for (const record of asked) {
+      const log = inList(screen)[first.indexOf(record)];
+      expect(record.decision).toBe('take');
+      expect(pillsOf(log)).toEqual([marksOf(record, ru)[0], ru.montage.live.reason.included]);
+      expect(kindsOf(log)).toEqual(['take', 'part']);
+
+      await screen.press(log);
+      const sheet = screen.root.findByType(SheetLiveFile);
+      expect(sheet.findAllByType(BadgeDecision).map((one) => [one.props.kind, one.props.label])).toEqual([
+        ['take', marksOf(record, ru)[0]],
+        ['part', ru.montage.live.reason.included],
+      ]);
+      await act(async () => sheet.props.onCancel());
+    }
+
+    // Every other frame taken is taken with no reason pill: the organizer's word is theirs alone.
+    for (const record of first.filter((one) => one.decision === 'take' && one.reason !== 'included')) {
+      expect(pillsOf(inList(screen)[first.indexOf(record)])).not.toContain(ru.montage.live.reason.included);
+    }
+    await screen.unmount();
+  });
+
   test('the three narrow chips cut by the decision, as the api counts them', async () => {
     const { screen } = await open('directing');
     const row = whole.stages.find((one) => one.stage === 'directing')!;
@@ -456,18 +489,57 @@ describe.each(SCENARIOS)('%s — the journal of one stage and the card of a file
     expect(sheet.findByType(ShotGaze).props.uri).toBe(file.thumbnail_url);
     expect(sheet.findByType(ShotGaze).props.gaze !== undefined).toBe(target.focus !== null);
     expect(sheet.findAllByType(Tag).map((one) => one.props.label)).toEqual(target.labels ?? []);
-    expect(sheet.findByType(BadgeDecision).props.label).toBe(marksOf(target, ru)[0]);
+    // The decision, and beside it the organizer's word where that is why it was taken.
+    expect(sheet.findAllByType(BadgeDecision).map((one) => [one.props.kind, one.props.label])).toEqual([
+      ['take', marksOf(target, ru)[0]],
+      ...(target.reason === 'included' ? [['part', ru.montage.live.reason.included]] : []),
+    ]);
+    // The thought, where there is one, and where the frame went: the part of the story, and the
+    // seconds of the film it plays for.
+    expect(sheet.findAllByType(NoteThought).map((one) => one.props.text)).toEqual(target.thought ? [target.thought] : []);
     const [place] = file.places;
-    // The thought, and under it where the frame went: the part of the story, and the seconds of the
-    // film it plays for.
-    if (!target.thought) return screen.unmount();
-    const plate = sheet.findByType(NoteThought).props;
-    expect(plate.text).toBe(target.thought);
-    expect(plate.outcome).toContain(`${clock(place.start_seconds)}–${clock(place.start_seconds + place.duration_seconds)}`);
-    if (target.story_part !== null) expect(plate.outcome).toContain(`Часть ${target.story_part}`);
+    expect(words(sheet)).toContain(`${clock(place.start_seconds)}–${clock(place.start_seconds + place.duration_seconds)}`);
+    if (target.story_part !== null) expect(words(sheet)).toContain(`Часть ${target.story_part}`);
 
     await act(async () => sheet.props.onCancel());
     expect(screen.root.findAllByType(SheetLiveFile)).toEqual([]);
+    await screen.unmount();
+  });
+
+  test('a frame nothing was said about still says where it lay: no plate, the line alone', async () => {
+    const { screen } = await open('directing');
+    const files = new Map(whole.files.map((one) => [one.id, one]));
+    const first = recordsOn('directing').slice(0, inList(screen).length);
+    const silent = first.filter(
+      (one) => one.decision !== 'skip' && one.thought === null && files.get(one.media_id!)?.places.length,
+    );
+    // Both roads have them: the frame the organizer asked for on either, and every frame taken on the
+    // road without the director, who has no thoughts to say.
+    expect(silent.length).toBeGreaterThan(0);
+    if (scenario === 'algorithm') {
+      expect(silent).toEqual(first.filter((one) => one.decision === 'take'));
+    }
+
+    for (const record of silent) {
+      await screen.press(inList(screen)[first.indexOf(record)]);
+      const sheet = screen.root.findByType(SheetLiveFile);
+      const [place] = files.get(record.media_id!)!.places;
+      expect(sheet.findAllByType(NoteThought)).toEqual([]);
+      expect(words(sheet), `record ${record.id}`).toContain(
+        `${clock(place.start_seconds)}–${clock(place.start_seconds + place.duration_seconds)}`,
+      );
+      await act(async () => sheet.props.onCancel());
+    }
+    await screen.unmount();
+  });
+
+  test('the rhythm is the fourth of five with music or without, and says under its name what it came to', async () => {
+    const { screen } = await open('rhythm');
+    const { track, cuts } = whole.stages.find((one) => one.stage === 'rhythm')!.outcome;
+    const bar = screen.root.findByType(AppBar).props;
+    expect(bar.subtitle).toContain(ru.montage.live.stageOf(4, 5));
+    expect(bar.subtitle).toContain(track!.length === 0 ? ru.montage.live.noTrack : ru.montage.live.cuts(cuts!));
+    expect(bar.subtitle).not.toContain(ru.montage.live.cuts(0));
     await screen.unmount();
   });
 
@@ -566,6 +638,12 @@ describe.each(SCENARIOS)('%s — «Ролик готов» and «Как соби
     expect(rows.map((one) => [one.props.title, one.props.state])).toEqual(
       MONTAGE_STAGES.map((code) => [ru.montage.stage[code], 'done']),
     );
+    // Five stages with or without music; the rhythm of a film with none says there was nothing to fit
+    // to rather than «0 склеек», and one with music counts the cuts that moved to it.
+    const rhythm = rows[MONTAGE_STAGES.indexOf('rhythm')].props.meta as string;
+    const { track, cuts } = outcome('rhythm');
+    expect(rhythm).toContain(track!.length === 0 ? ru.montage.live.noTrack : ru.montage.live.cuts(cuts!));
+    expect(rhythm).not.toContain(ru.montage.live.cuts(0));
     // The two last records of each stage that has any, freshest first — every stage is opened out.
     const drawn = rows.map((row) => row.findAllByType(StepNote).map((one) => one.props.text));
     MONTAGE_STAGES.forEach((code, at) => {
@@ -786,11 +864,18 @@ describe('a journal the api will not give', () => {
   }
   const knocks = (api: Replay) => api.served.filter((one) => one === 'journal_of_stranger').length;
 
+  /** The glyph each banner on the screen draws beside its words. */
+  const glyphs = (screen: Screen) =>
+    screen.root.findAllByType(Banner).map((one) => one.findByType(Icon).props.icon);
+
   test('is not said to be a lost connection', async () => {
     const { api, screen } = await sitInFront();
     expect(knocks(api)).toBe(1);
     expect(words(screen.root)).not.toContain(ru.montage.live.lost);
     expect(words(screen.root)).toContain(ru.memory.gone);
+    // One banner, and not under the «no signal» glyph either: a tie that is cut.
+    expect(glyphs(screen)).toEqual([Unlink]);
+    expect(glyphs(screen)).not.toContain(WifiOff);
     await screen.unmount();
   });
 
@@ -810,6 +895,7 @@ describe('a journal the api will not give', () => {
     expect(api.served.filter((one) => one.includes('/journal'))).toHaveLength(1);
     expect(words(screen.root)).toContain(ru.memory.gone);
     expect(words(screen.root)).not.toContain(ru.montage.live.lost);
+    expect(glyphs(screen)).toEqual([Unlink]);
     await screen.unmount();
   });
 });

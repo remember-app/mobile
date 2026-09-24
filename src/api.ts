@@ -1028,8 +1028,11 @@ export type MontageStageOutcome = {
   parts?: number;
   frames?: number;
   part_titles?: string[];
-  /** `rhythm` — the track it was laid out to, and how many cuts that came to. */
-  track?: string;
+  /**
+   * `rhythm` — the tracks it was laid out to, in the order of the order, and how many cuts moved
+   * to them. A film with no music is `track: []` and `cuts: 0`.
+   */
+  track?: string[];
   bpm?: number;
   /** `assembly` — the cuts and the running time of what came out. */
   cuts?: number;

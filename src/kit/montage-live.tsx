@@ -259,21 +259,18 @@ function SparkMark({ size }: { size: 20 | 22 }) {
 }
 
 /**
- * Spec 7.6 — the director's thought as a plate: the sparkle, the sentence, and sometimes a second
- * line saying where it landed in the film. It is the same plate whether it holds the plan for a
- * whole stage or the conclusion about one file.
+ * Spec 7.6 — the director's thought as a plate: the sparkle and the sentence. It is the same plate
+ * whether it holds the plan for a whole stage or the thought about one file. Where that file lay in
+ * the film is not a thought but the layout's fact, and is not drawn inside it (detail 50).
  */
 export function NoteThought({
   text,
   unsaid,
-  outcome,
   style,
 }: {
   text: string;
   /** The rest of the sentence, still arriving — see {@link Said}. */
   unsaid?: string;
-  /** «Часть 2 „Клятвы“ · 1:12–1:16 · крупный план» — where the thought ended up. */
-  outcome?: string;
   style?: StyleProp<ViewStyle>;
 }) {
   const styles = useStyles();
@@ -281,16 +278,9 @@ export function NoteThought({
   return (
     <View style={[styles.plateNote, style]}>
       <SparkMark size={20} />
-      <View style={styles.grow}>
-        <Text role="note" tone="paper">
-          <Said said={text} unsaid={unsaid} />
-        </Text>
-        {outcome ? (
-          <Text role="meta" tone="accent" style={styles.outcome}>
-            {outcome}
-          </Text>
-        ) : null}
-      </View>
+      <Text role="note" tone="paper" style={styles.grow}>
+        <Said said={text} unsaid={unsaid} />
+      </Text>
     </View>
   );
 }
@@ -579,7 +569,6 @@ const useStyles = themed(({ color }) =>
       borderColor: color.accentEdge,
       backgroundColor: color.accentNote,
     },
-    outcome: { marginTop: space.s1 },
     grow: { flex: 1, minWidth: 0 },
     // Spec 7.7 — the journal's own line runs 17 to the left of the words, and each record hangs its
     // dot on it. The line belongs to `Journal`, so a record only draws the dot.

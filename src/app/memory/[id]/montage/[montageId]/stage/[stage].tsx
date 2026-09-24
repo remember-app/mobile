@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft, Unlink } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -107,7 +107,7 @@ export default function MontageLiveStageScreen() {
           }
         />
         <View style={styles.feed}>
-          <Banner tone="error" text={s.memory.gone} />
+          <Banner tone="error" icon={Unlink} text={s.memory.gone} />
         </View>
       </Board>
     );

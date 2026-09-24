@@ -8,10 +8,11 @@ vi.mock('@/auth', () => ({ useAuth: () => ({ token: 'session' }) }));
 // handed to the sheet's `onSubmit` directly below; how the field draws is `label-sheets.test.tsx`'s.
 vi.mock('@/kit', async (original) => ({ ...(await original<typeof import('@/kit')>()), Field: () => null }));
 
+import { Unlink, WifiOff } from 'lucide-react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 
 import type { Label, MediaItem } from '@/api';
-import { Banner, Button, ConfirmSheet, IconButton, RowLabel } from '@/kit';
+import { Banner, Button, ConfirmSheet, Icon, IconButton, RowLabel } from '@/kit';
 import { frame, label } from '@/label-fixtures';
 import { LabelNewSheet, LabelSheets } from '@/memory/label-sheets';
 import { ru } from '@/strings';
@@ -123,6 +124,8 @@ async function open(frames: MediaItem[]) {
     icon: (text: string) =>
       tree.root.findAllByType(IconButton).find((one) => one.props.label === text)!,
     banner: () => tree.root.findAllByType(Banner).map((one) => one.props.text as string),
+    /** The glyph each banner draws beside its words. */
+    glyph: () => tree.root.findAllByType(Banner).map((one) => one.findByType(Icon).props.icon),
     confirm: () => tree.root.findByType(ConfirmSheet),
     making: () => tree.root.findAllByType(LabelNewSheet),
     act: (run: () => void) => act(async () => run()),
@@ -295,6 +298,9 @@ test('a viewer asking for a shared label is told in words what they can make, an
   server.refuse = (asked) => (asked.method === 'POST' ? json({}, 404) : undefined);
   await sheet.act(() => sheet.making()[0].props.onSubmit('Личное', 1, false));
   expect(sheet.banner()).toEqual([ru.memory.gone]);
+  // …and it is not about the connection either: the banner wears a cut tie, not «no signal».
+  expect(sheet.glyph()).toEqual([Unlink]);
+  expect(sheet.glyph()).not.toContain(WifiOff);
 });
 
 test('deleting a label asks first, takes only the box, and tells the feed every frame lost it', async () => {

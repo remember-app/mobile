@@ -329,6 +329,9 @@ function cameOf(stage: MontageStage, s: Strings): string | undefined {
     case 'directing':
       return came.parts === undefined ? undefined : live.parts(came.parts);
     case 'rhythm':
+      // A film with no music has nothing to lay out to: the stage still runs, and «0 склеек» would
+      // be a count of what never could have happened.
+      if (came.track?.length === 0) return live.noTrack;
       return came.cuts === undefined ? undefined : live.cuts(came.cuts);
     case 'assembly':
       return formatRuntime(came.seconds ?? null);
@@ -423,20 +426,23 @@ export function sifted(entries: readonly JournalEntry[], sift: Sift): JournalEnt
 }
 
 /**
- * Where a frame ended up, under the thought about it (spec 7.6, `SheetLiveFile`) — «Часть 2
- * «Клятвы» · 1:12–1:16 · и ещё 1». The part of the story is the record's, the seconds are the file's
- * own `places`, and a frame that stands in the video twice says so by a count rather than by a
- * second line: the sheet is about why it was taken, not about the cutting list.
+ * Where a frame lay in the film (spec 7.6, `SheetLiveFile`) — «Часть 2 «Клятвы» · 1:12–1:16 · и ещё
+ * 1». A fact of the layout and not of the thought: the seconds are the file's own `places`, so the
+ * line is there whether the director said anything about the frame or not — and on the road without
+ * the director it never does. The part of the story is the record's, and a frame that stands in the
+ * video twice says so by a count rather than by a second line: the sheet is about the frame, not
+ * about the cutting list.
  *
- * A frame nobody took has none of this — the plate above explains why it was passed over, and an
- * outcome under that would be a place it never went to.
+ * A record that passed the frame over has none of this, however the file is laid out: its card is
+ * about why it was passed over, and a frame the organizer then asked for is placed on the card of
+ * the record that took it.
  */
-export function outcomeLine(
+export function placeLine(
   entry: JournalEntry,
   file: JournalFile | undefined,
   s: Strings,
 ): string | undefined {
-  if (entry.decision !== 'take') return undefined;
+  if (entry.decision === 'skip') return undefined;
   const { live } = s.montage;
   const [place, ...rest] = file?.places ?? [];
   const from = place === undefined ? undefined : formatRuntime(place.start_seconds);
@@ -459,9 +465,10 @@ export const isFresh = (journal: Journal, entry: JournalEntry): boolean =>
 /* ── The record, in words ─────────────────────────────────────────────── */
 
 /**
- * Why a frame was passed over. The worker's vocabulary is open — the api puts no check on the
- * column — so a code this app has no word for is read as «not suitable» rather than shown raw or
- * dropped: it is still an honest thing to say about a frame nobody took.
+ * A reason code in words — why a frame was passed over, and `included` on the one kind of take that
+ * has a reason at all. The worker's vocabulary is open — the api puts no check on the column — so a
+ * code this app has no word for is read as «not suitable» rather than shown raw or dropped: it is
+ * still an honest thing to say about a frame nobody took.
  *
  * Own keys only: the code is the model's own words, and `in` would hand `__proto__` or
  * `constructor` back as an object or a function for the screen to render.
@@ -475,10 +482,21 @@ export function reasonWord(reason: string | null, s: Strings): string | undefine
 }
 
 /**
+ * Why a frame was taken, where the worker says: `included`, the organizer asked for it at the order —
+ * the one reason it writes on a take (montage README, «Слово организатора видно с обеих сторон»).
+ * It stands beside «Беру», never instead of it (spec 28). Any other code on a take has no word here:
+ * «не подошёл» beside «беру» would be the record arguing with itself.
+ */
+export const whyTaken = (entry: JournalEntry, s: Strings): string | undefined =>
+  entry.decision === 'take' && entry.reason === 'included'
+    ? s.montage.live.reason.included
+    : undefined;
+
+/**
  * What a record wears as pills (spec 7.7): the decision first, then what qualifies it. «Беру» alone
  * for a photograph, «Беру 0:04–0:07» where a piece of a video was taken, «Взял 1 из 4» where it was
- * one of a burst, and the part of the story it went into beside either. A record with no decision
- * is a thought and wears nothing — it is the plate, not the pill.
+ * one of a burst, and beside either why it was taken and the part of the story it went into. A
+ * record with no decision is a thought and wears nothing — it is the plate, not the pill.
  */
 export function marksOf(entry: JournalEntry, s: Strings): string[] {
   const { live } = s.montage;
@@ -496,7 +514,11 @@ export function marksOf(entry: JournalEntry, s: Strings): string[] {
       : entry.series_size !== null && entry.series_size > 1
         ? live.tookOneOf(entry.series_size)
         : live.take;
-  return entry.story_part === null ? [took] : [took, live.part(entry.story_part)];
+  return [
+    took,
+    whyTaken(entry, s),
+    entry.story_part === null ? undefined : live.part(entry.story_part),
+  ].filter((mark): mark is string => mark !== undefined);
 }
 
 /* ── Reading it live ──────────────────────────────────────────────────── */

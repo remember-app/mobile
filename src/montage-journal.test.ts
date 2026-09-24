@@ -24,7 +24,7 @@ import {
   marksOf,
   minutesLeft,
   NO_JOURNAL,
-  outcomeLine,
+  placeLine,
   pull,
   pullOlder,
   reasonWord,
@@ -34,6 +34,7 @@ import {
   stageMinutes,
   stageNumber,
   stageStanding,
+  whyTaken,
   type Journal,
 } from '@/montage-journal';
 import { en, ru } from '@/strings';
@@ -450,6 +451,21 @@ describe('the line under a stage', () => {
     expect(stageLine(directing, ru)).toBe('3 части');
   });
 
+  test('the rhythm of a film with no music says there was nothing to fit to, not «0 склеек»', () => {
+    // What the worker writes for it (montage README, «Ритм ролика без музыки»).
+    const silent: MontageStage = { ...stage('rhythm', 'done'), outcome: { cuts: 0, track: [] } };
+    expect(stageLine(silent, ru)).toBe('без музыки, подгонять не подо что');
+    expect(stageLine(silent, en)).toBe('no music, nothing to fit to');
+    // With music it counts what moved to it, as before — and an outcome without the key is read
+    // the way it always was.
+    const scored: MontageStage = {
+      ...stage('rhythm', 'done'),
+      outcome: { bpm: 81, cuts: 3, track: ['warm'] },
+    };
+    expect(stageLine(scored, ru)).toBe('3 склейки');
+    expect(stageLine({ ...stage('rhythm', 'done'), outcome: { cuts: 0 } }, ru)).toBe('0 склеек');
+  });
+
   test('a stage nobody has reached has no line at all rather than a line of nothing', () => {
     expect(stageLine(stage('assembly', 'pending'), ru, now)).toBe(undefined);
   });
@@ -606,27 +622,38 @@ describe('where a frame ended up', () => {
 
   test('is the part of the story and the seconds it plays for', () => {
     const took = entry(1, { decision: 'take', story_part: 2, story_part_title: 'Клятвы' });
-    expect(outcomeLine(took, file, ru)).toBe('Часть 2 «Клятвы» · 1:12–1:16');
-    expect(outcomeLine(took, file, en)).toBe('Part 2 «Клятвы» · 1:12–1:16');
+    expect(placeLine(took, file, ru)).toBe('Часть 2 «Клятвы» · 1:12–1:16');
+    expect(placeLine(took, file, en)).toBe('Part 2 «Клятвы» · 1:12–1:16');
+  });
+
+  test('is the layout’s and not the thought’s: a record with nothing said still has its place', () => {
+    // The road without the director: «беру» and no thought, no part of any story.
+    expect(placeLine(entry(1, { decision: 'take', thought: null }), file, ru)).toBe('1:12–1:16');
+    // A record that settled nothing — what was seen on the frame — is about a frame laid out all the same.
+    expect(placeLine(entry(1, { stage: 'understanding', media_id: 'f1' }), file, ru)).toBe('1:12–1:16');
   });
 
   test('a frame that stands in the video twice says so by a count, not by a second line', () => {
     const twice = { ...file, places: [...file.places, { start_seconds: 150, duration_seconds: 3 }] };
-    expect(outcomeLine(entry(1, { decision: 'take', story_part: 2 }), twice, ru)).toBe(
+    expect(placeLine(entry(1, { decision: 'take', story_part: 2 }), twice, ru)).toBe(
       'Часть 2 · 1:12–1:16 · и ещё 1',
     );
   });
 
-  test('a frame nobody took has no outcome — the thought above it is the explanation', () => {
-    expect(outcomeLine(entry(1, { decision: 'skip', reason: 'blur' }), file, ru)).toBe(undefined);
+  test('a record that passed the frame over has no place, however the file is laid out', () => {
+    expect(placeLine(entry(1, { decision: 'skip', reason: 'blur' }), file, ru)).toBe(undefined);
+    expect(placeLine(entry(1, { decision: 'skip', reason: 'exposure', thought: null }), file, ru)).toBe(
+      undefined,
+    );
   });
 
   test('a frame with no place yet says only which part it is going into', () => {
-    expect(outcomeLine(entry(1, { decision: 'take', story_part: 1 }), { ...file, places: [] }, ru)).toBe(
+    expect(placeLine(entry(1, { decision: 'take', story_part: 1 }), { ...file, places: [] }, ru)).toBe(
       'Часть 1',
     );
     // And one the layout has not reached at all has nothing to say rather than an empty line.
-    expect(outcomeLine(entry(1, { decision: 'take' }), undefined, ru)).toBe(undefined);
+    expect(placeLine(entry(1, { decision: 'take' }), undefined, ru)).toBe(undefined);
+    expect(placeLine(entry(1, { decision: 'take' }), { ...file, places: [] }, ru)).toBe(undefined);
   });
 });
 
@@ -670,6 +697,30 @@ describe('the record in words', () => {
     expect(marksOf(left, en)).toEqual(['Passing', 'Not in the story']);
   });
 
+  test('a frame the organizer asked for says so beside «Беру», not instead of it', () => {
+    const asked = entry(1, { decision: 'take', reason: 'included' });
+    expect(marksOf(asked, ru)).toEqual(['Беру', 'Взят по слову организатора']);
+    expect(marksOf(asked, en)).toEqual(['Taking', 'Taken at the organizer’s word']);
+    expect(whyTaken(asked, ru)).toBe('Взят по слову организатора');
+    expect(marksOf({ ...asked, story_part: 2 }, ru)).toEqual([
+      'Беру',
+      'Взят по слову организатора',
+      'часть 2',
+    ]);
+  });
+
+  test('a take with no reason, or one this app does not know, wears no reason at all', () => {
+    // «Не подошёл» beside «Беру» would be the record arguing with itself.
+    for (const reason of [null, 'shaky_pan', 'blur']) {
+      const took = entry(1, { decision: 'take', reason });
+      expect(marksOf(took, ru), `${reason}`).toEqual(['Беру']);
+      expect(whyTaken(took, ru)).toBe(undefined);
+    }
+    // And the organizer's word is about a take: a thought or a pass does not wear it.
+    expect(whyTaken(entry(1, { reason: 'included' }), ru)).toBe(undefined);
+    expect(whyTaken(entry(1, { decision: 'skip', reason: 'included' }), ru)).toBe(undefined);
+  });
+
   test('a thought with nothing settled in it wears no pill', () => {
     expect(marksOf(entry(1), ru)).toEqual([]);
   });
@@ -691,12 +742,19 @@ describe('the record in words', () => {
   });
 
   test('every reason the api names has a word in both languages', () => {
-    // The worker's whole vocabulary for «мимо» (its README, «Журнал»): three from the screening,
-    // four from the director.
-    for (const code of ['blur', 'exposure', 'unreadable', 'duplicate', 'excluded', 'no_room', 'left_out']) {
-      expect(reasonWord(code, ru)).not.toBe(ru.montage.live.reason.other);
-      expect(reasonWord(code, en)).not.toBe(en.montage.live.reason.other);
+    // The worker's whole vocabulary (its README, «Журнал»): for «мимо» three from the screening and
+    // four from the director, and for «беру» the organizer's word.
+    const codes = ['blur', 'exposure', 'unreadable', 'duplicate', 'excluded', 'no_room', 'left_out', 'included'];
+    for (const code of codes) {
+      for (const s of [ru, en]) {
+        expect(reasonWord(code, s), code).toBeTruthy();
+        expect(reasonWord(code, s), code).not.toBe(s.montage.live.reason.other);
+      }
     }
+    // Every one of them its own word, in each language.
+    expect(new Set(codes.map((code) => reasonWord(code, ru))).size).toBe(codes.length);
+    expect(new Set(codes.map((code) => reasonWord(code, en))).size).toBe(codes.length);
+    expect(reasonWord('included', ru)).toBe('Взят по слову организатора');
   });
 
   test('the five stages of the journal are named in both languages', () => {

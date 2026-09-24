@@ -35,23 +35,25 @@ vi.mock('expo-image', () => ({
     createElement(View, { style, testID: 'image' } as never),
 }));
 
+type Glyph = (props: { size?: number; color?: string; strokeWidth?: number; fill?: string }) => unknown;
+
 /**
- * One glyph, drawn as the bare `<svg>` a real Lucide icon comes out as — carrying the four things
- * `kit/icon.tsx` sets on it and nothing else. It has to draw *something*: a stub returning `null`
- * makes a button with a glyph and a button without one render identically, and a story that cannot
- * tell those apart is not watching the thing it was written for.
+ * A glyph, drawn as the bare `<svg>` a real Lucide icon comes out as — carrying the four things
+ * `kit/icon.tsx` sets on it and its own name, nothing else. It has to draw *something*: a stub
+ * returning `null` makes a button with a glyph and a button without one render identically, and a
+ * story that cannot tell those apart is not watching the thing it was written for. And one per name,
+ * the same one every time it is asked for: a banner that says «вас здесь нет» under the «no signal»
+ * glyph has to be told apart from one that does not.
  */
-const glyph = ({
-  size,
-  color,
-  strokeWidth,
-  fill,
-}: {
-  size?: number;
-  color?: string;
-  strokeWidth?: number;
-  fill?: string;
-}) => createElement('svg', { 'data-glyph': '', width: size, height: size, stroke: color, strokeWidth, fill });
+const glyphs = new Map<string, Glyph>();
+const glyph = (name: string): Glyph => {
+  const known = glyphs.get(name);
+  if (known) return known;
+  const drawn: Glyph = ({ size, color, strokeWidth, fill }) =>
+    createElement('svg', { 'data-glyph': name, width: size, height: size, stroke: color, strokeWidth, fill });
+  glyphs.set(name, drawn);
+  return drawn;
+};
 
 // Every glyph in the set, without naming them one by one: a test that had to list the icons a
 // component happens to import would break every time one of them changed. Only the capitalised
@@ -64,7 +66,7 @@ vi.mock(
       {},
       {
         get: (target, key) =>
-          typeof key === 'string' && /^[A-Z]/.test(key) ? glyph : Reflect.get(target, key),
+          typeof key === 'string' && /^[A-Z]/.test(key) ? glyph(key) : Reflect.get(target, key),
         // Vitest checks a mocked module actually carries the name a file imports before it hands
         // it over, so the bag has to admit to holding them as well as answering for them.
         has: (target, key) =>
