@@ -1186,7 +1186,9 @@ test('a card still being cut says which of the five stages it is on', () => {
   expect(films).toContain('{ at, of: STAGE_COUNT, count: s.montage.live.doneOf(at, STAGE_COUNT) }');
   expect(ru.montage.live.doneOf(3, 5)).toBe('3 из 5');
   // The count and the scale read the one number, so the card cannot say «3» and paint four.
-  expect(cardMontage).toContain('{step ? <StageScale at={step.at} of={step.of} /> : null}');
+  expect(cardMontage).toContain(
+    '{step ? <StageScale at={step.at} of={step.of} failed={step.failed} /> : null}',
+  );
   expect(cardMontage).toContain('{step.count}');
 });
 

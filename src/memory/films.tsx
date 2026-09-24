@@ -45,15 +45,18 @@ const stillMaking = (montages: readonly Montage[] | null) =>
 
 /**
  * Which of the five the making is on, off the list's own answer — the same stage, counted the same
- * way, as «Этап N из 5» on the screen the card leads to (spec 7.6, detail 38). `null` on a finished
- * one and on one the worker has not reached a stage of yet: on the first there is nothing left to
- * show, on the second nothing yet. Never the journal — the strip must not open five journals to
- * draw five scales.
+ * way, as «Этап N из 5» on the screen the card leads to (spec 7.6, detail 38) — and whether it is
+ * the one it fell over on, which the card paints apart (api README). None on a finished one and on
+ * one the worker has not reached a stage of yet: on the first there is nothing left to show, on the
+ * second nothing yet. Never the journal — the strip must not open five journals to draw five scales.
  */
-const stageAt = (montage: Montage): number | null => {
+function stepOf(montage: Montage, s: Strings) {
   const stage = currentStage(montage.stages ?? []);
-  return stage === null ? null : stageNumber(stage.stage);
-};
+  if (stage === null) return undefined;
+  const at = stageNumber(stage.stage);
+  const step = { at, of: STAGE_COUNT, count: s.montage.live.doneOf(at, STAGE_COUNT) };
+  return stage.state === 'failed' ? { ...step, failed: true } : step;
+}
 
 /**
  * What a finished montage was made of — «14 сентября · горизонтальный · Тёплая» (spec 7.6). The day
@@ -341,7 +344,6 @@ export function Films({ id, memory }: { id: string; memory: Memory | null }) {
 
           {montages.map((montage) => {
             const state = MONTAGE_STATE[montage.status];
-            const at = stageAt(montage);
 
             return (
               <CardMontage
@@ -350,13 +352,14 @@ export function Films({ id, memory }: { id: string; memory: Memory | null }) {
                 title={montageTitle(montage, s)}
                 // Spec 7.6 gives the three states three different bodies: a finished one says what
                 // it was made of, and the two that have nothing to show yet say where they stand
-                // instead — «Мы сообщим, когда будет готов», «Сборка оборвалась на полпути».
+                // instead — «Мы сообщим, когда будет готов», or why it broke in the worker's own
+                // sentence (spec detail 38), and the general line where the worker said none.
                 meta={state === 'ready' ? madeOf(montage, s) : undefined}
                 caption={
                   state === 'ready'
                     ? undefined
                     : state === 'failed'
-                      ? s.montage.broke
+                      ? montage.error_text || s.montage.broke
                       : s.montage.caption
                 }
                 poster={montage.poster_url ?? undefined}
@@ -364,11 +367,7 @@ export function Films({ id, memory }: { id: string; memory: Memory | null }) {
                 // Spec detail 38 — «3 из 5» and five bars on the one being cut, straight off the
                 // list. The count and the scale read the one number, so the card cannot say «3» and
                 // paint four; a row the worker has not opened yet has no stages and no scale.
-                step={
-                  at === null
-                    ? undefined
-                    : { at, of: STAGE_COUNT, count: s.montage.live.doneOf(at, STAGE_COUNT) }
-                }
+                step={stepOf(montage, s)}
                 // Onto the page of one that is finished, or into the making of any other — still owed,
                 // or fallen over with the journal of the attempt that broke (spec detail 38). Either
                 // way it is the whole card, which is what the layout gives it.
