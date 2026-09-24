@@ -233,9 +233,9 @@ export function Films({ id, memory }: { id: string; memory: Memory | null }) {
   const askForOne = () => router.push({ pathname: '/memory/[id]/order', params: { id } });
 
   /**
-   * Where a montage still being made is watched — `MontageProgress` (spec 8, TASK-163), the screen
-   * that says in stages how far along it is. `MontageLive`, the montage as a spectacle, replaces it
-   * in its own milestone; the card leads to whichever of the two is standing there.
+   * Where a montage still being made is watched — `MontageLive` (spec 7.6), the montage as a
+   * spectacle — and where one that fell over is read: the same screen stopped at `failed`, the
+   * journal of the attempt that broke and, for the organizer, «Повторить монтаж».
    *
    * A push and not a replace: this screen is what that one goes back to, and its own way out is a
    * `back()`. Nothing about the frames goes over — the count the wizard carries is what it counted
@@ -369,15 +369,10 @@ export function Films({ id, memory }: { id: string; memory: Memory | null }) {
                     ? undefined
                     : { at, of: STAGE_COUNT, count: s.montage.live.doneOf(at, STAGE_COUNT) }
                 }
-                // Walking into the making of one that is still owed, or onto the page of one that is
-                // finished. Either way it is the whole card, which is what the layout gives it.
-                onPress={
-                  beingMade(montage.status)
-                    ? () => watchMaking(montage)
-                    : state === 'ready'
-                      ? () => openFilm(montage)
-                      : undefined
-                }
+                // Onto the page of one that is finished, or into the making of any other — still owed,
+                // or fallen over with the journal of the attempt that broke (spec detail 38). Either
+                // way it is the whole card, which is what the layout gives it.
+                onPress={state === 'ready' ? () => openFilm(montage) : () => watchMaking(montage)}
               >
                 {/* The one button a card carries, and only the fallen card has room for it: a
                     finished one is saved from the player it is watched in. */}

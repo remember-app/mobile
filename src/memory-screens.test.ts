@@ -920,14 +920,17 @@ test('a card still being made is the second road onto the montage being watched'
   expect(road).not.toContain('frames');
   expect(live).not.toContain('frames?: string;');
 
-  // The other two states keep their own roads: a finished montage has a page of its own since
-  // TASK-222 — spec 7.6 gives the whole card to that press, and it is the journal of how it was cut
-  // that made the page necessary — and a fallen one is started again from its own button.
-  expect(films).toContain('() => openFilm(montage)');
+  // A finished montage has a page of its own since TASK-222 — spec 7.6 gives the whole card to that
+  // press, and it is the journal of how it was cut that made the page necessary. A fallen one leads
+  // to the same screen as one being made, stopped at `failed` over the journal of the attempt that
+  // broke (spec detail 38), and is still started again from its own button.
+  expect(films).toContain(
+    "onPress={state === 'ready' ? () => openFilm(montage) : () => watchMaking(montage)}",
+  );
   expect(films).toContain('onPress={() => void retry(montage)}');
   // And the kit is what makes that true: without a press handed over, the card is not a button and
   // takes no finger at all.
-  expect(cardMontage).toContain('if (!onPress) return <View');
+  expect(cardMontage).toContain('<View style={styles.face}>{face}</View>');
   expect(cardMontage).toContain('accessibilityRole="button"');
 });
 

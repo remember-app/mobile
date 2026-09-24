@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { Play, Plus } from 'lucide-react-native';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { night, photo, radius, space, themed, ThemePin, useTheme } from '@/theme';
@@ -61,37 +61,30 @@ export function CardMontage({
   large?: boolean;
   /**
    * What the whole card says to a screen reader, where its own words are not what pressing it does —
-   * «Смотреть: Ролик на 2:30» on the poster that plays the film. Otherwise the name and what it was
-   * made of, which is what the strip's cards are.
+   * «Смотреть: Ролик на 2:30» on the poster that plays the film. Otherwise the words on the card, in
+   * the order they stand: a pressed card is one element, and whatever is left out of its label is
+   * never read — «Сборка оборвалась на полпути» on a fallen one above all.
    */
   label?: string;
-  /** Watching it, or going to where it is being made — one press for the whole card. */
+  /**
+   * Watching it, or going to where it is being made or where it broke — one press for the whole
+   * card but the button under a fallen one.
+   */
   onPress?: () => void;
   /** «Повторить» — the 36 button under a montage that fell over. */
   children?: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
   const { hovered, focused, props } = useHoverFocus();
+  const [pressed, setPressed] = useState(false);
   const reduced = useReducedMotion();
   const styles = useStyles();
   const focusRing = useFocusRing();
   const ready = state === 'ready';
+  const action = ready ? null : children;
 
-  const body = (
+  const face = (
     <>
-      {poster ? (
-        // Spec 7.6 — a montage still being cut shows its own frame pushed out of focus: there is
-        // something there, and it is not ready to be looked at. `expo-image` blurs it natively;
-        // the scale is what keeps the blur from leaving a soft edge around the card.
-        <Image
-          source={{ uri: poster }}
-          contentFit="cover"
-          blurRadius={ready ? 0 : BLUR}
-          style={[StyleSheet.absoluteFill, ready ? null : styles.unfocused]}
-        />
-      ) : null}
-      <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.scrim]} />
-
       {/* The badge and the button under a fallen card lie on the poster, which is a photograph in both
           themes: they are read in the night's ink, or «Собирается» in the day's blue would be a dark
           word on a dark frame. */}
@@ -105,7 +98,7 @@ export function CardMontage({
         </View>
       ) : null}
 
-      <View style={styles.foot}>
+      <View style={[styles.foot, action ? styles.footOverAction : null]}>
         {ready ? (
           <View style={styles.readyLine}>
             {large ? null : <PlayCircle size={34} />}
@@ -138,25 +131,18 @@ export function CardMontage({
               </Text>
             ) : null}
             {step ? <StageScale at={step.at} of={step.of} /> : null}
-            <ThemePin value="dark">{children}</ThemePin>
           </>
         )}
       </View>
     </>
   );
 
-  // A card nobody can press is a group and not a button: its words are read as words and, on a
-  // fallen one, the button under them stays reachable — pressable or not, the whole card as one
-  // accessible element would swallow it.
-  if (!onPress) return <View style={[styles.card, large ? styles.large : styles.strip, style]}>{body}</View>;
-
+  // The press is everything but the button under a fallen card, and that button stands beside it
+  // rather than inside it: a pressable card is one accessible element, and a button inside one is
+  // swallowed whole. A card nobody can press is a group, its words read as words.
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label ?? [title, meta].filter(Boolean).join(' · ')}
-      onPress={onPress}
-      {...props}
-      style={({ pressed }) => [
+    <View
+      style={[
         styles.card,
         large ? styles.large : styles.strip,
         hovered ? styles.hover : null,
@@ -165,8 +151,41 @@ export function CardMontage({
         style,
       ]}
     >
-      {body}
-    </Pressable>
+      {poster ? (
+        // Spec 7.6 — a montage still being cut shows its own frame pushed out of focus: there is
+        // something there, and it is not ready to be looked at. `expo-image` blurs it natively;
+        // the scale is what keeps the blur from leaving a soft edge around the card.
+        <Image
+          source={{ uri: poster }}
+          contentFit="cover"
+          blurRadius={ready ? 0 : BLUR}
+          style={[StyleSheet.absoluteFill, ready ? null : styles.unfocused]}
+        />
+      ) : null}
+      <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.scrim]} />
+
+      {onPress ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={label ?? [title, meta, caption, step?.count].filter(Boolean).join(' · ')}
+          onPress={onPress}
+          onPressIn={() => setPressed(true)}
+          onPressOut={() => setPressed(false)}
+          {...props}
+          style={styles.face}
+        >
+          {face}
+        </Pressable>
+      ) : (
+        <View style={styles.face}>{face}</View>
+      )}
+
+      {action ? (
+        <View style={styles.action}>
+          <ThemePin value="dark">{action}</ThemePin>
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -315,7 +334,11 @@ const useStyles = themed(({ color }) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
+    face: { flex: 1 },
     foot: { marginTop: 'auto', padding: 12, gap: space.s2 },
+    // The button under a fallen card keeps the foot's 12 at the edges and its 8 above.
+    footOverAction: { paddingBottom: space.s2 },
+    action: { paddingHorizontal: 12, paddingBottom: 12 },
     readyLine: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     pendingLine: { flexDirection: 'row', alignItems: 'baseline', gap: space.s2 },
     grow: { flex: 1, minWidth: 0 },
