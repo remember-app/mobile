@@ -40,6 +40,14 @@ test('the memory’s name is 56 tall and 18 round, and the e-mail is 60 and 20',
   expect(story(<Field label="Поиск" variant="search" value="" />)).toContain('border-top-left-radius:16px');
 });
 
+test('the label’s colour square in its field carries the night’s dark glyph in daylight too', async () => {
+  await setTheme('light');
+  const field = story(<Field label="Имя" variant="labelName" swatch="#FFB547" value="" />);
+  expect(field).toContain('stroke="#0B0B12"');
+  expect(field).not.toContain('stroke="#F2EFE7"');
+  await setTheme('dark');
+});
+
 test('every state of a field is its own state, and none of them is the placeholder', () => {
   allDifferent({
     empty: <Field label="Ник" value="" placeholder="ваш-ник" />,

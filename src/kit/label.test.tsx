@@ -28,6 +28,16 @@ test('the coloured square is drawn at the three sizes a label is known by', () =
   expect(story(<LabelMark tint="#4FB3FF" />)).not.toBe(story(<LabelMark tint={AMBER} />));
 });
 
+test('the glyph on a label’s square is the night’s dark in daylight too', async () => {
+  // The square is amber or pink or violet in either theme; the day's `ink` is a cream (#F2EFE7), and
+  // a cream tag on amber is a square with nothing on it.
+  await setTheme('light');
+  const mark = story(<LabelMark tint={AMBER} />);
+  expect(mark).toContain('stroke="#0B0B12"');
+  expect(mark).not.toContain('stroke="#F2EFE7"');
+  await setTheme('dark');
+});
+
 test('a label row says whose it is and whether what is chosen is in it', () => {
   allDifferent({
     sharedOut: (
