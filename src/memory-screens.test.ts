@@ -38,7 +38,6 @@ import frames from './memory/frames.tsx?raw';
 import sheets from './memory/frames-sheets.tsx?raw';
 import head from './memory/head.tsx?raw';
 import inviteSheet from './memory/invite-sheet.tsx?raw';
-import labelSheets from './memory/label-sheets.tsx?raw';
 import when from './memory/when.tsx?raw';
 // The arithmetic both the movies face and the waiting screen ask their «is it still being made»
 // question through, so the two cannot drift apart about what the answer is.
@@ -56,11 +55,11 @@ import { en, ru } from '@/strings';
  * films became a block of the feed. These read off the route and the pieces it is drawn from: what
  * went where, what the bar carries, and what still points at what.
  *
- * Their text and not their rendered output, because this project has no renderer: every test here
+ * Their text and not their rendered output, because this file has no renderer: every test here
  * runs pure logic, and a screen would need `react-native` transformed and `expo-router`,
  * `expo-video` and the safe area all faked before its first line ran. What is worth pinning about a
  * reorganisation is the shape of it — that much the text answers. These go the day a render harness
- * arrives.
+ * arrives — which it has, for the labels alone (`memory/*-flow.test.tsx`, `react-test-renderer`).
  */
 
 /**
@@ -1774,41 +1773,6 @@ test('nothing the filter or the sort was set to is remembered between runs', () 
   for (const part of [frames, sheets]) expect(part).not.toMatch(/SecureStore|AsyncStorage/);
 });
 
-test('the boxes are the face’s own read, and the sheet is handed them like everything else', () => {
-  // Spec 10.8.2 — the «ЛЕЙБЛЫ» row. The labels are read on their own and not as a third hand in the
-  // listing: the quiet re-read runs every three seconds and a box does not move on its own, and a
-  // labels read that will not come back must not put an error over a feed that is fine.
-  expect(frames).toContain('listLabels(token, id).then((all) => {');
-  expect(frames).toContain('}, () => {});');
-  expect(frames).toContain('labels={labels}');
-  expect(frames).not.toContain('listLabels(token, id)]');
-  // Who may see which box is the server's answer and never worked out here: what comes down is
-  // drawn, and somebody else's private label never comes down at all (api README, «Лейблы кадра»).
-  expect(sheets).not.toMatch(/label\.(mine|can_edit|can_add_media)/);
-  // The chip is the kit's (detail 73): the colour of the api's cell through the theme, the count
-  // the api worked out, and the lock only on a private one.
-  expect(sheets).toContain('swatch={labelTint(label.color, theme)}');
-  expect(sheets).toContain('icon={label.shared ? undefined : Lock}');
-  expect(sheets).toContain('count={String(label.media_count)}');
-  expect(sheets).toContain('toggled(have.labels, label.id)');
-  expect(ru.gallery.whichLabels).toBe('Лейблы');
-});
-
-test('the row answers a box made, renamed, deleted or filled without the app being restarted', () => {
-  // The labels sheet is the one place all four happen, so the row is read again as it closes.
-  expect(frames).toContain('loadLabels();');
-  expect(frames).toContain('useFocusEffect');
-  // And a box that has gone leaves the filter with it: every frame has just lost the id, and the
-  // chip that could take it off again is no longer on the sheet (`keepLabels` in `@/frames`).
-  expect(frames).toContain(
-    'if (ids === null) setFilter((have) => keepLabels(have, (one) => one !== labelId));',
-  );
-  // Deleted by somebody else, it is simply missing from the next read of the row — and goes too.
-  expect(frames).toContain(
-    'setFilter((have) => keepLabels(have, (one) => all.some((label) => label.id === one)));',
-  );
-});
-
 test('the sort takes effect as it is pressed, and «Готово» is only the way out', () => {
   // Nothing to preview here — the sheet stands over the sheet it is rearranging — so the answer
   // goes straight up and the button at the bottom closes and nothing else.
@@ -1913,91 +1877,19 @@ test('a tile is read out in the line it is drawn with', () => {
 });
 
 /**
- * The labels of a memory (TASK-213, spec 7.7 and 10.8.1): the left slot of the picking bar opens
- * them, a press on a row files what is marked, and the feed holds on to what came back. What the
- * sheets look like is `memory/label-sheets.test.tsx`; what a press comes to is `labels.test.ts`.
- * These pin the wiring — that the button leads anywhere at all, and that the feed does not go and
- * read the gallery again to find out what it already knows.
+ * The labels of a memory (spec 7.7, 10.8): what a press does, what the feed and the filter show
+ * afterwards and every refusal are pinned by running the screens — `memory/label-sheets-flow.test.tsx`
+ * and `memory/frames-labels-flow.test.tsx`. Only the words the person reads stay here, because those
+ * tests read them off the dictionary instead of spelling them.
  */
-
-test('the labels button of the picking bar opens the sheet, and is off with nothing marked', () => {
-  expect(frames).toContain('label={s.gallery.labelsPut}');
-  expect(frames).toContain('onPress={() => setLabelling(true)}');
-  expect(frames).toContain('disabled={busy || marked.length === 0}');
-  // The button it used to be: drawn, named and dead until this milestone.
-  expect(frames).not.toContain('sheet would be worse than a button that says it is not ready');
+test('the words of the labels flow are the ones the layout wrote', () => {
+  expect(ru.gallery.whichLabels).toBe('Лейблы');
   expect(ru.gallery.labelsPut).toBe('Лейблы: положить выбранное');
-  // And the sheets are mounted by being opened, over what is marked and nothing else.
-  expect(frames).toContain('<LabelSheets');
-  expect(frames).toContain('frames={marked}');
-});
-
-test('what the api answered is kept by the feed itself, without reading the gallery again', () => {
-  // `keepReady` deliberately holds every finished record's own object through a quiet re-read, so a
-  // fresh listing would not even carry the new `label_ids` onto the screen — and a loud one would
-  // blink the whole feed for a change of one array. The same way a delete is kept.
-  expect(frames).toContain('setItems((have) => filed(have, labelId, ids, now));');
-});
-
-test('the sheet never works out who may do what — it draws what the server answered', () => {
-  // `can_edit` and `can_add_media` come down with every label, from the same function that refuses
-  // the write routes (api README). A rule repeated here would be a second answer to one question.
-  expect(labelSheets).toContain('label.can_add_media ? () => onFile(label) : undefined');
-  // And a press while the last one is still in the air is dropped in the container, so the circles
-  // stay where they are: one vanishing mid-errand reads as the right to file being taken away.
-  expect(labelSheets).toContain('if (busy || moving.length === 0) return;');
-  expect(labelSheets).toContain('editing && label.can_edit ?');
-  expect(labelSheets).toContain('labels?.some((label) => label.can_edit)');
-  expect(labelSheets).not.toContain("role === 'organizer'");
-});
-
-test('a press files the missing ones, and a second press takes the whole selection out', () => {
-  expect(labelSheets).toContain('const { inside, ids: moving } = filing(label.id, frames);');
-  expect(labelSheets).toContain('? removeLabelMedia(session, memoryId, label.id, moving)');
-  expect(labelSheets).toContain(': addLabelMedia(session, memoryId, label.id, moving),');
-  // The row the api answers with goes straight back into the list: a new count, not a re-read.
-  expect(labelSheets).toContain('setLabels((have) => withLabel(have ?? [], answer));');
-  // A new label and the frames in it are one action, the way the button is worded.
-  expect(labelSheets).toContain('createLabel(session, memoryId, {');
-  expect(labelSheets).toContain('media_ids: ids.length > 0 ? ids : undefined,');
   expect(ru.labels.create(4)).toBe('Создать и положить 4 кадра');
   expect(en.labels.create(1)).toBe('Create and file 1 frame');
-});
-
-test('a deleted label leaves the frames where they are, on every one of them', () => {
-  expect(labelSheets).toContain('onFiled(label.id, null, false);');
   expect(ru.labels.deleteText).toContain('Кадры останутся в воспоминании');
-  // Nothing is lost, so no price is named — unlike every other dangerous sheet in the app.
-  expect(labelSheets).not.toContain('price=');
-});
-
-test('the one refusal left — a viewer making a shared label — is said in words, and never sticks', () => {
-  // Any member edits and fills a shared label (decision-12), so making one is the only write a
-  // member can still be refused. The api answers a bare «forbidden», which tells nobody what to do.
-  expect(labelSheets).toContain('{ 403: s.labels.sharedDenied, 404: s.labels.memoryGone }');
-  expect(labelSheets.match(/s\.labels\.\w+Denied/g)).toEqual(['s.labels.sharedDenied']);
-  expect(labelSheets).toContain('setBusy(false);');
   expect(ru.labels.sharedDenied).toContain('личный');
-  // A 404 is the label's only where a label is in the path. Making one has none, so there it is the
-  // memory's membership check, and «этого лейбла больше нет» would be the wrong thing to say.
-  expect(labelSheets).toContain('refused: Refusals = { 404: s.labels.gone }');
-  expect(labelSheets).toContain('setError(worded(e, { 404: s.labels.memoryGone }))');
+  expect(ru.labels.gone).toBe('Этого лейбла больше нет.');
   expect(en.labels.gone).toBe('This label is no longer here.');
   expect(ru.labels.memoryGone).toBe('Вас больше нет в этом воспоминании.');
-});
-
-test('back on a list that never arrived, the sheet reads it again instead of waiting on nothing', () => {
-  // A failed read, then «Новый лейбл» and back: the failure is cleared with the sheet it was said on,
-  // and a list still null with no error would otherwise be «Загрузка…» with no read behind it.
-  expect(labelSheets).toContain('if (next === null && labels === null) load();');
-  expect(labelSheets).toContain('onCancel={() => write(null)}');
-});
-
-test('visibility is settled once and only shown afterwards (decision-12)', () => {
-  // Spec 10.8.1: one read-only card with the value in it, never a greyed-out pair — a disabled
-  // button promises that one day it presses, and this one never will.
-  expect(labelSheets).toContain('readOnly');
-  expect(labelSheets).toContain('{s.labels.whoFixed}');
-  // And nothing ever sends `shared` back up on a rename: the api has no such field on that route.
-  expect(labelSheets).toContain('updateLabel(session, memoryId, label.id, { title, color })');
 });

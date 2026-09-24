@@ -10,15 +10,20 @@ vi.mock('expo-secure-store', () => ({
 }));
 
 import {
+  addLabelMedia,
   ApiError,
+  createLabel,
+  deleteLabel,
   errorMessage,
   hasShared,
+  listLabels,
   mayContribute,
   memberHandle,
   memberName,
   listMontageTemplates,
   orderMontage,
   previewMontage,
+  removeLabelMedia,
   startEmailSignIn,
   type Member,
 } from '@/api';
@@ -180,6 +185,70 @@ test('templates are read, the summary is asked for with the very body the order 
   expect(asked.map((one) => one.method)).toEqual(['GET', 'POST', 'POST']);
   expect(asked[1]?.body).toEqual(wishes);
   expect(asked[2]?.body).toEqual(asked[1]?.body);
+
+  vi.unstubAllGlobals();
+});
+
+/**
+ * The labels client (doc-13): every marked frame goes in — or comes out — as one request, and a
+ * refusal or a dead network reaches the sheet as what it is, so it can be said in words.
+ */
+test('a whole selection is filed, unfiled and made into a label with one request each', async () => {
+  const asked: { url: string; method?: string; body: unknown; auth?: string }[] = [];
+  vi.stubGlobal(
+    'fetch',
+    async (
+      url: string,
+      init: { method?: string; body?: string; headers: Record<string, string> },
+    ) => {
+      asked.push({
+        url: url.replace(/^.*\/memories/, '/memories'),
+        method: init.method,
+        body: init.body ? JSON.parse(init.body) : null,
+        auth: init.headers.Authorization,
+      });
+      return new Response('[]');
+    },
+  );
+
+  const frames = ['a', 'b', 'c'];
+  await listLabels('session', 'm1');
+  await addLabelMedia('session', 'm1', 'best', frames);
+  await removeLabelMedia('session', 'm1', 'best', frames);
+  await createLabel('session', 'm1', { title: 'Лучшее', color: 2, shared: false, media_ids: frames });
+  await deleteLabel('session', 'm1', 'best');
+
+  expect(asked.map(({ method, url, body }) => [method, url, body])).toEqual([
+    ['GET', '/memories/m1/labels', null],
+    ['POST', '/memories/m1/labels/best/media', { media_ids: frames }],
+    ['DELETE', '/memories/m1/labels/best/media', { media_ids: frames }],
+    ['POST', '/memories/m1/labels', { title: 'Лучшее', color: 2, shared: false, media_ids: frames }],
+    ['DELETE', '/memories/m1/labels/best', null],
+  ]);
+  // Every one of them is signed as the person asking — the server alone decides who may see what.
+  expect(asked.every((one) => one.auth === 'Bearer session')).toBe(true);
+
+  vi.unstubAllGlobals();
+});
+
+test('a label gone or forbidden reaches the caller with its status, and a dead network as «offline»', async () => {
+  vi.stubGlobal('fetch', async () => new Response('{"error":"not found"}', { status: 404 }));
+  const gone = await addLabelMedia('session', 'm1', 'best', ['a']).catch((e: unknown) => e);
+  expect(gone).toBeInstanceOf(ApiError);
+  expect((gone as ApiError).status).toBe(404);
+
+  vi.stubGlobal('fetch', async () => new Response('{"error":"forbidden"}', { status: 403 }));
+  const denied = await createLabel('session', 'm1', { title: 'Х', color: 1, shared: true }).catch(
+    (e: unknown) => e,
+  );
+  expect((denied as ApiError).status).toBe(403);
+
+  vi.stubGlobal('fetch', async () => {
+    throw new TypeError('Network request failed');
+  });
+  await setLanguage('ru');
+  const offline = await listLabels('session', 'm1').catch((e: unknown) => e);
+  expect(errorMessage(offline)).toBe(ru.error.offline);
 
   vi.unstubAllGlobals();
 });
