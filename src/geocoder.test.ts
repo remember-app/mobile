@@ -5,12 +5,13 @@ import { beforeEach, expect, test, vi } from 'vitest';
 vi.mock('expo-location', () => ({ reverseGeocodeAsync: vi.fn() }));
 
 import { nameOfPlace } from '@/geocoder';
-import geocoder from './geocoder.ts?raw';
 
 /**
  * What the frame's sheet does about a place (`SheetFrameInfo`, «Место»): asks the phone for the
- * name of a point, and asks once. Every test uses a point of its own, because the answers are kept
- * for as long as the app lives — which is the thing being tested, and so cannot be reset between.
+ * name of a point, and asks once. What the sheet then makes of the answer — nothing until it comes,
+ * never a name for another frame's point — is `usePlaceName`, rendered in `geocoder-hook.test.tsx`.
+ * Every test uses a point of its own, because the answers are kept for as long as the app lives —
+ * which is the thing being tested, and so cannot be reset between.
  */
 
 const geocode = vi.mocked(reverseGeocodeAsync);
@@ -113,13 +114,4 @@ test('neither the point nor its name reaches a log — on an answer, or on a fai
   }
   // The failure is still heard: by its code, and by nothing that came with it.
   expect(out).toContain('ERR_GEOCODE');
-});
-
-test('the sheet holds the answer with its point, so a late one cannot land on another frame', () => {
-  // The hook cannot be rendered here (no renderer, and the effect is what is in question), so this
-  // pins its two halves as text — the way `memory-screens.test.ts` pins the sheet's own read:
-  // an answer that arrives after its frame was left is dropped, and one that does get in is only
-  // handed back while the point it was for is still the one being asked about.
-  expect(geocoder).toContain('if (current) setFound({ key: keyOf(latitude, longitude), name });');
-  expect(geocoder).toContain('return found?.key === key ? found.name : null;');
 });

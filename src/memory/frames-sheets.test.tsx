@@ -29,8 +29,10 @@ const told = (over: Partial<FrameInfo> = {}): FrameInfo => ({
   id: 'a',
   file_name: 'IMG_4471.HEIC',
   size_bytes: '4200000',
-  captured_at: '2026-09-13T18:47:00.000Z',
-  created_at: '2026-09-15T09:12:00.000Z',
+  // Local days, because the sheet writes local ones: an instant spelled in UTC is the day before, for
+  // anybody west of it, and the line «принёс 15 сентября» would read 14.
+  captured_at: new Date(2026, 8, 13, 21, 47).toISOString(),
+  created_at: new Date(2026, 8, 15, 9, 12).toISOString(),
   width: 4032,
   height: 3024,
   camera_model: 'iPhone 15 Pro',

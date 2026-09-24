@@ -11,6 +11,7 @@ vi.mock('expo-secure-store', () => ({
 
 import {
   daysBefore,
+  endOfDay,
   formatDay,
   formatDayShort,
   formatDayTiny,
@@ -19,6 +20,7 @@ import {
   formatRuntime,
   formatTime,
   lastWeekend,
+  startOfDay,
   weekdayLetters,
 } from '@/dates';
 import { setLanguage } from '@/language';
@@ -129,6 +131,18 @@ test('the week starts on Monday and ends on Sunday, whichever language it is rea
 test('a day some days back rolls the month and the year over with it', () => {
   expect(daysBefore(new Date(2026, 8, 3), 6)).toEqual(new Date(2026, 7, 28));
   expect(daysBefore(new Date(2026, 0, 1), 1)).toEqual(new Date(2025, 11, 31));
+});
+
+// What create and edit send to the api: the first day as the instant it began here and the last day
+// as the instant it ended, so a span covers the whole of both.
+test('a picked day begins at local midnight and ends in its last millisecond, and the day given is left alone', () => {
+  const picked = new Date(2026, 8, 13, 17, 45, 12, 300);
+  expect(startOfDay(picked)).toEqual(new Date(2026, 8, 13, 0, 0, 0, 0));
+  expect(endOfDay(picked)).toEqual(new Date(2026, 8, 13, 23, 59, 59, 999));
+  // A copy in both cases: the day held by a calendar is not moved by asking where it starts.
+  expect(picked).toEqual(new Date(2026, 8, 13, 17, 45, 12, 300));
+  // The end is still on the same day, and one millisecond on is the next.
+  expect(endOfDay(picked).getTime() + 1).toBe(startOfDay(new Date(2026, 8, 14)).getTime());
 });
 
 // «Выходные» is the weekend just gone — the one quick day whose meaning is not one line of
