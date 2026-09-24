@@ -109,16 +109,24 @@ export type Narrow = Pick<JournalQuery, 'stage'>;
 export type Ask = (query: JournalQuery) => Promise<MontageJournal>;
 
 /**
- * One page folded into what is already held. The records are kept by id, so a page that overlaps
- * what is here — a retried poll, a page asked for twice — costs nothing and loses nothing.
+ * The records and files of one page added to what is held. The records are kept by id, so a page
+ * that overlaps what is here — a retried poll, a page asked for twice — costs nothing and loses
+ * nothing.
  */
+function withPage(state: Journal, page: MontageJournal): Pick<Journal, 'entries' | 'files'> {
+  const held = new Map(state.entries.map((entry) => [entry.id, entry] as const));
+  for (const entry of page.entries) held.set(entry.id, entry);
+  return {
+    entries: [...held.values()].sort((a, b) => b.id - a.id),
+    files: { ...state.files, ...Object.fromEntries(page.files.map((file) => [file.id, file])) },
+  };
+}
+
+/** One page folded into what is already held, and where the reading goes from there. */
 function fold(state: Journal, page: MontageJournal, mode: 'first' | 'forward' | 'back'): Journal {
   const ids = page.entries.map((entry) => entry.id);
   const top = ids.length > 0 ? Math.max(...ids) : null;
   const bottom = ids.length > 0 ? Math.min(...ids) : null;
-
-  const held = new Map(state.entries.map((entry) => [entry.id, entry] as const));
-  for (const entry of page.entries) held.set(entry.id, entry);
 
   return {
     status: page.montage.status,
@@ -126,8 +134,7 @@ function fold(state: Journal, page: MontageJournal, mode: 'first' | 'forward' | 
     // answer, and the api is the authority on who is still looking.
     stages: page.stages,
     viewers: page.viewers,
-    entries: [...held.values()].sort((a, b) => b.id - a.id),
-    files: { ...state.files, ...Object.fromEntries(page.files.map((file) => [file.id, file])) },
+    ...withPage(state, page),
     cursor: top === null ? state.cursor : Math.max(state.cursor ?? top, top),
     oldest: bottom === null ? state.oldest : Math.min(state.oldest ?? bottom, bottom),
     // Going forward says nothing about the history behind the screen: `has_more` there is about
