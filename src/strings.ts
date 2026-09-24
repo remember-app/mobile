@@ -310,14 +310,10 @@ export const en = {
     submit: 'Create',
   },
 
-  /** The guest list: who is in a memory, how to get more people in, and how to get out. */
+  /** The guest list: who is in a memory, how to get more people in, and how to take somebody out. */
   members: {
-    /**
-     * The third face of a memory, on the switch under its name (kit, «Экраны» 6). «Люди» and not
-     * «Участники»: the pill is a third of a phone's width, and the kit picks the shorter word.
-     */
+    /** The heading of the block on the memory's settings. «Люди» and not «Участники»: the shorter word. */
     title: 'People',
-    roster: 'Who is here',
     /**
      * Under that heading, and the organizer's whole progress: how many of the people who can bring
      * material already have. Counted over those alone — a viewer is nobody anybody is waiting on.
@@ -328,15 +324,8 @@ export const en = {
      * labels because it is one control saying two things, the way the gallery's picking switch does.
      */
     edit: 'Edit the list',
-    editDone: 'Done',
     you: (name: string) => `${name} (you)`,
     remove: (name: string) => `Remove ${name}`,
-    /**
-     * doc-06's «ждать нечего», given unprompted — the chip that stands in one's own row where
-     * everybody else's standing is written. Said in the first person so it reads as the thing one
-     * presses, and not as the standing of the same name it turns into once pressed.
-     */
-    sayNothing: 'I have nothing to add',
     inviteTitle: 'Invite someone',
     mayAdd: 'They can add photos too',
     /** The rule over the chips of saved people standing under the username field, on the sheet. */
@@ -356,10 +345,6 @@ export const en = {
     noSuchUser: 'No one has that username.',
     inviteDenied: 'Only the organizer and people who can add photos may invite.',
     gone: 'They are not in this memory any more.',
-    leaveAsk: 'Leave this memory?',
-    leaveText: 'Everything you uploaded here goes with you. There is no getting it back.',
-    leaveDo: 'Leave',
-    stay: 'Stay',
     removeAsk: (name: string) => `Remove ${name}?`,
     removeText: 'Everything they uploaded here goes with them. There is no getting it back.',
     /** Spec 9: the price of the irreversible is named as a figure before the press, never after. */
@@ -1310,13 +1295,10 @@ export const ru: Strings = {
 
   members: {
     title: 'Люди',
-    roster: 'Кто здесь',
     brought: (n: number, of: number) => `${n} из ${of} всё скинули`,
     edit: 'Править состав',
-    editDone: 'Готово',
     you: (name: string) => `${name} (вы)`,
     remove: (name: string) => `Убрать ${name}`,
-    sayNothing: 'Мне нечего добавлять',
     inviteTitle: 'Позвать человека',
     mayAdd: 'Сможет добавлять фото',
     fromContacts: 'Из контактов',
@@ -1331,10 +1313,6 @@ export const ru: Strings = {
     noSuchUser: 'Никто не носит такой ник.',
     inviteDenied: 'Звать людей могут организатор и те, кто может добавлять фото.',
     gone: 'Этого человека здесь уже нет.',
-    leaveAsk: 'Выйти из воспоминания?',
-    leaveText: 'Всё, что вы сюда загрузили, уйдёт вместе с вами. Вернуть это не получится.',
-    leaveDo: 'Выйти',
-    stay: 'Остаться',
     removeAsk: (name: string) => `Убрать ${name}?`,
     removeText:
       'Всё, что этот человек сюда загрузил, уйдёт вместе с ним. Вернуть это не получится.',
