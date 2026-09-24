@@ -22,7 +22,7 @@ vi.mock('@/kit', async (original) => ({ ...(await original<typeof import('@/kit'
 import TestRenderer, { act } from 'react-test-renderer';
 import { Pressable } from 'react-native';
 
-import type { Member } from '@/api';
+import type { Member, Memory } from '@/api';
 import MemorySettingsScreen from '@/app/memory/[id]/settings';
 import { Banner, BadgeContribution, Button, ConfirmSheet, IconButton, RowMember, Waiting } from '@/kit';
 import { InviteSheet } from '@/memory/invite-sheet';
@@ -62,15 +62,25 @@ const roster = (): Member[] => [
   member('vera', 'viewer', { name: 'Вера', username: 'vera', media_count: 0 }),
 ];
 
-type World = { members: Member[]; onRemove?: Response; onStanding?: Response; log: Asked[] };
+type World = {
+  members: Member[];
+  /** What the card of this memory says — the counters the price of deleting it is read off. */
+  card?: Partial<Memory>;
+  onRemove?: Response;
+  onStanding?: Response;
+  onWipe?: Response;
+  log: Asked[];
+};
 
-function world(over: Partial<Pick<World, 'members' | 'onRemove' | 'onStanding'>> = {}): World {
+function world(over: Partial<Omit<World, 'log'>> = {}): World {
   const w: World = { members: roster(), log: [] };
   Object.assign(w, over);
   w.log = serve((asked) => {
-    if (asked.path === '/memories') return [memory({ member_count: w.members.length, media_count: 69 })];
+    if (asked.path === '/memories')
+      return [memory({ member_count: w.members.length, media_count: 69, ...w.card })];
     if (asked.path === '/memories/m1/members' && asked.method === 'GET') return w.members;
     if (asked.path === '/contacts') return [];
+    if (asked.method === 'DELETE' && asked.path === '/memories/m1') return w.onWipe ?? { ok: true };
     if (asked.method === 'DELETE' && asked.path.startsWith('/memories/m1/members/')) {
       if (w.onRemove) return w.onRemove;
       const gone = asked.path.split('/').pop();
@@ -488,4 +498,91 @@ test('in daylight the screen is drawn in the day’s tokens and carries none of 
   } finally {
     await setTheme('dark');
   }
+});
+
+/**
+ * Удаление воспоминания целиком (doc-01, 2026-09-24) — опасное действие внизу настроек: у
+ * организатора оно есть, у остальных его нет вовсе, и лист-подтверждение называет цену цифрами.
+ */
+test('the way to delete the whole memory is drawn to the organizer and to nobody else', async () => {
+  world();
+  let screen = await open();
+  expect(screen.button(ru.settings.delete)).toHaveLength(1);
+  expect(screen.button(ru.settings.delete)[0].props.variant).toBe('danger');
+
+  for (const id of ['liza', 'vera']) {
+    who.id = id;
+    world();
+    screen = await open();
+    expect(screen.button(ru.settings.delete), id).toHaveLength(0);
+  }
+});
+
+test('the sheet names the price in figures — how many frames and movies go — and says it is for good', async () => {
+  const state = world({ card: { media_count: 69, montage_count: 2, cover_thumbnail_url: 'https://r2.example/cover' } });
+  const screen = await open();
+  expect(screen.sheet()).toHaveLength(0);
+
+  await screen.press(() => screen.button(ru.settings.delete)[0]);
+  const ask = screen.sheet()[0].props;
+  expect(ask.title).toBe(ru.settings.deleteAsk);
+  expect(ask.text).toBe(ru.settings.deleteText);
+  expect(ask.price).toBe(ru.settings.deletePrice(69, 2));
+  expect(ask.price).toContain('69');
+  expect(ask.price).toContain('2 ролика');
+  expect(ask.text).toContain('навсегда');
+  expect(ask.confirmLabel).toBe(ru.settings.deleteDo);
+  expect(ask.cancelLabel).toBe(ru.settings.keep);
+  // The memory itself is the thing on the sheet: its cover, its name and its days.
+  expect(ask.thumb).toBe('https://r2.example/cover');
+  expect(ask.meta).toContain('Свадьба Лизы и Марка');
+  expect(ask.meta).toContain('12–13 сентября');
+
+  // «Оставить» leaves it alone: nothing was asked of the api.
+  await act(async () => ask.onCancel());
+  expect(screen.sheet()).toHaveLength(0);
+  expect(state.log.filter((one) => one.method === 'DELETE')).toEqual([]);
+});
+
+test('a memory with nothing in it names no price: there is nothing to lose', async () => {
+  world({ card: { media_count: 0, montage_count: 0 } });
+  const screen = await open();
+  await screen.press(() => screen.button(ru.settings.delete)[0]);
+  expect(screen.sheet()[0].props.price).toBeUndefined();
+  // No cover and no frames — the sheet is the plain one, with the words alone.
+  expect(screen.sheet()[0].props.thumb).toBeUndefined();
+});
+
+test('confirming deletes it in one request and leaves for the main screen', async () => {
+  const state = world({ card: { montage_count: 2 } });
+  const screen = await open();
+  await screen.press(() => screen.button(ru.settings.delete)[0]);
+  await act(async () => screen.sheet()[0].props.onConfirm());
+
+  expect(state.log.filter((one) => one.method === 'DELETE')).toEqual([
+    { method: 'DELETE', path: '/memories/m1', body: null },
+  ]);
+  expect(router.replace).toHaveBeenCalledWith('/');
+  expect(screen.sheet()).toHaveLength(0);
+  expect(screen.notice()).toEqual([]);
+});
+
+test('a memory somebody already deleted is the same outcome, and a refusal keeps the screen where it is', async () => {
+  world({ onWipe: refused(404) });
+  let screen = await open();
+  await screen.press(() => screen.button(ru.settings.delete)[0]);
+  await act(async () => screen.sheet()[0].props.onConfirm());
+  // Gone is gone, however it went: the screen still leaves and says nothing about it.
+  expect(router.replace).toHaveBeenCalledWith('/');
+  expect(screen.notice()).toEqual([]);
+
+  router.replace.mockClear();
+  world({ onWipe: refused(500, 'boom') });
+  screen = await open();
+  await screen.press(() => screen.button(ru.settings.delete)[0]);
+  await act(async () => screen.sheet()[0].props.onConfirm());
+  expect(screen.notice()).toEqual(['boom']);
+  expect(router.replace).not.toHaveBeenCalled();
+  // And the way to try again is live, not stuck behind a busy button.
+  expect(screen.button(ru.settings.delete)[0].props.disabled).toBe(false);
 });

@@ -386,6 +386,24 @@ export const en = {
      * that pressing changes it, because a circle says neither on its own.
      */
     yourStanding: (standing: string) => `Your standing: ${standing}. Change it`,
+    /**
+     * The one dangerous act of the memory, at the foot of the screen under a hairline of its own —
+     * the way `Account` stands «Выйти из аккаунта» (spec 8). The organizer's alone: nobody else is
+     * drawn it, and the api refuses them anyway.
+     */
+    delete: 'Delete the memory',
+    deleteAsk: 'Delete this memory?',
+    /** «Навсегда» is said here for the second time in the whole product, and it is meant. */
+    deleteText:
+      'It goes from everybody who is in it, with everything inside — for good. There is no getting it back.',
+    /** Spec 9: the price in figures before the press. The movies are only named when there are any. */
+    deletePrice: (frames: number, movies: number) => {
+      const parts = [`${frames} ${frames === 1 ? 'frame' : 'frames'}`];
+      if (movies > 0) parts.push(`${movies} ${movies === 1 ? 'movie' : 'movies'}`);
+      return `${parts.join(' and ')} ${frames + movies === 1 ? 'disappears' : 'disappear'} for good`;
+    },
+    deleteDo: 'Delete',
+    keep: 'Keep it',
   },
 
   /**
@@ -1349,6 +1367,19 @@ export const ru: Strings = {
     edit: 'Изменить название, даты и обложку',
     viewers: 'Зрители',
     yourStanding: (standing: string) => `Ваш статус: ${standing.toLowerCase()}. Изменить`,
+    delete: 'Удалить воспоминание',
+    deleteAsk: 'Удалить это воспоминание?',
+    deleteText:
+      'Оно исчезнет у всех участников вместе со всем, что внутри, — навсегда. Вернуть это не получится.',
+    deletePrice: (frames: number, movies: number) => {
+      const parts = [count(frames, 'кадр', 'кадра', 'кадров')];
+      if (movies > 0) parts.push(count(movies, 'ролик', 'ролика', 'роликов'));
+      // «1 кадр исчезнет», но «1 кадр и 1 ролик исчезнут» — считается последнее слово пары.
+      const alone = parts.length === 1 && frames % 10 === 1 && frames % 100 !== 11;
+      return `${parts.join(' и ')} ${alone ? 'исчезнет' : 'исчезнут'} навсегда`;
+    },
+    deleteDo: 'Удалить',
+    keep: 'Оставить',
   },
 
   edit: {

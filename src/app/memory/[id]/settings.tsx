@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import {
   ApiError,
+  deleteMemory,
   errorMessage,
   hasShared,
   listMemories,
@@ -76,6 +77,9 @@ export default function MemorySettingsScreen() {
   // Who the confirm sheet is asking about; null is «no sheet». The sheet is the whole state: holding
   // a boolean beside the member would let the two disagree.
   const [dropping, setDropping] = useState<Member | null>(null);
+  // Whether the memory itself is being asked about. Its own flag and not a second use of the one
+  // above: the two sheets ask about different things and must never be open at once.
+  const [wiping, setWiping] = useState(false);
 
   const load = useCallback(() => {
     if (!token) return;
@@ -165,6 +169,23 @@ export default function MemorySettingsScreen() {
       },
       { 404: s.members.gone },
     );
+
+  /**
+   * The memory itself, taken down whole (doc-01, 2026-09-24). There is nothing to stay for: the row
+   * this whole screen stands on is gone, so the screen leaves for the main one, which reads its list
+   * again on focus and will not find this memory in it. A 404 is somebody who got there first —
+   * the same outcome, said the same way.
+   */
+  const wipe = () =>
+    act(async (session) => {
+      try {
+        await deleteMemory(session, id);
+      } catch (e) {
+        if (!(e instanceof ApiError && e.status === 404)) throw e;
+      }
+      router.replace('/');
+      return null;
+    });
 
   /**
    * How many frames that person brought here. `?? 0` and not a bare read: the app ships over the
@@ -324,6 +345,22 @@ export default function MemorySettingsScreen() {
                 <View style={styles.card}>{viewers.map(row)}</View>
               </View>
             ) : null}
+
+            {/* The end of the memory: at the bottom, alone, behind a hairline — exactly where
+                `Account` keeps «Выйти из аккаунта» (spec 8), so that nothing dangerous is hit on the
+                way past. Nobody but the organizer is drawn it at all (spec 10.8.3: not greyed out —
+                not drawn), and the api refuses everybody else on its own. */}
+            {organizer ? (
+              <View style={styles.out}>
+                <Button
+                  variant="danger"
+                  size="xl"
+                  label={s.settings.delete}
+                  disabled={busy}
+                  onPress={() => setWiping(true)}
+                />
+              </View>
+            ) : null}
           </>
         )}
 
@@ -353,6 +390,34 @@ export default function MemorySettingsScreen() {
         members={members}
         onInvited={load}
       />
+
+      {/* The sheet that asks about the memory: the thing on it is its cover — or, with none chosen,
+          the first of the frames its card is drawn from — the meta is its name and its days, and the
+          price is in figures, how many frames and movies go. An empty memory names no price: there
+          is nothing in it to lose, and «0 кадров исчезнут» would be a price nobody is paying. */}
+      {wiping && memory !== null ? (
+        <ConfirmSheet
+          visible
+          thumb={memory.cover_thumbnail_url ?? memory.recent_thumbnail_urls[0]}
+          meta={[memory.title, formatEventDates(memory.event_start, memory.event_end)]
+            .filter(Boolean)
+            .join(' · ')}
+          price={
+            memory.media_count + memory.montage_count > 0
+              ? s.settings.deletePrice(memory.media_count, memory.montage_count)
+              : undefined
+          }
+          title={s.settings.deleteAsk}
+          text={s.settings.deleteText}
+          confirmLabel={s.settings.deleteDo}
+          cancelLabel={s.settings.keep}
+          onConfirm={() => {
+            setWiping(false);
+            void wipe();
+          }}
+          onCancel={() => setWiping(false)}
+        />
+      ) : null}
 
       {/* `SheetConfirmMember` — irreversible, and doc-01 takes the material with the person. So the
           sheet carries their face, what they brought, and the price in figures before the press; the
@@ -466,6 +531,9 @@ const useStyles = themed(({ color }) =>
       borderColor: color.line,
     },
     grow: { flex: 1, minWidth: 0 },
+    // The dangerous one stands at the very bottom of the body, alone behind a hairline — the way
+    // out of an account stands on `Account`.
+    out: { marginTop: 'auto', paddingTop: space.s5, borderTopWidth: 1, borderTopColor: color.line },
     // Spec 10.2: drawn as the 28 circle inside it, felt at 44 — and pulled 8 out, so the circle
     // lines up with the row's own 14 rather than with the button's edge.
     standing: {

@@ -339,6 +339,15 @@ export function updateMemory(
   return request(`/memories/${memoryId}`, { method: 'PATCH', body: patch, token });
 }
 
+/**
+ * Delete one, whole. The organizer's alone — everybody else is a 403, and a stranger the usual 404
+ * — and there is no undoing it: the frames, the movies, their journals, the labels and the files in
+ * storage go with it, and everybody else's copy of it leaves their main screen (doc-01).
+ */
+export function deleteMemory(token: string, memoryId: string): Promise<{ ok: true }> {
+  return request(`/memories/${memoryId}`, { method: 'DELETE', token });
+}
+
 /** A roster row: the three public fields the api hands out, plus where that person stands. */
 export type Member = Contact & {
   role: MemberRole;

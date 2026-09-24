@@ -633,11 +633,18 @@ test('the ember on a face is the one action that face is for', () => {
 test('nobody is shown a way out of a memory, and the organizer keeps the crosses', () => {
   // TASK-113: the human took leaving off the design. The call behind it is untouched and still the
   // one the organizer's cross makes on somebody else — what went is the button that aimed it at
-  // oneself, and with it the only red thing the screen had.
-  expect(settings).not.toContain('variant="danger"');
+  // oneself.
   expect(settings).not.toContain('s.members.leave');
   expect(settings).toContain('removeMember(session, id, target.id)');
   expect(settings).toContain('label={s.members.remove(memberName(member))}');
+  // The one red button the screen has is not a way out of the memory but the end of it (TASK-281,
+  // doc-01): the organizer's alone, at the foot of the body under a hairline of its own, the way
+  // `Account` stands its own dangerous one — and asked for on a sheet that names the price.
+  expect(settings.match(/variant="danger"/g)).toHaveLength(1);
+  expect(settings).toContain('label={s.settings.delete}');
+  expect(settings).toContain('deleteMemory(session, id)');
+  expect(settings).toContain('s.settings.deletePrice(memory.media_count, memory.montage_count)');
+  expect(settings).toContain("router.replace('/')");
 });
 
 // The settings screen (spec 8, `MemorySettings`, TASK-209): what the event is and who is in it.
