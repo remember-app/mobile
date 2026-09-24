@@ -233,6 +233,17 @@ test('how heavy a file is, written the way the language writes a number', () => 
   expect(megabytes(record({ size_bytes: 'nonsense' }))).toBeNull();
 });
 
+test('a small file weighs a fraction, one decimal is all any file under ten gets, and ten is whole', () => {
+  // Half a megabyte is a weight and not nothing: it is what a compressed photograph comes to, and
+  // «0,5 МБ» is a line a person reads; only a size that is not there at all is dropped.
+  expect(megabytes(record({ size_bytes: '500000' }), 'ru')).toBe('0,5');
+  // One decimal and not two — the digit the phone’s own gallery shows.
+  expect(megabytes(record({ size_bytes: '4250000' }), 'ru')).toBe('4,3');
+  expect(megabytes(record({ size_bytes: '9960000' }), 'ru')).toBe('10');
+  expect(megabytes(record({ size_bytes: '10400000' }), 'ru')).toBe('10');
+  expect(megabytes(record({ size_bytes: '0' }), 'ru')).toBeNull();
+});
+
 test('a whole selection weighs what its frames weigh together', () => {
   // The capsule of `FramesPicking` says «38 МБ · 3 фото и 1 видео», which is the sum and not the
   // biggest of them — one rule with the line above, so a selection of one reads exactly like the
@@ -312,6 +323,10 @@ test('a line is built out of the pieces that are there, and dropped when none ar
   // Half a pair of sides is not a size, and a stray longitude is not a place.
   const half = frameFacts(told({ width: 4032, longitude: 37.53 }), ru, 'ru');
   expect(half.map((fact) => fact.label)).toEqual(['Файл']);
+  // Either side missing, either way round — never «null × 3024» or «4032 × null».
+  for (const one of [{ height: 3024 }, { width: 4032 }, { latitude: 55.518 }]) {
+    expect(frameFacts(told(one), ru, 'ru').map((fact) => fact.label)).toEqual(['Файл']);
+  }
   // And a record whose size never came down the wire loses «Файл» too, rather than saying «0 МБ».
   expect(frameFacts(told({ size_bytes: '' }), ru, 'ru')).toEqual([]);
 });
@@ -595,6 +610,38 @@ test('every day of the wall is a mark on the spine, on the seam between two rows
   expect(dateMarks([], { top: 100, row: 131 })).toEqual([]);
 });
 
+test('the wall is three across: a day that begins in the same row as another gives its seam up to it', () => {
+  // `wedding3` above comes out the same under two columns and under three, so it cannot say how wide
+  // a row is. Here it does: the 12th begins on the third frame — still the first row of three, on
+  // the seam the 13th opened — and the 11th begins on the fifth, in the second.
+  const wall = [
+    record({ id: 'a', captured_at: shotAt(13, 10) }),
+    record({ id: 'b', captured_at: shotAt(13, 9) }),
+    record({ id: 'c', captured_at: shotAt(12, 15) }),
+    record({ id: 'd', captured_at: shotAt(12, 14) }),
+    record({ id: 'e', captured_at: shotAt(11, 10) }),
+  ];
+  expect(dateMarks(wall, { top: 0, row: 100 })).toEqual([
+    { at: day(13), top: 0 },
+    { at: day(11), top: 100 },
+  ]);
+  // And a day that begins a row of its own is a pill of its own, one pitch further down each time.
+  const each = [
+    record({ id: 'a', captured_at: shotAt(13, 10) }),
+    record({ id: 'b', captured_at: shotAt(13, 9) }),
+    record({ id: 'c', captured_at: shotAt(13, 8) }),
+    record({ id: 'd', captured_at: shotAt(12, 10) }),
+    record({ id: 'e', captured_at: shotAt(12, 9) }),
+    record({ id: 'f', captured_at: shotAt(12, 8) }),
+    record({ id: 'g', captured_at: shotAt(11, 8) }),
+  ];
+  expect(dateMarks(each, { top: 10, row: 50 })).toEqual([
+    { at: day(13), top: 10 },
+    { at: day(12), top: 60 },
+    { at: day(11), top: 110 },
+  ]);
+});
+
 test('the filter holds back by who brought it, what it is, and which day it is from', () => {
   const only = (over: Partial<Filter>) =>
     framesMatching(wedding3, { ...FILTER_NONE, ...over }).map((item) => item.id);
@@ -687,6 +734,16 @@ test('ids of frames that are gone do not make «все взято» true while a
   // as a count, that was «everything is taken» and the press wiped the selection instead of taking `c`.
   const feed = [ready('a'), ready('b'), ready('c')];
   expect(toggleEvery(feed, new Set(['a', 'gone-1', 'gone-2']))).toEqual(new Set(['a', 'b', 'c']));
+});
+
+test('a strip of one frame is a whole strip: full when that frame is marked, and given back on the next press', () => {
+  // A day of a single frame is the commonest seam there is, and «every» of one is that one — not
+  // «nothing», which is what a count of more than one would make of it.
+  const one = [ready('a')];
+  expect(allTaken(one, new Set(['a']))).toBe(true);
+  expect(toggleEvery(one, new Set(['a']))).toEqual(new Set());
+  expect(toggleDay(one, new Set(['a', 'other']))).toEqual(new Set(['other']));
+  expect(toggleDay(one, new Set(['other']))).toEqual(new Set(['other', 'a']));
 });
 
 test('nothing to take is nothing taken, never a selection made of stale ids', () => {

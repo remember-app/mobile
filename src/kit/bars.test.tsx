@@ -323,6 +323,24 @@ test('a capsule that acts instead of leading keeps the press and loses the chevr
   expect(door).not.toBe(action);
 });
 
+test('a capsule that leads somewhere wears the chevron without being told to, and one that leads nowhere has none to wear', () => {
+  const bar = (props: { onCapsule?: () => void; chevron?: boolean }) =>
+    story(
+      <GlassBar
+        title="Свадьба"
+        meta="12–14 сентября"
+        capsuleLabel="Свадьба. Настройки"
+        left={<IconButton icon={ChevronLeft} label="Назад" tone="glass" size={48} />}
+        {...props}
+      />,
+    );
+  // The default is the door: a chevron says there is something underneath, and only an action turns it off.
+  expect(bar({ onCapsule: () => {} })).toBe(bar({ onCapsule: () => {}, chevron: true }));
+  expect(bar({ onCapsule: () => {} })).not.toBe(bar({ onCapsule: () => {}, chevron: false }));
+  // A plate leads nowhere, so there is no press and no chevron whatever it is told.
+  expect(bar({})).toBe(bar({ chevron: true }));
+});
+
 test('the right slot of the glass bar is empty where there is nothing to pick', () => {
   const full = story(
     <GlassBar

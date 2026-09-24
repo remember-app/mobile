@@ -88,6 +88,12 @@ test('one day is a date with no length, and a span says how long it is', () => {
   expect(one).not.toContain('· 1 день');
   expect(three).toContain('12–14 сентября');
   expect(three).toContain('· 3 дня');
+  // Two days is the smallest span there is, and it carries its length too.
+  const two = story(block(span(12, 13)));
+  expect(two).toContain('12–13 сентября');
+  expect(two).toContain('· 2 дня');
+  // A span that ends where it began is one day and says nothing of length.
+  expect(story(block(span(12, 12)))).not.toContain('· 1 день');
 });
 
 test('the four quick days stand over the calendar, and switch off with the screen', () => {

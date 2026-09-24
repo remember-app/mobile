@@ -787,7 +787,11 @@ export function Frames({ id, head }: { id: string; head: Head }) {
           ) : null
         }
         ListEmptyComponent={
-          error !== null ? (
+          // Only over a feed that was never read. A read somebody asked for that fails over frames
+          // already on screen leaves them where they are, and its reason must not come back later as
+          // the answer to «nothing here» — every frame deleted afterwards is an empty feed, and an
+          // empty feed is `FramesEmpty`, not a connection that failed a minute ago.
+          error !== null && items === null ? (
             <Banner tone="error" text={error}>
               {/* Wrapped rather than handed `load` itself: a press hands its own argument along,
                   and the first one here is «read quietly». */}

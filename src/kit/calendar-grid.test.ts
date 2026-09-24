@@ -116,6 +116,7 @@ test('a ribbon is the ends and everything between, and one day is not a ribbon',
   expect(laneOf(d, a, c)).toBeNull();
   expect(laneOf(a, null, null)).toBeNull();
   expect(laneOf(a, a, null)).toBeNull();
+  expect(laneOf(b, null, c)).toBeNull();
   // One day picked twice is one day; a range handed in backwards is not drawn at all.
   expect(laneOf(a, a, a)).toBeNull();
   expect(laneOf(b, c, a)).toBeNull();
