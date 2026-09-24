@@ -117,6 +117,14 @@ async function length(over: Partial<React.ComponentProps<typeof LengthSlider>> =
   return {
     said,
     pad,
+    /** Where the handle is drawn along the line, in percent. */
+    handle: () => {
+      const style = tree.root
+        .findAll((one) => typeof one.props.style === 'object' && JSON.stringify(one.props.style).includes('"left":"'))
+        .map((one) => JSON.stringify(one.props.style))
+        .at(-1)!;
+      return Number(/"left":"([\d.]+)%"/.exec(style)![1]);
+    },
     finger: (name: 'onResponderGrant' | 'onResponderMove' | 'onResponderRelease', x: number) =>
       act(async () => pad().props[name](touch({ x }))),
   };
@@ -147,4 +155,17 @@ test('the figure stops at the walls however far the finger goes', async () => {
   await bar.finger('onResponderMove', 700);
   expect(bar.said.at(-2)).toBe(10);
   expect(bar.said.at(-1)).toBe(550);
+});
+
+test('the handle follows the finger while it is down, and stands on the figure again once it lifts', async () => {
+  const bar = await length();
+  // The figure is 152 on a line from 10 to 550: a little over a quarter of the way.
+  expect(bar.handle()).toBeCloseTo(((152 - 10) / 540) * 100);
+  await bar.finger('onResponderGrant', 401);
+  // 411 seconds is where the finger is, and the handle is under it whatever the screen still holds.
+  expect(bar.handle()).toBeCloseTo(((411 - 10) / 540) * 100);
+  await bar.finger('onResponderMove', 270);
+  expect(bar.handle()).toBeCloseTo(((280 - 10) / 540) * 100);
+  await bar.finger('onResponderRelease', 270);
+  expect(bar.handle()).toBeCloseTo(((152 - 10) / 540) * 100);
 });

@@ -12,6 +12,9 @@ import { ActionMenu } from '@/kit/menu';
 import { Palette } from '@/kit/palette';
 import { RowAction } from '@/kit/rows';
 import { Segment } from '@/kit/segment';
+import { CardMemory } from '@/kit/card-memory';
+import { CardMontage, CardMontageNew } from '@/kit/card-montage';
+import { Tile } from '@/kit/tile';
 import { RowToggle, Toggle } from '@/kit/toggle';
 import { LengthSlider } from '@/kit/slider';
 import { labelColors, themes } from '@/theme';
@@ -216,4 +219,26 @@ test('a switch flips to the other value when its row is pressed, says which it i
     expect(shut.props.disabled).toBe(true);
     expect(shut.props.accessibilityState.disabled).toBe(true);
   }
+});
+
+test('a tile and the cards are buttons only where they lead somewhere: the press reaches the screen, and with none there is nothing to press', async () => {
+  let pressed = 0;
+  const bump = () => void pressed++;
+  const tile = await draw(<Tile state="ready" uri="https://r2.example/a" pick="off" label="Фото" onPress={bump} />);
+  await act(async () => tile.findByType(Pressable).props.onPress());
+  expect(tile.findByType(Pressable).props.accessibilityRole).toBe('checkbox');
+  expect(tile.findByType(Pressable).props.accessibilityState).toEqual({ checked: false });
+  const still = await draw(<Tile state="processing" caption="Проявляем…" label="Кадр" />);
+  expect(still.findAllByType(Pressable)).toHaveLength(0);
+
+  const memory = await draw(<CardMemory title="Свадьба" meta={['12–13 сентября']} thumbs={[]} onPress={bump} />);
+  await act(async () => memory.findByType(Pressable).props.onPress());
+  const film = await draw(<CardMontage title="Ролик" state="ready" onPress={bump} />);
+  await act(async () => film.findByType(Pressable).props.onPress());
+  const fresh = await draw(<CardMontageNew label="Новый ролик" onPress={bump} />);
+  await act(async () => fresh.findByType(Pressable).props.onPress());
+  expect(pressed).toBe(4);
+
+  const fallen = await draw(<CardMontage title="Ролик" state="failed" />);
+  expect(fallen.findAllByType(Pressable)).toHaveLength(0);
 });
