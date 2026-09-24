@@ -454,17 +454,42 @@ describe.each(SCENARIOS)('%s — the journal of one stage and the card of a file
     expect(sheet.findByType(ShotGaze).props.gaze !== undefined).toBe(target.focus !== null);
     expect(sheet.findAllByType(Tag).map((one) => one.props.label)).toEqual(target.labels ?? []);
     expect(sheet.findByType(BadgeDecision).props.label).toBe(marksOf(target, ru)[0]);
+    // The thought, where there is one, and where the frame went: the part of the story, and the
+    // seconds of the film it plays for.
+    expect(sheet.findAllByType(NoteThought).map((one) => one.props.text)).toEqual(target.thought ? [target.thought] : []);
     const [place] = file.places;
-    // The thought, and under it where the frame went: the part of the story, and the seconds of the
-    // film it plays for.
-    if (!target.thought) return screen.unmount();
-    const plate = sheet.findByType(NoteThought).props;
-    expect(plate.text).toBe(target.thought);
-    expect(plate.outcome).toContain(`${clock(place.start_seconds)}–${clock(place.start_seconds + place.duration_seconds)}`);
-    if (target.story_part !== null) expect(plate.outcome).toContain(`Часть ${target.story_part}`);
+    expect(words(sheet)).toContain(`${clock(place.start_seconds)}–${clock(place.start_seconds + place.duration_seconds)}`);
+    if (target.story_part !== null) expect(words(sheet)).toContain(`Часть ${target.story_part}`);
 
     await act(async () => sheet.props.onCancel());
     expect(screen.root.findAllByType(SheetLiveFile)).toEqual([]);
+    await screen.unmount();
+  });
+
+  test('a frame nothing was said about still says where it lay: no plate, the line alone', async () => {
+    const { screen } = await open('directing');
+    const files = new Map(whole.files.map((one) => [one.id, one]));
+    const first = recordsOn('directing').slice(0, inList(screen).length);
+    const silent = first.filter(
+      (one) => one.decision !== 'skip' && one.thought === null && files.get(one.media_id!)?.places.length,
+    );
+    // Both roads have them: the frame the organizer asked for on either, and every frame taken on the
+    // road without the director, who has no thoughts to say.
+    expect(silent.length).toBeGreaterThan(0);
+    if (scenario === 'algorithm') {
+      expect(silent).toEqual(first.filter((one) => one.decision === 'take'));
+    }
+
+    for (const record of silent) {
+      await screen.press(inList(screen)[first.indexOf(record)]);
+      const sheet = screen.root.findByType(SheetLiveFile);
+      const [place] = files.get(record.media_id!)!.places;
+      expect(sheet.findAllByType(NoteThought)).toEqual([]);
+      expect(words(sheet), `record ${record.id}`).toContain(
+        `${clock(place.start_seconds)}–${clock(place.start_seconds + place.duration_seconds)}`,
+      );
+      await act(async () => sheet.props.onCancel());
+    }
     await screen.unmount();
   });
 

@@ -418,20 +418,23 @@ export function sifted(entries: readonly JournalEntry[], sift: Sift): JournalEnt
 }
 
 /**
- * Where a frame ended up, under the thought about it (spec 7.6, `SheetLiveFile`) — «Часть 2
- * «Клятвы» · 1:12–1:16 · и ещё 1». The part of the story is the record's, the seconds are the file's
- * own `places`, and a frame that stands in the video twice says so by a count rather than by a
- * second line: the sheet is about why it was taken, not about the cutting list.
+ * Where a frame lay in the film (spec 7.6, `SheetLiveFile`) — «Часть 2 «Клятвы» · 1:12–1:16 · и ещё
+ * 1». A fact of the layout and not of the thought: the seconds are the file's own `places`, so the
+ * line is there whether the director said anything about the frame or not — and on the road without
+ * the director it never does. The part of the story is the record's, and a frame that stands in the
+ * video twice says so by a count rather than by a second line: the sheet is about the frame, not
+ * about the cutting list.
  *
- * A frame nobody took has none of this — the plate above explains why it was passed over, and an
- * outcome under that would be a place it never went to.
+ * A record that passed the frame over has none of this, however the file is laid out: its card is
+ * about why it was passed over, and a frame the organizer then asked for is placed on the card of
+ * the record that took it.
  */
-export function outcomeLine(
+export function placeLine(
   entry: JournalEntry,
   file: JournalFile | undefined,
   s: Strings,
 ): string | undefined {
-  if (entry.decision !== 'take') return undefined;
+  if (entry.decision === 'skip') return undefined;
   const { live } = s.montage;
   const [place, ...rest] = file?.places ?? [];
   const from = place === undefined ? undefined : formatRuntime(place.start_seconds);

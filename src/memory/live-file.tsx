@@ -14,12 +14,13 @@ import {
   Text,
 } from '@/kit';
 import { useStrings } from '@/language';
-import { gazeAt, marksOf, outcomeLine } from '@/montage-journal';
+import { gazeAt, marksOf, placeLine } from '@/montage-journal';
 import { space } from '@/theme';
 
 /**
  * `SheetLiveFile` (spec 7.6) — one file out of the director's journal: the frame with the square
- * where the eye was, whose it is, what was seen on it in words, and the thought that decided it.
+ * where the eye was, whose it is, what was seen on it in words, the thought that decided it, and
+ * where it lay in the film.
  *
  * Its own component and not a piece of the journal screen, because two screens raise it: the montage
  * being watched live, and the same journal read off a finished one months later («Ролик готов»,
@@ -43,6 +44,7 @@ export function SheetLiveFile({
   const s = useStrings();
   const { width } = useWindowDimensions();
   const [mark] = marksOf(entry, s);
+  const place = placeLine(entry, file, s);
   // The frame runs the width of the sheet inside its own margins, and the sheet itself stops at the
   // 420 `kit/sheet.tsx` holds it to. The gaze arrives as fractions of the picture, so this is what
   // turns them into points of the one actually drawn.
@@ -72,8 +74,8 @@ export function SheetLiveFile({
             </Text>
           )}
         </View>
-        {/* The decision alone, whatever else qualified it: the qualification is the outcome line
-            under the thought, and a sheet that says it twice says it once. */}
+        {/* The decision alone, whatever else qualified it: the part of the story is in the place
+            line below, and a sheet that says it twice says it once. */}
         {mark ? (
           <BadgeDecision kind={entry.decision === 'take' ? 'take' : 'pass'} label={mark} />
         ) : null}
@@ -94,10 +96,14 @@ export function SheetLiveFile({
         </View>
       ) : null}
 
-      {/* The thought, and under it where the frame went — a frame nobody took has no second line,
-          because the plate itself is the explanation (spec 7.6). */}
-      {entry.thought ? (
-        <NoteThought text={entry.thought} outcome={outcomeLine(entry, file, s)} />
+      {entry.thought ? <NoteThought text={entry.thought} /> : null}
+
+      {/* Where the frame lay: the layout's, not the thought's, so it stands under the plate or on its
+          own where the director said nothing — the whole of the road without it (spec 7.6). */}
+      {place ? (
+        <Text role="meta" tone="accent">
+          {place}
+        </Text>
       ) : null}
     </Sheet>
   );

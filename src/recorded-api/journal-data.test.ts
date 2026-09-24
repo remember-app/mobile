@@ -25,7 +25,7 @@ import {
   madeInMinutes,
   marksOf,
   NO_JOURNAL,
-  outcomeLine,
+  placeLine,
   pull,
   pullOlder,
   reasonWord,
@@ -236,24 +236,29 @@ describe.each(SCENARIOS)('%s — the worker’s words, in the app’s', (scenari
     }
   });
 
-  test('the frames the director took say where they went, in seconds of the film', () => {
+  test('every frame laid out in the film says where, in seconds of the film, thought or no thought', () => {
     const file = (id: string | null) => full.files.find((one) => one.id === id);
     /** «1:12» — written here on its own, to the whole second, as the film's own length is. */
     const clock = (seconds: number) =>
       `${Math.floor(Math.round(seconds) / 60)}:${String(Math.round(seconds) % 60).padStart(2, '0')}`;
 
-    const placed = full.entries.filter((one) => one.decision === 'take' && file(one.media_id)?.places.length);
-    expect(placed.length).toBeGreaterThan(0);
+    const placed = full.entries.filter((one) => one.decision !== 'skip' && file(one.media_id)?.places.length);
+    // Taken frames with nothing said about them are among these on both roads — the organizer's own
+    // on either, and every one of them where there is no director at all.
+    expect(placed.some((one) => one.decision === 'take' && one.thought === null)).toBe(true);
     for (const record of placed) {
       const [first] = file(record.media_id)!.places;
-      const line = outcomeLine(record, file(record.media_id), ru);
-      expect(line).toContain(`${clock(first.start_seconds)}–${clock(first.start_seconds + first.duration_seconds)}`);
+      const line = placeLine(record, file(record.media_id), ru);
+      expect(line, `record ${record.id}`).toContain(
+        `${clock(first.start_seconds)}–${clock(first.start_seconds + first.duration_seconds)}`,
+      );
       if (record.story_part !== null) expect(line).toContain(`Часть ${record.story_part}`);
     }
-    // A frame nobody took has no place to name, however the file is laid out.
-    for (const record of full.entries.filter((one) => one.decision === 'skip')) {
-      expect(outcomeLine(record, file(record.media_id), ru)).toBeUndefined();
-    }
+    // A record that passed the frame over has no place to name, however the file is laid out — the
+    // recording has one: a frame the screening passed over that the organizer then asked for.
+    const passed = full.entries.filter((one) => one.decision === 'skip');
+    expect(passed.some((one) => file(one.media_id)?.places.length)).toBe(true);
+    for (const record of passed) expect(placeLine(record, file(record.media_id), ru)).toBeUndefined();
   });
 
   test('the three numbers of «Как собирался» are the worker’s own tallies', () => {

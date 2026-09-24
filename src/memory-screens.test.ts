@@ -1056,12 +1056,15 @@ test('a record about a file opens that file’s card, and a deleted file is stil
   // carries its words about why in it — on the journal, under the stage row and on the sheet.
   expect(stageLog).toContain('useTypedThought(entry.thought, now)');
   expect(stageRows).toContain("text={entry.thought ?? ''}");
-  expect(liveFile).toContain('<NoteThought text={entry.thought} outcome={outcomeLine(entry, file, s)} />');
-  // «Что увидел» in tags, and under the thought where the frame ended up.
+  expect(liveFile).toContain('<NoteThought text={entry.thought} />');
+  // «Что увидел» in tags.
   expect(liveFile).toContain('s.montage.live.saw.toUpperCase()');
   // Keyed by place: the words are the model's, and the same one twice is two tags, not one key.
   expect(liveFile).toContain('<Tag key={at} label={label} />');
-  expect(liveFile).toContain('outcome={outcomeLine(entry, file, s)}');
+  // Where the frame lay is the layout's and not the thought's: a line of its own, not a part of the
+  // plate — so a record with no thought still has it.
+  expect(liveFile).toContain('const place = placeLine(entry, file, s);');
+  expect(liveFile).not.toContain('outcome=');
 });
 
 /**
