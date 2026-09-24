@@ -119,8 +119,6 @@ export const board = {
   footerGallery: 190,
   /** the footer of `Upload`, the deepest one: a block of sending stands above the button */
   footerUpload: 210,
-  /** the footer of a montage on air, the shallowest: one pill and nothing else */
-  footerLive: 120,
   /** the darkening over the head of the gallery, under the glass bar */
   headGallery: 176,
 } as const;

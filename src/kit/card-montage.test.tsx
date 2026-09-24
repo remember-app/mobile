@@ -1,15 +1,20 @@
+import { Pressable } from 'react-native';
+import TestRenderer, { act } from 'react-test-renderer';
 import { beforeAll, expect, test } from 'vitest';
 
 import { BadgeMontage } from '@/kit/badge';
 import { Button } from '@/kit/button';
 import { CardMontage, CardMontageNew, EmptyMontages } from '@/kit/card-montage';
 import { allDifferent, story } from '@/kit/story';
+import { mountsTrees } from '@/test-renderer';
 import { setTheme } from '@/theme';
 
 /** Spec 7.6 — the strip of montages over a memory's feed: a card, the way to start one, and none. */
 
 const POSTER = 'https://bucket.example/poster.jpg';
 const SHOTS = ['https://bucket.example/1.jpg', 'https://bucket.example/2.jpg'];
+
+mountsTrees();
 
 beforeAll(async () => {
   await setTheme('dark');
@@ -32,7 +37,7 @@ test('ready, building and broken are three cards and not three colours of one', 
         state="pending"
         poster={POSTER}
         badge={<BadgeMontage state="pending" label="Собирается" />}
-        step={{ done: 3, of: 5, count: '3 из 5' }}
+        step={{ at: 3, of: 5, count: '3 из 5' }}
       />
     ),
     failed: (
@@ -60,7 +65,7 @@ test('ready, building and broken are three cards and not three colours of one', 
 
 test('a card still being cut shows its own frame out of focus rather than no frame at all', () => {
   const pending = story(
-    <CardMontage title="Ролик" state="pending" poster={POSTER} step={{ done: 3, of: 5, count: '3 из 5' }} />,
+    <CardMontage title="Ролик" state="pending" poster={POSTER} step={{ at: 3, of: 5, count: '3 из 5' }} />,
   );
   const ready = story(<CardMontage title="Ролик" state="ready" poster={POSTER} />);
   // Same still, drawn differently: there is something there and it is not ready to be looked at.
@@ -68,19 +73,21 @@ test('a card still being cut shows its own frame out of focus rather than no fra
   expect(pending).toContain('3 из 5');
 });
 
-test('the scale of five says how far along, and the done ones are spark', () => {
-  const scale = story(
-    <CardMontage title="Ролик" state="pending" step={{ done: 3, of: 5, count: '3 из 5' }} />,
-  );
-  expect(scale).toContain('role="progressbar"');
+test('the scale of five is lit up to the stage in hand, as many bars as the count says', () => {
+  const scale = (at: number) =>
+    story(<CardMontage title="Ролик" state="pending" step={{ at, of: 5, count: `${at} из 5` }} />);
+  const barsOf = (markup: string) =>
+    markup.slice(markup.indexOf('role="progressbar"')).match(/<div class="[^"]*"><\/div>/g) ?? [];
+  expect(scale(3)).toContain('role="progressbar"');
   // Five bars and not four: the scale says «of five» by being five, whatever the count beside it
   // reads. The bars are the only children it has, so counting them is counting these.
-  const bars = scale.slice(scale.indexOf('role="progressbar"'));
-  expect((bars.match(/<div class="css-view/g) ?? []).length).toBe(5);
-  allDifferent({
-    started: <CardMontage title="Ролик" state="pending" step={{ done: 1, of: 5, count: '1 из 5' }} />,
-    nearly: <CardMontage title="Ролик" state="pending" step={{ done: 4, of: 5, count: '4 из 5' }} />,
-  });
+  expect(barsOf(scale(3))).toHaveLength(5);
+  // Spec detail 38: «3 из 5» is three bars of `spark` — the stage in hand is lit with the ones
+  // behind it. The lit ones share the first bar's look; the rest are the track.
+  for (const at of [1, 2, 3, 4, 5]) {
+    const bars = barsOf(scale(at));
+    expect(bars.filter((bar) => bar === bars[0]), `${at} из 5`).toHaveLength(at);
+  }
 });
 
 test('a card with a still and one without are not the same card', () => {
@@ -114,28 +121,46 @@ test('a card leads somewhere only when it is told to', () => {
   ).toContain('aria-label="Смотреть: Ролик на 2:30"');
 });
 
-test('a card nobody can press does not swallow the button under it', () => {
+test('the button under a fallen card is never swallowed by the card', () => {
   // Pressed, the card is one thing to a screen reader — «Ролик · 14 сентября» — and everything in it
-  // is part of that. Not pressed, it is a group: the fallen card's «Повторить» has to be reachable
-  // on its own, and a card that were one accessible element would hide it.
-  const fallen = (
+  // is part of that. The fallen card's «Повторить» has to be reachable on its own, so it never
+  // stands inside that one thing.
+  const fallen = (onPress?: () => void) => (
     <CardMontage
       title="Ролик на 2:00"
       state="failed"
       caption="Сборка оборвалась на полпути"
       badge={<BadgeMontage state="failed" label="Не собрался" />}
+      onPress={onPress}
     >
       <Button variant="secondary" size="sm" label="Повторить" />
     </CardMontage>
   );
   const buttons = (markup: string) => (markup.match(/role="button"/g) ?? []).length;
-  const marked = story(fallen);
+  const marked = story(fallen());
   expect(marked).toContain('aria-label="Повторить"');
-  // One button — «Повторить» — and the card around it is neither a button nor a dead one.
+  // Not pressed: one button — «Повторить» — and the card around it is neither a button nor a dead one.
   expect(buttons(marked)).toBe(1);
   expect(marked).not.toContain('aria-disabled');
   // The card that does lead somewhere is a button itself, on top of whatever is in it.
   expect(buttons(story(<CardMontage title="Ролик" state="pending" onPress={() => {}} />))).toBe(1);
+
+  // Spec detail 38: the fallen card leads to the journal of the attempt that broke, and keeps its
+  // «Повторить» — two buttons, and the second is not inside the first.
+  expect(buttons(story(fallen(() => {})))).toBe(2);
+  // Pressed, it is one element, so its label carries the line saying where it broke — left out, a
+  // screen reader would hear the name and never learn it did not finish.
+  expect(story(fallen(() => {}))).toContain('aria-label="Ролик на 2:00 · Сборка оборвалась на полпути"');
+  let tree!: TestRenderer.ReactTestRenderer;
+  act(() => {
+    tree = TestRenderer.create(fallen(() => {}));
+  });
+  const card = tree.root.findAll(
+    (node) => node.type === Pressable && node.props.accessibilityLabel?.startsWith('Ролик на 2:00'),
+  );
+  expect(card).toHaveLength(1);
+  expect(card[0].findAllByType(Button)).toEqual([]);
+  expect(tree.root.findAllByType(Button)).toHaveLength(1);
 });
 
 test('what lies on the poster is read in the night’s ink in daylight too', async () => {
