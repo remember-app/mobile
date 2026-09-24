@@ -100,19 +100,21 @@ export function Films({ id, memory }: { id: string; memory: Memory | null }) {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   /**
-   * Which film this screen was asked to play on the way in — «В роликах» on the frame's own sheet
-   * (spec 8, `SheetFrameInfo`), the one road here that names a montage. There is no second player
-   * in the product: a frame's sheet points at this one, and one parameter is the whole of the ask
-   * now that the memory has no faces left to name (TASK-207).
+   * Which film this screen is being asked to play — «В роликах» on the frame's own sheet (spec 8,
+   * `SheetFrameInfo`), the one road here that names a montage. There is no second player in the
+   * product: a frame's sheet sets this parameter on the screen it is already on, and one parameter
+   * is the whole of the ask now that the memory has no faces left to name (TASK-207).
    */
   const { montage: asked } = useLocalSearchParams<{ montage?: string }>();
   /** The montage being watched, held by id so a reload hands it a fresh signed url. */
-  const [playing, setPlaying] = useState<string | null>(asked ?? null);
+  const [playing, setPlaying] = useState<string | null>(null);
 
-  // Asked once and not for ever: the ask is seeded above as this block mounts, and the url is then
-  // cleared so that coming back to the memory does not raise the player again.
+  // Each ask raises the player once and not for ever: the parameter is spent the moment it is read,
+  // so that coming back to the memory does not raise it again and the next ask is a change again.
   useEffect(() => {
-    if (asked) router.setParams({ montage: '' });
+    if (!asked) return;
+    setPlaying(asked);
+    router.setParams({ montage: '' });
   }, [asked, router]);
 
   /**

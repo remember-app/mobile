@@ -507,10 +507,13 @@ test('«Выбрать все N» counts the frames a tap could reach, and the s
 });
 
 test('nothing on this screen pushes the screen it is already on', () => {
-  for (const part of [frames, films]) {
+  // The open frame's window is a part of the memory's route too: its «В роликах» sets a parameter
+  // on the screen instead of pushing the route again, which stacked a second feed of the memory.
+  for (const part of [frames, films, viewer]) {
     expect(part).not.toContain("pathname: '/memory/[id]'");
     expect(part).not.toContain('/memory/[id]/gallery');
   }
+  expect(viewer).not.toContain('router.push');
   // The roads out of it are four, and each belongs to the piece that offers it: the settings and
   // the upload to the feed, the order and the waiting over one montage to the strip of films.
   expect(frames).toContain('/memory/[id]/settings');
@@ -1413,14 +1416,20 @@ test('a movie the frame stands in is named by its length and opens the one playe
   // One frame may stand in one montage twice — the api's own key is the pair, and so is this one.
   expect(sheet).toContain('key={`${film.id}:${film.start_seconds}`}');
   // And the row opens the player the movies face already has: no second player is drawn for a
-  // frame (chief, 21.09.2026). The window goes first — it is a Modal, and a Modal outlives a push.
+  // frame (chief, 21.09.2026). The window goes first, then the ask is set on the screen this window
+  // is a part of — a push to the same route would stack a second feed of the memory under the film.
   expect(viewer.replace(/\s+/g, ' ')).toContain(
-    "function openFilm(montageId: string) { setDetails(false); onClose(); router.push({ pathname: '/memory/[id]', params: { id: memoryId, montage: montageId } });",
+    "function openFilm(montageId: string) { setDetails(false); onClose(); router.setParams({ montage: montageId }); }",
   );
   expect(films).toContain("const { montage: asked } = useLocalSearchParams<{ montage?: string }>();");
-  expect(films).toContain('useState<string | null>(asked ?? null)');
-  // Asked once: the url is cleared, or the switch back onto this face would raise the player again.
-  expect(films).toContain("router.setParams({ montage: '' })");
+  // The block is already mounted when the ask arrives, so it follows the parameter rather than
+  // reading it once as it mounts — and spends it, or the switch back onto this face would raise
+  // the player again and the same film could not be asked for twice.
+  const ask = films.replace(/\s+/g, ' ');
+  expect(ask).toContain('useState<string | null>(null)');
+  expect(ask).toContain(
+    "useEffect(() => { if (!asked) return; setPlaying(asked); router.setParams({ montage: '' }); }, [asked, router]);",
+  );
 });
 
 test('a frame that would not open says so, and the strip stays where it is', () => {

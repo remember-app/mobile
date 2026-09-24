@@ -264,15 +264,16 @@ export function FrameViewer({
    * second one for a frame, and a player of its own here would be a third place a video is watched.
    *
    * One parameter and no more since the memory lost its tabs (TASK-207): `montage` is what raises
-   * the player, and the screen spends it the moment it has.
+   * the player, and the block of films spends it the moment it has. Set on this very screen and not
+   * pushed: this window is a part of the memory's route, and a push to that route would stack a
+   * second feed of the same memory under the film.
    *
-   * The window goes first. It is a `Modal`, so it floats over whatever the router puts up next —
-   * the same thing TASK-94 was reported for — and the feed under it is left on the frame it was on.
+   * The window goes first, and the feed under it is left on the frame it was on.
    */
   function openFilm(montageId: string) {
     setDetails(false);
     onClose();
-    router.push({ pathname: '/memory/[id]', params: { id: memoryId, montage: montageId } });
+    router.setParams({ montage: montageId });
   }
 
   /** The grant, asked for at the moment it is needed, with this window's place to say «no». */
