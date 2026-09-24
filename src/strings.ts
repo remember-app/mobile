@@ -704,8 +704,6 @@ export const en = {
     orderDenied: 'Only the organizer can order a movie.',
     movedOn: 'That one has already moved on — reading the list again.',
     retryDenied: 'Only the organizer can start it again.',
-    /** The line the share sheet goes out with. The memory's own title is not translated. */
-    shareText: (title: string) => `Movie from «${title}»`,
     /** Handing the finished movie on did not happen — the download, or a phone with nowhere to send it. */
     shareFailed: 'Could not hand this movie on.',
 
@@ -1513,7 +1511,6 @@ export const ru: Strings = {
     orderDenied: 'Заказать ролик может только организатор.',
     movedOn: 'С этим уже что-то произошло — перечитываем список.',
     retryDenied: 'Запустить заново может только организатор.',
-    shareText: (title: string) => `Ролик из «${title}»`,
     shareFailed: 'Не получилось поделиться роликом.',
 
     step: (n: number, of: number) => `Шаг ${n} из ${of}`,

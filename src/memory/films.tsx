@@ -399,7 +399,7 @@ export function Films({ id, memory }: { id: string; memory: Memory | null }) {
           one road that names a film on the way in — «В роликах» on a frame's own sheet (TASK-211).
           A finished card leads to the film's page now, and it is watched there, in this same
           window. */}
-      <FilmPlayer film={watching} memory={memory} onClose={() => setPlaying(null)} />
+      <FilmPlayer film={watching} onClose={() => setPlaying(null)} />
     </View>
   );
 }
