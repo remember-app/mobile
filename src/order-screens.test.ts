@@ -184,6 +184,9 @@ test('the autopilot fills each step on the step, and ends on the summary', () =>
   expect(wizard).toContain('const flight = useRef(0);');
   expect(wizard).toContain('return flight.current === mine;');
   expect(wizard).toContain('flight.current += 1;\n    setAuto(null);');
+  // And leaving the wizard by a road that is none of those three buttons stops it too: the walk's
+  // timers outlive the screen otherwise, and its next stroke pushes a step onto whatever is on top.
+  expect(wizard).toContain('useEffect(\n    () => () => {\n      flight.current += 1;\n    },\n    [],\n  );');
   expect((flying.match(/if \(!\(await going\(/g) ?? []).length).toBeGreaterThanOrEqual(7);
   // What it fills in is the model's answer and not the screen's: which frames go in is the one
   // thing a template says nothing about.

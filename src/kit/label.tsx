@@ -126,7 +126,9 @@ export function RowLabel({
           // standing for a value of its own (spec 7.7).
           accessibilityRole="button"
           accessibilityState={{ selected: !!inside }}
-          accessibilityLabel={name}
+          // Who can see the label is what a person is deciding when they file into it, so it is said
+          // out loud with the name and the count, not left to the glyph beside them.
+          accessibilityLabel={[name, count, scopeLabel].filter(Boolean).join(', ')}
           onPress={onPress}
           {...props}
           style={({ pressed }) => [

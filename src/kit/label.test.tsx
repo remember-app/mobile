@@ -49,7 +49,12 @@ test('a label row says whose it is and whether what is chosen is in it', () => {
   // The whole row is the button: putting something in a box is the whole gesture, and there is no
   // second «apply» anywhere.
   expect(row).toContain('role="button"');
-  expect(row).toContain('aria-label="Лучшее"');
+  // Who can see the label is what a person is deciding when they file into it: it is read out with
+  // the name and the count, and not left to the glyph beside them.
+  expect(row).toContain('aria-label="Лучшее, 23 кадра, видят все"');
+  expect(
+    story(<RowLabel tint={AMBER} name="Любимые" scope="own" scopeLabel="только вы" onPress={() => {}} />),
+  ).toContain('aria-label="Любимые, только вы"');
 });
 
 test('the edit mode puts the pair of buttons where the circle was, and stops the row filing', () => {
@@ -81,8 +86,10 @@ test('the edit mode puts the pair of buttons where the circle was, and stops the
   // The name, the colour and the meta do not move — only the right edge does.
   expect(markup).toContain('Лучшее');
   expect(markup).toContain('видят все');
-  // And the row itself no longer files anything: `aria-label="Лучшее"` is the filing button.
-  expect(markup).not.toContain('aria-label="Лучшее"');
+  // And the row itself no longer files anything: `role="button"` is the filing button, and the two
+  // in the row are the two that are left.
+  expect((markup.match(/role="button"/g) ?? []).length).toBe(2);
+  expect(markup).not.toContain('aria-label="Лучшее, 23 кадра, видят все"');
 });
 
 test('a row nobody can press is not a button, and wears no circle either', () => {

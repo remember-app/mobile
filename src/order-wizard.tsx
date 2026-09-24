@@ -196,6 +196,16 @@ export function OrderProvider({ id, children }: { id: string; children: ReactNod
     setAuto(null);
   }, []);
 
+  // Leaving the wizard by any road that is not «Стоп», «Назад» or «Отмена» — a swipe back out of the
+  // first step, a link, a push — is the walk's stop as well: its timers cannot be un-fired, and the
+  // next stroke would push a step onto whatever screen is on top by then.
+  useEffect(
+    () => () => {
+      flight.current += 1;
+    },
+    [],
+  );
+
   /**
    * One press on a tile, and the wizard does the rest: the order is filled in from the template
    * and the four steps walk past in front of whoever pressed it — the story typed, the tracks

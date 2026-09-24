@@ -161,9 +161,20 @@ test('a record under a stage opens that frame’s card where there is one to ope
     story(<StepNote uri="https://bucket.example/f10.jpg" text="Марк роняет кольцо" onPress={onPress} />);
   expect(note(() => {})).toContain('role="button"');
   expect(note()).not.toContain('role="button"');
-  // What it says to a screen reader is the thought itself — the record is about that frame, and
-  // the thought is the only thing on the row a person could mean by it.
-  expect(note(() => {})).toContain('aria-label="Марк роняет кольцо"');
+  // It carries no label of its own: a screen reader is given the thought and the decision beside it
+  // as they stand. A label of the thought alone would keep «Беру» / «Мимо» — the other half of what
+  // the record says — from anybody who cannot see the pill.
+  expect(note(() => {})).not.toContain('aria-label');
+  expect(
+    story(
+      <StepNote
+        uri="https://bucket.example/f10.jpg"
+        text="Марк роняет кольцо"
+        mark={<BadgeDecision kind="take" label="Беру 0:04–0:07" />}
+        onPress={() => {}}
+      />,
+    ),
+  ).toContain('Беру 0:04–0:07');
 });
 
 test('the last line of an opened stage is the way into the whole of its journal', () => {

@@ -78,7 +78,9 @@ export function ChoiceCard({
 
   const shape = [
     tile ? styles.tile : styles.row,
-    selected ? styles.chosen : tile ? styles.plainTile : styles.plainRow,
+    // A read-only card is the choice that was made — there is no other state for it to be in — so
+    // it wears the chosen fill whether or not the caller also said `selected`.
+    selected || readOnly ? styles.chosen : tile ? styles.plainTile : styles.plainRow,
     readOnly ? styles.quiet : null,
     style,
   ];
@@ -86,11 +88,11 @@ export function ChoiceCard({
   if (readOnly) {
     return (
       // Not a button and not a disabled one — a value, with the words it is made of read out as one.
+      // No `selected` state either: that would read it out as a choice on offer, which it is not.
       <View
         accessible
         accessibilityRole="text"
         accessibilityLabel={note ? `${title}. ${note}` : title}
-        accessibilityState={{ selected: true }}
         style={shape}
       >
         {body}

@@ -161,6 +161,26 @@ test('a record about a file opens it, and one about a thought has nowhere to go'
   );
 });
 
+test('a record says everything on it to a screen reader, the decision pills included', () => {
+  // A label of the file's name, or of the thought, would keep the other two from anybody who cannot
+  // see the pills: the record's decision is «Беру» or «Мимо», and that is the point of the record.
+  const file = story(
+    <LogEntry
+      time="16:43"
+      uri={SHOT}
+      source="VID_0117 · Марк"
+      text="Марк роняет кольцо"
+      marks={<BadgeDecision kind="take" label="Беру 0:04–0:07" />}
+      onPress={() => {}}
+    />,
+  );
+  expect(file).toContain('role="button"');
+  expect(file).not.toContain('aria-label');
+  for (const words of ['VID_0117 · Марк', 'Марк роняет кольцо', 'Беру 0:04–0:07']) {
+    expect(file).toContain(words);
+  }
+});
+
 test('the journal draws the line its records hang off', () => {
   const journal = story(
     <Journal>
