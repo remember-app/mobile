@@ -1,4 +1,16 @@
 import { api, flat } from '@tests/helpers/source';
+
+// Everything both screens of the making work out of one answer — where a stage stands, how long the
+// whole of it took, the three numbers of «Как собирался» — read as one text, the way `api` is: which
+// file of the journal holds which of them is that folder's own business.
+const journalOf = Object.values(
+  import.meta.glob<string>('@/lib/montage/journal/*.ts', {
+    query: '?raw',
+    import: 'default',
+    eager: true,
+  }),
+).join('\n');
+
 import { expect, test } from 'vitest';
 import layout from '@/app/_layout.tsx?raw';
 import create from '@/app/create.tsx?raw';
@@ -23,9 +35,7 @@ import member from '@/kit/member.tsx?raw';
 // is measuring it out of the library rather than out of a number it chose.
 import tile from '@/kit/tile.tsx?raw';
 import toggle from '@/kit/toggle.tsx?raw';
-// Everything both screens of the making work out of one answer — where a stage stands, how long the
-// whole of it took, the three numbers of «Как собирался».
-import journalOf from '@/lib/montage/journal.ts?raw';
+
 // The arithmetic both the movies face and the waiting screen ask their «is it still being made»
 // question through, so the two cannot drift apart about what the answer is.
 import montage from '@/lib/montage/order.ts?raw';
