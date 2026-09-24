@@ -446,8 +446,17 @@ export type FrameFact = { label: string; value: string };
  *
  * A line is likewise built out of the pieces that *are* there: a camera model with no aperture
  * beside it is still a camera, and «IMG_4471.HEIC» with no weight is still the name of a file.
+ *
+ * `place` is the name the phone's geocoder gave the point, when it gave one. It takes the
+ * coordinates' seat and never a row of its own: a frame with no point has no place line, whatever
+ * is handed in.
  */
-export function frameFacts(info: FrameInfo, s: Strings, locale?: string): FrameFact[] {
+export function frameFacts(
+  info: FrameInfo,
+  s: Strings,
+  locale?: string,
+  place: string | null = null,
+): FrameFact[] {
   const size = megabytes(info, locale);
   const facts: FrameFact[] = [];
   const said = (label: string, value: string) => {
@@ -467,10 +476,11 @@ export function frameFacts(info: FrameInfo, s: Strings, locale?: string): FrameF
       info.aperture === null ? null : s.viewer.aperture(info.aperture),
     ]),
   );
-  // Coordinates as the numbers they are: turning them into «Усадьба „Остафьево“» takes an outside
-  // geocoder, which is a paid service the product has not taken (api README, «Сведения о кадре»).
+  // The api sends the point and no name (README, «Сведения о кадре»); the name is the phone's
+  // geocoder's, asked by the sheet (`@/geocoder`) and handed in as `place`. Until it answers, and
+  // whenever it cannot, the point stands as the numbers it is.
   if (info.latitude !== null && info.longitude !== null) {
-    said(s.viewer.place, s.viewer.coords(info.latitude, info.longitude));
+    said(s.viewer.place, place || s.viewer.coords(info.latitude, info.longitude));
   }
   return facts;
 }

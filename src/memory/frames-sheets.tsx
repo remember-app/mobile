@@ -22,6 +22,7 @@ import {
   type Order,
   type Sort,
 } from '@/frames';
+import { usePlaceName } from '@/geocoder';
 import {
   Avatar,
   Banner,
@@ -405,6 +406,7 @@ export function FrameInfoSheet({
 }) {
   const s = useStrings();
   const styles = useStyles();
+  const place = usePlaceName(info?.latitude, info?.longitude);
 
   return (
     <Sheet
@@ -455,7 +457,7 @@ export function FrameInfoSheet({
           </View>
 
           <View style={styles.facts}>
-            {frameFacts(info, s).map((fact, at) => (
+            {frameFacts(info, s, undefined, place).map((fact, at) => (
               <RowSummary key={fact.label} label={fact.label} value={fact.value} divider={at > 0} />
             ))}
           </View>

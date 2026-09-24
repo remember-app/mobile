@@ -599,7 +599,7 @@ export type FrameInfo = {
   camera_model: string | null;
   focal_length_mm: number | null;
   aperture: number | null;
-  /** The place as coordinates and nothing else: no geocoder, so there is no name to show. */
+  /** The place as coordinates and nothing else: the name is the phone's geocoder's (`@/geocoder`). */
   latitude: number | null;
   longitude: number | null;
   /** Who brought it, and how many frames that person brought to *this* memory. */
