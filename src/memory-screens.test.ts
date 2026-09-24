@@ -800,25 +800,24 @@ test('walking away from unsaved edits asks, and asks gently', () => {
   expect(ru.edit.leaveText).toBe('Название, даты и обложка останутся прежними.');
 });
 
-test('«Когда это было» is the same block on both screens, down to the words', () => {
-  // Spec 10.8.3: «блок из `Create` целиком, без единой правки». `Create` still draws its own copy
-  // of the arrangement (it landed there while this was being written, and there is a `ponytail:`
-  // note on the seam), so what is held here is everything the two are allowed to differ in:
-  // nothing. Same words, same day arithmetic, same ceiling on tomorrow.
+test('«Когда это было» is one block, and both screens draw that one', () => {
+  // Spec 10.8.3: «блок из `Create` целиком, без единой правки». It used to be drawn twice — `Create`
+  // held its own copy of the arrangement, and the two were kept level by a test that read both — and
+  // is now one file the two screens hand their days to. What each of them sends is theirs.
   expect(edit).toContain('<EventWhen value={span} onChange={setSpan} disabled={saving} />');
-  for (const source of [when, create]) {
-    expect(source).toContain('<Calendar');
-    expect(source).toContain('max={today}');
-    expect(source).toContain('weekdays={weekdayLetters()}');
-    expect(source).toContain('monthLabel={formatMonth(month)}');
-    expect(source).toContain('lastWeekend(today)');
-    expect(source).toContain('daysBefore(today, 6)');
-    expect(source).toContain('s.create.dateHint');
-    // The second tap is the switch for «больше дня», so there is no switch.
-    expect(source).not.toContain('multiDay');
-  }
+  expect(create).toContain('<EventWhen value={span} onChange={setSpan} disabled={busy} />');
+  expect(create).not.toContain('<Calendar');
+  expect(edit).not.toContain('<Calendar');
+  // The block itself: the same words, the same day arithmetic, the same ceiling on tomorrow.
+  expect(when).toContain('<Calendar');
+  expect(when).toContain('max={today}');
+  expect(when).toContain('weekdays={weekdayLetters()}');
+  expect(when).toContain('monthLabel={formatMonth(month)}');
+  expect(when).toContain('s.create.dateHint');
+  // The second tap is the switch for «больше дня», so there is no switch.
+  expect(when).not.toContain('multiDay');
   // One day is one tap, a span is two, a third starts over — and a tap before the first day is that
-  // first tap being corrected, never a span running backwards.
+  // first tap being corrected, never a span running backwards (behaviour: `memory/when.test.tsx`).
   expect(when).toContain('export function pickDay(span: Span, day: Date): Span {');
   expect(ru.create.dateHint).toBe('Один день — одно касание. Несколько — первый и последний.');
 });
