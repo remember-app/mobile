@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'rea
 import { font, height, radius, space, themed } from '@/theme';
 
 import { IconButton } from './button';
+import { dayKey, laneOf, weeksOf, type Lane } from './calendar-grid';
 import { PRESS, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
 import { Text } from './text';
 
@@ -43,42 +44,6 @@ export type CalendarProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-/** Midnight, so two days compare by the day they land on and by nothing else. */
-function key(day: Date): number {
-  return new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime();
-}
-
-/**
- * Which half of a square the range's ribbon fills: all of it between the ends, the right half under
- * the first day, the left half under the last — so a range reads as one ribbon and not as three
- * separate marks. `null` at both ends of the question: no range, or a day outside it.
- */
-function laneOf(at: number, start: number | null, end: number | null): Lane {
-  // One day picked twice is one day, and one day is not a ribbon.
-  if (start === null || end === null || end <= start) return null;
-  if (at > start && at < end) return 'full';
-  if (at === start) return 'right';
-  if (at === end) return 'left';
-  return null;
-}
-
-type Lane = 'left' | 'right' | 'full' | null;
-
-/**
- * Every square of the grid: the days of the month, with as many blanks in front as the month needs
- * to start under its own weekday.
- */
-function squares(month: Date): (Date | null)[] {
-  const first = new Date(month.getFullYear(), month.getMonth(), 1);
-  const days = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
-  // `getDay()` counts from Sunday; the grid counts from Monday.
-  const lead = (first.getDay() + 6) % 7;
-  return [
-    ...Array.from({ length: lead }, () => null),
-    ...Array.from({ length: days }, (_, i) => new Date(month.getFullYear(), month.getMonth(), i + 1)),
-  ];
-}
-
 export function Calendar({
   month,
   onMonth,
@@ -95,9 +60,9 @@ export function Calendar({
   style,
 }: CalendarProps) {
   const styles = useStyles();
-  const today = key(new Date());
-  const start = from ? key(from) : null;
-  const end = to ? key(to) : null;
+  const today = dayKey(new Date());
+  const start = from ? dayKey(from) : null;
+  const end = to ? dayKey(to) : null;
 
   return (
     <View style={[styles.card, style]}>
@@ -135,23 +100,26 @@ export function Calendar({
       </View>
 
       <View style={styles.grid}>
-        {squares(month).map((day, i) => {
-          if (!day) return <View key={`blank-${i}`} style={styles.cell} />;
-          const at = key(day);
-          const edge = at === start || at === end;
-          return (
-            <Day
-              key={at}
-              day={day}
-              label={dayLabel(day)}
-              edge={edge}
-              lane={laneOf(at, start, end)}
-              today={at === today}
-              disabled={!!((min && at < key(min)) || (max && at > key(max)))}
-              onPress={() => onPick(day)}
-            />
-          );
-        })}
+        {weeksOf(month).map((week, w) => (
+          <View key={w} style={styles.weekRow}>
+            {week.map((day, i) => {
+              if (!day) return <View key={`blank-${i}`} style={styles.cell} />;
+              const at = dayKey(day);
+              return (
+                <Day
+                  key={at}
+                  day={day}
+                  label={dayLabel(day)}
+                  edge={at === start || at === end}
+                  lane={laneOf(at, start, end)}
+                  today={at === today}
+                  disabled={!!((min && at < dayKey(min)) || (max && at > dayKey(max)))}
+                  onPress={() => onPick(day)}
+                />
+              );
+            })}
+          </View>
+        ))}
       </View>
     </View>
   );
@@ -239,10 +207,11 @@ const useStyles = themed(({ color }) =>
     month: { flex: 1, textAlign: 'center' },
     week: { height: 22, flexDirection: 'row', alignItems: 'center' },
     weekday: { flex: 1, textAlign: 'center' },
-    grid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 2 },
+    grid: { gap: 2 },
+    weekRow: { flexDirection: 'row' },
     // A seventh of the row, and the row is the card: the grid measures itself, so it fits whatever
     // width it is given and a six-week month is as wide as a five-week one.
-    cell: { width: `${100 / 7}%`, height: 40, alignItems: 'center', justifyContent: 'center' },
+    cell: { flex: 1, height: 40, alignItems: 'center', justifyContent: 'center' },
     // Spec 7.3 — the days between the ends: `accent` at 26%, laid under the figures rather than
     // mixed into a colour of its own.
     lane: {
