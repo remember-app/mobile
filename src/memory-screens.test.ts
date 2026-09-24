@@ -1157,7 +1157,7 @@ test('the montage that turns ready leads to its own page and never back into the
   // The other road to the player is untouched: a frame's own sheet names a film on the way in, and
   // it is still the memory's route that raises the window over the feed (TASK-211).
   expect(films).toContain("const { montage: asked } = useLocalSearchParams<{ montage?: string }>();");
-  expect(films).toContain('<FilmPlayer film={watching} memory={memory} onClose={() => setPlaying(null)} />');
+  expect(films).toContain('<FilmPlayer film={watching} onClose={() => setPlaying(null)} />');
 });
 
 test('a card still being cut says which of the five stages it is on', () => {
