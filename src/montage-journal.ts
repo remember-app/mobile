@@ -197,6 +197,22 @@ export async function relaid(state: Journal, ask: Ask, narrow: Narrow = {}): Pro
 }
 
 /**
+ * Has the worker begun this film again since `held` was read — its job retried after a passing
+ * failure, or «Повторить» pressed on another phone. Either way the last attempt's records are wiped
+ * and the new ones carry larger ids, so reading on after the cursor would lay the new attempt over
+ * the old one. What gives it away is a stage seen started that no longer has that start: the worker
+ * writes `started_at` once per stage per attempt and empties it only to begin another, and the api's
+ * retry leaves no stages at all. Going on, falling over or being ready never touches a start already
+ * written — and an attempt caught before any stage began left nothing to hold.
+ */
+const startedOver = (held: readonly MontageStage[], now: readonly MontageStage[]): boolean =>
+  held.some(
+    (was) =>
+      was.started_at !== null &&
+      now.find((one) => one.stage === was.stage)?.started_at !== was.started_at,
+  );
+
+/**
  * Every stage's own last records, for a screen that opens all five out. The first read is the
  * newest page of the whole journal, and a film of hundreds of records ends that page inside its
  * later stages — the earlier ones would open out onto nothing. A stage holding fewer of its last
@@ -517,6 +533,14 @@ export const whyTaken = (entry: JournalEntry, s: Strings): string | undefined =>
     : undefined;
 
 /**
+ * Why a record went the way it did — the one pill a sheet about a single file stands under its
+ * decision: why a frame was passed over, or why it was taken (`whyTaken`). The same words the
+ * journal's own pills say it in (`marksOf`), so the two can never name the reason differently.
+ */
+export const whyDecided = (entry: JournalEntry, s: Strings): string | undefined =>
+  entry.decision === 'skip' ? reasonWord(entry.reason, s) : whyTaken(entry, s);
+
+/**
  * What a record wears as pills (spec 7.7): the decision first, then what qualifies it. «Беру» alone
  * for a photograph, «Беру 0:04–0:07» where a piece of a video was taken, «Взял 1 из 4» where it was
  * one of a burst, and beside either why it was taken and the part of the story it went into. A
@@ -607,6 +631,12 @@ export function useMontageJournal(
         // A poll that breaks halfway through its pages is dropped whole rather than kept in part:
         // the cursor then stays where it was and the next one asks for the same records again.
         let next = await (older ? pullOlder : pull)(from, ask, narrow);
+        // Begun again under this screen: what is held belongs to an attempt that is gone, so the
+        // journal is read from nothing, as `restart` has it read — without a blank screen between.
+        // Not for a read whose journal was thrown away meanwhile: its answer resets nothing.
+        if (held.current === from && startedOver(from.stages, next.stages)) {
+          next = await pull(NO_JOURNAL, ask, narrow);
+        }
         // Ready under the journal of a stage that was read while the film was being made: its
         // files predate the layout, and this is the last read there will be (`relaid`). The whole
         // journal is not read again — the one screen that reads it through the making leaves for

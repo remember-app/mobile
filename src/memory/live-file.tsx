@@ -14,7 +14,7 @@ import {
   Text,
 } from '@/kit';
 import { useStrings } from '@/language';
-import { gazeAt, marksOf, placeLine, whyTaken } from '@/montage-journal';
+import { gazeAt, marksOf, placeLine, whyDecided } from '@/montage-journal';
 import { space } from '@/theme';
 
 /**
@@ -44,7 +44,7 @@ export function SheetLiveFile({
   const s = useStrings();
   const { width } = useWindowDimensions();
   const [mark] = marksOf(entry, s);
-  const why = whyTaken(entry, s);
+  const why = whyDecided(entry, s);
   const place = placeLine(entry, file, s);
   // The frame runs the width of the sheet inside its own margins, and the sheet itself stops at the
   // 420 `kit/sheet.tsx` holds it to. The gaze arrives as fractions of the picture, so this is what
@@ -83,13 +83,13 @@ export function SheetLiveFile({
             <BadgeDecision kind={entry.decision === 'take' ? 'take' : 'pass'} label={mark} />
           ) : null}
         </View>
-        {/* Why it was taken, where there is a why (spec 28): beside «Беру» and in the journal's own
-            colour for what stands next to it — just under it rather than in its row, where a pill
-            this long would squeeze the author and the date down to a letter or two. Why a frame was
-            passed over is the thought's to say on this sheet, not a pill's (spec 7.6). */}
+        {/* Why it went that way, where there is a why (spec 28): «Мимо» with the reason it was
+            passed over, «Беру» with the organizer's word — each in the colour the journal gives
+            what stands beside that decision. Just under it rather than in its row, where a pill
+            this long would squeeze the author and the date down to a letter or two. */}
         {why ? (
           <View style={styles.why}>
-            <BadgeDecision kind="part" label={why} />
+            <BadgeDecision kind={entry.decision === 'skip' ? 'pass' : 'part'} label={why} />
           </View>
         ) : null}
       </View>
