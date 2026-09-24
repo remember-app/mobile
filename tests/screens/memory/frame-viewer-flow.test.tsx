@@ -44,24 +44,37 @@ vi.mock('react-native', async (importOriginal) => {
   const rn = await importOriginal<typeof import('react-native')>();
   return {
     ...rn,
-    Platform: new Proxy(rn.Platform, { get: (target, key) => (key === 'OS' ? platform.os : Reflect.get(target, key)) }),
-    Modal: ({ visible, children }: { visible?: boolean; children?: unknown }) => (visible === false ? null : (children as never)),
+    Platform: new Proxy(rn.Platform, {
+      get: (target, key) => (key === 'OS' ? platform.os : Reflect.get(target, key)),
+    }),
+    Modal: ({ visible, children }: { visible?: boolean; children?: unknown }) =>
+      visible === false ? null : (children as never),
   };
 });
 vi.mock('@/lib/downloads', () => downloads);
 
-import TestRenderer, { act } from 'react-test-renderer';
-
-import type { FrameInfo, MediaItem, Member } from '@/api';
-import { Modal } from 'react-native';
-
-import { ActionMenu, Banner, ConfirmSheet, Empty, Filmstrip, IconButton, RowAction, RowFilmAt, RowSummary, ViewerBar, VideoTrack } from '@/kit';
-import { FrameInfoSheet } from '@/screens/memory/frames-sheets';
-import { FrameViewer } from '@/screens/memory/frame-viewer';
-import { ru } from '@/strings';
+import { type Asked, later, member, memory, photo, refused, serve } from '@tests/helpers/api';
 import { touch } from '@tests/helpers/gesture';
-import { later, member, memory, photo, refused, serve, type Asked } from '@tests/helpers/api';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
+import { Modal } from 'react-native';
+import TestRenderer, { act } from 'react-test-renderer';
+import type { FrameInfo, MediaItem, Member } from '@/api';
+import {
+  ActionMenu,
+  Banner,
+  ConfirmSheet,
+  Empty,
+  Filmstrip,
+  IconButton,
+  RowAction,
+  RowFilmAt,
+  RowSummary,
+  VideoTrack,
+  ViewerBar,
+} from '@/kit';
+import { FrameViewer } from '@/screens/memory/frame-viewer';
+import { FrameInfoSheet } from '@/screens/memory/frames-sheets';
+import { ru } from '@/strings';
 
 /**
  * `Viewer` (spec 8, «Просмотр медиа») — one frame on the whole of the phone: the three glass buttons,
@@ -78,8 +91,24 @@ const geocode = vi.mocked(reverseGeocodeAsync);
 beforeEach(() => {
   ask.id = 'me';
   platform.os = 'android';
-  Object.assign(player, { currentTime: 0, duration: 0, playing: false, muted: false, timeUpdateEventInterval: 0 });
-  for (const fn of [router.push, router.back, router.setParams, turns, player.play, player.pause, ...Object.values(downloads), geocode]) fn.mockReset();
+  Object.assign(player, {
+    currentTime: 0,
+    duration: 0,
+    playing: false,
+    muted: false,
+    timeUpdateEventInterval: 0,
+  });
+  for (const fn of [
+    router.push,
+    router.back,
+    router.setParams,
+    turns,
+    player.play,
+    player.pause,
+    ...Object.values(downloads),
+    geocode,
+  ])
+    fn.mockReset();
   downloads.maySaveToPhone.mockResolvedValue(true);
   downloads.saveToPhone.mockResolvedValue(undefined);
   downloads.shareFile.mockResolvedValue(undefined);
@@ -89,12 +118,18 @@ afterEach(() => vi.unstubAllGlobals());
 
 const at = (day: number, hour = 12) => new Date(2026, 8, day, hour).toISOString();
 const shots = (): MediaItem[] => [
-  photo('a', 'liza', at(13, 21), { thumbnail_url: 'https://r2.example/a', preview_url: 'https://r2.example/a-big' }),
+  photo('a', 'liza', at(13, 21), {
+    thumbnail_url: 'https://r2.example/a',
+    preview_url: 'https://r2.example/a-big',
+  }),
   photo('b', 'me', at(13, 9)),
   { ...photo('c', 'me', at(12, 9)), status: 'processing', thumbnail_url: null },
   photo('d', 'me', at(11, 9)),
 ];
-const roster: Member[] = [member('me', 'organizer', { name: 'Я' }), member('liza', 'contributor', { name: 'Марк Ковалёв' })];
+const roster: Member[] = [
+  member('me', 'organizer', { name: 'Я' }),
+  member('liza', 'contributor', { name: 'Марк Ковалёв' }),
+];
 
 const told = (over: Partial<FrameInfo> = {}): FrameInfo => ({
   id: 'a',
@@ -137,7 +172,8 @@ async function open(over: Props = {}) {
     tree = mounted(TestRenderer.create(<FrameViewer {...shown} />));
   });
   const root = tree.root;
-  const press = (find: () => { props: { onPress?: () => void } }) => act(async () => find().props.onPress?.());
+  const press = (find: () => { props: { onPress?: () => void } }) =>
+    act(async () => find().props.onPress?.());
   const screen = {
     root,
     shown,
@@ -145,14 +181,21 @@ async function open(over: Props = {}) {
     /** Re-rendered with another record, the way the feed hands the window the next frame. */
     show: (next: Props) => act(async () => tree.update(<FrameViewer {...{ ...shown, ...next }} />)),
     pill: () => root.findByType(ViewerBar),
-    bar: () => root.findByType(ViewerBar).props as { date: string; meta: string; onPress: () => void },
-    icon: (label: string) => () => root.findAllByType(IconButton).find((one) => one.props.label === label)!,
-    row: (label: string) => root.findAllByType(RowAction).filter((one) => one.props.label === label),
+    bar: () =>
+      root.findByType(ViewerBar).props as { date: string; meta: string; onPress: () => void },
+    icon: (label: string) => () =>
+      root.findAllByType(IconButton).find((one) => one.props.label === label)!,
+    row: (label: string) =>
+      root.findAllByType(RowAction).filter((one) => one.props.label === label),
     menu: () => press(screen.icon(ru.viewer.more)),
     info: () => root.findByType(FrameInfoSheet),
     confirm: () => root.findByType(ConfirmSheet),
     notices: () => root.findAllByType(Banner).map((one) => one.props.text as string),
-    facts: () => root.findByType(FrameInfoSheet).findAllByType(RowSummary).map((one) => [one.props.label, one.props.value]),
+    facts: () =>
+      root
+        .findByType(FrameInfoSheet)
+        .findAllByType(RowSummary)
+        .map((one) => [one.props.label, one.props.value]),
   };
   return screen;
 }
@@ -163,7 +206,9 @@ test('the pill over the frame is who and when: the day of the shot without its y
   serve(() => undefined);
   const screen = await open();
   expect(screen.bar().date).toBe('13 сентября');
-  expect(screen.bar().meta).toBe(`${new Date(at(13, 21)).toLocaleTimeString('ru', { hour: 'numeric', minute: '2-digit' })} · Марк Ковалёв`);
+  expect(screen.bar().meta).toBe(
+    `${new Date(at(13, 21)).toLocaleTimeString('ru', { hour: 'numeric', minute: '2-digit' })} · Марк Ковалёв`,
+  );
   // A frame from somebody who has since left the memory is by «кто-то», never blank.
   await screen.show({ item: { ...shots()[0], uploaded_by: 'gone' } });
   expect(screen.bar().meta).toContain(ru.memory.someone);
@@ -240,7 +285,9 @@ test('the delete asks first, on a sheet that names the frame, and only the confi
   await screen.menu();
   await screen.press(() => screen.row(ru.viewer.remove)[0]);
   await act(async () => screen.confirm().props.onConfirm());
-  expect(patches(log, 'DELETE')).toEqual([{ method: 'DELETE', path: '/memories/m1/media/a', body: null }]);
+  expect(patches(log, 'DELETE')).toEqual([
+    { method: 'DELETE', path: '/memories/m1/media/a', body: null },
+  ]);
   expect(screen.shown.onRemoved).toHaveBeenCalledWith('a');
 });
 
@@ -263,7 +310,9 @@ test('a frame somebody else has already deleted is gone all the same; any other 
 });
 
 test('saving asks the phone for the one grant, then signs the original and keeps it — and without the grant it says so and asks the api for nothing', async () => {
-  const log = serve((asked) => (asked.path.endsWith('/download') ? { url: 'https://r2.example/original' } : undefined));
+  const log = serve((asked) =>
+    asked.path.endsWith('/download') ? { url: 'https://r2.example/original' } : undefined,
+  );
   downloads.maySaveToPhone.mockResolvedValue(false);
   const screen = await open();
   await screen.menu();
@@ -275,7 +324,11 @@ test('saving asks the phone for the one grant, then signs the original and keeps
   await screen.menu();
   await screen.press(() => screen.row(ru.viewer.saveToPhone)[0]);
   expect(log.map((one) => one.path)).toEqual(['/memories/m1/media/a/download']);
-  expect(downloads.saveToPhone).toHaveBeenCalledWith({ id: 'a', kind: 'photo', url: 'https://r2.example/original' });
+  expect(downloads.saveToPhone).toHaveBeenCalledWith({
+    id: 'a',
+    kind: 'photo',
+    url: 'https://r2.example/original',
+  });
   expect(screen.notices()).toEqual([ru.save.done]);
 });
 
@@ -299,7 +352,11 @@ test('sharing hands the phone’s own sheet a copy of the original, and says not
   const screen = await open();
   await screen.menu();
   await screen.press(() => screen.row(ru.action.share)[0]);
-  expect(downloads.shareFile).toHaveBeenCalledWith({ id: 'a', kind: 'photo', url: 'https://r2.example/original' });
+  expect(downloads.shareFile).toHaveBeenCalledWith({
+    id: 'a',
+    kind: 'photo',
+    url: 'https://r2.example/original',
+  });
   expect(screen.notices()).toEqual([]);
   // Nothing is written to the gallery by sharing, and nothing asks for that permission.
   expect(downloads.maySaveToPhone).not.toHaveBeenCalled();
@@ -323,13 +380,17 @@ test('a share that fell over is the api’s word when it was the api, and the wi
 });
 
 test('the pill raises the frame’s sheet, and the read behind it fills the four lines the server knows', async () => {
-  const log = serve((asked) => (asked.path === '/memories/m1/media/a' ? told({ latitude: 1.234, longitude: 5.678 }) : undefined));
+  const log = serve((asked) =>
+    asked.path === '/memories/m1/media/a' ? told({ latitude: 1.234, longitude: 5.678 }) : undefined,
+  );
   const screen = await open();
   expect(screen.info().props.visible).toBe(false);
   expect(log).toEqual([]);
   await screen.press(screen.pill);
   expect(screen.info().props.visible).toBe(true);
-  expect(screen.info().props.title).toBe(`13 сентября, ${new Date(at(13, 21)).toLocaleTimeString('ru', { hour: 'numeric', minute: '2-digit' })}`);
+  expect(screen.info().props.title).toBe(
+    `13 сентября, ${new Date(at(13, 21)).toLocaleTimeString('ru', { hour: 'numeric', minute: '2-digit' })}`,
+  );
   expect(screen.info().props.meta).toBe('воскресенье · Свадьба Лизы и Марка');
   expect(screen.facts()).toEqual([
     [ru.viewer.file, 'IMG_4471.HEIC · 4,2 МБ'],
@@ -417,7 +478,9 @@ test('an answer to an earlier opening never lands in the sheet of a later one �
   await screen.show({ item: shots()[1] });
   await screen.press(screen.pill);
 
-  await act(async () => second.settle(told({ id: 'b', file_name: 'B.JPG', size_bytes: '1000000' })));
+  await act(async () =>
+    second.settle(told({ id: 'b', file_name: 'B.JPG', size_bytes: '1000000' })),
+  );
   expect(screen.facts()[0]).toEqual([ru.viewer.file, 'B.JPG · 1 МБ']);
   // The first read comes in late with the frame before it, and is not let in.
   await act(async () => first.settle(told({ id: 'a', file_name: 'A.JPG' })));
@@ -444,7 +507,10 @@ test('a place found for the frame before is not written into the sheet of the ne
   const slow = later<unknown>();
   geocode.mockImplementation(((where: { latitude: number }) =>
     where.latitude === 40.5 ? slow.promise : Promise.resolve([{ city: 'Казань' }])) as never);
-  const infos = [told({ latitude: 40.5, longitude: 50.5 }), told({ id: 'b', latitude: 41.5, longitude: 51.5 })];
+  const infos = [
+    told({ latitude: 40.5, longitude: 50.5 }),
+    told({ id: 'b', latitude: 41.5, longitude: 51.5 }),
+  ];
   serve(() => infos.shift());
   const screen = await open();
   await screen.press(screen.pill);
@@ -480,7 +546,9 @@ test('a frame with nothing behind it is «кадр не открылся», with
   serve(() => undefined);
   const bare = { ...shots()[1], thumbnail_url: null, preview_url: null };
   const screen = await open({ item: bare, frames: [shots()[0], bare] });
-  expect(screen.root.findAllByType(Empty).map((one) => one.props.text)).toEqual([ru.viewer.notOpened]);
+  expect(screen.root.findAllByType(Empty).map((one) => one.props.text)).toEqual([
+    ru.viewer.notOpened,
+  ]);
   expect(screen.root.findAllByType(Filmstrip)).toHaveLength(1);
   await screen.menu();
   expect(screen.row(ru.viewer.remove)).toHaveLength(1);
@@ -488,7 +556,13 @@ test('a frame with nothing behind it is «кадр не открылся», with
 
 test('a video with its own file carries a scrubber and a photograph carries none', async () => {
   serve(() => undefined);
-  const film = { ...shots()[0], id: 'v', kind: 'video' as const, preview_url: 'https://r2.example/v.mp4', duration_seconds: 20 };
+  const film = {
+    ...shots()[0],
+    id: 'v',
+    kind: 'video' as const,
+    preview_url: 'https://r2.example/v.mp4',
+    duration_seconds: 20,
+  };
   const still = await open();
   expect(still.root.findAllByType(VideoTrack)).toHaveLength(0);
   const video = await open({ item: film, frames: [film] });
@@ -504,16 +578,23 @@ test('a video with its own file carries a scrubber and a photograph carries none
  * whole gallery, past whatever is still being developed.
  */
 async function swipe(screen: Awaited<ReturnType<typeof open>>, dx: number, dy = 0) {
-  const stage = () => screen.root.findAll((one) => typeof one.props.onMoveShouldSetResponderCapture === 'function')[0];
+  const stage = () =>
+    screen.root.findAll(
+      (one) => typeof one.props.onMoveShouldSetResponderCapture === 'function',
+    )[0];
   let taken = false;
   await act(async () => {
-    taken = stage().props.onMoveShouldSetResponderCapture(touch({ x: 200 + dx, y: 300 + dy, fromX: 200, fromY: 300 }));
+    taken = stage().props.onMoveShouldSetResponderCapture(
+      touch({ x: 200 + dx, y: 300 + dy, fromX: 200, fromY: 300 }),
+    );
   });
-  if (taken) await act(async () => stage().props.onResponderRelease(touch({ x: 200 + dx, y: 300 + dy })));
+  if (taken)
+    await act(async () => stage().props.onResponderRelease(touch({ x: 200 + dx, y: 300 + dy })));
   return taken;
 }
 
-const opened = (screen: Awaited<ReturnType<typeof open>>) => (screen.shown.onOpen as ReturnType<typeof vi.fn>).mock.calls.map((call) => call[0]);
+const opened = (screen: Awaited<ReturnType<typeof open>>) =>
+  (screen.shown.onOpen as ReturnType<typeof vi.fn>).mock.calls.map((call) => call[0]);
 
 test('a swipe to the left opens the next frame and a swipe to the right the one before, and neither goes past the ends', async () => {
   serve(() => undefined);
@@ -675,7 +756,12 @@ test('the lines of the frame’s sheet stand in one card, and a film with no kno
   serve(() => told({ montages: [{ id: 'f9', duration_seconds: null, start_seconds: 5 }] }));
   const screen = await open();
   await screen.press(screen.pill);
-  expect(screen.info().findAllByType(RowSummary).map((one) => one.props.divider)).toEqual([false, true, true]);
+  expect(
+    screen
+      .info()
+      .findAllByType(RowSummary)
+      .map((one) => one.props.divider),
+  ).toEqual([false, true, true]);
   const row = screen.info().findByType(RowFilmAt);
   expect(row.props.title).toBe(ru.montage.count(1));
   expect(row.props.at).toBe(ru.viewer.at('0:05'));
@@ -695,14 +781,19 @@ test('a video is streamed off its own file by one player, set up to report four 
   serve(() => undefined);
   const clip = video();
   const screen = await open({ item: clip, frames: [clip] });
-  expect(vi.mocked(useVideoPlayer)).toHaveBeenLastCalledWith('https://r2.example/v.mp4', expect.any(Function));
+  expect(vi.mocked(useVideoPlayer)).toHaveBeenLastCalledWith(
+    'https://r2.example/v.mp4',
+    expect.any(Function),
+  );
   expect(player.timeUpdateEventInterval).toBe(0.25);
   expect(player.play).toHaveBeenCalled();
   // Its transport is the row under the strip and the button in the middle: the platform’s own is off.
   const view = screen.root.findByType(VideoView);
   expect(view.props.nativeControls).toBe(false);
   expect(view.props.player).toBe(player);
-  expect(screen.root.findAllByType(Image).filter((one) => one.props.contentFit === 'contain')).toHaveLength(0);
+  expect(
+    screen.root.findAllByType(Image).filter((one) => one.props.contentFit === 'contain'),
+  ).toHaveLength(0);
 });
 
 test('a photograph is a player with no source, and a video whose file was never made is a picture again, off its poster', async () => {
@@ -716,7 +807,9 @@ test('a photograph is a player with no source, and a video whose file was never 
 
   const small = shots()[1];
   const thumb = await open({ item: small, frames: [small] });
-  expect(thumb.root.findAllByType(Image).find((one) => one.props.contentFit === 'contain')!.props.source).toEqual({
+  expect(
+    thumb.root.findAllByType(Image).find((one) => one.props.contentFit === 'contain')!.props.source,
+  ).toEqual({
     uri: 'https://r2.example/b',
     cacheKey: 'b:thumb',
   });
@@ -725,7 +818,10 @@ test('a photograph is a player with no source, and a video whose file was never 
   const poster = await open({ item: clip, frames: [clip] });
   expect(poster.root.findAllByType(VideoView)).toHaveLength(0);
   expect(poster.root.findAllByType(VideoTrack)).toHaveLength(0);
-  expect(poster.root.findAllByType(Image).find((one) => one.props.contentFit === 'contain')!.props.source.cacheKey).toBe('v:thumb');
+  expect(
+    poster.root.findAllByType(Image).find((one) => one.props.contentFit === 'contain')!.props.source
+      .cacheKey,
+  ).toBe('v:thumb');
 });
 
 test('the transport reads the player: the middle button is play while it is stopped and pause while it plays, and each does what it says', async () => {

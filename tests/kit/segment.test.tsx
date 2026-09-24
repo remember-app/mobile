@@ -47,9 +47,7 @@ test('the two heights, the two widths and the two grounds are each their own', (
     plain: <Segment label="Лицо" options={FACES} value="frames" onChange={() => {}} />,
     small: <Segment label="Лицо" options={FACES} value="frames" onChange={() => {}} sm />,
     wide: <Segment label="Лицо" options={FACES} value="frames" onChange={() => {}} wide />,
-    inSheet: (
-      <Segment label="Лицо" options={FACES} value="frames" onChange={() => {}} onSurface />
-    ),
+    inSheet: <Segment label="Лицо" options={FACES} value="frames" onChange={() => {}} onSurface />,
   });
 });
 

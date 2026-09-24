@@ -87,9 +87,7 @@ test('the video scrubber is its own line above the strip, so two gestures never 
 test('the scrubber takes a finger when it is given somewhere to send it, and reports when it is not', () => {
   // «Видео нельзя перемотать: ползунок не тянется, по полосе не нажимается» — off a device
   // (TASK-181). A bar that only reports is a film watched from the start every time.
-  const read = (
-    <VideoTrack at="0:24" of="1:08" value={0.35} label="Просмотрено" />
-  );
+  const read = <VideoTrack at="0:24" of="1:08" value={0.35} label="Просмотрено" />;
   const wound = (
     <VideoTrack at="0:24" of="1:08" value={0.35} label="Просмотрено" onSeek={() => {}} />
   );

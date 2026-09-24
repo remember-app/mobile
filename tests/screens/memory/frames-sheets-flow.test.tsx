@@ -2,15 +2,14 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
 
+import { mounted, mountsTrees } from '@tests/helpers/renderer';
+import { Image } from 'expo-image';
 import TestRenderer, { act } from 'react-test-renderer';
 
-import { FILTER_NONE, type Filter } from '@/lib/frames';
-import { Image } from 'expo-image';
-
 import { Banner, Calendar, Chip, RowSummary, Spinner } from '@/kit';
+import { FILTER_NONE, type Filter } from '@/lib/frames';
 import { FilterSheet, FrameInfoSheet } from '@/screens/memory/frames-sheets';
 import { ru } from '@/strings';
-import { mounted, mountsTrees } from '@tests/helpers/renderer';
 
 /**
  * Two things about the sheets of a memory the feed cannot show. `SheetFilter`'s calendar (spec 8,
@@ -36,12 +35,23 @@ async function open(days: number[]) {
   await act(async () => {
     tree = mounted(
       TestRenderer.create(
-        <FilterSheet people={[]} labels={[]} days={[]} value={value} count={() => 1} onApply={() => {}} onCancel={() => {}} />,
+        <FilterSheet
+          people={[]}
+          labels={[]}
+          days={[]}
+          value={value}
+          count={() => 1}
+          onApply={() => {}}
+          onCancel={() => {}}
+        />,
       ),
     );
   });
   await act(async () =>
-    tree.root.findAllByType(Chip).find((one) => one.props.label === ru.gallery.otherDay)!.props.onPress(),
+    tree.root
+      .findAllByType(Chip)
+      .find((one) => one.props.label === ru.gallery.otherDay)!
+      .props.onPress(),
   );
   return tree.root.findByType(Calendar).props as { month: Date; from: Date | null };
 }
@@ -118,7 +128,9 @@ test('the sheet is a wait while its read is in the air, the reason when the read
   expect(whole.findAllByType(RowSummary).map((one) => one.props.label)).toEqual([ru.viewer.file]);
   // The head is there in all three, and so is the picture of the frame in it.
   for (const sheet of [reading, failed, whole]) {
-    expect(sheet.findAllByType(Image).map((one) => one.props.source)).toEqual([{ uri: 'https://r2.example/a' }]);
+    expect(sheet.findAllByType(Image).map((one) => one.props.source)).toEqual([
+      { uri: 'https://r2.example/a' },
+    ]);
   }
   // A frame the worker made no picture for has none to show in the head.
   const bare = await draw(info({ thumb: undefined }));

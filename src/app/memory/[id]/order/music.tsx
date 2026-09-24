@@ -5,8 +5,6 @@ import { useRef, useState } from 'react';
 import { PanResponder, ScrollView, StyleSheet, View } from 'react-native';
 
 import type { MusicTrackId } from '@/api';
-import { useAuth } from '@/lib/auth';
-import { formatRuntime } from '@/lib/dates';
 import {
   BlockPicked,
   Button,
@@ -17,14 +15,16 @@ import {
   Text,
   TRACK_ROW,
 } from '@/kit';
+import { useAuth } from '@/lib/auth';
+import { formatRuntime } from '@/lib/dates';
 import { useStrings } from '@/lib/language';
 import {
   movedTrack,
   NOTE_LIMIT,
+  type PickedTrack,
   pickedSeconds,
   shelfTrack,
   TRACKS,
-  type PickedTrack,
 } from '@/lib/montage/order';
 import { sendOwnTrack, useTrackPreview } from '@/lib/music';
 import { refusal, useOrder, useStillHere, WizardStep } from '@/screens/order/wizard';

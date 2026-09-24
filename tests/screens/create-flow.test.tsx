@@ -8,19 +8,21 @@ vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' 
 vi.mock('@/lib/auth', () => ({ useAuth: () => ({ token: 'session', user: { id: 'me' } }) }));
 vi.mock('expo-router', () => ({ useRouter: () => router }));
 // A text input listens on the browser's `document`, which a test renderer has none of.
-vi.mock('@/kit', async (original) => ({ ...(await original<typeof import('@/kit')>()), Field: () => null }));
+vi.mock('@/kit', async (original) => ({
+  ...(await original<typeof import('@/kit')>()),
+  Field: () => null,
+}));
 
+import { type Asked, later, memory, refused, serve } from '@tests/helpers/api';
+import { mounted, mountsTrees, themesShown } from '@tests/helpers/renderer';
 import { Pressable } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
-
 import CreateMemoryScreen from '@/app/create';
-import { endOfDay, startOfDay } from '@/lib/dates';
 import { Banner, Button, Calendar, Chip, Field, IconButton } from '@/kit';
+import { endOfDay, startOfDay } from '@/lib/dates';
 import { EventWhen } from '@/screens/memory/when';
 import { ru } from '@/strings';
-import { later, memory, refused, serve, type Asked } from '@tests/helpers/api';
 import { setTheme } from '@/theme';
-import { mounted, mountsTrees, themesShown } from '@tests/helpers/renderer';
 
 /**
  * `Create` (spec 8) — a name and the days it was, on the real api client over a stand-in server.
@@ -49,7 +51,11 @@ afterEach(() => {
 });
 
 function world(answer: unknown = memory({ id: 'made' })) {
-  return { log: serve((asked) => (asked.method === 'POST' && asked.path === '/memories' ? answer : undefined)) };
+  return {
+    log: serve((asked) =>
+      asked.method === 'POST' && asked.path === '/memories' ? answer : undefined,
+    ),
+  };
 }
 const posts = (log: Asked[]) => log.filter((one) => one.method === 'POST').map((one) => one.body);
 
@@ -63,11 +69,18 @@ async function open() {
     root,
     field: () => root.findByType(Field).props as { value: string; editable?: boolean },
     type: (text: string) => act(async () => root.findByType(Field).props.onChangeText(text)),
-    when: () => root.findByType(EventWhen).props as { value: { from: Date; to: Date | null }; disabled?: boolean },
+    when: () =>
+      root.findByType(EventWhen).props as {
+        value: { from: Date; to: Date | null };
+        disabled?: boolean;
+      },
     submit: () => root.findAllByType(Button).find((one) => one.props.label === ru.create.submit)!,
-    press: (find: () => { props: { onPress?: () => void } }) => act(async () => find().props.onPress?.()),
-    quick: (label: string) => () => root.findAllByType(Chip).find((one) => one.props.label === label)!,
-    pickDays: (from: Date, to: Date | null) => act(async () => root.findByType(EventWhen).props.onChange({ from, to })),
+    press: (find: () => { props: { onPress?: () => void } }) =>
+      act(async () => find().props.onPress?.()),
+    quick: (label: string) => () =>
+      root.findAllByType(Chip).find((one) => one.props.label === label)!,
+    pickDays: (from: Date, to: Date | null) =>
+      act(async () => root.findByType(EventWhen).props.onChange({ from, to })),
     banners: () => root.findAllByType(Banner).map((one) => one.props.text as string),
     text: () => JSON.stringify(tree.toJSON()),
   };
@@ -96,7 +109,10 @@ test('one day, the default, sends the name trimmed and the start of today — an
   await screen.type('  Свадьба Лизы и Марка ');
   await screen.press(() => screen.submit());
   const [body] = posts(w.log) as Record<string, unknown>[];
-  expect(body).toEqual({ title: 'Свадьба Лизы и Марка', event_start: startOfDay(NOW).toISOString() });
+  expect(body).toEqual({
+    title: 'Свадьба Лизы и Марка',
+    event_start: startOfDay(NOW).toISOString(),
+  });
   // Not «null» and not the same day again: the key is not there, which is how the api hears «one day».
   expect('event_end' in body).toBe(false);
 });
@@ -108,7 +124,11 @@ test('a range sends its first day’s start and its last day’s end, and pickin
   await screen.pickDays(day(10), day(12));
   await screen.press(() => screen.submit());
   expect(posts(w.log)).toEqual([
-    { title: 'Поход', event_start: startOfDay(day(10)).toISOString(), event_end: endOfDay(day(12)).toISOString() },
+    {
+      title: 'Поход',
+      event_start: startOfDay(day(10)).toISOString(),
+      event_end: endOfDay(day(12)).toISOString(),
+    },
   ]);
 
   vi.unstubAllGlobals();
@@ -137,7 +157,10 @@ test('the four quick days are whole answers, and the weekend on a Saturday is on
     const screen = await open();
     await screen.type('Праздник');
     await screen.press(screen.quick(label));
-    expect(screen.when().value, label).toEqual({ from: startOfDay(from), to: to && startOfDay(to) });
+    expect(screen.when().value, label).toEqual({
+      from: startOfDay(from),
+      to: to && startOfDay(to),
+    });
     await screen.press(() => screen.submit());
     const [body] = posts(w.log) as Record<string, unknown>[];
     expect(body.event_start, label).toBe(startOfDay(from).toISOString());
@@ -173,7 +196,9 @@ test('a memory cannot be of tomorrow: the calendar answers up to today, today in
   const screen = await open();
   expect(screen.root.findByType(Calendar).props.max).toEqual(startOfDay(NOW));
   const cell = (d: number) =>
-    screen.root.findAllByType(Pressable).find((one) => one.props.accessibilityLabel === `${d} сентября 2026`)!;
+    screen.root
+      .findAllByType(Pressable)
+      .find((one) => one.props.accessibilityLabel === `${d} сентября 2026`)!;
   expect(cell(16).props.disabled).toBe(false);
   expect(cell(17).props.disabled).toBe(true);
   expect(cell(1).props.disabled).toBe(false);
@@ -182,8 +207,7 @@ test('a memory cannot be of tomorrow: the calendar answers up to today, today in
 test('the calendar is a gesture: a first tap is a day, the second closes the range, and the date line says how long', async () => {
   world();
   const screen = await open();
-  const tap = (d: number) =>
-    act(async () => screen.root.findByType(Calendar).props.onPick(day(d)));
+  const tap = (d: number) => act(async () => screen.root.findByType(Calendar).props.onPick(day(d)));
   expect(screen.text()).toContain('16 сентября 2026');
   expect(screen.text()).not.toContain(ru.create.days(1));
   await tap(10);
@@ -274,7 +298,9 @@ test('a placed memory leaves by the back it arrived on, or the list when there i
   world();
   const landed = await open();
   // No back to go to, so no back button is drawn either.
-  expect(landed.root.findAllByType(IconButton).some((one) => one.props.label === ru.action.back)).toBe(false);
+  expect(
+    landed.root.findAllByType(IconButton).some((one) => one.props.label === ru.action.back),
+  ).toBe(false);
   await landed.type('Свадьба');
   await landed.press(() => landed.submit());
   expect(router.replace).toHaveBeenCalledWith('/');

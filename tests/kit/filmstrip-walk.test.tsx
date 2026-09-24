@@ -2,11 +2,10 @@ import { afterEach, expect, test, vi } from 'vitest';
 
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
 
+import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { FlatList, Pressable } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
-
 import { Filmstrip, type Frame } from '@/kit/filmstrip';
-import { mounted, mountsTrees } from '@tests/helpers/renderer';
 
 /**
  * Spec 7.7 — the strip under an open frame, as it walks. `filmstrip.test.tsx` draws its states; what
@@ -20,18 +19,25 @@ mountsTrees();
 const scrollToIndex = vi.spyOn(FlatList.prototype, 'scrollToIndex').mockImplementation(() => {});
 afterEach(() => scrollToIndex.mockClear());
 
-const frames = (n: number): Frame[] => Array.from({ length: n }, (_, i) => ({ uri: `https://r2.example/${i}`, video: i === 1 }));
+const frames = (n: number): Frame[] =>
+  Array.from({ length: n }, (_, i) => ({ uri: `https://r2.example/${i}`, video: i === 1 }));
 
 async function draw(index: number, list: readonly Frame[] = frames(6)) {
-  const strip = (at: number, held: readonly Frame[]) => <Filmstrip frames={held} index={at} onPick={() => {}} labelAt={(i) => `Кадр ${i + 1}`} />;
+  const strip = (at: number, held: readonly Frame[]) => (
+    <Filmstrip frames={held} index={at} onPick={() => {}} labelAt={(i) => `Кадр ${i + 1}`} />
+  );
   let tree!: TestRenderer.ReactTestRenderer;
   await act(async () => {
     tree = mounted(TestRenderer.create(strip(index, list)));
   });
   return {
     root: tree.root,
-    move: (at: number, held: readonly Frame[] = list) => act(async () => tree.update(strip(at, held))),
-    lay: (width: number) => act(async () => tree.root.findByType(FlatList).props.onLayout({ nativeEvent: { layout: { width } } })),
+    move: (at: number, held: readonly Frame[] = list) =>
+      act(async () => tree.update(strip(at, held))),
+    lay: (width: number) =>
+      act(async () =>
+        tree.root.findByType(FlatList).props.onLayout({ nativeEvent: { layout: { width } } }),
+      ),
     shots: () => tree.root.findAllByType(Pressable),
   };
 }
@@ -93,7 +99,10 @@ test('no frame in hand, or one that is not in the strip, is nowhere to walk to',
 
 test('the strip can be walked to any frame without measuring one: the frame in hand is the wide one, the rest are pushed along by the difference', async () => {
   const strip = await draw(2);
-  const layout = strip.root.findByType(FlatList).props.getItemLayout as (data: unknown, at: number) => { length: number; offset: number; index: number };
+  const layout = strip.root.findByType(FlatList).props.getItemLayout as (
+    data: unknown,
+    at: number,
+  ) => { length: number; offset: number; index: number };
   // 30 wide and 4 apart, the frame in hand 44 wide.
   expect(layout(null, 0)).toEqual({ length: 30, offset: 0, index: 0 });
   expect(layout(null, 1)).toEqual({ length: 30, offset: 34, index: 1 });
@@ -106,19 +115,41 @@ test('the fade is by distance from the frame in hand, and the frame in hand is a
   const strip = await draw(2);
   const opacity = (at: number) => {
     const style = strip.shots()[at].props.style as unknown[];
-    return style.flat().find((one) => one && typeof one === 'object' && 'opacity' in (one as object)) as { opacity: number } | undefined;
+    return style
+      .flat()
+      .find((one) => one && typeof one === 'object' && 'opacity' in (one as object)) as
+      | { opacity: number }
+      | undefined;
   };
   expect([0, 1, 3, 4, 5].map((at) => opacity(at)?.opacity)).toEqual([0.6, 0.75, 0.75, 0.6, 0.45]);
   expect(opacity(2)?.opacity).toBe(1);
-  expect(strip.shots().map((one) => one.props.accessibilityState.selected)).toEqual([false, false, true, false, false, false]);
-  expect(strip.shots().map((one) => one.props.accessibilityLabel)).toEqual(['Кадр 1', 'Кадр 2', 'Кадр 3', 'Кадр 4', 'Кадр 5', 'Кадр 6']);
+  expect(strip.shots().map((one) => one.props.accessibilityState.selected)).toEqual([
+    false,
+    false,
+    true,
+    false,
+    false,
+    false,
+  ]);
+  expect(strip.shots().map((one) => one.props.accessibilityLabel)).toEqual([
+    'Кадр 1',
+    'Кадр 2',
+    'Кадр 3',
+    'Кадр 4',
+    'Кадр 5',
+    'Кадр 6',
+  ]);
 });
 
 test('a press on a frame of the strip names that frame, and a strip with nobody to tell is not a row of buttons', async () => {
   const picked: number[] = [];
   let tree!: TestRenderer.ReactTestRenderer;
   await act(async () => {
-    tree = mounted(TestRenderer.create(<Filmstrip frames={frames(3)} index={0} onPick={(at) => picked.push(at)} />));
+    tree = mounted(
+      TestRenderer.create(
+        <Filmstrip frames={frames(3)} index={0} onPick={(at) => picked.push(at)} />,
+      ),
+    );
   });
   await act(async () => tree.root.findAllByType(Pressable)[2].props.onPress());
   await act(async () => tree.root.findAllByType(Pressable)[1].props.onPress());

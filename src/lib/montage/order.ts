@@ -297,7 +297,9 @@ export function rejectedGroups(
   const dropped = droppedByPass(items, order);
   return REASONS.map((reason) => ({
     reason,
-    ids: dropped.filter((item) => reasonOf(item.screening_reason) === reason).map((item) => item.id),
+    ids: dropped
+      .filter((item) => reasonOf(item.screening_reason) === reason)
+      .map((item) => item.id),
   })).filter((group) => group.ids.length > 0);
 }
 
@@ -322,7 +324,8 @@ export function wishes(items: readonly MediaItem[], order: Order): MontageWishes
   const material = usable(items);
   const include = material
     .filter(
-      (item) => item.screening_rejected && order.returned.has(item.id) && !order.dropped.has(item.id),
+      (item) =>
+        item.screening_rejected && order.returned.has(item.id) && !order.dropped.has(item.id),
     )
     .map((item) => item.id);
   const exclude = material.filter((item) => pickOf(item, order) !== 'keep').map((item) => item.id);

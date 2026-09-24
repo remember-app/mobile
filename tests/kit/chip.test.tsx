@@ -52,9 +52,9 @@ test('a label’s chip carries its colour, and the colour says nothing out loud'
   expect(label).toContain('rgba(255,181,71,1.00)');
   expect(label).toContain('aria-label="Лучшее 23"');
   // A private one carries the lock in front of the name and is still one chip.
-  expect(story(<Chip label="Для себя" swatch="#FFB547" icon={Lock} onPress={() => {}} />)).toContain(
-    'data-glyph',
-  );
+  expect(
+    story(<Chip label="Для себя" swatch="#FFB547" icon={Lock} onPress={() => {}} />),
+  ).toContain('data-glyph');
 });
 
 test('a chosen chip fills with paper and is read in ink, the way a segment is', () => {

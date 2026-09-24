@@ -4,13 +4,13 @@ import { useCallback, useState } from 'react';
 import { Modal, StyleSheet, View } from 'react-native';
 
 import type { Montage } from '@/api';
+import { ActionBar, Banner, Button } from '@/kit';
 import { formatDay, formatRuntime } from '@/lib/dates';
 import { maySaveToPhone, saveAndShare, saveToPhone, shareFile } from '@/lib/downloads';
-import { ActionBar, Banner, Button } from '@/kit';
 import { useStrings } from '@/lib/language';
 import { useTurnsWithPhone } from '@/lib/orientation';
-import { type Strings } from '@/strings';
-import { space, themes, ThemePin } from '@/theme';
+import type { Strings } from '@/strings';
+import { space, ThemePin, themes } from '@/theme';
 
 /**
  * The finished film itself: the one window it is watched in, the two things that can be done with

@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
 import { night, photo, radius, space, themed, useTheme } from '@/theme';
 
@@ -71,7 +71,11 @@ export function TileTemplate({
       ]}
     >
       {uri ? (
-        <Image source={{ uri }} contentFit="cover" style={[StyleSheet.absoluteFill, styles.under]} />
+        <Image
+          source={{ uri }}
+          contentFit="cover"
+          style={[StyleSheet.absoluteFill, styles.under]}
+        />
       ) : null}
       <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.templateScrim]} />
       {icon ? (
@@ -143,7 +147,11 @@ export function PosterOrder({
         {Array.from({ length: 3 }, (_, i) => (
           <View key={cells[i] ?? i} style={[styles.posterCell, i === 0 ? styles.posterLead : null]}>
             {cells[i] ? (
-              <Image source={{ uri: cells[i] }} contentFit="cover" style={StyleSheet.absoluteFill} />
+              <Image
+                source={{ uri: cells[i] }}
+                contentFit="cover"
+                style={StyleSheet.absoluteFill}
+              />
             ) : null}
           </View>
         ))}

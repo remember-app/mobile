@@ -3,9 +3,9 @@ import { Check, ChevronRight, X } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import {
   Pressable,
+  type StyleProp,
   StyleSheet,
   View,
-  type StyleProp,
   type ViewProps,
   type ViewStyle,
 } from 'react-native';
@@ -114,7 +114,12 @@ export function RowTrack({
       <View style={styles.track}>
         {play}
         <View style={[styles.grow, styles.trackLine]}>
-          <Text role="row" tone={playing ? 'spark' : 'paper'} numberOfLines={1} style={styles.shrink}>
+          <Text
+            role="row"
+            tone={playing ? 'spark' : 'paper'}
+            numberOfLines={1}
+            style={styles.shrink}
+          >
             {title}
           </Text>
           <Text role="meta">{length}</Text>
@@ -146,7 +151,10 @@ export function Waveform({ wide }: { wide?: boolean }) {
       style={[styles.wave, wide ? styles.waveWide : null]}
     >
       {bars.map((tall, i) => (
-        <View key={i} style={[styles.waveBar, wide ? styles.waveBarWide : null, { height: tall }]} />
+        <View
+          key={i}
+          style={[styles.waveBar, wide ? styles.waveBarWide : null, { height: tall }]}
+        />
       ))}
     </View>
   );
@@ -236,7 +244,11 @@ export function RowStep({
 
   return (
     <View style={open ? styles.stepOpen : null}>
-      <Tappable label={[title, meta].filter(Boolean).join('. ')} onPress={ahead ? undefined : onPress} style={styles.step}>
+      <Tappable
+        label={[title, meta].filter(Boolean).join('. ')}
+        onPress={ahead ? undefined : onPress}
+        style={styles.step}
+      >
         {state === 'running' ? (
           <Spinner size={24} track={color.line} head={color.accent} />
         ) : (

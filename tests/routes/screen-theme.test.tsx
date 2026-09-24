@@ -2,14 +2,14 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test, vi } from 'vitest';
 
 import memory from '@/app/memory/[id].tsx?raw';
-import player from '@/screens/memory/film-player.tsx?raw';
-import films from '@/screens/memory/films.tsx?raw';
-import frames from '@/screens/memory/frames.tsx?raw';
-import viewer from '@/screens/memory/frame-viewer.tsx?raw';
-import head from '@/screens/memory/head.tsx?raw';
 // The one component, not the barrel: `@/kit` reaches native modules node cannot parse, and this
 // needs the smallest thing in the kit that reads a colour.
 import { Text } from '@/kit/text';
+import player from '@/screens/memory/film-player.tsx?raw';
+import films from '@/screens/memory/films.tsx?raw';
+import viewer from '@/screens/memory/frame-viewer.tsx?raw';
+import frames from '@/screens/memory/frames.tsx?raw';
+import head from '@/screens/memory/head.tsx?raw';
 import { setTheme, ThemePin, themes } from '@/theme';
 
 // `@/theme` reads the stored pick on import, and `expo-secure-store` is native — it does not exist

@@ -12,13 +12,12 @@ vi.mock('expo-router', async () => {
 // The feed is `frames-feed-flow.test.tsx`'s. Here it is only what the route hands it.
 vi.mock('@/screens/memory/frames', () => ({ Frames: () => null }));
 
+import { memory, serve } from '@tests/helpers/api';
+import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import TestRenderer, { act } from 'react-test-renderer';
-
 import MemoryScreen from '@/app/memory/[id]';
 import { Frames } from '@/screens/memory/frames';
 import { ru } from '@/strings';
-import { memory, serve } from '@tests/helpers/api';
-import { mounted, mountsTrees } from '@tests/helpers/renderer';
 
 /**
  * The route of one memory (spec 8): it reads the memory once, above everything, and hands the feed
@@ -35,7 +34,12 @@ async function open(answer: () => unknown) {
   await act(async () => {
     tree = mounted(TestRenderer.create(<MemoryScreen />));
   });
-  const head = () => tree.root.findByType(Frames).props.head as { memory: { id: string } | null; error: string | null; reload: () => void };
+  const head = () =>
+    tree.root.findByType(Frames).props.head as {
+      memory: { id: string } | null;
+      error: string | null;
+      reload: () => void;
+    };
   return { log, head, id: () => tree.root.findByType(Frames).props.id };
 }
 

@@ -1,12 +1,13 @@
+import { flat } from '@tests/helpers/source';
 import { expect, test } from 'vitest';
 
 import api from '@/api/index.ts?raw';
-import notFound from '@/app/+not-found.tsx?raw';
 import layout from '@/app/_layout.tsx?raw';
+import notFound from '@/app/+not-found.tsx?raw';
 import consent from '@/app/consent.tsx?raw';
-import login from '@/app/login.tsx?raw';
 import code from '@/app/login/code.tsx?raw';
 import email from '@/app/login/email.tsx?raw';
+import login from '@/app/login.tsx?raw';
 import username from '@/app/set-username.tsx?raw';
 import head from '@/screens/onboarding/head.tsx?raw';
 import form from '@/screens/onboarding/username-form.tsx?raw';
@@ -59,7 +60,7 @@ test('a way in this build cannot walk is not drawn at all', () => {
 test('none of the three doors is the main one — there is no accent on this screen', () => {
   // Spec 8: «Ни одна не главнее: цвета акцента здесь нет». Which door a person owns is not
   // something the app has an opinion about, and an ember on one of them would be one.
-  expect(login).not.toContain("variant=\"primary\"");
+  expect(login).not.toContain('variant="primary"');
   expect(login).not.toContain("'primary'");
   expect(login).toContain('variant="paper"');
   expect(login).toContain('variant="secondary"');
@@ -88,9 +89,11 @@ test('the address is asked for on a screen of its own, which the mail door opens
 });
 
 test('the letter carries six digits now, and the address is sent with them', () => {
-  expect(api).toContain("return request('/auth/email/verify', { method: 'POST', body: { email, code } });");
+  expect(api).toContain(
+    "return request('/auth/email/verify', { method: 'POST', body: { email, code } });",
+  );
   expect(email).toContain('const { code } = await startEmailSignIn(address);');
-  expect(email).toContain("router.push({ pathname: '/login/code'");
+  expect(flat(email)).toContain("router.push({ pathname: '/login/code'");
   expect(code).toContain('const session = await verifyEmailCode(email, code);');
   expect(code).toContain('await signIn(session.token);');
   // The kit's six cells, not six fields: one input behind them is what lets the phone's own

@@ -5,9 +5,9 @@
 // twelve-megapixel original — which is what makes a grid of thousands survivable.
 import { Image } from 'expo-image';
 import { Check, ImageIcon, Play, X } from 'lucide-react-native';
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
-import { duration as motion, font, night, photo, radius, space, themed, useTheme } from '@/theme';
+import { font, duration as motion, night, photo, radius, space, themed, useTheme } from '@/theme';
 
 import { Spinner } from './empty';
 import { Icon, type IconComponent } from './icon';
@@ -137,7 +137,11 @@ export function Tile({
       {/* Spec 7.4 — a picked frame goes down under a scrim so the circle on it stays the brightest
           thing in the square. */}
       {picked ? (
-        <View testID="tile-scrim" pointerEvents="none" style={[StyleSheet.absoluteFill, styles.scrim]} />
+        <View
+          testID="tile-scrim"
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFill, styles.scrim]}
+        />
       ) : null}
 
       {/* A layer over the picture rather than a border on the tile itself: a border comes out of the
@@ -218,7 +222,11 @@ export function PickCircle({
         kind === 'send' ? [styles.pickSend, { backgroundColor: color.accent }] : null,
         kind === 'send' && tiny ? styles.pickBare : null,
         kind === 'keep' ? { backgroundColor: color.spark } : null,
-        kind === 'off' ? (tiny ? { borderWidth: 1.5, borderColor: color.faint } : styles.pickOff) : null,
+        kind === 'off'
+          ? tiny
+            ? { borderWidth: 1.5, borderColor: color.faint }
+            : styles.pickOff
+          : null,
         kind === 'hand' ? [styles.pickHand, { borderColor: night.lineStrong }] : null,
       ]}
     >
@@ -263,11 +271,7 @@ export function FrameMark({
       <Text
         role="meta"
         numberOfLines={1}
-        style={[
-          styles.markText,
-          bare ? styles.markShadow : null,
-          label ? styles.markTextSm : null,
-        ]}
+        style={[styles.markText, bare ? styles.markShadow : null, label ? styles.markTextSm : null]}
       >
         {length ?? label}
       </Text>
@@ -316,11 +320,29 @@ const useStyles = themed(({ color }) =>
       backgroundColor: photo.mark,
     },
     // In the feed the timecode stands at the right edge and owns no surface at all.
-    markBare: { left: undefined, right: 7, bottom: 6, gap: 3, padding: 0, backgroundColor: undefined },
+    markBare: {
+      left: undefined,
+      right: 7,
+      bottom: 6,
+      gap: 3,
+      padding: 0,
+      backgroundColor: undefined,
+    },
     // The reason runs the width of the tile — a word needs the room a timecode does not.
-    markWide: { left: 0, right: 0, bottom: 0, borderRadius: 0, justifyContent: 'center', backgroundColor: photo.markStrong },
+    markWide: {
+      left: 0,
+      right: 0,
+      bottom: 0,
+      borderRadius: 0,
+      justifyContent: 'center',
+      backgroundColor: photo.markStrong,
+    },
     markText: { color: photo.on, fontSize: 11, fontFamily: font.semi },
-    markShadow: { textShadowColor: 'rgba(0,0,0,0.7)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
+    markShadow: {
+      textShadowColor: 'rgba(0,0,0,0.7)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 4,
+    },
     markTextSm: { color: night.muted, fontSize: 10 },
   }),
 );

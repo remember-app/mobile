@@ -5,9 +5,9 @@ import {
   Animated,
   Pressable,
   Text as RNText,
+  type StyleProp,
   StyleSheet,
   View,
-  type StyleProp,
   type ViewStyle,
 } from 'react-native';
 
@@ -16,7 +16,14 @@ import { photo, radius, space, themed, useTheme } from '@/theme';
 import { LiveDot } from './bits';
 import { Spinner } from './empty';
 import { Icon } from './icon';
-import { PRESS, useFocusRing, useHoverFocus, useLoop, useReach, useReducedMotion } from './interaction';
+import {
+  PRESS,
+  useFocusRing,
+  useHoverFocus,
+  useLoop,
+  useReach,
+  useReducedMotion,
+} from './interaction';
 import { Avatar } from './member';
 import { Text } from './text';
 
@@ -386,7 +393,13 @@ export function LogEntry({
  * Spec 7.7 — the journal itself: the 1px line every record hangs its dot on, and the 18 between
  * them. The line belongs here and not to a record, or it would break at every gap.
  */
-export function Journal({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
+export function Journal({
+  children,
+  style,
+}: {
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+}) {
   const styles = useStyles();
 
   return (
@@ -444,7 +457,11 @@ function Touch({
       disabled={!onPress}
       onPress={onPress}
       {...props}
-      style={({ pressed }) => [style, pressed && !reduced ? PRESS : null, focused ? focusRing : null]}
+      style={({ pressed }) => [
+        style,
+        pressed && !reduced ? PRESS : null,
+        focused ? focusRing : null,
+      ]}
     >
       {children}
     </Pressable>
@@ -573,7 +590,14 @@ const useStyles = themed(({ color }) =>
     // Spec 7.7 — the journal's own line runs 17 to the left of the words, and each record hangs its
     // dot on it. The line belongs to `Journal`, so a record only draws the dot.
     journal: { paddingLeft: 22, gap: 18 },
-    journalLine: { position: 'absolute', left: 5, top: 8, bottom: 0, width: 1, backgroundColor: color.line },
+    journalLine: {
+      position: 'absolute',
+      left: 5,
+      top: 8,
+      bottom: 0,
+      width: 1,
+      backgroundColor: color.line,
+    },
     entry: { gap: 7 },
     dot: {
       position: 'absolute',

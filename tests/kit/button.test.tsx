@@ -1,7 +1,7 @@
 import { Plus } from 'lucide-react-native';
 import { beforeAll, expect, test } from 'vitest';
 
-import { Button, IconButton, type ButtonVariant } from '@/kit/button';
+import { Button, type ButtonVariant, IconButton } from '@/kit/button';
 import { allDifferent, story } from '@/kit/story';
 import { setTheme } from '@/theme';
 

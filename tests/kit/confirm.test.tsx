@@ -41,7 +41,13 @@ test('the way out is the outlined button and never the quiet one', () => {
 test('a frame, a person, a label and a bare question are four headers', () => {
   allDifferent({
     bare: <ConfirmSheet {...base} />,
-    frame: <ConfirmSheet {...base} thumb="https://bucket.example/a.jpg" meta="Марк Ковалёв · 13 сентября" />,
+    frame: (
+      <ConfirmSheet
+        {...base}
+        thumb="https://bucket.example/a.jpg"
+        meta="Марк Ковалёв · 13 сентября"
+      />
+    ),
     person: (
       <ConfirmSheet
         {...base}

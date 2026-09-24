@@ -106,7 +106,9 @@ export function missingParts(
  * of the object: those are strings, and by string order part 10 comes before part 9 — which S3
  * answers with `InvalidPart` after the whole file is already up there.
  */
-export function uploadedParts(done: Record<number, string>): { part_number: number; etag: string }[] {
+export function uploadedParts(
+  done: Record<number, string>,
+): { part_number: number; etag: string }[] {
   return Object.entries(done)
     .map(([number, etag]) => ({ part_number: Number(number), etag }))
     .sort((a, b) => a.part_number - b.part_number);

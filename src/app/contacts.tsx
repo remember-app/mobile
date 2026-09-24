@@ -7,16 +7,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ApiError,
   addContact,
+  type Contact,
   errorMessage,
   isValidUsername,
   listContacts,
   memberHandle,
   memberName,
   removeContact,
-  type Contact,
 } from '@/api';
-import { useAuth } from '@/lib/auth';
-import { matches, useFindUser } from '@/lib/find-user';
 import {
   AppBar,
   Banner,
@@ -29,6 +27,8 @@ import {
   RowContact,
   Text,
 } from '@/kit';
+import { useAuth } from '@/lib/auth';
+import { matches, useFindUser } from '@/lib/find-user';
 import { useStrings } from '@/lib/language';
 import { board, duration, space, themed } from '@/theme';
 

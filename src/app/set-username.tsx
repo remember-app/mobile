@@ -4,8 +4,8 @@ import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 import { ActionBar, Board } from '@/kit';
 import { useStrings } from '@/lib/language';
 import { OnboardingHead } from '@/screens/onboarding/head';
-import { space } from '@/theme';
 import { UsernameForm } from '@/screens/onboarding/username-form';
+import { space } from '@/theme';
 
 /**
  * `Username` — the last screen of the way in (spec 8), and the only screen a signed-in account

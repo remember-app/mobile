@@ -4,8 +4,7 @@ import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { errorMessage, listContacts, memberHandle, memberName, type Contact } from '@/api';
-import { useAuth } from '@/lib/auth';
+import { type Contact, errorMessage, listContacts, memberHandle, memberName } from '@/api';
 import {
   AppBar,
   Avatar,
@@ -18,6 +17,7 @@ import {
   Segment,
   Text,
 } from '@/kit';
+import { useAuth } from '@/lib/auth';
 import { setLanguage, useLanguage, useStrings } from '@/lib/language';
 import { board, setTheme, space, themed, useThemeChoice } from '@/theme';
 
@@ -140,9 +140,7 @@ export default function ProfileScreen() {
         <RowSection
           title={s.contacts.title}
           meta={contacts.length > 0 ? s.profile.contactsMeta(contacts.length) : undefined}
-          sign={
-            contacts.length > 0 ? <AvatarStack names={contacts.map(memberName)} /> : undefined
-          }
+          sign={contacts.length > 0 ? <AvatarStack names={contacts.map(memberName)} /> : undefined}
           onPress={() => router.push('/contacts')}
         />
 

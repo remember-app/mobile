@@ -1,6 +1,5 @@
 import { Image } from 'expo-image';
 import { TriangleAlert } from 'lucide-react-native';
-import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { radius, space, themed, useTheme } from '@/theme';
@@ -101,11 +100,7 @@ export function ConfirmSheet({
       title={marked && !gentle ? undefined : title}
       footer={
         <>
-          <Button
-            variant={gentle ? 'paper' : 'danger'}
-            label={confirmLabel}
-            onPress={onConfirm}
-          />
+          <Button variant={gentle ? 'paper' : 'danger'} label={confirmLabel} onPress={onConfirm} />
           <Button
             variant={gentle ? 'quiet' : 'secondary'}
             size="md"

@@ -26,8 +26,6 @@ import { FlatList, Linking, Modal, StyleSheet, useWindowDimensions, View } from 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { errorMessage, listMemories, type Memory } from '@/api';
-import { useAuth } from '@/lib/auth';
-import { formatDay, formatEventDates, formatRuntime } from '@/lib/dates';
 import {
   ActionBar,
   AppBar,
@@ -50,11 +48,13 @@ import {
   Upload,
   Waiting,
 } from '@/kit';
+import { useAuth } from '@/lib/auth';
+import { formatDay, formatEventDates, formatRuntime } from '@/lib/dates';
 import { useStrings } from '@/lib/language';
 import { assetsByDay, type ShootingDay } from '@/lib/media-window';
-import { board, height, radius, space, themed, themes, ThemePin, useTheme } from '@/theme';
 import { failureText, progress, type QueuedFile, type UploadFailure } from '@/lib/upload/queue';
 import { answerAskAll, drop, enqueue, useAskAll, useUploads, wake } from '@/lib/upload/send';
+import { board, height, radius, space, ThemePin, themed, themes, useTheme } from '@/theme';
 
 /**
  * Photos and videos, and nothing else — the same list twice on purpose. It is what the grid asks
@@ -445,7 +445,12 @@ export default function UploadScreen() {
     // `UploadEmpty` — access given and nothing to give back. No bottom layer under it: there is
     // nothing to offer.
     return (
-      <Empty sign="dashed" icon={Smartphone} title={s.upload.emptyTitle} text={s.upload.emptyText} />
+      <Empty
+        sign="dashed"
+        icon={Smartphone}
+        title={s.upload.emptyTitle}
+        text={s.upload.emptyText}
+      />
     );
   }
 
@@ -546,7 +551,9 @@ export default function UploadScreen() {
           style={styles.glass}
           title={s.upload.title}
           meta={memory ? s.upload.into(memory.title) : undefined}
-          capsuleLabel={memory ? `${s.upload.title}, ${s.upload.into(memory.title)}` : s.upload.title}
+          capsuleLabel={
+            memory ? `${s.upload.title}, ${s.upload.into(memory.title)}` : s.upload.title
+          }
           left={
             <IconButton
               icon={ChevronLeft}
@@ -587,7 +594,11 @@ export default function UploadScreen() {
                     ? s.upload.picked(picked.size)
                     : s.upload.pickedOf(picked.size, gallery.length)}
                 </Text>
-                <Button variant="quiet" label={s.action.clear} onPress={() => setPicked(new Set())} />
+                <Button
+                  variant="quiet"
+                  label={s.action.clear}
+                  onPress={() => setPicked(new Set())}
+                />
               </>
             ) : undefined
           }

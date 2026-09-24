@@ -26,15 +26,30 @@ import {
   deleteMedia,
   downloadAllMedia,
   errorMessage,
+  type Label,
   listLabels,
   listMedia,
   listMembers,
-  mayContribute,
-  memberName,
-  type Label,
   type MediaItem,
   type Member,
+  mayContribute,
+  memberName,
 } from '@/api';
+import {
+  ActionBar,
+  Banner,
+  Button,
+  ConfirmSheet,
+  DateSpine,
+  DayMark,
+  EASE,
+  Empty,
+  FEED_GAP,
+  IconButton,
+  Tile,
+  useReducedMotion,
+  Waiting,
+} from '@/kit';
 import { useAuth } from '@/lib/auth';
 import {
   formatDayShort,
@@ -50,6 +65,9 @@ import {
   COLUMNS,
   dateMarks,
   FILTER_NONE,
+  type Filter,
+  type Frame,
+  type FrameGroup,
   filtering,
   frameOf,
   framesByDay,
@@ -62,36 +80,18 @@ import {
   megabytesOf,
   removeFrames,
   SORT_DEFAULT,
+  type Sort,
   stillPreparing,
   toggleDay,
   toggleEvery,
-  type Filter,
-  type Frame,
-  type FrameGroup,
-  type Sort,
 } from '@/lib/frames';
-import {
-  ActionBar,
-  Banner,
-  Button,
-  ConfirmSheet,
-  DateSpine,
-  DayMark,
-  Empty,
-  EASE,
-  FEED_GAP,
-  IconButton,
-  Tile,
-  useReducedMotion,
-  Waiting,
-} from '@/kit';
 import { filed } from '@/lib/labels';
 import { useStrings } from '@/lib/language';
 import { Films } from '@/screens/memory/films';
 import { FrameViewer } from '@/screens/memory/frame-viewer';
 import { FilterSheet, SortSheet } from '@/screens/memory/frames-sheets';
+import { BlockHead, type Head, MemoryHead } from '@/screens/memory/head';
 import { LabelSheets } from '@/screens/memory/label-sheets';
-import { BlockHead, MemoryHead, type Head } from '@/screens/memory/head';
 import { board, duration, height, space, themed, useTheme } from '@/theme';
 
 /**
@@ -204,9 +204,12 @@ export function Frames({ id, head }: { id: string; head: Head }) {
    * first and every file lands twice.
    */
   const onScreen = useRef(true);
-  useEffect(() => () => {
-    onScreen.current = false;
-  }, []);
+  useEffect(
+    () => () => {
+      onScreen.current = false;
+    },
+    [],
+  );
   /**
    * How many times this screen has written the feed itself — a frame deleted, a label filed. That
    * answer is newer than any quiet read already in flight, and such a read landing afterwards would
@@ -324,11 +327,14 @@ export function Frames({ id, head }: { id: string; head: Head }) {
    */
   const loadLabels = useCallback(() => {
     if (!token) return;
-    listLabels(token, id).then((all) => {
-      setLabels(all);
-      // A box somebody else deleted leaves the filter too, the way one deleted here does.
-      setFilter((have) => keepLabels(have, (one) => all.some((label) => label.id === one)));
-    }, () => {});
+    listLabels(token, id).then(
+      (all) => {
+        setLabels(all);
+        // A box somebody else deleted leaves the filter too, the way one deleted here does.
+        setFilter((have) => keepLabels(have, (one) => all.some((label) => label.id === one)));
+      },
+      () => {},
+    );
   }, [token, id]);
 
   // On focus rather than on mount, the way the home screen does it: what is drawn here changes on
@@ -912,7 +918,10 @@ export function Frames({ id, head }: { id: string; head: Head }) {
           <Animated.View
             style={[
               styles.spineFeed,
-              { height: feed.content, transform: [{ translateY: Animated.multiply(scrolled, -1) }] },
+              {
+                height: feed.content,
+                transform: [{ translateY: Animated.multiply(scrolled, -1) }],
+              },
             ]}
           >
             <DateSpine marks={spine} />

@@ -1,0 +1,63 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
+  "files": {
+    "includes": [
+      "src/**",
+      "tests/**",
+      "*.json",
+      "*.mjs",
+      "*.ts",
+      "!package-lock.json",
+      "!!**/.claude"
+    ]
+  },
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "json": { "parser": { "allowComments": true } },
+  "formatter": {
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "javascript": {
+    "formatter": { "quoteStyle": "single" }
+  },
+  "linter": {
+    "rules": {
+      "a11y": {
+        // `role` on the kit's `Text` is its own typography role — `display`, `meta`, `subtitle`
+        // (`design/spec.md` 3) — and not an ARIA one. This is a web rule reading a phone's props.
+        "useValidAriaRole": "off"
+      },
+      "correctness": {
+        // Every effect this catches leaves something out on purpose: the words (`s`) so a language
+        // switch does not re-run a mount-time effect, and refs, which never change identity.
+        "useExhaustiveDependencies": "off"
+      },
+      "suspicious": {
+        // The lists it catches stand in fixed positions — scale ticks, the three photos of the
+        // first screen, the weeks of a month — where the place in the row *is* the identity.
+        "noArrayIndexKey": "off"
+      }
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["tests/**"],
+      "linter": {
+        "rules": {
+          // A test knows what it rendered: `screen.button(…)[0]!` says so, and a check for null
+          // around it would only hide the failure the test exists to show.
+          "style": { "noNonNullAssertion": "off" },
+          "suspicious": {
+            // A helper that takes any callback, including one returning nothing.
+            "noConfusingVoidType": "off",
+            // The tests that read a screen as text match `${…}` inside it, as plain strings.
+            "noTemplateCurlyInString": "off"
+          },
+          // A story draws a row of one part's variants; nothing about it is ever reordered.
+          "correctness": { "useJsxKeyInIterable": "off" }
+        }
+      }
+    }
+  ]
+}

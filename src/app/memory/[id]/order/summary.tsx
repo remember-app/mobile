@@ -3,15 +3,13 @@ import { Clock, LayoutGrid } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
-import { listMemories, orderMontage, previewMontage, type MontagePreview } from '@/api';
-import { useAuth } from '@/lib/auth';
-import { formatRuntime } from '@/lib/dates';
+import { listMemories, type MontagePreview, orderMontage, previewMontage } from '@/api';
 import {
   Banner,
   BlockSummary,
   Button,
-  Icon,
   ICO_S,
+  Icon,
   PosterOrder,
   SummarySection,
   SummaryShots,
@@ -19,15 +17,17 @@ import {
   Text,
   Waiting,
 } from '@/kit';
+import { useAuth } from '@/lib/auth';
+import { formatRuntime } from '@/lib/dates';
 import { useStrings } from '@/lib/language';
 import { RATIO, shelfTrack, taken, wishes } from '@/lib/montage/order';
 import {
+  type Refusal,
   refusal,
   TEMPLATE_SIGN,
   useOrder,
   useStillHere,
   WizardStep,
-  type Refusal,
 } from '@/screens/order/wizard';
 import { space, themed, useTheme } from '@/theme';
 

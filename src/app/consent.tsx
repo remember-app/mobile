@@ -1,10 +1,9 @@
 import { useRouter } from 'expo-router';
 import { Image as ImageIcon, Shield, Smile } from 'lucide-react-native';
-import { useState, type ReactNode } from 'react';
+import { type ReactNode, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { acceptConsent, errorMessage } from '@/api';
-import { useAuth } from '@/lib/auth';
 import {
   ActionBar,
   Banner,
@@ -15,10 +14,11 @@ import {
   ICO_S,
   ICO_XS,
   Icon,
+  type IconComponent,
   Sheet,
   Text,
-  type IconComponent,
 } from '@/kit';
+import { useAuth } from '@/lib/auth';
 import { useStrings } from '@/lib/language';
 import { OnboardingHead } from '@/screens/onboarding/head';
 import { font, radius, space, themed, useTheme } from '@/theme';
@@ -169,11 +169,7 @@ function Line({
         importantForAccessibility="no-hide-descendants"
         style={lit ? styles.spark : styles.glyph}
       >
-        <Icon
-          icon={icon}
-          size={lit ? ICO_XS : ICO_S}
-          color={lit ? color.sparkInk : color.muted}
-        />
+        <Icon icon={icon} size={lit ? ICO_XS : ICO_S} color={lit ? color.sparkInk : color.muted} />
       </View>
       {children}
     </View>

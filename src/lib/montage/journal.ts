@@ -14,10 +14,10 @@ import { AppState } from 'react-native';
 import {
   ApiError,
   fetchJournal,
-  MONTAGE_STAGES,
   type JournalEntry,
   type JournalFile,
   type JournalQuery,
+  MONTAGE_STAGES,
   type Montage,
   type MontageJournal,
   type MontageStage,
@@ -25,8 +25,8 @@ import {
   type MontageStep,
   type Viewer,
 } from '@/api';
+import { GAZE, type StepState, useReducedMotion } from '@/kit';
 import { formatRuntime } from '@/lib/dates';
-import { GAZE, useReducedMotion, type StepState } from '@/kit';
 import { beingMade } from '@/lib/montage/order';
 import type { Strings } from '@/strings';
 
@@ -163,7 +163,9 @@ export async function pull(state: Journal, ask: Ask, narrow: Narrow = {}): Promi
   let held = state;
   for (let page = 0; page < PAGES; page++) {
     const first = held.cursor === null;
-    const answer = await ask(first ? { ...narrow } : { ...narrow, after: held.cursor ?? undefined });
+    const answer = await ask(
+      first ? { ...narrow } : { ...narrow, after: held.cursor ?? undefined },
+    );
     const next = fold(held, answer, first ? 'first' : 'forward');
     // Nothing more in that direction, or nothing moved at all — a page that hands back no new id
     // would otherwise be asked for again forever.
@@ -224,6 +226,7 @@ async function lastOfEach(state: Journal, ask: Ask): Promise<Journal> {
     (row) => lastOfStage(state.entries, row.stage).length < Math.min(LAST, recordsOf(row)),
   );
   const pages = await Promise.all(short.map((row) => ask({ stage: row.stage, limit: LAST })));
+  // biome-ignore lint/performance/noAccumulatingSpread: at most one page per stage — seven.
   return pages.reduce((held, page) => ({ ...held, ...withPage(held, page) }), state);
 }
 
@@ -425,10 +428,7 @@ export function madeInMinutes(stages: readonly MontageStage[]): number | null {
     )
     .filter((span) => !Number.isNaN(span) && span >= 0);
   if (spans.length === 0) return null;
-  return Math.max(
-    1,
-    Math.ceil(spans.reduce((sum, span) => sum + span, 0) / 60000),
-  );
+  return Math.max(1, Math.ceil(spans.reduce((sum, span) => sum + span, 0) / 60000));
 }
 
 /**
@@ -525,9 +525,7 @@ export const isFresh = (journal: Journal, entry: JournalEntry): boolean =>
 export function reasonWord(reason: string | null, s: Strings): string | undefined {
   if (!reason) return undefined;
   const words = s.montage.live.reason;
-  return Object.prototype.hasOwnProperty.call(words, reason)
-    ? words[reason as keyof typeof words]
-    : words.other;
+  return Object.hasOwn(words, reason) ? words[reason as keyof typeof words] : words.other;
 }
 
 /**

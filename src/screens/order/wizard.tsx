@@ -12,14 +12,14 @@ import {
 } from 'lucide-react-native';
 import {
   createContext,
+  type ReactNode,
+  type RefObject,
   useCallback,
   useContext,
   useEffect,
   useMemo,
   useRef,
   useState,
-  type ReactNode,
-  type RefObject,
 } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -30,8 +30,6 @@ import {
   type MontageTemplate,
   type MontageTemplateId,
 } from '@/api';
-import { useAuth } from '@/lib/auth';
-import { formatRuntime } from '@/lib/dates';
 import {
   ActionBar,
   Banner,
@@ -40,16 +38,25 @@ import {
   ConfirmSheet,
   Icon,
   IconButton,
+  type IconComponent,
   Sheet,
   soften,
   Text,
   useReducedMotion,
   Waiting,
   WizardBar,
-  type IconComponent,
 } from '@/kit';
+import { useAuth } from '@/lib/auth';
+import { formatRuntime } from '@/lib/dates';
 import { currentLanguage, useStrings } from '@/lib/language';
-import { blankOrder, entered, enoughMaterial, fromTemplate, usable, type Order } from '@/lib/montage/order';
+import {
+  blankOrder,
+  enoughMaterial,
+  entered,
+  fromTemplate,
+  type Order,
+  usable,
+} from '@/lib/montage/order';
 import { strings } from '@/strings';
 import { radius, space, themed, useTheme } from '@/theme';
 
@@ -195,17 +202,20 @@ export type Refusal = { text: string; back: 'frames' | 'length' | null };
 export function refusal(e: unknown): Refusal {
   const s = strings[currentLanguage()];
   if (!(e instanceof ApiError)) return { text: s.error.offline, back: null };
-  const body = (
-    typeof e.body === 'object' && e.body !== null ? e.body : {}
-  ) as Record<string, unknown>;
+  const body = (typeof e.body === 'object' && e.body !== null ? e.body : {}) as Record<
+    string,
+    unknown
+  >;
   const { min_seconds: min, max_seconds: max } = body;
-  if (e.status === 409 && 'ready_items' in body) return { text: s.montage.tooLittle, back: 'frames' };
+  if (e.status === 409 && 'ready_items' in body)
+    return { text: s.montage.tooLittle, back: 'frames' };
   if (e.status === 403) return { text: s.montage.orderDenied, back: null };
   if (e.status === 400 && typeof min === 'number' && typeof max === 'number') {
     const [from, to] = [formatRuntime(min) ?? '', formatRuntime(max) ?? ''];
     return { text: s.montage.lengthOff(from, to), back: 'length' };
   }
-  if (e.status === 400 && 'media_ids' in body) return { text: s.montage.framesGone, back: 'frames' };
+  if (e.status === 400 && 'media_ids' in body)
+    return { text: s.montage.framesGone, back: 'frames' };
   return { text: e.status === 429 ? s.error.tooMany : s.error.status(e.status), back: null };
 }
 
@@ -484,11 +494,7 @@ export function WizardStep({
         step={counted ? step : STEPS}
         steps={STEPS}
         label={
-          counted
-            ? s.montage.step(step, STEPS)
-            : summary
-              ? s.montage.summaryStep
-              : s.montage.newOne
+          counted ? s.montage.step(step, STEPS) : summary ? s.montage.summaryStep : s.montage.newOne
         }
         // The bar with no scale and the heading up against the row — what the total wears, and
         // what the way in wears too: there is no step under either of them to count.

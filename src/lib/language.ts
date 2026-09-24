@@ -2,7 +2,7 @@ import { getLocales } from 'expo-localization';
 import * as SecureStore from 'expo-secure-store';
 import { useSyncExternalStore } from 'react';
 
-import { strings, type Strings } from '@/strings';
+import { type Strings, strings } from '@/strings';
 
 /**
  * Which of the two languages the app is speaking (doc-8) — the phone's, unless the person picked

@@ -1,21 +1,22 @@
+import { flat } from '@tests/helpers/source';
 import { expect, test } from 'vitest';
 
 import api from '@/api/index.ts?raw';
 import layout from '@/app/_layout.tsx?raw';
+// Where the order lands. The waiting screen became `MontageLive` in TASK-221 and moved into a
+// folder of its own, because the journal of one stage lives under it.
+import live from '@/app/memory/[id]/montage/[montageId]/index.tsx?raw';
+import wizardLayout from '@/app/memory/[id]/order/_layout.tsx?raw';
 import build from '@/app/memory/[id]/order/build.tsx?raw';
 import frames from '@/app/memory/[id]/order/frames.tsx?raw';
 // The way into the order, and the route the movies face has always pushed: `index.tsx` is the
 // screen of six templates since TASK-219, and step 1 is a file beside it.
 import templates from '@/app/memory/[id]/order/index.tsx?raw';
-import wizardLayout from '@/app/memory/[id]/order/_layout.tsx?raw';
 import music from '@/app/memory/[id]/order/music.tsx?raw';
 import story from '@/app/memory/[id]/order/story.tsx?raw';
 import summary from '@/app/memory/[id]/order/summary.tsx?raw';
-// Where the order lands. The waiting screen became `MontageLive` in TASK-221 and moved into a
-// folder of its own, because the journal of one stage lives under it.
-import live from '@/app/memory/[id]/montage/[montageId]/index.tsx?raw';
-import films from '@/screens/memory/films.tsx?raw';
 import model from '@/lib/montage/order.ts?raw';
+import films from '@/screens/memory/films.tsx?raw';
 import wizard from '@/screens/order/wizard.tsx?raw';
 import { en, ru } from '@/strings';
 
@@ -127,7 +128,7 @@ test('an order starts from six templates, and the tile is the api’s figures in
   expect(templates).toContain('title={s.montage.template[one.id]}');
   expect(templates).toContain('note={s.montage.templateNote[one.id]}');
   expect(templates).toContain(
-    'spec={`${formatRuntime(one.target_seconds) ?? \'\'} · ${RATIO[one.orientation]}`}',
+    "spec={`${formatRuntime(one.target_seconds) ?? ''} · ${RATIO[one.orientation]}`}",
   );
   expect(templates).toContain('icon={TEMPLATE_SIGN[one.id]}');
   for (const set of [en, ru]) {
@@ -205,7 +206,9 @@ test('the autopilot fills each step on the step, and ends on the summary', () =>
   // What it fills in is the model's answer and not the screen's: which frames go in is the one
   // thing a template says nothing about.
   expect(model).toContain('export const fromTemplate = (template: MontageTemplate): TemplateFill');
-  expect(model).toContain("export type TemplateFill = Omit<Order, 'dropped' | 'returned' | 'seconds'>");
+  expect(model).toContain(
+    "export type TemplateFill = Omit<Order, 'dropped' | 'returned' | 'seconds'>",
+  );
 });
 
 test('while the autopilot walks, the bottom layer says so and hands the wheel back', () => {
@@ -217,8 +220,12 @@ test('while the autopilot walks, the bottom layer says so and hands the wheel ba
   expect(ru.montage.autoStop).toBe('Стоп');
   // And the two buttons in the bar stop it too, on their way to doing what they always did: a
   // hand on either of them is a hand on the wheel.
-  expect(wizard).toContain('onPress={() => {\n              stop();\n              if (router.canGoBack()) router.back();');
-  expect(wizard).toContain('onPress={() => {\n                stop();\n                if (entered(order)) setLeaving(true);');
+  expect(wizard).toContain(
+    'onPress={() => {\n              stop();\n              if (router.canGoBack()) router.back();',
+  );
+  expect(wizard).toContain(
+    'onPress={() => {\n                stop();\n                if (entered(order)) setLeaving(true);',
+  );
   // Stopped, the step is a step again and everything already filled in stays: the only thing
   // `stop` touches is which walk is the current one.
   const stopping = wizard.slice(wizard.indexOf('const stop = useCallback('));
@@ -260,7 +267,9 @@ test('step 1 rules the automatic pass, and cannot leave the order below the floo
   expect(frames).toContain('onPress={() => change(afterTap(item, order))}');
   expect(frames).toContain('rejectedGroups(material, order).map(');
   expect(frames).toContain('label={s.montage.bringBackAll(passDropped.length)}');
-  expect(frames).toContain('returned: new Set([...order.returned, ...passDropped.map((item) => item.id)]),');
+  expect(frames).toContain(
+    'returned: new Set([...order.returned, ...passDropped.map((item) => item.id)]),',
+  );
   expect(frames).toContain('onCancel={() => setShowDropped(false)}');
   // No way into the sheet while the pass has dropped nothing — an empty report is not a button.
   expect(frames).toContain('{passDropped.length > 0 ? (');
@@ -294,7 +303,7 @@ test('step 2 is skippable, and the plate says whose words are in the box', () =>
   expect(story).toContain(': s.montage.fromTemplate(s.montage.template[template])');
   expect(story).toContain('stop();\n            change({ story, ownStory: true });');
   // The six templates the api hands out have a word each in both sets, by its own ids.
-  const ids = [...api.matchAll(/^  \| '(\w+)'/gm)].map(([, id]) => id);
+  const ids = [...api.matchAll(/^ {2}\| '(\w+)'/gm)].map(([, id]) => id);
   expect(ids).toEqual(['for_myself', 'quick', 'report', 'short_form', 'parents', 'dopamine']);
   // In the api's own order, which is the order of the tiles on the screen that starts the order.
   for (const set of [en, ru]) expect(Object.keys(set.montage.template)).toEqual(ids);
@@ -429,7 +438,9 @@ test('tracks go in in any number, in the order they play, and that order is drag
   expect(music).toContain('change({ tracks: [...picked, { key, name: null }] })');
   // Their own track lands on the list as it is when the upload ends, not as it was when the picker
   // opened: the shelf stays pressable meanwhile, and what was added there must not be dropped.
-  expect(music).toContain('change((was) => ({ tracks: [...was.tracks, { key, name: file.name }] }));');
+  expect(music).toContain(
+    'change((was) => ({ tracks: [...was.tracks, { key, name: file.name }] }));',
+  );
 
   // The row is dragged by its wave (spec 7.7), and rows are counted rather than measured: every
   // one of them is exactly `TRACK_ROW` tall, which is the kit's own number and not a copy of it.
@@ -481,8 +492,10 @@ test('step 4 draws one length control, and the template’s line goes when the f
   // five ready answers under it — four numbers and «Всё», which is the ceiling the api just named.
   expect(build).not.toContain('LENGTHS');
   expect(build).toContain('<LengthSlider');
-  expect(build).toContain('...PRESETS.map((value) => ({ label: formatRuntime(value) ?? \'\', value })),');
-  expect(build).toContain("{ label: s.montage.lengthAll, value: preview.max_seconds },");
+  expect(build).toContain(
+    "...PRESETS.map((value) => ({ label: formatRuntime(value) ?? '', value })),",
+  );
+  expect(build).toContain('{ label: s.montage.lengthAll, value: preview.max_seconds },');
   expect(model).toContain('export const PRESETS = [30, 60, 90, 180] as const;');
 
   // «из шаблона „…“» stands under the figure while the template is the one who put it there, and
@@ -496,7 +509,7 @@ test('step 4 draws one length control, and the template’s line goes when the f
   expect(ru.montage.lengthFromTemplate('Для родителей')).toBe('из шаблона «Для родителей»');
 
   // The ceiling stands over the card in words, and the right end of the line says what it means.
-  expect(build).toContain('s.montage.lengthUpTo(formatRuntime(preview.max_seconds) ?? \'\')');
+  expect(build).toContain("s.montage.lengthUpTo(formatRuntime(preview.max_seconds) ?? '')");
   expect(ru.montage.lengthUpTo('9:10')).toBe('до 9:10');
   expect(ru.montage.lengthEnd('9:10')).toBe('9:10 · всё, что есть');
   // The shape is the segments of the layout, and nothing else is asked on this step.
@@ -569,16 +582,17 @@ test('a refusal of the summary explains itself and leads back to the step that c
   // carries, never by the status alone. All said in this app's words and never in the api's
   // English — the length with the two edges it was refused with, drawn the way step 4 draws one.
   expect(summary).toContain('setStopped(refusal(e));');
-  expect(wizard).toContain(
+  expect(flat(wizard)).toContain(
     "if (e.status === 409 && 'ready_items' in body) return { text: s.montage.tooLittle, back: 'frames' };",
   );
   expect(wizard).toContain("return { text: s.montage.lengthOff(from, to), back: 'length' };");
-  expect(wizard).toContain(
+  expect(flat(wizard)).toContain(
     "if (e.status === 400 && 'media_ids' in body) return { text: s.montage.framesGone, back: 'frames' };",
   );
   expect(wizard).toContain('s.error.status(e.status)');
   // One reading for every call the wizard makes: no screen of it hands the api's line on as it came.
-  for (const screen of [wizard, ...Object.values(steps)]) expect(screen).not.toContain('errorMessage');
+  for (const screen of [wizard, ...Object.values(steps)])
+    expect(screen).not.toContain('errorMessage');
   // The way back is a jump to that step and not a walk: after the autopilot there may be no step
   // behind this screen at all. And the material is read again on the way, so the step shows what
   // is there now rather than what it was refused for.

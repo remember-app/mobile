@@ -1,7 +1,7 @@
 import { ChevronLeft, SquareCheckBig, User } from 'lucide-react-native';
 import { beforeAll, expect, test } from 'vitest';
 
-import { ActionBar, AppBar, Board, GlassBar, ViewerBar, WizardBar, type Footer } from '@/kit/bars';
+import { ActionBar, AppBar, Board, type Footer, GlassBar, ViewerBar, WizardBar } from '@/kit/bars';
 import { Button, IconButton } from '@/kit/button';
 import { WatchingPill } from '@/kit/member';
 import { allDifferent, compiled, story } from '@/kit/story';
@@ -80,7 +80,9 @@ test('an inner bar closes to 8 and hangs its «Назад» outside the screen�
   expect(inner).toContain('r-marginLeft-');
   expect(inner).not.toContain('r-marginRight-');
   expect(
-    story(<AppBar title="Свадьба Лизы и Марка" right={<IconButton icon={User} label="Выбрать" />} />),
+    story(
+      <AppBar title="Свадьба Лизы и Марка" right={<IconButton icon={User} label="Выбрать" />} />,
+    ),
   ).not.toContain('r-marginLeft-');
 
   // The root bar keeps 12 and its one button inside the margin: that one is filled, and a filled
@@ -138,13 +140,15 @@ test('the step’s heading belongs to the bar, because the bar is what does not 
   expect(step).toContain('Под что монтировать');
   expect(step).toContain('Без музыки или один-несколько треков.');
   // The line under the heading is there only where a step has one.
-  expect(story(<WizardBar step={3} steps={4} label="Шаг 3 из 4" title="Под что монтировать" />)).not.toContain(
-    'Без музыки',
-  );
+  expect(
+    story(<WizardBar step={3} steps={4} label="Шаг 3 из 4" title="Под что монтировать" />),
+  ).not.toContain('Без музыки');
 });
 
 test('the total has no scale under it, because there is no step after it', () => {
-  const summary = story(<WizardBar step={4} steps={4} label="Итог" title="Свадьба Лизы и Марка" variant="summary" />);
+  const summary = story(
+    <WizardBar step={4} steps={4} label="Итог" title="Свадьба Лизы и Марка" variant="summary" />,
+  );
   // The scale is what says how far there is left to go, and the wizard's own progressbar with it.
   expect(summary).not.toContain('role="progressbar"');
   expect(story(<WizardBar step={4} steps={4} label="Шаг 4 из 4" title="Как собрать" />)).toContain(
@@ -200,7 +204,14 @@ test('the viewer’s bar and the glass bar over the feed read the same in daylig
 
 test('the viewer’s pill wears the layout’s hairline and reads its second line at the photograph’s quiet white', () => {
   // Spec 7.1, detail 5 and `Viewer`: the capsule has a 1px edge that the two round buttons do not.
-  const pill = story(<ViewerBar date="13 сентября" meta="21:47 · Марк Ковалёв" label="Сведения" onPress={() => {}} />);
+  const pill = story(
+    <ViewerBar
+      date="13 сентября"
+      meta="21:47 · Марк Ковалёв"
+      label="Сведения"
+      onPress={() => {}}
+    />,
+  );
   expect(pill).toContain('r-borderColor-');
   expect(pill).toContain('r-borderWidth-');
   // The chevron beside the words is drawn at the same quiet white as the words themselves — 72%, not
@@ -228,7 +239,12 @@ test('the pill in the middle of it is a button where it leads somewhere', () => 
   allDifferent({
     plain: <ViewerBar date="13 сентября" meta="21:47 · Марк Ковалёв" />,
     opens: (
-      <ViewerBar date="13 сентября" meta="21:47 · Марк Ковалёв" label="Сведения" onPress={() => {}} />
+      <ViewerBar
+        date="13 сентября"
+        meta="21:47 · Марк Ковалёв"
+        label="Сведения"
+        onPress={() => {}}
+      />
     ),
   });
 });

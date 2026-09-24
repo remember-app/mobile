@@ -81,10 +81,16 @@ test('a thought still arriving already stands at its full height — the rest is
   // Spec 7.6, «экран не прыгает»: the sentence takes its final room from the first letter, so the
   // five stages under the card do not slide down a line at a time — nor jump back up the moment
   // the next sentence starts from nothing.
-  const said = /Бабушка<[^]*?color:rgba\(0,0,0,0\.00\)"> смеётся</;
-  expect(story(<CardNow uri={SHOT} who="Режиссёр" thought="Бабушка" unsaid=" смеётся" />)).toMatch(said);
-  expect(story(<CardNow uri={SHOT} who="Режиссёр" unsaid="Бабушка смеётся" />)).toContain('Бабушка смеётся');
-  expect(story(<LogEntry time="сейчас" uri={SHOT} text="Бабушка" unsaid=" смеётся" />)).toMatch(said);
+  const said = /Бабушка<[\s\S]*?color:rgba\(0,0,0,0\.00\)"> смеётся</;
+  expect(story(<CardNow uri={SHOT} who="Режиссёр" thought="Бабушка" unsaid=" смеётся" />)).toMatch(
+    said,
+  );
+  expect(story(<CardNow uri={SHOT} who="Режиссёр" unsaid="Бабушка смеётся" />)).toContain(
+    'Бабушка смеётся',
+  );
+  expect(story(<LogEntry time="сейчас" uri={SHOT} text="Бабушка" unsaid=" смеётся" />)).toMatch(
+    said,
+  );
   expect(story(<NoteThought text="Бабушка" unsaid=" смеётся" />)).toMatch(said);
   // Said in full, nothing is hidden and nothing blinks at the end of it.
   expect(story(<CardNow uri={SHOT} who="Режиссёр" thought="Бабушка смеётся" />)).not.toContain(
@@ -166,9 +172,9 @@ test('a record about a file opens it, and one about a thought has nowhere to go'
   expect(story(<LogEntry time="16:43" uri={SHOT} text="Мысль" onPress={() => {}} />)).toContain(
     'role="button"',
   );
-  expect(story(<LogEntry time="16:43" photos={SERIES} text="Мысль" onPress={() => {}} />)).not.toContain(
-    'role="button"',
-  );
+  expect(
+    story(<LogEntry time="16:43" photos={SERIES} text="Мысль" onPress={() => {}} />),
+  ).not.toContain('role="button"');
 });
 
 test('a record says everything on it to a screen reader, the decision pills included', () => {

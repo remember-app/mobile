@@ -1,6 +1,6 @@
 import { Check, WifiOff } from 'lucide-react-native';
 import type { ReactNode } from 'react';
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
 import { radius, space, themed, useTheme } from '@/theme';
 

@@ -41,17 +41,46 @@ test('the glyph on a label’s square is the night’s dark in daylight too', as
 test('a label row says whose it is and whether what is chosen is in it', () => {
   allDifferent({
     sharedOut: (
-      <RowLabel tint={AMBER} name="Лучшее" count="23 кадра" scope="shared" scopeLabel="видят все" onPress={() => {}} />
+      <RowLabel
+        tint={AMBER}
+        name="Лучшее"
+        count="23 кадра"
+        scope="shared"
+        scopeLabel="видят все"
+        onPress={() => {}}
+      />
     ),
     sharedIn: (
-      <RowLabel tint={AMBER} name="Лучшее" count="23 кадра" scope="shared" scopeLabel="видят все" inside onPress={() => {}} />
+      <RowLabel
+        tint={AMBER}
+        name="Лучшее"
+        count="23 кадра"
+        scope="shared"
+        scopeLabel="видят все"
+        inside
+        onPress={() => {}}
+      />
     ),
     own: (
-      <RowLabel tint="#8A7CFF" name="Любимые" count="9 кадров" scope="own" scopeLabel="только вы" onPress={() => {}} />
+      <RowLabel
+        tint="#8A7CFF"
+        name="Любимые"
+        count="9 кадров"
+        scope="own"
+        scopeLabel="только вы"
+        onPress={() => {}}
+      />
     ),
   });
   const row = story(
-    <RowLabel tint={AMBER} name="Лучшее" count="23 кадра" scope="shared" scopeLabel="видят все" onPress={() => {}} />,
+    <RowLabel
+      tint={AMBER}
+      name="Лучшее"
+      count="23 кадра"
+      scope="shared"
+      scopeLabel="видят все"
+      onPress={() => {}}
+    />,
   );
   expect(row).toContain('Лучшее');
   expect(row).toContain('23 кадра');
@@ -63,7 +92,15 @@ test('a label row says whose it is and whether what is chosen is in it', () => {
   // the name and the count, and not left to the glyph beside them.
   expect(row).toContain('aria-label="Лучшее, 23 кадра, видят все"');
   expect(
-    story(<RowLabel tint={AMBER} name="Любимые" scope="own" scopeLabel="только вы" onPress={() => {}} />),
+    story(
+      <RowLabel
+        tint={AMBER}
+        name="Любимые"
+        scope="own"
+        scopeLabel="только вы"
+        onPress={() => {}}
+      />,
+    ),
   ).toContain('aria-label="Любимые, только вы"');
 });
 
@@ -87,7 +124,14 @@ test('the edit mode puts the pair of buttons where the circle was, and stops the
     />
   );
   const filing = (
-    <RowLabel tint={AMBER} name="Лучшее" count="23 кадра" scope="shared" scopeLabel="видят все" onPress={() => {}} />
+    <RowLabel
+      tint={AMBER}
+      name="Лучшее"
+      count="23 кадра"
+      scope="shared"
+      scopeLabel="видят все"
+      onPress={() => {}}
+    />
   );
   allDifferent({ editing, filing });
   const markup = story(editing);

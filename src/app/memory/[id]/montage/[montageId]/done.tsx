@@ -4,15 +4,13 @@ import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import {
+  type JournalFile,
   listMembers,
   listMontages,
-  memberName,
-  type JournalFile,
   type Member,
   type Montage,
+  memberName,
 } from '@/api';
-import { useAuth } from '@/lib/auth';
-import { formatRuntime } from '@/lib/dates';
 import {
   AppBar,
   BadgeMontage,
@@ -24,12 +22,14 @@ import {
   Text,
   TileNumber,
 } from '@/kit';
+import { useAuth } from '@/lib/auth';
+import { formatRuntime } from '@/lib/dates';
 import { useStrings } from '@/lib/language';
+import { howMade, madeInMinutes, useMontageJournal } from '@/lib/montage/journal';
+import { RATIO } from '@/lib/montage/order';
 import { FilmPlayer, montageTitle, useFilmActions } from '@/screens/memory/film-player';
 import { SheetLiveFile } from '@/screens/memory/live-file';
 import { StageRows } from '@/screens/memory/stage-rows';
-import { RATIO } from '@/lib/montage/order';
-import { howMade, madeInMinutes, useMontageJournal } from '@/lib/montage/journal';
 import { space } from '@/theme';
 
 /**

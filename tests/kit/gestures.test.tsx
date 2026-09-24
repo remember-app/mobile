@@ -2,12 +2,11 @@ import { expect, test, vi } from 'vitest';
 
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
 
-import TestRenderer, { act } from 'react-test-renderer';
-
-import { VideoTrack } from '@/kit/bits';
-import { LengthSlider } from '@/kit/slider';
 import { touch } from '@tests/helpers/gesture';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
+import TestRenderer, { act } from 'react-test-renderer';
+import { VideoTrack } from '@/kit/bits';
+import { LengthSlider } from '@/kit/slider';
 
 /**
  * The two bars a finger drags, driven through the handlers a real render hangs on them. `bits.test.tsx`
@@ -22,16 +21,22 @@ mountsTrees();
 async function scrubber(value: number, seek?: (to: number) => void) {
   let tree!: TestRenderer.ReactTestRenderer;
   await act(async () => {
-    tree = mounted(TestRenderer.create(<VideoTrack at="0:24" of="1:08" value={value} label="Просмотрено" onSeek={seek} />));
+    tree = mounted(
+      TestRenderer.create(
+        <VideoTrack at="0:24" of="1:08" value={value} label="Просмотрено" onSeek={seek} />,
+      ),
+    );
   });
   const pad = () => tree.root.findByProps({ accessibilityLabel: 'Просмотрено' });
   return {
     pad,
     /** The bar measured, the way the row lays it out. */
-    lay: (width: number) => act(async () => pad().props.onLayout({ nativeEvent: { layout: { width } } })),
+    lay: (width: number) =>
+      act(async () => pad().props.onLayout({ nativeEvent: { layout: { width } } })),
     finger: (name: 'onResponderGrant' | 'onResponderMove' | 'onResponderRelease', x: number) =>
       act(async () => pad().props[name](touch({ x }))),
-    step: (name: 'increment' | 'decrement') => act(async () => pad().props.onAccessibilityAction({ nativeEvent: { actionName: name } })),
+    step: (name: 'increment' | 'decrement') =>
+      act(async () => pad().props.onAccessibilityAction({ nativeEvent: { actionName: name } })),
     now: () => pad().props.accessibilityValue.now as number,
   };
 }
@@ -73,7 +78,10 @@ test('to a screen reader the bar is a control that steps five percent either way
   const at = async (value: number) => scrubber(value, (to) => seeks.push(to));
   // What a screen reader is told it may do to the bar, and how far along it is — on a scale from nought.
   const bar = await at(0.35);
-  expect(bar.pad().props.accessibilityActions).toEqual([{ name: 'increment' }, { name: 'decrement' }]);
+  expect(bar.pad().props.accessibilityActions).toEqual([
+    { name: 'increment' },
+    { name: 'decrement' },
+  ]);
   expect(bar.pad().props.accessibilityValue).toEqual({ min: 0, max: 100, now: 35 });
   await (await at(0.5)).step('increment');
   await (await at(0.5)).step('decrement');
@@ -124,7 +132,11 @@ async function length(over: Partial<React.ComponentProps<typeof LengthSlider>> =
     /** Where the handle is drawn along the line, in percent. */
     handle: () => {
       const style = tree.root
-        .findAll((one) => typeof one.props.style === 'object' && JSON.stringify(one.props.style).includes('"left":"'))
+        .findAll(
+          (one) =>
+            typeof one.props.style === 'object' &&
+            JSON.stringify(one.props.style).includes('"left":"'),
+        )
         .map((one) => JSON.stringify(one.props.style))
         .at(-1)!;
       return Number(/"left":"([\d.]+)%"/.exec(style)![1]);

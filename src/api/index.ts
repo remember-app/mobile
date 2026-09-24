@@ -15,7 +15,12 @@ const say = () => strings[currentLanguage()];
 const TIMEOUT_MS = 5000;
 
 /** The account as the api returns it. `username` is null until it is claimed. Duplicated, same reason. */
-export type User = { id: string; username: string | null; name: string | null; email: string | null };
+export type User = {
+  id: string;
+  username: string | null;
+  name: string | null;
+  email: string | null;
+};
 
 /** What every sign-in endpoint answers with: the session token plus the account it belongs to. */
 export type Session = { token: string; user: User };
@@ -996,11 +1001,7 @@ export function orderMontage(
  * than a second one being written, so the answer is the montage as it now stands. 409 when it is
  * not a failed one, which is «somebody already pressed this».
  */
-export function retryMontage(
-  token: string,
-  memoryId: string,
-  montageId: string,
-): Promise<Montage> {
+export function retryMontage(token: string, memoryId: string, montageId: string): Promise<Montage> {
   return request(`/memories/${memoryId}/montages/${montageId}/retry`, { method: 'POST', token });
 }
 
@@ -1165,10 +1166,9 @@ export function fetchJournal(
     .filter(([, value]) => value !== undefined)
     .map(([key, value]) => `${key}=${encodeURIComponent(String(value))}`)
     .join('&');
-  return request(
-    `/memories/${memoryId}/montages/${montageId}/journal${asked ? `?${asked}` : ''}`,
-    { token },
-  );
+  return request(`/memories/${memoryId}/montages/${montageId}/journal${asked ? `?${asked}` : ''}`, {
+    token,
+  });
 }
 
 /**

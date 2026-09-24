@@ -1,7 +1,7 @@
 import { StyleSheet } from 'react-native';
 import { beforeAll, expect, test } from 'vitest';
 
-import { Filmstrip, Mosaic, type Frame } from '@/kit/filmstrip';
+import { Filmstrip, type Frame, Mosaic } from '@/kit/filmstrip';
 import { allDifferent, story } from '@/kit/story';
 import { setTheme } from '@/theme';
 
@@ -49,7 +49,12 @@ test('a video is marked on the frame in hand and nowhere else', () => {
 
 test('each frame of the strip says which one it is, and whether it is the open one', () => {
   const strip = story(
-    <Filmstrip frames={FRAMES} index={2} onPick={() => {}} labelAt={(at) => `Кадр ${at + 1} из 5`} />,
+    <Filmstrip
+      frames={FRAMES}
+      index={2}
+      onPick={() => {}}
+      labelAt={(at) => `Кадр ${at + 1} из 5`}
+    />,
   );
   expect(strip).toContain('aria-label="Кадр 1 из 5"');
   expect(strip).toContain('role="button"');

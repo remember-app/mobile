@@ -75,32 +75,27 @@ vi.mock('expo-audio', () => ({
   },
 }));
 
-import {
-  orderMontage,
-  type MediaItem,
-  type Montage,
-  type MontageTemplate,
-} from '@/api';
+import { type MediaItem, type MontageTemplate, orderMontage } from '@/api';
 import {
   afterTap,
   beingMade,
   blankOrder,
-  entered,
   enoughMaterial,
+  entered,
   fromTemplate,
   MIN_FRAMES,
   movedTrack,
+  type Order,
   pickedSeconds,
   pickOf,
   rejectedGroups,
   shapeOf,
   shelfTrack,
-  taken,
   TRACKS,
+  taken,
   wishes,
-  type Order,
 } from '@/lib/montage/order';
-import { createPreview, sendOwnTrack, type Playing } from '@/lib/music';
+import { createPreview, type Playing, sendOwnTrack } from '@/lib/music';
 
 /**
  * The four steps of an order, checked where they can be: what the organizer settled about the
@@ -221,7 +216,9 @@ test('below three ready frames there is nothing to cut, and the wizard never sta
   // Counted on the material and not on what the pass would keep: everything it dropped is one tap
   // from being back in, so a memory it emptied is not a memory with too little in it.
   expect(enoughMaterial([kept, blurred, dark])).toBe(true);
-  expect(enoughMaterial([kept, blurred, frame({ id: 'sending', status: 'processing' })])).toBe(false);
+  expect(enoughMaterial([kept, blurred, frame({ id: 'sending', status: 'processing' })])).toBe(
+    false,
+  );
 });
 
 test('what the pass dropped is grouped by why, and a group comes back together', () => {
@@ -233,7 +230,10 @@ test('what the pass dropped is grouped by why, and a group comes back together',
 
   // A reason this app has no word for is still a frame that can be taken back.
   const odd = frame({ id: 'odd', screening_rejected: true, screening_reason: 'weird' });
-  expect(rejectedGroups([...gallery, odd], start).at(-1)).toEqual({ reason: 'other', ids: ['odd'] });
+  expect(rejectedGroups([...gallery, odd], start).at(-1)).toEqual({
+    reason: 'other',
+    ids: ['odd'],
+  });
 
   // Taken back, the row it stood in is gone — it has nothing left to report and nothing to return.
   const returned = { ...start, returned: new Set(['blurred']) };
@@ -380,11 +380,9 @@ test('dragging a chosen track by its wave is the order the api plays them in', (
   expect(keys(list)).toEqual(['warm', 'calm', 'road']);
 
   // And what comes out of it is what goes out to the api, in that very order.
-  expect(wishes(gallery, { ...blankOrder(), tracks: movedTrack(list, 2, 0) }).music_tracks).toEqual([
-    'road',
-    'warm',
-    'calm',
-  ]);
+  expect(wishes(gallery, { ...blankOrder(), tracks: movedTrack(list, 2, 0) }).music_tracks).toEqual(
+    ['road', 'warm', 'calm'],
+  );
 });
 
 test('the length is nobody’s until it is moved by hand', () => {
@@ -786,4 +784,3 @@ test('the worker is owed a queued and a processing montage, and nothing else', (
   expect(beingMade('ready')).toBe(false);
   expect(beingMade('failed')).toBe(false);
 });
-

@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { ApiError, listMontageTemplates, type MontageTemplate } from '@/api';
+import { Banner, Button, TileTemplate, Waiting } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { formatRuntime } from '@/lib/dates';
-import { Banner, Button, TileTemplate, Waiting } from '@/kit';
 import { useStrings } from '@/lib/language';
 import { blankOrder, RATIO } from '@/lib/montage/order';
 import { refusal, TEMPLATE_SIGN, useOrder, useStillHere, WizardStep } from '@/screens/order/wizard';

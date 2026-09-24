@@ -33,7 +33,10 @@ export default function LoginEmailScreen() {
       // `code` only ever comes back through the api's development door, and it is carried to the
       // next screen rather than traded here: the six cells are where a code is entered, whether a
       // person read it in a letter or the workbench filled it in for them.
-      router.push({ pathname: '/login/code', params: { email: address, ...(code ? { code } : {}) } });
+      router.push({
+        pathname: '/login/code',
+        params: { email: address, ...(code ? { code } : {}) },
+      });
     } catch (e) {
       // 503 is the api saying it has no mail keys, and its own wording for that is written for
       // whoever runs the server; 429 already comes back in the dictionary's words.

@@ -18,6 +18,7 @@ import {
   arranged,
   dateMarks,
   FILTER_NONE,
+  type Filter,
   filtering,
   frameFacts,
   frameIndex,
@@ -33,13 +34,12 @@ import {
   megabytesOf,
   openFrameOf,
   removeFrames,
-  shotBy,
   SORT_DEFAULT,
+  type Sort,
+  shotBy,
   stillPreparing,
   toggleDay,
   toggleEvery,
-  type Filter,
-  type Sort,
 } from '@/lib/frames';
 // The words of the sheet, read from the dictionary rather than repeated here: what is pinned below
 // is which lines are drawn, and the wording is `strings.ts`'s own business.
@@ -153,7 +153,11 @@ test('a finished frame keeps its own link while the sheet is still being read', 
   const [was] = secondRead;
   // The same record as the api sends it a moment later: nothing about it changed but the signature.
   const reSigned = [
-    record({ id: 'a', status: 'ready', thumbnail_url: 'https://r2.example/thumbnails/a.jpg?sig=2' }),
+    record({
+      id: 'a',
+      status: 'ready',
+      thumbnail_url: 'https://r2.example/thumbnails/a.jpg?sig=2',
+    }),
   ];
   const [now] = keepReady(secondRead, reSigned);
 
@@ -384,9 +388,13 @@ test('the line over a frame is who brought it and the day of the event', () => {
 });
 
 test('an event that lasted is the span, the way every other screen of a memory writes it', () => {
-  const line = shotBy(record({ uploaded_by: 'u' }), [member({ id: 'u' })], wedding({
-    event_end: '2026-09-05T20:59:59.000Z',
-  }));
+  const line = shotBy(
+    record({ uploaded_by: 'u' }),
+    [member({ id: 'u' })],
+    wedding({
+      event_end: '2026-09-05T20:59:59.000Z',
+    }),
+  );
   expect(line).toBe(
     `Marina · ${formatEventDates('2026-09-03T09:00:00.000Z', '2026-09-05T20:59:59.000Z')}`,
   );

@@ -23,25 +23,13 @@ import {
   deleteMedia,
   downloadMedia,
   errorMessage,
-  fetchFrameInfo,
-  memberName,
   type FrameInfo,
+  fetchFrameInfo,
   type MediaItem,
   type Member,
   type Memory,
+  memberName,
 } from '@/api';
-import { useAuth } from '@/lib/auth';
-import { formatDayShort, formatRuntime, formatTime, formatWeekday } from '@/lib/dates';
-import { maySaveToPhone, saveToPhone, shareFile } from '@/lib/downloads';
-import {
-  frameIndex,
-  frameOf,
-  mayOpen,
-  openFrameOf,
-  shotAt,
-  shotBy,
-  type Frame,
-} from '@/lib/frames';
 import {
   ActionMenu,
   Banner,
@@ -53,10 +41,22 @@ import {
   VideoTrack,
   ViewerBar,
 } from '@/kit';
+import { useAuth } from '@/lib/auth';
+import { formatDayShort, formatRuntime, formatTime, formatWeekday } from '@/lib/dates';
+import { maySaveToPhone, saveToPhone, shareFile } from '@/lib/downloads';
+import {
+  type Frame,
+  frameIndex,
+  frameOf,
+  mayOpen,
+  openFrameOf,
+  shotAt,
+  shotBy,
+} from '@/lib/frames';
 import { useStrings } from '@/lib/language';
-import { FrameInfoSheet } from '@/screens/memory/frames-sheets';
 import { useTurnsWithPhone } from '@/lib/orientation';
-import { board, height, photo, space, themed, themes, ThemePin } from '@/theme';
+import { FrameInfoSheet } from '@/screens/memory/frames-sheets';
+import { board, height, photo, space, ThemePin, themed, themes } from '@/theme';
 
 /**
  * `Viewer` and `ViewerVideo` (spec 8, «Просмотр медиа») — one frame on the whole of the phone, laid

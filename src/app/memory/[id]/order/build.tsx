@@ -3,10 +3,10 @@ import { ChevronRight } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
-import { previewMontage, type MontageOrientation, type MontagePreview } from '@/api';
+import { type MontageOrientation, type MontagePreview, previewMontage } from '@/api';
+import { Banner, Button, LengthSlider, Segment, Text, Waiting } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { formatRuntime } from '@/lib/dates';
-import { Banner, Button, LengthSlider, Segment, Text, Waiting } from '@/kit';
 import { useStrings } from '@/lib/language';
 import { PRESETS, taken, wishes } from '@/lib/montage/order';
 import { refusal, useOrder, WizardStep } from '@/screens/order/wizard';

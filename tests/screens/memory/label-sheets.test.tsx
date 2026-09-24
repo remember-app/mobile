@@ -3,10 +3,9 @@ import { beforeAll, expect, test, vi } from 'vitest';
 // The words come from the dictionary, and the dictionary asks the phone which language it is in.
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
 
-import { Tag as TagIcon } from 'lucide-react-native';
-
-import { allDifferent, story } from '@/kit/story';
 import { label } from '@tests/helpers/labels';
+import { Tag as TagIcon } from 'lucide-react-native';
+import { allDifferent, story } from '@/kit/story';
 import { LabelNewSheet, LabelsSheet } from '@/screens/memory/label-sheets';
 import { setTheme, ThemePin } from '@/theme';
 
@@ -133,7 +132,9 @@ test('rights come from the flags the server sent and not from who made the label
   expect(editing).toContain('Удалить «Лучшее»');
   expect(isButton(story(sheet({ labels: [theirs] })), 'Лучшее')).toBe(true);
   // And the other way round: mine, and still no pair where the server withheld `can_edit`.
-  const withheld = story(sheet({ labels: [label({ mine: true, can_edit: false })], editing: true }));
+  const withheld = story(
+    sheet({ labels: [label({ mine: true, can_edit: false })], editing: true }),
+  );
   expect(withheld).not.toContain('Переименовать');
   // Only what came down is drawn: a viewer who has nobody's private label sees no «МОИ» group at all.
   const seen = story(sheet({ labels: [theirs] }));

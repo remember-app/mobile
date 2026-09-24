@@ -4,19 +4,19 @@ import { Share, StyleSheet, View } from 'react-native';
 
 import {
   ApiError,
+  type Contact,
   errorMessage,
   fetchInvite,
+  type Invite,
   inviteByUsername,
   listContacts,
+  type Member,
   memberName,
   rotateInvite,
-  type Contact,
-  type Invite,
-  type Member,
 } from '@/api';
+import { Banner, Button, Chip, Divider, Field, Sheet, Text, Toggle } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { matches, useFindUser } from '@/lib/find-user';
-import { Banner, Button, Chip, Divider, Field, Sheet, Text, Toggle } from '@/kit';
 import { useStrings } from '@/lib/language';
 import { space, themed } from '@/theme';
 
@@ -104,7 +104,10 @@ export function InviteSheet({
   // contacts holds is asked of the api, and the answer is what the button below sends to. The same
   // lookup the contacts screen reads, from the one place both of them keep it (`@/lib/find-user`) —
   // yourself is nobody to offer, being on this roster already.
-  const { found, looking } = useFindUser(token, query, { skip: !visible || answered, selfId: user?.id });
+  const { found, looking } = useFindUser(token, query, {
+    skip: !visible || answered,
+    selfId: user?.id,
+  });
   // Who «Позвать» will call: the contact whose chip is pressed in, or — with no chip pressed — the
   // person the typed name stands for. Never both at once: typing lets the chip go, and a chip empties
   // the field. A name the contacts already hold is answered off that list rather than by the api,

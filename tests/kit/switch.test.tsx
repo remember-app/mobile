@@ -32,7 +32,12 @@ vi.mock('expo-secure-store', () => ({
 /** The kit's toggle as a screen hands it over, in whichever position and state is being looked at. */
 function grip(value: boolean, disabled: boolean): string {
   return renderToStaticMarkup(
-    <Toggle label="Сможет добавлять фото" value={value} onValueChange={() => {}} disabled={disabled} />,
+    <Toggle
+      label="Сможет добавлять фото"
+      value={value}
+      onValueChange={() => {}}
+      disabled={disabled}
+    />,
   );
 }
 

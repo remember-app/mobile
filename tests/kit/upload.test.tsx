@@ -67,15 +67,9 @@ test('a stuck file names the reason in technical words, because a person can act
 
 test('a file the phone no longer has shows a glyph where its picture would be', () => {
   allDifferent({
-    withThumb: (
-      <RowStuck name="IMG_4821.HEIC" reason="Хранилище отказало" uri="https://b/1.jpg" />
-    ),
+    withThumb: <RowStuck name="IMG_4821.HEIC" reason="Хранилище отказало" uri="https://b/1.jpg" />,
     gone: (
-      <RowStuck
-        name="IMG_4821.HEIC"
-        reason="Этого файла больше нет на телефоне"
-        icon={ImageIcon}
-      />
+      <RowStuck name="IMG_4821.HEIC" reason="Этого файла больше нет на телефоне" icon={ImageIcon} />
     ),
   });
   expect(

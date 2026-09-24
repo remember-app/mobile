@@ -1,18 +1,18 @@
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import type { JournalEntry, JournalFile } from '@/api';
-import { formatDayShort, formatTime } from '@/lib/dates';
 import {
   Avatar,
   BadgeDecision,
   GAZE_SHEET,
   NoteThought,
+  SHOT_SHEET,
   Sheet,
   ShotGaze,
-  SHOT_SHEET,
   Tag,
   Text,
 } from '@/kit';
+import { formatDayShort, formatTime } from '@/lib/dates';
 import { useStrings } from '@/lib/language';
 import { gazeAt, marksOf, placeLine, whyDecided } from '@/lib/montage/journal';
 import { space } from '@/theme';

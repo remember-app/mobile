@@ -21,13 +21,12 @@ vi.mock('@/lib/downloads', () => ({
   shareFile: async () => {},
 }));
 
+import { mountsTrees } from '@tests/helpers/renderer';
 import TestRenderer, { act } from 'react-test-renderer';
-
 import type { Memory, Montage } from '@/api';
 import { CardMontage } from '@/kit';
 import { Films } from '@/screens/memory/films';
 import { ru } from '@/strings';
-import { mountsTrees } from '@tests/helpers/renderer';
 
 /**
  * The strip of films over montages ordered before the music became a list. An old row names its one

@@ -2,12 +2,11 @@ import { expect, test, vi } from 'vitest';
 
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
 
+import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { Pressable } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
-
 import { IconButton } from '@/kit/button';
 import { Calendar, type CalendarProps } from '@/kit/calendar';
-import { mounted, mountsTrees } from '@tests/helpers/renderer';
 
 /**
  * Spec 7.3, detail 15 — the calendar as it is pressed. `calendar.test.tsx` draws its states and
@@ -43,8 +42,11 @@ async function draw(over: Partial<CalendarProps> = {}) {
   return {
     calls,
     day: (n: number) =>
-      tree.root.findAllByType(Pressable).find((one) => one.props.accessibilityLabel === `${n} сентября`)!,
-    arrow: (label: string) => tree.root.findAllByType(IconButton).find((one) => one.props.label === label)!,
+      tree.root
+        .findAllByType(Pressable)
+        .find((one) => one.props.accessibilityLabel === `${n} сентября`)!,
+    arrow: (label: string) =>
+      tree.root.findAllByType(IconButton).find((one) => one.props.label === label)!,
   };
 }
 
@@ -112,11 +114,23 @@ test('today is the one day marked as today, whatever the hour, and only in the m
       await act(async () => {
         tree = mounted(
           TestRenderer.create(
-            <Calendar month={month} onMonth={() => {}} from={null} onPick={() => {}} weekdays={WEEK} monthLabel="" prevLabel="" nextLabel="" dayLabel={(d) => `${d.getDate()}`} />,
+            <Calendar
+              month={month}
+              onMonth={() => {}}
+              from={null}
+              onPick={() => {}}
+              weekdays={WEEK}
+              monthLabel=""
+              prevLabel=""
+              nextLabel=""
+              dayLabel={(d) => `${d.getDate()}`}
+            />,
           ),
         );
       });
-      return tree.root.findAll((one) => one.props.day instanceof Date && one.props.today === true).map((one) => (one.props.day as Date).getDate());
+      return tree.root
+        .findAll((one) => one.props.day instanceof Date && one.props.today === true)
+        .map((one) => (one.props.day as Date).getDate());
     };
     expect(await marked(new Date(2026, 8, 1))).toEqual([16]);
     expect(await marked(new Date(2026, 9, 1))).toEqual([]);
@@ -132,5 +146,9 @@ test('the ends of the range and the days between are read as selected, and nothi
   const selected = (n: number) => calendar.day(n).props.accessibilityState.selected;
   expect([11, 12, 13, 14, 15].map(selected)).toEqual([false, true, true, true, false]);
   const one = await draw({ from: new Date(2026, 8, 12) });
-  expect([11, 12, 13].map((n) => one.day(n).props.accessibilityState.selected)).toEqual([false, true, false]);
+  expect([11, 12, 13].map((n) => one.day(n).props.accessibilityState.selected)).toEqual([
+    false,
+    true,
+    false,
+  ]);
 });

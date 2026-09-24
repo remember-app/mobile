@@ -133,7 +133,10 @@ test('«Вернуть» that never reaches the api takes the row with it, not j
   // stop the fade and light the name again, the same as a working «Вернуть»), but its *catch* is the
   // opposite shape of `drop`'s on purpose — `drop`'s catch undoes the fade on a failed delete, and a
   // failed re-add here has nothing left to undo back to, so it drops the row from `contacts` instead.
-  const undo = contacts.slice(contacts.indexOf('function undo('), contacts.indexOf('function save('));
+  const undo = contacts.slice(
+    contacts.indexOf('function undo('),
+    contacts.indexOf('function save('),
+  );
   expect(undo).toContain('addContact(token, contact.username).catch((e: unknown) => {');
   const catchBlock = undo.slice(undo.indexOf('.catch('));
   expect(catchBlock).toContain('setNotice(errorMessage(e));');

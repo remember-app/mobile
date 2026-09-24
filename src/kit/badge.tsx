@@ -88,13 +88,7 @@ export type Contribution = 'done' | 'planned';
  * nothing on its own. Your own row wears the same circle inside a 44 button (spec 7.4): the standing
  * is yours to change at any moment.
  */
-export function BadgeContribution({
-  state,
-  label,
-}: {
-  state: Contribution;
-  label: string;
-}) {
+export function BadgeContribution({ state, label }: { state: Contribution; label: string }) {
   const { color } = useTheme();
   const styles = useStyles();
   const done = state === 'done';
@@ -181,7 +175,12 @@ const useStyles = themed(({ color }) =>
     failed: { backgroundColor: color.failedSoft },
     // Spec 7.4 — the decision mark and the tag word are the same 22/28 pill at two widths; what
     // differs between them is the fill and whether anything ever presses it.
-    mark: { height: 22, justifyContent: 'center', paddingHorizontal: space.s2, borderRadius: radius.pill },
+    mark: {
+      height: 22,
+      justifyContent: 'center',
+      paddingHorizontal: space.s2,
+      borderRadius: radius.pill,
+    },
     tag: { height: 28, paddingHorizontal: 10 },
     circle: {
       width: 28,

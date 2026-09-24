@@ -19,6 +19,7 @@ import {
   howMade,
   inHand,
   isFresh,
+  type Journal,
   lastOfStage,
   madeInMinutes,
   marksOf,
@@ -35,7 +36,6 @@ import {
   stageNumber,
   stageStanding,
   whyTaken,
-  type Journal,
 } from '@/lib/montage/journal';
 import { en, ru } from '@/strings';
 
@@ -64,10 +64,7 @@ const entry = (id: number, over: Partial<JournalEntry> = {}): JournalEntry => ({
 });
 
 /** A page of the journal. Records go out newest first, whichever way the cursor was going. */
-const page = (
-  ids: number[],
-  over: Partial<MontageJournal> = {},
-): MontageJournal => ({
+const page = (ids: number[], over: Partial<MontageJournal> = {}): MontageJournal => ({
   montage: { id: 'm', status: 'processing' },
   stages: [],
   entries: ids.map((id) => entry(id)).sort((a, b) => b.id - a.id),
@@ -78,8 +75,7 @@ const page = (
 });
 
 /** A row of ids, oldest to newest — the batch an «understanding» stage writes in one go. */
-const run = (from: number, to: number) =>
-  Array.from({ length: to - from + 1 }, (_, i) => from + i);
+const run = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, i) => from + i);
 
 /** An api that hands back the pages it was given, one per ask, and records what it was asked. */
 function serving(pages: MontageJournal[]) {
@@ -325,7 +321,8 @@ describe('currentStage', () => {
   // The list of montages carries the same five with nothing but a state each, and the card in the
   // strip reads its stage off them through this very function (spec detail 38).
   test('reads the list’s bare five the same as the journal’s full ones', () => {
-    const bare = (rows: MontageStage[]) => rows.map(({ stage: code, state }) => ({ stage: code, state }));
+    const bare = (rows: MontageStage[]) =>
+      rows.map(({ stage: code, state }) => ({ stage: code, state }));
     for (const rows of [
       [done, running, stage('rhythm', 'pending')],
       [done, stage('understanding', 'failed'), stage('directing', 'pending')],
@@ -340,7 +337,11 @@ describe('minutesLeft', () => {
   test('adds up what is still ahead and rounds the minute up', () => {
     // 90 + 130 = 220 seconds, which is «≈ 4 мин» and never «3»: an estimate that runs out while
     // somebody is still waiting is worse than one that is generous.
-    const stages = [stage('screening', 'done', 30), stage('directing', 'running', 90), stage('assembly', 'pending', 130)];
+    const stages = [
+      stage('screening', 'done', 30),
+      stage('directing', 'running', 90),
+      stage('assembly', 'pending', 130),
+    ];
     expect(minutesLeft(stages)).toBe(4);
   });
 
@@ -357,7 +358,11 @@ describe('minutesLeft', () => {
     expect(minutesLeft([stage('directing', 'failed', 500)])).toBe(null);
     // Nor are the ones after it, though they still carry the worker's opening estimates.
     expect(
-      minutesLeft([stage('directing', 'failed'), stage('rhythm', 'pending', 120), stage('assembly', 'pending', 60)]),
+      minutesLeft([
+        stage('directing', 'failed'),
+        stage('rhythm', 'pending', 120),
+        stage('assembly', 'pending', 60),
+      ]),
     ).toBe(null);
   });
 });
@@ -504,7 +509,12 @@ describe('the line under a stage', () => {
 
   test('the way into a stage’s journal is counted in every record it holds', () => {
     expect(
-      recordsOf({ ...stage('directing', 'running'), taken_count: 61, skipped_count: 87, thought_count: 4 }),
+      recordsOf({
+        ...stage('directing', 'running'),
+        taken_count: 61,
+        skipped_count: 87,
+        thought_count: 4,
+      }),
     ).toBe(152);
     expect(ru.montage.live.wholeStage(152)).toBe('Весь журнал этапа · 152 записи');
   });
@@ -529,7 +539,12 @@ describe('how the film was made', () => {
     from: string,
     to: string | null,
     outcome: MontageStage['outcome'] = {},
-  ): MontageStage => ({ ...stage(code, to === null ? 'running' : 'done'), started_at: from, finished_at: to, outcome });
+  ): MontageStage => ({
+    ...stage(code, to === null ? 'running' : 'done'),
+    started_at: from,
+    finished_at: to,
+    outcome,
+  });
 
   test('«собран за 14 мин» is every stage’s own time added up', () => {
     const stages = [
@@ -545,7 +560,9 @@ describe('how the film was made', () => {
   });
 
   test('a film cut in forty seconds was still cut', () => {
-    expect(madeInMinutes([ran('assembly', '2026-09-21T16:00:00Z', '2026-09-21T16:00:40Z')])).toBe(1);
+    expect(madeInMinutes([ran('assembly', '2026-09-21T16:00:00Z', '2026-09-21T16:00:40Z')])).toBe(
+      1,
+    );
   });
 
   test('a stage still running is not a length, and no stage at all is no line', () => {
@@ -637,13 +654,20 @@ describe('where a frame ended up', () => {
     // The road without the director: «беру» and no thought, no part of any story.
     expect(placeLine(entry(1, { decision: 'take', thought: null }), file, ru)).toBe('1:12–1:16');
     // And the part of the story it went into is the layout's as well: it is not left off with the thought.
-    expect(placeLine(entry(1, { decision: 'take', thought: null, story_part: 2 }), file, ru)).toBe('Часть 2 · 1:12–1:16');
+    expect(placeLine(entry(1, { decision: 'take', thought: null, story_part: 2 }), file, ru)).toBe(
+      'Часть 2 · 1:12–1:16',
+    );
     // A record that settled nothing — what was seen on the frame — is about a frame laid out all the same.
-    expect(placeLine(entry(1, { stage: 'understanding', media_id: 'f1' }), file, ru)).toBe('1:12–1:16');
+    expect(placeLine(entry(1, { stage: 'understanding', media_id: 'f1' }), file, ru)).toBe(
+      '1:12–1:16',
+    );
   });
 
   test('a frame that stands in the video twice says so by a count, not by a second line', () => {
-    const twice = { ...file, places: [...file.places, { start_seconds: 150, duration_seconds: 3 }] };
+    const twice = {
+      ...file,
+      places: [...file.places, { start_seconds: 150, duration_seconds: 3 }],
+    };
     expect(placeLine(entry(1, { decision: 'take', story_part: 2 }), twice, ru)).toBe(
       'Часть 2 · 1:12–1:16 · и ещё 1',
     );
@@ -651,15 +675,15 @@ describe('where a frame ended up', () => {
 
   test('a record that passed the frame over has no place, however the file is laid out', () => {
     expect(placeLine(entry(1, { decision: 'skip', reason: 'blur' }), file, ru)).toBe(undefined);
-    expect(placeLine(entry(1, { decision: 'skip', reason: 'exposure', thought: null }), file, ru)).toBe(
-      undefined,
-    );
+    expect(
+      placeLine(entry(1, { decision: 'skip', reason: 'exposure', thought: null }), file, ru),
+    ).toBe(undefined);
   });
 
   test('a frame with no place yet says only which part it is going into', () => {
-    expect(placeLine(entry(1, { decision: 'take', story_part: 1 }), { ...file, places: [] }, ru)).toBe(
-      'Часть 1',
-    );
+    expect(
+      placeLine(entry(1, { decision: 'take', story_part: 1 }), { ...file, places: [] }, ru),
+    ).toBe('Часть 1');
     // And one the layout has not reached at all has nothing to say rather than an empty line.
     expect(placeLine(entry(1, { decision: 'take' }), undefined, ru)).toBe(undefined);
     expect(placeLine(entry(1, { decision: 'take' }), { ...file, places: [] }, ru)).toBe(undefined);
@@ -753,7 +777,16 @@ describe('the record in words', () => {
   test('every reason the api names has a word in both languages', () => {
     // The worker's whole vocabulary (its README, «Журнал»): for «мимо» three from the screening and
     // four from the director, and for «беру» the organizer's word.
-    const codes = ['blur', 'exposure', 'unreadable', 'duplicate', 'excluded', 'no_room', 'left_out', 'included'];
+    const codes = [
+      'blur',
+      'exposure',
+      'unreadable',
+      'duplicate',
+      'excluded',
+      'no_room',
+      'left_out',
+      'included',
+    ];
     for (const code of codes) {
       for (const s of [ru, en]) {
         expect(reasonWord(code, s), code).toBeTruthy();

@@ -1,16 +1,17 @@
+import { flat } from '@tests/helpers/source';
 import { expect, test } from 'vitest';
-
+import api from '@/api/index.ts?raw';
+import layout from '@/app/_layout.tsx?raw';
 import create from '@/app/create.tsx?raw';
-import memory from '@/app/memory/[id].tsx?raw';
-import edit from '@/app/memory/[id]/edit.tsx?raw';
-import settings from '@/app/memory/[id]/settings.tsx?raw';
-import live from '@/app/memory/[id]/montage/[montageId]/index.tsx?raw';
-import stageLog from '@/app/memory/[id]/montage/[montageId]/stage/[stage].tsx?raw';
-import upload from '@/app/memory/[id]/upload.tsx?raw';
 import home from '@/app/index.tsx?raw';
 import invite from '@/app/invite.tsx?raw';
-import layout from '@/app/_layout.tsx?raw';
-import api from '@/api/index.ts?raw';
+import edit from '@/app/memory/[id]/edit.tsx?raw';
+import done from '@/app/memory/[id]/montage/[montageId]/done.tsx?raw';
+import live from '@/app/memory/[id]/montage/[montageId]/index.tsx?raw';
+import stageLog from '@/app/memory/[id]/montage/[montageId]/stage/[stage].tsx?raw';
+import settings from '@/app/memory/[id]/settings.tsx?raw';
+import upload from '@/app/memory/[id]/upload.tsx?raw';
+import memory from '@/app/memory/[id].tsx?raw';
 // The kit files read here: the sheet's offset from the header is the appbar's own padding, and the
 // montage card is where the poster a face hands over actually lands.
 import bars from '@/kit/bars.tsx?raw';
@@ -23,29 +24,28 @@ import member from '@/kit/member.tsx?raw';
 // is measuring it out of the library rather than out of a number it chose.
 import tile from '@/kit/tile.tsx?raw';
 import toggle from '@/kit/toggle.tsx?raw';
+// Everything both screens of the making work out of one answer — where a stage stands, how long the
+// whole of it took, the three numbers of «Как собирался».
+import journalOf from '@/lib/montage/journal.ts?raw';
+// The arithmetic both the movies face and the waiting screen ask their «is it still being made»
+// question through, so the two cannot drift apart about what the answer is.
+import montage from '@/lib/montage/order.ts?raw';
+import push from '@/lib/push.ts?raw';
 import cover from '@/screens/memory/cover.tsx?raw';
 // The one player this product has: the strip on the feed and the film's own page both raise it,
 // which is why neither of them holds a `Modal` of its own any more (TASK-222).
 import player from '@/screens/memory/film-player.tsx?raw';
-import done from '@/app/memory/[id]/montage/[montageId]/done.tsx?raw';
 import films from '@/screens/memory/films.tsx?raw';
 import viewer from '@/screens/memory/frame-viewer.tsx?raw';
-// The card one record of the journal opens — a piece of two screens, so it lives beside neither.
-import liveFile from '@/screens/memory/live-file.tsx?raw';
-// And the five rows of the making, which those same two screens draw.
-import stageRows from '@/screens/memory/stage-rows.tsx?raw';
 import frames from '@/screens/memory/frames.tsx?raw';
 import sheets from '@/screens/memory/frames-sheets.tsx?raw';
 import head from '@/screens/memory/head.tsx?raw';
 import inviteSheet from '@/screens/memory/invite-sheet.tsx?raw';
+// The card one record of the journal opens — a piece of two screens, so it lives beside neither.
+import liveFile from '@/screens/memory/live-file.tsx?raw';
+// And the five rows of the making, which those same two screens draw.
+import stageRows from '@/screens/memory/stage-rows.tsx?raw';
 import when from '@/screens/memory/when.tsx?raw';
-// The arithmetic both the movies face and the waiting screen ask their «is it still being made»
-// question through, so the two cannot drift apart about what the answer is.
-import montage from '@/lib/montage/order.ts?raw';
-// Everything both screens of the making work out of one answer — where a stage stands, how long the
-// whole of it took, the three numbers of «Как собирался».
-import journalOf from '@/lib/montage/journal.ts?raw';
-import push from '@/lib/push.ts?raw';
 import { en, ru } from '@/strings';
 
 /**
@@ -153,7 +153,7 @@ test('the glass bar floats over the feed, with a door in the middle and a slot a
   // Spec 7.1, detail 4 — the bar that replaced the tabs. It is drawn over the frames rather than
   // above them, which is what its own darkening is for.
   expect(head).toContain('<GlassBar');
-  expect(head).toContain('head: { position: \'absolute\', left: 0, right: 0, top: 0 }');
+  expect(head).toContain("head: { position: 'absolute', left: 0, right: 0, top: 0 }");
   expect(frames).toContain('<MemoryHead');
   // The way out of a memory is the bar's own, because it is the same on every state of it: a tapped
   // push and a followed invite both open this screen with nothing behind it to go back to.
@@ -296,9 +296,7 @@ test('while picking, a tap marks the frame instead of opening it — and only a 
   // strip counts with the same rule and the two must not drift (TASK-121). `mayPick` is where that
   // reading lives, and `frames.test.ts` pins it.
   expect(frames).toContain('const pickable = picking && mayPick(item);');
-  expect(frames).toContain(
-    "pick={pickable ? (picked.has(item.id) ? 'keep' : 'off') : undefined}",
-  );
+  expect(frames).toContain("pick={pickable ? (picked.has(item.id) ? 'keep' : 'off') : undefined}");
   // The mark is the tile's own — one ring and one circle, never a second mark drawn by a face.
   expect(frames).not.toContain('tile--selected');
   // And on the upload screen the same rule with the mode of its own: picking off, a frame carries
@@ -409,7 +407,10 @@ test('the sheet is one flat list of headings and strips, never a three-column gr
 });
 
 test('the seam over a strip says what is under it, and takes the whole day while picking', () => {
-  const daymark = frames.slice(frames.indexOf('<DayMark'), frames.indexOf('/>', frames.indexOf('<DayMark')));
+  const daymark = frames.slice(
+    frames.indexOf('<DayMark'),
+    frames.indexOf('/>', frames.indexOf('<DayMark')),
+  );
   // Three kinds of seam, one component, and which one it is comes from the group itself.
   expect(daymark).toContain('{...headingOf(group)}');
   // Spec 7.8 — a figure and never a sentence: «128» after a person's name, and over a day nothing
@@ -466,7 +467,9 @@ test('the spine rides the scroll itself, and is grabbed only while it can be see
   expect(frames).toContain('onScroll={onScroll}');
   // Dragging it throws the feed (spec 7.8), and it answers only touches that begin on the strip —
   // a flick along the right edge must not stop being a flick halfway through.
-  expect(frames).toContain('list.current?.scrollToOffset({ offset: part * reach, animated: false })');
+  expect(frames).toContain(
+    'list.current?.scrollToOffset({ offset: part * reach, animated: false })',
+  );
   expect(frames).toContain('onStartShouldSetPanResponder: () => true,');
   expect(frames).not.toContain('onMoveShouldSetPanResponder');
   // What is drawn at nought opacity is still a thing in the way of the feed underneath.
@@ -495,7 +498,10 @@ test('«Выбрать все N» counts the frames a tap could reach, and the s
   expect(frames).toContain('const markable = group.frames.filter(mayPick);');
   // A seam with nothing a tap could reach takes no press at all — the same answer the footer
   // gives to the same emptiness, and the band is the press now (spec 7.8).
-  const daymark = frames.slice(frames.indexOf('<DayMark'), frames.indexOf('/>', frames.indexOf('<DayMark')));
+  const daymark = frames.slice(
+    frames.indexOf('<DayMark'),
+    frames.indexOf('/>', frames.indexOf('<DayMark')),
+  );
   expect(daymark).toContain('picking && markable.length > 0');
   // The circle says whether the whole group is taken and a second press gives it back — the kit's
   // contract for `DayMark`, and what «Ваши кадры» does. What the press does to the selection is
@@ -812,8 +818,8 @@ test('a cover is picked on a sheet, waits in the slot, and comes off again quiet
   expect(edit).toContain('disabled={saving || pickable.length === 0}');
   // Said only once the gallery has answered: before that, and when it never does, there is nothing
   // to say about how many frames the memory holds.
-  expect(edit).toContain(
-    '{media !== null && pickable.length === 0 ? <Hint>{s.edit.coverNeedsFrames}</Hint> : null}',
+  expect(flat(edit)).toContain(
+    '{media !== null && pickable.length === 0 ? ( <Hint>{s.edit.coverNeedsFrames}</Hint> ) : null}',
   );
   // One frame at a time on that sheet: a tap moves the pick rather than adding to it.
   expect(cover).toContain("picked === item.id ? 'send' : 'off'");
@@ -826,7 +832,9 @@ test('a cover is picked on a sheet, waits in the slot, and comes off again quiet
 test('a memory that is not on the list is an error, not a spinner that never ends', () => {
   // The listing answered and the memory is not in it — removed from it, or never there. That is a
   // failure to say out loud with the api's own «404» line; only a read still in flight is «Loading».
-  expect(edit).toContain('if (one === null) return setError(errorMessage(new ApiError(404, null)));');
+  expect(edit).toContain(
+    'if (one === null) return setError(errorMessage(new ApiError(404, null)));',
+  );
   expect(ru.error.status(404)).toBe('Сервер ответил 404.');
 });
 
@@ -1002,7 +1010,7 @@ test('only the organizer starts a fallen montage again', () => {
   // stay «не собрался» with the button still under it.
   const again = live.slice(live.indexOf('async function again()'));
   expect(again).toContain('journal.restart();');
-  expect(again).toContain("if (!(e instanceof ApiError && e.status === 409)) return;");
+  expect(again).toContain('if (!(e instanceof ApiError && e.status === 409)) return;');
   // Where each stage stands is the api's own word, never this screen's reading of the montage — and
   // it is worked out in the journal's own module, because the finished film's page asks the same
   // question of the same five rows (TASK-222).
@@ -1019,8 +1027,9 @@ test('the open stage carries its last records and the way into the whole of its 
   expect(stageRows).toContain('<StepNote');
   expect(stageRows).toContain('label={s.montage.live.wholeStage(recordsOf(row))}');
   // Both roads out of a stage row go to the same place — the stage's own journal.
-  expect(stageRows.match(/pathname: '\/memory\/\[id\]\/montage\/\[montageId\]\/stage\/\[stage\]'/g))
-    .toHaveLength(1);
+  expect(
+    stageRows.match(/pathname: '\/memory\/\[id\]\/montage\/\[montageId\]\/stage\/\[stage\]'/g),
+  ).toHaveLength(1);
   expect(stageRows.match(/onPress=\{\(\) => toStage\(code\)\}/g)).toHaveLength(2);
   expect(stageRows).toContain('params: { id: memoryId, montageId, stage: code },');
 });
@@ -1046,7 +1055,9 @@ test('the stage journal is one stage’s records, cut the way the api counts the
   expect(stageLog).toContain('newest={index === 0}');
   // Empty is «loading» until the first answer and nothing after it: rhythm and assembly write no
   // records at all, and a finished film's stage is not waiting for any queue.
-  expect(stageLog).toContain('journal.status === null ? <Text role="note">{s.state.loading}</Text> : null');
+  expect(stageLog).toContain(
+    'journal.status === null ? <Text role="note">{s.state.loading}</Text> : null',
+  );
   expect(stageLog).not.toContain('s.montage.live.inQueue');
 });
 
@@ -1172,7 +1183,9 @@ test('the montage that turns ready leads to its own page and never back into the
   expect(road).toContain('params: { id, montageId: montage.id },');
   // The other road to the player is untouched: a frame's own sheet names a film on the way in, and
   // it is still the memory's route that raises the window over the feed (TASK-211).
-  expect(films).toContain("const { montage: asked } = useLocalSearchParams<{ montage?: string }>();");
+  expect(films).toContain(
+    'const { montage: asked } = useLocalSearchParams<{ montage?: string }>();',
+  );
   expect(films).toContain('<FilmPlayer film={watching} onClose={() => setPlaying(null)} />');
 });
 
@@ -1356,7 +1369,10 @@ test('the whole window is three buttons on glass, and under the picture only the
   expect(strip).toBeLessThan(viewer.indexOf('<ActionMenu'));
   // The three of them, each in its own place: «Назад» on the left, the pill of when and who in the
   // middle, «⋯» on the right — and no fourth.
-  const bar = viewer.slice(viewer.indexOf('<ViewerBar'), viewer.indexOf('<View style={[styles.tools'));
+  const bar = viewer.slice(
+    viewer.indexOf('<ViewerBar'),
+    viewer.indexOf('<View style={[styles.tools'),
+  );
   expect(bar.slice(bar.indexOf('left={'))).toContain('label={s.action.close}');
   expect(bar.slice(bar.indexOf('right={'))).toContain('label={s.viewer.more}');
   expect(bar).toContain('label={`${s.viewer.details}');
@@ -1398,7 +1414,9 @@ test('the «⋯» drops the glass menu of the three errands, and stays lit under
   expect(order).toEqual([...order].sort((a, b) => a - b));
   expect(order[0]).toBeGreaterThan(-1);
   expect(menu).toContain('gapBefore={2}');
-  expect(menu.replace(/\s+/g, ' ')).toContain('danger onPress={() => { setMenu(false); setConfirming(true); }}');
+  expect(menu.replace(/\s+/g, ' ')).toContain(
+    'danger onPress={() => { setMenu(false); setConfirming(true); }}',
+  );
   expect(viewer).toContain('style={menu ? styles.held : null}');
   expect(viewer).toContain('held: { backgroundColor: photo.held }');
   // The words are the layout's own, and the delete is the only red line in the menu.
@@ -1420,11 +1438,17 @@ test('the frame’s own sheet is who, when, what and where — and draws nothing
   const raised = viewer.slice(viewer.indexOf('<FrameInfoSheet'));
   expect(raised).toContain('thumb={item.thumbnail_url ?? undefined}');
   expect(raised).toContain('title={`${when}, ${formatTime(stamp)}`}');
-  expect(raised).toContain("meta={[formatWeekday(stamp), memory?.title].filter(Boolean).join(' · ')}");
+  expect(raised).toContain(
+    "meta={[formatWeekday(stamp), memory?.title].filter(Boolean).join(' · ')}",
+  );
   const sheet = sheets.slice(sheets.indexOf('export function FrameInfoSheet'));
   // Who brought it and how much they brought in all, then the summary rows, then the movies.
-  expect(sheet).toContain('s.viewer.brought(formatDayShort(info.created_at), info.uploaded_by.media_count)');
-  expect(sheet.indexOf('frameFacts(info, s, undefined, place)')).toBeLessThan(sheet.indexOf('s.viewer.inFilms'));
+  expect(sheet).toContain(
+    's.viewer.brought(formatDayShort(info.created_at), info.uploaded_by.media_count)',
+  );
+  expect(sheet.indexOf('frameFacts(info, s, undefined, place)')).toBeLessThan(
+    sheet.indexOf('s.viewer.inFilms'),
+  );
   // The place is the name the phone's geocoder gives the frame's point, asked for by the sheet
   // itself (`@/lib/geocoder`) — the api sends coordinates only.
   expect(sheet).toContain('usePlaceName(info?.latitude, info?.longitude)');
@@ -1461,7 +1485,9 @@ test('a movie the frame stands in is named by its length and opens the one playe
   );
   expect(shut).toContain('visible={film === null}');
   expect(shut).toContain('onDismiss={() => { if (film !== null) raiseFilm(film); }}');
-  expect(films).toContain("const { montage: asked } = useLocalSearchParams<{ montage?: string }>();");
+  expect(films).toContain(
+    'const { montage: asked } = useLocalSearchParams<{ montage?: string }>();',
+  );
   // The block is already mounted when the ask arrives, so it follows the parameter rather than
   // reading it once as it mounts — and spends it, or the switch back onto this face would raise
   // the player again and the same film could not be asked for twice.
@@ -1596,7 +1622,9 @@ test("the strip under the frame is the grid's own list, in the grid's own order,
   expect(frames.match(/listMedia\(/g)).toHaveLength(1);
   // And the library is handed that same list, picture for picture: the window invents no second
   // reading of a record — `@/lib/frames` answers for both sheets (TASK-86, TASK-120).
-  expect(viewer).toContain("frames.map((one) => ({ uri: frameOf(one).uri ?? '', video: one.kind === 'video' }))");
+  expect(viewer).toContain(
+    "frames.map((one) => ({ uri: frameOf(one).uri ?? '', video: one.kind === 'video' }))",
+  );
 });
 
 test('the strip is walked to the frame in hand, and the walk hangs on its own width', () => {
@@ -1741,7 +1769,7 @@ test('the filter is a draft until it is applied, and it is applied by a button t
   // question; the sheet only asks it.
   expect(frames).toContain('count={(draft) => framesMatching(items ?? [], draft).length}');
   expect(sheets).toContain('const shown = count(draft);');
-  expect(sheets).toContain(
+  expect(flat(sheets)).toContain(
     'shown === 0 ? s.gallery.nothingMatched : chosen ? s.gallery.show(shown) : s.gallery.showAll',
   );
   // A filter that would leave nothing cannot be applied at all, and the button says why rather than
@@ -1774,7 +1802,9 @@ test('the day row opens with the absence of a choice, and the people row does no
   // each day with what it holds, which is the figure on its own chip.
   expect(frames).toContain('people={brought}');
   expect(frames).toContain('days={days}');
-  expect(frames).toContain('framesByDay(items ?? []).map((day) => ({ at: day.at, count: day.frames.length }))');
+  expect(frames).toContain(
+    'framesByDay(items ?? []).map((day) => ({ at: day.at, count: day.frames.length }))',
+  );
   expect(sheets).toContain('count={String(day.count)}');
 });
 
@@ -1802,7 +1832,9 @@ test('nothing the filter or the sort was set to is remembered between runs', () 
 test('the sort takes effect as it is pressed, and «Готово» is only the way out', () => {
   // Nothing to preview here — the sheet stands over the sheet it is rearranging — so the answer
   // goes straight up and the button at the bottom closes and nothing else.
-  expect(frames).toContain('<SortSheet value={sort} onChange={setSort} onDone={() => setTuning(null)} />');
+  expect(frames).toContain(
+    '<SortSheet value={sort} onChange={setSort} onDone={() => setTuning(null)} />',
+  );
   expect(sheets).toContain('onChange={(by: GroupBy) => onChange({ ...value, by })}');
   expect(sheets).toContain('onChange={(order: Order) => onChange({ ...value, order })}');
   expect(sheets).toContain('label={s.action.done}');
@@ -1849,7 +1881,7 @@ test('a name already on the roster is answered in the field, not left to an empt
   // roster already holds (`answered`), so without `here` the sheet said nothing at all about a nick
   // that is right behind its own scrim — reported as a silent sheet.
   expect(inviteSheet).toContain(
-    "const here = (members ?? []).find((member) => member.username?.toLowerCase() === needle);",
+    'const here = (members ?? []).find((member) => member.username?.toLowerCase() === needle);',
   );
   expect(inviteSheet).toContain('here !== undefined ||');
   expect(inviteSheet).toContain('? s.members.already(memberName(here), s.role[here.role])');
@@ -1899,7 +1931,9 @@ test('a tile is read out in the line it is drawn with', () => {
   // One helper for both, and the window is handed it rather than writing a second one: the strip
   // says the same about a record as the tile above it, «открыто» apart.
   expect(frames).toContain('nameOf={nameOf}');
-  expect(viewer).toContain('labelAt={(to) => nameOf(frames[to], frameOf(frames[to]), to === index)}');
+  expect(viewer).toContain(
+    'labelAt={(to) => nameOf(frames[to], frameOf(frames[to]), to === index)}',
+  );
 });
 
 /**

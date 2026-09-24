@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-
+import { Calendar, Chip, Hint, Text } from '@/kit';
 import {
   daysBefore,
   formatDay,
@@ -10,7 +10,6 @@ import {
   startOfDay,
   weekdayLetters,
 } from '@/lib/dates';
-import { Calendar, Chip, Hint, Text } from '@/kit';
 import { useStrings } from '@/lib/language';
 import { space } from '@/theme';
 

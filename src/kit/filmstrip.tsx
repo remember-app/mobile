@@ -1,9 +1,16 @@
 import { Image } from 'expo-image';
 import { Play } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  FlatList,
+  Pressable,
+  type StyleProp,
+  StyleSheet,
+  View,
+  type ViewStyle,
+} from 'react-native';
 
-import { photo, radius, themed, useTheme } from '@/theme';
+import { photo, radius, themed } from '@/theme';
 
 import { Icon } from './icon';
 import { useFocusRing, useHoverFocus } from './interaction';

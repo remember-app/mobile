@@ -6,9 +6,9 @@ import {
   BadgeFilms,
   BadgeMontage,
   BadgeOrganizer,
-  Tag,
   type Contribution,
   type MontageState,
+  Tag,
 } from '@/kit/badge';
 import { allDifferent, story } from '@/kit/story';
 import { setTheme } from '@/theme';

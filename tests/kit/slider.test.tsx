@@ -1,11 +1,10 @@
-import { beforeAll, expect, test, vi } from 'vitest';
+import { mountsTrees } from '@tests/helpers/renderer';
 
 import TestRenderer, { act } from 'react-test-renderer';
-
+import { beforeAll, expect, test, vi } from 'vitest';
 import { grabLength, LengthSlider } from '@/kit/slider';
 import { allDifferent, story } from '@/kit/story';
 import { setTheme } from '@/theme';
-import { mountsTrees } from '@tests/helpers/renderer';
 
 /** Spec 7.3, detail 19 — how long the film should be. */
 
@@ -174,7 +173,9 @@ test('a card without ready answers is the same card, minus the row of them', () 
 test('on a line narrower than the range every position is still a whole second inside the walls', () => {
   // 540 seconds on 200 points: 2.7 seconds to a point, so any figure a finger works out is rounded.
   const drag = grabLength(0, 200, { ...LINE, value: 10 });
-  const figures = Array.from({ length: 201 }, (_, x) => drag(x)).filter((seconds) => seconds !== null);
+  const figures = Array.from({ length: 201 }, (_, x) => drag(x)).filter(
+    (seconds) => seconds !== null,
+  );
   expect(figures.length).toBeGreaterThan(50);
   for (const seconds of figures) {
     expect(Number.isInteger(seconds)).toBe(true);
@@ -183,7 +184,9 @@ test('on a line narrower than the range every position is still a whole second i
   }
   // And before the line has been measured there is nothing to divide by, and no figure of NaN.
   const unmeasured = grabLength(30, 0, { ...LINE, value: 152 });
-  expect(unmeasured(80)).toSatisfy((seconds: number | null) => seconds === null || Number.isInteger(seconds));
+  expect(unmeasured(80)).toSatisfy(
+    (seconds: number | null) => seconds === null || Number.isInteger(seconds),
+  );
 });
 
 test('a material with exactly one length in it has no way to move the figure', () => {
@@ -201,12 +204,17 @@ test('a screen reader and the ready answers move the figure the way the buttons 
   act(() => {
     tree = TestRenderer.create(slider({ value: 157, onChange: (seconds) => said.push(seconds) }));
   });
-  const line = tree.root.findAll((node) => typeof node.props.onAccessibilityAction === 'function')[0]!;
-  const action = (actionName: string) => line.props.onAccessibilityAction({ nativeEvent: { actionName } });
+  const line = tree.root.findAll(
+    (node) => typeof node.props.onAccessibilityAction === 'function',
+  )[0]!;
+  const action = (actionName: string) =>
+    line.props.onAccessibilityAction({ nativeEvent: { actionName } });
   action('increment');
   action('decrement');
   const answer = (label: string) =>
-    tree.root.findAll((node) => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function')[0]!;
+    tree.root.findAll(
+      (node) => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function',
+    )[0]!;
   act(() => answer('1:00').props.onPress());
   // «Всё» is the ceiling itself, whatever the material is.
   act(() => answer('Всё').props.onPress());

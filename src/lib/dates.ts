@@ -111,7 +111,8 @@ export function formatEventDates(start: string, end: string | null, locale?: str
   if (!end) return wholeDay(from);
   const to = dayFields(end, locale);
   if (to === null) return wholeDay(from);
-  if (from.month !== to.month || from.year !== to.year) return `${wholeDay(from)} — ${wholeDay(to)}`;
+  if (from.month !== to.month || from.year !== to.year)
+    return `${wholeDay(from)} — ${wholeDay(to)}`;
   return from.day === to.day ? wholeDay(from) : `${from.day}–${to.day} ${to.month}`;
 }
 

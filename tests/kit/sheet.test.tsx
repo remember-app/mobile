@@ -34,7 +34,12 @@ test('the five kinds of sheet differ only in the block at the bottom', () => {
   const body = <Text>Тело листа</Text>;
   allDifferent({
     onePrimary: (
-      <Sheet visible onCancel={() => {}} title="Сортировка" footer={<Button variant="primary" label="Готово" />}>
+      <Sheet
+        visible
+        onCancel={() => {}}
+        title="Сортировка"
+        footer={<Button variant="primary" label="Готово" />}
+      >
         {body}
       </Sheet>
     ),
@@ -85,7 +90,11 @@ test('the five kinds of sheet differ only in the block at the bottom', () => {
       </Sheet>
     ),
     oneOutline: (
-      <Sheet visible onCancel={() => {}} footer={<Button variant="secondary" size="md" label="Закрыть" />}>
+      <Sheet
+        visible
+        onCancel={() => {}}
+        footer={<Button variant="secondary" size="md" label="Закрыть" />}
+      >
         {body}
       </Sheet>
     ),
@@ -97,7 +106,11 @@ test('a confirmation’s heading is the narrower one, and a header row replaces 
     plain: <Sheet visible onCancel={() => {}} title="Фильтры" />,
     narrow: <Sheet visible onCancel={() => {}} title="Фильтры" narrow />,
     head: (
-      <Sheet visible onCancel={() => {}} head={<Text role="sheetTitleSm">Фото Марка Ковалёва</Text>} />
+      <Sheet
+        visible
+        onCancel={() => {}}
+        head={<Text role="sheetTitleSm">Фото Марка Ковалёва</Text>}
+      />
     ),
   });
 });

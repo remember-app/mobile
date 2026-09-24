@@ -4,11 +4,10 @@ import { beforeEach, expect, test, vi } from 'vitest';
 // The phone's geocoder, with the answers the test hands it and a count of how often it was asked.
 vi.mock('expo-location', () => ({ reverseGeocodeAsync: vi.fn() }));
 
-import TestRenderer, { act } from 'react-test-renderer';
-
-import { usePlaceName } from '@/lib/geocoder';
 import { later } from '@tests/helpers/api';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
+import TestRenderer, { act } from 'react-test-renderer';
+import { usePlaceName } from '@/lib/geocoder';
 
 /**
  * What the frame's sheet reads a place through (`usePlaceName`): `null` until the phone has named the
@@ -51,7 +50,14 @@ async function probe(start: Point) {
 }
 
 test('with no point — or half of one — the phone is not asked and the name is nothing', async () => {
-  for (const point of [{}, { latitude: null, longitude: null }, { latitude: 1, longitude: null }, { latitude: null, longitude: 2 }, { latitude: 1 }, { longitude: 2 }]) {
+  for (const point of [
+    {},
+    { latitude: null, longitude: null },
+    { latitude: 1, longitude: null },
+    { latitude: null, longitude: 2 },
+    { latitude: 1 },
+    { longitude: 2 },
+  ]) {
     const place = await probe(point);
     expect(place.now(), JSON.stringify(point)).toBeNull();
   }
@@ -81,8 +87,9 @@ test('a phone with nothing to say leaves the name nothing for good', async () =>
 test('an answer that comes in for the frame before is not the name of the frame now on the sheet', async () => {
   const first = later<unknown>();
   const second = later<unknown>();
-  geocode.mockImplementation(((where: { latitude: number }) =>
-    (where.latitude === 13.1 ? first : second).promise) as never);
+  geocode.mockImplementation(
+    ((where: { latitude: number }) => (where.latitude === 13.1 ? first : second).promise) as never,
+  );
   const place = await probe({ latitude: 13.1, longitude: 23.1 });
   // The sheet stays mounted and is handed the next frame before the first has been named.
   await place.move({ latitude: 14.1, longitude: 24.1 });

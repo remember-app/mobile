@@ -36,27 +36,52 @@ vi.mock('@/screens/memory/films', () => ({ Films: () => null }));
 vi.mock('@/screens/memory/frame-viewer', () => ({ FrameViewer: () => null }));
 vi.mock('@/lib/downloads', () => downloads);
 // A text input listens on the browser's `document`, which a test renderer has none of.
-vi.mock('@/kit', async (original) => ({ ...(await original<typeof import('@/kit')>()), Field: () => null }));
+vi.mock('@/kit', async (original) => ({
+  ...(await original<typeof import('@/kit')>()),
+  Field: () => null,
+}));
 
-import TestRenderer, { act } from 'react-test-renderer';
-
-import type { Label, MediaItem, Member } from '@/api';
+import {
+  type Asked,
+  developing,
+  later,
+  member,
+  memory,
+  photo,
+  refused,
+  serve,
+} from '@tests/helpers/api';
+import { touch } from '@tests/helpers/gesture';
+import { label } from '@tests/helpers/labels';
+import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { FlatList, RefreshControl } from 'react-native';
-
-import { Banner, Button, Calendar, Chip, ConfirmSheet, DateSpine, DayMark, Empty, FEED_GAP, GlassBar, IconButton, RowToggle, Tile, Waiting } from '@/kit';
-import { Frames } from '@/screens/memory/frames';
+import TestRenderer, { act } from 'react-test-renderer';
+import type { Label, MediaItem, Member } from '@/api';
+import {
+  Banner,
+  Button,
+  Calendar,
+  Chip,
+  ConfirmSheet,
+  DateSpine,
+  DayMark,
+  Empty,
+  FEED_GAP,
+  GlassBar,
+  IconButton,
+  RowToggle,
+  Tile,
+  Waiting,
+} from '@/kit';
+import { startOfDay } from '@/lib/dates';
+import { frameOf } from '@/lib/frames';
 import { FrameViewer } from '@/screens/memory/frame-viewer';
+import { Frames } from '@/screens/memory/frames';
 import { FilterSheet, SortSheet } from '@/screens/memory/frames-sheets';
 import { BlockHead, type Head } from '@/screens/memory/head';
 import { LabelSheets } from '@/screens/memory/label-sheets';
-import { label } from '@tests/helpers/labels';
-import { frameOf } from '@/lib/frames';
 import { ru } from '@/strings';
-import { startOfDay } from '@/lib/dates';
 import { board, height, space } from '@/theme';
-import { mounted, mountsTrees } from '@tests/helpers/renderer';
-import { touch } from '@tests/helpers/gesture';
-import { developing, later, member, memory, photo, refused, serve, type Asked } from '@tests/helpers/api';
 
 /**
  * The feed of a memory the way a person works it (spec 8, `MemoryFrames` and `FramesPicking`): the
@@ -117,8 +142,19 @@ type World = {
   log: Asked[];
 };
 
-function world(over: Partial<Pick<World, 'media' | 'members' | 'onDelete' | 'read' | 'originals' | 'labels'>> = {}): World {
-  const w: World = { media: frames(), members: roster(), reads: 0, onDelete: {}, labels: [], log: [] };
+function world(
+  over: Partial<
+    Pick<World, 'media' | 'members' | 'onDelete' | 'read' | 'originals' | 'labels'>
+  > = {},
+): World {
+  const w: World = {
+    media: frames(),
+    members: roster(),
+    reads: 0,
+    onDelete: {},
+    labels: [],
+    log: [],
+  };
   Object.assign(w, over);
   w.log = serve((asked) => {
     if (asked.path === '/memories/m1/media' && asked.method === 'GET') {
@@ -128,7 +164,14 @@ function world(over: Partial<Pick<World, 'media' | 'members' | 'onDelete' | 'rea
     if (asked.path === '/memories/m1/members') return w.members;
     if (asked.path === '/memories/m1/labels') return w.labels;
     if (asked.path === '/memories/m1/media/download') {
-      return w.originals ?? w.media.map((one) => ({ id: one.id, kind: one.kind, url: `https://r2.example/original/${one.id}` }));
+      return (
+        w.originals ??
+        w.media.map((one) => ({
+          id: one.id,
+          kind: one.kind,
+          url: `https://r2.example/original/${one.id}`,
+        }))
+      );
     }
     const [, , , , id] = asked.path.split('/');
     if (asked.method === 'DELETE') {
@@ -142,7 +185,13 @@ function world(over: Partial<Pick<World, 'media' | 'members' | 'onDelete' | 'rea
   return w;
 }
 
-async function open(head: Head = { memory: memory({ member_count: 2, media_count: 5 }), error: null, reload: () => {} }) {
+async function open(
+  head: Head = {
+    memory: memory({ member_count: 2, media_count: 5 }),
+    error: null,
+    reload: () => {},
+  },
+) {
   let tree!: TestRenderer.ReactTestRenderer;
   await act(async () => {
     tree = mounted(TestRenderer.create(<Frames id="m1" head={head} />));
@@ -185,7 +234,9 @@ async function open(head: Head = { memory: memory({ member_count: 2, media_count
     /** What the three buttons of the picking layer are, off or on. */
     footer: () => ({
       share: icon(ru.action.share)().props.disabled as boolean,
-      download: root.findAllByType(Button).find((one) => one.props.icon !== undefined && one.props.wide)!.props,
+      download: root
+        .findAllByType(Button)
+        .find((one) => one.props.icon !== undefined && one.props.wide)!.props,
       remove: icon(ru.action.delete)().props.disabled as boolean,
     }),
     sheet: () => root.findByType(ConfirmSheet),
@@ -291,9 +342,15 @@ test('the capsule is the door to the settings off the mode, and «Добавит
   world();
   const screen = await open();
   await screen.pressCapsule();
-  expect(router.push).toHaveBeenLastCalledWith({ pathname: '/memory/[id]/settings', params: { id: 'm1' } });
+  expect(router.push).toHaveBeenLastCalledWith({
+    pathname: '/memory/[id]/settings',
+    params: { id: 'm1' },
+  });
   await screen.press(screen.button(ru.gallery.addMore));
-  expect(router.push).toHaveBeenLastCalledWith({ pathname: '/memory/[id]/upload', params: { id: 'm1' } });
+  expect(router.push).toHaveBeenLastCalledWith({
+    pathname: '/memory/[id]/upload',
+    params: { id: 'm1' },
+  });
   // In the mode the capsule is «выбрать все» and never the door.
   router.push.mockClear();
   await screen.startPicking();
@@ -307,8 +364,10 @@ const asked = (screen: Screen) => ({
   title: screen.sheet().props.title as string,
   meta: screen.sheet().props.meta as string | undefined,
 });
-const deletes = (log: Asked[]) => log.filter((one) => one.method === 'DELETE').map((one) => one.path.split('/').pop());
-const notice = (screen: Screen) => screen.root.findAllByType(Banner).map((one) => one.props.text as string);
+const deletes = (log: Asked[]) =>
+  log.filter((one) => one.method === 'DELETE').map((one) => one.path.split('/').pop());
+const notice = (screen: Screen) =>
+  screen.root.findAllByType(Banner).map((one) => one.props.text as string);
 
 test('the organizer deletes an armful: the sheet counts it, the requests go one by one, the feed loses exactly those', async () => {
   const w = world();
@@ -317,7 +376,11 @@ test('the organizer deletes an armful: the sheet counts it, the requests go one 
   await screen.pressCapsule();
   expect(asked(screen).visible).toBe(false);
   await screen.press(screen.icon(ru.action.delete));
-  expect(asked(screen)).toEqual({ visible: true, title: ru.gallery.deleteAskMany(4), meta: undefined });
+  expect(asked(screen)).toEqual({
+    visible: true,
+    title: ru.gallery.deleteAskMany(4),
+    meta: undefined,
+  });
   // Asking is not doing: nothing has gone yet.
   expect(deletes(w.log)).toEqual([]);
 
@@ -325,7 +388,9 @@ test('the organizer deletes an armful: the sheet counts it, the requests go one 
   expect(deletes(w.log)).toEqual(['a', 'b', 'c', 'e']);
   // What went is off the feed without the gallery having been read again; what was never marked stays.
   expect(screen.feed()).toEqual(['d']);
-  expect(w.log.filter((one) => one.method === 'GET' && one.path.endsWith('/media'))).toHaveLength(1);
+  expect(w.log.filter((one) => one.method === 'GET' && one.path.endsWith('/media'))).toHaveLength(
+    1,
+  );
   expect(asked(screen).visible).toBe(false);
   expect(notice(screen)).toEqual([]);
   // The marks of what is gone are gone: the capsule counts what is there.
@@ -374,7 +439,9 @@ test('a refusal in the middle stops the run, says why, and what went before it h
 
 test('no connection while deleting is said in its own words, and nothing leaves the feed', async () => {
   const w = world();
-  w.log = serve((one) => (one.method === 'DELETE' ? 'offline' : one.path.endsWith('/members') ? w.members : w.media));
+  w.log = serve((one) =>
+    one.method === 'DELETE' ? 'offline' : one.path.endsWith('/members') ? w.members : w.media,
+  );
   const screen = await open();
   await screen.startPicking();
   await screen.tap('a');
@@ -438,7 +505,11 @@ test('the organizer deletes anybody’s, the api being the one to say otherwise'
   await screen.startPicking();
   await screen.tap('b', 'c');
   await screen.press(screen.icon(ru.action.delete));
-  expect(asked(screen)).toEqual({ visible: true, title: ru.gallery.deleteAskMany(2), meta: undefined });
+  expect(asked(screen)).toEqual({
+    visible: true,
+    title: ru.gallery.deleteAskMany(2),
+    meta: undefined,
+  });
   await act(async () => screen.sheet().props.onConfirm());
   expect(deletes(w.log)).toEqual(['b', 'c']);
 });
@@ -451,7 +522,9 @@ test('a memory with nothing in it is the empty sign and one action, with no pick
   expect(screen.button(ru.gallery.add)()).toBeDefined();
   // No select button at all, and neither of the two round ones.
   for (const label of [ru.gallery.select, ru.gallery.filters, ru.gallery.sorting]) {
-    expect(screen.root.findAllByType(IconButton).filter((one) => one.props.label === label)).toHaveLength(0);
+    expect(
+      screen.root.findAllByType(IconButton).filter((one) => one.props.label === label),
+    ).toHaveLength(0);
   }
   expect(screen.capsule().meta).toContain(ru.memory.nothingYet);
 });
@@ -462,7 +535,9 @@ test('and for somebody who may only look at it there is no bottom layer at all',
   const screen = await open();
   expect(screen.root.findAllByType(Empty)).toHaveLength(1);
   expect(screen.root.findAllByType(Button)).toHaveLength(0);
-  expect(screen.root.findAllByType(IconButton).filter((one) => one.props.label === ru.gallery.filters)).toHaveLength(0);
+  expect(
+    screen.root.findAllByType(IconButton).filter((one) => one.props.label === ru.gallery.filters),
+  ).toHaveLength(0);
 });
 
 /**
@@ -474,10 +549,17 @@ const filterSheet = (screen: Screen) => screen.root.findByType(FilterSheet);
 const openSort = (screen: Screen) => screen.press(screen.icon(ru.gallery.sorting));
 const openFilter = (screen: Screen) => screen.press(screen.icon(ru.gallery.filters));
 /** A control of a sheet, found by the name it answers to. */
-const control = (sheet: TestRenderer.ReactTestInstance, type: typeof Chip | typeof RowToggle | typeof Button, name: string) =>
+const control = (
+  sheet: TestRenderer.ReactTestInstance,
+  type: typeof Chip | typeof RowToggle | typeof Button,
+  name: string,
+) =>
   sheet.findAllByType(type as never).find((one) => (one.props.label ?? one.props.name) === name)!;
 const segment = (sheet: TestRenderer.ReactTestInstance, name: string) =>
-  sheet.findAll((one) => typeof one.props.onChange === 'function' && one.props.label === name && one.props.options)[0]!;
+  sheet.findAll(
+    (one) =>
+      typeof one.props.onChange === 'function' && one.props.label === name && one.props.options,
+  )[0]!;
 /** A choice made on a sheet, through the same prop the finger's press lands on. */
 const choose = (on: () => TestRenderer.ReactTestInstance, value: unknown) =>
   act(async () => on().props.onChange(value));
@@ -495,7 +577,9 @@ test('turning the dates on writes each day over its strip, and the round button 
   expect(screen.icon(ru.gallery.sorting)().props.dot).toBe(false);
 
   await openSort(screen);
-  await act(async () => control(sortSheet(screen), RowToggle, ru.gallery.datesBetween).props.onValueChange(true));
+  await act(async () =>
+    control(sortSheet(screen), RowToggle, ru.gallery.datesBetween).props.onValueChange(true),
+  );
   // A seam per day, newest first, the day and its name and never the year; a day carries no count.
   expect(seamsOf(screen)).toEqual([
     { label: '13 сентября, воскресенье', count: undefined },
@@ -512,7 +596,9 @@ test('turning the dates on writes each day over its strip, and the round button 
   expect(screen.seams()).toHaveLength(3);
   // And off again it is the default, and the dot goes with it.
   await openSort(screen);
-  await act(async () => control(sortSheet(screen), RowToggle, ru.gallery.datesBetween).props.onValueChange(false));
+  await act(async () =>
+    control(sortSheet(screen), RowToggle, ru.gallery.datesBetween).props.onValueChange(false),
+  );
   expect(screen.seams()).toHaveLength(0);
   expect(screen.icon(ru.gallery.sorting)().props.dot).toBe(false);
 });
@@ -521,7 +607,9 @@ test('«Сначала старые» turns the whole feed around, the days and 
   world();
   const screen = await open();
   await openSort(screen);
-  await act(async () => control(sortSheet(screen), RowToggle, ru.gallery.datesBetween).props.onValueChange(true));
+  await act(async () =>
+    control(sortSheet(screen), RowToggle, ru.gallery.datesBetween).props.onValueChange(true),
+  );
   await choose(() => segment(sortSheet(screen), ru.gallery.order), 'oldest');
   expect(screen.feed()).toEqual(['e', 'd', 'c', 'b', 'a']);
   expect(seamsOf(screen).map((one) => one.label)).toEqual([
@@ -559,19 +647,27 @@ test('by people the seam is a person: their circle, the organizer’s ringed, th
 });
 
 test('while picking a seam is a switch over its own day: it counts what a tap could mark, takes it, and gives it back', async () => {
-  const w = world({ media: [...frames(), { ...developing('x', 'me', at(10)), thumbnail_url: 'https://r2.example/x' }] });
+  const w = world({
+    media: [
+      ...frames(),
+      { ...developing('x', 'me', at(10)), thumbnail_url: 'https://r2.example/x' },
+    ],
+  });
   void w;
   const screen = await open();
   await openSort(screen);
-  await act(async () => control(sortSheet(screen), RowToggle, ru.gallery.datesBetween).props.onValueChange(true));
+  await act(async () =>
+    control(sortSheet(screen), RowToggle, ru.gallery.datesBetween).props.onValueChange(true),
+  );
   await act(async () => sortSheet(screen).props.onDone());
   await screen.startPicking();
-  const seams = () => screen.seams().map((one) => ({
-    count: one.props.count as string,
-    picked: one.props.picked as boolean,
-    press: one.props.pressLabel as string,
-    live: one.props.onPress !== undefined,
-  }));
+  const seams = () =>
+    screen.seams().map((one) => ({
+      count: one.props.count as string,
+      picked: one.props.picked as boolean,
+      press: one.props.pressLabel as string,
+      live: one.props.onPress !== undefined,
+    }));
   // 13th: a and b. 12th: c — d is still developing and is no part of «все». 11th: e. 10th: only x,
   // which is developing, so there is nothing to take and the band does not answer.
   expect(seams()).toEqual([
@@ -696,7 +792,11 @@ test('«Другая дата» opens the calendar; a day picked on it is a chip
   await act(async () => calendar().props.onPick(new Date(2026, 8, 11)));
   expect(apply().props.label).toBe(ru.gallery.nothingMatched);
   await act(async () => calendar().props.onPick(new Date(2026, 8, 5)));
-  expect(filterSheet(screen).findAllByType(Chip).filter((one) => one.props.label === '5 сент')).toHaveLength(0);
+  expect(
+    filterSheet(screen)
+      .findAllByType(Chip)
+      .filter((one) => one.props.label === '5 сент'),
+  ).toHaveLength(0);
   expect(apply().props.label).toBe(ru.gallery.showAll);
   await act(async () => other().props.onPress());
   expect(filterSheet(screen).findAllByType(Calendar)).toHaveLength(0);
@@ -727,7 +827,10 @@ function measure(screen: Screen, { header = 300, content = 2400, view = 844 } = 
     // The films block and the heading over the frames stand in one view that measures itself; of
     // everything that listens for a layout and has the heading inside it, that is the innermost.
     screen.root
-      .findAll((one) => typeof one.props.onLayout === 'function' && one.findAllByType(BlockHead).length > 0)
+      .findAll(
+        (one) =>
+          typeof one.props.onLayout === 'function' && one.findAllByType(BlockHead).length > 0,
+      )
       .at(-1)!
       .props.onLayout({ nativeEvent: { layout: { height: header } } });
     const list = screen.root.findByType(FlatList);
@@ -735,7 +838,10 @@ function measure(screen: Screen, { header = 300, content = 2400, view = 844 } = 
     list.props.onLayout({ nativeEvent: { layout: { height: view } } });
   });
 }
-const spine = (screen: Screen) => screen.root.findAllByType(DateSpine).flatMap((one) => one.props.marks as { label: string; top: number }[]);
+const spine = (screen: Screen) =>
+  screen.root
+    .findAllByType(DateSpine)
+    .flatMap((one) => one.props.marks as { label: string; top: number }[]);
 
 test('a feed longer than the screen has a spine with a pill on the seam where a day begins, and none on a shared seam', async () => {
   world();
@@ -786,9 +892,13 @@ test('with the dates written between the days, or the feed cut by people or by k
   await measure(screen);
   expect(spine(screen)).toHaveLength(2);
   await openSort(screen);
-  await act(async () => control(sortSheet(screen), RowToggle, ru.gallery.datesBetween).props.onValueChange(true));
+  await act(async () =>
+    control(sortSheet(screen), RowToggle, ru.gallery.datesBetween).props.onValueChange(true),
+  );
   expect(spine(screen)).toEqual([]);
-  await act(async () => control(sortSheet(screen), RowToggle, ru.gallery.datesBetween).props.onValueChange(false));
+  await act(async () =>
+    control(sortSheet(screen), RowToggle, ru.gallery.datesBetween).props.onValueChange(false),
+  );
   expect(spine(screen)).toHaveLength(2);
   await choose(() => segment(sortSheet(screen), ru.gallery.groupBy), 'person');
   expect(spine(screen)).toEqual([]);
@@ -808,7 +918,14 @@ test('read oldest first the spine reads the same way down: the marks follow the 
 });
 
 test('one day of material is one pill, and a feed of one day needs no more', async () => {
-  world({ media: [photo('a', 'me', at(13, 10)), photo('b', 'me', at(13, 11)), photo('c', 'me', at(13, 12)), photo('d', 'me', at(13, 13))] });
+  world({
+    media: [
+      photo('a', 'me', at(13, 10)),
+      photo('b', 'me', at(13, 11)),
+      photo('c', 'me', at(13, 12)),
+      photo('d', 'me', at(13, 13)),
+    ],
+  });
   const screen = await open();
   await measure(screen);
   expect(spine(screen).map((one) => one.label)).toEqual(['13 сент']);
@@ -819,9 +936,13 @@ test('one day of material is one pill, and a feed of one day needs no more', asy
  * quietly. Fake timers stand for those seconds; nothing else about the clock is touched.
  */
 const SECONDS = 3000;
-const clock = () => vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] });
+const clock = () =>
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] });
 const wait = (ms: number) => act(async () => void vi.advanceTimersByTime(ms));
-const stillDeveloping = (id: string, day: number) => ({ ...developing(id, 'me', at(day, 14)), thumbnail_url: null });
+const stillDeveloping = (id: string, day: number) => ({
+  ...developing(id, 'me', at(day, 14)),
+  thumbnail_url: null,
+});
 
 test('a quiet read that was in the air when frames were deleted does not put them back', async () => {
   clock();
@@ -905,13 +1026,22 @@ test('a quiet read that fails is silent: the feed stays as it was, and the loop 
   }
 });
 
-const spineLayer = (screen: Screen) => screen.root.findAll((one) => one.props.pointerEvents !== undefined && one.findAllByType(DateSpine).length > 0)[0];
+const spineLayer = (screen: Screen) =>
+  screen.root.findAll(
+    (one) => one.props.pointerEvents !== undefined && one.findAllByType(DateSpine).length > 0,
+  )[0];
 /** The strip at the right edge a finger takes hold of — a view with the responder handlers and its own width. */
 const grabber = (screen: Screen) =>
-  screen.root.findAll((one) => typeof one.props.onResponderGrant === 'function' && JSON.stringify(one.props.style ?? '').includes('"width":32'))[0];
+  screen.root.findAll(
+    (one) =>
+      typeof one.props.onResponderGrant === 'function' &&
+      JSON.stringify(one.props.style ?? '').includes('"width":32'),
+  )[0];
 
 test('dragging the spine throws the feed to where the finger stands on it, held inside the strip at either end', async () => {
-  const scrollToOffset = vi.spyOn(FlatList.prototype, 'scrollToOffset').mockImplementation(() => {});
+  const scrollToOffset = vi
+    .spyOn(FlatList.prototype, 'scrollToOffset')
+    .mockImplementation(() => {});
   try {
     world();
     const screen = await open();
@@ -920,7 +1050,8 @@ test('dragging the spine throws the feed to where the finger stands on it, held 
     // The strip is the right edge between the two glasses: from under the bar to above the bottom layer.
     const top = height.roundViewer;
     const span = 844 - board.footerGallery - top;
-    const finger = (pageY: number) => act(async () => grabber(screen).props.onResponderGrant(touch({ y: pageY })));
+    const finger = (pageY: number) =>
+      act(async () => grabber(screen).props.onResponderGrant(touch({ y: pageY })));
     await finger(top + span / 2);
     expect(scrollToOffset).toHaveBeenLastCalledWith({ offset: reach / 2, animated: false });
     await finger(top + span / 4);
@@ -931,7 +1062,11 @@ test('dragging the spine throws the feed to where the finger stands on it, held 
     await finger(5000);
     expect(scrollToOffset).toHaveBeenLastCalledWith({ offset: reach, animated: false });
     // A drag carries on from the press: each move is where the feed goes.
-    await act(async () => grabber(screen).props.onResponderMove(touch({ y: top + span * 0.75, fromY: top + span * 0.5 })));
+    await act(async () =>
+      grabber(screen).props.onResponderMove(
+        touch({ y: top + span * 0.75, fromY: top + span * 0.5 }),
+      ),
+    );
     expect(scrollToOffset).toHaveBeenLastCalledWith({ offset: reach * 0.75, animated: false });
   } finally {
     scrollToOffset.mockRestore();
@@ -939,7 +1074,9 @@ test('dragging the spine throws the feed to where the finger stands on it, held 
 });
 
 test('the spine answers a finger only while it can be seen: a touch brings it up, and a second after the last one it goes', async () => {
-  const scrollToOffset = vi.spyOn(FlatList.prototype, 'scrollToOffset').mockImplementation(() => {});
+  const scrollToOffset = vi
+    .spyOn(FlatList.prototype, 'scrollToOffset')
+    .mockImplementation(() => {});
   clock();
   try {
     world();
@@ -967,7 +1104,11 @@ test('the spine answers a finger only while it can be seen: a touch brings it up
  * side (`@/lib/downloads`) is stood in for and its calls are noted; what is read is which files it was
  * asked about, in what order, what the screen said while it went and after, and what was shut.
  */
-const original = (id: string, kind: 'photo' | 'video' = 'photo') => ({ id, kind, url: `https://r2.example/original/${id}` });
+const original = (id: string, kind: 'photo' | 'video' = 'photo') => ({
+  id,
+  kind,
+  url: `https://r2.example/original/${id}`,
+});
 const download = (screen: Screen) => screen.footer().download;
 const said = (screen: Screen) => notice(screen);
 const downloadButton = (screen: Screen, n: number) => () =>
@@ -987,7 +1128,10 @@ test('downloading takes what is marked, and only that: the grant, the links, the
   expect(downloads.maySaveToPhone).toHaveBeenCalledTimes(1);
   expect(w.log.filter((one) => one.path === '/memories/m1/media/download')).toHaveLength(1);
   // The links come in the gallery's own order — «a» before «c» — and only the two marked are saved.
-  expect(downloads.saveToPhone.mock.calls.map((call) => call[0])).toEqual([original('a'), original('c')]);
+  expect(downloads.saveToPhone.mock.calls.map((call) => call[0])).toEqual([
+    original('a'),
+    original('c'),
+  ]);
   expect(seen).toEqual([
     { id: 'a', off: true },
     { id: 'c', off: true },
@@ -1002,7 +1146,9 @@ test('while each file comes down the screen says which of how many it is, and th
   await screen.startPicking();
   await screen.tap('a', 'b', 'c');
   const gates = [later<void>(), later<void>(), later<void>()];
-  downloads.saveToPhone.mockImplementation(() => gates[downloads.saveToPhone.mock.calls.length - 1].promise);
+  downloads.saveToPhone.mockImplementation(
+    () => gates[downloads.saveToPhone.mock.calls.length - 1].promise,
+  );
   await act(async () => void downloadButton(screen, 3)().props.onPress());
   expect(said(screen)).toEqual([ru.save.nth(1, 3)]);
   expect(download(screen).disabled).toBe(true);
@@ -1019,7 +1165,15 @@ test('while each file comes down the screen says which of how many it is, and th
 test('while frames are being deleted every button of the mode is shut, and they open again when the run is over', async () => {
   const gate = later<unknown>();
   const w = world();
-  w.log = serve((asked) => (asked.method === 'DELETE' ? gate.promise : asked.path.endsWith('/members') ? w.members : asked.path.endsWith('/labels') ? [] : w.media));
+  w.log = serve((asked) =>
+    asked.method === 'DELETE'
+      ? gate.promise
+      : asked.path.endsWith('/members')
+        ? w.members
+        : asked.path.endsWith('/labels')
+          ? []
+          : w.media,
+  );
   const screen = await open();
   await screen.startPicking();
   await screen.tap('a');
@@ -1069,7 +1223,15 @@ test('links the api would not sign are the api’s own words, and any other fail
   await screen.tap('a');
   await screen.press(downloadButton(screen, 1));
   expect(said(screen)).toEqual(['no bucket']);
-  w.log = serve((asked) => (asked.path.endsWith('/download') ? 'offline' : asked.path.endsWith('/members') ? w.members : asked.path.endsWith('/labels') ? [] : w.media));
+  w.log = serve((asked) =>
+    asked.path.endsWith('/download')
+      ? 'offline'
+      : asked.path.endsWith('/members')
+        ? w.members
+        : asked.path.endsWith('/labels')
+          ? []
+          : w.media,
+  );
   await screen.press(downloadButton(screen, 1));
   // No connection is not an api answer, so it is the screen’s own line about saving.
   expect(said(screen)).toEqual([ru.save.failedAll]);
@@ -1157,7 +1319,15 @@ test('until the first read answers the feed is waiting and not empty; then it is
 
 test('a read that fails is a banner in place of the feed with a way to try again, and the try is a loud read', async () => {
   let up = false;
-  serve((asked) => (!up ? 'offline' : asked.path.endsWith('/members') ? roster() : asked.path.endsWith('/labels') ? [] : frames()));
+  serve((asked) =>
+    !up
+      ? 'offline'
+      : asked.path.endsWith('/members')
+        ? roster()
+        : asked.path.endsWith('/labels')
+          ? []
+          : frames(),
+  );
   const screen = await open();
   expect(notice(screen)).toEqual([ru.error.offline]);
   expect(screen.root.findAllByType(Empty)).toHaveLength(0);
@@ -1178,7 +1348,15 @@ test('a pull that failed over frames already on screen does not come back as the
   await screen.pull();
   expect(screen.feed()).toEqual(['a']);
   // Then the last frame goes. What is on screen now is an empty feed, and it says so.
-  w.log = serve((asked) => (asked.method === 'DELETE' ? { ok: true } : asked.path.endsWith('/members') ? w.members : asked.path.endsWith('/labels') ? [] : w.media));
+  w.log = serve((asked) =>
+    asked.method === 'DELETE'
+      ? { ok: true }
+      : asked.path.endsWith('/members')
+        ? w.members
+        : asked.path.endsWith('/labels')
+          ? []
+          : w.media,
+  );
   await screen.startPicking();
   await screen.tap('a');
   await screen.press(screen.icon(ru.action.delete));
@@ -1205,7 +1383,10 @@ test('each tile is called out in the line it is drawn with, and a video says how
       photo('clip', 'me', at(13, 9), { kind: 'video', duration_seconds: 12 }),
       photo('bare', 'me', at(13, 8), { kind: 'video', duration_seconds: null }),
       { ...developing('wait', 'me', at(13, 7)), thumbnail_url: 'https://r2.example/wait' },
-      photo('lost', 'me', at(13, 6), { status: 'failed', thumbnail_url: 'https://r2.example/lost' }),
+      photo('lost', 'me', at(13, 6), {
+        status: 'failed',
+        thumbnail_url: 'https://r2.example/lost',
+      }),
       // Ready, and nothing was ever made for it: drawn as a fallen frame, and told as one.
       photo('empty', 'me', at(13, 5), { thumbnail_url: null }),
     ],
@@ -1220,16 +1401,35 @@ test('each tile is called out in the line it is drawn with, and a video says how
     `${ru.media.photo}, ${ru.gallery.waiting.failed}`,
     `${ru.media.photo}, ${ru.gallery.waiting.ready}`,
   ]);
-  expect(tiles().map((one) => one.state)).toEqual(['ready', 'ready', 'ready', 'processing', 'failed', 'failed']);
+  expect(tiles().map((one) => one.state)).toEqual([
+    'ready',
+    'ready',
+    'ready',
+    'processing',
+    'failed',
+    'failed',
+  ]);
   // A video is marked in the corner by its length, and one that came without says the word instead.
-  expect(tiles().map((one) => one.length)).toEqual([undefined, '0:12', ru.media.video, undefined, undefined, undefined]);
+  expect(tiles().map((one) => one.length)).toEqual([
+    undefined,
+    '0:12',
+    ru.media.video,
+    undefined,
+    undefined,
+    undefined,
+  ]);
 });
 
 test('the capsule says the days of the event and how many are in the memory, and before the memory is read only what is known', async () => {
   world();
   const screen = await open({ memory: memory({ member_count: 3 }), error: null, reload: () => {} });
-  expect(screen.capsule()).toEqual({ title: 'Свадьба Лизы и Марка', meta: `12–13 сентября · ${ru.memory.people(3)}` });
-  expect(screen.root.findByType(GlassBar).props.capsuleLabel).toBe(ru.memory.settings('Свадьба Лизы и Марка'));
+  expect(screen.capsule()).toEqual({
+    title: 'Свадьба Лизы и Марка',
+    meta: `12–13 сентября · ${ru.memory.people(3)}`,
+  });
+  expect(screen.root.findByType(GlassBar).props.capsuleLabel).toBe(
+    ru.memory.settings('Свадьба Лизы и Марка'),
+  );
 
   vi.unstubAllGlobals();
   world();
@@ -1239,12 +1439,22 @@ test('the capsule says the days of the event and how many are in the memory, and
 });
 
 test('while picking the capsule is read out as the count and the way it is pressed, and a selection with no known weight says only what it is made of', async () => {
-  world({ media: [photo('a', 'me', at(13, 10), { size_bytes: '' }), photo('b', 'me', at(13, 9), { kind: 'video', size_bytes: '' })] });
+  world({
+    media: [
+      photo('a', 'me', at(13, 10), { size_bytes: '' }),
+      photo('b', 'me', at(13, 9), { kind: 'video', size_bytes: '' }),
+    ],
+  });
   const screen = await open();
   await screen.startPicking();
   await screen.tap('a');
-  expect(screen.root.findByType(GlassBar).props.capsuleLabel).toBe(`${ru.gallery.picked(1)}. ${ru.gallery.selectAll}`);
-  expect(screen.capsule()).toEqual({ title: ru.gallery.picked(1), meta: ru.gallery.pickedKinds(1, 0) });
+  expect(screen.root.findByType(GlassBar).props.capsuleLabel).toBe(
+    `${ru.gallery.picked(1)}. ${ru.gallery.selectAll}`,
+  );
+  expect(screen.capsule()).toEqual({
+    title: ru.gallery.picked(1),
+    meta: ru.gallery.pickedKinds(1, 0),
+  });
   await screen.tap('b');
   expect(screen.capsule().meta).toBe(ru.gallery.pickedKinds(1, 1));
 });
@@ -1270,7 +1480,13 @@ test('a tap opens the frame in the window, which is handed the feed’s own row 
   expect(opened(screen)).toBeUndefined();
   await screen.press(screen.tile('b'));
   expect(opened(screen).props.item.id).toBe('b');
-  expect(opened(screen).props.frames.map((one: MediaItem) => one.id)).toEqual(['a', 'b', 'c', 'd', 'e']);
+  expect(opened(screen).props.frames.map((one: MediaItem) => one.id)).toEqual([
+    'a',
+    'b',
+    'c',
+    'd',
+    'e',
+  ]);
   expect(opened(screen).props.roster.map((one: Member) => one.id)).toEqual(['me', 'liza']);
   expect(opened(screen).props.memoryId).toBe('m1');
   // Walked from inside the window, it follows.
@@ -1287,7 +1503,13 @@ test('the strip under the window reads the way the feed does: oldest first is ol
   await choose(() => segment(sortSheet(screen), ru.gallery.order), 'oldest');
   await act(async () => sortSheet(screen).props.onDone());
   await screen.press(screen.tile('b'));
-  expect(opened(screen).props.frames.map((one: MediaItem) => one.id)).toEqual(['e', 'd', 'c', 'b', 'a']);
+  expect(opened(screen).props.frames.map((one: MediaItem) => one.id)).toEqual([
+    'e',
+    'd',
+    'c',
+    'b',
+    'a',
+  ]);
   await act(async () => opened(screen).props.onClose());
 
   await openFilter(screen);
@@ -1324,7 +1546,9 @@ test('the window is handed the line each frame is called out as, the same one th
   await screen.press(screen.tile('a'));
   const [a] = frames();
   expect(opened(screen).props.nameOf(a, frameOf(a), false)).toBe(ru.media.photo);
-  expect(opened(screen).props.nameOf(a, frameOf(a), true)).toBe(`${ru.media.photo}, ${ru.gallery.open}`);
+  expect(opened(screen).props.nameOf(a, frameOf(a), true)).toBe(
+    `${ru.media.photo}, ${ru.gallery.open}`,
+  );
   // Deleted by somebody else while it is open: the next read has no such frame, and the window is gone.
   w.media = w.media.filter((one) => one.id !== 'a');
   await screen.pull();
@@ -1353,7 +1577,10 @@ test('a quiet read that began before a frame was taken out from the window does 
 });
 
 test('a label the filter holds stays on it when the labels are read again, while there are other labels to read', async () => {
-  const boxes = [label({ id: 'best', title: 'Лучшее' }), label({ id: 'mine', title: 'Для себя', shared: false })];
+  const boxes = [
+    label({ id: 'best', title: 'Лучшее' }),
+    label({ id: 'mine', title: 'Для себя', shared: false }),
+  ];
   world({
     labels: boxes,
     media: [
@@ -1403,7 +1630,9 @@ test('while picking the back button is the labels button, and the way out of the
   world();
   const screen = await open();
   await screen.startPicking();
-  expect(screen.root.findAllByType(IconButton).filter((one) => one.props.label === ru.action.back)).toHaveLength(0);
+  expect(
+    screen.root.findAllByType(IconButton).filter((one) => one.props.label === ru.action.back),
+  ).toHaveLength(0);
   expect(screen.icon(ru.gallery.labelsPut)()).toBeDefined();
   await screen.stopPicking();
   expect(screen.icon(ru.action.back)()).toBeDefined();

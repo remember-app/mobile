@@ -61,15 +61,31 @@ vi.mock('react-native', async (importOriginal) => {
   };
 });
 
+import { later, memory, serve } from '@tests/helpers/api';
+import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { Image } from 'expo-image';
 import { FlatList, Linking } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
-
 import UploadScreen from '@/app/memory/[id]/upload';
-import { ActionBar, AppBar, Banner, Button, CardMessage, DayMark, Empty, FEED_GAP, GlassBar, HintNote, IconButton, RowStuck, Sheet, Tile, Upload, Waiting } from '@/kit';
+import {
+  ActionBar,
+  AppBar,
+  Banner,
+  Button,
+  CardMessage,
+  DayMark,
+  Empty,
+  FEED_GAP,
+  GlassBar,
+  HintNote,
+  IconButton,
+  RowStuck,
+  Sheet,
+  Tile,
+  Upload,
+  Waiting,
+} from '@/kit';
 import { ru } from '@/strings';
-import { later, memory, serve } from '@tests/helpers/api';
-import { mounted, mountsTrees } from '@tests/helpers/renderer';
 
 /**
  * `Upload`, «Ваши кадры» (spec 8): the phone's roll drawn the way a memory's feed is, with the mode of
@@ -110,10 +126,22 @@ beforeEach(() => {
   lib.access = { granted: true, canAskAgain: true };
   lib.ask.mockReset();
   lib.getAssetsAsync.mockReset();
-  lib.getAssetsAsync.mockResolvedValue({ assets: roll(), hasNextPage: false, endCursor: undefined });
+  lib.getAssetsAsync.mockResolvedValue({
+    assets: roll(),
+    hasNextPage: false,
+    endCursor: undefined,
+  });
   lib.presentPermissionsPickerAsync.mockReset();
   lib.presentPermissionsPickerAsync.mockResolvedValue(undefined);
-  for (const fn of [uploads.enqueue, uploads.drop, uploads.wake, uploads.answerAskAll, router.back, router.replace]) fn.mockReset();
+  for (const fn of [
+    uploads.enqueue,
+    uploads.drop,
+    uploads.wake,
+    uploads.answerAskAll,
+    router.back,
+    router.replace,
+  ])
+    fn.mockReset();
   router.canGoBack.mockReturnValue(true);
   uploads.queue = [];
   uploads.asking = null;
@@ -128,20 +156,27 @@ async function open() {
     tree = mounted(TestRenderer.create(<UploadScreen />));
   });
   const root = tree.root;
-  const press = (find: () => { props: { onPress?: () => void } }) => act(async () => find().props.onPress?.());
+  const press = (find: () => { props: { onPress?: () => void } }) =>
+    act(async () => find().props.onPress?.());
   const screen = {
     root,
     press,
     /** The screen drawn again — after the queue or the grant was changed under it. */
     redraw: draw,
-    tile: (id: string) => () => root.findAllByType(Tile).find((one) => one.props.uri === `ph://${id}`)!,
+    tile: (id: string) => () =>
+      root.findAllByType(Tile).find((one) => one.props.uri === `ph://${id}`)!,
     /** Which of the marks a frame wears: `off`, `send`, or `undefined` for no circle at all. */
-    mark: (id: string) => root.findAllByType(Tile).find((one) => one.props.uri === `ph://${id}`)!.props.pick as string | undefined,
+    mark: (id: string) =>
+      root.findAllByType(Tile).find((one) => one.props.uri === `ph://${id}`)!.props.pick as
+        | string
+        | undefined,
     tiles: () => root.findAllByType(Tile).map((one) => String(one.props.uri).replace('ph://', '')),
     seams: () => root.findAllByType(DayMark),
     seam: (n: number) => () => root.findAllByType(DayMark)[n],
-    button: (label: string) => root.findAllByType(Button).filter((one) => one.props.label === label),
-    icon: (label: string) => root.findAllByType(IconButton).filter((one) => one.props.label === label),
+    button: (label: string) =>
+      root.findAllByType(Button).filter((one) => one.props.label === label),
+    icon: (label: string) =>
+      root.findAllByType(IconButton).filter((one) => one.props.label === label),
     send: () => root.findAllByType(Button).find((one) => one.props.wide)!,
     text: () => JSON.stringify(tree.toJSON()),
     banners: () => root.findAllByType(Banner).map((one) => one.props.text as string),
@@ -149,7 +184,6 @@ async function open() {
   };
   return screen;
 }
-
 
 test('the roll is cut into days, the event’s own days first, and every day is a seam over its frames three to a row', async () => {
   const screen = await open();
@@ -160,13 +194,19 @@ test('the roll is cut into days, the event’s own days first, and every day is 
     ru.upload.shotOn('12 сентября 2026'),
     ru.upload.shotOn('5 сентября 2026'),
   ]);
-  expect(screen.seams().map((one) => one.props.count)).toEqual([ru.memory.frames(3), ru.memory.frames(2), ru.memory.frames(1)]);
+  expect(screen.seams().map((one) => one.props.count)).toEqual([
+    ru.memory.frames(3),
+    ru.memory.frames(2),
+    ru.memory.frames(1),
+  ]);
   expect(screen.tiles()).toEqual(['a1', 'a2', 'a3', 'b1', 'b2', 'c1']);
   // A video is marked by how long it runs, and a photograph by nothing.
   expect(screen.tile('a2')().props.length).toBe('0:42');
   expect(screen.tile('a1')().props.length).toBeUndefined();
   // The plate over the roll names the memory and when it was.
-  expect(lib.getAssetsAsync).toHaveBeenCalledWith(expect.objectContaining({ mediaType: ['photo', 'video'], sortBy: ['creationTime'] }));
+  expect(lib.getAssetsAsync).toHaveBeenCalledWith(
+    expect.objectContaining({ mediaType: ['photo', 'video'], sortBy: ['creationTime'] }),
+  );
 });
 
 test('the mode of picking is on from the first moment, and the button is there and off until something is marked', async () => {
@@ -225,7 +265,11 @@ test('a seam over a day with one frame marked completes the day instead of clear
 
 test('the seam says how many frames it takes, so «выбрать все» is a number and not a guess', async () => {
   const screen = await open();
-  expect(screen.seams().map((one) => one.props.pressLabel)).toEqual([ru.upload.selectDay(3), ru.upload.selectDay(2), ru.upload.selectDay(1)]);
+  expect(screen.seams().map((one) => one.props.pressLabel)).toEqual([
+    ru.upload.selectDay(3),
+    ru.upload.selectDay(2),
+    ru.upload.selectDay(1),
+  ]);
 });
 
 test('sending hands the marked frames to the queue in the order of the roll, empties the selection, and asks nothing yet', async () => {
@@ -236,7 +280,11 @@ test('sending hands the marked frames to the queue in the order of the roll, emp
   await screen.press(screen.tile('a1'));
   await screen.press(() => screen.send());
   expect(uploads.enqueue).toHaveBeenCalledTimes(1);
-  expect(uploads.enqueue).toHaveBeenCalledWith('m1', [expect.objectContaining({ id: 'a1' }), expect.objectContaining({ id: 'a2' }), expect.objectContaining({ id: 'b1' })]);
+  expect(uploads.enqueue).toHaveBeenCalledWith('m1', [
+    expect.objectContaining({ id: 'a1' }),
+    expect.objectContaining({ id: 'a2' }),
+    expect.objectContaining({ id: 'b1' }),
+  ]);
   // What was handed over is no longer marked, and the button is off again.
   expect(['a1', 'a2', 'b1'].map(screen.mark)).toEqual(['off', 'off', 'off']);
   expect(screen.send().props.disabled).toBe(true);
@@ -251,7 +299,17 @@ test('once everything this visit sent is in and the queue is asking, the sheet c
   await screen.press(() => screen.send());
   // The queue is still working: nothing is asked while anything of this memory is left in it.
   uploads.asking = 'm1';
-  uploads.queue = [{ assetId: 'a1', memoryId: 'm1', filename: 'IMG_a1.HEIC', kind: 'photo', capturedAt: null, durationSeconds: null, parts: {} }];
+  uploads.queue = [
+    {
+      assetId: 'a1',
+      memoryId: 'm1',
+      filename: 'IMG_a1.HEIC',
+      kind: 'photo',
+      capturedAt: null,
+      durationSeconds: null,
+      parts: {},
+    },
+  ];
   await screen.redraw();
   expect(screen.asking().props.visible).toBe(false);
   uploads.queue = [];
@@ -294,7 +352,9 @@ test('while the roll is still coming a seam does not answer, and the count is of
   expect(screen.text()).toContain(ru.upload.picked(1));
   expect(screen.text()).not.toContain(ru.upload.pickedOf(1, 3));
   // The second page comes: the seams answer, and the whole roll is what the count is against.
-  await act(async () => second.settle({ assets: roll().slice(3), hasNextPage: false, endCursor: undefined }));
+  await act(async () =>
+    second.settle({ assets: roll().slice(3), hasNextPage: false, endCursor: undefined }),
+  );
   expect(lib.getAssetsAsync).toHaveBeenLastCalledWith(expect.objectContaining({ after: 'next' }));
   expect(screen.tiles()).toEqual(['a1', 'a2', 'a3', 'b1', 'b2', 'c1']);
   expect(screen.seam(0)().props.onPress).toBeDefined();
@@ -326,7 +386,8 @@ test('with the mode off the circles go, a tap opens the frame as it was shot, an
   for (const id of ['a1', 'b1', 'c1']) expect(screen.mark(id)).toBeUndefined();
   expect(screen.seams().every((one) => one.props.onPress === undefined)).toBe(true);
   expect(screen.root.findAllByType(ActionBar)).toHaveLength(0);
-  const opened = () => screen.root.findAllByType(Image).filter((one) => one.props.contentFit === 'contain');
+  const opened = () =>
+    screen.root.findAllByType(Image).filter((one) => one.props.contentFit === 'contain');
   expect(opened()).toHaveLength(0);
   await screen.press(screen.tile('a2'));
   expect(opened().map((one) => one.props.source.uri)).toEqual(['ph://a2']);
@@ -399,17 +460,49 @@ test('an api that cannot be reached costs only the event window: the roll is cut
 
 test('the event’s days lead the roll even when they are the oldest in it', async () => {
   // The same roll with the event on the 5th instead: that day comes first though it is the oldest.
-  serve((asked) => (asked.path === '/memories' ? [memory({ event_start: new Date(2026, 8, 5).toISOString(), event_end: null })] : undefined));
+  serve((asked) =>
+    asked.path === '/memories'
+      ? [memory({ event_start: new Date(2026, 8, 5).toISOString(), event_end: null })]
+      : undefined,
+  );
   const screen = await open();
   expect(screen.seams().map((one) => one.props.label)[0]).toBe(ru.upload.shotOn('5 сентября 2026'));
 });
 
 test('a queue with something in it says how much is left, and the parked files are named with their reasons and can be let go of', async () => {
   uploads.queue = [
-    { assetId: 'a1', memoryId: 'm1', filename: 'IMG_a1.HEIC', kind: 'photo', capturedAt: null, durationSeconds: null, size: 100, partSize: 50, parts: { 1: 'e' } },
-    { assetId: 'b1', memoryId: 'm1', filename: 'IMG_b1.HEIC', kind: 'photo', capturedAt: null, durationSeconds: null, parts: {}, error: { reason: 'offline' } },
+    {
+      assetId: 'a1',
+      memoryId: 'm1',
+      filename: 'IMG_a1.HEIC',
+      kind: 'photo',
+      capturedAt: null,
+      durationSeconds: null,
+      size: 100,
+      partSize: 50,
+      parts: { 1: 'e' },
+    },
+    {
+      assetId: 'b1',
+      memoryId: 'm1',
+      filename: 'IMG_b1.HEIC',
+      kind: 'photo',
+      capturedAt: null,
+      durationSeconds: null,
+      parts: {},
+      error: { reason: 'offline' },
+    },
     // Somebody else’s memory in the same queue is not this screen’s business.
-    { assetId: 'z9', memoryId: 'other', filename: 'IMG_z9.HEIC', kind: 'photo', capturedAt: null, durationSeconds: null, parts: {}, error: { reason: 'gone' } },
+    {
+      assetId: 'z9',
+      memoryId: 'other',
+      filename: 'IMG_z9.HEIC',
+      kind: 'photo',
+      capturedAt: null,
+      durationSeconds: null,
+      parts: {},
+      error: { reason: 'gone' },
+    },
   ];
   const screen = await open();
   const bar = screen.root.findByType(Upload);
@@ -439,7 +532,11 @@ test('a day is cut into strips of three, whatever the day holds, and every frame
   const day = Array.from({ length: 7 }, (_, i) => asset(`s${i}`, at(13, 8 + i)));
   lib.getAssetsAsync.mockResolvedValue({ assets: day, hasNextPage: false, endCursor: undefined });
   const screen = await open();
-  const rows = screen.root.findByType(FlatList).props.data as { key: string; frames?: { id: string }[]; day?: unknown }[];
+  const rows = screen.root.findByType(FlatList).props.data as {
+    key: string;
+    frames?: { id: string }[];
+    day?: unknown;
+  }[];
   expect(rows.filter((one) => one.frames).map((one) => one.frames!.map((f) => f.id))).toEqual([
     ['s0', 's1', 's2'],
     ['s3', 's4', 's5'],
@@ -466,14 +563,18 @@ test('until the first page comes the roll is being read: one line saying so, no 
 test('a page that lands after the roll was read again is not added to it', async () => {
   lib.access = { granted: true, canAskAgain: true, accessPrivileges: 'limited' };
   const stale = later<unknown>();
-  lib.getAssetsAsync
-    .mockReturnValueOnce(stale.promise)
-    .mockResolvedValue({ assets: [asset('fresh', at(13, 12))], hasNextPage: false, endCursor: undefined });
+  lib.getAssetsAsync.mockReturnValueOnce(stale.promise).mockResolvedValue({
+    assets: [asset('fresh', at(13, 12))],
+    hasNextPage: false,
+    endCursor: undefined,
+  });
   const screen = await open();
   // The wider grant is chosen while the first read is still in the air, and the roll is read from the top.
   await screen.press(() => screen.button(ru.upload.chooseMore)[0]);
   expect(screen.tiles()).toEqual(['fresh']);
-  await act(async () => stale.settle({ assets: [asset('old', at(13, 9))], hasNextPage: false, endCursor: undefined }));
+  await act(async () =>
+    stale.settle({ assets: [asset('old', at(13, 9))], hasNextPage: false, endCursor: undefined }),
+  );
   expect(screen.tiles()).toEqual(['fresh']);
 });
 
@@ -490,7 +591,15 @@ test('one file sent is enough to ask whether that is all, and a partial grant’
 });
 
 test('the block of sending is there only while this memory has something in the queue, and stands at nought when everything of it is parked', async () => {
-  const one = { assetId: 'a1', memoryId: 'm1', filename: 'IMG_a1.HEIC', kind: 'photo', capturedAt: null, durationSeconds: null, parts: {} };
+  const one = {
+    assetId: 'a1',
+    memoryId: 'm1',
+    filename: 'IMG_a1.HEIC',
+    kind: 'photo',
+    capturedAt: null,
+    durationSeconds: null,
+    parts: {},
+  };
   const screen = await open();
   expect(screen.root.findAllByType(Upload)).toHaveLength(0);
   expect(screen.root.findAllByType(RowStuck)).toHaveLength(0);
@@ -500,12 +609,16 @@ test('the block of sending is there only while this memory has something in the 
   expect(screen.root.findByType(Upload).props.meta).toBe(ru.upload.stillToSend(1));
   expect(screen.root.findByType(Upload).props.value).toBe(0);
   // Everything of it parked: the bar has nothing going up to stand at, and the parked file shows its own picture.
-  uploads.queue = [{ ...one, assetId: 'b1', filename: 'IMG_b1.HEIC', error: { reason: 'offline' } }];
+  uploads.queue = [
+    { ...one, assetId: 'b1', filename: 'IMG_b1.HEIC', error: { reason: 'offline' } },
+  ];
   await screen.redraw();
   expect(screen.root.findByType(Upload).props.value).toBe(0);
   expect(screen.root.findByType(RowStuck).props.uri).toBe('ph://b1');
   // A file the phone no longer has is not in the roll, and the row draws a glyph square instead.
-  uploads.queue = [{ ...one, assetId: 'gone', filename: 'IMG_gone.HEIC', error: { reason: 'gone' } }];
+  uploads.queue = [
+    { ...one, assetId: 'gone', filename: 'IMG_gone.HEIC', error: { reason: 'gone' } },
+  ];
   await screen.redraw();
   expect(screen.root.findByType(RowStuck).props.uri).toBeUndefined();
   expect(screen.root.findByType(RowStuck).props.reason).toBe(ru.upload.gone('IMG_gone.HEIC'));
@@ -514,14 +627,22 @@ test('the block of sending is there only while this memory has something in the 
 test('the plate over the roll names the memory and says when it was — and without a memory, or a day that will not read, says less and never a dot alone', async () => {
   const screen = await open();
   expect(screen.root.findByType(GlassBar).props.meta).toBe(ru.upload.into('Свадьба Лизы и Марка'));
-  expect(screen.root.findByType(GlassBar).props.capsuleLabel).toBe(`${ru.upload.title}, ${ru.upload.into('Свадьба Лизы и Марка')}`);
+  expect(screen.root.findByType(GlassBar).props.capsuleLabel).toBe(
+    `${ru.upload.title}, ${ru.upload.into('Свадьба Лизы и Марка')}`,
+  );
 
   // With the roll empty the plain bar takes over, and names the memory and its days under the heading.
   lib.getAssetsAsync.mockResolvedValue({ assets: [], hasNextPage: false, endCursor: undefined });
   const plain = await open();
-  expect(plain.root.findByType(AppBar).props.subtitle).toBe('Свадьба Лизы и Марка · 12–13 сентября');
+  expect(plain.root.findByType(AppBar).props.subtitle).toBe(
+    'Свадьба Лизы и Марка · 12–13 сентября',
+  );
   vi.unstubAllGlobals();
-  serve((asked) => (asked.path === '/memories' ? [memory({ event_start: 'not a day', event_end: null })] : undefined));
+  serve((asked) =>
+    asked.path === '/memories'
+      ? [memory({ event_start: 'not a day', event_end: null })]
+      : undefined,
+  );
   const unreadable = await open();
   expect(unreadable.root.findByType(AppBar).props.subtitle).toBe('Свадьба Лизы и Марка');
   vi.unstubAllGlobals();

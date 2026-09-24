@@ -3,26 +3,7 @@ import { CalendarDays, Lock, X } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { memberName, type FrameInfo, type Label } from '@/api';
-import {
-  formatDay,
-  formatDayShort,
-  formatDayTiny,
-  formatMonth,
-  formatRuntime,
-  startOfDay,
-  weekdayLetters,
-} from '@/lib/dates';
-import {
-  FILTER_NONE,
-  filtering,
-  frameFacts,
-  type Filter,
-  type GroupBy,
-  type Order,
-  type Sort,
-} from '@/lib/frames';
-import { usePlaceName } from '@/lib/geocoder';
+import { type FrameInfo, type Label, memberName } from '@/api';
 import {
   Avatar,
   Banner,
@@ -37,6 +18,25 @@ import {
   Spinner,
   Text,
 } from '@/kit';
+import {
+  formatDay,
+  formatDayShort,
+  formatDayTiny,
+  formatMonth,
+  formatRuntime,
+  startOfDay,
+  weekdayLetters,
+} from '@/lib/dates';
+import {
+  FILTER_NONE,
+  type Filter,
+  filtering,
+  frameFacts,
+  type GroupBy,
+  type Order,
+  type Sort,
+} from '@/lib/frames';
+import { usePlaceName } from '@/lib/geocoder';
 import { labelTint } from '@/lib/labels';
 import { useStrings } from '@/lib/language';
 import { radius, space, themed, useTheme } from '@/theme';
@@ -129,8 +129,10 @@ export function FilterSheet({
    */
   const offered = useMemo(() => {
     const held = new Set(days.map((day) => day.at));
-    return [...days, ...[...draft.days].filter((at) => !held.has(at)).map((at) => ({ at, count: 0 }))]
-      .sort((a, b) => b.at - a.at);
+    return [
+      ...days,
+      ...[...draft.days].filter((at) => !held.has(at)).map((at) => ({ at, count: 0 })),
+    ].sort((a, b) => b.at - a.at);
   }, [days, draft.days]);
   /** Which day the calendar stands open on: the latest one chosen, else this month. */
   const latest = draft.days.size === 0 ? null : new Date(Math.max(...draft.days));
@@ -165,7 +167,11 @@ export function FilterSheet({
         <Button
           variant="primary"
           label={
-            shown === 0 ? s.gallery.nothingMatched : chosen ? s.gallery.show(shown) : s.gallery.showAll
+            shown === 0
+              ? s.gallery.nothingMatched
+              : chosen
+                ? s.gallery.show(shown)
+                : s.gallery.showAll
           }
           disabled={shown === 0}
           onPress={() => onApply(draft)}
@@ -414,9 +420,7 @@ export function FrameInfoSheet({
       onCancel={onClose}
       head={
         <View style={styles.head}>
-          {thumb ? (
-            <Image source={{ uri: thumb }} contentFit="cover" style={styles.thumb} />
-          ) : null}
+          {thumb ? <Image source={{ uri: thumb }} contentFit="cover" style={styles.thumb} /> : null}
           <View style={styles.headWords}>
             <Text role="section" numberOfLines={1} accessibilityRole="header">
               {title}

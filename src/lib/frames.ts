@@ -1,13 +1,13 @@
 import {
   ApiError,
-  memberName,
   type FrameInfo,
   type MediaItem,
   type Member,
   type Memory,
+  memberName,
 } from '@/api';
-import { formatEventDates, startOfDay } from '@/lib/dates';
 import type { TileState } from '@/kit/tile';
+import { formatEventDates, startOfDay } from '@/lib/dates';
 import { currentLanguage } from '@/lib/language';
 import type { Strings } from '@/strings';
 
@@ -179,10 +179,7 @@ export function toggleEvery(
  * whole strip is taken the same press puts it back. It is the strip's own gesture and touches
  * nothing else — what is marked under another heading stays marked either way.
  */
-export function toggleDay(
-  markable: readonly MediaItem[],
-  have: ReadonlySet<string>,
-): Set<string> {
+export function toggleDay(markable: readonly MediaItem[], have: ReadonlySet<string>): Set<string> {
   const next = new Set(have);
   const whole = allTaken(markable, have);
   for (const item of markable) {

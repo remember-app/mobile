@@ -3,22 +3,21 @@ import { afterEach, expect, test, vi } from 'vitest';
 
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
 
+import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { Pressable, View } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
-
+import { CardMemory } from '@/kit/card-memory';
+import { CardMontage, CardMontageNew } from '@/kit/card-montage';
 import { ChoiceCard } from '@/kit/choice';
 import { DayMark } from '@/kit/daymark';
 import { ActionMenu } from '@/kit/menu';
 import { Palette } from '@/kit/palette';
 import { RowAction } from '@/kit/rows';
 import { Segment } from '@/kit/segment';
-import { CardMemory } from '@/kit/card-memory';
-import { CardMontage, CardMontageNew } from '@/kit/card-montage';
+import { LengthSlider } from '@/kit/slider';
 import { Tile } from '@/kit/tile';
 import { RowToggle, Toggle } from '@/kit/toggle';
-import { LengthSlider } from '@/kit/slider';
 import { labelColors, themes } from '@/theme';
-import { mounted, mountsTrees } from '@tests/helpers/renderer';
 
 /**
  * What the new parts of the kit do when they are pressed. Their states are stories (`*.test.tsx`
@@ -40,10 +39,28 @@ const draw = async (node: React.ReactElement) => {
 
 test('a colour of the palette hands its own colour over, and only the chosen one is a chosen radio', async () => {
   const colors = labelColors(themes.dark);
-  const names = ['жёлтый', 'розовый', 'красный', 'зелёный', 'голубой', 'фиолетовый', 'кислотный', 'серый'];
+  const names = [
+    'жёлтый',
+    'розовый',
+    'красный',
+    'зелёный',
+    'голубой',
+    'фиолетовый',
+    'кислотный',
+    'серый',
+  ];
   const said: string[] = [];
-  const root = await draw(<Palette colors={colors} names={names} value={colors[2]} onChange={(c) => said.push(c)} label="Цвет" />);
-  const swatch = (name: string) => root.findAllByType(Pressable).find((one) => one.props.accessibilityLabel === name)!;
+  const root = await draw(
+    <Palette
+      colors={colors}
+      names={names}
+      value={colors[2]}
+      onChange={(c) => said.push(c)}
+      label="Цвет"
+    />,
+  );
+  const swatch = (name: string) =>
+    root.findAllByType(Pressable).find((one) => one.props.accessibilityLabel === name)!;
   await act(async () => swatch('зелёный').props.onPress());
   await act(async () => swatch('жёлтый').props.onPress());
   // Each circle says which colour it is by the colour itself — not by its place in the row.
@@ -56,7 +73,15 @@ test('a colour of the palette hands its own colour over, and only the chosen one
 
 test('a choice card presses once for one thing, and a read-only one is not a control', async () => {
   let pressed = 0;
-  const live = await draw(<ChoiceCard icon={Users} title="Общий" note="видят все участники" selected onPress={() => pressed++} />);
+  const live = await draw(
+    <ChoiceCard
+      icon={Users}
+      title="Общий"
+      note="видят все участники"
+      selected
+      onPress={() => pressed++}
+    />,
+  );
   await act(async () => live.findByType(Pressable).props.onPress());
   expect(pressed).toBe(1);
   expect(live.findByType(Pressable).props['aria-checked']).toBe(true);
@@ -64,24 +89,38 @@ test('a choice card presses once for one thing, and a read-only one is not a con
   expect(other.findByType(Pressable).props['aria-checked']).toBe(false);
 
   // Read-only: nothing in it to press, and nothing that could be read as chosen or not.
-  const fixed = await draw(<ChoiceCard icon={Users} title="Общий" readOnly onPress={() => pressed++} />);
+  const fixed = await draw(
+    <ChoiceCard icon={Users} title="Общий" readOnly onPress={() => pressed++} />,
+  );
   expect(fixed.findAllByType(Pressable)).toHaveLength(0);
   expect(fixed.findByType(View).props.accessibilityRole).toBe('text');
 });
 
 test('a seam that picks is a checkbox that says whether its day is taken, and one that does not is not a control', async () => {
   let taken = 0;
-  const open = await draw(<DayMark label="13 сентября" count="61" onPress={() => taken++} pressLabel="Выбрать все 61" />);
+  const open = await draw(
+    <DayMark label="13 сентября" count="61" onPress={() => taken++} pressLabel="Выбрать все 61" />,
+  );
   const band = open.findByType(Pressable);
   expect(band.props.accessibilityRole).toBe('checkbox');
   expect(band.props.accessibilityLabel).toBe('Выбрать все 61');
   expect(band.props.accessibilityState.checked).toBe(false);
   await act(async () => band.props.onPress());
   expect(taken).toBe(1);
-  const full = await draw(<DayMark label="13 сентября" count="61" picked onPress={() => {}} pressLabel="Выбрать все 61" />);
+  const full = await draw(
+    <DayMark
+      label="13 сентября"
+      count="61"
+      picked
+      onPress={() => {}}
+      pressLabel="Выбрать все 61"
+    />,
+  );
   expect(full.findByType(Pressable).props.accessibilityState.checked).toBe(true);
   // A caption has nothing to press — however it was drawn.
-  const caption = await draw(<DayMark label="13 сентября" count="61" picked pressLabel="Выбрать все 61" />);
+  const caption = await draw(
+    <DayMark label="13 сентября" count="61" picked pressLabel="Выбрать все 61" />,
+  );
   expect(caption.findAllByType(Pressable)).toHaveLength(0);
 });
 
@@ -98,7 +137,8 @@ test('a tap beside the menu shuts it, but not in the first instants after it ope
   vi.setSystemTime(new Date(2026, 8, 13, 12, 0, 0));
   let shut = 0;
   const root = await draw(menu(() => shut++));
-  const scrim = () => root.findAllByType(Pressable).find((one) => one.props.accessibilityElementsHidden)!;
+  const scrim = () =>
+    root.findAllByType(Pressable).find((one) => one.props.accessibilityElementsHidden)!;
   // The tap that opened the menu is still coming down: it must not be the one that shuts it.
   await act(async () => scrim().props.onPress());
   expect(shut).toBe(0);
@@ -109,9 +149,16 @@ test('a tap beside the menu shuts it, but not in the first instants after it ope
 
 test('every row of the menu answers with its own action, in the order it was given', async () => {
   const said: string[] = [];
-  const root = await draw(menu(() => {}, [() => said.push('share'), () => said.push('save'), () => said.push('delete')]));
+  const root = await draw(
+    menu(() => {}, [() => said.push('share'), () => said.push('save'), () => said.push('delete')]),
+  );
   for (const label of ['Удалить', 'Поделиться', 'Сохранить на телефон']) {
-    await act(async () => root.findAllByType(RowAction).find((one) => one.props.label === label)!.props.onPress());
+    await act(async () =>
+      root
+        .findAllByType(RowAction)
+        .find((one) => one.props.label === label)!
+        .props.onPress(),
+    );
   }
   expect(said).toEqual(['delete', 'share', 'save']);
 });
@@ -145,7 +192,9 @@ test('exactly the ready length the figure stands on is the chosen one — and no
   const chosen = async (value: number, max = 550) => {
     const root = await draw(length({ value, max }));
     return PRESETS.map((preset) => preset.label).filter(
-      (label) => root.findAllByType(Pressable).find((one) => one.props.accessibilityLabel === label)?.props.accessibilityState.selected,
+      (label) =>
+        root.findAllByType(Pressable).find((one) => one.props.accessibilityLabel === label)?.props
+          .accessibilityState.selected,
     );
   };
   expect(await chosen(152)).toEqual([]);
@@ -157,8 +206,17 @@ test('exactly the ready length the figure stands on is the chosen one — and no
 
 test('a ready length hands its own seconds over, and one there is no material for is out and does not press', async () => {
   const said: number[] = [];
-  const root = await draw(length({ value: 40, max: 40, valueLabel: '0:40', onChange: (s) => said.push(s), presets: [...PRESETS.slice(0, 4), { label: 'Всё', value: 40 }] }));
-  const pill = (label: string) => root.findAllByType(Pressable).find((one) => one.props.accessibilityLabel === label)!;
+  const root = await draw(
+    length({
+      value: 40,
+      max: 40,
+      valueLabel: '0:40',
+      onChange: (s) => said.push(s),
+      presets: [...PRESETS.slice(0, 4), { label: 'Всё', value: 40 }],
+    }),
+  );
+  const pill = (label: string) =>
+    root.findAllByType(Pressable).find((one) => one.props.accessibilityLabel === label)!;
   expect(pill('0:30').props.disabled).toBe(false);
   expect(pill('3:00').props.disabled).toBe(true);
   expect(pill('1:00').props.disabled).toBe(true);
@@ -171,7 +229,12 @@ test('to a screen reader the figure is a control: «increment» and «decrement�
   const said: number[] = [];
   const at = async (value: number) => {
     const root = await draw(length({ value, onChange: (s) => said.push(s) }));
-    return (name: string) => act(async () => root.findByProps({ accessibilityRole: 'adjustable' }).props.onAccessibilityAction({ nativeEvent: { actionName: name } }));
+    return (name: string) =>
+      act(async () =>
+        root
+          .findByProps({ accessibilityRole: 'adjustable' })
+          .props.onAccessibilityAction({ nativeEvent: { actionName: name } }),
+      );
   };
   await (await at(152))('increment');
   await (await at(152))('decrement');
@@ -193,18 +256,42 @@ test('a segment says which of its values is the chosen one to a screen reader, a
       ]}
     />,
   );
-  const pill = (name: string) => root.findAllByType(Pressable).find((one) => one.props.accessibilityLabel === name)!;
+  const pill = (name: string) =>
+    root.findAllByType(Pressable).find((one) => one.props.accessibilityLabel === name)!;
   expect(pill('Сначала новые').props.accessibilityState.checked).toBe(false);
   expect(pill('Сначала старые').props.accessibilityState.checked).toBe(true);
   await act(async () => pill('Сначала новые').props.onPress());
   expect(said).toEqual(['newest']);
-  expect(root.findByProps({ accessibilityRole: 'radiogroup' }).props.accessibilityLabel).toBe('Порядок');
+  expect(root.findByProps({ accessibilityRole: 'radiogroup' }).props.accessibilityLabel).toBe(
+    'Порядок',
+  );
 });
 
 test('a switch flips to the other value when its row is pressed, says which it is on to a screen reader, and does nothing while it is unavailable', async () => {
   for (const [name, node] of [
-    ['bare', (value: boolean, disabled: boolean, said: boolean[]) => <Toggle label="Сможет добавлять фото" value={value} disabled={disabled} onValueChange={(v) => said.push(v)} />],
-    ['in a card', (value: boolean, disabled: boolean, said: boolean[]) => <RowToggle label="Даты между днями" note="Выключено — дата видна только на полосе" value={value} disabled={disabled} onValueChange={(v) => said.push(v)} />],
+    [
+      'bare',
+      (value: boolean, disabled: boolean, said: boolean[]) => (
+        <Toggle
+          label="Сможет добавлять фото"
+          value={value}
+          disabled={disabled}
+          onValueChange={(v) => said.push(v)}
+        />
+      ),
+    ],
+    [
+      'in a card',
+      (value: boolean, disabled: boolean, said: boolean[]) => (
+        <RowToggle
+          label="Даты между днями"
+          note="Выключено — дата видна только на полосе"
+          value={value}
+          disabled={disabled}
+          onValueChange={(v) => said.push(v)}
+        />
+      ),
+    ],
   ] as const) {
     const said: boolean[] = [];
     const off = (await draw(node(false, false, said))).findByProps({ accessibilityRole: 'switch' });
@@ -224,14 +311,18 @@ test('a switch flips to the other value when its row is pressed, says which it i
 test('a tile and the cards are buttons only where they lead somewhere: the press reaches the screen, and with none there is nothing to press', async () => {
   let pressed = 0;
   const bump = () => void pressed++;
-  const tile = await draw(<Tile state="ready" uri="https://r2.example/a" pick="off" label="Фото" onPress={bump} />);
+  const tile = await draw(
+    <Tile state="ready" uri="https://r2.example/a" pick="off" label="Фото" onPress={bump} />,
+  );
   await act(async () => tile.findByType(Pressable).props.onPress());
   expect(tile.findByType(Pressable).props.accessibilityRole).toBe('checkbox');
   expect(tile.findByType(Pressable).props.accessibilityState).toEqual({ checked: false });
   const still = await draw(<Tile state="processing" caption="Проявляем…" label="Кадр" />);
   expect(still.findAllByType(Pressable)).toHaveLength(0);
 
-  const memory = await draw(<CardMemory title="Свадьба" meta={['12–13 сентября']} thumbs={[]} onPress={bump} />);
+  const memory = await draw(
+    <CardMemory title="Свадьба" meta={['12–13 сентября']} thumbs={[]} onPress={bump} />,
+  );
   await act(async () => memory.findByType(Pressable).props.onPress());
   const film = await draw(<CardMontage title="Ролик" state="ready" onPress={bump} />);
   await act(async () => film.findByType(Pressable).props.onPress());

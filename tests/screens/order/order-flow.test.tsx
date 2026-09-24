@@ -110,12 +110,14 @@ vi.mock('@/kit', async (original) => {
   };
 });
 
-import { Fragment, useSyncExternalStore, type ReactElement } from 'react';
+import { act, BEAT_BY_BEAT, drives } from '@tests/helpers/drive';
+import { frame } from '@tests/helpers/labels';
+import { mountsTrees } from '@tests/helpers/renderer';
+import { Fragment, type ReactElement, useSyncExternalStore } from 'react';
 import TestRenderer, { act as reactAct } from 'react-test-renderer';
-
 import type {
-  Montage,
   MediaItem,
+  Montage,
   MontagePreview,
   MontageTemplate,
   MontageTemplateId,
@@ -137,12 +139,9 @@ import {
   Tile,
   TileTemplate,
 } from '@/kit';
-import { frame } from '@tests/helpers/labels';
 import { currentLanguage, setLanguage } from '@/lib/language';
 import { ENTER_MS, OrderProvider, READ_MS, useOrder, type Wizard } from '@/screens/order/wizard';
 import { ru, strings } from '@/strings';
-import { act, BEAT_BY_BEAT, drives } from '@tests/helpers/drive';
-import { mountsTrees } from '@tests/helpers/renderer';
 
 /**
  * Ordering a movie the way the organizer does, start to finish (doc-03, m-26): the real wizard —
@@ -298,7 +297,8 @@ function serve(over: Partial<Server> = {}): Server {
   vi.stubGlobal('fetch', async (url: string, init: { method?: string; body?: string }) => {
     const path = url.replace(/^.*\/memories/, '');
     const body = init.body ? (JSON.parse(init.body) as Body) : {};
-    if (server.offline && path === CALLS[server.offline]) throw new TypeError('Network request failed');
+    if (server.offline && path === CALLS[server.offline])
+      throw new TypeError('Network request failed');
     if (server.failing && path === CALLS[server.failing])
       return json({ error: 'internal server error' }, 500);
     if (path === '/m1/media') {
@@ -431,97 +431,107 @@ async function walkToSummary() {
 
 /* ── Ordering by a template ─────────────────────────────────────────────── */
 
-test.each(
-  SIX.map(([id]) => id),
-)('template %s: one press walks the steps, and the order sent is the total the summary showed', BEAT_BY_BEAT, async (id) => {
-  const server = serve();
-  await open();
-  await act(async () => tile(id).props.onPress());
-  expect(wizard.auto).toBe(id);
-  await settle();
-
-  // The walk ends on the total with the wheel handed back.
-  expect(nav.top()).toBe('summary');
-  expect(wizard.auto).toBeNull();
-  const template = server.templates.find((one) => one.id === id)!;
-  const expected = {
-    orientation: template.orientation,
-    music_tracks: template.music_tracks,
-    target_seconds: template.target_seconds,
-    story_text: template.story_text,
-    ...(template.music_note ? { music_note: template.music_note } : {}),
-    // What the automatic pass dropped and nobody took back is named, so the api counts what is shown.
-    exclude_media_ids: ['p7'],
-  };
-  expect(server.previews.at(-1)).toEqual(expected);
-  expect(shown()).toContain(ru.montage.shots(6, 1));
-  expect(shown()).toContain(ru.montage.byPeople(2));
-
-  await press(ru.montage.startCut);
-  expect(server.orders).toEqual([expected]);
-  // Onto the waiting for the montage that was just made, with the count of frames going in.
-  expect(nav.state.landed).toEqual({
-    pathname: '/memory/[id]/montage/[montageId]',
-    params: { id: 'm1', montageId: 'made', frames: 7 },
-  });
-});
-
-test('a template’s length the material cannot carry is held inside what it can, before the order', BEAT_BY_BEAT, async () => {
-  const raw = (seconds: number): MontageTemplate => ({
-    id: 'for_myself',
-    story_text: 'История.',
-    target_seconds: seconds,
-    orientation: 'landscape',
-    music_tracks: ['calm'],
-    music_note: null,
-  });
-  for (const [asked, held] of [
-    [180, CEILING],
-    [4, 10],
-  ]) {
-    const server = serve({ templates: [raw(asked)] });
-    nav.reset();
+test.each(SIX.map(([id]) => id))(
+  'template %s: one press walks the steps, and the order sent is the total the summary showed',
+  BEAT_BY_BEAT,
+  async (id) => {
+    const server = serve();
     await open();
-    await act(async () => tile('for_myself').props.onPress());
+    await act(async () => tile(id).props.onPress());
+    expect(wizard.auto).toBe(id);
     await settle();
 
-    // The api clamps a template it hands over; this one arrived stale, and the length step, which
-    // asks what the frames can carry, is what brings it inside — before the total is asked.
-    expect(wizard.order.seconds).toBe(held);
-    expect(server.previews.at(-1)?.target_seconds).toBe(held);
+    // The walk ends on the total with the wheel handed back.
+    expect(nav.top()).toBe('summary');
+    expect(wizard.auto).toBeNull();
+    const template = server.templates.find((one) => one.id === id)!;
+    const expected = {
+      orientation: template.orientation,
+      music_tracks: template.music_tracks,
+      target_seconds: template.target_seconds,
+      story_text: template.story_text,
+      ...(template.music_note ? { music_note: template.music_note } : {}),
+      // What the automatic pass dropped and nobody took back is named, so the api counts what is shown.
+      exclude_media_ids: ['p7'],
+    };
+    expect(server.previews.at(-1)).toEqual(expected);
+    expect(shown()).toContain(ru.montage.shots(6, 1));
+    expect(shown()).toContain(ru.montage.byPeople(2));
+
     await press(ru.montage.startCut);
-    expect(server.orders[0]?.target_seconds).toBe(held);
-    act(() => tree?.unmount());
-    tree = undefined;
-  }
-});
+    expect(server.orders).toEqual([expected]);
+    // Onto the waiting for the montage that was just made, with the count of frames going in.
+    expect(nav.state.landed).toEqual({
+      pathname: '/memory/[id]/montage/[montageId]',
+      params: { id: 'm1', montageId: 'made', frames: 7 },
+    });
+  },
+);
 
-test('with motion reduced nothing is typed: each step lands whole and the order is the same', BEAT_BY_BEAT, async () => {
-  calm.on = true;
-  const server = serve();
-  await open();
-  await act(async () => tile('dopamine').props.onPress());
-  // Step 1 has nothing to fill in, and is still left standing to be read: the setting takes away
-  // what moves, never the time to take in what landed (TASK-279).
-  await run(ENTER_MS + READ_MS - 50);
-  expect(nav.top()).toBe('frames');
-  await run(100);
-  // And the story lands whole — but only once the step it lands on has finished arriving.
-  expect(nav.top()).toBe('story');
-  expect(wizard.order.story).toBe('');
-  await run(ENTER_MS);
-  expect(wizard.order.story).toBe(fullStory('dopamine'));
-  await settle();
+test(
+  'a template’s length the material cannot carry is held inside what it can, before the order',
+  BEAT_BY_BEAT,
+  async () => {
+    const raw = (seconds: number): MontageTemplate => ({
+      id: 'for_myself',
+      story_text: 'История.',
+      target_seconds: seconds,
+      orientation: 'landscape',
+      music_tracks: ['calm'],
+      music_note: null,
+    });
+    for (const [asked, held] of [
+      [180, CEILING],
+      [4, 10],
+    ]) {
+      const server = serve({ templates: [raw(asked)] });
+      nav.reset();
+      await open();
+      await act(async () => tile('for_myself').props.onPress());
+      await settle();
 
-  expect(nav.top()).toBe('summary');
-  await press(ru.montage.startCut);
-  expect(server.orders[0]).toMatchObject({
-    music_tracks: ['bright', 'road'],
-    music_note: 'Два трека подряд.',
-    target_seconds: 45,
-    orientation: 'portrait',
-  });
-});
+      // The api clamps a template it hands over; this one arrived stale, and the length step, which
+      // asks what the frames can carry, is what brings it inside — before the total is asked.
+      expect(wizard.order.seconds).toBe(held);
+      expect(server.previews.at(-1)?.target_seconds).toBe(held);
+      await press(ru.montage.startCut);
+      expect(server.orders[0]?.target_seconds).toBe(held);
+      act(() => tree?.unmount());
+      tree = undefined;
+    }
+  },
+);
+
+test(
+  'with motion reduced nothing is typed: each step lands whole and the order is the same',
+  BEAT_BY_BEAT,
+  async () => {
+    calm.on = true;
+    const server = serve();
+    await open();
+    await act(async () => tile('dopamine').props.onPress());
+    // Step 1 has nothing to fill in, and is still left standing to be read: the setting takes away
+    // what moves, never the time to take in what landed (TASK-279).
+    await run(ENTER_MS + READ_MS - 50);
+    expect(nav.top()).toBe('frames');
+    await run(100);
+    // And the story lands whole — but only once the step it lands on has finished arriving.
+    expect(nav.top()).toBe('story');
+    expect(wizard.order.story).toBe('');
+    await run(ENTER_MS);
+    expect(wizard.order.story).toBe(fullStory('dopamine'));
+    await settle();
+
+    expect(nav.top()).toBe('summary');
+    await press(ru.montage.startCut);
+    expect(server.orders[0]).toMatchObject({
+      music_tracks: ['bright', 'road'],
+      music_note: 'Два трека подряд.',
+      target_seconds: 45,
+      orientation: 'portrait',
+    });
+  },
+);
 
 /* ── Too little material at the way in ──────────────────────────────────── */
 
@@ -536,21 +546,24 @@ const videos = (seconds: number | null): MediaItem[] =>
 test.each([
   [ru.gallery.add, { pathname: '/memory/[id]/upload', params: { id: 'm1' } }],
   [ru.montage.later, { pathname: '/memory/[id]', params: { id: 'm1' } }],
-])('three videos nobody measured: the api’s 409 on the six raises «Материала пока мало», and «%s» works as ever', async (label, landed) => {
-  serve({ material: videos(null) });
-  await open();
+])(
+  'three videos nobody measured: the api’s 409 on the six raises «Материала пока мало», and «%s» works as ever',
+  async (label, landed) => {
+    serve({ material: videos(null) });
+    await open();
 
-  // The count of frames lets it through; the api's weighing does not, and its refusal is the sheet.
-  expect(shown()).toContain(ru.montage.tooLittleTitle);
-  expect(shown()).toContain(ru.montage.tooLittleText(3));
-  // Nothing of the wizard stands under it: no tile, no door beside them, no line about a failure.
-  expect(root().findAllByType(TileTemplate)).toHaveLength(0);
-  expect(has(ru.montage.ownSetup)).toBe(false);
-  expect(root().findAllByType(Banner)).toHaveLength(0);
+    // The count of frames lets it through; the api's weighing does not, and its refusal is the sheet.
+    expect(shown()).toContain(ru.montage.tooLittleTitle);
+    expect(shown()).toContain(ru.montage.tooLittleText(3));
+    // Nothing of the wizard stands under it: no tile, no door beside them, no line about a failure.
+    expect(root().findAllByType(TileTemplate)).toHaveLength(0);
+    expect(has(ru.montage.ownSetup)).toBe(false);
+    expect(root().findAllByType(Banner)).toHaveLength(0);
 
-  await press(label);
-  expect(nav.state.landed).toEqual(landed);
-});
+    await press(label);
+    expect(nav.state.landed).toEqual(landed);
+  },
+);
 
 test('the same three videos, measured, are enough: the six are drawn and the order goes through', async () => {
   const server = serve({ material: videos(5) });
@@ -566,94 +579,105 @@ test('the same three videos, measured, are enough: the six are drawn and the ord
 test.each([
   ['cannot be reached', { offline: 'templates' }, ru.error.offline],
   ['falls over', { failing: 'templates' }, ru.error.status(500)],
-] as const)('the six the api %s on are a banner with «Повторить», not the sheet', async (_, over, said) => {
-  const server = serve(over);
-  await open();
-  expect(shown()).toContain(said);
-  expect(shown()).not.toContain('internal server error');
-  expect(shown()).not.toContain(ru.montage.tooLittleTitle);
-  expect(has(ru.montage.ownSetup)).toBe(true);
+] as const)(
+  'the six the api %s on are a banner with «Повторить», not the sheet',
+  async (_, over, said) => {
+    const server = serve(over);
+    await open();
+    expect(shown()).toContain(said);
+    expect(shown()).not.toContain('internal server error');
+    expect(shown()).not.toContain(ru.montage.tooLittleTitle);
+    expect(has(ru.montage.ownSetup)).toBe(true);
 
-  server.offline = server.failing = undefined;
-  await press(ru.action.retry);
-  await run(0);
-  expect(shown()).not.toContain(said);
-  expect(root().findAllByType(TileTemplate)).toHaveLength(6);
-});
+    server.offline = server.failing = undefined;
+    await press(ru.action.retry);
+    await run(0);
+    expect(shown()).not.toContain(said);
+    expect(root().findAllByType(TileTemplate)).toHaveLength(6);
+  },
+);
 
 /* ── Ordering by hand ───────────────────────────────────────────────────── */
 
-test('«Настроить самому»: frames, story, several tracks, length and shape reach the api as one order', BEAT_BY_BEAT, async () => {
-  const server = serve();
-  await open();
-  await press(ru.montage.ownSetup);
-  expect(nav.top()).toBe('frames');
-  expect(wizard.order.template).toBeNull();
+test(
+  '«Настроить самому»: frames, story, several tracks, length and shape reach the api as one order',
+  BEAT_BY_BEAT,
+  async () => {
+    const server = serve();
+    await open();
+    await press(ru.montage.ownSetup);
+    expect(nav.top()).toBe('frames');
+    expect(wizard.order.template).toBeNull();
 
-  // Step 1: p1 crossed out by hand, and p7, which the pass dropped, put back.
-  const tiles = () => root().findAllByType(Tile);
-  await act(async () => tiles()[0]!.props.onPress());
-  await act(async () => tiles()[6]!.props.onPress());
-  await press(/^Дальше — /);
+    // Step 1: p1 crossed out by hand, and p7, which the pass dropped, put back.
+    const tiles = () => root().findAllByType(Tile);
+    await act(async () => tiles()[0]!.props.onPress());
+    await act(async () => tiles()[6]!.props.onPress());
+    await press(/^Дальше — /);
 
-  await type('Про море и закат');
-  await forward();
+    await type('Про море и закат');
+    await forward();
 
-  await press(ru.montage.addTrack(ru.montage.track.warm));
-  await press(ru.montage.addTrack(ru.montage.track.road));
-  await type('  плавно, потом бодрее  ');
-  await forward();
+    await press(ru.montage.addTrack(ru.montage.track.warm));
+    await press(ru.montage.addTrack(ru.montage.track.road));
+    await type('  плавно, потом бодрее  ');
+    await forward();
 
-  await act(async () => root().findByType(LengthSlider).props.onChange(97));
-  await act(async () => root().findByType(Segment).props.onChange('portrait'));
-  await forward();
-  await run(0);
+    await act(async () => root().findByType(LengthSlider).props.onChange(97));
+    await act(async () => root().findByType(Segment).props.onChange('portrait'));
+    await forward();
+    await run(0);
 
-  expect(nav.top()).toBe('summary');
-  const expected = {
-    orientation: 'portrait',
-    music_tracks: ['warm', 'road'],
-    target_seconds: 97,
-    story_text: 'Про море и закат',
-    music_note: 'плавно, потом бодрее',
-    include_media_ids: ['p7'],
-    exclude_media_ids: ['p1'],
-  };
-  expect(server.previews.at(-1)).toEqual(expected);
-  for (const said of [
-    'Про море и закат',
-    ru.montage.track.warm,
-    ru.montage.track.road,
-    ru.montage.shots(6, 1),
-  ]) {
-    expect(shown()).toContain(said);
-  }
+    expect(nav.top()).toBe('summary');
+    const expected = {
+      orientation: 'portrait',
+      music_tracks: ['warm', 'road'],
+      target_seconds: 97,
+      story_text: 'Про море и закат',
+      music_note: 'плавно, потом бодрее',
+      include_media_ids: ['p7'],
+      exclude_media_ids: ['p1'],
+    };
+    expect(server.previews.at(-1)).toEqual(expected);
+    for (const said of [
+      'Про море и закат',
+      ru.montage.track.warm,
+      ru.montage.track.road,
+      ru.montage.shots(6, 1),
+    ]) {
+      expect(shown()).toContain(said);
+    }
 
-  await press(ru.montage.startCut);
-  expect(server.orders).toEqual([expected]);
-  expect(nav.state.landed?.params).toMatchObject({ montageId: 'made' });
-});
+    await press(ru.montage.startCut);
+    expect(server.orders).toEqual([expected]);
+    expect(nav.state.landed?.params).toMatchObject({ montageId: 'made' });
+  },
+);
 
-test('nothing said is a legal order: no music goes out as an empty list, and the length is the api’s', BEAT_BY_BEAT, async () => {
-  const server = serve();
-  await open();
-  await press(ru.montage.ownSetup);
-  await forward();
-  await forward();
+test(
+  'nothing said is a legal order: no music goes out as an empty list, and the length is the api’s',
+  BEAT_BY_BEAT,
+  async () => {
+    const server = serve();
+    await open();
+    await press(ru.montage.ownSetup);
+    await forward();
+    await forward();
 
-  // A track taken and given back takes the wish about it with it — the api answers 400 to one alone.
-  await press(ru.montage.addTrack(ru.montage.track.calm));
-  await type('тихо');
-  await press(ru.montage.dropTrack(ru.montage.track.calm));
-  await forward();
-  await forward();
-  await run(0);
+    // A track taken and given back takes the wish about it with it — the api answers 400 to one alone.
+    await press(ru.montage.addTrack(ru.montage.track.calm));
+    await type('тихо');
+    await press(ru.montage.dropTrack(ru.montage.track.calm));
+    await forward();
+    await forward();
+    await run(0);
 
-  const expected = { orientation: 'landscape', music_tracks: [], exclude_media_ids: ['p7'] };
-  expect(server.previews.at(-1)).toEqual(expected);
-  await press(ru.montage.startCut);
-  expect(server.orders).toEqual([expected]);
-});
+    const expected = { orientation: 'landscape', music_tracks: [], exclude_media_ids: ['p7'] };
+    expect(server.previews.at(-1)).toEqual(expected);
+    await press(ru.montage.startCut);
+    expect(server.orders).toEqual([expected]);
+  },
+);
 
 /* ── «Стоп» and the way out ─────────────────────────────────────────────── */
 
@@ -668,129 +692,153 @@ async function startTyping(id: MontageTemplateId = 'dopamine') {
   expect(nav.top()).toBe('story');
 }
 
-test('«Стоп» in the middle of the story leaves the whole story and the walk where it stands', BEAT_BY_BEAT, async () => {
-  await startTyping();
-  await press(ru.montage.autoStop);
-  await settle();
+test(
+  '«Стоп» in the middle of the story leaves the whole story and the walk where it stands',
+  BEAT_BY_BEAT,
+  async () => {
+    await startTyping();
+    await press(ru.montage.autoStop);
+    await settle();
 
-  expect(wizard.order.story).toBe(fullStory('dopamine'));
-  expect(wizard.order.ownStory).toBe(false);
-  // Nothing after the story was filled in, and no step was turned to.
-  expect(wizard.order.tracks).toEqual([]);
-  expect(wizard.order.seconds).toBeNull();
-  expect(nav.top()).toBe('story');
-  expect(nav.state.pushed).toEqual(['frames', 'story']);
-  expect(wizard.auto).toBeNull();
-  expect(has(ru.montage.autoStop)).toBe(false);
-});
+    expect(wizard.order.story).toBe(fullStory('dopamine'));
+    expect(wizard.order.ownStory).toBe(false);
+    // Nothing after the story was filled in, and no step was turned to.
+    expect(wizard.order.tracks).toEqual([]);
+    expect(wizard.order.seconds).toBeNull();
+    expect(nav.top()).toBe('story');
+    expect(nav.state.pushed).toEqual(['frames', 'story']);
+    expect(wizard.auto).toBeNull();
+    expect(has(ru.montage.autoStop)).toBe(false);
+  },
+);
 
-test('typing into the story takes the wheel, and what was typed is not written over', BEAT_BY_BEAT, async () => {
-  await startTyping();
-  await type('Мой текст');
-  await settle();
+test(
+  'typing into the story takes the wheel, and what was typed is not written over',
+  BEAT_BY_BEAT,
+  async () => {
+    await startTyping();
+    await type('Мой текст');
+    await settle();
 
-  expect(wizard.order.story).toBe('Мой текст');
-  expect(wizard.order.ownStory).toBe(true);
-  expect(nav.top()).toBe('story');
-  expect(wizard.auto).toBeNull();
-});
+    expect(wizard.order.story).toBe('Мой текст');
+    expect(wizard.order.ownStory).toBe(true);
+    expect(nav.top()).toBe('story');
+    expect(wizard.auto).toBeNull();
+  },
+);
 
-test('«Стоп» on the music leaves the tracks that had landed, and the rest is the person’s', BEAT_BY_BEAT, async () => {
-  const server = serve();
-  await open();
-  await act(async () => tile('dopamine').props.onPress());
-  await until(() => wizard.order.tracks.length === 1);
-  await press(ru.montage.autoStop);
-  await settle();
+test(
+  '«Стоп» on the music leaves the tracks that had landed, and the rest is the person’s',
+  BEAT_BY_BEAT,
+  async () => {
+    const server = serve();
+    await open();
+    await act(async () => tile('dopamine').props.onPress());
+    await until(() => wizard.order.tracks.length === 1);
+    await press(ru.montage.autoStop);
+    await settle();
 
-  expect(nav.top()).toBe('music');
-  expect(wizard.order.tracks.map((track) => track.key)).toEqual(['bright']);
-  expect(wizard.order.seconds).toBeNull();
+    expect(nav.top()).toBe('music');
+    expect(wizard.order.tracks.map((track) => track.key)).toEqual(['bright']);
+    expect(wizard.order.seconds).toBeNull();
 
-  // Walking on by hand orders exactly what landed: nothing fills the rest in behind them.
-  await forward();
-  await forward();
-  await run(0);
-  await press(ru.montage.startCut);
-  expect(server.orders[0]).toMatchObject({
-    music_tracks: ['bright'],
-    story_text: fullStory('dopamine'),
-  });
-  expect(server.orders[0]).not.toHaveProperty('music_note');
-  expect(server.orders[0]).not.toHaveProperty('target_seconds');
-});
+    // Walking on by hand orders exactly what landed: nothing fills the rest in behind them.
+    await forward();
+    await forward();
+    await run(0);
+    await press(ru.montage.startCut);
+    expect(server.orders[0]).toMatchObject({
+      music_tracks: ['bright'],
+      story_text: fullStory('dopamine'),
+    });
+    expect(server.orders[0]).not.toHaveProperty('music_note');
+    expect(server.orders[0]).not.toHaveProperty('target_seconds');
+  },
+);
 
-test('«Стоп» while the length rides up leaves it where it got to, and the walk goes no further', BEAT_BY_BEAT, async () => {
-  serve();
-  await open();
-  await act(async () => tile('for_myself').props.onPress());
-  await until(() => wizard.order.seconds !== null);
-  await press(ru.montage.autoStop);
-  const stopped = wizard.order.seconds;
-  await settle();
+test(
+  '«Стоп» while the length rides up leaves it where it got to, and the walk goes no further',
+  BEAT_BY_BEAT,
+  async () => {
+    serve();
+    await open();
+    await act(async () => tile('for_myself').props.onPress());
+    await until(() => wizard.order.seconds !== null);
+    await press(ru.montage.autoStop);
+    const stopped = wizard.order.seconds;
+    await settle();
 
-  expect(wizard.order.seconds).toBe(stopped);
-  expect(stopped).toBeLessThan(CEILING);
-  expect(nav.top()).toBe('build');
-});
+    expect(wizard.order.seconds).toBe(stopped);
+    expect(stopped).toBeLessThan(CEILING);
+    expect(nav.top()).toBe('build');
+  },
+);
 
-test('«Назад» and «Отмена» are hands on the wheel too, and nothing comes back to life after them', BEAT_BY_BEAT, async () => {
-  await startTyping('parents');
-  await press(ru.action.back);
-  await settle();
-  expect(nav.top()).toBe('frames');
-  expect(nav.state.pushed).toEqual(['frames', 'story']);
-  expect(wizard.auto).toBeNull();
+test(
+  '«Назад» and «Отмена» are hands on the wheel too, and nothing comes back to life after them',
+  BEAT_BY_BEAT,
+  async () => {
+    await startTyping('parents');
+    await press(ru.action.back);
+    await settle();
+    expect(nav.top()).toBe('frames');
+    expect(nav.state.pushed).toEqual(['frames', 'story']);
+    expect(wizard.auto).toBeNull();
 
-  // «Стоп» first and «Назад» after: the walk is over, and does not wake on the way back.
-  act(() => tree?.unmount());
-  tree = undefined;
-  nav.reset();
-  await startTyping('parents');
-  await press(ru.montage.autoStop);
-  await press(ru.action.back);
-  await settle();
-  expect(nav.state.pushed).toEqual(['frames', 'story']);
-  expect(wizard.auto).toBeNull();
+    // «Стоп» first and «Назад» after: the walk is over, and does not wake on the way back.
+    act(() => tree?.unmount());
+    tree = undefined;
+    nav.reset();
+    await startTyping('parents');
+    await press(ru.montage.autoStop);
+    await press(ru.action.back);
+    await settle();
+    expect(nav.state.pushed).toEqual(['frames', 'story']);
+    expect(wizard.auto).toBeNull();
 
-  act(() => tree?.unmount());
-  tree = undefined;
-  nav.reset();
-  await startTyping('parents');
-  await press(ru.action.cancel);
-  await settle();
-  // Something is in the order, so the way out asks first — and the walk is already over under it.
-  expect(sheet().props.visible).toBe(true);
-  expect(nav.state.pushed).toEqual(['frames', 'story']);
-  await act(async () => sheet().props.onConfirm());
-  expect(nav.state.landed).toEqual({ pathname: '/memory/[id]', params: { id: 'm1' } });
-});
+    act(() => tree?.unmount());
+    tree = undefined;
+    nav.reset();
+    await startTyping('parents');
+    await press(ru.action.cancel);
+    await settle();
+    // Something is in the order, so the way out asks first — and the walk is already over under it.
+    expect(sheet().props.visible).toBe(true);
+    expect(nav.state.pushed).toEqual(['frames', 'story']);
+    await act(async () => sheet().props.onConfirm());
+    expect(nav.state.landed).toEqual({ pathname: '/memory/[id]', params: { id: 'm1' } });
+  },
+);
 
 /* ── When the total is refused ──────────────────────────────────────────── */
 
-test('409 on the total leads back to the frames, and after a change the total is asked again', BEAT_BY_BEAT, async () => {
-  const server = serve({ refuse: { status: 409 } });
-  await open();
-  await walkToSummary();
+test(
+  '409 on the total leads back to the frames, and after a change the total is asked again',
+  BEAT_BY_BEAT,
+  async () => {
+    const server = serve({ refuse: { status: 409 } });
+    await open();
+    await walkToSummary();
 
-  expect(shown()).toContain(ru.montage.tooLittle);
-  expect(has(ru.montage.startCut)).toBe(false);
-  await press(ru.montage.toFrames);
-  expect(nav.top()).toBe('frames');
+    expect(shown()).toContain(ru.montage.tooLittle);
+    expect(has(ru.montage.startCut)).toBe(false);
+    await press(ru.montage.toFrames);
+    expect(nav.top()).toBe('frames');
 
-  // The material is back; a frame crossed out, and the walk to the total once more.
-  server.refuse = undefined;
-  const asked = server.previews.length;
-  await act(async () => root().findAllByType(Tile)[0]!.props.onPress());
-  while (nav.top() !== 'summary') await forward();
-  await run(0);
+    // The material is back; a frame crossed out, and the walk to the total once more.
+    server.refuse = undefined;
+    const asked = server.previews.length;
+    await act(async () => root().findAllByType(Tile)[0]!.props.onPress());
+    while (nav.top() !== 'summary') await forward();
+    await run(0);
 
-  expect(server.previews.length).toBeGreaterThan(asked);
-  expect(server.previews.at(-1)?.exclude_media_ids).toEqual(['p1', 'p7']);
-  expect(has(ru.montage.startCut)).toBe(true);
-  await press(ru.montage.startCut);
-  expect(server.orders[0]).toEqual(server.previews.at(-1));
-});
+    expect(server.previews.length).toBeGreaterThan(asked);
+    expect(server.previews.at(-1)?.exclude_media_ids).toEqual(['p1', 'p7']);
+    expect(has(ru.montage.startCut)).toBe(true);
+    await press(ru.montage.startCut);
+    expect(server.orders[0]).toEqual(server.previews.at(-1));
+  },
+);
 
 /** The slider on step 4 as it stands: the two walls, the figure, and what «Всё» would set. */
 const slider = () => {
@@ -806,176 +854,211 @@ async function walkToLength() {
   await run(0);
 }
 
-test('the ceiling falls while the wizard stands open: back on the length, the range is the new one', BEAT_BY_BEAT, async () => {
-  const server = serve();
-  await open();
-  await walkToLength();
-  expect(slider()).toEqual({ min: 10, max: CEILING, value: 60, all: CEILING });
-  await act(async () => root().findByType(LengthSlider).props.onChange(120));
+test(
+  'the ceiling falls while the wizard stands open: back on the length, the range is the new one',
+  BEAT_BY_BEAT,
+  async () => {
+    const server = serve();
+    await open();
+    await walkToLength();
+    expect(slider()).toEqual({ min: 10, max: CEILING, value: 60, all: CEILING });
+    await act(async () => root().findByType(LengthSlider).props.onChange(120));
 
-  // Somebody deleted material while the wizard stood open: the ceiling is under 120 now.
-  server.ceiling = 60;
-  await forward();
-  await run(0);
-  expect(shown()).toContain(ru.montage.lengthOff('0:10', '1:00'));
-  expect(has(ru.montage.startCut)).toBe(false);
+    // Somebody deleted material while the wizard stood open: the ceiling is under 120 now.
+    server.ceiling = 60;
+    await forward();
+    await run(0);
+    expect(shown()).toContain(ru.montage.lengthOff('0:10', '1:00'));
+    expect(has(ru.montage.startCut)).toBe(false);
 
-  const reads = server.reads;
-  await press(ru.montage.toLength);
-  expect(nav.top()).toBe('build');
-  await until(() => slider()?.max === 60);
-  // The material was read again and the range asked again off it: the walls are the api's new ones,
-  // «Всё» is what is there now, and the figure already chosen is held inside them.
-  expect(server.reads).toBe(reads + 1);
-  expect(slider()).toEqual({ min: 10, max: 60, value: 60, all: 60 });
+    const reads = server.reads;
+    await press(ru.montage.toLength);
+    expect(nav.top()).toBe('build');
+    await until(() => slider()?.max === 60);
+    // The material was read again and the range asked again off it: the walls are the api's new ones,
+    // «Всё» is what is there now, and the figure already chosen is held inside them.
+    expect(server.reads).toBe(reads + 1);
+    expect(slider()).toEqual({ min: 10, max: 60, value: 60, all: 60 });
 
-  // Nothing more to do by hand: the total agrees, and the order goes out with the length it showed.
-  await forward();
-  await run(0);
-  expect(server.previews.at(-1)?.target_seconds).toBe(60);
-  await press(ru.montage.startCut);
-  expect(server.orders).toEqual([server.previews.at(-1)]);
-});
+    // Nothing more to do by hand: the total agrees, and the order goes out with the length it showed.
+    await forward();
+    await run(0);
+    expect(server.previews.at(-1)?.target_seconds).toBe(60);
+    await press(ru.montage.startCut);
+    expect(server.orders).toEqual([server.previews.at(-1)]);
+  },
+);
 
-test('a frame deleted under the order is a 400 about frames: it leads to the frames, read again', BEAT_BY_BEAT, async () => {
-  const server = serve();
-  await open();
-  await walkToLength();
+test(
+  'a frame deleted under the order is a 400 about frames: it leads to the frames, read again',
+  BEAT_BY_BEAT,
+  async () => {
+    const server = serve();
+    await open();
+    await walkToLength();
 
-  // Somebody deleted p7 — the one the automatic pass dropped, which the order names to leave out.
-  server.material = server.material.filter((item) => item.id !== 'p7');
-  await forward();
-  await run(0);
-  expect(shown()).toContain(ru.montage.framesGone);
-  expect(has(ru.montage.toLength)).toBe(false);
+    // Somebody deleted p7 — the one the automatic pass dropped, which the order names to leave out.
+    server.material = server.material.filter((item) => item.id !== 'p7');
+    await forward();
+    await run(0);
+    expect(shown()).toContain(ru.montage.framesGone);
+    expect(has(ru.montage.toLength)).toBe(false);
 
-  await press(ru.montage.toFrames);
-  expect(nav.top()).toBe('frames');
-  await until(() => root().findAllByType(Tile).length === 7);
-  expect(root().findAllByType(Tile).map((one) => one.props.label)).not.toContain(ru.montage.outOfMovie);
+    await press(ru.montage.toFrames);
+    expect(nav.top()).toBe('frames');
+    await until(() => root().findAllByType(Tile).length === 7);
+    expect(
+      root()
+        .findAllByType(Tile)
+        .map((one) => one.props.label),
+    ).not.toContain(ru.montage.outOfMovie);
 
-  // What is there now is what is ordered: the deleted frame is named nowhere any more.
-  while (nav.top() !== 'summary') await forward();
-  await run(0);
-  expect(has(ru.montage.startCut)).toBe(true);
-  await press(ru.montage.startCut);
-  expect(server.orders).toEqual([{ orientation: 'landscape', music_tracks: [] }]);
-});
+    // What is there now is what is ordered: the deleted frame is named nowhere any more.
+    while (nav.top() !== 'summary') await forward();
+    await run(0);
+    expect(has(ru.montage.startCut)).toBe(true);
+    await press(ru.montage.startCut);
+    expect(server.orders).toEqual([{ orientation: 'landscape', music_tracks: [] }]);
+  },
+);
 
-test.each(['ru', 'en'] as const)('409 on the length step and on the total is the app’s «too little», in %s', BEAT_BY_BEAT, async (language) => {
-  await setLanguage(language);
-  const s = strings[language];
-  serve({ refuse: { status: 409 } });
-  await open();
-  await walkToLength();
-  expect(banner()).toBe(s.montage.tooLittle);
+test.each(['ru', 'en'] as const)(
+  '409 on the length step and on the total is the app’s «too little», in %s',
+  BEAT_BY_BEAT,
+  async (language) => {
+    await setLanguage(language);
+    const s = strings[language];
+    serve({ refuse: { status: 409 } });
+    await open();
+    await walkToLength();
+    expect(banner()).toBe(s.montage.tooLittle);
 
-  await forward();
-  await run(0);
-  expect(nav.top()).toBe('summary');
-  expect(banner()).toBe(s.montage.tooLittle);
-  expect(has(s.montage.toFrames)).toBe(true);
-  expect(shown()).not.toContain('not enough material');
-});
+    await forward();
+    await run(0);
+    expect(nav.top()).toBe('summary');
+    expect(banner()).toBe(s.montage.tooLittle);
+    expect(has(s.montage.toFrames)).toBe(true);
+    expect(shown()).not.toContain('not enough material');
+  },
+);
 
-test.each(['ru', 'en'] as const)('a length out of range is said with the edges the api refused it with, on both steps, in %s', BEAT_BY_BEAT, async (language) => {
-  await setLanguage(language);
-  const s = strings[language];
-  const server = serve({ refuse: { status: 400 } });
-  await open();
-  await walkToLength();
-  // Asked with no length at all and refused all the same: the line carries the range it was given.
-  expect(banner()).toBe(s.montage.lengthOff('0:10', '2:12'));
+test.each(['ru', 'en'] as const)(
+  'a length out of range is said with the edges the api refused it with, on both steps, in %s',
+  BEAT_BY_BEAT,
+  async (language) => {
+    await setLanguage(language);
+    const s = strings[language];
+    const server = serve({ refuse: { status: 400 } });
+    await open();
+    await walkToLength();
+    // Asked with no length at all and refused all the same: the line carries the range it was given.
+    expect(banner()).toBe(s.montage.lengthOff('0:10', '2:12'));
 
-  server.ceiling = 60;
-  await forward();
-  await run(0);
-  expect(nav.top()).toBe('summary');
-  expect(banner()).toBe(s.montage.lengthOff('0:10', '1:00'));
-  expect(has(s.montage.toLength)).toBe(true);
-  expect(shown()).not.toContain('out of range');
-});
+    server.ceiling = 60;
+    await forward();
+    await run(0);
+    expect(nav.top()).toBe('summary');
+    expect(banner()).toBe(s.montage.lengthOff('0:10', '1:00'));
+    expect(has(s.montage.toLength)).toBe(true);
+    expect(shown()).not.toContain('out of range');
+  },
+);
 
 test.each([
   [400, { error: 'no such music track', music_tracks: ['calm'] }],
   [400, { error: 'target_seconds out of range', max_seconds: 'a lot' }],
   [400, 'Bad Request'],
   [409, { error: 'montage has not failed' }],
-] as const)('a %i this app does not know is its own plain line on both steps, and leads nowhere', async (status, body) => {
-  serve({ refuse: { status, body } });
-  await open();
-  await walkToLength();
-  expect(banner()).toBe(ru.error.status(status));
+] as const)(
+  'a %i this app does not know is its own plain line on both steps, and leads nowhere',
+  async (status, body) => {
+    serve({ refuse: { status, body } });
+    await open();
+    await walkToLength();
+    expect(banner()).toBe(ru.error.status(status));
 
-  await forward();
-  await run(0);
-  expect(nav.top()).toBe('summary');
-  expect(banner()).toBe(ru.error.status(status));
-  expect(shown()).not.toContain(typeof body === 'string' ? body : body.error);
-  for (const way of [ru.montage.toLength, ru.montage.toFrames, ru.montage.startCut]) {
-    expect(has(way)).toBe(false);
-  }
-});
-
-test.each([
-  ['cannot be reached', { offline: 'preview' }, ru.error.offline],
-  ['falls over', { failing: 'preview' }, ru.error.status(500)],
-] as const)('a total the api %s on is asked again with «Повторить», off the order as it is now', BEAT_BY_BEAT, async (_, over, said) => {
-  const server = serve();
-  await open();
-  await walkToLength();
-  Object.assign(server, over);
-  await forward();
-  await run(0);
-  expect(nav.top()).toBe('summary');
-  expect(banner()).toBe(said);
-  expect(has(ru.montage.startCut)).toBe(false);
-
-  // Meanwhile somebody deleted p7, which the order names to leave out: the body that failed would
-  // now be refused for it, and the one asked again is built from what is there.
-  server.offline = server.failing = undefined;
-  server.material = server.material.filter((item) => item.id !== 'p7');
-  await press(ru.action.retry);
-  await until(() => has(ru.montage.startCut));
-  expect(server.previews.at(-1)).toEqual({ orientation: 'landscape', music_tracks: [] });
-
-  // Asked again once, and nothing goes on asking by itself.
-  const asked = server.previews.length;
-  await run(5_000);
-  expect(server.previews.length).toBe(asked);
-
-  await press(ru.montage.startCut);
-  expect(server.orders).toEqual([server.previews.at(-1)]);
-});
-
-test('the material that could not be read is asked for again with «Повторить»', BEAT_BY_BEAT, async () => {
-  const server = serve({ offline: 'media' });
-  await open();
-  expect(shown()).toContain(ru.error.offline);
-  expect(has(ru.montage.ownSetup)).toBe(false);
-
-  server.offline = undefined;
-  await press(ru.action.retry);
-  await run(0);
-  expect(shown()).not.toContain(ru.error.offline);
-  expect(has(ru.montage.ownSetup)).toBe(true);
-  expect(server.reads).toBe(1);
-});
+    await forward();
+    await run(0);
+    expect(nav.top()).toBe('summary');
+    expect(banner()).toBe(ru.error.status(status));
+    expect(shown()).not.toContain(typeof body === 'string' ? body : body.error);
+    for (const way of [ru.montage.toLength, ru.montage.toFrames, ru.montage.startCut]) {
+      expect(has(way)).toBe(false);
+    }
+  },
+);
 
 test.each([
   ['cannot be reached', { offline: 'preview' }, ru.error.offline],
   ['falls over', { failing: 'preview' }, ru.error.status(500)],
-] as const)('the range the api %s on is asked again with «Повторить», not waited on', BEAT_BY_BEAT, async (_, over, said) => {
-  const server = serve(over);
-  await open();
-  await walkToLength();
-  expect(slider()).toBeNull();
-  expect(banner()).toBe(said);
-  expect(shown()).not.toContain('internal server error');
+] as const)(
+  'a total the api %s on is asked again with «Повторить», off the order as it is now',
+  BEAT_BY_BEAT,
+  async (_, over, said) => {
+    const server = serve();
+    await open();
+    await walkToLength();
+    Object.assign(server, over);
+    await forward();
+    await run(0);
+    expect(nav.top()).toBe('summary');
+    expect(banner()).toBe(said);
+    expect(has(ru.montage.startCut)).toBe(false);
 
-  server.offline = server.failing = undefined;
-  await press(ru.action.retry);
-  await until(() => slider() !== null);
-  expect(slider()).toEqual({ min: 10, max: CEILING, value: 60, all: CEILING });
-  expect(shown()).not.toContain(said);
-});
+    // Meanwhile somebody deleted p7, which the order names to leave out: the body that failed would
+    // now be refused for it, and the one asked again is built from what is there.
+    server.offline = server.failing = undefined;
+    server.material = server.material.filter((item) => item.id !== 'p7');
+    await press(ru.action.retry);
+    await until(() => has(ru.montage.startCut));
+    expect(server.previews.at(-1)).toEqual({ orientation: 'landscape', music_tracks: [] });
+
+    // Asked again once, and nothing goes on asking by itself.
+    const asked = server.previews.length;
+    await run(5_000);
+    expect(server.previews.length).toBe(asked);
+
+    await press(ru.montage.startCut);
+    expect(server.orders).toEqual([server.previews.at(-1)]);
+  },
+);
+
+test(
+  'the material that could not be read is asked for again with «Повторить»',
+  BEAT_BY_BEAT,
+  async () => {
+    const server = serve({ offline: 'media' });
+    await open();
+    expect(shown()).toContain(ru.error.offline);
+    expect(has(ru.montage.ownSetup)).toBe(false);
+
+    server.offline = undefined;
+    await press(ru.action.retry);
+    await run(0);
+    expect(shown()).not.toContain(ru.error.offline);
+    expect(has(ru.montage.ownSetup)).toBe(true);
+    expect(server.reads).toBe(1);
+  },
+);
+
+test.each([
+  ['cannot be reached', { offline: 'preview' }, ru.error.offline],
+  ['falls over', { failing: 'preview' }, ru.error.status(500)],
+] as const)(
+  'the range the api %s on is asked again with «Повторить», not waited on',
+  BEAT_BY_BEAT,
+  async (_, over, said) => {
+    const server = serve(over);
+    await open();
+    await walkToLength();
+    expect(slider()).toBeNull();
+    expect(banner()).toBe(said);
+    expect(shown()).not.toContain('internal server error');
+
+    server.offline = server.failing = undefined;
+    await press(ru.action.retry);
+    await until(() => slider() !== null);
+    expect(slider()).toEqual({ min: 10, max: CEILING, value: 60, all: CEILING });
+    expect(shown()).not.toContain(said);
+  },
+);

@@ -28,7 +28,12 @@ export const MEMORY = uuid('a', 1);
 export const MONTAGE = uuid('b', 1);
 export const OLD = uuid('b', 2);
 export const QUEUED = uuid('b', 3);
-export const PEOPLE = { organizer: uuid('c', 1), contributor: uuid('c', 2), viewer: uuid('c', 3), stranger: uuid('c', 4) };
+export const PEOPLE = {
+  organizer: uuid('c', 1),
+  contributor: uuid('c', 2),
+  viewer: uuid('c', 3),
+  stranger: uuid('c', 4),
+};
 
 export const journalPath = (montageId: string = MONTAGE) =>
   `/memories/${MEMORY}/montages/${montageId}/journal`;
@@ -87,13 +92,17 @@ export function fellOver(steps: readonly Step[], as: Role, why: string | null = 
     answer(
       list,
       (list.response.body as Montage[]).map((one) =>
-        one.id === MONTAGE ? { ...one, status: 'failed', error_text: why, stages: one.stages!.map(fell) } : one,
+        one.id === MONTAGE
+          ? { ...one, status: 'failed', error_text: why, stages: one.stages!.map(fell) }
+          : one,
       ),
     ),
     answer(journal, {
       ...whole,
       montage: { ...whole.montage, status: 'failed' },
-      stages: whole.stages.map((row, i) => (i <= at ? fell(row, i) : bodyOf(steps, 'live_first_open_empty').stages[i])),
+      stages: whole.stages.map((row, i) =>
+        i <= at ? fell(row, i) : bodyOf(steps, 'live_first_open_empty').stages[i],
+      ),
       entries,
       files: whole.files.filter((one) => met.has(one.id)).map((one) => ({ ...one, places: [] })),
     }),
@@ -199,7 +208,13 @@ function cutPage(whole: MontageJournal, search: URLSearchParams) {
 export function replay(steps: readonly Step[], options: Options = {}): Replay {
   const pool = options.only ? steps.filter((one) => options.only?.includes(one.name)) : steps;
   const consumed = new Set<string>();
-  const state: Replay = { served: [], unmatched: [], calls: 0, moment: 0, fetch: undefined as never };
+  const state: Replay = {
+    served: [],
+    unmatched: [],
+    calls: 0,
+    moment: 0,
+    fetch: undefined as never,
+  };
   /** What the last journal answer said, for the page cut out of the whole journal. */
   let last: MontageJournal | undefined;
 
@@ -213,9 +228,12 @@ export function replay(steps: readonly Step[], options: Options = {}): Replay {
   const atMoment = (): MontageJournal => {
     const seen = options.moments!.slice(0, state.moment + 1).map(patched);
     const now = seen.at(-1)!;
-    const entries = new Map(seen.flatMap((page) => page.entries.map((one) => [one.id, one] as const)));
+    const entries = new Map(
+      seen.flatMap((page) => page.entries.map((one) => [one.id, one] as const)),
+    );
     const files = new Map(seen.flatMap((page) => page.files.map((one) => [one.id, one] as const)));
-    const laidOut = now.montage.status === 'ready' && options.cutFrom ? patched(options.cutFrom).files : [];
+    const laidOut =
+      now.montage.status === 'ready' && options.cutFrom ? patched(options.cutFrom).files : [];
     for (const file of laidOut) files.set(file.id, file);
     return {
       ...now,
@@ -238,7 +256,9 @@ export function replay(steps: readonly Step[], options: Options = {}): Replay {
       return json(extra);
     }
 
-    const refused = url.pathname.endsWith('/journal') ? options.refuse?.(url.searchParams) : undefined;
+    const refused = url.pathname.endsWith('/journal')
+      ? options.refuse?.(url.searchParams)
+      : undefined;
     if (refused !== undefined) {
       state.served.push(`${label} (refused)`);
       if (refused === 'offline') throw new TypeError('Network request failed');

@@ -13,20 +13,22 @@ vi.mock('expo-router', () => ({
 }));
 // A text input listens on the browser's `document`, which a test renderer has none of. The value and
 // the answer the field gives are on the props the screen hands it, which is what is read here.
-vi.mock('@/kit', async (original) => ({ ...(await original<typeof import('@/kit')>()), Field: () => null }));
+vi.mock('@/kit', async (original) => ({
+  ...(await original<typeof import('@/kit')>()),
+  Field: () => null,
+}));
 
+import { type Asked, developing, later, memory, photo, refused, serve } from '@tests/helpers/api';
+import { mounted, mountsTrees, themesShown } from '@tests/helpers/renderer';
 import TestRenderer, { act } from 'react-test-renderer';
-
 import type { MediaItem, Memory } from '@/api';
 import MemoryEditScreen from '@/app/memory/[id]/edit';
-import { endOfDay, startOfDay } from '@/lib/dates';
 import { Banner, Button, ConfirmSheet, Field, IconButton, Tile } from '@/kit';
+import { endOfDay, startOfDay } from '@/lib/dates';
 import { CoverSheet, CoverSlot } from '@/screens/memory/cover';
 import { EventWhen } from '@/screens/memory/when';
 import { ru } from '@/strings';
-import { developing, later, memory, photo, refused, serve, type Asked } from '@tests/helpers/api';
 import { setTheme } from '@/theme';
-import { mounted, mountsTrees, themesShown } from '@tests/helpers/renderer';
 
 /**
  * `MemoryEdit` (spec 10.8.3) — name, days and cover of a memory changed in one go, on the real api
@@ -87,16 +89,25 @@ async function open() {
     tree = mounted(TestRenderer.create(<MemoryEditScreen />));
   });
   const root = tree.root;
-  const press = (find: () => { props: { onPress?: () => void } }) => act(async () => find().props.onPress?.());
+  const press = (find: () => { props: { onPress?: () => void } }) =>
+    act(async () => find().props.onPress?.());
   const screen = {
     root,
     press,
-    field: () => root.findByType(Field).props as { value: string; state?: string; hint?: string; editable?: boolean },
+    field: () =>
+      root.findByType(Field).props as {
+        value: string;
+        state?: string;
+        hint?: string;
+        editable?: boolean;
+      },
     when: () => root.findByType(EventWhen),
-    buttons: (label: string) => root.findAllByType(Button).filter((one) => one.props.label === label),
+    buttons: (label: string) =>
+      root.findAllByType(Button).filter((one) => one.props.label === label),
     save: () => root.findAllByType(Button).find((one) => one.props.label === ru.edit.save)!,
     type: (text: string) => act(async () => root.findByType(Field).props.onChangeText(text)),
-    pickDays: (from: Date, to: Date | null) => act(async () => root.findByType(EventWhen).props.onChange({ from, to })),
+    pickDays: (from: Date, to: Date | null) =>
+      act(async () => root.findByType(EventWhen).props.onChange({ from, to })),
     back: () => root.findAllByType(IconButton).find((one) => one.props.label === ru.action.back)!,
     leaving: () => root.findAllByType(ConfirmSheet)[0],
     cover: () => root.findByType(CoverSheet),
@@ -163,7 +174,10 @@ test('with nowhere to go back to, leaving is the settings of this memory', async
   router.canGoBack.mockReturnValue(false);
   const screen = await open();
   await screen.press(() => screen.back());
-  expect(router.replace).toHaveBeenCalledWith({ pathname: '/memory/[id]/settings', params: { id: 'm1' } });
+  expect(router.replace).toHaveBeenCalledWith({
+    pathname: '/memory/[id]/settings',
+    params: { id: 'm1' },
+  });
 });
 
 test('a new name is the only thing sent, trimmed, and the screen goes back', async () => {
@@ -211,7 +225,9 @@ test('new days go up as whole local days, and a single day sends an end of «nul
   const again = await open();
   await again.pickDays(day(14), null);
   await again.press(() => again.save());
-  expect(again.patches(w2.log)).toEqual([{ event_start: startOfDay(day(14)).toISOString(), event_end: null }]);
+  expect(again.patches(w2.log)).toEqual([
+    { event_start: startOfDay(day(14)).toISOString(), event_end: null },
+  ]);
 });
 
 test('the same days picked over again — by other objects, at another hour — are no change at all', async () => {
@@ -259,7 +275,12 @@ test('the cover is picked on the sheet, waits in the slot, and only «Сохра
   await screen.press(() => screen.buttons(ru.edit.coverPick)[0]);
   expect(screen.cover().props.visible).toBe(true);
   // Newest first, as the feed reads; the one still developing is in the grid and cannot be taken.
-  expect(screen.cover().findAllByType(Tile).map((one) => one.props.pick)).toEqual(['off', 'off', undefined]);
+  expect(
+    screen
+      .cover()
+      .findAllByType(Tile)
+      .map((one) => one.props.pick),
+  ).toEqual(['off', 'off', undefined]);
   await act(async () => screen.cover().props.onChoose('a'));
   expect(screen.cover().props.visible).toBe(false);
   // The slot says which frame it is, by the day it was shot on.
@@ -287,7 +308,10 @@ test('the cover sheet is put away by its own cancel, and nothing was chosen by l
 
 test('the slot shows the chosen frame’s own picture, the listing’s signed one until the gallery answers, and none once the cover is off', async () => {
   const slot = (screen: Screen) => screen.root.findByType(CoverSlot).props.uri as string | null;
-  const covered = wedding({ cover_media_id: 'b', cover_thumbnail_url: 'https://r2.example/b-signed-by-the-listing' });
+  const covered = wedding({
+    cover_media_id: 'b',
+    cover_thumbnail_url: 'https://r2.example/b-signed-by-the-listing',
+  });
   world({ memory: covered });
   const screen = await open();
   // The frame in the gallery is what is drawn once the gallery is here…
@@ -308,7 +332,9 @@ test('the slot shows the chosen frame’s own picture, the listing’s signed on
 });
 
 test('a cover that is on already comes off with one quiet press, and that is a save of null', async () => {
-  const w = world({ memory: wedding({ cover_media_id: 'b', cover_thumbnail_url: 'https://r2.example/b' }) });
+  const w = world({
+    memory: wedding({ cover_media_id: 'b', cover_thumbnail_url: 'https://r2.example/b' }),
+  });
   const screen = await open();
   expect(screen.text()).toContain(ru.edit.coverFrom('12 сентября 2026'));
   expect(screen.buttons(ru.edit.coverReplace)).toHaveLength(1);
@@ -330,7 +356,9 @@ test('taking a cover off and putting the same one back is no change', async () =
 });
 
 test('a memory with no frame that could be a cover cannot be given one, and says why', async () => {
-  world({ media: [{ ...developing('c', 'me', at(12, 8)), thumbnail_url: 'https://r2.example/c' }] });
+  world({
+    media: [{ ...developing('c', 'me', at(12, 8)), thumbnail_url: 'https://r2.example/c' }],
+  });
   const screen = await open();
   expect(screen.buttons(ru.edit.coverPick)[0].props.disabled).toBe(true);
   expect(screen.text()).toContain(ru.edit.coverNeedsFrames);

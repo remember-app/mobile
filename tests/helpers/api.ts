@@ -54,7 +54,12 @@ export function serve(route: (asked: Asked) => Answer): Asked[] {
 }
 
 /** A finished photograph that has come down from the worker, brought by `by`, shot on `at`. */
-export const photo = (id: string, by: string, at: string, over: Partial<MediaItem> = {}): MediaItem => ({
+export const photo = (
+  id: string,
+  by: string,
+  at: string,
+  over: Partial<MediaItem> = {},
+): MediaItem => ({
   id,
   kind: 'photo',
   status: 'ready',

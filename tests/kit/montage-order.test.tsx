@@ -27,18 +27,47 @@ beforeAll(async () => {
 test('a template says what kind of film it is, in three states', () => {
   allDifferent({
     resting: (
-      <TileTemplate title="Для родителей" note="Лица, тепло, чуть медленнее" spec="2:30 · 16:9" icon={House} uri={SHOTS[0]} onPress={() => {}} />
+      <TileTemplate
+        title="Для родителей"
+        note="Лица, тепло, чуть медленнее"
+        spec="2:30 · 16:9"
+        icon={House}
+        uri={SHOTS[0]}
+        onPress={() => {}}
+      />
     ),
     picked: (
-      <TileTemplate title="Для родителей" note="Лица, тепло, чуть медленнее" spec="2:30 · 16:9" icon={House} uri={SHOTS[0]} picked onPress={() => {}} />
+      <TileTemplate
+        title="Для родителей"
+        note="Лица, тепло, чуть медленнее"
+        spec="2:30 · 16:9"
+        icon={House}
+        uri={SHOTS[0]}
+        picked
+        onPress={() => {}}
+      />
     ),
     dimmed: (
-      <TileTemplate title="Быстрый, энергичный" note="Бодро, в ритм" spec="1:00 · 16:9" icon={Zap} uri={SHOTS[1]} dimmed onPress={() => {}} />
+      <TileTemplate
+        title="Быстрый, энергичный"
+        note="Бодро, в ритм"
+        spec="1:00 · 16:9"
+        icon={Zap}
+        uri={SHOTS[1]}
+        dimmed
+        onPress={() => {}}
+      />
     ),
     bare: <TileTemplate title="Для себя" onPress={() => {}} />,
   });
   const tile = story(
-    <TileTemplate title="Для себя" note="Личное, без спешки" spec="3:00 · 16:9" icon={Heart} onPress={() => {}} />,
+    <TileTemplate
+      title="Для себя"
+      note="Личное, без спешки"
+      spec="3:00 · 16:9"
+      icon={Heart}
+      onPress={() => {}}
+    />,
   );
   expect(tile).toContain('role="button"');
   // Read out whole: what it is called, what it is like, and how long it runs.
@@ -62,7 +91,9 @@ test('the poster of an order prints its length and names its shape in a word', (
   // The shape is said, never drawn: a 9:16 order does not make this card tall, because there is
   // nothing yet to show at that shape and a word is read faster than a rectangle is measured.
   expect(story(<PosterOrder photos={SHOTS} length="0:30" shape="Вертикальный" />)).not.toBe(poster);
-  expect(story(<PosterOrder photos={SHOTS} length="2:30" shape="Горизонтальный" />)).not.toBe(poster);
+  expect(story(<PosterOrder photos={SHOTS} length="2:30" shape="Горизонтальный" />)).not.toBe(
+    poster,
+  );
 });
 
 test('a poster with fewer than three frames keeps its layout', () => {
@@ -151,8 +182,12 @@ test('the glyphs on a template and on the poster of an order are the night’s p
   // Both stand on a photograph under a darkening — a template's glass, the poster's plate — and
   // those are dark in both themes. The day's `paper` is a near black, and a near-black glyph on
   // that glass is a template with no sign of what kind it is.
-  const template = <TileTemplate title="Для родителей" icon={Heart} uri={SHOTS[0]} onPress={() => {}} />;
-  const poster = <PosterOrder photos={SHOTS} template="Для родителей" templateIcon={Heart} length="2:30" />;
+  const template = (
+    <TileTemplate title="Для родителей" icon={Heart} uri={SHOTS[0]} onPress={() => {}} />
+  );
+  const poster = (
+    <PosterOrder photos={SHOTS} template="Для родителей" templateIcon={Heart} length="2:30" />
+  );
   await setTheme('light');
   for (const node of [template, poster]) {
     expect(story(node)).toContain('stroke="#F5F3EE"');
@@ -160,4 +195,3 @@ test('the glyphs on a template and on the poster of an order are the night’s p
   }
   await setTheme('dark');
 });
-

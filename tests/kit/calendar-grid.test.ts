@@ -17,11 +17,16 @@ afterEach(() => {
  */
 function inZone(name: string, offsetMinutes: number, check: () => void) {
   process.env.TZ = name;
-  expect(new Date(Date.UTC(2026, 0, 1, 12)).getTimezoneOffset(), `${name} took hold`).toBe(offsetMinutes);
+  expect(new Date(Date.UTC(2026, 0, 1, 12)).getTimezoneOffset(), `${name} took hold`).toBe(
+    offsetMinutes,
+  );
   check();
 }
 
-const days = (month: Date) => weeksOf(month).flat().filter((day): day is Date => day !== null);
+const days = (month: Date) =>
+  weeksOf(month)
+    .flat()
+    .filter((day): day is Date => day !== null);
 
 test('every week is seven long, and the month is all of it and nothing but it', () => {
   for (let m = 0; m < 12; m++) {
@@ -54,7 +59,10 @@ test('a month that spills into a sixth week gets six, and February is short when
 });
 
 test('leap years: 29 February exists in 2028 and in 2000, and not in 2027 or 1900', () => {
-  const last = (year: number) => days(new Date(year, 1, 1)).at(-1)!.getDate();
+  const last = (year: number) =>
+    days(new Date(year, 1, 1))
+      .at(-1)!
+      .getDate();
   expect(last(2028)).toBe(29);
   expect(last(2000)).toBe(29);
   expect(last(2027)).toBe(28);
@@ -88,7 +96,10 @@ test('a day is the day it lands on, whatever the hour and whatever the zone', ()
       expect(dayKey(new Date(2026, 8, 13, 0, 0, 0, 0)), name).toBeGreaterThan(dayKey(end));
       // The grid hands out exactly the days it drew, in order, one to a square.
       const real = days(new Date(2026, 8, 1));
-      expect(real.map((day) => day.getDate()), name).toEqual(Array.from({ length: 30 }, (_, i) => i + 1));
+      expect(
+        real.map((day) => day.getDate()),
+        name,
+      ).toEqual(Array.from({ length: 30 }, (_, i) => i + 1));
       expect(new Set(real.map(dayKey)).size, name).toBe(30);
     });
   }

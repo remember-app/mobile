@@ -4,9 +4,9 @@ import { expect, test, vi } from 'vitest';
 // run. Nothing below reads a date.
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'en-US' }] }));
 
+import { frame } from '@tests/helpers/labels';
 import type { Label, MediaItem } from '@/api';
 import { FILTER_NONE, framesMatching, keepLabels } from '@/lib/frames';
-import { frame } from '@tests/helpers/labels';
 import { filed, filing, labelGroups, labelNameOk, labelTint, withLabel } from '@/lib/labels';
 import { themes } from '@/theme';
 

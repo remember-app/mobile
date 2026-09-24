@@ -20,7 +20,9 @@ test('on, off and unavailable are three states of one switch', () => {
 
 test('on is accent, off is raise, and the grip is white on both sides', () => {
   const on = story(<Toggle label="Сможет добавлять фото" value onValueChange={() => {}} />);
-  const off = story(<Toggle label="Сможет добавлять фото" value={false} onValueChange={() => {}} />);
+  const off = story(
+    <Toggle label="Сможет добавлять фото" value={false} onValueChange={() => {}} />,
+  );
   expect(on).toContain('rgba(75,91,255,1.00)');
   expect(off).toContain('rgba(34,34,46,1.00)');
   for (const drawn of [on, off]) expect(drawn).toContain('rgba(255,255,255,1.00)');

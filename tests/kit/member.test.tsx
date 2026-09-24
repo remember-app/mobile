@@ -3,7 +3,7 @@ import { beforeAll, expect, test } from 'vitest';
 
 import { BadgeContribution } from '@/kit/badge';
 import { IconButton } from '@/kit/button';
-import { Avatar, AvatarStack, RowContact, RowMember, WatchingPill, initials } from '@/kit/member';
+import { Avatar, AvatarStack, initials, RowContact, RowMember, WatchingPill } from '@/kit/member';
 import { allDifferent, story } from '@/kit/story';
 import { setTheme } from '@/theme';
 
@@ -65,9 +65,7 @@ test('a face takes its colour from the name, and the same name is the same colou
   expect(anya).toBe(story(<Avatar name="Аня Петрова" />));
   expect(anya).not.toBe(story(<Avatar name="Марк Ковалёв" />));
   // One of the six and nothing else.
-  expect(anya).toMatch(
-    /rgba\((91,75,138|47,94,99|122,75,58|62,90,46|90,62,94|58,74,110),1\.00\)/,
-  );
+  expect(anya).toMatch(/rgba\((91,75,138|47,94,99|122,75,58|62,90,46|90,62,94|58,74,110),1\.00\)/);
 });
 
 test('every size the layout draws a circle at is its own size, letters and all', () => {
@@ -95,7 +93,9 @@ test('a stack overlaps by what its circles can spare, and stops at four', () => 
     'margin-left:-7px',
   );
   // Four faces are four faces; past that the fourth circle becomes the count of everyone left.
-  expect(story(<AvatarStack names={['Аня', 'Марк', 'Лиза', 'Ира']} on="#16161F" />)).toContain('ИР');
+  expect(story(<AvatarStack names={['Аня', 'Марк', 'Лиза', 'Ира']} on="#16161F" />)).toContain(
+    'ИР',
+  );
   const many = story(<AvatarStack names={['Аня', 'Марк', 'Лиза', 'Ира', 'Пётр']} on="#16161F" />);
   expect(many).toContain('+2');
   expect(many).not.toContain('ИР');
@@ -173,7 +173,7 @@ test('the three states of a contact row are three rows', () => {
     gone: <RowContact name="Марина Ким" handle="Убрали из контактов" variant="gone" />,
   });
   // A removed row says where the username was, rather than leaving the line empty.
-  expect(story(<RowContact name="Марина Ким" handle="Убрали из контактов" variant="gone" />)).toContain(
-    'Убрали из контактов',
-  );
+  expect(
+    story(<RowContact name="Марина Ким" handle="Убрали из контактов" variant="gone" />),
+  ).toContain('Убрали из контактов');
 });

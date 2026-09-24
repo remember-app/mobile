@@ -18,14 +18,12 @@ vi.mock('expo-secure-store', () => ({
 }));
 vi.mock('expo-router', () => ({ useFocusEffect: () => {}, useIsFocused: () => true }));
 
+import { act, BEAT_BY_BEAT, drives, settle } from '@tests/helpers/drive';
+import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { AppState } from 'react-native';
 import TestRenderer from 'react-test-renderer';
-
-import { AuthProvider, useAuth, type AuthStatus } from '@/lib/auth';
-import { useMontageJournal, WHILE_LIVE_MS, type Standing } from '@/lib/montage/journal';
-import { mounted, mountsTrees } from '@tests/helpers/renderer';
-
-import { act, BEAT_BY_BEAT, drives, settle } from '@tests/helpers/drive';
+import { AuthProvider, type AuthStatus, useAuth } from '@/lib/auth';
+import { type Standing, useMontageJournal, WHILE_LIVE_MS } from '@/lib/montage/journal';
 import { liveSteps, load, MEMORY, MONTAGE, PEOPLE, replay, TOKEN } from './recorded';
 
 /**
@@ -41,7 +39,13 @@ import { liveSteps, load, MEMORY, MONTAGE, PEOPLE, replay, TOKEN } from './recor
 mountsTrees();
 
 /** Who the organizer's token is — not part of the recording, which never asked. */
-const ME = { id: PEOPLE.organizer, username: 'anya', name: 'Аня Петрова', email: null, language: 'ru' };
+const ME = {
+  id: PEOPLE.organizer,
+  username: 'anya',
+  name: 'Аня Петрова',
+  email: null,
+  language: 'ru',
+};
 
 beforeEach(() => {
   // react-native-web has no app state to subscribe to off a phone and hands back no subscription.
@@ -57,65 +61,71 @@ afterEach(() => {
 });
 drives();
 
-test('a 401 on the live poll ends the session once, the journal is left for the way in, and nothing is asked again', BEAT_BY_BEAT, async () => {
-  const steps = load('director');
-  let revoked = false;
-  const api = replay(steps, {
-    only: liveSteps(steps).map((one) => one.name),
-    extra: { '/me': ME, '/me/language': ME },
-    refuse: () => (revoked ? 401 : undefined),
-  });
-  vi.stubGlobal('fetch', api.fetch);
-  keychain.token = TOKEN.organizer;
-  keychain.deleted = 0;
+test(
+  'a 401 on the live poll ends the session once, the journal is left for the way in, and nothing is asked again',
+  BEAT_BY_BEAT,
+  async () => {
+    const steps = load('director');
+    let revoked = false;
+    const api = replay(steps, {
+      only: liveSteps(steps).map((one) => one.name),
+      extra: { '/me': ME, '/me/language': ME },
+      refuse: () => (revoked ? 401 : undefined),
+    });
+    vi.stubGlobal('fetch', api.fetch);
+    keychain.token = TOKEN.organizer;
+    keychain.deleted = 0;
 
-  /** Every render, in order: the journal's standing while it exists, the gate's status after. */
-  const seen: (Standing | AuthStatus)[] = [];
-  function Journal() {
-    const { token } = useAuth();
-    seen.push(useMontageJournal(token, MEMORY, MONTAGE).standing);
-    return null;
-  }
-  function Gate() {
-    const { status } = useAuth();
-    if (status === 'ready') return <Journal />;
-    seen.push(status);
-    return null;
-  }
+    /** Every render, in order: the journal's standing while it exists, the gate's status after. */
+    const seen: (Standing | AuthStatus)[] = [];
+    function Journal() {
+      const { token } = useAuth();
+      seen.push(useMontageJournal(token, MEMORY, MONTAGE).standing);
+      return null;
+    }
+    function Gate() {
+      const { status } = useAuth();
+      if (status === 'ready') return <Journal />;
+      seen.push(status);
+      return null;
+    }
 
-  let tree!: TestRenderer.ReactTestRenderer;
-  await act(async () => {
-    tree = mounted(TestRenderer.create(
-      <AuthProvider>
-        <Gate />
-      </AuthProvider>,
-    ));
-  });
-  await settle();
-  const beat = async () => {
+    let tree!: TestRenderer.ReactTestRenderer;
     await act(async () => {
-      vi.advanceTimersByTime(WHILE_LIVE_MS);
+      tree = mounted(
+        TestRenderer.create(
+          <AuthProvider>
+            <Gate />
+          </AuthProvider>,
+        ),
+      );
     });
     await settle();
-  };
-  await beat();
-  expect(seen.at(-1)).toBe('live');
+    const beat = async () => {
+      await act(async () => {
+        vi.advanceTimersByTime(WHILE_LIVE_MS);
+      });
+      await settle();
+    };
+    await beat();
+    expect(seen.at(-1)).toBe('live');
 
-  revoked = true;
-  await beat();
+    revoked = true;
+    await beat();
 
-  expect(seen.at(-1)).toBe('signed-out');
-  expect(keychain).toEqual({ token: null, deleted: 1 });
-  expect(console.info).toHaveBeenCalledTimes(1);
+    expect(seen.at(-1)).toBe('signed-out');
+    expect(keychain).toEqual({ token: null, deleted: 1 });
+    expect(console.info).toHaveBeenCalledTimes(1);
 
-  const asked = api.calls;
-  for (let i = 0; i < 5; i++) await beat();
-  expect(api.calls).toBe(asked);
-  expect(api.served.filter((one) => one.endsWith('(refused)'))).toHaveLength(1);
+    const asked = api.calls;
+    for (let i = 0; i < 5; i++) await beat();
+    expect(api.calls).toBe(asked);
+    expect(api.served.filter((one) => one.endsWith('(refused)'))).toHaveLength(1);
 
-  // The 401 was never a lost connection nor «you are not in this memory» — not for one render.
-  expect(seen).not.toContain('offline');
-  expect(seen).not.toContain('refused');
-  expect(api.unmatched).toEqual([]);
-  await act(() => tree.unmount());
-});
+    // The 401 was never a lost connection nor «you are not in this memory» — not for one render.
+    expect(seen).not.toContain('offline');
+    expect(seen).not.toContain('refused');
+    expect(api.unmatched).toEqual([]);
+    await act(() => tree.unmount());
+  },
+);

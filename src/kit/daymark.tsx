@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
 import { photo, radius } from '@/theme';
 
@@ -141,7 +141,13 @@ export function DateSpine({
  * `Text`, which is what pairs a role with the theme's own ink.
  */
 const styles = StyleSheet.create({
-  mark: { height: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  mark: {
+    height: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
   band: {
     height: 44,
     marginVertical: -12,
@@ -156,7 +162,13 @@ const styles = StyleSheet.create({
   count: { flexShrink: 0 },
   spine: { position: 'absolute', top: 0, bottom: 0, right: 12, width: 1 },
   spineLine: { flex: 1, width: 1, backgroundColor: photo.spine },
-  spineMark: { position: 'absolute', right: 0, height: 16, flexDirection: 'row', alignItems: 'center' },
+  spineMark: {
+    position: 'absolute',
+    right: 0,
+    height: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   spinePill: {
     height: 16,
     justifyContent: 'center',

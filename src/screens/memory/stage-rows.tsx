@@ -2,17 +2,17 @@ import { useRouter } from 'expo-router';
 import { Fragment } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { MONTAGE_STAGES, type JournalEntry, type MontageStageCode } from '@/api';
-import { formatRuntime } from '@/lib/dates';
+import { type JournalEntry, MONTAGE_STAGES, type MontageStageCode } from '@/api';
 import { BadgeDecision, Divider, RowStep, StepLink, StepNote } from '@/kit';
+import { formatRuntime } from '@/lib/dates';
 import { useStrings } from '@/lib/language';
 import {
+  type Journal,
   lastOfStage,
   marksOf,
   recordsOf,
   stageLine,
   stageStanding,
-  type Journal,
 } from '@/lib/montage/journal';
 import { radius, themed } from '@/theme';
 

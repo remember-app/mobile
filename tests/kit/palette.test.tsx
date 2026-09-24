@@ -24,7 +24,13 @@ const NAMES = [
 
 test('all eight colours of the palette are offered, and each one says its own name', () => {
   const row = story(
-    <Palette colors={COLORS} names={NAMES} value={COLORS[1]} onChange={() => {}} label="Цвет лейбла" />,
+    <Palette
+      colors={COLORS}
+      names={NAMES}
+      value={COLORS[1]}
+      onChange={() => {}}
+      label="Цвет лейбла"
+    />,
   );
   expect(COLORS).toHaveLength(8);
   // Spec 10.4: «Цвет 2» tells nobody anything — the colours are named in words.
@@ -50,8 +56,12 @@ test('the chosen colour wears the double ring, and nothing else does', () => {
   // One ring in the row, because one colour is chosen.
   expect(chosen.match(/0 0 0 3px/g)).toHaveLength(1);
   allDifferent({
-    first: <Palette colors={COLORS} names={NAMES} value={COLORS[0]} onChange={() => {}} label="Цвет" />,
-    second: <Palette colors={COLORS} names={NAMES} value={COLORS[1]} onChange={() => {}} label="Цвет" />,
+    first: (
+      <Palette colors={COLORS} names={NAMES} value={COLORS[0]} onChange={() => {}} label="Цвет" />
+    ),
+    second: (
+      <Palette colors={COLORS} names={NAMES} value={COLORS[1]} onChange={() => {}} label="Цвет" />
+    ),
   });
 });
 
@@ -76,6 +86,14 @@ test('the inner ring is drawn in whatever the circles stand on', () => {
 test('the row is as tall as the finger, because the slop round a 36 circle cannot leave it', () => {
   // Spec 1.6 and 10.2: drawn 36, felt 44. `hitSlop` is clipped to the view the button stands in, so
   // on a row exactly 36 tall the four points above and below each circle would be dead.
-  story(<Palette colors={COLORS} names={NAMES} value={COLORS[0]} onChange={() => {}} label="Цвет лейбла" />);
+  story(
+    <Palette
+      colors={COLORS}
+      names={NAMES}
+      value={COLORS[0]}
+      onChange={() => {}}
+      label="Цвет лейбла"
+    />,
+  );
   expect(compiled()).toContain('min-height:44px');
 });

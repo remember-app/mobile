@@ -2,12 +2,14 @@ import { useFocusEffect, useIsFocused, useLocalSearchParams, useRouter } from 'e
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
-import { ApiError, errorMessage, listMontages, retryMontage, type Memory, type Montage } from '@/api';
-import { useAuth } from '@/lib/auth';
-import { formatDay } from '@/lib/dates';
-// From the gallery's own module: one rule about what a quiet re-read may replace, and this list is
-// polled quietly for the same reason that one is. Its doc says why both lists read it.
-import { keepReady } from '@/lib/frames';
+import {
+  ApiError,
+  errorMessage,
+  listMontages,
+  type Memory,
+  type Montage,
+  retryMontage,
+} from '@/api';
 import {
   BadgeMontage,
   Banner,
@@ -17,14 +19,19 @@ import {
   EmptyMontages,
   type MontageState,
 } from '@/kit';
+import { useAuth } from '@/lib/auth';
+import { formatDay } from '@/lib/dates';
+// From the gallery's own module: one rule about what a quiet re-read may replace, and this list is
+// polled quietly for the same reason that one is. Its doc says why both lists read it.
+import { keepReady } from '@/lib/frames';
 import { useStrings } from '@/lib/language';
+import { currentStage, STAGE_COUNT, stageNumber } from '@/lib/montage/journal';
+import { beingMade, shelfTrack, WHILE_MAKING_MS } from '@/lib/montage/order';
 // The one player this product has, and what a film is called — both of them shared with the film's
 // own page, which watches and saves the very same video (TASK-222).
 import { FilmPlayer, montageTitle } from '@/screens/memory/film-player';
 import { BlockHead } from '@/screens/memory/head';
-import { beingMade, shelfTrack, WHILE_MAKING_MS } from '@/lib/montage/order';
-import { currentStage, STAGE_COUNT, stageNumber } from '@/lib/montage/journal';
-import { type Strings } from '@/strings';
+import type { Strings } from '@/strings';
 import { space } from '@/theme';
 
 /** The four standings a montage can be in, in the three the kit draws (section 10). */

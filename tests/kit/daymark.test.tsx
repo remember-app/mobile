@@ -38,14 +38,24 @@ test('a seam that picks is a checkbox over the whole band, and one that does not
   // business — `react-native-web`'s static render drops `accessibilityState` — but the two must at
   // least be different things to look at, or the band says nothing about the day it stands over.
   expect(picking).not.toBe(
-    story(<DayMark label="13 сентября" count="61" picked onPress={() => {}} pressLabel="Выбрать все 61" />),
+    story(
+      <DayMark
+        label="13 сентября"
+        count="61"
+        picked
+        onPress={() => {}}
+        pressLabel="Выбрать все 61"
+      />,
+    ),
   );
 });
 
 test('the organizer’s circle wears the spark collar in the seam, and nobody else’s does', () => {
   // Spec 7.5: the collar is a shadow outside the circle rather than a border in it, so a circle
   // inside a stack can wear both it and the hairline that cuts it from its neighbour.
-  const organizer = story(<DayMark label="Марк Ковалёв" avatar="Марк Ковалёв" organizer count="96" />);
+  const organizer = story(
+    <DayMark label="Марк Ковалёв" avatar="Марк Ковалёв" organizer count="96" />,
+  );
   expect(organizer).toContain('0 0 0 1.5px #E4FF4F');
   expect(story(<DayMark label="Аня" avatar="Аня" count="54" />)).not.toContain('#E4FF4F');
 });

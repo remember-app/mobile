@@ -22,7 +22,13 @@ test('the days are the shared block’s, and this screen only holds what it pick
   // its markup here is how the two drifted 2 and 2 points apart from each other and from the layout.
   expect(create).toContain('<EventWhen value={span} onChange={setSpan} disabled={busy} />');
   expect(create).toContain('const [span, setSpan] = useState<Span>(');
-  for (const inlined of ['<Calendar', '<Chip', 'lastWeekend', 'daysBefore', 'const [month, setMonth]']) {
+  for (const inlined of [
+    '<Calendar',
+    '<Chip',
+    'lastWeekend',
+    'daysBefore',
+    'const [month, setMonth]',
+  ]) {
     expect(create).not.toContain(inlined);
   }
 });
@@ -45,14 +51,18 @@ test('the four quick days are four whole answers, and each is a word from the di
     // are two different spans, and a copy-paste between them reads as one.
     for (const set of [en, ru]) expect(set.create[key].length).toBeGreaterThan(0);
   }
-  expect(new Set([ru.create.today, ru.create.yesterday, ru.create.weekend, ru.create.week]).size).toBe(4);
+  expect(
+    new Set([ru.create.today, ru.create.yesterday, ru.create.weekend, ru.create.week]).size,
+  ).toBe(4);
   // Pressing one is both ends at once, never an end left over from whatever was picked before.
   expect(when).toContain('onPress={() => onChange(day.span)}');
 });
 
 test('a single day is a date and nothing else — the length is only said of a span', () => {
   // Spec 8, «Края»: «12–14 сентября · 3 дня», but «12 сентября 2026» alone.
-  expect(when).toContain('{days > 1 ? <Text role="chip" tone="muted">{` · ${s.create.days(days)}`}</Text> : null}');
+  expect(when).toContain(
+    '{days > 1 ? <Text role="chip" tone="muted">{` · ${s.create.days(days)}`}</Text> : null}',
+  );
   expect(ru.create.days(1)).toBe('1 день');
   expect(ru.create.days(3)).toBe('3 дня');
   expect(ru.create.days(5)).toBe('5 дней');
@@ -71,7 +81,9 @@ test('a day picked away and back submits the day, never the label', () => {
   expect(create).toContain('event_start: startOfDay(span.from).toISOString()');
   // A single day sends no end at all — `to` stays `null` until a second tap, and the api reads a
   // memory without an end as the one day it started on. The same request the screen always sent.
-  expect(create).toContain('event_end: span.to === null ? undefined : endOfDay(span.to).toISOString()');
+  expect(create).toContain(
+    'event_end: span.to === null ? undefined : endOfDay(span.to).toISOString()',
+  );
   expect(create).toContain('useState<Span>(() => ({ from: startOfDay(new Date()), to: null }))');
 });
 
@@ -85,7 +97,10 @@ test('a rejected order leaves the form standing, not stuck mid-submit', () => {
   expect(create).toContain('setBusy(false);');
   // Both happen together in the catch, so a 400 from the api hands the form straight back
   // rather than leaving the button spinning over a request that already failed.
-  const caught = create.slice(create.indexOf('} catch (e) {'), create.indexOf('};', create.indexOf('} catch (e) {')));
+  const caught = create.slice(
+    create.indexOf('} catch (e) {'),
+    create.indexOf('};', create.indexOf('} catch (e) {')),
+  );
   expect(caught).toContain('setError(errorMessage(e));');
   expect(caught).toContain('setBusy(false);');
 });

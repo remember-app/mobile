@@ -74,8 +74,7 @@ export const en = {
     status: (status: number) => `The API answered ${status}.`,
     usernameTaken: 'That username is taken — pick another.',
     usernameFormat: '3–30 Latin letters, digits, . _ -, and not at the ends',
-    galleryRefused:
-      'Remember may not add to this phone’s gallery — that is turned on in Settings.',
+    galleryRefused: 'Remember may not add to this phone’s gallery — that is turned on in Settings.',
   },
 
   /** The product's own nouns, and the counts drawn next to them. */
@@ -1190,7 +1189,8 @@ export const ru: Strings = {
     tooMany: 'Слишком много попыток — подождите минуту и повторите.',
     status: (status: number) => `Сервер ответил ${status}.`,
     usernameTaken: 'Этот ник уже занят — выберите другой.',
-    usernameFormat: 'От 3 до 30 знаков: латиница, цифры, точка, дефис и подчёркивание — не по краям',
+    usernameFormat:
+      'От 3 до 30 знаков: латиница, цифры, точка, дефис и подчёркивание — не по краям',
     galleryRefused: 'Remember не может сохранять в галерею телефона — это включается в настройках.',
   },
 
@@ -1471,7 +1471,8 @@ export const ru: Strings = {
     unmute: 'Включить звук',
     played: 'Сколько проиграно',
 
-    brought: (day: string, n: number) => `принёс ${day} · всего ${count(n, 'кадр', 'кадра', 'кадров')}`,
+    brought: (day: string, n: number) =>
+      `принёс ${day} · всего ${count(n, 'кадр', 'кадра', 'кадров')}`,
     file: 'Файл',
     pixels: 'Размер',
     camera: 'Камера',
@@ -1501,7 +1502,16 @@ export const ru: Strings = {
     namePlaceholder: 'Лучшее',
     colour: 'Цвет',
     colourLabel: 'Цвет лейбла',
-    colours: ['жёлтый', 'розовый', 'красный', 'зелёный', 'голубой', 'фиолетовый', 'кислотный', 'серый'],
+    colours: [
+      'жёлтый',
+      'розовый',
+      'красный',
+      'зелёный',
+      'голубой',
+      'фиолетовый',
+      'кислотный',
+      'серый',
+    ],
     who: 'Кто видит',
     sharedCard: 'Общий',
     sharedNote: 'видят все участники',
@@ -1687,8 +1697,7 @@ export const ru: Strings = {
       cuts: (n: number) => count(n, 'склейка', 'склейки', 'склеек'),
       noTrack: 'без музыки, подгонять не подо что',
       doneOf: (n: number, of: number) => `${n} из ${of}`,
-      wholeStage: (n: number) =>
-        `Весь журнал этапа · ${count(n, 'запись', 'записи', 'записей')}`,
+      wholeStage: (n: number) => `Весь журнал этапа · ${count(n, 'запись', 'записи', 'записей')}`,
       justNow: 'сейчас',
       all: 'Всё',
       thoughts: 'Мысли',
@@ -1754,7 +1763,8 @@ export const ru: Strings = {
     partSizeChanged: 'Размер части изменился.',
     partNotTaken: (part: number) => `Хранилище не приняло часть ${part}.`,
     askAll: 'Это всё?',
-    askAllText: 'Или что-то ещё осталось? Организатор увидит ваш ответ и поймёт, ждать вас или нет.',
+    askAllText:
+      'Или что-то ещё осталось? Организатор увидит ваш ответ и поймёт, ждать вас или нет.',
     // Один файл ушёл, а двенадцать ушли: счёт даёт форму существительного, а глагол идёт за ним.
     sentToMemory: (n: number) =>
       `${count(n, 'файл', 'файла', 'файлов')} ${

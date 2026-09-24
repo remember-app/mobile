@@ -1,12 +1,12 @@
 import { Image } from 'expo-image';
-import { useRef, useState, type ReactNode } from 'react';
+import { type ReactNode, useRef, useState } from 'react';
 import {
   Animated,
+  type GestureResponderEvent,
   PanResponder,
+  type StyleProp,
   StyleSheet,
   View,
-  type GestureResponderEvent,
-  type StyleProp,
   type ViewStyle,
 } from 'react-native';
 
@@ -37,7 +37,14 @@ export function Divider({
 }) {
   const styles = useStyles();
   return (
-    <View style={[styles.divider, soft ? styles.dividerSoft : null, grow ? styles.dividerGrow : null, style]} />
+    <View
+      style={[
+        styles.divider,
+        soft ? styles.dividerSoft : null,
+        grow ? styles.dividerGrow : null,
+        style,
+      ]}
+    />
   );
 }
 
@@ -339,7 +346,12 @@ const useStyles = themed(({ color }) =>
     scaleStep: { flex: 1, height: 3, borderRadius: radius.pill, backgroundColor: color.line },
     scaleAccent: { backgroundColor: color.accent },
     scaleSpark: { backgroundColor: color.spark },
-    track: { height: 6, borderRadius: radius.pill, backgroundColor: color.line, overflow: 'hidden' },
+    track: {
+      height: 6,
+      borderRadius: radius.pill,
+      backgroundColor: color.line,
+      overflow: 'hidden',
+    },
     trackThin: { height: 4 },
     trackOnPhoto: { backgroundColor: photo.track },
     fill: { height: '100%', borderRadius: radius.pill },

@@ -1,11 +1,10 @@
 import { afterEach, expect, test, vi } from 'vitest';
-
-import app from '../../app.json';
 import layout from '@/app/_layout.tsx?raw';
 import player from '@/screens/memory/film-player.tsx?raw';
 import films from '@/screens/memory/films.tsx?raw';
 import frameViewer from '@/screens/memory/frame-viewer.tsx?raw';
 import frames from '@/screens/memory/frames.tsx?raw';
+import app from '../../app.json';
 
 // `expo-screen-orientation` is a native module and does not exist under vitest, so the module under
 // test cannot be imported without one standing in — `downloads.test.ts` mocks its two expo modules

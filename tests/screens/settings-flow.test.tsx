@@ -17,19 +17,29 @@ vi.mock('expo-router', async () => {
   };
 });
 // A text input listens on the browser's `document`, which a test renderer has none of.
-vi.mock('@/kit', async (original) => ({ ...(await original<typeof import('@/kit')>()), Field: () => null }));
+vi.mock('@/kit', async (original) => ({
+  ...(await original<typeof import('@/kit')>()),
+  Field: () => null,
+}));
 
-import TestRenderer, { act } from 'react-test-renderer';
+import { type Asked, later, member, memory, refused, serve } from '@tests/helpers/api';
+import { mounted, mountsTrees, themesShown } from '@tests/helpers/renderer';
 import { Pressable } from 'react-native';
-
+import TestRenderer, { act } from 'react-test-renderer';
 import type { Member, Memory } from '@/api';
 import MemorySettingsScreen from '@/app/memory/[id]/settings';
-import { Banner, BadgeContribution, Button, ConfirmSheet, IconButton, RowMember, Waiting } from '@/kit';
+import {
+  BadgeContribution,
+  Banner,
+  Button,
+  ConfirmSheet,
+  IconButton,
+  RowMember,
+  Waiting,
+} from '@/kit';
 import { InviteSheet } from '@/screens/memory/invite-sheet';
 import { ru } from '@/strings';
-import { later, member, memory, refused, serve, type Asked } from '@tests/helpers/api';
 import { setTheme } from '@/theme';
-import { mounted, mountsTrees, themesShown } from '@tests/helpers/renderer';
 
 /**
  * `MemorySettings` and the mode of taking people out (spec 8, 10.8.3, 10.8.4) — the whole screen over
@@ -56,9 +66,23 @@ afterEach(() => vi.unstubAllGlobals());
  */
 const roster = (): Member[] => [
   member('me', 'organizer', { name: 'Я', contribution_status: 'done', media_count: 12 }),
-  member('liza', 'contributor', { name: 'Лиза Морозова', contribution_status: 'more_coming', media_count: 54 }),
-  member('anya', 'contributor', { name: 'Аня Петрова', username: 'anya.p', contribution_status: 'nothing', media_count: 0 }),
-  member('pavel', 'contributor', { name: null, username: 'pavel', contribution_status: 'not_started', media_count: 3 }),
+  member('liza', 'contributor', {
+    name: 'Лиза Морозова',
+    contribution_status: 'more_coming',
+    media_count: 54,
+  }),
+  member('anya', 'contributor', {
+    name: 'Аня Петрова',
+    username: 'anya.p',
+    contribution_status: 'nothing',
+    media_count: 0,
+  }),
+  member('pavel', 'contributor', {
+    name: null,
+    username: 'pavel',
+    contribution_status: 'not_started',
+    media_count: 3,
+  }),
   member('vera', 'viewer', { name: 'Вера', username: 'vera', media_count: 0 }),
 ];
 
@@ -102,21 +126,31 @@ async function open() {
     tree = mounted(TestRenderer.create(<MemorySettingsScreen />));
   });
   const root = tree.root;
-  const press = (find: () => { props: { onPress?: () => void } }) => act(async () => find().props.onPress?.());
+  const press = (find: () => { props: { onPress?: () => void } }) =>
+    act(async () => find().props.onPress?.());
   const screen = {
     root,
     press,
-    button: (label: string) => root.findAllByType(Button).filter((one) => one.props.label === label),
-    icon: (label: string) => root.findAllByType(IconButton).filter((one) => one.props.label === label),
+    button: (label: string) =>
+      root.findAllByType(Button).filter((one) => one.props.label === label),
+    icon: (label: string) =>
+      root.findAllByType(IconButton).filter((one) => one.props.label === label),
     rows: () => root.findAllByType(RowMember),
     /** Who is on the screen, in the order drawn: the people and then the ones who only watch. */
     names: () => root.findAllByType(RowMember).map((one) => one.props.name as string),
     row: (name: string) => root.findAllByType(RowMember).find((one) => one.props.name === name)!,
     /** The one mark at the right of a row: `null` for nothing, or what kind of thing it is. */
     mark: (name: string) => {
-      const status = screen.row(name).props.status as { type: unknown; props: Record<string, unknown> } | null | undefined;
+      const status = screen.row(name).props.status as
+        | { type: unknown; props: Record<string, unknown> }
+        | null
+        | undefined;
       if (status === null || status === undefined) return null;
-      return status.type === BadgeContribution ? `badge:${status.props.state}` : status.type === IconButton ? 'cross' : 'button';
+      return status.type === BadgeContribution
+        ? `badge:${status.props.state}`
+        : status.type === IconButton
+          ? 'cross'
+          : 'button';
     },
     sheet: () => root.findAllByType(ConfirmSheet),
     notice: () => root.findAllByType(Banner).map((one) => one.props.text as string),
@@ -165,7 +199,10 @@ test('a viewer has no standing: nothing at the right of their row, and no button
 });
 
 test('only the organizer is drawn the pencil and the way into taking people out; nobody else is shown a greyed one', async () => {
-  for (const [id, role] of [['liza', 'contributor'], ['vera', 'viewer']] as const) {
+  for (const [id, role] of [
+    ['liza', 'contributor'],
+    ['vera', 'viewer'],
+  ] as const) {
     who.id = id;
     world();
     const screen = await open();
@@ -208,13 +245,21 @@ test('the invite button raises the sheet, and it hands back the roster it is sta
   const sheet = screen.root.findByType(InviteSheet);
   expect(sheet.props.visible).toBe(true);
   expect(sheet.props.memoryId).toBe('m1');
-  expect((sheet.props.members as Member[]).map((one) => one.id)).toEqual(['me', 'liza', 'anya', 'pavel', 'vera']);
+  expect((sheet.props.members as Member[]).map((one) => one.id)).toEqual([
+    'me',
+    'liza',
+    'anya',
+    'pavel',
+    'vera',
+  ]);
 });
 
 test('nobody is shown a cross until the mode is on, and then everyone but oneself has one — the viewer too', async () => {
   world();
   const screen = await open();
-  expect(screen.root.findAllByType(IconButton).filter((one) => one.props.tone === 'danger')).toHaveLength(0);
+  expect(
+    screen.root.findAllByType(IconButton).filter((one) => one.props.tone === 'danger'),
+  ).toHaveLength(0);
 
   await screen.press(() => screen.button(ru.members.edit)[0]);
   // The way in became the way out: the same button, «Готово» now, and held in.
@@ -304,7 +349,9 @@ test('somebody who is already gone is said to be, and the roster is read again s
   await act(async () => screen.sheet()[0].props.onConfirm());
   expect(screen.notice()).toEqual([ru.members.gone]);
   expect(w.log.filter((one) => one.method === 'DELETE')).toHaveLength(1);
-  expect(w.log.filter((one) => one.path === '/memories/m1/members' && one.method === 'GET')).toHaveLength(2);
+  expect(
+    w.log.filter((one) => one.path === '/memories/m1/members' && one.method === 'GET'),
+  ).toHaveLength(2);
   expect(screen.names()).toEqual(['Я (вы)', 'Лиза Морозова', 'Аня Петрова', 'Вера']);
   expect(screen.icon(ru.members.remove('pavel'))).toHaveLength(0);
 });
@@ -317,7 +364,9 @@ test('any other failure of taking somebody out is said in the api’s words and 
   await act(async () => screen.sheet()[0].props.onConfirm());
   expect(screen.notice()).toEqual(['boom']);
   expect(screen.names()).toHaveLength(5);
-  expect(w.log.filter((one) => one.path === '/memories/m1/members' && one.method === 'GET')).toHaveLength(1);
+  expect(
+    w.log.filter((one) => one.path === '/memories/m1/members' && one.method === 'GET'),
+  ).toHaveLength(1);
 });
 
 test('the mode goes when the last person to take out is gone, and the button with it', async () => {
@@ -377,10 +426,15 @@ test('the ring of standings closes: planned goes to done, done to nothing, nothi
     ['nothing', ru.standing.nothing, 'more_coming'],
   ] as const;
   for (const [from, word, to] of cases) {
-    const w = world({ members: [member('me', 'organizer', { name: 'Я', contribution_status: from }), roster()[1]] });
+    const w = world({
+      members: [member('me', 'organizer', { name: 'Я', contribution_status: from }), roster()[1]],
+    });
     const screen = await open();
     await act(async () => standingButton(screen, word).props.onPress());
-    expect(w.log.filter((one) => one.method === 'POST').map((one) => one.body), from).toEqual([{ status: to }]);
+    expect(
+      w.log.filter((one) => one.method === 'POST').map((one) => one.body),
+      from,
+    ).toEqual([{ status: to }]);
     vi.unstubAllGlobals();
   }
 });
@@ -480,7 +534,13 @@ test('the way back is the back it arrived on, or the memory itself when there is
 });
 
 test('a memory that is not on the list is a wait and not a crash, and the roster is not drawn under it', async () => {
-  serve((asked) => (asked.path === '/memories' ? [memory({ id: 'other' })] : asked.path.endsWith('/members') ? roster() : undefined));
+  serve((asked) =>
+    asked.path === '/memories'
+      ? [memory({ id: 'other' })]
+      : asked.path.endsWith('/members')
+        ? roster()
+        : undefined,
+  );
   const screen = await open();
   expect(screen.root.findAllByType(Waiting)).toHaveLength(1);
   expect(screen.rows()).toHaveLength(0);
@@ -519,7 +579,9 @@ test('the way to delete the whole memory is drawn to the organizer and to nobody
 });
 
 test('the sheet names the price in figures — how many frames and movies go — and says it is for good', async () => {
-  const state = world({ card: { media_count: 69, montage_count: 2, cover_thumbnail_url: 'https://r2.example/cover' } });
+  const state = world({
+    card: { media_count: 69, montage_count: 2, cover_thumbnail_url: 'https://r2.example/cover' },
+  });
   const screen = await open();
   expect(screen.sheet()).toHaveLength(0);
 

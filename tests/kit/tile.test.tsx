@@ -2,7 +2,7 @@ import { Copy } from 'lucide-react-native';
 import { beforeAll, expect, test } from 'vitest';
 
 import { allDifferent, story } from '@/kit/story';
-import { FEED_GAP, FrameMark, GRID_GAP, PickCircle, Tile, type PickKind } from '@/kit/tile';
+import { FEED_GAP, FrameMark, GRID_GAP, PickCircle, type PickKind, Tile } from '@/kit/tile';
 import { setTheme } from '@/theme';
 
 /** Spec 7.8 and 7.4 — one frame of the grid, and the marks that can stand on it. */
@@ -20,7 +20,13 @@ test('the eight states of a frame are eight different frames', () => {
     developing: <Tile state="processing" caption="Проявляем…" label="Кадр" />,
     picked: <Tile state="ready" uri={A} pick="send" label="Фото" />,
     droppedByPass: (
-      <Tile state="ready" uri={A} pick="auto" reason={{ icon: Copy, label: 'Дубль' }} label="Фото" />
+      <Tile
+        state="ready"
+        uri={A}
+        pick="auto"
+        reason={{ icon: Copy, label: 'Дубль' }}
+        label="Фото"
+      />
     ),
     droppedByHand: <Tile state="ready" uri={A} pick="hand" label="Фото" />,
     taken: <Tile state="ready" uri={A} pick="keep" label="Фото" />,
@@ -35,7 +41,8 @@ test('each state draws what it is: a picture, a spinner and its words, or a glyp
   const bare = story(<Tile state="ready" caption="Проявляем…" label="Кадр" />);
   // The picture is there only for a ready frame that has one, whatever else it was handed.
   expect(ready).toContain('data-testid="image"');
-  for (const other of [developing, broken, bare]) expect(other).not.toContain('data-testid="image"');
+  for (const other of [developing, broken, bare])
+    expect(other).not.toContain('data-testid="image"');
   // The words are for the two frames that are not there yet, never for one that is.
   expect(ready).not.toContain('Проявляем…');
   expect(developing).toContain('Проявляем…');
@@ -60,7 +67,17 @@ test('a running time stands on a ready frame only, and a circle only where a fra
     expect(story(<Tile state={state} length="0:24" label="Видео" />)).not.toContain('0:24');
   }
   // With a reason the mark is the reason and the time goes.
-  expect(story(<Tile state="ready" uri={A} length="0:24" reason={{ icon: Copy, label: 'Дубль' }} label="Видео" />)).not.toContain('0:24');
+  expect(
+    story(
+      <Tile
+        state="ready"
+        uri={A}
+        length="0:24"
+        reason={{ icon: Copy, label: 'Дубль' }}
+        label="Видео"
+      />,
+    ),
+  ).not.toContain('0:24');
   // No `pick` at all: not in a picking mode, so no circle — the same frame with «off» is the empty
   // circle in its corner, 22 in the wizard and 24 in the feed. A frame the pass dropped has its
   // reason where the circle would be, and no circle either.
@@ -68,8 +85,12 @@ test('a running time stands on a ready frame only, and a circle only where a fra
   expect(none).not.toContain('width:22px');
   expect(none).not.toContain('width:24px');
   expect(story(<Tile state="ready" uri={A} pick="off" label="Фото" />)).toContain('width:22px');
-  expect(story(<Tile state="ready" uri={A} lane="feed" pick="off" label="Фото" />)).toContain('width:24px');
-  const dropped = story(<Tile state="ready" uri={A} pick="auto" reason={{ icon: Copy, label: 'Дубль' }} label="Фото" />);
+  expect(story(<Tile state="ready" uri={A} lane="feed" pick="off" label="Фото" />)).toContain(
+    'width:24px',
+  );
+  const dropped = story(
+    <Tile state="ready" uri={A} pick="auto" reason={{ icon: Copy, label: 'Дубль' }} label="Фото" />,
+  );
   expect(dropped).not.toContain('width:22px');
 });
 
@@ -81,7 +102,9 @@ test('a picked frame goes down under a scrim, and the queue’s frame is ringed 
 
   // And only the send queue adds the frame — a border comes out of the tile's own box, which in
   // the grid would make a picked frame narrower than its neighbours (TASK-79), so it is a layer.
-  expect(story(<Tile state="ready" uri={A} pick="send" ring label="Фото" />)).toContain('tile-ring');
+  expect(story(<Tile state="ready" uri={A} pick="send" ring label="Фото" />)).toContain(
+    'tile-ring',
+  );
   expect(picked).not.toContain('tile-ring');
 });
 
@@ -131,7 +154,9 @@ test('a frame the pass dropped stays visible and says why', () => {
   expect(dropped).toContain('Дубль');
   // Down to 32% — out of the montage, and still there to be put back with one tap. The picture
   // itself is dimmed and nothing else is, which is what keeps the reason readable over it.
-  expect(dropped).not.toBe(story(<Tile state="ready" uri={A} reason={{ icon: Copy, label: 'Дубль' }} label="Фото" />));
+  expect(dropped).not.toBe(
+    story(<Tile state="ready" uri={A} reason={{ icon: Copy, label: 'Дубль' }} label="Фото" />),
+  );
   // No circle on it at all: the reason stands where the circle would, and nothing is darkened.
   expect(dropped).not.toContain('tile-scrim');
 });
@@ -182,4 +207,3 @@ test('what stands on a frame’s dark plates is drawn the same in daylight as at
   expect(marks()).toEqual(night);
   await setTheme('dark');
 });
-

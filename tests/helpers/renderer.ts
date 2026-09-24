@@ -11,7 +11,8 @@ import { setTheme, themes } from '@/theme';
  * nothing about the code under test — kept off the run while every other warning and error goes
  * through. Imported by `*.test.tsx` only.
  */
-const NOISE = /react-test-renderer is deprecated|useNativeDriver|pointerEvents is deprecated|textShadow/;
+const NOISE =
+  /react-test-renderer is deprecated|useNativeDriver|pointerEvents is deprecated|textShadow/;
 
 /** The trees `mounted()` was handed and that are still standing. */
 const standing: ReactTestRenderer[] = [];
@@ -55,7 +56,11 @@ export function mountsTrees() {
  */
 export function themesShown(root: ReactTestInstance): { night: string[]; day: string[] } {
   const own = (theme: 'dark' | 'light') =>
-    new Set(Object.values(themes[theme].color).filter((value): value is string => typeof value === 'string'));
+    new Set(
+      Object.values(themes[theme].color).filter(
+        (value): value is string => typeof value === 'string',
+      ),
+    );
   const [dark, light] = [own('dark'), own('light')];
   const styles = root
     .findAll(() => true)

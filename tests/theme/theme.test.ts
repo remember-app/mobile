@@ -9,7 +9,9 @@ const { phone } = vi.hoisted(() => ({
   phone: {
     scheme: 'dark' as 'dark' | 'light' | 'unspecified' | null,
     stored: null as string | null,
-    tell: null as ((event: { colorScheme: 'dark' | 'light' | 'unspecified' | null }) => void) | null,
+    tell: null as
+      | ((event: { colorScheme: 'dark' | 'light' | 'unspecified' | null }) => void)
+      | null,
   },
 }));
 

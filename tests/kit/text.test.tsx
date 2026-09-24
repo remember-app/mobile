@@ -34,7 +34,16 @@ test('words are read in paper unless they are asked for in something else', () =
   // on ink — invisible. This is the one place that pairs the two.
   expect(story(<Text>Абзац</Text>)).toBe(story(<Text tone="paper">Абзац</Text>));
 
-  const tones: TextTone[] = ['paper', 'muted', 'faint', 'accent', 'spark', 'sparkInk', 'danger', 'onFill'];
+  const tones: TextTone[] = [
+    'paper',
+    'muted',
+    'faint',
+    'accent',
+    'spark',
+    'sparkInk',
+    'danger',
+    'onFill',
+  ];
   allDifferent(Object.fromEntries(tones.map((tone) => [tone, <Text tone={tone}>Абзац</Text>])));
 });
 

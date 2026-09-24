@@ -1,19 +1,19 @@
 import { Minus, Plus } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import {
+  type GestureResponderEvent,
   PanResponder,
   Pressable,
+  type StyleProp,
   StyleSheet,
   View,
-  type GestureResponderEvent,
-  type StyleProp,
   type ViewStyle,
 } from 'react-native';
 
 import { height, radius, space, themed, useTheme } from '@/theme';
 
 import { IconButton } from './button';
-import { PRESS, TAP, hitSlop, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
+import { hitSlop, PRESS, TAP, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
 import { Text } from './text';
 
 /**
@@ -260,7 +260,13 @@ function Preset({
       {...props}
       style={({ pressed }) => [
         styles.preset,
-        disabled ? styles.presetOff : selected ? styles.presetOn : hovered ? styles.presetHover : null,
+        disabled
+          ? styles.presetOff
+          : selected
+            ? styles.presetOn
+            : hovered
+              ? styles.presetHover
+              : null,
         pressed && !reduced ? PRESS : null,
         focused ? focusRing : null,
       ]}

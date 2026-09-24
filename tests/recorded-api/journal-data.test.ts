@@ -12,16 +12,17 @@ vi.mock('expo-router', () => ({ useFocusEffect: () => {}, useIsFocused: () => tr
 import {
   ApiError,
   fetchJournal,
-  listMontages,
-  MONTAGE_STAGES,
   type JournalEntry,
   type JournalQuery,
+  listMontages,
+  MONTAGE_STAGES,
   type MontageJournal,
 } from '@/api';
 import {
   currentStage,
   howMade,
   isFresh,
+  type Journal,
   madeInMinutes,
   marksOf,
   minutesLeft,
@@ -33,7 +34,6 @@ import {
   recordsOf as recordsInStage,
   stageLine,
   stageStanding,
-  type Journal,
 } from '@/lib/montage/journal';
 import { en, ru } from '@/strings';
 
@@ -48,12 +48,12 @@ import {
   OLD,
   PEOPLE,
   QUEUED,
-  replay,
-  step,
-  TOKEN,
   type Role,
+  replay,
   type Scenario,
   type Step,
+  step,
+  TOKEN,
 } from './recorded';
 
 /**
@@ -67,8 +67,10 @@ afterEach(() => vi.unstubAllGlobals());
 const SCENARIOS: Scenario[] = ['director', 'algorithm'];
 
 const idsOf = (journal: Journal) => journal.entries.map((one) => one.id);
-const asking = (role: Role, montageId: string = MONTAGE) => (query: JournalQuery) =>
-  fetchJournal(TOKEN[role], MEMORY, montageId, query);
+const asking =
+  (role: Role, montageId: string = MONTAGE) =>
+  (query: JournalQuery) =>
+    fetchJournal(TOKEN[role], MEMORY, montageId, query);
 
 /** The records of these recorded answers, newest first and each once — the truth to compare to. */
 const recordsOf = (steps: Step[]) => {
@@ -117,7 +119,9 @@ describe.each(SCENARIOS)('%s — a screen open through the whole making', (scena
       expect(idsOf(held)).toEqual(truth.map((one) => one.id));
       // Nothing lost in the middle, nothing twice: the ids are the run from the newest down to one.
       const top = truth[0]?.id ?? null;
-      expect(idsOf(held)).toEqual(top === null ? [] : Array.from({ length: top }, (_, i) => top - i));
+      expect(idsOf(held)).toEqual(
+        top === null ? [] : Array.from({ length: top }, (_, i) => top - i),
+      );
       expect(held.cursor).toBe(top);
 
       // A poll chases `has_more` at once and stops at the first page without it.
@@ -142,13 +146,23 @@ describe.each(SCENARIOS)('%s — a screen open through the whole making', (scena
     const rowsOf = (one: Step) => (one.response.body as MontageJournal).stages;
     const rowOf = (one: Step, code: string) => rowsOf(one).find((row) => row.stage === code)!;
 
-    for (const one of sitting) expect(rowsOf(one).map((row) => row.stage), one.name).toEqual([...MONTAGE_STAGES]);
+    for (const one of sitting)
+      expect(
+        rowsOf(one).map((row) => row.stage),
+        one.name,
+      ).toEqual([...MONTAGE_STAGES]);
 
     // Nothing has begun: five estimates, no record, no count — and nothing to name as «the stage».
     const [opening, ...rest] = polls;
     expect(opening.held.entries).toEqual([]);
     for (const row of opening.held.stages) {
-      expect(row, row.stage).toMatchObject({ state: 'pending', started_at: null, done_count: 0, total_count: null, outcome: {} });
+      expect(row, row.stage).toMatchObject({
+        state: 'pending',
+        started_at: null,
+        done_count: 0,
+        total_count: null,
+        outcome: {},
+      });
       expect(row.eta_seconds, row.stage).toBeGreaterThan(0);
       expect(stageStanding(row)).toBe('waiting');
     }
@@ -160,25 +174,37 @@ describe.each(SCENARIOS)('%s — a screen open through the whole making', (scena
       const row = rowOf(one, 'screening');
       return row.state === 'running' && row.done_count === row.total_count;
     });
-    expect(counted.length, 'the recording has a screening counted to its end and not yet closed').toBeGreaterThan(0);
-    for (const one of counted) expect(stageStanding(rowOf(one, 'screening')), one.name).toBe('running');
+    expect(
+      counted.length,
+      'the recording has a screening counted to its end and not yet closed',
+    ).toBeGreaterThan(0);
+    for (const one of counted)
+      expect(stageStanding(rowOf(one, 'screening')), one.name).toBe('running');
 
     // The estimate of a stage at work is the one the worker began with, until the stage is done —
     // it does not count down, and the app has no reason to make it look as if it did.
     for (const code of ['understanding', 'directing'] as const) {
       const working = sitting.filter((one) => rowOf(one, code).state === 'running');
       expect(working.length, code).toBeGreaterThan(1);
-      for (const one of working) expect(rowOf(one, code).eta_seconds, `${code} in ${one.name}`).toBe(rowOf(sitting[0], code).eta_seconds);
+      for (const one of working)
+        expect(rowOf(one, code).eta_seconds, `${code} in ${one.name}`).toBe(
+          rowOf(sitting[0], code).eta_seconds,
+        );
     }
 
     // «Этап N из 5» is the furthest stage the worker has reached — never one back, never two ahead of
     // the one at work — from the first stage to the fifth; the list's bare five say the same.
     let was = 0;
     for (const { held } of rest) {
-      const reached = Math.max(0, ...held.stages.map((row, at) => (row.state === 'pending' ? 0 : at + 1)));
+      const reached = Math.max(
+        0,
+        ...held.stages.map((row, at) => (row.state === 'pending' ? 0 : at + 1)),
+      );
       const named = currentStage(held.stages);
       expect(named ? MONTAGE_STAGES.indexOf(named.stage) + 1 : 0).toBe(reached);
-      expect(currentStage(held.stages.map(({ stage, state }) => ({ stage, state })))?.stage).toBe(named?.stage);
+      expect(currentStage(held.stages.map(({ stage, state }) => ({ stage, state })))?.stage).toBe(
+        named?.stage,
+      );
       expect(reached).toBeGreaterThanOrEqual(was);
       was = reached;
     }
@@ -207,10 +233,13 @@ describe.each(SCENARIOS)('%s — a screen open through the whole making', (scena
     const { polls } = await sitThroughTheMaking(scenario);
     const seen: string[] = [];
     for (const { held } of polls) {
-      for (const row of held.stages.filter((one) => one.state === 'running' && recordsInStage(one) > 0)) {
+      for (const row of held.stages.filter(
+        (one) => one.state === 'running' && recordsInStage(one) > 0,
+      )) {
         for (const s of [ru, en]) {
           const line = stageLine(row, s, Date.parse(row.updated_at)) ?? '';
-          if (row.total_count !== null && line.includes(s.montage.live.doneOf(0, row.total_count))) seen.push(`${row.stage}: ${line}`);
+          if (row.total_count !== null && line.includes(s.montage.live.doneOf(0, row.total_count)))
+            seen.push(`${row.stage}: ${line}`);
         }
       }
     }
@@ -229,7 +258,11 @@ describe.each(SCENARIOS)('%s — a screen open through the whole making', (scena
     expect(live.entries).toEqual(full.entries);
     expect(live.stages).toEqual(full.stages);
     expect(live.viewers).toEqual(full.viewers);
-    expect([live.cursor, live.oldest, live.hasOlder]).toEqual([full.cursor, full.oldest, full.hasOlder]);
+    expect([live.cursor, live.oldest, live.hasOlder]).toEqual([
+      full.cursor,
+      full.oldest,
+      full.hasOlder,
+    ]);
     // The same files — every frame a record is about — and the same thumbnails on them. Not their
     // places: the layout comes after the records the screen has read, and the plain poll never
     // hears of it. What brings it in is `journal-screens.test.tsx`, on the screen of one stage.
@@ -249,7 +282,10 @@ describe.each(SCENARIOS)('%s — a screen open through the whole making', (scena
 
     const steps = load(scenario);
     const read = async (shuffleFiles: boolean) => {
-      vi.stubGlobal('fetch', replay(steps, { only: ['journal_of_ready_montage'], shuffleFiles }).fetch);
+      vi.stubGlobal(
+        'fetch',
+        replay(steps, { only: ['journal_of_ready_montage'], shuffleFiles }).fetch,
+      );
       return pull(NO_JOURNAL, asking('organizer'));
     };
     expect(await read(true)).toEqual(await read(false));
@@ -258,7 +294,9 @@ describe.each(SCENARIOS)('%s — a screen open through the whole making', (scena
 
 describe.each(SCENARIOS)('%s — the worker’s words, in the app’s', (scenario) => {
   const steps = load(scenario);
-  const journals = steps.filter((one) => one.response.status === 200 && one.request.path.endsWith('/journal'));
+  const journals = steps.filter(
+    (one) => one.response.status === 200 && one.request.path.endsWith('/journal'),
+  );
   const records = recordsOf(journals);
   const rows = journals.flatMap((one) => (one.response.body as MontageJournal).stages);
   const full = bodyOf(steps, 'journal_of_ready_montage');
@@ -282,7 +320,8 @@ describe.each(SCENARIOS)('%s — the worker’s words, in the app’s', (scenari
       ['ru', ru],
       ['en', en],
     ] as const) {
-      for (const code of MONTAGE_STAGES) expect(s.montage.stage[code], `${lang} ${code}`).toBeTruthy();
+      for (const code of MONTAGE_STAGES)
+        expect(s.montage.stage[code], `${lang} ${code}`).toBeTruthy();
 
       const said = new Set<string>();
       for (const record of records) {
@@ -304,9 +343,10 @@ describe.each(SCENARIOS)('%s — the worker’s words, in the app’s', (scenari
           // A take wears a reason only where the organizer asked for the frame (`included`) — beside
           // «Беру», in words — and never the catch-all.
           expect(marks).not.toContain(s.montage.live.reason.other);
-          expect(marks.includes(s.montage.live.reason.included), `${lang} record ${record.id}`).toBe(
-            record.reason === 'included',
-          );
+          expect(
+            marks.includes(s.montage.live.reason.included),
+            `${lang} record ${record.id}`,
+          ).toBe(record.reason === 'included');
           if (record.reason === 'included') said.add(record.reason);
         }
       }
@@ -340,7 +380,9 @@ describe.each(SCENARIOS)('%s — the worker’s words, in the app’s', (scenari
             // Nothing counted: not «0 из N», and in the first minute no line at all — the name and the
             // spinner carry it — then how long it has been at it.
             expect(line, label).toBeUndefined();
-            expect(stageLine(row, s, Date.parse(row.started_at!) + 3 * MINUTE), label).toBe(s.montage.live.running(3));
+            expect(stageLine(row, s, Date.parse(row.started_at!) + 3 * MINUTE), label).toBe(
+              s.montage.live.running(3),
+            );
             bare++;
           }
         } else {
@@ -361,7 +403,9 @@ describe.each(SCENARIOS)('%s — the worker’s words, in the app’s', (scenari
     expect(rhythm.outcome.track).toHaveLength(music ? 1 : 0);
     for (const s of [ru, en]) {
       const line = stageLine(rhythm, s, Date.parse(rhythm.finished_at!));
-      expect(line).toContain(music ? s.montage.live.cuts(rhythm.outcome.cuts!) : s.montage.live.noTrack);
+      expect(line).toContain(
+        music ? s.montage.live.cuts(rhythm.outcome.cuts!) : s.montage.live.noTrack,
+      );
       expect(line).not.toContain(s.montage.live.cuts(0));
     }
   });
@@ -372,7 +416,9 @@ describe.each(SCENARIOS)('%s — the worker’s words, in the app’s', (scenari
     const clock = (seconds: number) =>
       `${Math.floor(Math.round(seconds) / 60)}:${String(Math.round(seconds) % 60).padStart(2, '0')}`;
 
-    const placed = full.entries.filter((one) => one.decision !== 'skip' && file(one.media_id)?.places.length);
+    const placed = full.entries.filter(
+      (one) => one.decision !== 'skip' && file(one.media_id)?.places.length,
+    );
     // Taken frames with nothing said about them are among these on both roads — the organizer's own
     // on either, and every one of them where there is no director at all.
     expect(placed.some((one) => one.decision === 'take' && one.thought === null)).toBe(true);
@@ -388,7 +434,8 @@ describe.each(SCENARIOS)('%s — the worker’s words, in the app’s', (scenari
     // recording has one: a frame the screening passed over that the organizer then asked for.
     const passed = full.entries.filter((one) => one.decision === 'skip');
     expect(passed.some((one) => file(one.media_id)?.places.length)).toBe(true);
-    for (const record of passed) expect(placeLine(record, file(record.media_id), ru)).toBeUndefined();
+    for (const record of passed)
+      expect(placeLine(record, file(record.media_id), ru)).toBeUndefined();
   });
 
   test('the three numbers of «Как собирался» are the worker’s own tallies', () => {
@@ -402,10 +449,15 @@ describe.each(SCENARIOS)('%s — the worker’s words, in the app’s', (scenari
     // …and they agree with the records: what was looked at is every file, what was taken is the
     // records that say «take» in the last stage.
     expect(figures[0].figure).toBe(full.files.length);
-    expect(figures[1].figure).toBe(full.entries.filter((one) => one.stage === 'directing' && one.decision === 'take').length);
+    expect(figures[1].figure).toBe(
+      full.entries.filter((one) => one.stage === 'directing' && one.decision === 'take').length,
+    );
     expect(currentStage(full.stages)?.stage).toBe('assembly');
     // «собран за N мин» is the stages’ own times added up, rounded up to a whole minute.
-    const worked = full.stages.reduce((sum, one) => sum + Date.parse(one.finished_at!) - Date.parse(one.started_at!), 0);
+    const worked = full.stages.reduce(
+      (sum, one) => sum + Date.parse(one.finished_at!) - Date.parse(one.started_at!),
+      0,
+    );
     expect(madeInMinutes(full.stages)).toBe(Math.max(1, Math.ceil(worked / 60000)));
   });
 });
@@ -421,7 +473,14 @@ describe.each(SCENARIOS)('%s — a montage with no journal', (scenario) => {
 
     const held = await pull(NO_JOURNAL, asking('organizer', montageId));
     expect(api.unmatched).toEqual([]);
-    expect(held).toMatchObject({ status, stages: [], entries: [], files: {}, cursor: null, offline: false });
+    expect(held).toMatchObject({
+      status,
+      stages: [],
+      entries: [],
+      files: {},
+      cursor: null,
+      offline: false,
+    });
     expect(currentStage(held.stages)).toBeNull();
     expect(howMade(held.stages, ru)).toEqual([]);
     expect(madeInMinutes(held.stages)).toBeNull();
@@ -464,7 +523,9 @@ describe.each(SCENARIOS)('%s — the list of montages', (scenario) => {
       (code) => before.stages.find((one) => one.stage === code)?.state ?? 'pending',
     );
     expect(building.stages!.map((one) => one.state)).toEqual(inTheJournal);
-    expect(currentStage(before.stages)?.stage).toBe(building.stages!.find((one) => one.state === 'running')!.stage);
+    expect(currentStage(before.stages)?.stage).toBe(
+      building.stages!.find((one) => one.state === 'running')!.stage,
+    );
   });
 
   test('once it is ready none of them has stages left, and the ready one has its film', async () => {
@@ -489,7 +550,10 @@ describe.each(SCENARIOS)('%s — a viewer who opens it half way through', (scena
   const opening = bodyOf(steps, 'live_viewer_opens_mid_build');
 
   test('sees the freshest page, is told there is more behind it, and reads the rest back', async () => {
-    const api = replay(steps, { only: ['live_viewer_opens_mid_build'], cutFrom: 'journal_of_ready_montage' });
+    const api = replay(steps, {
+      only: ['live_viewer_opens_mid_build'],
+      cutFrom: 'journal_of_ready_montage',
+    });
     vi.stubGlobal('fetch', api.fetch);
     const ask = asking('viewer');
 

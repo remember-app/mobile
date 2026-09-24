@@ -1,16 +1,16 @@
 import {
   Pressable,
-  StyleSheet,
   Text as RNText,
-  View,
   type StyleProp,
+  StyleSheet,
+  View,
   type ViewStyle,
 } from 'react-native';
 
 import { height, radius, space, themed, type, useTheme } from '@/theme';
 
 import { Hint } from './field';
-import { TAP, hitSlop, useFocusRing, useHoverFocus } from './interaction';
+import { hitSlop, TAP, useFocusRing, useHoverFocus } from './interaction';
 import { Text } from './text';
 
 /** One of the values on offer, and the word it is offered under. */
@@ -65,11 +65,7 @@ export function Segment<T extends string>({
     <View style={[styles.group, style]}>
       {hideLabel ? null : <Text role="label">{label}</Text>}
       <View
-        style={[
-          styles.segment,
-          onSurface ? styles.onSurface : null,
-          wide ? styles.wide : null,
-        ]}
+        style={[styles.segment, onSurface ? styles.onSurface : null, wide ? styles.wide : null]}
         accessibilityRole="radiogroup"
         accessibilityLabel={label}
         // Read out with the group rather than left to the eye: the line says what picking here

@@ -21,19 +21,21 @@ vi.mock('@/lib/downloads', () => ({
 }));
 // A text input listens on the browser's `document`, which a test renderer has none of. The name is
 // handed to the sheet's `onSubmit` directly below.
-vi.mock('@/kit', async (original) => ({ ...(await original<typeof import('@/kit')>()), Field: () => null }));
+vi.mock('@/kit', async (original) => ({
+  ...(await original<typeof import('@/kit')>()),
+  Field: () => null,
+}));
 
+import { label } from '@tests/helpers/labels';
+import { mountsTrees } from '@tests/helpers/renderer';
 import { Unlink, WifiOff } from 'lucide-react-native';
 import TestRenderer, { act } from 'react-test-renderer';
-
 import type { Label, MediaItem } from '@/api';
 import { Banner, Button, Chip, ConfirmSheet, Icon, IconButton, RowLabel, Tile } from '@/kit';
-import { label } from '@tests/helpers/labels';
 import { Frames } from '@/screens/memory/frames';
 import { FilterSheet } from '@/screens/memory/frames-sheets';
 import { LabelNewSheet, LabelSheets } from '@/screens/memory/label-sheets';
 import { ru } from '@/strings';
-import { mountsTrees } from '@tests/helpers/renderer';
 
 /**
  * The gallery of a memory as a person uses it to file frames into labels and to look at them again
@@ -89,7 +91,11 @@ const own = () => label({ id: 'mine', title: 'Для себя', shared: false })
 function serve(over: Partial<Db> = {}): Db {
   const db: Db = {
     frames: [shot('a', 3), shot('b', 2), shot('c', 1)],
-    labels: [best(), own(), label({ id: 'theirs', title: 'Чужой личный', shared: false, mine: false })],
+    labels: [
+      best(),
+      own(),
+      label({ id: 'theirs', title: 'Чужой личный', shared: false, mine: false }),
+    ],
     filed: { best: new Set(), mine: new Set(), theirs: new Set(['a']) },
     hidden: new Set(['theirs']),
     asked: [],
@@ -119,7 +125,16 @@ function serve(over: Partial<Db> = {}): Db {
       );
     }
     if (asked.path === '/members') {
-      return json([{ id: 'me', name: 'Я', username: 'me', role: 'contributor', contribution_status: 'done', media_count: 3 }]);
+      return json([
+        {
+          id: 'me',
+          name: 'Я',
+          username: 'me',
+          role: 'contributor',
+          contribution_status: 'done',
+          media_count: 3,
+        },
+      ]);
     }
     if (asked.path === '/labels' && asked.method === 'GET') return json(seen().map(row));
     if (asked.path === '/labels') {
@@ -147,7 +162,9 @@ function serve(over: Partial<Db> = {}): Db {
 async function open() {
   let tree!: TestRenderer.ReactTestRenderer;
   await act(async () => {
-    tree = TestRenderer.create(<Frames id="m1" head={{ memory: null, error: null, reload: () => {} }} />);
+    tree = TestRenderer.create(
+      <Frames id="m1" head={{ memory: null, error: null, reload: () => {} }} />,
+    );
   });
   const press = (find: () => { props: { onPress?: () => void } }) =>
     act(async () => find().props.onPress?.());
@@ -158,7 +175,9 @@ async function open() {
     sheet.findAllByType(Chip).filter((one) => one.props.swatch !== undefined);
   /** The filter lives on the ordinary bottom layer, so a picking mode still on is left first. */
   const openFilter = async () => {
-    if (tree.root.findAllByType(IconButton).some((one) => one.props.label === ru.gallery.leaveSelect)) {
+    if (
+      tree.root.findAllByType(IconButton).some((one) => one.props.label === ru.gallery.leaveSelect)
+    ) {
       await press(icon(ru.gallery.leaveSelect));
     }
     await press(icon(ru.gallery.filters));
@@ -176,7 +195,10 @@ async function open() {
     mark: async (...ids: string[]) => {
       for (const id of ids) {
         await press(
-          () => tree.root.findAllByType(Tile).find((one) => one.props.uri === `https://r2.example/${id}`)!,
+          () =>
+            tree.root
+              .findAllByType(Tile)
+              .find((one) => one.props.uri === `https://r2.example/${id}`)!,
         );
       }
     },
@@ -185,13 +207,23 @@ async function open() {
     closeLabels: () => act(async () => tree.root.findByType(LabelSheets).props.onClose()),
     rows: () => tree.root.findByType(LabelSheets).findAllByType(RowLabel),
     row: (name: string) => () =>
-      tree.root.findByType(LabelSheets).findAllByType(RowLabel).find((one) => one.props.name === name)!,
+      tree.root
+        .findByType(LabelSheets)
+        .findAllByType(RowLabel)
+        .find((one) => one.props.name === name)!,
     press,
     tap: (name: string) => press(screen.row(name)),
-    banner: () => tree.root.findByType(LabelSheets).findAllByType(Banner).map((one) => one.props.text as string),
+    banner: () =>
+      tree.root
+        .findByType(LabelSheets)
+        .findAllByType(Banner)
+        .map((one) => one.props.text as string),
     /** The glyph each banner on the labels sheet draws beside its words. */
     glyph: () =>
-      tree.root.findByType(LabelSheets).findAllByType(Banner).map((one) => one.findByType(Icon).props.icon),
+      tree.root
+        .findByType(LabelSheets)
+        .findAllByType(Banner)
+        .map((one) => one.findByType(Icon).props.icon),
     /** «Фильтры» → pick these label chips → «Показать». Returns the chips the sheet offered. */
     filterBy: async (...titles: string[]) => {
       await openFilter();
@@ -375,11 +407,16 @@ test('a memory with no labels offers none on the filter; a new one made from the
 async function deleteLabel(screen: Awaited<ReturnType<typeof open>>, title: string) {
   const sheet = () => screen.root.findByType(LabelSheets);
   await screen.press(
-    () => sheet().findAllByType(Button).find((one) => one.props.label === ru.labels.edit)!,
+    () =>
+      sheet()
+        .findAllByType(Button)
+        .find((one) => one.props.label === ru.labels.edit)!,
   );
   await screen.press(
     () =>
-      sheet().findAllByType(IconButton).find((one) => one.props.label === ru.labels.remove(title))!,
+      sheet()
+        .findAllByType(IconButton)
+        .find((one) => one.props.label === ru.labels.remove(title))!,
   );
   await act(async () => sheet().findByType(ConfirmSheet).props.onConfirm());
 }
@@ -449,4 +486,3 @@ test('no connection while filing: it is said, nothing is filed, and the same pre
   expect(screen.banner()).toEqual([]);
   expect(screen.row('Лучшее')().props.inside).toBe(true);
 });
-

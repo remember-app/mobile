@@ -10,22 +10,22 @@ vi.mock('expo-secure-store', () => ({
 }));
 
 import {
-  addLabelMedia,
   ApiError,
+  addLabelMedia,
   createLabel,
   deleteLabel,
   errorMessage,
   hasShared,
   listLabels,
+  listMontageTemplates,
+  type Member,
   mayContribute,
   memberHandle,
   memberName,
-  listMontageTemplates,
   orderMontage,
   previewMontage,
   removeLabelMedia,
   startEmailSignIn,
-  type Member,
 } from '@/api';
 import { setLanguage } from '@/lib/language';
 import { en, ru } from '@/strings';
@@ -215,14 +215,23 @@ test('a whole selection is filed, unfiled and made into a label with one request
   await listLabels('session', 'm1');
   await addLabelMedia('session', 'm1', 'best', frames);
   await removeLabelMedia('session', 'm1', 'best', frames);
-  await createLabel('session', 'm1', { title: 'Лучшее', color: 2, shared: false, media_ids: frames });
+  await createLabel('session', 'm1', {
+    title: 'Лучшее',
+    color: 2,
+    shared: false,
+    media_ids: frames,
+  });
   await deleteLabel('session', 'm1', 'best');
 
   expect(asked.map(({ method, url, body }) => [method, url, body])).toEqual([
     ['GET', '/memories/m1/labels', null],
     ['POST', '/memories/m1/labels/best/media', { media_ids: frames }],
     ['DELETE', '/memories/m1/labels/best/media', { media_ids: frames }],
-    ['POST', '/memories/m1/labels', { title: 'Лучшее', color: 2, shared: false, media_ids: frames }],
+    [
+      'POST',
+      '/memories/m1/labels',
+      { title: 'Лучшее', color: 2, shared: false, media_ids: frames },
+    ],
     ['DELETE', '/memories/m1/labels/best', null],
   ]);
   // Every one of them is signed as the person asking — the server alone decides who may see what.

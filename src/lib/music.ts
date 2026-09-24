@@ -12,11 +12,11 @@
 //
 // The other half of this file is the shelf being listened to before a video is ordered — the same
 // subject from the other end, so it lives here rather than in a module of its own.
-import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
+import { type AudioPlayer, createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import { File } from 'expo-file-system';
 import { useEffect, useRef, useState } from 'react';
 
-import { finishMusicUpload, previewMusicTrack, startMusicUpload, type MusicTrackId } from '@/api';
+import { finishMusicUpload, type MusicTrackId, previewMusicTrack, startMusicUpload } from '@/api';
 import { missingParts, uploadedParts } from '@/lib/upload/queue';
 
 /** The file as the picker handed it over: where it is on the phone, and what it is called. */

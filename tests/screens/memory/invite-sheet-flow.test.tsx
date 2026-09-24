@@ -3,16 +3,18 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
 vi.mock('@/lib/auth', () => ({ useAuth: () => ({ token: 'session', user: { id: 'me' } }) }));
 // A text input listens on the browser's `document`, which a test renderer has none of.
-vi.mock('@/kit', async (original) => ({ ...(await original<typeof import('@/kit')>()), Field: () => null }));
+vi.mock('@/kit', async (original) => ({
+  ...(await original<typeof import('@/kit')>()),
+  Field: () => null,
+}));
 
+import { type Asked, contact, later, member, refused, serve } from '@tests/helpers/api';
+import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import TestRenderer, { act } from 'react-test-renderer';
-
 import type { Contact, Member } from '@/api';
 import { Banner, Button, Chip, Field, Toggle } from '@/kit';
 import { InviteSheet } from '@/screens/memory/invite-sheet';
 import { ru } from '@/strings';
-import { contact, later, member, refused, serve, type Asked } from '@tests/helpers/api';
-import { mounted, mountsTrees } from '@tests/helpers/renderer';
 
 /**
  * `SheetInvite` (spec 8) — both roads into a memory on one sheet: the nick of somebody whose name is
@@ -28,8 +30,15 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const contacts: Contact[] = [contact('anya', 'Аня Петрова'), contact('pavel', 'Павел'), contact('liza', 'Лиза Морозова')];
-const onRoster: Member[] = [member('me', 'organizer', { name: 'Я' }), member('liza', 'contributor', { name: 'Лиза Морозова' })];
+const contacts: Contact[] = [
+  contact('anya', 'Аня Петрова'),
+  contact('pavel', 'Павел'),
+  contact('liza', 'Лиза Морозова'),
+];
+const onRoster: Member[] = [
+  member('me', 'organizer', { name: 'Я' }),
+  member('liza', 'contributor', { name: 'Лиза Морозова' }),
+];
 
 type World = {
   log: Asked[];
@@ -50,11 +59,15 @@ function world(over: Partial<Pick<World, 'users' | 'onInvite' | 'contacts'>> = {
     if (asked.method === 'POST' && asked.path === '/memories/m1/members') {
       if (w.onInvite) return w.onInvite;
       const { username } = asked.body as { username: string };
-      const person = [...contacts, ...Object.values(w.users)].find((one) => one.username === username)!;
+      const person = [...contacts, ...Object.values(w.users)].find(
+        (one) => one.username === username,
+      )!;
       return member(person.id, (asked.body as { role: never }).role, { name: person.name });
     }
-    if (asked.path === '/memories/m1/invite' && asked.method === 'GET') return { token: 'first', role: 'contributor' };
-    if (asked.path === '/memories/m1/invite') return { token: 'second', role: (asked.body as { role: never }).role };
+    if (asked.path === '/memories/m1/invite' && asked.method === 'GET')
+      return { token: 'first', role: 'contributor' };
+    if (asked.path === '/memories/m1/invite')
+      return { token: 'second', role: (asked.body as { role: never }).role };
     return undefined;
   });
   return w;
@@ -63,7 +76,13 @@ function world(over: Partial<Pick<World, 'users' | 'onInvite' | 'contacts'>> = {
 async function open(members: Member[] | null = onRoster) {
   const calls = { invited: 0, cancelled: 0 };
   const sheet = (visible: boolean) => (
-    <InviteSheet visible={visible} onCancel={() => calls.cancelled++} memoryId="m1" members={members} onInvited={() => calls.invited++} />
+    <InviteSheet
+      visible={visible}
+      onCancel={() => calls.cancelled++}
+      memoryId="m1"
+      members={members}
+      onInvited={() => calls.invited++}
+    />
   );
   let tree!: TestRenderer.ReactTestRenderer;
   await act(async () => {
@@ -79,20 +98,31 @@ async function open(members: Member[] | null = onRoster) {
     },
     type: (text: string) => act(async () => root.findByType(Field).props.onChangeText(text)),
     wait: (ms: number) => act(async () => void vi.advanceTimersByTime(ms)),
-    field: () => root.findByType(Field).props as { value: string; state?: string; hint?: string; editable?: boolean },
+    field: () =>
+      root.findByType(Field).props as {
+        value: string;
+        state?: string;
+        hint?: string;
+        editable?: boolean;
+      },
     chips: () => root.findAllByType(Chip),
-    chip: (label: string) => () => root.findAllByType(Chip).find((one) => one.props.label === label)!,
+    chip: (label: string) => () =>
+      root.findAllByType(Chip).find((one) => one.props.label === label)!,
     call: () => root.findAllByType(Button).find((one) => one.props.label === ru.members.inviteDo)!,
     button: (label: string) => root.findAllByType(Button).find((one) => one.props.label === label),
     mayAdd: () => root.findByType(Toggle),
     notice: () => root.findAllByType(Banner).map((one) => one.props.text as string),
-    press: (find: () => { props: { onPress?: () => void } }) => act(async () => find().props.onPress?.()),
+    press: (find: () => { props: { onPress?: () => void } }) =>
+      act(async () => find().props.onPress?.()),
     text: () => JSON.stringify(tree.toJSON()),
   };
   return screen;
 }
 
-const posts = (log: Asked[]) => log.filter((one) => one.method === 'POST' && one.path === '/memories/m1/members').map((one) => one.body);
+const posts = (log: Asked[]) =>
+  log
+    .filter((one) => one.method === 'POST' && one.path === '/memories/m1/members')
+    .map((one) => one.body);
 
 test('nothing is asked and nobody is called until somebody is named: the button waits, the switch is on', async () => {
   world();
@@ -191,7 +221,9 @@ test('a nick nobody in the contacts holds is asked of the api once the typing ha
   expect(w.log.filter((one) => one.path.startsWith('/users'))).toHaveLength(0);
   expect(screen.call().props.disabled).toBe(true);
   await screen.wait(500);
-  expect(w.log.filter((one) => one.path.startsWith('/users'))).toEqual([{ method: 'GET', path: '/users?username=zoya', body: null }]);
+  expect(w.log.filter((one) => one.path.startsWith('/users'))).toEqual([
+    { method: 'GET', path: '/users?username=zoya', body: null },
+  ]);
   expect(screen.call().props.disabled).toBe(false);
   await screen.press(() => screen.call());
   expect(posts(w.log)).toEqual([{ username: 'zoya', role: 'contributor' }]);
@@ -278,7 +310,13 @@ test('a roster not read yet cannot say somebody was already in: the answer is «
 test('the field is a nick and nothing else: the @ in front, no capitals and no correcting, and it says it is checking while the question is out', async () => {
   const answer = later<unknown>();
   const w = world();
-  w.log = serve((asked) => (asked.path.startsWith('/users') ? answer.promise : asked.path === '/me/contacts' ? contacts : undefined));
+  w.log = serve((asked) =>
+    asked.path.startsWith('/users')
+      ? answer.promise
+      : asked.path === '/me/contacts'
+        ? contacts
+        : undefined,
+  );
   const screen = await open();
   const field = screen.field() as Record<string, unknown>;
   expect(field.prefix).toBe('@');
@@ -316,13 +354,19 @@ test('the link is minted when it is asked for, replaced on request at the level 
   expect(screen.button(ru.members.replaceLink)).toBeUndefined();
   expect(w.log.filter((one) => one.path === '/memories/m1/invite')).toEqual([]);
   await screen.press(() => screen.button(ru.members.getLink)!);
-  expect(w.log.filter((one) => one.path === '/memories/m1/invite')).toEqual([{ method: 'GET', path: '/memories/m1/invite', body: null }]);
+  expect(w.log.filter((one) => one.path === '/memories/m1/invite')).toEqual([
+    { method: 'GET', path: '/memories/m1/invite', body: null },
+  ]);
   // Got: the button turns into the way to hand it on, and the quiet one beside it can replace it.
   expect(screen.button(ru.members.getLink)).toBeUndefined();
   expect(screen.button(ru.action.share)).toBeDefined();
   await act(async () => screen.mayAdd().props.onValueChange(false));
   await screen.press(() => screen.button(ru.members.replaceLink)!);
-  expect(w.log.at(-1)).toEqual({ method: 'POST', path: '/memories/m1/invite', body: { role: 'viewer' } });
+  expect(w.log.at(-1)).toEqual({
+    method: 'POST',
+    path: '/memories/m1/invite',
+    body: { role: 'viewer' },
+  });
   expect(screen.notice()).toEqual([ru.members.linkReplaced]);
   expect(screen.text()).toContain(ru.members.linkGrants(ru.role.viewer));
 });

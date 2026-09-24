@@ -1,14 +1,13 @@
 import { describe, expect, it } from 'vitest';
-
-import { en, ru } from '@/strings';
 import {
   failureText,
   missingParts,
   progress,
-  uploadedParts,
   type QueuedFile,
   type UploadFailure,
+  uploadedParts,
 } from '@/lib/upload/queue';
+import { en, ru } from '@/strings';
 
 const MB = 1024 * 1024;
 
@@ -112,8 +111,8 @@ describe('progress', () => {
   });
 
   it('never goes past whole', () => {
-    expect(
-      progress(file({ size: 8 * MB, partSize: 8 * MB, parts: { 1: '"a"', 2: '"b"' } })),
-    ).toBe(1);
+    expect(progress(file({ size: 8 * MB, partSize: 8 * MB, parts: { 1: '"a"', 2: '"b"' } }))).toBe(
+      1,
+    );
   });
 });

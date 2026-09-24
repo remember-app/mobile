@@ -1,13 +1,12 @@
+import { mountsTrees } from '@tests/helpers/renderer';
 import { Pressable } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import { beforeAll, expect, test } from 'vitest';
-
 import { BadgeMontage } from '@/kit/badge';
 import { Button } from '@/kit/button';
 import { CardMontage, CardMontageNew, EmptyMontages } from '@/kit/card-montage';
 import { allDifferent, compiled, story } from '@/kit/story';
 import { Text } from '@/kit/text';
-import { mountsTrees } from '@tests/helpers/renderer';
 import { setTheme } from '@/theme';
 
 /** Spec 7.6 — the strip of montages over a memory's feed: a card, the way to start one, and none. */
@@ -76,7 +75,12 @@ test('ready, building and broken are three cards and not three colours of one', 
 
 test('a card still being cut shows its own frame out of focus rather than no frame at all', () => {
   const pending = story(
-    <CardMontage title="Ролик" state="pending" poster={POSTER} step={{ at: 3, of: 5, count: '3 из 5' }} />,
+    <CardMontage
+      title="Ролик"
+      state="pending"
+      poster={POSTER}
+      step={{ at: 3, of: 5, count: '3 из 5' }}
+    />,
   );
   const ready = story(<CardMontage title="Ролик" state="ready" poster={POSTER} />);
   // Same still, drawn differently: there is something there and it is not ready to be looked at.
@@ -95,7 +99,10 @@ test('the scale of five is lit up to the stage in hand, as many bars as the coun
   // behind it. The lit ones share the first bar's look; the rest are the track.
   for (const at of [1, 2, 3, 4, 5]) {
     const bars = barsOf(scale(at));
-    expect(bars.filter((bar) => bar === bars[0]), `${at} из 5`).toHaveLength(at);
+    expect(
+      bars.filter((bar) => bar === bars[0]),
+      `${at} из 5`,
+    ).toHaveLength(at);
   }
 });
 
@@ -153,7 +160,14 @@ test('a card leads somewhere only when it is told to', () => {
   expect(story(<CardMontage title="Ролик" state="pending" />)).not.toContain('role="button"');
   // Read out as the whole thing it is, name and meta together.
   expect(
-    story(<CardMontage title="Ролик на 1:00" meta="14 сентября · Тёплая" state="ready" onPress={() => {}} />),
+    story(
+      <CardMontage
+        title="Ролик на 1:00"
+        meta="14 сентября · Тёплая"
+        state="ready"
+        onPress={() => {}}
+      />,
+    ),
   ).toContain('aria-label="Ролик на 1:00 · 14 сентября · Тёплая"');
   // Unless pressing it does something its own words do not say — the poster on `MontageLiveDone`
   // plays the film, and «Смотреть» is what a screen reader is told (TASK-222).
@@ -200,7 +214,9 @@ test('the button under a fallen card is never swallowed by the card', () => {
   expect(buttons(story(fallen(() => {})))).toBe(2);
   // Pressed, it is one element, so its label carries the line saying where it broke — left out, a
   // screen reader would hear the name and never learn it did not finish.
-  expect(story(fallen(() => {}))).toContain('aria-label="Ролик на 2:00 · Сборка оборвалась на полпути"');
+  expect(story(fallen(() => {}))).toContain(
+    'aria-label="Ролик на 2:00 · Сборка оборвалась на полпути"',
+  );
   let tree!: TestRenderer.ReactTestRenderer;
   act(() => {
     tree = TestRenderer.create(fallen(() => {}));

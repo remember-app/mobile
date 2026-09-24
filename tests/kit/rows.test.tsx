@@ -13,8 +13,8 @@ import {
   RowTrack,
   StepLink,
   StepNote,
-  Waveform,
   type StepState,
+  Waveform,
 } from '@/kit/rows';
 import { allDifferent, compiled, story } from '@/kit/story';
 import { setTheme } from '@/theme';
@@ -52,9 +52,33 @@ test('the same row stating a fact has no arrow on it', () => {
 test('a track row is a row, and what picks it is the button on its right', () => {
   const take = <IconButton size={36} icon={Plus} label="Добавить «Яркая»" />;
   allDifferent({
-    plain: <RowTrack title="Яркая" length="2:14" play={<IconButton size={40} icon={Play} label="Послушать" />} action={take} divider />,
-    playing: <RowTrack title="Яркая" length="2:14" playing play={<IconButton size={40} icon={Pause} label="Стоп" />} action={take} />,
-    chosen: <RowTrack title="Яркая" length="2:14" wave play={<IconButton size={36} icon={Play} label="Послушать" tone="paper" />} action={<IconButton size={36} icon={X} label="Убрать" />} />,
+    plain: (
+      <RowTrack
+        title="Яркая"
+        length="2:14"
+        play={<IconButton size={40} icon={Play} label="Послушать" />}
+        action={take}
+        divider
+      />
+    ),
+    playing: (
+      <RowTrack
+        title="Яркая"
+        length="2:14"
+        playing
+        play={<IconButton size={40} icon={Pause} label="Стоп" />}
+        action={take}
+      />
+    ),
+    chosen: (
+      <RowTrack
+        title="Яркая"
+        length="2:14"
+        wave
+        play={<IconButton size={36} icon={Play} label="Послушать" tone="paper" />}
+        action={<IconButton size={36} icon={X} label="Убрать" />}
+      />
+    ),
   });
   // The row itself picks nothing — several tracks can be taken, and a row that was the switch
   // could not say that.
@@ -128,9 +152,9 @@ test('the four states of a build step are four states, and three of them lead so
     <RowStep title="Дальше: ритм трека · склейка" state="waiting" onPress={() => {}} />,
   );
   expect(ahead).not.toContain('role="button"');
-  expect(story(<RowStep title="Отсев брака" state="done" meta="1 мин" onPress={() => {}} />)).toContain(
-    'role="button"',
-  );
+  expect(
+    story(<RowStep title="Отсев брака" state="done" meta="1 мин" onPress={() => {}} />),
+  ).toContain('role="button"');
 });
 
 test('a stage that fell over wears the danger cross, never the spark of a stage it got through', () => {
@@ -140,7 +164,9 @@ test('a stage that fell over wears the danger cross, never the spark of a stage 
   const cross = 'stroke="#FF8D8D"';
   expect(failed).toContain(cross);
   expect(done).not.toContain(cross);
-  const sparkFill = compiled().match(/\.(r-backgroundColor-[a-z0-9]+)\{background-color:rgba\(228,255,79,1\.00\);\}/)?.[1];
+  const sparkFill = compiled().match(
+    /\.(r-backgroundColor-[a-z0-9]+)\{background-color:rgba\(228,255,79,1\.00\);\}/,
+  )?.[1];
   expect(sparkFill).toBeDefined();
   expect(done).toContain(sparkFill);
   expect(failed).not.toContain(sparkFill);
@@ -148,7 +174,13 @@ test('a stage that fell over wears the danger cross, never the spark of a stage 
 
 test('the stage in hand opens out, and the ones around it do not', () => {
   const open = (
-    <RowStep title="Режиссёр строит историю" state="running" meta="61 из 212" open onPress={() => {}}>
+    <RowStep
+      title="Режиссёр строит историю"
+      state="running"
+      meta="61 из 212"
+      open
+      onPress={() => {}}
+    >
       <StepNote
         uri="https://bucket.example/f10.jpg"
         length="0:12"
@@ -171,7 +203,9 @@ test('a record under a stage opens that frame’s card where there is one to ope
   // is still being cut the same row is a glance and takes no finger, so the press is optional and
   // the row is not a button without one.
   const note = (onPress?: () => void) =>
-    story(<StepNote uri="https://bucket.example/f10.jpg" text="Марк роняет кольцо" onPress={onPress} />);
+    story(
+      <StepNote uri="https://bucket.example/f10.jpg" text="Марк роняет кольцо" onPress={onPress} />,
+    );
   expect(note(() => {})).toContain('role="button"');
   expect(note()).not.toContain('role="button"');
   // It carries no label of its own: a screen reader is given the thought and the decision beside it
@@ -198,7 +232,9 @@ test('the last line of an opened stage is the way into the whole of its journal'
   // read in.
   expect(link).toContain('stroke="#A7AEFF"');
   // And with nowhere to go it is not a button at all — the rule every row here keeps.
-  expect(story(<StepLink label="Весь журнал этапа · 148 записей" />)).not.toContain('role="button"');
+  expect(story(<StepLink label="Весь журнал этапа · 148 записей" />)).not.toContain(
+    'role="button"',
+  );
 });
 
 test('a sheet’s dangerous action is the only red line on it', () => {

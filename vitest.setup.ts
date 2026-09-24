@@ -35,7 +35,12 @@ vi.mock('expo-image', () => ({
     createElement(View, { style, testID: 'image' } as never),
 }));
 
-type Glyph = (props: { size?: number; color?: string; strokeWidth?: number; fill?: string }) => unknown;
+type Glyph = (props: {
+  size?: number;
+  color?: string;
+  strokeWidth?: number;
+  fill?: string;
+}) => unknown;
 
 /**
  * A glyph, drawn as the bare `<svg>` a real Lucide icon comes out as — carrying the four things
@@ -50,7 +55,14 @@ const glyph = (name: string): Glyph => {
   const known = glyphs.get(name);
   if (known) return known;
   const drawn: Glyph = ({ size, color, strokeWidth, fill }) =>
-    createElement('svg', { 'data-glyph': name, width: size, height: size, stroke: color, strokeWidth, fill });
+    createElement('svg', {
+      'data-glyph': name,
+      width: size,
+      height: size,
+      stroke: color,
+      strokeWidth,
+      fill,
+    });
   glyphs.set(name, drawn);
   return drawn;
 };

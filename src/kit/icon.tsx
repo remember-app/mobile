@@ -51,7 +51,5 @@ export function Icon({
   const { color } = useTheme();
   const paint = tint ?? color.paper;
 
-  return (
-    <Glyph size={size} color={paint} strokeWidth={strokeFor(size)} fill={fill ?? 'none'} />
-  );
+  return <Glyph size={size} color={paint} strokeWidth={strokeFor(size)} fill={fill ?? 'none'} />;
 }

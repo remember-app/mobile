@@ -5,7 +5,13 @@ vi.mock('@/lib/auth', () => ({ useAuth: () => ({ token: session.token, user: { i
 const { session, route, router } = vi.hoisted(() => ({
   session: { token: '' },
   route: { params: {} as Record<string, string> },
-  router: { push: vi.fn(), replace: vi.fn(), back: vi.fn(), canGoBack: () => true, setParams: vi.fn() },
+  router: {
+    push: vi.fn(),
+    replace: vi.fn(),
+    back: vi.fn(),
+    canGoBack: () => true,
+    setParams: vi.fn(),
+  },
 }));
 vi.mock('expo-router', async () => {
   const { useEffect } = await import('react');
@@ -26,17 +32,28 @@ vi.mock('@/lib/downloads', () => ({
   shareFile: async () => {},
 }));
 
+import { act, BEAT_BY_BEAT, drives, settle } from '@tests/helpers/drive';
+import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { AppState } from 'react-native';
 import TestRenderer, { type ReactTestInstance } from 'react-test-renderer';
-
 import MontageLiveScreen from '@/app/memory/[id]/montage/[montageId]/index';
 import { CardMontage, CardNow, LiveDot, RowStep, StepNote, Text } from '@/kit';
 import { Films } from '@/screens/memory/films';
 import { ru } from '@/strings';
-import { mounted, mountsTrees } from '@tests/helpers/renderer';
-import { act, BEAT_BY_BEAT, drives, settle } from '@tests/helpers/drive';
 
-import { bodyOf, BROKE, fellOver, load, MEMORY, MONTAGE, replay, TOKEN, type Replay, type Role, type Scenario } from './recorded';
+import {
+  BROKE,
+  bodyOf,
+  fellOver,
+  load,
+  MEMORY,
+  MONTAGE,
+  type Replay,
+  type Role,
+  replay,
+  type Scenario,
+  TOKEN,
+} from './recorded';
 
 /**
  * A montage that fell over, opened the way anybody opens it — cold, from its card, days after it
@@ -92,36 +109,53 @@ function words(root: ReactTestInstance): string {
 describe.each(SCENARIOS)('%s — a montage that fell over', (scenario) => {
   const steps = load(scenario);
 
-  test.each(['organizer', 'viewer'] as const)('its screen is not on air, for the %s: no «Сейчас», no live dot, nobody thinking', BEAT_BY_BEAT, async (role) => {
-    route.params = { id: MEMORY, montageId: MONTAGE };
-    const api = replay(fellOver(steps, role), { extra: extra(role) });
-    const screen = await mount(<MontageLiveScreen />, api, role);
-    const text = words(screen);
+  test.each(['organizer', 'viewer'] as const)(
+    'its screen is not on air, for the %s: no «Сейчас», no live dot, nobody thinking',
+    BEAT_BY_BEAT,
+    async (role) => {
+      route.params = { id: MEMORY, montageId: MONTAGE };
+      const api = replay(fellOver(steps, role), { extra: extra(role) });
+      const screen = await mount(<MontageLiveScreen />, api, role);
+      const text = words(screen);
 
-    expect(screen.findAllByType(CardNow)).toEqual([]);
-    expect(screen.findAllByType(LiveDot)).toEqual([]);
-    for (const live of [ru.montage.live.now, ru.montage.live.thinking, ru.montage.live.decided]) {
-      expect(text).not.toContain(live);
-    }
+      expect(screen.findAllByType(CardNow)).toEqual([]);
+      expect(screen.findAllByType(LiveDot)).toEqual([]);
+      for (const live of [ru.montage.live.now, ru.montage.live.thinking, ru.montage.live.decided]) {
+        expect(text).not.toContain(live);
+      }
 
-    // The journal is still read: the stage that broke wears the cross and is opened out on its last
-    // records, each with the frame it was about — where it broke, told calmly.
-    const rows = screen.findAllByType(RowStep);
-    expect(rows.map((one) => one.props.state)).toEqual(['done', 'failed', 'waiting', 'waiting', 'waiting']);
-    expect(rows.filter((one) => one.props.open)).toEqual([rows[1]]);
-    const whole = bodyOf(steps, 'journal_of_ready_montage');
-    const last = whole.entries.filter((one) => one.stage === 'understanding').slice(0, 2);
-    const shot = (id: string | null) => whole.files.find((one) => one.id === id)?.thumbnail_url ?? undefined;
-    expect(rows[1].findAllByType(StepNote).map((one) => one.props.uri)).toEqual(last.map((one) => shot(one.media_id)));
-    expect(text).toContain(BROKE);
-    expect(api.unmatched).toEqual([]);
-  });
+      // The journal is still read: the stage that broke wears the cross and is opened out on its last
+      // records, each with the frame it was about — where it broke, told calmly.
+      const rows = screen.findAllByType(RowStep);
+      expect(rows.map((one) => one.props.state)).toEqual([
+        'done',
+        'failed',
+        'waiting',
+        'waiting',
+        'waiting',
+      ]);
+      expect(rows.filter((one) => one.props.open)).toEqual([rows[1]]);
+      const whole = bodyOf(steps, 'journal_of_ready_montage');
+      const last = whole.entries.filter((one) => one.stage === 'understanding').slice(0, 2);
+      const shot = (id: string | null) =>
+        whole.files.find((one) => one.id === id)?.thumbnail_url ?? undefined;
+      expect(rows[1].findAllByType(StepNote).map((one) => one.props.uri)).toEqual(
+        last.map((one) => shot(one.media_id)),
+      );
+      expect(text).toContain(BROKE);
+      expect(api.unmatched).toEqual([]);
+    },
+  );
 
   /** The fallen card in the strip — the second of three, between the queued one and the old one. */
   async function fallenCard(why: string | null) {
     route.params = { id: MEMORY };
     const api = replay(fellOver(steps, 'organizer', why), { extra: extra('organizer') });
-    const strip = await mount(<Films id={MEMORY} memory={{ id: MEMORY, role: 'organizer' } as never} />, api, 'organizer');
+    const strip = await mount(
+      <Films id={MEMORY} memory={{ id: MEMORY, role: 'organizer' } as never} />,
+      api,
+      'organizer',
+    );
     expect(api.unmatched).toEqual([]);
     const card = strip.findAllByType(CardMontage)[1];
     expect(card.props.state).toBe('failed');
@@ -131,12 +165,20 @@ describe.each(SCENARIOS)('%s — a montage that fell over', (scenario) => {
   test('its card says why it broke in the worker’s own sentence, and paints the stage it broke on', async () => {
     const card = await fallenCard(BROKE);
     expect(card.props.caption).toBe(BROKE);
-    expect(card.props.step).toEqual({ at: 2, of: 5, count: ru.montage.live.doneOf(2, 5), failed: true });
+    expect(card.props.step).toEqual({
+      at: 2,
+      of: 5,
+      count: ru.montage.live.doneOf(2, 5),
+      failed: true,
+    });
   });
 
-  test.each([null, ''])('where the worker said nothing (%j), its card says the general line', async (why) => {
-    expect((await fallenCard(why)).props.caption).toBe(ru.montage.broke);
-  });
+  test.each([null, ''])(
+    'where the worker said nothing (%j), its card says the general line',
+    async (why) => {
+      expect((await fallenCard(why)).props.caption).toBe(ru.montage.broke);
+    },
+  );
 
   test('a reason too long for the card is cut to one line on it, and read out whole', async () => {
     const why = 'материал не годится для ролика: файлы не читаются, кадры испорчены или исключены';
@@ -144,6 +186,8 @@ describe.each(SCENARIOS)('%s — a montage that fell over', (scenario) => {
     expect(card.props.caption).toBe(why);
     const line = card.find((node) => node.type === Text && node.props.children === why);
     expect(line.props.numberOfLines).toBe(1);
-    expect(card.findAll((node) => node.props.accessibilityLabel?.includes(why) === true).length).toBeGreaterThan(0);
+    expect(
+      card.findAll((node) => node.props.accessibilityLabel?.includes(why) === true).length,
+    ).toBeGreaterThan(0);
   });
 });

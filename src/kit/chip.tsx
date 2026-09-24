@@ -1,9 +1,9 @@
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
 import { radius, space, themed, useTheme } from '@/theme';
 
 import { Icon, type IconComponent } from './icon';
-import { PRESS, TAP, hitSlop, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
+import { hitSlop, PRESS, TAP, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
 import { Avatar } from './member';
 import { Text } from './text';
 

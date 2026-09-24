@@ -24,10 +24,10 @@ import {
 import { useAuth } from '@/lib/auth';
 import {
   missingParts,
-  uploadedParts,
   type PartRange,
   type QueuedFile,
   type UploadFailure,
+  uploadedParts,
 } from '@/lib/upload/queue';
 
 /** Where the queue waits between launches. Documents and not cache — nothing may sweep this. */

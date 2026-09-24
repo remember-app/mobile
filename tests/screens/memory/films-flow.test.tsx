@@ -23,16 +23,15 @@ vi.mock('@/screens/memory/film-player', () => ({
   montageTitle: (film: { id: string }) => `Ролик ${film.id}`,
 }));
 
+import { type Asked, later, memory, refused, serve } from '@tests/helpers/api';
+import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import TestRenderer, { act } from 'react-test-renderer';
-
 import { MONTAGE_STAGES, type Montage } from '@/api';
 import { Banner, Button, CardMontage, CardMontageNew, EmptyMontages } from '@/kit';
 import { FilmPlayer } from '@/screens/memory/film-player';
 import { Films } from '@/screens/memory/films';
 import { BlockHead } from '@/screens/memory/head';
 import { ru } from '@/strings';
-import { later, memory, refused, serve, type Asked } from '@tests/helpers/api';
-import { mounted, mountsTrees } from '@tests/helpers/renderer';
 
 /**
  * The «Ролики» block at the head of a memory's feed (spec 8, `MemoryFrames` / `FilmsEmpty`): the
@@ -45,7 +44,8 @@ import { mounted, mountsTrees } from '@tests/helpers/renderer';
 mountsTrees();
 
 const SECONDS = 5000;
-const clock = () => vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] });
+const clock = () =>
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] });
 const wait = (ms: number) => act(async () => void vi.advanceTimersByTime(ms));
 
 beforeEach(() => {
@@ -72,7 +72,13 @@ const film = (id: string, status: Montage['status'], over: Partial<Montage> = {}
   ...over,
 });
 
-type World = { films: Montage[]; reads: number; read?: (nth: number) => unknown; onRetry?: unknown; log: Asked[] };
+type World = {
+  films: Montage[];
+  reads: number;
+  read?: (nth: number) => unknown;
+  onRetry?: unknown;
+  log: Asked[];
+};
 
 function world(films: Montage[], over: Partial<Pick<World, 'read' | 'onRetry'>> = {}): World {
   const w: World = { films, reads: 0, log: [], ...over };
@@ -81,7 +87,8 @@ function world(films: Montage[], over: Partial<Pick<World, 'read' | 'onRetry'>> 
       w.reads += 1;
       return w.read?.(w.reads) ?? w.films;
     }
-    if (one.method === 'POST' && one.path.endsWith('/retry')) return w.onRetry ?? { ...film('x', 'queued'), id: one.path.split('/')[4] };
+    if (one.method === 'POST' && one.path.endsWith('/retry'))
+      return w.onRetry ?? { ...film('x', 'queued'), id: one.path.split('/')[4] };
     return undefined;
   });
   return w;
@@ -90,16 +97,21 @@ function world(films: Montage[], over: Partial<Pick<World, 'read' | 'onRetry'>> 
 async function open(role: 'organizer' | 'contributor' | 'viewer' = 'organizer') {
   let tree!: TestRenderer.ReactTestRenderer;
   await act(async () => {
-    tree = mounted(TestRenderer.create(<Films id="m1" memory={memory({ role, recent_thumbnail_urls: [] })} />));
+    tree = mounted(
+      TestRenderer.create(<Films id="m1" memory={memory({ role, recent_thumbnail_urls: [] })} />),
+    );
   });
   const root = tree.root;
   const screen = {
     root,
-    press: (find: () => { props: { onPress?: () => void } }) => act(async () => find().props.onPress?.()),
+    press: (find: () => { props: { onPress?: () => void } }) =>
+      act(async () => find().props.onPress?.()),
     cards: () => root.findAllByType(CardMontage),
-    card: (id: string) => root.findAllByType(CardMontage).find((one) => one.props.title === `Ролик ${id}`)!,
+    card: (id: string) =>
+      root.findAllByType(CardMontage).find((one) => one.props.title === `Ролик ${id}`)!,
     heading: () => root.findByType(BlockHead).props as { title: string; count?: string },
-    button: (label: string) => root.findAllByType(Button).filter((one) => one.props.label === label),
+    button: (label: string) =>
+      root.findAllByType(Button).filter((one) => one.props.label === label),
     notices: () => root.findAllByType(Banner).map((one) => one.props.text as string),
   };
   return screen;
@@ -122,7 +134,10 @@ test('a memory with no film is the dashed block and offers to cut one to the org
   expect(organizer.root.findByType(EmptyMontages).props.text).toBe(ru.montage.emptyNote);
   expect(organizer.cards()).toHaveLength(0);
   await organizer.press(() => organizer.button(ru.montage.makeIt)[0]);
-  expect(router.push).toHaveBeenCalledWith({ pathname: '/memory/[id]/order', params: { id: 'm1' } });
+  expect(router.push).toHaveBeenCalledWith({
+    pathname: '/memory/[id]/order',
+    params: { id: 'm1' },
+  });
 
   for (const role of ['contributor', 'viewer'] as const) {
     vi.unstubAllGlobals();
@@ -139,9 +154,14 @@ test('the dashed «Новый ролик» stands first in the strip for the org
   expect(organizer.root.findAllByType(CardMontageNew)).toHaveLength(1);
   expect(organizer.root.findByType(CardMontageNew).props.label).toBe(ru.montage.newOne);
   await organizer.press(() => organizer.root.findByType(CardMontageNew));
-  expect(router.push).toHaveBeenCalledWith({ pathname: '/memory/[id]/order', params: { id: 'm1' } });
+  expect(router.push).toHaveBeenCalledWith({
+    pathname: '/memory/[id]/order',
+    params: { id: 'm1' },
+  });
   // First: ahead of the film in the strip, in the order the cards are drawn.
-  const order = organizer.root.findAll((one) => one.type === CardMontageNew || one.type === CardMontage).map((one) => one.type);
+  const order = organizer.root
+    .findAll((one) => one.type === CardMontageNew || one.type === CardMontage)
+    .map((one) => one.type);
   expect(order).toEqual([CardMontageNew, CardMontage]);
 
   for (const role of ['contributor', 'viewer'] as const) {
@@ -155,20 +175,42 @@ test('the dashed «Новый ролик» stands first in the strip for the org
 });
 
 test('the three states of a film are three cards, and each leads where it should: the making, the film’s page, or the journal of the attempt that broke', async () => {
-  world([film('q', 'queued'), film('p', 'processing'), film('r', 'ready', { params: { orientation: 'landscape', music_tracks: ['warm'] } }), film('f', 'failed')]);
+  world([
+    film('q', 'queued'),
+    film('p', 'processing'),
+    film('r', 'ready', { params: { orientation: 'landscape', music_tracks: ['warm'] } }),
+    film('f', 'failed'),
+  ]);
   const screen = await open();
-  expect(screen.cards().map((one) => one.props.state)).toEqual(['pending', 'pending', 'ready', 'failed']);
+  expect(screen.cards().map((one) => one.props.state)).toEqual([
+    'pending',
+    'pending',
+    'ready',
+    'failed',
+  ]);
   // Still being cut: the page that shows how far it has got.
   await screen.press(() => screen.card('q'));
-  expect(router.push).toHaveBeenLastCalledWith({ pathname: '/memory/[id]/montage/[montageId]', params: { id: 'm1', montageId: 'q' } });
+  expect(router.push).toHaveBeenLastCalledWith({
+    pathname: '/memory/[id]/montage/[montageId]',
+    params: { id: 'm1', montageId: 'q' },
+  });
   await screen.press(() => screen.card('p'));
-  expect(router.push).toHaveBeenLastCalledWith({ pathname: '/memory/[id]/montage/[montageId]', params: { id: 'm1', montageId: 'p' } });
+  expect(router.push).toHaveBeenLastCalledWith({
+    pathname: '/memory/[id]/montage/[montageId]',
+    params: { id: 'm1', montageId: 'p' },
+  });
   // Finished: the film’s own page.
   await screen.press(() => screen.card('r'));
-  expect(router.push).toHaveBeenLastCalledWith({ pathname: '/memory/[id]/montage/[montageId]/done', params: { id: 'm1', montageId: 'r' } });
+  expect(router.push).toHaveBeenLastCalledWith({
+    pathname: '/memory/[id]/montage/[montageId]/done',
+    params: { id: 'm1', montageId: 'r' },
+  });
   // Fallen: the same screen as a film being cut, stopped at the stage that broke — and the words say where.
   await screen.press(() => screen.card('f'));
-  expect(router.push).toHaveBeenLastCalledWith({ pathname: '/memory/[id]/montage/[montageId]', params: { id: 'm1', montageId: 'f' } });
+  expect(router.push).toHaveBeenLastCalledWith({
+    pathname: '/memory/[id]/montage/[montageId]',
+    params: { id: 'm1', montageId: 'f' },
+  });
   expect(screen.card('f').props.caption).toBe(ru.montage.broke);
   expect(screen.card('q').props.caption).toBe(ru.montage.caption);
   expect(screen.card('r').props.caption).toBeUndefined();
@@ -176,14 +218,18 @@ test('the three states of a film are three cards, and each leads where it should
 
 test('a finished film says what it was made of, and the ones that have nothing to show say nothing of it', async () => {
   world([
-    film('r', 'ready', { params: { orientation: 'portrait', music_tracks: ['warm', 'music/abc'] } }),
+    film('r', 'ready', {
+      params: { orientation: 'portrait', music_tracks: ['warm', 'music/abc'] },
+    }),
     film('old', 'ready', { params: { music_track_id: 'road' } }),
     film('bare', 'ready'),
     film('p', 'processing', { params: { orientation: 'portrait' } }),
   ]);
   const screen = await open();
   const day = '14 сентября 2026';
-  expect(screen.card('r').props.meta).toBe(`${day} · ${ru.montage.orientation.portrait} · ${ru.montage.track.warm} · ${ru.montage.ownTrackShort}`);
+  expect(screen.card('r').props.meta).toBe(
+    `${day} · ${ru.montage.orientation.portrait} · ${ru.montage.track.warm} · ${ru.montage.ownTrackShort}`,
+  );
   // Before the list of tracks there were two single fields, and an older film still names its track.
   expect(screen.card('old').props.meta).toBe(`${day} · ${ru.montage.track.road}`);
   expect(screen.card('bare').props.meta).toBe(day);
@@ -206,7 +252,12 @@ test('a film being cut carries the stage it is on, «N из 5», counted the way
   expect(step('a')).toEqual({ at: 3, of: 5, count: ru.montage.live.doneOf(3, 5) });
   expect(step('between')).toEqual({ at: 2, of: 5, count: ru.montage.live.doneOf(2, 5) });
   // A fallen film stands at the stage that fell over, and says it is that one.
-  expect(step('broke')).toEqual({ at: 2, of: 5, count: ru.montage.live.doneOf(2, 5), failed: true });
+  expect(step('broke')).toEqual({
+    at: 2,
+    of: 5,
+    count: ru.montage.live.doneOf(2, 5),
+    failed: true,
+  });
   expect(step('b')).toBeUndefined();
   expect(step('c')).toBeUndefined();
 });
@@ -218,7 +269,9 @@ test('only the organizer has the button under a fallen card, and it queues that 
   const screen = await open('organizer');
   expect(screen.button(ru.action.retry)).toHaveLength(1);
   await screen.press(() => screen.button(ru.action.retry)[0]);
-  expect(w.log.filter((one) => one.method === 'POST')).toEqual([{ method: 'POST', path: '/memories/m1/montages/f/retry', body: null }]);
+  expect(w.log.filter((one) => one.method === 'POST')).toEqual([
+    { method: 'POST', path: '/memories/m1/montages/f/retry', body: null },
+  ]);
   // The answer replaces the card without the list being read a second time: the same row, not a new one.
   expect(screen.cards().map((one) => one.props.title)).toEqual(['Ролик f', 'Ролик r']);
   expect(screen.card('f').props.state).toBe('pending');
@@ -301,7 +354,10 @@ test('while a film is being cut the strip reads again on its own, quietly, and s
   await wait(SECONDS - 1);
   expect(w.reads).toBe(1);
   // The film is done by now, its link signed afresh, and so is the finished one’s.
-  w.films = [film('a', 'ready', { poster_url: 'https://r2.example/a2.jpg' }), film('r', 'ready', { poster_url: 'https://r2.example/r-signed-again.jpg' })];
+  w.films = [
+    film('a', 'ready', { poster_url: 'https://r2.example/a2.jpg' }),
+    film('r', 'ready', { poster_url: 'https://r2.example/r-signed-again.jpg' }),
+  ];
   await wait(1);
   expect(w.reads).toBe(2);
   expect(screen.card('a').props.state).toBe('ready');
@@ -317,7 +373,9 @@ test('while a film is being cut the strip reads again on its own, quietly, and s
 test('a quiet read that was in the air when a film was retried does not put the old answer back over it', async () => {
   clock();
   const stale = later<Montage[]>();
-  const w = world([film('a', 'processing'), film('f', 'failed')], { read: (nth) => (nth === 2 ? stale.promise : undefined) });
+  const w = world([film('a', 'processing'), film('f', 'failed')], {
+    read: (nth) => (nth === 2 ? stale.promise : undefined),
+  });
   const screen = await open('organizer');
   const before = [...w.films];
   await wait(SECONDS);
@@ -333,7 +391,9 @@ test('a quiet read that was in the air when a film was retried does not put the 
 
 test('a quiet read that fails says nothing and the loop goes on', async () => {
   clock();
-  const w = world([film('a', 'processing')], { read: (nth) => (nth === 2 ? 'offline' : undefined) });
+  const w = world([film('a', 'processing')], {
+    read: (nth) => (nth === 2 ? 'offline' : undefined),
+  });
   const screen = await open();
   await wait(SECONDS);
   expect(screen.notices()).toEqual([]);

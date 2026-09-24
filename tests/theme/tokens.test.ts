@@ -52,18 +52,24 @@ test.each(['dark', 'light'] as const)('every pair of %s reads at the floor or ab
   const { color } = themes[name];
   for (const [what, words, ground] of PAIRS) {
     const ratio = contrast(color[words], color[ground]);
-    expect(ratio, `${what} — ${words} on ${ground} is ${ratio.toFixed(2)} : 1`).toBeGreaterThanOrEqual(4.5);
+    expect(
+      ratio,
+      `${what} — ${words} on ${ground} is ${ratio.toFixed(2)} : 1`,
+    ).toBeGreaterThanOrEqual(4.5);
   }
 });
 
-test.each(['dark', 'light'] as const)('%s keeps faint for what is unavailable, and only that', (name) => {
-  // Spec 10.1: `faint` is under the floor on purpose, so it may never carry a line meant to be
-  // read — the readable secondary is `muted`, which is why that one is in the table above and this
-  // one is here saying out loud that it is not.
-  const { color } = themes[name];
-  expect(contrast(color.faint, color.ink)).toBeLessThan(4.5);
-  expect(contrast(color.muted, color.ink)).toBeGreaterThanOrEqual(4.5);
-});
+test.each(['dark', 'light'] as const)(
+  '%s keeps faint for what is unavailable, and only that',
+  (name) => {
+    // Spec 10.1: `faint` is under the floor on purpose, so it may never carry a line meant to be
+    // read — the readable secondary is `muted`, which is why that one is in the table above and this
+    // one is here saying out loud that it is not.
+    const { color } = themes[name];
+    expect(contrast(color.faint, color.ink)).toBeLessThan(4.5);
+    expect(contrast(color.muted, color.ink)).toBeGreaterThanOrEqual(4.5);
+  },
+);
 
 test('the two themes are the same tokens with other values in them', () => {
   // Any theme is built by substitution (spec 2), so a token missing on one side is a component that

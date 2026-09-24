@@ -1,15 +1,15 @@
 import { Check, Tag } from 'lucide-react-native';
-import { useState, type ReactNode } from 'react';
+import { type ReactNode, useState } from 'react';
 import {
+  type StyleProp,
   StyleSheet,
   TextInput,
-  View,
-  type StyleProp,
   type TextInputProps,
   type TextStyle,
+  View,
 } from 'react-native';
 
-import { height, night, radius, space, themed, type, useTheme, type Theme } from '@/theme';
+import { height, night, radius, space, type Theme, themed, type, useTheme } from '@/theme';
 
 import { Icon, type IconComponent } from './icon';
 import { Text } from './text';
@@ -366,7 +366,12 @@ const useStyles = themed(({ color }) =>
     // The wish line stands inside a block that already has its own 16 of air around it.
     boxTight: { paddingHorizontal: space.s3, gap: space.s2 },
     // Spec 2.5 — the focus ring, on the box rather than on the input, so it rings the whole field.
-    boxFocus: { outlineWidth: 2, outlineColor: color.accent, outlineOffset: 2, outlineStyle: 'solid' },
+    boxFocus: {
+      outlineWidth: 2,
+      outlineColor: color.accent,
+      outlineOffset: 2,
+      outlineStyle: 'solid',
+    },
     swatch: {
       width: 28,
       height: 28,

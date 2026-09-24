@@ -6,17 +6,19 @@ vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' 
 vi.mock('@/lib/auth', () => ({ useAuth: () => ({ token: 'session' }) }));
 // A text input listens on the browser's `document`, which a test renderer has none of. The name is
 // handed to the sheet's `onSubmit` directly below; how the field draws is `label-sheets.test.tsx`'s.
-vi.mock('@/kit', async (original) => ({ ...(await original<typeof import('@/kit')>()), Field: () => null }));
+vi.mock('@/kit', async (original) => ({
+  ...(await original<typeof import('@/kit')>()),
+  Field: () => null,
+}));
 
+import { frame, label } from '@tests/helpers/labels';
+import { mountsTrees } from '@tests/helpers/renderer';
 import { Unlink, WifiOff } from 'lucide-react-native';
 import TestRenderer, { act } from 'react-test-renderer';
-
 import type { Label, MediaItem } from '@/api';
 import { Banner, Button, ConfirmSheet, Icon, IconButton, RowLabel } from '@/kit';
-import { frame, label } from '@tests/helpers/labels';
 import { LabelNewSheet, LabelSheets } from '@/screens/memory/label-sheets';
 import { ru } from '@/strings';
-import { mountsTrees } from '@tests/helpers/renderer';
 
 /**
  * The labels sheet as a person uses it: the real container, the real api client, and a stand-in
@@ -227,7 +229,8 @@ test('a second press while the first is still on its way is not a second request
 test('a label somebody deleted meanwhile says so in words, files nothing and leaves the sheet working', async () => {
   const server = serve([{ ...best }]);
   const sheet = await open(three());
-  server.refuse = (asked) => (asked.method === 'POST' ? json({ error: 'not found' }, 404) : undefined);
+  server.refuse = (asked) =>
+    asked.method === 'POST' ? json({ error: 'not found' }, 404) : undefined;
   await sheet.press('Лучшее');
 
   expect(sheet.banner()).toEqual([ru.labels.gone]);
@@ -282,7 +285,9 @@ test('«Новый лейбл» makes the label and puts the marked frames into 
 });
 
 test('a viewer asking for a shared label is told in words what they can make, and can try again', async () => {
-  const server = serve([], { refuse: (asked) => (asked.method === 'POST' ? json({}, 403) : undefined) });
+  const server = serve([], {
+    refuse: (asked) => (asked.method === 'POST' ? json({}, 403) : undefined),
+  });
   const sheet = await open(three());
   await sheet.act(() => sheet.button(ru.labels.newOne).props.onPress());
   await sheet.act(() => sheet.making()[0].props.onSubmit('Общее', 1, true));

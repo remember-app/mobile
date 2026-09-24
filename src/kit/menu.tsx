@@ -1,5 +1,13 @@
 import { Children, type ReactNode } from 'react';
-import { Animated, Modal, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  Animated,
+  Modal,
+  Pressable,
+  type StyleProp,
+  StyleSheet,
+  View,
+  type ViewStyle,
+} from 'react-native';
 
 import { duration as motion, photo, radius, space, ThemePin } from '@/theme';
 
@@ -92,7 +100,9 @@ function Fall({
           {
             opacity: fall,
             // Spec 6: it opens from its own top right corner — the corner the button is at.
-            transform: [{ scale: fall.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }],
+            transform: [
+              { scale: fall.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) },
+            ],
             transformOrigin: 'top right',
           },
           style,

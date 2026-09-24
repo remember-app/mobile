@@ -14,16 +14,15 @@ vi.mock('react-native', async (importOriginal) => {
   };
 });
 
+import { developing, photo } from '@tests/helpers/api';
+import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { Image } from 'expo-image';
 import TestRenderer, { act } from 'react-test-renderer';
-
 import type { MediaItem } from '@/api';
 import { Button, DashedFrame, GRID_GAP, Mosaic, Tile } from '@/kit';
 import { CoverSheet, CoverSlot } from '@/screens/memory/cover';
 import { ru } from '@/strings';
 import { space } from '@/theme';
-import { developing, photo } from '@tests/helpers/api';
-import { mounted, mountsTrees } from '@tests/helpers/renderer';
 
 /**
  * The cover of a memory (spec 10.8.3): the slot that stands for it wherever it is shown, and the
@@ -45,15 +44,23 @@ const draw = async (node: React.ReactElement) => {
 const at = (day: number, hour = 12) => new Date(2026, 8, day, hour).toISOString();
 
 test('the slot is the chosen frame, else the mosaic of the memory’s own frames — one of them is enough — else the dashed frame', async () => {
-  const picture = (await draw(<CoverSlot uri="https://r2.example/a" thumbs={['https://r2.example/t1']} />)).root;
-  expect(picture.findAllByType(Image).map((one) => one.props.source.uri)).toEqual(['https://r2.example/a']);
+  const picture = (
+    await draw(<CoverSlot uri="https://r2.example/a" thumbs={['https://r2.example/t1']} />)
+  ).root;
+  expect(picture.findAllByType(Image).map((one) => one.props.source.uri)).toEqual([
+    'https://r2.example/a',
+  ]);
   expect(picture.findAllByType(Mosaic)).toHaveLength(0);
 
   const one = (await draw(<CoverSlot uri={null} thumbs={['https://r2.example/t1']} />)).root;
   expect(one.findByType(Mosaic).props.photos).toEqual(['https://r2.example/t1']);
   expect(one.findAllByType(DashedFrame)).toHaveLength(0);
 
-  for (const bare of [<CoverSlot key="a" />, <CoverSlot key="b" uri={null} thumbs={[]} />, <CoverSlot key="c" uri="" thumbs={[]} />]) {
+  for (const bare of [
+    <CoverSlot key="a" />,
+    <CoverSlot key="b" uri={null} thumbs={[]} />,
+    <CoverSlot key="c" uri="" thumbs={[]} />,
+  ]) {
     const empty = (await draw(bare)).root;
     expect(empty.findAllByType(DashedFrame)).toHaveLength(1);
     expect(empty.findAllByType(Mosaic)).toHaveLength(0);
@@ -69,14 +76,26 @@ const frames = (): MediaItem[] => [
 ];
 
 const sheet = (over: Partial<React.ComponentProps<typeof CoverSheet>> = {}) => (
-  <CoverSheet visible onCancel={() => {}} media={frames()} chosen={null} onChoose={() => {}} {...over} />
+  <CoverSheet
+    visible
+    onCancel={() => {}}
+    media={frames()}
+    chosen={null}
+    onChoose={() => {}}
+    {...over}
+  />
 );
 
 test('the grid is the memory’s frames newest first, three across, with the pick on the ones that can be taken', async () => {
   const root = (await draw(sheet())).root;
   const tiles = root.findAllByType(Tile);
   // The one still developing was shot last, so it heads the grid — with no circle and nothing to press.
-  expect(tiles.map((one) => one.props.uri)).toEqual([undefined, 'https://r2.example/new', 'https://r2.example/mid', 'https://r2.example/old']);
+  expect(tiles.map((one) => one.props.uri)).toEqual([
+    undefined,
+    'https://r2.example/new',
+    'https://r2.example/mid',
+    'https://r2.example/old',
+  ]);
   expect(tiles.map((one) => one.props.pick)).toEqual([undefined, 'off', 'off', 'off']);
   expect(tiles[0].props.onPress).toBeUndefined();
   expect(tiles[0].props.caption).toBe(ru.gallery.waiting.processing);
@@ -140,5 +159,7 @@ test('each opening starts from what the screen holds — a pick abandoned by clo
 test('a memory with frames none of which can be taken has a grid and nothing to choose', async () => {
   const root = (await draw(sheet({ media: [developing('a', 'me', at(13))] }))).root;
   expect(root.findAllByType(Tile).map((one) => one.props.pick)).toEqual([undefined]);
-  expect(root.findAllByType(Button).find((one) => one.props.label === ru.edit.coverDo)!.props.disabled).toBe(true);
+  expect(
+    root.findAllByType(Button).find((one) => one.props.label === ru.edit.coverDo)!.props.disabled,
+  ).toBe(true);
 });

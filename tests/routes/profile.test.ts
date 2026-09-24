@@ -1,8 +1,7 @@
 import { expect, test } from 'vitest';
-
-import form from '@/screens/onboarding/username-form.tsx?raw';
 import profile from '@/app/profile.tsx?raw';
 import setUsername from '@/app/set-username.tsx?raw';
+import form from '@/screens/onboarding/username-form.tsx?raw';
 
 /**
  * Both of these break silently: nothing throws, the screen just says the wrong thing in the wrong

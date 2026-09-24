@@ -1,6 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 import { createContext, useContext, useSyncExternalStore } from 'react';
-import { Appearance, StyleSheet, type ColorSchemeName, type TextStyle } from 'react-native';
+import { Appearance, type ColorSchemeName, StyleSheet, type TextStyle } from 'react-native';
 
 /**
  * The tokens of «Афиша» — `design/spec.md` in the product repo, sections 2–4 and 6. That file is the
@@ -199,17 +199,40 @@ export const type = StyleSheet.create({
   /** the heading of an inner bar */
   barTitle: { fontFamily: font.headlineSemi, fontSize: 18, lineHeight: 21, letterSpacing: -0.54 },
   /** the heading of the bar over a montage on air, which carries a line of meta under it */
-  barTitleLive: { fontFamily: font.headlineSemi, fontSize: 17, lineHeight: 21, letterSpacing: -0.51 },
+  barTitleLive: {
+    fontFamily: font.headlineSemi,
+    fontSize: 17,
+    lineHeight: 21,
+    letterSpacing: -0.51,
+  },
   /** «Ролики», «Кадры», «Люди» — the heading of a block, and the calendar's month */
   section: { fontFamily: font.headlineSemi, fontSize: 15, lineHeight: 18, letterSpacing: -0.3 },
   /** the memory's name inside the glass capsule over its feed */
   pillTitle: { fontFamily: font.headlineSemi, fontSize: 14, lineHeight: 17, letterSpacing: -0.28 },
   /** the length of a film, said as a poster says it */
-  figure: { fontFamily: font.headline, fontSize: 34, lineHeight: 36, letterSpacing: -1.02, ...tabular },
+  figure: {
+    fontFamily: font.headline,
+    fontSize: 34,
+    lineHeight: 36,
+    letterSpacing: -1.02,
+    ...tabular,
+  },
   /** the same figure where a card holds it — the length on «Как собрать» */
-  figureSm: { fontFamily: font.headline, fontSize: 30, lineHeight: 34, letterSpacing: -0.9, ...tabular },
+  figureSm: {
+    fontFamily: font.headline,
+    fontSize: 30,
+    lineHeight: 34,
+    letterSpacing: -0.9,
+    ...tabular,
+  },
   /** the smallest of the three — «214 просмотрел», a number that is the whole of what a tile says */
-  figureTile: { fontFamily: font.headline, fontSize: 20, lineHeight: 24, letterSpacing: -0.6, ...tabular },
+  figureTile: {
+    fontFamily: font.headline,
+    fontSize: 20,
+    lineHeight: 24,
+    letterSpacing: -0.6,
+    ...tabular,
+  },
   /** «Отправляем», the value of the «Название» field — a name typed in the face it is printed in */
   subtitleDisplay: { fontFamily: font.headlineSemi, fontSize: 17, lineHeight: 22 },
   /** a subheading in the running text face */
@@ -545,7 +568,16 @@ export function faceOf(name: string): string {
  * is a function and not a constant.
  */
 export function labelColors({ color }: Theme): readonly string[] {
-  return ['#FFB547', '#FF7A9C', '#FF5A5A', '#4BD6A0', '#4FB3FF', '#8A7CFF', color.spark, color.muted];
+  return [
+    '#FFB547',
+    '#FF7A9C',
+    '#FF5A5A',
+    '#4BD6A0',
+    '#4FB3FF',
+    '#8A7CFF',
+    color.spark,
+    color.muted,
+  ];
 }
 
 /* ── Which theme the app is in ──────────────────────────────────────────── */
@@ -696,6 +728,7 @@ export function themed<T>(make: (theme: Theme) => T): () => T {
   const made = {} as Record<ThemeName, T>;
   return function useThemed(): T {
     const { name } = useTheme();
+    // biome-ignore lint/suspicious/noAssignInExpressions: build once, keep, hand back — one line.
     return (made[name] ??= make(themes[name]));
   };
 }

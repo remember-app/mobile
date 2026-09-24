@@ -75,7 +75,7 @@ test('the connection is a line over the list and never a replacement for it', ()
   // And the one that says it is back has no button on it at all, in either language: it leaves by
   // itself, and a button on something already going is a button nobody reaches.
   expect(index).toContain('<Banner tone="done" text={s.home.online} />');
-  expect(index).toContain('setTimeout(() => setLink({ at: \'ok\' }), duration.hold)');
+  expect(index).toContain("setTimeout(() => setLink({ at: 'ok' }), duration.hold)");
   expect(index).toContain('return () => clearTimeout(leaves);');
 });
 

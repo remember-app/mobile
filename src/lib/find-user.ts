@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { ApiError, findUser, isValidUsername, type Contact } from '@/api';
+import { ApiError, type Contact, findUser, isValidUsername } from '@/api';
 
 /** The same wait `username-form.tsx` gives the same server: a typed word is one question. */
 const LOOKUP_DELAY_MS = 400;

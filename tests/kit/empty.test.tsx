@@ -2,7 +2,7 @@ import { Camera, ImageIcon, Link2Off } from 'lucide-react-native';
 import { beforeAll, expect, test } from 'vitest';
 
 import { Button } from '@/kit/button';
-import { Empty, Spinner, Waiting, type SpinnerSize } from '@/kit/empty';
+import { Empty, Spinner, type SpinnerSize, Waiting } from '@/kit/empty';
 import { allDifferent, story } from '@/kit/story';
 import { setTheme } from '@/theme';
 
@@ -14,9 +14,24 @@ beforeAll(async () => {
 
 test('the signs an empty state can wear are each their own sign', () => {
   allDifferent({
-    dashed: <Empty icon={ImageIcon} title="Ни одного кадра" text="Всё, что добавит любой участник, появится здесь." />,
-    line: <Empty sign="line" icon={Link2Off} title="Приглашение не действует" text="Эту ссылку отозвали или заменили новой." />,
-    spark: <Empty sign="spark" icon={Camera} title="Здесь пока пусто" text="Заведите воспоминание." />,
+    dashed: (
+      <Empty
+        icon={ImageIcon}
+        title="Ни одного кадра"
+        text="Всё, что добавит любой участник, появится здесь."
+      />
+    ),
+    line: (
+      <Empty
+        sign="line"
+        icon={Link2Off}
+        title="Приглашение не действует"
+        text="Эту ссылку отозвали или заменили новой."
+      />
+    ),
+    spark: (
+      <Empty sign="spark" icon={Camera} title="Здесь пока пусто" text="Заведите воспоминание." />
+    ),
   });
 });
 
@@ -52,7 +67,11 @@ test('the sign inside the spark ring is read in full voice, and a dimmed circle 
 
 test('the block breathes at two rhythms — 22 under the sign, 12 inside the words', () => {
   const empty = story(
-    <Empty icon={ImageIcon} title="Ни одного кадра" text="Всё, что добавит участник, будет здесь." />,
+    <Empty
+      icon={ImageIcon}
+      title="Ни одного кадра"
+      text="Всё, что добавит участник, будет здесь."
+    />,
   );
   // Spec 7.9 gives the sign and the paragraph two different distances, and one distance for both is
   // exactly what this looked like before: two gaps, not one repeated.

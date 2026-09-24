@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { ImageIcon } from 'lucide-react-native';
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
 import { photo, radius, space, themed, useTheme } from '@/theme';
 
@@ -69,7 +69,7 @@ export function CardMemory({
   const focusRing = useFocusRing();
   // The chosen frame leads the strip and is never repeated further along it (spec 10.8.3): four
   // cells, and the first of them is now spoken for.
-  const shots = cover ? [cover, ...(thumbs ?? []).filter((uri) => uri !== cover)] : thumbs ?? [];
+  const shots = cover ? [cover, ...(thumbs ?? []).filter((uri) => uri !== cover)] : (thumbs ?? []);
 
   return (
     <Pressable

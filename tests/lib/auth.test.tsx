@@ -15,17 +15,10 @@ vi.mock('expo-secure-store', () => ({
   },
 }));
 
-import TestRenderer, { act } from 'react-test-renderer';
-
-import {
-  ApiError,
-  listMemories,
-  signInWithApple,
-  signInWithGoogle,
-  verifyEmailCode,
-} from '@/api';
-import { AuthProvider, useAuth } from '@/lib/auth';
 import { mountsTrees } from '@tests/helpers/renderer';
+import TestRenderer, { act } from 'react-test-renderer';
+import { ApiError, listMemories, signInWithApple, signInWithGoogle, verifyEmailCode } from '@/api';
+import { AuthProvider, useAuth } from '@/lib/auth';
 
 /**
  * The session against an api that stops honouring it. The api's words are the ones its README gives:
@@ -52,7 +45,8 @@ async function answer(url: string, init: RequestInit = {}): Promise<Response> {
   const path = new URL(url).pathname;
   api.calls.push(`${method} ${path}`);
   if (path === '/auth/email/verify') return json(401, { error: 'invalid or expired code' });
-  if (path === '/auth/apple' || path === '/auth/google') return json(401, { error: 'invalid token' });
+  if (path === '/auth/apple' || path === '/auth/google')
+    return json(401, { error: 'invalid token' });
   const bearer = (init.headers as Record<string, string>).Authorization?.replace(/^Bearer /, '');
   if (!bearer || !api.honoured.has(bearer)) return json(401, { error: 'unauthorized' });
   if (path === '/auth/logout') return json(200, { ok: true });

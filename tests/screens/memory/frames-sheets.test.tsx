@@ -4,8 +4,8 @@ import { beforeAll, expect, test, vi } from 'vitest';
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
 
 import type { FrameInfo, Label } from '@/api';
-import { FILTER_NONE, SORT_DEFAULT, type Filter, type Sort } from '@/lib/frames';
 import { allDifferent, story } from '@/kit/story';
+import { FILTER_NONE, type Filter, SORT_DEFAULT, type Sort } from '@/lib/frames';
 import { FilterSheet, FrameInfoSheet, SortSheet } from '@/screens/memory/frames-sheets';
 import { setTheme, ThemePin } from '@/theme';
 
@@ -202,7 +202,15 @@ test('the boxes stand third, between the type and the days — and that is how o
   expect(whole).toContain('aria-label="Для себя 9"');
   // A private box wears the lock in front of its name and a shared one wears nothing (spec 10.8.2),
   // so the same row of boxes drawn as all-shared is a different row.
-  expect(story(filter({}, 486, labels.map((one) => ({ ...one, shared: true }))))).not.toBe(whole);
+  expect(
+    story(
+      filter(
+        {},
+        486,
+        labels.map((one) => ({ ...one, shared: true })),
+      ),
+    ),
+  ).not.toBe(whole);
   // Nothing marked, one box marked, both marked: three sheets, and the last is «или» — the frames
   // in either box (`framesMatching`).
   allDifferent({

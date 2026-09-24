@@ -10,18 +10,29 @@ vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' 
 vi.mock('@/lib/auth', () => ({ useAuth: () => ({ token: 'session', user: { id: 'me' } }) }));
 vi.mock('expo-router', async () => {
   const { useEffect } = await import('react');
-  return { useFocusEffect: (run: () => void | (() => void)) => useEffect(run, [run, focus.n]), useRouter: () => router };
+  return {
+    useFocusEffect: (run: () => void | (() => void)) => useEffect(run, [run, focus.n]),
+    useRouter: () => router,
+  };
 });
 
-import TestRenderer, { act } from 'react-test-renderer';
-
-import type { Memory } from '@/api';
-import HomeScreen from '@/app/index';
-import { Banner, BadgeFilms, BadgeOrganizer, Button, CardMemory, Empty, IconButton, Waiting } from '@/kit';
-import { ru } from '@/strings';
-import { duration, setTheme } from '@/theme';
 import { later, memory, serve } from '@tests/helpers/api';
 import { mounted, mountsTrees, themesShown } from '@tests/helpers/renderer';
+import TestRenderer, { act } from 'react-test-renderer';
+import type { Memory } from '@/api';
+import HomeScreen from '@/app/index';
+import {
+  BadgeFilms,
+  BadgeOrganizer,
+  Banner,
+  Button,
+  CardMemory,
+  Empty,
+  IconButton,
+  Waiting,
+} from '@/kit';
+import { ru } from '@/strings';
+import { duration, setTheme } from '@/theme';
 
 /**
  * The list of memories (spec 8, `Main`): which card leads on the large one, what each card is handed —
@@ -64,11 +75,23 @@ async function open(list: Memory[] | 'offline' | Promise<unknown>) {
     state,
     root,
     cards: () => root.findAllByType(CardMemory).map((one) => one.props),
-    card: (title: string) => root.findAllByType(CardMemory).find((one) => one.props.title === title)!,
-    banners: () => root.findAllByType(Banner).map((one) => ({ text: one.props.text as string, tone: one.props.tone as string | undefined })),
+    card: (title: string) =>
+      root.findAllByType(CardMemory).find((one) => one.props.title === title)!,
+    banners: () =>
+      root.findAllByType(Banner).map((one) => ({
+        text: one.props.text as string,
+        tone: one.props.tone as string | undefined,
+      })),
     create: () => root.findAllByType(Button).find((one) => one.props.label === ru.home.create)!,
-    press: (find: () => { props: { onPress?: () => void } }) => act(async () => find().props.onPress?.()),
-    pull: () => act(async () => root.findAllByType(Button).find((one) => one.props.label === ru.action.retry)!.props.onPress()),
+    press: (find: () => { props: { onPress?: () => void } }) =>
+      act(async () => find().props.onPress?.()),
+    pull: () =>
+      act(async () =>
+        root
+          .findAllByType(Button)
+          .find((one) => one.props.label === ru.action.retry)!
+          .props.onPress(),
+      ),
     /** Away and back: the screen comes into focus again and reads the list. */
     refocus: async () => {
       focus.n += 1;
@@ -87,14 +110,26 @@ test('the freshest memory leads on the large card — but only while it has a ph
   // The memory just made is the freshest and the emptiest: it takes the ordinary card and its dashed film.
   vi.unstubAllGlobals();
   const fresh = await open([
-    wedding({ id: 'a', title: 'Только что', media_count: 0, recent_thumbnail_urls: [], cover_thumbnail_url: null }),
+    wedding({
+      id: 'a',
+      title: 'Только что',
+      media_count: 0,
+      recent_thumbnail_urls: [],
+      cover_thumbnail_url: null,
+    }),
     wedding({ id: 'b', title: 'Вторая' }),
   ]);
   expect(fresh.cards().map((one) => one.large)).toEqual([false, false]);
   // A cover is a photograph just as much, and carries the large card on its own; behind the first it does not.
   vi.unstubAllGlobals();
   const covered = await open([
-    wedding({ id: 'a', title: 'С обложкой', media_count: 0, recent_thumbnail_urls: [], cover_thumbnail_url: 'https://r2.example/cover' }),
+    wedding({
+      id: 'a',
+      title: 'С обложкой',
+      media_count: 0,
+      recent_thumbnail_urls: [],
+      cover_thumbnail_url: 'https://r2.example/cover',
+    }),
     wedding({ id: 'b', title: 'Вторая', cover_thumbnail_url: 'https://r2.example/other' }),
   ]);
   expect(covered.cards().map((one) => one.large)).toEqual([true, false]);
@@ -114,7 +149,9 @@ test('each card is handed the cover, the signed frames and the days and count �
 
   // Neither field in the answer at all: the same card, and nothing thrown inside the list.
   vi.unstubAllGlobals();
-  const old = await open([{ ...wedding(), cover_thumbnail_url: undefined, recent_thumbnail_urls: undefined } as never]);
+  const old = await open([
+    { ...wedding(), cover_thumbnail_url: undefined, recent_thumbnail_urls: undefined } as never,
+  ]);
   expect(old.cards()[0].cover).toBeNull();
   expect(old.cards()[0].thumbs).toEqual([]);
   expect(old.cards()[0].large).toBe(false);
@@ -164,7 +201,9 @@ test('a press on a card opens that memory, the account button opens the account,
   const screen = await open([wedding()]);
   await screen.press(() => screen.card('Свадьба'));
   expect(router.push).toHaveBeenLastCalledWith({ pathname: '/memory/[id]', params: { id: 'w' } });
-  await screen.press(() => screen.root.findAllByType(IconButton).find((one) => one.props.label === ru.home.account)!);
+  await screen.press(
+    () => screen.root.findAllByType(IconButton).find((one) => one.props.label === ru.home.account)!,
+  );
   expect(router.push).toHaveBeenLastCalledWith('/profile');
   await screen.press(screen.create);
   expect(router.push).toHaveBeenLastCalledWith('/create');
@@ -205,7 +244,9 @@ test('a read that fails over a list that is there is a line above it that can be
   expect(screen.cards()).toHaveLength(1);
   expect(screen.banners()).toEqual([{ text: ru.home.offline, tone: undefined }]);
   // Put away by hand, and the connection is still not back — so the good news is still owed.
-  await screen.press(() => screen.root.findAllByType(IconButton).find((one) => one.props.label === ru.action.hide)!);
+  await screen.press(
+    () => screen.root.findAllByType(IconButton).find((one) => one.props.label === ru.action.hide)!,
+  );
   expect(screen.banners()).toEqual([]);
   screen.state.list = [wedding()];
   await screen.refocus();

@@ -98,18 +98,29 @@ test('a uuid is a uuid whatever digits it has, zeros included — and only then 
   // those would make two files of one memory overwrite each other.
   const zeros = '00000000-0000-4000-8000-000000000000';
   await saveToPhone({ id: zeros, kind: 'photo', url: 'https://example/x' });
-  expect((downloadFileAsync.mock.calls[0][1] as { parts: unknown[] }).parts).toEqual(['CACHE', `${zeros}.jpg`]);
+  expect((downloadFileAsync.mock.calls[0][1] as { parts: unknown[] }).parts).toEqual([
+    'CACHE',
+    `${zeros}.jpg`,
+  ]);
   const upper = 'ABCDEF12-3456-4789-8ABC-DEF012345678';
   await saveToPhone({ id: upper, kind: 'video', url: 'https://example/x' });
-  expect((downloadFileAsync.mock.calls[1][1] as { parts: unknown[] }).parts).toEqual(['CACHE', `${upper}.mp4`]);
+  expect((downloadFileAsync.mock.calls[1][1] as { parts: unknown[] }).parts).toEqual([
+    'CACHE',
+    `${upper}.mp4`,
+  ]);
   // Thirty-six characters that are not hex are not one.
   await saveToPhone({ id: 'g'.repeat(36), kind: 'photo', url: 'https://example/x' });
-  expect((downloadFileAsync.mock.calls[2][1] as { parts: unknown[] }).parts).toEqual(['CACHE', 'download.jpg']);
+  expect((downloadFileAsync.mock.calls[2][1] as { parts: unknown[] }).parts).toEqual([
+    'CACHE',
+    'download.jpg',
+  ]);
 });
 
 test('a download over the leftover of an earlier one goes on instead of failing on it', async () => {
   await saveToPhone(film);
-  expect(downloadFileAsync).toHaveBeenCalledWith('https://example/x', expect.anything(), { idempotent: true });
+  expect(downloadFileAsync).toHaveBeenCalledWith('https://example/x', expect.anything(), {
+    idempotent: true,
+  });
 });
 
 test('names the cached file after the record id when it is a uuid', async () => {

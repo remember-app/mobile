@@ -1,7 +1,7 @@
 import { Pencil, Search } from 'lucide-react-native';
 import { beforeAll, expect, test } from 'vitest';
 
-import { CodeField, Field, Hint, TextArea, type FieldVariant } from '@/kit/field';
+import { CodeField, Field, type FieldVariant, Hint, TextArea } from '@/kit/field';
 import { allDifferent, story } from '@/kit/story';
 import { setTheme, type } from '@/theme';
 
@@ -35,9 +35,15 @@ test('the seven fields differ by height and by the face they are typed in', () =
 
 test('the memory’s name is 56 tall and 18 round, and the e-mail is 60 and 20', () => {
   // Spec 7.3, «Название 56 / 18» and «Почта 60 / 20», and `Create` draws the first with an 18 radius.
-  expect(story(<Field label="Название" variant="name" value="" />)).toContain('border-top-left-radius:18px');
-  expect(story(<Field label="Почта" variant="email" value="" />)).toContain('border-top-left-radius:20px');
-  expect(story(<Field label="Поиск" variant="search" value="" />)).toContain('border-top-left-radius:16px');
+  expect(story(<Field label="Название" variant="name" value="" />)).toContain(
+    'border-top-left-radius:18px',
+  );
+  expect(story(<Field label="Почта" variant="email" value="" />)).toContain(
+    'border-top-left-radius:20px',
+  );
+  expect(story(<Field label="Поиск" variant="search" value="" />)).toContain(
+    'border-top-left-radius:16px',
+  );
 });
 
 test('the label’s colour square in its field carries the night’s dark glyph in daylight too', async () => {
@@ -66,9 +72,9 @@ test('a field inside a sheet stands on ink, because the sheet under it is alread
     'background-color:rgba(22,22,31,1.00)',
   );
   // Unavailable still wins over the place it stands in: `raise` and nothing else (#22222E).
-  expect(story(<Field label="Ник" variant="handle" value="" onSurface editable={false} />)).toContain(
-    'background-color:rgba(34,34,46,1.00)',
-  );
+  expect(
+    story(<Field label="Ник" variant="handle" value="" onSurface editable={false} />),
+  ).toContain('background-color:rgba(34,34,46,1.00)');
 });
 
 test('an error says what is wrong and what to do, and keeps saying it while it is fixed', () => {
@@ -161,9 +167,9 @@ test('the code is one value behind six boxes, not six values', () => {
     ),
   });
   // All six take the error at once, because a code is one value: #FF8D8D.
-  expect(
-    story(<CodeField label="Код" value="" onChangeText={() => {}} state="error" />),
-  ).toContain('rgba(255,141,141,1.00)');
+  expect(story(<CodeField label="Код" value="" onChangeText={() => {}} state="error" />)).toContain(
+    'rgba(255,141,141,1.00)',
+  );
 });
 
 test('the long-text box holds the limit silently and counts nothing out loud', () => {

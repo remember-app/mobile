@@ -116,6 +116,8 @@ export function withLabel(labels: readonly Label[], one: Label): Label[] {
   const rest = labels.filter((label) => label.id !== one.id);
   return [...rest, one].sort(
     (a, b) =>
-      Number(b.shared) - Number(a.shared) || a.title.localeCompare(b.title) || a.id.localeCompare(b.id),
+      Number(b.shared) - Number(a.shared) ||
+      a.title.localeCompare(b.title) ||
+      a.id.localeCompare(b.id),
   );
 }

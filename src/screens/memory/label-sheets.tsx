@@ -11,18 +11,17 @@ import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import {
-  addLabelMedia,
   ApiError,
+  addLabelMedia,
   createLabel,
   deleteLabel,
   errorMessage,
+  type Label,
   listLabels,
+  type MediaItem,
   removeLabelMedia,
   updateLabel,
-  type Label,
-  type MediaItem,
 } from '@/api';
-import { useAuth } from '@/lib/auth';
 import {
   Banner,
   Button,
@@ -31,14 +30,22 @@ import {
   Field,
   Hint,
   IconButton,
+  type IconComponent,
   Palette,
   RowLabel,
   Sheet,
   Text,
   Waiting,
-  type IconComponent,
 } from '@/kit';
-import { filing, labelGroups, labelNameOk, labelTint, withLabel, LABEL_NAME_MAX } from '@/lib/labels';
+import { useAuth } from '@/lib/auth';
+import {
+  filing,
+  LABEL_NAME_MAX,
+  labelGroups,
+  labelNameOk,
+  labelTint,
+  withLabel,
+} from '@/lib/labels';
 import { useStrings } from '@/lib/language';
 import type { Strings } from '@/strings';
 import { height, labelColors, radius, space, themed, useTheme } from '@/theme';
@@ -385,9 +392,7 @@ export function LabelsSheet({
           ) : null}
         </View>
       }
-      footer={
-        <Button variant="dashed" label={s.labels.newOne} disabled={busy} onPress={onNew} />
-      }
+      footer={<Button variant="dashed" label={s.labels.newOne} disabled={busy} onPress={onNew} />}
     >
       {error === null ? null : <Banner tone="error" text={error.text} icon={error.icon} />}
       {labels === null ? (

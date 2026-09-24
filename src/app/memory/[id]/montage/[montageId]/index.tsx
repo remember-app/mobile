@@ -9,14 +9,12 @@ import {
   listMembers,
   listMemories,
   listMontages,
-  memberName,
-  retryMontage,
   type Member,
   type Memory,
   type Montage,
+  memberName,
+  retryMontage,
 } from '@/api';
-import { useAuth } from '@/lib/auth';
-import { formatDayShort, formatRuntime, formatTime } from '@/lib/dates';
 import {
   ActionBar,
   AppBar,
@@ -31,8 +29,9 @@ import {
   Text,
   WatchingPill,
 } from '@/kit';
+import { useAuth } from '@/lib/auth';
+import { formatDayShort, formatRuntime, formatTime } from '@/lib/dates';
 import { useStrings } from '@/lib/language';
-import { StageRows } from '@/screens/memory/stage-rows';
 import {
   currentStage,
   gazeAt,
@@ -40,13 +39,14 @@ import {
   isFresh,
   marksOf,
   minutesLeft,
-  stageNumber,
   STAGE_COUNT,
+  stageNumber,
   useMontageJournal,
   useTypedThought,
 } from '@/lib/montage/journal';
 import { LENGTHS, type Length } from '@/lib/montage/order';
-import { type Strings } from '@/strings';
+import { StageRows } from '@/screens/memory/stage-rows';
+import type { Strings } from '@/strings';
 import { space } from '@/theme';
 
 /**

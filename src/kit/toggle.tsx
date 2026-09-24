@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Switch, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, type StyleProp, StyleSheet, Switch, View, type ViewStyle } from 'react-native';
 
 import { radius, space, themed, useTheme } from '@/theme';
 

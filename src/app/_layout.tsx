@@ -1,7 +1,12 @@
 // ponytail: each package index `require`s every weight it ships, so all of them land in the bundle
 // though only these six are loaded. Import the faces by their own paths and add a `*.ttf` module
 // declaration if the bundle size ever starts to matter.
-import { Onest_400Regular, Onest_500Medium, Onest_600SemiBold, Onest_700Bold } from '@expo-google-fonts/onest';
+import {
+  Onest_400Regular,
+  Onest_500Medium,
+  Onest_600SemiBold,
+  Onest_700Bold,
+} from '@expo-google-fonts/onest';
 import { Unbounded_600SemiBold, Unbounded_700Bold, useFonts } from '@expo-google-fonts/unbounded';
 import { Image } from 'expo-image';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
@@ -12,8 +17,8 @@ import { Platform } from 'react-native';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { lockPortrait } from '@/lib/orientation';
 import { usePush } from '@/lib/push';
-import { useTheme } from '@/theme';
 import { useUploads } from '@/lib/upload/send';
+import { useTheme } from '@/theme';
 
 // Hold the splash until the stored session has been checked, so no screen flashes
 // before the gate below knows which ones to allow.

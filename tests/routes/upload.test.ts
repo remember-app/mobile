@@ -2,8 +2,8 @@ import { expect, test } from 'vitest';
 
 import api from '@/api/index.ts?raw';
 import upload from '@/app/memory/[id]/upload.tsx?raw';
-import { strings } from '@/strings';
 import uploads from '@/lib/upload/send.ts?raw';
+import { strings } from '@/strings';
 
 /**
  * «Ваши кадры» — the camera roll drawn the way a memory's own feed is (TASK-210). Read as text, the
@@ -20,7 +20,7 @@ test('the roll is the kit’s feed: three to a row, 2 of gutter, edge to edge', 
   expect(upload).toContain('const cell = { width: (width - FEED_GAP * 2) / 3 };');
   expect(upload).toContain('lane="feed"');
   expect(upload).toContain('feed: { flexGrow: 1, gap: FEED_GAP }');
-  expect(upload).toContain('strip: { flexDirection: \'row\', gap: FEED_GAP }');
+  expect(upload).toContain("strip: { flexDirection: 'row', gap: FEED_GAP }");
 });
 
 test('the bar over the feed is glass, and its capsule is a plate rather than a button', () => {
@@ -51,11 +51,16 @@ test('picking is on from the first moment, and turning it off empties the feed o
 });
 
 test('the date between two days takes the whole day and gives it back', () => {
-  const daymark = upload.slice(upload.indexOf('<DayMark'), upload.indexOf('/>', upload.indexOf('<DayMark')));
+  const daymark = upload.slice(
+    upload.indexOf('<DayMark'),
+    upload.indexOf('/>', upload.indexOf('<DayMark')),
+  );
   // The seam itself is the button (spec 7.8), and the circle in front of the date is which of the
   // two states it is in — so the mark has to be told, not only pressed.
   expect(daymark).toContain('picked={row.day.assets.every((asset) => picked.has(asset.id))}');
-  expect(daymark).toContain('picking && !limited && !reading ? () => toggleDay(row.day) : undefined');
+  expect(daymark).toContain(
+    'picking && !limited && !reading ? () => toggleDay(row.day) : undefined',
+  );
   // A day already whole comes off; anything else goes on. Only this day either way.
   const toggling = upload.slice(upload.indexOf('function toggleDay'));
   expect(toggling.slice(0, toggling.indexOf('\n  }'))).toContain(
@@ -113,11 +118,16 @@ test('a partial grant counts the day instead of offering to select all of it', (
   // `UploadLimited`: «Выбрать все» is gone because there is nothing to select all of, the count is
   // drawn back (`limited`) because the rest is unseen rather than missing, and the plate under the
   // strip says so in words.
-  const daymark = upload.slice(upload.indexOf('<DayMark'), upload.indexOf('/>', upload.indexOf('<DayMark')));
+  const daymark = upload.slice(
+    upload.indexOf('<DayMark'),
+    upload.indexOf('/>', upload.indexOf('<DayMark')),
+  );
   expect(daymark).toContain('count={s.memory.frames(row.day.assets.length)}');
   expect(daymark).toContain('limited={limited}');
   expect(daymark).toContain('!limited');
-  expect(upload).toContain('...(limited ? [{ key: `unseen-${day.at}`, unseen: true as const }] : []),');
+  expect(upload).toContain(
+    '...(limited ? [{ key: `unseen-${day.at}`, unseen: true as const }] : []),',
+  );
   expect(upload).toContain('{s.upload.restUnseen}');
 });
 
@@ -137,7 +147,9 @@ test('both answers to it are a standing, and closing it is not', () => {
   expect(upload).toContain("onPress={() => answerAskAll('done')}");
   expect(upload).toContain("onPress={() => answerAskAll('more_coming')}");
   expect(upload).toContain('onCancel={() => answerAskAll(null)}');
-  expect(uploads).toContain('if (answer === null || memoryId === null || session === null) return;');
+  expect(uploads).toContain(
+    'if (answer === null || memoryId === null || session === null) return;',
+  );
   expect(uploads).toContain('setContributionStatus(session, memoryId, answer)');
   expect(api).toContain("status: 'more_coming' | 'done' | 'nothing',");
   // And the question is a sheet on the screen, never a system dialog raised from the queue.

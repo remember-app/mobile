@@ -5,13 +5,12 @@ vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' 
 const focus = vi.hoisted(() => ({ now: true }));
 vi.mock('expo-router', () => ({ useFocusEffect: () => {}, useIsFocused: () => focus.now }));
 
+import { act, BEAT_BY_BEAT, drives, settle } from '@tests/helpers/drive';
+import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { AppState } from 'react-native';
 import TestRenderer from 'react-test-renderer';
-
-import { MONTAGE_STAGES, type JournalEntry, type MontageJournal } from '@/api';
+import { type JournalEntry, MONTAGE_STAGES, type MontageJournal } from '@/api';
 import { useMontageJournal, WHILE_LIVE_MS } from '@/lib/montage/journal';
-import { mounted, mountsTrees } from '@tests/helpers/renderer';
-import { act, BEAT_BY_BEAT, drives, settle } from '@tests/helpers/drive';
 
 import {
   bodyOf,
@@ -21,11 +20,10 @@ import {
   MEMORY,
   MONTAGE,
   replay,
-  step,
-  TOKEN,
-  type Replay,
   type Scenario,
   type Step,
+  step,
+  TOKEN,
 } from './recorded';
 
 /**
@@ -107,8 +105,7 @@ async function watch(fetch: typeof globalThis.fetch) {
 }
 
 const idsOf = (entries: readonly JournalEntry[]) => entries.map((one) => one.id);
-const desc = (from: number, to: number) =>
-  Array.from({ length: to - from + 1 }, (_, i) => to - i);
+const desc = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, i) => to - i);
 
 /** A journal answer that is not in the recording, to the organizer, at `query`. */
 const said = (name: string, query: Step['request']['query'], body: MontageJournal): Step => ({
@@ -156,13 +153,17 @@ describe.each(SCENARIOS)('%s — the film begun again under an open journal', (s
   const fallen = (entries: 'all' | 'none'): MontageJournal => ({
     ...atCursor,
     montage: { ...atCursor.montage, status: 'failed' },
-    stages: atCursor.stages.map((row) => (row.state === 'running' ? { ...row, state: 'failed' as const } : row)),
-    entries: entries === 'all' ? reached.flatMap((one) => one.entries).sort((a, b) => b.id - a.id) : [],
+    stages: atCursor.stages.map((row) =>
+      row.state === 'running' ? { ...row, state: 'failed' as const } : row,
+    ),
+    entries:
+      entries === 'all' ? reached.flatMap((one) => one.entries).sort((a, b) => b.id - a.id) : [],
     has_more: false,
     files: entries === 'all' ? reached.flatMap((one) => one.files) : [],
   });
 
-  const later = (at: string | null) => (at === null ? null : new Date(Date.parse(at) + HOUR).toISOString());
+  const later = (at: string | null) =>
+    at === null ? null : new Date(Date.parse(at) + HOUR).toISOString();
 
   /** NOT WORDS OF THE API — a recorded answer said again by the second attempt. */
   const again = (recorded: Step): Step => {
@@ -189,89 +190,133 @@ describe.each(SCENARIOS)('%s — the film begun again under an open journal', (s
 
   /** The phone reads the first attempt up to its cursor, with every record it said. */
   async function readFirstAttempt(phone: Awaited<ReturnType<typeof watch>>) {
-    for (let beat = 0; phone.journal().cursor !== cursor && beat < first.length; beat++) await phone.tick();
+    for (let beat = 0; phone.journal().cursor !== cursor && beat < first.length; beat++)
+      await phone.tick();
     expect(idsOf(phone.journal().entries)).toEqual(desc(1, cursor));
   }
 
-  test('the worker retrying its job: the stages go back to waiting, and the old records go with them', BEAT_BY_BEAT, async () => {
-    const api = replay([
-      ...first,
-      said('begun_after_cursor', { after: cursor }, begun),
-      said('begun_from_the_start', {}, begun),
-      ...secondAttempt,
-    ]);
-    const phone = await watch(api.fetch);
-    await readFirstAttempt(phone);
-
-    await phone.tick();
-    // Read again from its start, and nothing of the attempt that is gone.
-    expect(phone.journal()).toMatchObject({ status: 'processing', entries: [], cursor: null, oldest: null, settled: null });
-    expect(phone.journal().stages.map((one) => one.state)).toEqual(MONTAGE_STAGES.map(() => 'pending'));
-    expect(phone.journal().standing).toBe('live');
-
-    await phone.untilReady();
-    expect(idsOf(phone.journal().entries)).toEqual(secondIds);
-    // Once from the start and never again: the second attempt going on is not a third one.
-    expect(api.served).toEqual([
-      ...names(first),
-      'begun_after_cursor',
-      'begun_from_the_start',
-      ...names(secondAttempt),
-    ]);
-    expect(api.unmatched).toEqual([]);
-    await phone.unmount();
-  });
-
-  test('the moment of waiting missed: the new attempt already under way is seen by its new start', BEAT_BY_BEAT, async () => {
-    // The phone was in a pocket while the worker began again, and the first answer it gets after its
-    // cursor is the new attempt's first records — ids past the cursor, stages started anew.
-    const seen = again(sitting[1]);
-    const api = replay([
-      ...first,
-      { ...seen, name: 'again_after_old_cursor', request: { ...seen.request, query: { after: cursor } } },
-      ...secondAttempt,
-    ]);
-    const phone = await watch(api.fetch);
-    await readFirstAttempt(phone);
-
-    await phone.untilReady();
-    expect(idsOf(phone.journal().entries)).toEqual(secondIds);
-    expect(api.served).toEqual([...names(first), 'again_after_old_cursor', ...names(secondAttempt)]);
-    expect(api.unmatched).toEqual([]);
-    await phone.unmount();
-  });
-
-  test('«Повторить» pressed on another phone: the fallen journal gives way to the new attempt when the screen is back', BEAT_BY_BEAT, async () => {
-    const api = replay([
-      said('fallen', {}, fallen('all')),
-      said('retried_after_cursor', { after: cursor }, queued),
-      said('retried_from_the_start', {}, queued),
-      ...secondAttempt,
-    ]);
-    const phone = await watch(api.fetch);
-    expect(phone.journal().standing).toBe('failed');
-    expect(idsOf(phone.journal().entries)).toEqual(desc(1, cursor));
-
-    await phone.comeBack();
-    expect(phone.journal()).toMatchObject({ status: 'queued', stages: [], entries: [], cursor: null, standing: 'live' });
-
-    await phone.untilReady();
-    expect(idsOf(phone.journal().entries)).toEqual(secondIds);
-    expect(api.served).toEqual(['fallen', 'retried_after_cursor', 'retried_from_the_start', ...names(secondAttempt)]);
-    expect(api.unmatched).toEqual([]);
-    await phone.unmount();
-  });
-
-  describe('and nothing is read over again when it is not', () => {
-    test('a making that goes on to ready: every stage waiting, at work, done — one reading, every record', BEAT_BY_BEAT, async () => {
-      const api = replay(sitting);
+  test(
+    'the worker retrying its job: the stages go back to waiting, and the old records go with them',
+    BEAT_BY_BEAT,
+    async () => {
+      const api = replay([
+        ...first,
+        said('begun_after_cursor', { after: cursor }, begun),
+        said('begun_from_the_start', {}, begun),
+        ...secondAttempt,
+      ]);
       const phone = await watch(api.fetch);
+      await readFirstAttempt(phone);
+
+      await phone.tick();
+      // Read again from its start, and nothing of the attempt that is gone.
+      expect(phone.journal()).toMatchObject({
+        status: 'processing',
+        entries: [],
+        cursor: null,
+        oldest: null,
+        settled: null,
+      });
+      expect(phone.journal().stages.map((one) => one.state)).toEqual(
+        MONTAGE_STAGES.map(() => 'pending'),
+      );
+      expect(phone.journal().standing).toBe('live');
+
       await phone.untilReady();
-      expect(idsOf(phone.journal().entries)).toEqual(desc(1, last));
-      expect(api.served).toEqual(names(sitting));
+      expect(idsOf(phone.journal().entries)).toEqual(secondIds);
+      // Once from the start and never again: the second attempt going on is not a third one.
+      expect(api.served).toEqual([
+        ...names(first),
+        'begun_after_cursor',
+        'begun_from_the_start',
+        ...names(secondAttempt),
+      ]);
       expect(api.unmatched).toEqual([]);
       await phone.unmount();
-    });
+    },
+  );
+
+  test(
+    'the moment of waiting missed: the new attempt already under way is seen by its new start',
+    BEAT_BY_BEAT,
+    async () => {
+      // The phone was in a pocket while the worker began again, and the first answer it gets after its
+      // cursor is the new attempt's first records — ids past the cursor, stages started anew.
+      const seen = again(sitting[1]);
+      const api = replay([
+        ...first,
+        {
+          ...seen,
+          name: 'again_after_old_cursor',
+          request: { ...seen.request, query: { after: cursor } },
+        },
+        ...secondAttempt,
+      ]);
+      const phone = await watch(api.fetch);
+      await readFirstAttempt(phone);
+
+      await phone.untilReady();
+      expect(idsOf(phone.journal().entries)).toEqual(secondIds);
+      expect(api.served).toEqual([
+        ...names(first),
+        'again_after_old_cursor',
+        ...names(secondAttempt),
+      ]);
+      expect(api.unmatched).toEqual([]);
+      await phone.unmount();
+    },
+  );
+
+  test(
+    '«Повторить» pressed on another phone: the fallen journal gives way to the new attempt when the screen is back',
+    BEAT_BY_BEAT,
+    async () => {
+      const api = replay([
+        said('fallen', {}, fallen('all')),
+        said('retried_after_cursor', { after: cursor }, queued),
+        said('retried_from_the_start', {}, queued),
+        ...secondAttempt,
+      ]);
+      const phone = await watch(api.fetch);
+      expect(phone.journal().standing).toBe('failed');
+      expect(idsOf(phone.journal().entries)).toEqual(desc(1, cursor));
+
+      await phone.comeBack();
+      expect(phone.journal()).toMatchObject({
+        status: 'queued',
+        stages: [],
+        entries: [],
+        cursor: null,
+        standing: 'live',
+      });
+
+      await phone.untilReady();
+      expect(idsOf(phone.journal().entries)).toEqual(secondIds);
+      expect(api.served).toEqual([
+        'fallen',
+        'retried_after_cursor',
+        'retried_from_the_start',
+        ...names(secondAttempt),
+      ]);
+      expect(api.unmatched).toEqual([]);
+      await phone.unmount();
+    },
+  );
+
+  describe('and nothing is read over again when it is not', () => {
+    test(
+      'a making that goes on to ready: every stage waiting, at work, done — one reading, every record',
+      BEAT_BY_BEAT,
+      async () => {
+        const api = replay(sitting);
+        const phone = await watch(api.fetch);
+        await phone.untilReady();
+        expect(idsOf(phone.journal().entries)).toEqual(desc(1, last));
+        expect(api.served).toEqual(names(sitting));
+        expect(api.unmatched).toEqual([]);
+        await phone.unmount();
+      },
+    );
 
     test('a making that falls over keeps what it said, and stops', BEAT_BY_BEAT, async () => {
       const api = replay([...first, said('fell_over', { after: cursor }, fallen('none'))]);
@@ -285,38 +330,47 @@ describe.each(SCENARIOS)('%s — the film begun again under an open journal', (s
       await phone.unmount();
     });
 
-    test('a late answer to a read sent before this phone’s own «Повторить» resets nothing', BEAT_BY_BEAT, async () => {
-      const api = replay([
-        said('fallen', {}, fallen('all')),
-        said('late_after_cursor', { after: cursor }, queued),
-        said('retried_from_the_start', {}, queued),
-        ...secondAttempt,
-      ]);
-      // Every request waits at the gate while it is shut; the answer is the api's at the moment it opens.
-      let gate: Promise<void> | undefined;
-      let open!: () => void;
-      const phone = await watch((async (...args: Parameters<typeof fetch>) => {
-        await gate;
-        return api.fetch(...args);
-      }) as typeof fetch);
+    test(
+      'a late answer to a read sent before this phone’s own «Повторить» resets nothing',
+      BEAT_BY_BEAT,
+      async () => {
+        const api = replay([
+          said('fallen', {}, fallen('all')),
+          said('late_after_cursor', { after: cursor }, queued),
+          said('retried_from_the_start', {}, queued),
+          ...secondAttempt,
+        ]);
+        // Every request waits at the gate while it is shut; the answer is the api's at the moment it opens.
+        let gate: Promise<void> | undefined;
+        let open!: () => void;
+        const phone = await watch((async (...args: Parameters<typeof fetch>) => {
+          await gate;
+          return api.fetch(...args);
+        }) as typeof fetch);
 
-      gate = new Promise<void>((done) => {
-        open = () => done();
-      });
-      await phone.comeBack();
-      // Out, and in the air, when the organizer's own retry lands and throws the journal away.
-      await act(async () => phone.journal().restart());
-      gate = undefined;
-      open();
-      await settle();
-      expect(api.served).toEqual(['fallen', 'late_after_cursor']);
-      expect(phone.journal()).toMatchObject({ status: null, entries: [], standing: 'opening' });
+        gate = new Promise<void>((done) => {
+          open = () => done();
+        });
+        await phone.comeBack();
+        // Out, and in the air, when the organizer's own retry lands and throws the journal away.
+        await act(async () => phone.journal().restart());
+        gate = undefined;
+        open();
+        await settle();
+        expect(api.served).toEqual(['fallen', 'late_after_cursor']);
+        expect(phone.journal()).toMatchObject({ status: null, entries: [], standing: 'opening' });
 
-      await phone.untilReady();
-      expect(idsOf(phone.journal().entries)).toEqual(secondIds);
-      expect(api.served).toEqual(['fallen', 'late_after_cursor', 'retried_from_the_start', ...names(secondAttempt)]);
-      expect(api.unmatched).toEqual([]);
-      await phone.unmount();
-    });
+        await phone.untilReady();
+        expect(idsOf(phone.journal().entries)).toEqual(secondIds);
+        expect(api.served).toEqual([
+          'fallen',
+          'late_after_cursor',
+          'retried_from_the_start',
+          ...names(secondAttempt),
+        ]);
+        expect(api.unmatched).toEqual([]);
+        await phone.unmount();
+      },
+    );
   });
 });

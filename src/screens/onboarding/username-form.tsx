@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ApiError, checkUsername, errorMessage, isValidUsername } from '@/api';
-import { useAuth } from '@/lib/auth';
 import { Button, Field, type FieldState } from '@/kit';
+import { useAuth } from '@/lib/auth';
 import { useStrings } from '@/lib/language';
-import { type Strings } from '@/strings';
+import type { Strings } from '@/strings';
 import { space } from '@/theme';
 
 /** Long enough that a typed word is one question, short enough to answer before the thumb moves. */
