@@ -277,8 +277,10 @@ test('one call at the end of the walk, and it carries every wish of spec 8', () 
   expect(music).toContain('await sendOwnTrack(token, id,');
 
   // Every field of the body the api takes is named in the client, the list of tracks included —
-  // and the two old single-track fields are still readable, because an older montage's card is
-  // still drawn from them.
+  // and nothing it no longer takes: the two old single-track fields are only on `Montage.params`,
+  // because an older montage's card is still drawn from them (TASK-226).
+  const bodyType = api.slice(api.indexOf('export type MontageWishes = {'));
+  const body = bodyType.slice(0, bodyType.indexOf('\n};'));
   for (const wish of [
     'target_seconds',
     'story_text',
@@ -287,11 +289,13 @@ test('one call at the end of the walk, and it carries every wish of spec 8', () 
     'music_tracks',
     'music_note',
     'orientation',
-    'music_track_id',
-    'music_track_key',
   ]) {
-    expect(api).toContain(`${wish}?`);
+    expect(body).toContain(`${wish}?`);
   }
+  expect(body).not.toContain('music_track_');
+  expect(api).toContain(
+    'params: MontageWishes & { music_track_id?: MusicTrackId; music_track_key?: string };',
+  );
   // The three routes of an order, and the summary asks with the same body the order sends.
   expect(api).toContain('/montage-templates');
   expect(api).toContain('/montages/preview');

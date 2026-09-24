@@ -796,10 +796,9 @@ export type MusicTrackId = 'bright' | 'warm' | 'calm' | 'night' | 'road';
 export type MontageOrientation = 'landscape' | 'portrait';
 
 /**
- * What was asked for at the order — the wishes doc-03 allows, every one of them optional. Named once
- * and shared by both ends of the round trip: this is the body `orderMontage` sends and it is
- * `Montage.params` coming back, which is the same shape on purpose, the way `Original` is one shape
- * for both download routes.
+ * What was asked for at the order — the wishes doc-03 allows, every one of them optional. This is
+ * the body `orderMontage` sends, and `Montage.params` coming back is the same shape plus the two
+ * fields an older order may still carry.
  *
  * The four steps of the order (spec 8) fill them in: the frames picked out by hand, the story, the
  * music, the length and the shape. `@/montage` is what turns a wizard's state into this.
@@ -827,13 +826,6 @@ export type MontageWishes = {
   /** How to use those tracks, in words. Only ever with a non-empty `music_tracks` — 400 without. */
   music_note?: string;
   orientation?: MontageOrientation;
-  /**
-   * ⚠️ The one-track fields the api took before the list existed. The app no longer sends either —
-   * they are here because `Montage.params` of an older order still carries them, and the card of
-   * that movie still has to say what it was cut to.
-   */
-  music_track_id?: MusicTrackId;
-  music_track_key?: string;
 };
 
 /**
@@ -849,7 +841,11 @@ export type Montage = {
   ordered_by: string;
   status: 'queued' | 'processing' | 'ready' | 'failed';
   duration_seconds: number | null;
-  params: MontageWishes;
+  /**
+   * The wishes it was ordered with. An order placed before the list of tracks named one track in
+   * one of two fields the api no longer takes; its card still says what it was cut to.
+   */
+  params: MontageWishes & { music_track_id?: MusicTrackId; music_track_key?: string };
   /** The worker's own line about why it fell over. Only ever set on a `failed` one. */
   error_text: string | null;
   created_at: string;
@@ -1165,7 +1161,7 @@ export function startMusicUpload(
 
 /**
  * «Загружено» for a track: seals the parts into one object and answers with the key the order names
- * it by, in `music_track_key`. Idempotent — a repeat only reports where the row stands — and on the
+ * it by, in `music_tracks`. Idempotent — a repeat only reports where the row stands — and on the
  * same long leash `finishUpload` has, since the api is waiting on R2 assembling the object.
  */
 export function finishMusicUpload(
