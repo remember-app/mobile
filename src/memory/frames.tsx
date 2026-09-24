@@ -109,6 +109,14 @@ const SPINE_HOLD_MS = 1000;
  */
 const SPINE_GRAB = 32;
 
+/**
+ * A pill on the spine is 16 tall and stands centred on the seam between two rows (spec 7.8, detail
+ * 66): half a gutter above the row that opens the day, and half its own height above that. What
+ * `dateMarks` hands over is where the row starts, so this is how far above it the pill's top edge
+ * goes — without it the pill sits inside the first row of its day, 9 short of the layout.
+ */
+const SEAM_LIFT = FEED_GAP / 2 + 8;
+
 /** A seam over a strip of frames — every cut but the one that has no seam at all. */
 type Seam = Exclude<FrameGroup, { by: 'all' }>;
 
@@ -427,7 +435,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
         ? []
         : dateMarks(sheet, { top: feedTop, row: rowPitch }).map((mark) => ({
             label: formatDayTiny(new Date(mark.at)),
-            top: mark.top,
+            top: mark.top - SEAM_LIFT,
           })),
     [sort, sheet, headerHeight, reach, feedTop, rowPitch],
   );

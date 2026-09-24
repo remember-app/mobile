@@ -437,6 +437,11 @@ test('the feed nobody arranged is one wall, and the days are only on the spine',
     'const feedTop = insets.top + height.roundViewer + space.s4 + headerHeight + FEED_GAP;',
   );
   expect(frames).toContain('const rowPitch = cell.width + FEED_GAP;');
+  // And the pill is centred on the seam and not hung from the row (`MemoryScrub`: the pills stand at
+  // 195 and 588 over rows that start at 204 and 597 — 9 above, which is half a gutter and half a
+  // pill).
+  expect(frames).toContain('const SEAM_LIFT = FEED_GAP / 2 + 8;');
+  expect(frames).toContain('top: mark.top - SEAM_LIFT,');
 });
 
 test('the spine rides the scroll itself, and is grabbed only while it can be seen', () => {
