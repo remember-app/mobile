@@ -310,7 +310,7 @@ export default function MontageLiveScreen() {
       {/* The bottom layer carries one thing or nothing at all: a fallen montage is started again by
           the organizer, and everybody else is told by the stage that wears the cross. */}
       {failed && memory?.role === 'organizer' ? (
-        <ActionBar footer="live">
+        <ActionBar>
           <Button label={s.montage.live.retry} disabled={busy} onPress={() => void again()} />
         </ActionBar>
       ) : null}

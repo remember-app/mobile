@@ -1,7 +1,7 @@
 import { ChevronLeft, SquareCheckBig, User } from 'lucide-react-native';
 import { beforeAll, expect, test } from 'vitest';
 
-import { ActionBar, AppBar, Board, GlassBar, ViewerBar, WizardBar } from '@/kit/bars';
+import { ActionBar, AppBar, Board, GlassBar, ViewerBar, WizardBar, type Footer } from '@/kit/bars';
 import { Button, IconButton } from '@/kit/button';
 import { WatchingPill } from '@/kit/member';
 import { allDifferent, compiled, story } from '@/kit/story';
@@ -363,9 +363,9 @@ test('the bottom layer fades up into the screen and grows when a count stands ov
   expect(counted).toContain('62%');
 });
 
-test('the five footers are five depths, and two of them lie over photographs', () => {
+test('the four footers are four depths, and two of them lie over photographs', () => {
   const at = (markup: string) => markup.match(/height:(\d+)px/)?.[1];
-  const layer = (footer?: 'plain' | 'count' | 'gallery' | 'upload' | 'live') =>
+  const layer = (footer?: Footer) =>
     story(
       <ActionBar footer={footer}>
         <Button variant="primary" label="Добавить ещё" />
@@ -375,12 +375,10 @@ test('the five footers are five depths, and two of them lie over photographs', (
   expect(at(layer('count'))).toBe('176');
   expect(at(layer('gallery'))).toBe('190');
   expect(at(layer('upload'))).toBe('210');
-  expect(at(layer('live'))).toBe('120');
   // The gallery and the queue fade into the dark rather than into `ink`: what is under them is a
   // wall of frames, and spec 2 keeps everything lying on a photograph dark in both themes.
   expect(layer('gallery')).toContain('rgba(11,11,18,0.96)');
   expect(layer('upload')).toContain('rgba(11,11,18,0.97)');
-  expect(layer('live')).toContain('#0B0B12 60%');
 });
 
 test('the gradient never catches a press, and the buttons over it do', () => {

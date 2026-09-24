@@ -37,6 +37,7 @@ import MontageDoneScreen from '@/app/memory/[id]/montage/[montageId]/done';
 import MontageLiveScreen from '@/app/memory/[id]/montage/[montageId]/index';
 import MontageLiveStageScreen from '@/app/memory/[id]/montage/[montageId]/stage/[stage]';
 import {
+  ActionBar,
   AppBar,
   BadgeDecision,
   Button,
@@ -671,6 +672,8 @@ describe.each(SCENARIOS)('%s — the strip of films on the memory', (scenario) =
     // One stage done and the second at work: both say the second, and neither says «1».
     expect(card).toEqual({ at: 2, of: 5, count: ru.montage.live.doneOf(2, 5) });
     expect(words(screen.root)).toContain(ru.montage.live.stageOf(card.at, 5));
+    // A making on air has nothing to carry at the bottom, so there is no bottom layer to see.
+    expect(screen.root.findAllByType(ActionBar)).toEqual([]);
     expect(api.unmatched).toEqual([]);
     await screen.unmount();
   });
@@ -753,9 +756,13 @@ describe.each(SCENARIOS)('%s — a montage that fell over', (scenario) => {
     expect(text).toContain(ru.montage.live.stageOf(2, 5));
     expect(text).toContain(BROKE);
     expect(text).not.toContain(ru.montage.live.lost);
-    // «Повторить монтаж» under it for the organizer, and for nobody else.
+    // «Повторить монтаж» under it for the organizer, and for nobody else — in the kit's ordinary
+    // bottom layer, which a screen with nothing to carry there does not draw.
     const again = screen.root.findAllByType(Button).filter((one) => one.props.label === ru.montage.live.retry);
     expect(again).toHaveLength(role === 'organizer' ? 1 : 0);
+    const layers = screen.root.findAllByType(ActionBar);
+    expect(layers.map((one) => one.props.footer)).toEqual(role === 'organizer' ? [undefined] : []);
+    if (role === 'organizer') expect(layers[0].findByType(Button)).toBe(again[0]);
 
     // And it stays there: read once, not polled, and nothing moves anybody off it.
     await screen.tick();

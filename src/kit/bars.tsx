@@ -324,29 +324,28 @@ export function ViewerBar({
 }
 
 /**
- * How deep the gradient under the bottom layer runs, and what it is made of (spec 2 and 7.1). Four
+ * How deep the gradient under the bottom layer runs, and what it is made of (spec 2 and 7.1). Two
  * of them fade the screen's own `ink` upwards; two lie over photographs instead — the gallery's wall
  * of frames and the queue on `Upload` — and those stay dark in daylight for the same reason a cover's
  * darkening does.
  */
-export type Footer = 'plain' | 'count' | 'gallery' | 'upload' | 'live';
+export type Footer = 'plain' | 'count' | 'gallery' | 'upload';
 
 const FOOTERS: Record<Footer, { height: number; over?: string; stop: string }> = {
   plain: { height: board.footer, stop: '58%' },
   count: { height: board.footerTall, stop: '62%' },
   gallery: { height: board.footerGallery, over: photo.footerGallery, stop: '' },
   upload: { height: board.footerUpload, over: photo.footerUpload, stop: '' },
-  live: { height: board.footerLive, stop: '60%' },
 };
 
 /**
  * The bottom layer (spec 7.1): a gradient footer fading up into the screen, and the screen's action
  * standing on it 30 from the bottom. The gradient never catches a press — the buttons over it do.
  *
- * Five depths, because what the footer has to hide differs: 132 under one button, 176 when a line of
- * counting stands over it, 190 over the gallery, 210 over the sending queue, 120 under the one pill
- * of a montage on air. The row itself takes whatever it is given — one button, three across, a pill,
- * two stacked — so a kind of bottom layer is never a flag here.
+ * Four depths, because what the footer has to hide differs: 132 under one button, 176 when a line of
+ * counting stands over it, 190 over the gallery, 210 over the sending queue. The row itself takes
+ * whatever it is given — one button, three across, two stacked — so a kind of bottom layer is never
+ * a flag here.
  *
  * `experimental_backgroundImage` and not a gradient library: React Native takes the spec's own CSS
  * string, the same way `boxShadow` already does.

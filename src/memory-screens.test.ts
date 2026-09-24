@@ -981,6 +981,11 @@ test('only the organizer starts a fallen montage again', () => {
   // button is not drawn for them rather than drawn and refused.
   expect(live).toContain("failed && memory?.role === 'organizer' ?");
   expect(live).toContain('label={s.montage.live.retry}');
+  // In the kit's ordinary bottom layer, the one every screen with one button stands it on. The
+  // shallow one drawn under the «Сообщить» pill went with the pill, and with nothing to carry the
+  // screen has no bottom layer at all — so it is this one, and only this one.
+  expect(live).toMatch(/<ActionBar>\s*<Button label=\{s\.montage\.live\.retry\}/);
+  expect(live.match(/<ActionBar/g)).toHaveLength(1);
   expect(live).toContain('retryMontage(token, id, montageId)');
   // The two answers a second press can get, said in words rather than as a status.
   expect(live).toContain('409: s.montage.movedOn');
