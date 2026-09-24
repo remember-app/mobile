@@ -3,6 +3,8 @@ import { expect, test } from 'vitest';
 
 import upload from '@/app/memory/[id]/upload.tsx?raw';
 import uploads from '@/lib/upload/send.ts?raw';
+import noFeed from '@/screens/upload/message.tsx?raw';
+import roll from '@/screens/upload/roll.ts?raw';
 import { strings } from '@/strings';
 
 /**
@@ -73,14 +75,15 @@ test('«выбрать все N» for a day is out while any page of the roll is
   // straddles a page boundary already named its final count while only its head was in state — a
   // tap took the head and dropped the tail in silence. Being out is having no press at all: a band
   // that cannot be pressed is not a checkbox, which is what a half-read day should be.
-  // `reading` spans every page of the do-while, not just the first one.
-  const before = upload.slice(0, upload.indexOf('do {'));
+  // `reading` spans every page of the do-while, not just the first one. It is the roll's own now
+  // (`@/screens/upload/roll`), and the screen reads it off the hook.
+  const before = roll.slice(0, roll.indexOf('do {'));
   expect(before).toContain('setReading(true);');
-  const loopEnd = upload.indexOf('} while (after !== undefined);');
-  const finallyBlock = upload.slice(loopEnd, upload.indexOf('}, [granted, rereads]);'));
+  const loopEnd = roll.indexOf('} while (after !== undefined);');
+  const finallyBlock = roll.slice(loopEnd, roll.indexOf('}, [granted, rereads]);'));
   expect(finallyBlock).toContain('finally {');
   expect(finallyBlock).toContain('setReading(false);');
-  const loopBody = upload.slice(upload.indexOf('do {'), loopEnd);
+  const loopBody = roll.slice(roll.indexOf('do {'), loopEnd);
   expect(loopBody).not.toContain('setReading(false)');
 });
 
@@ -102,9 +105,9 @@ test('the four other faces are this screen with no feed under it', () => {
   expect(upload).toContain('const feed = granted && rows.length > 0;');
   expect(upload).toContain('<Board style={feed ? styles.bleed : undefined}>');
   expect(upload).toContain('subtitle={subtitleFor(memory)}');
-  expect(upload).toContain('label={access.canAskAgain ? s.upload.allow : s.action.openSettings}');
-  expect(upload).toContain('sign="dashed"');
-  expect(upload).toContain('title={s.upload.emptyTitle}');
+  expect(noFeed).toContain('label={access.canAskAgain ? s.upload.allow : s.action.openSettings}');
+  expect(noFeed).toContain('sign="dashed"');
+  expect(noFeed).toContain('title={s.upload.emptyTitle}');
   // `UploadQueue` and `UploadLimited` are not faces of their own but blocks over the feed — and
   // over whatever stands where a feed would, so a queue is still visible on an empty roll.
   expect(upload).toContain('{queued.length > 0 ? (\n          <Upload');
