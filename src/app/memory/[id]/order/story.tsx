@@ -22,7 +22,7 @@ import { space, themed } from '@/theme';
 export default function StoryStep() {
   const router = useRouter();
   const s = useStrings();
-  const { id, order, change } = useOrder();
+  const { id, order, change, stop } = useOrder();
   const styles = useStyles();
   const template = order.template;
 
@@ -60,7 +60,12 @@ export default function StoryStep() {
           limit={STORY_LIMIT}
           placeholder={s.montage.storyPlaceholder}
           value={order.story}
-          onChangeText={(story) => change({ story, ownStory: true })}
+          // Typing into the box while the template types is taking the wheel: the walk stops
+          // rather than writing over the hand.
+          onChangeText={(story) => {
+            stop();
+            change({ story, ownStory: true });
+          }}
         />
       </ScrollView>
     </WizardStep>

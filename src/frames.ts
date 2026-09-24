@@ -292,20 +292,17 @@ export function framesMatching(items: readonly MediaItem[], filter: Filter): Med
 }
 
 /**
- * The same filter with one label out of it — what a box being deleted does to the feed it was
- * filtering (spec 10.8.2). Nothing else is touched: a label is gone, not the choice of day or of
- * who brought it.
+ * The same filter holding only the labels `keep` still answers for — what a box that has gone, here
+ * or by somebody else's hand, does to the feed it was filtering (spec 10.8.2). Nothing else is
+ * touched: a label is gone, not the choice of day or of who brought it.
  *
- * Needed because the two ends of a delete would otherwise disagree: every frame loses the box
- * (`filed` in `@/labels`), so a filter still holding its id matches nothing at all, and the chip
- * that could take it off again is no longer on the sheet to press. The filter it was never in comes
- * back as it is, so a screen holding it re-renders over nothing.
+ * Needed because a filter still holding a dead id matches nothing at all — no frame carries it any
+ * more — and the chip that could take it off again is no longer on the sheet to press. A filter
+ * with nothing to drop comes back as it is, so a screen holding it re-renders over nothing.
  */
-export function withoutLabel(filter: Filter, labelId: string): Filter {
-  if (!filter.labels.has(labelId)) return filter;
-  const labels = new Set(filter.labels);
-  labels.delete(labelId);
-  return { ...filter, labels };
+export function keepLabels(filter: Filter, keep: (labelId: string) => boolean): Filter {
+  const labels = new Set([...filter.labels].filter(keep));
+  return labels.size === filter.labels.size ? filter : { ...filter, labels };
 }
 
 /**
@@ -446,8 +443,17 @@ export type FrameFact = { label: string; value: string };
  *
  * A line is likewise built out of the pieces that *are* there: a camera model with no aperture
  * beside it is still a camera, and «IMG_4471.HEIC» with no weight is still the name of a file.
+ *
+ * `place` is the name the phone's geocoder gave the point, when it gave one. It takes the
+ * coordinates' seat and never a row of its own: a frame with no point has no place line, whatever
+ * is handed in.
  */
-export function frameFacts(info: FrameInfo, s: Strings, locale?: string): FrameFact[] {
+export function frameFacts(
+  info: FrameInfo,
+  s: Strings,
+  locale?: string,
+  place: string | null = null,
+): FrameFact[] {
   const size = megabytes(info, locale);
   const facts: FrameFact[] = [];
   const said = (label: string, value: string) => {
@@ -467,10 +473,11 @@ export function frameFacts(info: FrameInfo, s: Strings, locale?: string): FrameF
       info.aperture === null ? null : s.viewer.aperture(info.aperture),
     ]),
   );
-  // Coordinates as the numbers they are: turning them into «Усадьба „Остафьево“» takes an outside
-  // geocoder, which is a paid service the product has not taken (api README, «Сведения о кадре»).
+  // The api sends the point and no name (README, «Сведения о кадре»); the name is the phone's
+  // geocoder's, asked by the sheet (`@/geocoder`) and handed in as `place`. Until it answers, and
+  // whenever it cannot, the point stands as the numbers it is.
   if (info.latitude !== null && info.longitude !== null) {
-    said(s.viewer.place, s.viewer.coords(info.latitude, info.longitude));
+    said(s.viewer.place, place || s.viewer.coords(info.latitude, info.longitude));
   }
   return facts;
 }

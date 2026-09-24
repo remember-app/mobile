@@ -46,11 +46,19 @@ import { height, labelColors, radius, space, themed, useTheme } from '@/theme';
  *
  * Who may do what is never worked out here. Every label arrives with `can_edit` and `can_add_media`
  * already answered by the api's own rule, and a control is drawn where the server said there may be
- * one — a viewer's row on a shared label has no circle at all rather than a circle that refuses.
+ * one — a row the server says may not be filed has no circle at all rather than a circle that
+ * refuses.
  */
 
-/** Which of the two sheets over the list is up, if either. */
+/** `SheetLabelNew`: shut, making one (`label: null`), or editing the one it holds. */
 type Writing = { label: Label | null } | null;
+
+/** The statuses a write words itself, because the api's bare «forbidden» or «not found» says nothing. */
+type Refusals = Partial<Record<number, string>>;
+
+function worded(e: unknown, refused: Refusals): string {
+  return (e instanceof ApiError && refused[e.status]) || errorMessage(e);
+}
 
 export function LabelSheets({
   memoryId,
@@ -76,7 +84,6 @@ export function LabelSheets({
   const [busy, setBusy] = useState(false);
   /** The edit mode of the same sheet (spec 10.8.1) — a mode and not a second sheet. */
   const [editing, setEditing] = useState(false);
-  /** `SheetLabelNew`, either making one (`label: null`) or editing the one it holds. */
   const [writing, setWriting] = useState<Writing>(null);
   const [dropping, setDropping] = useState<Label | null>(null);
   const ids = frames.map((frame) => frame.id);
@@ -84,28 +91,40 @@ export function LabelSheets({
   const load = useCallback(() => {
     if (!token) return;
     setError(null);
-    listLabels(token, memoryId).then(setLabels, (e: unknown) => setError(errorMessage(e)));
-  }, [token, memoryId]);
+    listLabels(token, memoryId).then(setLabels, (e: unknown) =>
+      setError(worded(e, { 404: s.labels.memoryGone })),
+    );
+  }, [token, memoryId, s]);
 
   useEffect(load, [load]);
 
   /**
-   * One errand at the api, with the sheet's own answer to it going wrong. The refusal is worded
-   * here and not read off the wire: the api answers a bare «forbidden», and a person needs to know
-   * who *can* do the thing they just tried. Whatever happens, the sheet stops being busy — the one
-   * thing it must never do is sit there.
+   * To `SheetLabelNew` and back. A failure stays with the sheet it was said on, and a list that never
+   * arrived is read again on the way back rather than left as a wait with no read behind it.
    */
-  async function errand<T>(run: (session: string) => Promise<T>, denied: string): Promise<T | null> {
+  function write(next: Writing) {
+    setWriting(next);
+    setError(null);
+    if (next === null && labels === null) load();
+  }
+
+  /**
+   * One errand at the api, with the sheet's own answer to it going wrong. By default a 404 is the
+   * label's: somebody deleted it — or, for a private one that was never ours, the api's own way of
+   * saying it does not exist (api README, «Кто что может»). Whatever happens, the sheet stops being
+   * busy — the one thing it must never do is sit there.
+   */
+  async function errand<T>(
+    run: (session: string) => Promise<T>,
+    refused: Refusals = { 404: s.labels.gone },
+  ): Promise<T | null> {
     if (!token) return null;
     setBusy(true);
     setError(null);
     try {
       return await run(token);
     } catch (e) {
-      const status = e instanceof ApiError ? e.status : 0;
-      // 404 on a label is «somebody deleted it» — and, for a private one that was never ours, the
-      // api's own way of saying it does not exist (api README, «Кто что может»).
-      setError(status === 403 ? denied : status === 404 ? s.labels.gone : errorMessage(e));
+      setError(worded(e, refused));
       return null;
     } finally {
       setBusy(false);
@@ -119,12 +138,10 @@ export function LabelSheets({
     // their circles through a request — a circle that vanishes mid-errand reads as the right to
     // file being taken away — so the guard is here rather than in what is drawn.
     if (busy || moving.length === 0) return;
-    const answer = await errand(
-      (session) =>
-        inside
-          ? removeLabelMedia(session, memoryId, label.id, moving)
-          : addLabelMedia(session, memoryId, label.id, moving),
-      inside ? s.labels.takeDenied : s.labels.addDenied,
+    const answer = await errand((session) =>
+      inside
+        ? removeLabelMedia(session, memoryId, label.id, moving)
+        : addLabelMedia(session, memoryId, label.id, moving),
     );
     if (answer === null) return;
     // The api answers with the row itself, new count and all, so nothing is re-read.
@@ -143,7 +160,8 @@ export function LabelSheets({
           shared,
           media_ids: ids.length > 0 ? ids : undefined,
         }),
-      s.labels.addDenied,
+      // No label in the path, so a 404 is the membership check; a 403 is a viewer asking for «Общий».
+      { 403: s.labels.sharedDenied, 404: s.labels.memoryGone },
     );
     if (made === null) return;
     setLabels((have) => withLabel(have ?? [], made));
@@ -153,9 +171,8 @@ export function LabelSheets({
 
   /** The same sheet as editing: the name and the colour, and never who sees it (decision-12). */
   async function rename(label: Label, title: string, color: number) {
-    const saved = await errand(
-      (session) => updateLabel(session, memoryId, label.id, { title, color }),
-      s.labels.editDenied,
+    const saved = await errand((session) =>
+      updateLabel(session, memoryId, label.id, { title, color }),
     );
     if (saved === null) return;
     setLabels((have) => withLabel(have ?? [], saved));
@@ -165,10 +182,7 @@ export function LabelSheets({
   /** The box goes, the frames stay — so every frame on the feed loses it, not only what is marked. */
   async function drop(label: Label) {
     setDropping(null);
-    const gone = await errand(
-      (session) => deleteLabel(session, memoryId, label.id),
-      s.labels.editDenied,
-    );
+    const gone = await errand((session) => deleteLabel(session, memoryId, label.id));
     if (gone === null) return;
     setLabels((have) => (have ?? []).filter((one) => one.id !== label.id));
     onFiled(label.id, null, false);
@@ -188,8 +202,8 @@ export function LabelSheets({
         error={error}
         onToggleEdit={() => setEditing((was) => !was)}
         onFile={(label) => void file(label)}
-        onNew={() => setWriting({ label: null })}
-        onRename={(label) => setWriting({ label })}
+        onNew={() => write({ label: null })}
+        onRename={(label) => write({ label })}
         onDelete={setDropping}
         onClose={onClose}
       />
@@ -203,10 +217,7 @@ export function LabelSheets({
           onSubmit={(title, color, shared) =>
             void (writing.label ? rename(writing.label, title, color) : make(title, color, shared))
           }
-          onCancel={() => {
-            setError(null);
-            setWriting(null);
-          }}
+          onCancel={() => write(null)}
         />
       )}
 
@@ -230,7 +241,7 @@ export function LabelSheets({
 /**
  * `SheetLabels` — the list itself: «Общие» and «Мои», and under them the dashed way to a new one.
  * Everything it draws is handed to it, so every state of it is a story: still reading, empty, the
- * two groups, the edit mode, a refusal from the server.
+ * two groups, the edit mode, a failure from the server.
  */
 export function LabelsSheet({
   visible,
@@ -268,51 +279,55 @@ export function LabelsSheet({
   const theme = useTheme();
   const styles = useStyles();
   const { shared, own } = labelGroups(labels ?? []);
-  const any = (labels?.length ?? 0) > 0;
 
-  const rows = (group: Label[]) => (
-    <View style={styles.card}>
-      {group.map((label, at) => (
-        <RowLabel
-          key={label.id}
-          tint={labelTint(label.color, theme)}
-          name={label.title}
-          count={s.memory.frames(label.media_count)}
-          scope={label.shared ? 'shared' : 'own'}
-          scopeLabel={label.shared ? s.labels.seenByAll : s.labels.seenByYou}
-          inside={inside(label.id)}
-          divider={at > 0}
-          // Spec 10.8.1: in the edit mode the circle gives way to the pair — but only on a label
-          // this person may actually edit. Somebody else's row keeps filing, which is the one thing
-          // they *can* do with it.
-          actions={
-            editing && label.can_edit ? (
-              <>
-                <IconButton
-                  size={height.roundRow}
-                  icon={Pencil}
-                  label={s.labels.rename(label.title)}
-                  disabled={busy}
-                  onPress={() => onRename(label)}
-                />
-                <IconButton
-                  size={height.roundRow}
-                  icon={Trash2}
-                  tone="danger"
-                  label={s.labels.remove(label.title)}
-                  disabled={busy}
-                  onPress={() => onDelete(label)}
-                />
-              </>
-            ) : undefined
-          }
-          // No right to file is no circle and no press: the server decides, and a row that refuses
-          // a press would be the dead button the kit refuses everywhere else.
-          onPress={label.can_add_media ? () => onFile(label) : undefined}
-        />
-      ))}
-    </View>
-  );
+  const block = (heading: string, group: Label[]) =>
+    group.length === 0 ? null : (
+      <View style={styles.group}>
+        <Text role="eyebrow" tone="muted" accessibilityRole="header">
+          {heading.toUpperCase()}
+        </Text>
+        <View style={styles.card}>
+          {group.map((label, at) => (
+            <RowLabel
+              key={label.id}
+              tint={labelTint(label.color, theme)}
+              name={label.title}
+              count={s.memory.frames(label.media_count)}
+              scope={label.shared ? 'shared' : 'own'}
+              scopeLabel={label.shared ? s.labels.seenByAll : s.labels.seenByYou}
+              inside={inside(label.id)}
+              divider={at > 0}
+              // Spec 10.8.1: in the edit mode the circle gives way to the pair — but only on a
+              // label the server lets this person edit. Any other row keeps filing.
+              actions={
+                editing && label.can_edit ? (
+                  <>
+                    <IconButton
+                      size={height.roundRow}
+                      icon={Pencil}
+                      label={s.labels.rename(label.title)}
+                      disabled={busy}
+                      onPress={() => onRename(label)}
+                    />
+                    <IconButton
+                      size={height.roundRow}
+                      icon={Trash2}
+                      tone="danger"
+                      label={s.labels.remove(label.title)}
+                      disabled={busy}
+                      onPress={() => onDelete(label)}
+                    />
+                  </>
+                ) : undefined
+              }
+              // No right to file is no circle and no press: the server decides, and a row that
+              // refuses a press would be the dead button the kit refuses everywhere else.
+              onPress={label.can_add_media ? () => onFile(label) : undefined}
+            />
+          ))}
+        </View>
+      </View>
+    );
 
   return (
     <Sheet
@@ -330,7 +345,7 @@ export function LabelsSheet({
             {count}
           </Text>
           {/* The same part as «Править состав» in the settings, and the same switch: the way in
-              becomes the way out. Nothing of this person's to edit is no button at all. */}
+              becomes the way out. Nothing this person may edit is no button at all. */}
           {labels?.some((label) => label.can_edit) ? (
             <Button
               variant={editing ? 'paper' : 'small'}
@@ -352,24 +367,10 @@ export function LabelsSheet({
         error === null ? (
           <Waiting text={s.state.loading} />
         ) : null
-      ) : any ? (
+      ) : labels.length > 0 ? (
         <>
-          {shared.length === 0 ? null : (
-            <View style={styles.group}>
-              <Text role="eyebrow" tone="muted" accessibilityRole="header">
-                {s.labels.shared.toUpperCase()}
-              </Text>
-              {rows(shared)}
-            </View>
-          )}
-          {own.length === 0 ? null : (
-            <View style={styles.group}>
-              <Text role="eyebrow" tone="muted" accessibilityRole="header">
-                {s.labels.own.toUpperCase()}
-              </Text>
-              {rows(own)}
-            </View>
-          )}
+          {block(s.labels.shared, shared)}
+          {block(s.labels.own, own)}
         </>
       ) : (
         // Not a single box yet: both groups are gone and one line says what a label is for. No
@@ -385,7 +386,8 @@ export function LabelsSheet({
 /**
  * `SheetLabelNew` — a name, a colour out of eight, and who sees it. The same sheet edits one
  * (spec 10.8.1): the heading and the button change, the count goes, and **«Кто видит» stops being
- * a question** — the answer was given once, at creation, and the api has no way back (decision-12).
+ * a question** — it is chosen once, at creation, and changing it afterwards is not allowed
+ * (decision-12).
  * Drawn as one read-only card and never as a greyed-out pair: a disabled button promises that one
  * day it will press.
  */

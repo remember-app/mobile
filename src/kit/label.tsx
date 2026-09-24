@@ -49,10 +49,10 @@ export function LabelMark({ tint, size = 30 }: { tint: string; size?: 30 | 64 | 
  * gesture.
  *
  * `actions` is the edit mode of the same sheet (spec 10.8.1): the circle gives way to the pair of
- * buttons that rename and delete, and the row stops putting anything anywhere. A label somebody
- * else owns gets no pair at all, so it goes on being a row that files.
+ * buttons that rename and delete, and the row stops putting anything anywhere. A label the server
+ * will not let this person edit gets no pair at all, so it goes on being a row that files.
  *
- * A row with no `onPress` — a shared label the server will not let this person add to — has no
+ * A row with no `onPress` — a label the server will not let this person add to — has no
  * circle either: the circle is what says «press me to file», and drawing it over a row that does
  * not press is the dead button the kit refuses everywhere else (README, «Библиотека деталей»).
  */
@@ -122,7 +122,7 @@ export function RowLabel({
         <View style={styles.row}>{inner}</View>
       ) : (
         <Pressable
-          // `aria-pressed`, not `checked`: the row does a thing to what is chosen rather than
+          // `selected`, not `checked`: the row does a thing to what is chosen rather than
           // standing for a value of its own (spec 7.7).
           accessibilityRole="button"
           accessibilityState={{ selected: !!inside }}

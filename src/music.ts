@@ -23,7 +23,7 @@ import { missingParts, uploadedParts } from '@/upload-queue';
 export type PickedTrack = { uri: string; name: string };
 
 /**
- * Send one track and answer with its key in R2 — what goes into the order as `music_track_key`.
+ * Send one track and answer with its key in R2 — what goes into the order's `music_tracks`.
  *
  * Throws what the api throws (403 for anybody but the organizer, 413 over the file ceiling, 503
  * without a bucket) and a plain `Error` when R2 itself refuses a part; both come out of `@/api`'s
