@@ -108,6 +108,14 @@ export const height = {
 } as const;
 
 /**
+ * The spinner's ring, outer edge to outer edge (spec 7.9, detail 70). The spec's 38 and 34 are the
+ * layout's CSS box inside a 3px ring, and a ring here counts its border in — drawn, the layout's are
+ * 44 and 40 (`HomeLoading`, `InviteJoining`). The small ones stay as written: the layout draws its
+ * 16 border-box already (`MemoryFrames`), and has no 26 to measure.
+ */
+export const spinner = { tile: 16, card: 26, join: 40, screen: 44 } as const;
+
+/**
  * Vertical anchors of the 390 × 844 board (spec 4). The top 52 are the device's own status line and
  * stay empty — the layout draws no fake one.
  */
@@ -282,6 +290,8 @@ export const type = StyleSheet.create({
   label: { fontFamily: font.semi, fontSize: 13, lineHeight: 16 },
   /** an explanation under something — the one 13 that runs to more than a word */
   note: { fontFamily: font.medium, fontSize: 13, lineHeight: 19 },
+  /** the words of a connection banner: the note's size a line tighter (spec 7.6, detail 47) */
+  banner: { fontFamily: font.medium, fontSize: 13, lineHeight: 18 },
   /** «НАЗВАНИЕ», «ИЗ КОНТАКТОВ» */
   eyebrow: { fontFamily: font.bold, fontSize: 12, lineHeight: 14, letterSpacing: 1.2 },
   /** «ОРГАНИЗАТОР», «ГОТОВ» */

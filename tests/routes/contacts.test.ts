@@ -145,3 +145,20 @@ test('«Вернуть» that never reaches the api takes the row with it, not j
   );
   expect(catchBlock).not.toContain('cancel(contact.id);');
 });
+
+test('«Не в контактах» and its row are drawn to the layout: a quiet rule, a 14 «Сохранить»', () => {
+  // TASK-383, off `Contacts.json`: e11 «Не в контактах» is `muted` #A4A1B2 (white #F5F3EE before),
+  // 10 over the card under it (e12 at 184 + 16 + 10); e16 «Сохранить» is 14 / 600 in a 44 — at the
+  // button's own 16 it came out 14 % wider than drawn.
+  expect(contacts).toContain('<Text accessibilityRole="header" role="eyebrow" tone="muted">');
+  expect(contacts).toContain('labelRole="controlSm"');
+  expect(contacts).toContain('section: { gap: 10 }');
+});
+
+test('the empty state is centred on the body down to the phone’s edge, the rows kept clear of it', () => {
+  // `ContactsEmpty.json`: the block stands in 184…844 (e9, the circle, at 400.5); the rows' bottom
+  // padding under it lifted it 20 short of there.
+  expect(contacts).toContain(
+    'nothing ? styles.mid : { paddingBottom: Math.max(insets.bottom, board.bottom) },',
+  );
+});

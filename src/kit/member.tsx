@@ -563,8 +563,11 @@ const useStyles = themed(({ color }) =>
     },
     // The hairline starts where the words do, not where the circle does.
     inset: { marginLeft: 64 },
+    // `Contacts`: 10 round the circle and 12 on the far side of «Сохранить», 66 tall with it.
     card: {
-      paddingHorizontal: space.s3,
+      paddingVertical: 10,
+      paddingLeft: 10,
+      paddingRight: space.s3,
       backgroundColor: color.surface,
       borderWidth: 1,
       borderColor: color.line,

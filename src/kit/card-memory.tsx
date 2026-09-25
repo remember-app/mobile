@@ -3,7 +3,7 @@ import { ImageIcon } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
-import { photo, radius, space, themed, useTheme } from '@/theme';
+import { font, photo, radius, space, themed, useTheme } from '@/theme';
 
 import { DashedFrame, MetaDot, Progress } from './bits';
 import { Mosaic } from './filmstrip';
@@ -105,14 +105,16 @@ export function CardMemory({
             {films}
           </View>
           <View style={styles.largeFoot}>
-            <Text role="display" numberOfLines={3} style={styles.onPhoto}>
-              {title}
-            </Text>
-            {meta?.length ? <Meta parts={meta} onPhoto /> : null}
+            <View style={styles.pair}>
+              <Text role="display" numberOfLines={3} style={styles.onPhoto}>
+                {title}
+              </Text>
+              {meta?.length ? <Meta parts={meta} onPhoto /> : null}
+            </View>
             {progress !== undefined && progressLabel ? (
-              <View style={styles.bar}>
+              <View style={styles.pair}>
                 <Progress value={progress} tone="spark" onPhoto label={progressLabel} />
-                <Text role="meta" style={styles.onPhotoMeta}>
+                <Text role="meta" style={[styles.onPhotoMeta, styles.barWords]}>
                   {progressLabel}
                 </Text>
               </View>
@@ -136,7 +138,7 @@ export function CardMemory({
             </DashedFrame>
           )}
           <View style={styles.foot}>
-            <View style={styles.grow}>
+            <View style={[styles.grow, styles.words]}>
               <Text role="title" numberOfLines={2}>
                 {title}
               </Text>
@@ -160,7 +162,7 @@ function Meta({ parts, onPhoto }: { parts: readonly string[]; onPhoto?: boolean 
       {parts.map((part, i) => (
         <View key={part} style={styles.meta}>
           {i > 0 ? <MetaDot onPhoto={onPhoto} /> : null}
-          <Text role="meta" style={onPhoto ? styles.onPhotoMeta : null}>
+          <Text role="meta" style={[styles.metaWords, onPhoto ? styles.onPhotoMeta : null]}>
             {part}
           </Text>
         </View>
@@ -177,26 +179,47 @@ const useStyles = themed(({ color }) =>
       overflow: 'hidden',
       backgroundColor: color.surface,
       justifyContent: 'space-between',
-      padding: space.s4,
     },
     cover: { experimental_backgroundImage: photo.cover },
-    largeTop: { flexDirection: 'row', alignItems: 'flex-start', gap: space.s2 },
-    largeFoot: { gap: space.s2 },
-    bar: { gap: 6, marginTop: space.s1 },
+    // `Main`: the badges hang 14 off the top corners, the words stand 18 off the bottom ones — the
+    // name with its meta, then 12 down, the bar with its sentence, 7 inside each pair.
+    largeTop: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: space.s2,
+      paddingTop: 14,
+      paddingHorizontal: 14,
+    },
+    largeFoot: { gap: space.s3, paddingHorizontal: 18, paddingBottom: 18 },
+    pair: { gap: 7 },
+    // Spec 7.6, detail 36: the sentence under the bar is 12 / 600, in Onest's own leading at 12.
+    barWords: { fontFamily: font.semi, lineHeight: 16 },
     card: {
       borderRadius: radius.card,
       borderWidth: 1,
       borderColor: color.line,
       backgroundColor: color.surface,
       padding: 10,
-      gap: space.s3,
     },
     hover: { backgroundColor: color.raise },
     // The strip of four inside an ordinary card: 96 tall, its own 14 radius.
     strip: { height: 96, borderRadius: radius.strip, overflow: 'hidden' },
-    foot: { flexDirection: 'row', alignItems: 'center', gap: space.s3, paddingHorizontal: 6 },
+    // `Main`: 13 under the strip, 5 over the card's own 10 below, and the films badge stands on the
+    // foot of the words rather than in their middle — 181 for a card with a meta line, 158 without.
+    foot: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      gap: space.s3,
+      paddingTop: 13,
+      paddingHorizontal: 6,
+      paddingBottom: 5,
+    },
     grow: { flex: 1, minWidth: 0 },
+    words: { gap: 6 },
     meta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    // Spec 7.6, details 36–37: a card's meta is 13 / 500 — a size over the role's 12 — in Onest's own
+    // leading at 13.
+    metaWords: { fontSize: 13, lineHeight: 17 },
     centred: { textAlign: 'center' },
     onPhoto: { color: photo.on },
     onPhotoMeta: { color: photo.onQuiet },

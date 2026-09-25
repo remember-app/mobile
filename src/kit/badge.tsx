@@ -1,7 +1,7 @@
 import { ArrowUp, Check, Play } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 
-import { radius, space, themed, useTheme } from '@/theme';
+import { font, radius, space, themed, useTheme } from '@/theme';
 
 import { Icon } from './icon';
 import { Text } from './text';
@@ -20,8 +20,8 @@ export function BadgeOrganizer({ label, sm }: { label: string; sm?: boolean }) {
   const styles = useStyles();
 
   return (
-    <View style={[styles.pill, styles.spark, sm ? styles.pillSm : null]}>
-      <Text role={sm ? 'badgeSm' : 'badge'} tone="sparkInk">
+    <View style={[styles.pill, styles.spark, sm ? styles.pillSm : styles.organizer]}>
+      <Text role={sm ? 'badgeSm' : 'badge'} tone="sparkInk" style={sm ? null : styles.caps}>
         {label.toUpperCase()}
       </Text>
     </View>
@@ -37,14 +37,14 @@ export function BadgeFilms({ label, filled }: { label: string; filled?: boolean 
   const styles = useStyles();
 
   return (
-    <View style={[styles.pill, filled ? styles.accent : styles.accentLine]}>
+    <View style={[styles.pill, styles.films, filled ? styles.accent : styles.accentLine]}>
       <Icon
         icon={Play}
         size={filled ? 13 : 12}
         color={filled ? color.onFill : color.accentText}
         fill={filled ? color.onFill : color.accentText}
       />
-      <Text role="badge" tone={filled ? 'onFill' : 'accent'}>
+      <Text role="meta" tone={filled ? 'onFill' : 'accent'} style={styles.count}>
         {label}
       </Text>
     </View>
@@ -167,10 +167,17 @@ const useStyles = themed(({ color }) =>
       borderColor: 'transparent',
     },
     pillSm: { paddingHorizontal: space.s2, paddingVertical: 3 },
+    // Spec 7.4, details 22–23, as `Main` draws them over a cover and on a card: «ОРГАНИЗАТОР» 6 / 11
+    // round its caps, 26 tall; the films count 6 / 12 / 6 / 10 round a 12 / 600, 28 filled — and the
+    // outlined one is that pill plus its hairline, 30, pulled a point in at the sides.
+    organizer: { paddingVertical: 6, paddingHorizontal: 11, borderWidth: 0 },
+    caps: { lineHeight: 14 },
+    films: { gap: 6, paddingVertical: 6, paddingLeft: 10, paddingRight: 12, borderWidth: 0 },
+    count: { fontFamily: font.semi, lineHeight: 16 },
     spark: { backgroundColor: color.spark },
     raise: { backgroundColor: color.raise },
     accent: { backgroundColor: color.accent },
-    accentLine: { borderColor: color.accentText },
+    accentLine: { borderWidth: 1, borderColor: color.accent, paddingLeft: 9, paddingRight: 11 },
     pending: { backgroundColor: color.pendingSoft },
     failed: { backgroundColor: color.failedSoft },
     // Spec 7.4 — the decision mark and the tag word are the same 22/28 pill at two widths; what

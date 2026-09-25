@@ -2,7 +2,7 @@ import { Check, WifiOff } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
-import { radius, space, themed, useTheme } from '@/theme';
+import { font, radius, space, themed, useTheme } from '@/theme';
 
 import { Icon, type IconComponent } from './icon';
 import { Text } from './text';
@@ -138,10 +138,10 @@ export function Banner({
         </View>
       ) : (
         <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <Icon icon={icon ?? WifiOff} size={18} color={color.dangerText} />
+          <Icon icon={icon ?? WifiOff} size={19} color={color.dangerText} />
         </View>
       )}
-      <Text role="label" style={styles.grow}>
+      <Text role="banner" style={[styles.grow, done ? styles.firm : null]}>
         {text}
       </Text>
       {done ? null : children}
@@ -187,11 +187,24 @@ const useStyles = themed(({ color }) =>
       gap: space.s3,
       borderRadius: radius.cell,
       borderWidth: 1,
-      paddingVertical: space.s3,
-      paddingHorizontal: space.s4,
+      paddingLeft: space.s4,
     },
-    bannerError: { backgroundColor: color.dangerSoft, borderColor: color.dangerEdge },
-    bannerDone: { backgroundColor: color.sparkSoft, borderColor: color.sparkEdge },
+    // Spec 7.6, detail 47 — «поля 12–13 / 16», as the layout splits them: the error closes to 12 on
+    // the right, where its cross stands; the `done` one has no cross and a 22 circle, and takes 13.
+    bannerError: {
+      backgroundColor: color.dangerSoft,
+      borderColor: color.dangerEdge,
+      paddingVertical: space.s3,
+      paddingRight: space.s3,
+    },
+    bannerDone: {
+      backgroundColor: color.sparkSoft,
+      borderColor: color.sparkEdge,
+      paddingVertical: 13,
+      paddingRight: space.s4,
+    },
+    // «Соединение установлено» is said at 600, the lost connection at the role's 500.
+    firm: { fontFamily: font.semi },
     tick: {
       width: 22,
       height: 22,

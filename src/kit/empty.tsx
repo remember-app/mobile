@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 
-import { duration, radius, space, themed, useTheme } from '@/theme';
+import { duration, radius, space, spinner, themed, useTheme } from '@/theme';
 
 import { Icon, type IconComponent } from './icon';
 import { useLoop } from './interaction';
@@ -13,8 +13,8 @@ import { Text } from './text';
  * what to do, and the action itself stands in the bottom layer rather than inside this block.
  */
 
-/** The sizes the spec spins at: inside a tile or a row, a step circle, over a scrim, a whole screen. */
-export type SpinnerSize = 16 | 26 | 34 | 38;
+/** The sizes the spec spins at: inside a tile or a row, a card, a link being walked in, a screen. */
+export type SpinnerSize = (typeof spinner)[keyof typeof spinner];
 
 /**
  * A ring with one lit arc in `spark`, one turn every 900ms, linear (spec 6). The only thing in the
@@ -25,7 +25,7 @@ export type SpinnerSize = 16 | 26 | 34 | 38;
  * transparent.
  */
 export function Spinner({
-  size = 34,
+  size = spinner.join,
   track,
   head,
 }: {
@@ -62,7 +62,7 @@ export function Spinner({
 }
 
 /** Spec 7.9 — waiting, with a line saying what is being waited for. */
-export function Waiting({ text, size = 38 }: { text: string; size?: SpinnerSize }) {
+export function Waiting({ text, size = spinner.screen }: { text: string; size?: SpinnerSize }) {
   return (
     <View style={waiting.block}>
       <Spinner size={size} />
@@ -117,7 +117,7 @@ export function Empty({
   return (
     <View style={styles.empty}>
       {busy ? (
-        <Spinner size={38} />
+        <Spinner size={spinner.screen} />
       ) : (
         // The sign only ever repeats the words below it, so screen readers are spared it.
         <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
@@ -149,13 +149,14 @@ export function Empty({
 
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
-    // Spec 4: the margins of an empty state open out to 32–40, and the block breathes at 22–24.
-    // 22 is off the step of 4 on purpose — it is what the layout draws under every sign.
+    // Spec 4: an empty state stands 36 in from the edge of the screen — the screen's own 16 and these
+    // 20 — and breathes at 22–24. 22 is off the step of 4 on purpose: it is what the layout draws
+    // under every sign.
     empty: {
       alignItems: 'center',
       gap: 22,
       paddingVertical: space.s7,
-      paddingHorizontal: space.s7,
+      paddingHorizontal: space.s5,
     },
     words: { alignItems: 'center', gap: space.s3 },
     sign: {
@@ -174,9 +175,11 @@ const useStyles = themed(({ color }) =>
       backgroundColor: color.hollowSoft,
     },
     signLine: { borderWidth: 1, borderColor: color.line, backgroundColor: color.surface },
-    signSpark: { borderWidth: 2, borderColor: color.spark, backgroundColor: color.surface },
+    // The layout rings it outside the 96 (`box-shadow: 0 0 0 2px`): 100 across, and the words under
+    // it stand where they stand under the other two.
+    signSpark: { boxShadow: `0 0 0 2px ${color.spark}`, backgroundColor: color.surface },
     title: { textAlign: 'center' },
-    // Spec 3 holds a paragraph to about 60 characters, which at these margins is this width.
-    text: { textAlign: 'center', maxWidth: 300 },
+    // Spec 3 holds a paragraph to about 60 characters, which the margins above already make it.
+    text: { textAlign: 'center' },
   }),
 );

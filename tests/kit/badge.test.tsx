@@ -1,3 +1,4 @@
+import { rule } from '@tests/helpers/css';
 import { beforeAll, expect, test } from 'vitest';
 
 import {
@@ -50,6 +51,37 @@ test('the films badge is filled on a cover and outlined on a card', () => {
   // The declension is the screen's — a badge never counts anything itself.
   expect(story(<BadgeFilms label="1 ролик" />)).toContain('1 ролик');
   expect(story(<BadgeFilms label="5 роликов" />)).toContain('5 роликов');
+});
+
+test('the badges of a memory card stand as tall as the layout draws them: 26, 28 and 30', () => {
+  // TASK-383, off `Main.json`: «ОРГАНИЗАТОР» e14 is 26 — 6 over and under its 11 caps in Onest's
+  // own 14 of leading, 11 at the sides (w111); «2 ролика» e15 is 28 filled — 6 over and under a 12 /
+  // 600 count in 16; «1 ролик» e33 is the same pill with a 1 hairline round it, 30. They were 25,
+  // 25 and 25: the films count set in the organizer's 11 / 700 caps, every pill with a clear border.
+  const organizer = story(<BadgeOrganizer label="Организатор" />);
+  expect(organizer).toContain(rule('padding-bottom:6px;padding-top:6px'));
+  expect(organizer).toContain(rule('padding-left:11px;padding-right:11px'));
+  expect(organizer).toContain(rule('line-height:14px'));
+
+  const filled = story(<BadgeFilms label="2 ролика" filled />);
+  const outlined = story(<BadgeFilms label="1 ролик" />);
+  for (const films of [filled, outlined]) {
+    expect(films).toContain(rule('padding-bottom:6px;padding-top:6px'));
+    expect(films).toContain(rule('font-size:12px'));
+    expect(films).toContain(rule('line-height:16px'));
+  }
+  // A border is drawn edge by edge in the markup.
+  const edges = (property: string, value: string) =>
+    rule(
+      ['bottom', 'left', 'right', 'top']
+        .map((edge) => `border-${edge}-${property}:${value}`)
+        .join(';'),
+    );
+  expect(filled).toContain(edges('width', '0px'));
+  expect(outlined).toContain(edges('width', '1px'));
+  // Spec 7.4, detail 23: the outline is `accent` itself, the words `accentText` — #4B5BFF round
+  // #A7AEFF at night.
+  expect(outlined).toContain(edges('color', 'rgba(75,91,255,1.00)'));
 });
 
 test('the three states of a montage are three fills, and each says its own word', () => {

@@ -680,6 +680,14 @@ test('the right slot of the glass bar is empty where there is nothing to pick', 
   );
   expect(full).toContain('Выбрать');
   expect(empty).not.toContain('Выбрать');
+  // …and the empty slot still holds its 48 (TASK-383): `FramesEmpty.json` e8 puts the capsule at
+  // x68 w254 — 12 + 48 + 8 on either side of 390 — so the name stays in the middle of the bar
+  // rather than 28 to the right of it. A round button's size is written on the render, so a 48 in
+  // the sheet is the slot's alone.
+  const slot = rule(`width:${height.roundViewer}px`);
+  expect(height.roundViewer).toBe(48);
+  expect(empty).toContain(slot);
+  expect(full).not.toContain(slot);
 });
 
 test('the bottom layer fades up into the screen and grows when a count stands over its button', () => {

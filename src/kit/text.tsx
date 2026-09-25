@@ -44,7 +44,7 @@ export const HEADING_MOST: Partial<Record<TypeRole, number>> = {
   heroNarrow: 1.33,
   display: 1.29,
   displaySm: 1.16,
-  emptyTitle: 1.98,
+  emptyTitle: 1.93,
   sheetTitle: 1.2,
   sheetTitleSm: 1.28,
   barTitle: 1,

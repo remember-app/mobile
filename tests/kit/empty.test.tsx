@@ -1,10 +1,11 @@
+import { rule } from '@tests/helpers/css';
 import { Camera, ImageIcon, Link2Off } from 'lucide-react-native';
 import { beforeAll, expect, test } from 'vitest';
 
 import { Button } from '@/kit/button';
 import { Empty, Spinner, type SpinnerSize, Waiting } from '@/kit/empty';
 import { allDifferent, story } from '@/kit/story';
-import { setTheme } from '@/theme';
+import { setTheme, space, spinner } from '@/theme';
 
 /** Spec 7.9 — a screen with nothing on it yet, and a screen still waiting for something. */
 
@@ -98,20 +99,48 @@ test('the action belongs to the bottom layer, and anything else handed over stan
 });
 
 test('the spinner turns at the four sizes the layout uses', () => {
-  const sizes: SpinnerSize[] = [16, 26, 34, 38];
+  const sizes: SpinnerSize[] = [spinner.tile, spinner.card, spinner.join, spinner.screen];
   allDifferent(Object.fromEntries(sizes.map((size) => [String(size), <Spinner size={size} />])));
-  expect(story(<Spinner size={34} />)).toContain('width:34px');
+  // TASK-383, measured off the layout's own rendering: `HomeLoading.json` e4 and
+  // `InviteJoining.json` e2 are 44 × 44 and 40 × 40 — the spec's 38 and 34 are the CSS box inside a
+  // 3px ring, and the ring drawn here counts its border in. Back at 38 / 34 it is 13 % short.
+  expect([spinner.screen, spinner.join]).toEqual([44, 40]);
+  expect(story(<Spinner size={spinner.join} />)).toContain('width:40px');
+  expect(story(<Spinner />)).toContain('width:40px');
   // The lit arc is `spark` over `raise` — #E4FF4F on #22222E.
-  expect(story(<Spinner size={34} />)).toContain('rgba(228,255,79,1.00)');
-  expect(story(<Spinner size={34} />)).toContain('rgba(34,34,46,1.00)');
+  expect(story(<Spinner size={spinner.join} />)).toContain('rgba(228,255,79,1.00)');
+  expect(story(<Spinner size={spinner.join} />)).toContain('rgba(34,34,46,1.00)');
   // A button waiting borrows it in its own colours.
   expect(story(<Spinner size={16} track="#FFFFFF" head="transparent" />)).toContain(
     'rgba(255,255,255,1.00)',
   );
 });
 
-test('waiting says what is being waited for', () => {
-  const waiting = story(<Waiting text="Присоединяем…" size={34} />);
-  expect(waiting).toContain('Присоединяем…');
-  expect(waiting).toContain('width:34px');
+test('waiting says what is being waited for, at the size of a whole screen unless told', () => {
+  const waiting = story(<Waiting text="Собираем ваши воспоминания…" />);
+  expect(waiting).toContain('Собираем ваши воспоминания…');
+  expect(waiting).toContain('width:44px');
+  // The empty state waiting in the place of its list turns at the same size.
+  expect(story(<Empty busy text="Собираем…" />)).toContain('width:44px');
+  expect(story(<Waiting text="Готовим…" size={spinner.card} />)).toContain('width:26px');
+});
+
+test('an empty state stands 36 in from the screen, and its paragraph takes all of that width', () => {
+  // TASK-383: `HomeEmpty.json` e8 — the paragraph is x36 w318 of 390 and runs to three lines, where
+  // 48 in and a 300 cap made it four. The screen gives its own 16, the block the other 20.
+  const empty = story(
+    <Empty sign="spark" icon={Camera} title="Здесь пока пусто" text="Заведите воспоминание." />,
+  );
+  const side = 36 - space.s4;
+  expect(empty).toContain(rule(`padding-left:${side}px;padding-right:${side}px`));
+  expect(empty).not.toContain('r-maxWidth');
+});
+
+test('the spark sign is ringed outside its 96, the way the layout draws it', () => {
+  // `HomeEmpty.html`: `box-shadow: 0 0 0 2px #E4FF4F` round a 96 — 100 across as measured, where a
+  // border inside the 96 drew 96 and moved everything under it.
+  const empty = story(<Empty sign="spark" icon={Camera} text="Заведите воспоминание." />);
+  expect(empty).toContain(rule('box-shadow:0 0 0 2px #E4FF4F'));
+  expect(empty).toContain(rule('width:96px'));
+  expect(empty).not.toContain('r-borderWidth');
 });

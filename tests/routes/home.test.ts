@@ -26,6 +26,9 @@ test('the blank strip tells the truth about why it is empty', () => {
   expect(index).toContain('s.state.preparing');
   expect(en.home.noFrames).not.toEqual(en.state.preparing);
   expect(ru.home.noFrames).not.toEqual(ru.state.preparing);
+  // And the empty one says what spec 7.6 (detail 37) and `Main.html`'s third card say (TASK-383).
+  expect(ru.home.noFrames).toBe('Ни одного кадра — скиньте первые');
+  expect(en.home.noFrames).toBe('No frames yet — share the first ones');
 });
 
 test('one icon stands in the header and it opens the account', () => {

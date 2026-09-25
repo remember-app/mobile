@@ -53,3 +53,24 @@ test('a spent link gets a heading of its own; every other failure speaks in the 
     expect(set.join.deadTitle).not.toEqual(set.join.dead);
   }
 });
+
+test('joining is three pieces 26 apart in the middle of the whole screen, the spinner at 40', () => {
+  // TASK-383, off `InviteJoining.json`: «Remember» e1, the ring e2 (40 × 40) and «Присоединяем…» e3,
+  // each 26 from the next, centred on the canvas (422 of 844). Before, the ring was 34 inside the
+  // waiting block's 16, and the block stood under the status line, 23 low.
+  expect(invite).toContain('<Spinner size={spinner.join} />');
+  expect(invite).toContain('gap: 26,');
+  expect(invite).toContain('<Board body={[styles.joining, { paddingBottom: insets.top }]}>');
+  expect(invite).not.toContain('<Waiting');
+});
+
+test('a dead link is centred where the layout centres it, above the bottom layer’s gradient', () => {
+  // `InviteDead.html`: the block stands in 0…712 — the top of the screen down to `board.footer`
+  // (132) over its edge; `InviteDead.json` e1 puts the circle at 227.5. Centred on the body between
+  // the status line and the action block, it stood 39 low.
+  expect(invite).toContain(
+    'const overhang = board.footer - space.s3 - height.primary - Math.max(insets.bottom, board.bottom);',
+  );
+  expect(invite).toContain('body={[styles.body, { paddingBottom: insets.top + overhang }]}');
+  expect(invite).toContain("body: { justifyContent: 'center', paddingHorizontal: space.s4 },");
+});
