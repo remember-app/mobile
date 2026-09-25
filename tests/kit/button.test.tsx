@@ -1,4 +1,4 @@
-import { rule } from '@tests/helpers/css';
+import { rule, shorthand } from '@tests/helpers/css';
 import { Pause, Plus } from 'lucide-react-native';
 import { beforeAll, expect, test } from 'vitest';
 
@@ -19,11 +19,12 @@ const VARIANTS: ButtonVariant[] = [
   'small',
   'raise',
   'quiet',
+  'link',
   'danger',
   'dashed',
 ];
 
-test('the eight buttons are eight different buttons', () => {
+test('the nine buttons are nine different buttons', () => {
   allDifferent(
     Object.fromEntries(
       VARIANTS.map((variant) => [variant, <Button variant={variant} label="Смонтировать" />]),
@@ -114,6 +115,40 @@ test('the loud buttons run the width they are given and the quiet ones are as wi
   );
   expect(story(<Button variant="small" label="Вернуть" />)).not.toBe(
     story(<Button variant="small" label="Вернуть" wide />),
+  );
+});
+
+test('the link is its words alone: 13 / 600 in accentText, underlined, as tall as its line', () => {
+  // Spec 8, `Consent` — «Полный текст соглашения» is a link and not a button: Onest 13 / 600,
+  // #A7AEFF, underlined, 17 tall (`Consent.json` e19). The finger's 44 grows round it.
+  const link = story(<Button variant="link" label="Полный текст соглашения" />);
+  expect(link).toContain('role="link"');
+  expect(link).toContain('color:rgba(167,174,255,1.00)');
+  const words = link.match(/class="([^"]*)"[^>]*>Полный текст соглашения</)?.[1] ?? '';
+  expect(words).toContain(shorthand('textDecorationLine', 'text-decoration-line:underline'));
+  expect(words).toContain(rule('font-size:13px'));
+  expect(words).toContain(rule(`font-family:${font.semi}`));
+  expect(link).toContain('min-height:16px');
+  // No box round it: no sides, no hairline.
+  expect(link).toContain(shorthand('paddingInline', 'padding-left:0px'));
+  expect(link).toContain(shorthand('borderWidth', 'border-top-width:0px'));
+  // The quiet button stays what it was: a 44 in muted, its words in the control's 16.
+  const quiet = story(<Button variant="quiet" label="Позже" />);
+  expect(quiet).toContain('min-height:44px');
+  expect(quiet).toContain('color:rgba(164,161,178,1.00)');
+  expect(quiet).not.toContain('role="link"');
+});
+
+test('a quiet button reads its words in paper only where the place names it', () => {
+  // Spec 8, `LoginCode`: «Ещё раз» stands beside the muted «Отправили на …» and is #F5F3EE at 13 /
+  // 600 (`LoginCode.json` e17). Unavailable, it is faint like any other.
+  const again = story(
+    <Button variant="quiet" labelRole="label" labelTone="paper" label="Ещё раз" />,
+  );
+  expect(again).toContain('color:rgba(245,243,238,1.00)');
+  expect(again).not.toContain('color:rgba(164,161,178,1.00)');
+  expect(story(<Button variant="quiet" labelTone="paper" label="Ещё раз" disabled />)).toContain(
+    'color:rgba(110,107,125,1.00)',
   );
 });
 

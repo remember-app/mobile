@@ -276,6 +276,8 @@ export const type = StyleSheet.create({
   body: { fontFamily: font.regular, fontSize: 16, lineHeight: 23 },
   /** the same paragraph where it stands tighter — an empty state, a waiting caption */
   bodySm: { fontFamily: font.regular, fontSize: 15, lineHeight: 22 },
+  /** a line of the card of promises on `Consent` (spec 8) — the paragraph a size down again */
+  bodyXs: { fontFamily: font.regular, fontSize: 14, lineHeight: 20 },
   /** a name in a list row, the label of a sheet action */
   row: { fontFamily: font.semi, fontSize: 15, lineHeight: 20 },
   /** the label of a button */
@@ -292,8 +294,10 @@ export const type = StyleSheet.create({
   note: { fontFamily: font.medium, fontSize: 13, lineHeight: 19 },
   /** the words of a connection banner: the note's size a line tighter (spec 7.6, detail 47) */
   banner: { fontFamily: font.medium, fontSize: 13, lineHeight: 18 },
-  /** «НАЗВАНИЕ», «ИЗ КОНТАКТОВ» */
-  eyebrow: { fontFamily: font.bold, fontSize: 12, lineHeight: 14, letterSpacing: 1.2 },
+  /** the same explanation a size down and plain — «Без согласия зарегистрироваться нельзя.» */
+  noteSm: { fontFamily: font.regular, fontSize: 12, lineHeight: 16 },
+  /** «НАЗВАНИЕ», «ИЗ КОНТАКТОВ» — on the line the layout gives every eyebrow, Onest's own at 12 */
+  eyebrow: { fontFamily: font.bold, fontSize: 12, lineHeight: 16, letterSpacing: 1.2 },
   /** «ОРГАНИЗАТОР», «ГОТОВ» */
   badge: { fontFamily: font.bold, fontSize: 11, lineHeight: 13, letterSpacing: 0.66 },
   /** «Беру 0:04–0:07», «Взял 1 из 4» — the badge's size, written out rather than shouted */

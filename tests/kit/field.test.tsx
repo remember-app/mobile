@@ -1,9 +1,11 @@
+import { rule, shorthand } from '@tests/helpers/css';
+import { fontFile, naturalLine } from '@tests/helpers/font';
 import { Pencil, Search } from 'lucide-react-native';
 import { beforeAll, expect, test } from 'vitest';
 
 import { CodeField, Field, type FieldVariant, Hint, TextArea } from '@/kit/field';
-import { allDifferent, story } from '@/kit/story';
-import { setTheme, type } from '@/theme';
+import { allDifferent, compiled, story } from '@/kit/story';
+import { font, setTheme, type } from '@/theme';
 
 /** Spec 7.3 — every field of the layout, in every state it can be in. */
 
@@ -190,6 +192,114 @@ test('the long-text box carries a line saying what it is for, never how full it 
   );
   expect(noted).toContain('Своими словами');
   expect(noted).not.toBe(story(<TextArea label="История" value="" onChangeText={() => {}} />));
+});
+
+/** The class list of the element that holds exactly these words. */
+const classOf = (markup: string, words: string) =>
+  markup.match(new RegExp(`class="([^"]*)"[^>]*>${words}<`))?.[1] ?? '';
+
+test('every label over a field reads in muted, as every eyebrow of the layout does', () => {
+  // #A4A1B2 in the layout (TASK-378: `LoginEmail.json` e9, `LoginCode.json` e9, `Username.json` e8,
+  // `Create.json`), never the paper of what is typed under it.
+  const muted = rule('color:rgba(164,161,178,1.00)');
+  const labels: [string, string][] = [
+    ['ПОЧТА', story(<Field label="Почта" value="" />)],
+    ['НИК', story(<Field label="Ник" variant="username" prefix="@" value="" />)],
+    ['НАЗВАНИЕ', story(<Field label="Название" variant="name" value="" />)],
+    ['КОД ИЗ ПИСЬМА', story(<CodeField label="Код из письма" value="" onChangeText={() => {}} />)],
+    ['ИСТОРИЯ', story(<TextArea label="История" value="" onChangeText={() => {}} />)],
+  ];
+  for (const [words, markup] of labels) expect(classOf(markup, words), words).toContain(muted);
+});
+
+test('the fields on the way in stand in its column of 12, their words 4 in from its edge', () => {
+  // Spec 8, measured off `LoginEmail`, `LoginCode` and `Username` (TASK-378): the label 12 over the
+  // box and 4 in from its edge (x 20 against the box's 16), the line under the box 12 below it and
+  // 4 in as well; what is typed starts 18 inside the box, and the `@` stands 4 before the name
+  // (x 35 and 58.7). `Create` and the sheets keep the form's own 8 and its edge.
+  const [twelve, eight, four] = ['gap:12px', 'gap:8px', 'padding-left:4px'].map(rule);
+  /** The field's own column is the first thing drawn. */
+  const column = (markup: string) => markup.split('class="')[1] ?? '';
+  const wayIn: [string, string, string][] = [
+    [story(<Field label="Почта" value="" hint="Проверьте адрес" />), 'ПОЧТА', 'Проверьте адрес'],
+    [
+      story(<Field label="Ник" variant="username" prefix="@" value="" hint="Ник занят" />),
+      'НИК',
+      'Ник занят',
+    ],
+    [
+      story(<CodeField label="Код" value="" onChangeText={() => {}} hint="Код не подошёл" />),
+      'КОД',
+      'Код не подошёл',
+    ],
+  ];
+  for (const [markup, label, hint] of wayIn) {
+    expect(column(markup), label).toContain(twelve);
+    expect(classOf(markup, label), label).toContain(four);
+    expect(classOf(markup, hint), hint).toContain(four);
+  }
+  const typed = shorthand('paddingInline', 'padding-left:18px');
+  expect(wayIn[0][0]).toContain(typed);
+  expect(wayIn[1][0]).toContain(typed);
+  expect(wayIn[1][0]).toContain(rule('gap:4px'));
+
+  const form = story(<Field label="Название" variant="name" value="" hint="Как в календаре" />);
+  expect(column(form)).toContain(eight);
+  expect(classOf(form, 'НАЗВАНИЕ')).not.toContain(four);
+  expect(form).not.toContain(typed);
+});
+
+test('the @ in front of a name is faint, and muted only where it is the one hint of what to type', () => {
+  // #6E6B7D in `Username` and `SheetInvite`, #A4A1B2 in the search of `Contacts` (TASK-378).
+  const [faint, muted] = ['rgba(110,107,125,1.00)', 'rgba(164,161,178,1.00)'].map((c) =>
+    rule(`color:${c}`),
+  );
+  const at = (variant: FieldVariant) =>
+    classOf(story(<Field label="Ник" variant={variant} prefix="@" value="" />), '@');
+  expect(at('username')).toContain(faint);
+  expect(at('handle')).toContain(faint);
+  expect(at('search')).toContain(muted);
+});
+
+test('a free name is answered and then told what it is for, in one line that breaks like a sentence', () => {
+  // Spec 8, `Username`: «Ник свободен.» in spark at 600, then «По нему вас найдут в воспоминании.»
+  // in muted and plain (`Username.json` e14, e15).
+  const ok = story(
+    <Field
+      label="Ник"
+      variant="username"
+      prefix="@"
+      value="liza"
+      state="ok"
+      hint="Ник свободен."
+      hintAfter="По нему вас найдут в воспоминании."
+    />,
+  );
+  const answer = ok.match(
+    /class="([^"]*)"[^>]*>Ник свободен\.<span class="([^"]*)"[^>]*>\u2002По нему вас найдут в воспоминании\.</,
+  );
+  expect(answer, 'the second phrase is a span inside the answer').not.toBeNull();
+  const [, loud = '', quiet = ''] = answer ?? [];
+  expect(loud).toContain(rule('color:rgba(228,255,79,1.00)'));
+  expect(loud).toContain(rule(`font-family:${font.semi}`));
+  expect(quiet).toContain(rule('color:rgba(164,161,178,1.00)'));
+  expect(quiet).toContain(rule(`font-family:${font.regular}`));
+  // Nothing after a name that is only being asked about.
+  expect(
+    story(<Field label="Ник" variant="username" value="liza" hint="Проверяем…" />),
+  ).not.toContain('\u2002');
+});
+
+test('a digit of the code sits in the middle of its cell, on a line no shorter than its face’s own', () => {
+  // `LoginCode` drew its digits 3 above the layout's (glyphs from 644.3 against 647.3): on a line
+  // shorter than the face's own — the body's 23 — iOS cuts the line from the top. Unbounded 600 at
+  // 22 runs 27.3 from ascender to descender.
+  const digit = classOf(story(<CodeField label="Код" value="3" onChangeText={() => {}} />), '3');
+  const own = digit.split(' ').find((name) => name.startsWith('r-lineHeight-'));
+  const line = Number(compiled().match(new RegExp(`\\.${own}\\{line-height:([0-9.]+)px;\\}`))?.[1]);
+  const face = fontFile('@expo-google-fonts/unbounded/600SemiBold/Unbounded_600SemiBold.ttf');
+  expect(line).toBeGreaterThanOrEqual(naturalLine(face, 22));
+  expect(digit).toContain(rule('font-size:22px'));
 });
 
 test('the hint under a control has the four voices it is ever said in', () => {

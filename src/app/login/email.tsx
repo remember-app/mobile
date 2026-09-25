@@ -92,9 +92,9 @@ export default function LoginEmailScreen() {
 }
 
 const styles = StyleSheet.create({
-  // Spec 7.1, the inner bar: a 44 button pulled 10 out of the screen's own 16 margin. Absolute, so
-  // it lies over the head rather than moving it.
-  back: { position: 'absolute', left: space.s4 - 10, top: 0, zIndex: 2 },
+  // Spec 8, `LoginEmail`: a 44 floating 10 off the edge of the board — there is no bar here to pull
+  // it into. Absolute, so it lies over the head rather than moving it.
+  back: { position: 'absolute', left: 10, top: 0, zIndex: 2 },
   room: { flexGrow: 1, justifyContent: 'flex-end', paddingHorizontal: space.s4 },
   column: { flex: 1, gap: space.s3 },
 });

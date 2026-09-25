@@ -1,4 +1,4 @@
-import { rule } from '@tests/helpers/css';
+import { rule, shorthand } from '@tests/helpers/css';
 import { ImageIcon } from 'lucide-react-native';
 import { beforeAll, expect, test } from 'vitest';
 
@@ -132,6 +132,66 @@ test('the onboarding stack is three photographs at three angles, in two sizes', 
   const many = story(<PhotoStack photos={[...photos, 'https://b/4.jpg']} />);
   expect(many.match(/data-testid="image"/g)).toHaveLength(3);
   expect(many).not.toContain('aria-label');
+});
+
+/**
+ * Where the layout puts each frame before it is turned — `design/screens/Login.html` and
+ * `Consent.html`, measured in TASK-378 (`Login.json` e1–e4, `Consent.json` e1–e3; the rotated frames'
+ * boxes there come back to these exact numbers). Left, middle, right, in the order they are drawn.
+ */
+const LAYOUT = {
+  // 236 tall (spec 8, «стопка кадров 236»); the side frames 24 off their own edge, the middle one
+  // centred with its foot on the stack's foot — 40 down, lower than the two beside it.
+  large: {
+    stack: ['height:236px'],
+    frames: [
+      ['left:24px', 'top:30px', 'width:144px', 'height:178px', 'rotate(-9deg)', 'radius:18px'],
+      ['top:40px', 'width:168px', 'height:196px', 'rotate(-1.5deg)', 'radius:20px'],
+      ['right:24px', 'top:22px', 'width:144px', 'height:178px', 'rotate(8deg)', 'radius:18px'],
+    ],
+  },
+  // `Consent`: 196, everything 17 % smaller and the side frames 34 off their edges.
+  small: {
+    stack: ['height:196px'],
+    frames: [
+      ['left:34px', 'top:26px', 'width:120px', 'height:148px', 'rotate(-9deg)', 'radius:16px'],
+      ['top:34px', 'width:140px', 'height:162px', 'rotate(-1.5deg)', 'radius:18px'],
+      ['right:34px', 'top:20px', 'width:120px', 'height:148px', 'rotate(8deg)', 'radius:16px'],
+    ],
+  },
+} as const;
+
+/** The class a declaration of the stack compiled to, by the short name `LAYOUT` gives it. */
+const declared = (short: string) =>
+  short.startsWith('rotate')
+    ? rule(`transform:${short}`)
+    : short.startsWith('radius')
+      ? shorthand('borderRadius', `border-top-left-radius:${short.slice(7)}`)
+      : rule(short);
+
+test.each(['large', 'small'] as const)(
+  'the %s stack puts its three frames where the layout measured them',
+  (size) => {
+    const photos = ['https://b/1.jpg', 'https://b/2.jpg', 'https://b/3.jpg'];
+    const drawn = story(<PhotoStack photos={photos} small={size === 'small'} />);
+    const [box, ...frames] = drawn.split('data-testid="image"');
+    const { stack, frames: placed } = LAYOUT[size];
+    for (const css of stack) expect(box, css).toContain(declared(css));
+    // The last class list before each marker is that frame's own.
+    placed.forEach((shot, i) => {
+      const own = (i === 0 ? box : frames[i - 1]).split('class="').at(-1) ?? '';
+      for (const css of shot) expect(own, `frame ${i}: ${css}`).toContain(declared(css));
+    });
+    expect(frames).toHaveLength(3);
+  },
+);
+
+test('the stack runs the width of the board, so the side frames never leave a narrow phone', () => {
+  // Hung off the board's edges and not off a box of their own: 320 overlaps them more and keeps
+  // them on the screen. Past the layout's 390 it stays that wide, and cuts what reaches over it.
+  const drawn = story(<PhotoStack photos={['a', 'b', 'c']} />);
+  for (const css of ['width:100%', 'max-width:390px']) expect(drawn, css).toContain(rule(css));
+  expect(drawn).toContain(shorthand('overflow', 'overflow-x:hidden'));
 });
 
 test('the dashed frame stands where a strip of photographs would, and says why it is empty', () => {

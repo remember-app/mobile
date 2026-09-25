@@ -37,7 +37,7 @@ export function OnboardingHead({ small }: { small?: boolean }) {
   return (
     <View style={[styles.head, small ? styles.headSmall : null]}>
       <PhotoStack photos={FRAMES} small={small} />
-      <View style={styles.words}>
+      <View style={[styles.words, small ? styles.wordsSmall : null]}>
         {/* The product's name, and not a word either language owns (TASK-77) — so it is written
             here rather than asked of the dictionary. */}
         <Text accessibilityRole="header" role={small ? 'heroNarrow' : 'hero'} style={styles.centre}>
@@ -52,10 +52,13 @@ export function OnboardingHead({ small }: { small?: boolean }) {
 }
 
 const styles = StyleSheet.create({
-  // Spec 8: the stack opens 16 under the device's own status line, and the name stands 24 below it.
-  head: { alignItems: 'center', paddingTop: space.s4, gap: space.s6 },
-  // Squeezed: the stack starts at the very top of the board and the name follows closer.
-  headSmall: { paddingTop: 0, gap: space.s4 },
-  words: { alignItems: 'center', gap: space.s3, paddingHorizontal: space.s6 },
+  // Spec 8, `Login`: the stack opens 16 under the device's own status line, the name stands 26 under
+  // the stack and the promise 14 under the name.
+  head: { alignItems: 'center', paddingTop: space.s4, gap: 26 },
+  // `Consent`: the squeezed stack's box starts 12 above the status line — nothing of it is drawn in
+  // those 12, its highest corner is just under the line — and the name follows 18 below it.
+  headSmall: { paddingTop: 0, marginTop: -12, gap: 18 },
+  words: { alignItems: 'center', gap: 14, paddingHorizontal: space.s6 },
+  wordsSmall: { gap: space.s3 },
   centre: { textAlign: 'center' },
 });

@@ -173,6 +173,8 @@ export function UsernameForm({
               ? s.username.lead
               : availabilityHint(s)[availability])
         }
+        // Spec 8, `Username`: a free name is answered and then told what it is for, on one line.
+        hintAfter={state === 'ok' ? s.username.lead : undefined}
         autoCapitalize="none"
         autoCorrect={false}
         editable={!busy}
@@ -195,5 +197,6 @@ export function UsernameForm({
 }
 
 const styles = StyleSheet.create({
-  form: { alignSelf: 'stretch', gap: space.s5 },
+  // Spec 8, `Username`: the way in's column of 12, the button included.
+  form: { alignSelf: 'stretch', gap: space.s3 },
 });

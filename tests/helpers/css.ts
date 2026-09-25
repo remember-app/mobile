@@ -9,8 +9,22 @@ import { compiled } from '@/kit/story';
  * declaration is one class wherever it is drawn, so this names the value and not the part.
  */
 export function rule(css: string): string {
-  const literal = css.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const name = new RegExp(`\\.(r-[A-Za-z]+-[a-z0-9]+)\\{${literal};\\}`).exec(compiled())?.[1];
+  const name = new RegExp(`\\.(r-[A-Za-z]+-[a-z0-9]+)\\{${escaped(css)};\\}`).exec(compiled())?.[1];
   expect(name, `no rule «${css}» was drawn`).toBeDefined();
   return name as string;
 }
+
+/**
+ * The same, for a style property that compiles to more than one declaration — `borderRadius` to its
+ * four corners, `paddingHorizontal` to both sides, `overflow` to both axes: named by the property as
+ * React Native spells it and one of the declarations it wrote.
+ */
+export function shorthand(property: string, css: string): string {
+  const name = new RegExp(`\\.(r-${property}-[a-z0-9]+)\\{[^}]*${escaped(css)};`).exec(
+    compiled(),
+  )?.[1];
+  expect(name, `no ${property} rule with «${css}» was drawn`).toBeDefined();
+  return name as string;
+}
+
+const escaped = (css: string) => css.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
