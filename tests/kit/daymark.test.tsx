@@ -1,11 +1,13 @@
 import { rule } from '@tests/helpers/css';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import type { ReactElement } from 'react';
-import { Text as RNText, StyleSheet } from 'react-native';
+import { Pressable, Text as RNText, StyleSheet, View } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import { expect, test } from 'vitest';
 
-import { DateSpine, DayMark } from '@/kit/daymark';
+import { Divider } from '@/kit/bits';
+import { Button } from '@/kit/button';
+import { DateSpine, DayHead, DayMark } from '@/kit/daymark';
 import { allDifferent, story } from '@/kit/story';
 import { Text } from '@/kit/text';
 
@@ -23,7 +25,6 @@ test('the seam comes in three kinds and they are three', () => {
     picked: (
       <DayMark label="13 сентября" count="61" picked onPress={() => {}} pressLabel="Снять выбор" />
     ),
-    limited: <DayMark label="13 сентября" count="3 кадра" limited />,
   });
 });
 
@@ -100,12 +101,68 @@ test('the organizer’s circle wears the spark collar in the seam, and nobody el
   expect(story(<DayMark label="Аня" avatar="Аня" count="54" />)).not.toContain('#E4FF4F');
 });
 
-test('a count about what the phone will not show is drawn back rather than forward', () => {
-  // Under a partial grant the rest is not missing, it is unseen.
-  allDifferent({
-    whole: <DayMark label="13 сентября" count="61 кадр" />,
-    limited: <DayMark label="13 сентября" count="3 кадра" limited />,
+test('the band that takes a day runs the width of the screen, not of its words', () => {
+  // `Upload.json`: «Выбрать все кадры за 13 сентября, суббота» is a 390 × 44 button at 0, 96 — the
+  // app's was as wide as its circle, date and count (190 of 390) and a tap beside them missed.
+  let tree!: TestRenderer.ReactTestRenderer;
+  act(() => {
+    tree = mounted(
+      TestRenderer.create(<DayMark label="13 сентября, суббота" count="61" onPress={() => {}} />),
+    );
   });
+  const band = tree.root.findByType(Pressable);
+  expect(StyleSheet.flatten(band.props.style)).toMatchObject({
+    flexGrow: 1,
+    height: 44,
+    marginVertical: -12,
+  });
+});
+
+/** The styles a heading of the queue's grid is drawn with, and the words in it by role. */
+function dayHead(tree: ReactElement) {
+  let drawn!: TestRenderer.ReactTestRenderer;
+  act(() => {
+    drawn = mounted(TestRenderer.create(tree));
+  });
+  const row = drawn.root
+    .findAllByType(View)
+    .find((one) => StyleSheet.flatten(one.props.style)?.minHeight !== undefined)!;
+  const words = drawn.root.findAllByType(Text).map((one) => [one.props.role, one.props.tone]);
+  return { row: StyleSheet.flatten(row.props.style), words, root: drawn.root };
+}
+
+test('a day over the queue’s grid is a heading with a line, 17 clear of what it holds and never under 56', () => {
+  // `UploadLimited.json`: the hint ends at 282, «Снято 13 сентября» (13 / 600, e9) is centred on 310
+  // and the grid starts at 338 — 56 between them. `UploadQueue.json`: «НЕ УШЛИ» ends at 417, the 44
+  // «Выбрать все 61» (e28) stands at 434 and the grid at 495 — 17 clear of it both ways. The line
+  // (e10, e27) starts 12 after the words: 16 + 117.28 + 12 = 145.28.
+  const bare = dayHead(<DayHead label="Снято 13 сентября" count="3 кадра" />);
+  expect(bare.row).toMatchObject({
+    minHeight: 338 - 282,
+    paddingVertical: 434 - 417,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Math.round(145.28 - 16 - 117.28),
+  });
+  expect(495 - 434 - 44).toBe(434 - 417);
+  // «3 из 61» (e11) is 12 / 500 in `faint`; the day is the paper `label`.
+  expect(bare.words).toEqual([
+    ['label', undefined],
+    ['meta', 'faint'],
+  ]);
+  expect(bare.root.findAllByType(Divider)).toHaveLength(1);
+});
+
+test('the button at the end of a day’s heading goes under it on large type rather than off the edge', () => {
+  const { row, root } = dayHead(
+    <DayHead label="Снято 13 сентября">
+      <Button variant="small" label="Выбрать все 61" />
+    </DayHead>,
+  );
+  expect(row.flexWrap).toBe('wrap');
+  expect(root.findAllByType(Button)).toHaveLength(1);
+  // A heading, read out as one — the day is what the grid under it is about.
+  expect(story(<DayHead label="Снято 13 сентября" count="3 кадра" />)).toContain('role="heading"');
 });
 
 test('the spine stands where the screen puts each mark, and says nothing out loud', () => {

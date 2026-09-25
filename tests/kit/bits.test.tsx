@@ -4,6 +4,7 @@ import { beforeAll, expect, test } from 'vitest';
 
 import {
   DashedFrame,
+  DashedNote,
   Divider,
   LiveDot,
   MetaDot,
@@ -15,7 +16,7 @@ import {
 import { IconButton } from '@/kit/button';
 import { allDifferent, story } from '@/kit/story';
 import { Text } from '@/kit/text';
-import { font, setTheme } from '@/theme';
+import { font, setTheme, type } from '@/theme';
 
 /** Spec 7.9 — the small parts every other part is built from. */
 
@@ -202,6 +203,30 @@ test('the dashed frame stands where a strip of photographs would, and says why i
   );
   expect(frame).toContain('Ни одного кадра — скиньте первые');
   expect(frame).toContain('border-top-style:dashed');
+});
+
+test('the plate over a day’s unseen rest is hollow and dashed in `line`, where the empty strip is filled', () => {
+  // `UploadLimited.json` e18/e19: 358 × 67, `1px dashed #2C2C3A`, radius 18, no fill — 24 above and
+  // below one line of 13 / 500 `#6E6B7D`, centred. The app drew it as the empty strip of a card:
+  // filled with `raise`, dashed in `dashed`, 49 tall.
+  const note = story(<DashedNote text="Остальное с этого дня Remember не видит" />);
+  expect(note).toContain('Остальное с этого дня Remember не видит');
+  for (const [property, css] of [
+    ['borderStyle', 'border-top-style:dashed'],
+    ['borderColor', 'border-top-color:rgba(44,44,58,1.00)'],
+    ['borderRadius', 'border-top-left-radius:18px'],
+  ])
+    expect(note, css).toContain(shorthand(property, css));
+  for (const css of [
+    'padding-bottom:24px;padding-top:24px',
+    'padding-left:16px;padding-right:16px',
+    `font-family:${type.note.fontFamily}`,
+    'color:rgba(110,107,125,1.00)',
+    'text-align:center',
+  ])
+    expect(note, css).toContain(rule(css));
+  expect(note).not.toContain('background-color');
+  expect([type.note.fontSize, type.note.fontFamily]).toEqual([13, 'Onest_500Medium']);
 });
 
 test('the live dot is its own mark, and it is not the meta dot in red', () => {

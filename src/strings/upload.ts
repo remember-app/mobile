@@ -30,6 +30,8 @@ export const en = {
     shotOn: (day: string) => `Shot on ${day}`,
     /** And at the other end of that line — everything shot on that one day, in one tap. */
     selectDay: (n: number) => `Select all ${n}`,
+    /** The same button once the whole day is taken: the next tap gives it back. */
+    unselectDay: (n: number) => `Unselect all ${n}`,
     reading: 'Still reading the gallery…',
     /** The heading names what is missing, the paragraph says what to do about it (spec 7.8). */
     emptyTitle: 'Nothing to pick',
@@ -78,6 +80,7 @@ export const ru: typeof en = {
     cannotRead: 'Не получилось прочитать галерею на этом телефоне.',
     shotOn: (day: string) => `Снято ${day}`,
     selectDay: (n: number) => `Выбрать все ${n}`,
+    unselectDay: (n: number) => `Снять все ${n}`,
     reading: 'Ещё читаем галерею…',
     emptyTitle: 'Выбирать нечего',
     emptyText: 'Галерея этого телефона пуста. Снимите что-нибудь — и кадры появятся здесь.',

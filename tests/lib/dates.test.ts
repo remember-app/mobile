@@ -17,6 +17,7 @@ import {
   formatDayTiny,
   formatEventDates,
   formatMonth,
+  formatRollDay,
   formatRuntime,
   formatTime,
   formatWeekday,
@@ -37,6 +38,16 @@ const day = (y: number, m: number, d: number) => new Date(y, m - 1, d).toISOStri
 test('a single day is written in the kit form: full month, no year marker', () => {
   expect(formatDay(day(2026, 9, 3), 'ru-RU')).toBe('3 сентября 2026');
   expect(formatDay(day(2026, 9, 3), 'en-US')).toBe('3 September 2026');
+});
+
+test('a day of the phone’s roll is the layout’s «13 сентября» this year, and keeps its year in any other', () => {
+  // `UploadQueue` / `UploadLimited`: «Снято 13 сентября»; `Upload`: «13 сентября, суббота». The roll
+  // runs back years, so a day of another one says which — the kit's single day, year and all.
+  const now = new Date(2026, 8, 25);
+  expect(formatRollDay(day(2026, 9, 13), now, 'ru-RU')).toBe('13 сентября');
+  expect(formatRollDay(day(2026, 1, 2), now, 'en-US')).toBe('2 January');
+  expect(formatRollDay(day(2025, 9, 13), now, 'ru-RU')).toBe('13 сентября 2025');
+  expect(formatRollDay('не дата', now)).toBe('');
 });
 
 test('the name of a day, whole or cut short for a day tile of the filter', () => {

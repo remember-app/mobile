@@ -152,6 +152,23 @@ export const board = {
   bodySettings: 112,
   bodyCreate: 124,
   bodyAccount: 132,
+  /**
+   * The `Upload*` faces with no glass over them, under the bar with a subtitle (spec 4: 124) — and
+   * the message card of `UploadAccess`, which the layout stands lower still, at 132.
+   */
+  bodyUpload: 124,
+  bodyUploadCard: 132,
+} as const;
+
+/**
+ * What «Ваши кадры» draws between its blocks off the rhythm of 4 (spec 8, `UploadQueue` and
+ * `UploadLimited`) — measured off the layout, the way `wizardLead` is.
+ */
+export const uploadGaps = {
+  /** under «НЕ УШЛИ», and between the parked files under it */
+  parked: 10,
+  /** from the last strip of a day down to the plate saying the rest of it is unseen */
+  unseen: 22,
 } as const;
 
 /**

@@ -289,7 +289,7 @@ test('while picking, a tap marks the frame instead of opening it — and only a 
   expect(frames).not.toContain('tile--selected');
   // And on the upload screen the same rule with the mode of its own: picking off, a frame carries
   // no circle at all and a tap opens it (spec, `Upload`).
-  expect(upload).toContain("pick={picking ? (picked.has(item.id) ? 'send' : 'off') : undefined}");
+  expect(upload).toContain("pick={choosing ? (picked.has(item.id) ? 'send' : 'off') : undefined}");
 });
 
 test('the picking footer is share, a download that carries its count, and delete', () => {

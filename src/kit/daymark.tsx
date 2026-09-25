@@ -1,7 +1,9 @@
+import type { ReactNode } from 'react';
 import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
-import { photo, radius } from '@/theme';
+import { photo, radius, space } from '@/theme';
 
+import { Divider } from './bits';
 import { useFocusRing, useHoverFocus } from './interaction';
 import { Avatar } from './member';
 import { Text } from './text';
@@ -28,7 +30,6 @@ export function DayMark({
   count,
   avatar,
   organizer,
-  limited,
   picked,
   onPress,
   pressLabel,
@@ -40,8 +41,6 @@ export function DayMark({
   /** A person's name: the band then carries their circle in front of the label. */
   avatar?: string;
   organizer?: boolean;
-  /** The count is about what the phone will not show, so it is drawn back rather than forward. */
-  limited?: boolean;
   /** Whether the whole day is taken. Only means anything beside `onPress`. */
   picked?: boolean;
   /** Takes the whole day, and takes it back — `Upload` is the one screen that has this. */
@@ -67,7 +66,7 @@ export function DayMark({
         {label}
       </Text>
       {count ? (
-        <Text role="badgeSm" tone={limited || onPress ? 'faint' : 'muted'} style={styles.count}>
+        <Text role="badgeSm" tone={onPress ? 'faint' : 'muted'} style={styles.count}>
           {count}
         </Text>
       ) : null}
@@ -83,7 +82,8 @@ export function DayMark({
   }
 
   // Drawn 20 and felt 44 (spec 7.8): the band keeps its height in the flow and the button grows out
-  // of it in both directions, so taking a whole day never costs the grid a row.
+  // of it in both directions, so taking a whole day never costs the grid a row — and it runs the
+  // width of the screen, not of its words (`Upload`: the button is 390 across).
   return (
     <View style={[styles.mark, style]}>
       <Pressable
@@ -96,6 +96,45 @@ export function DayMark({
       >
         {inner}
       </Pressable>
+    </View>
+  );
+}
+
+/**
+ * The heading of a day over the send queue's grid (spec 8, `UploadQueue`, `UploadLimited`): the day
+ * on the left in `label`, a hairline running to what stands at the end — the count of the day in
+ * `faint`, or the button that takes all of it. Not a seam: that grid stands in the screen's margins,
+ * so the day reads off the left edge like any heading of a list.
+ *
+ * 17 clear above and below whatever it holds, and never under 56: `UploadLimited` draws the bare
+ * heading 56 tall, `UploadQueue` the one with the 44 button 78 from the block over it to the grid.
+ * The row wraps, so on large type the button goes under the day rather than past the edge.
+ */
+export function DayHead({
+  label,
+  count,
+  children,
+  style,
+}: {
+  label: string;
+  /** «3 кадра» — what the day holds, where there is no button to take it. */
+  count?: string;
+  /** «Выбрать все 61» — `small`, the one button that stands in the heading. */
+  children?: ReactNode;
+  style?: StyleProp<ViewStyle>;
+}) {
+  return (
+    <View style={[styles.head, style]}>
+      <Text role="label" accessibilityRole="header">
+        {label}
+      </Text>
+      <Divider grow />
+      {count ? (
+        <Text role="meta" tone="faint">
+          {count}
+        </Text>
+      ) : null}
+      {children}
     </View>
   );
 }
@@ -157,7 +196,7 @@ const styles = StyleSheet.create({
   band: {
     height: 44,
     marginVertical: -12,
-    alignSelf: 'stretch',
+    flexGrow: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -166,6 +205,14 @@ const styles = StyleSheet.create({
   // A long day never pushes the count off the band; the count itself never wraps.
   label: { flexShrink: 1 },
   count: { flexShrink: 0 },
+  head: {
+    minHeight: 56,
+    paddingVertical: 17,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: space.s3,
+  },
   spine: { position: 'absolute', top: 0, bottom: 0, right: 12, width: 1 },
   spineLine: { flex: 1, width: 1, backgroundColor: photo.spine },
   spineMark: {

@@ -4,7 +4,7 @@ import { Linking, StyleSheet, View } from 'react-native';
 
 import { Button, CardMessage, Empty, Waiting } from '@/kit';
 import { useStrings } from '@/lib/language';
-import { themed } from '@/theme';
+import { board, themed } from '@/theme';
 
 /**
  * The body of the upload screen with no feed on it, in the four states the layout draws it in: a
@@ -31,7 +31,7 @@ export function NoFeed({
   // done about it, the same shape `UploadAccess` uses — this one can only be tried again.
   if (error !== null) {
     return (
-      <CardMessage icon={ImageIcon} text={error}>
+      <CardMessage icon={ImageIcon} text={error} style={styles.message}>
         <Button variant="primary" size="md" label={s.action.retry} onPress={onRetry} />
       </CardMessage>
     );
@@ -50,7 +50,11 @@ export function NoFeed({
   // phone has stopped asking.
   if (!access.granted) {
     return (
-      <CardMessage icon={ImageIcon} text={access.canAskAgain ? s.upload.explain : s.upload.refused}>
+      <CardMessage
+        icon={ImageIcon}
+        text={access.canAskAgain ? s.upload.explain : s.upload.refused}
+        style={styles.message}
+      >
         <Button
           variant="primary"
           size="md"
@@ -70,14 +74,25 @@ export function NoFeed({
   }
 
   // `UploadEmpty` — access given and nothing to give back. No bottom layer under it: there is
-  // nothing to offer.
+  // nothing to offer. In the middle of the body down to the screen's edge (124 to 844), like the
+  // waits above, and not pinned under the bar.
   return (
-    <Empty sign="dashed" icon={Smartphone} title={s.upload.emptyTitle} text={s.upload.emptyText} />
+    <View style={styles.middle}>
+      <Empty
+        sign="dashed"
+        icon={Smartphone}
+        title={s.upload.emptyTitle}
+        text={s.upload.emptyText}
+      />
+    </View>
   );
 }
 
 const useStyles = themed(() =>
   StyleSheet.create({
     centre: { flexGrow: 1, alignItems: 'center', justifyContent: 'center' },
+    middle: { flexGrow: 1, justifyContent: 'center' },
+    // The message card stands lower than the body under the bar (`UploadAccess`: 132, not 124).
+    message: { marginTop: board.bodyUploadCard - board.bodyUpload },
   }),
 );

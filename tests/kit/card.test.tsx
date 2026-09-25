@@ -1,11 +1,17 @@
 import { rule } from '@tests/helpers/css';
+import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { ImageIcon, Unlink, UserPlus } from 'lucide-react-native';
+import { StyleSheet, View } from 'react-native';
+import TestRenderer, { act } from 'react-test-renderer';
 import { beforeAll, expect, test } from 'vitest';
 
 import { Button, IconButton } from '@/kit/button';
 import { Banner, CardMessage, HintNote } from '@/kit/card';
 import { allDifferent, story } from '@/kit/story';
+import { Text } from '@/kit/text';
 import { font, setTheme, space, type } from '@/theme';
+
+mountsTrees();
 
 /** Spec 7.6 — the three surfaces that carry a sentence rather than a thing. */
 
@@ -25,6 +31,52 @@ test('a message card carries the paragraph and the answer to it', () => {
   expect(card).toContain('Remember не видит вашу галерею');
   expect(card).toContain('Разрешить доступ');
   expect(card).toContain('data-glyph');
+});
+
+test('a message card is drawn to `UploadAccess`: the paragraph 15 / 22, and 16 between its three parts', () => {
+  // `UploadAccess.json`: the square e7 at 153 (52), the paragraph e9 at 221 — Onest 15 / 22 `muted`,
+  // three lines, 66 tall — and «Разрешить доступ» e10 at 303. At the app's 16 / 23 and 12 apart the
+  // paragraph ran to four lines and the card came out 17 taller.
+  let tree!: TestRenderer.ReactTestRenderer;
+  act(() => {
+    tree = mounted(
+      TestRenderer.create(
+        <CardMessage icon={ImageIcon} text="Remember не видит вашу галерею">
+          <Button variant="primary" size="md" label="Разрешить доступ" />
+        </CardMessage>,
+      ),
+    );
+  });
+  const paragraph = tree.root.findAllByType(Text).find((one) => one.props.tone === 'muted')!;
+  expect(paragraph.props.role).toBe('bodySm');
+  expect([type.bodySm.fontSize, type.bodySm.lineHeight]).toEqual([15, 22]);
+  const card = StyleSheet.flatten(tree.root.findAllByType(View)[0].props.style);
+  expect(card.gap).toBe(221 - (153 + 52));
+  expect(card.gap).toBe(303 - (221 + 66));
+});
+
+test('the button of a hint stands under its words, not under its glyph', () => {
+  // `UploadLimited.json`: the words e7 and «Отдать ещё» e8 both start at 64 — the glyph e6 at 33,
+  // 19 wide, 12 before the words — and the button is 12 under the last line (215 → 227).
+  let tree!: TestRenderer.ReactTestRenderer;
+  act(() => {
+    tree = mounted(
+      TestRenderer.create(
+        <HintNote icon={ImageIcon} tone="spark" text="Здесь только те снимки">
+          <Button variant="secondary" size="xs" wide={false} label="Отдать ещё" />
+        </HintNote>,
+      ),
+    );
+  });
+  const button = tree.root.findByType(Button);
+  const words = tree.root.findAllByType(Text).find((one) => one.props.role === 'note')!;
+  // One column holds both, and it stands beside the glyph.
+  let column = words.parent;
+  while (column && column.type !== View) column = column.parent;
+  expect(column?.findAllByType(Button)).toContain(button);
+  expect(StyleSheet.flatten(column?.props.style).gap).toBe(227 - 215);
+  const note = StyleSheet.flatten(tree.root.findAllByType(View)[0].props.style);
+  expect(note).toMatchObject({ flexDirection: 'row', gap: 64 - (33 + 19) });
 });
 
 test('a hint is spark when it is about people and muted when it is about anything else', () => {
