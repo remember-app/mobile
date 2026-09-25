@@ -64,104 +64,115 @@ export function RowSummary({
 }
 
 /**
- * How tall one track row stands (spec 7.7). Exported because a list of them that can be dragged
- * counts rows by it: how far a finger has travelled is how many of these it has crossed.
+ * How tall one track row stands (spec 7.7) — on the shelf, and among the chosen while nothing is
+ * written under its name. A list of them that is dragged measures its rows, because a chosen one
+ * with a wish stands taller; this is what a row counts as until it has been measured.
  */
 export const TRACK_ROW = 52;
 
 /**
- * A music track (spec 7.7): 52 tall, the round «послушать» on the left, the name and its length on
- * one baseline, and on the right the button that takes it or gives it back.
+ * A music track (spec 7.7): the round «послушать» on the left, the name and its length on one
+ * baseline, and on the right the buttons that act on it.
  *
- * The row itself picks nothing any more — that is what the button on its right is for, and it is
- * handed in, so a track knows nothing about buttons. Several tracks can be taken at once, and a row
- * that was itself the switch could not say that: it would have had to be a radio.
+ * Two places, one row. On the shelf (detail 53) it is 52 tall and the one button on its right takes
+ * the track or gives it back. Among the chosen (`picked`, detail 54) it sits tighter, carries the
+ * wish written about it as a line under the name — 60 tall then — and whatever unfolds under it
+ * (`children`: the field that wish is written in) belongs to it.
+ *
+ * The row itself picks nothing — that is what the buttons handed in are for, so a track knows
+ * nothing about buttons. Several tracks can be taken at once, and a row that was itself the switch
+ * could not say that: it would have had to be a radio.
  */
 export function RowTrack({
   title,
   length,
+  wish,
+  picked,
   playing,
-  wave,
   grip,
   play,
   action,
   divider,
+  children,
 }: {
   title: string;
   /** «2:14» — written by the screen. */
   length: string;
+  /** «На сборы, тихо, под голоса» — one line under the name, cut short where it runs long. */
+  wish?: string;
+  /** Standing in «Выбрано» rather than on the shelf. */
+  picked?: boolean;
   /** Sounding right now: the name goes `spark`, and the button handed in becomes a pause. */
   playing?: boolean;
-  /** The 12-bar waveform between the name and the right edge — the «Выбрано» block draws it. */
-  wave?: boolean;
   /**
-   * What the row is held by while the list is being reordered (spec 7.7, detail 54: «строка
-   * берётся за волну»). The handlers belong to whoever owns the list, and they go on the wave
-   * because it is the one part of the row that is not already a button.
+   * What the row is held by while the list is being reordered (spec 7.7, detail 54: «строку берут
+   * за имя и ведут») — its name and the line under it, the part of it that is not a button. The
+   * handlers belong to whoever owns the list.
    */
   grip?: ViewProps;
-  /** The round «Послушать» — 40 `raise` in the library, 36 `paper` among the chosen. */
+  /** The round «Послушать» — 40 `raise` on the shelf, 36 among the chosen. */
   play?: ReactNode;
-  /** The round 36 on the right: a plus, a tick, or the cross that takes a chosen track out. */
+  /** The round 36s on the right: a plus or a tick on the shelf, the pencil and the cross among the chosen. */
   action?: ReactNode;
   divider?: boolean;
+  /** What unfolds under the row — the field its wish is written in. */
+  children?: ReactNode;
 }) {
   const styles = useStyles();
 
   return (
     <View>
-      {divider ? <Divider soft style={styles.insetTrack} /> : null}
-      <View style={styles.track}>
+      {divider ? <Divider soft style={picked ? styles.insetPicked : styles.insetTrack} /> : null}
+      <View style={[styles.track, picked ? styles.trackPicked : null, wish ? styles.wished : null]}>
         {play}
-        <View style={[styles.grow, styles.trackLine]}>
-          <Text
-            role="row"
-            tone={playing ? 'spark' : 'paper'}
-            numberOfLines={1}
-            style={styles.shrink}
-          >
-            {title}
-          </Text>
-          <Text role="meta">{length}</Text>
-        </View>
-        {wave ? (
-          <View {...grip}>
-            <Waveform />
+        <View {...grip} style={[styles.grow, styles.trackWords]}>
+          <View style={styles.trackLine}>
+            <Text
+              role="row"
+              tone={playing ? 'spark' : 'paper'}
+              numberOfLines={1}
+              style={styles.shrink}
+            >
+              {title}
+            </Text>
+            <Text role="meta">{length}</Text>
           </View>
-        ) : null}
+          {wish ? (
+            <Text role="meta" numberOfLines={1} style={styles.wish}>
+              {wish}
+            </Text>
+          ) : null}
+        </View>
         {action}
       </View>
+      {children ? <View style={styles.unfolded}>{children}</View> : null}
     </View>
   );
 }
 
 /**
- * The waveform (spec 7.10): twelve 2px bars in a row, twenty 3px ones in the order summary. It is a
- * fixed drawing and says nothing about the track — the real shape of one is the montage worker's to
- * know, and a waveform that reshuffles on every render is noise pretending to be a signal.
+ * The waveform (spec 7.10): twenty 3px bars beside the track in the «Музыка» section of the order
+ * summary — and nowhere else, the rows of the music step carry none. It is a fixed drawing and says
+ * nothing about the track: the real shape of one is the montage worker's to know, and a waveform
+ * that reshuffles on every render is noise pretending to be a signal.
  */
-export function Waveform({ wide }: { wide?: boolean }) {
+export function Waveform() {
   const styles = useStyles();
-  const bars = wide ? WIDE_BARS : BARS;
 
   return (
     <View
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={[styles.wave, wide ? styles.waveWide : null]}
+      style={styles.wave}
     >
-      {bars.map((tall, i) => (
-        <View
-          key={i}
-          style={[styles.waveBar, wide ? styles.waveBarWide : null, { height: tall }]}
-        />
+      {BARS.map((tall, i) => (
+        <View key={i} style={[styles.waveBar, { height: tall }]} />
       ))}
     </View>
   );
 }
 
-const BARS = [5, 9, 13, 8, 15, 10, 6, 12, 14, 7, 11, 5];
-const WIDE_BARS = [6, 10, 15, 9, 18, 12, 7, 14, 17, 9, 13, 6, 11, 16, 8, 12, 15, 7, 10, 14];
+const BARS = [6, 10, 15, 9, 18, 12, 7, 14, 17, 9, 13, 6, 11, 16, 8, 12, 15, 7, 10, 14];
 
 /**
  * One reason the automatic pass dropped frames (spec 7.6): a 38 glyph square, what it is called, how
@@ -502,14 +513,21 @@ const useStyles = themed(({ color }) =>
       gap: space.s3,
       paddingHorizontal: space.s3,
     },
+    // Spec 7.7, detail 54: among the chosen the row pulls in — 12 on the left, 8 on the right, 10
+    // between its parts — and a wish under the name takes it from 52 to 60.
+    trackPicked: { gap: 10, paddingLeft: space.s3, paddingRight: space.s2 },
+    wished: { height: 60 },
     // The hairline starts where the name does — past the round button, never under it.
     insetTrack: { marginLeft: 64 },
+    insetPicked: { marginLeft: 60 },
+    trackWords: { gap: 2 },
     trackLine: { flexDirection: 'row', alignItems: 'baseline', gap: space.s2 },
     shrink: { flexShrink: 1 },
-    wave: { flexDirection: 'row', alignItems: 'center', gap: 2, height: 16 },
-    waveWide: { gap: 2, height: 18 },
-    waveBar: { width: 2, borderRadius: radius.pill, backgroundColor: color.faint },
-    waveBarWide: { width: 3 },
+    wish: { lineHeight: 16 },
+    // The field under a chosen row keeps to the row's own sides, and stands clear of the next one.
+    unfolded: { paddingLeft: space.s3, paddingRight: space.s2, paddingBottom: 10 },
+    wave: { flexDirection: 'row', alignItems: 'center', gap: 2, height: 18 },
+    waveBar: { width: 3, borderRadius: radius.pill, backgroundColor: color.faint },
     rejected: {
       flexDirection: 'row',
       alignItems: 'center',

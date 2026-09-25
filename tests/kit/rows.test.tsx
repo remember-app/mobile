@@ -1,8 +1,9 @@
-import { Copy, Pause, Play, Plus, X } from 'lucide-react-native';
+import { Check, Copy, Pause, Pencil, Play, Plus, X } from 'lucide-react-native';
 import { beforeAll, expect, test } from 'vitest';
 
 import { BadgeDecision } from '@/kit/badge';
 import { IconButton } from '@/kit/button';
+import { Field } from '@/kit/field';
 import { AvatarStack } from '@/kit/member';
 import {
   RowAction,
@@ -70,13 +71,14 @@ test('a track row is a row, and what picks it is the button on its right', () =>
         action={take}
       />
     ),
-    chosen: (
+    taken: (
       <RowTrack
         title="Яркая"
         length="2:14"
-        wave
-        play={<IconButton size={36} icon={Play} label="Послушать" tone="paper" />}
-        action={<IconButton size={36} icon={X} label="Убрать" />}
+        play={<IconButton size={40} icon={Play} label="Послушать" />}
+        action={
+          <IconButton size={36} icon={Check} label="Убрать «Яркая» из выбранных" tone="paper" on />
+        }
       />
     ),
   });
@@ -90,31 +92,97 @@ test('a track row is a row, and what picks it is the button on its right', () =>
   );
 });
 
-test('the wave doubles as the handle a chosen row is dragged by', () => {
-  // Spec 7.7, detail 54: the order of the chosen tracks is the order they play in, and it is
-  // changed by taking a row by its wave — the one part of it that is not already a button. The
-  // handlers belong to the list; what the row does is put them where the layout says.
-  const dragged = story(
-    <RowTrack
-      title="Тёплая"
-      length="1:40"
-      wave
-      grip={{ accessibilityRole: 'adjustable', accessibilityLabel: 'Переставить «Тёплая»' }}
-    />,
+test('a chosen track carries its wish under its name, and its field under the row', () => {
+  const buttons = (written: boolean) => (
+    <>
+      <IconButton
+        size={36}
+        icon={Pencil}
+        label={written ? 'Изменить пожелание к «Тёплая»' : 'Как использовать «Тёплая»'}
+        tone={written ? 'raise' : 'ghost'}
+      />
+      <IconButton size={36} icon={X} label="Убрать «Тёплая»" />
+    </>
   );
-  expect(dragged).toContain('aria-label="Переставить «Тёплая»"');
-  expect(dragged).toContain('role="slider"');
-  // A row nobody can reorder is the same row without any of that on it.
-  expect(story(<RowTrack title="Тёплая" length="1:40" wave />)).not.toContain('aria-label');
+  // Spec 7.7, detail 54: among the chosen the row is its own — tighter than on the shelf, 52 with
+  // nothing written and 60 with a wish as a line under the name, and the field it is written in
+  // unfolds under the row.
+  allDifferent({
+    shelf: <RowTrack title="Тёплая" length="1:40" />,
+    chosen: <RowTrack picked title="Тёплая" length="1:40" action={buttons(false)} />,
+    wished: (
+      <RowTrack
+        picked
+        title="Тёплая"
+        length="1:40"
+        wish="На сборы, тихо, под голоса"
+        action={buttons(true)}
+      />
+    ),
+    open: (
+      <RowTrack picked title="Тёплая" length="1:40" action={buttons(false)}>
+        <Field variant="wish" label="Как использовать «Тёплая»" labelHidden value="" />
+      </RowTrack>
+    ),
+  });
+  const wished = story(
+    <RowTrack picked title="Тёплая" length="1:40" wish="На сборы, тихо, под голоса" />,
+  );
+  const bare = story(<RowTrack picked title="Тёплая" length="1:40" />);
+  expect(wished).toContain('На сборы, тихо, под голоса');
+  // A sheet's shape is a class in the markup (`story.tsx`), so it is read through the rule.
+  expect(wished).toContain(rule('height:60px'));
+  expect(bare).not.toContain(rule('height:60px'));
+  // One line, cut short with an ellipsis where it runs long: the whole of it is in the field.
+  expect(wished).toContain(rule('text-overflow:ellipsis'));
+  // The hairline between two chosen rows starts at 60, past the smaller «Послушать»; on the shelf
+  // it starts at 64.
+  expect(story(<RowTrack picked title="Тёплая" length="1:40" divider />)).toContain(
+    rule('margin-left:60px'),
+  );
+  expect(story(<RowTrack title="Тёплая" length="1:40" divider />)).toContain(
+    rule('margin-left:64px'),
+  );
 });
 
-test('the waveform is a drawing, at the two sizes the layout gives it', () => {
+/** The class a compiled rule was given — how a shape set in a sheet is found in the markup. */
+function rule(css: string): string {
+  const name = new RegExp(`\\.(r-[A-Za-z]+-[a-z0-9]+)\\{${css};\\}`).exec(compiled())?.[1];
+  expect(name, `no rule «${css}» was drawn`).toBeDefined();
+  return name!;
+}
+
+test('a chosen row is dragged by its name', () => {
+  // Spec 7.7, detail 54: «строку берут за имя и ведут». The handlers belong to the list; what the
+  // row does is put them on the one part of it that is not a button — the name and the wish.
+  const dragged = story(
+    <RowTrack
+      picked
+      title="Тёплая"
+      length="1:40"
+      wish="На сборы"
+      grip={{
+        accessible: true,
+        accessibilityRole: 'adjustable',
+        accessibilityLabel: 'Переставить «Тёплая». 1:40. На сборы',
+      }}
+    />,
+  );
+  expect(dragged).toContain('aria-label="Переставить «Тёплая». 1:40. На сборы"');
+  expect(dragged).toContain('role="slider"');
+  // A row nobody can reorder is the same row without any of that on it.
+  expect(story(<RowTrack picked title="Тёплая" length="1:40" />)).not.toContain('aria-label');
+});
+
+test('the waveform is one drawing, and no track row carries it', () => {
   const bars = (markup: string) => (markup.match(/height:\d+px/g) ?? []).length;
-  // Twelve in a row, twenty in the summary (spec 7.10) — and it never opens under a plain row.
-  expect(bars(story(<Waveform />))).toBe(12);
-  expect(bars(story(<Waveform wide />))).toBe(20);
+  // Twenty 3px bars, in the summary (spec 7.10) — the rows of the music step have none any more.
+  expect(bars(story(<Waveform />))).toBe(20);
+  expect(story(<Waveform />)).toContain(rule('width:3px'));
   expect(bars(story(<RowTrack title="Яркая" length="2:14" />))).toBe(0);
-  expect(bars(story(<RowTrack title="Яркая" length="2:14" wave />))).toBe(12);
+  expect(
+    bars(story(<RowTrack picked title="Тёплая" length="1:40" wish="На сборы, тихо, под голоса" />)),
+  ).toBe(0);
 });
 
 test('a reason the pass dropped frames reports, and offers them back', () => {

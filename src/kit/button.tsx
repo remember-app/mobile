@@ -235,6 +235,9 @@ export function IconButton({
    * A button that stays in rather than firing and letting go — picking mode in the memory's header.
    * Passing it at all is what makes this a switch; left off the button is a plain one and says so,
    * because `checked: false` on something that does not toggle reads as an unticked box.
+   *
+   * Held in, it is `accent` — except in the `paper` tone, which is held in on its own paper: the
+   * tick of a track already taken (spec 7.7, detail 53), where nothing is going anywhere.
    */
   on?: boolean;
   /** Spec 7.4 — the spark dot: «this is no longer at its default» (a filter on, a sort changed). */
@@ -249,10 +252,15 @@ export function IconButton({
   const theme = useTheme();
   const { color } = theme;
   const styles = useStyles();
-  // Spec 2.5: held in, the button is filled with `accent` itself, so its ring is drawn in `paper`.
-  const focusRing = useFocusRing(on === true);
   const lit = on ?? false;
-  const glyph = disabled ? color.faint : lit ? color.onFill : (tint ?? roundGlyph(color, tone));
+  const onAccent = lit && tone !== 'paper';
+  // Spec 2.5: held in, the button is filled with `accent` itself, so its ring is drawn in `paper`.
+  const focusRing = useFocusRing(onAccent);
+  const glyph = disabled
+    ? color.faint
+    : onAccent
+      ? color.onFill
+      : (tint ?? roundGlyph(color, tone));
 
   return (
     <Pressable
@@ -268,7 +276,7 @@ export function IconButton({
       style={({ pressed }) => [
         styles.round,
         { width: size, height: size, borderRadius: size / 2 },
-        roundFill(theme, tone, lit, hovered),
+        roundFill(theme, tone, onAccent, hovered),
         disabled ? styles.off : null,
         pressed && !reduced ? PRESS : null,
         focused ? focusRing : null,
@@ -291,7 +299,7 @@ export function IconButton({
             {
               top: Math.round(size * 0.2),
               right: Math.round(size * 0.2),
-              borderColor: roundBacking(color, tone, lit),
+              borderColor: roundBacking(color, tone, onAccent),
             },
           ]}
         />

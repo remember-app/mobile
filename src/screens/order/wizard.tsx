@@ -135,7 +135,7 @@ export const STEPS = 4;
  */
 /** The step pushed and left alone until the stack has finished bringing it in (`duration.step`). */
 export const ENTER_MS = 420;
-/** One thing landing on a step: a track taken, the wish under the tracks. */
+/** One thing landing on a step: a track taken, with the template's wish about it under its name. */
 const FILL_MS = 360;
 /** A full step left standing, so what landed on it is read before it turns over. */
 export const READ_MS = 560;
@@ -299,7 +299,7 @@ export function OrderProvider({ id, children }: { id: string; children: ReactNod
       setAuto(template.id);
       // What the walk types in starts empty, so a walk stopped early leaves only what it wrote —
       // never an earlier template's words under this one's plate, or a hand's claim on them.
-      change({ ...fill, story: '', tracks: [], note: '', seconds: null });
+      change({ ...fill, story: '', tracks: [], seconds: null });
 
       void (async () => {
         // A template says nothing about which frames go in — the automatic pass has had its say —
@@ -327,17 +327,16 @@ export function OrderProvider({ id, children }: { id: string; children: ReactNod
 
         router.push({ pathname: '/memory/[id]/order/music', params: { id } });
         if (!(await going(ENTER_MS))) return;
-        if (reduced) change({ tracks: fill.tracks, note: fill.note });
+        if (reduced) change({ tracks: fill.tracks });
         else {
           for (let n = 1; n <= fill.tracks.length; n += 1) {
-            // The first track is «Без музыки» giving way to the list, and every one after it is a
-            // row landing in it: both are the layout moving, so both are moved into.
+            // The first track is the empty «Выбрано» filling, and every one after it is a row
+            // landing in it — each with its wish under its name: both are the layout moving, so
+            // both are moved into.
             soften(FILL_MS);
             change({ tracks: fill.tracks.slice(0, n) });
             if (!(await going(FILL_MS))) return;
           }
-          soften(FILL_MS);
-          change({ note: fill.note });
         }
         if (!(await going(READ_MS))) return;
 

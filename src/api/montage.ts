@@ -44,8 +44,13 @@ export type MontageWishes = {
    * музыки, живой звук из видео» and a missing one is only «ничего не сказали».
    */
   music_tracks?: string[];
-  /** How to use those tracks, in words. Only ever with a non-empty `music_tracks` — 400 without. */
-  music_note?: string;
+  /**
+   * What to do with each of those tracks, in words, keyed by the track exactly as it stands in
+   * `music_tracks` of the same order. Only tracks the order names (400 for any other) and only the
+   * ones something was said about; up to 500 characters each. It took the place of one line for
+   * the whole order, `music_note`, which the api now drops unread.
+   */
+  music_wishes?: Record<string, string>;
   orientation?: MontageOrientation;
 };
 
@@ -64,9 +69,15 @@ export type Montage = {
   duration_seconds: number | null;
   /**
    * The wishes it was ordered with. An order placed before the list of tracks named one track in
-   * one of two fields the api no longer takes; its card still says what it was cut to.
+   * one of two fields the api no longer takes, and one placed before the wishes went to each track
+   * carries a single `music_note` for the whole order instead of `music_wishes`; the api hands both
+   * out as they were written, and their cards still say what they were cut to.
    */
-  params: MontageWishes & { music_track_id?: MusicTrackId; music_track_key?: string };
+  params: MontageWishes & {
+    music_track_id?: MusicTrackId;
+    music_track_key?: string;
+    music_note?: string;
+  };
   /** The worker's own line about why it fell over. Only ever set on a `failed` one. */
   error_text: string | null;
   created_at: string;
@@ -124,7 +135,11 @@ export type MontageTemplate = {
   target_seconds: number;
   orientation: MontageOrientation;
   music_tracks: string[];
-  music_note: string | null;
+  /**
+   * A wish for each of its tracks that has one, keyed as in `music_tracks`. Always there, `{}`
+   * where the template has nothing to say about its music.
+   */
+  music_wishes: Record<string, string>;
 };
 
 /** The organizer's alone, 403 for anybody else — nobody but them can order the film. */
@@ -174,7 +189,7 @@ export function previewMontage(
  * own sound, and no orientation is horizontal. 409 when there is too little material to cut
  * anything out of, and the body then carries how much there is against how much is needed; 400 for
  * a frame named as both in and out, for a frame that is not this memory's, for a track that is
- * neither off the shelf nor this memory's, and for a note about music nobody picked.
+ * neither off the shelf nor this memory's, and for a wish about a track the order does not name.
  */
 export function orderMontage(
   token: string,

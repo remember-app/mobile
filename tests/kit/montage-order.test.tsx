@@ -1,7 +1,6 @@
 import { Heart, House, Zap } from 'lucide-react-native';
 import { beforeAll, expect, test } from 'vitest';
 
-import { Field } from '@/kit/field';
 import {
   BlockPicked,
   BlockSummary,
@@ -13,7 +12,7 @@ import {
   TileTemplate,
 } from '@/kit/montage-order';
 import { RowTrack } from '@/kit/rows';
-import { allDifferent, story } from '@/kit/story';
+import { allDifferent, compiled, story } from '@/kit/story';
 import { setTheme } from '@/theme';
 
 /** Spec 7.6 and 7.7 — what a person reads while they are ordering a montage. */
@@ -135,31 +134,55 @@ test('a summary section with a rule above it is not the first one', () => {
   });
 });
 
-test('the chosen tracks stand in the accent’s own block, with the wish under them', () => {
+test('«Выбрано» holds the chosen tracks, each with its own wish, and no field of its own', () => {
   const block = story(
-    <BlockPicked
-      title="Выбрано"
-      count="2 трека · 3:45"
-      footer={<Field label="Как использовать треки" labelHidden value="" onChangeText={() => {}} />}
-    >
-      <RowTrack title="Тёплая" length="1:40" wave />
-      <RowTrack title="Спокойная" length="2:05" wave divider />
+    <BlockPicked title="Выбрано" count="2 трека · 3:45">
+      <RowTrack picked title="Тёплая" length="1:40" wish="На сборы, тихо, под голоса" />
+      <RowTrack picked title="Спокойная" length="2:05" divider />
     </BlockPicked>,
   );
   expect(block).toContain('ВЫБРАНО');
   expect(block).toContain('2 трека · 3:45');
   expect(block).toContain('Тёплая');
+  expect(block).toContain('На сборы, тихо, под голоса');
   expect(block).toContain('Спокойная');
-  // The block never stands empty: with nothing taken its place goes to the «Без музыки» card.
+  // Spec 7.7, detail 54: the wishes are the tracks' own, so the block has no line of its own to
+  // type one into — and it is a plain surface, not the accent's: a track here is chosen by being here.
+  expect(block).not.toContain('<input');
+  const surface = compiled().match(
+    /\.(r-backgroundColor-[a-z0-9]+)\{background-color:rgba\(22,22,31,1\.00\);\}/,
+  )?.[1];
+  expect(surface).toBeDefined();
+  expect(block).toContain(surface);
+});
+
+test('with nothing chosen the block stays and says the film will have no music', () => {
+  const empty = story(
+    <BlockPicked
+      title="Выбрано"
+      count="ничего не добавлено"
+      empty={{ title: 'Ролик будет без музыки', note: 'Только живой звук из видео' }}
+    />,
+  );
+  expect(empty).toContain('ВЫБРАНО');
+  expect(empty).toContain('ничего не добавлено');
+  expect(empty).toContain('Ролик будет без музыки');
+  expect(empty).toContain('Только живой звук из видео');
+  expect(empty).toContain('data-glyph="VolumeX"');
+  // A state and not a choice: nothing in it presses — music is added with the plus on the shelf.
+  expect(empty).not.toContain('role="button"');
+  expect(empty).not.toContain('role="radio"');
   allDifferent({
-    counted: (
-      <BlockPicked title="Выбрано" count="2 трека · 3:45">
-        <RowTrack title="Тёплая" length="1:40" wave />
-      </BlockPicked>
+    empty: (
+      <BlockPicked
+        title="Выбрано"
+        count="ничего не добавлено"
+        empty={{ title: 'Ролик будет без музыки', note: 'Только живой звук из видео' }}
+      />
     ),
-    uncounted: (
-      <BlockPicked title="Выбрано">
-        <RowTrack title="Тёплая" length="1:40" wave />
+    chosen: (
+      <BlockPicked title="Выбрано" count="1 трек · 1:40">
+        <RowTrack picked title="Тёплая" length="1:40" />
       </BlockPicked>
     ),
   });

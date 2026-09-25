@@ -83,6 +83,7 @@ import {
   enoughMaterial,
   entered,
   fromTemplate,
+  landing,
   MIN_FRAMES,
   movedTrack,
   type Order,
@@ -251,10 +252,9 @@ test('the four steps go out in one body, with everything they settled in it', as
     ...after(after(blankOrder(), kept), blurred),
     story: '  Сборы, церемония, танцы  ',
     tracks: [
-      { key: 'music/own-1', name: 'song.mp3' },
+      { key: 'music/own-1', name: 'song.mp3', wish: '  Первым, на сборы  ' },
       { key: 'night', name: null },
     ],
-    note: '  Свой трек первым  ',
     seconds: 137,
     orientation: 'portrait',
   };
@@ -274,13 +274,15 @@ test('the four steps go out in one body, with everything they settled in it', as
     // In the order they were taken, which is the order they play in — their own file and the shelf
     // in one list, exactly as the api reads it.
     music_tracks: ['music/own-1', 'night'],
-    music_note: 'Свой трек первым',
+    // A wish under its own track's key, trimmed the way the story is; the track nothing was said
+    // about is simply not named.
+    music_wishes: { 'music/own-1': 'Первым, на сборы' },
   });
 
   vi.unstubAllGlobals();
 });
 
-test('the music goes out even when there is none, and the note only with tracks', () => {
+test('the music goes out even when there is none, and a wish only under its own track', () => {
   const start = blankOrder();
   // Empty and not missing: that is how the worker tells «без музыки, живой звук из видео» from an
   // order that simply said nothing about music.
@@ -288,21 +290,37 @@ test('the music goes out even when there is none, and the note only with tracks'
   // Nothing was said about the length either, so the api picks its own and clamps it to what this
   // memory can carry — a body that named a number would be the app guessing at that range.
   expect(wishes(gallery, start)).not.toHaveProperty('target_seconds');
+  // And no music is no wishes at all — not an empty object standing for them.
+  expect(wishes(gallery, start)).not.toHaveProperty('music_wishes');
 
-  // A wish about music nobody picked is the one thing the api answers 400 to here, so it is not
-  // sent: the note belongs to the tracks and goes when they do.
-  const noted: Order = { ...start, note: 'Погромче к финалу' };
-  expect(wishes(gallery, noted)).not.toHaveProperty('music_note');
-  expect(wishes(gallery, { ...noted, tracks: [{ key: 'calm', name: null }] })).toMatchObject({
-    music_tracks: ['calm'],
-    music_note: 'Погромче к финалу',
+  // Three tracks, two of them with something said: the two go out, each under its own key, and
+  // the third is not named. Blank is «не сказали», whatever it is made of.
+  const three: Order = {
+    ...start,
+    tracks: [
+      { key: 'warm', name: null, wish: 'На сборы, тихо, под голоса' },
+      { key: 'calm', name: null, wish: '   ' },
+      { key: 'music/own-2', name: 'song.mp3', wish: 'Под первый танец' },
+    ],
+  };
+  expect(wishes(gallery, three)).toMatchObject({
+    music_tracks: ['warm', 'calm', 'music/own-2'],
+    music_wishes: { warm: 'На сборы, тихо, под голоса', 'music/own-2': 'Под первый танец' },
   });
 
+  // A wish is held on its track, so taking the track out takes the wish out of the body with it —
+  // a wish about a track the order does not name is the one thing the api answers 400 to.
+  const dropped = { ...three, tracks: three.tracks.filter((track) => track.key !== 'warm') };
+  expect(wishes(gallery, dropped).music_wishes).toEqual({ 'music/own-2': 'Под первый танец' });
+  const none = { ...three, tracks: three.tracks.filter((track) => track.key === 'calm') };
+  expect(wishes(gallery, none)).not.toHaveProperty('music_wishes');
+
+  // The one line for the whole order is gone: the api drops it unread now.
+  expect(wishes(gallery, three)).not.toHaveProperty('music_note');
   // Neither of the two old single-track fields is ever written again — a body carrying one of them
   // beside the list is «the music is named more than one way».
-  const body = wishes(gallery, { ...noted, tracks: [{ key: 'calm', name: null }] });
-  expect(body).not.toHaveProperty('music_track_id');
-  expect(body).not.toHaveProperty('music_track_key');
+  expect(wishes(gallery, three)).not.toHaveProperty('music_track_id');
+  expect(wishes(gallery, three)).not.toHaveProperty('music_track_key');
 });
 
 test('a walk with nothing said in it costs nothing to leave, and every answer is something said', () => {
@@ -321,7 +339,7 @@ test('a walk with nothing said in it costs nothing to leave, and every answer is
     { story: 'Начни со сборов' },
     { template: 'parents' },
     { tracks: [{ key: 'calm', name: null }] },
-    { note: 'Погромче к финалу' },
+    { tracks: [{ key: 'calm', name: null, wish: 'Погромче к финалу' }] },
     { seconds: 90 },
     { orientation: 'portrait' },
   ];
@@ -362,9 +380,9 @@ test('the block of chosen tracks counts their time, and stays quiet about a file
   ).toBeNull();
 });
 
-test('dragging a chosen track by its wave is the order the api plays them in', () => {
+test('dragging a chosen track by its name is the order the api plays them in', () => {
   const list = [
-    { key: 'warm', name: null },
+    { key: 'warm', name: null, wish: 'На сборы' },
     { key: 'calm', name: null },
     { key: 'road', name: null },
   ];
@@ -379,10 +397,37 @@ test('dragging a chosen track by its wave is the order the api plays them in', (
   // The list handed in is never touched — the order is state, and it is replaced, not edited.
   expect(keys(list)).toEqual(['warm', 'calm', 'road']);
 
-  // And what comes out of it is what goes out to the api, in that very order.
-  expect(wishes(gallery, { ...blankOrder(), tracks: movedTrack(list, 2, 0) }).music_tracks).toEqual(
-    ['road', 'warm', 'calm'],
-  );
+  // And what comes out of it is what goes out to the api, in that very order — the wish still
+  // under the track it was written about, wherever that track now stands.
+  expect(wishes(gallery, { ...blankOrder(), tracks: movedTrack(list, 2, 0) })).toMatchObject({
+    music_tracks: ['road', 'warm', 'calm'],
+    music_wishes: { warm: 'На сборы' },
+  });
+});
+
+test('a dragged row passes a neighbour once it has gone over half of it, however tall that is', () => {
+  // Rows of one height: the same answer as counting rows of 52 and rounding.
+  const even = [52, 52, 52, 52];
+  expect(landing(even, 0, 0)).toBe(0);
+  expect(landing(even, 0, 26)).toBe(0);
+  expect(landing(even, 0, 27)).toBe(1);
+  expect(landing(even, 0, 78)).toBe(1);
+  expect(landing(even, 0, 79)).toBe(2);
+  expect(landing(even, 3, -79)).toBe(1);
+  // Past either end it stops at that end.
+  expect(landing(even, 1, 900)).toBe(3);
+  expect(landing(even, 1, -900)).toBe(0);
+
+  // A row with a wish is 60, and one with its field open is taller still: walked past by what they
+  // measure, not counted as 52 — counted, five such rows put a drag a whole row out.
+  const mixed = [52, 60, 112, 60];
+  expect(landing(mixed, 0, 30)).toBe(0);
+  expect(landing(mixed, 0, 31)).toBe(1);
+  expect(landing(mixed, 0, 60 + 56)).toBe(1);
+  expect(landing(mixed, 0, 60 + 57)).toBe(2);
+  expect(landing(mixed, 3, -57)).toBe(2);
+  expect(landing(mixed, 3, -(112 + 30))).toBe(2);
+  expect(landing(mixed, 3, -(112 + 31))).toBe(1);
 });
 
 test('the length is nobody’s until it is moved by hand', () => {
@@ -403,7 +448,7 @@ test('a template is an order already filled in, and it reaches the api as one', 
     target_seconds: 150,
     orientation: 'landscape',
     music_tracks: ['warm', 'calm'],
-    music_note: 'Тёплая на сборы',
+    music_wishes: { warm: 'Тёплая на сборы' },
   };
   const fill = fromTemplate(parents);
 
@@ -413,11 +458,11 @@ test('a template is an order already filled in, and it reaches the api as one', 
     // The words and the figure are the template's until somebody rewrites them — that is what
     // puts its plate over the story and its line under the length.
     ownStory: false,
+    // The wish lands on the track it is about, and the track it says nothing of carries none.
     tracks: [
-      { key: 'warm', name: null },
+      { key: 'warm', name: null, wish: 'Тёплая на сборы' },
       { key: 'calm', name: null },
     ],
-    note: 'Тёплая на сборы',
     seconds: 150,
     ownLength: false,
     orientation: 'landscape',
@@ -432,7 +477,7 @@ test('a template is an order already filled in, and it reaches the api as one', 
     orientation: 'landscape',
     story_text: parents.story_text,
     music_tracks: ['warm', 'calm'],
-    music_note: 'Тёплая на сборы',
+    music_wishes: { warm: 'Тёплая на сборы' },
     // Which frames go in is the one thing a template says nothing about: what the automatic pass
     // dropped is out, because nobody overruled it, and step 1 is walked through rather than ruled.
     exclude_media_ids: ['blurred', 'dark'],
@@ -441,23 +486,44 @@ test('a template is an order already filled in, and it reaches the api as one', 
   expect(order.returned.size).toBe(0);
 });
 
-test('a template with no music carries no wish about it, and one with no wish carries none', () => {
+test('a template with two tracks puts each of its two wishes on its own track', () => {
+  const dopamine: MontageTemplate = {
+    id: 'dopamine',
+    story_text: 'Максимально резко.',
+    target_seconds: 45,
+    orientation: 'portrait',
+    music_tracks: ['bright', 'road'],
+    music_wishes: { bright: 'Первым, склейки на каждый удар', road: 'Вторым, к финалу' },
+  };
+  expect(fromTemplate(dopamine).tracks).toEqual([
+    { key: 'bright', name: null, wish: 'Первым, склейки на каждый удар' },
+    { key: 'road', name: null, wish: 'Вторым, к финалу' },
+  ]);
+  expect(wishes(gallery, { ...blankOrder(), ...fromTemplate(dopamine) }).music_wishes).toEqual(
+    dopamine.music_wishes,
+  );
+});
+
+test('a template with nothing to say about its music carries no wish, nor one about another track', () => {
   const quiet: MontageTemplate = {
     id: 'for_myself',
     story_text: 'Для себя.',
     target_seconds: 180,
     orientation: 'portrait',
-    music_tracks: [],
-    // The api can hand a note over with an empty shelf; the app must not pass that on — it is the
-    // one body the api itself answers 400 to.
-    music_note: 'Потише',
+    music_tracks: ['calm'],
+    music_wishes: {},
   };
-  expect(fromTemplate(quiet).note).toBe('');
+  expect(fromTemplate(quiet).tracks).toEqual([{ key: 'calm', name: null }]);
   expect(wishes(gallery, { ...blankOrder(), ...fromTemplate(quiet) })).not.toHaveProperty(
-    'music_note',
+    'music_wishes',
   );
-  // Null is «nothing said about the tracks», which is an empty line and not the word «null».
-  expect(fromTemplate({ ...quiet, music_tracks: ['road'], music_note: null }).note).toBe('');
+  // A wish keyed to a track the template does not play has no track to stand on, and so never
+  // reaches the api — which would answer it with 400.
+  const stray = { ...quiet, music_tracks: [], music_wishes: { road: 'Потише' } };
+  expect(fromTemplate(stray).tracks).toEqual([]);
+  expect(wishes(gallery, { ...blankOrder(), ...fromTemplate(stray) })).not.toHaveProperty(
+    'music_wishes',
+  );
 });
 
 test('their own track goes to R2 part by part, and the order names it by its key', async () => {

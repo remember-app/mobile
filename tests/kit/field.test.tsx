@@ -129,23 +129,23 @@ test('a label’s name is typed behind its own colour, and wears the accent befo
   expect(story(<Field label="Почта" value="" />)).not.toContain('rgba(75,91,255,1.00)');
 });
 
-test('the wish line is the one field that lives inside another block', () => {
+test('a track’s wish is the one field that lives inside another block', () => {
   const wish = story(
     <Field
-      label="Как использовать треки"
+      label="Как использовать «Тёплая»"
       labelHidden
       variant="wish"
       icon={Pencil}
       value=""
-      placeholder="Спокойное начало, потом ритм"
+      placeholder="Как использовать «Тёплая»"
     />,
   );
-  // On `ink` without being told: it stands inside a block that is already a surface.
+  // On `ink` without being told: it unfolds under a row of «Выбрано», which is already a surface.
   expect(wish).toContain('background-color:rgba(11,11,18,1.00)');
   expect(wish).toContain('min-height:44px');
   // No visible label, and still a name to a screen reader — a placeholder is not a label.
-  expect(wish).not.toContain('КАК ИСПОЛЬЗОВАТЬ ТРЕКИ');
-  expect(wish).toContain('aria-label="Как использовать треки"');
+  expect(wish).not.toContain('КАК ИСПОЛЬЗОВАТЬ «ТЁПЛАЯ»');
+  expect(wish).toContain('aria-label="Как использовать «Тёплая»"');
 });
 
 test('the code is one value behind six boxes, not six values', () => {

@@ -31,7 +31,8 @@ export type FieldState = 'ok' | 'error';
  * - `handle` — 54, with an `@` in front: the same thing inside a sheet;
  * - `search` — 52, a magnifier and an `@`;
  * - `labelName` — 52, a label's name with its colour square in front of it;
- * - `wish` — 44, the one field that lives inside another block: what to do with the music.
+ * - `wish` — 44, the one field that lives inside another block: what to do with one chosen track,
+ *   unfolded under its row in «Выбрано».
  */
 export type FieldVariant =
   | 'name'
@@ -111,7 +112,7 @@ export function Field({
   state?: FieldState;
   /** The `@` the layout puts in front of every username. */
   prefix?: string;
-  /** The magnifier on the search field, the pencil on the wish line. */
+  /** The magnifier on the search field, the pencil on a track's wish. */
   icon?: IconComponent;
   /**
    * Spec 7.3 — the leading sign a label's name is typed behind: a 28 square of the label's own

@@ -135,6 +135,7 @@ import {
   ConfirmSheet,
   IconButton,
   LengthSlider,
+  RowTrack,
   Segment,
   Tile,
   TileTemplate,
@@ -187,9 +188,10 @@ type Server = {
   orders: Body[];
 };
 
-const NOTES: Partial<Record<MontageTemplateId, string>> = {
-  parents: 'Склейки под музыку, но мягкие.',
-  dopamine: 'Два трека подряд.',
+/** The two templates the api gives something to say about their music — one wish per track. */
+const WISHES: Partial<Record<MontageTemplateId, Record<string, string>>> = {
+  parents: { warm: 'Склейки под музыку, но мягкие.' },
+  dopamine: { bright: 'Первым, склейка на каждый удар.', road: 'Вторым, к финалу.' },
 };
 /** The api's own six (`templates.ts`), before the material has had its say about the length. */
 const SIX: [MontageTemplateId, number, 'landscape' | 'portrait', string[]][] = [
@@ -239,8 +241,14 @@ function total(server: Server, body: Body): Response {
   );
   if (missing.length > 0)
     return json({ error: 'no such ready media in this memory', media_ids: missing }, 400);
-  if (body.music_note && !body.music_tracks?.length)
-    return json({ error: 'note needs tracks' }, 400);
+  // A wish is about one of the order's own tracks, or it is refused by name (api `montages.ts`).
+  const stray = Object.keys(body.music_wishes ?? {}).filter(
+    (track) => !body.music_tracks?.includes(track),
+  );
+  if (stray.length > 0)
+    return json({ error: 'music wish for a track not in music_tracks', music_wishes: stray }, 400);
+  if (Object.values(body.music_wishes ?? {}).some((wish) => wish.length > 500))
+    return json({ error: 'body/music_wishes must NOT have more than 500 characters' }, 400);
 
   const { left, max, min, short } = weigh(server, exclude);
   if (server.refuse?.status === 409 || short) return tooLittle(left.length);
@@ -291,7 +299,7 @@ function serve(over: Partial<Server> = {}): Server {
       target_seconds: clamp(seconds),
       orientation,
       music_tracks: tracks,
-      music_note: NOTES[id] ?? null,
+      music_wishes: WISHES[id] ?? {},
     }));
 
   vi.stubGlobal('fetch', async (url: string, init: { method?: string; body?: string }) => {
@@ -402,6 +410,22 @@ const type = (text: string) =>
       .at(-1)!
       .props.onChangeText(text),
   );
+/** The wish field under a chosen track, while it is unfolded — named by the track it is about. */
+const wishField = (track: string) =>
+  root()
+    .findAllByType('input-stub' as never)
+    .find((one) => one.props.label === ru.montage.wishAbout(track));
+/** A chosen row of «Выбрано», by the track's name. */
+const chosen = (track: string) =>
+  root()
+    .findAllByType(RowTrack)
+    .find((row) => row.props.picked && row.props.title === track)!;
+/** The pencil in that row, a wish typed into what it unfolds, and the field let go of. */
+async function wishTo(track: string, text: string) {
+  await press(new RegExp(`^(${ru.montage.wishAbout(track)}|${ru.montage.wishEdit(track)})$`));
+  await act(async () => wishField(track)!.props.onChangeText(text));
+  await act(async () => wishField(track)!.props.onBlur());
+}
 const sheet = () => root().findAllByType(ConfirmSheet).at(-1)!;
 const shown = () => JSON.stringify(tree!.toJSON());
 const tile = (id: MontageTemplateId) =>
@@ -450,7 +474,10 @@ test.each(SIX.map(([id]) => id))(
       music_tracks: template.music_tracks,
       target_seconds: template.target_seconds,
       story_text: template.story_text,
-      ...(template.music_note ? { music_note: template.music_note } : {}),
+      // Each of the template's wishes under its own track — `parents` has one, `dopamine` two.
+      ...(Object.keys(template.music_wishes).length > 0
+        ? { music_wishes: template.music_wishes }
+        : {}),
       // What the automatic pass dropped and nobody took back is named, so the api counts what is shown.
       exclude_media_ids: ['p7'],
     };
@@ -478,7 +505,7 @@ test(
       target_seconds: seconds,
       orientation: 'landscape',
       music_tracks: ['calm'],
-      music_note: null,
+      music_wishes: {},
     });
     for (const [asked, held] of [
       [180, CEILING],
@@ -526,7 +553,7 @@ test(
     await press(ru.montage.startCut);
     expect(server.orders[0]).toMatchObject({
       music_tracks: ['bright', 'road'],
-      music_note: 'Два трека подряд.',
+      music_wishes: WISHES.dopamine,
       target_seconds: 45,
       orientation: 'portrait',
     });
@@ -618,9 +645,12 @@ test(
     await type('Про море и закат');
     await forward();
 
+    // Three tracks, and a wish to two of them — each behind its own pencil.
     await press(ru.montage.addTrack(ru.montage.track.warm));
     await press(ru.montage.addTrack(ru.montage.track.road));
-    await type('  плавно, потом бодрее  ');
+    await press(ru.montage.addTrack(ru.montage.track.calm));
+    await wishTo(ru.montage.track.warm, '  плавно, на сборы  ');
+    await wishTo(ru.montage.track.calm, 'потом бодрее');
     await forward();
 
     await act(async () => root().findByType(LengthSlider).props.onChange(97));
@@ -631,10 +661,10 @@ test(
     expect(nav.top()).toBe('summary');
     const expected = {
       orientation: 'portrait',
-      music_tracks: ['warm', 'road'],
+      music_tracks: ['warm', 'road', 'calm'],
       target_seconds: 97,
       story_text: 'Про море и закат',
-      music_note: 'плавно, потом бодрее',
+      music_wishes: { warm: 'плавно, на сборы', calm: 'потом бодрее' },
       include_media_ids: ['p7'],
       exclude_media_ids: ['p1'],
     };
@@ -666,7 +696,7 @@ test(
 
     // A track taken and given back takes the wish about it with it — the api answers 400 to one alone.
     await press(ru.montage.addTrack(ru.montage.track.calm));
-    await type('тихо');
+    await wishTo(ru.montage.track.calm, 'тихо');
     await press(ru.montage.dropTrack(ru.montage.track.calm));
     await forward();
     await forward();
@@ -676,6 +706,126 @@ test(
     expect(server.previews.at(-1)).toEqual(expected);
     await press(ru.montage.startCut);
     expect(server.orders).toEqual([expected]);
+  },
+);
+
+test('a wish is written to one of several tracks, stands under its name, and can be wiped', async () => {
+  const server = serve();
+  await open();
+  await press(ru.montage.ownSetup);
+  await forward();
+  await forward();
+
+  const { warm, calm } = ru.montage.track;
+  // Nothing taken yet: «Выбрано» stands empty and says what the film will sound like.
+  expect(shown()).toContain(ru.montage.nothingAdded);
+  expect(shown()).toContain(ru.montage.noMusic);
+  await press(ru.montage.addTrack(warm));
+  await press(ru.montage.addTrack(calm));
+  expect(shown()).not.toContain(ru.montage.nothingAdded);
+  // The shelf's own button turns into the tick that gives the track back.
+  expect(has(ru.montage.unpickTrack(calm))).toBe(true);
+
+  // The pencil in «Спокойная» unfolds a field under that row alone, holding nothing yet.
+  expect(wishField(calm)).toBeUndefined();
+  await press(ru.montage.wishAbout(calm));
+  expect(wishField(calm)?.props.value).toBe('');
+  expect(wishField(calm)?.props.placeholder).toBe(ru.montage.wishAbout(calm));
+  expect(wishField(warm)).toBeUndefined();
+  await act(async () => wishField(calm)!.props.onChangeText('На сборы, тихо, под голоса'));
+  // Folded, the words stand under the name, and the pencil says there is something to change.
+  await act(async () => wishField(calm)!.props.onBlur());
+  expect(wishField(calm)).toBeUndefined();
+  expect(chosen(calm).props.wish).toBe('На сборы, тихо, под голоса');
+  expect(has(ru.montage.wishEdit(calm))).toBe(true);
+  expect(has(ru.montage.wishAbout(calm))).toBe(false);
+  // The other track is untouched by it.
+  expect(chosen(warm).props.wish).toBeUndefined();
+  expect(has(ru.montage.wishAbout(warm))).toBe(true);
+
+  // One field at a time: opening «Тёплая» folds «Спокойная» away.
+  await press(ru.montage.wishEdit(calm));
+  expect(wishField(calm)?.props.value).toBe('На сборы, тихо, под голоса');
+  await press(ru.montage.wishAbout(warm));
+  expect(wishField(calm)).toBeUndefined();
+  expect(wishField(warm)?.props.value).toBe('');
+  await act(async () => wishField(warm)!.props.onBlur());
+
+  // Dragged elsewhere, the wish goes along with its track.
+  expect(wizard.order.tracks.map((track) => track.key)).toEqual(['warm', 'calm']);
+  await act(async () =>
+    chosen(calm).props.grip.onAccessibilityAction({ nativeEvent: { actionName: 'decrement' } }),
+  );
+  expect(wizard.order.tracks.map((track) => track.key)).toEqual(['calm', 'warm']);
+  expect(chosen(calm).props.wish).toBe('На сборы, тихо, под голоса');
+
+  // Wiped, it is nothing again: no line under the name, the pencil back to its question.
+  await wishTo(calm, '   ');
+  expect(chosen(calm).props.wish).toBeUndefined();
+  expect(has(ru.montage.wishAbout(calm))).toBe(true);
+
+  await forward();
+  await forward();
+  await run(0);
+  await press(ru.montage.startCut);
+  expect(server.orders).toHaveLength(1);
+  expect(server.orders[0]?.music_tracks).toEqual(['calm', 'warm']);
+  expect(server.orders[0]).not.toHaveProperty('music_wishes');
+});
+
+test('a track taken out with a wish takes the wish along, and comes back without one', async () => {
+  const server = serve();
+  await open();
+  await press(ru.montage.ownSetup);
+  await forward();
+  await forward();
+
+  const { warm, road } = ru.montage.track;
+  await press(ru.montage.addTrack(warm));
+  await press(ru.montage.addTrack(road));
+  await wishTo(warm, 'Тёплая на сборы');
+  await wishTo(road, 'Дорога в конце');
+
+  // Out by its cross in «Выбрано», and its wish is nowhere in the order any more.
+  await press(ru.montage.dropTrack(warm));
+  expect(chosen(warm)).toBeUndefined();
+  expect(wizard.order.tracks).toEqual([{ key: 'road', name: null, wish: 'Дорога в конце' }]);
+  // Taken again, it is a new track: nothing written, the field folded.
+  await press(ru.montage.addTrack(warm));
+  expect(chosen(warm).props.wish).toBeUndefined();
+  expect(wishField(warm)).toBeUndefined();
+
+  // And out by the tick on the shelf, with its field open at the time.
+  await press(ru.montage.wishEdit(road));
+  await press(ru.montage.unpickTrack(road));
+  expect(wishField(road)).toBeUndefined();
+  await press(ru.montage.addTrack(road));
+  expect(wishField(road)).toBeUndefined();
+  expect(chosen(road).props.wish).toBeUndefined();
+
+  await forward();
+  await forward();
+  await run(0);
+  await press(ru.montage.startCut);
+  expect(server.orders[0]?.music_tracks).toEqual(['warm', 'road']);
+  expect(server.orders[0]).not.toHaveProperty('music_wishes');
+});
+
+test(
+  'a template’s wishes land on their tracks and stand under their names on the music step',
+  BEAT_BY_BEAT,
+  async () => {
+    serve();
+    await open();
+    await act(async () => tile('dopamine').props.onPress());
+    await until(() => wizard.order.tracks.length === 2);
+    const { bright, road } = ru.montage.track;
+    expect(chosen(bright).props.wish).toBe(WISHES.dopamine?.bright);
+    expect(chosen(road).props.wish).toBe(WISHES.dopamine?.road);
+    expect(has(ru.montage.wishEdit(bright))).toBe(true);
+    expect(has(ru.montage.wishEdit(road))).toBe(true);
+    await settle();
+    expect(nav.top()).toBe('summary');
   },
 );
 
@@ -747,10 +897,13 @@ test(
     await forward();
     await run(0);
     await press(ru.montage.startCut);
+    // The track that landed brought its own wish, and the one that never landed took its away.
     expect(server.orders[0]).toMatchObject({
       music_tracks: ['bright'],
+      music_wishes: { bright: WISHES.dopamine?.bright },
       story_text: fullStory('dopamine'),
     });
+    expect(server.orders[0]?.music_wishes).not.toHaveProperty('road');
     expect(server.orders[0]).not.toHaveProperty('music_note');
     expect(server.orders[0]).not.toHaveProperty('target_seconds');
   },
