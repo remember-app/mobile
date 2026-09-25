@@ -147,7 +147,7 @@ import { act, BEAT_BY_BEAT, drives } from '@tests/helpers/drive';
 import { frame } from '@tests/helpers/labels';
 import { mountsTrees, themesShown } from '@tests/helpers/renderer';
 import { Fragment, type ReactElement, useSyncExternalStore } from 'react';
-import { StyleSheet, Text } from 'react-native';
+import { ScrollView, StyleSheet, Text } from 'react-native';
 import TestRenderer, { act as reactAct } from 'react-test-renderer';
 import type {
   MediaItem,
@@ -169,7 +169,9 @@ import {
   Button,
   ConfirmSheet,
   IconButton,
+  Text as KitText,
   LengthSlider,
+  RowRejected,
   RowTrack,
   Segment,
   Tile,
@@ -180,7 +182,7 @@ import { formatRuntime } from '@/lib/dates';
 import { currentLanguage, setLanguage } from '@/lib/language';
 import { ENTER_MS, OrderProvider, READ_MS, useOrder, type Wizard } from '@/screens/order/wizard';
 import { ru, strings } from '@/strings';
-import { setTheme, themes } from '@/theme';
+import { type as scale, setTheme, themes } from '@/theme';
 
 /**
  * Ordering a movie the way the organizer does, start to finish (doc-03, m-26): the real wizard —
@@ -783,6 +785,108 @@ test('every face of the wizard wears the bar it should: the way in and the total
   // «Назад» hangs 10 past the screen's margin, as every «Назад» does (spec 7.1).
   expect(StyleSheet.flatten(bar().back.props.style)).toMatchObject({ marginLeft: -10 });
   expect(bar().cancel).toBeUndefined();
+});
+
+test('each step’s body starts where the layout pins it, under whatever its heading ends with', async () => {
+  // TASK-384 (R3). Spec 4 pins the body of a step — «190–238 — тело шага мастера», «150 — тело
+  // итога» — and the app lays the heading out in flow, so each pin is kept as the gap under the
+  // heading's last line. Read off the layout (`m28-mock-measure/<Screen>.json`): the line under the
+  // heading of `MontageTemplate` stands at 149 and is 19 tall, the grid at 190; `MontageStory`'s
+  // line at 197, the plate at 238; `MontageMusic`'s at 168, «Выбрано» at 206; the heading of
+  // `MontageBuild` at 129 and 29 tall, «ДЛИНА» at 190; the total's heading at 108, the poster at
+  // 150. The bodies stood right under their headings — 13 to 36 too high.
+  const pinned = {
+    index: 190 - (149 + 19),
+    story: 238 - (197 + 19),
+    music: 206 - (168 + 19),
+    build: 190 - (129 + 29),
+    summary: 150 - (108 + 29),
+  };
+  serve();
+  await open();
+  const lead = () => StyleSheet.flatten(root().findAllByType(Board).at(-1)!.props.body)?.paddingTop;
+  const drawn: Record<string, unknown> = { index: lead() };
+  await press(say().montage.ownSetup);
+
+  // Step 1 is a list: its count and «Что сняли» stand under the heading in the bar — 10 under the
+  // heading (129 + 29 → 168), 44 tall, and the grid 20 under them, at 232.
+  // «Что сняли» is the outlined small one (spec 7.2; TASK-384 R6): 13 / 600, 14 a side, a `line`
+  // hairline — 93.95 wide in the layout, where the step's 16 / 600 made it 119.3 — and it hangs 4
+  // past the screen's margin (its right edge at 378, the margin at 374).
+  const dropped = buttons(ru.montage.whatDropped).at(-1)!;
+  expect(dropped.props.variant).toBe('small');
+  expect(dropped.props.size).toBeUndefined();
+  expect(StyleSheet.flatten(dropped.props.style)).toMatchObject({ marginRight: 374 - 378 });
+  let head = dropped;
+  while (head.parent && StyleSheet.flatten(head.props.style)?.paddingBottom === undefined)
+    head = head.parent;
+  expect(StyleSheet.flatten(head.props.style)).toMatchObject({
+    paddingTop: 168 - (129 + 29),
+    paddingBottom: 232 - (168 + 44),
+  });
+
+  while (nav.top() !== 'summary') {
+    await forward();
+    drawn[nav.top()!] = lead();
+  }
+  await until(() => lead() !== undefined);
+  drawn.summary = lead();
+  expect(drawn).toEqual(pinned);
+});
+
+test('«Что сняли» opens a sheet that reports: the paragraph 8 under the heading, the reasons one list', async () => {
+  serve({
+    material: [
+      ...material(),
+      { ...frame('p8'), screening_rejected: true, screening_reason: 'duplicate' },
+    ],
+  });
+  await open();
+  await press(say().montage.ownSetup);
+  await press(ru.montage.whatDropped);
+
+  // TASK-384 (R8), `SheetRejected.json`: the heading at 31, two lines, 52 tall; the paragraph at 91,
+  // 14 / 400 / 20 — one block, 8 under it. It was 16 / 23 and the sheet's own 18 under.
+  const heading = root()
+    .findAllByType(KitText)
+    .filter((one) => one.props.children === ru.montage.droppedTitle)
+    .at(-1)!;
+  expect(heading.props.role).toBe('sheetTitle');
+  let block = heading.parent;
+  while (block && StyleSheet.flatten(block.props.style)?.gap === undefined) block = block.parent;
+  expect(StyleSheet.flatten(block?.props.style)).toMatchObject({ gap: 91 - (31 + 52) });
+  const [, paragraph] = block!.findAllByType(KitText);
+  expect(paragraph.props.children).toBe(ru.montage.droppedText(2, 9));
+  expect(scale[paragraph.props.role as keyof typeof scale]).toMatchObject({
+    fontSize: 14,
+    lineHeight: 20,
+  });
+
+  // The reasons are rows of one list — «Вернуть» 40 with 10 over and under, a hairline between —
+  // and not blocks of the sheet 18 apart: the rows stood 83 apart where the layout has 68.
+  const rows = root().findAllByType(RowRejected);
+  expect(rows).toHaveLength(2);
+  expect(rows[0].parent).toBe(rows[1].parent);
+  expect(rows[0].parent?.type).not.toBe(ScrollView);
+  expect(rows.map((row) => row.props.divider)).toEqual([false, true]);
+});
+
+test('the heading over the length and the one over the shape are the layout’s eyebrows, in muted', async () => {
+  // TASK-384 (R5), `MontageBuild.json`: «ДЛИНА» and «ФОРМАТ», 12 / 700 in caps, #A4A1B2. «ДЛИНА» was
+  // drawn in `paper`, «Формат» as a 13 / 600 line in `paper` (the segment's own heading).
+  serve();
+  await open();
+  await press(say().montage.ownSetup);
+  while (nav.top() !== 'build') await forward();
+  const eyebrows = root()
+    .findAllByType(KitText)
+    .filter((one) => one.props.role === 'eyebrow')
+    .map((one) => [one.props.children, one.props.tone]);
+  expect(eyebrows).toContainEqual([ru.montage.howLong.toUpperCase(), 'muted']);
+  expect(eyebrows).toContainEqual([ru.montage.shape.toUpperCase(), 'muted']);
+  // And «ФОРМАТ» stands where the layout has it: the length's block ends at 399, «ФОРМАТ» at 417.
+  const body = StyleSheet.flatten(root().findAllByType(Board).at(-1)!.props.body);
+  expect(body?.gap).toBe(417 - 399);
 });
 
 test('the same three videos, measured, are enough: the six are drawn and the order goes through', async () => {

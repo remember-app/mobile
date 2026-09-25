@@ -13,7 +13,7 @@ import { Text } from './text';
  *
  * - **40** — a filter, the tallest and the only one that carries a face;
  * - **36** — the quick days on `Create`, which stand on `surface` instead of on nothing;
- * - **34** — the journal's own filter, where a row of them sits under a bar;
+ * - **34** — the journal's own filter, where a row of them sits under a bar: 13 / 600;
  * - **28** — «Все дни» in the head of the filter's day block: 12 / 600 and pulled in to 12 a side.
  *
  * What stands inside is the rest of it: words alone, a face and a name, a colour square and a name
@@ -63,7 +63,7 @@ export function Chip({
   const focusRing = useFocusRing();
   const tint = disabled ? color.faint : selected ? color.ink : color.paper;
   const lead = avatar || swatch;
-  const role = size === 28 ? 'chipXs' : 'chip';
+  const role = size === 28 ? 'chipXs' : size === 34 ? 'label' : 'chip';
 
   return (
     <Pressable

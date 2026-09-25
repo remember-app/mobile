@@ -133,10 +133,14 @@ export function Button({
   const tint = labelTone && !off ? theme.color[labelTone] : contentColor(theme, variant, off);
   const sized = size ?? DEFAULT_SIZE[variant];
   const tall = SIZES[sized];
-  // The 36s — «Сбросить» on `raise`, «Смонтировать» on paper — are smaller all through (spec 7.2,
-  // detail 40): 14 a side, the glyph 6 from the words, and the words in `label` 13 / 600.
-  const compact = sized === 'mini';
-  const glyph = variant === 'raise' ? { size: ICO_XS } : compact ? MINI_GLYPH : { size: ICO_S };
+  // The quiet one and the link are words and not a shape, and keep their own sides at any height.
+  const kind = variant === 'quiet' || link ? null : variant === 'small' ? 'row' : KIND[sized];
+  const glyph =
+    variant === 'raise'
+      ? { size: ICO_XS }
+      : kind === 'small'
+        ? SMALL_GLYPH
+        : (ROW_GLYPH[sized] ?? { size: ICO_S });
   const words = busy ? (busyLabel ?? label) : label;
 
   return (
@@ -158,9 +162,10 @@ export function Button({
         // лейбл» at 52 is a box with a hole in it, «Свой трек» at 32 is a pill like every other chip
         // in the row it stands in.
         variant === 'dashed' && tall >= height.sheetButton ? styles.boxed : null,
-        variant === 'quiet' || variant === 'small' ? styles.tight : null,
+        variant === 'quiet' ? styles.tight : null,
         link ? styles.bare : null,
-        compact ? styles.snug : null,
+        kind === 'row' ? (sized === 'xxs' ? styles.inRowPill : styles.inRow) : null,
+        kind === 'small' ? styles.small : null,
         (wide ?? DEFAULT_WIDE[variant]) ? styles.wide : null,
         pressed && !reduced ? PRESS : null,
         focused ? focusRing : null,
@@ -170,7 +175,10 @@ export function Button({
       {busy ? <Spinner size={18} track={tint} head="transparent" /> : null}
       {icon && !busy ? <Icon icon={icon} {...glyph} color={tint} /> : null}
       <Text
-        role={labelRole ?? (variant === 'small' || compact || link ? 'label' : 'control')}
+        role={
+          labelRole ??
+          (kind === 'row' || link ? 'label' : kind === 'small' ? 'controlSm' : 'control')
+        }
         // Spec 7.2: a label too long for one line grows the button down and is centred in it.
         style={[{ color: tint, textAlign: 'center' }, link ? styles.underline : null]}
       >
@@ -200,10 +208,40 @@ function contentColor({ color }: Theme, variant: ButtonVariant, disabled: boolea
 }
 
 /**
- * The plus of «Смонтировать» (spec 8, detail 40): 15, drawn heavier than the size alone would give.
+ * Spec 7.2 — how the words sit in a button, by the place it stands in rather than by its variant:
+ *
+ * - **main** — 60, 56, 52: `control` 16, 20 a side, an 18 glyph 8 from the words;
+ * - **small** — «малая с текстом», 44: «Сохранить» and «Поделиться» under a finished film, «Сохранить»
+ *   in a contact's row — the same `control` at 14 (`controlSm`), a 16 glyph 7 from the words;
+ * - **row** — «в строке», 40 and under: «Вернуть», «Отдать ещё», «Сбросить», «Смонтировать», «Свой
+ *   трек» — and the outlined `small` at whatever height it stands («Что сняли»). The words in
+ *   `label` 13 / 600, 14 a side (12 in the 32 pill), the glyph 6 from the words.
+ *
+ * The link's `line` is the height of its words, and a link is words alone: it never asks.
+ */
+const KIND: Record<ButtonSize, 'main' | 'small' | 'row'> = {
+  xl: 'main',
+  lg: 'main',
+  md: 'main',
+  sm: 'small',
+  xs: 'row',
+  mini: 'row',
+  xxs: 'row',
+  line: 'row',
+};
+
+/** The glyph of «Сохранить» and «Поделиться» under a finished film (spec 8, `MontageLiveDone`). */
+const SMALL_GLYPH = { size: 16 } as const;
+
+/**
+ * The glyphs the layout draws heavier than their size alone would give (stroke 2.2): the plus of
+ * «Смонтировать» at 15 (spec 8, detail 40) and of «Свой трек», the 32 pill, at 14 (`MontageMusic`).
  * `raise` keeps its own 13, since «Сбросить» is drawn apart (`SheetFilter`).
  */
-const MINI_GLYPH = { size: 15, stroke: 2.2 } as const;
+const ROW_GLYPH: Partial<Record<ButtonSize, { size: number; stroke: number }>> = {
+  mini: { size: 15, stroke: 2.2 },
+  xxs: { size: 14, stroke: 2.2 },
+};
 
 /** The one dashed border in the kit, and the reason `lineQuiet` exists (spec 2). */
 const DASHED: ViewStyle = { borderStyle: 'dashed', backgroundColor: 'transparent' };
@@ -305,8 +343,11 @@ export function IconButton({
   disabled?: boolean;
   /** An override for the glyph's colour where the place demands it, not where taste does. */
   tint?: string;
-  /** The glyph's size and stroke where the layout names them for the place — the wizard's «x». */
-  glyph?: { size: number; stroke: number };
+  /**
+   * The glyph's size, stroke and fill where the layout names them for the place — the wizard's «x»,
+   * a track's filled «Послушать» (spec 5 fills play and pause).
+   */
+  glyph?: { size: number; stroke?: number; filled?: boolean };
   style?: StyleProp<ViewStyle>;
 }) {
   const { hovered, focused, props } = useHoverFocus();
@@ -354,7 +395,7 @@ export function IconButton({
         }
         stroke={drawn?.stroke}
         color={glyph}
-        fill={tone === 'video' ? glyph : undefined}
+        fill={tone === 'video' || drawn?.filled ? glyph : undefined}
       />
       {dot ? (
         <View
@@ -493,13 +534,16 @@ const useStyles = themed(({ color }) =>
       flexDirection: 'row',
       gap: space.s2,
     },
-    // Spec 7.2: the quiet one and the small one both pull their sides in.
+    // Spec 7.2: the quiet one pulls its sides in.
     tight: { paddingHorizontal: space.s3 },
     // The link is its words and nothing round them: no sides, no hairline.
     bare: { paddingHorizontal: 0, borderWidth: 0 },
     underline: { textDecorationLine: 'underline' },
-    // A 36: 14 a side and the glyph 6 from its words.
-    snug: { paddingHorizontal: 14, gap: 6 },
+    // «В строке»: 14 a side and the glyph 6 from its words — 12 a side in the 32 pill.
+    inRow: { paddingHorizontal: 14, gap: 6 },
+    inRowPill: { paddingHorizontal: space.s3, gap: 6 },
+    // «Малая с текстом»: the glyph 7 from its words.
+    small: { gap: 7 },
     boxed: { borderRadius: radius.cell },
     // A small button never shrinks when the row beside it runs long.
     wide: { width: '100%', flexShrink: 1 },

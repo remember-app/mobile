@@ -31,6 +31,14 @@ export function strokeFor(size: number): number {
 }
 
 /**
+ * The size to draw Lucide's `play` at so it lands on the layout's own triangle in a box of `box`
+ * (spec 5 and 8). The layout draws `M8 5.2v13.6L19 12z` — 13.6 of the 24 grid tall — where Lucide's
+ * runs 18 of it with a 2.1 stroke round it, so at the layout's box it reads half as big again: 11 in
+ * the 16 of a track's «Послушать» (TASK-384), 6 in the 9 of the feed's running time.
+ */
+export const playFor = (box: number): number => Math.round((box * 13.6) / (18 + 2.1));
+
+/**
  * One icon. An icon carries no label of its own — it is either inside something labelled (a button
  * says what it does) or beside the words it repeats, in which case the caller hides it from screen
  * readers.

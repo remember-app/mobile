@@ -1,7 +1,7 @@
 import { Play } from 'lucide-react-native';
 import { beforeAll, expect, test } from 'vitest';
 
-import { ICO, ICO_S, ICO_XS, Icon, strokeFor } from '@/kit/icon';
+import { ICO, ICO_S, ICO_XS, Icon, playFor, strokeFor } from '@/kit/icon';
 import { story } from '@/kit/story';
 import { setTheme } from '@/theme';
 
@@ -38,4 +38,17 @@ test('with no colour of its own a glyph is read in paper', () => {
 test('nothing is filled unless it is asked for — spec 5 fills two glyphs and no others', () => {
   expect(story(<Icon icon={Play} />)).toContain('fill="none"');
   expect(story(<Icon icon={Play} fill="#FFFFFF" />)).toContain('fill="#FFFFFF"');
+});
+
+test('play is drawn at the size that lands it on the layout’s own triangle in the layout’s box', () => {
+  // TASK-384 (R7). The layout's play is its own path, `M8 5.2v13.6L19 12z` — 13.6 of the 24 grid
+  // tall — in a 16 box on «Послушать» (`MontageMusic.json`) and on the film's line of
+  // `SheetFrameInfo.json`, a 9 box on the feed's running time (`MemoryFrames.json`). Lucide's runs 18
+  // of its grid and a 2.1 stroke round it: drawn at the layout's box it read ×1.8 on the music step.
+  const lucide = (size: number) => ((18 + strokeFor(size)) / 24) * size;
+  const layout = (box: number) => (13.6 / 24) * box;
+  for (const box of [9, 16]) expect(Math.abs(lucide(playFor(box)) - layout(box))).toBeLessThan(0.5);
+  expect(playFor(16)).toBe(11);
+  // The feed's running time (TASK-385) came to the same answer by hand.
+  expect(playFor(9)).toBe(6);
 });

@@ -211,8 +211,8 @@ export const en = {
     longer: 'Five seconds longer',
     /** The three summary rows, each of them the way back to the step that settled it. */
     story: 'Story',
-    /** «Bright · on the beat» — the track and what it does to the cuts. */
-    onTheBeat: 'on the beat',
+    /** Beside the first track of the summary — what the music does to the cuts (spec 10.6). */
+    onTheBeat: 'cuts on the beat',
     directorDecides: 'The director decides',
     /** The last button of step 4: what is after it is the summary and not the making. */
     toSummary: 'To the summary',
@@ -492,7 +492,7 @@ export const ru: typeof en = {
     shorter: 'Короче на 5 секунд',
     longer: 'Длиннее на 5 секунд',
     story: 'История',
-    onTheBeat: 'в ритм',
+    onTheBeat: 'склейки в ритм',
     directorDecides: 'Режиссёр решит сам',
     toSummary: 'К итогу',
 

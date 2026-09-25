@@ -621,8 +621,9 @@ const useStyles = themed(({ color }) =>
     back: { marginLeft: -10 },
     banner: { marginHorizontal: space.s4, marginBottom: space.s3 },
     middle: { flexGrow: 1, justifyContent: 'center' },
-    // The bar's own heading is over this, so it stands as close under it as the layout draws it.
-    head: { paddingHorizontal: space.s4, paddingTop: 10, paddingBottom: space.s4 },
+    // Spec 8, `MontageSelect`: the line stands 10 under the heading, as close as the layout draws
+    // it, and the grid 20 under the line (168 + 44 → 232).
+    head: { paddingHorizontal: space.s4, paddingTop: 10, paddingBottom: space.s5 },
     headLine: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },
     // Spec 8, `SheetTooLittle`: the 56 square with the montage sign — `layout-grid`, the one
     // «Начать монтаж» wears — beside the heading.

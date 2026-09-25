@@ -1,10 +1,11 @@
 import { rule } from '@tests/helpers/css';
-import { Check, Copy, Pause, Pencil, Play, Plus, X } from 'lucide-react-native';
+import { Check, Copy, Pencil, Plus, X } from 'lucide-react-native';
 import { beforeAll, expect, test } from 'vitest';
 
 import { BadgeDecision } from '@/kit/badge';
 import { IconButton } from '@/kit/button';
 import { Field } from '@/kit/field';
+import { playFor } from '@/kit/icon';
 import { AvatarStack } from '@/kit/member';
 import {
   RowAction,
@@ -19,7 +20,7 @@ import {
   Waveform,
 } from '@/kit/rows';
 import { allDifferent, compiled, story } from '@/kit/story';
-import { setTheme } from '@/theme';
+import { font, setTheme } from '@/theme';
 
 /** Spec 7.7 — the rows, each of them one line of a list somewhere in the product. */
 
@@ -53,30 +54,15 @@ test('the same row stating a fact has no arrow on it', () => {
 
 test('a track row is a row, and what picks it is the button on its right', () => {
   const take = <IconButton size={36} icon={Plus} label="Добавить «Яркая»" />;
+  const listen = { label: 'Послушать «Яркая»', onPress: () => {} };
   allDifferent({
-    plain: (
-      <RowTrack
-        title="Яркая"
-        length="2:14"
-        play={<IconButton size={40} icon={Play} label="Послушать" />}
-        action={take}
-        divider
-      />
-    ),
-    playing: (
-      <RowTrack
-        title="Яркая"
-        length="2:14"
-        playing
-        play={<IconButton size={40} icon={Pause} label="Стоп" />}
-        action={take}
-      />
-    ),
+    plain: <RowTrack title="Яркая" length="2:14" play={listen} action={take} divider />,
+    playing: <RowTrack title="Яркая" length="2:14" playing play={listen} action={take} />,
     taken: (
       <RowTrack
         title="Яркая"
         length="2:14"
-        play={<IconButton size={40} icon={Play} label="Послушать" />}
+        play={listen}
         action={
           <IconButton size={36} icon={Check} label="Убрать «Яркая» из выбранных" tone="paper" on />
         }
@@ -91,6 +77,29 @@ test('a track row is a row, and what picks it is the button on its right', () =>
   expect(story(<RowTrack title="Яркая" length="2:14" playing />)).not.toBe(
     story(<RowTrack title="Яркая" length="2:14" />),
   );
+});
+
+test('«Послушать» is the row’s own: 40 on the shelf, 36 among the chosen, a small filled play', () => {
+  const listen = { label: 'Послушать «Тёплая»', onPress: () => {} };
+  const shelf = story(<RowTrack title="Тёплая" length="1:40" play={listen} />);
+  const chosen = story(<RowTrack picked title="Тёплая" length="1:40" play={listen} />);
+  // Spec 7.7, details 53 and 54: a `raise` circle, 40 on the shelf and 36 in «Выбрано».
+  expect(shelf).toContain('width:40px');
+  expect(chosen).toContain('width:36px');
+  expect(shelf).toContain('aria-label="Послушать «Тёплая»"');
+  // TASK-384 (R7): the layout draws play filled, its own small triangle in a 16 box
+  // (`MontageMusic.json`, «значок в «Послушать …»»: 16 × 16, fill #F5F3EE) — Lucide's lands on it at
+  // `playFor(16)`, where the 40 circle's own 20, outlined, read ×1.8.
+  for (const row of [shelf, chosen]) {
+    expect(row).toContain(`<svg data-glyph="Play" width="${playFor(16)}"`);
+    expect(row).toContain('fill="#F5F3EE"');
+  }
+  // Sounding, it is the pause, drawn and filled the same (spec 5 fills play and pause).
+  const heard = story(<RowTrack title="Тёплая" length="1:40" playing play={listen} />);
+  expect(heard).toContain(`<svg data-glyph="Pause" width="${playFor(16)}"`);
+  expect(heard).toContain('fill="#F5F3EE"');
+  // A track of their own has no link to play: no button at all.
+  expect(story(<RowTrack title="Мой трек" length="Свой" />)).not.toContain('role="button"');
 });
 
 test('a chosen track carries its wish under its name, and its field under the row', () => {
@@ -220,6 +229,33 @@ test('the four states of a build step are four states, and three of them lead so
   expect(
     story(<RowStep title="Отсев брака" state="done" meta="1 мин" onPress={() => {}} />),
   ).toContain('role="button"');
+});
+
+test('a stage is named at 14 / 600 with its line at 11 / 500, as the layout draws the row', () => {
+  // TASK-384 (R4), spec 7.7 detail 56 and `MontageLive.json`: «Отсев брака» 14 / 600, «212 из 214
+  // годятся · 1 мин» 11 / 500 `muted`. The row used the scale's `label` 13 and `badgeSm` 10 / 700.
+  const row = story(
+    <RowStep
+      title="Отсев брака"
+      state="done"
+      meta="212 из 214 годятся · 1 мин"
+      onPress={() => {}}
+    />,
+  );
+  const name = row.match(/class="([^"]*)"[^>]*>Отсев брака</)?.[1] ?? '';
+  expect(name).toContain(rule('font-size:14px'));
+  expect(name).toContain(rule(`font-family:${font.semi}`));
+  const meta = row.match(/class="([^"]*)"[^>]*>212 из 214 годятся · 1 мин</)?.[1] ?? '';
+  expect(meta).toContain(rule('font-size:11px'));
+  expect(meta).toContain(rule(`font-family:${font.medium}`));
+});
+
+test('the reasons the pass dropped frames stand 10 above and below, row under row', () => {
+  // TASK-384, spec 7.7 detail 55 («поля 10 / 0») and `SheetRejected.json`: a 40 «Вернуть» with 10
+  // over and under it, the next row's button 68 further down where its count takes two lines. The
+  // row had 12, and the sheet's gap of 18 between rows put them 83 apart.
+  const row = story(<RowRejected icon={Copy} title="Размыто" count="34 кадра" />);
+  expect(row).toContain(rule('padding-bottom:10px;padding-top:10px'));
 });
 
 test('a stage that fell over wears the danger cross, never the spark of a stage it got through', () => {

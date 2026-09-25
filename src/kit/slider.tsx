@@ -206,13 +206,10 @@ export function LengthSlider({
             <View style={[styles.handle, { left: `${at * 100}%` }]} />
           </View>
         </View>
+        {/* 11 / 500 as drawn; `muted` and not the layout's `faint`, which spec 10.1 names here. */}
         <View style={styles.ends}>
-          <Text role="meta" tone="muted">
-            {minLabel}
-          </Text>
-          <Text role="meta" tone="muted">
-            {maxLabel}
-          </Text>
+          <Text role="metaSm">{minLabel}</Text>
+          <Text role="metaSm">{maxLabel}</Text>
         </View>
       </View>
 

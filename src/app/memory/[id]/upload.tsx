@@ -557,18 +557,29 @@ export default function UploadScreen() {
       <Sheet
         visible={asking}
         onCancel={() => answerAskAll(null)}
-        title={s.upload.askAll}
+        // Spec 8, `SheetAskAll`: the line of what went, then the question with its paragraph 8 under
+        // it — closer than the sheet's own gap, so the heading is drawn here rather than as `title`.
         head={
-          <View style={styles.result}>
-            <View
-              accessibilityElementsHidden
-              importantForAccessibility="no-hide-descendants"
-              style={styles.tick}
-            >
-              <Icon icon={Check} size={15} color={color.sparkInk} />
+          <>
+            <View style={styles.result}>
+              <View
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+                style={styles.tick}
+              >
+                <Icon icon={Check} size={15} color={color.sparkInk} />
+              </View>
+              <Text role="rowSm">{s.upload.sentToMemory(sent)}</Text>
             </View>
-            <Text role="row">{s.upload.sentToMemory(sent)}</Text>
-          </View>
+            <View style={styles.ask}>
+              <Text role="sheetTitle" accessibilityRole="header">
+                {s.upload.askAll}
+              </Text>
+              <Text role="bodySm" tone="muted">
+                {s.upload.askAllText}
+              </Text>
+            </View>
+          </>
         }
         footer={
           <>
@@ -584,11 +595,7 @@ export default function UploadScreen() {
             />
           </>
         }
-      >
-        <Text role="body" tone="muted">
-          {s.upload.askAllText}
-        </Text>
-      </Sheet>
+      />
     </Board>
   );
 }
@@ -639,6 +646,7 @@ const useStyles = themed(({ color }) =>
     room: { flex: 1, backgroundColor: room.ink },
     roomBar: { paddingHorizontal: space.s3 },
     result: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },
+    ask: { gap: space.s2 },
     // The 26 circle of spec 7.6's «готово», on the line that says what has just gone.
     tick: {
       width: 26,

@@ -67,6 +67,7 @@ vi.mock('react-native', async (importOriginal) => {
 import { later, memory, serve } from '@tests/helpers/api';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { Image } from 'expo-image';
+import { isValidElement } from 'react';
 import { FlatList, Linking, StyleSheet } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import UploadScreen from '@/app/memory/[id]/upload';
@@ -84,6 +85,7 @@ import {
   IconButton,
   RowStuck,
   Sheet,
+  Text,
   Tile,
   Upload,
   Waiting,
@@ -152,6 +154,13 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
+/** Whether an element, drawn or not, holds these words anywhere in what it was handed. */
+const carries = (node: unknown, words: string): boolean =>
+  node === words ||
+  (Array.isArray(node)
+    ? node.some((one) => carries(one, words))
+    : isValidElement(node) && carries((node.props as { children?: unknown }).children, words));
+
 async function open() {
   let tree!: TestRenderer.ReactTestRenderer;
   const draw = () => act(async () => tree.update(<UploadScreen />));
@@ -183,7 +192,9 @@ async function open() {
     send: () => root.findAllByType(Button).find((one) => one.props.wide)!,
     text: () => JSON.stringify(tree.toJSON()),
     banners: () => root.findAllByType(Banner).map((one) => one.props.text as string),
-    asking: () => root.findAllByType(Sheet).find((one) => one.props.title === ru.upload.askAll)!,
+    // Found by the question it asks, drawn or not: the heading stands in the sheet's head (TASK-384).
+    asking: () =>
+      root.findAllByType(Sheet).find((one) => carries(one.props.head, ru.upload.askAll))!,
   };
   return screen;
 }
@@ -319,6 +330,23 @@ test('once everything this visit sent is in and the queue is asking, the sheet c
   await screen.redraw();
   expect(screen.asking().props.visible).toBe(true);
   expect(screen.text()).toContain(ru.upload.sentToMemory(2));
+  // TASK-384 (R8), `SheetAskAll.json`: «Это всё?» at 79, 26 tall, and its paragraph at 113 — one
+  // block, 8 apart, where the sheet's own gap had put it 18 under; the paragraph 15 / 22, two lines
+  // and not three at 16 / 23; the line of what went 14 / 600.
+  const said = (words: string) =>
+    screen
+      .asking()
+      .findAllByType(Text)
+      .find((one) => one.props.children === words)!;
+  const question = said(ru.upload.askAll);
+  const paragraph = said(ru.upload.askAllText);
+  expect(question.props.role).toBe('sheetTitle');
+  expect(paragraph.props.role).toBe('bodySm');
+  expect(said(ru.upload.sentToMemory(2)).props.role).toBe('rowSm');
+  let block = paragraph.parent;
+  while (block && StyleSheet.flatten(block.props.style)?.gap === undefined) block = block.parent;
+  expect(block?.findAllByType(Text)).toContain(question);
+  expect(StyleSheet.flatten(block?.props.style)).toMatchObject({ gap: 113 - (79 + 26) });
   const answers = screen.asking().findAllByType(Button);
   expect(answers.map((one) => one.props.label)).toEqual([ru.upload.thatsAll, ru.upload.moreToCome]);
   await act(async () => answers[0].props.onPress());

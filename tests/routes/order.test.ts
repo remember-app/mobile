@@ -505,7 +505,7 @@ test('tracks go in in any number, in the order they play, and that order is drag
 
   // «Послушать» stays on every row of the shelf (TASK-172) and on a chosen one off it; a track of
   // their own has no link this app could play, so it has no button pretending otherwise.
-  expect(music).toContain('shelf === null ? undefined : (');
+  expect(music).toMatch(/play=\{\s*shelf === null\s*\?\s*undefined\s*:/);
   expect(music).toContain('s.montage.stopTrack(name) : s.montage.listen(name)');
 });
 
@@ -619,8 +619,14 @@ test('the summary only shows — every number on it is the api’s answer', () =
   expect(summary).toContain('order.tracks.map((track, i) =>');
   expect(summary).toContain('{s.montage.noMusicLive}');
   expect(ru.montage.noMusicLive).toBe('Без музыки · живой звук');
+  // The line beside the first track is the layout's own words (spec 8's table of words, 10.6), and
+  // not «в ритм» (TASK-384).
+  expect(summary).toContain('note={i === 0 ? s.montage.onTheBeat : undefined}');
+  expect(ru.montage.onTheBeat).toBe('склейки в ритм');
   // And the story is read back short, four lines of it, or as the director deciding.
   expect(summary).toContain('numberOfLines={4}');
+  // In the nearer of the two tokens to the layout's #D8D5E0 — `paper`, not `muted` (TASK-384).
+  expect(summary).toContain('<Text role="note" tone="paper" numberOfLines={4}>');
   expect(summary).toContain("{story === '' ? s.montage.directorDecides : story}");
 });
 

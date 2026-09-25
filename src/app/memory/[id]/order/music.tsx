@@ -1,6 +1,6 @@
 import { getDocumentAsync } from 'expo-document-picker';
 import { useRouter } from 'expo-router';
-import { Check, ChevronRight, Pause, Pencil, Play, Plus, X } from 'lucide-react-native';
+import { Check, ChevronRight, Pencil, Plus, X } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { PanResponder, StyleSheet, View } from 'react-native';
 
@@ -21,7 +21,7 @@ import {
 } from '@/lib/montage/order';
 import { sendOwnTrack, useTrackPreview } from '@/lib/music';
 import { refusal, useOrder, useStillHere, WizardStep } from '@/screens/order/wizard';
-import { radius, space, themed, useTheme } from '@/theme';
+import { radius, space, themed, useTheme, wizardLead } from '@/theme';
 
 /**
  * Step 3, `MontageMusicNone` / `MontageMusic` — what the film is cut to: nothing at all and the
@@ -273,15 +273,12 @@ export default function MusicStep() {
                     ...gripFor(i),
                   }}
                   play={
-                    shelf === null ? undefined : (
-                      <IconButton
-                        icon={heard ? Pause : Play}
-                        label={heard ? s.montage.stopTrack(name) : s.montage.listen(name)}
-                        size={36}
-                        tone="raise"
-                        onPress={() => listen(shelf)}
-                      />
-                    )
+                    shelf === null
+                      ? undefined
+                      : {
+                          label: heard ? s.montage.stopTrack(name) : s.montage.listen(name),
+                          onPress: () => listen(shelf),
+                        }
                   }
                   action={
                     <>
@@ -358,15 +355,10 @@ export default function MusicStep() {
                 length={lengthOf(track.id)}
                 playing={heard}
                 divider={i > 0}
-                play={
-                  <IconButton
-                    icon={heard ? Pause : Play}
-                    label={heard ? s.montage.stopTrack(name) : s.montage.listen(name)}
-                    size={40}
-                    tone="raise"
-                    onPress={() => listen(track.id)}
-                  />
-                }
+                play={{
+                  label: heard ? s.montage.stopTrack(name) : s.montage.listen(name),
+                  onPress: () => listen(track.id),
+                }}
                 // Spec 7.7, detail 53 — the row does not pick; the 36 on its right does, and it
                 // says which way it is: the plus takes the track, the tick gives it back. The
                 // tick is `paper` and not `accent`: the track is not going anywhere.
@@ -408,7 +400,13 @@ const useStyles = themed(({ color }) =>
     // The heading keeps the width of its word: on the largest type «Свой трек» moves under it rather
     // than squeeze it a letter a line.
     grow: { flexGrow: 1 },
-    body: { flexGrow: 1, paddingHorizontal: space.s4, paddingBottom: space.s6, gap: 18 },
+    body: {
+      flexGrow: 1,
+      paddingHorizontal: space.s4,
+      paddingTop: wizardLead.music,
+      paddingBottom: space.s6,
+      gap: 18,
+    },
     block: { gap: 10 },
     blockHead: {
       flexDirection: 'row',

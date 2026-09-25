@@ -29,7 +29,7 @@ import {
   useStillHere,
   WizardStep,
 } from '@/screens/order/wizard';
-import { space, themed, useTheme } from '@/theme';
+import { space, themed, useTheme, wizardLead } from '@/theme';
 
 /**
  * The summary, `MontageSummary` (spec 8) — the order read back and then spent. The poster of the
@@ -210,9 +210,11 @@ export default function SummaryStep() {
 
             {/* Four lines of it and no more: the whole story was read on the step that wrote it,
                 and here it is being recognised rather than read again. Nothing written is the
-                director deciding, which is a state of the order and not an empty section. */}
+                director deciding, which is a state of the order and not an empty section. The
+                layout reads it in #D8D5E0, a shade the tokens do not have: `paper` is the nearer
+                of the two, as for the director's records under a stage (`StepNote`). */}
             <SummarySection title={s.montage.story} divider>
-              <Text role="note" tone="muted" numberOfLines={4}>
+              <Text role="note" tone="paper" numberOfLines={4}>
                 {story === '' ? s.montage.directorDecides : story}
               </Text>
             </SummarySection>
@@ -260,7 +262,13 @@ const useStyles = themed(() =>
     grow: { flex: 1, minWidth: 0 },
     middle: { flexGrow: 1, justifyContent: 'center' },
     banner: { marginHorizontal: space.s4 },
-    body: { flexGrow: 1, paddingHorizontal: space.s4, paddingBottom: space.s6, gap: space.s3 },
+    body: {
+      flexGrow: 1,
+      paddingHorizontal: space.s4,
+      paddingTop: wizardLead.total,
+      paddingBottom: space.s6,
+      gap: space.s3,
+    },
     counts: { flexDirection: 'row', alignItems: 'baseline', gap: space.s2 },
     // The line with the clock stands just inside the cards above it, as the layout draws it.
     wait: {

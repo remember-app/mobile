@@ -77,12 +77,13 @@ export default function PickFramesStep() {
               : s.montage.pickMeta(inMovie.length, material.length)}
           </Text>
           {passDropped.length > 0 ? (
-            // As wide as its words: a button the width of the row squeezes the count to nothing.
+            // Spec 7.2 — the small one, outlined in `line` and as wide as its words: a button the
+            // width of the row squeezes the count to nothing.
             <Button
-              size="sm"
-              wide={false}
+              variant="small"
               label={s.montage.whatDropped}
               onPress={() => setShowDropped(true)}
+              style={styles.whatDropped}
             />
           ) : null}
         </View>
@@ -147,7 +148,18 @@ export default function PickFramesStep() {
       <Sheet
         visible={showDropped}
         onCancel={() => setShowDropped(false)}
-        title={s.montage.droppedTitle}
+        // Spec 8, `SheetRejected`: the paragraph stands 8 under the heading — closer than the sheet's
+        // own gap — so the two are one block, and the heading is drawn here rather than as `title`.
+        head={
+          <View style={styles.lead}>
+            <Text role="sheetTitle" accessibilityRole="header">
+              {s.montage.droppedTitle}
+            </Text>
+            <Text role="bodyXs" tone="muted">
+              {s.montage.droppedText(passDropped.length, material.length)}
+            </Text>
+          </View>
+        }
         footer={
           <>
             <Button
@@ -171,29 +183,30 @@ export default function PickFramesStep() {
           </>
         }
       >
-        <Text role="body" tone="muted">
-          {s.montage.droppedText(passDropped.length, material.length)}
-        </Text>
-        {rejectedGroups(material, order).map((group, i) => (
-          <RowRejected
-            key={group.reason}
-            icon={REASON_SIGN[group.reason]}
-            title={s.montage.reason[group.reason]}
-            count={
-              group.reason === 'duplicate'
-                ? `${s.memory.frames(group.ids.length)} — ${s.montage.keptBest}`
-                : s.memory.frames(group.ids.length)
-            }
-            divider={i > 0}
-          >
-            <Button
-              size="xs"
-              wide={false}
-              label={s.montage.bringBack}
-              onPress={() => change({ returned: new Set([...order.returned, ...group.ids]) })}
-            />
-          </RowRejected>
-        ))}
+        {/* One list, row under row with a hairline between them — the sheet's gap stands around
+            it, never inside it. */}
+        <View>
+          {rejectedGroups(material, order).map((group, i) => (
+            <RowRejected
+              key={group.reason}
+              icon={REASON_SIGN[group.reason]}
+              title={s.montage.reason[group.reason]}
+              count={
+                group.reason === 'duplicate'
+                  ? `${s.memory.frames(group.ids.length)} — ${s.montage.keptBest}`
+                  : s.memory.frames(group.ids.length)
+              }
+              divider={i > 0}
+            >
+              <Button
+                size="xs"
+                wide={false}
+                label={s.montage.bringBack}
+                onPress={() => change({ returned: new Set([...order.returned, ...group.ids]) })}
+              />
+            </RowRejected>
+          ))}
+        </View>
       </Sheet>
     </WizardStep>
   );
@@ -212,6 +225,9 @@ const useStyles = themed(() =>
   StyleSheet.create({
     grow: { flex: 1, minWidth: 0 },
     headLine: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s3 },
+    // The layout hangs it 4 past the screen's margin (`MontageSelect`: its right edge at 378).
+    whatDropped: { marginRight: -space.s1 },
+    lead: { gap: space.s2 },
     grid: { paddingHorizontal: space.s4, paddingBottom: space.s7, gap: GRID_GAP },
     edge: { marginHorizontal: -space.s4 },
     row: { flexDirection: 'row', gap: GRID_GAP },

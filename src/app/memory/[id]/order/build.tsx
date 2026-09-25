@@ -10,7 +10,7 @@ import { formatRuntime } from '@/lib/dates';
 import { useStrings } from '@/lib/language';
 import { PRESETS, taken, wishes } from '@/lib/montage/order';
 import { refusal, useOrder, WizardStep } from '@/screens/order/wizard';
-import { space, themed } from '@/theme';
+import { space, themed, wizardLead } from '@/theme';
 
 /**
  * Step 4, `MontageBuild` — how long it runs and which way up, and nothing else.
@@ -107,7 +107,7 @@ export default function BuildStep() {
     >
       <View style={styles.block}>
         <View style={styles.blockHead}>
-          <Text role="eyebrow" accessibilityRole="header" style={styles.grow}>
+          <Text role="eyebrow" tone="muted" accessibilityRole="header" style={styles.grow}>
             {s.montage.howLong.toUpperCase()}
           </Text>
           {preview ? (
@@ -170,7 +170,14 @@ const ORIENTATIONS: readonly MontageOrientation[] = ['landscape', 'portrait'];
 const useStyles = themed(() =>
   StyleSheet.create({
     grow: { flex: 1, minWidth: 0 },
-    body: { flexGrow: 1, paddingHorizontal: space.s4, paddingBottom: space.s6, gap: space.s5 },
+    body: {
+      flexGrow: 1,
+      paddingHorizontal: space.s4,
+      paddingTop: wizardLead.title,
+      paddingBottom: space.s6,
+      // The layout's own: the block of the length ends at 399 and «ФОРМАТ» stands at 417.
+      gap: 18,
+    },
     block: { gap: space.s2 },
     // The heading and the ceiling share a baseline, the way every pair of them in the layout does.
     blockHead: { flexDirection: 'row', alignItems: 'baseline', gap: space.s2 },

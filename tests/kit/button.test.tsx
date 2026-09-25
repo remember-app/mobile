@@ -1,4 +1,5 @@
 import { rule, shorthand } from '@tests/helpers/css';
+import { fontFile, wordWidth } from '@tests/helpers/font';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { Pause, Plus } from 'lucide-react-native';
 import { StyleSheet, View, type ViewStyle } from 'react-native';
@@ -265,6 +266,65 @@ test('«Смонтировать» is a 36 on paper with the plus the layout dra
   const full = story(<Button variant="paper" icon={Plus} label="Смонтировать" />);
   expect(full).toContain('width="18"');
   expect(full).not.toContain('stroke-width="2.2"');
+});
+
+/** The classes of the words a button draws: the element whose text is exactly `words`. */
+const wordsOf = (markup: string, words: string) =>
+  markup.match(new RegExp(`class="([^"]*)"[^>]*>${words}<`))?.[1] ?? '';
+
+const ONEST_SEMI = fontFile('@expo-google-fonts/onest/600SemiBold/Onest_600SemiBold.ttf');
+/** How wide a button with a hairline comes out: its sides, its glyph and gap, its words. */
+const across = (words: string, size: number, sides: number, glyph = 0) =>
+  2 + 2 * sides + glyph + wordWidth(ONEST_SEMI, words, size);
+
+test('a button standing in a row is 13 / 600 and 14 a side, and comes out as wide as the layout', () => {
+  // TASK-384 (R6). Spec 7.2: «В строке — 36–40 … подпись `label`», and the outlined `small` is the
+  // same shape at 44. Measured off the layout (`m28-mock-measure`): «Вернуть» on `SheetRejected` is
+  // 82.5 wide, «Что сняли» on `MontageSelect` 93.95 — a hairline, 14 a side and the words at 13 / 600
+  // (their width read here off the font file). At 16 and 20 a side, as they were, they ran 27–28 %
+  // wider than drawn.
+  expect(across('Вернуть', 13, 14)).toBeCloseTo(82.5, 0);
+  expect(across('Что сняли', 13, 14)).toBeCloseTo(93.95, 0);
+  expect(across('Вернуть', 16, 20)).toBeGreaterThan(82.5 * 1.25);
+
+  const back = story(<Button size="xs" wide={false} label="Вернуть" />);
+  const dropped = story(<Button variant="small" label="Что сняли" />);
+  for (const [drawn, words] of [
+    [back, 'Вернуть'],
+    [dropped, 'Что сняли'],
+  ] as const) {
+    expect(drawn).toContain(rule('padding-left:14px;padding-right:14px'));
+    expect(wordsOf(drawn, words)).toContain(rule('font-size:13px'));
+    expect(wordsOf(drawn, words)).toContain(rule(`font-family:${font.semi}`));
+  }
+  expect(back).toContain('min-height:40px');
+  expect(dropped).toContain('min-height:44px');
+});
+
+test('«Свой трек» is the 32 pill of the same kind: 12 a side, a 14 plus 6 from its words', () => {
+  // `MontageMusic`: 110.84 wide — the hairline, 12 a side, the plus 14 at stroke 2.2, 6, and the
+  // words at 13 / 600. Set at 16 with an 18 glyph it came out a third wider (146.7).
+  expect(across('Свой трек', 13, 12, 14 + 6)).toBeCloseTo(110.84, 0);
+  const own = story(
+    <Button variant="dashed" size="xxs" wide={false} icon={Plus} label="Свой трек" />,
+  );
+  expect(own).toContain(rule('padding-left:12px;padding-right:12px'));
+  expect(own).toContain(rule('gap:6px'));
+  expect(own).toContain('<svg data-glyph="Plus" width="14" height="14"');
+  expect(own).toContain('stroke-width="2.2"');
+  expect(wordsOf(own, 'Свой трек')).toContain(rule('font-size:13px'));
+});
+
+test('the small one at 44 reads at 14 with a 16 glyph 7 from its words, the main ones stay at 16', () => {
+  // Spec 8, `MontageLiveDone`: «Сохранить» and «Поделиться» are 44, 14 / 600, a 16 glyph with 7
+  // between it and the words — at 16 they ran 14 % wider (TASK-384). The main 56 keeps its 16.
+  const save = story(<Button variant="primary" size="sm" wide icon={Plus} label="Сохранить" />);
+  expect(wordsOf(save, 'Сохранить')).toContain(rule('font-size:14px'));
+  expect(save).toContain('<svg data-glyph="Plus" width="16" height="16"');
+  expect(save).toContain(rule('gap:7px'));
+  const main = story(<Button variant="primary" label="Дальше" />);
+  expect(wordsOf(main, 'Дальше')).toContain(rule('font-size:16px'));
+  expect(wordsOf(main, 'Дальше')).not.toContain(rule('font-size:14px'));
 });
 
 test('a round button that stays in is a switch, and one that fires is not', () => {
