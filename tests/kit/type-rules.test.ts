@@ -46,10 +46,11 @@ test('words reach the screen through the kit, where the ceiling is', () => {
 
 /**
  * A box of a fixed height with words in it: the words grow with the system's type and the box does
- * not, so they run out of it — the six cells of the code on `LoginCode` did, at the largest type.
- * Such a box takes its height as a floor (`minHeight`). The ones below are what there is today, each
- * with why it is still a height; none of them is on a screen with a field. A new one fails here until
- * it is a floor or joins them with its reason — and one made a floor fails here until it leaves.
+ * not, so they run out of it — the six cells of the code on `LoginCode` did, at the largest type,
+ * and the cards of the list, the strip of films and the templates did (TASK-375). Such a box takes
+ * its height as a floor (`minHeight`). The ones below are what there is today, each with why it is
+ * still a height; none of them is on a screen with a field. A new one fails here until it is a floor
+ * or joins them with its reason — and one made a floor fails here until it leaves.
  */
 const HELD: Record<string, string> = {
   // A cell `fitCell` sizes: its height is worked out from the type it holds, never under 44.
@@ -57,50 +58,79 @@ const HELD: Record<string, string> = {
   'kit/calendar.tsx › inline': 'fitCell',
   'kit/slider.tsx › inline': 'fitCell',
   // A picture's own box, the words laid over the photograph: the height is the picture's.
-  'kit/card-memory.tsx › large': 'cover 340',
-  'kit/card-memory.tsx › strip': 'mosaic 96, or its empty frame',
-  'kit/card-montage.tsx › new': 'a poster card',
-  'kit/card-montage.tsx › emptyBlock': 'the empty films block, 132',
-  'kit/montage-order.tsx › poster': 'the summary poster, 136',
-  'kit/montage-order.tsx › template': 'a template tile, 118',
   'kit/montage-live.tsx › shot': 'the frame on air',
   'kit/montage-live.tsx › shotSmall': 'a 62 frame',
   'kit/montage-live.tsx › wait': 'the frame on air, waiting',
   'kit/rows.tsx › noteShot': 'a 34 frame',
   // A plate or a pill the layout draws to a height, not yet measured at the largest type.
   'kit/badge.tsx › tag': 'tag 28',
+  'kit/bars.tsx › capsule': 'the glass capsule, 48 — its words drawn through a variable',
   'kit/bars.tsx › viewerPill': 'the viewer pill, 48',
+  'kit/daymark.tsx › band': 'the day gap in the feed, felt at 44 — its words through a variable',
+  'kit/daymark.tsx › mark': 'the day gap in the feed, 20',
   'kit/daymark.tsx › spineMark': 'the date on the spine',
   'kit/daymark.tsx › spinePill': 'the date on the spine',
   'kit/member.tsx › inline': 'the «+N» circle of a stack',
   'kit/member.tsx › pill': '«смотрят сейчас»',
 };
 
-type File = { path: string; tree: ts.SourceFile; heights: Set<string> };
+type File = {
+  path: string;
+  tree: ts.SourceFile;
+  heights: Set<string>;
+  /** What a name drawn as `{face}` stands for, where the file writes that name as markup. */
+  markup: Map<string, string>;
+};
+
+const HEIGHT = /(^|[^A-Za-z])height:/;
 
 const files: File[] = sources.map(([path, source]) => {
   const tree = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const heights = new Set<string>();
+  const markup = new Map<string, string>();
+  // An object a style spreads in (`...CARD`) brings its height along with it.
+  const tall = new Set<string>();
+  const unwrap = (node: ts.Expression): ts.Expression =>
+    ts.isParenthesizedExpression(node) ? unwrap(node.expression) : node;
+  const declared = (node: ts.Node): void => {
+    if (ts.isVariableDeclaration(node) && node.initializer && ts.isIdentifier(node.name)) {
+      const value = unwrap(node.initializer);
+      if (ts.isObjectLiteralExpression(value) && HEIGHT.test(value.getText(tree)))
+        tall.add(node.name.text);
+      if (ts.isJsxElement(value) || ts.isJsxFragment(value) || ts.isJsxSelfClosingElement(value))
+        markup.set(node.name.text, value.getText(tree));
+    }
+    ts.forEachChild(node, declared);
+  };
+  declared(tree);
   const collect = (node: ts.Node): void => {
     if (ts.isCallExpression(node) && node.expression.getText(tree) === 'StyleSheet.create') {
       const [sheet] = node.arguments;
       if (sheet && ts.isObjectLiteralExpression(sheet))
-        for (const style of sheet.properties)
-          if (
-            ts.isPropertyAssignment(style) &&
-            /(^|[^A-Za-z])height:/.test(style.initializer.getText(tree))
-          )
-            heights.add(style.name.getText(tree));
+        for (const style of sheet.properties) {
+          if (!ts.isPropertyAssignment(style)) continue;
+          const drawn = style.initializer.getText(tree);
+          const spread = [...drawn.matchAll(/\.\.\.(\w+)/g)].some(([, name]) => tall.has(name));
+          if (HEIGHT.test(drawn) || spread) heights.add(style.name.getText(tree));
+        }
     }
     ts.forEachChild(node, collect);
   };
   collect(tree);
-  return { path, tree, heights };
+  return { path, tree, heights, markup };
 });
 
 test('no box with words in it is held to a fixed height', () => {
   const fixed: string[] = [];
   for (const file of files) {
+    // The words a child draws, the markup it names by a variable (`{face}`) included.
+    const drawn = (child: ts.Node) => {
+      const text = child.getText(file.tree);
+      return [
+        text,
+        ...[...text.matchAll(/\{(\w+)\}/g)].map(([, name]) => file.markup.get(name) ?? ''),
+      ].join('\n');
+    };
     const visit = (node: ts.Node): void => {
       if (ts.isJsxElement(node)) {
         const style = node.openingElement.attributes.properties.find(
@@ -111,9 +141,7 @@ test('no box with words in it is held to a fixed height', () => {
           .map(([, name]) => name)
           .filter((name) => file.heights.has(name));
         const inline = /[{,]\s*height:/.test(written);
-        const words = node.children.some((child) =>
-          /<(Text|RNText)\b/.test(child.getText(file.tree)),
-        );
+        const words = node.children.some((child) => /<(Text|RNText)\b/.test(drawn(child)));
         if (words) {
           for (const name of named) fixed.push(`${file.path} › ${name}`);
           if (inline) fixed.push(`${file.path} › inline`);

@@ -118,9 +118,19 @@ test.each([
       const it = await drawCalendar(width, scale);
       const column = width / 7;
       const cells = it.days.map((one) => flat(one).height as number);
-      // The layout's own cell at the system's size, or smaller — 40; larger type makes the cell 44 or more.
-      if (scale <= 1) expect(new Set(cells), `×${scale}`).toEqual(new Set([40]));
+      // The layout's own cell at the system's size, or smaller — 40 where a column holds a finger's
+      // 44; a week narrower than seven fingers (the zoomed SE, 262) cannot give a day 44 across and
+      // scrolls nothing sideways, so its days are 44 tall at every size (TASK-375). Larger type makes
+      // any cell 44 or more.
+      if (scale <= 1) expect(new Set(cells), `×${scale}`).toEqual(new Set([column < 44 ? 44 : 40]));
       else expect(Math.min(...cells), `×${scale}`).toBeGreaterThanOrEqual(44);
+      // The circle of a day keeps inside its column, so two picked days side by side never meet.
+      for (const day of it.days) {
+        const [circle] = day.findAll(
+          (one) => one.type === View && flat(one).borderRadius !== undefined,
+        );
+        expect(flat(circle).width as number).toBeLessThanOrEqual(Math.min(column, 40) + 0.01);
+      }
 
       // The empty places at the ends of a month are as tall as the days beside them, or a week bends.
       expect(it.blanks().length).toBeGreaterThan(0);

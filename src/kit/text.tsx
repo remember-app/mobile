@@ -1,4 +1,5 @@
-import { Text as RNText, StyleSheet, type TextProps } from 'react-native';
+import { createContext, useContext, useState } from 'react';
+import { Text as RNText, StyleSheet, type TextProps, useWindowDimensions } from 'react-native';
 
 import { themed, type } from '@/theme';
 
@@ -85,6 +86,7 @@ export function Text({
   tone,
   style,
   maxFontSizeMultiplier,
+  onTextLayout,
   ...rest
 }: // React Native's own `role` is the ARIA one, and it is `accessibilityRole` spelled twice; the
 // spec's roles are the useful meaning of the word here, so this takes the name over.
@@ -93,15 +95,55 @@ Omit<TextProps, 'role'> & {
   tone?: TextTone;
 }) {
   const styles = useStyles();
+  const room = useContext(WordRoom);
 
   return (
     <RNText
       style={[styles[tone ?? (QUIET.has(role) ? 'muted' : 'paper')], type[role], style]}
       maxFontSizeMultiplier={maxFontSizeMultiplier ?? HEADING_MOST[role] ?? TYPE_MOST}
       {...(ONE_WORD.has(role) ? { numberOfLines: 1, adjustsFontSizeToFit: true } : null)}
+      onTextLayout={
+        room
+          ? (event) => {
+              onTextLayout?.(event);
+              if (brokeWord(event.nativeEvent.lines)) room();
+            }
+          : onTextLayout
+      }
       {...rest}
     />
   );
+}
+
+/**
+ * Whether a laid-out text broke a word between two of its lines: at some join of the lines the phone
+ * reports (`onTextLayout`) there is neither a space nor a hyphen or a dash. The one sign the layout
+ * gives that a box is narrower than a word it holds — Yoga has no min-content to keep it from being so.
+ */
+export function brokeWord(lines: readonly { text: string }[]): boolean {
+  return lines.some(
+    (line, i) => i > 0 && !/[\s\-‐–—]$/.test(lines[i - 1].text) && !/^\s/.test(line.text),
+  );
+}
+
+/**
+ * Where a kit `Text` says it has broken a word: every `Text` inside the provider tells it, whichever
+ * part drew it — a button handed in through a slot as well as the part's own words.
+ */
+export const WordRoom = createContext<(() => void) | null>(null);
+
+/**
+ * A part whose words share a line with something else — round buttons, a badge, a stack of photos,
+ * the other half of a grid — and that has a roomier way to stand (TASK-375). It stands the drawn way
+ * until one of its words breaks mid-word at the phone's type size and width, and the roomier way from
+ * then on, until either changes: in the roomier way nothing breaks any more, so it is not what decides.
+ * `room` goes to `WordRoom.Provider` round the words.
+ */
+export function useWordRoom(): { roomy: boolean; room: () => void } {
+  const { fontScale, width } = useWindowDimensions();
+  const here = `${fontScale} ${width}`;
+  const [broke, setBroke] = useState<string | null>(null);
+  return { roomy: broke === here, room: () => setBroke(here) };
 }
 
 const useStyles = themed(({ color }) =>

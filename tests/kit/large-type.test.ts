@@ -1,7 +1,9 @@
 import { fontFile, wordWidth } from '@tests/helpers/font';
+import { flat } from '@tests/helpers/source';
 import { expect, test } from 'vitest';
 
 import { CANCEL_WORD_SCALE } from '@/kit/bars';
+import bars from '@/kit/bars.tsx?raw';
 import { rowHolds } from '@/kit/segment';
 import { HEADING_MOST, TYPE_MOST, type TypeRole } from '@/kit/text';
 import { en, ru, type Strings } from '@/strings';
@@ -57,26 +59,31 @@ test('«Отмена» is a word as far as it fits whole, and a glyph from the n
 
 /**
  * The counter between the two blocks: with them at 44 it has, less the 12 either side of it,
- * 176 on 320, 216 on 360, 231 on 375 — and the words the spec measured fit whole at the largest
- * type, where the blocks at 74 would have broken «Новый» and «ролик» letter by letter.
+ * 176 on 320, 216 on 360, 231 on 375 — and every word it carries fits whole at the largest type,
+ * where the blocks at 74 would have broken «Новый» and «ролик» letter by letter.
  *
- * One word the spec did not measure does not: the English total, «Summary», is 208.0 at ×3.571 and
- * breaks on 320. That is the counter's own gap, not «Отмена»'s — reported with TASK-373 rather than
- * decided here, and held so that closing it, or opening another, changes this test.
+ * The counter is `label`, and `label` stops at the kit's ×2 (TASK-377): the English total, «Summary»,
+ * is 116.5 there against 176 on 320 — the 208.0 it would be at ×3.571 was the gap TASK-373 held open,
+ * and the ceiling is what closed it (TASK-375). Worked out at the role's own ceiling, so lifting that
+ * ceiling past what the counter holds fails here.
  */
 test('with the side blocks at 44, the words of the counter fit whole at the largest type', () => {
   const room = (phone: number, block: number) => phone - 2 * 16 - 2 * block - 2 * 12;
   expect(PHONES.map((phone) => room(phone, 44))).toEqual([231, 216, 176]);
+  expect(flat(bars)).toContain('<Text role="label" tone="muted" style={styles.wizardStep}>');
+  const grown = Math.min(3.571, HEADING_MOST.label ?? TYPE_MOST);
+  expect(grown).toBe(2);
   const broken = [ru, en].flatMap((s) =>
     [s.montage.step(2, 4), s.montage.newOne, s.montage.summaryStep]
       .flatMap((line) => line.split(' '))
       .flatMap((word) =>
-        PHONES.filter((phone) => width(word, 13) * 3.571 > room(phone, 44)).map(
+        PHONES.filter((phone) => width(word, 13) * grown > room(phone, 44)).map(
           (phone) => `${word} on ${phone}`,
         ),
       ),
   );
-  expect(broken).toEqual(['Summary on 320']);
+  expect(broken).toEqual([]);
+  expect(width(en.montage.summaryStep, 13) * grown).toBeCloseTo(116.5, 0);
   expect(width(ru.montage.newOne.split(' ')[0], 13) * 3.571).toBeGreaterThan(room(320, 74));
 });
 

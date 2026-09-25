@@ -23,7 +23,7 @@ import { focusedField } from './field';
 import type { IconComponent } from './icon';
 import { DISMISS_KEYBOARD, FieldInBar, KEYBOARD_SCROLL } from './interaction';
 import { useMeasured } from './sheet';
-import { Text } from './text';
+import { Text, useWordRoom, WordRoom } from './text';
 
 /**
  * Spec 7.1 — the frame of a screen: the board it is drawn on, the bar at the top, the layer at the
@@ -539,19 +539,29 @@ const FOOTERS: Record<Footer, { height: number; over?: string; stop: string }> =
  *
  * Four depths, because what the footer has to hide differs: 132 under one button, 176 when a line of
  * counting stands over it, 190 over the gallery, 210 over the sending queue. The row itself takes
- * whatever it is given — one button, three across, two stacked — so a kind of bottom layer is never
- * a flag here.
+ * whatever it is given — one button, two stacked — so a kind of bottom layer is never a flag here.
+ *
+ * Three across (`start`, the action, `end` — the round 56 either side of it at the foot of the
+ * gallery) is one row while the action's words fit whole between the two; once one of them breaks
+ * mid-word — the smallest phone on large type — the round two stand in a row of their own over the
+ * action, and it takes the whole width (`useWordRoom`, TASK-375).
  *
  * `experimental_backgroundImage` and not a gradient library: React Native takes the spec's own CSS
  * string, the same way `boxShadow` already does.
  */
 export function ActionBar({
   children,
+  start,
+  end,
   above,
   footer,
   style,
 }: {
   children: ReactNode;
+  /** The round one at the left end of the action's row — the filters, «Поделиться». */
+  start?: ReactNode;
+  /** And at its right end — the arrangement, «Удалить». */
+  end?: ReactNode;
   /** «Выбрано 12 из 61» and a quiet «Снять» — spec 7.1, kind 3. */
   above?: ReactNode;
   /** Left off: 176 when something stands above the button, 132 when nothing does. */
@@ -561,7 +571,9 @@ export function ActionBar({
   const insets = useSafeAreaInsets();
   const { color } = useTheme();
   const styles = useStyles();
+  const { roomy, room } = useWordRoom();
   const kind = FOOTERS[footer ?? (above ? 'count' : 'plain')];
+  const sides = start !== undefined || end !== undefined;
 
   return (
     <View style={[styles.layer, { paddingBottom: Math.max(insets.bottom, board.bottom) }, style]}>
@@ -578,7 +590,19 @@ export function ActionBar({
         ]}
       />
       {above ? <View style={styles.layerAbove}>{above}</View> : null}
-      <View style={styles.layerRow}>{children}</View>
+      {sides && roomy ? (
+        <View style={styles.layerSides}>
+          {start}
+          {end}
+        </View>
+      ) : null}
+      <WordRoom.Provider value={sides ? room : null}>
+        <View style={styles.layerRow}>
+          {sides && !roomy ? start : null}
+          {children}
+          {sides && !roomy ? end : null}
+        </View>
+      </WordRoom.Provider>
     </View>
   );
 }
@@ -683,5 +707,7 @@ const useStyles = themed(({ color }) =>
     layerAbove: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s3 },
     // Three across at the foot of the gallery: 56 · 226 · 56 with 10 between (`MemoryFrames`).
     layerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    // The same two round ones over an action that needed the whole width, at the two ends of it.
+    layerSides: { flexDirection: 'row', justifyContent: 'space-between' },
   }),
 );

@@ -8,7 +8,7 @@ import { night, photo, radius, space, themed, useTheme } from '@/theme';
 import { Icon, type IconComponent } from './icon';
 import { PRESS, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
 import { Waveform } from './rows';
-import { Text } from './text';
+import { Text, useWordRoom, WordRoom } from './text';
 
 /**
  * Spec 7.6 — what a person sees while they are ordering a montage: the templates they can start
@@ -21,6 +21,10 @@ import { Text } from './text';
  * of the template as a glyph on glass, its length and shape on a plate, and two lines saying what
  * kind of film it is. Pressing one runs the whole wizard by itself (spec 6), which is why it is a
  * card and not a chip: it is the single biggest decision on the screen.
+ *
+ * The 118 is a floor: on large type the name and the line under it wrap and the tile grows down, and
+ * the plate goes under the glyph when the two no longer share a line. A tile whose name breaks a
+ * word in its half of the grid takes the whole row (`useWordRoom`, TASK-375).
  *
  * `dimmed` is what the others do once the autopilot has taken one of them.
  */
@@ -53,6 +57,7 @@ export function TileTemplate({
   const reduced = useReducedMotion();
   const styles = useStyles();
   const focusRing = useFocusRing();
+  const { roomy, room } = useWordRoom();
 
   return (
     <Pressable
@@ -69,6 +74,7 @@ export function TileTemplate({
         pressed && !reduced ? PRESS : null,
         focused ? focusRing : null,
         style,
+        roomy ? styles.whole : null,
       ]}
     >
       {uri ? (
@@ -79,30 +85,34 @@ export function TileTemplate({
         />
       ) : null}
       <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.templateScrim]} />
-      {icon ? (
-        <View style={styles.glass}>
-          {/* On glass over a photograph: the night's paper in both themes, like the words beside it. */}
-          <Icon icon={icon} size={16} color={night.paper} />
-        </View>
-      ) : null}
-      {/* Spec 7.6, detail 41: the plate 11 / 600, the name 14 / 17 / 700, the line 11 / 14 / 500. */}
-      {spec ? (
-        <View style={styles.templateSpec}>
-          <Text role="metaTile" style={styles.onPhoto}>
-            {spec}
-          </Text>
-        </View>
-      ) : null}
-      <View style={styles.templateFoot}>
-        <Text role="tileTitle" numberOfLines={2} style={styles.onPhoto}>
-          {title}
-        </Text>
-        {note ? (
-          <Text role="metaSm" numberOfLines={1} style={styles.onPhotoQuiet}>
-            {note}
-          </Text>
+      <View style={styles.templateTop}>
+        {icon ? (
+          <View style={styles.glass}>
+            {/* On glass over a photograph: the night's paper in both themes, like the words beside it. */}
+            <Icon icon={icon} size={16} color={night.paper} />
+          </View>
+        ) : null}
+        {/* Spec 7.6, detail 41: the plate 11 / 600, the name 14 / 17 / 700, the line 11 / 14 / 500. */}
+        {spec ? (
+          <View style={styles.templateSpec}>
+            <Text role="metaTile" style={styles.onPhoto}>
+              {spec}
+            </Text>
+          </View>
         ) : null}
       </View>
+      <WordRoom.Provider value={room}>
+        <View style={styles.templateFoot}>
+          <Text role="tileTitle" style={styles.onPhoto}>
+            {title}
+          </Text>
+          {note ? (
+            <Text role="metaSm" style={styles.onPhotoQuiet}>
+              {note}
+            </Text>
+          ) : null}
+        </View>
+      </WordRoom.Provider>
     </Pressable>
   );
 }
@@ -167,8 +177,10 @@ export function PosterOrder({
           </Text>
         </View>
       ) : null}
+      {/* The length and the shape share the foot while both fit whole; on large type the shape goes
+          under the length, still at the right. */}
       <View style={styles.posterFoot}>
-        <Text role="figure" style={[styles.grow, styles.onPhoto]}>
+        <Text role="figure" style={[styles.length, styles.onPhoto]}>
           {length}
         </Text>
         <View style={styles.posterShape}>
@@ -177,7 +189,8 @@ export function PosterOrder({
               {shape}
             </Text>
           ) : null}
-          {/* Spec 7.6, detail 42: «16:9 · Свадьба Лизы и Марка» is 11 / 500. */}
+          {/* Spec 7.6, detail 42: «16:9 · Свадьба Лизы и Марка» is 11 / 500 — the memory's name is
+              the person's own, and cut rather than wrapped. */}
           {about ? (
             <Text role="metaSm" numberOfLines={1} style={styles.onPhotoQuiet}>
               {about}
@@ -350,24 +363,35 @@ export function BlockPicked({
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
     template: {
-      height: 118,
+      minHeight: 118,
       borderRadius: radius.section,
       borderWidth: 1,
       borderColor: color.line,
       backgroundColor: color.surface,
       overflow: 'hidden',
     },
+    // A name that broke a word in its half of the grid: the tile takes the row of the grid it wraps in.
+    // A width, not a basis — Yoga never takes back a basis it has worked out for a node.
+    whole: { width: '100%' },
     templatePicked: { borderWidth: 1.5, borderColor: color.accent },
     // What every other template does once one of them has been taken.
     dimmed: { opacity: 0.4 },
     // The frame is the mood of the template and not its subject, so it stays well under the words.
     under: { opacity: 0.42 },
     templateScrim: { experimental_backgroundImage: photo.template },
+    // The glyph 12 in from the top left, the plate 13 down and 10 in from the top right — in a row
+    // of their own, so the plate goes under the glyph rather than over it when both no longer fit.
+    templateTop: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'flex-start',
+      gap: space.s2,
+      paddingTop: 12,
+      paddingLeft: 12,
+      paddingRight: 10,
+    },
     // Spec 1.8 — glass, because it is lying on a photograph.
     glass: {
-      position: 'absolute',
-      left: 12,
-      top: 12,
       width: 30,
       height: 30,
       borderRadius: radius.queue,
@@ -376,9 +400,9 @@ const useStyles = themed(({ color }) =>
       justifyContent: 'center',
     },
     templateSpec: {
-      position: 'absolute',
-      right: 10,
-      top: 13,
+      flexShrink: 1,
+      marginTop: 1,
+      marginLeft: 'auto',
       paddingVertical: 3,
       paddingHorizontal: space.s2,
       borderRadius: radius.pill,
@@ -388,8 +412,10 @@ const useStyles = themed(({ color }) =>
     onPhoto: { color: photo.on },
     onPhotoQuiet: { color: photo.onQuiet },
     grow: { flex: 1, minWidth: 0 },
+    // The plate at the top and the length at the foot; on large type, where they meet, 8 between them.
     poster: {
-      height: 136,
+      minHeight: 136,
+      gap: space.s2,
       borderRadius: radius.card,
       overflow: 'hidden',
       backgroundColor: color.surface,
@@ -399,11 +425,12 @@ const useStyles = themed(({ color }) =>
     posterCell: { flex: 1, backgroundColor: color.raise, overflow: 'hidden' },
     posterLead: { flex: 1.3 },
     posterScrim: { experimental_backgroundImage: photo.posterOrder },
-    // Spec 7.6, detail 42: the plate 26 round its 12 / 600 — a floor, it grows with the type.
+    // Spec 7.6, detail 42: the plate 26 round its 12 / 600 — a floor, it grows with the type. In the
+    // poster's flow and not over it, so a length grown with the type stands under it, not across it.
     posterPlate: {
-      position: 'absolute',
-      left: 14,
-      top: 12,
+      alignSelf: 'flex-start',
+      marginLeft: 14,
+      marginTop: 12,
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
@@ -433,12 +460,15 @@ const useStyles = themed(({ color }) =>
     posterFoot: {
       marginTop: 'auto',
       flexDirection: 'row',
+      flexWrap: 'wrap',
       alignItems: 'flex-end',
       gap: space.s3,
       paddingHorizontal: 14,
       paddingBottom: 12,
     },
-    posterShape: { alignItems: 'flex-end', paddingBottom: 3 },
+    // As wide as the figure itself, and the rest of the row: never narrower than «2:30».
+    length: { flexGrow: 1 },
+    posterShape: { flexShrink: 1, marginLeft: 'auto', alignItems: 'flex-end', paddingBottom: 3 },
     summary: {
       borderRadius: radius.card,
       borderWidth: 1,

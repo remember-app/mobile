@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { Pencil } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ApiError, listMontageTemplates, type MontageTemplate } from '@/api';
 import { Banner, Button, TileTemplate, Waiting } from '@/kit';
@@ -44,9 +44,6 @@ export default function TemplatesScreen() {
   const [notice, setNotice] = useState<string | null>(null);
   /** Bumped by «Повторить»: the read is the effect, so asking again is asking it again. */
   const [again, setAgain] = useState(0);
-  /** Two to a row, worked out the way both galleries work theirs out (`memory/frames.tsx`). */
-  const { width } = useWindowDimensions();
-  const cell = { width: (width - space.s4 * 2 - space.s2) / 2 };
 
   useEffect(() => {
     if (!token) return;
@@ -120,7 +117,7 @@ export default function TemplatesScreen() {
               picked={auto === one.id}
               dimmed={auto !== null && auto !== one.id}
               onPress={() => start(one)}
-              style={cell}
+              style={styles.cell}
             />
           ))}
         </View>
@@ -140,5 +137,8 @@ const useStyles = themed(() =>
       paddingBottom: space.s6,
     },
     grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.s2 },
+    // Two to a row, sharing it. A tile whose name breaks a word in its half takes a row of its own
+    // (TASK-375), and the one left beside nothing takes the rest of its row rather than half of it.
+    cell: { flexGrow: 1, width: '40%' },
   }),
 );

@@ -112,11 +112,18 @@ for (const file of files) {
 }
 
 /**
- * How wide an action stands: as wide as its words — a chip, a button told so or of a variant that is
- * — or the width of its row. A button whose variant is picked on the fly can be either.
+ * The pills that carry words and are as wide as them, like a chip: «ОРГАНИЗАТОР», «2 ролика», «Взял 1
+ * из 4», «Готов». Handed into a row that does not wrap they went past its edge on large type — the
+ * films badge on the large card, the decision on «Сейчас» (TASK-375).
+ */
+const PILLS = ['Chip', 'BadgeOrganizer', 'BadgeFilms', 'BadgeDecision', 'BadgeMontage'];
+
+/**
+ * How wide an action stands: as wide as its words — a chip or a badge, a button told so or of a
+ * variant that is — or the width of its row. A button whose variant is picked on the fly can be either.
  */
 function widths(file: File, element: ts.JsxOpeningLikeElement): { words: boolean; row: boolean } {
-  if (element.tagName.getText(file.tree) === 'Chip') return { words: true, row: false };
+  if (PILLS.includes(element.tagName.getText(file.tree))) return { words: true, row: false };
   const wide = attribute(element, 'wide');
   if (wide) {
     const words = wide.initializer?.getText(file.tree) === '{false}';
@@ -153,7 +160,7 @@ const actions = files.flatMap((file) => {
   const visit = (node: ts.Node): void => {
     if (
       (ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) &&
-      ['Button', 'Chip'].includes(node.tagName.getText(file.tree))
+      ['Button', ...PILLS].includes(node.tagName.getText(file.tree))
     ) {
       const rows = rowsAround(file, ts.isJsxOpeningElement(node) ? node.parent : node);
       const line = file.tree.getLineAndCharacterOfPosition(node.getStart(file.tree)).line + 1;
@@ -165,13 +172,63 @@ const actions = files.flatMap((file) => {
   return found;
 });
 
-test('every row that holds a button as wide as its words, or a chip, wraps', () => {
+test('every row that holds a button as wide as its words, a chip or a badge, wraps', () => {
   const stuck = actions
     .filter(({ words }) => words)
     .flatMap(({ at, rows }) =>
       rows.filter((row) => !row.wraps).map((row) => `${at} stands in ${row.at}`),
     );
   expect(stuck).toEqual([]);
+});
+
+/**
+ * And the words beside such a button do not take `flex: 1`: a basis of 0 is never more than the row
+ * leaves them, so a wrapping row keeps the button on their line and squeezes them letter by letter
+ * instead of moving it under them — «Люди» in the settings did at ×2 on 360 (TASK-375). They grow
+ * from their own width (`flexGrow`), or keep a floor of their own (`minWidth: '50%'`).
+ */
+test('the words beside a button as wide as its words grow from their own width', () => {
+  const squeezed = new Set<string>();
+  let rows = 0;
+  for (const file of files) {
+    // The rows a button as wide as its words stands in, conditionally or not.
+    const held = new Set<ts.JsxElement>();
+    const actionsIn = (node: ts.Node): void => {
+      if (
+        (ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) &&
+        ['Button', ...PILLS].includes(node.tagName.getText(file.tree)) &&
+        widths(file, node).words
+      ) {
+        const row = parentElement(ts.isJsxOpeningElement(node) ? node.parent : node);
+        if (row && rowsOf(file, row.openingElement).length > 0) held.add(row);
+      }
+      ts.forEachChild(node, actionsIn);
+    };
+    actionsIn(file.tree);
+    rows += held.size;
+    for (const row of held) {
+      const beside = (node: ts.Node): void => {
+        if (ts.isJsxElement(node) && node !== row && parentElement(node) === row) {
+          if (/<Text\b/.test(node.getText(file.tree)))
+            for (const [, name] of (
+              attribute(node.openingElement, 'style')?.getText(file.tree) ?? ''
+            ).matchAll(/styles\.(\w+)/g))
+              if (
+                (file.styles.get(name) ?? []).some(
+                  (one) => /\bflex: 1\b/.test(one) && !/minWidth: '/.test(one),
+                )
+              )
+                squeezed.add(`${file.path} › ${name}`);
+          return;
+        }
+        ts.forEachChild(node, beside);
+      };
+      ts.forEachChild(row, beside);
+    }
+  }
+  // Without this the test passes on a sweep that has stopped finding the rows.
+  expect(rows).toBeGreaterThan(10);
+  expect([...squeezed]).toEqual([]);
 });
 
 /** The rows where buttons the width of the row stand side by side, with no words between them. */
@@ -205,6 +262,13 @@ test('the sweep sees the rows it is about, slots included', () => {
     // Handed in through a slot: «Повторить» in a banner, «Снять» over the bottom layer.
     'kit/card.tsx › banner',
     'kit/bars.tsx › layerAbove',
+    // A badge handed in (TASK-375): the films on both cards of a memory, the decision on «Сейчас»
+    // and under a stage, and on the frame's own sheet.
+    'kit/card-memory.tsx › largeTop',
+    'kit/card-memory.tsx › foot',
+    'kit/montage-live.tsx › sayWho',
+    'kit/rows.tsx › note',
+    'screens/memory/live-file.tsx › who',
   ])
     expect(seen('words'), row).toContain(row);
 });

@@ -203,7 +203,10 @@ test('the ordinary footer is the filters, the one action, and the arrangement', 
   expect(bar).toContain('size={height.round}');
   // Nothing brought yet is nothing to sift or lay out, so `FramesEmpty` carries neither of them —
   // and whoever may only look keeps both, with nothing in the middle where the action would be.
-  expect(bar.match(/\{any \? \(/g)).toHaveLength(2);
+  // They are the layer's two ends and the action its middle, so the kit can stand them over it
+  // once its words need the width (TASK-375).
+  expect(bar).toMatch(/start=\{\s*any \? \(\s*<IconButton\s+icon=\{Funnel\}/);
+  expect(bar).toMatch(/end=\{\s*any \? \(\s*<IconButton\s+icon=\{ArrowUpDown\}/);
   expect(bar).toContain('{mayUpload ? (');
   expect(bar).toContain('<View style={styles.grow} />');
 });

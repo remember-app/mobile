@@ -270,7 +270,8 @@ const useStyles = themed(() =>
       paddingBottom: space.s6,
       gap: space.s3,
     },
-    counts: { flexDirection: 'row', alignItems: 'baseline', gap: space.s2 },
+    // «от 5 человек» goes under the count on large type rather than past the edge of the card.
+    counts: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', gap: space.s2 },
     // The line with the clock stands just inside the cards above it, as the layout draws it.
     wait: {
       flexDirection: 'row',

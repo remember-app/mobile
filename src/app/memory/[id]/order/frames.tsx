@@ -218,7 +218,9 @@ const REASON_SIGN: Record<Reason, IconComponent> = {
 
 const useStyles = themed(() =>
   StyleSheet.create({
-    grow: { flex: 1, minWidth: 0 },
+    // At least half the row: on large type «Что сняли» goes under the count rather than squeeze it
+    // letter by letter (TASK-375), and on the ordinary one it stays beside it, as drawn.
+    grow: { flex: 1, minWidth: '50%' },
     headLine: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s3 },
     // The layout hangs it 4 past the screen's margin (`MontageSelect`: its right edge at 378).
     whatDropped: { marginRight: -space.s1 },
