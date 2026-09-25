@@ -222,6 +222,19 @@ test('the confirmation keeps the layout’s rhythm: 18 between blocks, 8 between
   const sheet = story(<ConfirmSheet {...base} thumb="https://bucket.example/a.jpg" />);
   expect(sheetStyle(sheet)).toMatch(/^gap:18px;/);
   expect(sheet).toContain(`<div class="css-view-g5y9jx ${rule('gap:8px')}"><button`);
+  // Spec 8, every confirmation as drawn: 14 between the mark and the words, 7 between the question
+  // and the line under it — and the question is the first thing after the mark, on every kind.
+  for (const [what, mark] of [
+    ['a frame', { thumb: 'https://bucket.example/a.jpg' }],
+    ['a person', { who: 'Аня Петрова' }],
+    ['a memory', { cover: {} }],
+  ] as const) {
+    const drawn = story(<ConfirmSheet {...base} {...mark} meta="Марк Ковалёв · 13 сентября" />);
+    const head = drawn.slice(drawn.indexOf('sheet-handle'), drawn.indexOf('<h1'));
+    expect(head, what).toContain(rule('gap:14px'));
+    const words = /<div class="([^"]*)"><h1[^>]*>Удалить это фото\?<\/h1>/.exec(drawn);
+    expect(words?.[1], what).toContain(rule('gap:7px'));
+  }
   // Spec 7.1, detail 8: the paragraph is 15 / 22.
   expect(sheet).toMatch(
     new RegExp(

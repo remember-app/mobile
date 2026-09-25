@@ -18,7 +18,7 @@ vi.mock('@/kit', async (original) => ({
   Field: () => null,
 }));
 
-import { member, memory, serve } from '@tests/helpers/api';
+import { member, memory, refused, serve } from '@tests/helpers/api';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import {
   type CommonActions,
@@ -29,7 +29,7 @@ import {
 } from 'expo-router/build/react-navigation/routers';
 import TestRenderer, { act } from 'react-test-renderer';
 import MemorySettingsScreen from '@/app/memory/[id]/settings';
-import { ConfirmSheet, IconButton } from '@/kit';
+import { Banner, ConfirmSheet, IconButton } from '@/kit';
 import { ru } from '@/strings';
 
 /**
@@ -98,33 +98,98 @@ function rootStack(names: string[]) {
   };
 }
 
+/** The settings screen mounted over a stack, and what the api answers to the delete. */
+async function settings(names: string[], answer: () => unknown) {
+  const stack = rootStack(names);
+  const log = serve((asked) => {
+    if (asked.path === '/memories') return [memory({ media_count: 3 })];
+    if (asked.path === '/memories/m1/members') return [member('me', 'organizer')];
+    if (asked.method === 'DELETE' && asked.path === '/memories/m1') return answer();
+    return undefined;
+  });
+  let tree!: TestRenderer.ReactTestRenderer;
+  await act(async () => {
+    tree = mounted(TestRenderer.create(<MemorySettingsScreen />));
+  });
+  return {
+    stack,
+    /** The quiet trash in the bar, which asks. */
+    trash: () =>
+      act(async () =>
+        tree.root
+          .findAllByType(IconButton)
+          .find((one) => one.props.label === ru.settings.delete)
+          ?.props.onPress(),
+      ),
+    confirm: () => act(async () => tree.root.findByType(ConfirmSheet).props.onConfirm()),
+    deletes: () => log.filter((one) => one.method === 'DELETE').length,
+    notices: () => tree.root.findAllByType(Banner).map((one) => one.props.text as string),
+    asking: () => tree.root.findAllByType(ConfirmSheet).length > 0,
+  };
+}
+
 test.each([
   ['from the main screen', ['index', 'memory/[id]', 'memory/[id]/settings']],
   // An invite accepted on a cold start: the invite screen was the first one, and it was replaced
   // by the memory — nothing is under it.
   ['from a memory with nothing under it', ['memory/[id]', 'memory/[id]/settings']],
+  // Reached again and again on the way: whatever stands under the memory goes with it.
+  [
+    'from a stack that has been walked',
+    ['index', 'memory/[id]', 'memory/[id]/settings', 'memory/[id]', 'memory/[id]/settings'],
+  ],
 ])(
   'after «Удалить навсегда» %s the main screen is all that is left, and back leads nowhere',
   async (_, names) => {
-    const stack = rootStack(names);
-    serve((asked) => {
-      if (asked.path === '/memories') return [memory({ media_count: 3 })];
-      if (asked.path === '/memories/m1/members') return [member('me', 'organizer')];
-      if (asked.method === 'DELETE' && asked.path === '/memories/m1') return { ok: true };
-      return undefined;
-    });
-    let tree!: TestRenderer.ReactTestRenderer;
-    await act(async () => {
-      tree = mounted(TestRenderer.create(<MemorySettingsScreen />));
-    });
-    const trash = tree.root
-      .findAllByType(IconButton)
-      .find((one) => one.props.label === ru.settings.delete);
-    await act(async () => trash?.props.onPress());
-    await act(async () => tree.root.findByType(ConfirmSheet).props.onConfirm());
+    const world = await settings(names, () => ({ ok: true }));
+    await world.trash();
+    await world.confirm();
 
-    stack.flush();
-    expect(stack.names()).toEqual(['index']);
-    expect(stack.back()).toBeNull();
+    world.stack.flush();
+    expect(world.stack.names()).toEqual(['index']);
+    expect(world.stack.back()).toBeNull();
   },
 );
+
+test.each([
+  ['from the main screen', ['index', 'memory/[id]', 'memory/[id]/settings']],
+  ['from a memory with nothing under it', ['memory/[id]', 'memory/[id]/settings']],
+])(
+  'a memory somebody else has already deleted (404) ends the same way %s, and says nothing about it',
+  async (_, names) => {
+    const world = await settings(names, () => refused(404));
+    await world.trash();
+    await world.confirm();
+
+    world.stack.flush();
+    expect(world.stack.names()).toEqual(['index']);
+    expect(world.stack.back()).toBeNull();
+    expect(world.notices()).toEqual([]);
+  },
+);
+
+test('a delete the api refuses leaves the stack as it was and says why; asked again, it goes through and clears the stack', async () => {
+  const names = ['index', 'memory/[id]', 'memory/[id]/settings'];
+  let answer: () => unknown = () => refused(500, 'boom');
+  const world = await settings(names, () => answer());
+
+  await world.trash();
+  await world.confirm();
+  world.stack.flush();
+  // Nothing was taken: the memory is still under this screen, and back still leads to it.
+  expect(world.stack.names()).toEqual(names);
+  expect(world.stack.back()).toEqual(['index', 'memory/[id]']);
+  expect(world.notices()).toHaveLength(1);
+  // The sheet has given the screen back; the way to ask again is the same trash.
+  expect(world.asking()).toBe(false);
+  expect(world.deletes()).toBe(1);
+
+  answer = () => ({ ok: true });
+  await world.trash();
+  expect(world.asking()).toBe(true);
+  await world.confirm();
+  world.stack.flush();
+  expect(world.deletes()).toBe(2);
+  expect(world.stack.names()).toEqual(['index']);
+  expect(world.stack.back()).toBeNull();
+});

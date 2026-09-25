@@ -59,6 +59,7 @@ import {
 import { touch } from '@tests/helpers/gesture';
 import { label } from '@tests/helpers/labels';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
+import { sheetBox, wordsIn } from '@tests/helpers/sheet';
 import { FlatList, RefreshControl } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import type { Label, MediaItem, Member } from '@/api';
@@ -474,6 +475,55 @@ test('a contributor deletes what they brought and nothing else: the sheet counts
   await act(async () => screen.sheet().props.onConfirm());
   expect(deletes(w.log)).toEqual(['b', 'c']);
   expect(screen.feed()).toEqual(['a', 'd', 'e']);
+});
+
+test('the sheet asking about an armful stands at 380 and says why fewer go — whether or not the first frame that goes has a thumbnail yet', async () => {
+  who.id = 'liza';
+  for (const thumbnail of ['https://r2.example/b', null]) {
+    // Liza's own two frames are `b` and `c`; `b` is the first of them. Marked with its picture, then a
+    // read somebody asked for (the pull) comes back without one — the record stays marked all the same.
+    const list = (poster: string | null) => [
+      photo('a', 'me', at(13, 10)),
+      photo('b', 'liza', at(13, 9), { kind: 'video', thumbnail_url: poster }),
+      photo('c', 'liza', at(12, 15)),
+    ];
+    world({
+      media: list('https://r2.example/b'),
+      read: (nth) => (nth > 1 ? list(thumbnail) : undefined),
+    });
+    const screen = await open();
+    await screen.startPicking();
+    await screen.pressCapsule();
+    await screen.pull();
+    await screen.press(screen.icon(ru.action.delete));
+    const lines = wordsIn(screen.sheet());
+    expect(lines).toContain(ru.gallery.deleteAskMany(2));
+    expect(lines, `thumbnail ${thumbnail}`).toContain(ru.gallery.deleteDenied);
+    // The question stands over its line, and both over the paragraph.
+    expect(lines.indexOf(ru.gallery.deleteAskMany(2))).toBeLessThan(
+      lines.indexOf(ru.gallery.deleteDenied),
+    );
+    expect(lines.indexOf(ru.gallery.deleteDenied)).toBeLessThan(
+      lines.indexOf(ru.gallery.deleteText),
+    );
+    // An armful is asked about on the 380 sheet whatever picture it has beside the question.
+    expect(sheetBox(screen.sheet())).toMatchObject({
+      gap: 18,
+      minHeight: height.sheetConfirmDelete,
+    });
+    expect(height.sheetConfirmDelete).toBe(380);
+    await screen.unmount();
+  }
+});
+
+test('the organizer’s armful has no line about somebody else’s frames, and is the same 380 sheet', async () => {
+  world();
+  const screen = await open();
+  await screen.startPicking();
+  await screen.tap('a', 'b');
+  await screen.press(screen.icon(ru.action.delete));
+  expect(wordsIn(screen.sheet())).not.toContain(ru.gallery.deleteDenied);
+  expect(sheetBox(screen.sheet())).toMatchObject({ gap: 18, minHeight: 380 });
 });
 
 test('a selection with nothing of one’s own in it has a delete that is off, not one the api will refuse', async () => {

@@ -53,11 +53,13 @@ vi.mock('react-native', async (importOriginal) => {
 });
 vi.mock('@/lib/downloads', () => downloads);
 
+import { expectReachable } from '@tests/helpers/access';
 import { type Asked, later, member, memory, photo, refused, serve } from '@tests/helpers/api';
 import { touch } from '@tests/helpers/gesture';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
-import { Modal, Pressable, StyleSheet } from 'react-native';
-import TestRenderer, { act } from 'react-test-renderer';
+import { sheetBox } from '@tests/helpers/sheet';
+import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
 import type { FrameInfo, MediaItem, Member } from '@/api';
 import {
   ActionMenu,
@@ -73,9 +75,10 @@ import {
   VideoTrack,
   ViewerBar,
 } from '@/kit';
+import { setLanguage } from '@/lib/language';
 import { FrameViewer } from '@/screens/memory/frame-viewer';
 import { FrameInfoSheet } from '@/screens/memory/frames-sheets';
-import { ru } from '@/strings';
+import { ru, strings } from '@/strings';
 
 /**
  * `Viewer` (spec 8, «Просмотр медиа») — one frame on the whole of the phone: the three glass buttons,
@@ -278,6 +281,8 @@ test('the delete asks first, on a sheet that names the frame, and only the confi
   expect(screen.confirm().props.visible).toBe(true);
   expect(screen.confirm().props.title).toBe(ru.gallery.deleteAsk('photo'));
   expect(screen.confirm().props.meta).toContain('Марк Ковалёв');
+  // Spec 4, `SheetConfirmDelete`: 380 with 18 between blocks, the frame's picture beside the question.
+  expect(sheetBox(screen.confirm())).toEqual({ gap: 18, minHeight: 380 });
   expect(patches(log, 'DELETE')).toEqual([]);
   await act(async () => screen.confirm().props.onCancel());
   expect(screen.confirm().props.visible).toBe(false);
@@ -939,5 +944,90 @@ test.each([
     await act(async () => pill.props.onPress());
     expect(screen.info().props.visible).toBe(true);
     expect(log.map((one) => one.path)).toEqual(['/memories/m1/media/a']);
+  },
+);
+
+/** The nearest style, walking up from a node, that says something about `key` — the box it stands in. */
+function boxAround(node: ReactTestInstance, key: string) {
+  for (let up = node.parent; up; up = up.parent) {
+    // The component and not the element it draws: what a `View` was handed, not what the web made of it.
+    if (up.type !== View) continue;
+    const style = StyleSheet.flatten(up.props.style) as Record<string, number> | undefined;
+    if (style && style[key] !== undefined) return style;
+  }
+  throw new Error(`nothing around this node says ${key}`);
+}
+
+/** Every height a subtree is drawn with, off its own style and its scroll content's. */
+const heightsIn = (node: ReactTestInstance) =>
+  node
+    .findAll(() => true)
+    .flatMap((one) => [one.props.style, one.props.contentContainerStyle])
+    .map((style) => (typeof style === 'function' ? undefined : StyleSheet.flatten(style)?.height))
+    .filter((one): one is number => typeof one === 'number');
+
+test.each([
+  ['a photograph', () => shots()[0], 96],
+  ['a video', () => video(), 140],
+])(
+  'the foot of the window, added up off what is drawn: %s ends %i above the bottom of the phone',
+  async (_, item, foot) => {
+    // Spec 8, `Viewer` / `ViewerVideo`, and 10.10: the photograph ends 96 above the bottom edge and
+    // the video 140 — 704 of 844, its scrubber 716–752, and 14 (not 12) down to the strip.
+    serve(() => undefined);
+    const shown = item();
+    const screen = await open({ item: shown, frames: [shown] });
+    const strip = screen.root.findByType(Filmstrip);
+    const tools = boxAround(strip, 'paddingBottom');
+    expect(heightsIn(strip)).toContain(48);
+    const isVideo = shown.kind === 'video';
+    let total = tools.paddingBottom + 48 + tools.paddingTop;
+    if (isVideo) {
+      // The scrubber row is as tall as the sound button beside it, and the strip stands 14 under it.
+      expect(screen.icon(ru.viewer.mute)().props.size).toBe(36);
+      expect(tools.gap).toBe(14);
+      total += tools.gap + 36;
+    }
+    expect(total).toBe(foot);
+    // The scrubber is inside the same box as the strip, above it, on a video alone.
+    expect(screen.root.findAllByType(VideoTrack)).toHaveLength(isVideo ? 1 : 0);
+  },
+);
+
+test('«Пауза» in the middle of a video is 72, dark, with no colour of the glass or of the viewer’s own on it', async () => {
+  serve(() => undefined);
+  const clip = video();
+  for (const playing of [true, false]) {
+    player.playing = playing;
+    const screen = await open({ item: clip, frames: [clip] });
+    const button = screen.icon(playing ? ru.viewer.pause : ru.viewer.play)();
+    expect(button.props).toMatchObject({ size: 72, tone: 'video' });
+    // The glyph takes its paper from the tone: nothing here overrides it with a white of its own.
+    expect(button.props.tint).toBeUndefined();
+  }
+});
+
+test.each(['ru', 'en'] as const)(
+  'in %s the open frame — photograph or video, sheet down or up — has a name and a role on everything a finger can press, and none of them is under 44',
+  async (language) => {
+    await act(async () => setLanguage(language));
+    try {
+      serve(() => undefined);
+      for (const item of [shots()[0], video()]) {
+        const screen = await open({ item, frames: [item] });
+        const found = expectReachable(screen.root);
+        const names = found.map((one) => one.name);
+        const s = strings[language];
+        for (const name of [s.action.close, s.viewer.more])
+          expect(names, `${item.kind}: ${name}`).toContain(name);
+        if (item.kind === 'video')
+          for (const name of [s.viewer.play, s.viewer.mute])
+            expect(names, `${item.kind}: ${name}`).toContain(name);
+        // The pill that raises the sheet is a button that says what it opens and for which frame.
+        expect(names.some((name) => name.startsWith(s.viewer.details))).toBe(true);
+      }
+    } finally {
+      await act(async () => setLanguage('ru'));
+    }
   },
 );

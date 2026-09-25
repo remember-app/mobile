@@ -48,7 +48,7 @@ import { type Asked, contact, later, refused, serve } from '@tests/helpers/api';
 import { account, datesRefusal, languageRefusal } from '@tests/helpers/contract';
 import { mounted, mountsTrees, themesShown } from '@tests/helpers/renderer';
 import type { ReactNode } from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
 import { ApiError } from '@/api';
 import ProfileScreen from '@/app/profile';
@@ -69,7 +69,7 @@ import {
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { setLanguage } from '@/lib/language';
 import { ru, strings } from '@/strings';
-import { setTheme } from '@/theme';
+import { setTheme, themes } from '@/theme';
 
 /**
  * `Account` (spec 8) as a person walks it: the real provider and client, the api stood in for behind
@@ -244,6 +244,41 @@ test('the screen is the card, «Контакты», «Тема» and «Язык�
   expect(screen.root().findByType(ConfirmSheet).props.visible).toBe(false);
   expect(screen.renaming().props.visible).toBe(false);
 });
+
+const crowd = () =>
+  [
+    'Марк Ковалёв',
+    'Аня Петрова',
+    'Вера Горина',
+    'Жанна Щукина',
+    'Пётр Иванов',
+    'Лев Орлов',
+    'Ия Ким',
+  ].map((name, at) => contact(`c${at}`, name));
+
+test.each(['dark', 'light'] as const)(
+  '«Контакты» in the %s theme carries the 36 stack — three faces and the four behind them — collared in the card’s own colour',
+  async (name) => {
+    await act(async () => setTheme(name));
+    world({ contacts: crowd() });
+    const screen = await open();
+    expect(screen.words()).toContain('7 человек');
+    const stack = screen.root().findByType(AvatarStack);
+    // The 36 of the account's card and not the pill's 24, and never the layout's four faces plus a fifth.
+    const circles = stack
+      .findAllByType(View)
+      .map((one) => StyleSheet.flatten(one.props.style) ?? {})
+      .filter((style) => style.width === 36);
+    expect(circles).toHaveLength(4);
+    const said = stack.findAllByType(Text).map((one) => [one.props.children].flat().join(''));
+    expect(said).toEqual(['МК', 'АП', 'ВГ', '+4']);
+    // The collar is cut in what the card is filled with, or the edges of the circles show a seam.
+    const card = screen.root().findByType(RowSection).findByType(Pressable);
+    const ground = StyleSheet.flatten(card.props.style({ pressed: false })).backgroundColor;
+    expect(ground).toBe(themes[name].color.surface);
+    for (const style of circles) expect(style.boxShadow).toBe(`0 0 0 2px ${ground}`);
+  },
+);
 
 test('with nobody saved there is no count and no faces, and the card still says what it is for', async () => {
   world({ contacts: [] });

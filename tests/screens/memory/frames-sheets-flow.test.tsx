@@ -5,7 +5,7 @@ vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' 
 import { expectReachable } from '@tests/helpers/access';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { Image } from 'expo-image';
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 
 import type { Label } from '@/api';
@@ -18,6 +18,7 @@ import {
   FaceToggle,
   IconButton,
   RowSummary,
+  Segment,
   Spinner,
 } from '@/kit';
 import { FILTER_NONE, type Filter, type FilterDay, SORT_DEFAULT } from '@/lib/frames';
@@ -219,6 +220,79 @@ test('the faces are pressed on and off, «Все дни» empties only the days,
   await sheet.press(sheet.button(ru.gallery.showAll));
   expect(sheet.applied).toHaveLength(1);
   expect(sheet.applied[0].people.size + sheet.applied[0].days.size).toBe(0);
+});
+
+/** How strongly each face of the sheet is actually drawn — its own press surface's opacity, 1 where none is set. */
+const strengths = (root: TestRenderer.ReactTestInstance) =>
+  root
+    .findAllByType(FaceToggle)
+    .map((one) => StyleSheet.flatten(one.findAllByType(View)[0].props.style).opacity ?? 1);
+
+test.each([1, 6, 7, 12])(
+  'with %i people: nobody chosen is every face at full strength, one chosen dims the rest, and taking the last choice back lifts them all',
+  async (who) => {
+    const sheet = await work({ who });
+    const all = Array.from({ length: who }, () => 1);
+    expect(strengths(sheet.root)).toEqual(all);
+
+    await sheet.press(sheet.face(1));
+    // The chosen one stays at full strength and the ring is its mark; everybody else is left out.
+    expect(strengths(sheet.root)).toEqual([1, ...Array.from({ length: who - 1 }, () => 0.5)]);
+    // Read out as a switch that stands in: only the chosen face says so.
+    expect(
+      sheet.root
+        .findAllByType(FaceToggle)
+        .map((one) => one.findByType(Pressable).props.accessibilityState.checked),
+    ).toEqual([true, ...Array.from({ length: who - 1 }, () => false)]);
+    if (who > 1) {
+      await sheet.press(sheet.face(who));
+      expect(strengths(sheet.root)).toEqual(
+        Array.from({ length: who }, (_, at) => (at === 0 || at === who - 1 ? 1 : 0.5)),
+      );
+      await sheet.press(sheet.face(who));
+    }
+    // The same face pressed again is the last choice taken back: nobody is left out any more.
+    await sheet.press(sheet.face(1));
+    expect(strengths(sheet.root)).toEqual(all);
+    expect(sheet.root.findAllByType(FaceToggle).some((one) => one.props.selected)).toBe(false);
+    expect(sheet.button(ru.gallery.reset).props.disabled).toBe(true);
+  },
+);
+
+test('a sheet opened on an applied choice of people opens with the rest already dimmed, and «Сбросить» brings everybody back', async () => {
+  const sheet = await work({ who: 4, value: { ...FILTER_NONE, people: new Set(['p1', 'p3']) } });
+  expect(strengths(sheet.root)).toEqual([0.5, 1, 0.5, 1]);
+  await sheet.press(sheet.button(ru.gallery.reset));
+  expect(strengths(sheet.root)).toEqual([1, 1, 1, 1]);
+});
+
+test('«Сбросить» empties every group of the sheet at once, not the faces alone', async () => {
+  const box = (id: string): Label => ({
+    id,
+    title: id,
+    color: 2,
+    shared: true,
+    mine: true,
+    can_edit: true,
+    can_add_media: true,
+    media_count: 5,
+  });
+  const sheet = await work({ who: 3, days: 3, labels: [box('Лучшее'), box('Дорога')] });
+  await sheet.press(sheet.face(2));
+  await act(async () => sheet.root.findAllByType(Segment)[0].props.onChange('video'));
+  await sheet.press(sheet.chip('Лучшее'));
+  await sheet.press(sheet.tiles()[1]);
+  expect(sheet.button(ru.gallery.reset).props.disabled).toBe(false);
+
+  await sheet.press(sheet.button(ru.gallery.reset));
+  expect(sheet.button(ru.gallery.reset).props.disabled).toBe(true);
+  expect(sheet.tiles().map((one) => one.props.selected)).toEqual([false, false, false]);
+  expect(sheet.chip('Лучшее').props.selected).toBe(false);
+  expect(sheet.chip(ru.gallery.anyDay).props.selected).toBe(true);
+  await sheet.press(sheet.button(ru.gallery.showAll));
+  const [applied] = sheet.applied;
+  expect(applied.kind).toBe('all');
+  expect([applied.people.size, applied.labels.size, applied.days.size]).toEqual([0, 0, 0]);
 });
 
 test('a filter that is applied hands over exactly what was chosen, and later edits of the draft cannot change it', async () => {

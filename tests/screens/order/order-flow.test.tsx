@@ -120,10 +120,12 @@ vi.mock('@/kit', async (original) => {
 import { expectReachable } from '@tests/helpers/access';
 import { later } from '@tests/helpers/api';
 import { orderRefusal } from '@tests/helpers/contract';
+import { contrast } from '@tests/helpers/contrast';
 import { act, BEAT_BY_BEAT, drives } from '@tests/helpers/drive';
 import { frame } from '@tests/helpers/labels';
 import { mountsTrees, themesShown } from '@tests/helpers/renderer';
 import { Fragment, type ReactElement, useSyncExternalStore } from 'react';
+import { StyleSheet, Text } from 'react-native';
 import TestRenderer, { act as reactAct } from 'react-test-renderer';
 import type {
   MediaItem,
@@ -150,10 +152,11 @@ import {
   Tile,
   TileTemplate,
 } from '@/kit';
+import { formatRuntime } from '@/lib/dates';
 import { currentLanguage, setLanguage } from '@/lib/language';
 import { ENTER_MS, OrderProvider, READ_MS, useOrder, type Wizard } from '@/screens/order/wizard';
 import { ru, strings } from '@/strings';
-import { setTheme } from '@/theme';
+import { setTheme, themes } from '@/theme';
 
 /**
  * Ordering a movie the way the organizer does, start to finish (doc-03, m-26): the real wizard —
@@ -982,6 +985,99 @@ test.each(['ru', 'en'] as const)(
     await run(0);
     await press(s.montage.startCut);
     expect(server.orders[0]?.music_tracks).toHaveLength(50);
+  },
+);
+
+test('an order of fifty tracks, every one with a wish of five hundred letters, is one the api takes, and the wishes go out trimmed under their own keys', async () => {
+  const server = serve();
+  await open();
+  await press(ru.montage.ownSetup);
+  await forward();
+  await forward();
+
+  // Fifty files, and the wish of each as long as the api lets one be — the last with the spaces a
+  // field can be left with, which the api counts before it trims and the app trims before it sends.
+  const fifty = Array.from({ length: 50 }, (_, at) => ({
+    key: `music/${at}`,
+    name: `${at}.mp3`,
+    wish: at === 49 ? ` ${'я'.repeat(500)} ` : 'ю'.repeat(500),
+  }));
+  await act(async () => wizard.change({ tracks: fifty }));
+  await forward();
+  await forward();
+  await run(0);
+  expect(server.previews.at(-1)?.music_tracks).toHaveLength(50);
+  await press(ru.montage.startCut);
+
+  const [sent] = server.orders;
+  expect(sent.music_tracks).toEqual(fifty.map((track) => track.key));
+  expect(Object.keys(sent.music_wishes ?? {})).toEqual(sent.music_tracks);
+  for (const wish of Object.values(sent.music_wishes ?? {})) expect([...wish]).toHaveLength(500);
+  expect(sent.music_wishes?.['music/49']).toBe('я'.repeat(500));
+});
+
+test.each([
+  ['dark', 'ru', 7.12],
+  ['dark', 'en', 7.12],
+  ['light', 'ru', 5.34],
+  ['light', 'en', 5.34],
+] as const)(
+  'in the %s theme, in %s, the count over «Выбрано» is `muted` on its block at 4.5 : 1 or better — nothing added, the shelf with its time, a file with none',
+  BEAT_BY_BEAT,
+  async (theme, language, spec) => {
+    await setLanguage(language);
+    await setTheme(theme);
+    try {
+      const s = strings[language];
+      serve();
+      await open();
+      await press(s.montage.ownSetup);
+      await forward();
+      await forward();
+
+      /** The ink the line is set in, the block it stands on, and how well the one reads on the other. */
+      const readable = (line: string) => {
+        const words = root()
+          .findAllByType(MusicStep)
+          .at(-1)!
+          .findAll((one) => one.type === Text && [one.props.children].flat().join('') === line);
+        expect(words, line).toHaveLength(1);
+        const ink = StyleSheet.flatten(words[0].props.style).color as string;
+        let ground: string | undefined;
+        for (let up = words[0].parent; up && !ground; up = up.parent)
+          if (typeof up.props.style !== 'function')
+            ground = StyleSheet.flatten(up.props.style)?.backgroundColor;
+        return { ink, ground, ratio: contrast(ink, ground as string) };
+      };
+      const { muted, surface } = themes[theme].color;
+      const held = (line: string) => {
+        const { ink, ground, ratio } = readable(line);
+        // The tokens by name, and the ratio worked out by WCAG off what was drawn — never off a literal.
+        expect(ink, line).toBe(muted);
+        expect(ground, line).toBe(surface);
+        expect(ratio, `${line}: ${ratio.toFixed(2)} : 1`).toBeGreaterThanOrEqual(4.5);
+        expect(ratio, line).toBeCloseTo(spec, 2);
+      };
+
+      held(s.montage.nothingAdded);
+      // The heading it stands beside is the same `muted`, so the pair is one voice on one block.
+      held(s.montage.picked.toUpperCase());
+      await press(s.montage.addTrack(s.montage.track.warm));
+      await press(s.montage.addTrack(s.montage.track.calm));
+      // 126 and 110 seconds: «2 трека · 3:56».
+      held(`${s.montage.tracksPicked(2)} · ${formatRuntime(126 + 110)}`);
+      // A file off the phone has a length nobody here has heard: the tracks are counted, the time is not.
+      phone.pick = {
+        canceled: false,
+        assets: [{ uri: 'file:///a.mp3', name: 'Первый танец.mp3' }],
+      };
+      phone.send = async () => 'music/aaa';
+      await press(s.montage.ownTrackShort);
+      held(s.montage.tracksPicked(3));
+    } finally {
+      await setTheme('dark');
+      await setLanguage('ru');
+    }
   },
 );
 
