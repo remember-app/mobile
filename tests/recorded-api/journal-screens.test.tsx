@@ -25,6 +25,24 @@ vi.mock('expo-router', async () => {
     useRouter: () => router,
   };
 });
+// The window of the phone and the type size it is set to. Under node the window is nothing at all,
+// which is what every test here but the one about the smallest phone wants: it is left alone until a
+// test gives it a size.
+const handset = vi.hoisted(() => ({ height: 0, fontScale: 0 }));
+vi.mock('react-native', async (importOriginal) => {
+  const rn = await importOriginal<typeof import('react-native')>();
+  return {
+    ...rn,
+    useWindowDimensions: () => {
+      const own = rn.useWindowDimensions();
+      return {
+        ...own,
+        height: handset.height || own.height,
+        fontScale: handset.fontScale || own.fontScale,
+      };
+    },
+  };
+});
 // The player of the finished film is a window over the page and is not what these tests read.
 vi.mock('@/lib/orientation', () => ({ lockPortrait: () => {}, useTurnsWithPhone: () => {} }));
 vi.mock('expo-video', () => ({ useVideoPlayer: () => ({}), VideoView: () => null }));
@@ -35,6 +53,7 @@ vi.mock('@/lib/downloads', () => ({
   shareFile: async () => {},
 }));
 
+import { measure, scrolled } from '@tests/helpers/board';
 import { act, BEAT_BY_BEAT, drives, settle } from '@tests/helpers/drive';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { Unlink, WifiOff } from 'lucide-react-native';
@@ -63,6 +82,7 @@ import {
   CardNow,
   Chip,
   Icon,
+  JournalLine,
   LogEntry,
   NoteThought,
   RowStep,
@@ -151,6 +171,7 @@ const extra = {
 const NOW = Date.parse('2026-01-01T00:00:20Z');
 
 beforeEach(() => {
+  Object.assign(handset, { height: 0, fontScale: 0 });
   // react-native-web has no app state to subscribe to off a phone and hands back no subscription.
   vi.spyOn(AppState, 'addEventListener').mockReturnValue({ remove: () => {} });
   vi.useFakeTimers({
@@ -528,6 +549,31 @@ describe.each(SCENARIOS)('%s — the journal of one stage and the card of a file
       ? `${plate.props.text}${plate.props.unsaid ?? ''}`
       : `${log.props.text}${log.props.unsaid ?? ''}`;
   };
+
+  test('on the smallest phone at the largest type the bar and the chips scroll with the records, and the line behind the list goes', async () => {
+    const { screen } = await open('directing');
+    const bar = () => screen.root.findAllByType(AppBar);
+    const chips = () => screen.root.findAllByType(Chip);
+    // Standing: the bar and the four chips above the list, the line laid behind it.
+    await measure(screen.root, { bar: 200 });
+    expect([bar().length, chips().length]).toEqual([1, 4]);
+    expect(scrolled(bar()[0])).toBe(false);
+    expect(chips().map(scrolled)).toEqual([false, false, false, false]);
+    expect(screen.root.findAllByType(JournalLine)).toHaveLength(1);
+
+    // At ×3.571 on 320 × 568 the bar and the chips are the list's own head, once each, and the
+    // line — which would run behind them — is not drawn.
+    Object.assign(handset, { height: 568, fontScale: 3.571 });
+    await measure(screen.root, { bar: 520 });
+    expect([bar().length, chips().length]).toEqual([1, 4]);
+    expect(scrolled(bar()[0])).toBe(true);
+    expect(chips().map(scrolled)).toEqual([true, true, true, true]);
+    expect(screen.root.findAllByType(JournalLine)).toHaveLength(0);
+    // The records are still there, and a chip still answers.
+    expect(inList(screen).length).toBeGreaterThan(0);
+    await screen.press(chips()[1]);
+    await screen.unmount();
+  });
 
   test('«directing» is that stage’s records, freshest first, under the counts the api keeps', async () => {
     const { api, screen } = await open('directing');
