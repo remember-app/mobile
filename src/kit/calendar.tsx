@@ -12,7 +12,7 @@ import {
 import { font, height, radius, space, themed } from '@/theme';
 
 import { IconButton } from './button';
-import { dayKey, type Lane, laneOf, weeksOf } from './calendar-grid';
+import { dayKey, ribbonOf, weeksOf } from './calendar-grid';
 import { PRESS, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
 import { fitCell, Text } from './text';
 
@@ -130,28 +130,50 @@ export function Calendar({
       </View>
 
       <View style={styles.grid} onLayout={(e) => setColumn(e.nativeEvent.layout.width / 7)}>
-        {weeksOf(month).map((week, w) => (
-          <View key={w} style={styles.weekRow}>
-            {week.map((day, i) => {
-              if (!day)
-                return <View key={`blank-${i}`} style={[styles.cell, { height: figure.height }]} />;
-              const at = dayKey(day);
-              return (
-                <Day
-                  key={at}
-                  day={day}
-                  label={dayLabel(day)}
-                  edge={at === start || at === end}
-                  lane={laneOf(at, start, end)}
-                  today={at === today}
-                  disabled={!!((min && at < dayKey(min)) || (max && at > dayKey(max)))}
-                  figure={figure}
-                  onPress={() => onPick(day)}
+        {weeksOf(month).map((week, w) => {
+          const ribbon = ribbonOf(week, start, end);
+          return (
+            <View key={w} style={styles.weekRow}>
+              {/* Spec 7.3: the days between the ends lie on one ribbon, drawn under the week whole —
+                  a piece per day left a seam wherever two of them met. Its ends round off where they
+                  meet the week's edge rather than a circle. */}
+              {ribbon ? (
+                <View
+                  pointerEvents="none"
+                  style={[
+                    styles.ribbon,
+                    {
+                      left: `${(ribbon.from / 7) * 100}%`,
+                      right: `${((7 - ribbon.to) / 7) * 100}%`,
+                    },
+                    ribbon.from % 1 === 0 ? styles.ribbonStart : null,
+                    ribbon.to % 1 === 0 ? styles.ribbonEnd : null,
+                  ]}
                 />
-              );
-            })}
-          </View>
-        ))}
+              ) : null}
+              {week.map((day, i) => {
+                if (!day)
+                  return (
+                    <View key={`blank-${i}`} style={[styles.cell, { height: figure.height }]} />
+                  );
+                const at = dayKey(day);
+                return (
+                  <Day
+                    key={at}
+                    day={day}
+                    label={dayLabel(day)}
+                    edge={at === start || at === end}
+                    inside={start !== null && end !== null && at > start && at < end}
+                    today={at === today}
+                    disabled={!!((min && at < dayKey(min)) || (max && at > dayKey(max)))}
+                    figure={figure}
+                    onPress={() => onPick(day)}
+                  />
+                );
+              })}
+            </View>
+          );
+        })}
       </View>
     </View>
   );
@@ -168,7 +190,7 @@ function Day({
   day,
   label,
   edge,
-  lane,
+  inside,
   today,
   disabled,
   figure,
@@ -177,7 +199,8 @@ function Day({
   day: Date;
   label: string;
   edge: boolean;
-  lane: Lane;
+  /** Between the two ends of a range, on its ribbon. */
+  inside: boolean;
   today: boolean;
   disabled: boolean;
   figure: ReturnType<typeof fitCell>;
@@ -192,7 +215,7 @@ function Day({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{ disabled, selected: edge || lane === 'full' }}
+      accessibilityState={{ disabled, selected: edge || inside }}
       disabled={disabled}
       onPress={onPress}
       {...props}
@@ -203,16 +226,6 @@ function Day({
         focused ? focusRing : null,
       ]}
     >
-      {lane ? (
-        <View
-          pointerEvents="none"
-          style={[
-            styles.lane,
-            lane === 'right' ? styles.laneRight : null,
-            lane === 'left' ? styles.laneLeft : null,
-          ]}
-        />
-      ) : null}
       <View
         style={[
           styles.day,
@@ -223,7 +236,7 @@ function Day({
       >
         <Text
           role="bodySm"
-          tone={disabled ? 'faint' : edge ? 'onFill' : 'paper'}
+          tone={disabled ? 'dayOff' : edge ? 'onFill' : 'paper'}
           maxFontSizeMultiplier={figure.most}
           style={[styles.figure, edge ? styles.figureEdge : null]}
         >
@@ -258,17 +271,16 @@ const useStyles = themed(({ color }) =>
     cell: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     // Spec 7.3 — the days between the ends: `accent` at 26%, laid under the figures rather than
     // mixed into a colour of its own.
-    lane: {
+    ribbon: {
       position: 'absolute',
       top: 0,
       bottom: 0,
-      left: 0,
-      right: 0,
       backgroundColor: color.accent,
       opacity: 0.26,
     },
-    laneRight: { left: '50%' },
-    laneLeft: { right: '50%' },
+    // The circle's own curve (`Create.json`: 20 at the ends of the 13th and the 14th).
+    ribbonStart: { borderTopLeftRadius: DAY / 2, borderBottomLeftRadius: DAY / 2 },
+    ribbonEnd: { borderTopRightRadius: DAY / 2, borderBottomRightRadius: DAY / 2 },
     day: {
       width: DAY,
       height: DAY,

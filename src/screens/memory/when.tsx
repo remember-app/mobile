@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Calendar, Chip, Hint, Text } from '@/kit';
+import { Calendar, Chip, Text } from '@/kit';
 import {
   daysBefore,
   formatDay,
@@ -62,6 +62,15 @@ export function quickSpans(today: Date): Record<'today' | 'yesterday' | 'weekend
 }
 
 /**
+ * How far the quick days and the line under the grid reach past the screen's column of 358 on the
+ * layout's 390 (`Create.html`): the four chips come to 360.6 there and stand centred over the
+ * column, and the line is given 363. So on that phone, at the system's own type, each is one line as
+ * drawn; on a narrower one or with larger type the chips wrap and the line takes a second.
+ */
+export const QUICK_BLEED = space.s1;
+export const ASIDE_BLEED = 5;
+
+/**
  * «Когда это было» — the one block `Create` and `MemoryEdit` are both built round (spec 10.8.3: the
  * same, without a single change). The span written out beside its own eyebrow, four quick days, the
  * calendar, and one line under it saying how the thing is worked.
@@ -100,10 +109,10 @@ export function EventWhen({
   return (
     <View style={styles.block}>
       <View style={styles.head}>
-        <Text role="eyebrow" accessibilityRole="header" style={styles.grow}>
+        <Text role="eyebrow" tone="muted" accessibilityRole="header" style={styles.grow}>
           {s.create.eventDate.toUpperCase()}
         </Text>
-        <Text role="controlSm" style={styles.picked}>
+        <Text role="rowSm" style={styles.picked}>
           {formatEventDates(value.from.toISOString(), value.to?.toISOString() ?? null)}
           {/* Spec 8, «Края»: one day is one date, with no length hung off it. */}
           {days > 1 ? <Text role="chip" tone="muted">{` · ${s.create.days(days)}`}</Text> : null}
@@ -136,21 +145,33 @@ export function EventWhen({
         nextLabel={s.create.nextMonth}
         // The whole date out loud, year and all: the grid's own heading is not read with it.
         dayLabel={formatDay}
+        style={styles.grid}
       />
 
-      <Hint>{s.create.dateHint}</Hint>
+      <Text role="aside" tone="muted" style={styles.aside}>
+        {s.create.dateHint}
+      </Text>
     </View>
   );
 }
 
 // Shape only: every colour in here belongs to the chips, the calendar and the words themselves.
 const styles = StyleSheet.create({
-  // Spec 10.8.3, the rhythm of `Create`: 10 between the eyebrow, the chips, the grid and the line.
+  // Spec 10.8.3, the rhythm of `Create`: 10 between the eyebrow, the chips, the grid and the line —
+  // and 2 more over the grid (`Create.html`: 12 from the chips down to it).
   block: { gap: 10 },
   // The heading on the left, the days on the right — and the days under it, whole, once both do not
   // fit on one line: a long range, or large type (TASK-377).
   head: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', gap: space.s3 },
   grow: { flexGrow: 1 },
   picked: { flexShrink: 1, fontVariant: ['tabular-nums'] },
-  quick: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.s2 },
+  quick: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: space.s2,
+    marginHorizontal: -QUICK_BLEED,
+  },
+  grid: { marginTop: 2 },
+  aside: { marginRight: -ASIDE_BLEED },
 });

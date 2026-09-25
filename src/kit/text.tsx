@@ -16,6 +16,7 @@ export type TextTone =
   | 'paper'
   | 'muted'
   | 'faint'
+  | 'dayOff'
   | 'accent'
   | 'spark'
   | 'sparkInk'
@@ -101,6 +102,7 @@ const useStyles = themed(({ color }) =>
     paper: { color: color.paper },
     muted: { color: color.muted },
     faint: { color: color.faint },
+    dayOff: { color: color.dayOff },
     accent: { color: color.accentText },
     spark: { color: color.spark },
     sparkInk: { color: color.sparkInk },

@@ -31,6 +31,12 @@ export type Color = {
   muted: string;
   /** a note, unavailable text, a weak glyph. Never under running text — see spec 10.1 */
   faint: string;
+  /**
+   * A day of the calendar that does not answer — tomorrow and after (spec 7.3, detail 15). A step
+   * under `faint`: the weekday letters over the grid are `faint`, and a week of days that cannot be
+   * picked has to read as quieter than they do.
+   */
+  dayOff: string;
   /** the one main action, the focus of a field, «идёт» */
   accent: string;
   /** accent as text or as a border, where the fill itself would not be read */
@@ -88,6 +94,7 @@ const dark: Color = {
   paper: '#F5F3EE',
   muted: '#A4A1B2',
   faint: '#6E6B7D',
+  dayOff: '#4A4757',
   accent: '#4B5BFF',
   accentText: '#A7AEFF',
   accentSoft: '#1A1C33',
@@ -134,6 +141,8 @@ const light: Color = {
   // The mirror of the night's `faint`: 3.79 : 1 there on `ink`, 3.79 : 1 here. Decorative and
   // unavailable only — spec 10.1 keeps every readable secondary on `muted`.
   faint: '#7A7788',
+  // The night's 1.99 : 1 on its card, mirrored onto the white one: `faint` taken toward the paper.
+  dayOff: '#B8B7C0',
   accent: '#3B3FE0',
   // On paper the accent reads as itself (6.2 : 1 on `ink`); it is the night that needs a lighter one.
   accentText: '#3B3FE0',

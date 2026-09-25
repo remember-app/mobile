@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from 'vitest';
 
-import { dayKey, laneOf, weeksOf } from '@/kit/calendar-grid';
+import { dayKey, ribbonOf, weeksOf } from '@/kit/calendar-grid';
 
 /** Spec 7.3, detail 15 — the arithmetic under the calendar, with no renderer between it and the test. */
 
@@ -117,18 +117,23 @@ test('a day whose midnight was skipped by the clocks is still one day, and only 
   });
 });
 
-test('a ribbon is the ends and everything between, and one day is not a ribbon', () => {
-  const [a, b, c, d] = [12, 13, 14, 15].map((day) => dayKey(new Date(2026, 8, day)));
-  // First day: the right half. Last day: the left half. Between: the whole square.
-  expect(laneOf(a, a, c)).toBe('right');
-  expect(laneOf(b, a, c)).toBe('full');
-  expect(laneOf(c, a, c)).toBe('left');
-  // Outside it, and with no range at all, there is nothing under the figure.
-  expect(laneOf(d, a, c)).toBeNull();
-  expect(laneOf(a, null, null)).toBeNull();
-  expect(laneOf(a, a, null)).toBeNull();
-  expect(laneOf(b, null, c)).toBeNull();
-  // One day picked twice is one day; a range handed in backwards is not drawn at all.
-  expect(laneOf(a, a, a)).toBeNull();
-  expect(laneOf(b, c, a)).toBeNull();
+test('a ribbon runs from the middle of one end to the middle of the other, a piece per week', () => {
+  const sept = (day: number) => dayKey(new Date(2026, 8, day));
+  const weeks = weeksOf(new Date(2026, 8, 1));
+  const [second, third, fifth] = [weeks[1], weeks[2], weeks[4]];
+  // `Create.json`, 12–14 September 2026: the 12th is a Saturday, the 14th the next Monday. The first
+  // week's piece starts under the 12th's circle and runs to the week's right edge; the next one comes
+  // in from the left edge and stops under the 14th's.
+  expect(ribbonOf(second, sept(12), sept(14))).toEqual({ from: 5.5, to: 7 });
+  expect(ribbonOf(third, sept(12), sept(14))).toEqual({ from: 0, to: 0.5 });
+  // Inside one week, both ends under circles; a week it does not reach has nothing.
+  expect(ribbonOf(third, sept(15), sept(17))).toEqual({ from: 1.5, to: 3.5 });
+  expect(ribbonOf(fifth, sept(12), sept(14))).toBeNull();
+  // A range that runs on past the month ends on the last day's own edge, not in the blanks after it.
+  expect(ribbonOf(fifth, sept(29), dayKey(new Date(2026, 9, 3)))).toEqual({ from: 1.5, to: 3 });
+  // No range, half a range, one day picked twice, a range handed in backwards: nothing.
+  expect(ribbonOf(second, null, null)).toBeNull();
+  expect(ribbonOf(second, sept(12), null)).toBeNull();
+  expect(ribbonOf(second, sept(12), sept(12))).toBeNull();
+  expect(ribbonOf(second, sept(14), sept(12))).toBeNull();
 });

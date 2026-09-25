@@ -83,3 +83,30 @@ test('a day outside the walls is quiet and does not answer', () => {
   // And the ones inside still answer.
   expect(story(month())).not.toContain('aria-disabled="true"');
 });
+
+test('a day that does not answer is the layout’s #4A4757, a step under the weekday letters', () => {
+  // Spec 7.3, detail 15, and `Create.json` e70…e86 — the 22nd to the 30th, past «today» the 21st.
+  const capped = story(month({ max: sept(21) }));
+  const off = rule('color:rgba(74,71,87,1.00)');
+  expect(capped).toContain(off);
+  expect(story(month())).not.toContain(off);
+  // The letters over the grid stay `faint` (e20…e26, #6E6B7D).
+  expect(capped).toContain(rule('color:rgba(110,107,125,1.00)'));
+});
+
+test('a range lies on one ribbon per week, rounded where it meets the week’s edge', () => {
+  // `Create.json`, 12–14 September: the 13th's piece ends in a curve of 20 on the right (e51), the
+  // 14th's begins in one on the left (e53). One piece a week and not one a day: the seam between two
+  // pieces was a dark line across the ribbon on the phone.
+  const pieces = (drawn: string) => drawn.split(rule('opacity:0.26')).length - 1;
+  const across = story(month({ from: sept(12), to: sept(14) }));
+  expect(pieces(across)).toBe(2);
+  expect(across).toContain(rule('border-top-right-radius:20px'));
+  expect(across).toContain(rule('border-top-left-radius:20px'));
+  // Inside one week both ends stand under circles: one piece, and nothing to round.
+  const within = story(month({ from: sept(15), to: sept(17) }));
+  expect(pieces(within)).toBe(1);
+  expect(within).not.toContain(rule('border-top-right-radius:20px'));
+  expect(within).not.toContain(rule('border-top-left-radius:20px'));
+  expect(pieces(story(month({ from: sept(12) })))).toBe(0);
+});

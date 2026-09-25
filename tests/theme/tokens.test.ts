@@ -253,6 +253,56 @@ test('the small lines are the ones the layout sets, at the line the face gives t
   expect(type.bodyXs).toMatchObject({ fontFamily: font.regular, fontSize: 14, lineHeight: 20 });
 });
 
+test('the words of `Create`, `MemorySettings` and `Account` are the ones the layout sets (TASK-387)', () => {
+  // `Create.json` e8: «12–14 сентября» 14 / 600 on a line of 18 — Onest's own at 14 (17.85) rounded
+  // up, which is `rowSm`. On the 14 of a segment iOS set its figures 3.4 higher under the field.
+  expect(type.rowSm).toMatchObject({ fontFamily: font.semi, fontSize: 14 });
+  expect(type.rowSm.lineHeight).toBe(Math.ceil(naturalLine(fontFile(FACES.Onest_600SemiBold), 14)));
+  expect(type.rowSm.lineHeight).toBe(18);
+  // e87: the line under the calendar, 12 / 400 / 17 (spec 7.3, detail 15: «подпись 12 / 17»).
+  expect(type.aside).toEqual({ fontFamily: font.regular, fontSize: 12, lineHeight: 17 });
+  // e5, and `UploadQueue.json` e6 «Отправляем»: Unbounded 600 17 at −0.02em, −0.34.
+  expect(type.subtitleDisplay).toMatchObject({ fontSize: 17, letterSpacing: -0.34 });
+  // `MemorySettings.json` e8: the memory's name, Unbounded 600 17 / 21 at −0.025em (−0.42 there).
+  expect(type.titleSm).toEqual({
+    fontFamily: font.headlineSemi,
+    fontSize: 17,
+    lineHeight: 21,
+    letterSpacing: -0.425,
+  });
+  // `Account.json` e37: «Выйти из аккаунта» 17 / 600 at −0.17, where every other button is 16.
+  expect(type.controlLg).toMatchObject({
+    fontFamily: font.semi,
+    fontSize: 17,
+    letterSpacing: -0.17,
+  });
+});
+
+test('a day the calendar will not take is the layout’s #4A4757, quieter than `faint` in both themes', () => {
+  // Spec 7.3, detail 15 — «недоступен — цифра #4A4757»; `Create.json` e70…e86, the 22nd to the 30th.
+  expect(themes.dark.color.dayOff).toBe('#4A4757');
+  for (const name of ['dark', 'light'] as const) {
+    const { color } = themes[name];
+    expect(contrast(color.dayOff, color.surface), name).toBeLessThan(
+      contrast(color.faint, color.surface),
+    );
+  }
+  // The day's is the night's step mirrored: the same 1.99 : 1 on its own card.
+  expect(
+    Math.abs(
+      contrast(themes.light.color.dayOff, themes.light.color.surface) -
+        contrast(themes.dark.color.dayOff, themes.dark.color.surface),
+    ),
+  ).toBeLessThan(0.02);
+});
+
+test('the body starts where spec 4 anchors it under an inner bar', () => {
+  // «112–116 — тело главного экрана…», «124 — … `Create`», «132 — тело `Account`», and «Тело от 112
+  // (как в `MemorySettings`)» for `MemoryEdit` — from the top of a 390 × 844 board, the bar at 52.
+  expect([board.bodySettings, board.bodyCreate, board.bodyAccount]).toEqual([112, 124, 132]);
+  expect(board.status + height.bar).toBe(96);
+});
+
 test('every role in the scale is drawn in a face the app actually loads', () => {
   const loaded = new Set(Object.keys(FACES));
   for (const face of Object.values(font)) expect(loaded).toContain(face);

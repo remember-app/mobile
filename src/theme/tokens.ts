@@ -141,6 +141,14 @@ export const board = {
   footerUpload: 210,
   /** the darkening over the head of the gallery, under the glass bar */
   headGallery: 176,
+  /**
+   * Where the body starts under an inner bar, from the top of the board: `MemorySettings` (and
+   * `MemoryEdit`) at 112, `Create` at 124, `Account` — its card pushed off the bar — at 132. The
+   * status line is the phone's own, so a screen pads by what lies under `status` and the bar's 44.
+   */
+  bodySettings: 112,
+  bodyCreate: 124,
+  bodyAccount: 132,
 } as const;
 
 /**
@@ -247,6 +255,8 @@ export const type = StyleSheet.create({
   sheetTitleSm: { fontFamily: font.headline, fontSize: 21, lineHeight: 24, letterSpacing: -0.63 },
   /** a card's name, «Кто здесь» */
   title: { fontFamily: font.headlineSemi, fontSize: 19, lineHeight: 22, letterSpacing: -0.475 },
+  /** the memory's name on the card of its settings — the card's name a size down, whole */
+  titleSm: { fontFamily: font.headlineSemi, fontSize: 17, lineHeight: 21, letterSpacing: -0.425 },
   /** the heading of an inner bar */
   barTitle: { fontFamily: font.headlineSemi, fontSize: 18, lineHeight: 21, letterSpacing: -0.54 },
   /** the heading of the bar over a montage on air, which carries a line of meta under it */
@@ -293,7 +303,12 @@ export const type = StyleSheet.create({
     ...tabular,
   },
   /** «Отправляем», the value of the «Название» field — a name typed in the face it is printed in */
-  subtitleDisplay: { fontFamily: font.headlineSemi, fontSize: 17, lineHeight: 22 },
+  subtitleDisplay: {
+    fontFamily: font.headlineSemi,
+    fontSize: 17,
+    lineHeight: 22,
+    letterSpacing: -0.34,
+  },
   /** a subheading in the running text face */
   subtitle: { fontFamily: font.semi, fontSize: 17, lineHeight: 22 },
   /** a paragraph, the text of a field */
@@ -307,10 +322,16 @@ export const type = StyleSheet.create({
   bodyXs: { fontFamily: font.regular, fontSize: 14, lineHeight: 20 },
   /** a name in a list row, the label of a sheet action */
   row: { fontFamily: font.semi, fontSize: 15, lineHeight: 20 },
-  /** a name in a tighter row — a stage of the build (spec 7.7, detail 56), «12 файлов ушли…» */
+  /**
+   * a name in a tighter row — a stage of the build (spec 7.7, detail 56), «12 файлов ушли…»; the
+   * days picked beside «КОГДА ЭТО БЫЛО». 18 is Onest's own line at 14: on a shorter one iOS sets the
+   * figures 3–4 higher than the layout does.
+   */
   rowSm: { fontFamily: font.semi, fontSize: 14, lineHeight: 18 },
   /** the label of a button */
   control: { fontFamily: font.semi, fontSize: 16, lineHeight: 16, letterSpacing: -0.16 },
+  /** «Выйти из аккаунта» — the label of the one 60, a size over every other button's */
+  controlLg: { fontFamily: font.semi, fontSize: 17, lineHeight: 17, letterSpacing: -0.17 },
   /** the label of a segment */
   controlSm: { fontFamily: font.semi, fontSize: 14, lineHeight: 14 },
   /** the label of a chip — the same size a shade lighter, because a chip is offered and not pressed home */
@@ -330,6 +351,8 @@ export const type = StyleSheet.create({
   banner: { fontFamily: font.medium, fontSize: 13, lineHeight: 18 },
   /** the same explanation a size down and plain — «Без согласия зарегистрироваться нельзя.» */
   noteSm: { fontFamily: font.regular, fontSize: 12, lineHeight: 16 },
+  /** «Один день — одно касание…» under the calendar — the same plain 12 on the looser line of 17 */
+  aside: { fontFamily: font.regular, fontSize: 12, lineHeight: 17 },
   /** «НАЗВАНИЕ», «ИЗ КОНТАКТОВ» — on the line the layout gives every eyebrow, Onest's own at 12 */
   eyebrow: { fontFamily: font.bold, fontSize: 12, lineHeight: 16, letterSpacing: 1.2 },
   /** «ОРГАНИЗАТОР», «ГОТОВ» */

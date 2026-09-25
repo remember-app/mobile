@@ -23,7 +23,7 @@ import {
 import { useAuth } from '@/lib/auth';
 import { setLanguage, useLanguage, useStrings } from '@/lib/language';
 import { UsernameForm } from '@/screens/onboarding/username-form';
-import { board, radius, setTheme, space, themed, useThemeChoice } from '@/theme';
+import { board, height, radius, setTheme, space, themed, useThemeChoice } from '@/theme';
 
 /**
  * `Account` (spec 8, «Аккаунт и контакты»): the person first, on a card of their own; then the way
@@ -206,6 +206,8 @@ export default function ProfileScreen() {
         <Button
           variant="danger"
           size="xl"
+          // `Account.json`: the one 60 carries its words a size up, 17 / 600.
+          labelRole="controlLg"
           label={s.action.logOut}
           busy={busy}
           onPress={() => setLeaving(true)}
@@ -249,7 +251,12 @@ const useStyles = themed(({ color }) =>
     // between the blocks. `flexGrow` rather than `flex`, so the column is at least the height of the
     // screen — that is what gives the way out something to be pushed against — and taller than it
     // once the content is, which is when it scrolls.
-    body: { flexGrow: 1, gap: 26, paddingTop: 36, paddingHorizontal: space.s4 },
+    body: {
+      flexGrow: 1,
+      gap: 26,
+      paddingTop: board.bodyAccount - board.status - height.bar,
+      paddingHorizontal: space.s4,
+    },
     card: {
       flexDirection: 'row',
       alignItems: 'center',

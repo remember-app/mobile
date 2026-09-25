@@ -9,7 +9,7 @@ import { useAuth } from '@/lib/auth';
 import { endOfDay, startOfDay } from '@/lib/dates';
 import { useStrings } from '@/lib/language';
 import { EventWhen, type Span } from '@/screens/memory/when';
-import { space } from '@/theme';
+import { board, height, space } from '@/theme';
 
 /** Spec 8, `Create` — naming an event and saying when it was, and nothing else. */
 export default function CreateMemoryScreen() {
@@ -101,14 +101,14 @@ export default function CreateMemoryScreen() {
 // Shape only: the board, the fields, the calendar and the bottom layer each carry their own
 // colours, in whichever theme the app is currently in.
 const styles = StyleSheet.create({
-  // The body of the screen, on the kit's own side inset and the layout's 22 between blocks (the same
-  // rhythm `MemoryEdit` keeps). `flexGrow` and not `flex`, so the column is at least the height of
-  // the screen and scrolls once it is taller.
+  // The body of the screen, from 124 (spec 4), on the kit's own side inset and the layout's 22
+  // between blocks (the same rhythm `MemoryEdit` keeps). `flexGrow` and not `flex`, so the column is
+  // at least the height of the screen and scrolls once it is taller.
   form: {
     flexGrow: 1,
     gap: 22,
     paddingHorizontal: space.s4,
-    paddingTop: space.s6,
+    paddingTop: board.bodyCreate - board.status - height.bar,
     paddingBottom: space.s5,
   },
   error: { marginHorizontal: space.s4, marginBottom: space.s3 },
