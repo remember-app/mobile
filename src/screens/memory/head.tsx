@@ -1,7 +1,13 @@
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import type { ReactNode } from 'react';
-import { type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
+import {
+  type LayoutChangeEvent,
+  type StyleProp,
+  StyleSheet,
+  View,
+  type ViewStyle,
+} from 'react-native';
 
 import type { Memory } from '@/api';
 import { Banner, Button, GlassBar, IconButton, Text } from '@/kit';
@@ -41,15 +47,16 @@ export function MemoryHead({
   onCapsule,
   left,
   right,
-  error,
-  reload,
-}: Omit<Head, 'memory'> & {
+  children,
+}: {
   title: string;
   meta?: string;
   capsuleLabel: string;
   onCapsule?: () => void;
   left?: ReactNode;
   right?: ReactNode;
+  /** What stands under the glass: the line about a memory that would not read (`HeadTrouble`). */
+  children?: ReactNode;
 }) {
   const router = useRouter();
   const s = useStrings();
@@ -76,11 +83,32 @@ export function MemoryHead({
         }
         right={right}
       />
-      {error === null ? null : (
-        <Banner tone="error" text={error} style={styles.banner}>
-          <Button size="xs" variant="quiet" label={s.action.retry} onPress={reload} />
-        </Banner>
-      )}
+      {children}
+    </View>
+  );
+}
+
+/**
+ * The memory would not read: a line with the way to read it again. It stands under the glass while
+ * the phone has room for it over the feed; where it has not — the smallest phone at the largest
+ * system type, and the line runs taller than the screen — it scrolls at the head of the feed
+ * instead, or its button would stand under the edge with nothing to bring it back (TASK-372).
+ */
+export function HeadTrouble({
+  error,
+  reload,
+  onLayout,
+}: Omit<Head, 'memory' | 'error'> & {
+  error: string;
+  onLayout?: (event: LayoutChangeEvent) => void;
+}) {
+  const s = useStrings();
+
+  return (
+    <View style={styles.banner} onLayout={onLayout}>
+      <Banner tone="error" text={error}>
+        <Button size="xs" variant="quiet" label={s.action.retry} onPress={reload} />
+      </Banner>
     </View>
   );
 }

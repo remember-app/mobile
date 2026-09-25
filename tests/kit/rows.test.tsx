@@ -132,8 +132,8 @@ test('a chosen track carries its wish under its name, and its field under the ro
   const bare = story(<RowTrack picked title="Тёплая" length="1:40" />);
   expect(wished).toContain('На сборы, тихо, под голоса');
   // A sheet's shape is a class in the markup (`story.tsx`), so it is read through the rule.
-  expect(wished).toContain(rule('height:60px'));
-  expect(bare).not.toContain(rule('height:60px'));
+  expect(wished).toContain(rule('min-height:60px'));
+  expect(bare).not.toContain(rule('min-height:60px'));
   // One line, cut short with an ellipsis where it runs long: the whole of it is in the field.
   expect(wished).toContain(rule('text-overflow:ellipsis'));
   // The hairline between two chosen rows starts at 60, past the smaller «Послушать»; on the shelf

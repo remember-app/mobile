@@ -3,10 +3,11 @@ import { expect, test, vi } from 'vitest';
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
 
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
-import { Pressable } from 'react-native';
+import { Pressable, View } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import { IconButton } from '@/kit/button';
 import { Calendar, type CalendarProps } from '@/kit/calendar';
+import { Text } from '@/kit/text';
 
 /**
  * Spec 7.3, detail 15 — the calendar as it is pressed. `calendar.test.tsx` draws its states and
@@ -47,8 +48,28 @@ async function draw(over: Partial<CalendarProps> = {}) {
         .find((one) => one.props.accessibilityLabel === `${n} сентября`)!,
     arrow: (label: string) =>
       tree.root.findAllByType(IconButton).find((one) => one.props.label === label)!,
+    tree,
   };
 }
+
+test('a day’s figure stays inside its day, however narrow the phone lays the week out', async () => {
+  const calendar = await draw();
+  const figure = () => calendar.day(28).findByType(Text).props;
+  // Unmeasured, nothing is held back.
+  expect(figure().maxFontSizeMultiplier).toBeUndefined();
+  // The zoomed iPhone SE at AX5 (TASK-372): 320 less the screen's 16s, the card's edges and its 12s
+  // leaves 262 for the week — 37.4 to a day, narrower than the 40 circle a figure stands in.
+  const grid = calendar.tree.root.find(
+    (one) => one.type === View && typeof one.props.onLayout === 'function',
+  );
+  await act(async () =>
+    grid.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 262, height: 300 } } }),
+  );
+  const most = figure().maxFontSizeMultiplier ?? Number.POSITIVE_INFINITY;
+  // Two figures side by side («28», tabular, 1.35 em at 15) with 4 to spare stay in the column.
+  expect(15 * most * 1.35).toBeLessThanOrEqual(262 / 7 - 4 + 1e-9);
+  expect(most).toBeGreaterThanOrEqual(1);
+});
 
 test('a press on a day hands that day, at local midnight, to the screen — and only that one', async () => {
   const calendar = await draw();

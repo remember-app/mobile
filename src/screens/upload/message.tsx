@@ -78,6 +78,6 @@ export function NoFeed({
 
 const useStyles = themed(() =>
   StyleSheet.create({
-    centre: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    centre: { flexGrow: 1, alignItems: 'center', justifyContent: 'center' },
   }),
 );

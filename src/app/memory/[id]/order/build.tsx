@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { ChevronRight } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { type MontageOrientation, type MontagePreview, previewMontage } from '@/api';
 import { Banner, Button, LengthSlider, Segment, Text, Waiting } from '@/kit';
@@ -103,65 +103,64 @@ export default function BuildStep() {
           onPress={() => router.push({ pathname: '/memory/[id]/order/summary', params: { id } })}
         />
       }
+      body={styles.body}
     >
-      <ScrollView contentContainerStyle={styles.body}>
-        <View style={styles.block}>
-          <View style={styles.blockHead}>
-            <Text role="eyebrow" accessibilityRole="header" style={styles.grow}>
-              {s.montage.howLong.toUpperCase()}
+      <View style={styles.block}>
+        <View style={styles.blockHead}>
+          <Text role="eyebrow" accessibilityRole="header" style={styles.grow}>
+            {s.montage.howLong.toUpperCase()}
+          </Text>
+          {preview ? (
+            <Text role="meta" tone="faint">
+              {s.montage.lengthUpTo(formatRuntime(preview.max_seconds) ?? '')}
             </Text>
-            {preview ? (
-              <Text role="meta" tone="faint">
-                {s.montage.lengthUpTo(formatRuntime(preview.max_seconds) ?? '')}
-              </Text>
-            ) : null}
-          </View>
-
-          {failed !== null ? (
-            // Asked again off a fresh read of the material, not with the same body: a frame the
-            // body still names may be the very reason it was refused.
-            <Banner tone="error" text={failed}>
-              <Button size="xs" variant="quiet" label={s.action.retry} onPress={reread} />
-            </Banner>
-          ) : preview === null || seconds === null ? (
-            <Waiting text={s.state.loading} size={26} />
-          ) : (
-            <LengthSlider
-              value={seconds}
-              // Any move of it is the length becoming the person's own, which is what takes the
-              // template's line out from under the figure.
-              onChange={(next) => change({ seconds: next, ownLength: true })}
-              min={preview.min_seconds}
-              max={preview.max_seconds}
-              valueLabel={formatRuntime(seconds) ?? ''}
-              note={
-                template && !order.ownLength
-                  ? s.montage.lengthFromTemplate(s.montage.template[template])
-                  : undefined
-              }
-              minLabel={formatRuntime(preview.min_seconds) ?? ''}
-              maxLabel={s.montage.lengthEnd(formatRuntime(preview.max_seconds) ?? '')}
-              label={s.montage.howLong}
-              shorterLabel={s.montage.shorter}
-              longerLabel={s.montage.longer}
-              // Four round answers and «Всё», which is not a number of its own: it is the ceiling
-              // the api just named, so it moves with the material like everything else here.
-              presets={[
-                ...PRESETS.map((value) => ({ label: formatRuntime(value) ?? '', value })),
-                { label: s.montage.lengthAll, value: preview.max_seconds },
-              ]}
-            />
-          )}
+          ) : null}
         </View>
 
-        <Segment
-          label={s.montage.shape}
-          wide
-          options={ORIENTATIONS.map((way) => ({ value: way, label: s.montage.orientation[way] }))}
-          value={order.orientation}
-          onChange={(orientation) => change({ orientation })}
-        />
-      </ScrollView>
+        {failed !== null ? (
+          // Asked again off a fresh read of the material, not with the same body: a frame the
+          // body still names may be the very reason it was refused.
+          <Banner tone="error" text={failed}>
+            <Button size="xs" variant="quiet" label={s.action.retry} onPress={reread} />
+          </Banner>
+        ) : preview === null || seconds === null ? (
+          <Waiting text={s.state.loading} size={26} />
+        ) : (
+          <LengthSlider
+            value={seconds}
+            // Any move of it is the length becoming the person's own, which is what takes the
+            // template's line out from under the figure.
+            onChange={(next) => change({ seconds: next, ownLength: true })}
+            min={preview.min_seconds}
+            max={preview.max_seconds}
+            valueLabel={formatRuntime(seconds) ?? ''}
+            note={
+              template && !order.ownLength
+                ? s.montage.lengthFromTemplate(s.montage.template[template])
+                : undefined
+            }
+            minLabel={formatRuntime(preview.min_seconds) ?? ''}
+            maxLabel={s.montage.lengthEnd(formatRuntime(preview.max_seconds) ?? '')}
+            label={s.montage.howLong}
+            shorterLabel={s.montage.shorter}
+            longerLabel={s.montage.longer}
+            // Four round answers and «Всё», which is not a number of its own: it is the ceiling
+            // the api just named, so it moves with the material like everything else here.
+            presets={[
+              ...PRESETS.map((value) => ({ label: formatRuntime(value) ?? '', value })),
+              { label: s.montage.lengthAll, value: preview.max_seconds },
+            ]}
+          />
+        )}
+      </View>
+
+      <Segment
+        label={s.montage.shape}
+        wide
+        options={ORIENTATIONS.map((way) => ({ value: way, label: s.montage.orientation[way] }))}
+        value={order.orientation}
+        onChange={(orientation) => change({ orientation })}
+      />
     </WizardStep>
   );
 }

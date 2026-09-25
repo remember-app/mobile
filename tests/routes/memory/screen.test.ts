@@ -12,6 +12,7 @@
  * where a thing stands, and what is no longer in the file.
  */
 
+import { flat } from '@tests/helpers/source';
 import { expect, test } from 'vitest';
 import layout from '@/app/_layout.tsx?raw';
 import home from '@/app/index.tsx?raw';
@@ -222,7 +223,10 @@ test('an empty gallery is the sign, what is missing, and what to do about it', (
   expect(frames).toContain('rows.length === 0 ? styles.feedEmpty : null');
   // With nothing brought there is no film to cut and nothing to count, so neither block is drawn
   // over it: `FramesEmpty` is the sign, the words and one button, and nothing else.
-  expect(frames).toContain('ListHeaderComponent={\n          any ? (');
+  // The one thing that can stand over it is the line about a memory that would not read, on a
+  // phone too small for that line to float under the glass.
+  expect(flat(frames)).toContain('ListHeaderComponent={ any || !floats ? (');
+  expect(flat(frames)).toContain('{floats ? null : trouble} {any ? ( <> <Films');
 });
 
 test('a memory with no film says what one is, and offers it to the one who can order it', () => {

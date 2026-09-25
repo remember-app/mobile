@@ -6,6 +6,7 @@ import {
   Pressable,
   type StyleProp,
   StyleSheet,
+  useWindowDimensions,
   View,
   type ViewStyle,
 } from 'react-native';
@@ -14,7 +15,7 @@ import { height, radius, space, themed, useTheme } from '@/theme';
 
 import { IconButton } from './button';
 import { hitSlop, PRESS, TAP, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
-import { Text } from './text';
+import { fitCell, Text } from './text';
 
 /**
  * Spec 7.3, detail 19 — how long the film should be. A card with the figure in the middle of it, a
@@ -119,6 +120,17 @@ export function LengthSlider({
   /** Where the finger is holding it, and `null` when nothing is. */
   const [held, setHeld] = useState<number | null>(null);
   const at = place(held ?? value, min, max);
+  // The ready lengths share their row equally whatever the type (`fitCell`).
+  const { fontScale } = useWindowDimensions();
+  const [row, setRow] = useState(0);
+  const count = presets?.length ?? 0;
+  const pill = fitCell({
+    fontScale,
+    width: count > 0 && row > 0 ? (row - PRESET_GAP * (count - 1)) / count : 0,
+    role: 'label',
+    em: PRESET_EM,
+    rest: height.roundTiny,
+  });
 
   const follow = (e: GestureResponderEvent) => {
     const seconds = hold.current(e.nativeEvent.locationX);
@@ -205,7 +217,7 @@ export function LengthSlider({
       </View>
 
       {presets ? (
-        <View style={styles.presets}>
+        <View style={styles.presets} onLayout={(e) => setRow(e.nativeEvent.layout.width)}>
           {presets.map((preset) => {
             // Spec 7.3, «материала на 40 с»: a ready answer longer than there is material for is
             // not offered at all. Clamping it instead would make «3:00» quietly mean «0:40», and
@@ -217,6 +229,7 @@ export function LengthSlider({
                 label={preset.label}
                 selected={!over && clamp(preset.value, min, max) === value}
                 disabled={over}
+                fit={pill}
                 onPress={() => onChange(clamp(preset.value, min, max))}
               />
             );
@@ -230,17 +243,23 @@ export function LengthSlider({
 /** What a screen reader may do to a control it cannot drag. */
 const STEPS = [{ name: 'increment' }, { name: 'decrement' }];
 
+/** Between two ready lengths; and how wide the widest of them («0:30») runs, in em — off Onest. */
+const PRESET_GAP = 6;
+const PRESET_EM = 2.35;
+
 /** One of the five ready lengths: a 32 pill, quiet until it is the one the value stands on. */
 function Preset({
   label,
   selected,
   disabled,
+  fit,
   onPress,
 }: {
   label: string;
   selected: boolean;
   /** Longer than the material: spec 7.3 leaves the pill standing and takes the press away. */
   disabled?: boolean;
+  fit: ReturnType<typeof fitCell>;
   onPress: () => void;
 }) {
   const { hovered, focused, props } = useHoverFocus();
@@ -255,11 +274,12 @@ function Preset({
       accessibilityLabel={label}
       accessibilityState={{ selected, disabled: !!disabled }}
       disabled={disabled}
-      hitSlop={hitSlop(TAP, height.roundTiny)}
+      hitSlop={hitSlop(TAP, fit.height)}
       onPress={onPress}
       {...props}
       style={({ pressed }) => [
         styles.preset,
+        { height: fit.height },
         disabled
           ? styles.presetOff
           : selected
@@ -273,6 +293,7 @@ function Preset({
     >
       <Text
         role="label"
+        maxFontSizeMultiplier={fit.most}
         style={[
           styles.presetWord,
           // Spec 7.3, detail 16: unavailable is `faint` on the quieter of the two borders.
@@ -316,10 +337,9 @@ const useStyles = themed(({ color }) =>
       boxShadow: '0 2px 10px rgba(0,0,0,0.45)',
     },
     ends: { flexDirection: 'row', justifyContent: 'space-between' },
-    presets: { flexDirection: 'row', gap: 6 },
+    presets: { flexDirection: 'row', gap: PRESET_GAP },
     preset: {
       flex: 1,
-      height: height.roundTiny,
       alignItems: 'center',
       justifyContent: 'center',
       borderRadius: radius.pill,

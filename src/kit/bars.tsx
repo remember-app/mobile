@@ -1,7 +1,11 @@
 import { X } from 'lucide-react-native';
-import type { ReactNode } from 'react';
+import { type ReactNode, useState } from 'react';
 import {
+  KeyboardAvoidingView,
+  type LayoutChangeEvent,
+  Platform,
   Pressable,
+  ScrollView,
   type StyleProp,
   StyleSheet,
   useWindowDimensions,
@@ -10,7 +14,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { board, height, photo, radius, space, ThemePin, themed, useTheme } from '@/theme';
+import { board, height, photo, radius, space, ThemePin, themed, type, useTheme } from '@/theme';
 
 import { StepScale } from './bits';
 import { Button, IconButton } from './button';
@@ -22,6 +26,24 @@ import { Text } from './text';
  * bottom. The native header is off everywhere (`headerShown: false`), so a screen draws its own.
  */
 
+export type BoardProps = {
+  /** What stands at the top: the bar, and whatever the screen nails under it. */
+  bar?: ReactNode;
+  /** What stands at the bottom: the bottom layer, and whatever speaks over it. */
+  footer?: ReactNode;
+  /** The body's own column — its margins and gaps, where it holds what it has. */
+  body?: StyleProp<ViewStyle>;
+  /**
+   * A body that is a list scrolls by itself, so it is drawn by the screen and handed `edges` to
+   * put at its head and foot: the bar and the bottom layer once those scroll with it, nothing while
+   * they stand. `children` is then what floats over the list — the glass, a sheet.
+   */
+  list?: (edges: { head: ReactNode; foot: ReactNode }) => ReactNode;
+  /** The body — or, with a `list`, what floats over it. */
+  children?: ReactNode;
+  style?: StyleProp<ViewStyle>;
+};
+
 /**
  * The board (spec 7.1). Background `ink`, the device's status line left empty at the top, and the
  * body as its own layer between the bar and the bottom layer — the body is the only thing that
@@ -29,12 +51,67 @@ import { Text } from './text';
  *
  * The spec's 52 is the drawn phone's status bar; here the phone says how tall its own is, which is
  * the same thing measured rather than assumed.
+ *
+ * Every body scrolls once it outgrows the screen, and every screen stands on this board — so no
+ * screen can forget to (TASK-372). The bar and the bottom layer stand still around it while they,
+ * and one line of the body, fit the board; when they do not — the smallest phone at the largest
+ * system type — the whole board scrolls as one, the way a sheet does (`pinnable` in `sheet.tsx`),
+ * or the actions in them would stand past the edge with nothing to bring them back. The board also
+ * gives way to the keyboard, once for every screen: whatever stands at the bottom rides up over it.
  */
-export function Board({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
+export function Board({ bar, footer, body, list, children, style }: BoardProps) {
   const insets = useSafeAreaInsets();
+  const { fontScale } = useWindowDimensions();
   const styles = useStyles();
+  const [top, onTop] = useMeasured();
+  const [foot, onFoot] = useMeasured();
+  const [room, onRoom] = useMeasured();
+  const [pinned, setPinned] = useState(true);
+  // Standing still, the body is the window between the two; scrolling as one, it is the board.
+  // Same blocks, same widths either way, so one answer never flips the other back.
+  const line = type.body.lineHeight * fontScale;
+  const fits = room === null || (pinned ? room >= line : (top ?? 0) + (foot ?? 0) + line <= room);
+  if (fits !== pinned) setPinned(fits);
 
-  return <View style={[styles.board, { paddingTop: insets.top }, style]}>{children}</View>;
+  const head = bar ? <View onLayout={onTop}>{bar}</View> : null;
+  const tail = footer ? <View onLayout={onFoot}>{footer}</View> : null;
+
+  return (
+    // Android resizes the window for the keyboard itself; iOS needs telling.
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={[styles.board, { paddingTop: insets.top }, style]}
+    >
+      {pinned ? head : null}
+      {list ? (
+        <View style={styles.room} onLayout={onRoom}>
+          {list({ head: pinned ? null : head, foot: pinned ? null : tail })}
+        </View>
+      ) : (
+        // A body that fits neither scrolls nor bounces. Taps land on what they hit even with the
+        // keyboard up — a form keeps its own button.
+        <ScrollView
+          style={styles.room}
+          contentContainerStyle={styles.grow}
+          alwaysBounceVertical={false}
+          keyboardShouldPersistTaps="handled"
+          onLayout={onRoom}
+        >
+          {pinned ? null : head}
+          <View style={[styles.grow, body]}>{children}</View>
+          {pinned ? null : tail}
+        </ScrollView>
+      )}
+      {pinned ? tail : null}
+      {list ? children : null}
+    </KeyboardAvoidingView>
+  );
+}
+
+/** A block's height as it was last laid out, and null until it has been. */
+function useMeasured(): [number | null, (event: LayoutChangeEvent) => void] {
+  const [height, setHeight] = useState<number | null>(null);
+  return [height, (event) => setHeight(event.nativeEvent.layout.height)];
 }
 
 /**
@@ -432,6 +509,8 @@ export function ActionBar({
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
     board: { flex: 1, backgroundColor: color.ink },
+    room: { flex: 1 },
+    grow: { flexGrow: 1 },
     bar: {
       minHeight: height.bar,
       flexDirection: 'row',

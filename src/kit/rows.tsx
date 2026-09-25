@@ -525,7 +525,7 @@ const useStyles = themed(({ color }) =>
     },
     summaryLabel: { width: 96 },
     track: {
-      height: TRACK_ROW,
+      minHeight: TRACK_ROW,
       flexDirection: 'row',
       alignItems: 'center',
       gap: space.s3,
@@ -534,7 +534,7 @@ const useStyles = themed(({ color }) =>
     // Spec 7.7, detail 54: among the chosen the row pulls in — 12 on the left, 8 on the right, 10
     // between its parts — and a wish under the name takes it from 52 to 60.
     trackPicked: { gap: 10, paddingLeft: space.s3, paddingRight: space.s2 },
-    wished: { height: 60 },
+    wished: { minHeight: 60 },
     // The hairline starts where the name does — past the round button, never under it.
     insetTrack: { marginLeft: 64 },
     insetPicked: { marginLeft: 60 },

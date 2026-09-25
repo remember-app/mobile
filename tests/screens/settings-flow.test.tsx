@@ -764,13 +764,13 @@ test('every control of the screen and of the deleting sheet is named, has a role
     ru.action.invite,
   ]);
   await screen.press(() => screen.icon(ru.settings.delete)[0]);
-  const asked = expectReachable(screen.root);
+  // The sheet stands in the body of the board, ahead of the bottom layer in the tree — a sheet is a
+  // window of its own, so where it is declared says nothing about where it is read.
+  const drawn = new Set(bare.map((one) => one.name));
+  const asked = expectReachable(screen.root).filter((one) => !drawn.has(one.name));
   // The sheet’s two are read in the order they are drawn: the dangerous one first, then the way out of it.
-  expect(asked.map((one) => one.name).slice(bare.length)).toEqual([
-    ru.settings.deleteDo,
-    ru.settings.keep,
-  ]);
-  expect(asked.slice(bare.length).map((one) => one.role)).toEqual(['button', 'button']);
+  expect(asked.map((one) => one.name)).toEqual([ru.settings.deleteDo, ru.settings.keep]);
+  expect(asked.map((one) => one.role)).toEqual(['button', 'button']);
 });
 
 test('a memory somebody already deleted is the same outcome, and a refusal is said on the screen with the trash live again', async () => {

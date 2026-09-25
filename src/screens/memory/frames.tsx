@@ -59,9 +59,9 @@ import { useMarkedErrands } from '@/screens/memory/frames-errands';
 import { useMaterial } from '@/screens/memory/frames-material';
 import { FilterSheet, SortSheet } from '@/screens/memory/frames-sheets';
 import { SpineLayer, useSpine } from '@/screens/memory/frames-spine';
-import { BlockHead, type Head, MemoryHead } from '@/screens/memory/head';
+import { BlockHead, type Head, HeadTrouble, MemoryHead } from '@/screens/memory/head';
 import { LabelSheets } from '@/screens/memory/label-sheets';
-import { board, height, space, themed, useTheme } from '@/theme';
+import { board, height, space, themed, type, useTheme } from '@/theme';
 
 /** A seam over a strip of frames — every cut but the one that has no seam at all. */
 type Seam = Exclude<FrameGroup, { by: 'all' }>;
@@ -106,7 +106,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
    * gaps to leave — so the last frame of the feed came out wider than every frame above it, which is
    * what the designer measured. Rotating the phone re-reads the width.
    */
-  const { width } = useWindowDimensions();
+  const { width, height: screen, fontScale } = useWindowDimensions();
   const cell = { width: (width - FEED_GAP * 2) / 3 };
   /** The record the viewer is showing, held by id so a reload hands it a fresh signed url. */
   const [open, setOpen] = useState<string | null>(null);
@@ -251,6 +251,32 @@ export function Frames({ id, head }: { id: string; head: Head }) {
     scrollTo,
   });
 
+  /**
+   * What floats over the feed, as it came out rather than as the layout draws it (TASK-372). The
+   * bottom layer's button wraps on large system type, and a feed padded by the drawing alone leaves
+   * its last frames under it where no finger reaches — so the feed clears the taller of the two.
+   * The line about a memory that would not read floats under the glass while it, the layer and a
+   * line of the feed fit the phone — and, over a feed with nothing to scroll, while the block in the
+   * middle of it stands clear of the line — and scrolls at the head of the feed when not.
+   */
+  const [layer, setLayer] = useState(0);
+  const [troubled, setTroubled] = useState(0);
+  const [emptied, setEmptied] = useState(0);
+  const top = insets.top + height.roundViewer + space.s4;
+  const bottom = Math.max(board.footerGallery, layer);
+  const lineEnds = insets.top + height.roundViewer + space.s2 + troubled;
+  const floats =
+    lineEnds + layer + type.body.lineHeight * fontScale <= screen &&
+    (any || top + (screen - top - bottom - emptied) / 2 >= lineEnds);
+  const trouble =
+    head.error === null ? null : (
+      <HeadTrouble
+        error={head.error}
+        reload={head.reload}
+        onLayout={(e) => setTroubled(e.nativeEvent.layout.height)}
+      />
+    );
+
   /** Everybody who actually brought something, for the faces the filter sheet offers. */
   const brought = useMemo(() => {
     const ids = [...new Set((items ?? []).map((item) => item.uploaded_by))];
@@ -388,9 +414,9 @@ export function Frames({ id, head }: { id: string; head: Head }) {
         // for the block over it to clear the bar. An empty one is one block in the middle instead.
         contentContainerStyle={[
           styles.feed,
-          { paddingTop: insets.top + height.roundViewer + space.s4 },
+          { paddingTop: top },
           rows.length === 0 ? styles.feedEmpty : null,
-          { paddingBottom: board.footerGallery },
+          { paddingBottom: bottom },
         ]}
         // Still here, and mostly for the person who would rather not wait: a record turning `ready`
         // is answered by the re-read above on its own. Not the fifteen-minute links, though — that
@@ -409,38 +435,45 @@ export function Frames({ id, head }: { id: string; head: Head }) {
         // filled up for — and under them the material itself, named and counted. Neither is drawn
         // over `FramesEmpty`: with nothing brought there is no film to cut and nothing to count.
         ListHeaderComponent={
-          any ? (
+          any || !floats ? (
             // Measured rather than reckoned: the films are a block whose height is its own business
             // — a strip, an empty state, nothing at all while it reads — and the spine's marks are
             // counted from the first row of frames, which stands under it.
             <View onLayout={onHeaderLayout}>
-              <Films id={id} memory={memory} />
-              <BlockHead
-                title={s.memory.framesPlain}
-                count={s.memory.frames(kept.length)}
-                style={styles.framesHead}
-              />
+              {floats ? null : trouble}
+              {any ? (
+                <>
+                  <Films id={id} memory={memory} />
+                  <BlockHead
+                    title={s.memory.framesPlain}
+                    count={s.memory.frames(kept.length)}
+                    style={styles.framesHead}
+                  />
+                </>
+              ) : null}
             </View>
           ) : null
         }
         ListEmptyComponent={
           // Only over a feed that was never read. A read somebody asked for that fails over frames
-          // already on screen leaves them where they are, and its reason must not come back later as
-          // the answer to «nothing here» — every frame deleted afterwards is an empty feed, and an
-          // empty feed is `FramesEmpty`, not a connection that failed a minute ago.
-          error !== null && items === null ? (
-            <Banner tone="error" text={error}>
-              {/* Wrapped rather than handed `load` itself: a press hands its own argument along,
-                  and the first one here is «read quietly». */}
-              <Button variant="quiet" size="xs" label={s.action.retry} onPress={() => read()} />
-            </Banner>
-          ) : items === null ? (
-            <Waiting text={s.state.loading} />
-          ) : (
-            // `FramesEmpty`: the dashed circle, what is missing, and what to do about it. The
-            // action itself is in the bottom layer and not in here (spec 7.9).
-            <Empty icon={ImageIcon} title={s.gallery.emptyTitle} text={s.gallery.empty} />
-          )
+          // already on screen leaves them where they are, and its reason must not come back later
+          // as the answer to «nothing here» — every frame deleted afterwards is an empty feed, and
+          // an empty feed is `FramesEmpty`, not a connection that failed a minute ago.
+          <View onLayout={(e) => setEmptied(e.nativeEvent.layout.height)}>
+            {error !== null && items === null ? (
+              <Banner tone="error" text={error}>
+                {/* Wrapped rather than handed `load` itself: a press hands its own argument along,
+                    and the first one here is «read quietly». */}
+                <Button variant="quiet" size="xs" label={s.action.retry} onPress={() => read()} />
+              </Banner>
+            ) : items === null ? (
+              <Waiting text={s.state.loading} />
+            ) : (
+              // `FramesEmpty`: the dashed circle, what is missing, and what to do about it. The
+              // action itself is in the bottom layer and not in here (spec 7.9).
+              <Empty icon={ImageIcon} title={s.gallery.emptyTitle} text={s.gallery.empty} />
+            )}
+          </View>
         }
         renderItem={({ item: row }) => {
           // The seam over its own strip (spec 7.8): what the frames under it have in common at one
@@ -538,8 +571,6 @@ export function Frames({ id, head }: { id: string; head: Head }) {
           button held in to leave. A memory with nothing in it has no select button at all: the
           right slot of `FramesEmpty` is empty, there being nothing to pick. */}
       <MemoryHead
-        error={head.error}
-        reload={head.reload}
         title={capsule}
         meta={under}
         // Read out in full either way: the drawn name is cut with an ellipsis, and a count on its
@@ -578,12 +609,18 @@ export function Frames({ id, head }: { id: string; head: Head }) {
             />
           ) : undefined
         }
-      />
+      >
+        {floats ? trouble : null}
+      </MemoryHead>
 
       {/* The bottom layer lies over the feed rather than beside it (spec 7.1): its gradient is what
           the last frames scroll under, and only the buttons on it catch a press. `box-none` so the
           space around them belongs to the feed underneath. */}
-      <View style={styles.bottom} pointerEvents="box-none">
+      <View
+        style={styles.bottom}
+        pointerEvents="box-none"
+        onLayout={(e) => setLayer(e.nativeEvent.layout.height)}
+      >
         {/* Where «X of N» is read while the lot comes down, and the summary after it. The open file
             has its own copy of this line — only one of the two is ever on screen. */}
         {notice ? <Banner text={notice} style={styles.notice} /> : null}

@@ -1,7 +1,7 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, Download, Share } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import {
   type JournalFile,
@@ -108,110 +108,112 @@ export default function MontageDoneScreen() {
   const film = montage?.video_url ? montage : null;
 
   return (
-    <Board>
-      <AppBar
-        variant="live"
-        title={s.montage.live.doneTitle}
-        // «Ролик на 2:30 · собран за 14 мин» — the film's name, and what the making of it took where
-        // there is a journal to add up. No journal, no second clause: this bar never guesses.
-        subtitle={
-          montage === null
-            ? undefined
-            : [title, made === null ? undefined : s.montage.live.madeIn(made)]
-                .filter(Boolean)
-                .join(' · ')
-        }
-        left={
-          <IconButton
-            icon={ChevronLeft}
-            label={s.action.back}
-            // The strip of films is under this page both ways in; a montage that landed here by a
-            // `replace` off the live screen has the memory itself under it.
-            onPress={() =>
-              router.canGoBack()
-                ? router.back()
-                : router.replace({ pathname: '/memory/[id]', params: { id } })
-            }
-          />
-        }
+    <Board
+      bar={
+        <AppBar
+          variant="live"
+          title={s.montage.live.doneTitle}
+          // «Ролик на 2:30 · собран за 14 мин» — the film's name, and what the making of it took
+          // where there is a journal to add up. No journal, no second clause: this bar never
+          // guesses.
+          subtitle={
+            montage === null
+              ? undefined
+              : [title, made === null ? undefined : s.montage.live.madeIn(made)]
+                  .filter(Boolean)
+                  .join(' · ')
+          }
+          left={
+            <IconButton
+              icon={ChevronLeft}
+              label={s.action.back}
+              // The strip of films is under this page both ways in; a montage that landed here by a
+              // `replace` off the live screen has the memory itself under it.
+              onPress={() =>
+                router.canGoBack()
+                  ? router.back()
+                  : router.replace({ pathname: '/memory/[id]', params: { id } })
+              }
+            />
+          }
+        />
+      }
+      body={styles.body}
+    >
+      {/* Spec detail 38, «Крупный вид готового» — 196 of poster with the play circle in the middle
+          of it, the «Готов» badge and «2:30 · 16:9» along the bottom. The press is the whole card
+          and it raises the one player this product has; a film whose link has not been read back
+          yet takes no finger, rather than opening an empty window. */}
+      <CardMontage
+        large
+        state="ready"
+        title={title}
+        meta={madeTo(montage)}
+        poster={montage?.poster_url ?? undefined}
+        badge={<BadgeMontage state="ready" label={s.montage.status.ready} />}
+        label={s.montage.watch(title)}
+        onPress={film === null ? undefined : () => setPlaying(true)}
       />
 
-      <ScrollView contentContainerStyle={styles.body}>
-        {/* Spec detail 38, «Крупный вид готового» — 196 of poster with the play circle in the middle
-            of it, the «Готов» badge and «2:30 · 16:9» along the bottom. The press is the whole card
-            and it raises the one player this product has; a film whose link has not been read back
-            yet takes no finger, rather than opening an empty window. */}
-        <CardMontage
-          large
-          state="ready"
-          title={title}
-          meta={madeTo(montage)}
-          poster={montage?.poster_url ?? undefined}
-          badge={<BadgeMontage state="ready" label={s.montage.status.ready} />}
-          label={s.montage.watch(title)}
-          onPress={film === null ? undefined : () => setPlaying(true)}
+      {/* Neither of them touches the api: the video goes down the link the list carried, into the
+          phone's own gallery or out through its own share sheet. Neither is anybody's alone
+          either — whoever brought material gets the film back, a viewer included. */}
+      <View style={styles.actions}>
+        {/* Both at 44, which is what the layout draws them at and the floor spec 10.2 holds
+            anything a finger lands on to. */}
+        <Button
+          variant="primary"
+          size="sm"
+          wide
+          icon={Download}
+          label={s.action.save}
+          disabled={busy || film === null}
+          onPress={() => film && void run(film, 'save')}
+          style={styles.grow}
         />
+        <Button
+          size="sm"
+          wide
+          icon={Share}
+          label={s.action.share}
+          disabled={busy || film === null}
+          onPress={() => film && void run(film, 'share')}
+          style={styles.grow}
+        />
+      </View>
 
-        {/* Neither of them touches the api: the video goes down the link the list carried, into the
-            phone's own gallery or out through its own share sheet. Neither is anybody's alone
-            either — whoever brought material gets the film back, a viewer included. */}
-        <View style={styles.actions}>
-          {/* Both at 44, which is what the layout draws them at and the floor spec 10.2 holds
-              anything a finger lands on to. */}
-          <Button
-            variant="primary"
-            size="sm"
-            wide
-            icon={Download}
-            label={s.action.save}
-            disabled={busy || film === null}
-            onPress={() => film && void run(film, 'save')}
-            style={styles.grow}
+      {notice ? <Banner text={notice} /> : null}
+
+      {/* «Как собирался». A montage cut before the journal existed answers with nothing at all
+          (api README), and then this whole block is simply not here — not an error, and not a
+          heading over an empty space. */}
+      {journal.stages.length === 0 ? null : (
+        <>
+          <Text role="section" accessibilityRole="header" style={styles.head}>
+            {s.montage.live.howMade}
+          </Text>
+
+          {/* Three numbers out of the stages' own outcomes (detail 44). A key the worker did not
+              write leaves its tile out rather than standing a dash in it. */}
+          {tiles.length === 0 ? null : (
+            <View style={styles.tiles}>
+              {tiles.map((tile) => (
+                <TileNumber key={tile.label} figure={String(tile.figure)} label={tile.label} />
+              ))}
+            </View>
+          )}
+
+          {/* All five, the way the live screen draws them — the journal of each is still there and
+              still opens, and a record with a frame on it opens that frame's card. */}
+          <StageRows
+            memoryId={id}
+            montageId={montageId}
+            journal={journal}
+            opens={() => true}
+            onRecord={(entry) => setOpened(entry.id)}
           />
-          <Button
-            size="sm"
-            wide
-            icon={Share}
-            label={s.action.share}
-            disabled={busy || film === null}
-            onPress={() => film && void run(film, 'share')}
-            style={styles.grow}
-          />
-        </View>
-
-        {notice ? <Banner text={notice} /> : null}
-
-        {/* «Как собирался». A montage cut before the journal existed answers with nothing at all
-            (api README), and then this whole block is simply not here — not an error, and not a
-            heading over an empty space. */}
-        {journal.stages.length === 0 ? null : (
-          <>
-            <Text role="section" accessibilityRole="header" style={styles.head}>
-              {s.montage.live.howMade}
-            </Text>
-
-            {/* Three numbers out of the stages' own outcomes (detail 44). A key the worker did not
-                write leaves its tile out rather than standing a dash in it. */}
-            {tiles.length === 0 ? null : (
-              <View style={styles.tiles}>
-                {tiles.map((tile) => (
-                  <TileNumber key={tile.label} figure={String(tile.figure)} label={tile.label} />
-                ))}
-              </View>
-            )}
-
-            {/* All five, the way the live screen draws them — the journal of each is still there and
-                still opens, and a record with a frame on it opens that frame's card. */}
-            <StageRows
-              memoryId={id}
-              montageId={montageId}
-              journal={journal}
-              opens={() => true}
-              onRecord={(entry) => setOpened(entry.id)}
-            />
-          </>
-        )}
-      </ScrollView>
+        </>
+      )}
 
       <FilmPlayer film={playing ? film : null} onClose={() => setPlaying(false)} />
 

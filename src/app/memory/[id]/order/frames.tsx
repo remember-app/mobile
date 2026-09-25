@@ -104,39 +104,46 @@ export default function PickFramesStep() {
           onPress={() => router.push({ pathname: '/memory/[id]/order/story', params: { id } })}
         />
       }
+      list={({ head, foot }) => (
+        <FlatList
+          data={rows}
+          keyExtractor={(row) => row[0]?.id ?? ''}
+          contentContainerStyle={styles.grid}
+          // Scrolling with the frames, the bar and the bottom layer keep the screen's edges and not
+          // the grid's margins.
+          ListHeaderComponent={head ? <View style={styles.edge}>{head}</View> : null}
+          ListFooterComponent={foot ? <View style={styles.edge}>{foot}</View> : null}
+          renderItem={({ item: row }) => (
+            <View style={styles.row}>
+              {row.map((item) => {
+                const pick = pickOf(item, order);
+                const reason = reasonOf(item.screening_reason);
+
+                return (
+                  <Tile
+                    key={item.id}
+                    state="ready"
+                    uri={item.thumbnail_url ?? undefined}
+                    pick={pick}
+                    length={
+                      item.kind === 'video' ? formatRuntime(item.duration_seconds) : undefined
+                    }
+                    reason={
+                      pick === 'auto'
+                        ? { icon: REASON_SIGN[reason], label: s.montage.reason[reason] }
+                        : undefined
+                    }
+                    label={pick === 'keep' ? s.montage.inMovie : s.montage.outOfMovie}
+                    onPress={() => change(afterTap(item, order))}
+                    style={cell}
+                  />
+                );
+              })}
+            </View>
+          )}
+        />
+      )}
     >
-      <FlatList
-        data={rows}
-        keyExtractor={(row) => row[0]?.id ?? ''}
-        contentContainerStyle={styles.grid}
-        renderItem={({ item: row }) => (
-          <View style={styles.row}>
-            {row.map((item) => {
-              const pick = pickOf(item, order);
-              const reason = reasonOf(item.screening_reason);
-
-              return (
-                <Tile
-                  key={item.id}
-                  state="ready"
-                  uri={item.thumbnail_url ?? undefined}
-                  pick={pick}
-                  length={item.kind === 'video' ? formatRuntime(item.duration_seconds) : undefined}
-                  reason={
-                    pick === 'auto'
-                      ? { icon: REASON_SIGN[reason], label: s.montage.reason[reason] }
-                      : undefined
-                  }
-                  label={pick === 'keep' ? s.montage.inMovie : s.montage.outOfMovie}
-                  onPress={() => change(afterTap(item, order))}
-                  style={cell}
-                />
-              );
-            })}
-          </View>
-        )}
-      />
-
       <Sheet
         visible={showDropped}
         onCancel={() => setShowDropped(false)}
@@ -206,6 +213,7 @@ const useStyles = themed(() =>
     grow: { flex: 1, minWidth: 0 },
     headLine: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s3 },
     grid: { paddingHorizontal: space.s4, paddingBottom: space.s7, gap: GRID_GAP },
+    edge: { marginHorizontal: -space.s4 },
     row: { flexDirection: 'row', gap: GRID_GAP },
   }),
 );

@@ -1,7 +1,7 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ChevronLeft, Pencil } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { type Contact, errorMessage, listContacts, memberHandle, memberName } from '@/api';
@@ -91,132 +91,128 @@ export default function ProfileScreen() {
 
   return (
     // No native header anywhere in the app, so the board keeps itself out from under the status bar.
-    <Board>
-      <AppBar
-        title={s.profile.title}
-        left={
-          <IconButton
-            icon={ChevronLeft}
-            label={s.action.back}
-            // Same as everywhere else: nothing behind means home, never a button that answers
-            // nothing.
-            onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
-          />
-        }
+    <Board
+      bar={
+        <AppBar
+          title={s.profile.title}
+          left={
+            <IconButton
+              icon={ChevronLeft}
+              label={s.action.back}
+              // Same as everywhere else: nothing behind means home, never a button that answers
+              // nothing.
+              onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+            />
+          }
+        />
+      }
+      // The spec's way out stands 30 clear of the bottom; on a phone the home indicator is what
+      // that has to clear, and it is the taller of the two.
+      body={[styles.body, { paddingBottom: Math.max(insets.bottom, board.bottom) }]}
+    >
+      {/* The profile card. A long name and a long address each cut with an ellipsis rather than
+          wrapping, so neither the circle nor the pencil ever moves. */}
+      <View style={styles.card}>
+        <Avatar name={name} size={64} display />
+        <View style={styles.cardWords}>
+          <Text role="title" numberOfLines={1}>
+            {name}
+          </Text>
+          {handle ? (
+            <Text role="label" numberOfLines={1}>
+              {handle}
+            </Text>
+          ) : null}
+          {user?.email ? (
+            <Text role="meta" numberOfLines={1}>
+              {user.email}
+            </Text>
+          ) : null}
+        </View>
+        <IconButton
+          icon={Pencil}
+          label={s.profile.edit}
+          tone="raise"
+          onPress={() => setRenaming(true)}
+        />
+      </View>
+
+      {/* Over the settings and not at the foot of the screen: it answers a pick that was just
+          made, or the way out that was just tried. */}
+      {error ? <Banner tone="error" text={error} /> : null}
+
+      {/* The one door to the contact list. The count and the faces are what it is worth opening
+          for; with nobody saved yet — or the list not read — there is neither, the card says what
+          it is for instead, and it still leads there, because an empty list is where the first
+          name is typed. */}
+      <RowSection
+        heading={s.contacts.title}
+        title={contacts.length > 0 ? s.memory.people(contacts.length) : s.profile.contactsMeta}
+        meta={contacts.length > 0 ? s.profile.contactsMeta : undefined}
+        sign={contacts.length > 0 ? <AvatarStack names={contacts.map(memberName)} /> : undefined}
+        onPress={() => router.push('/contacts')}
       />
 
-      <ScrollView
-        // The spec's way out stands 30 clear of the bottom; on a phone the home indicator is what
-        // that has to clear, and it is the taller of the two.
-        contentContainerStyle={[
-          styles.body,
-          { paddingBottom: Math.max(insets.bottom, board.bottom) },
-        ]}
-      >
-        {/* The profile card. A long name and a long address each cut with an ellipsis rather than
-            wrapping, so neither the circle nor the pencil ever moves. */}
-        <View style={styles.card}>
-          <Avatar name={name} size={64} display />
-          <View style={styles.cardWords}>
-            <Text role="title" numberOfLines={1}>
-              {name}
-            </Text>
-            {handle ? (
-              <Text role="label" numberOfLines={1}>
-                {handle}
-              </Text>
-            ) : null}
-            {user?.email ? (
-              <Text role="meta" numberOfLines={1}>
-                {user.email}
-              </Text>
-            ) : null}
-          </View>
-          <IconButton
-            icon={Pencil}
-            label={s.profile.edit}
-            tone="raise"
-            onPress={() => setRenaming(true)}
+      {/* Three values against two: the theme can be handed back to the phone, the language
+          cannot — a phone in German is not one of the two languages this app speaks (doc-8).
+          Nothing under either: the change shows itself. */}
+      <View style={styles.pair}>
+        <View style={styles.setting}>
+          <Heading>{s.theme.label}</Heading>
+          <Segment
+            label={s.theme.label}
+            hideLabel
+            wide
+            small
+            value={theme}
+            onChange={(next) => remember(setTheme(next))}
+            options={[
+              { value: 'system', label: s.theme.system },
+              { value: 'dark', label: s.theme.dark },
+              { value: 'light', label: s.theme.light },
+            ]}
           />
         </View>
+        <View style={styles.setting}>
+          <Heading>{s.language.label}</Heading>
+          <Segment
+            label={s.language.label}
+            hideLabel
+            wide
+            value={language}
+            onChange={(next) => remember(setLanguage(next))}
+            // Each language names itself, in itself: whoever is looking for their own reads it in
+            // the one they know, whichever set the app is currently in.
+            options={[
+              { value: 'ru', label: s.language.ru },
+              { value: 'en', label: s.language.en },
+            ]}
+          />
+        </View>
+      </View>
 
-        {/* Over the settings and not at the foot of the screen: it answers a pick that was just
-            made, or the way out that was just tried. */}
-        {error ? <Banner tone="error" text={error} /> : null}
-
-        {/* The one door to the contact list. The count and the faces are what it is worth opening
-            for; with nobody saved yet — or the list not read — there is neither, the card says what
-            it is for instead, and it still leads there, because an empty list is where the first
-            name is typed. */}
-        <RowSection
-          heading={s.contacts.title}
-          title={contacts.length > 0 ? s.memory.people(contacts.length) : s.profile.contactsMeta}
-          meta={contacts.length > 0 ? s.profile.contactsMeta : undefined}
-          sign={contacts.length > 0 ? <AvatarStack names={contacts.map(memberName)} /> : undefined}
-          onPress={() => router.push('/contacts')}
+      {/* The person's own setting for every feed of every memory: on, the day is written between
+          the strips (`MemoryDated`); off, it is read off the spine while the feed moves. */}
+      <View style={styles.section}>
+        <Heading>{s.profile.gallery}</Heading>
+        <RowToggle
+          label={s.profile.datesBetweenDays}
+          value={datesBetweenDays}
+          onValueChange={(on) => remember(setDatesBetweenDays(on))}
         />
+      </View>
 
-        {/* Three values against two: the theme can be handed back to the phone, the language
-            cannot — a phone in German is not one of the two languages this app speaks (doc-8).
-            Nothing under either: the change shows itself. */}
-        <View style={styles.pair}>
-          <View style={styles.setting}>
-            <Heading>{s.theme.label}</Heading>
-            <Segment
-              label={s.theme.label}
-              hideLabel
-              wide
-              small
-              value={theme}
-              onChange={(next) => remember(setTheme(next))}
-              options={[
-                { value: 'system', label: s.theme.system },
-                { value: 'dark', label: s.theme.dark },
-                { value: 'light', label: s.theme.light },
-              ]}
-            />
-          </View>
-          <View style={styles.setting}>
-            <Heading>{s.language.label}</Heading>
-            <Segment
-              label={s.language.label}
-              hideLabel
-              wide
-              value={language}
-              onChange={(next) => remember(setLanguage(next))}
-              // Each language names itself, in itself: whoever is looking for their own reads it in
-              // the one they know, whichever set the app is currently in.
-              options={[
-                { value: 'ru', label: s.language.ru },
-                { value: 'en', label: s.language.en },
-              ]}
-            />
-          </View>
-        </View>
-
-        {/* The person's own setting for every feed of every memory: on, the day is written between
-            the strips (`MemoryDated`); off, it is read off the spine while the feed moves. */}
-        <View style={styles.section}>
-          <Heading>{s.profile.gallery}</Heading>
-          <RowToggle
-            label={s.profile.datesBetweenDays}
-            value={datesBetweenDays}
-            onValueChange={(on) => remember(setDatesBetweenDays(on))}
-          />
-        </View>
-
-        {/* Apart from the body and with no rule over it: leaving is not something this screen does
-            but the way out of it. Pushed to the foot whatever stands above it. */}
-        <View style={styles.out}>
-          <Button
-            variant="danger"
-            size="xl"
-            label={s.action.logOut}
-            busy={busy}
-            onPress={() => setLeaving(true)}
-          />
-        </View>
-      </ScrollView>
+      {/* Apart from the body and with no rule over it: leaving is not something this screen does
+          but the way out of it. Pushed to the foot whatever stands above it. */}
+      <View style={styles.out}>
+        <Button
+          variant="danger"
+          size="xl"
+          label={s.action.logOut}
+          busy={busy}
+          onPress={() => setLeaving(true)}
+        />
+      </View>
 
       <Sheet visible={renaming} onCancel={() => setRenaming(false)} title={s.profile.edit}>
         <UsernameForm submitLabel={s.action.save} onClaimed={() => setRenaming(false)} />

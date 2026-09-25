@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { Clock, LayoutGrid } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { listMemories, type MontagePreview, orderMontage, previewMontage } from '@/api';
 import {
@@ -163,6 +163,7 @@ export default function SummaryStep() {
           />
         )
       }
+      body={stopped === null && preview !== null ? styles.body : undefined}
     >
       {stopped !== null ? (
         // Refused, and said in words with the way out of it under them — never the empty screen a
@@ -186,7 +187,7 @@ export default function SummaryStep() {
           <Waiting text={s.state.loading} />
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.body}>
+        <>
           {/* The poster of the film that has been asked for: its first three frames, the template
               it is cut to, and the length the api settled printed big. */}
           <PosterOrder
@@ -248,7 +249,7 @@ export default function SummaryStep() {
               {s.montage.readyIn(preview.estimate_minutes)}
             </Text>
           </View>
-        </ScrollView>
+        </>
       )}
     </WizardStep>
   );
@@ -257,7 +258,7 @@ export default function SummaryStep() {
 const useStyles = themed(() =>
   StyleSheet.create({
     grow: { flex: 1, minWidth: 0 },
-    middle: { flex: 1, justifyContent: 'center' },
+    middle: { flexGrow: 1, justifyContent: 'center' },
     banner: { marginHorizontal: space.s4 },
     body: { flexGrow: 1, paddingHorizontal: space.s4, paddingBottom: space.s6, gap: space.s3 },
     counts: { flexDirection: 'row', alignItems: 'baseline', gap: space.s2 },

@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { Link2Off } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import { ApiError, acceptInvite, errorMessage } from '@/api';
 import { ActionBar, Board, Button, Empty, Text, Waiting } from '@/kit';
@@ -82,7 +82,7 @@ export default function InviteScreen() {
   // walked in, and the line saying what is being waited for. It lives a second and leads inward.
   if (!stop) {
     return (
-      <Board style={styles.joining}>
+      <Board body={styles.joining}>
         <Text accessibilityRole="header" role="heroNarrow">
           Remember
         </Text>
@@ -95,13 +95,15 @@ export default function InviteScreen() {
   // the bottom layer — «replace», like every other exit from here, because a spent invite must not
   // sit in the back stack.
   return (
-    <Board>
-      <View style={styles.body}>
-        <Empty sign="line" icon={Link2Off} title={stop.title} text={stop.text} />
-      </View>
-      <ActionBar>
-        <Button variant="primary" label={s.join.home} onPress={() => router.replace('/')} />
-      </ActionBar>
+    <Board
+      body={styles.body}
+      footer={
+        <ActionBar>
+          <Button variant="primary" label={s.join.home} onPress={() => router.replace('/')} />
+        </ActionBar>
+      }
+    >
+      <Empty sign="line" icon={Link2Off} title={stop.title} text={stop.text} />
     </Board>
   );
 }
@@ -116,5 +118,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.s7,
   },
   // The body is what is left above the bottom layer, and the empty state stands in the middle of it.
-  body: { flex: 1, justifyContent: 'center' },
+  body: { justifyContent: 'center' },
 });

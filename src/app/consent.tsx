@@ -58,66 +58,68 @@ export default function ConsentScreen() {
   }
 
   return (
-    <Board>
+    <Board
+      footer={
+        <ActionBar>
+          <View style={styles.column}>
+            <View style={styles.card}>
+              {/* Deliberately not the layout's own sentence — see `strings.ts`: there is no
+                  deleting a memory in this product, so what ends the storing is a frame deleted or
+                  the person leaving. */}
+              <Line icon={ImageIcon}>
+                <Text role="note" style={styles.grow}>
+                  {s.consent.storage}
+                </Text>
+              </Line>
+              <Divider />
+              {/* The one line the whole screen is really about, so it is the one that is lit: what
+                  the network does with a person's frames is named here and not buried in the sheet
+                  below. */}
+              <Line lit icon={Smile}>
+                <Text role="note" tone="paper" style={styles.grow}>
+                  {s.consent.recognisesBefore}
+                  <Text role="note" tone="paper" style={styles.strong}>
+                    {s.consent.recognises}
+                  </Text>
+                  {s.consent.recognisesAfter}
+                </Text>
+              </Line>
+              <Divider />
+              <Line icon={Shield}>
+                <Text role="note" style={styles.grow}>
+                  {s.consent.training}
+                </Text>
+              </Line>
+            </View>
+
+            {/* The text itself is one press away and never in the way: three lines are what a
+                person actually reads, and the whole of it is what they agree to. */}
+            <Button
+              variant="quiet"
+              label={s.consent.readFull}
+              onPress={() => setOpen(true)}
+              style={styles.centre}
+            />
+
+            <Button
+              variant="primary"
+              wide
+              label={s.consent.accept}
+              busyLabel={s.consent.accepting}
+              onPress={accept}
+              busy={busy}
+            />
+
+            <Hint tone="faint" style={styles.note}>
+              {s.consent.required}
+            </Hint>
+          </View>
+        </ActionBar>
+      }
+    >
       <OnboardingHead small />
 
       <View style={styles.room}>{error ? <Banner tone="error" text={error} /> : null}</View>
-
-      <ActionBar>
-        <View style={styles.column}>
-          <View style={styles.card}>
-            {/* Deliberately not the layout's own sentence — see `strings.ts`: there is no deleting
-                a memory in this product, so what ends the storing is a frame deleted or the person
-                leaving. */}
-            <Line icon={ImageIcon}>
-              <Text role="note" style={styles.grow}>
-                {s.consent.storage}
-              </Text>
-            </Line>
-            <Divider />
-            {/* The one line the whole screen is really about, so it is the one that is lit: what
-                the network does with a person's frames is named here and not buried in the sheet
-                below. */}
-            <Line lit icon={Smile}>
-              <Text role="note" tone="paper" style={styles.grow}>
-                {s.consent.recognisesBefore}
-                <Text role="note" tone="paper" style={styles.strong}>
-                  {s.consent.recognises}
-                </Text>
-                {s.consent.recognisesAfter}
-              </Text>
-            </Line>
-            <Divider />
-            <Line icon={Shield}>
-              <Text role="note" style={styles.grow}>
-                {s.consent.training}
-              </Text>
-            </Line>
-          </View>
-
-          {/* The text itself is one press away and never in the way: three lines are what a person
-              actually reads, and the whole of it is what they agree to. */}
-          <Button
-            variant="quiet"
-            label={s.consent.readFull}
-            onPress={() => setOpen(true)}
-            style={styles.centre}
-          />
-
-          <Button
-            variant="primary"
-            wide
-            label={s.consent.accept}
-            busyLabel={s.consent.accepting}
-            onPress={accept}
-            busy={busy}
-          />
-
-          <Hint tone="faint" style={styles.note}>
-            {s.consent.required}
-          </Hint>
-        </View>
-      </ActionBar>
 
       <Sheet
         visible={open}
@@ -177,7 +179,7 @@ function Line({
 
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
-    room: { flex: 1, justifyContent: 'flex-end', paddingHorizontal: space.s4 },
+    room: { flexGrow: 1, justifyContent: 'flex-end', paddingHorizontal: space.s4 },
     column: { flex: 1, gap: space.s3 },
     card: {
       borderRadius: radius.section,

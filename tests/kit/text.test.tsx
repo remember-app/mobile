@@ -1,7 +1,7 @@
 import { beforeAll, expect, test } from 'vitest';
 
 import { allDifferent, story } from '@/kit/story';
-import { HiddenLabel, Text, type TextTone, type TypeRole } from '@/kit/text';
+import { fitCell, HiddenLabel, Text, type TextTone, type TypeRole } from '@/kit/text';
 import { setTheme, type } from '@/theme';
 
 /** Spec 3 — every type role and every tone words can be read in, drawn once each. */
@@ -85,4 +85,25 @@ test('a label the eye does not need is still there for a screen reader', () => {
   // Clipped rather than styled out of the way: nothing it shares with a line that is meant to be
   // read, which is the whole difference between a hidden label and an invisible one.
   expect(hidden).not.toBe(story(<Text role="label">Ник</Text>));
+});
+
+test('words in a cell the layout fixes grow as far as the cell holds them, and the cell grows down', () => {
+  // A day of the calendar: two tabular figures in a 40 circle, 15 / 22 (TASK-372).
+  const day = { role: 'bodySm', em: 1.35, rest: 40 } as const;
+  // At the system's own size the cell is the layout's 40, whatever could be held back.
+  expect(fitCell({ ...day, fontScale: 1, width: 40 }).height).toBe(40);
+  // AX5 on the zoomed iPhone SE: the column is 37 wide, so the figures stop where two still fit…
+  const tight = fitCell({ ...day, fontScale: 3.571, width: 37.4 });
+  const most = tight.most ?? Number.POSITIVE_INFINITY;
+  expect(15 * most * 1.35).toBeLessThanOrEqual(37.4 - 4 + 1e-9);
+  expect(most).toBeLessThan(3.571);
+  // …and the row grows under them instead, never under the 44 a finger needs.
+  expect(tight.height).toBeGreaterThanOrEqual(44);
+  expect(tight.height).toBeGreaterThanOrEqual(22 * most);
+  // A cell with room to spare holds nothing back: the type grows as the phone asks.
+  const roomy = fitCell({ ...day, fontScale: 1.2, width: 200 });
+  expect(roomy.most).toBeGreaterThan(1.2);
+  expect(roomy.height).toBe(Math.max(44, Math.ceil(22 * 1.2) + 4));
+  // Not measured yet: nothing is held, and the cell is as tall as the type it will hold.
+  expect(fitCell({ ...day, fontScale: 2, width: 0 })).toEqual({ most: undefined, height: 48 });
 });

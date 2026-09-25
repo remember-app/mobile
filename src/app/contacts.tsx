@@ -1,7 +1,7 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ChevronLeft, Search, UserPlus, X } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -175,144 +175,146 @@ export default function ContactsScreen() {
   const nothing = shown.length === 0 && stranger === null;
 
   return (
-    <Board>
-      {/* The head: the bar and the field together, and the field does not scroll away with the list
-          — it is the way to add as much as the way to search. */}
-      <AppBar
-        title={s.contacts.title}
-        left={
-          <IconButton
-            icon={ChevronLeft}
-            label={s.action.back}
-            // Same as everywhere else: nothing behind means home, never a button that answers
-            // nothing.
-            onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+    <Board
+      // The head: the bar and the field together, and the field does not scroll away with the list
+      // — it is the way to add as much as the way to search.
+      bar={
+        <>
+          <AppBar
+            title={s.contacts.title}
+            left={
+              <IconButton
+                icon={ChevronLeft}
+                label={s.action.back}
+                // Same as everywhere else: nothing behind means home, never a button that answers
+                // nothing.
+                onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+              />
+            }
           />
-        }
-      />
-      <View style={styles.head}>
-        <Field
-          variant="search"
-          icon={Search}
-          prefix="@"
-          label={s.username.label}
-          labelHidden
-          value={typed}
-          onChangeText={setTyped}
-          placeholder={s.username.placeholder}
-          autoCapitalize="none"
-          autoCorrect={false}
-          // The check is answered in the field, the way the invite sheet answers it. «Такого ника
-          // нет» only while the list under it still has rows — with nothing under it the body says
-          // the same thing at length and names the ник, and saying it twice says it once.
-          state={found === 'none' && shown.length > 0 ? 'error' : undefined}
-          hint={
-            looking
-              ? s.state.checking
-              : found === 'none' && shown.length > 0
-                ? s.members.noSuchUser
-                : undefined
-          }
-        />
-      </View>
+          <View style={styles.head}>
+            <Field
+              variant="search"
+              icon={Search}
+              prefix="@"
+              label={s.username.label}
+              labelHidden
+              value={typed}
+              onChangeText={setTyped}
+              placeholder={s.username.placeholder}
+              autoCapitalize="none"
+              autoCorrect={false}
+              // The check is answered in the field, the way the invite sheet answers it. «Такого
+              // ника нет» only while the list under it still has rows — with nothing under it the
+              // body says the same thing at length and names the ник, and saying it twice says it
+              // once.
+              state={found === 'none' && shown.length > 0 ? 'error' : undefined}
+              hint={
+                looking
+                  ? s.state.checking
+                  : found === 'none' && shown.length > 0
+                    ? s.members.noSuchUser
+                    : undefined
+              }
+            />
+          </View>
+        </>
+      }
+      body={[
+        styles.body,
+        nothing ? styles.mid : null,
+        { paddingBottom: Math.max(insets.bottom, board.bottom) },
+      ]}
+    >
+      {error !== null ? (
+        // The list did not come: the strip holds its place and offers the one thing left to do.
+        <Banner tone="error" text={error}>
+          <Button size="xs" variant="quiet" label={s.action.retry} onPress={load} />
+        </Banner>
+      ) : contacts === null ? (
+        <Empty busy text={s.state.loading} />
+      ) : (
+        <>
+          {notice !== null ? <Banner tone="error" text={notice} /> : null}
 
-      <ScrollView
-        contentContainerStyle={[
-          styles.body,
-          nothing ? styles.mid : null,
-          { paddingBottom: Math.max(insets.bottom, board.bottom) },
-        ]}
-      >
-        {error !== null ? (
-          // The list did not come: the strip holds its place and offers the one thing left to do.
-          <Banner tone="error" text={error}>
-            <Button size="xs" variant="quiet" label={s.action.retry} onPress={load} />
-          </Banner>
-        ) : contacts === null ? (
-          <Empty busy text={s.state.loading} />
-        ) : (
-          <>
-            {notice !== null ? <Banner tone="error" text={notice} /> : null}
+          {/* Found in Remember and not saved yet: its own rule, one row, one action — and it
+              stands above the saved list, where the eye already is after typing. */}
+          {stranger !== null ? (
+            <View style={styles.section}>
+              <Text accessibilityRole="header" role="eyebrow">
+                {s.contacts.notSaved.toUpperCase()}
+              </Text>
+              <RowContact
+                variant="found"
+                name={memberName(stranger)}
+                handle={memberHandle(stranger)}
+              >
+                <Button
+                  variant="primary"
+                  size="sm"
+                  wide={false}
+                  label={s.contacts.save}
+                  busy={saving}
+                  onPress={() => save(stranger)}
+                />
+              </RowContact>
+            </View>
+          ) : null}
 
-            {/* Found in Remember and not saved yet: its own rule, one row, one action — and it
-                stands above the saved list, where the eye already is after typing. */}
-            {stranger !== null ? (
-              <View style={styles.section}>
-                <Text accessibilityRole="header" role="eyebrow">
-                  {s.contacts.notSaved.toUpperCase()}
-                </Text>
-                <RowContact
-                  variant="found"
-                  name={memberName(stranger)}
-                  handle={memberHandle(stranger)}
-                >
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    wide={false}
-                    label={s.contacts.save}
-                    busy={saving}
-                    onPress={() => save(stranger)}
-                  />
-                </RowContact>
-              </View>
-            ) : null}
+          {/* The saved, under their own heading with the count on the end of its rule. One View
+              around the rows so they keep the hairline and padding of a list instead of the gap
+              this body puts between its groups. */}
+          {shown.length > 0 ? (
+            <View>
+              <DayMark label={s.contacts.saved} count={String(shown.length)} />
+              {shown.map((contact, index) => {
+                const fading = gone.includes(contact.id);
+                const name = memberName(contact);
 
-            {/* The saved, under their own heading with the count on the end of its rule. One View
-                around the rows so they keep the hairline and padding of a list instead of the gap
-                this body puts between its groups. */}
-            {shown.length > 0 ? (
-              <View>
-                <DayMark label={s.contacts.saved} count={String(shown.length)} />
-                {shown.map((contact, index) => {
-                  const fading = gone.includes(contact.id);
-                  const name = memberName(contact);
+                return (
+                  <RowContact
+                    key={contact.id}
+                    name={name}
+                    // The username where a member row carries a standing — a contact uploads
+                    // nothing, so there is no role and no count to write here.
+                    handle={fading ? s.contacts.removed : memberHandle(contact)}
+                    variant={fading ? 'gone' : 'saved'}
+                    divider={index > 0}
+                  >
+                    {fading ? (
+                      <Button
+                        variant="small"
+                        size="xs"
+                        label={s.contacts.undo}
+                        onPress={() => undo(contact)}
+                      />
+                    ) : (
+                      <IconButton
+                        size={36}
+                        icon={X}
+                        label={s.contacts.remove(name)}
+                        onPress={() => drop(contact)}
+                      />
+                    )}
+                  </RowContact>
+                );
+              })}
+            </View>
+          ) : null}
 
-                  return (
-                    <RowContact
-                      key={contact.id}
-                      name={name}
-                      // The username where a member row carries a standing — a contact uploads
-                      // nothing, so there is no role and no count to write here.
-                      handle={fading ? s.contacts.removed : memberHandle(contact)}
-                      variant={fading ? 'gone' : 'saved'}
-                      divider={index > 0}
-                    >
-                      {fading ? (
-                        <Button
-                          variant="small"
-                          size="xs"
-                          label={s.contacts.undo}
-                          onPress={() => undo(contact)}
-                        />
-                      ) : (
-                        <IconButton
-                          size={36}
-                          icon={X}
-                          label={s.contacts.remove(name)}
-                          onPress={() => drop(contact)}
-                        />
-                      )}
-                    </RowContact>
-                  );
-                })}
-              </View>
-            ) : null}
-
-            {/* Empty is an invitation and not a report: with nothing typed the field itself is the
-                way to add somebody, and that is what the paragraph sends them to. With something
-                typed and nobody anywhere holding it, the answer names the ник that was asked for —
-                and a ник nobody *could* hold is that same answer without the asking. Without that
-                second half the body came out blank: two letters, a space, or anything Cyrillic never
-                reaches the api, so `found` stayed null and neither line was drawn. */}
-            {nothing && query === '' ? (
-              <Empty icon={UserPlus} title={s.contacts.emptyTitle} text={s.contacts.empty} />
-            ) : nothing && (found === 'none' || !isValidUsername(query)) ? (
-              <Empty text={s.contacts.noUser(query)} />
-            ) : null}
-          </>
-        )}
-      </ScrollView>
+          {/* Empty is an invitation and not a report: with nothing typed the field itself is the
+              way to add somebody, and that is what the paragraph sends them to. With something
+              typed and nobody anywhere holding it, the answer names the ник that was asked for —
+              and a ник nobody *could* hold is that same answer without the asking. Without that
+              second half the body came out blank: two letters, a space, or anything Cyrillic never
+              reaches the api, so `found` stayed null and neither line was drawn. */}
+          {nothing && query === '' ? (
+            <Empty icon={UserPlus} title={s.contacts.emptyTitle} text={s.contacts.empty} />
+          ) : nothing && (found === 'none' || !isValidUsername(query)) ? (
+            <Empty text={s.contacts.noUser(query)} />
+          ) : null}
+        </>
+      )}
     </Board>
   );
 }

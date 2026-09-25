@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import {
   ApiError,
@@ -135,113 +135,117 @@ export default function MemoryEditScreen() {
   }
 
   return (
-    <Board>
-      <AppBar
-        // Paired with «Новое воспоминание» on `Create`, and deliberately not «Воспоминание» again.
-        title={s.edit.title}
-        left={
-          <IconButton
-            icon={ChevronLeft}
-            label={s.action.back}
-            // Live while the save is in flight (spec 10.8.3) — the only control on the screen that is.
-            onPress={() => (changed ? setLeaving(true) : leave())}
+    <Board
+      bar={
+        <AppBar
+          // Paired with «Новое воспоминание» on `Create`, and deliberately not «Воспоминание»
+          // again.
+          title={s.edit.title}
+          left={
+            <IconButton
+              icon={ChevronLeft}
+              label={s.action.back}
+              // Live while the save is in flight (spec 10.8.3) — the only control on the screen
+              // that is.
+              onPress={() => (changed ? setLeaving(true) : leave())}
+            />
+          }
+        />
+      }
+      footer={
+        <ActionBar>
+          <Button
+            variant="primary"
+            wide
+            label={s.edit.save}
+            // Spec 10.8.3 names this one exactly: the spinner takes the place of the glyph and the
+            // word does not change — there is no continuous form of «Сохранить» on this button.
+            busy={saving}
+            // Nothing changed is nothing to press, and the screen says so by being unavailable
+            // rather than by a line explaining itself (spec 10.8.3).
+            disabled={!changed || named === ''}
+            onPress={() => void save()}
           />
-        }
-      />
+        </ActionBar>
+      }
+      body={styles.body}
+    >
+      {failed !== null ? <Banner tone="error" text={failed} /> : null}
 
-      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-        {failed !== null ? <Banner tone="error" text={failed} /> : null}
-
-        {error !== null ? (
-          <Banner tone="error" text={error} />
-        ) : !ready ? (
-          <View style={styles.middle}>
-            <Waiting text={s.state.loading} />
+      {error !== null ? (
+        <Banner tone="error" text={error} />
+      ) : !ready ? (
+        <View style={styles.middle}>
+          <Waiting text={s.state.loading} />
+        </View>
+      ) : (
+        <>
+          <View style={styles.block}>
+            <Text role="eyebrow" tone="muted" accessibilityRole="header">
+              {s.create.titleLabel.toUpperCase()}
+            </Text>
+            <Field
+              label={s.create.titleLabel}
+              labelHidden
+              variant="name"
+              value={title}
+              onChangeText={setTitle}
+              placeholder={s.create.titlePlaceholder}
+              editable={!saving}
+              // Spec 10.8.3: an emptied name is a field error, and «Сохранить» goes with it.
+              state={named === '' ? 'error' : undefined}
+              hint={named === '' ? s.edit.noTitle : undefined}
+            />
           </View>
-        ) : (
-          <>
-            <View style={styles.block}>
-              <Text role="eyebrow" tone="muted" accessibilityRole="header">
-                {s.create.titleLabel.toUpperCase()}
-              </Text>
-              <Field
-                label={s.create.titleLabel}
-                labelHidden
-                variant="name"
-                value={title}
-                onChangeText={setTitle}
-                placeholder={s.create.titlePlaceholder}
-                editable={!saving}
-                // Spec 10.8.3: an emptied name is a field error, and «Сохранить» goes with it.
-                state={named === '' ? 'error' : undefined}
-                hint={named === '' ? s.edit.noTitle : undefined}
+
+          <EventWhen value={span} onChange={setSpan} disabled={saving} />
+
+          <View style={styles.block}>
+            <Text role="eyebrow" tone="muted" accessibilityRole="header">
+              {s.edit.cover.toUpperCase()}
+            </Text>
+            <View style={styles.card}>
+              <CoverSlot uri={coverUri} thumbs={memory.recent_thumbnail_urls} />
+              <View style={styles.grow}>
+                <Text role="row" numberOfLines={1}>
+                  {cover === null
+                    ? s.edit.coverNone
+                    : chosen
+                      ? s.edit.coverFrom(formatDay(new Date(shotAt(chosen))))
+                      : s.edit.coverChosen}
+                </Text>
+                <Text role="meta" numberOfLines={2}>
+                  {cover === null ? s.edit.coverInstead : s.edit.coverWhere}
+                </Text>
+              </View>
+              <Button
+                variant="small"
+                size="xs"
+                label={cover === null ? s.edit.coverPick : s.edit.coverReplace}
+                disabled={saving || pickable.length === 0}
+                onPress={() => setPicking(true)}
               />
             </View>
-
-            <EventWhen value={span} onChange={setSpan} disabled={saving} />
-
-            <View style={styles.block}>
-              <Text role="eyebrow" tone="muted" accessibilityRole="header">
-                {s.edit.cover.toUpperCase()}
-              </Text>
-              <View style={styles.card}>
-                <CoverSlot uri={coverUri} thumbs={memory.recent_thumbnail_urls} />
-                <View style={styles.grow}>
-                  <Text role="row" numberOfLines={1}>
-                    {cover === null
-                      ? s.edit.coverNone
-                      : chosen
-                        ? s.edit.coverFrom(formatDay(new Date(shotAt(chosen))))
-                        : s.edit.coverChosen}
-                  </Text>
-                  <Text role="meta" numberOfLines={2}>
-                    {cover === null ? s.edit.coverInstead : s.edit.coverWhere}
-                  </Text>
-                </View>
-                <Button
-                  variant="small"
-                  size="xs"
-                  label={cover === null ? s.edit.coverPick : s.edit.coverReplace}
-                  disabled={saving || pickable.length === 0}
-                  onPress={() => setPicking(true)}
-                />
-              </View>
-              {/* Quiet and under the card, because putting a cover back costs nothing — there is
-                  nothing here to confirm. */}
-              {cover === null ? null : (
-                <Button
-                  variant="quiet"
-                  label={s.edit.coverDrop}
-                  disabled={saving}
-                  style={styles.quiet}
-                  onPress={() => setCover(null)}
-                />
-              )}
-              {/* Only once the gallery has answered: while it is still on its way, and when it could
-                  not be read at all, «сначала нужен хотя бы один кадр» would be a statement about a
-                  memory nobody has looked into. */}
-              {media !== null && pickable.length === 0 ? (
-                <Hint>{s.edit.coverNeedsFrames}</Hint>
-              ) : null}
-            </View>
-          </>
-        )}
-      </ScrollView>
-
-      <ActionBar>
-        <Button
-          variant="primary"
-          wide
-          label={s.edit.save}
-          // Spec 10.8.3 names this one exactly: the spinner takes the place of the glyph and the
-          // word does not change — there is no continuous form of «Сохранить» on this button.
-          busy={saving}
-          // Nothing changed is nothing to press, and the screen says so by being unavailable rather
-          // than by a line explaining itself (spec 10.8.3).
-          disabled={!changed || named === ''}
-          onPress={() => void save()}
-        />
-      </ActionBar>
+            {/* Quiet and under the card, because putting a cover back costs nothing — there is
+                nothing here to confirm. */}
+            {cover === null ? null : (
+              <Button
+                variant="quiet"
+                label={s.edit.coverDrop}
+                disabled={saving}
+                style={styles.quiet}
+                onPress={() => setCover(null)}
+              />
+            )}
+            {/* Only once the gallery has answered: while it is still on its way, and when it could
+                not be read at all, «сначала нужен хотя бы один кадр» would be a statement about a
+                memory nobody has looked into. */}
+            {media !== null && pickable.length === 0 ? (
+              <Hint>{s.edit.coverNeedsFrames}</Hint>
+            ) : null}
+          </View>
+        </>
+      )}
 
       <CoverSheet
         visible={picking}
@@ -292,7 +296,7 @@ const useStyles = themed(({ color }) =>
   StyleSheet.create({
     // Spec 10.8.3: the rhythm of `Create` — the screen's own 16 at the sides, 22 between the blocks.
     body: { flexGrow: 1, paddingHorizontal: space.s4, paddingBottom: space.s6, gap: 22 },
-    middle: { flex: 1, justifyContent: 'center' },
+    middle: { flexGrow: 1, justifyContent: 'center' },
     block: { gap: 9 },
     // «Выбрать» moves under the words when the system type leaves it no room beside them.
     card: {
