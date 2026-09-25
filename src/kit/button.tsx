@@ -5,7 +5,7 @@ import { height, photo, radius, space, type Theme, themed, useTheme } from '@/th
 import { Spinner } from './empty';
 import { ICO_S, ICO_XS, Icon, type IconComponent } from './icon';
 import { hitSlop, PRESS, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
-import { Text } from './text';
+import { Text, type TypeRole } from './text';
 
 /**
  * Spec 7.2 — the buttons. Eight of them wear words and one is round and wears a glyph, and which is
@@ -82,6 +82,11 @@ export type ButtonProps = {
   icon?: IconComponent;
   /** A glyph after them — the chevron on «Дальше» in the wizard. */
   trailingIcon?: IconComponent;
+  /**
+   * The words' own size, only where the layout names one for the place: the wizard's «Отмена» is 14
+   * rather than 16 (spec 7.1, detail 3). Left off, the variant decides.
+   */
+  labelRole?: TypeRole;
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
 };
@@ -96,6 +101,7 @@ export function Button({
   disabled,
   icon,
   trailingIcon,
+  labelRole,
   onPress,
   style,
 }: ButtonProps) {
@@ -145,7 +151,7 @@ export function Button({
       {busy ? <Spinner size={18} track={tint} head="transparent" /> : null}
       {icon && !busy ? <Icon icon={icon} {...glyph} color={tint} /> : null}
       <Text
-        role={variant === 'small' || compact ? 'label' : 'control'}
+        role={labelRole ?? (variant === 'small' || compact ? 'label' : 'control')}
         // Spec 7.2: a label too long for one line grows the button down and is centred in it.
         style={{ color: tint, textAlign: 'center' }}
       >
@@ -255,6 +261,7 @@ export function IconButton({
   dot,
   disabled,
   tint,
+  glyph: drawn,
   style,
 }: {
   icon: IconComponent;
@@ -276,6 +283,8 @@ export function IconButton({
   disabled?: boolean;
   /** An override for the glyph's colour where the place demands it, not where taste does. */
   tint?: string;
+  /** The glyph's size and stroke where the layout names them for the place — the wizard's «x». */
+  glyph?: { size: number; stroke: number };
   style?: StyleProp<ViewStyle>;
 }) {
   const { hovered, focused, props } = useHoverFocus();
@@ -318,7 +327,10 @@ export function IconButton({
           reads as a plate with something small lost in it. The layout draws that one at 26. */}
       <Icon
         icon={icon}
-        size={size >= 64 ? 26 : size >= 48 ? 22 : size >= 40 ? 20 : size > 28 ? 18 : 14}
+        size={
+          drawn?.size ?? (size >= 64 ? 26 : size >= 48 ? 22 : size >= 40 ? 20 : size > 28 ? 18 : 14)
+        }
+        stroke={drawn?.stroke}
         color={glyph}
         fill={tone === 'video' ? glyph : undefined}
       />

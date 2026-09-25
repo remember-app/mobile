@@ -1,11 +1,19 @@
+import { X } from 'lucide-react-native';
 import type { ReactNode } from 'react';
-import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
+import {
+  Pressable,
+  type StyleProp,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+  type ViewStyle,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { board, height, photo, radius, space, ThemePin, themed, useTheme } from '@/theme';
 
 import { StepScale } from './bits';
-import { IconButton } from './button';
+import { Button, IconButton } from './button';
 import type { IconComponent } from './icon';
 import { Text } from './text';
 
@@ -99,6 +107,15 @@ export function AppBar({
 }
 
 /**
+ * Spec 7.1, detail 3: how far the system's type grows before «Отмена» stops being a word. The word
+ * has 64 in its block — «Отмена» at 14 is 51.7, 62.0 at ×1.2 — so past this it is a round «x».
+ */
+export const CANCEL_WORD_SCALE = 1.2;
+
+/** The wizard's «x» (spec 7.1, detail 3): drawn at its own size, so it does not grow with the type. */
+const CANCEL_GLYPH = { size: 22, stroke: 1.9 } as const;
+
+/**
  * The wizard's bar (spec 7.1, detail 3): a 74-wide block on each side so the step counter sits dead
  * centre whatever the words in those blocks are, the step scale under it, and the step's own heading
  * under that — the heading belongs to the bar and not to the body, because the body scrolls and this
@@ -106,6 +123,11 @@ export function AppBar({
  *
  * `summary` is the last face of it, the one the order's own total wears: no scale, because there is
  * no step after it, and the heading comes up to meet the row.
+ *
+ * «Отмена» is the bar's own to draw, because what it looks like depends on the type size and not on
+ * the step: the word 14 / 600 up to ×1.2 of the system's type, and past that a round 44 with an «x»
+ * that mirrors «Назад» and is still read out as the word. Both side blocks then close from 74 to 44,
+ * on every face alike, so the counter stays dead centre and gets the room.
  */
 export function WizardBar({
   step,
@@ -128,20 +150,42 @@ export function WizardBar({
   note?: string;
   variant?: 'step' | 'summary';
   back?: ReactNode;
-  cancel?: ReactNode;
+  /** «Отмена» — its word, which a screen reader hears either way, and what it does. */
+  cancel?: { label: string; onPress: () => void };
   style?: StyleProp<ViewStyle>;
 }) {
   const styles = useStyles();
   const summary = variant === 'summary';
+  const { fontScale } = useWindowDimensions();
+  const glyph = fontScale > CANCEL_WORD_SCALE;
+  const side = glyph ? styles.wizardSideNarrow : styles.wizardSide;
 
   return (
     <View style={style}>
       <View style={styles.bar}>
-        <View style={styles.wizardSide}>{back}</View>
+        <View style={side}>{back}</View>
         <Text role="label" tone="muted" style={styles.wizardStep}>
           {label}
         </Text>
-        <View style={[styles.wizardSide, styles.wizardRight]}>{cancel}</View>
+        <View style={[side, styles.wizardRight]}>
+          {cancel === undefined ? null : glyph ? (
+            <IconButton
+              icon={X}
+              label={cancel.label}
+              glyph={CANCEL_GLYPH}
+              onPress={cancel.onPress}
+              style={styles.pullRight}
+            />
+          ) : (
+            <Button
+              variant="quiet"
+              labelRole="controlSm"
+              label={cancel.label}
+              onPress={cancel.onPress}
+              style={styles.cancelWord}
+            />
+          )}
+        </View>
       </View>
       {/* Inside the screen's own margins, like everything else in a bar: the row above pads itself
           and the scale is its sibling, so without this it would run edge to edge under it. */}
@@ -428,7 +472,10 @@ const useStyles = themed(({ color }) =>
     wizardWordsUp: { marginTop: space.s3 },
     wizardNote: { marginTop: 10 },
     wizardSide: { width: 74, alignItems: 'flex-start' },
+    wizardSideNarrow: { width: height.roundBar, alignItems: 'flex-start' },
     wizardRight: { alignItems: 'flex-end' },
+    // Spec 7.1, detail 3: 10 a side and hung 10 past the margin, which leaves the word 64 of its 74.
+    cancelWord: { paddingHorizontal: 10, marginRight: -10 },
     wizardStep: { flex: 1, textAlign: 'center', fontVariant: ['tabular-nums'] },
     viewerBar: {
       minHeight: height.roundViewer,

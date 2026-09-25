@@ -166,6 +166,7 @@ export default function ProfileScreen() {
               label={s.theme.label}
               hideLabel
               wide
+              small
               value={theme}
               onChange={(next) => remember(setTheme(next))}
               options={[

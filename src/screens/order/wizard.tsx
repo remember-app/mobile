@@ -440,7 +440,8 @@ export function OrderProvider({ id, children }: { id: string; children: ReactNod
  *
  * The bar wears three faces (spec 7.1, detail 3): the four numbered steps carry the scale, the way
  * in and the total drop it, and the total alone has nothing on its right — «Отмена» there would be
- * a second way out of a screen whose whole job is to be read and pressed once. While the autopilot
+ * a second way out of a screen whose whole job is to be read and pressed once. Whether «Отмена» is
+ * the word or the round «x» is the bar's to decide, by the size of the system's type. While the autopilot
  * is walking, the step's own «Дальше» gives way to what it is doing and to «Стоп»; «Назад» and
  * «Отмена» stay where they are and stop it too, because a hand on either is a hand on the wheel.
  */
@@ -513,20 +514,19 @@ export function WizardStep({
           />
         }
         cancel={
-          summary ? undefined : (
-            <Button
-              variant="quiet"
-              label={s.action.cancel}
-              // Nothing said is nothing to lose: the wizard then closes on the press, the way it
-              // always did. Asked here and not inside `leave()`, which is also what «Позже» on
-              // `SheetTooLittle` presses — one sheet must never raise another.
-              onPress={() => {
-                stop();
-                if (entered(order)) setLeaving(true);
-                else leave();
-              }}
-            />
-          )
+          summary
+            ? undefined
+            : {
+                label: s.action.cancel,
+                // Nothing said is nothing to lose: the wizard then closes on the press, the way it
+                // always did. Asked here and not inside `leave()`, which is also what «Позже» on
+                // `SheetTooLittle` presses — one sheet must never raise another.
+                onPress: () => {
+                  stop();
+                  if (entered(order)) setLeaving(true);
+                  else leave();
+                },
+              }
         }
       />
 
