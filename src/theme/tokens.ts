@@ -75,8 +75,6 @@ export const height = {
   code: 62,
   /** segment inside a pill */
   segment: 40,
-  /** segment inside the memory's own header pill */
-  segmentSm: 36,
   /** a tile of the three-up grid */
   tile: 117,
   /** a member/contact row: 42 avatar and 11 above and below */

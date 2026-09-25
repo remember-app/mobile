@@ -162,7 +162,6 @@ export default function ProfileScreen() {
           <Segment
             label={s.theme.label}
             hideLabel
-            wide
             small
             value={theme}
             onChange={(next) => remember(setTheme(next))}
@@ -178,7 +177,6 @@ export default function ProfileScreen() {
           <Segment
             label={s.language.label}
             hideLabel
-            wide
             value={language}
             onChange={(next) => remember(setLanguage(next))}
             // Each language names itself, in itself: whoever is looking for their own reads it in

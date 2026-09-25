@@ -25,12 +25,8 @@ export type SegmentProps<T extends string> = {
    * titled by the screen itself, and a second heading over it would name the same thing twice.
    */
   hideLabel?: boolean;
-  /** The row spans its column and splits it evenly, instead of being as wide as its words. */
-  wide?: boolean;
   /** Where the setting reaches, said once and quietly, under the row. */
   hint?: string;
-  /** Spec 7.3: 36 inside a memory's own header pill, 40 everywhere else. */
-  sm?: boolean;
   /** Spec 7.3, detail 18: the words at 13 and not 14 — «Тема» on `Account` alone, as drawn. */
   small?: boolean;
   /** Inside a sheet the container is `ink`, because the sheet itself is already `surface`. */
@@ -76,9 +72,7 @@ export function rowHolds(width: number, words: readonly number[]): boolean {
 export function Segment<T extends string>({
   label,
   hideLabel,
-  wide,
   hint,
-  sm,
   small,
   onSurface,
   options,
@@ -103,7 +97,6 @@ export function Segment<T extends string>({
         style={[
           styles.segment,
           onSurface ? styles.onSurface : null,
-          wide ? styles.wide : null,
           stacked ? styles.stacked : null,
           measured ? null : styles.unseen,
         ]}
@@ -117,8 +110,6 @@ export function Segment<T extends string>({
           <Option
             key={option.value}
             label={option.label}
-            wide={wide}
-            sm={sm}
             small={small}
             stacked={stacked}
             checked={option.value === value}
@@ -162,16 +153,12 @@ export function Segment<T extends string>({
  */
 function Option({
   label,
-  wide,
-  sm,
   small,
   stacked,
   checked,
   onPress,
 }: {
   label: string;
-  wide?: boolean;
-  sm?: boolean;
   small?: boolean;
   stacked: boolean;
   checked: boolean;
@@ -182,7 +169,7 @@ function Option({
   const styles = useStyles();
   const focusRing = useFocusRing();
   // In the row a cell is drawn at 40 and felt at 44; stacked, it is never under 44 to begin with.
-  const tall = stacked ? TAP : sm ? height.segmentSm : height.segment;
+  const tall = stacked ? TAP : height.segment;
 
   return (
     <Pressable
@@ -195,7 +182,7 @@ function Option({
       style={[
         styles.option,
         { minHeight: tall },
-        stacked ? styles.optionStacked : wide ? styles.optionWide : null,
+        stacked ? styles.optionStacked : styles.optionRow,
         checked ? styles.checked : null,
         focused ? focusRing : null,
       ]}
@@ -221,8 +208,6 @@ const useStyles = themed(({ color }) =>
   StyleSheet.create({
     group: { gap: space.s2 },
     segment: {
-      // The row is as wide as its words and no wider, until `wide` says otherwise.
-      alignSelf: 'flex-start',
       flexDirection: 'row',
       alignItems: 'center',
       gap: space.s1,
@@ -233,9 +218,7 @@ const useStyles = themed(({ color }) =>
       borderRadius: radius.pill,
     },
     onSurface: { backgroundColor: color.ink },
-    wide: { alignSelf: 'stretch' },
     stacked: {
-      alignSelf: 'stretch',
       flexDirection: 'column',
       alignItems: 'stretch',
       borderRadius: STACKED,
@@ -244,17 +227,13 @@ const useStyles = themed(({ color }) =>
     unseen: { opacity: 0 },
     measure: { position: 'absolute', top: 0, left: 0, alignItems: 'flex-start', opacity: 0 },
     option: {
-      paddingHorizontal: space.s3,
-      // Below the smallest phone, or with huge type on, a pill that gives way beats a row that runs
-      // off the screen.
-      flexShrink: 1,
       alignItems: 'center',
       justifyContent: 'center',
       borderRadius: radius.pill,
     },
     // Equal parts, 4 to spare on each side of the word: the row stands only while every word fits
     // whole in that (`rowHolds`).
-    optionWide: { flexGrow: 1, flexBasis: 0, paddingHorizontal: space.s1 },
+    optionRow: { flexGrow: 1, flexBasis: 0, paddingHorizontal: space.s1 },
     optionStacked: {
       paddingVertical: space.s2,
       paddingHorizontal: space.s3,

@@ -184,7 +184,6 @@ export function FilterSheet({
       <View style={styles.block}>
         <GroupLabel>{s.gallery.whatKind}</GroupLabel>
         <Segment
-          wide
           // Inside a sheet the container is `ink`: the sheet itself is already `surface` (spec 7.3).
           onSurface
           hideLabel
@@ -328,7 +327,6 @@ export function SortSheet({
       <View style={styles.block}>
         <GroupLabel>{s.gallery.order}</GroupLabel>
         <Segment
-          wide
           onSurface
           hideLabel
           label={s.gallery.order}
@@ -344,7 +342,6 @@ export function SortSheet({
       <View style={styles.block}>
         <GroupLabel>{s.gallery.groupBy}</GroupLabel>
         <Segment
-          wide
           onSurface
           hideLabel
           label={s.gallery.groupBy}

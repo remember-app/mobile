@@ -51,18 +51,16 @@ test('the head says who you are once, never the same word twice', () => {
   expect(profile).toContain('{user.email}');
 });
 
-test('the three values share the row in equal thirds, as the two do', () => {
-  // Spec 8: both rows of pills span the column. «Как в системе» fits a third of a 360dp phone at 13
-  // (91pt of 95) — «Как в телефоне» did not, which is why the theme row used to be sized to its
-  // words.
+test('both rows of pills are titled by the heading over them, and only the theme’s is set at 13', () => {
+  // Spec 8 and 7.3, detail 18: every group spans the column in equal parts — the kit's own rule now
+  // (`tests/kit/segment.test.tsx`) — and «Тема» alone is 13.
   const segment = (name: string) => {
     const at = profile.indexOf(`label={s.${name}.label}`);
     return profile.slice(at, profile.indexOf('/>', at));
   };
-  for (const name of ['theme', 'language']) {
-    expect(segment(name)).toContain('wide');
-    expect(segment(name)).toContain('hideLabel');
-  }
+  for (const name of ['theme', 'language']) expect(segment(name)).toContain('hideLabel');
+  expect(segment('theme')).toContain('small');
+  expect(segment('language')).not.toContain('small');
 });
 
 test('no rule cuts the screen any more: the cards are what part it', () => {
