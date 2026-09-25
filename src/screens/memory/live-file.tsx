@@ -56,7 +56,7 @@ export function SheetLiveFile({
   );
 
   return (
-    <Sheet visible onCancel={onCancel} scroll>
+    <Sheet visible onCancel={onCancel} scroll rhythm="list">
       <ShotGaze uri={file?.thumbnail_url ?? undefined} gaze={gaze} />
 
       <View style={styles.decided}>

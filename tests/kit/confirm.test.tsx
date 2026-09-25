@@ -155,6 +155,21 @@ test('the line under a memory’s question is one line, cut rather than wrapped 
   ).not.toContain('r-textOverflow');
 });
 
+test('the line under the question stands with no picture beside it — a frame whose thumbnail is not made yet', () => {
+  // Decided by chief 25 September: «Удалять чужое может только организатор.» under an armful stays,
+  // and the first frame of the armful may have no thumbnail yet.
+  const sheet = story(
+    <ConfirmSheet
+      {...base}
+      title="Удалить 2 кадра?"
+      meta="Удалять чужое может только организатор."
+    />,
+  );
+  expect(sheet).toContain('Удалять чужое может только организатор.');
+  expect(sheet.indexOf('Удалить 2 кадра?')).toBeLessThan(sheet.indexOf('Удалять чужое'));
+  expect(sheet).not.toContain('<img');
+});
+
 test('the price plate on `ink` is another plate than the red one, with the same red sign and words', () => {
   const plate = (priceOn?: 'danger' | 'ink') => (
     <ConfirmSheet

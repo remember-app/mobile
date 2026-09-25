@@ -172,128 +172,126 @@ export function FilterSheet({
         />
       }
     >
-      <View style={styles.blocks}>
-        <View style={styles.faces}>
-          <GroupLabel>{s.gallery.whoBrought}</GroupLabel>
-          {/* Faces and no names (spec 8): a person is known by their circle, and the whole name is
-              what the circle is read out as. More than a row of them wraps onto the next. */}
-          <FaceRow
-            faces={people.map((person) => ({ ...person, selected: draft.people.has(person.id) }))}
-            onToggle={(id) => setDraft((have) => ({ ...have, people: toggled(have.people, id) }))}
-          />
-        </View>
+      <View style={styles.faces}>
+        <GroupLabel>{s.gallery.whoBrought}</GroupLabel>
+        {/* Faces and no names (spec 8): a person is known by their circle, and the whole name is
+            what the circle is read out as. More than a row of them wraps onto the next. */}
+        <FaceRow
+          faces={people.map((person) => ({ ...person, selected: draft.people.has(person.id) }))}
+          onToggle={(id) => setDraft((have) => ({ ...have, people: toggled(have.people, id) }))}
+        />
+      </View>
 
+      <View style={styles.block}>
+        <GroupLabel>{s.gallery.whatKind}</GroupLabel>
+        <Segment
+          wide
+          // Inside a sheet the container is `ink`: the sheet itself is already `surface` (spec 7.3).
+          onSurface
+          hideLabel
+          label={s.gallery.whatKind}
+          value={draft.kind}
+          onChange={(kind) => setDraft((have) => ({ ...have, kind }))}
+          options={[
+            { value: 'all', label: s.gallery.anyKind },
+            { value: 'photo', label: s.media.photo },
+            { value: 'video', label: s.media.video },
+          ]}
+        />
+      </View>
+
+      {/* «ЛЕЙБЛЫ» — the boxes of this memory, third of the four and between the type and the days
+          (spec 10.8.2). This is how the contents of a label are looked at: there is no screen of
+          its own for one, the feed is narrowed to it instead. A memory with no boxes has no group
+          here at all rather than an empty row — and no private box of one's own simply makes the
+          row shorter. */}
+      {labels.length === 0 ? null : (
         <View style={styles.block}>
-          <GroupLabel>{s.gallery.whatKind}</GroupLabel>
-          <Segment
-            wide
-            // Inside a sheet the container is `ink`: the sheet itself is already `surface` (spec 7.3).
-            onSurface
-            hideLabel
-            label={s.gallery.whatKind}
-            value={draft.kind}
-            onChange={(kind) => setDraft((have) => ({ ...have, kind }))}
-            options={[
-              { value: 'all', label: s.gallery.anyKind },
-              { value: 'photo', label: s.media.photo },
-              { value: 'video', label: s.media.video },
-            ]}
+          <GroupLabel>{s.gallery.whichLabels}</GroupLabel>
+          <View style={styles.chips}>
+            {labels.map((label) => (
+              <Chip
+                key={label.id}
+                label={label.title}
+                swatch={labelTint(label.color, theme)}
+                // A private one is marked and a shared one is not: there are more shared ones,
+                // and a glyph on every chip would be noise (spec 10.8.2).
+                icon={label.shared ? undefined : Lock}
+                // What the box holds — the count the api works out from the links themselves, so
+                // it is what is actually in there.
+                count={String(label.media_count)}
+                selected={draft.labels.has(label.id)}
+                onPress={() =>
+                  setDraft((have) => ({ ...have, labels: toggled(have.labels, label.id) }))
+                }
+              />
+            ))}
+          </View>
+        </View>
+      )}
+
+      <View style={styles.block}>
+        <View style={styles.dayHead}>
+          <View style={styles.grow}>
+            <GroupLabel>{s.gallery.whichDays}</GroupLabel>
+          </View>
+          {/* «Все дни» is the absence of a choice rather than a choice of its own, so pressing it
+              is emptying the set and nothing else. */}
+          <Chip
+            size={28}
+            label={s.gallery.anyDay}
+            selected={draft.days.size === 0}
+            onPress={() => setDraft((have) => ({ ...have, days: new Set() }))}
+          />
+          {/* A day the tiles are not offering — past the three fullest, or one that holds nothing
+              at all. Held in while the calendar is open under the tiles. */}
+          <IconButton
+            size={height.chipTag}
+            tone={calendar ? 'paper' : 'outline'}
+            on={calendar}
+            icon={CalendarDays}
+            label={s.gallery.otherDay}
+            onPress={() => setCalendar((open) => !open)}
           />
         </View>
-
-        {/* «ЛЕЙБЛЫ» — the boxes of this memory, third of the four and between the type and the days
-            (spec 10.8.2). This is how the contents of a label are looked at: there is no screen of
-            its own for one, the feed is narrowed to it instead. A memory with no boxes has no group
-            here at all rather than an empty row — and no private box of one's own simply makes the
-            row shorter. */}
-        {labels.length === 0 ? null : (
-          <View style={styles.block}>
-            <GroupLabel>{s.gallery.whichLabels}</GroupLabel>
-            <View style={styles.chips}>
-              {labels.map((label) => (
-                <Chip
-                  key={label.id}
-                  label={label.title}
-                  swatch={labelTint(label.color, theme)}
-                  // A private one is marked and a shared one is not: there are more shared ones,
-                  // and a glyph on every chip would be noise (spec 10.8.2).
-                  icon={label.shared ? undefined : Lock}
-                  // What the box holds — the count the api works out from the links themselves, so
-                  // it is what is actually in there.
-                  count={String(label.media_count)}
-                  selected={draft.labels.has(label.id)}
-                  onPress={() =>
-                    setDraft((have) => ({ ...have, labels: toggled(have.labels, label.id) }))
-                  }
+        {tiles.length === 0 ? null : (
+          <View style={styles.tiles}>
+            {tiles.map((day) => {
+              const date = new Date(day.at);
+              const weekday = formatWeekday(date, undefined, 'short');
+              const frames = s.memory.frames(day.count);
+              return (
+                <DayTile
+                  key={day.at}
+                  day={String(date.getDate())}
+                  weekday={weekday}
+                  count={frames}
+                  fill={day.fill}
+                  label={s.gallery.dayTile(formatDayShort(date), weekday, frames)}
+                  selected={draft.days.has(day.at)}
+                  onPress={() => toggleDay(day.at)}
                 />
-              ))}
-            </View>
+              );
+            })}
           </View>
         )}
-
-        <View style={styles.block}>
-          <View style={styles.dayHead}>
-            <View style={styles.grow}>
-              <GroupLabel>{s.gallery.whichDays}</GroupLabel>
-            </View>
-            {/* «Все дни» is the absence of a choice rather than a choice of its own, so pressing it
-                is emptying the set and nothing else. */}
-            <Chip
-              size={28}
-              label={s.gallery.anyDay}
-              selected={draft.days.size === 0}
-              onPress={() => setDraft((have) => ({ ...have, days: new Set() }))}
-            />
-            {/* A day the tiles are not offering — past the three fullest, or one that holds nothing
-                at all. Held in while the calendar is open under the tiles. */}
-            <IconButton
-              size={height.chipTag}
-              tone={calendar ? 'paper' : 'outline'}
-              on={calendar}
-              icon={CalendarDays}
-              label={s.gallery.otherDay}
-              onPress={() => setCalendar((open) => !open)}
-            />
-          </View>
-          {tiles.length === 0 ? null : (
-            <View style={styles.tiles}>
-              {tiles.map((day) => {
-                const date = new Date(day.at);
-                const weekday = formatWeekday(date, undefined, 'short');
-                const frames = s.memory.frames(day.count);
-                return (
-                  <DayTile
-                    key={day.at}
-                    day={String(date.getDate())}
-                    weekday={weekday}
-                    count={frames}
-                    fill={day.fill}
-                    label={s.gallery.dayTile(formatDayShort(date), weekday, frames)}
-                    selected={draft.days.has(day.at)}
-                    onPress={() => toggleDay(day.at)}
-                  />
-                );
-              })}
-            </View>
-          )}
-          {calendar ? (
-            <Calendar
-              month={month}
-              onMonth={setMonth}
-              // One day at a time here, not a span: the filter holds a set of days, and each tap on
-              // the grid adds one to it or takes it back out.
-              from={latest}
-              to={null}
-              onPick={(day) => toggleDay(startOfDay(day).getTime())}
-              max={today}
-              weekdays={weekdayLetters()}
-              monthLabel={formatMonth(month)}
-              prevLabel={s.create.prevMonth}
-              nextLabel={s.create.nextMonth}
-              dayLabel={formatDay}
-            />
-          ) : null}
-        </View>
+        {calendar ? (
+          <Calendar
+            month={month}
+            onMonth={setMonth}
+            // One day at a time here, not a span: the filter holds a set of days, and each tap on
+            // the grid adds one to it or takes it back out.
+            from={latest}
+            to={null}
+            onPick={(day) => toggleDay(startOfDay(day).getTime())}
+            max={today}
+            weekdays={weekdayLetters()}
+            monthLabel={formatMonth(month)}
+            prevLabel={s.create.prevMonth}
+            nextLabel={s.create.nextMonth}
+            dayLabel={formatDay}
+          />
+        ) : null}
       </View>
     </Sheet>
   );
@@ -491,9 +489,8 @@ const useStyles = themed(({ color }) =>
     title: { flex: 1, minWidth: 0 },
     // Spec 7.3: chips lie in a wrapping row 8 apart and wrap as they need to.
     chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.s2 },
-    // Spec 8, `SheetFilter`: 20 between its blocks, 12 under «Кто принёс»; and on both tuning
-    // sheets, 10 between every other heading and the row it introduces.
-    blocks: { gap: space.s5 },
+    // Spec 8, `SheetFilter`: 12 under «Кто принёс»; and on both tuning sheets, 10 between every
+    // other heading and the row it introduces.
     faces: { gap: space.s3 },
     block: { gap: 10 },
     // «ДЕНЬ» takes the width, and «Все дни» and the calendar stand 10 apart at its right.

@@ -97,7 +97,7 @@ export function ConfirmSheet({
   const styles = useStyles();
   const gentle = variant === 'gentle';
   // One 64 mark, whichever of the four this sheet is about.
-  const mark = thumb ? (
+  const mark = gentle ? null : thumb ? (
     <Image source={{ uri: thumb }} contentFit="cover" style={styles.thumb} />
   ) : cover ? (
     <CoverSlot {...cover} size={64} />
@@ -106,45 +106,40 @@ export function ConfirmSheet({
   ) : tint ? (
     <LabelMark tint={tint} size={64} />
   ) : null;
-  const marked = mark !== null && !gentle;
   const ink = priceOn === 'ink';
   // Spec 4 draws each confirmation by what it is about: a memory's 434, a person's 420, a frame's —
   // and a label's (10.8.1), or an armful of frames with no picture yet — 380. The gentle kind is
   // nobody's drawing, so it is as tall as what it holds.
   const floor = gentle
     ? undefined
-    : thumb
-      ? height.sheetConfirmDelete
-      : cover
-        ? height.sheetConfirmMemory
-        : who
-          ? height.sheetConfirmMember
-          : height.sheetConfirmDelete;
+    : cover
+      ? height.sheetConfirmMemory
+      : who
+        ? height.sheetConfirmMember
+        : height.sheetConfirmDelete;
 
   return (
     <Sheet
       visible={visible}
       onCancel={busy ? () => {} : onCancel}
       height={floor}
-      narrow
+      // The line under the question stands with no picture beside it too: an armful whose first
+      // frame has no thumbnail yet still says why fewer go than were marked.
       head={
-        marked ? (
-          <View style={styles.head}>
-            {mark}
-            <View style={styles.headWords}>
-              <Text role="sheetTitleSm" accessibilityRole="header">
-                {title}
+        <View style={styles.head}>
+          {mark}
+          <View style={styles.headWords}>
+            <Text role="sheetTitleSm" accessibilityRole="header">
+              {title}
+            </Text>
+            {meta ? (
+              <Text role="meta" numberOfLines={cover ? 1 : undefined}>
+                {meta}
               </Text>
-              {meta ? (
-                <Text role="meta" numberOfLines={cover ? 1 : undefined}>
-                  {meta}
-                </Text>
-              ) : null}
-            </View>
+            ) : null}
           </View>
-        ) : undefined
+        </View>
       }
-      title={marked ? undefined : title}
       footer={
         <>
           <Button

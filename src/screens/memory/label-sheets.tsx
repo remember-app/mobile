@@ -368,6 +368,7 @@ export function LabelsSheet({
       visible={visible}
       onCancel={onClose}
       scroll
+      rhythm="list"
       head={
         <View style={styles.head}>
           <Text role="sheetTitle" accessibilityRole="header" style={styles.grow}>

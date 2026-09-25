@@ -64,7 +64,6 @@ test('the five kinds of sheet differ only in the block at the bottom', () => {
         visible
         onCancel={() => {}}
         title="Удалить это фото?"
-        narrow
         footer={
           <>
             <Button variant="danger" label="Удалить" />
@@ -102,10 +101,9 @@ test('the five kinds of sheet differ only in the block at the bottom', () => {
   });
 });
 
-test('a confirmation’s heading is the narrower one, and a header row replaces it outright', () => {
+test('a header row replaces the heading outright', () => {
   allDifferent({
     plain: <Sheet visible onCancel={() => {}} title="Фильтры" />,
-    narrow: <Sheet visible onCancel={() => {}} title="Фильтры" narrow />,
     head: (
       <Sheet
         visible

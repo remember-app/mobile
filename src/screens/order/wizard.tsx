@@ -392,7 +392,6 @@ export function OrderProvider({ id, children }: { id: string; children: ReactNod
       <Sheet
         visible={short}
         onCancel={leave}
-        narrow
         // The sign and the heading stand on one line here, which is why the heading is drawn inside
         // the head row rather than handed over as `title` — the sheet stacks those two.
         head={

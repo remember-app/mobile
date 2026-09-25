@@ -21,9 +21,8 @@ export type SheetProps = {
   visible: boolean;
   /** Tapping beside the sheet, the back button, and whatever the sheet's own way out is. */
   onCancel: () => void;
-  /** The heading, in `sheetTitle` — or `sheetTitleSm` when this is a confirmation. */
+  /** The heading, in `sheetTitle`. */
   title?: string;
-  narrow?: boolean;
   /** A header row instead of a heading: a thumbnail or an avatar with two lines beside it. */
   head?: ReactNode;
   /** The block of buttons at the bottom. It stays put while the body scrolls. */
@@ -130,7 +129,6 @@ export function useScrimTap(onCancel: () => void): () => void {
 function Rise({
   onCancel,
   title,
-  narrow,
   head,
   footer,
   scroll,
@@ -185,7 +183,7 @@ function Rise({
         <View testID="sheet-handle" style={styles.handle} />
         {head}
         {title ? (
-          <Text role={narrow ? 'sheetTitleSm' : 'sheetTitle'} accessibilityRole="header">
+          <Text role="sheetTitle" accessibilityRole="header">
             {title}
           </Text>
         ) : null}
