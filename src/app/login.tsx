@@ -6,7 +6,14 @@ import { Mail } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { ApiError, errorMessage, signInWithApple, signInWithGoogle } from '@/api';
+import {
+  ApiError,
+  type AuthMethods,
+  errorMessage,
+  fetchAuthMethods,
+  signInWithApple,
+  signInWithGoogle,
+} from '@/api';
 import { ActionBar, Banner, Board, Button } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { useStrings } from '@/lib/language';
@@ -50,6 +57,14 @@ export default function LoginScreen() {
   // False on Android and on any build without the Sign in with Apple entitlement.
   useEffect(() => {
     AppleAuthentication.isAvailableAsync().then(setAppleAvailable, () => setAppleAvailable(false));
+  }, []);
+
+  // What the api has switched on — a door it holds no keys for ends in 501 however able the phone
+  // is. `null` until it answers, and for good if it never does: the mail door stands either way, so
+  // the other two only ever join it, never drawn and taken back.
+  const [offered, setOffered] = useState<AuthMethods | null>(null);
+  useEffect(() => {
+    fetchAuthMethods().then(setOffered, () => {});
   }, []);
 
   const [googleRequest, googleResponse, promptGoogle] = Google.useIdTokenAuthRequest({
@@ -113,14 +128,16 @@ export default function LoginScreen() {
         <View style={styles.doors}>
           {/* A way in that cannot be walked is not offered at all — a button standing there
               switched off, or one that opens nothing when pressed, only asks a person to work out
-              which of the three is the real one. Off Apple hardware, and in a build with no Google
-              client id, this bottom edge is the mail door alone.
+              which of the three is the real one. Off Apple hardware, in a build with no Google
+              client id, and wherever the api has not switched a provider on, this bottom edge is
+              the mail door alone. `=== true` because only a plain yes opens a door: a body that is
+              not the api's — a proxy's page, a stray string — says nothing.
               ponytail: plain button; App Store review wants AppleAuthenticationButton before
               shipping — and that is where the provider's own mark comes from too. */}
-          {appleAvailable ? (
+          {appleAvailable && offered?.apple === true ? (
             <Button variant="paper" label={s.login.withApple} onPress={withApple} />
           ) : null}
-          {GOOGLE_CLIENT_ID ? (
+          {GOOGLE_CLIENT_ID && offered?.google === true ? (
             <Button
               variant="secondary"
               label={s.login.withGoogle}
