@@ -55,6 +55,7 @@ import MontageLiveStageScreen from '@/app/memory/[id]/montage/[montageId]/stage/
 import {
   ActionBar,
   AppBar,
+  Avatar,
   BadgeDecision,
   Banner,
   Button,
@@ -72,10 +73,11 @@ import {
   TileNumber,
   WatchingPill,
 } from '@/kit';
+import { setLanguage } from '@/lib/language';
 import { marksOf, useMontageJournal, WHILE_LIVE_MS } from '@/lib/montage/journal';
 import { Films } from '@/screens/memory/films';
 import { SheetLiveFile } from '@/screens/memory/live-file';
-import { ru } from '@/strings';
+import { ru, strings } from '@/strings';
 import {
   BROKE,
   bodyOf,
@@ -435,6 +437,74 @@ describe.each(SCENARIOS)('%s — «Монтаж идёт»', (scenario) => {
     expect(router.replace).not.toHaveBeenCalled();
     await screen.unmount();
   });
+});
+
+describe.each(SCENARIOS)('%s — who is watching, on both live screens', (scenario) => {
+  const steps = load(scenario);
+  const people = (n: number) =>
+    Array.from({ length: n }, (_, at) => ({ id: `viewer-${at}`, username: `user${at + 1}` }));
+
+  /** One of the two live screens over the recording with its viewers swapped for these. */
+  async function mountWith(which: 'making' | 'stage', viewers: ReturnType<typeof people>) {
+    const swap = (body: unknown) => ({ ...(body as MontageJournal), viewers });
+    if (which === 'making') {
+      const api = replay(steps, {
+        only: ['journal_of_queued_montage'],
+        extra,
+        patch: { journal_of_queued_montage: swap },
+      });
+      route.params = { id: MEMORY, montageId: QUEUED };
+      return mount(<MontageLiveScreen />, api);
+    }
+    const api = replay(steps, {
+      only: ['journal_of_ready_montage'],
+      cutFrom: 'journal_of_ready_montage',
+      extra,
+      patch: { journal_of_ready_montage: swap },
+    });
+    route.params = { id: MEMORY, montageId: MONTAGE, stage: 'directing' };
+    return mount(<MontageLiveStageScreen />, api);
+  }
+
+  test.each(['making', 'stage'] as const)(
+    'on the %s screen nobody watching is no pill at all — not a pill saying zero',
+    async (which) => {
+      const screen = await mountWith(which, []);
+      expect(screen.root.findAllByType(WatchingPill)).toEqual([]);
+      await screen.unmount();
+    },
+  );
+
+  test.each([
+    ['making', 'ru'],
+    ['making', 'en'],
+    ['stage', 'ru'],
+    ['stage', 'en'],
+  ] as const)(
+    'on the %s screen in %s the pill is everybody the api named, in its order, counted as a figure and read out as one sentence',
+    async (which, language) => {
+      await act(async () => setLanguage(language));
+      try {
+        for (const many of [1, 4, 7]) {
+          const viewers = people(many);
+          const screen = await mountWith(which, viewers);
+          const [pill] = screen.root.findAllByType(WatchingPill);
+          expect(pill.props.names).toEqual(viewers.map((one) => one.username));
+          expect(pill.props.count).toBe(many);
+          expect(pill.props.label).toBe(strings[language].montage.live.watching(many));
+          // Three faces and the count of the rest from the fifth person on — the count is the whole
+          // of them, and the faces are the 24 stack.
+          const circles = pill.findAllByType(Avatar);
+          expect(circles.map((one) => one.props.size)).toEqual(
+            Array.from({ length: Math.min(many, many > 4 ? 3 : 4) }, () => 24),
+          );
+          await screen.unmount();
+        }
+      } finally {
+        await act(async () => setLanguage('ru'));
+      }
+    },
+  );
 });
 
 describe.each(SCENARIOS)('%s — the journal of one stage and the card of a file', (scenario) => {

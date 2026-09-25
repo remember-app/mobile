@@ -1,6 +1,6 @@
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { X } from 'lucide-react-native';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import { beforeAll, expect, test } from 'vitest';
 
@@ -18,7 +18,7 @@ import {
   WatchingPill,
 } from '@/kit/member';
 import { allDifferent, story } from '@/kit/story';
-import { setTheme, ThemePin } from '@/theme';
+import { setTheme, ThemePin, themes } from '@/theme';
 
 /**
  * Spec 7.5 — people: the circle, the face that is a switch in the filter, the row inside a memory,
@@ -399,3 +399,195 @@ test('the row wraps rather than scrolls, and hides nobody behind a «+N»', asyn
   expect(style().justifyContent).toBeUndefined();
   expect(JSON.stringify(tree.toJSON())).not.toMatch(/\+\d/);
 });
+
+/** Every view under a tree, each with the style it was handed, flattened. */
+const viewsOf = (node: TestRenderer.ReactTestInstance) =>
+  node.findAllByType(View).map((one) => StyleSheet.flatten(one.props.style) ?? {});
+
+async function drawn(node: React.ReactElement) {
+  let tree!: TestRenderer.ReactTestRenderer;
+  await act(async () => {
+    tree = mounted(TestRenderer.create(node));
+  });
+  return tree;
+}
+
+test.each(['dark', 'light'] as const)(
+  'in the %s theme the 36 stack is collared 2 outside in the colour of the card it lies on, and the +N is a raised circle',
+  async (name) => {
+    const { surface, ink, raise } = themes[name].color;
+    // Nothing said about the ground: the «Контакты» card is `surface`, and that is the default.
+    const own = await drawn(
+      <ThemePin value={name}>
+        <AvatarStack names={['Аня', 'Марк', 'Лиза', 'Ира', 'Пётр']} />
+      </ThemePin>,
+    );
+    const circles = viewsOf(own.root).filter((style) => style.width === 36);
+    expect(circles).toHaveLength(4);
+    for (const style of circles) {
+      expect(style.boxShadow).toBe(`0 0 0 2px ${surface}`);
+      expect(style.borderWidth).toBeUndefined();
+    }
+    expect(circles.map((style) => style.marginLeft)).toEqual([undefined, -12, -12, -12]);
+    expect(circles.at(-1)?.backgroundColor).toBe(raise);
+    // Told the ground, the collar is cut in that colour and no other.
+    const told = await drawn(
+      <ThemePin value={name}>
+        <AvatarStack names={['Аня', 'Марк']} on={ink} />
+      </ThemePin>,
+    );
+    for (const style of viewsOf(told.root).filter((one) => one.width === 36))
+      expect(style.boxShadow).toBe(`0 0 0 2px ${ink}`);
+  },
+);
+
+test.each(['dark', 'light'] as const)(
+  'in the %s theme the pill’s faces are 24, a 1.5 hairline in the ink they lie on, and the pill is 36 with its figure in paper',
+  async (name) => {
+    const { ink, paper, surface, line } = themes[name].color;
+    const pill = await drawn(
+      <ThemePin value={name}>
+        <WatchingPill
+          names={['Аня', 'Марк', 'Лиза', 'Ира', 'Пётр']}
+          count={5}
+          label="Смотрят сейчас: 5"
+        />
+      </ThemePin>,
+    );
+    const styles = viewsOf(pill.root);
+    const circles = styles.filter((style) => style.width === 24);
+    expect(circles).toHaveLength(4);
+    for (const style of circles) {
+      expect(style.borderWidth).toBe(1.5);
+      expect(style.borderColor).toBe(ink);
+      expect(style.boxShadow).toBeUndefined();
+    }
+    expect(circles.map((style) => style.marginLeft)).toEqual([undefined, -7, -7, -7]);
+    const box = styles.find((style) => style.height === 36 && style.borderRadius === 999);
+    // Spec 7.5, detail 33: 36 high, `0 10 0 6` inside, 6 between the faces and the count.
+    expect(box).toMatchObject({
+      backgroundColor: surface,
+      borderColor: line,
+      borderWidth: 1,
+      paddingLeft: 6,
+      paddingRight: 10,
+      gap: 6,
+    });
+    const figure = pill.root.findAllByType(Text).find((one) => one.props.children === 5);
+    expect(StyleSheet.flatten(figure?.props.style).color).toBe(paper);
+  },
+);
+
+test('a stack draws three faces and the count of everyone else, from the fifth person on', async () => {
+  const names = (n: number) => Array.from({ length: n }, (_, at) => `Гость Номер${at + 1}`);
+  const seen = async (n: number, size?: 24 | 36) => {
+    const tree = await drawn(<AvatarStack names={names(n)} size={size} />);
+    const said = tree.root.findAllByType(Text).map((one) => [one.props.children].flat().join(''));
+    await act(async () => tree.unmount());
+    return said;
+  };
+  expect(await seen(0)).toEqual([]);
+  expect(await seen(1)).toEqual(['ГН']);
+  expect(await seen(4)).toEqual(['ГН', 'ГН', 'ГН', 'ГН']);
+  // The fifth: the fourth circle gives way to «+2» — three drawn, two more behind them.
+  expect(await seen(5)).toEqual(['ГН', 'ГН', 'ГН', '+2']);
+  expect(await seen(6)).toEqual(['ГН', 'ГН', 'ГН', '+3']);
+  expect(await seen(100, 24)).toEqual(['ГН', 'ГН', 'ГН', '+97']);
+  // The count is not read out over the sentence the pill or the card already says.
+  const many = await drawn(<AvatarStack names={names(9)} />);
+  const more = many.root
+    .findAllByType(Text)
+    .find((one) => [one.props.children].flat().join('') === '+6')!;
+  let shell = more.parent!;
+  while (shell.props.accessibilityElementsHidden === undefined) shell = shell.parent!;
+  expect(shell.props.accessibilityElementsHidden).toBe(true);
+  expect(shell.props.importantForAccessibility).toBe('no-hide-descendants');
+});
+
+test('a chosen face wears the tick as drawn: 18 of paper hanging 2 past the corner, collared 2 in the sheet, a 9 check in ink', async () => {
+  for (const name of ['dark', 'light'] as const) {
+    const { paper, surface, ink } = themes[name].color;
+    const tree = await drawn(<ThemePin value={name}>{face(true)}</ThemePin>);
+    const tick = viewsOf(tree.root).find((style) => style.position === 'absolute')!;
+    expect(tick).toMatchObject({
+      width: 18,
+      height: 18,
+      right: -2,
+      bottom: -2,
+      backgroundColor: paper,
+      borderWidth: 2,
+      borderColor: surface,
+    });
+    const check = tree.root.findAll((one) => one.props.size === 9);
+    expect(check.length).toBeGreaterThan(0);
+    expect(check[0].props.color).toBe(ink);
+    // Not chosen, no tick at all.
+    const plain = await drawn(<ThemePin value={name}>{face(false)}</ThemePin>);
+    expect(viewsOf(plain.root).some((style) => style.position === 'absolute')).toBe(false);
+  }
+});
+
+/**
+ * A row of `count` faces of 48 laid out the way flex-wrap lays them: as many to a line as fit in
+ * `width` with `gap` between, and the rest onto the next line. What comes out is the lines' lengths.
+ */
+function wrapped(width: number, count: number, gap: number): number[] {
+  const perLine = Math.max(1, Math.floor((width + gap) / (48 + gap)));
+  const lines: number[] = [];
+  for (let left = count; left > 0; left -= perLine) lines.push(Math.min(perLine, left));
+  return lines;
+}
+
+test('on any phone the faces either fit one row spread edge to edge or wrap into rows of the same length, none ever overflowing', () => {
+  for (let width = 280; width <= 500; width += 1) {
+    for (let count = 1; count <= 30; count += 1) {
+      const gap = faceGap(width, count);
+      const say = `${count} faces on ${width}`;
+      if (gap === undefined) {
+        // One row, `space-between`: even with the least air of 8 between them it must fit.
+        expect(count * 48 + (count - 1) * 8, say).toBeLessThanOrEqual(width);
+        continue;
+      }
+      // Wrapped: a ring reaches 4 past a face, so faces never stand closer than 8…
+      expect(gap, say).toBeGreaterThanOrEqual(8);
+      const [first, ...rest] = wrapped(width, count, gap);
+      // …a row holds as many as fit with the least air — and the columns chosen are still all there
+      // once the air is spread, or the last face of a row is rounded onto the next one…
+      expect(first, say).toBe(Math.floor((width + 8) / 56));
+      expect(first * 48 + (first - 1) * gap, say).toBeLessThanOrEqual(width);
+      // …and it is as full as can be: one face more would not fit a row.
+      expect((first + 1) * 48 + first * gap, say).toBeGreaterThan(width);
+      expect(rest.length, say).toBe(Math.ceil(count / first) - 1);
+      expect(Number.isInteger(gap), say).toBe(true);
+    }
+  }
+});
+
+test.each([
+  [1, 1],
+  [6, 1],
+  [7, 2],
+  [12, 2],
+])(
+  '%i people on a 390 phone stand in %i row(s), the row stands in the sheet’s 2 2 0 margin',
+  async (people, rows) => {
+    const names = Array.from({ length: people }, (_, at) => `Гость ${at + 1}`);
+    const tree = await drawn(
+      <FaceRow
+        faces={names.map((name) => ({ id: name, name, selected: false }))}
+        onToggle={() => {}}
+      />,
+    );
+    const row = tree.root.findAllByType(View)[0];
+    // The sheet is 390 wide less its 16 a side.
+    await act(async () => row.props.onLayout({ nativeEvent: { layout: { width: 358 } } }));
+    const style = StyleSheet.flatten(row.props.style) as Record<
+      string,
+      number | string | undefined
+    >;
+    expect(style).toMatchObject({ paddingTop: 2, paddingHorizontal: 2, flexWrap: 'wrap' });
+    expect(style.paddingBottom ?? 0).toBe(0);
+    const gap = typeof style.columnGap === 'number' ? style.columnGap : 8;
+    expect(wrapped(358 - 4, people, gap)).toHaveLength(rows);
+  },
+);
