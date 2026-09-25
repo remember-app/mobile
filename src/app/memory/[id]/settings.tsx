@@ -27,6 +27,7 @@ import {
   Board,
   Button,
   ConfirmSheet,
+  CoverSlot,
   IconButton,
   PRESS,
   RowMember,
@@ -39,7 +40,6 @@ import {
 import { useAuth } from '@/lib/auth';
 import { formatEventDates } from '@/lib/dates';
 import { useStrings } from '@/lib/language';
-import { CoverSlot } from '@/screens/memory/cover';
 import { InviteSheet } from '@/screens/memory/invite-sheet';
 import { radius, space, themed } from '@/theme';
 

@@ -16,19 +16,17 @@ vi.mock('react-native', async (importOriginal) => {
 
 import { developing, photo } from '@tests/helpers/api';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
-import { Image } from 'expo-image';
 import TestRenderer, { act } from 'react-test-renderer';
 import type { MediaItem } from '@/api';
-import { Button, DashedFrame, GRID_GAP, Mosaic, Tile } from '@/kit';
-import { CoverSheet, CoverSlot } from '@/screens/memory/cover';
+import { Button, GRID_GAP, Tile } from '@/kit';
+import { CoverSheet } from '@/screens/memory/cover';
 import { ru } from '@/strings';
 import { space } from '@/theme';
 
 /**
- * The cover of a memory (spec 10.8.3): the slot that stands for it wherever it is shown, and the
- * sheet a frame is picked in. Both are drawn here off the tree a real render leaves — the chain of
- * the slot, the grid and the one pick of the sheet — where the edit screen's own tests only hold
- * that the sheet is raised and answered.
+ * The sheet a memory's cover is picked in (spec 10.8.3), drawn here off the tree a real render
+ * leaves — the grid and the one pick — where the edit screen's own tests only hold that the sheet is
+ * raised and answered. The slot that shows the cover is the kit's (`tests/kit/cover.test.tsx`).
  */
 
 mountsTrees();
@@ -42,31 +40,6 @@ const draw = async (node: React.ReactElement) => {
 };
 
 const at = (day: number, hour = 12) => new Date(2026, 8, day, hour).toISOString();
-
-test('the slot is the chosen frame, else the mosaic of the memory’s own frames — one of them is enough — else the dashed frame', async () => {
-  const picture = (
-    await draw(<CoverSlot uri="https://r2.example/a" thumbs={['https://r2.example/t1']} />)
-  ).root;
-  expect(picture.findAllByType(Image).map((one) => one.props.source.uri)).toEqual([
-    'https://r2.example/a',
-  ]);
-  expect(picture.findAllByType(Mosaic)).toHaveLength(0);
-
-  const one = (await draw(<CoverSlot uri={null} thumbs={['https://r2.example/t1']} />)).root;
-  expect(one.findByType(Mosaic).props.photos).toEqual(['https://r2.example/t1']);
-  expect(one.findAllByType(DashedFrame)).toHaveLength(0);
-
-  for (const bare of [
-    <CoverSlot key="a" />,
-    <CoverSlot key="b" uri={null} thumbs={[]} />,
-    <CoverSlot key="c" uri="" thumbs={[]} />,
-  ]) {
-    const empty = (await draw(bare)).root;
-    expect(empty.findAllByType(DashedFrame)).toHaveLength(1);
-    expect(empty.findAllByType(Mosaic)).toHaveLength(0);
-    expect(empty.findAllByType(Image)).toHaveLength(0);
-  }
-});
 
 const frames = (): MediaItem[] => [
   photo('old', 'me', at(11), { thumbnail_url: 'https://r2.example/old' }),

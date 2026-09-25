@@ -16,6 +16,7 @@ import create from '@/app/create.tsx?raw';
 import home from '@/app/index.tsx?raw';
 import edit from '@/app/memory/[id]/edit.tsx?raw';
 import settings from '@/app/memory/[id]/settings.tsx?raw';
+import coverSlot from '@/kit/cover.tsx?raw';
 import member from '@/kit/member.tsx?raw';
 import cover from '@/screens/memory/cover.tsx?raw';
 import when from '@/screens/memory/when.tsx?raw';
@@ -58,10 +59,11 @@ test('the settings are the memory named, counted and covered, under one pencil',
 
 test('the cover a memory has is the one chain everywhere it is shown', () => {
   // Spec 6 and 10.8.3: the chosen frame, else the mosaic of the first frames, else the dashed
-  // frame — in the 68 slot and on both cards of the list, which is the kit's own `cover` prop.
-  expect(cover).toContain('shots.length > 0 ? (');
-  expect(cover).toContain('<Mosaic photos={shots} layout="strip" />');
-  expect(cover).toContain('<DashedFrame');
+  // frame — in the 68 slot, on the 64 of the sheet that asks before a memory is deleted, and on
+  // both cards of the list, which is the kit's own `cover` prop.
+  expect(coverSlot).toContain('shots.length > 0 ? (');
+  expect(coverSlot).toContain('<Mosaic photos={shots} layout="strip" />');
+  expect(coverSlot).toContain('<DashedFrame');
   expect(home).toContain('const cover = item.cover_thumbnail_url ?? null;');
   expect(home).toContain('cover={cover}');
 });
