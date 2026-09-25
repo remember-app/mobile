@@ -118,16 +118,20 @@ export function FilterSheet({
   const theme = useTheme();
   // Seeded once, because this sheet is mounted by being opened: what was applied is what it opens on.
   const [draft, setDraft] = useState<Filter>(value);
-  /** Whether the calendar is open under the tiles. */
-  const [calendar, setCalendar] = useState(false);
   const shown = count(draft);
   const chosen = filtering(draft);
   // A memory cannot be of tomorrow, so the calendar answers nothing past today — as on `Create`.
   const today = useMemo(() => new Date(), []);
   const tiles = useMemo(() => dayTiles(days), [days]);
-  /** Which day the calendar stands open on: the latest one chosen, else this month. */
-  const latest = draft.days.size === 0 ? null : new Date(Math.max(...draft.days));
+  /** Chosen days no tile stands for: the calendar is the only thing on the sheet that can show them. */
+  const untiled = [...draft.days].filter((at) => !tiles.some((tile) => tile.at === at));
+  /** The day the calendar marks and stands open on: the latest of those, else the latest chosen. */
+  const marked = untiled.length > 0 ? untiled : [...draft.days];
+  const latest = marked.length === 0 ? null : new Date(Math.max(...marked));
   const [month, setMonth] = useState(() => latest ?? today);
+  // Open from the start when the filter holds a day no tile shows: otherwise nothing on the sheet
+  // would say which day the feed is cut to.
+  const [calendar, setCalendar] = useState(untiled.length > 0);
   const toggleDay = (at: number) => setDraft((have) => ({ ...have, days: toggled(have.days, at) }));
 
   return (
@@ -252,6 +256,7 @@ export function FilterSheet({
             <IconButton
               size={height.chipTag}
               tone={calendar ? 'paper' : 'outline'}
+              on={calendar}
               icon={CalendarDays}
               label={s.gallery.otherDay}
               onPress={() => setCalendar((open) => !open)}

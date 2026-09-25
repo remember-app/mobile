@@ -47,12 +47,14 @@ async function open(days: number[]) {
       ),
     );
   });
-  await act(async () =>
-    tree.root
-      .findAllByType(IconButton)
-      .find((one) => one.props.label === ru.gallery.otherDay)!
-      .props.onPress(),
-  );
+  // A chosen day with no tile opens the calendar by itself; with none, the button does.
+  if (days.length === 0)
+    await act(async () =>
+      tree.root
+        .findAllByType(IconButton)
+        .find((one) => one.props.label === ru.gallery.otherDay)!
+        .props.onPress(),
+    );
   return tree.root.findByType(Calendar).props as { month: Date; from: Date | null };
 }
 
@@ -61,6 +63,37 @@ test('the calendar opens on this month when no day is chosen', async () => {
   expect(calendar.month.getFullYear()).toBe(2026);
   expect(calendar.month.getMonth()).toBe(9);
   expect(calendar.from).toBeNull();
+});
+
+test('a chosen day no tile shows opens the calendar with the sheet, marked, and the tile days leave the mark to it', async () => {
+  const tiled = new Date(2026, 8, 13).getTime();
+  let tree!: TestRenderer.ReactTestRenderer;
+  const sheet = (chosen: number[]) => (
+    <FilterSheet
+      people={[]}
+      labels={[]}
+      days={[{ at: tiled, count: 3, fill: 1 }]}
+      value={{ ...FILTER_NONE, days: new Set(chosen) }}
+      count={() => 1}
+      onApply={() => {}}
+      onCancel={() => {}}
+    />
+  );
+  await act(async () => {
+    tree = mounted(TestRenderer.create(sheet([tiled, day(8, 5)])));
+  });
+  // The 13th has its tile lit; the 5th has nothing but the calendar, so the calendar is out and
+  // marks it — not the later 13th, which already says so itself.
+  expect(tree.root.findByType(Calendar).props.from).toEqual(new Date(2026, 8, 5));
+  const button = tree.root
+    .findAllByType(IconButton)
+    .find((one) => one.props.label === ru.gallery.otherDay)!;
+  expect(button.props.on).toBe(true);
+  // Only tile days chosen: the tiles say it all, and the calendar waits behind its button.
+  await act(async () => {
+    tree = mounted(TestRenderer.create(sheet([tiled])));
+  });
+  expect(tree.root.findAllByType(Calendar)).toHaveLength(0);
 });
 
 test('and on the latest of the days that are — never the first — with that day marked', async () => {

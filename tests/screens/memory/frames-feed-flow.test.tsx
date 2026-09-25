@@ -874,7 +874,11 @@ test('past three days the fullest three are tiles, and a day off the tiles is th
   await screen.press(applyButton(screen));
   expect(screen.feed()).toEqual(['e']);
 
+  // Opened again, the sheet says which day the feed is cut to: no tile can, so the calendar is out
+  // from the start and marks the 11th.
   await openFilter(screen);
+  expect(filterSheet(screen).findByType(Calendar).props.from).toEqual(new Date(2026, 8, 11));
+  expect(calendarButton(screen)().props.on).toBe(true);
   await act(async () => control(filterSheet(screen), Chip, ru.gallery.anyDay).props.onPress());
   await screen.press(applyButton(screen));
   expect(screen.feed()).toEqual(['a', 'b', 'c', 'd', 'e', 'x3', 'x2', 'x1']);
