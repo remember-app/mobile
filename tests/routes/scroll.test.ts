@@ -170,6 +170,25 @@ test('a vertical list stands only in the board’s `list`, never inside the scro
     );
 });
 
+test('a block that fills a body grows into it and is never `flex: 1`', () => {
+  // A body is a scroll's column: a block with `flex: 1` in it is shrunk to nothing and comes out of
+  // the scroll instead of scrolling in it (README, «в теле flex: 1 у блока с содержимым не ставят»).
+  // What fills the body is named for it in the styles — the room, the middle, the centre, the body.
+  const flexing = sources
+    .filter(([path]) => !['kit/bars.tsx', 'kit/sheet.tsx'].includes(path))
+    .flatMap(([path, source]) =>
+      [
+        ...flat(source).matchAll(
+          /\b(room|middle|centre|center|body|container|whole)\s*:\s*\{([^}]*)\}/g,
+        ),
+      ]
+        .filter(([, , props]) => /\bflex:\s*1\b/.test(props))
+        .map(([, key]) => `${path}: ${key}`),
+    );
+  // The one that is a full-screen view of its own: the phone's photograph on `Upload`, in a `Modal`.
+  expect(flexing).toEqual(['app/memory/[id]/upload.tsx: room']);
+});
+
 /**
  * The windows that cover a screen or a part of it, and why none is a scroll of the board's: a sheet
  * and a menu are windows of their own over it; the frame viewer, the film player and the phone's
