@@ -1,9 +1,14 @@
 import { rule } from '@tests/helpers/css';
+import { mountsTrees } from '@tests/helpers/renderer';
+import { Text as RNText, StyleSheet, type TextStyle, type ViewStyle } from 'react-native';
+import TestRenderer, { act } from 'react-test-renderer';
 import { beforeAll, expect, test } from 'vitest';
 
 import { BadgeDecision } from '@/kit/badge';
 import {
   CardNow,
+  GAZE,
+  GAZE_SHEET,
   Journal,
   JournalLine,
   LogEntry,
@@ -13,12 +18,14 @@ import {
   TileNumber,
 } from '@/kit/montage-live';
 import { allDifferent, story } from '@/kit/story';
-import { setTheme } from '@/theme';
+import { setTheme, themes } from '@/theme';
 
 /** Spec 7.6 and 7.7 — the surface of a montage being made: what is happening now, and every why. */
 
 const SHOT = 'https://bucket.example/f01.jpg';
 const SERIES = ['https://b/1.jpg', 'https://b/2.jpg', 'https://b/3.jpg', 'https://b/4.jpg'];
+
+mountsTrees();
 
 beforeAll(async () => {
   await setTheme('dark');
@@ -250,4 +257,87 @@ test('a number tile is a number and the word it answers', () => {
     seen: <TileNumber figure="214" label="просмотрел" />,
     taken: <TileNumber figure="61" label="взял в ролик" />,
   });
+});
+
+/* ── The layout's numbers (measured off `design/screens`: `MontageLive`, `SheetLiveFile`,
+      `MontageLiveDone`) ───────────────────────────────────────────────────────────────── */
+
+/** What one element draws: every style in its tree, flattened, and the style of a native text. */
+function drawn(element: React.ReactElement) {
+  let tree!: TestRenderer.ReactTestRenderer;
+  act(() => {
+    tree = TestRenderer.create(element);
+  });
+  const boxes = tree.root
+    .findAll((node) => node.props.style !== undefined && typeof node.props.style !== 'function')
+    .map((node) => StyleSheet.flatten(node.props.style) as ViewStyle);
+  const text = (which: (props: Record<string, unknown>) => boolean) =>
+    StyleSheet.flatten(
+      tree.root.find((node) => node.type === RNText && which(node.props)).props.style,
+    ) as TextStyle;
+  const words = (said: string) => text((props) => [props.children].flat().join('') === said);
+  return { boxes, text, words, done: () => act(() => tree.unmount()) };
+}
+
+test('the eye is the square the layout draws: 100 on the card, 114 on the sheet, hairline in', () => {
+  // `MontageLive`: the square stands 100 × 100 at 135, 153 — 118, 44 into the frame; `SheetLiveFile`:
+  // 114 × 114 at 134, 87 — 118, 56 into its frame. The spec's 96 and 110 are the CSS boxes inside
+  // the 2px border; the app drew those as the whole square, 4 short each way.
+  const { spark } = themes.dark.color;
+  const square = (boxes: ViewStyle[]) =>
+    boxes.find((box) => box.borderColor === spark && box.borderWidth === 2);
+
+  const card = drawn(<CardNow uri={SHOT} who="Режиссёр" gaze={{ left: 118, top: 44 }} />);
+  expect(square(card.boxes)).toMatchObject({ width: 100, height: 100, borderRadius: 14 });
+  card.done();
+  const sheet = drawn(<ShotGaze uri={SHOT} gaze={{ left: 118, top: 56 }} />);
+  expect(square(sheet.boxes)).toMatchObject({ width: 114, height: 114, borderRadius: 16 });
+  sheet.done();
+  expect([GAZE, GAZE_SHEET]).toEqual([100, 114]);
+});
+
+test('the card’s thought is 14 / 20 and the author’s plate 11 / 600, as `MontageLive` draws them', () => {
+  // Spec detail 49 and `MontageLive`: «Бабушка смеётся…» Onest 14 / 400 on a 20 line, «Аня · 13
+  // сент, 16:42» Onest 11 / 600. The app drew the journal's 13 / 500 and the meta's 12 / 500.
+  const card = drawn(
+    <CardNow
+      uri={SHOT}
+      author="Аня Петрова"
+      authorLine="Аня · 13 сент, 16:42"
+      who="Режиссёр"
+      thought="Бабушка смеётся, Лиза обнимает её"
+    />,
+  );
+  // The thought is the card's live area — the one text on it that is.
+  expect(card.text((props) => props.accessibilityLiveRegion === 'polite')).toMatchObject({
+    fontSize: 14,
+    lineHeight: 20,
+    fontFamily: 'Onest_400Regular',
+  });
+  expect(card.words('Аня · 13 сент, 16:42')).toMatchObject({
+    fontSize: 11,
+    fontFamily: 'Onest_600SemiBold',
+  });
+  card.done();
+});
+
+test('a number tile is 66 tall: 13 in, the 24 figure, 2, the 11 / 500 word on its 14 line, 13 out', () => {
+  // `MontageLiveDone`: tiles 114 × 66 from 409, figures at 422 (20 / 24), words at 448 (11 / 500,
+  // `muted`). The app drew the word as the 12 / 500 meta on a 15 line, and the tile came out 67.
+  const tile = drawn(<TileNumber figure="214" label="просмотрел" />);
+  const box = tile.boxes.find((one) => one.borderWidth === 1) as ViewStyle;
+  const figure = tile.words('214');
+  const word = tile.words('просмотрел');
+  expect(word).toMatchObject({
+    fontSize: 11,
+    fontFamily: 'Onest_500Medium',
+    color: themes.dark.color.muted,
+  });
+  const inset = Number(box.padding) + Number(box.borderWidth);
+  expect(inset).toBe(422 - 409);
+  expect(inset + Number(figure.lineHeight) + Number(box.gap)).toBe(448 - 409);
+  expect(inset * 2 + Number(figure.lineHeight) + Number(box.gap) + Number(word.lineHeight)).toBe(
+    66,
+  );
+  tile.done();
 });

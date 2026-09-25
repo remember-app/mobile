@@ -88,8 +88,8 @@ export function minutesLeft(stages: readonly MontageStage[]): number | null {
  * inside the frame — an eye on the very edge of a photograph must not hang half of the marker over
  * nothing. A frame smaller than the square itself simply gets it at the corner.
  *
- * `size` is 96 on the card and 110 on the sheet's taller frame (`SheetLiveFile`): the same eye, drawn
- * at the size the picture under it is drawn at.
+ * `size` is `GAZE` on the card and `GAZE_SHEET` on the sheet's taller frame (`SheetLiveFile`): the
+ * same eye, drawn at the size the picture under it is drawn at.
  */
 export function gazeAt(
   focus: JournalEntry['focus'],

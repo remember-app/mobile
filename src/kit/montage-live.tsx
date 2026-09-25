@@ -41,11 +41,15 @@ const BLINK = 1000;
  * How tall the frame in hand is drawn (detail 49) and the square over it, and the same two given the
  * room of a sheet (`SheetLiveFile`). Exported because the gaze arrives as fractions of the picture
  * and the screen is what turns those into points — `gazeAt` in `@/lib/montage/journal`.
+ *
+ * The squares are the ones the layout draws, hairline included: the spec's 96 and 110 are CSS boxes
+ * inside a 2px border, and a box here counts its border in — `MontageLive` measures 100, and
+ * `SheetLiveFile` 114.
  */
 export const SHOT = 150;
-export const GAZE = 96;
+export const GAZE = 100;
 export const SHOT_SHEET = 220;
-export const GAZE_SHEET = 110;
+export const GAZE_SHEET = 114;
 
 /**
  * Spec 7.6 — «Сейчас»: the frame the director is holding, where on it they are looking, and the
@@ -79,7 +83,7 @@ export function CardNow({
   now?: string;
   /**
    * Where on the frame the director is looking, in points from its top left corner. The square is
-   * 96 and everything outside it goes down 18%; it walks to a new place over 300ms rather than
+   * `GAZE` and everything outside it goes down 18%; it walks to a new place over 300ms rather than
    * jumping, unless the phone asks for less movement.
    */
   gaze?: { left: number; top: number };
@@ -117,7 +121,7 @@ export function CardNow({
           {author || authorLine ? (
             <View style={[styles.plate, styles.plateLeft]}>
               {author ? <Avatar name={author} size={18} /> : null}
-              <Text role="meta" style={styles.onPhoto}>
+              <Text role="metaTile" style={styles.onPhoto}>
                 {authorLine}
               </Text>
             </View>
@@ -147,7 +151,8 @@ export function CardNow({
             // Spec 10.4: the square on the frame says nothing out loud, and what it is pointing at
             // is exactly what the thought is about — so the thought is the live area, and a screen
             // reader is told the director's sentence as it arrives rather than told about a square.
-            <Text accessibilityLiveRegion="polite" role="note" tone="paper">
+            // 14 / 20 (detail 49): the card's thought is read a size up from the journal's.
+            <Text accessibilityLiveRegion="polite" role="bodyXs" tone="paper">
               <Said said={thought} unsaid={unsaid} />
             </Text>
           ) : null}
@@ -191,7 +196,7 @@ export function ShotGaze({
 }
 
 /**
- * The 96 square of `spark` over the frame, with everything outside it put out. Drawn as a huge
+ * The `GAZE` square of `spark` over the frame, with everything outside it put out. Drawn as a huge
  * outward shadow rather than four dimming panels: one view, and the hole in it is the square itself.
  */
 function Gaze({ left, top }: { left: number; top: number }) {
@@ -508,7 +513,7 @@ export function TileNumber({ figure, label }: { figure: string; label: string })
   return (
     <View style={styles.number}>
       <Text role="figureTile">{figure}</Text>
-      <Text role="meta">{label}</Text>
+      <Text role="metaSm">{label}</Text>
     </View>
   );
 }
@@ -564,7 +569,7 @@ const useStyles = themed(({ color }) =>
       borderWidth: 2,
       borderColor: color.spark,
       borderRadius: radius.strip,
-      // The frame is a hole: everything outside these 96 points goes down by 18%, in one view.
+      // The frame is a hole: everything outside the square goes down by 18%, in one view.
       boxShadow: '0 0 0 9999px rgba(9,9,14,0.18)',
     },
     say: { paddingTop: 12, paddingHorizontal: 14, paddingBottom: 14, gap: space.s2 },

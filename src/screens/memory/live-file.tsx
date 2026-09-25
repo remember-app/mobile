@@ -22,11 +22,10 @@ import { space } from '@/theme';
  * where the eye was, whose it is, what was seen on it in words, the thought that decided it, and
  * where it lay in the film.
  *
- * Its own component and not a piece of the journal screen, because two screens raise it: the montage
- * being watched live, and the same journal read off a finished one months later («Ролик готов»,
- * TASK-222). It is handed the record and the file rather than the montage — nothing on it is about
- * the video as a whole — and the author by name, because who that is comes off the memory's roster
- * and a sheet reads nothing for itself.
+ * Its own component and not a piece of the journal screen: it is handed the record and the file
+ * rather than the montage — nothing on it is about the video as a whole — and the author by name,
+ * because who that is comes off the memory's roster and a sheet reads nothing for itself. The
+ * journal of a stage raises it, whether the montage is being watched live or was finished months ago.
  */
 export function SheetLiveFile({
   entry,
@@ -63,7 +62,7 @@ export function SheetLiveFile({
         <View style={styles.who}>
           <Avatar name={author} size={32} />
           <View style={styles.grow}>
-            <Text role="subtitle" numberOfLines={1}>
+            <Text role="rowSm" numberOfLines={1}>
               {file === undefined ? author : s.media[file.kind]}
             </Text>
             {/* A file that is gone takes this line with it: there is nobody to name and nothing
@@ -114,7 +113,7 @@ export function SheetLiveFile({
       {/* Where the frame lay: the layout's, not the thought's, so it stands under the plate or on its
           own where the director said nothing — the whole of the road without it (spec 7.6). */}
       {place ? (
-        <Text role="meta" tone="accent">
+        <Text role="timecode" tone="accent">
           {place}
         </Text>
       ) : null}

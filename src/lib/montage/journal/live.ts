@@ -7,7 +7,6 @@ import { beingMade } from '@/lib/montage/order';
 import {
   type Ask,
   type Journal,
-  lastOfEach,
   type Narrow,
   NO_JOURNAL,
   pull,
@@ -49,15 +48,12 @@ function useAppActive(): boolean {
  * off again. A 404 is not that (`refused`): the api is saying this reader is not in the memory, and
  * polling stops until the screen comes back in front — on either road the journal is read by, the
  * poll and the page further back.
- *
- * `everyStage` is for the whole journal read by a screen that opens all five stages out: each read
- * then also brings in the last records of every stage the newest page left short (`lastOfEach`).
  */
 export function useMontageJournal(
   token: string | null,
   memoryId: string,
   montageId: string,
-  { stage, everyStage = false }: Narrow & { everyStage?: boolean } = {},
+  { stage }: Narrow = {},
 ): Journal & { standing: Standing; loadOlder: () => void; restart: () => void } {
   const [state, setState] = useState<Journal>(NO_JOURNAL);
   /** The same thing a poll reads and folds into — state itself is a render behind. */
@@ -102,7 +98,6 @@ export function useMontageJournal(
         ) {
           next = await relaid(next, ask, narrow);
         }
-        if (everyStage) next = await lastOfEach(next, ask);
         if (held.current !== from) return;
         held.current = next;
         setState(next);
@@ -117,7 +112,7 @@ export function useMontageJournal(
         reading.current = false;
       }
     },
-    [token, ask, stage, everyStage],
+    [token, ask, stage],
   );
 
   /**

@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { Fragment } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { type JournalEntry, MONTAGE_STAGES, type MontageStageCode } from '@/api';
+import { MONTAGE_STAGES, type MontageStageCode } from '@/api';
 import { BadgeDecision, Divider, RowStep, StepLink, StepNote } from '@/kit';
 import { formatRuntime } from '@/lib/dates';
 import { useStrings } from '@/lib/language';
@@ -17,31 +17,29 @@ import {
 import { radius, themed } from '@/theme';
 
 /**
- * The five stages of a making as one block (spec 7.6, detail 56) — all five, always, whether the
- * worker has reached them or not: what is ahead is part of the answer to «how far along is it», and a
- * list that grew a row at a time would move under the finger every minute. The live screen and the
- * finished film's page draw the very same rows, so they are drawn here once.
+ * The five stages of a making as one block (spec 7.6, detail 56): every stage the worker has reached
+ * is a row of its own, and those still ahead are one faint line naming them — «Дальше: ритм трека ·
+ * склейка» (`MontageLive`). All five are always accounted for: what is ahead is part of the answer
+ * to «how far along is it». The live screen and the finished film's page draw the very same rows, so
+ * they are drawn here once.
  *
  * Every row that has been reached opens its stage's own journal, and so does the link under an
- * opened one; an opened row shows its last two records.
+ * opened one; an opened row shows its last two records at a glance.
  */
 export function StageRows({
   memoryId,
   montageId,
   journal,
   opens,
-  onRecord,
 }: {
   memoryId: string;
   montageId: string;
   journal: Pick<Journal, 'stages' | 'entries' | 'files'>;
-  /** Whether a stage is opened out — and only ever one with records to open out to. */
-  opens: (code: MontageStageCode) => boolean;
   /**
-   * A record about a frame, pressed — the finished page opens that frame's card. Without it a record
-   * is a glance, which is what it is while the montage is still being cut.
+   * Whether a stage is opened out — and only ever one with records to open out to. Left off, none
+   * is: the finished film's page lists its five closed (`MontageLiveDone`).
    */
-  onRecord?: (entry: JournalEntry) => void;
+  opens?: (code: MontageStageCode) => boolean;
 }) {
   const router = useRouter();
   const s = useStrings();
@@ -51,11 +49,14 @@ export function StageRows({
       pathname: '/memory/[id]/montage/[montageId]/stage/[stage]',
       params: { id: memoryId, montageId, stage: code },
     });
+  const rowOf = (code: MontageStageCode) => journal.stages.find((one) => one.stage === code);
+  const ahead = MONTAGE_STAGES.filter((code) => stageStanding(rowOf(code)) === 'waiting');
+  const reached = MONTAGE_STAGES.filter((code) => !ahead.includes(code));
 
   return (
     <View style={styles.stages}>
-      {MONTAGE_STAGES.map((code, at) => {
-        const row = journal.stages.find((one) => one.stage === code);
+      {reached.map((code, at) => {
+        const row = rowOf(code);
         const last = lastOfStage(journal.entries, code);
 
         return (
@@ -67,9 +68,11 @@ export function StageRows({
               title={s.montage.stage[code]}
               meta={row && stageLine(row, s)}
               state={stageStanding(row)}
-              open={opens(code) && last.length > 0}
+              open={(opens?.(code) ?? false) && last.length > 0}
               onPress={() => toStage(code)}
             >
+              {/* A glance while the montage is still being cut: the record is a second old, and the
+                  frame's own card is one press further, on the stage's journal. */}
               {last.map((entry) => {
                 const shot = entry.media_id ? journal.files[entry.media_id] : undefined;
                 const [mark] = marksOf(entry, s);
@@ -88,10 +91,6 @@ export function StageRows({
                         />
                       ) : undefined
                     }
-                    // A thought about the plan as a whole has no frame to open.
-                    onPress={
-                      onRecord && entry.media_id !== null ? () => onRecord(entry) : undefined
-                    }
                   />
                 );
               })}
@@ -105,6 +104,15 @@ export function StageRows({
           </Fragment>
         );
       })}
+      {ahead.length > 0 ? (
+        <>
+          {reached.length > 0 ? <Divider soft style={styles.between} /> : null}
+          <RowStep
+            title={s.montage.live.ahead(ahead.map((code) => s.montage.stageAhead[code]))}
+            state="waiting"
+          />
+        </>
+      ) : null}
     </View>
   );
 }

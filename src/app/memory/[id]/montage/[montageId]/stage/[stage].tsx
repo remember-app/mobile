@@ -102,7 +102,7 @@ export default function MontageLiveStageScreen() {
         bar={
           <AppBar
             variant="live"
-            title={s.montage.stage[code]}
+            title={s.montage.stageHead[code]}
             left={
               <IconButton icon={ChevronLeft} label={s.action.back} onPress={() => router.back()} />
             }
@@ -121,7 +121,7 @@ export default function MontageLiveStageScreen() {
         <>
           <AppBar
             variant="live"
-            title={s.montage.stage[code]}
+            title={s.montage.stageHead[code]}
             // «Этап 5 из 5 · 12 из 38 · идёт 2 мин» — where this stage stands, said the same way
             // the row it was opened from says it.
             subtitle={[
@@ -182,7 +182,7 @@ export default function MontageLiveStageScreen() {
       // it — the records scroll past the line, exactly as the layout draws them. When the bar and
       // the chips have to scroll with the records, the line would run behind them too, so it goes.
       list={({ head }) => (
-        <View style={styles.feed}>
+        <View style={[styles.feed, head ? null : styles.underChips]}>
           {head ? null : <JournalLine />}
           <FlatList
             data={shown}
@@ -302,10 +302,20 @@ function Record({
 
 // Nothing here carries a colour of its own — every piece on this screen brings the kit's with it.
 const styles = StyleSheet.create({
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: space.s4 },
+  // `MontageLiveStage`: the chips 12 under the bar, and the first record 24 under the chips.
+  chips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    paddingHorizontal: space.s4,
+    paddingTop: space.s3,
+  },
   // The screen's own margin lives here so the line behind the list is measured from it; the records
   // then stand 22 in, which is where the kit hangs their dots.
-  feed: { flex: 1, paddingHorizontal: space.s4, paddingTop: space.s4 },
+  feed: { flex: 1, paddingHorizontal: space.s4 },
+  // Kept outside the list rather than inside it, so the line behind the records starts at the first
+  // dot — the way the layout draws it — and not 24 above it.
+  underChips: { marginTop: space.s6 },
   records: { paddingLeft: 22, gap: 18 },
   // Scrolling with the records, the bar and the chips keep the screen's edges, not the records'.
   edge: { marginLeft: -space.s4 - 22, marginRight: -space.s4 },

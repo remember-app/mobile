@@ -31,7 +31,9 @@ const BLUR = 10;
  *   broke on in danger on the scale, and the way to try again.
  *
  * `large` is the one full-width view the layout draws (196): the same card once the montage is the
- * screen rather than one of several in a strip.
+ * screen rather than one of several in a strip. Ready, it says only the badge and what the film came
+ * out as, in one row along the foot (detail 38, `MontageLiveDone`) — the name is the bar's over it,
+ * and is still what the card is read out as.
  */
 export function CardMontage({
   title,
@@ -88,26 +90,41 @@ export function CardMontage({
   const focusRing = useFocusRing();
   const ready = state === 'ready';
   const action = ready ? null : children;
+  // The badge and the button under a fallen card lie on the poster, which is a photograph in both
+  // themes: they are read in the night's ink, or «Собирается» in the day's blue would be a dark word
+  // on a dark frame.
+  const pinned = <ThemePin value="dark">{badge}</ThemePin>;
+  const alone = ready && large;
 
   const face = (
     <>
-      {/* The badge and the button under a fallen card lie on the poster, which is a photograph in both
-          themes: they are read in the night's ink, or «Собирается» in the day's blue would be a dark
-          word on a dark frame. */}
-      <View style={large ? styles.largeBadge : styles.stripBadge}>
-        <ThemePin value="dark">{badge}</ThemePin>
-      </View>
-
-      {ready && large ? (
+      {alone ? (
         <View style={styles.playLarge}>
           <PlayCircle size={60} />
         </View>
-      ) : null}
+      ) : (
+        <View style={styles.stripBadge}>{pinned}</View>
+      )}
 
-      <View style={[styles.foot, action ? styles.footOverAction : null]}>
-        {ready ? (
+      <View
+        style={[
+          styles.foot,
+          alone ? styles.footLarge : null,
+          action ? styles.footOverAction : null,
+        ]}
+      >
+        {alone ? (
+          <View style={styles.largeLine}>
+            {pinned}
+            {meta ? (
+              <Text role="label" style={[styles.onPhoto, styles.figures]}>
+                {meta}
+              </Text>
+            ) : null}
+          </View>
+        ) : ready ? (
           <View style={styles.readyLine}>
-            {large ? null : <PlayCircle size={34} />}
+            <PlayCircle size={34} />
             <View style={styles.grow}>
               <Text role="label" numberOfLines={1} style={styles.onPhoto}>
                 {title}
@@ -333,7 +350,6 @@ const useStyles = themed(({ color }) =>
     unfocused: { opacity: 0.55, transform: [{ scale: 1.15 }] },
     scrim: { experimental_backgroundImage: photo.poster },
     stripBadge: { position: 'absolute', left: 10, top: 10 },
-    largeBadge: { position: 'absolute', left: 14, bottom: 12 },
     playLarge: {
       position: 'absolute',
       top: 0,
@@ -351,6 +367,12 @@ const useStyles = themed(({ color }) =>
     },
     face: { flex: 1 },
     foot: { marginTop: 'auto', padding: 12, gap: space.s2 },
+    // `MontageLiveDone`: «Готов» 14 in from the poster's left and 12 up from its foot, the figures
+    // 8 after it on the same middle — 13 / 600, white, tabular. On large type the figures go under
+    // the badge rather than over it.
+    footLarge: { paddingHorizontal: 14 },
+    largeLine: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s2 },
+    figures: { fontVariant: ['tabular-nums'] },
     // The button under a fallen card keeps the foot's 12 at the edges and its 8 above.
     footOverAction: { paddingBottom: space.s2 },
     action: { paddingHorizontal: 12, paddingBottom: 12 },

@@ -14,6 +14,7 @@ vi.mock('expo-router', () => ({ useFocusEffect: () => {}, useIsFocused: () => tr
 
 import { entry, stage } from '@tests/helpers/journal';
 import type { MontageStage } from '@/api';
+import { GAZE_SHEET } from '@/kit';
 import {
   currentStage,
   gazeAt,
@@ -157,15 +158,16 @@ describe('what is in the director’s hands', () => {
 describe('gazeAt', () => {
   const frame = { width: 300, height: 150 };
 
-  test('puts the middle of the 96 square where the director is looking', () => {
-    // The middle of the fractions is 0.4 of 300 = 120 across, 0.5 of 150 = 75 down; the square is
-    // hung by its own middle, so 48 comes off each.
-    expect(gazeAt({ x: 0.3, y: 0.25, w: 0.2, h: 0.5 }, frame)).toEqual({ left: 72, top: 27 });
+  test('puts the middle of the 100 square where the director is looking', () => {
+    // `MontageLive` draws the square 100 × 100, hairline included (the spec's 96 is the CSS box
+    // inside a 2px border). The middle of the fractions is 0.4 of 300 = 120 across, 0.5 of 150 = 75
+    // down; the square is hung by its own middle, so 50 comes off each — 48 when it was drawn 96.
+    expect(gazeAt({ x: 0.3, y: 0.25, w: 0.2, h: 0.5 }, frame)).toEqual({ left: 70, top: 25 });
   });
 
   test('holds the square inside the frame at either edge', () => {
     expect(gazeAt({ x: 0, y: 0, w: 0.05, h: 0.05 }, frame)).toEqual({ left: 0, top: 0 });
-    expect(gazeAt({ x: 0.95, y: 0.95, w: 0.05, h: 0.05 }, frame)).toEqual({ left: 204, top: 54 });
+    expect(gazeAt({ x: 0.95, y: 0.95, w: 0.05, h: 0.05 }, frame)).toEqual({ left: 200, top: 50 });
   });
 
   test('is nothing where the record carries no frame at all', () => {
@@ -173,17 +175,19 @@ describe('gazeAt', () => {
   });
 
   test('draws the same eye at the size the sheet gives the picture', () => {
-    // `SheetLiveFile` shows the frame at 220 with a 110 square on it — the same fractions, another
-    // ruler. The middle stays where it was; only how much is taken off it changes.
+    // `SheetLiveFile` shows the frame at 220 with a 114 square on it (hairline included; the spec's
+    // 110 is the CSS box inside it) — the same fractions, another ruler. The middle stays where it
+    // was; only how much is taken off it changes.
+    expect(GAZE_SHEET).toBe(114);
     const sheet = { width: 358, height: 220 };
-    expect(gazeAt({ x: 0.3, y: 0.25, w: 0.2, h: 0.5 }, sheet, 110)).toEqual({
-      left: 0.4 * 358 - 55,
-      top: 0.5 * 220 - 55,
+    expect(gazeAt({ x: 0.3, y: 0.25, w: 0.2, h: 0.5 }, sheet, GAZE_SHEET)).toEqual({
+      left: 0.4 * 358 - 57,
+      top: 0.5 * 220 - 57,
     });
     // And it is still held inside the picture at the edge, whatever the square's size.
-    expect(gazeAt({ x: 0.99, y: 0.99, w: 0.01, h: 0.01 }, sheet, 110)).toEqual({
-      left: 358 - 110,
-      top: 110,
+    expect(gazeAt({ x: 0.99, y: 0.99, w: 0.01, h: 0.01 }, sheet, GAZE_SHEET)).toEqual({
+      left: 358 - 114,
+      top: 220 - 114,
     });
   });
 });

@@ -1,5 +1,15 @@
 import { rule } from '@tests/helpers/css';
+import { mountsTrees } from '@tests/helpers/renderer';
 import { Check, Copy, Pencil, Plus, X } from 'lucide-react-native';
+import {
+  type Insets,
+  Pressable,
+  Text as RNText,
+  StyleSheet,
+  type TextStyle,
+  type ViewStyle,
+} from 'react-native';
+import TestRenderer, { act } from 'react-test-renderer';
 import { beforeAll, expect, test } from 'vitest';
 
 import { BadgeDecision } from '@/kit/badge';
@@ -20,9 +30,11 @@ import {
   Waveform,
 } from '@/kit/rows';
 import { allDifferent, compiled, story } from '@/kit/story';
-import { font, setTheme } from '@/theme';
+import { font, setTheme, themes } from '@/theme';
 
 /** Spec 7.7 — the rows, each of them one line of a list somewhere in the product. */
+
+mountsTrees();
 
 beforeAll(async () => {
   await setTheme('dark');
@@ -336,6 +348,87 @@ test('the last line of an opened stage is the way into the whole of its journal'
   expect(story(<StepLink label="Весь журнал этапа · 148 записей" />)).not.toContain(
     'role="button"',
   );
+});
+
+/* ── The layout's numbers for the stages (`MontageLive`, `MontageLiveDone`, measured) ─────────── */
+
+/** A row drawn once: the style of its press area and of each native text, and the texts' props. */
+function drawnRow(element: React.ReactElement) {
+  let tree!: TestRenderer.ReactTestRenderer;
+  act(() => {
+    tree = TestRenderer.create(element);
+  });
+  const press = tree.root.findByType(Pressable).props;
+  const texts = tree.root.findAllByType(RNText).map((one) => ({
+    said: [one.props.children].flat().join(''),
+    lines: one.props.numberOfLines as number | undefined,
+    style: StyleSheet.flatten(one.props.style) as TextStyle,
+  }));
+  act(() => tree.unmount());
+  return {
+    press: {
+      style: StyleSheet.flatten(press.style({ pressed: false })) as ViewStyle,
+      hitSlop: press.hitSlop as Insets | undefined,
+    },
+    texts,
+  };
+}
+
+test('a stage’s name and its line stand on their 18 and 14, in a row of 48, and neither is ever cut', () => {
+  // `MontageLive`: «Отсев брака» at 424.5, 18 tall, and «212 из 214 годятся · 1 мин» `muted` at
+  // 443.5, 14 tall, in a row of 48 from 417. Both were cut to one line, which on large system type
+  // drops the end of a stage's name or of what it came to.
+  const row = drawnRow(
+    <RowStep
+      title="Отсев брака"
+      state="done"
+      meta="212 из 214 годятся · 1 мин"
+      onPress={() => {}}
+    />,
+  );
+  const [name, line] = row.texts;
+  expect(name).toMatchObject({ said: 'Отсев брака', lines: undefined });
+  expect(name.style.lineHeight).toBe(18);
+  expect(line).toMatchObject({ said: '212 из 214 годятся · 1 мин', lines: undefined });
+  expect(line.style).toMatchObject({ lineHeight: 14, color: themes.dark.color.muted });
+  expect(row.press.style.minHeight).toBe(48);
+});
+
+test('the stages still ahead are one faint line on a row of 44, whole however long it runs', () => {
+  // `MontageLive`: the circle at 706 and «Дальше: ритм трека · склейка» Onest 13 / 500 `faint` at
+  // 709.5 in a row from 696 to 740 — 44, where a reached stage has 48. The app drew it 48 and cut it
+  // to one line, which «Дальше:» with all five stages in it outruns.
+  const row = drawnRow(
+    <RowStep
+      title="Дальше: отсев брака · разбор кадров · история · ритм трека · склейка"
+      state="waiting"
+    />,
+  );
+  expect(row.press.style.minHeight).toBe(740 - 696);
+  expect(row.texts[0].lines).toBeUndefined();
+  expect(row.texts[0].style).toMatchObject({
+    fontSize: 13,
+    fontFamily: 'Onest_500Medium',
+    color: themes.dark.color.faint,
+  });
+});
+
+test('the way into a stage’s journal is drawn 40 and felt 44, its chevron right after the words', () => {
+  // `MontageLive`: «Весь журнал этапа · 148 записей» Onest 12 / 600 `accentText` in a 356 × 40 row,
+  // the chevron at 266 — 6 after the words, not at the far edge. The app drew it 44 tall in the
+  // 11 / 700 badge, the words stretched to push the chevron to the edge.
+  const link = drawnRow(<StepLink label="Весь журнал этапа · 148 записей" onPress={() => {}} />);
+  expect(link.press.style).toMatchObject({ minHeight: 40, gap: 6 });
+  expect(link.press.hitSlop).toMatchObject({ top: 2, bottom: 2 });
+  const [words] = link.texts;
+  expect(words.style).toMatchObject({
+    fontSize: 12,
+    fontFamily: 'Onest_600SemiBold',
+    color: themes.dark.color.accentText,
+    flexShrink: 1,
+  });
+  expect(words.style.flex).toBeUndefined();
+  expect(words.style.flexGrow).toBeUndefined();
 });
 
 test('a sheet’s dangerous action is the only red line on it', () => {

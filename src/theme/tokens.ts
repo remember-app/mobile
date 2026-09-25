@@ -100,8 +100,11 @@ export const height = {
   face: 48,
   /** a day tile in the filter */
   dayTile: 86,
-  /** the «смотрят сейчас» pill in a bar */
-  watchPill: 36,
+  /**
+   * The «смотрят сейчас» pill in a bar. The spec's 36 is the layout's CSS box inside a 1px hairline,
+   * and a box here counts its border in — drawn, the layout's pill is 38 (`MontageLive`).
+   */
+  watchPill: 38,
   /**
    * The sheets (spec 4, «Высоты листов»), each from its top edge down — a floor and not a cap: a
    * sheet holding more grows to hold it. `SheetSort` and `SheetConfirmMemory` are what their
@@ -323,9 +326,9 @@ export const type = StyleSheet.create({
   /** a name in a list row, the label of a sheet action */
   row: { fontFamily: font.semi, fontSize: 15, lineHeight: 20 },
   /**
-   * a name in a tighter row — a stage of the build (spec 7.7, detail 56), «12 файлов ушли…»; the
-   * days picked beside «КОГДА ЭТО БЫЛО». 18 is Onest's own line at 14: on a shorter one iOS sets the
-   * figures 3–4 higher than the layout does.
+   * a name in a tighter row — a stage of the build (spec 7.7, detail 56), a file on its sheet
+   * (`SheetLiveFile`), «12 файлов ушли…»; the days picked beside «КОГДА ЭТО БЫЛО». 18 is Onest's own
+   * line at 14: on a shorter one iOS sets the figures 3–4 higher than the layout does.
    */
   rowSm: { fontFamily: font.semi, fontSize: 14, lineHeight: 18 },
   /** the label of a button */
@@ -369,12 +372,18 @@ export const type = StyleSheet.create({
   meta: { fontFamily: font.medium, fontSize: 12, lineHeight: 15, ...tabular },
   /**
    * The meta a size down (spec 3: meta is 11–12) — under a template's name, beside the poster's
-   * shape, under a stage's name, at the two ends of the length line
+   * shape, under a stage's name, at the two ends of the length line, under a number tile
    */
   metaSm: { fontFamily: font.medium, fontSize: 11, lineHeight: 14, ...tabular },
-  /** the two timecodes of a video — the meta's size a weight up (spec 7.10) */
+  /**
+   * The meta's size a weight up: the two timecodes of a video (spec 7.10), «Этап 3 из 5», the way
+   * into a stage's journal and where a frame lay in the film (spec 7.6).
+   */
   timecode: { fontFamily: font.semi, fontSize: 12, lineHeight: 15, ...tabular },
-  /** «сб» and «312 кадров» on a day tile: a meta line a size down and a weight up */
+  /**
+   * A meta line a size down and a weight up: «сб» and «312 кадров» on a day tile, the author's plate
+   * on the frame in hand (spec detail 49)
+   */
   metaTile: { fontFamily: font.semi, fontSize: 11, lineHeight: 13, ...tabular },
 });
 

@@ -7,7 +7,6 @@ import type {
   MontageStage,
   Viewer,
 } from '@/api';
-import { LAST, lastOfStage, recordsOf } from './stages';
 
 /**
  * The journal as the app holds it, and the reading of it: a page at a time, a cursor at each end,
@@ -196,22 +195,6 @@ export const startedOver = (held: readonly MontageStage[], now: readonly Montage
       was.started_at !== null &&
       now.find((one) => one.stage === was.stage)?.started_at !== was.started_at,
   );
-
-/**
- * Every stage's own last records, for a screen that opens all five out. The first read is the
- * newest page of the whole journal, and a film of hundreds of records ends that page inside its
- * later stages — the earlier ones would open out onto nothing. A stage holding fewer of its last
- * records than its own counts promise is asked for them once, narrowed to it and no more than a row
- * shows: one small read a stage at most, and none where the page already held them.
- */
-export async function lastOfEach(state: Journal, ask: Ask): Promise<Journal> {
-  const short = state.stages.filter(
-    (row) => lastOfStage(state.entries, row.stage).length < Math.min(LAST, recordsOf(row)),
-  );
-  const pages = await Promise.all(short.map((row) => ask({ stage: row.stage, limit: LAST })));
-  // biome-ignore lint/performance/noAccumulatingSpread: at most one page per stage — seven.
-  return pages.reduce((held, page) => ({ ...held, ...withPage(held, page) }), state);
-}
 
 /** Did this record arrive while the screen was open — the one question the typing asks. */
 export const isFresh = (journal: Journal, entry: JournalEntry): boolean =>

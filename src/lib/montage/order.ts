@@ -46,15 +46,6 @@ export const shelfTrack = (key: string): MusicTrackId | null =>
   TRACKS.some((track) => track.id === key) ? (key as MusicTrackId) : null;
 
 /**
- * The three round lengths the order used to be picked from, and the only place they are left: the
- * waiting screen names the length of a montage that was ordered with one of them. Step 4 asks for
- * any whole number of seconds now (doc-03), so nothing chooses out of this list any more.
- */
-export const LENGTHS = [30, 60, 120] as const;
-
-export type Length = (typeof LENGTHS)[number];
-
-/**
  * The four ready answers of `MontageBuild` (spec 7.3, detail 19). The fifth pill is «Всё» and is
  * not here: it is whatever this memory's material can carry, which only the api knows.
  */

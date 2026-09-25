@@ -125,15 +125,17 @@ describe.each(SCENARIOS)('%s — a montage that fell over', (scenario) => {
       }
 
       // The journal is still read: the stage that broke wears the cross and is opened out on its last
-      // records, each with the frame it was about — where it broke, told calmly.
+      // records, each with the frame it was about — where it broke, told calmly. The three it never
+      // reached are the one faint line under it.
       const rows = screen.findAllByType(RowStep);
-      expect(rows.map((one) => one.props.state)).toEqual([
-        'done',
-        'failed',
-        'waiting',
-        'waiting',
-        'waiting',
-      ]);
+      expect(rows.map((one) => one.props.state)).toEqual(['done', 'failed', 'waiting']);
+      expect(rows[2].props.title).toBe(
+        ru.montage.live.ahead([
+          ru.montage.stageAhead.directing,
+          ru.montage.stageAhead.rhythm,
+          ru.montage.stageAhead.assembly,
+        ]),
+      );
       expect(rows.filter((one) => one.props.open)).toEqual([rows[1]]);
       const whole = bodyOf(steps, 'journal_of_ready_montage');
       const last = whole.entries.filter((one) => one.stage === 'understanding').slice(0, 2);

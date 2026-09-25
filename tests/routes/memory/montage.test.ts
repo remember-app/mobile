@@ -28,9 +28,9 @@ import films from '@/screens/memory/films.tsx?raw';
 import frames from '@/screens/memory/frames.tsx?raw';
 import errands from '@/screens/memory/frames-errands.ts?raw';
 import material from '@/screens/memory/frames-material.ts?raw';
-// The card one record of the journal opens — a piece of two screens, so it lives beside neither.
+// The card one record of the journal opens.
 import liveFile from '@/screens/memory/live-file.tsx?raw';
-// And the five rows of the making, which those same two screens draw.
+// And the five rows of the making, which the live screen and the film's page both draw.
 import stageRows from '@/screens/memory/stage-rows.tsx?raw';
 import { en, ru } from '@/strings';
 
@@ -68,13 +68,20 @@ test('the montage on air is a route of one row, with the journal of a stage unde
   );
 
   // The screen itself (`MontageLive`, TASK-221): the frame in the director's hands, and under it
-  // all five stages as the worker actually reports them. The stages are named and never counted —
-  // «73 %» tells a person nothing.
+  // all five stages as the worker actually reports them — a row for each one reached, and the ones
+  // still ahead in one faint line (TASK-388). The stages are named and never counted — «73 %» tells
+  // a person nothing.
   expect(live).toContain('<CardNow');
   expect(live).toContain('<StageRows');
-  expect(stageRows).toContain('MONTAGE_STAGES.map((code, at)');
+  expect(stageRows).toContain(
+    "MONTAGE_STAGES.filter((code) => stageStanding(rowOf(code)) === 'waiting')",
+  );
+  expect(stageRows).toContain('reached.map((code, at)');
   expect(stageRows).toContain('<RowStep');
   expect(stageRows).toContain('s.montage.stage[code]');
+  expect(stageRows).toContain(
+    's.montage.live.ahead(ahead.map((code) => s.montage.stageAhead[code]))',
+  );
   // The guess this screen used to draw instead is gone from the arithmetic as well: the api says
   // which stage is running, so nothing infers it from the one word about the whole job.
   for (const guessed of ['export const STAGES', 'export function stages', 'DONE_AT_ORDER']) {
@@ -82,14 +89,22 @@ test('the montage on air is a route of one row, with the journal of a stage unde
   }
   // And the dictionary is exactly the api's five: the two names the waiting screen had of its own
   // («story», «cut») went with it, so one stage cannot be spelled two ways any more.
+  // `MontageLive`: with the story being built, the two stages still ahead are one faint line —
+  // «Дальше: ритм трека · склейка», word for word — where the app drew two more rows of names.
+  expect(
+    ru.montage.live.ahead([ru.montage.stageAhead.rhythm, ru.montage.stageAhead.assembly]),
+  ).toBe('Дальше: ритм трека · склейка');
+  // The journal's head and the line of what is ahead name the same five, by the same codes.
   for (const set of [en, ru]) {
-    expect(Object.keys(set.montage.stage)).toEqual([
-      'screening',
-      'understanding',
-      'directing',
-      'rhythm',
-      'assembly',
-    ]);
+    for (const names of [set.montage.stage, set.montage.stageHead, set.montage.stageAhead]) {
+      expect(Object.keys(names)).toEqual([
+        'screening',
+        'understanding',
+        'directing',
+        'rhythm',
+        'assembly',
+      ]);
+    }
   }
 });
 
@@ -198,7 +213,7 @@ test('only the organizer starts a fallen montage again', () => {
 
 test('the open stage carries its last records and the way into the whole of its journal', () => {
   expect(stageRows).toContain('const last = lastOfStage(journal.entries, code);');
-  expect(stageRows).toContain('open={opens(code) && last.length > 0}');
+  expect(stageRows).toContain('open={(opens?.(code) ?? false) && last.length > 0}');
   expect(live).toContain('opens={(code) => code === stage?.stage}');
   expect(stageRows).toContain('<StepNote');
   expect(stageRows).toContain('label={s.montage.live.wholeStage(recordsOf(row))}');
@@ -246,8 +261,7 @@ test('a record about a file opens that file’s card, and a deleted file is stil
   expect(liveFile).toContain('uri={file?.thumbnail_url ?? undefined}');
   expect(liveFile).toContain('{file === undefined ? author : s.media[file.kind]}');
 
-  // Its own component, because the finished montage raises the same card off the same journal
-  // (TASK-222) — so it is handed a record and a file and reads nothing for itself.
+  // Its own component, handed a record and a file, and reading nothing for itself.
   expect(liveFile).toContain('export function SheetLiveFile');
   expect(liveFile).toContain('entry: JournalEntry;');
   expect(liveFile).toContain('file?: JournalFile;');
@@ -323,18 +337,18 @@ test('«Как собирался» is the journal the film keeps, and a film wi
   expect(done).toContain('{s.montage.live.howMade}');
   expect(done).toContain('const made = madeInMinutes(journal.stages);');
 
-  // All five rows, and each of them still opens its own journal — that is the whole promise of the
-  // journal staying: any member can read any stage, a week later as much as a minute later.
-  expect(done).toContain('<StageRows');
-  expect(done).toContain('opens={() => true}');
+  // All five rows, closed the way `MontageLiveDone` draws them (TASK-388), and each of them still
+  // opens its own journal — that is the whole promise of the journal staying: any member can read
+  // any stage, a week later as much as a minute later. A frame's card is one press further, on the
+  // stage's own journal, which is the one screen that raises it.
+  expect(done).toContain('<StageRows memoryId={id} montageId={montageId} journal={journal} />');
   expect(stageRows).toContain('meta={row && stageLine(row, s)}');
-  // And a record with a frame on it opens that frame's card, the way the stage's own journal does.
-  expect(done).toContain('onRecord={(entry) => setOpened(entry.id)}');
-  expect(stageRows.replace(/\s+/g, ' ')).toContain(
-    'onRecord && entry.media_id !== null ? () => onRecord(entry) : undefined',
-  );
-  expect(live).not.toContain('onRecord');
-  expect(done).toContain('<SheetLiveFile');
+  expect(stageRows).toContain('onPress={() => toStage(code)}');
+  for (const gone of ['opens=', 'onRecord', '<SheetLiveFile', 'everyStage']) {
+    expect(done).not.toContain(gone);
+  }
+  expect(stageRows).not.toContain('onRecord');
+  expect(journalOf).not.toContain('lastOfEach');
 
   // A film cut before the journal existed answers with no stages at all (api README), and then the
   // whole block is simply not drawn — no heading, no empty tiles, and nothing that reads as broken.
