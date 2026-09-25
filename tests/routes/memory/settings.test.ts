@@ -62,8 +62,18 @@ test('the card stands 16 under the bar and carries the name whole; «Прави�
   // Unbounded 17 / 21 at −0.42 on two lines («Свадьба Лизы и / Марка») where the app cut it at one
   // with «Свадьба Лизы…», and «Править состав» 36 tall.
   expect(flat(settings)).toContain('paddingTop: board.bodySettings - board.status - height.bar');
-  expect(flat(settings)).toContain('<Text role="titleSm">{memory.title}</Text>');
+  // And the edit behind the pencil stands at the same 112 (spec 4, 10.11 answer 5), where it had no
+  // air under its bar at all.
+  expect(flat(edit)).toContain('paddingTop: board.bodySettings - board.status - height.bar');
+  // Spec 8 and 10.11 (answer 5): «до двух строк, многоточие на второй» — not one line, not whole.
+  expect(flat(settings)).toContain(
+    '<Text role="titleSm" numberOfLines={2}> {memory.title} </Text>',
+  );
   expect(flat(settings)).toContain('size="mini"');
+  // e15: ringed in `lineQuiet` (#3A3747), the quieter of the kit's rings, not the small one's `line`.
+  expect(flat(settings)).toContain("variant={editing ? 'paper' : 'outline'}");
+  // «Пригласить» wears its `user-plus` at 19 / 1.9, lighter than the kit's main 2.1.
+  expect(flat(settings)).toContain('glyph={{ size: 19, stroke: 1.9 }}');
   // e9 — the line under the name 5 below it; e13 and e49 — «Люди» and «Зрители» at x18, 2 in from
   // the cards' edge at 16.
   expect(flat(settings)).toContain('grow: { flex: 1, minWidth: 0, gap: 5 }');

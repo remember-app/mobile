@@ -69,11 +69,25 @@ test('the two mosaics are two layouts', () => {
 });
 
 test('a mosaic with too few frames leaves the empty cells plain rather than repeating one', () => {
-  // Spec 7.6: a memory with fewer than three frames fills what it has, and the rest stays `surface`.
+  // Spec 7.8, detail 68: a memory with fewer frames than cells fills what it has, and the rest is
+  // filled with `raise` (#22222E) — not the card's own `surface` (#16161F), which read as a hole.
   const three = story(<Mosaic photos={['https://b/1.jpg']} layout="cover" />);
   expect(three.match(/data-testid="image"/g) ?? []).toHaveLength(1);
   // The cells are still all there — the shape of a cover does not depend on how full it is.
   expect(story(<Mosaic photos={[]} layout="cover" />)).not.toBe('');
+  for (const layout of ['cover', 'strip'] as const) {
+    const { cells } = mosaic(story(<Mosaic photos={[]} layout={layout} />));
+    expect(cells, layout).toHaveLength(layout === 'cover' ? 3 : 4);
+    for (const cell of cells) expect(cell['background-color'], layout).toBe('rgba(34,34,46,1.00)');
+  }
+});
+
+test('the play circle on a video in hand is the layout’s own dark, not a tile’s mark', () => {
+  // Spec 7.8, detail 67 (`ViewerVideo.html`): a 14 circle of rgba(6,6,10,.72) with a filled play 8,
+  // 4 from the corner — the marks on a tile are rgba(9,9,14,.72).
+  const onVideo = story(<Filmstrip frames={FRAMES} index={1} />);
+  const dot = onVideo.match(/<div class="([^"]+)"[^>]*><svg data-glyph/)?.[1] ?? '';
+  expect(declarations(dot)['background-color']).toBe('rgba(6,6,10,0.72)');
 });
 
 test('a mosaic is a background and carries no words of its own', () => {

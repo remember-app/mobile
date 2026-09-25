@@ -115,6 +115,10 @@ test('too little material stops the wizard before its first step, not after its 
   expect(wizard).toContain('<Icon icon={PanelsTopLeft} size={26} color={color.muted} />');
   expect(summary).toContain('icon={PanelsTopLeft}');
   expect(`${wizard}${summary}`).not.toContain('LayoutGrid');
+  // Two main 56s whose glyph the layout draws apart from the kit's 19 / 2.1 (spec 8): «Начать
+  // монтаж» at 19 / 1.9, the pencil of «Настроить самому» at 17 / 1.8 (`MontageTemplate.json`).
+  expect(summary).toContain('glyph={{ size: 19, stroke: 1.9 }}');
+  expect(templates).toContain('glyph={{ size: 17, stroke: 1.8 }}');
   expect(wizard).toContain('{s.montage.tooLittleText(material.length)}');
   // And no step draws itself while that sheet is up — the shell holds its body and its button
   // back, so a step written later is silent there without a line of its own. The screen of
@@ -253,7 +257,9 @@ test('the wizard’s bar wears three faces, and only the total has nothing on it
   // Spec 7.1, detail 3: the four steps carry the scale and the counter, the way in and the total
   // carry neither — and «Отмена» stands on every screen of the walk but the last.
   expect(wizard).toContain("const counted = typeof step === 'number';");
-  expect(wizard).toContain("variant={counted ? 'step' : 'summary'}");
+  // The way in and the total are two faces, not one: the way in's heading stands 14 under the row,
+  // the total's 12 (`MontageTemplate.html`, `MontageSummary.html`).
+  expect(wizard).toContain("variant={counted ? 'step' : summary ? 'summary' : 'entry'}");
   expect(wizard).toContain(': s.montage.newOne');
   expect(flat(wizard)).toContain('cancel={ summary ? undefined : {');
   expect(templates).toContain('step="templates"');

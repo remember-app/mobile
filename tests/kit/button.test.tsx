@@ -24,6 +24,7 @@ const VARIANTS: ButtonVariant[] = [
   'paper',
   'secondary',
   'small',
+  'outline',
   'raise',
   'quiet',
   'link',
@@ -31,7 +32,7 @@ const VARIANTS: ButtonVariant[] = [
   'dashed',
 ];
 
-test('the nine buttons are nine different buttons', () => {
+test('the ten buttons are ten different buttons', () => {
   allDifferent(
     Object.fromEntries(
       VARIANTS.map((variant) => [variant, <Button variant={variant} label="Смонтировать" />]),
@@ -278,8 +279,32 @@ test('«Смонтировать» is a 36 on paper with the plus the layout dra
   expect(words).toContain(rule(`font-family:${font.semi}`));
   // The full-size paper button keeps the glyph its size gives it.
   const full = story(<Button variant="paper" icon={Plus} label="Смонтировать" />);
-  expect(full).toContain('width="18"');
+  expect(full).toContain('width="19"');
   expect(full).not.toContain('stroke-width="2.2"');
+});
+
+test('a main 56 wears its glyph at 19 / 2.1, 9 from its words — and a place the layout names wears its own', () => {
+  // Spec 7.2, detail 10: «иконка 19 (sw 2.1) со щелью 9» — `Main.html`: «Новое воспоминание», the
+  // plus 19 at 2.1 in a `gap: 9px` row. It was the kit's 18 at 2, 8 from the words.
+  const make = story(<Button variant="primary" icon={Plus} label="Новое воспоминание" />);
+  expect(make).toContain('<svg data-glyph="Plus" width="19" height="19"');
+  expect(make).toContain('stroke-width="2.1"');
+  expect(make).toContain(rule('gap:9px'));
+  // The 52 in a sheet keeps its 18 and its 8.
+  const sheet = story(<Button variant="primary" size="md" icon={Plus} label="Позвать" />);
+  expect(sheet).toContain('<svg data-glyph="Plus" width="18" height="18"');
+  expect(sheet).not.toContain(rule('gap:9px'));
+  // `MontageSummary`: «Начать монтаж» — panels-top-left 19 at 1.9 (spec 8), named for the place.
+  const start = story(
+    <Button
+      variant="primary"
+      icon={Plus}
+      glyph={{ size: 19, stroke: 1.9 }}
+      label="Начать монтаж"
+    />,
+  );
+  expect(start).toContain('stroke-width="1.9"');
+  expect(start).toContain(rule('gap:9px'));
 });
 
 /** The classes of the words a button draws: the element whose text is exactly `words`. */
@@ -376,6 +401,26 @@ test('the words of a button follow its height: 15 on a 52 and on the quiet 48 in
   expect(story(<Button variant="quiet" size="ms" wide label="Позже" />)).toContain(
     'min-height:48px',
   );
+});
+
+test('the outlined one in a row is ringed in lineQuiet, and stands at the row’s 36 as wide as its words', () => {
+  // Spec 8, `MemorySettings` and `MemorySettings.json` e15: «Править состав» — 36, `0 14`, 13 / 600
+  // `paper`, the pencil 14 / 1.8, and the ring #3A3747 — `lineQuiet`, not the `line` (#2C2C3A) of
+  // the small one («Что сняли») nor the `lineStrong` (#45424F) of «Вернуть».
+  const quietRing = 'border-top-color:rgba(58,55,71,1.00)';
+  const edit = story(<Button variant="outline" icon={Plus} label="Править состав" />);
+  expect(edit).toContain(quietRing);
+  expect(edit).toContain('min-height:36px');
+  expect(edit).toContain(rule('padding-left:14px;padding-right:14px'));
+  expect(edit).toContain('<svg data-glyph="Plus" width="14" height="14"');
+  expect(edit).toContain('stroke-width="1.8"');
+  expect(wordsOf(edit, 'Править состав')).toContain(rule('font-size:13px'));
+  expect(edit).toContain('color:rgba(245,243,238,1.00)');
+  const small = story(<Button variant="small" size="mini" label="Править состав" />);
+  const strong = story(<Button size="mini" wide={false} label="Править состав" />);
+  expect(small).toContain('border-top-color:rgba(44,44,58,1.00)');
+  expect(strong).toContain('border-top-color:rgba(69,66,79,1.00)');
+  for (const other of [small, strong]) expect(other).not.toContain(quietRing);
 });
 
 test('a button in a row wears a 14 glyph at 1.8, and only «Смонтировать» its heavier plus', () => {

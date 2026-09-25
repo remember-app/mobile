@@ -19,6 +19,7 @@ vi.mock('@/kit', async (original) => ({
 }));
 
 import { type Asked, developing, later, memory, photo, refused, serve } from '@tests/helpers/api';
+import { thisYear2026 } from '@tests/helpers/clock';
 import { mounted, mountsTrees, themesShown } from '@tests/helpers/renderer';
 import TestRenderer, { act } from 'react-test-renderer';
 import type { MediaItem, Memory } from '@/api';
@@ -265,6 +266,7 @@ test('name, days and cover changed together are one request carrying all three',
 });
 
 test('the cover is picked on the sheet, waits in the slot, and only «Сохранить» puts it on the memory', async () => {
+  thisYear2026();
   const w = world();
   const screen = await open();
   expect(screen.text()).toContain(ru.edit.coverNone);
@@ -283,8 +285,10 @@ test('the cover is picked on the sheet, waits in the slot, and only «Сохра
   ).toEqual(['off', 'off', undefined]);
   await act(async () => screen.cover().props.onChoose('a'));
   expect(screen.cover().props.visible).toBe(false);
-  // The slot says which frame it is, by the day it was shot on.
-  expect(screen.text()).toContain(ru.edit.coverFrom('13 сентября 2026'));
+  // The slot says which frame it is, by the day it was shot on — this year's, so without the year
+  // (spec 9: «Кадр от 13 сентября»).
+  expect(screen.text()).toContain(ru.edit.coverFrom('13 сентября'));
+  expect(screen.text()).not.toContain(ru.edit.coverFrom('13 сентября 2026'));
   expect(screen.text()).toContain(ru.edit.coverWhere);
   expect(screen.buttons(ru.edit.coverReplace)).toHaveLength(1);
   // Nothing has left the phone yet.
@@ -332,11 +336,13 @@ test('the slot shows the chosen frame’s own picture, the listing’s signed on
 });
 
 test('a cover that is on already comes off with one quiet press, and that is a save of null', async () => {
+  thisYear2026();
   const w = world({
     memory: wedding({ cover_media_id: 'b', cover_thumbnail_url: 'https://r2.example/b' }),
   });
   const screen = await open();
-  expect(screen.text()).toContain(ru.edit.coverFrom('12 сентября 2026'));
+  expect(screen.text()).toContain(ru.edit.coverFrom('12 сентября'));
+  expect(screen.text()).not.toContain(ru.edit.coverFrom('12 сентября 2026'));
   expect(screen.buttons(ru.edit.coverReplace)).toHaveLength(1);
   expect(screen.save().props.disabled).toBe(true);
   await screen.press(() => screen.buttons(ru.edit.coverDrop)[0]);

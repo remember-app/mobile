@@ -64,12 +64,15 @@ export function Spinner({
   );
 }
 
-/** Spec 7.9 — waiting, with a line saying what is being waited for. */
+/**
+ * Spec 7.9, detail 70 — waiting, with a line saying what is being waited for: 18 under the ring,
+ * 15 / 500 `muted` (`HomeLoading.json` e4, e5).
+ */
 export function Waiting({ text, size = spinner.screen }: { text: string; size?: SpinnerSize }) {
   return (
     <View style={waiting.block}>
       <Spinner size={size} />
-      <Text role="bodySm" tone="muted" style={waiting.text}>
+      <Text role="rowPlain" tone="muted" style={waiting.text}>
         {text}
       </Text>
     </View>
@@ -77,7 +80,7 @@ export function Waiting({ text, size = spinner.screen }: { text: string; size?: 
 }
 
 const waiting = StyleSheet.create({
-  block: { alignItems: 'center', gap: space.s4 },
+  block: { alignItems: 'center', gap: 18 },
   text: { textAlign: 'center' },
 });
 

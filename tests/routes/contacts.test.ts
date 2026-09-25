@@ -1,3 +1,4 @@
+import { flat } from '@tests/helpers/source';
 import { expect, test } from 'vitest';
 
 import contacts from '@/app/contacts.tsx?raw';
@@ -29,8 +30,18 @@ test('the stranger stands above the saved list, not under it', () => {
   expect(contacts.indexOf('s.contacts.notSaved')).toBeLessThan(
     contacts.indexOf('s.contacts.saved'),
   );
-  // And the saved carry their own heading with the count on the end of its rule.
-  expect(contacts).toContain('<DayMark label={s.contacts.saved} count={String(shown.length)} />');
+  // And the saved carry their own heading with the count on the end of its rule: the eyebrow in caps,
+  // a hairline, the count 12 / 500 (`Contacts.json` e17–e19) — not the 10 / 12 seam of a feed.
+  expect(flat(contacts)).toContain(
+    '<DayHead eyebrow label={s.contacts.saved.toUpperCase()} count={String(shown.length)} />',
+  );
+  expect(contacts).not.toContain('<DayMark');
+});
+
+test('the groups of the body stand 18 apart, as the layout stacks them', () => {
+  // `Contacts.html`: the found card ends at 276 under «НЕ В КОНТАКТАХ» (its block's `padding-bottom:
+  // 18px`), and «СОХРАНЁННЫЕ» starts at 294. The body put 20 between them.
+  expect(contacts).toContain('body: { flexGrow: 1, gap: 18, paddingHorizontal: space.s4');
 });
 
 test('one field does both jobs — it narrows the list and asks about what is not in it', () => {

@@ -9,18 +9,22 @@ import { hitSlop, PRESS, useFocusRing, useHoverFocus, useReducedMotion } from '.
 import { Text, type TypeRole } from './text';
 
 /**
- * Spec 7.2 — the buttons. Nine of them wear words and one is round and wears a glyph, and which is
+ * Spec 7.2 — the buttons. Ten of them wear words and one is round and wears a glyph, and which is
  * which is a matter of weight, never of taste: exactly one `primary` per screen, because `accent`
  * is the one main action and nothing else.
  *
- * `link` is the quietest of the nine: words alone, in `accentText` and underlined, as tall as their
+ * `link` is the quietest of the ten: words alone, in `accentText` and underlined, as tall as their
  * line — «Полный текст соглашения» (spec 8, `Consent`). The finger's 44 grows round it.
+ *
+ * `outline` is the button in a row ringed in `lineQuiet` rather than `lineStrong` — the ring the
+ * round `outline` wears — «Править состав» (spec 7.2, 8 `MemorySettings`).
  */
 export type ButtonVariant =
   | 'primary'
   | 'paper'
   | 'secondary'
   | 'small'
+  | 'outline'
   | 'raise'
   | 'quiet'
   | 'link'
@@ -56,6 +60,8 @@ const DEFAULT_SIZE: Record<ButtonVariant, ButtonSize> = {
   paper: 'lg',
   secondary: 'lg',
   small: 'sm',
+  // «Править состав», the only one: the row's 36.
+  outline: 'mini',
   raise: 'mini',
   quiet: 'sm',
   link: 'line',
@@ -78,6 +84,7 @@ export const DEFAULT_WIDE: Record<ButtonVariant, boolean> = {
   paper: true,
   secondary: true,
   small: false,
+  outline: false,
   raise: false,
   quiet: false,
   link: false,
@@ -101,6 +108,11 @@ export type ButtonProps = {
   disabled?: boolean;
   /** A glyph before the words — the plus on «Новое воспоминание». */
   icon?: IconComponent;
+  /**
+   * That glyph's size and stroke, only where the layout names them for the place — «Начать монтаж»
+   * 19 / 1.9, the pencil of «Настроить самому» 17 / 1.8 (spec 8). Left off, the height decides.
+   */
+  glyph?: { size: number; stroke?: number };
   /** A glyph after them — the chevron on «Дальше» in the wizard. */
   trailingIcon?: IconComponent;
   /**
@@ -127,6 +139,7 @@ export function Button({
   busyLabel,
   disabled,
   icon,
+  glyph: drawn,
   trailingIcon,
   labelRole,
   labelTone,
@@ -150,8 +163,10 @@ export function Button({
   const boxed = variant === 'dashed' && tall >= height.sheetButton;
   // The quiet one and the link are words and not a shape, and keep their own sides at any height.
   const kind = variant === 'quiet' || link ? null : variant === 'small' ? 'row' : KIND[sized];
+  const main = kind === 'main' && sized === 'lg';
   const glyph =
-    variant === 'raise'
+    drawn ??
+    (variant === 'raise'
       ? { size: ICO_XS }
       : boxed
         ? BOXED_GLYPH
@@ -159,7 +174,9 @@ export function Button({
           ? SMALL_GLYPH
           : variant === 'paper' && sized === 'mini'
             ? MAKE_GLYPH
-            : (ROW_GLYPH[sized] ?? { size: ICO_S });
+            : main
+              ? MAIN_GLYPH
+              : (ROW_GLYPH[sized] ?? { size: ICO_S }));
   const words = busy ? (busyLabel ?? label) : label;
 
   return (
@@ -182,6 +199,7 @@ export function Button({
         link ? styles.bare : null,
         kind === 'row' ? (sized === 'xxs' ? styles.inRowPill : styles.inRow) : null,
         kind === 'small' ? styles.small : null,
+        main ? styles.main : null,
         (wide ?? DEFAULT_WIDE[variant]) ? styles.wide : null,
         pressed && !reduced ? PRESS : null,
         focused ? focusRing : null,
@@ -223,8 +241,8 @@ function contentColor({ color }: Theme, variant: ButtonVariant, disabled: boolea
 /**
  * Spec 7.2 — how the words sit in a button, by the place it stands in rather than by its variant:
  *
- * - **main** — 60, 56, 52: `control` 16 at 56, 15 at 52 (`controlMd`), 20 a side, an 18 glyph 8
- *   from the words;
+ * - **main** — 60, 56, 52: `control` 16 at 56, 15 at 52 (`controlMd`), 20 a side; a 19 glyph at
+ *   2.1, 9 from the words, at 56 (detail 10), an 18 one 8 from them at 52;
  * - **small** — «малая с текстом», 44: «Сохранить» and «Поделиться» under a finished film, «Сохранить»
  *   in a contact's row — the same `control` at 14 (`controlSm`), 18 a side, a 16 glyph 7 from the
  *   words;
@@ -260,6 +278,12 @@ function wordsRole(variant: ButtonVariant, sized: ButtonSize, kind: Kind | null)
   if (sized === 'md') return variant === 'dashed' ? 'controlSm' : 'controlMd';
   return 'control';
 }
+
+/**
+ * The glyph of a main 56 (spec 7.2, detail 10): 19 at 2.1, 9 from its words — the plus of «Новое
+ * воспоминание» (`Main.html`), and every 56 of the layout that names nothing else for its place.
+ */
+const MAIN_GLYPH = { size: 19, stroke: 2.1 } as const;
 
 /** The glyph of «Сохранить» and «Поделиться» under a finished film (spec 8, `MontageLiveDone`). */
 const SMALL_GLYPH = { size: 16 } as const;
@@ -308,6 +332,12 @@ function fill(
       };
     case 'small':
       return { borderColor: color.line, backgroundColor: hovered ? color.raise : 'transparent' };
+    // `MemorySettings.json` e15: «Править состав» in `lineQuiet` (#3A3747), not `line`.
+    case 'outline':
+      return {
+        borderColor: color.lineQuiet,
+        backgroundColor: hovered ? color.raise : 'transparent',
+      };
     // Spec 8, `SheetFilter`: «Сбросить» is lifted by its fill and has no border at all — it is
     // needed rarely, and a ring would make it argue with the main button.
     case 'raise':
@@ -586,6 +616,8 @@ const useStyles = themed(({ color }) =>
     // «Малая с текстом»: the words 18 in from the edge — 17 and the button's own hairline — and the
     // glyph 7 from them («Сохранить» in `Contacts`, 109).
     small: { paddingHorizontal: 17, gap: 7 },
+    // The main 56: its glyph 9 from its words (spec 7.2, detail 10).
+    main: { gap: 9 },
     boxed: { borderRadius: radius.cell },
     // A small button never shrinks when the row beside it runs long.
     wide: { width: '100%', flexShrink: 1 },

@@ -3,6 +3,7 @@ import { beforeAll, expect, test, vi } from 'vitest';
 // The words come from the dictionary, and the dictionary asks the phone which language it is in.
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
 
+import { thisYear2026 } from '@tests/helpers/clock';
 import { rule } from '@tests/helpers/css';
 import { fontFile, wordWidth } from '@tests/helpers/font';
 import { Chip } from '@/kit/chip';
@@ -94,9 +95,12 @@ const block = (value: Span, disabled = false) => (
 );
 
 test('one day is a date with no length, and a span says how long it is', () => {
+  thisYear2026();
   const one = story(block(span(12)));
   const three = story(block(span(12, 14)));
-  expect(one).toContain('12 сентября 2026');
+  // Spec 8, `Create`, and spec 9: one day of this year is the date alone.
+  expect(one).toContain('12 сентября');
+  expect(one).not.toContain('12 сентября 2026');
   expect(one).not.toContain('· 1 день');
   expect(three).toContain('12–14 сентября');
   expect(three).toContain('· 3 дня');

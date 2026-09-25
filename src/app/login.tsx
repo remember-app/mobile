@@ -146,6 +146,8 @@ export default function LoginScreen() {
             <Button
               variant="secondary"
               icon={Mail}
+              // Spec 8, `Login`: `mail` 18 at 1.8.
+              glyph={{ size: 18, stroke: 1.8 }}
               label={s.login.withEmail}
               onPress={() => router.push('/login/email')}
             />

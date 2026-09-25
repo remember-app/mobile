@@ -395,6 +395,19 @@ test('under the row: the scale 12 down, the heading 18 down inside the margins �
     marginTop: 12,
     marginHorizontal: 16,
   });
+
+  // The way in has no scale either, and its heading 14 under the row: `MontageTemplate.html`
+  // `margin: 14px 0 0` — «Каким будет ролик» at 110 against the total's 108, which is what stands
+  // its grid at 190 (spec 4) and not at 188.
+  const entry = await wizardTree(1, { variant: 'entry' });
+  const entryHeading = entry.tree.root.find(
+    (one) => one.type === Text && one.props.role === 'display',
+  );
+  expect(entry.tree.root.findAllByType(StepScale)).toHaveLength(0);
+  expect(entry.flat(entry.around(entryHeading))).toMatchObject({
+    marginTop: 110 - 96,
+    marginHorizontal: 16,
+  });
 });
 
 test('the type size changed on the way turns «Отмена» from the word to the round «x» and back, and the blocks with it', async () => {

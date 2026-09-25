@@ -5,11 +5,11 @@ import { StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ApiError, acceptInvite, errorMessage } from '@/api';
-import { ActionBar, Board, Button, Empty, Spinner, Text } from '@/kit';
+import { ActionBar, Board, Button, Empty, Spinner, Text, useFooterOverhang } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { useStrings } from '@/lib/language';
 import { clearInvite, peekInvite, stashInvite } from '@/lib/push';
-import { board, height, space, spinner } from '@/theme';
+import { space, spinner } from '@/theme';
 
 /**
  * Where `remember://invite?token=…` lands. There is no web page for an invite and no anonymous
@@ -25,6 +25,7 @@ export default function InviteScreen() {
   const { status, token: session } = useAuth();
   const s = useStrings();
   const insets = useSafeAreaInsets();
+  const overhang = useFooterOverhang();
   // The dead end, in the two lines it is made of: what happened, and — when it is the one failure
   // this screen has a name for — the heading that says it is not the person's doing.
   const [stop, setStop] = useState<{ title?: string; text: string } | null>(null);
@@ -90,7 +91,7 @@ export default function InviteScreen() {
           Remember
         </Text>
         <Spinner size={spinner.join} />
-        <Text role="bodySm" tone="muted" style={styles.centred}>
+        <Text role="rowPlain" tone="muted" style={styles.centred}>
           {s.state.joining}
         </Text>
       </Board>
@@ -100,10 +101,8 @@ export default function InviteScreen() {
   // `InviteDead`: an empty state with the sign of a link pulled apart, and the way out standing in
   // the bottom layer — «replace», like every other exit from here, because a spent invite must not
   // sit in the back stack. The layout centres it on the screen from its very top down to where the
-  // bottom layer's gradient begins, `board.footer` over the edge; the body here runs from under the
-  // status line down to the action block, which stands lower than that gradient reaches — so both
-  // are handed back at the bottom.
-  const overhang = board.footer - space.s3 - height.primary - Math.max(insets.bottom, board.bottom);
+  // bottom layer's gradient begins; the body here runs from under the status line down to the action
+  // block, which stands lower than that gradient reaches — so both are handed back at the bottom.
   return (
     <Board
       body={[styles.body, { paddingBottom: insets.top + overhang }]}

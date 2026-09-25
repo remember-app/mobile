@@ -20,7 +20,7 @@ import {
   Banner,
   Board,
   Button,
-  DayMark,
+  DayHead,
   Empty,
   Field,
   IconButton,
@@ -264,12 +264,17 @@ export default function ContactsScreen() {
             </View>
           ) : null}
 
-          {/* The saved, under their own heading with the count on the end of its rule. One View
-              around the rows so they keep the hairline and padding of a list instead of the gap
-              this body puts between its groups. */}
+          {/* The saved, under their own heading with the count on the end of its rule — the eyebrow,
+              not a seam of a feed (`Contacts.json` e17–e19). One View around the rows so they keep
+              the hairline and padding of a list instead of the gap this body puts between its
+              groups. */}
           {shown.length > 0 ? (
             <View>
-              <DayMark label={s.contacts.saved} count={String(shown.length)} />
+              <DayHead
+                eyebrow
+                label={s.contacts.saved.toUpperCase()}
+                count={String(shown.length)}
+              />
               {shown.map((contact, index) => {
                 const fading = gone.includes(contact.id);
                 const name = memberName(contact);
@@ -333,8 +338,9 @@ const useStyles = themed(() =>
     // own gap under the bar — both belong to the head, which does not scroll.
     head: { paddingHorizontal: space.s4, paddingTop: space.s3 },
     // The body starts 24 under the field (spec 8: тело со 184) and grows to the full height — which
-    // is what gives the empty state a middle to stand in.
-    body: { flexGrow: 1, gap: space.s5, paddingHorizontal: space.s4, paddingTop: space.s6 },
+    // is what gives the empty state a middle to stand in. Its groups stand 18 apart: «НЕ В
+    // КОНТАКТАХ» ends at 276 and «СОХРАНЁННЫЕ» starts at 294 (`Contacts.html`).
+    body: { flexGrow: 1, gap: 18, paddingHorizontal: space.s4, paddingTop: space.s6 },
     // The spec's `.screen__body-mid`.
     mid: { justifyContent: 'center' },
     // The rule and the row it introduces: 10 between them in `Contacts`.

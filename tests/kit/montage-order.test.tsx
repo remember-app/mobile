@@ -357,6 +357,13 @@ test('the glyphs on a template and on the poster of an order are the night’s p
   await setTheme('dark');
 });
 
+test('a template’s sign stands on glass at .14, as the tile draws it', () => {
+  // Spec 7.6, detail 41 and `MontageTemplate.json` e11: the 30 square under the sign is
+  // rgba(245,243,238,.14) — the viewer's glass is .10, and it was that.
+  const tile = story(<TileTemplate title="Для себя" icon={Heart} onPress={() => {}} />);
+  expect(tile).toContain(rule('background-color:rgba(245,243,238,0.14)'));
+});
+
 test('a template’s tile carries its length on the quieter plate, the poster its template on the fuller', () => {
   // Spec 2 and 10.10 — two exact values, each by its place: «3:00 · 16:9» on a template's tile stands
   // on .55, the template named on the summary's poster on .60.

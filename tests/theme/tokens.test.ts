@@ -398,6 +398,8 @@ test('the body starts where spec 4 anchors it under an inner bar', () => {
   // «112–116 — тело главного экрана…», «124 — … `Create`», «132 — тело `Account`», and «Тело от 112
   // (как в `MemorySettings`)» for `MemoryEdit` — from the top of a 390 × 844 board, the bar at 52.
   expect([board.bodySettings, board.bodyCreate, board.bodyAccount]).toEqual([112, 124, 132]);
+  // 10.11: «114 главный» — `Main.json` e6, the first card at y114, 18 under the root bar.
+  expect(board.bodyMain).toBe(114);
   expect(board.status + height.bar).toBe(96);
 });
 

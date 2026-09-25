@@ -1929,23 +1929,61 @@ test.each([
 
 test('over an empty feed the block in the middle has to stand clear of the line too, to the point', async () => {
   // A window of 800, a line of 100 and a layer of 200 (past the gallery's 190): the middle block is
-  // centred between the top of the feed (64 under the status line) and the layer, and its top has
-  // to clear where the line ends (156). 64 + (800 - 64 - 200 - 352) / 2 is exactly that.
+  // centred on the whole window, and one too tall for that stands on the layer instead (its foot at
+  // 800 - 200 = 600) — and its top has to clear where the line ends (156). 600 - 444 is exactly that.
   const at = { height: 800 };
-  const fits = await trouble(at, { line: 100, layer: 200 }, 352);
+  const fits = await trouble(at, { line: 100, layer: 200 }, 444);
   expect(fits.floats()).toBe(true);
   await act(async () => fits.screen.unmount());
-  const crowded = await trouble(at, { line: 100, layer: 200 }, 352.5);
+  const crowded = await trouble(at, { line: 100, layer: 200 }, 444.5);
   expect(crowded.floats()).toBe(false);
   expect(crowded.head()).toBe(true);
   await act(async () => crowded.screen.unmount());
-  // A layer shorter than the gallery's 190 leaves the feed that 190 all the same: the block centres
-  // over what the feed keeps clear, so 64 + (800 - 64 - 190 - 362) / 2 is the point.
-  const short = await trouble(at, { line: 100, layer: 150 }, 362);
+  // A layer shorter than the gallery's 190 leaves the feed that 190 all the same: the block stands
+  // on 800 - 190 = 610, so 610 - 454 is the point.
+  const short = await trouble(at, { line: 100, layer: 150 }, 454);
   expect(short.floats()).toBe(true);
   await act(async () => short.screen.unmount());
-  const tight = await trouble(at, { line: 100, layer: 150 }, 362.5);
+  const tight = await trouble(at, { line: 100, layer: 150 }, 454.5);
   expect(tight.floats()).toBe(false);
+});
+
+test('an empty feed centres what it holds on the whole screen, 0…844, and never under the glass or the layer', async () => {
+  // Spec 4 and 10.11 (answer 7): the body's layer of the feed is the screen itself — `FramesEmpty`
+  // puts the dashed circle at 320 and the words down to 524, a block centred on 422. Centred on the
+  // room between the glass (116) and the layer (190 over the edge) it stood at 385, 37 high.
+  world({ media: [] });
+  Object.assign(device, { height: 844, top: 52 });
+  const screen = await open();
+  const feed = () =>
+    StyleSheet.flatten(screen.root.findByType(FlatList).props.contentContainerStyle);
+  const block = screen.root
+    .findByType(Empty)
+    .parent!.parent!.findAll(
+      (one) => typeof one.props.onLayout === 'function' && one.findAllByType(Empty).length > 0,
+    )[0];
+  const tall = (height: number) =>
+    act(async () =>
+      block.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 390, height } } }),
+    );
+  /** Where the block's top lands: centred, margin and all, in what the feed's paddings leave. */
+  const topOf = (h: number) => {
+    const { paddingTop, paddingBottom } = feed();
+    const lift = Number(StyleSheet.flatten(block.props.style)?.marginTop ?? 0);
+    const [from, to] = [Number(paddingTop), 844 - Number(paddingBottom)];
+    return from + Math.max(0, to - from - h - lift) / 2 + lift;
+  };
+  // The feed still keeps clear of the glass and of the gallery's layer, whatever it holds.
+  expect(feed()).toMatchObject({ paddingTop: 52 + 48 + 16, paddingBottom: 190 });
+  // The empty state as drawn: 32 + 96 + 22 + 28 + 12 + 46 + 32 — its middle at 422.
+  await tall(268);
+  expect(topOf(268) + 268 / 2).toBe(844 / 2);
+  // Too tall for the middle, it stands on the layer rather than under it: its foot at 844 - 190.
+  await tall(500);
+  expect(topOf(500) + 500).toBe(844 - 190);
+  // Taller than the room between the two at all, it starts under the glass and scrolls.
+  await tall(600);
+  expect(topOf(600)).toBe(116);
 });
 
 test('the line comes back under the glass when the room for it does, and goes when it is gone', async () => {

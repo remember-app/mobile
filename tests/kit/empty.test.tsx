@@ -5,7 +5,7 @@ import { beforeAll, expect, test } from 'vitest';
 import { Button } from '@/kit/button';
 import { Empty, Spinner, type SpinnerSize, Waiting } from '@/kit/empty';
 import { allDifferent, story } from '@/kit/story';
-import { setTheme, space, spinner } from '@/theme';
+import { font, setTheme, space, spinner } from '@/theme';
 
 /** Spec 7.9 — a screen with nothing on it yet, and a screen still waiting for something. */
 
@@ -123,6 +123,17 @@ test('waiting says what is being waited for, at the size of a whole screen unles
   // The empty state waiting in the place of its list turns at the same size.
   expect(story(<Empty busy text="Собираем…" />)).toContain('width:44px');
   expect(story(<Waiting text="Готовим…" size={spinner.card} />)).toContain('width:26px');
+});
+
+test('the line under the ring is 15 / 500 muted, 18 under it', () => {
+  // Spec 7.9, detail 70 and `HomeLoading.json`: the ring 372…416, «Собираем ваши воспоминания…»
+  // at 434 — 18 — in Onest 15 / 500 #A4A1B2. It was the paragraph's 400, 16 under the ring.
+  const waiting = story(<Waiting text="Собираем ваши воспоминания…" />);
+  expect(waiting).toContain(rule('gap:18px'));
+  const words = waiting.match(/class="([^"]*)"[^>]*>Собираем ваши воспоминания…</)?.[1] ?? '';
+  expect(words).toContain(rule(`font-family:${font.medium}`));
+  expect(words).toContain(rule('font-size:15px'));
+  expect(words).toContain(rule('color:rgba(164,161,178,1.00)'));
 });
 
 test('an empty state stands 36 in from the screen, and its paragraph takes all of that width', () => {

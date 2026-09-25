@@ -142,23 +142,28 @@ export function seamsOver<Row>(isSeam: (row: Row) => boolean) {
  * 17 clear above and below whatever it holds, and never under 56: `UploadLimited` draws the bare
  * heading 56 tall, `UploadQueue` the one with the 44 button 78 from the block over it to the grid.
  * The row wraps, so on large type the button goes under the day rather than past the edge.
+ *
+ * `eyebrow` is the same rule over a list rather than a day: «СОХРАНЁННЫЕ» on `Contacts` — the words
+ * in the eyebrow the caller writes in caps, the count at the far end, 34 tall (`Contacts.html`).
  */
 export function DayHead({
   label,
   count,
+  eyebrow,
   children,
   style,
 }: {
   label: string;
   /** «3 кадра» — what the day holds, where there is no button to take it. */
   count?: string;
+  eyebrow?: boolean;
   /** «Выбрать все 61» — `small`, the one button that stands in the heading. */
   children?: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
   return (
-    <View style={[styles.head, style]}>
-      <Text role="label" accessibilityRole="header">
+    <View style={[styles.head, eyebrow ? styles.headList : null, style]}>
+      <Text role={eyebrow ? 'eyebrow' : 'label'} accessibilityRole="header">
         {label}
       </Text>
       <Divider grow />
@@ -244,6 +249,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space.s3,
   },
+  // The eyebrow's 16 and 9 over and under it — a floor, it grows with the type.
+  headList: { minHeight: 34, paddingVertical: 9 },
   spine: { position: 'absolute', top: 0, bottom: 0, right: 12, width: 1 },
   spineLine: { flex: 1, width: 1, backgroundColor: photo.spine },
   spineMark: {

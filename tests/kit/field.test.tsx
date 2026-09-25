@@ -293,6 +293,15 @@ test('the @ in front of a name is faint, and muted only where it is the one hint
   expect(at('search')).toContain(muted);
 });
 
+test('a username is typed in Unbounded 19 at −0.02em, a hair looser than a card’s name', () => {
+  // `Username.json` e11: 19 / 600 Unbounded at −0.38 — the role `title` it is set in runs −0.025em
+  // (−0.475), which is what it was typed at.
+  const typed = story(<Field label="Ник" variant="username" prefix="@" value="liza" />);
+  expect(typed).toContain('letter-spacing:-0.38px');
+  expect(typed).not.toContain('letter-spacing:-0.475px');
+  expect(typed).toContain(`font-family:${font.headlineSemi}`);
+});
+
 test('a free name is answered and then told what it is for, in one line that breaks like a sentence', () => {
   // Spec 8, `Username`: «Ник свободен.» in spark at 600, then «По нему вас найдут в воспоминании.»
   // in muted and plain (`Username.json` e14, e15).

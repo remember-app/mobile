@@ -265,7 +265,9 @@ const CANCEL_GLYPH = { size: 22, stroke: 1.9 } as const;
  * does not, for as long as the board has room for it over the keyboard (`Board`).
  *
  * `summary` is the last face of it, the one the order's own total wears: no scale, because there is
- * no step after it, and the heading comes up to meet the row.
+ * no step after it, and the heading comes up to meet the row. `entry` is the first, the templates
+ * of the way in: no scale either, and the heading 14 under the row (`MontageTemplate.html`), 2 lower
+ * than the total's.
  *
  * «Отмена» is the bar's own to draw, because what it looks like depends on the type size and not on
  * the step: the word 14 / 600 up to ×1.2 of the system's type, and past that a round 44 with an «x»
@@ -291,7 +293,7 @@ export function WizardBar({
   title?: string;
   /** The line under it, where a step needs one: «Без музыки или один-несколько треков.» */
   note?: string;
-  variant?: 'step' | 'summary';
+  variant?: 'step' | 'summary' | 'entry';
   back?: ReactNode;
   /** «Отмена» — its word, which a screen reader hears either way, and what it does. */
   cancel?: { label: string; onPress: () => void };
@@ -332,9 +334,16 @@ export function WizardBar({
       </View>
       {/* Inside the screen's own margins, like everything else in a bar: the row above pads itself
           and the scale is its sibling, so without this it would run edge to edge under it. */}
-      {summary ? null : <StepScale steps={steps} done={step} style={styles.wizardScale} />}
+      {variant === 'step' ? (
+        <StepScale steps={steps} done={step} style={styles.wizardScale} />
+      ) : null}
       {title ? (
-        <View style={[styles.wizardWords, summary ? styles.wizardWordsUp : null]}>
+        <View
+          style={[
+            styles.wizardWords,
+            summary ? styles.wizardWordsUp : variant === 'entry' ? styles.wizardWordsEntry : null,
+          ]}
+        >
           <Text role="display" accessibilityRole="header">
             {title}
           </Text>
@@ -574,6 +583,21 @@ export function ActionBar({
   );
 }
 
+/**
+ * How far the plain bottom layer's gradient reaches above its action block (spec 4): the layer of
+ * the body ends where that gradient begins, `board.footer` over the bottom edge, while the board's
+ * body ends at the block itself — the button 12 under the gradient's top, at least 30 off the edge.
+ * A screen centring an empty state or a spinner in its body hands this back at the body's foot:
+ * `HomeEmpty`, `HomeLoading` (114…712), `InviteDead` (0…712). Reckoned at the button's own 56.
+ */
+export function useFooterOverhang(): number {
+  const insets = useSafeAreaInsets();
+  return Math.max(
+    0,
+    board.footer - space.s3 - height.primary - Math.max(insets.bottom, board.bottom),
+  );
+}
+
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
     board: { flex: 1, backgroundColor: color.ink },
@@ -618,9 +642,10 @@ const useStyles = themed(({ color }) =>
     },
     slot: { width: height.roundViewer },
     wizardScale: { marginHorizontal: space.s4, marginTop: space.s3 },
-    // Spec 7.1: 18 under the scale, and 12 where there is no scale to stand under.
+    // Spec 7.1: 18 under the scale, and 12 where there is no scale to stand under — 14 on the way in.
     wizardWords: { marginHorizontal: space.s4, marginTop: 18 },
     wizardWordsUp: { marginTop: space.s3 },
+    wizardWordsEntry: { marginTop: 14 },
     wizardNote: { marginTop: 10 },
     wizardSide: { width: 74, alignItems: 'flex-start' },
     wizardSideNarrow: { width: height.roundBar, alignItems: 'flex-start' },

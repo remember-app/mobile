@@ -267,10 +267,16 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   const [emptied, setEmptied] = useState(0);
   const top = insets.top + height.roundViewer + space.s4;
   const bottom = Math.max(board.footerGallery, layer);
+  // `FramesEmpty` (spec 4): the body's layer of the feed is the whole screen, 0…844 — the glass and
+  // the bottom layer lie over it — so what stands in an empty feed is centred on the screen and not
+  // on the room between the two, which the taller layer pushes up. It is let down by the difference,
+  // as far as the room under it allows: never under the bottom layer.
+  const lift =
+    rows.length === 0 ? Math.max(0, Math.min(bottom - top, screen - top - bottom - emptied)) : 0;
   const lineEnds = insets.top + height.roundViewer + space.s2 + troubled;
   const floats =
     lineEnds + layer + type.body.lineHeight * fontScale <= screen &&
-    (any || top + (screen - top - bottom - emptied) / 2 >= lineEnds);
+    (any || top + (screen - top - bottom - emptied + lift) / 2 >= lineEnds);
   const trouble =
     head.error === null ? null : (
       <HeadTrouble
@@ -467,7 +473,10 @@ export function Frames({ id, head }: { id: string; head: Head }) {
           // already on screen leaves them where they are, and its reason must not come back later
           // as the answer to «nothing here» — every frame deleted afterwards is an empty feed, and
           // an empty feed is `FramesEmpty`, not a connection that failed a minute ago.
-          <View onLayout={(e) => setEmptied(e.nativeEvent.layout.height)}>
+          <View
+            onLayout={(e) => setEmptied(e.nativeEvent.layout.height)}
+            style={{ marginTop: lift }}
+          >
             {error !== null && items === null ? (
               <Banner tone="error" text={error}>
                 {/* Wrapped rather than handed `load` itself: a press hands its own argument along,

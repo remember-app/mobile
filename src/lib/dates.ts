@@ -46,17 +46,23 @@ function dayFields(
   };
 }
 
-const wholeDay = (fields: NonNullable<ReturnType<typeof dayFields>>) =>
-  `${fields.day} ${fields.month} ${fields.year}`;
+type DayFields = NonNullable<ReturnType<typeof dayFields>>;
+
+const wholeDay = (fields: DayFields) => `${fields.day} ${fields.month} ${fields.year}`;
+
+/** The year to write after a date: none while it is this one (spec 9), itself otherwise. */
+const yearOf = (fields: DayFields, now: Date) =>
+  fields.year === String(now.getFullYear()) ? '' : ` ${fields.year}`;
 
 /**
- * One day the way the kit writes it — «3 сентября 2026», «3 September 2026». `locale` is only for
- * tests to name a language out loud; the app leaves it out and gets the one it is speaking. A day
- * that will not parse is no day at all and writes nothing.
+ * One day the way the product writes a memory's dates (spec 9): «3 октября» this year, «3 октября
+ * 2025» in any other. `locale` and `now` are only for tests to name a language and a today out loud;
+ * the app leaves them out and gets the language it is speaking and the real today. A day that will
+ * not parse is no day at all and writes nothing.
  */
-export function formatDay(value: string | Date, locale?: string): string {
+export function formatDay(value: string | Date, locale?: string, now: Date = new Date()): string {
   const fields = dayFields(value, locale);
-  return fields === null ? '' : wholeDay(fields);
+  return fields === null ? '' : `${fields.day} ${fields.month}${yearOf(fields, now)}`;
 }
 
 /**
@@ -126,22 +132,29 @@ export function formatWeekday(
 }
 
 /**
- * The line under a memory's title. A span inside one month names that month once and leaves the
- * year off — «12–16 августа», the way the kit draws a memory card; a span that crosses a month or
- * a year writes both days whole, year and all. A span whose end is the day it started on is a
- * single day, which is what the create screen makes the moment the end is switched on.
+ * The line under a memory's title, by the one rule of spec 9: no year while it is this one. A span
+ * inside one month names that month once — «12–16 августа», «12–16 августа 2025»; one that crosses a
+ * month writes both days and the year once — «28 августа — 2 сентября»; one that crosses a year
+ * writes both days whole, year and all. A span whose end is the day it started on is a single day,
+ * which is what the create screen makes the moment the end is switched on.
  */
-export function formatEventDates(start: string, end: string | null, locale?: string): string {
+export function formatEventDates(
+  start: string,
+  end: string | null,
+  locale?: string,
+  now: Date = new Date(),
+): string {
   const from = dayFields(start, locale);
   // No readable start is no line at all; a start that reads with an end that does not is the day it
   // began, which is the same shape a memory without an end has.
   if (from === null) return '';
-  if (!end) return wholeDay(from);
-  const to = dayFields(end, locale);
-  if (to === null) return wholeDay(from);
-  if (from.month !== to.month || from.year !== to.year)
-    return `${wholeDay(from)} — ${wholeDay(to)}`;
-  return from.day === to.day ? wholeDay(from) : `${from.day}–${to.day} ${to.month}`;
+  const to = end ? dayFields(end, locale) : null;
+  if (to === null || (from.day === to.day && from.month === to.month && from.year === to.year))
+    return formatDay(start, locale, now);
+  if (from.year !== to.year) return `${wholeDay(from)} — ${wholeDay(to)}`;
+  const year = yearOf(from, now);
+  if (from.month !== to.month) return `${from.day} ${from.month} — ${to.day} ${to.month}${year}`;
+  return `${from.day}–${to.day} ${to.month}${year}`;
 }
 
 /**

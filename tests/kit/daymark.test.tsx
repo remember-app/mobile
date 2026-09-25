@@ -209,6 +209,23 @@ test('a day over the queue’s grid is a heading with a line, 17 clear of what i
   expect(bare.root.findAllByType(Divider)).toHaveLength(1);
 });
 
+test('the same rule over a list is the eyebrow and the count, 34 tall — not a seam of the feed', () => {
+  // `Contacts.html` / `Contacts.json` e17–e19: «СОХРАНЁННЫЕ» 12 / 700 muted in caps, a hairline
+  // 12 from it and from the count, «8» 12 / 500 muted, in a row 34 tall — the eyebrow's 16 and 9
+  // over and under it. The screen drew it as a day's 20 seam in 10 / 12.
+  const list = dayHead(<DayHead eyebrow label="СОХРАНЁННЫЕ" count="8" />);
+  expect(list.row).toMatchObject({ minHeight: 34, paddingVertical: (34 - 16) / 2, gap: 12 });
+  expect(list.words).toEqual([
+    ['eyebrow', undefined],
+    ['meta', undefined],
+  ]);
+  const saved = list.root
+    .findAllByType(RNText)
+    .find((one) => one.props.children === 'СОХРАНЁННЫЕ')!;
+  expect(StyleSheet.flatten(saved.props.style).color).toBe(themes.dark.color.muted);
+  expect(list.root.findAllByType(Divider)).toHaveLength(1);
+});
+
 test('the button at the end of a day’s heading goes under it on large type rather than off the edge', () => {
   const { row, root } = dayHead(
     <DayHead label="Снято 13 сентября">

@@ -25,6 +25,7 @@ vi.mock('@/screens/memory/film-player', () => ({
 
 import { expectReachable } from '@tests/helpers/access';
 import { type Asked, later, memory, refused, serve } from '@tests/helpers/api';
+import { thisYear2026 } from '@tests/helpers/clock';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { Plus } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
@@ -267,8 +268,11 @@ test('a finished film says what it was made of, and the ones that have nothing t
     film('bare', 'ready'),
     film('p', 'processing', { params: { orientation: 'portrait' } }),
   ]);
+  thisYear2026();
   const screen = await open();
-  const day = '14 сентября 2026';
+  // «14 сентября · Тёплая» (`MemoryFrames.json` e16): the day a film was made, this year's, without
+  // its year (spec 9).
+  const day = '14 сентября';
   expect(screen.card('r').props.meta).toBe(
     `${day} · ${ru.montage.orientation.portrait} · ${ru.montage.track.warm} · ${ru.montage.ownTrackShort}`,
   );
