@@ -730,6 +730,23 @@ test('the gradient never catches a press, and the buttons over it do', () => {
   expect(layer).toContain('r-pointerEvents');
 });
 
-test('the header line is one height, and it is the spec’s', () => {
+test('the header line is one height, and it is the spec’s — a floor, that the counter of the wizard on large type may grow', () => {
   expect(height.bar).toBe(44);
+  for (const bar of [
+    <AppBar title="Ваши кадры" />,
+    <AppBar title="Ваши кадры" variant="root" />,
+    <WizardBar step={2} steps={4} label="Шаг 2 из 4" />,
+  ])
+    expect(story(bar)).toContain(rule('min-height:44px'));
+});
+
+test('a long name gives way to the button beside it: its column may shrink under its words', () => {
+  expect(
+    story(
+      <AppBar
+        title="Свадьба Лизы и Марка в Карелии"
+        right={<IconButton icon={User} label="Аккаунт" />}
+      />,
+    ),
+  ).toContain(rule('min-width:0px'));
 });

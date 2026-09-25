@@ -30,6 +30,7 @@ import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
 
 import { ActionBar, Board } from '@/kit/bars';
 import { Button } from '@/kit/button';
+import { Sheet } from '@/kit/sheet';
 import { Text } from '@/kit/text';
 import { setTheme, themes, type } from '@/theme';
 
@@ -459,3 +460,27 @@ test.each(['dark', 'light'] as const)(
     }
   },
 );
+
+test('a sheet is the other place the keyboard is given way to: iOS is told, Android does it itself, and a press lands with it up', async () => {
+  const system = Platform.OS;
+  try {
+    for (const [os, behavior] of [
+      ['ios', 'padding'],
+      ['android', undefined],
+    ] as const) {
+      Platform.OS = os;
+      const it = await mount(
+        <Sheet visible onCancel={() => {}} title="Ник">
+          <Text>Поле</Text>
+        </Sheet>,
+      );
+      const avoiding = it.root.findAllByType(KeyboardAvoidingView);
+      expect(avoiding, os).toHaveLength(1);
+      expect(avoiding[0].props.behavior, os).toBe(behavior);
+      // What is typed in the body is beside its own button: taps land on what they hit.
+      expect(it.root.findByType(ScrollView).props.keyboardShouldPersistTaps).toBe('handled');
+    }
+  } finally {
+    Platform.OS = system;
+  }
+});
