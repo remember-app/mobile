@@ -8,9 +8,12 @@ import { night, photo, radius, space, ThemePin, themed, useTheme } from '@/theme
 import type { MontageState } from './badge';
 import { Icon } from './icon';
 import { PRESS, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
-import { Text } from './text';
+import { Text, useWordRoom, WordRoom } from './text';
 
-/** Spec 7.6 — a montage in the strip over the feed: 232 × 148, and the poster is the whole card. */
+/**
+ * Spec 7.6 — a montage in the strip over the feed: 232 × 148, and the poster is the whole card. The
+ * height is a floor: on large type the words wrap and every card in the strip grows with the tallest.
+ */
 const CARD = { width: 232, height: 148 };
 
 /** The same montage when it is the only thing on the screen (`MontageLiveDone`). */
@@ -88,6 +91,7 @@ export function CardMontage({
   const reduced = useReducedMotion();
   const styles = useStyles();
   const focusRing = useFocusRing();
+  const { roomy, room } = useWordRoom();
   const ready = state === 'ready';
   const action = ready ? null : children;
   // The badge and the button under a fallen card lie on the poster, which is a photograph in both
@@ -123,23 +127,26 @@ export function CardMontage({
             ) : null}
           </View>
         ) : ready ? (
-          <View style={styles.readyLine}>
+          // The circle beside the name, or over it once a word beside it breaks (`useWordRoom`).
+          <View style={[styles.readyLine, roomy ? styles.readyLineRoomy : null]}>
             <PlayCircle size={34} />
-            <View style={styles.grow}>
-              <Text role="label" numberOfLines={1} style={styles.onPhoto}>
-                {title}
-              </Text>
-              {meta ? (
-                <Text role="meta" style={styles.onPhotoMeta}>
-                  {meta}
+            <WordRoom.Provider value={room}>
+              <View style={[styles.grow, roomy ? styles.readyWordsRoomy : null]}>
+                <Text role="label" style={styles.onPhoto}>
+                  {title}
                 </Text>
-              ) : null}
-            </View>
+                {meta ? (
+                  <Text role="meta" style={styles.onPhotoMeta}>
+                    {meta}
+                  </Text>
+                ) : null}
+              </View>
+            </WordRoom.Provider>
           </View>
         ) : (
           <>
             <View style={styles.pendingLine}>
-              <Text role="label" numberOfLines={1} style={[styles.grow, styles.onPhoto]}>
+              <Text role="label" style={[styles.grow, styles.onPhoto]}>
                 {title}
               </Text>
               {step ? (
@@ -300,6 +307,9 @@ export function CardMontageNew({ label, onPress }: { label: string; onPress?: ()
  * Spec 7.6 — the dashed 132 block that stands where the strip of montages would be when a memory has
  * none yet. Not an empty state: the words do not report an absence, they say what a montage is, and
  * the two leaning frames are the memory's own — the reward shown rather than described.
+ *
+ * The 132 is a floor, and once a word beside the frames breaks — «Смонтировать» on large type — the
+ * words and the button go under them and take the width (`useWordRoom`, TASK-375).
  */
 export function EmptyMontages({
   text,
@@ -315,9 +325,10 @@ export function EmptyMontages({
   style?: StyleProp<ViewStyle>;
 }) {
   const styles = useStyles();
+  const { roomy, room } = useWordRoom();
 
   return (
-    <View style={[styles.emptyBlock, style]}>
+    <View style={[styles.emptyBlock, roomy ? styles.emptyRoomy : null, style]}>
       <View
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
@@ -332,12 +343,14 @@ export function EmptyMontages({
           />
         ))}
       </View>
-      <View style={styles.emptyWords}>
-        <Text role="note" style={styles.emptyText}>
-          {text}
-        </Text>
-        {children}
-      </View>
+      <WordRoom.Provider value={room}>
+        <View style={[styles.emptyWords, roomy ? styles.emptyWordsRoomy : null]}>
+          <Text role="note" style={styles.emptyText}>
+            {text}
+          </Text>
+          {children}
+        </View>
+      </WordRoom.Provider>
     </View>
   );
 }
@@ -345,8 +358,8 @@ export function EmptyMontages({
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
     card: { borderRadius: radius.section, overflow: 'hidden', backgroundColor: color.surface },
-    strip: { ...CARD },
-    large: { width: '100%', height: LARGE, borderRadius: radius.card },
+    strip: { width: CARD.width, minHeight: CARD.height },
+    large: { width: '100%', minHeight: LARGE, borderRadius: radius.card },
     hover: { backgroundColor: color.raise },
     // Spec 7.6 — the poster of a montage being cut: blurred, drained and pushed out past its own
     // edges, so the blur has something to eat into instead of fading to the card's corner.
@@ -354,7 +367,9 @@ const useStyles = themed(({ color }) =>
     scrim: { experimental_backgroundImage: photo.poster },
     // The large poster has no name on it, so its top is lighter (spec 2, 10.11: `MontageLiveDone`).
     scrimLarge: { experimental_backgroundImage: photo.posterLarge },
-    stripBadge: { position: 'absolute', left: 10, top: 10 },
+    // 10 off the top left corner, in the card's flow: the words grown with the type push the card down
+    // rather than run under the badge.
+    stripBadge: { alignSelf: 'flex-start', marginLeft: 10, marginTop: 10 },
     playLarge: {
       position: 'absolute',
       top: 0,
@@ -382,6 +397,8 @@ const useStyles = themed(({ color }) =>
     footOverAction: { paddingBottom: space.s2 },
     action: { paddingHorizontal: 12, paddingBottom: 12 },
     readyLine: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    readyLineRoomy: { flexDirection: 'column', alignItems: 'flex-start' },
+    readyWordsRoomy: { flex: 0, alignSelf: 'stretch' },
     pendingLine: { flexDirection: 'row', alignItems: 'baseline', gap: space.s2 },
     grow: { flex: 1, minWidth: 0 },
     onPhoto: { color: photo.on },
@@ -394,7 +411,7 @@ const useStyles = themed(({ color }) =>
     scaleFailed: { backgroundColor: night.dangerText },
     new: {
       width: 92,
-      height: CARD.height,
+      minHeight: CARD.height,
       borderRadius: radius.section,
       borderWidth: 1,
       borderStyle: 'dashed',
@@ -414,7 +431,7 @@ const useStyles = themed(({ color }) =>
     },
     newLabel: { textAlign: 'center' },
     emptyBlock: {
-      height: 132,
+      minHeight: 132,
       borderRadius: radius.card,
       borderWidth: 1,
       borderStyle: 'dashed',
@@ -436,6 +453,9 @@ const useStyles = themed(({ color }) =>
       boxShadow: '0 8px 20px rgba(0,0,0,0.5)',
     },
     emptyWords: { flex: 1, minWidth: 0, alignItems: 'flex-start', gap: 10 },
+    // A word beside the frames broke: the frames stand over the words, which take the width.
+    emptyRoomy: { flexDirection: 'column', alignItems: 'flex-start' },
+    emptyWordsRoomy: { flex: 0, alignSelf: 'stretch' },
     // Spec 7.6, detail 40: 13 / 18 — a line tighter than `note` runs elsewhere.
     emptyText: { lineHeight: 18 },
   }),

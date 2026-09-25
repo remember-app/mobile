@@ -14,6 +14,7 @@ import { font, height, radius, space, themed } from '@/theme';
 import { IconButton } from './button';
 import { dayKey, ribbonOf, weeksOf } from './calendar-grid';
 import { PRESS, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
+import { TAP } from './tap';
 import { fitCell, Text } from './text';
 
 /** The circle a day's figure stands in, and the cell's height at the system's own type (spec 7.3). */
@@ -75,13 +76,21 @@ export function Calendar({
   // Seven columns share the card whatever the type (`fitCell`). A figure stands in its day's circle
   // and the circle in its column; the letters over them stand in the column alone.
   const [column, setColumn] = useState(0);
+  // A week narrower than seven fingers — 262 on the iPhone SE zoomed to 320, a column of 37 (TASK-375)
+  // — cannot give a day the 44 across, and the spec scrolls nothing sideways (rule 5). So the day is
+  // its seventh of the row, the row is days end to end with nothing between them to miss, and the
+  // day is 44 tall at every type size instead of the layout's 40: a tap anywhere on the week lands on
+  // the day it is nearest to. Wherever a column holds 44, the day is the layout's own.
+  const narrow = column > 0 && column < TAP;
   const figure = fitCell({
     fontScale,
     width: Math.min(column, DAY),
     role: 'bodySm',
     em: FIGURES_EM,
-    rest: DAY,
+    rest: narrow ? TAP : DAY,
   });
+  // The circle keeps inside its column, so two picked days side by side never run into each other.
+  const circle = column > 0 && column < DAY ? { width: column, height: column } : null;
   const letters = fitCell({
     fontScale,
     width: column,
@@ -167,6 +176,7 @@ export function Calendar({
                     today={at === today}
                     disabled={!!((min && at < dayKey(min)) || (max && at > dayKey(max)))}
                     figure={figure}
+                    circle={circle}
                     onPress={() => onPick(day)}
                   />
                 );
@@ -194,6 +204,7 @@ function Day({
   today,
   disabled,
   figure,
+  circle,
   onPress,
 }: {
   day: Date;
@@ -204,6 +215,8 @@ function Day({
   today: boolean;
   disabled: boolean;
   figure: ReturnType<typeof fitCell>;
+  /** The circle's size where the column is narrower than the layout's 40. */
+  circle: { width: number; height: number } | null;
   onPress: () => void;
 }) {
   const { hovered, focused, props } = useHoverFocus();
@@ -229,6 +242,7 @@ function Day({
       <View
         style={[
           styles.day,
+          circle,
           today && !edge ? styles.today : null,
           edge ? styles.edge : null,
           hovered && !edge && !disabled ? styles.hover : null,

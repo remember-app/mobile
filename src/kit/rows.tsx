@@ -17,7 +17,7 @@ import { IconButton } from './button';
 import { Spinner } from './empty';
 import { Icon, type IconComponent, playFor } from './icon';
 import { hitSlop, PRESS, TAP, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
-import { Text } from './text';
+import { Text, useWordRoom, WordRoom } from './text';
 
 /**
  * Spec 7.6 — the rows. Each of them is one line of a list somewhere in the product, and what they
@@ -325,6 +325,10 @@ export function RowStep({
  * One record under an opened stage (spec 7.7): the frame at 34, two lines of what the director
  * thought about it, and the mark of what they decided. The journal's own full-size entry is
  * `LogEntry` — this is the glance at it that fits inside a row.
+ *
+ * The mark stands at the right of the thought while the thought keeps its words whole beside it; on
+ * large type a long one — «Беру 0:02–0:06» — goes under the thought instead (`useWordRoom`,
+ * TASK-375).
  */
 export function StepNote({
   uri,
@@ -347,6 +351,7 @@ export function StepNote({
   onPress?: () => void;
 }) {
   const styles = useStyles();
+  const { roomy, room } = useWordRoom();
 
   return (
     // No label of its own: the thought is what a person means by the row, but the decision beside it
@@ -361,11 +366,16 @@ export function StepNote({
           </Text>
         ) : null}
       </View>
-      {/* Spec detail 56: 12 / 500 / 16 in the quoted-words ink, two lines at most. */}
-      <Text role="meta" tone="quote" numberOfLines={2} style={[styles.grow, styles.quoted]}>
-        {text}
-      </Text>
-      {mark}
+      <View style={[styles.grow, styles.noteWords]}>
+        {/* Spec detail 56: 12 / 500 / 16 in the quoted-words ink, two lines at most. */}
+        <WordRoom.Provider value={room}>
+          <Text role="meta" tone="quote" numberOfLines={2} style={styles.quoted}>
+            {text}
+          </Text>
+        </WordRoom.Provider>
+        {roomy ? mark : null}
+      </View>
+      {roomy ? null : mark}
     </Tappable>
   );
 }
@@ -629,12 +639,15 @@ const useStyles = themed(({ color }) =>
     // The records under an opened stage line up with its name, not with its circle.
     note: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       alignItems: 'center',
       gap: 10,
       paddingVertical: 6,
       paddingRight: 14,
       paddingLeft: 50,
     },
+    // The thought, and the mark under it once the two no longer share a line.
+    noteWords: { alignItems: 'flex-start', gap: 6 },
     noteShot: {
       width: 34,
       height: 34,

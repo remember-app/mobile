@@ -104,6 +104,10 @@ export function Avatar({
         <Text
           role={display ? 'subtitleDisplay' : 'row'}
           tone={gone ? 'faint' : 'paper'}
+          // The circle is a picture of a fixed size and the letters are part of it, set for that
+          // size (TASK-375): grown with the system's type they ran out of it — «БН» past both sides
+          // of a 38. The name they stand for is written out beside them, and that is what grows.
+          maxFontSizeMultiplier={1}
           style={
             stacked
               ? {

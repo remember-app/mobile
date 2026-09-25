@@ -544,13 +544,17 @@ const useStyles = themed(({ color }) =>
     // «Править состав» stands at the right of the heading, or under it once it does not fit there.
     head: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10 },
     // The heading and its count share a baseline, the way the layout sets every pair of them, 2 in
-    // from the edge of the card under them (`MemorySettings.html`, both blocks).
+    // from the edge of the card under them (`MemorySettings.html`, both blocks). As wide as they are
+    // (`flexGrow`, not `flex: 1`): the button beside them goes under them rather than squeeze them to
+    // a letter a line, and the count goes under the heading once the two no longer share a line. No
+    // `flexShrink` either: Yoga gives the one item of a row that both grows and shrinks a basis of 0,
+    // wrapping row or not — `flex: 1` again (TASK-375).
     headWords: {
-      flex: 1,
+      flexGrow: 1,
       flexDirection: 'row',
+      flexWrap: 'wrap',
       alignItems: 'baseline',
       gap: space.s2,
-      minWidth: 0,
       paddingLeft: 2,
     },
     // The rows stand inside one surface with the corners cut off it, so the hairline between two of

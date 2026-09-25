@@ -145,7 +145,6 @@ export function BadgeDecision({ label, kind }: { label: string; kind: Decision }
     >
       <Text
         role="decision"
-        numberOfLines={1}
         tone={kind === 'take' ? 'sparkInk' : kind === 'pass' ? 'muted' : 'accent'}
       >
         {label}
@@ -208,8 +207,10 @@ const useStyles = themed(({ color }) =>
     failed: { backgroundColor: color.failedSoft },
     // Spec 7.4 — the decision mark and the tag word are the same 22/28 pill at two widths; what
     // differs between them is the fill and whether anything ever presses it. The 22 is a floor: the
-    // mark is also «Готов» on the large poster, and its words grow with the system's type.
+    // mark is also «Готов» on the large poster, and its words grow with the system's type — and wrap
+    // at their spaces where a line is narrower than the mark.
     mark: {
+      flexShrink: 1,
       minHeight: 22,
       justifyContent: 'center',
       paddingHorizontal: space.s2,

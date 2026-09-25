@@ -9,7 +9,7 @@ import { DashedFrame, MetaDot, Progress } from './bits';
 import { Mosaic } from './filmstrip';
 import { Icon } from './icon';
 import { PRESS, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
-import { Text } from './text';
+import { Text, useWordRoom, WordRoom } from './text';
 
 /**
  * Spec 7.6 — a memory in the list, in the two sizes the layout gives it.
@@ -21,6 +21,10 @@ import { Text } from './text';
  * The ordinary one is a surface with a strip of four frames across the top. Empty, that strip
  * becomes a dashed frame that says so — spec 7.6 keeps the meta off an empty card entirely, because
  * there is nothing yet to count.
+ *
+ * Both heights are floors (TASK-375): on large type the words wrap and the card grows down, and the
+ * badges go under what no longer leaves them room — the films badge under the organizer's on the
+ * large card, under the name on the ordinary one once the name breaks a word beside it.
  */
 export function CardMemory({
   title,
@@ -67,6 +71,7 @@ export function CardMemory({
   const { color, shadow } = useTheme();
   const styles = useStyles();
   const focusRing = useFocusRing();
+  const { roomy, room } = useWordRoom();
   // The chosen frame leads the strip and is never repeated further along it (spec 10.8.3): four
   // cells, and the first of them is now spoken for.
   const shots = cover ? [cover, ...(thumbs ?? []).filter((uri) => uri !== cover)] : (thumbs ?? []);
@@ -130,7 +135,7 @@ export function CardMemory({
           ) : (
             // Spec 7.6, detail 37 (`Main`, `HomeDay`): a 20 frame glyph at 1.6 and the words under
             // it 13 / 500 in `muted` — a sentence to read, not a sign.
-            <DashedFrame style={[styles.strip, styles.stripEmpty]}>
+            <DashedFrame style={styles.stripEmpty}>
               <Icon icon={ImageIcon} size={20} stroke={1.6} color={color.stripSign} />
               {emptyText ? (
                 <Text role="meta" style={[styles.metaWords, styles.centred]}>
@@ -140,13 +145,15 @@ export function CardMemory({
             </DashedFrame>
           )}
           <View style={styles.foot}>
-            <View style={[styles.grow, styles.words]}>
-              <Text role="title" numberOfLines={2}>
-                {title}
-              </Text>
-              {/* An empty memory has nothing to count, so it wears its name alone. */}
-              {shots.length && meta?.length ? <Meta parts={meta} /> : null}
-            </View>
+            <WordRoom.Provider value={room}>
+              <View style={[styles.grow, styles.words, roomy ? styles.whole : null]}>
+                <Text role="title" numberOfLines={2}>
+                  {title}
+                </Text>
+                {/* An empty memory has nothing to count, so it wears its name alone. */}
+                {shots.length && meta?.length ? <Meta parts={meta} /> : null}
+              </View>
+            </WordRoom.Provider>
             {films}
           </View>
         </>
@@ -155,18 +162,22 @@ export function CardMemory({
   );
 }
 
-/** A meta line: pieces of text with the 3px dot between them, and nowhere else in the product. */
+/**
+ * A meta line: pieces of text with the 3px dot between them, and nowhere else in the product. On
+ * large type a piece that does not fit goes to the next line whole, and the dot stays at the end of
+ * the line it closes.
+ */
 function Meta({ parts, onPhoto }: { parts: readonly string[]; onPhoto?: boolean }) {
   const styles = useStyles();
 
   return (
-    <View style={styles.meta}>
+    <View style={[styles.meta, styles.metaLines]}>
       {parts.map((part, i) => (
-        <View key={part} style={styles.meta}>
-          {i > 0 ? <MetaDot onPhoto={onPhoto} /> : null}
+        <View key={part} style={[styles.meta, styles.metaPart]}>
           <Text role="meta" style={[styles.metaWords, onPhoto ? styles.onCover : null]}>
             {part}
           </Text>
+          {i < parts.length - 1 ? <MetaDot onPhoto={onPhoto} /> : null}
         </View>
       ))}
     </View>
@@ -175,8 +186,10 @@ function Meta({ parts, onPhoto }: { parts: readonly string[]; onPhoto?: boolean 
 
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
+    // The badges at the top and the words at the foot; on large type, where they meet, 12 between.
     large: {
-      height: 340,
+      minHeight: 340,
+      gap: space.s3,
       borderRadius: radius.cover,
       overflow: 'hidden',
       backgroundColor: color.coverBase,
@@ -184,9 +197,11 @@ const useStyles = themed(({ color }) =>
     },
     cover: { experimental_backgroundImage: photo.cover },
     // `Main`: the badges hang 14 off the top corners, the words stand 18 off the bottom ones — the
-    // name with its meta, then 12 down, the bar with its sentence, 7 inside each pair.
+    // name with its meta, then 12 down, the bar with its sentence, 7 inside each pair. On large type
+    // the films badge goes under the organizer's.
     largeTop: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       alignItems: 'center',
       gap: space.s2,
       paddingTop: 14,
@@ -204,13 +219,15 @@ const useStyles = themed(({ color }) =>
       padding: 10,
     },
     hover: { backgroundColor: color.raise },
-    // The strip of four inside an ordinary card: 96 tall, its own 14 radius.
+    // The strip of four inside an ordinary card: 96 tall, its own 14 radius. Empty, the 96 is a floor
+    // under the sentence it holds.
     strip: { height: 96, borderRadius: radius.strip, overflow: 'hidden' },
-    stripEmpty: { backgroundColor: color.stripEmpty },
+    stripEmpty: { minHeight: 96, backgroundColor: color.stripEmpty },
     // `Main`: 13 under the strip, 5 over the card's own 10 below, and the films badge stands on the
     // foot of the words rather than in their middle — 181 for a card with a meta line, 158 without.
     foot: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       alignItems: 'flex-end',
       gap: space.s3,
       paddingTop: 13,
@@ -218,8 +235,14 @@ const useStyles = themed(({ color }) =>
       paddingBottom: 5,
     },
     grow: { flex: 1, minWidth: 0 },
+    // The name broke a word beside the badge: the words take the line, the badge goes under them. A
+    // width and not a basis: Yoga keeps the basis it first worked out for a node whose basis is set,
+    // and the change would never reach the phone (TASK-375).
+    whole: { flex: 0, width: '100%' },
     words: { gap: 6 },
     meta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    metaLines: { flexWrap: 'wrap' },
+    metaPart: { flexShrink: 1 },
     // Spec 7.6, details 36–37: a card's meta is 13 / 500 — a size over the role's 12 — in Onest's own
     // leading at 13.
     metaWords: { fontSize: 13, lineHeight: 17 },

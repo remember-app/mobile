@@ -118,28 +118,33 @@ export function CardNow({
             <Image source={{ uri }} contentFit="cover" style={StyleSheet.absoluteFill} />
           ) : null}
           <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.shotTop]} />
-          {author || authorLine ? (
-            <View style={[styles.plate, styles.plateLeft]}>
-              {author ? <Avatar name={author} size={18} /> : null}
-              <Text role="metaTile" style={styles.onPhoto}>
-                {authorLine}
-              </Text>
-            </View>
-          ) : null}
-          {now ? (
-            <View style={[styles.plate, styles.plateRight]}>
-              <LiveDot />
-              <Text role="badge" style={styles.onPhoto}>
-                {now}
-              </Text>
-            </View>
-          ) : null}
+          {/* The two plates share the top of the frame while both fit; on large type «СЕЙЧАС» goes
+              under the author's, still at the right, and neither runs over the other. */}
+          <View style={styles.plates}>
+            {author || authorLine ? (
+              <View style={[styles.plate, styles.plateLeft]}>
+                {author ? <Avatar name={author} size={18} /> : null}
+                <Text role="metaTile" style={[styles.onPhoto, styles.shrink]}>
+                  {authorLine}
+                </Text>
+              </View>
+            ) : null}
+            {now ? (
+              <View style={[styles.plate, styles.end]}>
+                <LiveDot />
+                <Text role="badge" style={[styles.onPhoto, styles.shrink]}>
+                  {now}
+                </Text>
+              </View>
+            ) : null}
+          </View>
           {gaze ? <Gaze left={gaze.left} top={gaze.top} /> : null}
         </View>
       )}
 
       {waiting ? null : (
         <View style={styles.say}>
+          {/* The decision stands at the right of who is speaking, or under them once it does not fit. */}
           <View style={styles.sayWho}>
             <SparkMark />
             <Text role="label">{who}</Text>
@@ -552,9 +557,17 @@ const useStyles = themed(({ color }) =>
     },
     // Only the top is darkened: the plates live up there and the frame itself is the point.
     shotTop: { experimental_backgroundImage: photo.now },
+    // 10 in from the frame's top corners (detail 49). No gap across: the two stand at the two ends,
+    // and «СЕЙЧАС» goes under the author's only where the two would otherwise run into each other.
+    plates: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'flex-start',
+      rowGap: 6,
+      padding: 10,
+    },
     plate: {
-      position: 'absolute',
-      top: 10,
+      flexShrink: 1,
       flexDirection: 'row',
       alignItems: 'center',
       gap: 5,
@@ -563,8 +576,9 @@ const useStyles = themed(({ color }) =>
       borderRadius: radius.pill,
       backgroundColor: photo.plate,
     },
-    plateLeft: { left: 10, paddingLeft: 5 },
-    plateRight: { right: 10 },
+    plateLeft: { paddingLeft: 5 },
+    end: { marginLeft: 'auto' },
+    shrink: { flexShrink: 1 },
     onPhoto: { color: photo.on },
     gaze: {
       position: 'absolute',
@@ -577,7 +591,7 @@ const useStyles = themed(({ color }) =>
       boxShadow: '0 0 0 9999px rgba(9,9,14,0.18)',
     },
     say: { paddingTop: 12, paddingHorizontal: 14, paddingBottom: 14, gap: space.s2 },
-    sayWho: { flexDirection: 'row', alignItems: 'center', gap: space.s2 },
+    sayWho: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s2 },
     sparkMark: {
       width: 22,
       height: 22,

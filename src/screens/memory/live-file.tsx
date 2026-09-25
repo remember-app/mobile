@@ -128,9 +128,11 @@ const SHEET_WIDE = 420;
 // them — which is why this one may be built once instead of per theme.
 const styles = StyleSheet.create({
   decided: { gap: 6 },
-  who: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  who: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10 },
   why: { alignSelf: 'flex-end' },
-  grow: { flex: 1, minWidth: 0 },
+  // The file and its author keep at least half the row: the decision goes under them on large type
+  // rather than squeeze them to a letter (TASK-375).
+  grow: { flex: 1, minWidth: '50%' },
   seen: { gap: space.s2 },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
 });

@@ -654,15 +654,33 @@ export function Frames({ id, head }: { id: string; head: Head }) {
             errands over one connection, and neither errand must be started twice. What leaving the
             screen costs is handled by `onScreen`. */}
         {picking ? (
-          <ActionBar footer="gallery">
-            <IconButton
-              icon={Share}
-              tone="glass"
-              size={height.round}
-              label={s.action.share}
-              onPress={() => void share()}
-              disabled={busy || marked.length === 0}
-            />
+          <ActionBar
+            footer="gallery"
+            start={
+              <IconButton
+                icon={Share}
+                tone="glass"
+                size={height.round}
+                label={s.action.share}
+                onPress={() => void share()}
+                disabled={busy || marked.length === 0}
+              />
+            }
+            // Spec 7.2 — the dangerous round one is glass with a `dangerText` glyph: red is the
+            // colour of the word, not a fill under it. Off when nothing marked is this person's to
+            // remove, which on somebody else's frames is every time.
+            end={
+              <IconButton
+                icon={Trash2}
+                tone="glass"
+                tint={color.dangerText}
+                size={height.round}
+                label={s.action.delete}
+                onPress={() => setDropping(true)}
+                disabled={busy || deletable.length === 0}
+              />
+            }
+          >
             <Button
               variant="primary"
               wide
@@ -676,35 +694,40 @@ export function Frames({ id, head }: { id: string; head: Head }) {
               onPress={() => void save()}
               disabled={busy || marked.length === 0}
             />
-            {/* Spec 7.2 — the dangerous round one is glass with a `dangerText` glyph: red is the
-                colour of the word, not a fill under it. Off when nothing marked is this person's
-                to remove, which on somebody else's frames is every time. */}
-            <IconButton
-              icon={Trash2}
-              tone="glass"
-              tint={color.dangerText}
-              size={height.round}
-              label={s.action.delete}
-              onPress={() => setDropping(true)}
-              disabled={busy || deletable.length === 0}
-            />
           </ActionBar>
         ) : any || mayUpload ? (
-          <ActionBar footer="gallery">
-            {/* Nothing brought yet is nothing to sift or to lay out, so `FramesEmpty` carries
-                neither button. The spark dot on either of them means the same thing: this one is
-                no longer at its default (spec 7.4). */}
-            {any ? (
-              <IconButton
-                icon={Funnel}
-                label={s.gallery.filters}
-                size={height.round}
-                tone="glass"
-                dot={filtering(filter)}
-                onPress={() => setTuning('filter')}
-                disabled={busy}
-              />
-            ) : null}
+          <ActionBar
+            footer="gallery"
+            // Nothing brought yet is nothing to sift or to lay out, so `FramesEmpty` carries neither
+            // button. The spark dot on either of them means the same thing: this one is no longer
+            // at its default (spec 7.4).
+            start={
+              any ? (
+                <IconButton
+                  icon={Funnel}
+                  label={s.gallery.filters}
+                  size={height.round}
+                  tone="glass"
+                  dot={filtering(filter)}
+                  onPress={() => setTuning('filter')}
+                  disabled={busy}
+                />
+              ) : undefined
+            }
+            end={
+              any ? (
+                <IconButton
+                  icon={ArrowUpDown}
+                  label={s.gallery.sorting}
+                  size={height.round}
+                  tone="glass"
+                  dot={arranged(sort)}
+                  onPress={() => setTuning('sort')}
+                  disabled={busy}
+                />
+              ) : undefined
+            }
+          >
             {mayUpload ? (
               <Button
                 variant="primary"
@@ -719,17 +742,6 @@ export function Frames({ id, head }: { id: string; head: Head }) {
             ) : (
               <View style={styles.grow} />
             )}
-            {any ? (
-              <IconButton
-                icon={ArrowUpDown}
-                label={s.gallery.sorting}
-                size={height.round}
-                tone="glass"
-                dot={arranged(sort)}
-                onPress={() => setTuning('sort')}
-                disabled={busy}
-              />
-            ) : null}
           </ActionBar>
         ) : null}
       </View>
