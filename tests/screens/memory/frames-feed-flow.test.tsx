@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
-const { who, router, downloads } = vi.hoisted(() => ({
+const { who, router, downloads, device } = vi.hoisted(() => ({
+  /** The phone: how tall its window is, the type size it is set to, and the height of its status line. */
+  device: { height: 844, fontScale: 1, top: 0 },
   /**
    * Who is asking, and their account's «Даты между днями». A test sets both before it opens the
    * screen; the setting turned while a feed is open is `frames-dates-flow.test.tsx`'s.
@@ -19,11 +21,19 @@ vi.mock('react-native', async (importOriginal) => {
   const rn = await importOriginal<typeof import('react-native')>();
   return {
     ...rn,
-    useWindowDimensions: () => ({ width: 390, height: 844, scale: 3, fontScale: 1 }),
+    useWindowDimensions: () => ({
+      width: 390,
+      height: device.height,
+      scale: 3,
+      fontScale: device.fontScale,
+    }),
     Modal: ({ visible, children }: { visible?: boolean; children?: unknown }) =>
       visible === false ? null : (children as never),
   };
 });
+vi.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: device.top, right: 0, bottom: 0, left: 0 }),
+}));
 vi.mock('@/lib/auth', () => ({
   useAuth: () => ({ token: 'session', user: { id: who.id }, datesBetweenDays: who.dates }),
 }));
@@ -88,7 +98,7 @@ import { FilterSheet, SortSheet } from '@/screens/memory/frames-sheets';
 import { BlockHead, type Head, HeadTrouble, MemoryHead } from '@/screens/memory/head';
 import { LabelSheets } from '@/screens/memory/label-sheets';
 import { ru } from '@/strings';
-import { board, height, space } from '@/theme';
+import { board, height, space, type } from '@/theme';
 
 /**
  * The feed of a memory the way a person works it (spec 8, `MemoryFrames` and `FramesPicking`): the
@@ -104,6 +114,7 @@ mountsTrees();
 beforeEach(() => {
   who.id = 'me';
   who.dates = false;
+  Object.assign(device, { height: 844, fontScale: 1, top: 0 });
   router.push.mockClear();
   router.back.mockClear();
   router.replace.mockClear();
@@ -645,6 +656,43 @@ test('with the account’s dates on, each day is written over its strip, and the
   await openSort(screen);
   await choose(() => segment(sortSheet(screen), ru.gallery.order), 'oldest');
   expect(screen.icon(ru.gallery.sorting)().props.dot).toBe(true);
+});
+
+test('the three segments of the sheets are the spec’s: their names, their words in order, the sheet’s own ground, at 14', async () => {
+  world();
+  const screen = await open();
+  const drawn = (sheet: TestRenderer.ReactTestInstance, name: string) => {
+    const { options, hideLabel, onSurface, small, hint } = segment(sheet, name).props;
+    return {
+      words: (options as { label: string }[]).map((one) => one.label),
+      values: (options as { value: string }[]).map((one) => one.value),
+      // The sheet titles the group itself, so the group is named and not drawn twice.
+      quiet: [hideLabel, onSurface, small, hint],
+    };
+  };
+  await openSort(screen);
+  expect(drawn(sortSheet(screen), ru.gallery.order)).toEqual({
+    words: ['Сначала новые', 'Сначала старые'],
+    values: ['newest', 'oldest'],
+    quiet: [true, true, undefined, undefined],
+  });
+  expect(drawn(sortSheet(screen), ru.gallery.groupBy)).toEqual({
+    words: ['Не собирать', 'По людям', 'По типу'],
+    values: ['none', 'person', 'kind'],
+    quiet: [true, true, undefined, undefined],
+  });
+  await act(async () => sortSheet(screen).props.onDone());
+  await openFilter(screen);
+  expect(drawn(filterSheet(screen), ru.gallery.whatKind)).toEqual({
+    words: ['Всё', 'Фото', 'Видео'],
+    values: ['all', 'photo', 'video'],
+    quiet: [true, true, undefined, undefined],
+  });
+  expect([ru.gallery.order, ru.gallery.groupBy, ru.gallery.whatKind]).toEqual([
+    'Порядок',
+    'Собрать в группы',
+    'Тип',
+  ]);
 });
 
 test('with them off the feed is the one wall, with not one seam in it', async () => {
@@ -1770,6 +1818,101 @@ test('what floats over the feed is cleared as it came out, not as the layout dra
   await act(async () => screen.root.findByType(HeadTrouble).props.onLayout(size(500)));
   expect(floating()).toHaveLength(0);
   expect(feed().findAllByType(HeadTrouble)).toHaveLength(1);
+});
+
+/**
+ * Where the line about a memory that would not read stands (TASK-372): under the glass while that
+ * line, the bottom layer and one line of the feed fit the window — the status line, the glass (48),
+ * 8 under it and the line itself above them — and at the head of the feed when they do not. Over a
+ * feed with nothing on it the block in the middle has to stand clear of the line as well.
+ */
+async function trouble(
+  over: Partial<typeof device>,
+  sizes: { line: number; layer: number },
+  empty?: number,
+) {
+  world(empty === undefined ? {} : { media: [] });
+  Object.assign(device, over);
+  const screen = await open({ memory: null, error: 'Нет связи', reload: () => {} });
+  const size = (height: number) => ({
+    nativeEvent: { layout: { x: 0, y: 0, width: 390, height } },
+  });
+  const layer = screen.root.find(
+    (one) => one.props.pointerEvents === 'box-none' && typeof one.props.onLayout === 'function',
+  );
+  await act(async () => layer.props.onLayout(size(sizes.layer)));
+  await act(async () => screen.root.findByType(HeadTrouble).props.onLayout(size(sizes.line)));
+  if (empty !== undefined)
+    await act(async () =>
+      screen.root
+        .findByType(Empty)
+        .parent!.parent!.findAll(
+          (one) => typeof one.props.onLayout === 'function' && one.findAllByType(Empty).length > 0,
+        )[0]
+        .props.onLayout(size(empty)),
+    );
+  return {
+    floats: () => screen.root.findByType(MemoryHead).findAllByType(HeadTrouble).length === 1,
+    head: () => screen.root.findByType(FlatList).findAllByType(HeadTrouble).length === 1,
+    screen,
+    size,
+    layer,
+  };
+}
+
+test.each([
+  [1, 0, 260],
+  [1, 47, 260],
+  [2, 47, 260],
+  [3.571, 20, 260],
+  // A layer shorter than the gallery's gradient: it is the layer that is counted here, not the floor.
+  [1, 0, 150],
+])(
+  'over a feed, the line floats while ×%s type under a status line of %s leaves it room for a line of the feed and a layer of %s, and not a point less',
+  async (fontScale, top, layer) => {
+    const line = 120;
+    // Status line, the glass 48 and 8, the line, the layer, and one line of the body at this type.
+    const holds = top + 48 + 8 + line + layer + type.body.lineHeight * fontScale;
+    const it = await trouble({ height: holds, fontScale, top }, { line, layer });
+    expect([it.floats(), it.head()]).toEqual([true, false]);
+    await act(async () => it.screen.unmount());
+    const less = await trouble({ height: holds - 0.5, fontScale, top }, { line, layer });
+    expect([less.floats(), less.head()]).toEqual([false, true]);
+  },
+);
+
+test('over an empty feed the block in the middle has to stand clear of the line too, to the point', async () => {
+  // A window of 800, a line of 100 and a layer of 200 (past the gallery's 190): the middle block is
+  // centred between the top of the feed (64 under the status line) and the layer, and its top has
+  // to clear where the line ends (156). 64 + (800 - 64 - 200 - 352) / 2 is exactly that.
+  const at = { height: 800 };
+  const fits = await trouble(at, { line: 100, layer: 200 }, 352);
+  expect(fits.floats()).toBe(true);
+  await act(async () => fits.screen.unmount());
+  const crowded = await trouble(at, { line: 100, layer: 200 }, 352.5);
+  expect(crowded.floats()).toBe(false);
+  expect(crowded.head()).toBe(true);
+  await act(async () => crowded.screen.unmount());
+  // A layer shorter than the gallery's 190 leaves the feed that 190 all the same: the block centres
+  // over what the feed keeps clear, so 64 + (800 - 64 - 190 - 362) / 2 is the point.
+  const short = await trouble(at, { line: 100, layer: 150 }, 362);
+  expect(short.floats()).toBe(true);
+  await act(async () => short.screen.unmount());
+  const tight = await trouble(at, { line: 100, layer: 150 }, 362.5);
+  expect(tight.floats()).toBe(false);
+});
+
+test('the line comes back under the glass when the room for it does, and goes when it is gone', async () => {
+  const it = await trouble({ height: 700 }, { line: 120, layer: 260 });
+  expect(it.floats()).toBe(true);
+  // A phone turned to a shorter window, or the type set larger: the line moves into the feed …
+  device.height = 400;
+  await act(async () => it.layer.props.onLayout(it.size(261)));
+  expect([it.floats(), it.head()]).toEqual([false, true]);
+  // … and back once the window is tall again.
+  device.height = 900;
+  await act(async () => it.layer.props.onLayout(it.size(260)));
+  expect([it.floats(), it.head()]).toEqual([true, false]);
 });
 
 test('the way out of the memory is the back it arrived on, or the list when there is none', async () => {

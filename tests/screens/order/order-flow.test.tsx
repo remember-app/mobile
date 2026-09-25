@@ -100,6 +100,27 @@ vi.mock('@/lib/music', () => ({
     phone.send(file),
 }));
 vi.mock('expo-document-picker', () => ({ getDocumentAsync: async () => phone.pick }));
+// The window of the phone the wizard is on, and the type size it is set to. Under node the window is
+// nothing at all, which is what every test but the one about the smallest phone wants: it is left
+// alone until a test gives it a size.
+const handset = vi.hoisted(() => ({ height: 0, fontScale: 0 }));
+vi.mock('react-native', async (importOriginal) => {
+  const rn = await importOriginal<typeof import('react-native')>();
+  return {
+    ...rn,
+    useWindowDimensions: () => {
+      const own = rn.useWindowDimensions();
+      return {
+        ...own,
+        height: handset.height || own.height,
+        fontScale: handset.fontScale || own.fontScale,
+      };
+    },
+    // The plain container `vitest.setup.ts` makes of it: this mock replaces that one, it does not add.
+    Modal: ({ visible, children }: { visible?: boolean; children?: unknown }) =>
+      visible === false ? null : (children as never),
+  };
+});
 // A text input listens on the browser's `document`, which a test renderer has none of: both inputs
 // stand in as a bare element carrying their props, and a test types by calling `onChangeText`.
 //
@@ -119,6 +140,7 @@ vi.mock('@/kit', async (original) => {
 
 import { expectReachable } from '@tests/helpers/access';
 import { later } from '@tests/helpers/api';
+import { measure, scrolled } from '@tests/helpers/board';
 import { orderRefusal } from '@tests/helpers/contract';
 import { contrast } from '@tests/helpers/contrast';
 import { act, BEAT_BY_BEAT, drives } from '@tests/helpers/drive';
@@ -143,6 +165,7 @@ import StoryStep from '@/app/memory/[id]/order/story';
 import SummaryStep from '@/app/memory/[id]/order/summary';
 import {
   Banner,
+  Board,
   Button,
   ConfirmSheet,
   IconButton,
@@ -151,6 +174,7 @@ import {
   Segment,
   Tile,
   TileTemplate,
+  WizardBar,
 } from '@/kit';
 import { formatRuntime } from '@/lib/dates';
 import { currentLanguage, setLanguage } from '@/lib/language';
@@ -372,6 +396,7 @@ let tree: TestRenderer.ReactTestRenderer | undefined;
 beforeEach(async () => {
   vi.useFakeTimers();
   calm.on = false;
+  Object.assign(handset, { height: 0, fontScale: 0 });
   nav.reset();
   phone.pick = { canceled: true };
   phone.send = async () => 'music/own';
@@ -639,6 +664,127 @@ test.each([
   },
 );
 
+test('«Формат» is the wizard’s one segment: two words, Wide first, at 14, on the screen’s own ground', async () => {
+  serve();
+  await open();
+  await walkToSummary();
+  // The summary is drawn; the build step underneath it is still mounted with its segment.
+  const segment = root().findByType(Segment).props;
+  expect(segment).toMatchObject({ label: ru.montage.shape });
+  expect(segment.options).toEqual([
+    { value: 'landscape', label: 'Горизонтальный' },
+    { value: 'portrait', label: 'Вертикальный' },
+  ]);
+  expect([segment.small, segment.onSurface, segment.hideLabel]).toEqual([
+    undefined,
+    undefined,
+    undefined,
+  ]);
+});
+
+test.each([
+  ['an ordinary phone at the system’s own type', { height: 667, fontScale: 1 }, false],
+  ['the smallest phone at the largest type', { height: 568, fontScale: 3.571 }, true],
+])(
+  '%s: on every step «Отмена» and the step’s button are there once, standing or scrolled with the step, and answer',
+  async (_, phoneNow, whole) => {
+    serve();
+    await open();
+    Object.assign(handset, phoneNow);
+    // The button that moves each step on, and where it stands: the step's own bar and bottom layer.
+    const forwards = (): Record<string, string | RegExp> => ({
+      index: say().montage.ownSetup,
+      ...NEXT(),
+      summary: say().montage.startCut,
+    });
+    /** Where the step on top has its button and its «Отмена»: true when they scroll with its body. */
+    const seen: [string, boolean, boolean | 'none'][] = [];
+    const bodies: [string, string][] = [];
+    const look = async () => {
+      const step = nav.top()!;
+      // What a phone would report: an ordinary bar and layer, or the same grown with the type.
+      await measure(root(), whole ? { bar: 260, footer: 380 } : { bar: 150, footer: 120 });
+      // Every step stays mounted under the one on top, so what is asked is asked of the top one.
+      const top = root().findAllByType(Board).at(-1)!;
+      const inTop = (label: string | RegExp) =>
+        top.findAll(
+          (node) =>
+            (node.type === Button || node.type === IconButton) &&
+            typeof node.props.label === 'string' &&
+            (typeof label === 'string' ? node.props.label === label : label.test(node.props.label)),
+        );
+      const [main, ...more] = inTop(forwards()[step]!);
+      const cancel = inTop(ru.action.cancel);
+      expect([step, more.length], 'the step’s button, once').toEqual([step, 0]);
+      expect(main, `${step}: the step’s button`).toBeDefined();
+      expect(cancel.length, `${step}: «Отмена»`).toBe(step === 'summary' ? 0 : 1);
+      seen.push([step, scrolled(main), cancel.length === 0 ? 'none' : scrolled(cancel[0])]);
+      // The step's own column: the screen's 16 at the sides and room to grow — never `flex: 1` — and
+      // for the one step that is a list, no column at all: the list is the body.
+      if (step !== 'summary') {
+        const { body, list } = top.props;
+        const column = StyleSheet.flatten(body) ?? {};
+        bodies.push([
+          step,
+          list ? 'list' : `${column.paddingHorizontal}/${column.flexGrow}/${column.flex}`,
+        ]);
+      }
+      return { main, cancel };
+    };
+    await look();
+    await press(say().montage.ownSetup);
+    await look();
+    while (nav.top() !== 'summary') {
+      await forward();
+      await look();
+    }
+    expect(seen).toEqual(
+      ['index', 'frames', 'story', 'music', 'build', 'summary'].map((step) => [
+        step,
+        whole,
+        step === 'summary' ? 'none' : whole,
+      ]),
+    );
+    expect(bodies).toEqual([
+      ['index', '16/1/undefined'],
+      ['frames', 'list'],
+      ['story', '16/1/undefined'],
+      ['music', '16/1/undefined'],
+      ['build', '16/1/undefined'],
+    ]);
+  },
+);
+
+test('every face of the wizard wears the bar it should: the way in and the total drop the scale, only the total drops «Отмена»', async () => {
+  serve();
+  await open();
+  // Every step of the walk stays mounted under the one on top, so the last bar is the one on screen.
+  const bar = () => root().findAllByType(WizardBar).at(-1)!.props;
+  const faces: [string, string, string, boolean][] = [];
+  const note = () =>
+    faces.push([nav.top()!, bar().variant, bar().label, bar().cancel?.label === ru.action.cancel]);
+  note();
+  await press(say().montage.ownSetup);
+  note();
+  while (nav.top() !== 'summary') {
+    await forward();
+    note();
+  }
+  expect(faces).toEqual([
+    ['index', 'summary', ru.montage.newOne, true],
+    ['frames', 'step', ru.montage.step(1, 4), true],
+    ['story', 'step', ru.montage.step(2, 4), true],
+    ['music', 'step', ru.montage.step(3, 4), true],
+    ['build', 'step', ru.montage.step(4, 4), true],
+    ['summary', 'summary', ru.montage.summaryStep, false],
+  ]);
+  expect(bar().steps).toBe(4);
+  expect(bar().back.props.label).toBe(ru.action.back);
+  // «Назад» hangs 10 past the screen's margin, as every «Назад» does (spec 7.1).
+  expect(StyleSheet.flatten(bar().back.props.style)).toMatchObject({ marginLeft: -10 });
+  expect(bar().cancel).toBeUndefined();
+});
+
 test('the same three videos, measured, are enough: the six are drawn and the order goes through', async () => {
   const server = serve({ material: videos(5) });
   await open();
@@ -668,6 +814,37 @@ test.each([
     await run(0);
     expect(shown()).not.toContain(said);
     expect(root().findAllByType(TileTemplate)).toHaveLength(6);
+  },
+);
+
+test.each([
+  ['an ordinary phone at the system’s own type', { height: 667, fontScale: 1 }, false],
+  ['the smallest phone at the largest type', { height: 568, fontScale: 3.571 }, true],
+])(
+  '%s: the six that did not come stand as a banner in the body, and «Настроить самому» is the way on from wherever the layer is',
+  async (_, phoneNow, whole) => {
+    const server = serve({ failing: 'templates' });
+    await open();
+    Object.assign(handset, phoneNow);
+    await measure(root(), whole ? { bar: 260, footer: 380 } : { bar: 150, footer: 120 });
+    const inTop = (label: string) =>
+      root()
+        .findAllByType(Board)
+        .at(-1)!
+        .findAll(
+          (node) =>
+            (node.type === Button || node.type === IconButton) && node.props.label === label,
+        );
+    // The banner and its «Повторить» are in the body, whichever way the board stands.
+    expect(inTop(ru.action.retry)).toHaveLength(1);
+    expect(scrolled(inTop(ru.action.retry)[0])).toBe(true);
+    // The way on is the layer's: standing where the phone has room, and the layer's own place in the
+    // scroll where it has not — once, and not gone with the six.
+    expect(inTop(ru.montage.ownSetup)).toHaveLength(1);
+    expect(scrolled(inTop(ru.montage.ownSetup)[0])).toBe(whole);
+    await press(ru.montage.ownSetup);
+    expect(nav.top()).toBe('frames');
+    server.failing = undefined;
   },
 );
 

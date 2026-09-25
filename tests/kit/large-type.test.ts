@@ -155,3 +155,51 @@ test('stacked, every word of every group fits whole at the capped size on the sm
       }
   expect(width(ru.montage.orientation.landscape, 14) * 3.571).toBeGreaterThan(column(320));
 });
+
+/**
+ * The words themselves, as the spec writes them in the table of the six groups — and the widest of
+ * each, at the size the spec measured it at. The rows-and-columns table above is only as good as the
+ * words it is worked out from: a shorter word in the dictionary would quietly turn a column back
+ * into a row and this file would go on agreeing with itself.
+ */
+test('the dictionary’s words are the spec’s, and the widest of each group is the width the spec gives', () => {
+  // `widest` is ru and en at the group's own size and ×1: «(111)» in the spec is ×1, «(86)» and
+  // «(93)» are ×2, halved here.
+  const spec: Record<string, { ru: string[]; en: string[]; widest: [number, number] }> = {
+    Тип: { ru: ['Всё', 'Фото', 'Видео'], en: ['All of it', 'Photo', 'Video'], widest: [43, 46.4] },
+    Порядок: {
+      ru: ['Сначала новые', 'Сначала старые'],
+      en: ['Newest first', 'Oldest first'],
+      widest: [111, 81.5],
+    },
+    'Собрать в группы': {
+      ru: ['Не собирать', 'По людям', 'По типу'],
+      en: ['No groups', 'By person', 'By kind'],
+      widest: [86, 69],
+    },
+    Тема: {
+      ru: ['Как в системе', 'Тёмная', 'Светлая'],
+      en: ['System', 'Dark', 'Light'],
+      widest: [91, 46.3],
+    },
+    Язык: { ru: ['Русский', 'English'], en: ['Русский', 'English'], widest: [57, 57] },
+    Формат: {
+      ru: ['Горизонтальный', 'Вертикальный'],
+      en: ['Wide', 'Tall'],
+      widest: [114.4, 34],
+    },
+  };
+  for (const group of GROUPS) {
+    const { ru: inRu, en: inEn, widest } = spec[group.name];
+    expect(group.words(ru), group.name).toEqual(inRu);
+    expect(group.words(en), group.name).toEqual(inEn);
+    for (const [words, at] of [
+      [inRu, widest[0]],
+      [inEn, widest[1]],
+    ] as const)
+      expect(
+        Math.max(...words.map((word) => width(word, group.size))),
+        `${group.name}: ${words}`,
+      ).toBeCloseTo(at, 0);
+  }
+});

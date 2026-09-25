@@ -1,10 +1,28 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
-const { router, focus } = vi.hoisted(() => ({
+const { router, focus, phone } = vi.hoisted(() => ({
   router: { push: vi.fn(), back: vi.fn(), replace: vi.fn() },
   // How many times the screen has come into focus: the effect that reads the list runs again on each.
   focus: { n: 0 },
+  // The phone's window and the type size it is set to; under node a window is nothing at all.
+  phone: { height: 0, fontScale: 1 },
 }));
+
+vi.mock('react-native', async (importOriginal) => {
+  const rn = await importOriginal<typeof import('react-native')>();
+  return {
+    ...rn,
+    useWindowDimensions: () => ({
+      width: 360,
+      height: phone.height,
+      scale: 3,
+      fontScale: phone.fontScale,
+    }),
+    // The plain container `vitest.setup.ts` makes of it: this mock replaces that one, it does not add.
+    Modal: ({ visible, children }: { visible?: boolean; children?: unknown }) =>
+      visible === false ? null : (children as never),
+  };
+});
 
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
 vi.mock('@/lib/auth', () => ({ useAuth: () => ({ token: 'session', user: { id: 'me' } }) }));
@@ -17,6 +35,7 @@ vi.mock('expo-router', async () => {
 });
 
 import { later, memory, serve } from '@tests/helpers/api';
+import { measure, scrolled } from '@tests/helpers/board';
 import { mounted, mountsTrees, themesShown } from '@tests/helpers/renderer';
 import TestRenderer, { act } from 'react-test-renderer';
 import type { Memory } from '@/api';
@@ -44,6 +63,7 @@ mountsTrees();
 
 beforeEach(() => {
   focus.n = 0;
+  Object.assign(phone, { height: 0, fontScale: 1 });
   for (const fn of Object.values(router)) fn.mockClear();
 });
 afterEach(() => {
@@ -92,6 +112,8 @@ async function open(list: Memory[] | 'offline' | Promise<unknown>) {
           .find((one) => one.props.label === ru.action.retry)!
           .props.onPress(),
       ),
+    /** The screen drawn again, as it is when the phone's window or type size changes under it. */
+    redraw: () => act(async () => tree.update(<HomeScreen />)),
     /** Away and back: the screen comes into focus again and reads the list. */
     refocus: async () => {
       focus.n += 1;
@@ -278,3 +300,50 @@ test('in daylight the list is drawn in the day’s tokens and carries none of th
     await setTheme('dark');
   }
 });
+
+/**
+ * TASK-372 — the one screen whose body is a list, on the smallest phone at the largest type: the
+ * bar and the layer with «Создать» stand still while they and a line of the list fit the window, and
+ * once they do not they are the list's own head and foot — in every state the screen has, once each,
+ * and both actions still answer.
+ */
+const STATES: [string, () => Memory[] | 'offline' | Promise<unknown>][] = [
+  ['a list of memories', () => [wedding({ id: 'a' }), wedding({ id: 'b', title: 'Вторая' })]],
+  ['no memories', () => []],
+  ['a list that never came', () => 'offline'],
+  ['a list still on its way', () => later<unknown>().promise],
+];
+
+test.each(STATES)(
+  '%s: the bar and «Создать» stand on a phone that holds them, and scroll with the body on one that does not',
+  async (_, list) => {
+    phone.height = 640;
+    const screen = await open(list());
+    const account = () =>
+      screen.root.findAllByType(IconButton).filter((one) => one.props.label === ru.home.account);
+    const create = () =>
+      screen.root.findAllByType(Button).filter((one) => one.props.label === ru.home.create);
+    await measure(screen.root, { bar: 60, footer: 130 });
+    await screen.redraw();
+    expect(scrolled(create()[0])).toBe(false);
+    expect(scrolled(account()[0])).toBe(false);
+
+    // 320 × 568 at ×3.571: the bar and the layer alone are taller than the window.
+    Object.assign(phone, { height: 568, fontScale: 3.571 });
+    await measure(screen.root, { bar: 150, footer: 420 });
+    await screen.redraw();
+    expect(create()).toHaveLength(1);
+    expect(account()).toHaveLength(1);
+    expect(scrolled(create()[0])).toBe(true);
+    expect(scrolled(account()[0])).toBe(true);
+    await screen.press(() => account()[0]);
+    expect(router.push).toHaveBeenCalledWith('/profile');
+    // Off while the list is still on its way, and live in every other state.
+    const waiting = create()[0].props.disabled === true;
+    expect(waiting).toBe(_ === 'a list still on its way');
+    if (!waiting) {
+      await screen.press(() => create()[0]);
+      expect(router.push).toHaveBeenCalledWith('/create');
+    }
+  },
+);

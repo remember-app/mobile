@@ -27,6 +27,11 @@ vi.mock('@/kit', async (original) => ({
   ...(await original<typeof import('@/kit')>()),
   Field: () => null,
 }));
+// The phone's own insets, set by the test: the account clears its home indicator.
+const inset = vi.hoisted(() => ({ bottom: 0 }));
+vi.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, right: 0, left: 0, bottom: inset.bottom }),
+}));
 /**
  * What the screen is handed by the provider, bent where a test needs it: a way out that fails can
  * only be seen while the account is still there, and the real one lets the account go first.
@@ -48,7 +53,7 @@ import { type Asked, contact, later, refused, serve } from '@tests/helpers/api';
 import { account, datesRefusal, languageRefusal } from '@tests/helpers/contract';
 import { mounted, mountsTrees, themesShown } from '@tests/helpers/renderer';
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
 import { ApiError } from '@/api';
 import ProfileScreen from '@/app/profile';
@@ -243,6 +248,53 @@ test('the screen is the card, «Контакты», «Тема» and «Язык�
   }
   expect(screen.root().findByType(ConfirmSheet).props.visible).toBe(false);
   expect(screen.renaming().props.visible).toBe(false);
+});
+
+test('«Тема» is set at 13 and «Язык» at 14, each a group of its own that the card titles, on the screen’s ground', async () => {
+  world();
+  const screen = await open();
+  const props = (label: string) => {
+    const { hideLabel, small, onSurface, options } = screen.segment(label).props;
+    return {
+      hideLabel,
+      small: small === true,
+      onSurface: onSurface === true,
+      values: options.map((o: { value: string }) => o.value),
+    };
+  };
+  // Spec 7.3, detail 18: 13 is «Тема» alone; no group is drawn on a ground of a sheet here.
+  expect(props(ru.theme.label)).toEqual({
+    hideLabel: true,
+    small: true,
+    onSurface: false,
+    values: ['system', 'dark', 'light'],
+  });
+  expect(props(ru.language.label)).toEqual({
+    hideLabel: true,
+    small: false,
+    onSurface: false,
+    values: ['ru', 'en'],
+  });
+});
+
+test('the end of the account stands 30 clear of the bottom, or as far as the home indicator needs, whichever is more', async () => {
+  world();
+  const clearance = async (bottom: number) => {
+    inset.bottom = bottom;
+    const screen = await open();
+    const column = screen
+      .root()
+      .findByType(ScrollView)
+      .findAll((one) => StyleSheet.flatten(one.props.style)?.paddingBottom !== undefined)[0];
+    return StyleSheet.flatten(column.props.style).paddingBottom;
+  };
+  try {
+    expect(await clearance(0)).toBe(30);
+    expect(await clearance(34)).toBe(34);
+    expect(await clearance(12)).toBe(30);
+  } finally {
+    inset.bottom = 0;
+  }
 });
 
 const crowd = () =>

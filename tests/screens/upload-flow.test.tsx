@@ -67,7 +67,7 @@ vi.mock('react-native', async (importOriginal) => {
 import { later, memory, serve } from '@tests/helpers/api';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { Image } from 'expo-image';
-import { FlatList, Linking } from 'react-native';
+import { FlatList, Linking, StyleSheet } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import UploadScreen from '@/app/memory/[id]/upload';
 import {
@@ -416,6 +416,12 @@ test('a phone that has not been asked yet says it is checking, and one that may 
   let screen = await open();
   expect(screen.root.findAllByType(Waiting)).toHaveLength(1);
   expect(lib.getAssetsAsync).not.toHaveBeenCalled();
+  // The wait stands in the middle of the body, which grows to it and is never `flex: 1`: a body that
+  // is a scroll gives a block that fills it no height at all, and the block comes out of the scroll.
+  let holder = screen.root.findByType(Waiting).parent;
+  while (holder && !StyleSheet.flatten(holder.props.style)?.justifyContent) holder = holder.parent;
+  expect(StyleSheet.flatten(holder?.props.style)).toMatchObject({ flexGrow: 1 });
+  expect(StyleSheet.flatten(holder?.props.style).flex).toBeUndefined();
 
   lib.access = { granted: false, canAskAgain: true };
   screen = await open();

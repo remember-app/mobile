@@ -1,5 +1,5 @@
+import { rule } from '@tests/helpers/css';
 import { beforeAll, expect, test } from 'vitest';
-
 import { Calendar } from '@/kit/calendar';
 import { allDifferent, story } from '@/kit/story';
 import { setTheme } from '@/theme';
@@ -40,6 +40,12 @@ test('the month is drawn whole, and every day says its own date out loud', () =>
   expect(grid).not.toContain('aria-label="31 сентября"');
   // The two month buttons are the only words the calendar itself needs.
   expect(grid).toContain('aria-label="Предыдущий месяц"');
+});
+
+test('the month’s head and the strip of weekday letters are floors, since a month named on large type takes a second line', () => {
+  const grid = story(month());
+  expect(grid).toContain(rule('min-height:44px'));
+  expect(grid).toContain(rule('min-height:22px'));
 });
 
 test('nothing is picked, one day is picked, a range is picked — three calendars', () => {
