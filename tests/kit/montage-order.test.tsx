@@ -18,7 +18,8 @@ import {
 } from '@/kit/montage-order';
 import { RowTrack } from '@/kit/rows';
 import { allDifferent, compiled, story } from '@/kit/story';
-import { setTheme, ThemePin, themes } from '@/theme';
+import { Text as KitText } from '@/kit/text';
+import { font, setTheme, ThemePin, themes } from '@/theme';
 
 /** Spec 7.6 and 7.7 — what a person reads while they are ordering a montage. */
 
@@ -78,6 +79,61 @@ test('a template says what kind of film it is, in three states', () => {
   expect(tile).toContain('role="button"');
   // Read out whole: what it is called, what it is like, and how long it runs.
   expect(tile).toContain('aria-label="Для себя. Личное, без спешки. 3:00 · 16:9"');
+});
+
+/** The classes of the element whose text is exactly `words`. */
+const wordsOf = (markup: string, words: string) =>
+  markup.match(new RegExp(`class="([^"]*)"[^>]*>${words}<`))?.[1] ?? '';
+
+test('a template’s tile is set in the sizes the layout draws it in', () => {
+  // TASK-384 (R4), spec 7.6 detail 41 and `MontageTemplate.json`: the name 14 / 17 / 700 («Официальный
+  // отчёт» 140.25 wide there — 13 / 600 made it 127.7), the line under it 11 / 14 / 500 and the plate
+  // 11 / 600. The tile used the scale's `label`, `badgeSm` and `meta`: 13 / 600, 10 / 700 and 12.
+  const tile = story(
+    <TileTemplate
+      title="Официальный отчёт"
+      note="Ровно, по порядку"
+      spec="2:00 · 16:9"
+      icon={Heart}
+      onPress={() => {}}
+    />,
+  );
+  const name = wordsOf(tile, 'Официальный отчёт');
+  expect(name).toContain(rule('font-size:14px'));
+  expect(name).toContain(rule('line-height:17px'));
+  expect(name).toContain(rule(`font-family:${font.bold}`));
+  const note = wordsOf(tile, 'Ровно, по порядку');
+  expect(note).toContain(rule('font-size:11px'));
+  expect(note).toContain(rule('line-height:14px'));
+  expect(note).toContain(rule(`font-family:${font.medium}`));
+  const plate = wordsOf(tile, '2:00 · 16:9');
+  expect(plate).toContain(rule('font-size:11px'));
+  expect(plate).toContain(rule(`font-family:${font.semi}`));
+});
+
+test('the poster’s second line and the plate over the story are a size down from the scale’s', () => {
+  // TASK-384 (R4): «16:9 · Свадьба Лизы и Марка» is 11 / 500 on `MontageSummary` (spec 7.6, detail 42;
+  // `meta` 12 made it 9 % wider), the plate «Шаблон «Для родителей»» 12 / 600 on `MontageStory`
+  // (`label` 13 made it 8 % wider).
+  const poster = story(<PosterOrder length="2:30" about="16:9 · Свадьба Лизы и Марка" />);
+  expect(wordsOf(poster, '16:9 · Свадьба Лизы и Марка')).toContain(rule('font-size:11px'));
+  const plate = story(<ChipTemplate label="Шаблон «Для родителей»" icon={House} />);
+  const words = wordsOf(plate, 'Шаблон «Для родителей»');
+  expect(words).toContain(rule('font-size:12px'));
+  expect(words).toContain(rule(`font-family:${font.semi}`));
+});
+
+test('the headings of the summary are read in muted, as every eyebrow in the layout is', () => {
+  // TASK-384 (R5): «КАДРЫ», «ИСТОРИЯ», «МУЗЫКА» are #A4A1B2 on `MontageSummary` — 33 eyebrows of 33 in
+  // the layout are. They were drawn in `paper`.
+  const section = story(<SummarySection title="Кадры">{null}</SummarySection>);
+  expect(section).toContain(
+    story(
+      <KitText role="eyebrow" tone="muted" accessibilityRole="header">
+        КАДРЫ
+      </KitText>,
+    ),
+  );
 });
 
 test('the poster of an order prints its length and names its shape in a word', () => {

@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { Check, ChevronRight, X } from 'lucide-react-native';
+import { Check, ChevronRight, Pause, Play, X } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import {
   Pressable,
@@ -13,8 +13,9 @@ import {
 import { height, photo, radius, space, themed, useTheme } from '@/theme';
 
 import { Divider } from './bits';
+import { IconButton } from './button';
 import { Spinner } from './empty';
-import { Icon, type IconComponent } from './icon';
+import { Icon, type IconComponent, playFor } from './icon';
 import { PRESS, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
 import { Text } from './text';
 
@@ -70,6 +71,9 @@ export function RowSummary({
  */
 export const TRACK_ROW = 52;
 
+/** The glyph of «Послушать»: the layout's triangle in its 16 box, filled (spec 5, 7.7). */
+const PLAY_GLYPH = { size: playFor(16), filled: true } as const;
+
 /**
  * A music track (spec 7.7): the round «послушать» on the left, the name and its length on one
  * baseline, and on the right the buttons that act on it.
@@ -102,7 +106,7 @@ export function RowTrack({
   wish?: string;
   /** Standing in «Выбрано» rather than on the shelf. */
   picked?: boolean;
-  /** Sounding right now: the name goes `spark`, and the button handed in becomes a pause. */
+  /** Sounding right now: the name goes `spark`, and «Послушать» becomes a pause. */
   playing?: boolean;
   /**
    * What the row is held by while the list is being reordered (spec 7.7, detail 54: «строку берут
@@ -110,8 +114,11 @@ export function RowTrack({
    * handlers belong to whoever owns the list.
    */
   grip?: ViewProps;
-  /** The round «Послушать» — 40 `raise` on the shelf, 36 among the chosen. */
-  play?: ReactNode;
+  /**
+   * The round «Послушать» on the left — what it is called right now («Послушать …» or «Стоп …»,
+   * the screen's words) and what it does. Left off, the track has nothing to listen to.
+   */
+  play?: { label: string; onPress: () => void };
   /** The round 36s on the right: a plus or a tick on the shelf, the pencil and the cross among the chosen. */
   action?: ReactNode;
   divider?: boolean;
@@ -124,7 +131,18 @@ export function RowTrack({
     <View>
       {divider ? <Divider soft style={picked ? styles.insetPicked : styles.insetTrack} /> : null}
       <View style={[styles.track, picked ? styles.trackPicked : null, wish ? styles.wished : null]}>
-        {play}
+        {/* Spec 7.7, details 53 and 54: 40 `raise` on the shelf, 36 among the chosen, and in both
+            the small filled play of the layout — a pause while the track sounds. */}
+        {play ? (
+          <IconButton
+            icon={playing ? Pause : Play}
+            label={play.label}
+            size={picked ? height.roundRow : height.roundTrack}
+            tone="raise"
+            glyph={PLAY_GLYPH}
+            onPress={play.onPress}
+          />
+        ) : null}
         <View {...grip} style={[styles.grow, styles.trackWords]}>
           <View style={styles.trackLine}>
             <Text
@@ -280,12 +298,13 @@ export function RowStep({
             {title}
           </Text>
         ) : (
+          // Spec 7.7, detail 56: the name 14 / 600 and the line under it 11 / 500 `muted`.
           <View style={styles.grow}>
-            <Text role="label" numberOfLines={1}>
+            <Text role="rowSm" numberOfLines={1}>
               {title}
             </Text>
             {meta ? (
-              <Text role="badgeSm" tone="muted" numberOfLines={1}>
+              <Text role="metaSm" numberOfLines={1}>
                 {meta}
               </Text>
             ) : null}
@@ -546,13 +565,14 @@ const useStyles = themed(({ color }) =>
     unfolded: { paddingLeft: space.s3, paddingRight: space.s2, paddingBottom: 10 },
     wave: { flexDirection: 'row', alignItems: 'center', gap: 2, height: 18 },
     waveBar: { width: 3, borderRadius: radius.pill, backgroundColor: color.faint },
-    // «Вернуть» moves under the reason when the system type leaves it no room beside it.
+    // «Вернуть» moves under the reason when the system type leaves it no room beside it. 10 above
+    // and below, as spec 7.7 (detail 55) draws it.
     rejected: {
       flexDirection: 'row',
       flexWrap: 'wrap',
       alignItems: 'center',
       gap: space.s3,
-      paddingVertical: space.s3,
+      paddingVertical: 10,
     },
     square: {
       width: 38,

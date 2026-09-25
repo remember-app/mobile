@@ -18,7 +18,10 @@ import { Text, TYPE_MOST } from './text';
 export type SegmentOption<T extends string> = { value: T; label: string };
 
 export type SegmentProps<T extends string> = {
-  /** The heading over the row, and the radiogroup's name for a screen reader. */
+  /**
+   * The heading over the row, and the radiogroup's name for a screen reader. Drawn the way the
+   * layout draws every heading over a group — the eyebrow, in caps, `muted` («ФОРМАТ», «ТЕМА»).
+   */
   label: string;
   /**
    * Drawn without that heading, which is then only the spoken one — the row under a screen's bar is
@@ -86,7 +89,11 @@ export function Segment<T extends string>({
       style={[styles.group, style]}
       onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
     >
-      {hideLabel ? null : <Text role="label">{label}</Text>}
+      {hideLabel ? null : (
+        <Text role="eyebrow" tone="muted" accessibilityRole="header">
+          {label.toUpperCase()}
+        </Text>
+      )}
       <View
         style={[
           styles.segment,

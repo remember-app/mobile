@@ -6,7 +6,7 @@ import { Button, ChipTemplate, TextArea } from '@/kit';
 import { useStrings } from '@/lib/language';
 import { STORY_LIMIT } from '@/lib/montage/order';
 import { TEMPLATE_SIGN, useOrder, WizardStep } from '@/screens/order/wizard';
-import { space, themed } from '@/theme';
+import { space, themed, wizardLead } from '@/theme';
 
 /**
  * Step 2, `MontageStory` — how to cut this one, in the organizer's own words. The text is almost
@@ -73,6 +73,12 @@ export default function StoryStep() {
 
 const useStyles = themed(() =>
   StyleSheet.create({
-    body: { flexGrow: 1, paddingHorizontal: space.s4, paddingBottom: space.s6, gap: 10 },
+    body: {
+      flexGrow: 1,
+      paddingHorizontal: space.s4,
+      paddingTop: wizardLead.note,
+      paddingBottom: space.s6,
+      gap: 10,
+    },
   }),
 );

@@ -6,6 +6,7 @@ import { expect, test } from 'vitest';
 
 import { rowHolds, Segment } from '@/kit/segment';
 import { allDifferent, story } from '@/kit/story';
+import { Text as KitText } from '@/kit/text';
 import { setTheme, themes } from '@/theme';
 
 /** Spec 7.3 — the choice of two or three, drawn as a row of pills inside one. */
@@ -56,7 +57,16 @@ test('the heading over the row can be spoken without being drawn, and the hint i
   const bare = story(
     <Segment label="Тема" options={FACES} value="frames" onChange={() => {}} hideLabel />,
   );
-  expect(shown).toContain('>Тема<');
+  // Drawn, it is the eyebrow every heading over a group is in the layout: caps, `muted`, a header —
+  // «ФОРМАТ» on `MontageBuild` (TASK-384), not a 13 / 600 line in `paper`.
+  expect(shown).toContain(
+    story(
+      <KitText role="eyebrow" tone="muted" accessibilityRole="header">
+        ТЕМА
+      </KitText>,
+    ),
+  );
+  expect(bare).not.toContain('>ТЕМА<');
   expect(bare).not.toContain('>Тема<');
   expect(bare).toContain('aria-label="Тема"');
 

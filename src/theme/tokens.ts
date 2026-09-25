@@ -63,6 +63,8 @@ export const height = {
   roundViewer: 48,
   /** round button in a bar */
   roundBar: 44,
+  /** «Послушать» in a track row on the shelf — 36 in «Выбрано», where it is `roundRow` */
+  roundTrack: 40,
   /** round button in a row: a cross, the sound. Drawn at 36, felt at `TAP` */
   roundRow: 36,
   /** «скрыть баннер». Drawn at 32, felt at `TAP` */
@@ -139,6 +141,23 @@ export const board = {
   footerUpload: 210,
   /** the darkening over the head of the gallery, under the glass bar */
   headGallery: 176,
+} as const;
+
+/**
+ * How far a wizard step's body stands under its heading (spec 4: «190–238 — тело шага мастера»,
+ * «150 — тело итога заказа»). The layout pins each body at an anchor of its own; the app lays the
+ * heading out in flow and the body under it, so each anchor is kept as the gap under whatever the
+ * heading ends with — measured off the layout, step by step.
+ */
+export const wizardLead = {
+  /** under the heading and the line under it — `MontageTemplate` (190), `MontageStory` (238) */
+  note: 22,
+  /** `MontageMusic*`: the same line over it, and its body at 206 (spec 8, «тело от 206») */
+  music: 19,
+  /** under a heading with no line — `MontageBuild` (190) */
+  title: 32,
+  /** under the total's heading, which has no scale over it — `MontageSummary` (150) */
+  total: 13,
 } as const;
 
 /**
@@ -281,19 +300,29 @@ export const type = StyleSheet.create({
   body: { fontFamily: font.regular, fontSize: 16, lineHeight: 23 },
   /** the same paragraph where it stands tighter — an empty state, a waiting caption */
   bodySm: { fontFamily: font.regular, fontSize: 15, lineHeight: 22 },
-  /** a line of the card of promises on `Consent` (spec 8) — the paragraph a size down again */
+  /**
+   * the paragraph a size down again — a line of the card of promises on `Consent`, the report under
+   * the heading of `SheetRejected` («68 кадров из 486…») (spec 8)
+   */
   bodyXs: { fontFamily: font.regular, fontSize: 14, lineHeight: 20 },
   /** a name in a list row, the label of a sheet action */
   row: { fontFamily: font.semi, fontSize: 15, lineHeight: 20 },
+  /** a name in a tighter row — a stage of the build (spec 7.7, detail 56), «12 файлов ушли…» */
+  rowSm: { fontFamily: font.semi, fontSize: 14, lineHeight: 18 },
   /** the label of a button */
   control: { fontFamily: font.semi, fontSize: 16, lineHeight: 16, letterSpacing: -0.16 },
   /** the label of a segment */
   controlSm: { fontFamily: font.semi, fontSize: 14, lineHeight: 14 },
   /** the label of a chip — the same size a shade lighter, because a chip is offered and not pressed home */
   chip: { fontFamily: font.medium, fontSize: 14, lineHeight: 14 },
-  /** «Все дни» in the head of the filter's day block — the smallest chip, and a heavier one */
+  /**
+   * «Все дни» in the head of the filter's day block — the smallest chip, and a heavier one; the
+   * plate over the story on `MontageStory` is the same 12 / 600
+   */
   chipXs: { fontFamily: font.semi, fontSize: 12, lineHeight: 12 },
-  /** a small button's label, a frame group's heading */
+  /** a template's name on its tile (spec 7.6, detail 41) — the one 14 in the bold weight */
+  tileTitle: { fontFamily: font.bold, fontSize: 14, lineHeight: 17 },
+  /** a small button's label, a frame group's heading, a button standing in a row, the journal's chip */
   label: { fontFamily: font.semi, fontSize: 13, lineHeight: 16 },
   /** an explanation under something — the one 13 that runs to more than a word */
   note: { fontFamily: font.medium, fontSize: 13, lineHeight: 19 },
@@ -315,6 +344,11 @@ export const type = StyleSheet.create({
   caption: { fontFamily: font.semi, fontSize: 12, lineHeight: 15 },
   /** dates, counters */
   meta: { fontFamily: font.medium, fontSize: 12, lineHeight: 15, ...tabular },
+  /**
+   * The meta a size down (spec 3: meta is 11–12) — under a template's name, beside the poster's
+   * shape, under a stage's name, at the two ends of the length line
+   */
+  metaSm: { fontFamily: font.medium, fontSize: 11, lineHeight: 14, ...tabular },
   /** the two timecodes of a video — the meta's size a weight up (spec 7.10) */
   timecode: { fontFamily: font.semi, fontSize: 12, lineHeight: 15, ...tabular },
   /** «сб» and «312 кадров» on a day tile: a meta line a size down and a weight up */

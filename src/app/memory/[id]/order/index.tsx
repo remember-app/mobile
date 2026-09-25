@@ -10,7 +10,7 @@ import { formatRuntime } from '@/lib/dates';
 import { useStrings } from '@/lib/language';
 import { blankOrder, RATIO } from '@/lib/montage/order';
 import { refusal, TEMPLATE_SIGN, useOrder, useStillHere, WizardStep } from '@/screens/order/wizard';
-import { space, themed } from '@/theme';
+import { space, themed, wizardLead } from '@/theme';
 
 /**
  * `MontageTemplate` (spec 8) — the way into an order and the biggest decision in it: six
@@ -131,7 +131,12 @@ const useStyles = themed(() =>
   StyleSheet.create({
     middle: { flexGrow: 1, justifyContent: 'center' },
     banner: { marginHorizontal: space.s4 },
-    body: { flexGrow: 1, paddingHorizontal: space.s4, paddingBottom: space.s6 },
+    body: {
+      flexGrow: 1,
+      paddingHorizontal: space.s4,
+      paddingTop: wizardLead.note,
+      paddingBottom: space.s6,
+    },
     grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.s2 },
   }),
 );

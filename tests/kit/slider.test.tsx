@@ -1,10 +1,11 @@
+import { rule } from '@tests/helpers/css';
 import { mountsTrees } from '@tests/helpers/renderer';
 import { Text as RNText } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import { beforeAll, expect, test, vi } from 'vitest';
 import { grabLength, LengthSlider } from '@/kit/slider';
 import { allDifferent, story } from '@/kit/story';
-import { TYPE_MOST } from '@/kit/text';
+import { Text, TYPE_MOST } from '@/kit/text';
 import { setTheme } from '@/theme';
 
 /** Spec 7.3, detail 19 — how long the film should be. */
@@ -66,6 +67,23 @@ test('the card carries the figure, the two buttons, the line and the five ready 
   expect(card).toContain('9:10 · всё, что есть');
   expect(card).toContain('aria-label="Короче на 5 секунд"');
   for (const preset of PRESETS) expect(card).toContain(`>${preset.label}<`);
+});
+
+test('the two ends of the line are the meta a size down, in muted', () => {
+  // TASK-384, `MontageBuild.json`: «0:10» and «9:10 · всё, что есть» are 11 / 500 (they were the
+  // scale's `meta` 12). The layout's `faint` there is what spec 10.1 names and replaces with `muted`.
+  const card = story(slider());
+  for (const end of ['0:10', '9:10 · всё, что есть']) {
+    expect(card).toContain(
+      story(
+        <Text role="metaSm" tone="muted">
+          {end}
+        </Text>,
+      ),
+    );
+    const words = card.match(new RegExp(`class="([^"]*)"[^>]*>${end}<`))?.[1] ?? '';
+    expect(words).toContain(rule('font-size:11px'));
+  }
 });
 
 test('the line is something a screen reader can take hold of, not a picture of a number', () => {

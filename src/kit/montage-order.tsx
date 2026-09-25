@@ -85,19 +85,20 @@ export function TileTemplate({
           <Icon icon={icon} size={16} color={night.paper} />
         </View>
       ) : null}
+      {/* Spec 7.6, detail 41: the plate 11 / 600, the name 14 / 17 / 700, the line 11 / 14 / 500. */}
       {spec ? (
         <View style={styles.templateSpec}>
-          <Text role="meta" style={styles.onPhoto}>
+          <Text role="metaTile" style={styles.onPhoto}>
             {spec}
           </Text>
         </View>
       ) : null}
       <View style={styles.templateFoot}>
-        <Text role="label" numberOfLines={2} style={styles.onPhoto}>
+        <Text role="tileTitle" numberOfLines={2} style={styles.onPhoto}>
           {title}
         </Text>
         {note ? (
-          <Text role="badgeSm" numberOfLines={1} style={styles.onPhotoQuiet}>
+          <Text role="metaSm" numberOfLines={1} style={styles.onPhotoQuiet}>
             {note}
           </Text>
         ) : null}
@@ -176,8 +177,9 @@ export function PosterOrder({
               {shape}
             </Text>
           ) : null}
+          {/* Spec 7.6, detail 42: «16:9 · Свадьба Лизы и Марка» is 11 / 500. */}
           {about ? (
-            <Text role="meta" numberOfLines={1} style={styles.onPhotoQuiet}>
+            <Text role="metaSm" numberOfLines={1} style={styles.onPhotoQuiet}>
               {about}
             </Text>
           ) : null}
@@ -211,7 +213,8 @@ export function ChipTemplate({
   return (
     <View style={[styles.templateChip, icon ? null : styles.templateChipBare, style]}>
       {icon ? <Icon icon={icon} size={14} color={color.paper} /> : null}
-      <Text role="label">{label}</Text>
+      {/* 12 / 600, the chip's own size — the layout calls the plate «чип 30» (spec 8). */}
+      <Text role="chipXs">{label}</Text>
     </View>
   );
 }
@@ -248,7 +251,7 @@ export function SummarySection({
     <View>
       {divider ? <View style={styles.rule} /> : null}
       <View style={styles.section}>
-        <Text role="eyebrow" accessibilityRole="header">
+        <Text role="eyebrow" tone="muted" accessibilityRole="header">
           {title.toUpperCase()}
         </Text>
         {children}

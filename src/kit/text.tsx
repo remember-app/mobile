@@ -58,11 +58,14 @@ export const HEADING_MOST: Partial<Record<TypeRole, number>> = {
  */
 const ONE_WORD = new Set<TypeRole>(['hero', 'heroNarrow']);
 
+/** The roles that are a secondary line by what they are, and so are read in `muted` unasked. */
+const QUIET = new Set<TypeRole>(['meta', 'metaSm', 'note']);
+
 /**
  * Text in the product's voice. CSS inherits `color` from `body`; React Native inherits nothing and
  * defaults to black, so a screen that reaches for `type.body` alone gets black on ink — invisible.
  * This is the one place that pairs a role with the colour it is read in, so no screen has to
- * remember. `meta` and `note` bring `muted` with them: spec 10.1 keeps every readable secondary
+ * remember. Both metas and `note` bring `muted` with them: spec 10.1 keeps every readable secondary
  * line on `muted` and leaves `faint` to what is unavailable or decorative.
  *
  * And the one place that says how far the role grows with the system's type ({@link TYPE_MOST},
@@ -85,11 +88,7 @@ Omit<TextProps, 'role'> & {
 
   return (
     <RNText
-      style={[
-        styles[tone ?? (role === 'meta' || role === 'note' ? 'muted' : 'paper')],
-        type[role],
-        style,
-      ]}
+      style={[styles[tone ?? (QUIET.has(role) ? 'muted' : 'paper')], type[role], style]}
       maxFontSizeMultiplier={maxFontSizeMultiplier ?? HEADING_MOST[role] ?? TYPE_MOST}
       {...(ONE_WORD.has(role) ? { numberOfLines: 1, adjustsFontSizeToFit: true } : null)}
       {...rest}

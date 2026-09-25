@@ -1,3 +1,4 @@
+import { rule } from '@tests/helpers/css';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { CalendarDays, Lock } from 'lucide-react-native';
 import { StyleSheet, Text } from 'react-native';
@@ -6,7 +7,7 @@ import { beforeAll, expect, test } from 'vitest';
 
 import { Chip } from '@/kit/chip';
 import { allDifferent, story } from '@/kit/story';
-import { setTheme } from '@/theme';
+import { font, setTheme } from '@/theme';
 
 /** Spec 7.3 — the chip: four heights, and everything that can stand inside one. */
 
@@ -14,6 +15,18 @@ mountsTrees();
 
 beforeAll(async () => {
   await setTheme('dark');
+});
+
+test('the journal’s chip is read at 13 / 600', () => {
+  // TASK-384 (R4), `MontageLiveStage.json`: «Всё · Мысли · Взял 61 · Мимо 87» are 34 tall, 13 / 600
+  // («Мысли» 73.44 wide over 43.44 of words). The chip's own 14 / 500 made each 4 % wider.
+  const chip = story(<Chip label="Мысли" size={34} onPress={() => {}} />);
+  const words = chip.match(/class="([^"]*)"[^>]*>Мысли</)?.[1] ?? '';
+  expect(words).toContain(rule('font-size:13px'));
+  expect(words).toContain(rule(`font-family:${font.semi}`));
+  // The filter's 40 keeps its 14.
+  const filter = story(<Chip label="Мысли" onPress={() => {}} />);
+  expect(filter.match(/class="([^"]*)"[^>]*>Мысли</)?.[1]).toContain(rule('font-size:14px'));
 });
 
 test('the chips are as many as the things that can stand in one', () => {
