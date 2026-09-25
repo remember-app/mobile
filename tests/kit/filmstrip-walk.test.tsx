@@ -3,7 +3,7 @@ import { afterEach, expect, test, vi } from 'vitest';
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
 
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
-import { FlatList, Pressable } from 'react-native';
+import { FlatList, Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import { Filmstrip, type Frame } from '@/kit/filmstrip';
 
@@ -103,12 +103,26 @@ test('the strip can be walked to any frame without measuring one: the frame in h
     data: unknown,
     at: number,
   ) => { length: number; offset: number; index: number };
-  // 30 wide and 4 apart, the frame in hand 44 wide.
+  // 30 wide and 2 apart, the frame in hand 44 wide — `Viewer` (Viewer.json): neighbours at 13, 45,
+  // 77, 109, 141, a pitch of 32; the one in hand at 173, the next at 219.
   expect(layout(null, 0)).toEqual({ length: 30, offset: 0, index: 0 });
-  expect(layout(null, 1)).toEqual({ length: 30, offset: 34, index: 1 });
-  expect(layout(null, 2)).toEqual({ length: 44, offset: 68, index: 2 });
-  expect(layout(null, 3)).toEqual({ length: 30, offset: 3 * 34 + 14, index: 3 });
-  expect(layout(null, 5)).toEqual({ length: 30, offset: 5 * 34 + 14, index: 5 });
+  expect(layout(null, 1)).toEqual({ length: 30, offset: 32, index: 1 });
+  expect(layout(null, 2)).toEqual({ length: 44, offset: 64, index: 2 });
+  expect(layout(null, 3)).toEqual({ length: 30, offset: 3 * 32 + 14, index: 3 });
+  expect(layout(null, 5)).toEqual({ length: 30, offset: 5 * 32 + 14, index: 5 });
+  expect(219 - 173).toBe(44 + 2);
+});
+
+test('the play circle stands in the corner of the frame in hand, 4 in from its left and its foot', async () => {
+  // `ViewerVideo` (ViewerVideo.json): the frame in hand at 173,766, 44 × 48; the circle 14 at
+  // 177,796 — 4 from its left, 4 from its foot. It stood in the middle.
+  const strip = await draw(1);
+  const circle = strip.root
+    .findAllByType(View)
+    .map((one) => StyleSheet.flatten(one.props.style) as ViewStyle)
+    .find((style) => style?.width === 14);
+  expect(circle).toMatchObject({ position: 'absolute', left: 4, bottom: 4, height: 14 });
+  expect(circle?.top).toBeUndefined();
 });
 
 test('the fade is by distance from the frame in hand, and the frame in hand is at full strength and says it is the one', async () => {

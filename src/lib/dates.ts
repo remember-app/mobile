@@ -93,6 +93,10 @@ export function formatTime(value: string | Date, locale: string = currentLanguag
 /**
  * And the name of that day — «суббота», «Saturday» — the second line of the frame's own sheet; cut
  * short — «сб», «Sat» — beside the figure on a day tile of `SheetFilter` (spec 7.3, detail 74).
+ *
+ * A Russian day is written small (spec 9: «пт», «сб», «вс»). iOS hands a weekday asked for on its
+ * own back in the stand-alone form, capitalised — «Сб» on the tile — so the case is the language's
+ * and not the platform's.
  */
 export function formatWeekday(
   value: string | Date,
@@ -101,7 +105,8 @@ export function formatWeekday(
 ): string {
   const day = new Date(value);
   if (Number.isNaN(day.getTime())) return '';
-  return day.toLocaleDateString(locale, { weekday: width });
+  const name = day.toLocaleDateString(locale, { weekday: width });
+  return locale.startsWith('ru') ? name.toLocaleLowerCase('ru') : name;
 }
 
 /**

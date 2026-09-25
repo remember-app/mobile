@@ -283,7 +283,8 @@ test('while picking, a tap marks the frame instead of opening it — and only a 
   // strip counts with the same rule and the two must not drift (TASK-121). `mayPick` is where that
   // reading lives, and `tests/lib/frames.test.ts` pins it.
   expect(frames).toContain('const pickable = picking && mayPick(item);');
-  expect(frames).toContain("pick={pickable ? (picked.has(item.id) ? 'keep' : 'off') : undefined}");
+  // `FramesPicking` (spec 7.4, detail 26): the feed's mark is the `accent` one, as on upload.
+  expect(frames).toContain("pick={pickable ? (picked.has(item.id) ? 'send' : 'off') : undefined}");
   // The mark is the tile's own — one ring and one circle, never a second mark drawn by a face.
   expect(frames).not.toContain('tile--selected');
   // And on the upload screen the same rule with the mode of its own: picking off, a frame carries
@@ -347,12 +348,13 @@ test('deleting an armful asks first, counts the price, and takes only what may b
   expect(errands).toContain('deleteMedia(token, memoryId, item.id)');
 });
 
-test('the words of the picking mode count in Russian and say why the button is off', () => {
-  expect(ru.gallery.download(1)).toBe('Скачать 1 файл');
-  expect(ru.gallery.download(4)).toBe('Скачать 4 файла');
-  expect(ru.gallery.download(11)).toBe('Скачать 11 файлов');
-  expect(en.gallery.download(1)).toBe('Download 1 file');
-  expect(en.gallery.download(4)).toBe('Download 4 files');
+test('the words of the picking mode count with the number alone and say why the button is off', () => {
+  // `FramesPicking` and spec 9: «Скачать 4» — the number, and no noun to decline after it.
+  expect(ru.gallery.download(1)).toBe('Скачать 1');
+  expect(ru.gallery.download(4)).toBe('Скачать 4');
+  expect(ru.gallery.download(11)).toBe('Скачать 11');
+  expect(en.gallery.download(1)).toBe('Download 1');
+  expect(en.gallery.download(4)).toBe('Download 4');
   // The kit's own line for the button with nothing marked, and the kit's own word for the quiet one.
   expect(ru.gallery.nothingPicked).toBe('Ничего не выбрано');
   expect(ru.action.clear).toBe('Снять');

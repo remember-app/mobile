@@ -578,6 +578,33 @@ test('a video with its own file carries a scrubber and a photograph carries none
   expect(noFile.root.findAllByType(VideoTrack)).toHaveLength(0);
 });
 
+test('the glass starts where the status line ends, and the scrubber keeps 16 at the sides with the sound 8 into the right one', async () => {
+  // `Viewer` / `ViewerVideo` (Viewer.json, ViewerVideo.json): the three pieces of glass at `top 52`
+  // — the status line and nothing more (spec 7.1, detail 5); the app put 8 under it. The scrubber
+  // row (spec 7.10: `0 16`, the sound `margin-right: −8`): «0:24» at 16, the 36 sound button at
+  // 346, its edge 8 short of the screen's — the app ran both to the edges.
+  serve(() => undefined);
+  const film = {
+    ...shots()[0],
+    id: 'v',
+    kind: 'video' as const,
+    preview_url: 'https://r2.example/v.mp4',
+    duration_seconds: 20,
+  };
+  const screen = await open({ item: film, frames: [film] });
+  // The phone's insets are 0 under node: the glass stands at the top of the window itself.
+  expect(StyleSheet.flatten(screen.pill().props.style)).toMatchObject({ top: 0 });
+  // And the menu still falls 8 under the button it came out of.
+  expect(screen.root.findByType(ActionMenu).props.top).toBe(48 + 8);
+  const [row] = screen.root
+    .findAllByType(View)
+    .filter((one) => (one.props.children as { type?: unknown } | undefined)?.type === VideoTrack);
+  expect(StyleSheet.flatten(row.props.style)).toMatchObject({ paddingHorizontal: 16 });
+  const sound = screen.root.findByType(VideoTrack).props.sound;
+  expect(StyleSheet.flatten(sound.props.style)).toMatchObject({ marginRight: -8 });
+  expect(390 - 16 + 8 - 36).toBe(346);
+});
+
 /**
  * The picture is walked with a finger (TASK-182). The gesture is taken by the picture alone, once it
  * has plainly gone sideways, and lets go of a lift as «the next one» or «the one before» — over the

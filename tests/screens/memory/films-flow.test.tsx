@@ -27,6 +27,7 @@ import { expectReachable } from '@tests/helpers/access';
 import { type Asked, later, memory, refused, serve } from '@tests/helpers/api';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { Plus } from 'lucide-react-native';
+import { StyleSheet, View } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import { MONTAGE_STAGES, type Montage } from '@/api';
 import { Banner, Button, CardMontage, CardMontageNew, EmptyMontages } from '@/kit';
@@ -123,7 +124,7 @@ async function open(role: 'organizer' | 'contributor' | 'viewer' = 'organizer') 
 test('the heading counts the films, and says none yet while there are none — and nothing at all until the list has come', async () => {
   world([film('a', 'ready'), film('b', 'failed')]);
   const screen = await open();
-  expect(screen.heading()).toEqual({ title: ru.montage.title, count: '2' });
+  expect(screen.heading()).toMatchObject({ title: ru.montage.title, count: '2' });
   vi.unstubAllGlobals();
   world([]);
   const empty = await open();
@@ -237,8 +238,24 @@ test('the three states of a film are three cards, and each leads where it should
     params: { id: 'm1', montageId: 'f' },
   });
   expect(screen.card('f').props.caption).toBe(ru.montage.broke);
-  expect(screen.card('q').props.caption).toBe(ru.montage.caption);
+  // `MemoryFrames`: a film still being cut says its count and its scale, and no line under them.
+  expect(screen.card('q').props.caption).toBeUndefined();
+  expect(screen.card('p').props.caption).toBeUndefined();
   expect(screen.card('r').props.caption).toBeUndefined();
+  // The badge on a card in the strip is the small one (spec 7.4, detail 24: 10 on `4 / 9`).
+  for (const id of ['q', 'r', 'f']) expect(screen.card(id).props.badge.props.sm, id).toBe(true);
+});
+
+test('«Ролики» stands on a 24 line and the strip 10 under it, which puts the strip where the layout does', async () => {
+  // `MemoryFrames` / `FilmsEmpty` (design/screens/*.html): the heading row is `height: 24px` in a
+  // column with `gap: 10px` — the strip at 150 under a heading at 116, where the app had 10 under
+  // an 18 line and stood 5 short.
+  world([film('a', 'ready')]);
+  const screen = await open();
+  const head = screen.root.findByType(BlockHead);
+  expect(StyleSheet.flatten(head.props.style)).toMatchObject({ minHeight: 24 });
+  const block = screen.root.findAllByType(View)[0];
+  expect(StyleSheet.flatten(block.props.style)).toMatchObject({ gap: 10 });
 });
 
 test('a finished film says what it was made of, and the ones that have nothing to show say nothing of it', async () => {

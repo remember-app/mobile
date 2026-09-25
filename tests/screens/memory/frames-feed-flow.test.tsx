@@ -242,8 +242,8 @@ async function open(
     }),
     /** The capsule pressed — the door in the feed, «выбрать все» while picking. */
     pressCapsule: () => act(async () => root.findByType(GlassBar).props.onCapsule()),
-    /** Which of the three the mark on a frame is: `off`, `keep`, or `undefined` (no circle at all). */
-    mark: (id: string) => tile(id)().props.pick as 'off' | 'keep' | undefined,
+    /** Which of the three the mark on a frame is: `off`, `send`, or `undefined` (no circle). */
+    mark: (id: string) => tile(id)().props.pick as 'off' | 'send' | undefined,
     startPicking: () => press(icon(ru.gallery.select)),
     stopPicking: () => press(icon(ru.gallery.leaveSelect)),
     /** A tap on each of these frames. */
@@ -305,7 +305,7 @@ test('a tap marks a frame, and the capsule counts what is marked, weighs it and 
   const screen = await open();
   await screen.startPicking();
   await screen.tap('a', 'b');
-  expect(screen.mark('a')).toBe('keep');
+  expect(screen.mark('a')).toBe('send');
   expect(screen.mark('c')).toBe('off');
   // 4,2 and 30 megabytes together, a photograph and a video — not the largest, not the count.
   expect(screen.capsule()).toEqual(picked(2, '34', ru.gallery.pickedKinds(1, 1)));
@@ -315,6 +315,25 @@ test('a tap marks a frame, and the capsule counts what is marked, weighs it and 
   // The same tap again gives it back.
   await screen.tap('b');
   expect(screen.capsule()).toEqual(picked(1, '4,2', ru.gallery.pickedKinds(1, 0)));
+});
+
+test('a marked frame wears the accent circle, the button counts with the number alone, and the feed has no scroll bar of its own', async () => {
+  world();
+  const screen = await open();
+  await screen.startPicking();
+  await screen.tap('a');
+  // `FramesPicking`: the circle is #4B5BFF with a white collar and a white tick (spec 7.4, detail
+  // 26) — `send` in the kit; the wizard's `spark` is «taken into the film» and not this.
+  expect(screen.mark('a')).toBe('send');
+  // The layout's button reads «Скачать 4»: the number, and no noun after it (spec 9).
+  expect(ru.gallery.download(4)).toBe('Скачать 4');
+  expect(screen.footer().download.label).toBe('Скачать 1');
+  // `MemoryScrub`: the spine is the feed's indicator; the platform's bar stood beside it (x≈385).
+  const feed = screen.root.findAll(
+    (one) => one.props.refreshControl !== undefined && one.props.onScroll !== undefined,
+  );
+  expect(feed.length).toBeGreaterThan(0);
+  for (const one of feed) expect(one.props.showsVerticalScrollIndicator).toBe(false);
 });
 
 test('a frame still developing cannot be marked, and cannot be opened off the mode either', async () => {
@@ -335,7 +354,7 @@ test('the capsule takes every frame that can be marked and gives them all back o
   await screen.pressCapsule();
   // Four, and not five: the one still developing has nothing to take.
   expect(screen.capsule().title).toBe(ru.gallery.picked(4));
-  for (const id of ['a', 'b', 'c', 'e']) expect(screen.mark(id)).toBe('keep');
+  for (const id of ['a', 'b', 'c', 'e']) expect(screen.mark(id)).toBe('send');
   expect(screen.mark('d')).toBeUndefined();
   await screen.pressCapsule();
   expect(screen.capsule().title).toBe(ru.gallery.pickNothing);
@@ -779,7 +798,7 @@ test('while picking a seam is a switch over its own day: it counts what a tap co
   // The second press on the first seam gives its own strip back, and what is marked elsewhere stays.
   await act(async () => screen.seams()[0].props.onPress());
   expect(screen.capsule().title).toBe(ru.gallery.picked(1));
-  expect(screen.mark('c')).toBe('keep');
+  expect(screen.mark('c')).toBe('send');
   expect(screen.mark('a')).toBe('off');
   // Off the mode the seam is a caption again, with no press and no count.
   await screen.stopPicking();
@@ -991,9 +1010,9 @@ test('the marked frames are counted inside the filter: «выбрать все»
   await screen.startPicking();
   await screen.pressCapsule();
   expect(screen.capsule().title).toBe(ru.gallery.picked(2));
-  expect(screen.mark('b')).toBe('keep');
+  expect(screen.mark('b')).toBe('send');
   // «Я» is filtered out of the feed and not marked, for all that every frame of it could be.
-  expect(screen.root.findAllByType(Tile).map((one) => one.props.pick)).toEqual(['keep', 'keep']);
+  expect(screen.root.findAllByType(Tile).map((one) => one.props.pick)).toEqual(['send', 'send']);
 });
 
 /**

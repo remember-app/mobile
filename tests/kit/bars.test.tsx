@@ -728,6 +728,30 @@ test('the four footers are four depths, and two of them lie over photographs', (
   expect(layer('upload')).toContain('rgba(11,11,18,0.97)');
 });
 
+test('three across at the foot of the gallery stand 10 apart, which leaves the main one 226 between two 56s', () => {
+  // `MemoryFrames` (design/screens/MemoryFrames.html): the row is `display: flex; gap: 10px` —
+  // «Фильтры» 56 at 16, «Добавить ещё» 226 at 82, «Сортировка» 56 at 318, across 358. The app
+  // stood them 12 apart and the main one came out 222.
+  let tree!: TestRenderer.ReactTestRenderer;
+  act(() => {
+    tree = TestRenderer.create(
+      <ActionBar footer="gallery">
+        <IconButton icon={User} label="Фильтры" size={56} />
+        <Button variant="primary" wide label="Добавить ещё" />
+        <IconButton icon={User} label="Сортировка" size={56} />
+      </ActionBar>,
+    );
+  });
+  const rows = tree.root
+    .findAllByType(View)
+    .map((one) => StyleSheet.flatten(one.props.style) as ViewStyle)
+    .filter((style) => style?.flexDirection === 'row' && style.alignItems === 'center');
+  const gap = Number(rows[0].gap);
+  expect(gap).toBe(10);
+  expect(390 - 16 * 2 - 56 * 2 - gap * 2).toBe(226);
+  act(() => tree.unmount());
+});
+
 test('the gradient never catches a press, and the buttons over it do', () => {
   const layer = story(
     <ActionBar>

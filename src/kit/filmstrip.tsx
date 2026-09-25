@@ -18,10 +18,10 @@ import { useFocusRing, useHoverFocus } from './interaction';
 /** One frame as the strip and the mosaic know it: a picture, and whether it moves. */
 export type Frame = { uri: string; video?: boolean };
 
-/** Spec 7.7 — a neighbour is 30 wide, the frame in hand 44, and they lie 4 apart. */
+/** Spec 7.8, detail 67 — a neighbour is 30 wide, the frame in hand 44, and they lie 2 apart. */
 const SHOT = 30;
 const CURRENT = 44;
-const GAP = 4;
+const GAP = 2;
 
 /**
  * Spec 7.7 — the viewer's filmstrip: 48 tall, the neighbours 30 × 44 fading out towards the edges,
@@ -211,10 +211,11 @@ const useStyles = themed(({ color }) =>
       backgroundColor: color.raise,
     },
     shotCurrent: { width: CURRENT, height: 48, borderRadius: 5, opacity: 1 },
+    // In the corner of the frame in hand, 4 in from its left and its foot (`ViewerVideo`).
     playDot: {
       position: 'absolute',
-      top: 17,
-      left: 15,
+      left: 4,
+      bottom: 4,
       width: 14,
       height: 14,
       borderRadius: radius.pill,

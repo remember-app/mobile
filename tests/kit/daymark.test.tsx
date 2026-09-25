@@ -1,6 +1,7 @@
 import { rule } from '@tests/helpers/css';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import type { ReactElement } from 'react';
+import { Text as RNText, StyleSheet } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import { expect, test } from 'vitest';
 
@@ -40,6 +41,26 @@ test('a date on its own is quiet, and a label that leads a count, a face or a sw
   expect(tone(<DayMark label="Лиза Морозова" avatar="Лиза Морозова" count="128" />)).toBe('paper');
   expect(tone(<DayMark label="13 сентября" count="61" onPress={() => {}} />)).toBe('paper');
   expect(tone(<DayMark label="Фото" count="4" />)).toBe('paper');
+});
+
+test('the words of a seam are 10 / 12 / 600 with 0.3 of tracking, not a badge’s bold caps', () => {
+  // `MemoryDated` and `FramesByPeople` (MemoryDated.json, FramesByPeople.json): «13 сентября,
+  // суббота» and «Лиза Морозова» are Onest 600 10/12 with `letter-spacing: 0.03em` — the app wrote
+  // them in `badgeSm`, 700 and 0.5, and the words came out 4–5 % wider.
+  for (const label of ['13 сентября, суббота', 'Лиза Морозова']) {
+    let tree!: TestRenderer.ReactTestRenderer;
+    act(() => {
+      tree = mounted(TestRenderer.create(<DayMark label={label} avatar={label} count="128" />));
+    });
+    const words = tree.root.findAllByType(Text).find((one) => one.props.children === label)!;
+    expect(words.props.role).toBe('seam');
+    expect(StyleSheet.flatten(words.findByType(RNText).props.style)).toMatchObject({
+      fontFamily: 'Onest_600SemiBold',
+      fontSize: 10,
+      lineHeight: 12,
+      letterSpacing: 0.3,
+    });
+  }
 });
 
 test('a seam that picks is a checkbox over the whole band, and one that does not is a heading', () => {

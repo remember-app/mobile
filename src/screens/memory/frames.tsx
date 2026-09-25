@@ -195,7 +195,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
    * What is marked *and* still in the memory. `picked` is only ever emptied by leaving the mode or
    * by the capsule, and the feed moves underneath it on its own — the three-second re-read, the read
    * on focus, the pull. Somebody else deleting a marked frame left the button counting it: it said
-   * «Скачать 3 файла», came back «Сохранено 0 файлов», and had signed the gallery to find that out.
+   * «Скачать 3», came back «Сохранено 0 файлов», and had signed the gallery to find that out.
    * Every button counts what it will actually reach.
    */
   const marked = items?.filter((item) => picked.has(item.id)) ?? [];
@@ -406,6 +406,9 @@ export function Frames({ id, head }: { id: string; head: Head }) {
         // with the photographs, and the listener is what lights the thing and puts it out again.
         onScroll={onScroll}
         scrollEventThrottle={16}
+        // The spine is this feed's scroll indicator (`MemoryScrub`), and the seams are where the
+        // dates stand when it is off; the platform's own bar beside it is a second one.
+        showsVerticalScrollIndicator={false}
         // What the spine measures itself against: how much there is to scroll, and how much of it
         // is in view.
         onContentSizeChange={onContentSizeChange}
@@ -536,11 +539,12 @@ export function Frames({ id, head }: { id: string; head: Head }) {
                     }
                     // Read out, never drawn — so it says «Photo» and not the api's own `photo`.
                     label={nameOf(item, frame)}
-                    // Spec 1.7 gives this direction to `spark`: the frame is already ours and is
-                    // being done something with. Only while the mode is on and only where a mark
-                    // means something: handed `undefined`, the tile is a button again rather than
-                    // a checkbox that is permanently off.
-                    pick={pickable ? (picked.has(item.id) ? 'keep' : 'off') : undefined}
+                    // Spec 7.4, detail 26: a frame marked in the feed wears `accent` with a white
+                    // collar (`FramesPicking`) — `spark` is the wizard's «taken into the film».
+                    // Only while the mode is on and only where a mark means something: handed
+                    // `undefined`, the tile is a button again rather than a checkbox that is
+                    // permanently off.
+                    pick={pickable ? (picked.has(item.id) ? 'send' : 'off') : undefined}
                     // While the mode is on a tap marks the frame instead of opening it. Off it,
                     // the same gate the strip below puts on the same record, and for the same
                     // reason: a frame still being made has nothing behind it to open, so opening it
@@ -627,7 +631,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
 
         {/* The layer in the two shapes this screen wears, and both are the layout's second kind: a
             round 56 at either end with the one action between them. Picking, they are «Поделиться»,
-            «Скачать N файлов» and «Удалить»; the rest of the time the filters, «Добавить ещё» and
+            «Скачать N» and «Удалить»; the rest of the time the filters, «Добавить ещё» and
             the arrangement. Whoever may only look keeps the two round buttons and has nothing
             between them.
 
@@ -649,7 +653,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
               wide
               icon={Download}
               // The count rides in the label — it is what the button is about to take home. With
-              // nothing marked the button is off and says why: «Скачать 0 файлов» reads as a button
+              // nothing marked the button is off and says why: «Скачать 0» reads as a button
               // that would take nothing if only it worked.
               label={
                 marked.length === 0 ? s.gallery.nothingPicked : s.gallery.download(marked.length)

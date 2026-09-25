@@ -67,7 +67,7 @@ export type Color = {
   dangerEdge: string;
   /** the fill of the «Не собрался» badge */
   failedSoft: string;
-  /** the fill of the «Собирается» badge */
+  /** the fill of «часть 2» in the journal — «Собирается» lies on a poster and is `photo`'s */
   pendingSoft: string;
   /** the fill of the «связь вернулась» banner */
   sparkSoft: string;

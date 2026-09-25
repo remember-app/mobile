@@ -656,6 +656,7 @@ const useStyles = themed(({ color }) =>
     // «Выбрано 12 из 61» and a quiet «Снять»: the button moves under the words when the type is too
     // large for both on one line.
     layerAbove: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s3 },
-    layerRow: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },
+    // Three across at the foot of the gallery: 56 · 226 · 56 with 10 between (`MemoryFrames`).
+    layerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   }),
 );

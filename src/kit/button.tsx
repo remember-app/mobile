@@ -361,10 +361,11 @@ export function IconButton({
           style={[
             styles.dot,
             // Spec 7.4: ringed in the colour it stands on, which is the button's own fill — and it
-            // only stands on that fill if it sits inside the circle, hence the inset by diameter.
+            // only stands on that fill if it sits inside the circle, hence the inset by diameter:
+            // the layout's 9 stands 10 inside the edge of its 56, the ring round it 2 further out.
             {
-              top: Math.round(size * 0.2),
-              right: Math.round(size * 0.2),
+              top: Math.round(size * DOT_INSET) - DOT_RING,
+              right: Math.round(size * DOT_INSET) - DOT_RING,
               borderColor: roundBacking(color, tone, onAccent),
             },
           ]}
@@ -373,6 +374,15 @@ export function IconButton({
     </Pressable>
   );
 }
+
+/**
+ * Spec 7.2, detail 11 — the spark dot: 9 of `spark`, and a 2 ring *outside* it in the colour it
+ * stands on (`box-shadow: 0 0 0 2px` in `FramesByPeople`), so the spark itself stays 9 across.
+ * Where it stands is a share of the diameter: 10 inside a 56 (`right: 10px; top: 10px`).
+ */
+const DOT = 9;
+const DOT_RING = 2;
+const DOT_INSET = 10 / 56;
 
 /**
  * What the glyph is read in. A round button standing on a fill of its own — the account in the root
@@ -501,14 +511,15 @@ const useStyles = themed(({ color }) =>
     },
     off: { opacity: 0.45 },
     // Spec 7.4: a 9px dot ringed 2px in the colour of what it sits on — the ring itself comes from
-    // the tone, since only the tone knows what that colour is.
+    // the tone, since only the tone knows what that colour is. A border is drawn inside the box, so
+    // the box is the dot and its ring together.
     dot: {
       position: 'absolute',
-      width: 9,
-      height: 9,
+      width: DOT + DOT_RING * 2,
+      height: DOT + DOT_RING * 2,
       borderRadius: radius.pill,
       backgroundColor: color.spark,
-      borderWidth: 2,
+      borderWidth: DOT_RING,
     },
   }),
 );

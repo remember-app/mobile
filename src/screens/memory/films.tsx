@@ -33,7 +33,7 @@ import { beingMade, shelfTrack, WHILE_MAKING_MS } from '@/lib/montage/order';
 import { FilmPlayer, montageTitle } from '@/screens/memory/film-player';
 import { BlockHead } from '@/screens/memory/head';
 import type { Strings } from '@/strings';
-import { space } from '@/theme';
+import { height, space } from '@/theme';
 
 /** The four standings a montage can be in, in the three the kit draws (section 10). */
 const MONTAGE_STATE: Record<Montage['status'], MontageState> = {
@@ -308,6 +308,7 @@ export function Films({ id, memory }: { id: string; memory: Memory | null }) {
           number nobody can trust. */}
       <BlockHead
         title={s.montage.title}
+        style={styles.head}
         count={
           montages === null
             ? undefined
@@ -366,19 +367,13 @@ export function Films({ id, memory }: { id: string; memory: Memory | null }) {
                 state={state}
                 title={montageTitle(montage, s)}
                 // Spec 7.6 gives the three states three different bodies: a finished one says what
-                // it was made of, and the two that have nothing to show yet say where they stand
-                // instead — «Мы сообщим, когда будет готов», or why it broke in the worker's own
-                // sentence (spec detail 38), and the general line where the worker said none.
+                // it was made of, one that fell over says why in the worker's own sentence (spec
+                // detail 38), or the general line where the worker said none. One still being cut
+                // says nothing past its count and scale (`MemoryFrames`).
                 meta={state === 'ready' ? madeOf(montage, s) : undefined}
-                caption={
-                  state === 'ready'
-                    ? undefined
-                    : state === 'failed'
-                      ? montage.error_text || s.montage.broke
-                      : s.montage.caption
-                }
+                caption={state === 'failed' ? montage.error_text || s.montage.broke : undefined}
                 poster={montage.poster_url ?? undefined}
-                badge={<BadgeMontage state={state} label={s.montage.status[montage.status]} />}
+                badge={<BadgeMontage sm state={state} label={s.montage.status[montage.status]} />}
                 // Spec detail 38 — «3 из 5» and five bars on the one being cut, straight off the
                 // list. The count and the scale read the one number, so the card cannot say «3» and
                 // paint four; a row the worker has not opened yet has no stages and no scale.
@@ -421,8 +416,10 @@ export function Films({ id, memory }: { id: string; memory: Memory | null }) {
  * components on the feed's own background, and those turn with the theme by themselves.
  */
 const styles = StyleSheet.create({
-  // Spec 8: the heading, then 10 down to the strip that stands under it.
+  // Spec 8: the heading, then 10 down to the strip that stands under it — and the heading's line is
+  // 24 whatever its words come to (`MemoryFrames`), which is what puts the strip 150 down.
   block: { gap: 10 },
+  head: { minHeight: height.filmsHead },
   // The strip runs edge to edge and starts at the screen's own 16, so the last card slides off the
   // right edge rather than stopping inside a margin.
   strip: { flexDirection: 'row', gap: space.s2, paddingHorizontal: space.s4 },

@@ -1,5 +1,12 @@
 import { mountsTrees } from '@tests/helpers/renderer';
-import { Pressable } from 'react-native';
+import {
+  Pressable,
+  Text as RNText,
+  StyleSheet,
+  type TextStyle,
+  View,
+  type ViewStyle,
+} from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import { beforeAll, expect, test } from 'vitest';
 import { BadgeMontage } from '@/kit/badge';
@@ -234,7 +241,7 @@ test('what lies on the poster is read in the night’s ink in daylight too', asy
   // in it (#F5F3EE and #0B0B12); in daylight the theme's own ink is a cream, and a cream triangle
   // on a cream circle is a circle with nothing in it.
   const ready = <CardMontage title="Ролик" state="ready" poster={POSTER} />;
-  const badge = <BadgeMontage state="pending" label="Собирается" />;
+  const badge = <BadgeMontage state="failed" label="Не собрался" />;
   const retry = <Button variant="secondary" size="sm" label="Повторить" />;
   const card = (
     <CardMontage title="Ролик" state="failed" poster={POSTER} badge={badge}>
@@ -246,9 +253,10 @@ test('what lies on the poster is read in the night’s ink in daylight too', asy
   expect(story(ready)).toContain('stroke="#0B0B12"');
   expect(story(ready)).not.toContain('stroke="#F2EFE7"');
   expect(night).toContain('stroke="#0B0B12"');
-  // The badge and the button are the callers', and they are drawn as they are at night — «Собирается»
-  // in the day's blue, on a poster, would be a dark word on a dark frame. Standing alone in daylight
-  // they are different, which is what makes finding the night's inside the card mean something.
+  // The badge and the button are the callers', and they are drawn as they are at night — «Не
+  // собрался» in the day's red, on a poster, would be a dark word on a dark frame. Standing alone
+  // in daylight they are different, which is what makes finding the night's inside the card mean
+  // something.
   const day = story(card);
   expect(story(badge)).not.toBe(nightBadge);
   expect(day).toContain(nightBadge);
@@ -282,4 +290,71 @@ test('a memory with no montages gets the dashed block, not an empty state', () =
     one: <EmptyMontages photos={SHOTS.slice(0, 1)} text="Нейросеть соберёт ролик." />,
     none: <EmptyMontages text="Нейросеть соберёт ролик." />,
   });
+});
+
+test('«Собирается» is the poster’s blue in both themes, and on a card in the strip it is the small badge', async () => {
+  // Spec 2 and detail 24, `MemoryFrames`: `rgba(75,91,255,.28)` under `#C9CDFF`, 10 / 700 caps on
+  // `4 / 9` — 92.5 × 21 in the layout. The app drew the theme's `.20` under `#A7AEFF`, 11 on
+  // `5 / 8` and a hairline: 100 × 25.
+  const drawn = () => {
+    let tree!: TestRenderer.ReactTestRenderer;
+    act(() => {
+      tree = TestRenderer.create(<BadgeMontage sm state="pending" label="Собирается" />);
+    });
+    const plate = StyleSheet.flatten(tree.root.findAllByType(View)[0].props.style) as ViewStyle;
+    const words = StyleSheet.flatten(tree.root.findByType(RNText).props.style) as TextStyle;
+    act(() => tree.unmount());
+    return { plate, words };
+  };
+  const night = drawn();
+  expect(night.plate).toMatchObject({
+    backgroundColor: 'rgba(75,91,255,0.28)',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderWidth: 0,
+  });
+  expect(night.words).toMatchObject({
+    color: '#C9CDFF',
+    fontSize: 10,
+    fontFamily: 'Onest_700Bold',
+  });
+  await setTheme('light');
+  expect(drawn()).toEqual(night);
+  await setTheme('dark');
+  // The large card keeps its own badge.
+  expect(story(<BadgeMontage state="ready" label="Готов" />)).not.toBe(
+    story(<BadgeMontage sm state="ready" label="Готов" />),
+  );
+});
+
+test('«Новый ролик» is two lines of 12 / 15 under the plus, and is read out whole', () => {
+  // Spec 7.6, detail 39, and `MemoryFrames`: «Новый<br>ролик», 12 / 15 / 600, centred.
+  let tree!: TestRenderer.ReactTestRenderer;
+  act(() => {
+    tree = TestRenderer.create(<CardMontageNew label="Новый ролик" onPress={() => {}} />);
+  });
+  const words = tree.root.findByType(Text);
+  expect(words.props.role).toBe('caption');
+  expect(words.props.children).toBe('Новый\nролик');
+  expect(StyleSheet.flatten(words.findByType(RNText).props.style)).toMatchObject({
+    fontSize: 12,
+    lineHeight: 15,
+    fontFamily: 'Onest_600SemiBold',
+  });
+  expect(tree.root.findByType(Pressable).props.accessibilityLabel).toBe('Новый ролик');
+  act(() => tree.unmount());
+});
+
+test('the dashed block’s words are 13 / 18', () => {
+  // Spec 7.6, detail 40, and `FilmsEmpty`: 13 / 18 / 500 `muted` — a line tighter than `note`.
+  let tree!: TestRenderer.ReactTestRenderer;
+  act(() => {
+    tree = TestRenderer.create(<EmptyMontages text="Нейросеть выберет лучшие моменты" />);
+  });
+  expect(StyleSheet.flatten(tree.root.findByType(RNText).props.style)).toMatchObject({
+    fontSize: 13,
+    lineHeight: 18,
+    fontFamily: 'Onest_500Medium',
+  });
+  act(() => tree.unmount());
 });

@@ -1,5 +1,8 @@
 import { rule, shorthand } from '@tests/helpers/css';
+import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { Pause, Plus } from 'lucide-react-native';
+import { StyleSheet, View, type ViewStyle } from 'react-native';
+import TestRenderer, { act } from 'react-test-renderer';
 import { beforeAll, expect, test } from 'vitest';
 
 import { Button, type ButtonVariant, IconButton } from '@/kit/button';
@@ -7,6 +10,8 @@ import { allDifferent, story } from '@/kit/story';
 import { font, setTheme } from '@/theme';
 
 /** Every state of every button of spec 7.2, drawn once each. */
+
+mountsTrees();
 
 beforeAll(async () => {
   await setTheme('dark');
@@ -308,6 +313,28 @@ test('the spark dot says a setting has moved off its default, and is not a state
   });
   const off = story(<IconButton icon={Plus} label="Фильтры" disabled />);
   expect(off).toContain('aria-disabled="true"');
+});
+
+test('the spark dot is 9 of spark 10 inside the edge of a 56, and its ring lies outside the 9', () => {
+  // `FramesByPeople` (design/screens/FramesByPeople.html): `right: 10px; top: 10px; width: 9px;
+  // height: 9px; box-shadow: 0 0 0 2px` — the 9 is the spark, the ring is round it. The app drew a
+  // 9 box with a 2 border inside it: a 5 of spark, 13 in.
+  let tree!: TestRenderer.ReactTestRenderer;
+  act(() => {
+    tree = mounted(
+      TestRenderer.create(<IconButton icon={Plus} label="Сортировка" size={56} tone="glass" dot />),
+    );
+  });
+  const dot = tree.root
+    .findAllByType(View)
+    .map((one) => StyleSheet.flatten(one.props.style) as ViewStyle)
+    .find((style) => style?.position === 'absolute');
+  const ring = Number(dot?.borderWidth);
+  expect(ring).toBe(2);
+  expect(Number(dot?.width) - ring * 2).toBe(9);
+  expect(Number(dot?.height) - ring * 2).toBe(9);
+  expect(Number(dot?.top) + ring).toBe(10);
+  expect(Number(dot?.right) + ring).toBe(10);
 });
 
 test('the spark dot is ringed in whatever it stands on, which is the button it sits inside', () => {

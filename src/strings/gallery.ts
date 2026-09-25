@@ -59,8 +59,11 @@ export const en = {
     selectDay: (n: number) => `Select all ${n}`,
     /** The line over that button while the mode is on, where the count of the whole picking stands. */
     picked: (n: number) => `${n} selected`,
-    /** The glowing button of the picking mode, carrying what it is about to take home. */
-    download: (n: number) => `Download ${n} ${n === 1 ? 'file' : 'files'}`,
+    /**
+     * The glowing button of the picking mode, carrying how many it is about to take home — the
+     * number alone, as `FramesPicking` writes it («Скачать 4», spec 9).
+     */
+    download: (n: number) => `Download ${n}`,
     /** The same button with nothing marked yet: off, and saying why rather than «Download 0». */
     nothingPicked: 'Nothing selected',
     addMore: 'Add more',
@@ -246,7 +249,7 @@ export const ru: typeof en = {
         .join(' и '),
     selectDay: (n: number) => `Выбрать все ${n}`,
     picked: (n: number) => `Выбрано ${n}`,
-    download: (n: number) => `Скачать ${count(n, 'файл', 'файла', 'файлов')}`,
+    download: (n: number) => `Скачать ${n}`,
     nothingPicked: 'Ничего не выбрано',
     addMore: 'Добавить ещё',
     add: 'Добавить кадры',
