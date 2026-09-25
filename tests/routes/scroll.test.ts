@@ -90,6 +90,32 @@ test('the keyboard is given way to by the board alone', () => {
     expect(/<Board\b|<WizardStep\b/.test(source), path).toBe(true);
 });
 
+test('the keyboard goes down the same ways on every screen and sheet', () => {
+  // TASK-377: a tap beside a field and a drag of the body take the keyboard down, and a tap on a
+  // button leaves it up — said once (`KEYBOARD_SCROLL` in `kit/interaction.ts`) and handed to the
+  // board's scroll and the sheet's, so no screen says it differently or forgets to.
+  const said = sources
+    .filter(([, source]) => /keyboardShouldPersistTaps|keyboardDismissMode/.test(source))
+    .map(([path]) => path);
+  expect(said).toEqual([]);
+  for (const [path, source] of sources.filter(
+    ([p]) => p === 'kit/bars.tsx' || p === 'kit/sheet.tsx',
+  ))
+    expect(flat(source), path).toMatch(/<ScrollView [^>]*\{\.\.\.KEYBOARD_SCROLL\}/);
+  // And the keyboard is given way to by one thing: a scroll that moved its insets for it as well
+  // would move twice on iOS.
+  expect(sources.filter(([, source]) => /automaticallyAdjustKeyboardInsets/.test(source))).toEqual(
+    [],
+  );
+  // A body that is a list scrolls by a list of the screen's own, which the board's keyboard rules do
+  // not reach — so no such screen has a field on it.
+  const listed = routes
+    .filter(([, source]) => /\blist=\{/.test(source))
+    .filter(([, source]) => /<(Field|CodeField|TextArea)\b/.test(source))
+    .map(([path]) => path);
+  expect(listed).toEqual([]);
+});
+
 /** Where the expressions of every `name={…}` prop stand in the source, brace to brace. */
 const spansOf = (source: string, name: string): [number, number][] => {
   const spans: [number, number][] = [];

@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { backdrop, board, duration as motion, radius, space, themed, type } from '@/theme';
 
-import { useFadeIn } from './interaction';
+import { DISMISS_KEYBOARD, KEYBOARD_SCROLL, useFadeIn } from './interaction';
 import { Text } from './text';
 
 export type SheetProps = {
@@ -252,8 +252,11 @@ function Rise({
           never stand closer than two gaps under the last block — the measure the heights of spec 4
           were taken by. Not pinned, the heading and the buttons go into the scroll in the same
           order and with the same gap, so a sheet that fits looks the same either way. */}
+      {/* A tap or a drag on the sheet itself, beside its field, takes the keyboard down
+          (TASK-377); a tap on the darkness still declines the whole sheet. */}
       <Animated.View
         accessibilityViewIsModal
+        {...DISMISS_KEYBOARD}
         onLayout={onSheet}
         style={[
           styles.sheet,
@@ -270,13 +273,12 @@ function Rise({
       >
         <View testID="sheet-handle" style={styles.handle} />
         {pinned ? heads : null}
-        {/* A body that fits neither scrolls nor bounces. Taps land on what they hit even with the
-            keyboard up — a form in the body keeps its own button. */}
+        {/* A body that fits neither scrolls nor bounces. */}
         <ScrollView
           style={pinned ? styles.body : null}
           contentContainerStyle={[gap, pinned ? null : styles.fill]}
           alwaysBounceVertical={false}
-          keyboardShouldPersistTaps="handled"
+          {...KEYBOARD_SCROLL}
         >
           {pinned ? null : heads}
           {children}

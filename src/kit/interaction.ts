@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { AccessibilityInfo, Animated, Easing, LayoutAnimation, type ViewStyle } from 'react-native';
+import {
+  AccessibilityInfo,
+  Animated,
+  Easing,
+  Keyboard,
+  LayoutAnimation,
+  type ViewStyle,
+} from 'react-native';
 
 import { duration, ease, themed } from '@/theme';
 
@@ -222,3 +229,28 @@ export function useFocusRing(onAccent = false): ViewStyle {
 
 /** Spec 6 — a button under a finger goes to 0.98 and back. A movement, so it obeys the setting. */
 export const PRESS: ViewStyle = { transform: [{ scale: 0.98 }] };
+
+/**
+ * How a scroll with a field in it treats the keyboard (TASK-377), the board's and the sheet's alike:
+ * a tap that lands on a button or a field is theirs and leaves the keyboard up — a form keeps its
+ * own button — and a drag takes the keyboard down, the way every scroll on the phone does.
+ */
+export const KEYBOARD_SCROLL = {
+  keyboardShouldPersistTaps: 'handled',
+  keyboardDismissMode: 'on-drag',
+} as const;
+
+/**
+ * A tap or a drag on nothing takes the keyboard down (TASK-377) — the background, a line of words,
+ * the gap between blocks, the bottom layer around its field, a sheet whose body has nothing to
+ * scroll. Asked last: React Native offers a touch to the deepest view first, so a button or a field
+ * that wants it has it, and this only hears the rest; a drag that scrolls is the scroll's, and
+ * `KEYBOARD_SCROLL` takes the keyboard down there. A drag begun on a button takes it from the
+ * button, which is what a drag is — the sliders and the rows dragged by hand refuse to give it up.
+ * Only while the keyboard is up, so otherwise it stands in the way of nothing.
+ */
+export const DISMISS_KEYBOARD = {
+  onStartShouldSetResponder: () => Keyboard.isVisible(),
+  onMoveShouldSetResponder: () => Keyboard.isVisible(),
+  onResponderRelease: () => Keyboard.dismiss(),
+} as const;

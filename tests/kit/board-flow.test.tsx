@@ -25,7 +25,14 @@ vi.mock('react-native-safe-area-context', () => ({
 
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { cloneElement, type ReactElement, type ReactNode, useEffect } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
 import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
 
 import { ActionBar, Board } from '@/kit/bars';
@@ -483,4 +490,44 @@ test('a sheet is the other place the keyboard is given way to: iOS is told, Andr
   } finally {
     Platform.OS = system;
   }
+});
+
+test('the keyboard goes down by a tap or a drag on anything but a field or a button, and by a drag of the body', async () => {
+  // TASK-377: once for every screen. A tap on a button or a field is theirs — a form keeps its own
+  // button — and a drag of the body takes the keyboard down.
+  const { root } = await mount(screen());
+  const scroll = root.findByType(ScrollView);
+  expect(scroll.props.keyboardShouldPersistTaps).toBe('handled');
+  expect(scroll.props.keyboardDismissMode).toBe('on-drag');
+
+  // A tap or a drag on anything else — the background, a line of words, the bottom layer around its
+  // field, a body with nothing to scroll — is heard by the board, and only while there is a keyboard
+  // to take down.
+  const board = root.findByType(KeyboardAvoidingView);
+  const dismiss = vi.spyOn(Keyboard, 'dismiss').mockImplementation(() => {});
+  const isVisible = vi.spyOn(Keyboard, 'isVisible').mockReturnValue(false);
+  try {
+    expect(board.props.onStartShouldSetResponder()).toBe(false);
+    expect(board.props.onMoveShouldSetResponder()).toBe(false);
+    isVisible.mockReturnValue(true);
+    expect(board.props.onStartShouldSetResponder()).toBe(true);
+    expect(board.props.onMoveShouldSetResponder()).toBe(true);
+    board.props.onResponderRelease();
+    expect(dismiss).toHaveBeenCalledOnce();
+  } finally {
+    dismiss.mockRestore();
+    isVisible.mockRestore();
+  }
+
+  // When the keyboard leaves less room than the bar and the bottom layer need, the top gives: the
+  // board stands on its bottom edge, and the action there stays over the keyboard.
+  expect(StyleSheet.flatten(board.props.style).justifyContent).toBe('flex-end');
+});
+
+test('a body that is a list keeps the top of the screen where it is', async () => {
+  // A list has no field on it (`tests/routes/scroll.test.ts`), and what floats over it is laid out
+  // from the top — so its board does not stand on its bottom edge.
+  const { root } = await mount(<Board list={() => <Text>Список</Text>} />);
+  const board = root.findByType(KeyboardAvoidingView);
+  expect(StyleSheet.flatten(board.props.style).justifyContent).toBeUndefined();
 });

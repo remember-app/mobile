@@ -1,9 +1,10 @@
 import { mountsTrees } from '@tests/helpers/renderer';
-
+import { Text as RNText } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import { beforeAll, expect, test, vi } from 'vitest';
 import { grabLength, LengthSlider } from '@/kit/slider';
 import { allDifferent, story } from '@/kit/story';
+import { TYPE_MOST } from '@/kit/text';
 import { setTheme } from '@/theme';
 
 /** Spec 7.3, detail 19 — how long the film should be. */
@@ -227,11 +228,9 @@ test('a ready length keeps its figures inside its own pill, however narrow the r
     tree = TestRenderer.create(slider());
   });
   const words = () =>
-    tree.root.findAll(
-      (node) => node.props.children === '0:30' && node.props.maxFontSizeMultiplier !== undefined,
-    );
-  // Unmeasured, nothing is held back.
-  expect(words()).toHaveLength(0);
+    tree.root.findAll((node) => node.type === RNText && node.props.children === '0:30');
+  // Unmeasured, nothing of the pill's own is held back — only the kit's ceiling for any words.
+  expect(words()[0]?.props.maxFontSizeMultiplier).toBe(TYPE_MOST);
   // The zoomed iPhone SE (TASK-372): the card leaves 256 for five pills and four gaps of 6.
   const row = tree.root.findAll(
     (node) =>

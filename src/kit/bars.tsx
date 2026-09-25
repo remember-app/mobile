@@ -18,6 +18,7 @@ import { board, height, photo, radius, space, ThemePin, themed, type, useTheme }
 import { StepScale } from './bits';
 import { Button, IconButton } from './button';
 import type { IconComponent } from './icon';
+import { DISMISS_KEYBOARD, KEYBOARD_SCROLL } from './interaction';
 import { useMeasured } from './sheet';
 import { Text } from './text';
 
@@ -56,13 +57,19 @@ export type BoardProps = {
  * screen can forget to (TASK-372). The bar and the bottom layer stand still around it while they,
  * and one line of the body, fit the window; when they do not — the smallest phone at the largest
  * system type — the whole board scrolls as one, the way a sheet does (`pinnable` in `sheet.tsx`),
- * or the actions in them would stand past the edge with nothing to bring them back. The board also
- * gives way to the keyboard, once for every screen: whatever stands at the bottom rides up over it.
+ * or the actions in them would stand past the edge with nothing to bring them back.
  *
  * The window decides and not the room left between the two: that room is what the keyboard takes,
  * and a field in the bar or the bottom layer moved into the scroll the moment the keyboard came up
  * for it is a field drawn anew — the keyboard goes down with it. A window of no height has not been
  * measured (off a phone), and stands as drawn.
+ *
+ * The keyboard is the board's to handle, once for every screen (TASK-377). Whatever stands at the
+ * bottom rides up over it, the screen's action with it; when the keyboard leaves less room than the
+ * bar and the bottom layer need — a small phone, the largest type — it is the top that gives and
+ * not the action: the board stands on its bottom edge. And the keyboard goes down the ordinary ways
+ * — a tap on anything that is not a field or a button, a drag anywhere ({@link KEYBOARD_SCROLL},
+ * {@link DISMISS_KEYBOARD}).
  */
 export function Board({ bar, footer, body, list, children, style }: BoardProps) {
   const insets = useSafeAreaInsets();
@@ -78,10 +85,12 @@ export function Board({ bar, footer, body, list, children, style }: BoardProps) 
   const tail = footer ? <View onLayout={onFoot}>{footer}</View> : null;
 
   return (
-    // Android resizes the window for the keyboard itself; iOS needs telling.
+    // Android resizes the window for the keyboard itself; iOS needs telling. One of the two ways
+    // and not both: a scroll that also moved its own insets for the keyboard would move twice.
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={[styles.board, { paddingTop: insets.top }, style]}
+      style={[styles.board, list ? null : styles.stands, { paddingTop: insets.top }, style]}
+      {...DISMISS_KEYBOARD}
     >
       {pinned ? head : null}
       {list ? (
@@ -89,13 +98,12 @@ export function Board({ bar, footer, body, list, children, style }: BoardProps) 
           {list({ head: pinned ? null : head, foot: pinned ? null : tail })}
         </View>
       ) : (
-        // A body that fits neither scrolls nor bounces. Taps land on what they hit even with the
-        // keyboard up — a form keeps its own button.
+        // A body that fits neither scrolls nor bounces.
         <ScrollView
           style={styles.room}
           contentContainerStyle={styles.grow}
           alwaysBounceVertical={false}
-          keyboardShouldPersistTaps="handled"
+          {...KEYBOARD_SCROLL}
         >
           {pinned ? null : head}
           <View style={[styles.grow, body]}>{children}</View>
@@ -503,6 +511,9 @@ export function ActionBar({
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
     board: { flex: 1, backgroundColor: color.ink },
+    // What fits changes nothing; what does not is let go at the top, never at the bottom — the
+    // bottom layer is the screen's action, and it has to stay over the keyboard.
+    stands: { justifyContent: 'flex-end' },
     room: { flex: 1 },
     grow: { flexGrow: 1 },
     bar: {

@@ -207,16 +207,14 @@ export default function MemoryEditScreen() {
             <View style={styles.card}>
               <CoverSlot uri={coverUri} thumbs={memory.recent_thumbnail_urls} />
               <View style={styles.grow}>
-                <Text role="row" numberOfLines={1}>
+                <Text role="row">
                   {cover === null
                     ? s.edit.coverNone
                     : chosen
                       ? s.edit.coverFrom(formatDay(new Date(shotAt(chosen))))
                       : s.edit.coverChosen}
                 </Text>
-                <Text role="meta" numberOfLines={2}>
-                  {cover === null ? s.edit.coverInstead : s.edit.coverWhere}
-                </Text>
+                <Text role="meta">{cover === null ? s.edit.coverInstead : s.edit.coverWhere}</Text>
               </View>
               <Button
                 variant="small"
@@ -310,7 +308,9 @@ const useStyles = themed(({ color }) =>
       borderWidth: 1,
       borderColor: color.line,
     },
-    grow: { flex: 1, minWidth: 0 },
+    // The words keep at least half the card: «Выбрать» goes under them rather than squeeze them to
+    // a letter a line, and they wrap rather than being cut (TASK-377).
+    grow: { flex: 1, minWidth: '50%' },
     quiet: { alignSelf: 'flex-start' },
   }),
 );

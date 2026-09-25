@@ -1,6 +1,6 @@
 import { rule } from '@tests/helpers/css';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
-import { ScrollView } from 'react-native';
+import { Keyboard, ScrollView } from 'react-native';
 import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
 import { expect, test, vi } from 'vitest';
 
@@ -332,6 +332,25 @@ test('when they do not fit, the heading and the buttons scroll with the body and
   // A button in the scroll — these, or the nick form's own — is pressed by the first tap with the
   // keyboard up; without this that tap only puts the keyboard away.
   expect(scroll().props.keyboardShouldPersistTaps).toBe('handled');
+  // TASK-377: a drag of the body takes the keyboard down, and so does a tap or a drag on the sheet
+  // itself beside its field — heard only while there is a keyboard to take down. A tap on the darkness
+  // still declines the whole sheet (`useScrimTap`).
+  expect(scroll().props.keyboardDismissMode).toBe('on-drag');
+  const dismiss = vi.spyOn(Keyboard, 'dismiss').mockImplementation(() => {});
+  const isVisible = vi.spyOn(Keyboard, 'isVisible').mockReturnValue(false);
+  try {
+    expect(sheet.props.onStartShouldSetResponder()).toBe(false);
+    expect(sheet.props.onMoveShouldSetResponder()).toBe(false);
+    isVisible.mockReturnValue(true);
+    expect(sheet.props.onStartShouldSetResponder()).toBe(true);
+    // A drag too: a sheet whose body fits has nothing to scroll, and a drag down it still works.
+    expect(sheet.props.onMoveShouldSetResponder()).toBe(true);
+    sheet.props.onResponderRelease();
+    expect(dismiss).toHaveBeenCalledOnce();
+  } finally {
+    dismiss.mockRestore();
+    isVisible.mockRestore();
+  }
 });
 
 /**
