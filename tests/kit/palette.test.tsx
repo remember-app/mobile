@@ -1,3 +1,4 @@
+import { rule } from '@tests/helpers/css';
 import { beforeAll, expect, test } from 'vitest';
 
 import { Palette } from '@/kit/palette';
@@ -81,6 +82,21 @@ test('the inner ring is drawn in whatever the circles stand on', () => {
   );
   expect(inSheet).toContain('3px #16161F');
   expect(onScreen).toContain('3px #0B0B12');
+});
+
+test('on the narrowest sheet the circles give way evenly, round, rather than push one off it', () => {
+  // Eight 36s are 288 — two more than the row of a sheet on a 320 screen.
+  const drawn = story(
+    <Palette
+      colors={COLORS}
+      names={NAMES}
+      value={COLORS[0]}
+      onChange={() => {}}
+      label="Цвет лейбла"
+    />,
+  );
+  expect(drawn).toContain(rule('flex-shrink:1'));
+  expect(drawn).toContain(rule('aspect-ratio:1'));
 });
 
 test('the row is as tall as the finger, because the slop round a 36 circle cannot leave it', () => {

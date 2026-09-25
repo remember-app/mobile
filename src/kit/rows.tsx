@@ -546,8 +546,10 @@ const useStyles = themed(({ color }) =>
     unfolded: { paddingLeft: space.s3, paddingRight: space.s2, paddingBottom: 10 },
     wave: { flexDirection: 'row', alignItems: 'center', gap: 2, height: 18 },
     waveBar: { width: 3, borderRadius: radius.pill, backgroundColor: color.faint },
+    // «Вернуть» moves under the reason when the system type leaves it no room beside it.
     rejected: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       alignItems: 'center',
       gap: space.s3,
       paddingVertical: space.s3,

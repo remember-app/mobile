@@ -1,4 +1,7 @@
+import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { CalendarDays, Lock } from 'lucide-react-native';
+import { StyleSheet, Text } from 'react-native';
+import TestRenderer, { act } from 'react-test-renderer';
 import { beforeAll, expect, test } from 'vitest';
 
 import { Chip } from '@/kit/chip';
@@ -6,6 +9,8 @@ import { allDifferent, story } from '@/kit/story';
 import { setTheme } from '@/theme';
 
 /** Spec 7.3 — the chip: four heights, and everything that can stand inside one. */
+
+mountsTrees();
 
 beforeAll(async () => {
   await setTheme('dark');
@@ -58,6 +63,23 @@ test('a label’s chip carries its colour, and the colour says nothing out loud'
   expect(
     story(<Chip label="Для себя" swatch="#FFB547" icon={Lock} onPress={() => {}} />),
   ).toContain('data-glyph');
+});
+
+test('a name wider than the whole row breaks onto a second line inside the chip, never out of it', async () => {
+  let tree!: TestRenderer.ReactTestRenderer;
+  await act(async () => {
+    tree = mounted(
+      TestRenderer.create(
+        <Chip label="Лучшие кадры свадьбы" swatch="#FFB547" count="23" onPress={() => {}} />,
+      ),
+    );
+  });
+  const words = (text: string) =>
+    tree.root.find((node) => node.type === Text && node.props.children === text).props;
+  // Spec 7.3: the width never cuts a chip. The name is what gives; the count stays one figure.
+  expect(words('Лучшие кадры свадьбы').numberOfLines).toBeUndefined();
+  expect(StyleSheet.flatten(words('Лучшие кадры свадьбы').style).flexShrink).toBe(1);
+  expect(words('23').numberOfLines).toBe(1);
 });
 
 test('a chosen chip fills with paper and is read in ink, the way a segment is', () => {

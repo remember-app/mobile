@@ -294,8 +294,10 @@ const useStyles = themed(({ color }) =>
     body: { flexGrow: 1, paddingHorizontal: space.s4, paddingBottom: space.s6, gap: 22 },
     middle: { flex: 1, justifyContent: 'center' },
     block: { gap: 9 },
+    // «Выбрать» moves under the words when the system type leaves it no room beside them.
     card: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       alignItems: 'center',
       gap: space.s3,
       padding: space.s3,

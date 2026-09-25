@@ -144,7 +144,11 @@ export function Button({
     >
       {busy ? <Spinner size={18} track={tint} head="transparent" /> : null}
       {icon && !busy ? <Icon icon={icon} {...glyph} color={tint} /> : null}
-      <Text role={variant === 'small' || compact ? 'label' : 'control'} style={{ color: tint }}>
+      <Text
+        role={variant === 'small' || compact ? 'label' : 'control'}
+        // Spec 7.2: a label too long for one line grows the button down and is centred in it.
+        style={{ color: tint, textAlign: 'center' }}
+      >
         {words}
       </Text>
       {trailingIcon && !busy ? <Icon icon={trailingIcon} size={ICO_S} color={tint} /> : null}

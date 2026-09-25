@@ -410,10 +410,18 @@ const UNFOLD_MS = 200;
 
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
-    grow: { flex: 1, minWidth: 0 },
+    // The heading keeps the width of its word: on the largest type «Свой трек» moves under it rather
+    // than squeeze it a letter a line.
+    grow: { flexGrow: 1 },
     body: { flexGrow: 1, paddingHorizontal: space.s4, paddingBottom: space.s6, gap: 18 },
     block: { gap: 10 },
-    blockHead: { flexDirection: 'row', alignItems: 'center', gap: space.s2, paddingLeft: 2 },
+    blockHead: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      gap: space.s2,
+      paddingLeft: 2,
+    },
     // The five stand inside one surface with the corners cut off it, so the hairline between two
     // rows never reaches the rounding.
     card: {

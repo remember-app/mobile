@@ -348,6 +348,9 @@ export default function MemorySettingsScreen() {
                   <Button
                     variant={editing ? 'paper' : 'small'}
                     size="xs"
+                    // Held in, it is still the small button of this row: `paper` on its own runs
+                    // the width of the row and squeezes the heading beside it to nothing.
+                    wide={false}
                     icon={editing ? undefined : Pencil}
                     label={editing ? s.action.done : s.members.edit}
                     onPress={() => setEditing((was) => !was)}
@@ -522,7 +525,8 @@ const useStyles = themed(({ color }) =>
       borderColor: color.line,
     },
     block: { gap: 10 },
-    head: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    // «Править состав» stands at the right of the heading, or under it once it does not fit there.
+    head: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10 },
     // The heading and its count share a baseline, the way the layout sets every pair of them.
     headWords: {
       flex: 1,

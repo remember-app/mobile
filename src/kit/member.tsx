@@ -522,7 +522,7 @@ export function RowContact({
   return (
     <View>
       {divider && variant === 'saved' ? <Divider /> : null}
-      <View style={[styles.row, variant === 'found' ? styles.card : null]}>
+      <View style={[styles.contact, variant === 'found' ? styles.card : null]}>
         <Avatar name={name} size={42} gone={gone} />
         <View style={styles.rowWords}>
           <Text role="row" tone={gone ? 'faint' : 'paper'} numberOfLines={1}>
@@ -543,9 +543,11 @@ export function RowContact({
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
     avatar: { backgroundColor: color.raise, alignItems: 'center', justifyContent: 'center' },
-    row: {
+    // «Сохранить» and «Вернуть» move under the name when the system type leaves them no room beside it.
+    contact: {
       minHeight: height.row,
       flexDirection: 'row',
+      flexWrap: 'wrap',
       alignItems: 'center',
       gap: space.s3,
       paddingVertical: 11,

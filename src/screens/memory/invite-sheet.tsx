@@ -314,7 +314,8 @@ const useStyles = themed(() =>
     chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.s2 },
     quiet: { alignSelf: 'flex-start' },
     grow: { flex: 1, minWidth: 0 },
-    // The link and what the sheet offers to do with it, side by side.
-    link: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },
+    // The link and what the sheet offers to do with it, side by side — the button moving under the
+    // words once the system type is too large for it to fit beside them.
+    link: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s3 },
   }),
 );

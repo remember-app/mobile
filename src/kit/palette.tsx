@@ -102,6 +102,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  swatch: { width: 36, height: 36, borderRadius: radius.pill },
+  // Eight 36s with nothing between them are 288, two more than the row of a sheet on a 320 screen:
+  // there they give way evenly, staying round, rather than push the last one past the edge.
+  swatch: { width: 36, aspectRatio: 1, flexShrink: 1, borderRadius: radius.pill },
   hover: { opacity: 0.85 },
 });
