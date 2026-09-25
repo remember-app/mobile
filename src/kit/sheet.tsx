@@ -169,8 +169,8 @@ export function pinnable({
   return EDGE * 2 + space.s3 + column + bottom <= sheet;
 }
 
-/** A block's height as it was last laid out, for {@link pinnable}. */
-function useMeasured(): [number, (event: LayoutChangeEvent) => void] {
+/** A block's height as it was last laid out, 0 until it has been — for {@link pinnable} and `Board`. */
+export function useMeasured(): [number, (event: LayoutChangeEvent) => void] {
   const [height, setHeight] = useState(0);
   return [height, (event) => setHeight(event.nativeEvent.layout.height)];
 }

@@ -16,8 +16,7 @@ import { dayKey, type Lane, laneOf, weeksOf } from './calendar-grid';
 import { PRESS, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
 import { fitCell, Text } from './text';
 
-/** A day's figure (spec 7.3: 15 / 500 tabular — `bodySm`), and the cell and circle it stands in. */
-const FIGURE_SIZE = 15;
+/** The circle a day's figure stands in, and the cell's height at the system's own type (spec 7.3). */
 const DAY = 40;
 
 /**
@@ -255,7 +254,7 @@ const useStyles = themed(({ color }) =>
     grid: { gap: 2 },
     weekRow: { flexDirection: 'row' },
     // A seventh of the row, and the row is the card: the grid measures itself, so it fits whatever
-    // width it is given and a six-week month is as wide as a five-week one. How tall — `dayFit`.
+    // width it is given and a six-week month is as wide as a five-week one. How tall — `fitCell`.
     cell: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     // Spec 7.3 — the days between the ends: `accent` at 26%, laid under the figures rather than
     // mixed into a colour of its own.
@@ -280,7 +279,7 @@ const useStyles = themed(({ color }) =>
     today: { borderWidth: 1, borderColor: color.lineStrong },
     edge: { backgroundColor: color.accent },
     hover: { backgroundColor: color.raise },
-    figure: { fontFamily: font.medium, fontSize: FIGURE_SIZE, fontVariant: ['tabular-nums'] },
+    figure: { fontFamily: font.medium, fontVariant: ['tabular-nums'] },
     figureEdge: { fontFamily: font.bold },
   }),
 );

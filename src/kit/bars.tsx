@@ -1,8 +1,7 @@
 import { X } from 'lucide-react-native';
-import { type ReactNode, useState } from 'react';
+import type { ReactNode } from 'react';
 import {
   KeyboardAvoidingView,
-  type LayoutChangeEvent,
   Platform,
   Pressable,
   ScrollView,
@@ -19,6 +18,7 @@ import { board, height, photo, radius, space, ThemePin, themed, type, useTheme }
 import { StepScale } from './bits';
 import { Button, IconButton } from './button';
 import type { IconComponent } from './icon';
+import { useMeasured } from './sheet';
 import { Text } from './text';
 
 /**
@@ -54,24 +54,25 @@ export type BoardProps = {
  *
  * Every body scrolls once it outgrows the screen, and every screen stands on this board — so no
  * screen can forget to (TASK-372). The bar and the bottom layer stand still around it while they,
- * and one line of the body, fit the board; when they do not — the smallest phone at the largest
+ * and one line of the body, fit the window; when they do not — the smallest phone at the largest
  * system type — the whole board scrolls as one, the way a sheet does (`pinnable` in `sheet.tsx`),
  * or the actions in them would stand past the edge with nothing to bring them back. The board also
  * gives way to the keyboard, once for every screen: whatever stands at the bottom rides up over it.
+ *
+ * The window decides and not the room left between the two: that room is what the keyboard takes,
+ * and a field in the bar or the bottom layer moved into the scroll the moment the keyboard came up
+ * for it is a field drawn anew — the keyboard goes down with it. A window of no height has not been
+ * measured (off a phone), and stands as drawn.
  */
 export function Board({ bar, footer, body, list, children, style }: BoardProps) {
   const insets = useSafeAreaInsets();
-  const { fontScale } = useWindowDimensions();
+  const { fontScale, height: tall } = useWindowDimensions();
   const styles = useStyles();
   const [top, onTop] = useMeasured();
   const [foot, onFoot] = useMeasured();
-  const [room, onRoom] = useMeasured();
-  const [pinned, setPinned] = useState(true);
-  // Standing still, the body is the window between the two; scrolling as one, it is the board.
-  // Same blocks, same widths either way, so one answer never flips the other back.
-  const line = type.body.lineHeight * fontScale;
-  const fits = room === null || (pinned ? room >= line : (top ?? 0) + (foot ?? 0) + line <= room);
-  if (fits !== pinned) setPinned(fits);
+  const pinned =
+    tall === 0 ||
+    (bar ? top : 0) + (footer ? foot : 0) + type.body.lineHeight * fontScale <= tall - insets.top;
 
   const head = bar ? <View onLayout={onTop}>{bar}</View> : null;
   const tail = footer ? <View onLayout={onFoot}>{footer}</View> : null;
@@ -84,7 +85,7 @@ export function Board({ bar, footer, body, list, children, style }: BoardProps) 
     >
       {pinned ? head : null}
       {list ? (
-        <View style={styles.room} onLayout={onRoom}>
+        <View style={styles.room}>
           {list({ head: pinned ? null : head, foot: pinned ? null : tail })}
         </View>
       ) : (
@@ -95,7 +96,6 @@ export function Board({ bar, footer, body, list, children, style }: BoardProps) 
           contentContainerStyle={styles.grow}
           alwaysBounceVertical={false}
           keyboardShouldPersistTaps="handled"
-          onLayout={onRoom}
         >
           {pinned ? null : head}
           <View style={[styles.grow, body]}>{children}</View>
@@ -106,12 +106,6 @@ export function Board({ bar, footer, body, list, children, style }: BoardProps) 
       {list ? children : null}
     </KeyboardAvoidingView>
   );
-}
-
-/** A block's height as it was last laid out, and null until it has been. */
-function useMeasured(): [number | null, (event: LayoutChangeEvent) => void] {
-  const [height, setHeight] = useState<number | null>(null);
-  return [height, (event) => setHeight(event.nativeEvent.layout.height)];
 }
 
 /**
