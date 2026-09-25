@@ -41,7 +41,7 @@ export function Chip({
   avatar?: string;
   /** A label's colour — the chip then carries an 18 square of it in front of it. */
   swatch?: string;
-  /** A glyph before the words: `calendar` on «Другая дата», `lock` on a label only you can see. */
+  /** A glyph before the words: `lock` on a label only you can see. */
   icon?: IconComponent;
   /**
    * How many frames are behind this chip — «312», drawn in the same words at 60%. A figure, not a
@@ -72,7 +72,7 @@ export function Chip({
       accessibilityLabel={count ? `${label} ${count}` : label}
       accessibilityState={onPress ? { disabled: !!disabled, selected: !!selected } : undefined}
       disabled={disabled || !onPress}
-      // Spec 10.2: every one of the three is drawn under 44 and felt at 44. Height only — a chip is
+      // Spec 10.2: every one of them is drawn under 44 and felt at 44. Height only — a chip is
       // as wide as its words, and those are already wider than a finger.
       hitSlop={hitSlop(TAP, size)}
       onPress={onPress}

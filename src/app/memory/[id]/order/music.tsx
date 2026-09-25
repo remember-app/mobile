@@ -96,8 +96,12 @@ export default function MusicStep() {
     }));
   };
 
-  /** The pencil: that row's field unfolds and any other folds away; pressed again, it folds. */
+  /**
+   * The pencil: that row's field unfolds and any other folds away; pressed again, it folds. It takes
+   * the wheel as typing does — a template still walking would turn the step over under the field.
+   */
   const unfold = (key: string) => {
+    stop();
     soften(UNFOLD_MS);
     setOpen((was) => (was === key ? null : key));
   };
