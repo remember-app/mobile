@@ -194,7 +194,7 @@ test('the autopilot fills each step on the step, and ends on the summary', () =>
   // With motion off none of the filling moves: every field lands whole. The beat itself is the
   // same length either way — that setting is about movement, not about time to read (spec 6).
   expect(flying).toContain('if (reduced) change({ story: fill.story });');
-  expect(flying).toContain('if (reduced) change({ tracks: fill.tracks, note: fill.note });');
+  expect(flying).toContain('if (reduced) change({ tracks: fill.tracks });');
   expect(flying).toContain('if (reduced) change({ seconds: fill.seconds });');
   // One clock for both, and no second set of numbers for the setting to be walked on.
   expect(wizard).toContain('setTimeout(done, ms)');
@@ -245,7 +245,7 @@ test('the walk stops however the person gets out from under it, and never writes
   const flying = wizard.slice(wizard.indexOf('const start = useCallback('));
   // A second template starts clean: nothing of the first one's words, and the words and the figure
   // are the template's again rather than still somebody's own.
-  expect(flying).toContain("change({ ...fill, story: '', tracks: [], note: '', seconds: null });");
+  expect(flying).toContain("change({ ...fill, story: '', tracks: [], seconds: null });");
   // «Стоп» mid-word leaves the template's whole text, not half a word — unless a hand has it.
   expect(flying).toContain('change((was) => (was.ownStory ? {} : { story: fill.story }));');
 });
@@ -331,15 +331,25 @@ test('one call at the end of the walk, and it carries every wish of spec 8', () 
     'include_media_ids',
     'exclude_media_ids',
     'music_tracks',
-    'music_note',
+    'music_wishes',
     'orientation',
   ]) {
     expect(body).toContain(`${wish}?`);
   }
+  // A wish goes to each track now (TASK-295); the one line for the whole order is not sent any
+  // more, and lives on only in `Montage.params`, where an older montage still carries it.
+  expect(body).toContain('music_wishes?: Record<string, string>;');
+  expect(body).not.toContain('music_note?');
   expect(body).not.toContain('music_track_');
-  expect(api).toContain(
-    'params: MontageWishes & { music_track_id?: MusicTrackId; music_track_key?: string };',
-  );
+  const paramsAt = api.indexOf('params: MontageWishes & {');
+  const params = api.slice(paramsAt, api.indexOf('};', paramsAt));
+  for (const old of [
+    'music_track_id?: MusicTrackId;',
+    'music_track_key?: string;',
+    'music_note?: string;',
+  ]) {
+    expect(params).toContain(old);
+  }
   // The three routes of an order, and the summary asks with the same body the order sends.
   expect(api).toContain('/montage-templates');
   expect(api).toContain('/montages/preview');
@@ -409,30 +419,62 @@ test('the shelf can be listened to, and the listening ends with the step', () =>
   expect(model).toContain("{ id: 'bright', seconds: 80 }");
 });
 
-test('step 3 is «Без музыки» until a track is taken, and the block of them after', () => {
-  // Nothing taken: the choice card stands where the chosen tracks would be, already chosen. It is
-  // an answer and not an absence, and it says what it actually gives — the video's own sound.
+test('step 3 is an empty «Выбрано» until a track is taken, and the tracks in it after', () => {
+  // Nothing taken: the block stays where it is and says what the film will sound like — a state
+  // and not a choice, so the «Без музыки» card that used to be pressed is gone (spec 7.7, 54).
   expect(music).toContain('{picked.length === 0 ? (');
-  expect(music).toContain('<ChoiceCard');
-  expect(music).toContain('icon={VolumeX}');
-  expect(music).toContain('title={s.montage.noMusic}');
-  expect(music).toContain('note={s.montage.noMusicNote}');
-  expect(ru.montage.noMusic).toBe('Без музыки');
+  expect(music).toContain('count={s.montage.nothingAdded}');
+  expect(music).toContain('empty={{ title: s.montage.noMusic, note: s.montage.noMusicNote }}');
+  expect(music).not.toContain('ChoiceCard');
+  expect(ru.montage.nothingAdded).toBe('ничего не добавлено');
+  expect(ru.montage.noMusic).toBe('Ролик будет без музыки');
   expect(ru.montage.noMusicNote).toBe('Только живой звук из видео');
 
-  // Anything taken: «Выбрано» in its place — how many and how long altogether, the rows, and the
-  // one line about how to use them.
+  // Anything taken: how many and how long altogether, and the rows — each with its own wish and
+  // no line for all of them, and not one wave among them.
   expect(music).toContain('<BlockPicked');
   expect(music).toContain('s.montage.tracksPicked(picked.length)');
   expect(music).toContain('formatRuntime(total)');
-  expect(music).toContain('variant="wish"');
-  expect(music).toContain('onChangeText={(note) => change({ note })}');
+  expect(music).not.toContain('Waveform');
+  expect(music).not.toMatch(/\bwave\b/);
+  expect(music).not.toContain('footer=');
   expect(ru.montage.tracksPicked(2)).toBe('2 трека');
   expect(en.montage.tracksPicked(1)).toBe('1 track');
+  for (const set of [en, ru]) {
+    expect(set.montage).not.toHaveProperty('musicNote');
+    expect(set.montage).not.toHaveProperty('musicNotePlaceholder');
+  }
+});
 
-  // And the last one taken back brings the card straight back and clears the wish with it: the api
-  // answers 400 to a note about music nobody picked, and the words were about tracks that are gone.
-  expect(music).toContain("change(tracks.length === 0 ? { tracks, note: '' } : { tracks });");
+test('a wish is written to one track, behind the pencil in its row', () => {
+  // Spec 7.7, detail 54: the pencil is filled once something is written and outlined while not,
+  // and says which: «Изменить пожелание к …» or «Как использовать …».
+  expect(music).toContain('icon={Pencil}');
+  expect(music).toContain('label={written ? s.montage.wishEdit(name) : s.montage.wishAbout(name)}');
+  expect(music).toContain("tone={written ? 'raise' : 'ghost'}");
+  expect(ru.montage.wishEdit('Тёплая')).toBe('Изменить пожелание к «Тёплая»');
+  expect(ru.montage.wishAbout('Спокойная')).toBe('Как использовать «Спокойная»');
+
+  // The field unfolds under that row alone, one at a time, already holding what was written, with
+  // the same question as its hint; it folds when it lets go of the keyboard, and what was written
+  // then stands under the name.
+  expect(music).toContain('const [open, setOpen] = useState<string | null>(null);');
+  expect(music).toContain('setOpen((was) => (was === key ? null : key));');
+  expect(music).toContain('onBlur={() => fold(track.key)}');
+  expect(music).toContain('variant="wish"');
+  expect(music).toContain('placeholder={s.montage.wishAbout(name)}');
+  expect(music).toContain("value={track.wish ?? ''}");
+  expect(music).toContain('maxLength={WISH_LIMIT}');
+  expect(music).toContain('wish={unfolded ? undefined : written || undefined}');
+  // Unfolding and folding is the layout moving, so it is moved into (spec 6: 200 ms).
+  expect(music).toContain('soften(UNFOLD_MS);');
+  expect(music).toContain('const UNFOLD_MS = 200;');
+
+  // Written onto the track and nothing else — so a track taken out takes its wish with it. And
+  // typing takes the wheel, as in the story: a template still walking would lay its tracks over it.
+  expect(music).toContain('const write = (key: string, wish: string) => {\n    stop();');
+  expect(music).toContain('track.key === key ? { ...track, wish } : track');
+  expect(music).toContain('change({ tracks: picked.filter((track) => track.key !== key) });');
 });
 
 test('tracks go in in any number, in the order they play, and that order is dragged about', () => {
@@ -444,17 +486,24 @@ test('tracks go in in any number, in the order they play, and that order is drag
   expect(music).toContain(
     'change((was) => ({ tracks: [...was.tracks, { key, name: file.name }] }));',
   );
+  // The shelf's tick is `paper`, not `accent` (spec 7.7, detail 53), and still a switch.
+  expect(music).toContain("tone={taken ? 'paper' : 'ghost'}");
+  expect(music).toContain('on={taken}');
 
-  // The row is dragged by its wave (spec 7.7), and rows are counted rather than measured: every
-  // one of them is exactly `TRACK_ROW` tall, which is the kit's own number and not a copy of it.
+  // A row is dragged by its name (spec 7.7, detail 54), and rows are measured rather than counted:
+  // a wish under the name, or an open field, makes a row taller than the kit's own `TRACK_ROW`.
   expect(music).toContain('grip={{');
   expect(music).toContain('...gripFor(i),');
+  expect(music).toContain('tall.current[track.key] = e.nativeEvent.layout.height;');
+  expect(music).toContain('heights: picked.map((track) => tall.current[track.key] ?? TRACK_ROW),');
   // Counted from where the finger came down, and not off `gesture.dy`: each swap re-renders the
   // list, the next move reaches the new render's handler, and its own `dy` starts again from zero.
-  expect(music).toContain('held.from + Math.round((e.nativeEvent.pageY - held.y) / TRACK_ROW)');
-  expect(music).not.toContain('gesture.dy / TRACK_ROW');
+  expect(music).toContain(
+    'const to = landing(held.heights, held.from, e.nativeEvent.pageY - held.y);',
+  );
+  expect(music).not.toContain('gesture.dy /');
   expect(music).toContain('change({ tracks: movedTrack(held.list, held.from, to) });');
-  // Dragging says nothing to a screen reader, so the same two moves stand as actions on the wave.
+  // Dragging says nothing to a screen reader, so the same two moves stand as actions on the name.
   expect(music).toContain('accessibilityActions: MOVES');
   expect(music).toContain('s.montage.moveTrack(name)');
 

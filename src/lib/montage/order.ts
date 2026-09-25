@@ -60,8 +60,8 @@ export type Length = (typeof LENGTHS)[number];
  */
 export const PRESETS = [30, 60, 90, 180] as const;
 
-/** How much of a wish about the music the api takes (doc-03: 400 over 500, and only with tracks). */
-export const NOTE_LIMIT = 500;
+/** How much of a wish about one track the api takes (400 over it) — each track has its own. */
+export const WISH_LIMIT = 500;
 
 /**
  * Below this there is nothing to cut a video out of, and the api refuses the order with 409
@@ -79,8 +79,12 @@ export const STORY_LIMIT = 600;
  * storage key of a file the organizer sent up themselves (`music/<uuid>`) — the api reads one list
  * of both, so this holds one kind of thing too. `name` is the phone's own name for their file, and
  * null for the shelf, whose five names are the app's own and come from `@/strings`.
+ *
+ * `wish` is what to do with this one track, in the organizer's words. It is held on the track and
+ * nowhere else, so a track moved carries its wish along and a track taken out takes its wish with
+ * it — a wish about a track the order no longer names is the one thing the api answers 400 to.
  */
-export type PickedTrack = { key: string; name: string | null };
+export type PickedTrack = { key: string; name: string | null; wish?: string };
 
 /**
  * How long everything chosen runs altogether — the «2 трека · 3:45» over the block of them. Null
@@ -100,7 +104,7 @@ export function pickedSeconds(tracks: readonly PickedTrack[]): number | null {
 
 /**
  * The chosen tracks with the one standing at `from` moved to `to` — what a finger dragging a row
- * of «Выбрано» by its wave comes to. The list is the order they play in (doc-03), so this is the
+ * of «Выбрано» by its name comes to. The list is the order they play in (doc-03), so this is the
  * whole of what the drag decides.
  */
 export function movedTrack(
@@ -113,6 +117,24 @@ export function movedTrack(
   if (moved === undefined) return next;
   next.splice(Math.max(0, Math.min(next.length, to)), 0, moved);
   return next;
+}
+
+/**
+ * Where a row dragged `dy` points away from `from` comes to rest, over rows as tall as `heights` —
+ * the list as it stood when the finger came down. The rows of «Выбрано» are not one height: a track
+ * with a wish under its name stands taller, one with its field open taller still. So they are walked
+ * past rather than counted, and the dragged row passes a neighbour once it has gone over half of it.
+ */
+export function landing(heights: readonly number[], from: number, dy: number): number {
+  const way = dy > 0 ? 1 : -1;
+  let to = from;
+  let left = Math.abs(dy);
+  for (;;) {
+    const next = heights[to + way];
+    if (next === undefined || left <= next / 2) return to;
+    left -= next;
+    to += way;
+  }
 }
 
 /**
@@ -138,10 +160,11 @@ export type Order = {
    * the thing it names.
    */
   ownStory: boolean;
-  /** The music in the order it plays. Empty is an answer — a film with the video's own sound. */
+  /**
+   * The music in the order it plays, each track with its own wish. Empty is an answer — a film with
+   * the video's own sound.
+   */
   tracks: readonly PickedTrack[];
-  /** What to do with those tracks, in words. Goes out only while there are tracks to do it to. */
-  note: string;
   /** Any whole number of seconds; null is «не сказали», and then the api picks and clamps it. */
   seconds: number | null;
   /**
@@ -161,7 +184,6 @@ export const blankOrder = (): Order => ({
   template: null,
   ownStory: false,
   tracks: [],
-  note: '',
   seconds: null,
   ownLength: false,
   orientation: 'landscape',
@@ -191,11 +213,14 @@ export const fromTemplate = (template: MontageTemplate): TemplateFill => ({
   template: template.id,
   story: template.story_text,
   ownStory: false,
-  // A template's tracks are the worker's own shelf, so none of them carries a name off a phone.
-  tracks: template.music_tracks.map((key) => ({ key, name: null })),
-  // The wish goes only with the tracks it is about: the api answers 400 to one about music nobody
-  // picked, and a template with no music has nothing for a wish to be about.
-  note: template.music_tracks.length > 0 ? (template.music_note ?? '') : '',
+  // A template's tracks are the worker's own shelf, so none of them carries a name off a phone —
+  // and each carries the template's wish about it, if it has one. A wish keyed to a track the
+  // template does not play has no track to stand on here, and so goes nowhere.
+  tracks: template.music_tracks.map((key) => ({
+    key,
+    name: null,
+    wish: template.music_wishes[key],
+  })),
   seconds: template.target_seconds,
   ownLength: false,
   orientation: template.orientation,
@@ -213,7 +238,6 @@ export const entered = (order: Order): boolean =>
   order.story.trim() !== '' ||
   order.template !== null ||
   order.tracks.length > 0 ||
-  order.note.trim() !== '' ||
   order.seconds !== null ||
   order.orientation !== 'landscape';
 
@@ -317,8 +341,9 @@ export function rejectedGroups(
  * refuses outright.
  *
  * The music always goes out, empty list included: that is how the worker tells «без музыки, живой
- * звук» from an order that simply said nothing. The note about the tracks goes only with tracks —
- * the api answers 400 to a wish about music nobody picked.
+ * звук» from an order that simply said nothing. Each wish goes under its own track's key, and only
+ * where something was said: held on the track, a wish can only ever be about a track the order
+ * names — the api answers 400 to any other — and an empty one is «не сказали».
  */
 export function wishes(items: readonly MediaItem[], order: Order): MontageWishes {
   const material = usable(items);
@@ -331,7 +356,10 @@ export function wishes(items: readonly MediaItem[], order: Order): MontageWishes
   const exclude = material.filter((item) => pickOf(item, order) !== 'keep').map((item) => item.id);
   const story = order.story.trim();
   const tracks = order.tracks.map((track) => track.key);
-  const note = order.note.trim();
+  const said = order.tracks.flatMap((track) => {
+    const wish = track.wish?.trim();
+    return wish ? [[track.key, wish] as const] : [];
+  });
 
   return {
     orientation: order.orientation,
@@ -340,7 +368,7 @@ export function wishes(items: readonly MediaItem[], order: Order): MontageWishes
     ...(story ? { story_text: story } : {}),
     ...(include.length > 0 ? { include_media_ids: include } : {}),
     ...(exclude.length > 0 ? { exclude_media_ids: exclude } : {}),
-    ...(tracks.length > 0 && note ? { music_note: note } : {}),
+    ...(said.length > 0 ? { music_wishes: Object.fromEntries(said) } : {}),
   };
 }
 

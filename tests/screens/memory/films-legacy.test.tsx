@@ -80,3 +80,25 @@ test('a montage that names its one track the old way still says what it was cut 
     [ru.montage.orientation.landscape, ru.montage.track.bright, ru.montage.ownTrackShort],
   ]);
 });
+
+test('a montage with one wish for the whole order, and one with a wish per track, both open', async () => {
+  // Ordered before the wishes went to each track (TASK-295): the api still hands out its one
+  // `music_note` and no `music_wishes`. And one ordered after: a wish under each track's key. Each
+  // card is drawn and says what it was cut to — the words of a wish are not on a card at all.
+  const cards = await strip([
+    film('noted', {
+      music_tracks: ['warm', 'calm'],
+      music_note: 'Тёплая на сборы, потом спокойнее',
+      orientation: 'landscape',
+    }),
+    film('wished', {
+      music_tracks: ['warm', 'music/9c1d'],
+      music_wishes: { warm: 'На сборы, тихо', 'music/9c1d': 'Под первый танец' },
+      orientation: 'portrait',
+    }),
+  ]);
+  expect(cards).toEqual([
+    [ru.montage.orientation.landscape, ru.montage.track.warm, ru.montage.track.calm],
+    [ru.montage.orientation.portrait, ru.montage.track.warm, ru.montage.ownTrackShort],
+  ]);
+});

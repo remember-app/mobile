@@ -182,6 +182,19 @@ test('a round button that stays in is a switch, and one that fires is not', () =
   expect(off).not.toContain('6px 18px');
 });
 
+test('a switch in the paper tone is held in on its paper, not on the accent', () => {
+  // Spec 7.7, detail 53 — the tick of a track already taken: a switch like any other, and drawn
+  // `paper` with an `ink` glyph, because the track is not going anywhere.
+  const taken = story(
+    <IconButton icon={Plus} label="Убрать «Тёплая» из выбранных" tone="paper" on />,
+  );
+  expect(taken).toContain('role="togglebutton"');
+  expect(taken).toContain('rgba(245,243,238,1.00)');
+  expect(taken).toContain('stroke="#0B0B12"');
+  expect(taken).not.toContain('rgba(75,91,255,1.00)');
+  expect(taken).not.toContain('6px 18px');
+});
+
 test('a round button standing on a fill of its own reads its glyph in full voice', () => {
   // Spec 7.2: `muted` belongs to the 36 and the 32 that stand on nothing; the account in the root
   // bar and the two at the foot of the gallery stand on `surface` and are read in `paper`.

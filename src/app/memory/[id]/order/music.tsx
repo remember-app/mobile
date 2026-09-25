@@ -1,48 +1,45 @@
 import { getDocumentAsync } from 'expo-document-picker';
 import { useRouter } from 'expo-router';
-import { Check, ChevronRight, Pause, Pencil, Play, Plus, VolumeX, X } from 'lucide-react-native';
+import { Check, ChevronRight, Pause, Pencil, Play, Plus, X } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { PanResponder, ScrollView, StyleSheet, View } from 'react-native';
 
 import type { MusicTrackId } from '@/api';
-import {
-  BlockPicked,
-  Button,
-  ChoiceCard,
-  Field,
-  IconButton,
-  RowTrack,
-  Text,
-  TRACK_ROW,
-} from '@/kit';
+import { BlockPicked, Button, Field, IconButton, RowTrack, soften, Text, TRACK_ROW } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { formatRuntime } from '@/lib/dates';
 import { useStrings } from '@/lib/language';
 import {
+  landing,
   movedTrack,
-  NOTE_LIMIT,
   type PickedTrack,
   pickedSeconds,
   shelfTrack,
   TRACKS,
+  WISH_LIMIT,
 } from '@/lib/montage/order';
 import { sendOwnTrack, useTrackPreview } from '@/lib/music';
 import { refusal, useOrder, useStillHere, WizardStep } from '@/screens/order/wizard';
 import { radius, space, themed, useTheme } from '@/theme';
 
 /**
- * Step 3, `MontageMusic` — the shelf of five, tracks off this phone beside them, and the answer
- * that is neither: nothing at all, and the video's own sound carries the film.
+ * Step 3, `MontageMusicNone` / `MontageMusic` — what the film is cut to: nothing at all and the
+ * video's own sound, or any number of tracks off the shelf of five or off this phone.
  *
- * Two blocks, and the top one has two faces. With nothing taken it is the «Без музыки» card,
- * chosen and saying what choosing it gives you; with anything taken it is «Выбрано» — the tracks
- * in the order they will play, and under them the one line about how to use them. Taking the last
- * one back brings the card straight back, and the line goes with it: a wish about music nobody
- * picked is what the api answers 400 to, and what it is *about* has just left the order anyway.
+ * Two blocks. On top «Выбрано», which is never away: with nothing in it, it says the film will have
+ * no music — a state, not a choice to press; with tracks in it, it holds them in the order they
+ * will play, each with its own wish. Under it the shelf, where the plus takes a track up and the
+ * tick gives it back.
  *
- * The order of that list is the order they play in (doc-03), so it can be dragged: a row is taken
- * by its wave — the one part of it that is not already a button — and rows are counted rather than
- * measured, because every one of them is exactly as tall as the next.
+ * A wish belongs to one track (spec 7.7, detail 54). The pencil in a chosen row unfolds a field
+ * under that row, one field at a time; when the field lets go of the keyboard it folds away, and
+ * what was written stands as a line under the track's name. The wish is held on the track itself,
+ * so a track taken out takes its wish with it and a track dragged somewhere else carries it along.
+ *
+ * The order of the chosen is the order they play in (doc-03), so it can be dragged: a row is taken
+ * by its name — the part of it that is not a button. The rows are not one height (a wish under the
+ * name makes one taller, an open field taller still), so each is measured as it is drawn and the
+ * drag walks past what it measured.
  *
  * Listening is not picking: the round button on the left plays the track where it stands and
  * leaves the choice alone, so the shelf can be heard through without anything being decided. The
@@ -54,12 +51,16 @@ export default function MusicStep() {
   const router = useRouter();
   const s = useStrings();
   const { token } = useAuth();
-  const { id, order, change } = useOrder();
+  const { id, order, change, stop } = useOrder();
   const { color } = useTheme();
   const styles = useStyles();
   const { playing, toggle } = useTrackPreview(token);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  /** The chosen track whose wish field is unfolded — one at a time, or none. */
+  const [open, setOpen] = useState<string | null>(null);
+  /** How tall each chosen row stood when last drawn, field and all: what a drag walks past. */
+  const tall = useRef<Record<string, number>>({});
   const gone = useStillHere();
   const picked = order.tracks;
 
@@ -69,15 +70,15 @@ export default function MusicStep() {
   const inOrder = (key: string) => picked.some((track) => track.key === key);
 
   /**
-   * Taking one back. The last one takes the wish with it — a line about how to use tracks that are
-   * no longer in the order would go out with whatever is picked next.
+   * Taking one back — and its wish, which is held on it, goes too. So does its field, if it was
+   * open: taken again later, the track comes back as new, folded and with nothing written.
    */
   const drop = (key: string) => {
-    const tracks = picked.filter((track) => track.key !== key);
-    change(tracks.length === 0 ? { tracks, note: '' } : { tracks });
+    setOpen((was) => (was === key ? null : was));
+    change({ tracks: picked.filter((track) => track.key !== key) });
   };
 
-  /** One tap on a shelf row: the track goes on the end of the list, or comes off it. */
+  /** One tap on the shelf's plus or tick: the track goes on the end of the list, or comes off it. */
   const flip = (key: MusicTrackId) =>
     inOrder(key) ? drop(key) : change({ tracks: [...picked, { key, name: null }] });
 
@@ -85,30 +86,54 @@ export default function MusicStep() {
     change({ tracks: movedTrack(picked, from, Math.max(0, Math.min(picked.length - 1, to))) });
 
   /**
-   * The row a finger has hold of, taken the moment it lands: where the row stood, where it is now,
-   * where the finger came down and the list as it was. A swap re-renders the list, and the
-   * responder then answers the next move with the new render's handlers, whose own `gesture.dy`
-   * starts again from zero — counted from that, the row ran ahead of the finger. Every move is
-   * worked out from this grab instead, whichever render's handler is asked.
+   * The words typed under one chosen track, onto that track and no other. Typing takes the wheel,
+   * as it does in the story: a template still walking would lay its tracks over these words.
    */
-  const grab = useRef({ from: 0, to: 0, y: 0, list: picked });
+  const write = (key: string, wish: string) => {
+    stop();
+    change((was) => ({
+      tracks: was.tracks.map((track) => (track.key === key ? { ...track, wish } : track)),
+    }));
+  };
+
+  /** The pencil: that row's field unfolds and any other folds away; pressed again, it folds. */
+  const unfold = (key: string) => {
+    soften(UNFOLD_MS);
+    setOpen((was) => (was === key ? null : key));
+  };
+
+  /** The field let go of the keyboard: it folds — unless another one has been unfolded since. */
+  const fold = (key: string) => {
+    soften(UNFOLD_MS);
+    setOpen((was) => (was === key ? null : was));
+  };
+
+  /**
+   * The row a finger has hold of, taken the moment it lands: where the row stood, where it is now,
+   * where the finger came down, the list as it was and how tall each of its rows stood. A swap
+   * re-renders the list, and the responder then answers the next move with the new render's
+   * handlers, whose own `gesture.dy` starts again from zero — counted from that, the row ran ahead
+   * of the finger. Every move is worked out from this grab instead, whichever render's handler is
+   * asked. A row not measured yet counts as the kit's own height.
+   */
+  const grab = useRef({ from: 0, to: 0, y: 0, list: picked, heights: [] as number[] });
   const gripFor = (from: number) =>
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dy) > 2,
       onPanResponderTerminationRequest: () => false,
       onPanResponderGrant: (e) => {
-        grab.current = { from, to: from, y: e.nativeEvent.pageY, list: picked };
+        grab.current = {
+          from,
+          to: from,
+          y: e.nativeEvent.pageY,
+          list: picked,
+          heights: picked.map((track) => tall.current[track.key] ?? TRACK_ROW),
+        };
       },
       onPanResponderMove: (e) => {
         const held = grab.current;
-        const to = Math.max(
-          0,
-          Math.min(
-            held.list.length - 1,
-            held.from + Math.round((e.nativeEvent.pageY - held.y) / TRACK_ROW),
-          ),
-        );
+        const to = landing(held.heights, held.from, e.nativeEvent.pageY - held.y);
         if (to === held.to) return;
         held.to = to;
         change({ tracks: movedTrack(held.list, held.from, to) });
@@ -169,16 +194,18 @@ export default function MusicStep() {
         />
       }
     >
-      <ScrollView contentContainerStyle={styles.body}>
+      <ScrollView
+        contentContainerStyle={styles.body}
+        // A press on another row's pencil, a cross or the shelf lands while a wish is being typed;
+        // it must not be spent on putting the keyboard away.
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
+      >
         {picked.length === 0 ? (
-          /* Chosen, and the only way out of it is taking a track: a second press on it would have
-             to undo something that is already nothing. */
-          <ChoiceCard
-            variant="row"
-            icon={VolumeX}
-            title={s.montage.noMusic}
-            note={s.montage.noMusicNote}
-            selected
+          <BlockPicked
+            title={s.montage.picked}
+            count={s.montage.nothingAdded}
+            empty={{ title: s.montage.noMusic, note: s.montage.noMusicNote }}
           />
         ) : (
           <BlockPicked
@@ -188,64 +215,95 @@ export default function MusicStep() {
                 ? s.montage.tracksPicked(picked.length)
                 : `${s.montage.tracksPicked(picked.length)} · ${formatRuntime(total) ?? ''}`
             }
-            footer={
-              <Field
-                variant="wish"
-                label={s.montage.musicNote}
-                labelHidden
-                icon={Pencil}
-                placeholder={s.montage.musicNotePlaceholder}
-                maxLength={NOTE_LIMIT}
-                value={order.note}
-                onChangeText={(note) => change({ note })}
-              />
-            }
           >
             {picked.map((track, i) => {
               // Which kind of track this is, asked the one way there is to ask it: the five have a
               // word in the dictionary, and anything else is a file somebody sent up themselves.
               const shelf = shelfTrack(track.key);
               const name = nameOf(track, shelf);
+              const length = shelf === null ? s.montage.ownTrackShort : lengthOf(shelf);
               const heard = shelf !== null && playing?.track === shelf;
+              const written = track.wish?.trim() ?? '';
+              const unfolded = open === track.key;
 
               return (
-                <RowTrack
+                <View
                   key={track.key}
-                  title={name}
-                  length={shelf === null ? s.montage.ownTrackShort : lengthOf(shelf)}
-                  playing={heard}
-                  wave
-                  divider={i > 0}
-                  // The wave is the handle (spec 7.7). Dragging says nothing to a screen reader, so
-                  // the same two moves are offered as actions on it — one row up, one row down.
-                  grip={{
-                    accessibilityRole: 'adjustable',
-                    accessibilityLabel: s.montage.moveTrack(name),
-                    accessibilityActions: MOVES,
-                    onAccessibilityAction: (e) =>
-                      move(i, e.nativeEvent.actionName === 'increment' ? i + 1 : i - 1),
-                    ...gripFor(i),
+                  onLayout={(e) => {
+                    tall.current[track.key] = e.nativeEvent.layout.height;
                   }}
-                  play={
-                    shelf === null ? undefined : (
-                      <IconButton
-                        icon={heard ? Pause : Play}
-                        label={heard ? s.montage.stopTrack(name) : s.montage.listen(name)}
-                        size={36}
-                        tone="paper"
-                        onPress={() => listen(shelf)}
+                >
+                  <RowTrack
+                    picked
+                    title={name}
+                    length={length}
+                    // While the field is open the words are in it; folded, they stand under the name.
+                    wish={unfolded ? undefined : written || undefined}
+                    playing={heard}
+                    divider={i > 0}
+                    // Held by its name (spec 7.7). Dragging says nothing to a screen reader, so the
+                    // same two moves are offered as actions on it — one row up, one row down.
+                    grip={{
+                      accessible: true,
+                      accessibilityRole: 'adjustable',
+                      accessibilityLabel: [s.montage.moveTrack(name), length, written]
+                        .filter(Boolean)
+                        .join('. '),
+                      accessibilityActions: MOVES,
+                      onAccessibilityAction: (e) =>
+                        move(i, e.nativeEvent.actionName === 'increment' ? i + 1 : i - 1),
+                      ...gripFor(i),
+                    }}
+                    play={
+                      shelf === null ? undefined : (
+                        <IconButton
+                          icon={heard ? Pause : Play}
+                          label={heard ? s.montage.stopTrack(name) : s.montage.listen(name)}
+                          size={36}
+                          tone="raise"
+                          onPress={() => listen(shelf)}
+                        />
+                      )
+                    }
+                    action={
+                      <>
+                        {/* Spec 7.7, detail 54 — filled once something is written, outlined while
+                            nothing is: the button says which of the two it would open on. */}
+                        <IconButton
+                          icon={Pencil}
+                          label={written ? s.montage.wishEdit(name) : s.montage.wishAbout(name)}
+                          size={36}
+                          tone={written ? 'raise' : 'ghost'}
+                          style={written ? undefined : styles.outlined}
+                          onPress={() => unfold(track.key)}
+                        />
+                        <IconButton
+                          icon={X}
+                          label={s.montage.dropTrack(name)}
+                          size={36}
+                          tint={color.faint}
+                          onPress={() => drop(track.key)}
+                        />
+                      </>
+                    }
+                  >
+                    {unfolded ? (
+                      <Field
+                        variant="wish"
+                        label={s.montage.wishAbout(name)}
+                        labelHidden
+                        icon={Pencil}
+                        placeholder={s.montage.wishAbout(name)}
+                        maxLength={WISH_LIMIT}
+                        autoFocus
+                        returnKeyType="done"
+                        value={track.wish ?? ''}
+                        onChangeText={(wish) => write(track.key, wish)}
+                        onBlur={() => fold(track.key)}
                       />
-                    )
-                  }
-                  action={
-                    <IconButton
-                      icon={X}
-                      label={s.montage.dropTrack(name)}
-                      size={36}
-                      onPress={() => drop(track.key)}
-                    />
-                  }
-                />
+                    ) : null}
+                  </RowTrack>
+                </View>
               );
             })}
           </BlockPicked>
@@ -253,7 +311,7 @@ export default function MusicStep() {
 
         <View style={styles.block}>
           <View style={styles.blockHead}>
-            <Text role="eyebrow" accessibilityRole="header" style={styles.grow}>
+            <Text role="eyebrow" tone="muted" accessibilityRole="header" style={styles.grow}>
               {s.montage.music.toUpperCase()}
             </Text>
             {/* Spec 7.2 — the one dashed button in the product, at the smaller of its two heights:
@@ -291,19 +349,20 @@ export default function MusicStep() {
                       onPress={() => listen(track.id)}
                     />
                   }
-                  // Spec 7.7 — the row no longer picks; the 36 on its right does, and it says which
-                  // way it is: the plus takes the track, the tick gives it back.
+                  // Spec 7.7, detail 53 — the row does not pick; the 36 on its right does, and it
+                  // says which way it is: the plus takes the track, the tick gives it back. The
+                  // tick is `paper` and not `accent`: the track is not going anywhere.
                   action={
                     <IconButton
                       icon={taken ? Check : Plus}
-                      label={taken ? s.montage.dropTrack(name) : s.montage.addTrack(name)}
+                      label={taken ? s.montage.unpickTrack(name) : s.montage.addTrack(name)}
                       size={36}
-                      tone="ghost"
+                      tone={taken ? 'paper' : 'ghost'}
                       on={taken}
                       // Outlined and read at full voice, the way the layout draws it: this one is
                       // an offer and not a quiet aside, and `muted` inside a hairline is a hint.
-                      tint={color.paper}
-                      style={taken ? undefined : styles.add}
+                      tint={taken ? undefined : color.paper}
+                      style={taken ? undefined : styles.outlined}
                       onPress={() => flip(track.id)}
                     />
                   }
@@ -324,10 +383,13 @@ const lengthOf = (id: MusicTrackId): string =>
 /** What a screen reader may do to a list it cannot drag: one row up, one row down. */
 const MOVES = [{ name: 'increment' }, { name: 'decrement' }];
 
+/** Spec 6 — the wish field unfolding under its row, and folding back into the line under the name. */
+const UNFOLD_MS = 200;
+
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
     grow: { flex: 1, minWidth: 0 },
-    body: { flexGrow: 1, paddingHorizontal: space.s4, paddingBottom: space.s6, gap: space.s5 },
+    body: { flexGrow: 1, paddingHorizontal: space.s4, paddingBottom: space.s6, gap: 18 },
     block: { gap: 10 },
     blockHead: { flexDirection: 'row', alignItems: 'center', gap: space.s2, paddingLeft: 2 },
     // The five stand inside one surface with the corners cut off it, so the hairline between two
@@ -339,7 +401,8 @@ const useStyles = themed(({ color }) =>
       borderWidth: 1,
       borderColor: color.line,
     },
-    // «Добавить» on a row nobody picked: the outlined one, drawn in the louder of the two borders.
-    add: { borderColor: color.lineStrong },
+    // A round 36 that is an offer rather than a state — the shelf's plus, a pencil with nothing
+    // written behind it: no fill, and the louder of the two borders.
+    outlined: { borderColor: color.lineStrong },
   }),
 );

@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import { VolumeX } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
@@ -282,48 +283,65 @@ export function SummaryTrack({ title, note }: { title: string; note?: string }) 
       <Text role="row">{title}</Text>
       {note ? <Text role="meta">{note}</Text> : null}
       <View style={styles.grow} />
-      <Waveform wide />
+      <Waveform />
     </View>
   );
 }
 
 /**
- * Spec 7.7 — «Выбрано»: the tracks that have been taken, in the accent's own block so they read as
- * a decision rather than as more of the library below them. It holds the rows themselves and,
- * underneath, the one line a person can say about how to use them.
+ * Spec 7.7, detail 54 — «Выбрано»: the tracks that have been taken, in the order they will play,
+ * each carrying its own wish. A plain `surface` block and not a coloured one: a track standing here
+ * is chosen by being here, and nothing about the block needs to say it twice.
  *
- * There is no empty version of this block. With nothing taken its place is held by the «Без музыки»
- * choice card, because a film with no music is a decision too.
+ * With nothing taken the block stays where it is and says so (`empty`): the head reads «ничего не
+ * добавлено», and under it stands the one row of what that means — a film with only the video's own
+ * sound. A state and not a choice, so nothing in it presses: music is added on the shelf below.
  */
 export function BlockPicked({
   title,
   count,
+  empty,
   children,
-  footer,
   style,
 }: {
   /** «ВЫБРАНО». */
   title: string;
-  /** «2 трека · 3:45» — written by the screen. */
+  /** «2 трека · 3:45», or «ничего не добавлено» — written by the screen. */
   count?: string;
+  /** Nothing taken: «Ролик будет без музыки» over «Только живой звук из видео». */
+  empty?: { title: string; note: string };
   /** The `RowTrack`s that were taken. */
-  children: ReactNode;
-  /** The 44 «как использовать треки» field. */
-  footer?: ReactNode;
+  children?: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
+  const { color } = useTheme();
   const styles = useStyles();
 
   return (
-    <View style={[styles.picked, style]}>
-      <View style={styles.pickedHead}>
-        <Text role="eyebrow" accessibilityRole="header" style={styles.grow}>
+    <View style={[styles.picked, empty ? styles.pickedEmpty : null, style]}>
+      <View style={[styles.pickedHead, empty ? null : styles.pickedHeadOverRows]}>
+        <Text role="eyebrow" tone="muted" accessibilityRole="header" style={styles.grow}>
           {title.toUpperCase()}
         </Text>
-        {count ? <Text role="meta">{count}</Text> : null}
+        {count ? (
+          <Text role="meta" tone="faint">
+            {count}
+          </Text>
+        ) : null}
       </View>
-      {children}
-      {footer ? <View style={styles.pickedFoot}>{footer}</View> : null}
+      {empty ? (
+        <View accessible style={styles.silence}>
+          <View style={styles.silenceSign}>
+            <Icon icon={VolumeX} size={18} color={color.muted} />
+          </View>
+          <View style={[styles.grow, styles.silenceWords]}>
+            <Text role="row">{empty.title}</Text>
+            <Text role="meta">{empty.note}</Text>
+          </View>
+        </View>
+      ) : (
+        children
+      )}
     </View>
   );
 }
@@ -438,19 +456,25 @@ const useStyles = themed(({ color }) =>
     summaryTrack: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },
     picked: {
       borderRadius: radius.section,
-      borderWidth: 1.5,
-      borderColor: color.accent,
-      backgroundColor: color.accentSoft,
+      borderWidth: 1,
+      borderColor: color.line,
+      backgroundColor: color.surface,
       overflow: 'hidden',
     },
-    pickedHead: {
-      flexDirection: 'row',
-      alignItems: 'baseline',
-      gap: space.s2,
-      paddingTop: space.s3,
-      paddingHorizontal: 14,
-      paddingBottom: space.s1,
+    // Spec 7.7, detail 54: empty, the block holds its head and its one row inside `12 / 14 / 14`.
+    pickedEmpty: { paddingTop: space.s3, paddingHorizontal: 14, paddingBottom: 14, gap: 10 },
+    pickedHead: { flexDirection: 'row', alignItems: 'baseline', gap: space.s2 },
+    // Over the rows the head carries its own `12 / 14 / 6`, because the rows run edge to edge.
+    pickedHeadOverRows: { paddingTop: space.s3, paddingHorizontal: 14, paddingBottom: 6 },
+    silence: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },
+    silenceSign: {
+      width: 40,
+      height: 40,
+      borderRadius: radius.pill,
+      backgroundColor: color.raise,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
-    pickedFoot: { paddingHorizontal: 10, paddingTop: space.s2, paddingBottom: 10 },
+    silenceWords: { gap: 2 },
   }),
 );

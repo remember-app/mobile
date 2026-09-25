@@ -171,23 +171,28 @@ export const en = {
     /** A track off the phone — on its pill, its row, the summary and a finished movie's card. */
     ownTrackShort: 'Your own track',
     sendingTrack: 'Sending the track…',
-    /**
-     * The card standing where the chosen tracks would be. Silence is a decision and it says what
-     * it actually gives you, which is not silence at all: whatever the videos themselves recorded.
-     */
-    noMusic: 'No music',
-    noMusicNote: 'Just the live sound from the videos',
     /** The block of what was taken, and how much of it there is. */
     picked: 'Chosen',
     tracksPicked: (n: number) => `${n} ${n === 1 ? 'track' : 'tracks'}`,
-    /** The two round buttons of a shelf row — spoken, because both of them are a glyph alone. */
+    /**
+     * The same block with nothing in it. Silence is a state and it says what it actually gives
+     * you, which is not silence at all: whatever the videos themselves recorded.
+     */
+    nothingAdded: 'nothing added',
+    noMusic: 'The film will have no music',
+    noMusicNote: 'Just the live sound from the videos',
+    /** The round buttons of a track row — spoken, because every one of them is a glyph alone. */
     addTrack: (track: string) => `Add ${track}`,
+    unpickTrack: (track: string) => `Remove ${track} from the chosen`,
     dropTrack: (track: string) => `Remove ${track}`,
-    /** The wave a chosen row is dragged by, for whoever cannot drag anything. */
+    /** The name a chosen row is dragged by, for whoever cannot drag anything. */
     moveTrack: (track: string) => `Move ${track}`,
-    /** The 44 line under the chosen tracks: the one thing a person can say about how to use them. */
-    musicNote: 'How to use the tracks',
-    musicNotePlaceholder: 'How to use them: «Warm» over the morning…',
+    /**
+     * The pencil on a chosen track, and the field it unfolds: the same question is the button with
+     * nothing written yet, the field's name and the hint inside it.
+     */
+    wishAbout: (track: string) => `How to use ${track}`,
+    wishEdit: (track: string) => `Change the wish for ${track}`,
 
     /** Step 4 — how long it runs and which way up, and nothing else. */
     buildTitle: 'How to put it together',
@@ -464,15 +469,17 @@ export const ru: typeof en = {
     stopTrack: (track: string) => `Остановить «${track}»`,
     ownTrackShort: 'Свой трек',
     sendingTrack: 'Загружаем трек…',
-    noMusic: 'Без музыки',
-    noMusicNote: 'Только живой звук из видео',
     picked: 'Выбрано',
     tracksPicked: (n: number) => count(n, 'трек', 'трека', 'треков'),
+    nothingAdded: 'ничего не добавлено',
+    noMusic: 'Ролик будет без музыки',
+    noMusicNote: 'Только живой звук из видео',
     addTrack: (track: string) => `Добавить «${track}»`,
+    unpickTrack: (track: string) => `Убрать «${track}» из выбранных`,
     dropTrack: (track: string) => `Убрать «${track}»`,
     moveTrack: (track: string) => `Переставить «${track}»`,
-    musicNote: 'Как использовать треки',
-    musicNotePlaceholder: 'Как использовать треки: «Тёплая» — на сборы…',
+    wishAbout: (track: string) => `Как использовать «${track}»`,
+    wishEdit: (track: string) => `Изменить пожелание к «${track}»`,
 
     buildTitle: 'Как собрать',
     lengthUpTo: (max: string) => `до ${max}`,
