@@ -1,7 +1,18 @@
+import type { ReactElement } from 'react';
+import { Text as RNText } from 'react-native';
+import TestRenderer, { act } from 'react-test-renderer';
 import { beforeAll, expect, test } from 'vitest';
 
 import { allDifferent, story } from '@/kit/story';
-import { fitCell, HiddenLabel, Text, type TextTone, type TypeRole } from '@/kit/text';
+import {
+  fitCell,
+  HEADING_MOST,
+  HiddenLabel,
+  Text,
+  type TextTone,
+  TYPE_MOST,
+  type TypeRole,
+} from '@/kit/text';
 import { setTheme, type } from '@/theme';
 
 /** Spec 3 — every type role and every tone words can be read in, drawn once each. */
@@ -106,6 +117,43 @@ test('words in a cell the layout fixes grow as far as the cell holds them, and t
   expect(roomy.height).toBe(Math.max(44, Math.ceil(22 * 1.2) + 4));
   // Not measured yet: nothing is held, and the cell is as tall as the type it will hold.
   expect(fitCell({ ...day, fontScale: 2, width: 0 })).toEqual({ most: undefined, height: 48 });
+});
+
+/** What the kit hands the platform's own text for one role. */
+function drawnAs(text: ReactElement) {
+  let tree!: TestRenderer.ReactTestRenderer;
+  act(() => {
+    tree = TestRenderer.create(text);
+  });
+  const { props } = tree.root.findByType(RNText);
+  act(() => tree.unmount());
+  return props;
+}
+
+test('every role grows with the system type only as far as its ceiling, and a caller can say less', () => {
+  // TASK-377: the numbers themselves are measured in `large-type.test.ts`; here, that each role
+  // gets its own — and that nothing is left to grow as far as the phone asks.
+  for (const role of ROLES)
+    expect(drawnAs(<Text role={role}>Слово</Text>).maxFontSizeMultiplier, role).toBe(
+      HEADING_MOST[role] ?? TYPE_MOST,
+    );
+  expect(drawnAs(<Text role="body">Абзац</Text>).maxFontSizeMultiplier).toBe(2);
+  expect(drawnAs(<Text role="hero">Remember</Text>).maxFontSizeMultiplier).toBe(1.13);
+  // A cell that measured its own room says so, and is heard.
+  expect(drawnAs(<Text maxFontSizeMultiplier={1.4}>12</Text>).maxFontSizeMultiplier).toBe(1.4);
+});
+
+test('the product’s name is one line that shrinks to its room, and nothing else is', () => {
+  // «Remember» is one word: on a phone narrower than the one its ceiling was measured on, it gets
+  // smaller rather than broken — «Remem» on one line and «ber» on the next was the defect.
+  for (const role of ['hero', 'heroNarrow'] as const) {
+    const props = drawnAs(<Text role={role}>Remember</Text>);
+    expect(props.numberOfLines, role).toBe(1);
+    expect(props.adjustsFontSizeToFit, role).toBe(true);
+  }
+  const heading = drawnAs(<Text role="display">Как смонтировать этот ролик</Text>);
+  expect(heading.numberOfLines).toBeUndefined();
+  expect(heading.adjustsFontSizeToFit).toBeUndefined();
 });
 
 test('a cell is the layout’s own at the system’s size or smaller, and never below a finger from the first size up', () => {

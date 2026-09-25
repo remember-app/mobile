@@ -23,16 +23,57 @@ export type TextTone =
   | 'onFill';
 
 /**
+ * How far words grow with the system's type (TASK-377): twice their size and no further. ×2 is
+ * Android's own largest step, and it is where the widest word the dictionary puts in running text —
+ * «зарегистрироваться», Onest 400 at 16 — still fits whole in the column of the narrowest phone
+ * (316 of 328 at 360); iOS goes on to ×3.571, where it would break letter by letter. Every text
+ * input of the kit stops here too. A cell that measured its own room (`fitCell`) is the one thing
+ * that says otherwise, and it grows down with what it holds.
+ */
+export const TYPE_MOST = 2;
+
+/**
+ * The headings stop earlier (TASK-377): Unbounded is wide, and a heading grows only while the widest
+ * word it carries still fits whole in the room it has on the narrowest iPhone, 375 — measured off
+ * the font file in `tests/kit/large-type.test.ts`, which names the words and the rooms. The bar's
+ * one-line headings do not grow at all, the way an iOS navigation bar's title does not: the longest
+ * of them, «Изменить воспоминание», already fills the bar at ×1.
+ */
+export const HEADING_MOST: Partial<Record<TypeRole, number>> = {
+  hero: 1.13,
+  heroNarrow: 1.33,
+  display: 1.29,
+  displaySm: 1.16,
+  emptyTitle: 1.98,
+  sheetTitle: 1.2,
+  sheetTitleSm: 1.28,
+  barTitle: 1,
+  barTitleLive: 1,
+  pillTitle: 1,
+};
+
+/**
+ * The roles that are one word — the product's name — and so shrink to the width they are given
+ * rather than break: on a phone narrower than the one the ceiling was measured on, and at any size.
+ */
+const ONE_WORD = new Set<TypeRole>(['hero', 'heroNarrow']);
+
+/**
  * Text in the product's voice. CSS inherits `color` from `body`; React Native inherits nothing and
  * defaults to black, so a screen that reaches for `type.body` alone gets black on ink — invisible.
  * This is the one place that pairs a role with the colour it is read in, so no screen has to
  * remember. `meta` and `note` bring `muted` with them: spec 10.1 keeps every readable secondary
  * line on `muted` and leaves `faint` to what is unavailable or decorative.
+ *
+ * And the one place that says how far the role grows with the system's type ({@link TYPE_MOST},
+ * {@link HEADING_MOST}) — a caller that measured its own room says so with `maxFontSizeMultiplier`,
+ * and is heard.
  */
 export function Text({
   role = 'body',
   tone,
   style,
+  maxFontSizeMultiplier,
   ...rest
 }: // React Native's own `role` is the ARIA one, and it is `accessibilityRole` spelled twice; the
 // spec's roles are the useful meaning of the word here, so this takes the name over.
@@ -49,6 +90,8 @@ Omit<TextProps, 'role'> & {
         type[role],
         style,
       ]}
+      maxFontSizeMultiplier={maxFontSizeMultiplier ?? HEADING_MOST[role] ?? TYPE_MOST}
+      {...(ONE_WORD.has(role) ? { numberOfLines: 1, adjustsFontSizeToFit: true } : null)}
       {...rest}
     />
   );

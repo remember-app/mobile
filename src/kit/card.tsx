@@ -200,6 +200,8 @@ const useStyles = themed(({ color }) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    grow: { flex: 1, minWidth: 0 },
+    // The words keep at least half the row: a «Повторить» handed in goes under them rather than
+    // squeeze them to a letter a line on large type (TASK-377).
+    grow: { flex: 1, minWidth: '50%' },
   }),
 );

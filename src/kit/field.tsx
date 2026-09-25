@@ -12,7 +12,7 @@ import {
 import { height, night, radius, space, type Theme, themed, type, useTheme } from '@/theme';
 
 import { Icon, type IconComponent } from './icon';
-import { Text } from './text';
+import { Text, TYPE_MOST } from './text';
 
 /**
  * Spec 7.3 — everything a person types into or picks from. The state of a field is never decoration:
@@ -176,6 +176,7 @@ export function Field({
           accessibilityLabel={label}
           accessibilityHint={hint}
           placeholderTextColor={theme.color.faint}
+          maxFontSizeMultiplier={TYPE_MOST}
           {...input}
           onFocus={(e) => {
             setFocused(true);
@@ -266,9 +267,12 @@ export function CodeField({
           textContentType="oneTimeCode"
           autoComplete="one-time-code"
           maxLength={length}
+          maxFontSizeMultiplier={TYPE_MOST}
           autoFocus={autoFocus}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
+          caretHidden
+          selectionColor="transparent"
           style={[StyleSheet.absoluteFill, styles.codeInput]}
         />
       </View>
@@ -314,6 +318,7 @@ export function TextArea({
         accessibilityLabel={label}
         accessibilityHint={hint}
         placeholderTextColor={theme.color.faint}
+        maxFontSizeMultiplier={TYPE_MOST}
         multiline
         textAlignVertical="top"
         maxLength={limit}
@@ -390,9 +395,10 @@ const useStyles = themed(({ color }) =>
       justifyContent: 'center',
     },
     code: { flexDirection: 'row', gap: space.s2 },
+    // A floor and not a height: the digit grows with the system's type, and the cell with it.
     cell: {
       flex: 1,
-      height: height.code,
+      minHeight: height.code,
       borderRadius: radius.cell,
       borderWidth: 1,
       backgroundColor: color.surface,
@@ -400,9 +406,11 @@ const useStyles = themed(({ color }) =>
       justifyContent: 'center',
     },
     cellDigit: { fontFamily: type.title.fontFamily, fontSize: 22, color: color.paper },
-    // The real input lies over the six boxes, invisible, so the caret and the phone's own autofill
-    // have somewhere to land.
-    codeInput: { opacity: 0, color: 'transparent' },
+    // The real input lies over the six boxes, so the caret and the phone's own autofill have
+    // somewhere to land. Its words are see-through and not the input itself: iOS neither lets a
+    // finger reach a view at opacity 0 nor shows it to a screen reader, and a tap on the cells is
+    // how the keyboard comes back once it has been put away (TASK-377).
+    codeInput: { color: 'transparent' },
     area: {
       height: 280,
       borderWidth: 1,

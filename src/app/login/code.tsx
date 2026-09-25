@@ -99,7 +99,7 @@ export default function LoginCodeScreen() {
             />
 
             <View style={styles.sent}>
-              <Text role="note" numberOfLines={1} style={styles.grow}>
+              <Text role="note" style={styles.grow}>
                 {s.login.sentTo(email)}
               </Text>
               {/* Quiet, and beside the line it belongs to: another code is a repair, never the
@@ -146,7 +146,8 @@ const styles = StyleSheet.create({
   room: { flexGrow: 1, justifyContent: 'flex-end', gap: space.s2, paddingHorizontal: space.s4 },
   column: { flex: 1, gap: space.s3 },
   // The address on the left, the way to ask again on the right — one line, so neither of them
-  // reads as the action of the screen. Under it, when the system type leaves no room beside.
+  // reads as the action of the screen. Under it, when the address and the button do not both fit:
+  // the address is never cut, it is where the letter went.
   sent: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s3 },
-  grow: { flex: 1, minWidth: 0 },
+  grow: { flexGrow: 1 },
 });

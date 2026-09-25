@@ -103,7 +103,7 @@ export function EventWhen({
         <Text role="eyebrow" accessibilityRole="header" style={styles.grow}>
           {s.create.eventDate.toUpperCase()}
         </Text>
-        <Text role="controlSm" numberOfLines={1} style={styles.picked}>
+        <Text role="controlSm" style={styles.picked}>
           {formatEventDates(value.from.toISOString(), value.to?.toISOString() ?? null)}
           {/* Spec 8, «Края»: one day is one date, with no length hung off it. */}
           {days > 1 ? <Text role="chip" tone="muted">{` · ${s.create.days(days)}`}</Text> : null}
@@ -147,8 +147,10 @@ export function EventWhen({
 const styles = StyleSheet.create({
   // Spec 10.8.3, the rhythm of `Create`: 10 between the eyebrow, the chips, the grid and the line.
   block: { gap: 10 },
-  head: { flexDirection: 'row', alignItems: 'baseline', gap: space.s3 },
-  grow: { flex: 1, minWidth: 0 },
+  // The heading on the left, the days on the right — and the days under it, whole, once both do not
+  // fit on one line: a long range, or large type (TASK-377).
+  head: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', gap: space.s3 },
+  grow: { flexGrow: 1 },
   picked: { flexShrink: 1, fontVariant: ['tabular-nums'] },
   quick: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.s2 },
 });

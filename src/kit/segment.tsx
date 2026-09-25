@@ -12,7 +12,7 @@ import { height, radius, space, themed, type, useTheme } from '@/theme';
 
 import { Hint } from './field';
 import { hitSlop, TAP, useFocusRing, useHoverFocus } from './interaction';
-import { Text } from './text';
+import { Text, TYPE_MOST } from './text';
 
 /** One of the values on offer, and the word it is offered under. */
 export type SegmentOption<T extends string> = { value: T; label: string };
@@ -36,12 +36,6 @@ export type SegmentProps<T extends string> = {
   onChange: (value: T) => void;
   style?: StyleProp<ViewStyle>;
 };
-
-/**
- * Spec 7.3, detail 18: a word grows with the system's type up to twice its size and no further —
- * past that the longest of them would not fit whole even in a cell of its own on the smallest phone.
- */
-const MOST = 2;
 
 /** Spec 7.3, detail 18: the stacked container's corners; its cells sit concentric, 4 inside them. */
 const STACKED = 22;
@@ -129,7 +123,7 @@ export function Segment<T extends string>({
         {options.map((option, at) => (
           <RNText
             key={option.value}
-            maxFontSizeMultiplier={MOST}
+            maxFontSizeMultiplier={TYPE_MOST}
             style={[type.controlSm, small ? styles.small : null]}
             onLayout={(event) => {
               const word = event.nativeEvent.layout.width;
@@ -188,7 +182,7 @@ function Option({
       ]}
     >
       <RNText
-        maxFontSizeMultiplier={MOST}
+        maxFontSizeMultiplier={TYPE_MOST}
         style={[
           type.controlSm,
           small ? styles.small : null,

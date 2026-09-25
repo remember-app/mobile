@@ -313,7 +313,9 @@ const useStyles = themed(() =>
     // Spec 7.3: chips lie in a row that wraps, 8 apart.
     chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.s2 },
     quiet: { alignSelf: 'flex-start' },
-    grow: { flex: 1, minWidth: 0 },
+    // The words keep at least half the row: the button beside them goes under rather than squeeze
+    // them to a letter a line on large type (TASK-377).
+    grow: { flex: 1, minWidth: '50%' },
     // The link and what the sheet offers to do with it, side by side — the button moving under the
     // words once the system type is too large for it to fit beside them.
     link: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s3 },
