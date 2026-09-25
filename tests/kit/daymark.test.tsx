@@ -1,3 +1,4 @@
+import { rule } from '@tests/helpers/css';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import type { ReactElement } from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
@@ -101,6 +102,22 @@ test('the spine stands where the screen puts each mark, and says nothing out lou
   expect(spine).toContain('top:588px');
   // A way of moving and not a thing to be pressed: nothing on it is a button.
   expect(spine).not.toContain('role="button"');
+});
+
+test('on the spine the line is the quietest thing and each mark on it louder than the last', () => {
+  // Spec 7.8, detail 66 and 10.10: the line .22 and nothing else at it, the pill on the quieter
+  // plate .55, the tick .35, the dot .6 — and the date read in the pill at .72.
+  const spine = story(<DateSpine marks={[{ label: '13 сен', top: 195 }]} />);
+  const fills = [...spine.matchAll(/r-backgroundColor-[a-z0-9]+/g)].map(([name]) => name);
+  expect(fills).toEqual(
+    [
+      'background-color:rgba(245,243,238,0.22)',
+      'background-color:rgba(11,11,18,0.55)',
+      'background-color:rgba(245,243,238,0.35)',
+      'background-color:rgba(245,243,238,0.60)',
+    ].map(rule),
+  );
+  expect(spine).toContain(rule('color:rgba(245,243,238,0.72)'));
 });
 
 test('a spine with no days in it is a bare line', () => {

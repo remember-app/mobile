@@ -232,6 +232,12 @@ test('a memory with no film says what one is, and offers it to the one who can o
   expect(films).toContain('text={s.montage.emptyNote}');
   expect(films).toContain("role === 'organizer' ? (");
   expect(films).toContain('label={s.montage.makeIt}');
+  // The kit's paper 36, as wide as its words, and never without its plus (spec 8, detail 40) — what
+  // a 36 draws, the 15 plus at 2.2 included, is the kit's own story (`tests/kit/button.test.tsx`).
+  const make = films.slice(films.indexOf('<EmptyMontages'), films.indexOf('</EmptyMontages>'));
+  expect(make.replace(/\s+/g, ' ')).toContain(
+    '<Button variant="paper" size="mini" wide={false} icon={Plus} label={s.montage.makeIt}',
+  );
   expect(ru.montage.emptyNote).toBe('Нейросеть выберет лучшие моменты и положит на музыку.');
   expect(ru.montage.makeIt).toBe('Смонтировать');
   // And the counter beside the heading says the same silence in one word.

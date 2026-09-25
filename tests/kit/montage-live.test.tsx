@@ -1,3 +1,4 @@
+import { rule } from '@tests/helpers/css';
 import { beforeAll, expect, test } from 'vitest';
 
 import { BadgeDecision } from '@/kit/badge';
@@ -52,6 +53,21 @@ test('«Сейчас» has three states and they are three cards', () => {
     ),
     waiting: <CardNow who="Режиссёр" waiting="Ждём очереди" />,
   });
+});
+
+test('the author and «СЕЙЧАС» over the frame stand on the fuller of the two plates', () => {
+  // Spec 2 and 10.10: `.60` on the card «Сейчас» — the quieter `.55` belongs to a template's tile and
+  // to the date spine.
+  const card = story(
+    <CardNow
+      uri={SHOT}
+      author="Аня Петрова"
+      authorLine="Аня · 13 сент, 16:42"
+      now="Сейчас"
+      who="Режиссёр"
+    />,
+  );
+  expect(card.split(rule('background-color:rgba(11,11,18,0.60)'))).toHaveLength(3);
 });
 
 test('a card waiting its turn holds no frame and no thought — there is nothing in hand', () => {

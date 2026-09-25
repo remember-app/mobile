@@ -10,7 +10,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { photo, radius, space, themed, useTheme } from '@/theme';
+import { night, photo, radius, space, themed, useTheme } from '@/theme';
 
 import { useReach } from './interaction';
 import { Text } from './text';
@@ -251,7 +251,7 @@ export function VideoTrack({
 
   return (
     <View style={styles.videoRow}>
-      <Text role="meta" style={styles.onPhoto}>
+      <Text role="timecode" style={styles.elapsed}>
         {at}
       </Text>
       <View
@@ -280,7 +280,7 @@ export function VideoTrack({
           <View style={[styles.videoHandle, { left: `${shown * 100}%` }]} />
         </View>
       </View>
-      <Text role="meta" style={styles.onPhoto}>
+      <Text role="timecode" style={styles.runs}>
         {of}
       </Text>
       {sound}
@@ -372,7 +372,9 @@ const useStyles = themed(({ color }) =>
       borderRadius: radius.pill,
       backgroundColor: color.spark,
     },
-    onPhoto: { color: photo.on },
+    // Spec 7.10: what has played in the night's `paper`, the whole length a voice lower.
+    elapsed: { color: night.paper },
+    runs: { color: photo.viewerMeta },
     stack: { width: 300, height: 220, alignItems: 'center', justifyContent: 'center' },
     stackSmall: { width: 250, height: 180, alignItems: 'center', justifyContent: 'center' },
     stackShot: { position: 'absolute', borderRadius: radius.field },

@@ -63,10 +63,7 @@ test('the whole window is three buttons on glass, and under the picture only the
   expect(strip).toBeLessThan(viewer.indexOf('<ActionMenu'));
   // The three of them, each in its own place: «Назад» on the left, the pill of when and who in the
   // middle, «⋯» on the right — and no fourth.
-  const bar = viewer.slice(
-    viewer.indexOf('<ViewerBar'),
-    viewer.indexOf('<View style={[styles.tools'),
-  );
+  const bar = viewer.slice(viewer.indexOf('<ViewerBar'), viewer.indexOf('styles.tools,'));
   expect(bar.slice(bar.indexOf('left={'))).toContain('label={s.action.close}');
   expect(bar.slice(bar.indexOf('right={'))).toContain('label={s.viewer.more}');
   expect(bar).toContain('label={`${s.viewer.details}');
@@ -244,22 +241,35 @@ test('a video carries a transport and a photo carries none of it', () => {
   expect(viewer).toContain('const at = player.currentTime;');
 });
 
-test('the 72 stands in the middle of the picture and on the glass every button over one wears', () => {
-  // Both reported off a device (TASK-181). The button hung visibly above the middle of the frame
-  // and read as a dark plate, and each had its own cause: it was centred over the whole stage,
-  // whose top padding is the floating bar's own 116, and it wore `photo.mark` — the 72 % plate a
-  // mark in the corner of a tile sits on, which over a whole photograph is a hole in it.
+test('the 72 stands in the middle of the picture, on the dark the layout puts under it', () => {
+  // Reported off a device (TASK-181): the button hung visibly above the middle of the frame, because
+  // it was centred over the whole stage, whose top padding is the floating bar's own 116.
   const stage = viewer.slice(viewer.indexOf('{playable !== null ? ('), viewer.indexOf('{notice ?'));
   // One box holds the picture and the button, and it is the box the stage's padding is already out
   // of — so the middle of the one is the middle of the other.
   expect(stage).toContain('<View style={styles.big}>');
   expect(stage.indexOf('<VideoView')).toBeLessThan(stage.indexOf('styles.middleOfFrame'));
   expect(viewer).toContain('...StyleSheet.absoluteFill,');
-  // 72 and glass: the layout's own size, and the fill the «Закрыть», «Ещё» and «Поделиться» of this
-  // same window already stand on. The plate is gone, and with it the last `photo.mark` here.
-  expect(stage).toContain('size={72}');
-  expect(stage).toContain('tone="viewer"');
+  // 72 on the kit's «над видео» (spec 7.2, 10.10): `rgba(6,6,10,.5)`, no hairline, the glyph filled
+  // in `paper` — not the viewer's glass, which vanishes over a bright frame, and not the tile's 72 %
+  // mark. The tone picks the glyph's colour; nothing here overrides it with a white of its own.
+  const button = stage.slice(stage.indexOf('<IconButton'));
+  const pause = button.slice(0, button.indexOf('/>'));
+  expect(pause).toContain('size={72}');
+  expect(pause).toContain('tone="video"');
+  expect(pause).not.toContain('tint=');
   expect(viewer).not.toContain('photo.mark');
+});
+
+test('the foot of the window is the layout’s: a photograph ends 96 up, a video 140', () => {
+  // Spec 8, `ViewerVideo`, and 10.10: the video ends at 704 and not 700, its scrubber 716–752, and
+  // 14 — not 12 — down to the strip. The gaps are tokens (`viewerFoot`), held to 96 and 140 in
+  // `tests/theme/tokens.test.ts`; what this pins is that the window takes them, and takes the
+  // video's only where there is a video.
+  expect(viewer).toContain('tools: { gap: viewerFoot.track, paddingTop: viewerFoot.photo },');
+  expect(viewer).toContain('toolsVideo: { paddingTop: viewerFoot.video },');
+  const tools = viewer.slice(viewer.indexOf('styles.tools,'), viewer.indexOf('<VideoTrack'));
+  expect(tools).toContain('playable !== null ? styles.toolsVideo : null');
 });
 
 test('the film can be wound, and only while there is a length to wind it against', () => {

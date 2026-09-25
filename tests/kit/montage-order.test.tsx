@@ -1,4 +1,5 @@
 import { contrast } from '@tests/helpers/contrast';
+import { rule } from '@tests/helpers/css';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { Heart, House, Zap } from 'lucide-react-native';
 import { StyleSheet, Text, View } from 'react-native';
@@ -262,4 +263,19 @@ test('the glyphs on a template and on the poster of an order are the night’s p
     expect(story(node)).not.toContain('stroke="#15151C"');
   }
   await setTheme('dark');
+});
+
+test('a template’s tile carries its length on the quieter plate, the poster its template on the fuller', () => {
+  // Spec 2 and 10.10 — two exact values, each by its place: «3:00 · 16:9» on a template's tile stands
+  // on .55, the template named on the summary's poster on .60.
+  const tile = story(<TileTemplate title="Для себя" spec="3:00 · 16:9" onPress={() => {}} />);
+  const poster = story(
+    <PosterOrder photos={SHOTS} template="Для родителей" templateIcon={House} length="2:30" />,
+  );
+  const quiet = rule('background-color:rgba(11,11,18,0.55)');
+  const full = rule('background-color:rgba(11,11,18,0.60)');
+  expect(tile).toContain(quiet);
+  expect(tile).not.toContain(full);
+  expect(poster).toContain(full);
+  expect(poster).not.toContain(quiet);
 });

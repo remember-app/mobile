@@ -1,3 +1,4 @@
+import { rule } from '@tests/helpers/css';
 import { ChevronLeft, SquareCheckBig, Trash2, User } from 'lucide-react-native';
 import { beforeAll, expect, test } from 'vitest';
 
@@ -243,6 +244,18 @@ test('the viewer’s pill wears the layout’s hairline and reads its second lin
   // a line at 45% is unreadable over a bright frame.
   expect(compiled()).toContain('{color:rgba(245,243,238,0.66);}');
   expect(pill).not.toContain('rgba(255,255,255,0.45)');
+});
+
+test('the date in the viewer’s pill is the night’s paper and not the photograph’s white', async () => {
+  // Spec 7.1, detail 5 and 10.10: «13 сентября» is `#F5F3EE`, in daylight as well — the bar is
+  // pinned to the night because it lies on the photograph.
+  const bar = <ViewerBar date="13 сентября" meta="21:47 · Марк Ковалёв" />;
+  const dateOf = (markup: string) => markup.match(/class="([^"]*)">13 сентября</)?.[1];
+  const paper = rule('color:rgba(245,243,238,1.00)');
+  expect(dateOf(story(bar))).toContain(paper);
+  await setTheme('light');
+  expect(dateOf(story(bar))).toContain(paper);
+  await setTheme('dark');
 });
 
 test('the pill in the middle of it is a button where it leads somewhere, and wears no chevron either way', () => {

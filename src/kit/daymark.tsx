@@ -178,15 +178,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 6,
     borderRadius: radius.pill,
-    backgroundColor: photo.plate,
+    backgroundColor: photo.plateQuiet,
   },
   spineText: { color: photo.spineMark, lineHeight: 16 },
-  spineDash: { width: 8, height: 1, backgroundColor: photo.spine },
+  spineDash: { width: 8, height: 1, backgroundColor: photo.spineTick },
   spineDot: {
     width: 4,
     height: 4,
     marginRight: -1.5,
     borderRadius: radius.pill,
-    backgroundColor: photo.spineMark,
+    backgroundColor: photo.spineDot,
   },
 });

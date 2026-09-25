@@ -1,9 +1,10 @@
-import { Plus } from 'lucide-react-native';
+import { rule } from '@tests/helpers/css';
+import { Pause, Plus } from 'lucide-react-native';
 import { beforeAll, expect, test } from 'vitest';
 
 import { Button, type ButtonVariant, IconButton } from '@/kit/button';
 import { allDifferent, story } from '@/kit/story';
-import { setTheme } from '@/theme';
+import { font, setTheme } from '@/theme';
 
 /** Every state of every button of spec 7.2, drawn once each. */
 
@@ -166,6 +167,7 @@ test('every round tone is its own fill, and none of them is a word', () => {
     outline: <IconButton icon={Plus} label="Выбрать другую дату" tone="outline" />,
     glass: <IconButton icon={Plus} label="Назад" tone="glass" />,
     viewer: <IconButton icon={Plus} label="Закрыть" tone="viewer" />,
+    video: <IconButton icon={Plus} label="Пауза" tone="video" />,
     paper: <IconButton icon={Plus} label="Послушать" tone="paper" />,
     spark: <IconButton icon={Plus} label="Выбрать" tone="spark" />,
     danger: <IconButton icon={Plus} label="Удалить" tone="danger" />,
@@ -189,6 +191,40 @@ test('the two glasses are two glasses, and both read their glyph in full voice',
   const viewer = story(<IconButton icon={Plus} label="Закрыть" tone="viewer" size={48} />);
   expect(viewer).toContain('rgba(245,243,238,0.10)');
   expect(viewer).not.toContain('rgba(255,255,255,0.09)');
+});
+
+test('the pause over a video is dark and not glass: no hairline, and a 26 filled in paper', () => {
+  // Spec 7.2, «над видео», and 10.10: `rgba(6,6,10,.5)`, no border and no blur — the viewer's glass
+  // vanishes over a bright frame. The glyph is one of the three the set fills (spec 5).
+  const pause = story(<IconButton icon={Pause} label="Пауза" size={72} tone="video" />);
+  expect(pause).toContain('background-color:rgba(6,6,10,0.50)');
+  expect(pause).not.toContain('rgba(245,243,238,0.10)');
+  expect(pause).not.toContain('border-top-color');
+  expect(pause).toContain('width="26"');
+  expect(pause).toContain('stroke="#F5F3EE"');
+  expect(pause).toContain('fill="#F5F3EE"');
+  // A glass button keeps its glyph hollow.
+  expect(story(<IconButton icon={Pause} label="Пауза" size={72} tone="viewer" />)).toContain(
+    'fill="none"',
+  );
+});
+
+test('«Смонтировать» is a 36 on paper with the plus the layout draws for it', () => {
+  // Spec 8, detail 40 and 10.10: a 15 plus at stroke 2.2 before the words, 6 between them, 14 a
+  // side, the words 13 / 600 in `ink` — the button does not go without the sign.
+  const make = story(<Button variant="paper" size="mini" icon={Plus} label="Смонтировать" />);
+  expect(make).toContain('min-height:36px');
+  expect(make).toContain('<svg data-glyph="Plus" width="15" height="15" stroke="#0B0B12"');
+  expect(make).toContain('stroke-width="2.2"');
+  expect(make).toContain(rule('gap:6px'));
+  expect(make).toContain(rule('padding-left:14px;padding-right:14px'));
+  const words = make.match(/class="([^"]*)"[^>]*>Смонтировать</)?.[1];
+  expect(words).toContain(rule('font-size:13px'));
+  expect(words).toContain(rule(`font-family:${font.semi}`));
+  // The full-size paper button keeps the glyph its size gives it.
+  const full = story(<Button variant="paper" icon={Plus} label="Смонтировать" />);
+  expect(full).toContain('width="18"');
+  expect(full).not.toContain('stroke-width="2.2"');
 });
 
 test('a round button that stays in is a switch, and one that fires is not', () => {
