@@ -6,6 +6,13 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal"
+    },
+    "testflight": {
+      "distribution": "store",
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://dev-api-remember.noxlabs.xyz"
+      }
     }
   }
 }
