@@ -156,7 +156,6 @@ export default function BuildStep() {
 
       <Segment
         label={s.montage.shape}
-        wide
         options={ORIENTATIONS.map((way) => ({ value: way, label: s.montage.orientation[way] }))}
         value={order.orientation}
         onChange={(orientation) => change({ orientation })}

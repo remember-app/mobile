@@ -43,11 +43,9 @@ test('the row is a radiogroup and each pill is a radio, so a switch reads as a s
   expect(row.match(/role="radio"/g)).toHaveLength(FACES.length);
 });
 
-test('the two heights, the two widths and the two grounds are each their own', () => {
+test('the two grounds are each their own', () => {
   allDifferent({
     plain: <Segment label="Лицо" options={FACES} value="frames" onChange={() => {}} />,
-    small: <Segment label="Лицо" options={FACES} value="frames" onChange={() => {}} sm />,
-    wide: <Segment label="Лицо" options={FACES} value="frames" onChange={() => {}} wide />,
     inSheet: <Segment label="Лицо" options={FACES} value="frames" onChange={() => {}} onSurface />,
   });
 });
@@ -112,7 +110,7 @@ const THIRD = (343 - 10 - 8) / 3 - 8;
 
 test('until its words are measured the group is not seen, so it never jumps between the two', async () => {
   const root = await draw(
-    <Segment label="Лицо" wide options={FACES} value="frames" onChange={() => {}} />,
+    <Segment label="Лицо" options={FACES} value="frames" onChange={() => {}} />,
   );
   expect(flat<ViewStyle>(container(root)).opacity).toBe(0);
   await lay(root, 343, [40, 50, 36]);
@@ -122,7 +120,7 @@ test('until its words are measured the group is not seen, so it never jumps betw
 
 test('a row while every word fits whole in its cell with 4 to spare, a column from the first that does not', async () => {
   const root = await draw(
-    <Segment label="Лицо" wide options={FACES} value="frames" onChange={() => {}} />,
+    <Segment label="Лицо" options={FACES} value="frames" onChange={() => {}} />,
   );
   await lay(root, 343, [THIRD, 40, 40]);
   expect(flat<ViewStyle>(container(root)).flexDirection).toBe('row');
@@ -138,12 +136,11 @@ test('a row while every word fits whole in its cell with 4 to spare, a column fr
 
 test('stacked, the cells are the spec’s: 44 at least, 8 / 12 inside, 22 round the group and 18 round each', async () => {
   const root = await draw(
-    <Segment label="Лицо" wide options={FACES} value="frames" onChange={() => {}} />,
+    <Segment label="Лицо" options={FACES} value="frames" onChange={() => {}} />,
   );
   await lay(root, 343, [200, 40, 40]);
   expect(flat<ViewStyle>(container(root))).toMatchObject({
     flexDirection: 'column',
-    alignSelf: 'stretch',
     borderRadius: 22,
     gap: 4,
     padding: 4,
@@ -167,20 +164,20 @@ test('stacked, the cells are the spec’s: 44 at least, 8 / 12 inside, 22 round 
     });
 });
 
-test('in the row a cell is drawn at 40 and felt at 44, inside its 50 of container', async () => {
+test('in the row a cell is an equal part, drawn at 40 and felt at 44, inside its 50 of container', async () => {
   const root = await draw(
-    <Segment label="Лицо" wide options={FACES} value="frames" onChange={() => {}} />,
+    <Segment label="Лицо" options={FACES} value="frames" onChange={() => {}} />,
   );
   await lay(root, 343, [40, 40, 40]);
   for (const cell of cells(root)) {
-    expect(flat<ViewStyle>(cell).minHeight).toBe(40);
+    expect(flat<ViewStyle>(cell)).toMatchObject({ flexGrow: 1, flexBasis: 0, minHeight: 40 });
     expect(cell.props.hitSlop).toEqual({ left: 0, right: 0, top: 2, bottom: 2 });
   }
 });
 
 test('no word is ever cut to one line or given an ellipsis, and none grows past twice its size', async () => {
   const root = await draw(
-    <Segment label="Лицо" wide options={FACES} value="frames" onChange={() => {}} />,
+    <Segment label="Лицо" options={FACES} value="frames" onChange={() => {}} />,
   );
   for (const words of [
     [40, 40, 40],
@@ -200,14 +197,14 @@ test('every word is set at 14 however long it is, and at 13 only where the group
     { value: 'portrait', label: 'Вертикальный' },
   ] as const;
   const format = await draw(
-    <Segment label="Формат" wide options={long} value="portrait" onChange={() => {}} />,
+    <Segment label="Формат" options={long} value="portrait" onChange={() => {}} />,
   );
   await lay(format, 343, [114, 95]);
   for (const word of [...shown(format), ...rulers(format)])
     expect(flat<TextStyle>(word).fontSize).toBe(14);
 
   const theme = await draw(
-    <Segment label="Тема" wide small options={FACES} value="frames" onChange={() => {}} />,
+    <Segment label="Тема" small options={FACES} value="frames" onChange={() => {}} />,
   );
   for (const word of [...shown(theme), ...rulers(theme)])
     expect(flat<TextStyle>(word).fontSize).toBe(13);
@@ -219,7 +216,7 @@ test('every word is set at 14 however long it is, and at 13 only where the group
 test('picking a value moves the fill and never the group from one view to the other', async () => {
   let tree!: TestRenderer.ReactTestRenderer;
   const at = (value: 'frames' | 'films') => (
-    <Segment label="Лицо" wide options={FACES} value={value} onChange={() => {}} />
+    <Segment label="Лицо" options={FACES} value={value} onChange={() => {}} />
   );
   await act(async () => {
     tree = mounted(TestRenderer.create(at('frames')));
@@ -236,7 +233,7 @@ test('picking a value moves the fill and never the group from one view to the ot
 
 test('row or column, it reads out the same: a named radiogroup of named radios, and the rulers not at all', async () => {
   const root = await draw(
-    <Segment label="Лицо" wide options={FACES} value="films" onChange={() => {}} />,
+    <Segment label="Лицо" options={FACES} value="films" onChange={() => {}} />,
   );
   for (const words of [
     [40, 40, 40],

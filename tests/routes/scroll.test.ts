@@ -51,7 +51,7 @@ test('no screen scrolls up and down by a scroll of its own', () => {
   const own = sources
     .filter(([path]) => path !== 'kit/bars.tsx' && path !== 'kit/sheet.tsx')
     .filter(([, source]) =>
-      [...flat(source).matchAll(/<ScrollView\b[^>]*>/g)].some(
+      [...flat(source).matchAll(/<(Animated\.)?ScrollView\b[^>]*>/g)].some(
         ([tag]) => !/\bhorizontal\b/.test(tag),
       ),
     )
