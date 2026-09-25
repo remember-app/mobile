@@ -80,6 +80,55 @@ test('ready, building and broken are three cards and not three colours of one', 
   });
 });
 
+test('the large poster says «Готов» and what the film came out as in one row, and nothing lies on anything', () => {
+  // `MontageLiveDone`: the badge 46.42 × 22 at 30, 270 — 14 in from the poster's left, 12 up from
+  // its foot at 304 — and «2:30 · 16:9» Onest 13 / 600 white, tabular, at 84.42: 8 after the badge,
+  // on its middle. No name: the film's name is the bar's. The app hung the badge at the same corner
+  // and laid the name and the meta line over it — the one view on these screens that was broken.
+  let tree!: TestRenderer.ReactTestRenderer;
+  act(() => {
+    tree = TestRenderer.create(
+      <CardMontage
+        title="Ролик на 2:30"
+        meta="2:30 · 16:9"
+        state="ready"
+        poster={POSTER}
+        large
+        badge={<BadgeMontage state="ready" label="Готов" />}
+        label="Смотреть: Ролик на 2:30"
+        onPress={() => {}}
+      />,
+    );
+  });
+  const flat = (node: { props: { style?: unknown } }) =>
+    StyleSheet.flatten(node.props.style as ViewStyle) as ViewStyle;
+  const texts = tree.root.findAllByType(RNText);
+  expect(texts.map((one) => [one.props.children].flat().join(''))).not.toContain('Ролик на 2:30');
+  const figures = texts.find((one) => one.props.children === '2:30 · 16:9')!;
+  expect(flat(figures)).toMatchObject({
+    fontSize: 13,
+    fontFamily: 'Onest_600SemiBold',
+    color: '#FFFFFF',
+    fontVariant: ['tabular-nums'],
+  });
+  // The badge and the figures are the two things in one row, 8 apart (84.42 − 30 − 46.42), on one
+  // middle — and the row wraps, so on large type the figures go under the badge and never over it.
+  const row = tree.root
+    .findAllByType(View)
+    .find(
+      (one) => one.findAllByType(BadgeMontage).length > 0 && flat(one).flexDirection === 'row',
+    )!;
+  expect(flat(row)).toMatchObject({ flexWrap: 'wrap', alignItems: 'center' });
+  expect(flat(row).gap).toBeCloseTo(84.42 - 30 - 46.42);
+  expect(row.findAll((one) => one.props.children === '2:30 · 16:9')).not.toHaveLength(0);
+  // Nothing on this poster but the play circle stands on its own: the badge is in the foot's row.
+  const hung = tree.root.findAllByType(View).filter((one) => flat(one).position === 'absolute');
+  expect(hung.flatMap((one) => one.findAllByType(BadgeMontage))).toEqual([]);
+  const foot = tree.root.findAllByType(View).find((one) => flat(one).marginTop === 'auto')!;
+  expect(flat(foot)).toMatchObject({ padding: 304 - 292, paddingHorizontal: 30 - 16 });
+  act(() => tree.unmount());
+});
+
 test('a card still being cut shows its own frame out of focus rather than no frame at all', () => {
   const pending = story(
     <CardMontage

@@ -16,7 +16,7 @@ import { Divider } from './bits';
 import { IconButton } from './button';
 import { Spinner } from './empty';
 import { Icon, type IconComponent, playFor } from './icon';
-import { PRESS, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
+import { hitSlop, PRESS, TAP, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
 import { Text } from './text';
 
 /**
@@ -247,7 +247,11 @@ export type StepState = 'done' | 'running' | 'waiting' | 'failed';
  *
  * The one still running opens: it takes an `accentNote` wash and carries its last few records under
  * it, so the screen shows what the director is doing without anybody having to go looking. A stage
- * still ahead is not a road at all — no meta, no chevron, one faint line naming what is coming.
+ * still ahead is not a road at all — no meta, no chevron, one faint line naming what is coming, and
+ * the layout draws that row 44 rather than 48 (`MontageLive`).
+ *
+ * Nothing on it is cut: a name, a meta or the line of what is ahead that outgrows the row on large
+ * system type wraps, and the row grows down with it.
  */
 export function RowStep({
   title,
@@ -276,7 +280,7 @@ export function RowStep({
       <Tappable
         label={[title, meta].filter(Boolean).join('. ')}
         onPress={ahead ? undefined : onPress}
-        style={styles.step}
+        style={[styles.step, ahead ? styles.stepAhead : null]}
       >
         {state === 'running' ? (
           <Spinner size={24} track={color.line} head={color.accent} />
@@ -294,20 +298,14 @@ export function RowStep({
           </View>
         )}
         {ahead ? (
-          <Text role="note" tone="faint" numberOfLines={1} style={styles.grow}>
+          <Text role="note" tone="faint" style={styles.grow}>
             {title}
           </Text>
         ) : (
           // Spec 7.7, detail 56: the name 14 / 600 and the line under it 11 / 500 `muted`.
           <View style={styles.grow}>
-            <Text role="rowSm" numberOfLines={1}>
-              {title}
-            </Text>
-            {meta ? (
-              <Text role="metaSm" numberOfLines={1}>
-                {meta}
-              </Text>
-            ) : null}
+            <Text role="rowSm">{title}</Text>
+            {meta ? <Text role="metaSm">{meta}</Text> : null}
           </View>
         )}
         {ahead ? null : <Icon icon={ChevronRight} size={16} color={color.faint} />}
@@ -378,14 +376,22 @@ export function StepLink({ label, onPress }: { label: string; onPress?: () => vo
   const { color } = useTheme();
 
   return (
-    <Tappable label={label} onPress={onPress} style={styles.stepLink}>
-      <Text role="badge" tone="accent" numberOfLines={1} style={styles.grow}>
+    <Tappable
+      label={label}
+      onPress={onPress}
+      slop={hitSlop(TAP, STEP_LINK)}
+      style={styles.stepLink}
+    >
+      <Text role="timecode" tone="accent" style={styles.shrink}>
         {label}
       </Text>
       <Icon icon={ChevronRight} size={14} color={color.accentText} />
     </Tappable>
   );
 }
+
+/** The layout's own height for the way into a stage's journal (`MontageLive`); felt at `TAP`. */
+const STEP_LINK = 40;
 
 /**
  * One action inside the glass menu that drops out of the «⋯» (spec 7.7): 50 tall, the words on the
@@ -489,6 +495,7 @@ function Tappable({
   label,
   onPress,
   selected,
+  slop,
   style,
   children,
 }: {
@@ -500,6 +507,8 @@ function Tappable({
   label?: string;
   onPress?: () => void;
   selected?: boolean;
+  /** A row the layout draws under 44 is felt at 44 (spec 10.2) — `hitSlop` of what it is drawn at. */
+  slop?: ReturnType<typeof hitSlop>;
   style?: StyleProp<ViewStyle>;
   children: ReactNode;
 }) {
@@ -514,6 +523,7 @@ function Tappable({
       accessibilityLabel={label}
       accessibilityState={selected === undefined ? undefined : { selected }}
       disabled={!onPress}
+      hitSlop={slop}
       onPress={onPress}
       {...props}
       style={({ pressed }) => [
@@ -589,6 +599,7 @@ const useStyles = themed(({ color }) =>
       gap: space.s3,
       paddingHorizontal: 14,
     },
+    stepAhead: { minHeight: height.small },
     // Spec 7.7 — the stage in hand is washed rather than boxed: it is one of a list of stages, and
     // a border round it would make it a card standing apart from its own neighbours.
     stepOpen: { backgroundColor: color.accentNote },
@@ -623,10 +634,11 @@ const useStyles = themed(({ color }) =>
       alignItems: 'flex-end',
     },
     noteLength: { color: photo.on, paddingRight: 3, paddingBottom: 2 },
-    // The layout draws this one 36 tall; here it stands at the 44 spec 10.2 asks of anything a
-    // finger lands on, which is the four points of room under a stage and nothing else.
+    // Drawn at the layout's 40 and felt at 44 through the slop: the four points spec 10.2 asks of
+    // anything a finger lands on are not four points of room under a stage. The chevron follows the
+    // words rather than standing at the far edge.
     stepLink: {
-      minHeight: height.small,
+      minHeight: STEP_LINK,
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,

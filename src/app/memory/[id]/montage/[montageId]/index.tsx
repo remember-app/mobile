@@ -44,9 +44,8 @@ import {
   useMontageJournal,
   useTypedThought,
 } from '@/lib/montage/journal';
-import { LENGTHS, type Length } from '@/lib/montage/order';
+import { RATIO } from '@/lib/montage/order';
 import { StageRows } from '@/screens/memory/stage-rows';
-import type { Strings } from '@/strings';
 import { space } from '@/theme';
 
 /**
@@ -211,7 +210,7 @@ export default function MontageLiveScreen() {
         <AppBar
           variant="live"
           title={failed ? s.montage.status.failed : s.montage.live.title}
-          subtitle={montage === null ? undefined : orderedTo(montage, s)}
+          subtitle={montage === null ? undefined : orderedTo(montage)}
           left={<IconButton icon={ChevronLeft} label={s.action.back} onPress={leave} />}
           // Nobody watching is not a pill saying zero: it is a fact about people, and the pill is
           // only drawn when there are some (spec 7.5). The api hands out a username and no more,
@@ -296,14 +295,10 @@ export default function MontageLiveScreen() {
 
       {stage === null ? null : (
         <View style={styles.where}>
-          <Text role="badge" style={styles.grow}>
+          <Text role="timecode" style={styles.grow}>
             {s.montage.live.stageOf(stageNumber(stage.stage), STAGE_COUNT)}
           </Text>
-          {minutes === null ? null : (
-            <Text role="badge" tone="muted">
-              {s.montage.live.leftAbout(minutes)}
-            </Text>
-          )}
+          {minutes === null ? null : <Text role="meta">{s.montage.live.leftAbout(minutes)}</Text>}
         </View>
       )}
 
@@ -326,18 +321,17 @@ export default function MontageLiveScreen() {
 }
 
 /**
- * «2:30 · Горизонтальный» — what was ordered, under the name of the screen. Only what is known is
- * named, the way a finished montage's own line is (`films.tsx`): a length outside the three the
- * wizard offers is read as a running time rather than dropped.
+ * «2:30 · 16:9» — what was ordered, under the name of the screen, in the figures the finished poster
+ * says it in (`MontageLive`, `MontageLiveDone`). A length the api was left to pick is not named; a
+ * montage with no shape on it is horizontal, which is how the api reads one.
  */
-function orderedTo(montage: Montage, s: Strings): string {
-  const parts: string[] = [];
-  const seconds = montage.params.target_seconds;
-  const named = LENGTHS.includes(seconds as Length) ? s.montage.length[seconds as Length] : null;
-  const length = named ?? formatRuntime(seconds ?? null);
-  if (length) parts.push(length);
-  if (montage.params.orientation) parts.push(s.montage.orientation[montage.params.orientation]);
-  return parts.join(' · ');
+function orderedTo(montage: Montage): string {
+  return [
+    formatRuntime(montage.params.target_seconds ?? null),
+    RATIO[montage.params.orientation ?? 'landscape'],
+  ]
+    .filter(Boolean)
+    .join(' · ');
 }
 
 // Nothing here carries a colour of its own — every piece on this screen brings the kit's with it.

@@ -1,7 +1,8 @@
 import { rule } from '@tests/helpers/css';
+import { fontFile, wordWidth } from '@tests/helpers/font';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { CalendarDays, Lock } from 'lucide-react-native';
-import { StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import { beforeAll, expect, test } from 'vitest';
 
@@ -58,6 +59,27 @@ test('the four heights are four heights, and the quick one stands on a fill of i
   expect(story(<Chip label="Мысли" size={34} onPress={() => {}} />)).toContain('min-height:34px');
   // «Все дни» in the head of the filter's day block (spec 7.3) is the smallest of them.
   expect(story(<Chip label="Все дни" size={28} onPress={() => {}} />)).toContain('min-height:28px');
+});
+
+test('the journal’s chips come out as wide as the layout draws them — «Всё» 53.44, «Мысли» 73.44', async () => {
+  // `MontageLiveStage` measures «Всё» 53.44 and «Мысли» 73.44 wide at 34, Onest 13 / 600: the words
+  // and 14 inside the hairline on each side. The app drew the filter's 14 / 500 — 55.3 and 76.3.
+  let tree!: TestRenderer.ReactTestRenderer;
+  await act(async () => {
+    tree = mounted(TestRenderer.create(<Chip label="Всё" size={34} onPress={() => {}} />));
+  });
+  const words = StyleSheet.flatten(
+    tree.root.find((node) => node.type === Text && node.props.children === 'Всё').props.style,
+  );
+  expect(words).toMatchObject({ fontSize: 13, fontFamily: 'Onest_600SemiBold' });
+  const face = fontFile(`@expo-google-fonts/onest/600SemiBold/${words.fontFamily}.ttf`);
+  const chip = StyleSheet.flatten(tree.root.findByType(Pressable).props.style({ pressed: false }));
+  const across = (label: string) =>
+    wordWidth(face, label, Number(words.fontSize)) +
+    2 * Number(chip.paddingHorizontal) +
+    2 * Number(chip.borderWidth);
+  expect(across('Всё')).toBeCloseTo(53.44, 0);
+  expect(across('Мысли')).toBeCloseTo(73.44, 0);
 });
 
 test('a count is the same words a shade quieter, and it is read out with the name', () => {

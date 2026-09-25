@@ -496,7 +496,7 @@ test.each(['dark', 'light'] as const)(
 );
 
 test.each(['dark', 'light'] as const)(
-  'in the %s theme the pill’s faces are 24, a 1.5 hairline in the ink they lie on, and the pill is 36 with its figure in paper',
+  'in the %s theme the pill’s faces are 24, a 1.5 hairline in the ink they lie on, and the pill is 38 with its figure in paper',
   async (name) => {
     const { ink, paper, surface, line } = themes[name].color;
     const pill = await drawn(
@@ -517,8 +517,10 @@ test.each(['dark', 'light'] as const)(
       expect(style.boxShadow).toBeUndefined();
     }
     expect(circles.map((style) => style.marginLeft)).toEqual([undefined, -7, -7, -7]);
-    const box = styles.find((style) => style.height === 36 && style.borderRadius === 999);
-    // Spec 7.5, detail 33: 36 high, `0 10 0 6` inside, 6 between the faces and the count.
+    // `MontageLive` measures the pill 99.31 × 38 at 274.69, 55 with its first face at 281.69, 62:
+    // spec 7.5's 36 is the CSS box inside the 1px hairline, and a box here counts the hairline in
+    // — the app drew 36, two short. `0 10 0 6` inside, 6 between the faces and the count.
+    const box = styles.find((style) => style.height === 38 && style.borderRadius === 999);
     expect(box).toMatchObject({
       backgroundColor: surface,
       borderColor: line,

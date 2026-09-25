@@ -1,11 +1,14 @@
-import { afterEach, expect, test, vi } from 'vitest';
+import { afterEach, beforeAll, expect, test, vi } from 'vitest';
 
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
 
+import { StyleSheet, Text } from 'react-native';
+import TestRenderer, { act } from 'react-test-renderer';
 import type { JournalEntry, JournalFile } from '@/api';
 import { story } from '@/kit/story';
 import { setLanguage } from '@/lib/language';
 import { SheetLiveFile } from '@/screens/memory/live-file';
+import { setTheme, themes } from '@/theme';
 
 /**
  * `SheetLiveFile` (spec 8, «файл журнала») is a sheet of facts, not of a question: 14 between its
@@ -13,6 +16,7 @@ import { SheetLiveFile } from '@/screens/memory/live-file';
  * that is gone, a thought that runs long, the English words.
  */
 
+beforeAll(() => setTheme('dark'));
 afterEach(() => setLanguage('ru'));
 
 const entry = (over: Partial<JournalEntry> = {}): JournalEntry => ({
@@ -41,6 +45,35 @@ const file: JournalFile = {
   thumbnail_url: 'https://example.test/f1.jpg',
   places: [{ start_seconds: 12, duration_seconds: 3 }],
 };
+
+test('the file is named 14 / 600, and where it lay is said 12 / 600 in accent', async () => {
+  // `SheetLiveFile`: «IMG_2041 · фото» Onest 14 / 600 on its 18 line beside the 32 face, and «Часть 2
+  // «Клятвы» · 1:12–1:16» Onest 12 / 600 `accentText`, tabular. The app named the file in the 17 /
+  // 600 subtitle and said the place in the 12 / 500 meta.
+  let tree!: TestRenderer.ReactTestRenderer;
+  await act(async () => {
+    tree = TestRenderer.create(
+      <SheetLiveFile entry={entry()} file={file} author="Аня Петрова" onCancel={() => {}} />,
+    );
+  });
+  const style = (said: string) =>
+    StyleSheet.flatten(
+      tree.root.find((node) => node.type === Text && [node.props.children].flat().join('') === said)
+        .props.style,
+    );
+  expect(style('Фото')).toMatchObject({
+    fontSize: 14,
+    lineHeight: 18,
+    fontFamily: 'Onest_600SemiBold',
+  });
+  expect(style('Часть 2 «Дорога» · 0:12–0:15')).toMatchObject({
+    fontSize: 12,
+    fontFamily: 'Onest_600SemiBold',
+    color: themes.dark.color.accentText,
+    fontVariant: ['tabular-nums'],
+  });
+  await act(async () => tree.unmount());
+});
 
 /** The sheet's own style: its rhythm and, under it, the scroll's — where a floor would show too. */
 const sheetStyle = (markup: string) => /style="(gap:[^"]*padding-bottom:[^"]*)"/.exec(markup)?.[1];

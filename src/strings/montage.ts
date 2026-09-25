@@ -27,8 +27,6 @@ export const en = {
     },
     /** The worker's five tracks, under names to pick between. The ids are the api's own. */
     track: { bright: 'Bright', warm: 'Warm', calm: 'Calm', night: 'Night', road: 'Road' },
-    /** Three round answers out of the range the api takes, keyed by the seconds asked for. */
-    length: { 30: 'Half a minute', 60: 'A minute', 120: 'Two minutes' },
     /**
      * Which way up the movie comes out, by the api's own two ids. Said as the shape it has and not
      * as «landscape/portrait» — the words on the sheet are for whoever is about to watch it on a
@@ -266,6 +264,25 @@ export const en = {
       rhythm: 'Laying them out to the beat',
       assembly: 'Cutting it together',
     },
+    /**
+     * The same five over the journal of one stage (`MontageLiveStage`): there the bar also carries
+     * who is watching, so the director, whose journal it is anyway, is not named twice.
+     */
+    stageHead: {
+      screening: 'Dropping the spoiled frames',
+      understanding: 'Working out what is in them',
+      directing: 'Builds the story',
+      rhythm: 'Laying them out to the beat',
+      assembly: 'Cutting it together',
+    },
+    /** And as a word each, for the one faint line that names the stages still ahead. */
+    stageAhead: {
+      screening: 'screening',
+      understanding: 'the frames',
+      directing: 'the story',
+      rhythm: 'the beat',
+      assembly: 'the cut',
+    },
 
     /**
      * «Монтаж в прямом эфире» (spec 7.6, 7.7) — the words the director's journal is read in. The
@@ -326,6 +343,8 @@ export const en = {
       doneOf: (n: number, of: number) => `${n} of ${of}`,
       /** Under the stage in hand: the way into everything it has said. */
       wholeStage: (n: number) => `The whole stage journal · ${n} ${n === 1 ? 'record' : 'records'}`,
+      /** The stages not reached yet, as one line under the rest — `stageAhead` each. */
+      ahead: (stages: readonly string[]) => `Next: ${stages.join(' · ')}`,
       /** The time over a record that landed while somebody was watching. */
       justNow: 'just now',
       /** The four chips over the journal. Two of them carry the api's own count beside the word. */
@@ -385,7 +404,6 @@ export const ru: typeof en = {
       failed: 'Не собрался',
     },
     track: { bright: 'Яркая', warm: 'Тёплая', calm: 'Спокойная', night: 'Ночь', road: 'Дорога' },
-    length: { 30: 'Полминуты', 60: 'Минута', 120: 'Две минуты' },
     orientation: { landscape: 'Горизонтальный', portrait: 'Вертикальный' },
     count: (n: number) => count(n, 'ролик', 'ролика', 'роликов'),
     ofLength: (runtime: string) => `Ролик на ${runtime}`,
@@ -520,6 +538,20 @@ export const ru: typeof en = {
       rhythm: 'Раскладываем в ритм трека',
       assembly: 'Склеиваем',
     },
+    stageHead: {
+      screening: 'Отсев брака',
+      understanding: 'Разбираем, что на кадрах',
+      directing: 'Строит историю',
+      rhythm: 'Раскладываем в ритм трека',
+      assembly: 'Склеиваем',
+    },
+    stageAhead: {
+      screening: 'отсев брака',
+      understanding: 'разбор кадров',
+      directing: 'история',
+      rhythm: 'ритм трека',
+      assembly: 'склейка',
+    },
 
     live: {
       title: 'Монтаж идёт',
@@ -548,6 +580,7 @@ export const ru: typeof en = {
       noTrack: 'без музыки, подгонять не подо что',
       doneOf: (n: number, of: number) => `${n} из ${of}`,
       wholeStage: (n: number) => `Весь журнал этапа · ${count(n, 'запись', 'записи', 'записей')}`,
+      ahead: (stages: readonly string[]) => `Дальше: ${stages.join(' · ')}`,
       justNow: 'сейчас',
       all: 'Всё',
       thoughts: 'Мысли',

@@ -3,14 +3,7 @@ import { ChevronLeft, Download, Share } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import {
-  type JournalFile,
-  listMembers,
-  listMontages,
-  type Member,
-  type Montage,
-  memberName,
-} from '@/api';
+import { listMontages, type Montage } from '@/api';
 import {
   AppBar,
   BadgeMontage,
@@ -28,7 +21,6 @@ import { useStrings } from '@/lib/language';
 import { howMade, madeInMinutes, useMontageJournal } from '@/lib/montage/journal';
 import { RATIO } from '@/lib/montage/order';
 import { FilmPlayer, montageTitle, useFilmActions } from '@/screens/memory/film-player';
-import { SheetLiveFile } from '@/screens/memory/live-file';
 import { StageRows } from '@/screens/memory/stage-rows';
 import { space } from '@/theme';
 
@@ -54,24 +46,20 @@ export default function MontageDoneScreen() {
 
   /**
    * The same journal the live screen read, and it is read the same way — it just no longer moves.
-   * All five stages are opened out here, so each of them brings its own last records along, however
-   * far behind the newest page they lie.
+   * What this page draws of it is the stages: how long the making took, what each of the five came
+   * to, and the way into each one's own journal.
    */
-  const journal = useMontageJournal(token, id, montageId, { everyStage: true });
+  const journal = useMontageJournal(token, id, montageId);
 
   const [montage, setMontage] = useState<Montage | null>(null);
-  const [roster, setRoster] = useState<Member[] | null>(null);
   /** Whether the film is being watched — the player is the one in `film-player`, and it is a window. */
   const [playing, setPlaying] = useState(false);
-  /** The record whose file card is open, held by id the way the stage journal holds it. */
-  const [opened, setOpened] = useState<number | null>(null);
 
   /** Keeping the film and handing it on — the two buttons under the poster, one busy line for both. */
   const { busy, notice, run } = useFilmActions();
 
   /**
-   * What the journal does not carry: what was ordered and how long it came out, and the names of
-   * everybody in the memory — the journal names an author by id. On focus and not on
+   * What the journal does not carry: what was ordered and how long it came out. On focus and not on
    * mount, like every other screen of a memory: `video_url` is signed for a quarter of an hour, so
    * coming back to this page an hour later re-reads the link it is watched and saved through.
    */
@@ -81,7 +69,6 @@ export default function MontageDoneScreen() {
       (list) => setMontage(list.find((one) => one.id === montageId) ?? null),
       () => {},
     );
-    listMembers(token, id).then(setRoster, () => {});
   }, [token, id, montageId]);
 
   // And the player is shut on the way out: a `router.push` off a tapped push leaves this screen
@@ -93,17 +80,9 @@ export default function MontageDoneScreen() {
     }, [read]),
   );
 
-  const whose = useCallback(
-    (file: JournalFile | undefined) =>
-      memberName(roster?.find((one) => one.id === file?.uploaded_by) ?? null),
-    [roster],
-  );
-
   const title = montage === null ? '' : montageTitle(montage, s);
   const made = madeInMinutes(journal.stages);
   const tiles = howMade(journal.stages, s);
-  const card = journal.entries.find((entry) => entry.id === opened);
-  const cardFile = card?.media_id ? journal.files[card.media_id] : undefined;
   /** The film once there is a link to it — what «смотреть», «Сохранить» and «Поделиться» all need. */
   const film = montage?.video_url ? montage : null;
 
@@ -203,28 +182,13 @@ export default function MontageDoneScreen() {
             </View>
           )}
 
-          {/* All five, the way the live screen draws them — the journal of each is still there and
-              still opens, and a record with a frame on it opens that frame's card. */}
-          <StageRows
-            memoryId={id}
-            montageId={montageId}
-            journal={journal}
-            opens={() => true}
-            onRecord={(entry) => setOpened(entry.id)}
-          />
+          {/* All five, closed (`MontageLiveDone`): the journal of each is still there and still
+              opens — a row is the way into its stage's journal, and a frame's card is there. */}
+          <StageRows memoryId={id} montageId={montageId} journal={journal} />
         </>
       )}
 
       <FilmPlayer film={playing ? film : null} onClose={() => setPlaying(false)} />
-
-      {card ? (
-        <SheetLiveFile
-          entry={card}
-          file={cardFile}
-          author={whose(cardFile)}
-          onCancel={() => setOpened(null)}
-        />
-      ) : null}
     </Board>
   );
 }
