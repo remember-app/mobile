@@ -53,8 +53,8 @@ export function CardMontage({
   state: MontageState;
   poster?: string | null;
   /**
-   * «Мы сообщим, когда будет готов», or why a fallen one broke — one line, and the rest is left to
-   * the label and to the screen the card opens: a second line lifts the name into the badge.
+   * Why a fallen one broke — one line, and the rest is left to the label and to the screen the card
+   * opens: a second line lifts the name into the badge.
    */
   caption?: string;
   /** The state badge — its words belong to the screen. */
@@ -267,8 +267,10 @@ export function CardMontageNew({ label, onPress }: { label: string; onPress?: ()
       <View style={styles.newCircle}>
         <Icon icon={Plus} size={19} color={color.paper} />
       </View>
-      <Text role="label" style={styles.newLabel}>
-        {label}
+      {/* Two lines, centred (spec 7.6, detail 39): the layout breaks «Новый / ролик» by hand, and
+          at 12 the pair would otherwise fit one line of the 92. Read out whole all the same. */}
+      <Text role="caption" style={styles.newLabel}>
+        {label.replace(' ', '\n')}
       </Text>
     </Pressable>
   );
@@ -311,7 +313,9 @@ export function EmptyMontages({
         ))}
       </View>
       <View style={styles.emptyWords}>
-        <Text role="note">{text}</Text>
+        <Text role="note" style={styles.emptyText}>
+          {text}
+        </Text>
         {children}
       </View>
     </View>
@@ -405,5 +409,7 @@ const useStyles = themed(({ color }) =>
       boxShadow: '0 8px 20px rgba(0,0,0,0.5)',
     },
     emptyWords: { flex: 1, minWidth: 0, alignItems: 'flex-start', gap: 10 },
+    // Spec 7.6, detail 40: 13 / 18 — a line tighter than `note` runs elsewhere.
+    emptyText: { lineHeight: 18 },
   }),
 );

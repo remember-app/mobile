@@ -464,7 +464,9 @@ export function FrameViewer({
             meta={meta}
             label={`${s.viewer.details}: ${when}, ${meta}`}
             onPress={openInfo}
-            style={[styles.bar, { top: insets.top + space.s2 }]}
+            // Spec 7.1, detail 5: `top 52` — the glass starts where the status line ends, with
+            // nothing between; the 16 under it is the stage's (`STAGE_TOP`).
+            style={[styles.bar, { top: insets.top }]}
             left={
               <IconButton
                 icon={ChevronLeft}
@@ -502,34 +504,39 @@ export function FrameViewer({
             {/* The scrubber stands on a line of its own above the strip so that two horizontal
                 gestures never fight over the same finger (spec 8, `ViewerVideo`). */}
             {playable !== null ? (
-              <VideoTrack
-                at={formatRuntime(at) ?? ZERO}
-                of={formatRuntime(runs) ?? ZERO}
-                value={runs > 0 ? at / runs : 0}
-                label={s.viewer.played}
-                // Dragged and pressed, not only read: a film nobody can wind is a film watched from
-                // the start every time. Nothing to wind until the length is known — the api's own,
-                // or the player's once the first `timeUpdate` has been through.
-                onSeek={
-                  runs > 0
-                    ? (to) => {
-                        player.currentTime = to * runs;
-                      }
-                    : undefined
-                }
-                sound={
-                  <IconButton
-                    icon={isMuted ? VolumeX : Volume2}
-                    label={isMuted ? s.viewer.unmute : s.viewer.mute}
-                    size={height.roundRow}
-                    tone="ghost"
-                    tint={photo.on}
-                    onPress={() => {
-                      player.muted = !player.muted;
-                    }}
-                  />
-                }
-              />
+              // Spec 7.10: the row keeps 16 at the sides and the sound button hangs 8 into the
+              // right one (`ViewerVideo`: «0:24» at 16, the button's edge at 382).
+              <View style={styles.track}>
+                <VideoTrack
+                  at={formatRuntime(at) ?? ZERO}
+                  of={formatRuntime(runs) ?? ZERO}
+                  value={runs > 0 ? at / runs : 0}
+                  label={s.viewer.played}
+                  // Dragged and pressed, not only read: a film nobody can wind is a film watched
+                  // from the start every time. Nothing to wind until the length is known — the
+                  // api's own, or the player's once the first `timeUpdate` has been through.
+                  onSeek={
+                    runs > 0
+                      ? (to) => {
+                          player.currentTime = to * runs;
+                        }
+                      : undefined
+                  }
+                  sound={
+                    <IconButton
+                      icon={isMuted ? VolumeX : Volume2}
+                      label={isMuted ? s.viewer.unmute : s.viewer.mute}
+                      size={height.roundRow}
+                      tone="ghost"
+                      tint={photo.on}
+                      style={styles.sound}
+                      onPress={() => {
+                        player.muted = !player.muted;
+                      }}
+                    />
+                  }
+                />
+              </View>
             ) : null}
 
             <Filmstrip
@@ -555,7 +562,7 @@ export function FrameViewer({
           <ActionMenu
             visible={menu}
             onCancel={() => setMenu(false)}
-            top={insets.top + space.s2 + height.roundViewer + space.s2}
+            top={insets.top + height.roundViewer + space.s2}
             gapBefore={2}
           >
             <RowAction
@@ -665,6 +672,8 @@ const useStyles = themed(() =>
     // photograph 96 above the bottom edge and the foot of a video 140.
     tools: { gap: viewerFoot.track, paddingTop: viewerFoot.photo },
     toolsVideo: { paddingTop: viewerFoot.video },
+    track: { paddingHorizontal: space.s4 },
+    sound: { marginRight: -space.s2 },
     // A horizontal list in a column takes every pixel it is offered unless it is told its own size.
     strip: { flexGrow: 0 },
     // The «⋯» while its menu is out (spec 7.1, detail 9).

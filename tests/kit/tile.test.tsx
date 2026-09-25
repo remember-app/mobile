@@ -1,6 +1,10 @@
+import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { Copy } from 'lucide-react-native';
+import { StyleSheet, View, type ViewStyle } from 'react-native';
+import TestRenderer, { act } from 'react-test-renderer';
 import { beforeAll, expect, test } from 'vitest';
 
+import { Icon } from '@/kit/icon';
 import { allDifferent, story } from '@/kit/story';
 import { FEED_GAP, FrameMark, GRID_GAP, PickCircle, type PickKind, Tile } from '@/kit/tile';
 import { setTheme } from '@/theme';
@@ -8,6 +12,8 @@ import { setTheme } from '@/theme';
 /** Spec 7.8 and 7.4 — one frame of the grid, and the marks that can stand on it. */
 
 const A = 'https://bucket.example/a.jpg?X-Amz-Signature=aaa';
+
+mountsTrees();
 
 beforeAll(async () => {
   await setTheme('dark');
@@ -192,6 +198,30 @@ test('the mark in the corner is a running time or a reason, never both', () => {
   expect(length).toContain('stroke="#FFFFFF"');
   // In the feed the timecode owns no plate at all — a shadow on the letters carries it.
   expect(story(<FrameMark length="0:24" lane="feed" />)).not.toBe(length);
+});
+
+test('the running time in the feed stands 7 from the right edge and 6 from the foot, behind a 4 × 5 triangle', () => {
+  // `MemoryFrames` (design/screens/MemoryFrames.html, measured in MemoryFrames.json): the span is
+  // `right: 7px; bottom: 6px`, the triangle a 9 box drawn `M8 5.2v13.6L19 12z` — 4.1 × 5.1 — and 3
+  // from the words, which puts it 4.9 ahead of them.
+  let tree!: TestRenderer.ReactTestRenderer;
+  act(() => {
+    tree = mounted(TestRenderer.create(<FrameMark length="0:24" lane="feed" />));
+  });
+  const mark = StyleSheet.flatten(tree.root.findAllByType(View)[0].props.style) as ViewStyle;
+  // React Native reads an edge before the pair before the whole, whatever order they were written
+  // in — which is how `padding: 0` once left the plate's 7 and 3 standing under a bare time.
+  const edge = (side: 'Right' | 'Bottom', pair: 'paddingHorizontal' | 'paddingVertical') =>
+    Number(mark[`padding${side}`] ?? mark[pair] ?? mark.padding ?? 0);
+  expect(Number(mark.right) + edge('Right', 'paddingHorizontal')).toBe(7);
+  expect(Number(mark.bottom) + edge('Bottom', 'paddingVertical')).toBe(6);
+  // Lucide's `play` spans 15 × 18 of its 24 and a 2.1 stroke round it: at 6 that is 4.3 × 5.0, and
+  // its tip 0.7 short of the box, so a gap of 4 stands it 4.7 ahead of the words.
+  const glyph = tree.root.findByType(Icon).props;
+  expect(glyph.size).toBe(6);
+  expect(mark.gap).toBe(4);
+  // The wizard's mark keeps its plate and its own glyph.
+  expect(story(<FrameMark length="0:24" />)).toContain('width="9"');
 });
 
 test('what stands on a frame’s dark plates is drawn the same in daylight as at night', async () => {

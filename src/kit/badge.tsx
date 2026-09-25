@@ -1,7 +1,7 @@
 import { ArrowUp, Check, Play } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 
-import { font, radius, space, themed, useTheme } from '@/theme';
+import { font, photo, radius, space, themed, useTheme } from '@/theme';
 
 import { Icon } from './icon';
 import { Text } from './text';
@@ -54,19 +54,34 @@ export function BadgeFilms({ label, filled }: { label: string; filled?: boolean 
 /** Where a montage stands (spec 7.4). Three states, and the words for them belong to the screen. */
 export type MontageState = 'ready' | 'pending' | 'failed';
 
-export function BadgeMontage({ label, state }: { label: string; state: MontageState }) {
+/**
+ * It always lies on a poster, so «СОБИРАЕТСЯ» is the photograph's blue and not the theme's (spec 2:
+ * `rgba(75,91,255,.28)` under `#C9CDFF`). `sm` is the size it wears on a card in the strip — spec
+ * 7.4, detail 24: 10 on `4 / 9`, as `MemoryFrames` draws «ГОТОВ» and «СОБИРАЕТСЯ».
+ */
+export function BadgeMontage({
+  label,
+  state,
+  sm,
+}: {
+  label: string;
+  state: MontageState;
+  sm?: boolean;
+}) {
   const styles = useStyles();
 
   return (
     <View
       style={[
         styles.pill,
-        state === 'ready' ? styles.spark : state === 'pending' ? styles.pending : styles.failed,
+        sm ? styles.pillStrip : null,
+        state === 'ready' ? styles.spark : state === 'pending' ? styles.filming : styles.failed,
       ]}
     >
       <Text
-        role="badge"
-        tone={state === 'ready' ? 'sparkInk' : state === 'pending' ? 'accent' : 'danger'}
+        role={sm ? 'badgeSm' : 'badge'}
+        tone={state === 'ready' ? 'sparkInk' : state === 'failed' ? 'danger' : undefined}
+        style={state === 'pending' ? styles.filmingInk : null}
       >
         {label.toUpperCase()}
       </Text>
@@ -174,6 +189,9 @@ const useStyles = themed(({ color }) =>
     caps: { lineHeight: 14 },
     films: { gap: 6, paddingVertical: 6, paddingLeft: 10, paddingRight: 12, borderWidth: 0 },
     count: { fontFamily: font.semi, lineHeight: 16 },
+    pillStrip: { paddingHorizontal: 9, paddingVertical: space.s1, borderWidth: 0 },
+    filming: { backgroundColor: photo.pending },
+    filmingInk: { color: photo.pendingInk },
     spark: { backgroundColor: color.spark },
     raise: { backgroundColor: color.raise },
     accent: { backgroundColor: color.accent },

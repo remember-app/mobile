@@ -81,6 +81,11 @@ export const height = {
   row: 64,
   /** the header line of a screen */
   bar: 44,
+  /**
+   * The heading line of «Ролики» over its strip (`MemoryFrames`, `FilmsEmpty`): 24, and the strip
+   * 10 under it — «Кадры» over the frames has no such floor. A floor: grown type makes it taller.
+   */
+  filmsHead: 24,
   /** a chip: the filter's own height, and the tallest of the three */
   chip: 40,
   /** the quick days on `Create` */
@@ -302,8 +307,12 @@ export const type = StyleSheet.create({
   badge: { fontFamily: font.bold, fontSize: 11, lineHeight: 13, letterSpacing: 0.66 },
   /** «Беру 0:04–0:07», «Взял 1 из 4» — the badge's size, written out rather than shouted */
   decision: { fontFamily: font.bold, fontSize: 11, lineHeight: 13, ...tabular },
-  /** «ОРГАНИЗАТОР» inside a member row */
+  /** «ОРГАНИЗАТОР» inside a member row, «ГОТОВ» and «СОБИРАЕТСЯ» on a card in the strip */
   badgeSm: { fontFamily: font.bold, fontSize: 10, lineHeight: 12, letterSpacing: 0.5 },
+  /** The words of a seam between two grids — «13 сентября, суббота», a person's name (spec 7.8) */
+  seam: { fontFamily: font.semi, fontSize: 10, lineHeight: 12, letterSpacing: 0.3, ...tabular },
+  /** «Новый / ролик» under the plus of the dashed tile (spec 7.6, detail 39) */
+  caption: { fontFamily: font.semi, fontSize: 12, lineHeight: 15 },
   /** dates, counters */
   meta: { fontFamily: font.medium, fontSize: 12, lineHeight: 15, ...tabular },
   /** the two timecodes of a video — the meta's size a weight up (spec 7.10) */
@@ -348,6 +357,9 @@ export const photo = {
   menuGap: 'rgba(0,0,0,0.28)',
   /** A glass button held open: the menu fell out of it and it stays lit (spec 7.1). */
   held: 'rgba(245,243,238,0.22)',
+  /** «СОБИРАЕТСЯ» on the poster of a montage being cut, and the words on it (spec 2, detail 24) */
+  pending: 'rgba(75,91,255,0.28)',
+  pendingInk: '#C9CDFF',
   /** the plate under a mark in the corner of a tile */
   mark: 'rgba(9,9,14,0.72)',
   /** the same plate under a reason a frame was dropped — denser, it carries smaller type */

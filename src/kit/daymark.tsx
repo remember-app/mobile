@@ -61,7 +61,9 @@ export function DayMark({
     <>
       {onPress ? <PickCircle kind={picked ? 'send' : 'off'} size={13} /> : null}
       {avatar ? <Avatar name={avatar} size={16} ring={organizer} /> : null}
-      <Text role="badgeSm" tone={lone ? 'muted' : 'paper'} numberOfLines={1} style={styles.label}>
+      {/* 10 / 12 / 600 with a hair of tracking (spec 7.8, `MemoryDated`, `FramesByPeople`): the
+          words of a seam are a quiet line, not the bold caps of a badge. */}
+      <Text role="seam" tone={lone ? 'muted' : 'paper'} numberOfLines={1} style={styles.label}>
         {label}
       </Text>
       {count ? (

@@ -47,6 +47,23 @@ test('the name of a day, whole or cut short for a day tile of the filter', () =>
   expect(formatWeekday('not a day', 'ru-RU', 'short')).toBe('');
 });
 
+test('a Russian day is written small even where the phone hands it back capitalised', () => {
+  // `SheetFilter` (SheetFilter.json, spec 9): «пт», «сб», «вс». iOS answers a weekday asked for on
+  // its own in the stand-alone form — «Сб», «Вс», «Пн» on the tiles of the stand — where node's ICU
+  // answers «сб»; this is the phone's answer, played back.
+  const phone = vi
+    .spyOn(Date.prototype, 'toLocaleDateString')
+    .mockImplementation((locale) => (String(locale).startsWith('ru') ? 'Сб' : 'Sat'));
+  try {
+    expect(formatWeekday(day(2026, 9, 12), 'ru-RU', 'short')).toBe('сб');
+    expect(formatWeekday(day(2026, 9, 12), 'ru', 'long')).toBe('сб');
+    // English writes its days capitalised, and keeps them so.
+    expect(formatWeekday(day(2026, 9, 12), 'en-US', 'short')).toBe('Sat');
+  } finally {
+    phone.mockRestore();
+  }
+});
+
 test('the tiny day is the month cut short, and nothing of the locale’s own glue', () => {
   // The pill on the date spine (spec 7.8, detail 66): ten pixels
   // of line, so the month is the abbreviation — and Russian's own full stop after it is not part

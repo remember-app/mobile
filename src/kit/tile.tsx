@@ -18,10 +18,11 @@ import { Text } from './text';
 export type TileState = 'ready' | 'processing' | 'failed';
 
 /**
- * The five kinds of pick circle (spec 7.4), and spec 1.7 is what tells them apart: `accent` means
- * «this frame is going to the server», `spark` means «this one is already ours and I am doing
- * something with it». Being dropped is not a pick at all — `auto` shows the reason instead of a
- * circle, `hand` shows a cross — and both dim the frame rather than hide it.
+ * The five kinds of pick circle (spec 7.4, detail 26). `send` is the `accent` one — a frame marked
+ * in the feed, in the send queue and in the cover sheet; `keep` is the wizard's `spark` one — the
+ * frame is taken into the montage (spec 1.2: `spark` is «взято в ролик»). Being dropped is not
+ * a pick at all — `auto` shows the reason instead of a circle, `hand` shows a cross — and both dim
+ * the frame rather than hide it.
  */
 export type PickKind = 'send' | 'keep' | 'off' | 'auto' | 'hand';
 
@@ -238,6 +239,13 @@ export function PickCircle({
 }
 
 /**
+ * The feed's running-time triangle (`MemoryFrames`) is the layout's own path in a 9 box,
+ * `M8 5.2v13.6L19 12z` — 4 × 5 and thin. Lucide's rounded `play` fills most of its box, so at 9 it
+ * came out half again as large; at 6 it lands on the same 4 × 5, as far ahead of the words.
+ */
+const FEED_PLAY = 6;
+
+/**
  * Spec 7.4 — the mark in the bottom corner of a tile: either a video's running time, or the reason
  * the automatic pass dropped the frame.
  *
@@ -264,7 +272,7 @@ export function FrameMark({
     <View style={[styles.mark, bare ? styles.markBare : null, label ? styles.markWide : null]}>
       <Icon
         icon={icon ?? Play}
-        size={length ? 9 : 11}
+        size={bare ? FEED_PLAY : length ? 9 : 11}
         color={photo.on}
         fill={length ? photo.on : undefined}
       />
@@ -319,13 +327,17 @@ const useStyles = themed(({ color }) =>
       borderRadius: radius.pill,
       backgroundColor: photo.mark,
     },
-    // In the feed the timecode stands at the right edge and owns no surface at all.
+    // In the feed the timecode stands at the right edge and owns no surface at all: 7 from the edge
+    // and 6 from the foot (`MemoryFrames`). The plate's padding is taken off edge by edge — a bare
+    // `padding: 0` loses to `paddingHorizontal` in React Native whatever the order, and left the
+    // time 14 in from the edge and 9 up.
     markBare: {
       left: undefined,
       right: 7,
       bottom: 6,
-      gap: 3,
-      padding: 0,
+      gap: 4,
+      paddingHorizontal: 0,
+      paddingVertical: 0,
       backgroundColor: undefined,
     },
     // The reason runs the width of the tile — a word needs the room a timecode does not.
