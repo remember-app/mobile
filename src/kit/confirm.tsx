@@ -36,7 +36,11 @@ type ConfirmProps = {
    * everywhere — the chosen frame, else the mosaic of its frames, else the dashed frame.
    */
   cover?: { uri?: string | null; thumbs?: readonly string[] };
-  /** «Марк Ковалёв · 13 сентября», «Свадьба Лизы и Марка · 486 кадров» — one line, cut if long. */
+  /**
+   * «Марк Ковалёв · 13 сентября», «Свадьба Лизы и Марка · 486 кадров». Under a cover it is one line,
+   * cut if long (`SheetConfirmMemory`); elsewhere it wraps — over an armful of frames it is the
+   * sentence saying why fewer go than were marked, and cut short that says nothing.
+   */
   meta?: string;
   /**
    * The price named as a number, on a plate of its own: «54 кадра исчезнут из воспоминания». Spec 9
@@ -119,7 +123,7 @@ export function ConfirmSheet({
                 {title}
               </Text>
               {meta ? (
-                <Text role="meta" numberOfLines={1}>
+                <Text role="meta" numberOfLines={cover ? 1 : undefined}>
                   {meta}
                 </Text>
               ) : null}

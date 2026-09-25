@@ -133,7 +133,7 @@ test('a memory is asked about under its cover at 64 — the dashed one too, when
   }
 });
 
-test('the line under the question is one line, cut rather than wrapped', () => {
+test('the line under a memory’s question is one line, cut rather than wrapped — and a sentence under a frame is read whole', () => {
   expect(
     story(
       <ConfirmSheet
@@ -143,6 +143,15 @@ test('the line under the question is one line, cut rather than wrapped', () => {
       />,
     ),
   ).toContain('r-textOverflow');
+  expect(
+    story(
+      <ConfirmSheet
+        {...base}
+        thumb="https://bucket.example/a.jpg"
+        meta="Only the organizer can delete what somebody else brought."
+      />,
+    ),
+  ).not.toContain('r-textOverflow');
 });
 
 test('the price plate on `ink` is another plate than the red one, with the same red sign and words', () => {
