@@ -223,12 +223,8 @@ test('while the autopilot walks, the bottom layer says so and hands the wheel ba
   expect(ru.montage.autoStop).toBe('Стоп');
   // And the two buttons in the bar stop it too, on their way to doing what they always did: a
   // hand on either of them is a hand on the wheel.
-  expect(wizard).toContain(
-    'onPress={() => {\n              stop();\n              if (router.canGoBack()) router.back();',
-  );
-  expect(wizard).toContain(
-    'onPress: () => {\n                  stop();\n                  if (entered(order)) setLeaving(true);',
-  );
+  expect(flat(wizard)).toContain('onPress={() => { stop(); if (router.canGoBack()) router.back();');
+  expect(flat(wizard)).toContain('onPress: () => { stop(); if (entered(order)) setLeaving(true);');
   // Stopped, the step is a step again and everything already filled in stays: the only thing
   // `stop` touches is which walk is the current one.
   const stopping = wizard.slice(wizard.indexOf('const stop = useCallback('));
@@ -240,7 +236,7 @@ test('the walk stops however the person gets out from under it, and never writes
   // the whole wizard closing — and a walk still running would push its next step onto the memory.
   expect(wizard).toContain('useEffect(() => stop, [stop]);');
   // Typing into the story while the template types is taking the wheel.
-  expect(story).toContain('onChangeText={(story) => {\n            stop();');
+  expect(flat(story)).toContain('onChangeText={(story) => { stop();');
 
   const flying = wizard.slice(wizard.indexOf('const start = useCallback('));
   // A second template starts clean: nothing of the first one's words, and the words and the figure
@@ -256,7 +252,7 @@ test('the wizard’s bar wears three faces, and only the total has nothing on it
   expect(wizard).toContain("const counted = typeof step === 'number';");
   expect(wizard).toContain("variant={counted ? 'step' : 'summary'}");
   expect(wizard).toContain(': s.montage.newOne');
-  expect(wizard).toContain('cancel={\n          summary\n            ? undefined\n            : {');
+  expect(flat(wizard)).toContain('cancel={ summary ? undefined : {');
   expect(templates).toContain('step="templates"');
   expect(summary).toContain('step="summary"');
   // The «Назад» is on all of them: from the way in it is the way out of the wizard, because there
@@ -304,7 +300,7 @@ test('step 2 is skippable, and the plate says whose words are in the box', () =>
   expect(story).toContain('icon={order.ownStory ? undefined : TEMPLATE_SIGN[template]}');
   expect(story).toContain('? s.montage.ownText');
   expect(story).toContain(': s.montage.fromTemplate(s.montage.template[template])');
-  expect(story).toContain('stop();\n            change({ story, ownStory: true });');
+  expect(flat(story)).toContain('stop(); change({ story, ownStory: true });');
   // The six templates the api hands out have a word each in both sets, by its own ids.
   const ids = [...api.matchAll(/^ {2}\| '(\w+)'/gm)].map(([, id]) => id);
   expect(ids).toEqual(['for_myself', 'quick', 'report', 'short_form', 'parents', 'dopamine']);

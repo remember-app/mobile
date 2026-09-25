@@ -51,9 +51,12 @@ test('the feed starts far enough down to clear the glass floating over it', () =
   // 52 of status line (measured, not assumed), the bar's own 48 and 16 — which is the 116 the
   // layout draws the «Ролики» block at. Nothing is subtracted for the bar: it floats, so the feed
   // passes under it rather than starting below it.
-  expect(frames).toContain('{ paddingTop: insets.top + height.roundViewer + space.s4 }');
-  // And it runs under the bottom layer as well, with room left for that layer's own gradient.
-  expect(frames).toContain('{ paddingBottom: board.footerGallery }');
+  expect(frames).toContain('const top = insets.top + height.roundViewer + space.s4;');
+  expect(frames).toContain('{ paddingTop: top }');
+  // And it runs under the bottom layer as well, with room left for that layer's own gradient — or
+  // for the layer itself, where large system type has made it the taller of the two (TASK-372).
+  expect(frames).toContain('const bottom = Math.max(board.footerGallery, layer);');
+  expect(frames).toContain('{ paddingBottom: bottom }');
   expect(bars).toContain('gallery: { height: board.footerGallery');
   // Spec 8: 22 between the films and the heading over the material, 10 down to the first row.
   expect(frames).toContain('framesHead: { marginTop: 22, marginBottom: 10 }');

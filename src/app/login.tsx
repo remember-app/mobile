@@ -117,45 +117,47 @@ export default function LoginScreen() {
   }
 
   return (
-    <Board>
+    <Board
+      footer={
+        <ActionBar>
+          <View style={styles.doors}>
+            {/* A way in that cannot be walked is not offered at all — a button standing there
+                switched off, or one that opens nothing when pressed, only asks a person to work out
+                which of the three is the real one. Off Apple hardware, in a build with no Google
+                client id, and wherever the api has not switched a provider on, this bottom edge is
+                the mail door alone. `=== true` because only a plain yes opens a door: a body that
+                is not the api's — a proxy's page, a stray string — says nothing.
+                ponytail: plain button; App Store review wants AppleAuthenticationButton before
+                shipping — and that is where the provider's own mark comes from too. */}
+            {appleAvailable && offered?.apple === true ? (
+              <Button variant="paper" label={s.login.withApple} onPress={withApple} />
+            ) : null}
+            {GOOGLE_CLIENT_ID && offered?.google === true ? (
+              <Button
+                variant="secondary"
+                label={s.login.withGoogle}
+                onPress={withGoogle}
+                disabled={!googleRequest}
+              />
+            ) : null}
+            {/* The one door every build has, and it wears the same outline as Google's however
+                many stand above it: the screen that asks for an address is a screen, not a fourth
+                thing to read past here. */}
+            <Button
+              variant="secondary"
+              icon={Mail}
+              label={s.login.withEmail}
+              onPress={() => router.push('/login/email')}
+            />
+          </View>
+        </ActionBar>
+      }
+    >
       <OnboardingHead />
 
       {/* The room between the head and the doors. Anything that has to be said stands at the foot
           of it — over the buttons it is about, never over the name. */}
       <View style={styles.room}>{error ? <Banner tone="error" text={error} /> : null}</View>
-
-      <ActionBar>
-        <View style={styles.doors}>
-          {/* A way in that cannot be walked is not offered at all — a button standing there
-              switched off, or one that opens nothing when pressed, only asks a person to work out
-              which of the three is the real one. Off Apple hardware, in a build with no Google
-              client id, and wherever the api has not switched a provider on, this bottom edge is
-              the mail door alone. `=== true` because only a plain yes opens a door: a body that is
-              not the api's — a proxy's page, a stray string — says nothing.
-              ponytail: plain button; App Store review wants AppleAuthenticationButton before
-              shipping — and that is where the provider's own mark comes from too. */}
-          {appleAvailable && offered?.apple === true ? (
-            <Button variant="paper" label={s.login.withApple} onPress={withApple} />
-          ) : null}
-          {GOOGLE_CLIENT_ID && offered?.google === true ? (
-            <Button
-              variant="secondary"
-              label={s.login.withGoogle}
-              onPress={withGoogle}
-              disabled={!googleRequest}
-            />
-          ) : null}
-          {/* The one door every build has, and it wears the same outline as Google's however many
-              stand above it: the screen that asks for an address is a screen, not a fourth thing to
-              read past here. */}
-          <Button
-            variant="secondary"
-            icon={Mail}
-            label={s.login.withEmail}
-            onPress={() => router.push('/login/email')}
-          />
-        </View>
-      </ActionBar>
     </Board>
   );
 }
@@ -163,7 +165,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   // The kit's side inset, held by the belt rather than by the board around it — held once around
   // everything, the footer's gradient would stop short of either edge.
-  room: { flex: 1, justifyContent: 'flex-end', paddingHorizontal: space.s4 },
+  room: { flexGrow: 1, justifyContent: 'flex-end', paddingHorizontal: space.s4 },
   // Spec 8: three buttons of one size, stacked. The bottom layer lays its children in a row, so
   // the column is this one child of it.
   doors: { flex: 1, gap: space.s2 },

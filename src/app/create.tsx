@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { useState } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import { createMemory, errorMessage } from '@/api';
 import { ActionBar, AppBar, Banner, Board, Button, Field, IconButton } from '@/kit';
@@ -47,51 +47,53 @@ export default function CreateMemoryScreen() {
   }
 
   return (
-    <Board>
-      <AppBar
-        title={s.create.title}
-        // Drawn only when there is somewhere to go back to — this screen is also the landing
-        // spot of a replace, and a button that answers nothing is worse than no button.
-        left={
-          router.canGoBack() ? (
-            <IconButton icon={ChevronLeft} label={s.action.back} onPress={() => router.back()} />
-          ) : null
-        }
+    <Board
+      bar={
+        <AppBar
+          title={s.create.title}
+          // Drawn only when there is somewhere to go back to — this screen is also the landing
+          // spot of a replace, and a button that answers nothing is worse than no button.
+          left={
+            router.canGoBack() ? (
+              <IconButton icon={ChevronLeft} label={s.action.back} onPress={() => router.back()} />
+            ) : null
+          }
+        />
+      }
+      footer={
+        <>
+          {/* In the flow of the screen and right above the action that raised it, never over it. */}
+          {error ? <Banner tone="error" text={error} style={styles.error} /> : null}
+          <ActionBar>
+            <Button
+              label={s.create.submit}
+              variant="primary"
+              wide
+              busy={busy}
+              disabled={title.trim() === ''}
+              onPress={submit}
+            />
+          </ActionBar>
+        </>
+      }
+      // The layout's 390 × 844 holds the calendar whole; a shorter phone, or one with the keyboard
+      // up, scrolls it.
+      body={styles.form}
+    >
+      {/* Spec 7.3, the 56 field: a memory's name is typed in the face it will be printed in on its
+          own cover, so this one field is Unbounded and no other on the screen is. */}
+      <Field
+        variant="name"
+        label={s.create.titleLabel}
+        value={title}
+        onChangeText={setTitle}
+        placeholder={s.create.titlePlaceholder}
+        editable={!busy}
       />
 
-      {/* Scrolls rather than stands: the layout's 390 × 844 holds the calendar whole, and a phone
-          with the keyboard up over a shorter screen does not. `handled` so the first tap on a day
-          picks it instead of only putting the keyboard away. */}
-      <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
-        {/* Spec 7.3, the 56 field: a memory's name is typed in the face it will be printed in on
-            its own cover, so this one field is Unbounded and no other on the screen is. */}
-        <Field
-          variant="name"
-          label={s.create.titleLabel}
-          value={title}
-          onChangeText={setTitle}
-          placeholder={s.create.titlePlaceholder}
-          editable={!busy}
-        />
-
-        {/* Spec 8 — «Когда это было»: the middle of the screen and the only thing on it that decides
-            anything. The same block `MemoryEdit` draws, so it is one piece and not two. */}
-        <EventWhen value={span} onChange={setSpan} disabled={busy} />
-      </ScrollView>
-
-      {/* In the flow of the screen and right above the action that raised it, never over it. */}
-      {error ? <Banner tone="error" text={error} style={styles.error} /> : null}
-
-      <ActionBar>
-        <Button
-          label={s.create.submit}
-          variant="primary"
-          wide
-          busy={busy}
-          disabled={title.trim() === ''}
-          onPress={submit}
-        />
-      </ActionBar>
+      {/* Spec 8 — «Когда это было»: the middle of the screen and the only thing on it that decides
+          anything. The same block `MemoryEdit` draws, so it is one piece and not two. */}
+      <EventWhen value={span} onChange={setSpan} disabled={busy} />
     </Board>
   );
 }

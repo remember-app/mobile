@@ -98,115 +98,134 @@ export default function MontageLiveStageScreen() {
   // The api's 404: this reader is not in the memory any more — said the way the live screen says it.
   if (journal.standing === 'refused') {
     return (
-      <Board>
-        <AppBar
-          variant="live"
-          title={s.montage.stage[code]}
-          left={
-            <IconButton icon={ChevronLeft} label={s.action.back} onPress={() => router.back()} />
-          }
-        />
-        <View style={styles.feed}>
-          <Banner tone="error" icon={Unlink} text={s.memory.gone} />
-        </View>
+      <Board
+        bar={
+          <AppBar
+            variant="live"
+            title={s.montage.stage[code]}
+            left={
+              <IconButton icon={ChevronLeft} label={s.action.back} onPress={() => router.back()} />
+            }
+          />
+        }
+        body={styles.gone}
+      >
+        <Banner tone="error" icon={Unlink} text={s.memory.gone} />
       </Board>
     );
   }
 
   return (
-    <Board>
-      <AppBar
-        variant="live"
-        title={s.montage.stage[code]}
-        // «Этап 5 из 5 · 12 из 38 · идёт 2 мин» — where this stage stands, said the same way the
-        // row it was opened from says it.
-        subtitle={[s.montage.live.stageOf(stageNumber(code), STAGE_COUNT), row && stageLine(row, s)]
-          .filter(Boolean)
-          .join(' · ')}
-        left={<IconButton icon={ChevronLeft} label={s.action.back} onPress={() => router.back()} />}
-        right={
-          journal.viewers.length > 0 ? (
-            <WatchingPill
-              names={journal.viewers.map((viewer) => memberName({ name: null, ...viewer }))}
-              count={journal.viewers.length}
-              label={s.montage.live.watching(journal.viewers.length)}
+    <Board
+      bar={
+        <>
+          <AppBar
+            variant="live"
+            title={s.montage.stage[code]}
+            // «Этап 5 из 5 · 12 из 38 · идёт 2 мин» — where this stage stands, said the same way
+            // the row it was opened from says it.
+            subtitle={[
+              s.montage.live.stageOf(stageNumber(code), STAGE_COUNT),
+              row && stageLine(row, s),
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+            left={
+              <IconButton icon={ChevronLeft} label={s.action.back} onPress={() => router.back()} />
+            }
+            right={
+              journal.viewers.length > 0 ? (
+                <WatchingPill
+                  names={journal.viewers.map((viewer) => memberName({ name: null, ...viewer }))}
+                  count={journal.viewers.length}
+                  label={s.montage.live.watching(journal.viewers.length)}
+                />
+              ) : undefined
+            }
+          />
+
+          {/* The counts are the api's own tally over the whole stage, not over what is on screen: a
+              filter that counted the page it is filtering would change its own number as it
+              scrolled. */}
+          <View style={styles.chips}>
+            <Chip
+              label={s.montage.live.all}
+              size={34}
+              selected={sift === 'all'}
+              onPress={() => setSift('all')}
             />
-          ) : undefined
-        }
-      />
-
-      {/* The counts are the api's own tally over the whole stage, not over what is on screen: a
-          filter that counted the page it is filtering would change its own number as it scrolled. */}
-      <View style={styles.chips}>
-        <Chip
-          label={s.montage.live.all}
-          size={34}
-          selected={sift === 'all'}
-          onPress={() => setSift('all')}
-        />
-        <Chip
-          label={s.montage.live.thoughts}
-          size={34}
-          selected={sift === 'thoughts'}
-          onPress={() => setSift('thoughts')}
-        />
-        <Chip
-          label={s.montage.live.took}
-          size={34}
-          count={row ? String(row.taken_count) : undefined}
-          selected={sift === 'take'}
-          onPress={() => setSift('take')}
-        />
-        <Chip
-          label={s.montage.live.skip}
-          size={34}
-          count={row ? String(row.skipped_count) : undefined}
-          selected={sift === 'skip'}
-          onPress={() => setSift('skip')}
-        />
-      </View>
-
-      {/* A list and not a column of everything: a stage's journal is hundreds of records with a
-          picture on each, and only what is on screen is worth holding. The kit's line is laid
-          behind it — the records scroll past the line, exactly as the layout draws them. */}
-      <View style={styles.feed}>
-        <JournalLine />
-        <FlatList
-          data={shown}
-          keyExtractor={(entry) => String(entry.id)}
-          contentContainerStyle={[styles.records, { paddingBottom: insets.bottom + space.s6 }]}
-          renderItem={({ item, index }) => (
-            <Record
-              entry={item}
-              file={item.media_id ? journal.files[item.media_id] : undefined}
-              journal={journal}
-              author={whose(item.media_id ? journal.files[item.media_id] : undefined)}
-              // Only the top one is «сейчас» and only it types: a page of records that all landed
-              // while the screen was open would otherwise be twenty sentences writing themselves
-              // at once, every one of them claiming to be the moment.
-              newest={index === 0}
-              onPress={() => setOpened(item.id)}
+            <Chip
+              label={s.montage.live.thoughts}
+              size={34}
+              selected={sift === 'thoughts'}
+              onPress={() => setSift('thoughts')}
             />
-          )}
-          // Spec 7.6 — «лента не прыгает»: a record landing on top pushes the ones below it down,
-          // and React Native holds the scroll on what is visible rather than on the offset. The
-          // threshold is what lets it follow anyway for somebody sitting at the top watching live.
-          maintainVisibleContentPosition={{ minIndexForVisible: 1, autoscrollToTopThreshold: 120 }}
-          // Backwards through the journal by cursor, a page at a time — the end of this list is the
-          // beginning of the stage.
-          onEndReached={() => {
-            if (journal.hasOlder) journal.loadOlder();
-          }}
-          onEndReachedThreshold={0.6}
-          // Only the first answer is waited for here. A stage with no records once it is known has
-          // simply said nothing — rhythm and assembly never do — and «Ждём очереди» over a
-          // finished film's stage would be a lie; the only way in is a stage already reached.
-          ListEmptyComponent={
-            journal.status === null ? <Text role="note">{s.state.loading}</Text> : null
-          }
-        />
-      </View>
-
+            <Chip
+              label={s.montage.live.took}
+              size={34}
+              count={row ? String(row.taken_count) : undefined}
+              selected={sift === 'take'}
+              onPress={() => setSift('take')}
+            />
+            <Chip
+              label={s.montage.live.skip}
+              size={34}
+              count={row ? String(row.skipped_count) : undefined}
+              selected={sift === 'skip'}
+              onPress={() => setSift('skip')}
+            />
+          </View>
+        </>
+      }
+      // A list and not a column of everything: a stage's journal is hundreds of records with a
+      // picture on each, and only what is on screen is worth holding. The kit's line is laid behind
+      // it — the records scroll past the line, exactly as the layout draws them. When the bar and
+      // the chips have to scroll with the records, the line would run behind them too, so it goes.
+      list={({ head }) => (
+        <View style={styles.feed}>
+          {head ? null : <JournalLine />}
+          <FlatList
+            data={shown}
+            keyExtractor={(entry) => String(entry.id)}
+            contentContainerStyle={[styles.records, { paddingBottom: insets.bottom + space.s6 }]}
+            ListHeaderComponent={head ? <View style={styles.edge}>{head}</View> : null}
+            renderItem={({ item, index }) => (
+              <Record
+                entry={item}
+                file={item.media_id ? journal.files[item.media_id] : undefined}
+                journal={journal}
+                author={whose(item.media_id ? journal.files[item.media_id] : undefined)}
+                // Only the top one is «сейчас» and only it types: a page of records that all landed
+                // while the screen was open would otherwise be twenty sentences writing themselves
+                // at once, every one of them claiming to be the moment.
+                newest={index === 0}
+                onPress={() => setOpened(item.id)}
+              />
+            )}
+            // Spec 7.6 — «лента не прыгает»: a record landing on top pushes the ones below it down,
+            // and React Native holds the scroll on what is visible rather than on the offset. The
+            // threshold is what lets it follow anyway for somebody sitting at the top watching
+            // live.
+            maintainVisibleContentPosition={{
+              minIndexForVisible: 1,
+              autoscrollToTopThreshold: 120,
+            }}
+            // Backwards through the journal by cursor, a page at a time — the end of this list is
+            // the beginning of the stage.
+            onEndReached={() => {
+              if (journal.hasOlder) journal.loadOlder();
+            }}
+            onEndReachedThreshold={0.6}
+            // Only the first answer is waited for here. A stage with no records once it is known
+            // has simply said nothing — rhythm and assembly never do — and «Ждём очереди» over a
+            // finished film's stage would be a lie; the only way in is a stage already reached.
+            ListEmptyComponent={
+              journal.status === null ? <Text role="note">{s.state.loading}</Text> : null
+            }
+          />
+        </View>
+      )}
+    >
       {card ? (
         <SheetLiveFile
           entry={card}
@@ -288,4 +307,7 @@ const styles = StyleSheet.create({
   // then stand 22 in, which is where the kit hangs their dots.
   feed: { flex: 1, paddingHorizontal: space.s4, paddingTop: space.s4 },
   records: { paddingLeft: 22, gap: 18 },
+  // Scrolling with the records, the bar and the chips keep the screen's edges, not the records'.
+  edge: { marginLeft: -space.s4 - 22, marginRight: -space.s4 },
+  gone: { paddingHorizontal: space.s4, paddingTop: space.s4 },
 });

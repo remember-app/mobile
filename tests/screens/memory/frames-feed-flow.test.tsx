@@ -60,7 +60,7 @@ import { touch } from '@tests/helpers/gesture';
 import { label } from '@tests/helpers/labels';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { sheetBox, wordsIn } from '@tests/helpers/sheet';
-import { FlatList, RefreshControl } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import type { Label, MediaItem, Member } from '@/api';
 import {
@@ -85,7 +85,7 @@ import { frameOf } from '@/lib/frames';
 import { FrameViewer } from '@/screens/memory/frame-viewer';
 import { Frames } from '@/screens/memory/frames';
 import { FilterSheet, SortSheet } from '@/screens/memory/frames-sheets';
-import { BlockHead, type Head } from '@/screens/memory/head';
+import { BlockHead, type Head, HeadTrouble, MemoryHead } from '@/screens/memory/head';
 import { LabelSheets } from '@/screens/memory/label-sheets';
 import { ru } from '@/strings';
 import { board, height, space } from '@/theme';
@@ -1743,6 +1743,33 @@ test('a memory that would not read is a line under the bar with a way to read it
   expect(screen.feed()).toHaveLength(5);
   await screen.press(screen.button(ru.action.retry));
   expect(reload).toHaveBeenCalledTimes(1);
+});
+
+test('what floats over the feed is cleared as it came out, not as the layout draws it', async () => {
+  world();
+  const screen = await open({ memory: null, error: 'Нет связи', reload: () => {} });
+  const feed = () => screen.root.findByType(FlatList);
+  const bottom = () => StyleSheet.flatten(feed().props.contentContainerStyle).paddingBottom;
+  const floating = () => screen.root.findByType(MemoryHead).findAllByType(HeadTrouble);
+  const size = (height: number) => ({
+    nativeEvent: { layout: { x: 0, y: 0, width: 390, height } },
+  });
+  // At the layout's own size the feed ends where the gallery's gradient begins, and the line about
+  // the memory floats under the glass.
+  expect(bottom()).toBe(board.footerGallery);
+  expect(floating()).toHaveLength(1);
+  // The bottom layer came out taller — its button wrapped on large system type (TASK-372) — and the
+  // last frames are not left under it.
+  const layer = screen.root.find(
+    (one) => one.props.pointerEvents === 'box-none' && typeof one.props.onLayout === 'function',
+  );
+  await act(async () => layer.props.onLayout(size(400)));
+  expect(bottom()).toBe(400);
+  // The line itself came out taller than the phone has room for over the feed: it scrolls at the
+  // head of the feed instead, where its button can be reached.
+  await act(async () => screen.root.findByType(HeadTrouble).props.onLayout(size(500)));
+  expect(floating()).toHaveLength(0);
+  expect(feed().findAllByType(HeadTrouble)).toHaveLength(1);
 });
 
 test('the way out of the memory is the back it arrived on, or the list when there is none', async () => {

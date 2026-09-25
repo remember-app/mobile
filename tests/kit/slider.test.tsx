@@ -220,3 +220,29 @@ test('a screen reader and the ready answers move the figure the way the buttons 
   act(() => answer('Всё').props.onPress());
   expect(said).toEqual([162, 152, 60, 550]);
 });
+
+test('a ready length keeps its figures inside its own pill, however narrow the row comes out', () => {
+  let tree!: TestRenderer.ReactTestRenderer;
+  act(() => {
+    tree = TestRenderer.create(slider());
+  });
+  const words = () =>
+    tree.root.findAll(
+      (node) => node.props.children === '0:30' && node.props.maxFontSizeMultiplier !== undefined,
+    );
+  // Unmeasured, nothing is held back.
+  expect(words()).toHaveLength(0);
+  // The zoomed iPhone SE (TASK-372): the card leaves 256 for five pills and four gaps of 6.
+  const row = tree.root.findAll(
+    (node) =>
+      typeof node.props.onLayout === 'function' &&
+      node.findAll((one) => one.props.accessibilityLabel === '0:30').length > 0,
+  )[0]!;
+  act(() =>
+    row.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 256, height: 32 } } }),
+  );
+  const most = words()[0]?.props.maxFontSizeMultiplier ?? Number.POSITIVE_INFINITY;
+  // «0:30» — the widest of them, 2.35 em at 13 — with 4 to spare, in a fifth of what is left.
+  expect(13 * most * 2.35).toBeLessThanOrEqual((256 - 4 * 6) / 5 - 4 + 1e-9);
+  act(() => tree.unmount());
+});

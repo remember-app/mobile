@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { Pencil } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { ApiError, listMontageTemplates, type MontageTemplate } from '@/api';
 import { Banner, Button, TileTemplate, Waiting } from '@/kit';
@@ -82,6 +82,7 @@ export default function TemplatesScreen() {
           }}
         />
       }
+      body={notice === null && templates !== null ? styles.body : undefined}
     >
       {notice !== null ? (
         // The six could not be read. Said with the way to ask again under it — and the door
@@ -102,27 +103,25 @@ export default function TemplatesScreen() {
           <Waiting text={s.state.loading} />
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.body}>
-          <View style={styles.grid}>
-            {templates.map((one, i) => (
-              <TileTemplate
-                key={one.id}
-                title={s.montage.template[one.id]}
-                note={s.montage.templateNote[one.id]}
-                spec={`${formatRuntime(one.target_seconds) ?? ''} · ${RATIO[one.orientation]}`}
-                icon={TEMPLATE_SIGN[one.id]}
-                // A frame of this memory's own behind each one — the mood of the film and not its
-                // subject, which is why the kit keeps it well under the words.
-                uri={material[i]?.thumbnail_url ?? undefined}
-                // Taken by the autopilot: this one is ringed and the other five go down.
-                picked={auto === one.id}
-                dimmed={auto !== null && auto !== one.id}
-                onPress={() => start(one)}
-                style={cell}
-              />
-            ))}
-          </View>
-        </ScrollView>
+        <View style={styles.grid}>
+          {templates.map((one, i) => (
+            <TileTemplate
+              key={one.id}
+              title={s.montage.template[one.id]}
+              note={s.montage.templateNote[one.id]}
+              spec={`${formatRuntime(one.target_seconds) ?? ''} · ${RATIO[one.orientation]}`}
+              icon={TEMPLATE_SIGN[one.id]}
+              // A frame of this memory's own behind each one — the mood of the film and not its
+              // subject, which is why the kit keeps it well under the words.
+              uri={material[i]?.thumbnail_url ?? undefined}
+              // Taken by the autopilot: this one is ringed and the other five go down.
+              picked={auto === one.id}
+              dimmed={auto !== null && auto !== one.id}
+              onPress={() => start(one)}
+              style={cell}
+            />
+          ))}
+        </View>
       )}
     </WizardStep>
   );
@@ -130,7 +129,7 @@ export default function TemplatesScreen() {
 
 const useStyles = themed(() =>
   StyleSheet.create({
-    middle: { flex: 1, justifyContent: 'center' },
+    middle: { flexGrow: 1, justifyContent: 'center' },
     banner: { marginHorizontal: space.s4 },
     body: { flexGrow: 1, paddingHorizontal: space.s4, paddingBottom: space.s6 },
     grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.s2 },

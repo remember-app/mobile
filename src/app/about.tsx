@@ -2,7 +2,7 @@ import { Link } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import { API_URL } from '@/api';
-import { Button, Text } from '@/kit';
+import { Board, Button, Text } from '@/kit';
 import { useStrings } from '@/lib/language';
 import { space, themed } from '@/theme';
 
@@ -12,7 +12,7 @@ export default function AboutScreen() {
   const styles = useStyles();
 
   return (
-    <View style={styles.container}>
+    <Board body={styles.container} style={styles.whole}>
       {/* The product's name, and the one word on this screen that is the same in every language. */}
       <Text role="display">Remember</Text>
       <Text style={styles.lead}>{s.about.lead}</Text>
@@ -29,19 +29,19 @@ export default function AboutScreen() {
       <Link href="/" asChild>
         <Button variant="quiet" label={s.about.back} />
       </Link>
-    </View>
+    </Board>
   );
 }
 
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
+    // Centred on the whole screen, status line included, the way this page always stood.
+    whole: { paddingTop: 0 },
     container: {
-      flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
       gap: space.s4,
       padding: space.s6,
-      backgroundColor: color.ink,
     },
     lead: { color: color.muted },
     api: { alignItems: 'center', gap: space.s1 },

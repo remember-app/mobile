@@ -11,7 +11,7 @@
  * where a thing stands, and what is no longer in the file.
  */
 
-import { api } from '@tests/helpers/source';
+import { api, flat } from '@tests/helpers/source';
 import { expect, test } from 'vitest';
 import layout from '@/app/_layout.tsx?raw';
 import done from '@/app/memory/[id]/montage/[montageId]/done.tsx?raw';
@@ -225,7 +225,7 @@ test('the stage journal is one stage’s records, cut the way the api counts the
   // Hundreds of records: a windowed list, paged backwards by cursor as it is scrolled, and a record
   // landing on top does not move what somebody is reading.
   expect(stageLog).toContain('<FlatList');
-  expect(stageLog).toContain('maintainVisibleContentPosition={{ minIndexForVisible: 1');
+  expect(flat(stageLog)).toContain('maintainVisibleContentPosition={{ minIndexForVisible: 1');
   expect(stageLog).toContain('journal.loadOlder();');
   // Only the freshest record is still being said — the rest of a page stands there finished.
   expect(stageLog).toContain('newest={index === 0}');

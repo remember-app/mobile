@@ -1,12 +1,24 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
-import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
+import { useState } from 'react';
+import {
+  Pressable,
+  type StyleProp,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+  type ViewStyle,
+} from 'react-native';
 
 import { font, height, radius, space, themed } from '@/theme';
 
 import { IconButton } from './button';
 import { dayKey, type Lane, laneOf, weeksOf } from './calendar-grid';
 import { PRESS, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
-import { Text } from './text';
+import { fitCell, Text } from './text';
+
+/** A day's figure (spec 7.3: 15 / 500 tabular — `bodySm`), and the cell and circle it stands in. */
+const FIGURE_SIZE = 15;
+const DAY = 40;
 
 /**
  * Spec 7.3, detail 15 — the calendar. It replaced the field that opened the phone's own picker: a
@@ -60,6 +72,24 @@ export function Calendar({
   style,
 }: CalendarProps) {
   const styles = useStyles();
+  const { fontScale } = useWindowDimensions();
+  // Seven columns share the card whatever the type (`fitCell`). A figure stands in its day's circle
+  // and the circle in its column; the letters over them stand in the column alone.
+  const [column, setColumn] = useState(0);
+  const figure = fitCell({
+    fontScale,
+    width: Math.min(column, DAY),
+    role: 'bodySm',
+    em: FIGURES_EM,
+    rest: DAY,
+  });
+  const letters = fitCell({
+    fontScale,
+    width: column,
+    role: 'badge',
+    em: LETTERS_EM,
+    rest: 0,
+  }).most;
   const today = dayKey(new Date());
   const start = from ? dayKey(from) : null;
   const end = to ? dayKey(to) : null;
@@ -92,6 +122,7 @@ export function Calendar({
             tone="faint"
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
+            maxFontSizeMultiplier={letters}
             style={styles.weekday}
           >
             {day}
@@ -99,11 +130,12 @@ export function Calendar({
         ))}
       </View>
 
-      <View style={styles.grid}>
+      <View style={styles.grid} onLayout={(e) => setColumn(e.nativeEvent.layout.width / 7)}>
         {weeksOf(month).map((week, w) => (
           <View key={w} style={styles.weekRow}>
             {week.map((day, i) => {
-              if (!day) return <View key={`blank-${i}`} style={styles.cell} />;
+              if (!day)
+                return <View key={`blank-${i}`} style={[styles.cell, { height: figure.height }]} />;
               const at = dayKey(day);
               return (
                 <Day
@@ -114,6 +146,7 @@ export function Calendar({
                   lane={laneOf(at, start, end)}
                   today={at === today}
                   disabled={!!((min && at < dayKey(min)) || (max && at > dayKey(max)))}
+                  figure={figure}
                   onPress={() => onPick(day)}
                 />
               );
@@ -125,6 +158,13 @@ export function Calendar({
   );
 }
 
+/**
+ * How wide the widest pair of figures (tabular «28») and of weekday letters («ПН» with the badge's
+ * tracking) run, in em of their own size — measured off Onest.
+ */
+const FIGURES_EM = 1.35;
+const LETTERS_EM = 1.8;
+
 function Day({
   day,
   label,
@@ -132,6 +172,7 @@ function Day({
   lane,
   today,
   disabled,
+  figure,
   onPress,
 }: {
   day: Date;
@@ -140,6 +181,7 @@ function Day({
   lane: Lane;
   today: boolean;
   disabled: boolean;
+  figure: ReturnType<typeof fitCell>;
   onPress: () => void;
 }) {
   const { hovered, focused, props } = useHoverFocus();
@@ -157,6 +199,7 @@ function Day({
       {...props}
       style={({ pressed }) => [
         styles.cell,
+        { height: figure.height },
         pressed && !reduced ? PRESS : null,
         focused ? focusRing : null,
       ]}
@@ -182,6 +225,7 @@ function Day({
         <Text
           role="bodySm"
           tone={disabled ? 'faint' : edge ? 'onFill' : 'paper'}
+          maxFontSizeMultiplier={figure.most}
           style={[styles.figure, edge ? styles.figureEdge : null]}
         >
           {day.getDate()}
@@ -203,15 +247,16 @@ const useStyles = themed(({ color }) =>
       paddingBottom: space.s3,
       gap: space.s1,
     },
-    head: { height: height.bar, flexDirection: 'row', alignItems: 'center' },
+    // Floors and not heights: a month's name on large type takes more than one line.
+    head: { minHeight: height.bar, flexDirection: 'row', alignItems: 'center' },
     month: { flex: 1, textAlign: 'center' },
-    week: { height: 22, flexDirection: 'row', alignItems: 'center' },
+    week: { minHeight: 22, flexDirection: 'row', alignItems: 'center' },
     weekday: { flex: 1, textAlign: 'center' },
     grid: { gap: 2 },
     weekRow: { flexDirection: 'row' },
     // A seventh of the row, and the row is the card: the grid measures itself, so it fits whatever
-    // width it is given and a six-week month is as wide as a five-week one.
-    cell: { flex: 1, height: 40, alignItems: 'center', justifyContent: 'center' },
+    // width it is given and a six-week month is as wide as a five-week one. How tall — `dayFit`.
+    cell: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     // Spec 7.3 — the days between the ends: `accent` at 26%, laid under the figures rather than
     // mixed into a colour of its own.
     lane: {
@@ -226,8 +271,8 @@ const useStyles = themed(({ color }) =>
     laneRight: { left: '50%' },
     laneLeft: { right: '50%' },
     day: {
-      width: 40,
-      height: 40,
+      width: DAY,
+      height: DAY,
       borderRadius: radius.pill,
       alignItems: 'center',
       justifyContent: 'center',
@@ -235,7 +280,7 @@ const useStyles = themed(({ color }) =>
     today: { borderWidth: 1, borderColor: color.lineStrong },
     edge: { backgroundColor: color.accent },
     hover: { backgroundColor: color.raise },
-    figure: { fontFamily: font.medium, fontSize: 15, fontVariant: ['tabular-nums'] },
+    figure: { fontFamily: font.medium, fontSize: FIGURE_SIZE, fontVariant: ['tabular-nums'] },
     figureEdge: { fontFamily: font.bold },
   }),
 );

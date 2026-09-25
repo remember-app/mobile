@@ -21,7 +21,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
 import {
   ApiError,
@@ -34,6 +34,7 @@ import {
   ActionBar,
   Banner,
   Board,
+  type BoardProps,
   Button,
   ConfirmSheet,
   Icon,
@@ -453,6 +454,8 @@ export function WizardStep({
   notice,
   above,
   action,
+  body,
+  list,
   children,
 }: {
   /**
@@ -471,7 +474,11 @@ export function WizardStep({
   above?: ReactNode;
   /** The one button of the step. Left out while there is nothing yet to press it about. */
   action?: ReactNode;
-  children: ReactNode;
+  /** The step's body column — its margins and gaps (`Board`). */
+  body?: StyleProp<ViewStyle>;
+  /** A body that is a list, drawn by the step (`Board`); `children` then floats over it. */
+  list?: BoardProps['list'];
+  children?: ReactNode;
 }) {
   const router = useRouter();
   const s = useStrings();
@@ -487,49 +494,94 @@ export function WizardStep({
   // whatever is there now.
   useEffect(() => stop, [stop]);
 
-  return (
-    <Board>
-      <WizardBar
-        step={counted ? step : STEPS}
-        steps={STEPS}
-        label={
-          counted ? s.montage.step(step, STEPS) : summary ? s.montage.summaryStep : s.montage.newOne
+  /** The step's own body is there to draw: the material is in, and there is enough of it. */
+  const ready = error === null && items !== null && !short;
+  const bottom =
+    items === null || short ? null : auto !== null ? (
+      /* Spec 6 — the autopilot's own bottom layer: nothing here is for pressing «Дальше» with,
+         because nobody is being asked. The line says what is happening and the button is the
+         way to take the wheel back on whichever step it is pressed. */
+      <ActionBar
+        above={
+          <Text role="meta" tone="muted">
+            {s.montage.autoGoing}
+          </Text>
         }
-        // The bar with no scale and the heading up against the row — what the total wears, and
-        // what the way in wears too: there is no step under either of them to count.
-        variant={counted ? 'step' : 'summary'}
-        title={title}
-        note={note}
-        back={
-          <IconButton
-            icon={ChevronLeft}
-            label={s.action.back}
-            style={styles.back}
-            // One step back, and out of the wizard from the first one — there is no step behind it.
-            onPress={() => {
-              stop();
-              if (router.canGoBack()) router.back();
-              else leave();
-            }}
-          />
-        }
-        cancel={
-          summary
-            ? undefined
-            : {
-                label: s.action.cancel,
-                // Nothing said is nothing to lose: the wizard then closes on the press, the way it
-                // always did. Asked here and not inside `leave()`, which is also what «Позже» on
-                // `SheetTooLittle` presses — one sheet must never raise another.
-                onPress: () => {
-                  stop();
-                  if (entered(order)) setLeaving(true);
-                  else leave();
-                },
-              }
-        }
-      />
+      >
+        <Button variant="secondary" wide label={s.montage.autoStop} onPress={stop} />
+      </ActionBar>
+    ) : action ? (
+      <ActionBar above={above}>{action}</ActionBar>
+    ) : null;
 
+  return (
+    // The step's body scrolls in the board, the one place every screen of the app scrolls in — and
+    // the bar with the heading scrolls with it once the two of them outgrow the phone.
+    <Board
+      bar={
+        <>
+          <WizardBar
+            step={counted ? step : STEPS}
+            steps={STEPS}
+            label={
+              counted
+                ? s.montage.step(step, STEPS)
+                : summary
+                  ? s.montage.summaryStep
+                  : s.montage.newOne
+            }
+            // The bar with no scale and the heading up against the row — what the total wears,
+            // and what the way in wears too: there is no step under either of them to count.
+            variant={counted ? 'step' : 'summary'}
+            title={title}
+            note={note}
+            back={
+              <IconButton
+                icon={ChevronLeft}
+                label={s.action.back}
+                style={styles.back}
+                // One step back, and out of the wizard from the first one — there is no step
+                // behind it.
+                onPress={() => {
+                  stop();
+                  if (router.canGoBack()) router.back();
+                  else leave();
+                }}
+              />
+            }
+            cancel={
+              summary
+                ? undefined
+                : {
+                    label: s.action.cancel,
+                    // Nothing said is nothing to lose: the wizard then closes on the press, the
+                    // way it always did. Asked here and not inside `leave()`, which is also what
+                    // «Позже» on `SheetTooLittle` presses — one sheet must never raise another.
+                    onPress: () => {
+                      stop();
+                      if (entered(order)) setLeaving(true);
+                      else leave();
+                    },
+                  }
+            }
+          />
+          {ready && head ? <View style={styles.head}>{head}</View> : null}
+        </>
+      }
+      footer={
+        notice || bottom ? (
+          <>
+            {/* Above the bar and outside the body, the way every face of a memory holds its own:
+                what the button below answers with must not land at the bottom of something that
+                has scrolled. */}
+            {notice ? <Banner text={notice} style={styles.banner} /> : null}
+            {bottom}
+          </>
+        ) : undefined
+      }
+      body={ready ? body : null}
+      list={ready ? list : undefined}
+    >
       {error !== null ? (
         <Banner tone="error" text={error} style={styles.banner}>
           <Button size="xs" variant="quiet" label={s.action.retry} onPress={reread} />
@@ -538,32 +590,8 @@ export function WizardStep({
         <View style={styles.middle}>
           <Waiting text={s.state.loading} />
         </View>
-      ) : short ? null : (
-        <>
-          {head ? <View style={styles.head}>{head}</View> : null}
-          {children}
-        </>
-      )}
-
-      {/* Above the bar and outside the body, the way every face of a memory holds its own: what the
-          button below answers with must not land at the bottom of something that has scrolled. */}
-      {notice ? <Banner text={notice} style={styles.banner} /> : null}
-
-      {items === null || short ? null : auto !== null ? (
-        /* Spec 6 — the autopilot's own bottom layer: nothing here is for pressing «Дальше» with,
-           because nobody is being asked. The line says what is happening and the button is the
-           way to take the wheel back on whichever step it is pressed. */
-        <ActionBar
-          above={
-            <Text role="meta" tone="muted">
-              {s.montage.autoGoing}
-            </Text>
-          }
-        >
-          <Button variant="secondary" wide label={s.montage.autoStop} onPress={stop} />
-        </ActionBar>
-      ) : action ? (
-        <ActionBar above={above}>{action}</ActionBar>
+      ) : ready ? (
+        children
       ) : null}
 
       {/* Spec 7.1, detail 8 — the gentle kind: nothing here is destroyed, but four steps of
@@ -592,7 +620,7 @@ const useStyles = themed(({ color }) =>
     // Spec 7.1: the wizard's back button hangs 10 past the screen's margin, as every «Назад» does.
     back: { marginLeft: -10 },
     banner: { marginHorizontal: space.s4, marginBottom: space.s3 },
-    middle: { flex: 1, justifyContent: 'center' },
+    middle: { flexGrow: 1, justifyContent: 'center' },
     // The bar's own heading is over this, so it stands as close under it as the layout draws it.
     head: { paddingHorizontal: space.s4, paddingTop: 10, paddingBottom: space.s4 },
     headLine: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },

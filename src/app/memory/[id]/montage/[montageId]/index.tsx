@@ -1,7 +1,7 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, Unlink } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import {
   ApiError,
@@ -190,131 +190,136 @@ export default function MontageLiveScreen() {
   // tie that is cut, not of a signal that is lost.
   if (journal.standing === 'refused') {
     return (
-      <Board>
-        <AppBar
-          variant="live"
-          title={s.montage.live.title}
-          left={<IconButton icon={ChevronLeft} label={s.action.back} onPress={leave} />}
-        />
-        <View style={styles.body}>
-          <Banner tone="error" icon={Unlink} text={s.memory.gone} />
-        </View>
+      <Board
+        bar={
+          <AppBar
+            variant="live"
+            title={s.montage.live.title}
+            left={<IconButton icon={ChevronLeft} label={s.action.back} onPress={leave} />}
+          />
+        }
+        body={styles.body}
+      >
+        <Banner tone="error" icon={Unlink} text={s.memory.gone} />
       </Board>
     );
   }
 
   return (
-    <Board>
-      <AppBar
-        variant="live"
-        title={failed ? s.montage.status.failed : s.montage.live.title}
-        subtitle={montage === null ? undefined : orderedTo(montage, s)}
-        left={<IconButton icon={ChevronLeft} label={s.action.back} onPress={leave} />}
-        // Nobody watching is not a pill saying zero: it is a fact about people, and the pill is
-        // only drawn when there are some (spec 7.5). The api hands out a username and no more, and
-        // initials of one are enough for a 24 circle.
-        right={
-          journal.viewers.length > 0 ? (
-            <WatchingPill
-              names={journal.viewers.map((viewer) => memberName({ name: null, ...viewer }))}
-              count={journal.viewers.length}
-              label={s.montage.live.watching(journal.viewers.length)}
-            />
-          ) : undefined
-        }
+    <Board
+      bar={
+        <AppBar
+          variant="live"
+          title={failed ? s.montage.status.failed : s.montage.live.title}
+          subtitle={montage === null ? undefined : orderedTo(montage, s)}
+          left={<IconButton icon={ChevronLeft} label={s.action.back} onPress={leave} />}
+          // Nobody watching is not a pill saying zero: it is a fact about people, and the pill is
+          // only drawn when there are some (spec 7.5). The api hands out a username and no more,
+          // and initials of one are enough for a 24 circle.
+          right={
+            journal.viewers.length > 0 ? (
+              <WatchingPill
+                names={journal.viewers.map((viewer) => memberName({ name: null, ...viewer }))}
+                count={journal.viewers.length}
+                label={s.montage.live.watching(journal.viewers.length)}
+              />
+            ) : undefined
+          }
+        />
+      }
+      footer={
+        notice || (failed && memory?.role === 'organizer') ? (
+          <>
+            {notice ? <Banner tone="error" text={notice} style={styles.banner} /> : null}
+            {/* The bottom layer carries one thing or nothing at all: a fallen montage is started
+                again by the organizer, and everybody else is told by the stage that wears the
+                cross. */}
+            {failed && memory?.role === 'organizer' ? (
+              <ActionBar>
+                <Button label={s.montage.live.retry} disabled={busy} onPress={() => void again()} />
+              </ActionBar>
+            ) : null}
+          </>
+        ) : undefined
+      }
+      body={styles.body}
+    >
+      {/* «Сейчас» — the frame in the director's hands. A montage that fell over has no card at
+          all: nobody's hands are on it any more, and a live window over an attempt that broke a
+          week ago says the director is still at work. Where it broke is the stage wearing the
+          cross below, opened out on its last records — the frame it held among them. */}
+      {failed ? null : (
+        <CardNow
+          uri={file?.thumbnail_url ?? undefined}
+          author={file ? author : undefined}
+          authorLine={file?.captured_at ? `${author} · ${shotAt}` : undefined}
+          now={held === null ? undefined : s.montage.live.now}
+          gaze={gazeAt(held?.focus ?? null, { width: width - space.s4 * 2, height: SHOT })}
+          who={s.montage.live.director}
+          standing={
+            held === null
+              ? undefined
+              : held.decision === null
+                ? s.montage.live.thinking
+                : s.montage.live.decided
+          }
+          thought={thought.said}
+          unsaid={thought.unsaid}
+          decision={
+            decision ? (
+              <BadgeDecision kind={held?.decision === 'take' ? 'take' : 'pass'} label={decision} />
+            ) : undefined
+          }
+          // Nothing in hand, and three different waits: no answer yet (the connection may have
+          // gone before the first one), the queue, or a worker still fetching the material before
+          // the first frame — which is being made, not waiting its turn.
+          waiting={
+            held !== null
+              ? undefined
+              : journal.status === null
+                ? s.state.loading
+                : journal.status === 'queued'
+                  ? s.montage.live.inQueue
+                  : s.montage.status.processing
+          }
+        />
+      )}
+
+      {/* The read never came back. What is above stays exactly as it was — that is the whole of
+          what this line is for (spec 7.6). */}
+      {journal.standing === 'offline' ? (
+        <View style={styles.lost}>
+          <Spinner size={16} />
+          <Text role="note">{s.montage.live.lost}</Text>
+        </View>
+      ) : null}
+
+      {stage === null ? null : (
+        <View style={styles.where}>
+          <Text role="badge" style={styles.grow}>
+            {s.montage.live.stageOf(stageNumber(stage.stage), STAGE_COUNT)}
+          </Text>
+          {minutes === null ? null : (
+            <Text role="badge" tone="muted">
+              {s.montage.live.leftAbout(minutes)}
+            </Text>
+          )}
+        </View>
+      )}
+
+      <StageRows
+        memoryId={id}
+        montageId={montageId}
+        journal={journal}
+        opens={(code) => code === stage?.stage}
       />
 
-      <ScrollView contentContainerStyle={styles.body}>
-        {/* «Сейчас» — the frame in the director's hands. A montage that fell over has no card at
-            all: nobody's hands are on it any more, and a live window over an attempt that broke a
-            week ago says the director is still at work. Where it broke is the stage wearing the
-            cross below, opened out on its last records — the frame it held among them. */}
-        {failed ? null : (
-          <CardNow
-            uri={file?.thumbnail_url ?? undefined}
-            author={file ? author : undefined}
-            authorLine={file?.captured_at ? `${author} · ${shotAt}` : undefined}
-            now={held === null ? undefined : s.montage.live.now}
-            gaze={gazeAt(held?.focus ?? null, { width: width - space.s4 * 2, height: SHOT })}
-            who={s.montage.live.director}
-            standing={
-              held === null
-                ? undefined
-                : held.decision === null
-                  ? s.montage.live.thinking
-                  : s.montage.live.decided
-            }
-            thought={thought.said}
-            unsaid={thought.unsaid}
-            decision={
-              decision ? (
-                <BadgeDecision
-                  kind={held?.decision === 'take' ? 'take' : 'pass'}
-                  label={decision}
-                />
-              ) : undefined
-            }
-            // Nothing in hand, and three different waits: no answer yet (the connection may have
-            // gone before the first one), the queue, or a worker still fetching the material before
-            // the first frame — which is being made, not waiting its turn.
-            waiting={
-              held !== null
-                ? undefined
-                : journal.status === null
-                  ? s.state.loading
-                  : journal.status === 'queued'
-                    ? s.montage.live.inQueue
-                    : s.montage.status.processing
-            }
-          />
-        )}
-
-        {/* The read never came back. What is above stays exactly as it was — that is the whole of
-            what this line is for (spec 7.6). */}
-        {journal.standing === 'offline' ? (
-          <View style={styles.lost}>
-            <Spinner size={16} />
-            <Text role="note">{s.montage.live.lost}</Text>
-          </View>
-        ) : null}
-
-        {stage === null ? null : (
-          <View style={styles.where}>
-            <Text role="badge" style={styles.grow}>
-              {s.montage.live.stageOf(stageNumber(stage.stage), STAGE_COUNT)}
-            </Text>
-            {minutes === null ? null : (
-              <Text role="badge" tone="muted">
-                {s.montage.live.leftAbout(minutes)}
-              </Text>
-            )}
-          </View>
-        )}
-
-        <StageRows
-          memoryId={id}
-          montageId={montageId}
-          journal={journal}
-          opens={(code) => code === stage?.stage}
-        />
-
-        {/* The worker's own line about what went wrong, where there is room for it — the kit's rule
-            is that a screen names the failure and the worker explains it, never a code. */}
-        {failed && montage?.error_text ? (
-          <Text role="body" tone="muted">
-            {montage.error_text}
-          </Text>
-        ) : null}
-      </ScrollView>
-
-      {notice ? <Banner tone="error" text={notice} style={styles.banner} /> : null}
-
-      {/* The bottom layer carries one thing or nothing at all: a fallen montage is started again by
-          the organizer, and everybody else is told by the stage that wears the cross. */}
-      {failed && memory?.role === 'organizer' ? (
-        <ActionBar>
-          <Button label={s.montage.live.retry} disabled={busy} onPress={() => void again()} />
-        </ActionBar>
+      {/* The worker's own line about what went wrong, where there is room for it — the kit's rule
+          is that a screen names the failure and the worker explains it, never a code. */}
+      {failed && montage?.error_text ? (
+        <Text role="body" tone="muted">
+          {montage.error_text}
+        </Text>
       ) : null}
     </Board>
   );

@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ApiError, errorMessage, startEmailSignIn, verifyEmailCode } from '@/api';
 import { ActionBar, Banner, Board, Button, CodeField, IconButton, Text } from '@/kit';
@@ -82,22 +82,8 @@ export default function LoginCodeScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.fill}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <Board>
-        <View style={styles.back}>
-          <IconButton icon={ChevronLeft} label={s.action.back} onPress={() => router.back()} />
-        </View>
-
-        <OnboardingHead />
-
-        <View style={styles.room}>
-          {note ? <Banner tone="done" text={note} /> : null}
-          {error ? <Banner tone="error" text={error} /> : null}
-        </View>
-
+    <Board
+      footer={
         <ActionBar>
           <View style={styles.column}>
             <CodeField
@@ -139,15 +125,25 @@ export default function LoginCodeScreen() {
             />
           </View>
         </ActionBar>
-      </Board>
-    </KeyboardAvoidingView>
+      }
+    >
+      <View style={styles.back}>
+        <IconButton icon={ChevronLeft} label={s.action.back} onPress={() => router.back()} />
+      </View>
+
+      <OnboardingHead />
+
+      <View style={styles.room}>
+        {note ? <Banner tone="done" text={note} /> : null}
+        {error ? <Banner tone="error" text={error} /> : null}
+      </View>
+    </Board>
   );
 }
 
 const styles = StyleSheet.create({
-  fill: { flex: 1 },
   back: { position: 'absolute', left: space.s4 - 10, top: 0, zIndex: 2 },
-  room: { flex: 1, justifyContent: 'flex-end', gap: space.s2, paddingHorizontal: space.s4 },
+  room: { flexGrow: 1, justifyContent: 'flex-end', gap: space.s2, paddingHorizontal: space.s4 },
   column: { flex: 1, gap: space.s3 },
   // The address on the left, the way to ask again on the right — one line, so neither of them
   // reads as the action of the screen. Under it, when the system type leaves no room beside.

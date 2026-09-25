@@ -1,7 +1,7 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, Pencil, Trash2, UserPlus, X } from 'lucide-react-native';
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import {
   ApiError,
@@ -263,141 +263,143 @@ export default function MemorySettingsScreen() {
   );
 
   return (
-    <Board>
-      <AppBar
-        // The screen's own name and not the memory's: the name of the memory is on the card right
-        // under it, in the one place it is edited from.
-        title={s.settings.title}
-        // Nobody but the organizer is drawn it at all (spec 10.8.3: not greyed out — not drawn), and
-        // the api refuses everybody else on its own. Nor before the memory has been read: the sheet
-        // it opens is made of it, and a trash that opened nothing would be a dead button.
-        quiet={
-          organizer && memory !== null
-            ? {
-                icon: Trash2,
-                label: s.settings.delete,
-                onPress: () => setWiping(true),
-                disabled: busy,
+    <Board
+      bar={
+        <AppBar
+          // The screen's own name and not the memory's: the name of the memory is on the card right
+          // under it, in the one place it is edited from.
+          title={s.settings.title}
+          // Nobody but the organizer is drawn it at all (spec 10.8.3: not greyed out — not drawn),
+          // and the api refuses everybody else on its own. Nor before the memory has been read: the
+          // sheet it opens is made of it, and a trash that opened nothing would be a dead button.
+          quiet={
+            organizer && memory !== null
+              ? {
+                  icon: Trash2,
+                  label: s.settings.delete,
+                  onPress: () => setWiping(true),
+                  disabled: busy,
+                }
+              : undefined
+          }
+          left={
+            <IconButton
+              icon={ChevronLeft}
+              label={s.action.back}
+              onPress={() =>
+                router.canGoBack()
+                  ? router.back()
+                  : router.replace({ pathname: '/memory/[id]', params: { id } })
               }
-            : undefined
-        }
-        left={
-          <IconButton
-            icon={ChevronLeft}
-            label={s.action.back}
-            onPress={() =>
-              router.canGoBack()
-                ? router.back()
-                : router.replace({ pathname: '/memory/[id]', params: { id } })
-            }
-          />
-        }
-      />
-
-      <ScrollView contentContainerStyle={styles.body}>
-        {error !== null ? (
-          <Banner tone="error" text={error}>
-            <Button size="xs" variant="quiet" label={s.action.retry} onPress={load} />
-          </Banner>
-        ) : memory === null || members === null ? (
-          <View style={styles.middle}>
-            <Waiting text={s.state.loading} />
+            />
+          }
+        />
+      }
+      // The one glowing action of the screen: the whole reason it exists is that there be more
+      // people in the memory. Behind the same level the api gates inviting on — a viewer is shown
+      // neither this nor the crosses, and for them the screen simply ends with the roster.
+      footer={
+        mayInvite ? (
+          <ActionBar>
+            <Button
+              variant="primary"
+              wide
+              icon={UserPlus}
+              label={s.action.invite}
+              onPress={() => setInviting(true)}
+              disabled={busy}
+            />
+          </ActionBar>
+        ) : undefined
+      }
+      body={styles.body}
+    >
+      {error !== null ? (
+        <Banner tone="error" text={error}>
+          <Button size="xs" variant="quiet" label={s.action.retry} onPress={load} />
+        </Banner>
+      ) : memory === null || members === null ? (
+        <View style={styles.middle}>
+          <Waiting text={s.state.loading} />
+        </View>
+      ) : (
+        <>
+          {/* What this memory is, and — for the organizer — the one way into changing it. Three
+              things behind one pencil, because they are edited in one go (spec 10.8.3). */}
+          <View style={styles.event}>
+            <CoverSlot uri={memory.cover_thumbnail_url} thumbs={memory.recent_thumbnail_urls} />
+            <View style={styles.grow}>
+              <Text role="subtitleDisplay" numberOfLines={1}>
+                {memory.title}
+              </Text>
+              <Text role="meta" numberOfLines={1}>
+                {[
+                  formatEventDates(memory.event_start, memory.event_end),
+                  s.memory.frames(memory.media_count),
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </Text>
+            </View>
+            {organizer ? (
+              <IconButton
+                icon={Pencil}
+                tone="raise"
+                label={s.settings.edit}
+                disabled={busy}
+                onPress={() => router.push({ pathname: '/memory/[id]/edit', params: { id } })}
+              />
+            ) : null}
           </View>
-        ) : (
-          <>
-            {/* What this memory is, and — for the organizer — the one way into changing it. Three
-                things behind one pencil, because they are edited in one go (spec 10.8.3). */}
-            <View style={styles.event}>
-              <CoverSlot uri={memory.cover_thumbnail_url} thumbs={memory.recent_thumbnail_urls} />
-              <View style={styles.grow}>
-                <Text role="subtitleDisplay" numberOfLines={1}>
-                  {memory.title}
+
+          <View style={styles.block}>
+            <View style={styles.head}>
+              <View style={styles.headWords}>
+                <Text role="section" accessibilityRole="header">
+                  {s.members.title}
                 </Text>
-                <Text role="meta" numberOfLines={1}>
-                  {[
-                    formatEventDates(memory.event_start, memory.event_end),
-                    s.memory.frames(memory.media_count),
-                  ]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </Text>
+                <Text role="meta">{s.members.brought(brought, bringers.length)}</Text>
               </View>
-              {organizer ? (
-                <IconButton
-                  icon={Pencil}
-                  tone="raise"
-                  label={s.settings.edit}
+              {/* Spec 10.8.4: the way in becomes the way out — the pencil goes, the word becomes
+                  «Готово», and the button itself is held in. Nobody to take out (a memory with
+                  only you in it) and there is no button at all. */}
+              {organizer && members.length > 1 ? (
+                <Button
+                  variant={editing ? 'paper' : 'small'}
+                  size="xs"
+                  // Held in, it is still the small button of this row: `paper` on its own runs
+                  // the width of the row and squeezes the heading beside it to nothing.
+                  wide={false}
+                  icon={editing ? undefined : Pencil}
+                  label={editing ? s.action.done : s.members.edit}
+                  onPress={() => setEditing((was) => !was)}
                   disabled={busy}
-                  onPress={() => router.push({ pathname: '/memory/[id]/edit', params: { id } })}
                 />
               ) : null}
             </View>
+            {/* A `.map` and not a FlatList: this is one event's guest list inside a ScrollView,
+                and nesting a virtualised list in one is the thing React Native asks you not to do.
+                The card around it is what the rows' own hairlines are drawn inside. */}
+            <View style={styles.card}>{bringers.map(row)}</View>
+          </View>
 
+          {/* «Зрители» — a block of its own, under everybody else, and not there at all when
+              nobody is only watching (spec 8). */}
+          {viewers.length > 0 ? (
             <View style={styles.block}>
-              <View style={styles.head}>
-                <View style={styles.headWords}>
-                  <Text role="section" accessibilityRole="header">
-                    {s.members.title}
-                  </Text>
-                  <Text role="meta">{s.members.brought(brought, bringers.length)}</Text>
-                </View>
-                {/* Spec 10.8.4: the way in becomes the way out — the pencil goes, the word becomes
-                    «Готово», and the button itself is held in. Nobody to take out (a memory with
-                    only you in it) and there is no button at all. */}
-                {organizer && members.length > 1 ? (
-                  <Button
-                    variant={editing ? 'paper' : 'small'}
-                    size="xs"
-                    // Held in, it is still the small button of this row: `paper` on its own runs
-                    // the width of the row and squeezes the heading beside it to nothing.
-                    wide={false}
-                    icon={editing ? undefined : Pencil}
-                    label={editing ? s.action.done : s.members.edit}
-                    onPress={() => setEditing((was) => !was)}
-                    disabled={busy}
-                  />
-                ) : null}
+              <View style={styles.headWords}>
+                <Text role="section" accessibilityRole="header">
+                  {s.settings.viewers}
+                </Text>
+                <Text role="meta">{viewers.length}</Text>
               </View>
-              {/* A `.map` and not a FlatList: this is one event's guest list inside a ScrollView,
-                  and nesting a virtualised list in one is the thing React Native asks you not to do.
-                  The card around it is what the rows' own hairlines are drawn inside. */}
-              <View style={styles.card}>{bringers.map(row)}</View>
+              <View style={styles.card}>{viewers.map(row)}</View>
             </View>
+          ) : null}
+        </>
+      )}
 
-            {/* «Зрители» — a block of its own, under everybody else, and not there at all when
-                nobody is only watching (spec 8). */}
-            {viewers.length > 0 ? (
-              <View style={styles.block}>
-                <View style={styles.headWords}>
-                  <Text role="section" accessibilityRole="header">
-                    {s.settings.viewers}
-                  </Text>
-                  <Text role="meta">{viewers.length}</Text>
-                </View>
-                <View style={styles.card}>{viewers.map(row)}</View>
-              </View>
-            ) : null}
-          </>
-        )}
-
-        {notice ? <Banner text={notice} /> : null}
-      </ScrollView>
-
-      {/* The one glowing action of the screen: the whole reason it exists is that there be more
-          people in the memory. Behind the same level the api gates inviting on — a viewer is shown
-          neither this nor the crosses, and for them the screen simply ends with the roster. */}
-      {mayInvite ? (
-        <ActionBar>
-          <Button
-            variant="primary"
-            wide
-            icon={UserPlus}
-            label={s.action.invite}
-            onPress={() => setInviting(true)}
-            disabled={busy}
-          />
-        </ActionBar>
-      ) : null}
+      {notice ? <Banner text={notice} /> : null}
 
       <InviteSheet
         visible={inviting}
@@ -512,8 +514,9 @@ const useStyles = themed(({ color }) =>
   StyleSheet.create({
     // Spec 8: the body starts under the bar in the screen's own 16, and the blocks stand 22 apart.
     body: { flexGrow: 1, paddingHorizontal: space.s4, paddingBottom: space.s6, gap: 22 },
-    // Waiting holds the place of the roster in the middle of the body rather than blinking at the top.
-    middle: { flex: 1, justifyContent: 'center' },
+    // Waiting holds the place of the roster in the middle of the body rather than blinking at the
+    // top.
+    middle: { flexGrow: 1, justifyContent: 'center' },
     event: {
       flexDirection: 'row',
       alignItems: 'center',

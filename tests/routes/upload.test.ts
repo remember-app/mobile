@@ -1,4 +1,4 @@
-import { api } from '@tests/helpers/source';
+import { api, flat } from '@tests/helpers/source';
 import { expect, test } from 'vitest';
 
 import upload from '@/app/memory/[id]/upload.tsx?raw';
@@ -103,7 +103,7 @@ test('the four other faces are this screen with no feed under it', () => {
   // `UploadAccess`, `UploadEmpty` and the two waits: the plain bar with the memory under the
   // heading, which is what the layout draws where there are no photographs to float glass over.
   expect(upload).toContain('const feed = granted && rows.length > 0;');
-  expect(upload).toContain('<Board style={feed ? styles.bleed : undefined}>');
+  expect(flat(upload)).toContain('<Board style={feed ? styles.bleed : undefined}');
   expect(upload).toContain('subtitle={subtitleFor(memory)}');
   expect(noFeed).toContain('label={access.canAskAgain ? s.upload.allow : s.action.openSettings}');
   expect(noFeed).toContain('sign="dashed"');

@@ -339,93 +339,110 @@ export default function UploadScreen() {
   return (
     // With a feed the board keeps nothing back for the status line: the photographs run under it
     // and the glass bar's own darkening is what makes the glyphs on it readable (spec 7.1).
-    <Board style={feed ? styles.bleed : undefined}>
-      {feed ? (
-        <FlatList
-          data={rows}
-          keyExtractor={(row) => row.key}
-          contentContainerStyle={[
-            styles.feed,
-            {
-              // Spec 4: the body under the glass bar starts at 108 — the status line, the bar's own
-              // 48 and 8 under it — and ends clear of the bottom layer, where there is one.
-              paddingTop: insets.top + height.roundViewer + space.s2,
-              paddingBottom: picking ? board.footerTall : space.s5,
-            },
-          ]}
-          ListHeaderComponent={
-            // The only thing on this face that is not a photograph, so it is the only thing that
-            // takes the screen's own margin — the feed under it runs to both edges.
-            <View style={[styles.head, styles.headFeed, said ? styles.headSaid : null]}>
-              {blocks()}
-            </View>
-          }
-          renderItem={({ item: row }) =>
-            row.day ? (
-              <DayMark
-                label={s.upload.shotOn(formatDay(new Date(row.day.at)))}
-                count={s.memory.frames(row.day.assets.length)}
-                // Under a partial grant the seam only counts what is here, drawn back rather than
-                // forward — the rest is not missing, it is unseen, and there is no whole day to take.
-                limited={limited}
-                picked={row.day.assets.every((asset) => picked.has(asset.id))}
-                // Spec 7.8's third kind: the band itself takes the day and gives it back. Out with
-                // picking off — there is nothing to take — and out until the whole roll is in hand,
-                // since it arrives 500 at a time and a day that straddles a page is still growing,
-                // so «все» would take only its head.
-                onPress={picking && !limited && !reading ? () => toggleDay(row.day) : undefined}
-                pressLabel={s.upload.selectDay(row.day.assets.length)}
-              />
-            ) : row.unseen ? (
-              <DashedFrame style={styles.unseen}>
-                <Text role="label" tone="faint" style={styles.middle}>
-                  {s.upload.restUnseen}
-                </Text>
-              </DashedFrame>
-            ) : (
-              <View style={styles.strip}>
-                {row.frames.map((item) => (
-                  <Tile
-                    key={item.id}
-                    // Every frame here is one the phone already holds, so `ready` is the only state
-                    // this feed ever draws — the other two belong to the gallery, where a file is
-                    // still being turned into a derivative.
-                    state="ready"
-                    lane="feed"
-                    uri={item.uri}
-                    // No circle at all with picking off: a frame that is not being picked is not a
-                    // checkbox, and the layout takes the circles away with the mode.
-                    pick={picking ? (picked.has(item.id) ? 'send' : 'off') : undefined}
-                    // The kit marks a video by how long it runs rather than by the word «video».
-                    length={item.mediaType === 'video' ? formatRuntime(item.duration) : undefined}
-                    label={nameOf(item)}
-                    onPress={() => (picking ? toggle(item.id) : setOpen(item))}
-                    style={cell}
-                  />
-                ))}
-              </View>
-            )
-          }
-        />
-      ) : (
-        <>
-          {/* Spec 7.1: with no photographs under it the bar is the plain one, and the memory is
-              named under the heading instead of inside a capsule of glass. */}
+    <Board
+      style={feed ? styles.bleed : undefined}
+      // Spec 7.1: with no photographs under it the bar is the plain one, and the memory is named
+      // under the heading instead of inside a capsule of glass.
+      bar={
+        feed ? undefined : (
           <AppBar
             title={s.upload.title}
             subtitle={subtitleFor(memory)}
             left={<IconButton icon={ChevronLeft} label={s.action.back} onPress={leave} />}
           />
-          <View style={styles.body}>
-            <View style={[styles.head, said ? styles.headSaid : null]}>{blocks()}</View>
-            <NoFeed
-              error={galleryError}
-              access={access}
-              ask={ask}
-              reading={reading}
-              onRetry={retry}
-            />
-          </View>
+        )
+      }
+      body={styles.body}
+      list={
+        feed
+          ? () => (
+              <FlatList
+                data={rows}
+                keyExtractor={(row) => row.key}
+                contentContainerStyle={[
+                  styles.feed,
+                  {
+                    // Spec 4: the body under the glass bar starts at 108 — the status line, the
+                    // bar's own 48 and 8 under it — and ends clear of the bottom layer, where there
+                    // is one.
+                    paddingTop: insets.top + height.roundViewer + space.s2,
+                    paddingBottom: picking ? board.footerTall : space.s5,
+                  },
+                ]}
+                ListHeaderComponent={
+                  // The only thing on this face that is not a photograph, so it is the only thing
+                  // that takes the screen's own margin — the feed under it runs to both edges.
+                  <View style={[styles.head, styles.headFeed, said ? styles.headSaid : null]}>
+                    {blocks()}
+                  </View>
+                }
+                renderItem={({ item: row }) =>
+                  row.day ? (
+                    <DayMark
+                      label={s.upload.shotOn(formatDay(new Date(row.day.at)))}
+                      count={s.memory.frames(row.day.assets.length)}
+                      // Under a partial grant the seam only counts what is here, drawn back rather
+                      // than forward — the rest is not missing, it is unseen, and there is no whole
+                      // day to take.
+                      limited={limited}
+                      picked={row.day.assets.every((asset) => picked.has(asset.id))}
+                      // Spec 7.8's third kind: the band itself takes the day and gives it back. Out
+                      // with picking off — there is nothing to take — and out until the whole roll
+                      // is in hand, since it arrives 500 at a time and a day that straddles a page
+                      // is still growing, so «все» would take only its head.
+                      onPress={
+                        picking && !limited && !reading ? () => toggleDay(row.day) : undefined
+                      }
+                      pressLabel={s.upload.selectDay(row.day.assets.length)}
+                    />
+                  ) : row.unseen ? (
+                    <DashedFrame style={styles.unseen}>
+                      <Text role="label" tone="faint" style={styles.middle}>
+                        {s.upload.restUnseen}
+                      </Text>
+                    </DashedFrame>
+                  ) : (
+                    <View style={styles.strip}>
+                      {row.frames.map((item) => (
+                        <Tile
+                          key={item.id}
+                          // Every frame here is one the phone already holds, so `ready` is the only
+                          // state this feed ever draws — the other two belong to the gallery, where
+                          // a file is still being turned into a derivative.
+                          state="ready"
+                          lane="feed"
+                          uri={item.uri}
+                          // No circle at all with picking off: a frame that is not being picked is
+                          // not a checkbox, and the layout takes the circles away with the mode.
+                          pick={picking ? (picked.has(item.id) ? 'send' : 'off') : undefined}
+                          // The kit marks a video by how long it runs rather than by the word
+                          // «video».
+                          length={
+                            item.mediaType === 'video' ? formatRuntime(item.duration) : undefined
+                          }
+                          label={nameOf(item)}
+                          onPress={() => (picking ? toggle(item.id) : setOpen(item))}
+                          style={cell}
+                        />
+                      ))}
+                    </View>
+                  )
+                }
+              />
+            )
+          : undefined
+      }
+    >
+      {feed ? null : (
+        <>
+          <View style={[styles.head, said ? styles.headSaid : null]}>{blocks()}</View>
+          <NoFeed
+            error={galleryError}
+            access={access}
+            ask={ask}
+            reading={reading}
+            onRetry={retry}
+          />
         </>
       )}
 
@@ -593,7 +610,7 @@ const useStyles = themed(({ color }) =>
     bleed: { paddingTop: 0 },
     // Spec 4: the body of the plain-bar face starts at 124, which is the bar's own 44 and this
     // under it. The screen's margin is the app's 16.
-    body: { flex: 1, paddingHorizontal: space.s4, paddingTop: space.s5 },
+    body: { paddingHorizontal: space.s4, paddingTop: space.s5 },
     // The feed is the kit's own: 2px between frames, no margins, nothing between a day's strip and
     // the next day but the seam's own height.
     feed: { flexGrow: 1, gap: FEED_GAP },

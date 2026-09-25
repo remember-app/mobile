@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ApiError, errorMessage, startEmailSignIn } from '@/api';
 import { ActionBar, Banner, Board, Button, Field, IconButton } from '@/kit';
@@ -47,21 +47,10 @@ export default function LoginEmailScreen() {
   }
 
   return (
-    // The field stands at the bottom edge, which is exactly where the keyboard comes up. Android
-    // resizes the window itself; iOS needs telling, the same way the kit's sheet does.
-    <KeyboardAvoidingView
-      style={styles.fill}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <Board>
-        <View style={styles.back}>
-          <IconButton icon={ChevronLeft} label={s.action.back} onPress={() => router.back()} />
-        </View>
-
-        <OnboardingHead />
-
-        <View style={styles.room}>{error ? <Banner tone="error" text={error} /> : null}</View>
-
+    // The field stands at the bottom edge, which is exactly where the keyboard comes up — the
+    // board is what rides it up over it.
+    <Board
+      footer={
         <ActionBar>
           <View style={styles.column}>
             <Field
@@ -89,16 +78,23 @@ export default function LoginEmailScreen() {
             />
           </View>
         </ActionBar>
-      </Board>
-    </KeyboardAvoidingView>
+      }
+    >
+      <View style={styles.back}>
+        <IconButton icon={ChevronLeft} label={s.action.back} onPress={() => router.back()} />
+      </View>
+
+      <OnboardingHead />
+
+      <View style={styles.room}>{error ? <Banner tone="error" text={error} /> : null}</View>
+    </Board>
   );
 }
 
 const styles = StyleSheet.create({
-  fill: { flex: 1 },
   // Spec 7.1, the inner bar: a 44 button pulled 10 out of the screen's own 16 margin. Absolute, so
   // it lies over the head rather than moving it.
   back: { position: 'absolute', left: space.s4 - 10, top: 0, zIndex: 2 },
-  room: { flex: 1, justifyContent: 'flex-end', paddingHorizontal: space.s4 },
+  room: { flexGrow: 1, justifyContent: 'flex-end', paddingHorizontal: space.s4 },
   column: { flex: 1, gap: space.s3 },
 });

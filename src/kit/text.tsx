@@ -2,6 +2,8 @@ import { Text as RNText, StyleSheet, type TextProps } from 'react-native';
 
 import { themed, type } from '@/theme';
 
+import { TAP } from './tap';
+
 /** The spec's type roles (section 3). Roles, not sizes: ask for `title`, not for 19px. */
 export type TypeRole = keyof typeof type;
 
@@ -64,6 +66,39 @@ const useStyles = themed(({ color }) =>
     onFill: { color: color.onFill },
   }),
 );
+
+/** What words keep clear of the sides of a cell they are fitted into, so they never meet the next. */
+const FIT_INSET = 4;
+
+/**
+ * Words in a cell whose width the layout fixes — a day of the calendar, a ready length on the
+ * slider — on large system type (TASK-372). The words grow only as far as the cell holds them
+ * (`em`: how wide the widest of them runs, in em of the role's size), since beyond that they are
+ * read, and pressed, as the next cell's; the cell grows down with them instead, never under the 44 a
+ * finger needs. At the system's own size the cell is the layout's `rest`. Unmeasured (`width` 0),
+ * nothing is held back.
+ */
+export function fitCell({
+  fontScale,
+  width,
+  role,
+  em,
+  rest,
+}: {
+  fontScale: number;
+  width: number;
+  role: TypeRole;
+  em: number;
+  rest: number;
+}): { most: number | undefined; height: number } {
+  const { fontSize, lineHeight } = type[role];
+  const most = width > 0 ? Math.max(1, (width - FIT_INSET) / (fontSize * em)) : undefined;
+  const grown = Math.min(fontScale, most ?? fontScale);
+  return {
+    most,
+    height: fontScale > 1 ? Math.max(TAP, Math.ceil(lineHeight * grown) + FIT_INSET) : rest,
+  };
+}
 
 /**
  * A label the eye does not need and a screen reader does (spec 7.9, «скрытая подпись»): the field

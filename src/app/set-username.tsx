@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ActionBar, Board } from '@/kit';
 import { useStrings } from '@/lib/language';
@@ -21,15 +21,8 @@ export default function SetUsernameScreen() {
   const s = useStrings();
 
   return (
-    <KeyboardAvoidingView
-      style={styles.fill}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <Board>
-        <OnboardingHead />
-
-        <View style={styles.room} />
-
+    <Board
+      footer={
         <ActionBar>
           <View style={styles.column}>
             <UsernameForm
@@ -40,15 +33,15 @@ export default function SetUsernameScreen() {
             />
           </View>
         </ActionBar>
-      </Board>
-    </KeyboardAvoidingView>
+      }
+    >
+      <OnboardingHead />
+    </Board>
   );
 }
 
+// The room between the head and the field is the body's own: the head stays where the three screens
+// before it had it, and everything that changes happens at the bottom edge.
 const styles = StyleSheet.create({
-  fill: { flex: 1 },
-  // The room between the head and the field, empty on this screen: the head stays where the three
-  // screens before it had it, and everything that changes happens at the bottom edge.
-  room: { flex: 1 },
   column: { flex: 1, gap: space.s3 },
 });

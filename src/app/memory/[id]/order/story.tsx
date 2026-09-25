@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { ChevronRight } from 'lucide-react-native';
-import { ScrollView, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import { Button, ChipTemplate, TextArea } from '@/kit';
 import { useStrings } from '@/lib/language';
@@ -40,34 +40,33 @@ export default function StoryStep() {
           onPress={() => router.push({ pathname: '/memory/[id]/order/music', params: { id } })}
         />
       }
+      body={styles.body}
     >
-      <ScrollView contentContainerStyle={styles.body}>
-        {template ? (
-          <ChipTemplate
-            icon={order.ownStory ? undefined : TEMPLATE_SIGN[template]}
-            label={
-              order.ownStory
-                ? s.montage.ownText
-                : s.montage.fromTemplate(s.montage.template[template])
-            }
-          />
-        ) : null}
-
-        {/* The screen's own heading is this box's label, so the label itself is only spoken. */}
-        <TextArea
-          label={s.montage.storyLabel}
-          labelHidden
-          limit={STORY_LIMIT}
-          placeholder={s.montage.storyPlaceholder}
-          value={order.story}
-          // Typing into the box while the template types is taking the wheel: the walk stops
-          // rather than writing over the hand.
-          onChangeText={(story) => {
-            stop();
-            change({ story, ownStory: true });
-          }}
+      {template ? (
+        <ChipTemplate
+          icon={order.ownStory ? undefined : TEMPLATE_SIGN[template]}
+          label={
+            order.ownStory
+              ? s.montage.ownText
+              : s.montage.fromTemplate(s.montage.template[template])
+          }
         />
-      </ScrollView>
+      ) : null}
+
+      {/* The screen's own heading is this box's label, so the label itself is only spoken. */}
+      <TextArea
+        label={s.montage.storyLabel}
+        labelHidden
+        limit={STORY_LIMIT}
+        placeholder={s.montage.storyPlaceholder}
+        value={order.story}
+        // Typing into the box while the template types is taking the wheel: the walk stops
+        // rather than writing over the hand.
+        onChangeText={(story) => {
+          stop();
+          change({ story, ownStory: true });
+        }}
+      />
     </WizardStep>
   );
 }

@@ -68,150 +68,175 @@ export default function HomeScreen() {
 
   const failed = link.at === 'gone' || link.at === 'hushed' ? link.why : null;
 
+  // The banner is the first thing in the body and pushes the cards down (spec 7.6): it is about
+  // what is under it, so it never lies over it.
+  const banner =
+    link.at === 'gone' ? (
+      <Banner text={s.home.offline}>
+        <IconButton
+          icon={X}
+          label={s.action.hide}
+          size={height.roundTiny}
+          tone="danger"
+          onPress={() => setLink({ at: 'hushed', why: link.why })}
+        />
+      </Banner>
+    ) : link.at === 'back' ? (
+      <Banner tone="done" text={s.home.online} />
+    ) : null;
+
   return (
-    <Board>
-      <AppBar
-        variant="root"
-        title={s.home.title}
-        // Spec 8: one button on the main screen and it is the account. The contact list used to have
-        // a second one here and lives inside the account now, so this is the only way out of the list.
-        right={
-          <IconButton
-            icon={User}
-            label={s.home.account}
-            // Spec 7.2: the 44 in a root bar is `surface` over `line`, and the glyph on it is read
-            // in `paper` — which the tone itself now carries.
-            tone="surface"
-            onPress={() => router.push('/profile')}
+    <Board
+      bar={
+        <AppBar
+          variant="root"
+          title={s.home.title}
+          // Spec 8: one button on the main screen and it is the account. The contact list used to
+          // have a second one here and lives inside the account now, so this is the only way out of
+          // the list.
+          right={
+            <IconButton
+              icon={User}
+              label={s.home.account}
+              // Spec 7.2: the 44 in a root bar is `surface` over `line`, and the glyph on it is
+              // read in `paper` — which the tone itself now carries.
+              tone="surface"
+              onPress={() => router.push('/profile')}
+            />
+          }
+        />
+      }
+      footer={
+        <ActionBar>
+          <Button
+            label={s.home.create}
+            variant="primary"
+            icon={Plus}
+            wide
+            // `HomeLoading`: the one action of the screen keeps its place and is simply not
+            // available while the list is still on its way.
+            disabled={memories === null && failed === null}
+            onPress={() => router.push('/create')}
           />
-        }
-      />
+        </ActionBar>
+      }
+      body={[styles.body, styles.mid]}
+      list={
+        memories === null
+          ? undefined
+          : ({ head, foot }) => (
+              <FlatList
+                data={memories}
+                keyExtractor={(memory) => memory.id}
+                contentContainerStyle={[
+                  styles.body,
+                  styles.list,
+                  memories.length === 0 ? styles.mid : null,
+                ]}
+                // Scrolling with the list, the bar and the bottom layer keep the screen's edges and
+                // not the list's margins.
+                ListHeaderComponent={
+                  head || banner ? (
+                    <>
+                      {head ? <View style={styles.edge}>{head}</View> : null}
+                      {banner}
+                    </>
+                  ) : null
+                }
+                ListFooterComponent={foot ? <View style={styles.edge}>{foot}</View> : null}
+                // `HomeEmpty`: nothing to list is an invitation standing in the middle of the body,
+                // where a stack of cards would otherwise start at the top of it.
+                ListEmptyComponent={
+                  <Empty sign="spark" icon={Camera} title={s.home.emptyTitle} text={s.home.empty} />
+                }
+                renderItem={({ item, index }) => {
+                  // `?? []` and not a bare read: the app ships over the air and the api deploys on
+                  // its own, so a build that knows this field can meet one that does not. Every
+                  // other new field degrades quietly under that skew — this one would throw inside
+                  // the list renderer and take the main screen down with it.
+                  const thumbs = item.recent_thumbnail_urls ?? [];
+                  // The one frame the organizer chose as this memory's face (api README, `PATCH
+                  // /memories/:memoryId`). `?? null` and not a bare read for the same reason as
+                  // above: an api older than the field sends nothing, and the card is then what it
+                  // always was.
+                  const cover = item.cover_thumbnail_url ?? null;
+                  // Spec 8: the freshest memory leads the list on the large card — but that card
+                  // *is* a photograph with a name across it, so a memory with nothing in it yet
+                  // takes the ordinary one and its dashed film, exactly as `Main` draws «Корпоратив
+                  // Nox». A cover is that photograph too, and on its own is enough to carry the
+                  // large card.
+                  const large = index === 0 && (cover !== null || thumbs.length > 0);
+                  // The bar of who has already brought theirs, off the summary the listing itself
+                  // counted (doc-06) — no request per card. An api too old to send it draws no bar
+                  // at all, rather than a full one over «0 из 0».
+                  const shared = large && item.member_count > 0;
 
-      {memories === null ? (
-        <View style={[styles.body, styles.place, styles.mid]}>
-          {failed === null ? (
-            // `HomeLoading`: waiting holds the place of the list rather than blinking over it.
-            <Waiting text={s.state.gathering} />
-          ) : (
-            // Nothing held and nothing arrived. The failure takes the place of the list, because
-            // the empty state under it would read as «you have no memories», which is not known.
-            <Empty icon={WifiOff} text={failed}>
-              <Button label={s.action.retry} variant="small" onPress={load} />
-            </Empty>
-          )}
-        </View>
-      ) : (
-        <FlatList
-          data={memories}
-          keyExtractor={(memory) => memory.id}
-          contentContainerStyle={[
-            styles.body,
-            styles.list,
-            memories.length === 0 ? styles.mid : null,
-          ]}
-          // The banner is the first thing in the body and pushes the cards down (spec 7.6): it is
-          // about what is under it, so it never lies over it.
-          ListHeaderComponent={
-            link.at === 'gone' ? (
-              <Banner text={s.home.offline}>
-                <IconButton
-                  icon={X}
-                  label={s.action.hide}
-                  size={height.roundTiny}
-                  tone="danger"
-                  onPress={() => setLink({ at: 'hushed', why: link.why })}
-                />
-              </Banner>
-            ) : link.at === 'back' ? (
-              <Banner tone="done" text={s.home.online} />
-            ) : null
-          }
-          // `HomeEmpty`: nothing to list is an invitation standing in the middle of the body, where
-          // a stack of cards would otherwise start at the top of it.
-          ListEmptyComponent={
-            <Empty sign="spark" icon={Camera} title={s.home.emptyTitle} text={s.home.empty} />
-          }
-          renderItem={({ item, index }) => {
-            // `?? []` and not a bare read: the app ships over the air and the api deploys on its
-            // own, so a build that knows this field can meet one that does not. Every other new
-            // field degrades quietly under that skew — this one would throw inside the list
-            // renderer and take the main screen down with it.
-            const thumbs = item.recent_thumbnail_urls ?? [];
-            // The one frame the organizer chose as this memory's face (api README, `PATCH
-            // /memories/:memoryId`). `?? null` and not a bare read for the same reason as above:
-            // an api older than the field sends nothing, and the card is then what it always was.
-            const cover = item.cover_thumbnail_url ?? null;
-            // Spec 8: the freshest memory leads the list on the large card — but that card *is* a
-            // photograph with a name across it, so a memory with nothing in it yet takes the
-            // ordinary one and its dashed film, exactly as `Main` draws «Корпоратив Nox». A cover
-            // is that photograph too, and on its own is enough to carry the large card.
-            const large = index === 0 && (cover !== null || thumbs.length > 0);
-            // The bar of who has already brought theirs, off the summary the listing itself counted
-            // (doc-06) — no request per card. An api too old to send it draws no bar at all, rather
-            // than a full one over «0 из 0».
-            const shared = large && item.member_count > 0;
-
-            return (
-              <CardMemory
-                title={item.title}
-                // «12–14 сентября · 486 кадров». A day that will not parse writes nothing, and a
-                // dot with nothing on one side of it is worse than one fact alone.
-                meta={[
-                  formatEventDates(item.event_start, item.event_end),
-                  s.memory.frames(item.media_count),
-                ].filter(Boolean)}
-                // The frames the listing signed for this memory, drawn as they come: the card shows
-                // what is inside instead of counting it.
-                thumbs={thumbs}
-                // Spec 7.6, «с обложкой»: the chosen frame takes the whole face of the large card
-                // and leads the strip of the ordinary one. Without one both cards are unchanged.
-                cover={cover}
-                large={large}
-                organizer={
-                  item.role === 'organizer' ? (
-                    <BadgeOrganizer label={s.role.organizer} />
-                  ) : undefined
-                }
-                // Spec 7.6 — filled over a cover, outlined on a surface.
-                films={
-                  item.montage_count > 0 ? (
-                    <BadgeFilms label={s.montage.count(item.montage_count)} filled={large} />
-                  ) : undefined
-                }
-                progress={shared ? item.contributed_member_count / item.member_count : undefined}
-                progressLabel={
-                  shared
-                    ? s.home.brought(item.contributed_member_count, item.member_count)
-                    : undefined
-                }
-                // Two different silences, and they must not be worded the same. A memory with
-                // nothing in it is waiting for the first frame. A memory that has a hundred but
-                // signed no thumbnail — the worker has not made them yet, the api has no bucket,
-                // or the build is older than the field — is not empty, and telling that person to
-                // add the first ones would be a lie the meta line beside it contradicts.
-                emptyText={item.media_count === 0 ? s.home.noFrames : s.state.preparing}
-                // Straight to the material: what a memory is for is the photos in it, so the card
-                // opens the memory on its first face. The movies and the people are the other two,
-                // one press away on the switch under its name.
-                onPress={() => router.push({ pathname: '/memory/[id]', params: { id: item.id } })}
+                  return (
+                    <CardMemory
+                      title={item.title}
+                      // «12–14 сентября · 486 кадров». A day that will not parse writes nothing,
+                      // and a dot with nothing on one side of it is worse than one fact alone.
+                      meta={[
+                        formatEventDates(item.event_start, item.event_end),
+                        s.memory.frames(item.media_count),
+                      ].filter(Boolean)}
+                      // The frames the listing signed for this memory, drawn as they come: the card
+                      // shows what is inside instead of counting it.
+                      thumbs={thumbs}
+                      // Spec 7.6, «с обложкой»: the chosen frame takes the whole face of the large
+                      // card and leads the strip of the ordinary one. Without one both cards are
+                      // unchanged.
+                      cover={cover}
+                      large={large}
+                      organizer={
+                        item.role === 'organizer' ? (
+                          <BadgeOrganizer label={s.role.organizer} />
+                        ) : undefined
+                      }
+                      // Spec 7.6 — filled over a cover, outlined on a surface.
+                      films={
+                        item.montage_count > 0 ? (
+                          <BadgeFilms label={s.montage.count(item.montage_count)} filled={large} />
+                        ) : undefined
+                      }
+                      progress={
+                        shared ? item.contributed_member_count / item.member_count : undefined
+                      }
+                      progressLabel={
+                        shared
+                          ? s.home.brought(item.contributed_member_count, item.member_count)
+                          : undefined
+                      }
+                      // Two different silences, and they must not be worded the same. A memory with
+                      // nothing in it is waiting for the first frame. A memory that has a hundred
+                      // but signed no thumbnail — the worker has not made them yet, the api has no
+                      // bucket, or the build is older than the field — is not empty, and telling
+                      // that person to add the first ones would be a lie the meta line beside it
+                      // contradicts.
+                      emptyText={item.media_count === 0 ? s.home.noFrames : s.state.preparing}
+                      // Straight to the material: what a memory is for is the photos in it, so the
+                      // card opens the memory on its first face. The movies and the people are the
+                      // other two, one press away on the switch under its name.
+                      onPress={() =>
+                        router.push({ pathname: '/memory/[id]', params: { id: item.id } })
+                      }
+                    />
+                  );
+                }}
               />
-            );
-          }}
-        />
+            )
+      }
+    >
+      {memories !== null ? null : failed === null ? (
+        // `HomeLoading`: waiting holds the place of the list rather than blinking over it.
+        <Waiting text={s.state.gathering} />
+      ) : (
+        // Nothing held and nothing arrived. The failure takes the place of the list, because the
+        // empty state under it would read as «you have no memories», which is not known.
+        <Empty icon={WifiOff} text={failed}>
+          <Button label={s.action.retry} variant="small" onPress={load} />
+        </Empty>
       )}
-
-      <ActionBar>
-        <Button
-          label={s.home.create}
-          variant="primary"
-          icon={Plus}
-          wide
-          // `HomeLoading`: the one action of the screen keeps its place and is simply not available
-          // while the list is still on its way.
-          disabled={memories === null && failed === null}
-          onPress={() => router.push('/create')}
-        />
-      </ActionBar>
     </Board>
   );
 }
@@ -224,7 +249,7 @@ const styles = StyleSheet.create({
   // Cards a 12 gap apart, 16 under the bar, and the list keeps the full height so its empty state
   // has somewhere to stand.
   list: { flexGrow: 1, gap: space.s3, paddingTop: space.s4, paddingBottom: space.s5 },
-  place: { flex: 1 },
   // A body with nothing to scroll holds what it has in the middle.
   mid: { justifyContent: 'center' },
+  edge: { marginHorizontal: -space.s4 },
 });
