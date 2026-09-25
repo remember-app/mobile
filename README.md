@@ -135,14 +135,15 @@ dev-билде: в Expo Go она принадлежит не нам, и `xcrun 
 Чтобы это заработало вживую, нужен Expo-аккаунт — **этого шага здесь нет, и в коде ничего не
 зашито**:
 
-1. `npx eas init` в этой папке — он и запишет `expo.extra.eas.projectId` (и `owner`) в `app.json`.
+1. `eas init` в этой папке (глобальный `eas` — `npm i -g eas-cli`; `npx eas` тянет чужой пакет) —
+   он и запишет `expo.extra.eas.projectId` (и `owner`) в `app.json`.
    Именно это поле читает `getExpoPushTokenAsync`; без него в логе `No "projectId" found`.
 2. `ios.bundleIdentifier` и `android.package` в `app.json` — их спросит первая `eas build` и
    запишет сама.
-3. `npx eas build --profile development -p ios` (или `android`), поставить сборку на телефон,
+3. `eas build --profile development -p ios` (или `android`), поставить сборку на телефон,
    `npx expo start --dev-client`. Переменные (`EXPO_PUBLIC_API_URL`) dev-билд берёт с дев-сервера,
    то есть из локального `.env`, а не из сборки.
-4. Ключи APNs / FCM — `npx eas credentials`.
+4. Ключи APNs / FCM — `eas credentials`.
 
 Плагин `expo-notifications` ставит `aps-environment: development`; в сборке для магазина Xcode
 сам меняет его на `production`, отдельной настройки для TestFlight нет.
@@ -183,10 +184,11 @@ dev-билде: в Expo Go она принадлежит не нам, и `xcrun 
    eas build -p ios --profile testflight
    git commit -m "chore(mobile): номер сборки для TestFlight" app.json
    ```
-6. Отправка в App Store Connect. `--latest` берёт последнюю сборку для магазина — только что
-   собранную; вход в Apple спросит снова:
+6. Отправка в App Store Connect. `--profile testflight` берёт из `eas.json` номер приложения в App
+   Store Connect (`ascAppId`) — без флага он не читается; `--latest` — последнюю сборку для
+   магазина, только что собранную; вход в Apple спросит снова:
    ```sh
-   eas submit -p ios --latest
+   eas submit -p ios --profile testflight --latest
    ```
    После загрузки Apple ещё несколько минут обрабатывает сборку, потом она видна во вкладке
    TestFlight. Вопроса про шифрование не будет — ответ уже в `app.json`
