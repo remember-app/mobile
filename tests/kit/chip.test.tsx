@@ -5,7 +5,7 @@ import { Chip } from '@/kit/chip';
 import { allDifferent, story } from '@/kit/story';
 import { setTheme } from '@/theme';
 
-/** Spec 7.3 — the chip: three heights, and everything that can stand inside one. */
+/** Spec 7.3 — the chip: four heights, and everything that can stand inside one. */
 
 beforeAll(async () => {
   await setTheme('dark');
@@ -23,11 +23,12 @@ test('the chips are as many as the things that can stand in one', () => {
   });
 });
 
-test('the three heights are three heights, and the quick one stands on a fill of its own', () => {
+test('the four heights are four heights, and the quick one stands on a fill of its own', () => {
   allDifferent({
     filter: <Chip label="Все" onPress={() => {}} />,
     quick: <Chip label="Сегодня" size={36} onPress={() => {}} />,
     journal: <Chip label="Мысли" size={34} onPress={() => {}} />,
+    tag: <Chip label="Все" size={28} onPress={() => {}} />,
   });
   // Spec 7.3: the quick days carry a fill under them — they stand on a screen, not over a list —
   // and the filter chip carries none. A shape, so it is told apart by the class and not by a colour.
@@ -35,8 +36,10 @@ test('the three heights are three heights, and the quick one stands on a fill of
     'r-backgroundColor-',
   );
   expect(story(<Chip label="Все" onPress={() => {}} />)).not.toContain('r-backgroundColor-');
-  // And all three are felt at 44 however they are drawn (spec 10.2).
+  // And all of them are felt at 44 however they are drawn (spec 10.2).
   expect(story(<Chip label="Мысли" size={34} onPress={() => {}} />)).toContain('min-height:34px');
+  // «Все дни» in the head of the filter's day block (spec 7.3) is the smallest of them.
+  expect(story(<Chip label="Все дни" size={28} onPress={() => {}} />)).toContain('min-height:28px');
 });
 
 test('a count is the same words a shade quieter, and it is read out with the name', () => {

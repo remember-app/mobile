@@ -5,7 +5,7 @@ vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' 
 
 import type { FrameInfo, Label } from '@/api';
 import { allDifferent, story } from '@/kit/story';
-import { FILTER_NONE, type Filter, SORT_DEFAULT, type Sort } from '@/lib/frames';
+import { FILTER_NONE, type Filter, type FilterDay, SORT_DEFAULT, type Sort } from '@/lib/frames';
 import { FilterSheet, FrameInfoSheet, SortSheet } from '@/screens/memory/frames-sheets';
 import { setTheme, ThemePin } from '@/theme';
 
@@ -116,7 +116,7 @@ test('the three states of the sheet are three sheets', () => {
 
 /**
  * Two people who brought something, two boxes to put it in and two days of it — what `SheetFilter`
- * is handed. The boxes come in the api's own order, shared first: one everybody sees and one that
+ * is handed. The 13th of September 2026 is a Sunday, the 12th a Saturday. The boxes come in the api's own order, shared first: one everybody sees and one that
  * is somebody's own, which is the pair the lock tells apart.
  */
 const people = [
@@ -138,16 +138,22 @@ const labels = [
   box({}),
   box({ id: 'mine', title: 'Для себя', color: 6, shared: false, media_count: 9 }),
 ];
-const days = [
-  { at: new Date(2026, 8, 13).getTime(), count: 312 },
-  { at: new Date(2026, 8, 12).getTime(), count: 88 },
+const days: FilterDay[] = [
+  { at: new Date(2026, 8, 13).getTime(), count: 312, fill: 1 },
+  { at: new Date(2026, 8, 12).getTime(), count: 88, fill: 0.28 },
 ];
 
-const filter = (over: Partial<Filter> = {}, shown = 486, boxes: readonly Label[] = labels) => (
+const filter = (
+  over: Partial<Filter> = {},
+  shown = 486,
+  boxes: readonly Label[] = labels,
+  offered: readonly FilterDay[] = days,
+  who: readonly { id: string; name: string }[] = people,
+) => (
   <FilterSheet
-    people={people}
+    people={who}
     labels={boxes}
-    days={days}
+    days={offered}
     value={{ ...FILTER_NONE, ...over }}
     count={() => shown}
     onApply={() => {}}
@@ -159,16 +165,18 @@ const sorting = (over: Partial<Sort> = {}) => (
   <SortSheet value={{ ...SORT_DEFAULT, ...over }} onChange={() => {}} onDone={() => {}} />
 );
 
-test('the filter is four groups, and a day chip carries what that day holds', () => {
+test('the filter is four groups: faces, the type, the boxes and the day tiles', () => {
   const whole = story(filter());
   for (const line of [
     'Фильтры',
     'Сбросить',
     // The eyebrows are drawn in caps, the way the layout writes every heading over a row.
     'КТО ПРИНЁС',
-    // The name they are called by, with the whole of it still in the circle.
-    '>Лиза<',
-    'ЛМ',
+    // Faces and no names (spec 8): the initials in the circle, the whole name read out.
+    '>ЛМ<',
+    '>МК<',
+    'aria-label="Лиза Морозова"',
+    'aria-label="Марк Ковалёв"',
     'ТИП',
     'Всё',
     'Фото',
@@ -176,16 +184,79 @@ test('the filter is four groups, and a day chip carries what that day holds', ()
     'ЛЕЙБЛЫ',
     'Лучшее',
     'ДЕНЬ',
-    'Все дни',
-    '13 сент',
-    '312',
-    'Другая дата',
+    '>Все дни<',
+    'aria-label="Выбрать другую дату"',
+    // A tile: the figure, the weekday, the count declined — and all of it in words out loud.
+    '>13<',
+    '>вс<',
+    '>312 кадров<',
+    'aria-label="13 сентября, вс, 312 кадров"',
+    '>12<',
+    '>сб<',
+    '>88 кадров<',
+    // The bar is the day's `fill`, and the fullest day's runs the whole track.
+    'width:28%',
+    'width:100%',
   ]) {
     expect(whole).toContain(line);
   }
-  // The calendar is behind «Другая дата» and not under the row from the start: it is for the day
-  // the row is not offering, which on most memories is no day at all.
+  // No name under a face and no chip per day any more (spec 7.0.1).
+  expect(whole).not.toContain('>Лиза<');
+  expect(whole).not.toContain('>Лиза Морозова<');
+  expect(whole).not.toContain('>13 сент<');
+  expect(whole).not.toContain('Другая дата<');
+  // The tiles run in date order, the earliest on the left — whatever order the days arrive in.
+  expect(whole.indexOf('12 сентября, сб')).toBeLessThan(whole.indexOf('13 сентября, вс'));
+  // The calendar is behind its button and not under the tiles from the start: it is for the day
+  // the tiles are not offering, which on most memories is no day at all.
   expect(whole).not.toContain('Сентябрь 2026');
+});
+
+/** `n` days of September 2026 from the 10th on, the 1st of them holding 1 frame, the next 2… */
+const daysOf = (n: number): FilterDay[] =>
+  Array.from({ length: n }, (_, at) => ({
+    at: new Date(2026, 8, 10 + at).getTime(),
+    count: at + 1,
+    fill: (at + 1) / n,
+  }));
+const tilesOf = (drawn: string) =>
+  [...drawn.matchAll(/aria-label="(\d+) сентября, [а-я]+, \d+ кадр/g)].map((one) => one[1]);
+
+test('a tile per day up to three; past three, the three fullest — and never a row that scrolls', () => {
+  expect(tilesOf(story(filter({}, 1, labels, daysOf(1))))).toEqual(['10']);
+  expect(tilesOf(story(filter({}, 3, labels, daysOf(2))))).toEqual(['10', '11']);
+  expect(tilesOf(story(filter({}, 6, labels, daysOf(3))))).toEqual(['10', '11', '12']);
+  // Four days and a week: the fullest three, still earliest first; the rest are the calendar's.
+  expect(tilesOf(story(filter({}, 10, labels, daysOf(4))))).toEqual(['11', '12', '13']);
+  expect(tilesOf(story(filter({}, 28, labels, daysOf(7))))).toEqual(['14', '15', '16']);
+  // And the head of the block is the same whatever the count: «Все дни» and the calendar.
+  for (const n of [1, 2, 3, 4, 7]) {
+    const drawn = story(filter({}, 1, labels, daysOf(n)));
+    expect(drawn).toContain('>Все дни<');
+    expect(drawn).toContain('aria-label="Выбрать другую дату"');
+  }
+});
+
+/** `n` people, each a name of their own. */
+const crowd = (n: number) =>
+  Array.from({ length: n }, (_, at) => ({ id: `p${at}`, name: `Гость Номер${at + 1}` }));
+const facesOf = (drawn: string) => [...drawn.matchAll(/aria-label="Гость Номер(\d+)"/g)].length;
+
+test('every person who brought something is a face — one, six, seven or twelve, and no «+N»', () => {
+  for (const n of [1, 6, 7, 12]) {
+    const drawn = story(filter({}, 1, labels, days, crowd(n)));
+    expect(facesOf(drawn)).toBe(n);
+    expect(drawn).not.toMatch(/>\+\d+</);
+  }
+});
+
+test('a chosen face, a chosen tile and «Все дни» are each a sheet of their own', () => {
+  allDifferent({
+    nothing: filter(),
+    person: filter({ people: new Set(['liza']) }, 212),
+    day: filter({ days: new Set([days[0].at]) }, 312),
+    both: filter({ people: new Set(['liza']), days: new Set([days[0].at]) }, 100),
+  });
 });
 
 test('the boxes stand third, between the type and the days — and that is how one is looked at', () => {

@@ -28,7 +28,7 @@ export const radius = {
   strip: 14,
   /** code cell, search field, connection banner, sheet action row, 52/56 icon square */
   cell: 16,
-  /** field on a screen, queue row, hint plate, onboarding photo */
+  /** field on a screen, queue row, hint plate, onboarding photo, day tile in the filter */
   field: 18,
   /** tall field (60), section card, order summary, textarea */
   section: 20,
@@ -89,6 +89,12 @@ export const height = {
   chipSm: 36,
   /** the journal's filter */
   chipXs: 34,
+  /** «Все дни» and the calendar in the head of the filter's day block. Drawn at 28, felt at `TAP` */
+  chipTag: 28,
+  /** a face in «Кто принёс» */
+  face: 48,
+  /** a day tile in the filter */
+  dayTile: 86,
   /** the «смотрят сейчас» pill in a bar */
   watchPill: 36,
   /** `SheetSort`, the whole sheet from its top edge down */
@@ -226,6 +232,14 @@ export const type = StyleSheet.create({
     letterSpacing: -0.6,
     ...tabular,
   },
+  /** the figure of a day on its tile in the filter — the same number two points tighter */
+  figureDay: {
+    fontFamily: font.headline,
+    fontSize: 20,
+    lineHeight: 22,
+    letterSpacing: -0.6,
+    ...tabular,
+  },
   /** «Отправляем», the value of the «Название» field — a name typed in the face it is printed in */
   subtitleDisplay: { fontFamily: font.headlineSemi, fontSize: 17, lineHeight: 22 },
   /** a subheading in the running text face */
@@ -242,6 +256,8 @@ export const type = StyleSheet.create({
   controlSm: { fontFamily: font.semi, fontSize: 14, lineHeight: 14 },
   /** the label of a chip — the same size a shade lighter, because a chip is offered and not pressed home */
   chip: { fontFamily: font.medium, fontSize: 14, lineHeight: 14 },
+  /** «Все дни» in the head of the filter's day block — the smallest chip, and a heavier one */
+  chipXs: { fontFamily: font.semi, fontSize: 12, lineHeight: 12 },
   /** a small button's label, a frame group's heading */
   label: { fontFamily: font.semi, fontSize: 13, lineHeight: 16 },
   /** an explanation under something — the one 13 that runs to more than a word */
@@ -256,6 +272,8 @@ export const type = StyleSheet.create({
   badgeSm: { fontFamily: font.bold, fontSize: 10, lineHeight: 12, letterSpacing: 0.5 },
   /** dates, counters, timecodes */
   meta: { fontFamily: font.medium, fontSize: 12, lineHeight: 15, ...tabular },
+  /** «сб» and «312 кадров» on a day tile: a meta line a size down and a weight up */
+  metaTile: { fontFamily: font.semi, fontSize: 11, lineHeight: 13, ...tabular },
 });
 
 /**

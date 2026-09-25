@@ -26,8 +26,8 @@ import { currentLanguage } from '@/lib/language';
 function dayFields(
   value: string | Date,
   locale: string = currentLanguage(),
-  // The same word cut short — «сент», «Sep» — for the two places a day stands in a space measured
-  // in millimetres: the pill on the date spine and the day chips of `SheetFilter`.
+  // The same word cut short — «сент», «Sep» — for a day standing in a space measured in millimetres:
+  // the pill on the date spine.
   width: 'long' | 'short' = 'long',
 ) {
   const day = new Date(value);
@@ -70,9 +70,9 @@ export function formatDayShort(value: string | Date, locale?: string): string {
 }
 
 /**
- * The shortest a day gets — «13 сент», «13 Sep»: the pill on the date spine (spec 7.8, detail 66)
- * and the day chips of `SheetFilter`, both of which hold one line ten pixels tall. The month is the
- * locale's own abbreviation with its full stop taken off, the way the layout writes it.
+ * The shortest a day gets — «13 сент», «13 Sep»: the pill on the date spine (spec 7.8, detail 66),
+ * which holds one line ten pixels tall. The month is the locale's own abbreviation with its full
+ * stop taken off, the way the layout writes it.
  */
 export function formatDayTiny(value: string | Date, locale?: string): string {
   const fields = dayFields(value, locale, 'short');
@@ -90,11 +90,18 @@ export function formatTime(value: string | Date, locale: string = currentLanguag
   return at.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' });
 }
 
-/** And the name of that day — «суббота», «Saturday» — the second line of the frame's own sheet. */
-export function formatWeekday(value: string | Date, locale: string = currentLanguage()): string {
+/**
+ * And the name of that day — «суббота», «Saturday» — the second line of the frame's own sheet; cut
+ * short — «сб», «Sat» — beside the figure on a day tile of `SheetFilter` (spec 7.3, detail 74).
+ */
+export function formatWeekday(
+  value: string | Date,
+  locale: string = currentLanguage(),
+  width: 'long' | 'short' = 'long',
+): string {
   const day = new Date(value);
   if (Number.isNaN(day.getTime())) return '';
-  return day.toLocaleDateString(locale, { weekday: 'long' });
+  return day.toLocaleDateString(locale, { weekday: width });
 }
 
 /**

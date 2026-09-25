@@ -37,9 +37,9 @@ import {
   type Filter,
   type Frame,
   type FrameGroup,
+  filterDays,
   filtering,
   frameOf,
-  framesByDay,
   framesMatching,
   groupFrames,
   keepLabels,
@@ -251,7 +251,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
     scrollTo,
   });
 
-  /** Everybody who actually brought something, for the chips the filter sheet offers. */
+  /** Everybody who actually brought something, for the faces the filter sheet offers. */
   const brought = useMemo(() => {
     const ids = [...new Set((items ?? []).map((item) => item.uploaded_by))];
     return ids.map((who) => ({
@@ -260,15 +260,8 @@ export function Frames({ id, head }: { id: string; head: Head }) {
     }));
   }, [items, roster]);
 
-  /**
-   * Every day the memory holds, newest first, each with what it holds — the other row of chips on
-   * that sheet, and the counts are of the whole memory rather than of what is on screen: a chip
-   * says what pressing it would bring back, not what the filter has already left.
-   */
-  const days = useMemo(
-    () => framesByDay(items ?? []).map((day) => ({ at: day.at, count: day.frames.length })),
-    [items],
-  );
+  /** Every day the memory holds, counted and weighed for the day tiles on that sheet. */
+  const days = useMemo(() => filterDays(items ?? []), [items]);
 
   /**
    * What a tile is called out loud: what it is, what has become of it, and whether it is the frame

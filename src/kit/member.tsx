@@ -1,10 +1,13 @@
 import { Image } from 'expo-image';
-import type { ReactNode } from 'react';
-import { type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
+import { Check } from 'lucide-react-native';
+import { type ReactNode, useState } from 'react';
+import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
 import { faceOf, font, height, radius, space, themed, useTheme } from '@/theme';
 
 import { Divider, LiveDot } from './bits';
+import { Icon } from './icon';
+import { PRESS, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
 import { Text } from './text';
 
 /**
@@ -15,8 +18,9 @@ import { Text } from './text';
 
 /**
  * The sizes the layout draws an avatar at, each with the type size that goes inside it (spec 7.5):
- * 16 in a day gap, 18 on a frame on air, 24 in a stack, 30 in a filter chip, 32 in a sheet, 34 in a
- * section row, 38 in a member row, 42 in a contact row, 64 on a confirmation, 68 on the account.
+ * 16 in a day gap, 18 on a frame on air, 24 in a stack, 30 in a chip, 32 in a sheet, 34 in a
+ * section row, 38 in a member row, 42 in a contact row, 48 as a face in the filter, 64 on a
+ * confirmation, 68 on the account.
  * Roughly a third of the circle, rounded the way the layout rounded it.
  */
 const LETTERS: Record<number, number> = {
@@ -29,6 +33,7 @@ const LETTERS: Record<number, number> = {
   34: 11,
   38: 13,
   42: 14,
+  48: 15,
   64: 18,
   68: 20,
 };
@@ -166,6 +171,127 @@ export function AvatarStack({
     </View>
   );
 }
+
+/**
+ * Spec 7.5 — the face as a switch: «Кто принёс» in the filter is a row of these and nothing else. The
+ * circle alone, 48 and without a hairline, and no name beside it — a person is known by their
+ * circle, and the name is what it is called out as.
+ *
+ * Chosen, it stands in a double ring — 2 of the sheet's `surface`, then 2 of `paper` — with a `paper`
+ * tick in its lower corner; not chosen, the whole face goes down to half. It lives on the sheet, so
+ * `surface` is what the inner ring and the tick's collar are cut in.
+ */
+export function FaceToggle({
+  name,
+  selected,
+  onPress,
+}: {
+  /** The whole name: the initials come out of it, and it is what the face is read out as. */
+  name: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  const { focused, props } = useHoverFocus();
+  const reduced = useReducedMotion();
+  const { color } = useTheme();
+  const styles = useFaceStyles();
+  const focusRing = useFocusRing();
+
+  return (
+    <Pressable
+      accessibilityRole="togglebutton"
+      accessibilityLabel={name}
+      accessibilityState={{ checked: selected }}
+      onPress={onPress}
+      {...props}
+      style={({ pressed }) => [
+        styles.face,
+        selected
+          ? { boxShadow: `0 0 0 2px ${color.surface}, 0 0 0 4px ${color.paper}` }
+          : styles.dim,
+        pressed && !reduced ? PRESS : null,
+        focused ? focusRing : null,
+      ]}
+    >
+      <Avatar name={name} size={height.face} />
+      {selected ? (
+        <View style={styles.tick}>
+          <Icon icon={Check} size={9} color={color.ink} />
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
+
+/** The least air between two faces: a chosen one's ring reaches 4 past its edge on either side. */
+const FACE_AIR = space.s2;
+/** The row stands 2 in from the sheet's edges, so the ring of a face at either end is not cut. */
+const FACE_EDGE = 2;
+
+/**
+ * How far apart the faces stand once they no longer fit one row. One row is spread edge to edge
+ * (`space-between`, spec 8) and needs no number — that is `undefined`, and so is a row not measured
+ * yet. Past one row the faces wrap (TASK-294: no scrolling and no «+N»), and every row keeps the
+ * columns of the first: a wrapped `space-between` would spread two faces of a last row to the two
+ * edges and three to the edges and the middle, under nothing in the row above.
+ *
+ * Whole pixels, rounded down: the gaps summed to the exact width let Yoga's float round the last face
+ * of a row onto the next one.
+ */
+export function faceGap(width: number, count: number): number | undefined {
+  const across = Math.floor((width + FACE_AIR) / (height.face + FACE_AIR));
+  if (count <= across || across < 2) return undefined;
+  return Math.floor((width - across * height.face) / (across - 1));
+}
+
+/**
+ * The row the faces stand in (spec 8, «Кто принёс»): spread across the sheet and wrapping onto a
+ * second row rather than scrolling or hiding anybody (TASK-294). It measures itself — how many faces
+ * fit is a question of the phone's width. The eyebrow over it is what names the group.
+ */
+export function FaceRow({ children }: { children: ReactNode[] }) {
+  const styles = useFaceStyles();
+  const [width, setWidth] = useState(0);
+  const gap = faceGap(width - FACE_EDGE * 2, children.length);
+
+  return (
+    <View
+      onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
+      style={[styles.row, gap === undefined ? styles.spread : { columnGap: gap }]}
+    >
+      {children}
+    </View>
+  );
+}
+
+const useFaceStyles = themed(({ color }) =>
+  StyleSheet.create({
+    face: { width: height.face, height: height.face, borderRadius: radius.pill },
+    dim: { opacity: 0.5 },
+    // Spec 7.5: 18 of `paper` hanging 2 past the lower right, collared 2 in the sheet's own colour.
+    tick: {
+      position: 'absolute',
+      right: -2,
+      bottom: -2,
+      width: 18,
+      height: 18,
+      borderRadius: radius.pill,
+      backgroundColor: color.paper,
+      borderWidth: 2,
+      borderColor: color.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    row: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      rowGap: space.s3,
+      paddingTop: FACE_EDGE,
+      paddingHorizontal: FACE_EDGE,
+    },
+    spread: { justifyContent: 'space-between' },
+  }),
+);
 
 /**
  * Spec 7.5 — «смотрят сейчас»: the faces of the people watching a montage go out, the live dot, and

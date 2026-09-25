@@ -3,12 +3,12 @@ import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from 'rea
 import { height, photo, radius, space, type Theme, themed, useTheme } from '@/theme';
 
 import { Spinner } from './empty';
-import { ICO_S, Icon, type IconComponent } from './icon';
+import { ICO_S, ICO_XS, Icon, type IconComponent } from './icon';
 import { hitSlop, PRESS, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
 import { Text } from './text';
 
 /**
- * Spec 7.2 — the buttons. Six of them wear words and one is round and wears a glyph, and which is
+ * Spec 7.2 — the buttons. Eight of them wear words and one is round and wears a glyph, and which is
  * which is a matter of weight, never of taste: exactly one `primary` per screen, because `accent`
  * is the one main action and nothing else.
  */
@@ -17,12 +17,13 @@ export type ButtonVariant =
   | 'paper'
   | 'secondary'
   | 'small'
+  | 'raise'
   | 'quiet'
   | 'danger'
   | 'dashed';
 
 /** The heights of spec 4, by the place a button stands in rather than by the number. */
-export type ButtonSize = 'xl' | 'lg' | 'md' | 'sm' | 'xs' | 'xxs';
+export type ButtonSize = 'xl' | 'lg' | 'md' | 'sm' | 'xs' | 'mini' | 'xxs';
 
 const SIZES: Record<ButtonSize, number> = {
   // Spec 7.2 gives the dangerous button two heights, and the taller one has exactly one place in the
@@ -32,6 +33,8 @@ const SIZES: Record<ButtonSize, number> = {
   md: height.sheetButton,
   sm: height.small,
   xs: height.rowButton,
+  // «Сбросить» in the corner of `SheetFilter` — at the height of a round button in a row.
+  mini: height.roundRow,
   // The smallest thing in the product that is still a button with words in it: «Свой трек».
   xxs: height.roundTiny,
 };
@@ -42,6 +45,7 @@ const DEFAULT_SIZE: Record<ButtonVariant, ButtonSize> = {
   paper: 'lg',
   secondary: 'lg',
   small: 'sm',
+  raise: 'mini',
   quiet: 'sm',
   danger: 'lg',
   // «Новый лейбл», the taller of the two dashed ones.
@@ -54,6 +58,7 @@ const DEFAULT_WIDE: Record<ButtonVariant, boolean> = {
   paper: true,
   secondary: true,
   small: false,
+  raise: false,
   quiet: false,
   danger: true,
   dashed: true,
@@ -125,6 +130,7 @@ export function Button({
         // in the row it stands in.
         variant === 'dashed' && tall >= height.sheetButton ? styles.boxed : null,
         variant === 'quiet' || variant === 'small' ? styles.tight : null,
+        variant === 'raise' ? styles.snug : null,
         (wide ?? DEFAULT_WIDE[variant]) ? styles.wide : null,
         pressed && !reduced ? PRESS : null,
         focused ? focusRing : null,
@@ -132,8 +138,13 @@ export function Button({
       ]}
     >
       {busy ? <Spinner size={18} track={tint} head="transparent" /> : null}
-      {icon && !busy ? <Icon icon={icon} size={ICO_S} color={tint} /> : null}
-      <Text role={variant === 'small' ? 'label' : 'control'} style={{ color: tint }}>
+      {icon && !busy ? (
+        <Icon icon={icon} size={variant === 'raise' ? ICO_XS : ICO_S} color={tint} />
+      ) : null}
+      <Text
+        role={variant === 'small' || variant === 'raise' ? 'label' : 'control'}
+        style={{ color: tint }}
+      >
         {words}
       </Text>
       {trailingIcon && !busy ? <Icon icon={trailingIcon} size={ICO_S} color={tint} /> : null}
@@ -181,6 +192,10 @@ function fill(
       };
     case 'small':
       return { borderColor: color.line, backgroundColor: hovered ? color.raise : 'transparent' };
+    // Spec 8, `SheetFilter`: «Сбросить» is lifted by its fill and has no border at all — it is
+    // needed rarely, and a ring would make it argue with the main button.
+    case 'raise':
+      return { backgroundColor: color.raise };
     // No shadow: a shadow would make it the main action of the screen, and it never is.
     case 'danger':
       return { backgroundColor: color.dangerFill };
@@ -192,9 +207,10 @@ function fill(
 }
 
 /**
- * Spec 7.2 — the round button, at the six diameters the layout draws: 56 at the foot of the gallery,
- * 48 on the glass bar and in the viewer, 44 in a bar, 40 in a track row, 36 in a row, 32 on a
- * banner. Under 44 the drawn size stays and the finger target grows out to 44 (spec 10.2).
+ * Spec 7.2 — the round button, at the seven diameters the layout draws: 56 at the foot of the
+ * gallery, 48 on the glass bar and in the viewer, 44 in a bar, 40 in a track row, 36 in a row, 32 on
+ * a banner, 28 beside «Все дни» in the filter (spec 8). Under 44 the drawn size stays and the finger
+ * target grows out to 44 (spec 10.2).
  *
  * The two glasses are two tones and not one: `glass` is the bar over the feed — `ink` at 62%, with a
  * darkening of its own under the bar, which is what keeps a white glyph readable over a wall of
@@ -206,6 +222,7 @@ function fill(
  */
 export type RoundTone =
   | 'surface'
+  | 'outline'
   | 'raise'
   | 'ghost'
   | 'glass'
@@ -287,7 +304,7 @@ export function IconButton({
           reads as a plate with something small lost in it. The layout draws that one at 26. */}
       <Icon
         icon={icon}
-        size={size >= 64 ? 26 : size >= 48 ? 22 : size >= 40 ? 20 : 18}
+        size={size >= 64 ? 26 : size >= 48 ? 22 : size >= 40 ? 20 : size > 28 ? 18 : 14}
         color={glyph}
       />
       {dot ? (
@@ -322,6 +339,8 @@ function roundGlyph(color: Theme['color'], tone: RoundTone): string {
     // pane lying over a photograph is a glyph that disappears into the brightest frame behind it.
     case 'glass':
     case 'viewer':
+    // Drawn round a glyph on nothing, the ring is the button; the glyph inside it is full-voiced.
+    case 'outline':
       return color.paper;
     case 'paper':
       return color.ink;
@@ -374,6 +393,13 @@ function roundFill(
   switch (tone) {
     case 'surface':
       return { backgroundColor: color.surface, borderColor: color.line };
+    // The calendar beside «Все дни» (spec 8, `SheetFilter`): transparent inside a `lineQuiet` ring,
+    // the same ring the chip beside it wears.
+    case 'outline':
+      return {
+        borderColor: color.lineQuiet,
+        backgroundColor: hovered ? color.raise : 'transparent',
+      };
     // Spec 7.2: raised, and without a border — the lift is the fill.
     case 'raise':
       return { backgroundColor: color.raise };
@@ -407,6 +433,8 @@ const useStyles = themed(({ color }) =>
     },
     // Spec 7.2: the quiet one and the small one both pull their sides in.
     tight: { paddingHorizontal: space.s3 },
+    // The raised one is smaller all through: 14 a side and a 13 glyph 6 from its words.
+    snug: { paddingHorizontal: 14, gap: 6 },
     boxed: { borderRadius: radius.cell },
     // A small button never shrinks when the row beside it runs long.
     wide: { width: '100%', flexShrink: 1 },

@@ -26,6 +26,7 @@ export * from './chip';
 export * from './choice';
 export * from './confirm';
 export * from './cover';
+export * from './day-tile';
 export * from './daymark';
 export * from './empty';
 export * from './field';

@@ -16,12 +16,13 @@ const VARIANTS: ButtonVariant[] = [
   'paper',
   'secondary',
   'small',
+  'raise',
   'quiet',
   'danger',
   'dashed',
 ];
 
-test('the seven buttons are seven different buttons', () => {
+test('the eight buttons are eight different buttons', () => {
   allDifferent(
     Object.fromEntries(
       VARIANTS.map((variant) => [variant, <Button variant={variant} label="Смонтировать" />]),
@@ -82,7 +83,7 @@ test('the dashed button is a hole rather than a thing, and it is square only whe
   expect(story(<Button variant="primary" label="Создать" />)).not.toContain('dashed');
 });
 
-test('the six heights are six heights, and each variant starts at its own', () => {
+test('the seven heights are seven heights, and each variant starts at its own', () => {
   allDifferent({
     // 60, and only «Выйти из аккаунта» stands at it.
     xl: <Button label="Дальше" size="xl" />,
@@ -90,8 +91,13 @@ test('the six heights are six heights, and each variant starts at its own', () =
     md: <Button label="Дальше" size="md" />,
     sm: <Button label="Дальше" size="sm" />,
     xs: <Button label="Дальше" size="xs" />,
+    mini: <Button label="Дальше" size="mini" />,
     xxs: <Button label="Дальше" size="xxs" />,
   });
+  // «Сбросить» stands at 36 without being told.
+  expect(story(<Button variant="raise" label="Сбросить" />)).toBe(
+    story(<Button variant="raise" label="Сбросить" size="mini" />),
+  );
   // The main action stands at 56 and the small row button at 44 without being told.
   expect(story(<Button variant="primary" label="Дальше" />)).toBe(
     story(<Button variant="primary" label="Дальше" size="lg" />),
@@ -110,6 +116,17 @@ test('the loud buttons run the width they are given and the quiet ones are as wi
   );
 });
 
+test('the raised button is lifted by its fill alone, and everything in it is a size down', () => {
+  // Spec 8, `SheetFilter` — «Сбросить»: `raise` (#22222E) under `paper`, no ring round it, a 13
+  // cross and the words in `label` 13 / 600.
+  const raised = story(<Button variant="raise" label="Сбросить" icon={Plus} />);
+  expect(raised).toContain('rgba(34,34,46,1.00)');
+  expect(raised).toContain('rgba(245,243,238,1.00)');
+  expect(raised).toContain('width="13"');
+  expect(raised).toContain('min-height:36px');
+  expect(story(<Button variant="small" label="Сбросить" icon={Plus} />)).toContain('width="18"');
+});
+
 test('a glyph can stand before the words or after them, and never instead of them', () => {
   allDifferent({
     bare: <Button variant="primary" label="Новое воспоминание" />,
@@ -121,10 +138,10 @@ test('a glyph can stand before the words or after them, and never instead of the
   );
 });
 
-test('the round button is drawn at the six diameters the layout uses', () => {
+test('the round button is drawn at the seven diameters the layout uses', () => {
   allDifferent(
     Object.fromEntries(
-      [72, 56, 48, 44, 36, 32].map((size) => [
+      [72, 56, 48, 44, 36, 32, 28].map((size) => [
         String(size),
         <IconButton icon={Plus} label="Фильтры" size={size} />,
       ]),
@@ -135,6 +152,10 @@ test('the round button is drawn at the six diameters the layout uses', () => {
   // 26 in it, and 22 there reads as a plate with something small lost in the middle (TASK-181).
   expect(story(<IconButton icon={Plus} label="Пауза" size={72} />)).toContain('width="26"');
   expect(story(<IconButton icon={Plus} label="Закрыть" size={48} />)).toContain('width="22"');
+  // And the 28 beside «Все дни» carries a 14 (spec 8), felt at 44 all the same (spec 10.2).
+  const calendar = story(<IconButton icon={Plus} label="Выбрать другую дату" size={28} />);
+  expect(calendar).toContain('width="14"');
+  expect(calendar).toContain('width:28px');
 });
 
 test('every round tone is its own fill, and none of them is a word', () => {
@@ -142,12 +163,17 @@ test('every round tone is its own fill, and none of them is a word', () => {
     surface: <IconButton icon={Plus} label="Аккаунт" tone="surface" />,
     raise: <IconButton icon={Plus} label="Короче на 5 секунд" tone="raise" />,
     ghost: <IconButton icon={Plus} label="Назад" tone="ghost" />,
+    outline: <IconButton icon={Plus} label="Выбрать другую дату" tone="outline" />,
     glass: <IconButton icon={Plus} label="Назад" tone="glass" />,
     viewer: <IconButton icon={Plus} label="Закрыть" tone="viewer" />,
     paper: <IconButton icon={Plus} label="Послушать" tone="paper" />,
     spark: <IconButton icon={Plus} label="Выбрать" tone="spark" />,
     danger: <IconButton icon={Plus} label="Удалить" tone="danger" />,
   });
+  // The outlined one is ringed in `lineQuiet` (#3A3747), the chip's ring, and reads in `paper`.
+  const outlined = story(<IconButton icon={Plus} label="Выбрать другую дату" tone="outline" />);
+  expect(outlined).toContain('rgba(58,55,71,1.00)');
+  expect(outlined).toContain('stroke="#F5F3EE"');
   // The label is the only thing a screen reader has: a glyph says nothing on its own.
   expect(story(<IconButton icon={Plus} label="Фильтры" />)).toContain('aria-label="Фильтры"');
 });

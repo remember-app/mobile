@@ -6,14 +6,14 @@ import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { Image } from 'expo-image';
 import TestRenderer, { act } from 'react-test-renderer';
 
-import { Banner, Calendar, Chip, RowSummary, Spinner } from '@/kit';
+import { Banner, Calendar, IconButton, RowSummary, Spinner } from '@/kit';
 import { FILTER_NONE, type Filter } from '@/lib/frames';
 import { FilterSheet, FrameInfoSheet } from '@/screens/memory/frames-sheets';
 import { ru } from '@/strings';
 
 /**
  * Two things about the sheets of a memory the feed cannot show. `SheetFilter`'s calendar (spec 8,
- * «Другая дата»): which month it opens on — the rest of that sheet is worked through the feed it is
+ * «Выбрать другую дату»): which month it opens on — the rest of that sheet is worked through the feed it is
  * raised from (`frames-feed-flow.test.tsx`), and the feed never asks the calendar where it stands. And
  * `SheetFrameInfo` in the three states its read can leave it in; what it says of a frame is
  * `frame-viewer-flow.test.tsx`'s, which raises it the way a person does.
@@ -49,7 +49,7 @@ async function open(days: number[]) {
   });
   await act(async () =>
     tree.root
-      .findAllByType(Chip)
+      .findAllByType(IconButton)
       .find((one) => one.props.label === ru.gallery.otherDay)!
       .props.onPress(),
   );

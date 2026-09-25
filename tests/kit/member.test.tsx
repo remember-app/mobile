@@ -1,13 +1,31 @@
+import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { X } from 'lucide-react-native';
+import { View } from 'react-native';
+import TestRenderer, { act } from 'react-test-renderer';
 import { beforeAll, expect, test } from 'vitest';
 
 import { BadgeContribution } from '@/kit/badge';
 import { IconButton } from '@/kit/button';
-import { Avatar, AvatarStack, initials, RowContact, RowMember, WatchingPill } from '@/kit/member';
+import {
+  Avatar,
+  AvatarStack,
+  FaceRow,
+  FaceToggle,
+  faceGap,
+  initials,
+  RowContact,
+  RowMember,
+  WatchingPill,
+} from '@/kit/member';
 import { allDifferent, story } from '@/kit/story';
-import { setTheme } from '@/theme';
+import { setTheme, ThemePin } from '@/theme';
 
-/** Spec 7.5 — people: the circle, the row inside a memory, the row in the address book. */
+/**
+ * Spec 7.5 — people: the circle, the face that is a switch in the filter, the row inside a memory,
+ * the row in the address book.
+ */
+
+mountsTrees();
 
 beforeAll(async () => {
   await setTheme('dark');
@@ -176,4 +194,76 @@ test('the three states of a contact row are three rows', () => {
   expect(
     story(<RowContact name="Марина Ким" handle="Убрали из контактов" variant="gone" />),
   ).toContain('Убрали из контактов');
+});
+
+const face = (selected: boolean, name = 'Лиза Морозова') => (
+  <FaceToggle name={name} selected={selected} onPress={() => {}} />
+);
+
+test('a face in the filter is the circle alone, read out by the whole name', () => {
+  const drawn = story(face(false));
+  // Initials in the circle and no name beside it (spec 7.5): the name is what it is called out as.
+  expect(drawn).toContain('>ЛМ<');
+  expect(drawn).not.toContain('>Лиза Морозова<');
+  expect(drawn).not.toContain('>Лиза<');
+  expect(drawn).toContain('aria-label="Лиза Морозова"');
+  // A switch that stays in (spec 7.5, `aria-pressed`), drawn at 48.
+  expect(drawn).toContain('role="togglebutton"');
+  expect(drawn).toContain('width:48px');
+});
+
+test('chosen is the double ring and the tick; not chosen is the whole face at half', () => {
+  allDifferent({ off: face(false), on: face(true) });
+  const on = story(face(true));
+  // 2 of the sheet's `surface` (#16161F), then 2 of `paper` (#F5F3EE), and the tick in `paper`.
+  expect(on).toContain('0 0 0 2px #16161F, 0 0 0 4px #F5F3EE');
+  expect(on).toContain('data-glyph="Check"');
+  const off = story(face(false));
+  expect(off).not.toContain('4px #F5F3EE');
+  expect(off).not.toContain('data-glyph="Check"');
+  // Both swap with the theme: the rings are cut in the sheet's own colours.
+  expect(story(<ThemePin value="light">{face(true)}</ThemePin>)).not.toContain('#16161F');
+});
+
+test('one row of faces is spread edge to edge; past a row they wrap and keep the first row’s columns', () => {
+  // 390 wide less the sheet's 16 a side and the row's own 2: 354. Six faces are one row, spread by
+  // `space-between` and needing no number (spec 8).
+  expect(faceGap(354, 1)).toBeUndefined();
+  expect(faceGap(354, 6)).toBeUndefined();
+  // The seventh does not fit: it goes to a second row (TASK-294), and every row keeps six columns —
+  // 13 apart, whole pixels, so the last face of a row is never rounded onto the next one.
+  expect(faceGap(354, 7)).toBe(13);
+  expect(faceGap(354, 13)).toBe(13);
+  expect(6 * 48 + 5 * faceGap(354, 7)!).toBeLessThanOrEqual(354);
+  // A narrower phone fits fewer, because faces never stand closer than 8 — a chosen face's ring
+  // reaches 4 out. On 320 six do not fit: five to a row, 20 apart, and the sixth goes under the first.
+  expect(faceGap(320, 5)).toBeUndefined();
+  expect(faceGap(320, 6)).toBe(20);
+  expect(faceGap(0, 7)).toBeUndefined();
+});
+
+test('the row wraps rather than scrolls, and hides nobody behind a «+N»', async () => {
+  const names = Array.from({ length: 9 }, (_, at) => `Гость ${at + 1}`);
+  let tree!: TestRenderer.ReactTestRenderer;
+  await act(async () => {
+    tree = mounted(
+      TestRenderer.create(
+        <FaceRow>
+          {names.map((name) => (
+            <FaceToggle key={name} name={name} selected={false} onPress={() => {}} />
+          ))}
+        </FaceRow>,
+      ),
+    );
+  });
+  const row = () => tree.root.findAllByType(View)[0];
+  const style = () => Object.assign({}, ...[row().props.style].flat(2).filter(Boolean));
+  expect(tree.root.findAllByType(FaceToggle)).toHaveLength(9);
+  expect(style().flexWrap).toBe('wrap');
+  // Unmeasured, the one row the layout draws; measured, the columns of the first row.
+  expect(style().justifyContent).toBe('space-between');
+  await act(async () => row().props.onLayout({ nativeEvent: { layout: { width: 358 } } }));
+  expect(style().columnGap).toBe(13);
+  expect(style().justifyContent).toBeUndefined();
+  expect(JSON.stringify(tree.toJSON())).not.toMatch(/\+\d/);
 });
