@@ -1,8 +1,9 @@
+import { rule } from '@tests/helpers/css';
 import { beforeAll, expect, test, vi } from 'vitest';
 
 import { Button } from '@/kit/button';
 import { SCRIM_DEAF_MS, Sheet, type SheetProps, useScrimTap } from '@/kit/sheet';
-import { allDifferent, rule, story } from '@/kit/story';
+import { allDifferent, story } from '@/kit/story';
 import { Text } from '@/kit/text';
 import { setTheme } from '@/theme';
 

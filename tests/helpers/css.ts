@@ -5,7 +5,8 @@ import { compiled } from '@/kit/story';
 /**
  * The class a compiled rule was given — how a style set in a sheet is found in the markup, since a
  * style from `StyleSheet.create` is drawn as a class and not as `style="…"` (`src/kit/story.tsx`).
- * `css` is the rule as written, parentheses and all: `background-color:rgba(11,11,18,0.55)`.
+ * `css` is the rule as written, parentheses and all: `background-color:rgba(11,11,18,0.55)`. One
+ * declaration is one class wherever it is drawn, so this names the value and not the part.
  */
 export function rule(css: string): string {
   const literal = css.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

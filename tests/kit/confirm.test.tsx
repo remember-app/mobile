@@ -1,7 +1,8 @@
+import { rule } from '@tests/helpers/css';
 import { beforeAll, expect, test } from 'vitest';
 
 import { ConfirmSheet } from '@/kit/confirm';
-import { allDifferent, rule, story } from '@/kit/story';
+import { allDifferent, story } from '@/kit/story';
 import { setTheme } from '@/theme';
 
 /** Spec «Пусто и необратимое» — the question that names the cost before the press. */
