@@ -32,14 +32,16 @@ test('every column of a contact sheet is the same width, the last row included',
     expect(sheet).not.toContain('flex: 1 / 3');
     // A column worked out from the width the sheet spans, and re-read when the phone turns. Which
     // gutter it is worked out of belongs to the lane the frames stand in (spec 7.8): the memory's
-    // feed and the upload screen both run edge to edge, the wizard and the queue stand in 16.
-    expect(sheet).toMatch(/(GRID_GAP|FEED_GAP) \* 2\) \/ 3/);
-    // Both sheets of frames run edge to edge now (spec 7.8): the memory's feed and the phone's own
-    // roll are the same wall of photographs, gutter 2 and no margins at all.
-    expect(sheet).toContain('const cell = { width: (width - FEED_GAP * 2) / 3 };');
-    expect(sheet).toContain('feed: { flexGrow: 1, gap: FEED_GAP }');
-    expect(sheet).toContain('lane="feed"');
+    // feed and the upload screen's feed run edge to edge, the wizard and the queue stand in 16.
+    expect(sheet).toMatch(/(GRID_GAP|FEED_GAP|gap) \* 2\) \/ 3/);
   }
+  // The memory's feed is one wall of photographs, gutter 2 and no margins at all.
+  expect(frames).toContain('const cell = { width: (width - FEED_GAP * 2) / 3 };');
+  expect(frames).toContain('feed: { flexGrow: 1, gap: FEED_GAP }');
+  expect(frames).toContain('lane="feed"');
+  // The phone's roll is the same wall on its feed face and the queue's grid in 16 when something is
+  // said over it (`UploadQueue`, `UploadLimited`) — both pinned in `tests/routes/upload.test.ts`.
+  expect(upload).toContain('const gap = glass ? FEED_GAP : GRID_GAP;');
   // And the other lane still exists for the wizard to stand in: inside the screen's 16, a hair
   // more air and a 4 radius, because there a frame is a thing being picked out of a list. Which
   // screens use it is their own business — the two gutters are the kit's, and it holds both.

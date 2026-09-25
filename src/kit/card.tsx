@@ -44,7 +44,8 @@ export function CardMessage({
           <Icon icon={icon} size={24} color={color.muted} />
         </View>
       ) : null}
-      <Text role="body" tone="muted">
+      {/* Spec 7.6, detail 45: the paragraph 15 / 22 — three lines in `UploadAccess`, not four. */}
+      <Text role="bodySm" tone="muted">
         {text}
       </Text>
       {children}
@@ -74,23 +75,23 @@ export function HintNote({
   const { color } = useTheme();
   const styles = useStyles();
 
+  // The button stands under the words and not under the glyph (`UploadLimited`: «Отдать ещё» at 64,
+  // the words' own edge) — it belongs to what they say.
   return (
     <View style={[styles.note, style]}>
-      <View style={styles.noteLine}>
-        {icon ? (
-          <View
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-            style={styles.noteIcon}
-          >
-            <Icon icon={icon} size={18} color={tone === 'spark' ? color.spark : color.muted} />
-          </View>
-        ) : null}
-        <Text role="note" style={styles.grow}>
-          {text}
-        </Text>
+      {icon ? (
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={styles.noteIcon}
+        >
+          <Icon icon={icon} size={18} color={tone === 'spark' ? color.spark : color.muted} />
+        </View>
+      ) : null}
+      <View style={styles.noteWords}>
+        <Text role="note">{text}</Text>
+        {children}
       </View>
-      {children}
     </View>
   );
 }
@@ -157,7 +158,8 @@ const useStyles = themed(({ color }) =>
       borderColor: color.line,
       backgroundColor: color.surface,
       padding: space.s5,
-      gap: space.s3,
+      // `UploadAccess`: 16 from the square to the paragraph and from the paragraph to the button.
+      gap: space.s4,
     },
     square: {
       width: 52,
@@ -168,15 +170,17 @@ const useStyles = themed(({ color }) =>
       justifyContent: 'center',
     },
     note: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: space.s3,
       borderRadius: radius.field,
       borderWidth: 1,
       borderColor: color.line,
       backgroundColor: color.surface,
       paddingVertical: 14,
       paddingHorizontal: space.s4,
-      gap: space.s3,
     },
-    noteLine: { flexDirection: 'row', alignItems: 'flex-start', gap: space.s3 },
+    noteWords: { flex: 1, minWidth: 0, gap: space.s3 },
     // The glyph sits on the first line of the words rather than in the middle of the block.
     noteIcon: { paddingTop: 1 },
     // A «Повторить» handed in wraps under the words on the largest type instead of past the edge.

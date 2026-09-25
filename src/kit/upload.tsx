@@ -1,10 +1,11 @@
 import { Image } from 'expo-image';
-import type { ReactNode } from 'react';
+import { X } from 'lucide-react-native';
 import { type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
-import { radius, space, themed, useTheme } from '@/theme';
+import { height, radius, space, themed, useTheme } from '@/theme';
 
 import { Progress } from './bits';
+import { IconButton } from './button';
 import { Icon, type IconComponent } from './icon';
 import { Text } from './text';
 
@@ -48,8 +49,10 @@ export function Upload({
         {meta ? <Text role="meta">{meta}</Text> : null}
       </View>
       <Progress value={value} label={meta ?? title} />
+      {/* 12 / 400 (spec 7.6, detail 48; `UploadQueue`): at the meta's 500 the line ran 3 past the
+          block's 324 and broke in two. */}
       {hint ? (
-        <Text role="meta" tone="faint">
+        <Text role="noteSm" tone="faint">
           {hint}
         </Text>
       ) : null}
@@ -63,14 +66,15 @@ export function Upload({
  * precise than soothing, and because a person can act on the second one.
  *
  * A file the phone no longer has has no thumbnail to show either, so a glyph square stands where the
- * picture would.
+ * picture would. The 36 cross at the end lets the file go, its glyph 16 (`UploadQueue`).
  */
 export function RowStuck({
   name,
   reason,
   uri,
   icon,
-  children,
+  dropLabel,
+  onDrop,
   style,
 }: {
   name: string;
@@ -78,8 +82,9 @@ export function RowStuck({
   uri?: string;
   /** Drawn instead of the thumbnail when the file itself is gone. */
   icon?: IconComponent;
-  /** The 36 cross, «Убрать из очереди». */
-  children?: ReactNode;
+  /** «Убрать IMG_4471.HEIC из очереди» — what the cross is called out as. */
+  dropLabel: string;
+  onDrop: () => void;
   style?: StyleProp<ViewStyle>;
 }) {
   const { color } = useTheme();
@@ -91,18 +96,24 @@ export function RowStuck({
         <Image source={{ uri }} contentFit="cover" style={styles.thumb} />
       ) : (
         <View style={[styles.thumb, styles.thumbGone]}>
-          {icon ? <Icon icon={icon} size={18} color={color.faint} /> : null}
+          {icon ? <Icon icon={icon} size={20} color={color.faint} /> : null}
         </View>
       )}
-      <View style={styles.grow}>
-        <Text role="row" numberOfLines={1} style={styles.name}>
+      <View style={styles.words}>
+        <Text role="rowSm" numberOfLines={1}>
           {name}
         </Text>
         <Text role="meta" tone="danger">
           {reason}
         </Text>
       </View>
-      {children}
+      <IconButton
+        icon={X}
+        size={height.roundRow}
+        glyph={{ size: 16 }}
+        label={dropLabel}
+        onPress={onDrop}
+      />
     </View>
   );
 }
@@ -119,6 +130,7 @@ const useStyles = themed(({ color }) =>
     },
     head: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },
     grow: { flex: 1, minWidth: 0 },
+    // Spec 7.7, detail 51: 12 above and below, 14 at the sides.
     stuck: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -127,8 +139,11 @@ const useStyles = themed(({ color }) =>
       borderWidth: 1,
       borderColor: color.dangerEdge,
       backgroundColor: color.surface,
-      padding: space.s3,
+      paddingVertical: space.s3,
+      paddingHorizontal: 14,
     },
+    // The name and its reason 3 apart (`UploadQueue`).
+    words: { flex: 1, minWidth: 0, gap: 3 },
     // The picture is pulled back to 60%: it is the reason that has to be read, not the frame.
     thumb: {
       width: 44,
@@ -140,6 +155,5 @@ const useStyles = themed(({ color }) =>
       justifyContent: 'center',
     },
     thumbGone: { opacity: 1 },
-    name: { fontSize: 14 },
   }),
 );

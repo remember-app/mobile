@@ -334,6 +334,16 @@ const useStyles = themed(({ color }) =>
     divider: { height: 1, backgroundColor: color.line },
     dividerSoft: { backgroundColor: color.raise },
     dividerGrow: { flex: 1 },
+    // `UploadLimited`: 1 of dashed `line` and no fill, 24 / 16 round the words, 18 at the corners.
+    dashedNote: {
+      borderWidth: 1,
+      borderStyle: 'dashed',
+      borderColor: color.line,
+      borderRadius: radius.field,
+      paddingVertical: space.s6,
+      paddingHorizontal: space.s4,
+    },
+    centred: { textAlign: 'center' },
     dot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: color.lineStrong },
     dotOnPhoto: { backgroundColor: photo.dot },
     live: { width: 6, height: 6, borderRadius: 3, backgroundColor: color.danger },
@@ -433,6 +443,22 @@ const useStyles = themed(({ color }) =>
     },
   }),
 );
+
+/**
+ * A dashed plate with one quiet line in it, where there is something the screen may not show — the
+ * rest of a day under a partial grant (spec 8, `UploadLimited`). Hollow, unlike the empty strip
+ * below: nothing here is missing, it is only out of sight.
+ */
+export function DashedNote({ text, style }: { text: string; style?: StyleProp<ViewStyle> }) {
+  const styles = useStyles();
+  return (
+    <View style={[styles.dashedNote, style]}>
+      <Text role="note" tone="faint" style={styles.centred}>
+        {text}
+      </Text>
+    </View>
+  );
+}
 
 /** The dashed empty frame the layout puts where a strip of photographs would be (spec 7.6). */
 export function DashedFrame({

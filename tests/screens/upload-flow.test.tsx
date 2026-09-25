@@ -68,7 +68,7 @@ import { later, memory, serve } from '@tests/helpers/api';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { Image } from 'expo-image';
 import { isValidElement } from 'react';
-import { FlatList, Linking, StyleSheet } from 'react-native';
+import { FlatList, Linking, StyleSheet, View } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import UploadScreen from '@/app/memory/[id]/upload';
 import {
@@ -77,10 +77,13 @@ import {
   Banner,
   Button,
   CardMessage,
+  DashedNote,
+  DayHead,
   DayMark,
   Empty,
   FEED_GAP,
   GlassBar,
+  GRID_GAP,
   HintNote,
   IconButton,
   RowStuck,
@@ -128,6 +131,10 @@ const roll = (): Asset[] => [
 ];
 
 beforeEach(() => {
+  // «Today» is the layout's own day, 25 September 2026: a day of the roll this year is written
+  // without its year, the way the layout writes it (`formatRollDay`). Only the clock is stood in for.
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date(2026, 8, 25, 12));
   lib.access = { granted: true, canAskAgain: true };
   lib.ask.mockReset();
   lib.getAssetsAsync.mockReset();
@@ -152,7 +159,10 @@ beforeEach(() => {
   uploads.asking = null;
   serve((asked) => (asked.path === '/memories' ? [memory()] : undefined));
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
 
 /** Whether an element, drawn or not, holds these words anywhere in what it was handed. */
 const carries = (node: unknown, words: string): boolean =>
@@ -185,6 +195,8 @@ async function open() {
     tiles: () => root.findAllByType(Tile).map((one) => String(one.props.uri).replace('ph://', '')),
     seams: () => root.findAllByType(DayMark),
     seam: (n: number) => () => root.findAllByType(DayMark)[n],
+    /** The days over the queue's grid, headed with a line. */
+    heads: () => root.findAllByType(DayHead),
     button: (label: string) =>
       root.findAllByType(Button).filter((one) => one.props.label === label),
     icon: (label: string) =>
@@ -204,15 +216,12 @@ test('the roll is cut into days, the event’s own days first, and every day is 
   // The 13th and the 12th, then the 5th — which is behind them though it is the oldest, being the only
   // day outside the event, and each run reads newest first.
   expect(screen.seams().map((one) => one.props.label)).toEqual([
-    ru.upload.shotOn('13 сентября 2026'),
-    ru.upload.shotOn('12 сентября 2026'),
-    ru.upload.shotOn('5 сентября 2026'),
+    '13 сентября, воскресенье',
+    '12 сентября, суббота',
+    '5 сентября, суббота',
   ]);
-  expect(screen.seams().map((one) => one.props.count)).toEqual([
-    ru.memory.frames(3),
-    ru.memory.frames(2),
-    ru.memory.frames(1),
-  ]);
+  // `Upload.json`: «13 сентября, суббота» and «61» — the day, its name, and a bare figure.
+  expect(screen.seams().map((one) => one.props.count)).toEqual(['3', '2', '1']);
   expect(screen.tiles()).toEqual(['a1', 'a2', 'a3', 'b1', 'b2', 'c1']);
   // A video is marked by how long it runs, and a photograph by nothing.
   expect(screen.tile('a2')().props.length).toBe('0:42');
@@ -393,11 +402,21 @@ test('while the roll is still coming a seam does not answer, and the count is of
   expect(screen.text()).not.toContain(ru.upload.reading);
 });
 
-test('a partial grant shows only what was handed over: a seam is a caption, each day says the rest is unseen, and «Отдать ещё» reads the roll again', async () => {
+test('a partial grant shows only what was handed over: a day is a heading with its count, each day says the rest is unseen, and «Отдать ещё» reads the roll again', async () => {
   lib.access = { granted: true, canAskAgain: true, accessPrivileges: 'limited' };
   const screen = await open();
-  expect(screen.seams().every((one) => one.props.limited === true)).toBe(true);
-  expect(screen.seams().every((one) => one.props.onPress === undefined)).toBe(true);
+  // `UploadLimited`: the plain bar, «Снято 13 сентября» with a line and a count — nothing to take
+  // the whole of — and a dashed plate under each day.
+  expect(screen.root.findAllByType(GlassBar)).toHaveLength(0);
+  expect(screen.root.findAllByType(AppBar)).toHaveLength(1);
+  expect(screen.seams()).toHaveLength(0);
+  expect(screen.heads().map((one) => [one.props.label, one.props.count])).toEqual([
+    [ru.upload.shotOn('13 сентября'), ru.memory.frames(3)],
+    [ru.upload.shotOn('12 сентября'), ru.memory.frames(2)],
+    [ru.upload.shotOn('5 сентября'), ru.memory.frames(1)],
+  ]);
+  expect(screen.heads().flatMap((one) => one.findAllByType(Button))).toEqual([]);
+  expect(screen.root.findAllByType(DashedNote)).toHaveLength(3);
   expect(screen.text().split(ru.upload.restUnseen)).toHaveLength(4);
   expect(screen.root.findAllByType(HintNote)).toHaveLength(1);
   // Tapping a frame still marks it: it is the day that cannot be taken whole.
@@ -486,9 +505,9 @@ test('an api that cannot be reached costs only the event window: the roll is cut
   expect(screen.banners()).toEqual([ru.error.offline]);
   // No event to lift to the top, so the roll is in its own order — newest day first.
   expect(screen.seams().map((one) => one.props.label)).toEqual([
-    ru.upload.shotOn('13 сентября 2026'),
-    ru.upload.shotOn('12 сентября 2026'),
-    ru.upload.shotOn('5 сентября 2026'),
+    '13 сентября, воскресенье',
+    '12 сентября, суббота',
+    '5 сентября, суббота',
   ]);
   await screen.press(screen.tile('a1'));
   await screen.press(() => screen.send());
@@ -503,7 +522,7 @@ test('the event’s days lead the roll even when they are the oldest in it', asy
       : undefined,
   );
   const screen = await open();
-  expect(screen.seams().map((one) => one.props.label)[0]).toBe(ru.upload.shotOn('5 сентября 2026'));
+  expect(screen.seams().map((one) => one.props.label)[0]).toBe('5 сентября, суббота');
 });
 
 test('a queue with something in it says how much is left, and the parked files are named with their reasons and can be let go of', async () => {
@@ -686,4 +705,83 @@ test('the plate over the roll names the memory and says when it was — and with
   serve(() => 'offline');
   const unknown = await open();
   expect(unknown.root.findByType(AppBar).props.subtitle).toBeUndefined();
+});
+
+/** One file of this memory on its way up — what puts the screen in the queue's face. */
+const going = {
+  assetId: 'b1',
+  memoryId: 'm1',
+  filename: 'IMG_b1.HEIC',
+  kind: 'photo',
+  capturedAt: null,
+  durationSeconds: null,
+  parts: {},
+};
+
+test('while something is being sent the roll stands in the queue’s face: the plain bar, the grid in the margins, each day headed with a line and a button', async () => {
+  uploads.queue = [going];
+  const screen = await open();
+  // `UploadQueue`: «Ваши кадры» over «Свадьба Лизы и Марка · 12–13 сентября», no glass, no switch.
+  expect(screen.root.findAllByType(GlassBar)).toHaveLength(0);
+  expect(screen.root.findByType(AppBar).props.subtitle).toBe(
+    'Свадьба Лизы и Марка · 12–13 сентября',
+  );
+  expect(screen.icon(ru.upload.picking)).toHaveLength(0);
+  // Spec 7.8, detail 64 and `UploadQueue.json` e29–e31: 117.33 across, 3 apart, in the margins 16.
+  expect(screen.tile('a1')().props.style).toEqual({ width: (390 - 16 * 2 - GRID_GAP * 2) / 3 });
+  expect((390 - 16 * 2 - GRID_GAP * 2) / 3).toBeCloseTo(117.33, 2);
+  expect(screen.tile('a1')().props.lane).toBe('pick');
+  expect(screen.tile('a1')().props.ring).toBe(true);
+  // «Снято 13 сентября» … «Выбрать все 3», and the button takes the day and gives it back.
+  const head = () => screen.heads()[0];
+  const button = () => head().findByType(Button);
+  expect(head().props.label).toBe(ru.upload.shotOn('13 сентября'));
+  expect(head().props.count).toBeUndefined();
+  expect(button().props.variant).toBe('small');
+  expect(button().props.label).toBe(ru.upload.selectDay(3));
+  await screen.press(button);
+  expect(['a1', 'a2', 'a3'].map(screen.mark)).toEqual(['send', 'send', 'send']);
+  expect(button().props.label).toBe(ru.upload.unselectDay(3));
+  await screen.press(button);
+  expect(['a1', 'a2', 'a3'].map(screen.mark)).toEqual(['off', 'off', 'off']);
+  // The bottom layer is the board's own there, not one floating over photographs.
+  const layer = screen.root.findByType(ActionBar);
+  expect(layer.props.footer).toBeUndefined();
+  expect(layer.props.style).toBeUndefined();
+});
+
+test('the queue’s face keeps picking on even when the switch on the glass was left off, and the feed comes back once everything is in', async () => {
+  const screen = await open();
+  await screen.press(() => screen.icon(ru.upload.picking)[0]);
+  expect(screen.mark('a1')).toBeUndefined();
+  uploads.queue = [going];
+  await screen.redraw();
+  // No switch to turn it on with, so it is on.
+  expect(screen.mark('a1')).toBe('off');
+  expect(screen.root.findAllByType(ActionBar)).toHaveLength(1);
+  uploads.queue = [];
+  await screen.redraw();
+  expect(screen.root.findAllByType(GlassBar)).toHaveLength(1);
+  expect(screen.heads()).toHaveLength(0);
+  expect(screen.mark('a1')).toBeUndefined();
+});
+
+test('on the feed a day’s seam is flush with its strips, the gutter stands between strips, and nothing stands over the first day', async () => {
+  // `Upload.json`: the seam 108–128, frames at 128, 259, 390 — 2 between strips and none around
+  // the seam. Nothing said over the feed, so no header either: the first day is right under the bar.
+  const day = Array.from({ length: 7 }, (_, i) => asset(`s${i}`, at(13, 8 + i)));
+  lib.getAssetsAsync.mockResolvedValue({ assets: day, hasNextPage: false, endCursor: undefined });
+  const screen = await open();
+  const list = screen.root.findByType(FlatList);
+  expect(list.props.ListHeaderComponent).toBeNull();
+  expect(StyleSheet.flatten(list.props.contentContainerStyle).gap).toBeUndefined();
+  const strips = screen.root
+    .findAllByType(View)
+    .map((one) => StyleSheet.flatten(one.props.style))
+    .filter((style) => style?.flexDirection === 'row' && style.marginTop !== undefined);
+  expect(strips.map((one) => [one.gap, one.marginTop])).toEqual([
+    [FEED_GAP, 0],
+    [FEED_GAP, FEED_GAP],
+    [FEED_GAP, FEED_GAP],
+  ]);
 });
