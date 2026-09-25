@@ -122,12 +122,29 @@ export function Avatar({
   );
 }
 
-/** Two letters, and one where a name has no second word. */
+/**
+ * Two characters: the first of each of the first two words, or the first two of a lone word. A
+ * character is what the eye takes for one, not a UTF-16 unit (`lead`) — an emoji in a name is an
+ * initial like any letter, and never half of one.
+ */
 export function initials(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean);
   if (words.length === 0) return '';
-  const two = words.length > 1 ? words[0][0] + words[1][0] : words[0].slice(0, 2);
-  return two.toUpperCase();
+  const first = lead(words[0]);
+  const second = lead(words.length > 1 ? words[1] : words[0].slice(first.length));
+  return (first + second).toUpperCase();
+}
+
+/**
+ * The first character of a word whole: a flag (two regional letters), or one code point with all
+ * that hangs on it — combining marks and variation selectors (`\p{M}`), a skin tone, the tags of a
+ * subdivision flag — and whatever a ZWJ joins on after it. Hermes has no `Intl.Segmenter` to ask.
+ */
+const LEAD =
+  /^(?:\p{Regional_Indicator}{2}|.[\p{M}\p{Emoji_Modifier}\u{E0020}-\u{E007F}]*(?:\u200D.[\p{M}\p{Emoji_Modifier}\u{E0020}-\u{E007F}]*)*)/u;
+
+function lead(word: string): string {
+  return LEAD.exec(word)?.[0] ?? '';
 }
 
 /**
