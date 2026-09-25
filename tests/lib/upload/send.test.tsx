@@ -122,10 +122,13 @@ it('seals the file with the receipt storage gave for every part', async () => {
   expect(queue).toEqual([]);
 });
 
-it.each([
+/** The two ways storage says a link has run out. */
+const RUN_OUT: [string, () => Response][] = [
   ['403', () => new Response('', { status: 403 })],
   ['400 ExpiredToken', () => new Response(EXPIRED, { status: 400 })],
-])(
+];
+
+it.each(RUN_OUT)(
   'takes %s as a link run out: fresh links, and only what is missing goes again',
   async (_, expired) => {
     const { put, queue } = await upload((url) =>
@@ -142,6 +145,20 @@ it.each([
     expect(queue).toEqual([]);
   },
 );
+
+// A 403 that is not about time — a signature the storage will never match — must not turn into a
+// loop of re-issues: one fresh set per pass, and a second refusal parks the file.
+it.each(RUN_OUT)('parks the file when the fresh link gets %s too', async (_, refusal) => {
+  const { put, queue } = await upload((url) => (url.endsWith('/2') ? refusal() : receipted(url)));
+  expect(api.refreshUpload).toHaveBeenCalledTimes(1);
+  expect(put).toEqual([
+    'https://storage/first/1',
+    'https://storage/first/2',
+    'https://storage/fresh/2',
+  ]);
+  expect(api.finishUpload).not.toHaveBeenCalled();
+  expect(queue.map((file) => file.error)).toEqual([{ reason: 'partNotTaken', part: 2 }]);
+});
 
 it.each<[string, () => Response, UploadFailure]>([
   [
