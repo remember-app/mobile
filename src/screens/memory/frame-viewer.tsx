@@ -56,7 +56,7 @@ import {
 import { useStrings } from '@/lib/language';
 import { useTurnsWithPhone } from '@/lib/orientation';
 import { FrameInfoSheet } from '@/screens/memory/frames-sheets';
-import { board, height, photo, space, ThemePin, themed, themes } from '@/theme';
+import { board, height, photo, space, ThemePin, themed } from '@/theme';
 
 /**
  * `Viewer` and `ViewerVideo` (spec 8, «Просмотр медиа») — one frame on the whole of the phone, laid
@@ -386,8 +386,8 @@ export function FrameViewer({
       <ThemePin value="dark">
         <View style={styles.viewer}>
           {/* The frame itself, between the floating bar and the tools under it — the layout's own
-              116 above and 148 (196 with a video's scrubber) below. The finger that walks the
-              gallery is taken here, on the picture, and never on the strip or the scrubber. */}
+              116 above and 96 below (spec 8, `Viewer`). The finger that walks the gallery is taken
+              here, on the picture, and never on the strip or the scrubber. */}
           <View
             style={[styles.stage, { paddingTop: insets.top + STAGE_TOP }]}
             {...swipe.panHandlers}
@@ -635,16 +635,11 @@ const WALK = 56;
  */
 const STAGE_TOP = height.roundViewer + space.s2 * 2;
 
-/**
- * The window is a dark room in both themes — the layout gives it a background darker than `ink` on
- * purpose, or the mount pulls the eye off the photograph. Everything the library draws inside takes
- * the pin with it; these are the few colours this file names itself.
- */
-const room = themes.dark.color;
-
 const useStyles = themed(() =>
   StyleSheet.create({
-    viewer: { flex: 1, backgroundColor: room.ink },
+    // A dark room in both themes, and darker than `ink` on purpose (spec 8, `Viewer`): anything
+    // lighter around the photograph pulls the eye off it.
+    viewer: { flex: 1, backgroundColor: photo.viewer },
     // The picture takes what is left between the floating bar and the tools, and is centred in it.
     stage: { flex: 1, justifyContent: 'center' },
     big: { flex: 1, width: '100%' },
@@ -661,8 +656,9 @@ const useStyles = themed(() =>
     // Over the picture and at the foot of it: the strip below stays the only thing under it.
     notice: { position: 'absolute', left: space.s4, right: space.s4, bottom: space.s4 },
     // The strip and, over a video, its scrubber — and nothing else: the picture above ends where
-    // this begins, which is what keeps a whole frame whole.
-    tools: { gap: space.s3, paddingTop: space.s3 },
+    // this begins, which is what keeps a whole frame whole. 18 over the strip and 30 under it puts
+    // the foot of a photograph at the layout's 96.
+    tools: { gap: space.s3, paddingTop: 18 },
     // A horizontal list in a column takes every pixel it is offered unless it is told its own size.
     strip: { flexGrow: 0 },
     // The «⋯» while its menu is out (spec 7.1, detail 9).

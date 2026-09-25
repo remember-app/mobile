@@ -549,9 +549,6 @@ export function Frames({ id, head }: { id: string; head: Head }) {
         reload={head.reload}
         title={capsule}
         meta={under}
-        // The capsule is a door in the feed and an action while picking, so only one of the two
-        // wears the chevron (spec 7.1).
-        chevron={!picking}
         // Read out in full either way: the drawn name is cut with an ellipsis, and a count on its
         // own does not say that pressing it takes everything.
         capsuleLabel={picking ? `${capsule}. ${s.gallery.selectAll}` : s.memory.settings(name)}

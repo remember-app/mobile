@@ -2,9 +2,9 @@ import { useRouter } from 'expo-router';
 import {
   ChevronLeft,
   FileText,
-  Film,
   Heart,
   Home,
+  LayoutGrid,
   Plus,
   Smartphone,
   Sun,
@@ -403,7 +403,7 @@ export function OrderProvider({ id, children }: { id: string; children: ReactNod
               importantForAccessibility="no-hide-descendants"
               style={styles.sign}
             >
-              <Icon icon={Film} size={26} color={color.muted} />
+              <Icon icon={LayoutGrid} size={26} color={color.muted} />
             </View>
             <Text role="sheetTitleSm" accessibilityRole="header" style={styles.grow}>
               {s.montage.tooLittleTitle}
@@ -598,7 +598,8 @@ const useStyles = themed(({ color }) =>
     // The bar's own heading is over this, so it stands as close under it as the layout draws it.
     head: { paddingHorizontal: space.s4, paddingTop: 10, paddingBottom: space.s4 },
     headLine: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },
-    // Spec 8, `SheetTooLittle`: the 56 square with the montage sign over the heading.
+    // Spec 8, `SheetTooLittle`: the 56 square with the montage sign — `layout-grid`, the one
+    // «Начать монтаж» wears — beside the heading.
     sign: {
       width: 56,
       height: 56,

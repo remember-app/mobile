@@ -1,13 +1,12 @@
-import { ChevronDown } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { board, height, night, photo, radius, space, ThemePin, themed, useTheme } from '@/theme';
+import { board, height, photo, radius, space, ThemePin, themed, useTheme } from '@/theme';
 
 import { StepScale } from './bits';
 import { IconButton } from './button';
-import { Icon, type IconComponent } from './icon';
+import type { IconComponent } from './icon';
 import { Text } from './text';
 
 /**
@@ -172,9 +171,11 @@ export function WizardBar({
  * memory's settings, in picking mode it takes every frame. Given nothing to do — `Upload`, where it
  * only says which memory this material is going into — it is a plain plate and says so: a circle
  * that announces itself as a button and answers no tap is worse than one that never claimed to be.
- * A long name is cut with an ellipsis and not shrunk — the whole bar's rhythm hangs off that 14
- * (spec 10.6) — so the sentence a screen reader gets is the caller's `capsuleLabel`, which carries
- * the name in full either way.
+ *
+ * It wears no chevron either way (spec 1, rule 9): the capsule is a button by being the capsule,
+ * and an arrow in it only takes room from the name. A long name is cut with an ellipsis and not
+ * shrunk — the whole bar's rhythm hangs off that 14 (spec 10.6) — so the sentence a screen reader
+ * gets is the caller's `capsuleLabel`, which carries the name in full either way.
  *
  * It draws its own darkening: 176 of gradient behind it, which is what keeps a white glyph readable
  * when the frame under the bar happens to be a white wall.
@@ -184,7 +185,6 @@ export function GlassBar({
   meta,
   capsuleLabel,
   onCapsule,
-  chevron = true,
   left,
   right,
   style,
@@ -195,13 +195,6 @@ export function GlassBar({
   capsuleLabel: string;
   /** Left off, the capsule is a plate rather than a button — `Upload` is the one place it is. */
   onCapsule?: () => void;
-  /**
-   * Whether a capsule that *is* pressed says it leads somewhere. In the feed it does — the chevron
-   * under the name is the way into the memory's settings — and in `FramesPicking` it does not: the
-   * same capsule takes every frame instead of opening anything, and the layout drops the glyph to
-   * say so. A capsule nobody presses never wears one either way.
-   */
-  chevron?: boolean;
   left?: ReactNode;
   /** Empty on `FramesEmpty`: with no frames there is nothing to pick. */
   right?: ReactNode;
@@ -209,17 +202,12 @@ export function GlassBar({
 }) {
   const insets = useSafeAreaInsets();
   const styles = useStyles();
-  // A plate and a button are the same capsule; only one of them is pressed, and the chevron says
-  // there is something under it — so a plate never wears one, and neither does the one press that
-  // leads nowhere: in `FramesPicking` the capsule takes every frame instead of opening anything.
+  // A plate and a button are the same capsule and the same two lines: only one of them is pressed.
   const words = (
     <>
-      <View style={styles.capsuleLine}>
-        <Text role="pillTitle" numberOfLines={1} style={styles.shrink}>
-          {title}
-        </Text>
-        {onCapsule && chevron ? <Icon icon={ChevronDown} size={12} color={night.muted} /> : null}
-      </View>
+      <Text role="pillTitle" numberOfLines={1}>
+        {title}
+      </Text>
       {meta ? (
         <Text role="meta" numberOfLines={1}>
           {meta}
@@ -307,25 +295,22 @@ export function ViewerBar({
       <View style={[styles.viewerBar, style]}>
         {left}
         <View style={styles.viewerMiddle}>
-          {/* Spec 7.1, detail 5: the pill is a button — it is the road to the frame's own sheet, and
-              the `chevron-down` on it is what says so. A `Pressable` with nothing to press stays a
-              plain block of glass, which is what the layout draws where there is nowhere to go. */}
+          {/* Spec 7.1, detail 5: the pill is a button — the road to the frame's own sheet — and says
+              so by being the pill, with no chevron (spec 1, rule 9). A `Pressable` with nothing to
+              press stays a plain block of glass. */}
           <Pressable
             accessibilityRole={onPress ? 'button' : undefined}
             accessibilityLabel={onPress ? label : undefined}
             onPress={onPress}
             disabled={!onPress}
-            style={[styles.viewerPill, onPress ? null : styles.viewerPillPlain]}
+            style={styles.viewerPill}
           >
-            <View style={styles.viewerWords}>
-              <Text role="row" numberOfLines={1} style={styles.onPhoto}>
-                {date}
-              </Text>
-              <Text role="meta" numberOfLines={1} style={styles.onPhotoMeta}>
-                {meta}
-              </Text>
-            </View>
-            {onPress ? <Icon icon={ChevronDown} size={12} color={photo.onQuiet} /> : null}
+            <Text role="row" numberOfLines={1} style={styles.onPhoto}>
+              {date}
+            </Text>
+            <Text role="meta" numberOfLines={1} style={styles.viewerMeta}>
+              {meta}
+            </Text>
           </Pressable>
         </View>
         {right}
@@ -436,8 +421,6 @@ const useStyles = themed(({ color }) =>
       borderWidth: 1,
       borderColor: photo.barEdge,
     },
-    capsuleLine: { flexDirection: 'row', alignItems: 'center', gap: 5, maxWidth: '100%' },
-    shrink: { flexShrink: 1 },
     wizardScale: { marginHorizontal: space.s4, marginTop: space.s3 },
     // Spec 7.1: 18 under the scale, and 12 where there is no scale to stand under.
     wizardWords: { marginHorizontal: space.s4, marginTop: 18 },
@@ -456,26 +439,21 @@ const useStyles = themed(({ color }) =>
     // The pill is as wide as its words and stands in the middle of what the two buttons leave —
     // it is not a strip laid across the bar. The hairline is the layout's, and only the pill has it.
     viewerMiddle: { flex: 1, minWidth: 0, alignItems: 'center' },
+    // Two floors, centred by the same 20 on both sides; a long name is cut, never the pill widened.
     viewerPill: {
       height: height.roundViewer,
       maxWidth: '100%',
-      flexDirection: 'row',
       alignItems: 'center',
-      gap: space.s2,
-      paddingLeft: 20,
-      paddingRight: 14,
+      justifyContent: 'center',
+      gap: 1,
+      paddingHorizontal: 20,
       borderRadius: radius.pill,
       backgroundColor: photo.glass,
       borderWidth: 1,
       borderColor: photo.barEdge,
     },
-    // No chevron on the right, so the words are centred by the same 20 on both sides.
-    viewerPillPlain: { paddingRight: 20 },
-    // Two floors beside the chevron, not above it — and they give way first: a long name is
-    // truncated, the sign that the pill opens something never is.
-    viewerWords: { flexShrink: 1, minWidth: 0, alignItems: 'center', gap: 1 },
     onPhoto: { color: photo.on },
-    onPhotoMeta: { color: photo.onQuiet },
+    viewerMeta: { color: photo.viewerMeta },
     layer: { paddingHorizontal: space.s4, paddingTop: space.s3, gap: space.s3 },
     layerAbove: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },
     layerRow: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },

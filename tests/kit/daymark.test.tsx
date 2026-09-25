@@ -1,14 +1,16 @@
-import { beforeAll, expect, test } from 'vitest';
+import { mounted, mountsTrees } from '@tests/helpers/renderer';
+import type { ReactElement } from 'react';
+import TestRenderer, { act } from 'react-test-renderer';
+import { expect, test } from 'vitest';
 
 import { DateSpine, DayMark } from '@/kit/daymark';
 import { allDifferent, story } from '@/kit/story';
-import { setTheme } from '@/theme';
+import { Text } from '@/kit/text';
 
 /** Spec 7.8 — the seam between two grids of frames, and the spine that says the same while scrolling. */
 
-beforeAll(async () => {
-  await setTheme('dark');
-});
+// The dark theme, and the one tree below mounted under `act` and taken down after its test.
+mountsTrees();
 
 test('the seam comes in three kinds and they are three', () => {
   allDifferent({
@@ -21,6 +23,22 @@ test('the seam comes in three kinds and they are three', () => {
     ),
     limited: <DayMark label="13 сентября" count="3 кадра" limited />,
   });
+});
+
+test('a date on its own is quiet, and a label that leads a count, a face or a switch is paper', () => {
+  // Spec 7.8, detail 65 and `MemoryDated`: «13 сентября, суббота» alone in the seam is 10/12/600
+  // `muted`; the person of `FramesByPeople` and the date-button of `Upload` stand in `paper`.
+  const tone = (mark: ReactElement) => {
+    let tree!: TestRenderer.ReactTestRenderer;
+    act(() => {
+      tree = mounted(TestRenderer.create(mark));
+    });
+    return tree.root.findAllByType(Text)[0].props.tone as string;
+  };
+  expect(tone(<DayMark label="13 сентября, суббота" />)).toBe('muted');
+  expect(tone(<DayMark label="Лиза Морозова" avatar="Лиза Морозова" count="128" />)).toBe('paper');
+  expect(tone(<DayMark label="13 сентября" count="61" onPress={() => {}} />)).toBe('paper');
+  expect(tone(<DayMark label="Фото" count="4" />)).toBe('paper');
 });
 
 test('a seam that picks is a checkbox over the whole band, and one that does not is a heading', () => {

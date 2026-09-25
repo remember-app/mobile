@@ -56,7 +56,7 @@ vi.mock('@/lib/downloads', () => downloads);
 import { type Asked, later, member, memory, photo, refused, serve } from '@tests/helpers/api';
 import { touch } from '@tests/helpers/gesture';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
-import { Modal } from 'react-native';
+import { Modal, Pressable, StyleSheet } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import type { FrameInfo, MediaItem, Member } from '@/api';
 import {
@@ -65,6 +65,7 @@ import {
   ConfirmSheet,
   Empty,
   Filmstrip,
+  Icon,
   IconButton,
   RowAction,
   RowFilmAt,
@@ -909,3 +910,34 @@ test('the strip is the feed’s frames by picture and by whether they move, and 
   expect(strip.labelAt(1)).toBe('v');
   expect(strip.labelAt(2)).toBe('c');
 });
+
+test.each([
+  ['a photograph', () => shots()[0]],
+  ['a video', () => video({ id: 'a' })],
+])(
+  'on %s the pill of when and who wears no chevron, is a button of its own size, and the finger on it raises the sheet',
+  async (_, item) => {
+    // Spec 1, rule 9, and 7.1, detail 5: `Viewer` and `ViewerVideo` share the pill, and in both it
+    // is the capsule itself that is pressed — no arrow in it, the same 20 on either side of the words.
+    const log = serve((asked) => (asked.path === '/memories/m1/media/a' ? told() : undefined));
+    const shown = item();
+    const screen = await open({ item: shown, frames: [shown] });
+    const pill = screen
+      .pill()
+      .findAllByType(Pressable)
+      .find((one) => String(one.props.accessibilityLabel).startsWith(ru.viewer.details))!;
+    expect(pill.props.accessibilityRole).toBe('button');
+    expect(pill.props.accessibilityLabel).toBe(
+      `${ru.viewer.details}: ${screen.bar().date}, ${screen.bar().meta}`,
+    );
+    expect(pill.findAllByType(Icon)).toHaveLength(0);
+    const box = StyleSheet.flatten(pill.props.style);
+    expect(box.height).toBeGreaterThanOrEqual(44);
+    expect(box.paddingHorizontal).toBe(20);
+    expect(box.paddingRight).toBeUndefined();
+
+    await act(async () => pill.props.onPress());
+    expect(screen.info().props.visible).toBe(true);
+    expect(log.map((one) => one.path)).toEqual(['/memories/m1/media/a']);
+  },
+);

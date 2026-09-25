@@ -318,6 +318,8 @@ export const photo = {
   on: '#FFFFFF',
   /** the second line read on any of the above — a date, a count, what a montage was made of */
   onQuiet: 'rgba(255,255,255,0.72)',
+  /** the second line of the viewer's pill — «21:47 · Марк Ковалёв» (spec 7.1, detail 5) */
+  viewerMeta: 'rgba(245,243,238,0.66)',
   /** the meta dot when it stands on a photograph */
   dot: 'rgba(255,255,255,.45)',
   /** the track of a contribution bar drawn over a cover */

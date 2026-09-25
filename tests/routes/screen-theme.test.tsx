@@ -95,8 +95,8 @@ test('the open frame stays a dark room in both themes', () => {
   // Light is the theme the mistake shows up in: `ink` there is a pale mat board.
   expect(themes.light.color.ink).not.toBe(themes.dark.color.ink);
 
-  expect(viewer).toContain('const room = themes.dark.color;');
-  expect(viewer).toContain('viewer: { flex: 1, backgroundColor: room.ink }');
+  // Deeper than either theme's `ink`, and the same in both (spec 8, `Viewer`: «фон #08080C»).
+  expect(viewer).toContain('viewer: { flex: 1, backgroundColor: photo.viewer }');
   // The gallery behind the window is interface and does turn with the theme: nothing of the room is
   // left on that face since the window became a file of its own (TASK-147).
   expect(frames).not.toContain('themes.dark');
