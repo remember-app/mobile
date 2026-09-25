@@ -1,7 +1,7 @@
 import { rule } from '@tests/helpers/css';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { ImageIcon } from 'lucide-react-native';
-import { StyleSheet, View } from 'react-native';
+import { Text as RNText, StyleSheet, View, type ViewStyle } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import { beforeAll, expect, test, vi } from 'vitest';
 
@@ -10,7 +10,7 @@ import { Icon } from '@/kit/icon';
 import { allDifferent, story } from '@/kit/story';
 import { Text } from '@/kit/text';
 import { RowStuck, Upload } from '@/kit/upload';
-import { setTheme, type } from '@/theme';
+import { setTheme, themes, type } from '@/theme';
 
 /** Spec 7.6 — sending: the block that counts it down, and the row for a file that will not go. */
 
@@ -35,9 +35,10 @@ test('the sending block says what is going, how much is left, and that the phone
   expect(block).toContain('width:26%');
 });
 
-test('the line under the bar is 12 / 400 and one line, not the meta’s 500 in two', () => {
-  // `UploadQueue.json` e10: «Приложение можно свернуть — отправка продолжится.» Onest 12 / 400
-  // `#6E6B7D`, 324 × 16 — at the meta's 500 it measures 327 and broke under the block's 324.
+test('the line under the bar is 12 / 400 / 16 `muted` and one line, not the meta’s 500 in two', () => {
+  // `UploadQueue.json` e10: «Приложение можно свернуть — отправка продолжится.» Onest 12 / 400,
+  // 324 × 16 — at the meta's 500 it measures 327 and broke under the block's 324. Spec detail 48 and
+  // 10.11 read it in `muted` #A4A1B2, not the layout's `faint` #6E6B7D (under the floor, 10.1).
   const block = story(
     <Upload
       title="Отправляем"
@@ -47,7 +48,39 @@ test('the line under the bar is 12 / 400 and one line, not the meta’s 500 in t
   );
   expect([type.noteSm.fontSize, type.noteSm.lineHeight]).toEqual([12, 16]);
   expect(block).toContain(rule(`font-family:${type.noteSm.fontFamily}`));
-  expect(block).toContain(rule('color:rgba(110,107,125,1.00)'));
+  expect(block).toContain(rule('color:rgba(164,161,178,1.00)'));
+  expect(block).not.toContain(rule('color:rgba(110,107,125,1.00)'));
+});
+
+test('«Осталось 9 файлов» is 13 / 600 `muted`, and the block round it is 16 in, 12 between', () => {
+  // Spec detail 48 and `UploadQueue.json`: the block 358 × 101 from 124 (e5), «Отправляем» at 141
+  // (e6: 1 + 16 in), «Осталось 9 файлов» Onest 13 / 600 `#A4A1B2` (e7) — not the meta's 12 / 500 —
+  // the bar 6 at 174 (e8), the line under it at 192 (e10): 12 between each — and the 101 is
+  // 1 + 16 + 21 + 12 + 6 + 12 + 16 + 16 + 1, «Отправляем» on the spec's 21 line (`subtitle` 17 / 21).
+  let tree!: TestRenderer.ReactTestRenderer;
+  act(() => {
+    tree = mounted(
+      TestRenderer.create(
+        <Upload title="Отправляем" meta="Осталось 9 файлов" value={0.26} hint="Можно свернуть" />,
+      ),
+    );
+  });
+  const count = tree.root
+    .findAllByType(RNText)
+    .find((one) => one.props.children === 'Осталось 9 файлов')!;
+  expect(StyleSheet.flatten(count.props.style)).toMatchObject({
+    fontFamily: 'Onest_600SemiBold',
+    fontSize: 13,
+    color: themes.dark.color.muted,
+  });
+  const block = StyleSheet.flatten(
+    tree.root.findAllByType(View).find((one) => StyleSheet.flatten(one.props.style)?.padding)!.props
+      .style,
+  ) as ViewStyle;
+  expect(block).toMatchObject({ padding: 141 - 124 - 1, gap: 192 - 174 - 6, borderWidth: 1 });
+  const inset = Number(block.padding) + Number(block.borderWidth);
+  const lines = Number(type.subtitleDisplay.lineHeight) + 6 + Number(type.noteSm.lineHeight);
+  expect(inset * 2 + lines + Number(block.gap) * 2).toBe(101);
 });
 
 test('going and paused are the same block saying two different things under the bar', () => {

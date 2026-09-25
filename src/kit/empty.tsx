@@ -22,16 +22,19 @@ export type SpinnerSize = (typeof spinner)[keyof typeof spinner];
  * motion, which is why the still arc below is a real state and not a fallback.
  *
  * A button waiting on the server borrows it with its own colours: `track` its own ink, `head`
- * transparent.
+ * transparent; the running stage on air, with its own ring as well (spec detail 56: 2).
  */
 export function Spinner({
   size = spinner.join,
   track,
   head,
+  ring: width,
 }: {
   size?: SpinnerSize | number;
   track?: string;
   head?: string;
+  /** How thick the ring is, where the place names it. Left off, the size decides. */
+  ring?: number;
 }) {
   const { color } = useTheme();
   const turn = useLoop(duration.spin);
@@ -40,7 +43,7 @@ export function Spinner({
     height: size,
     borderRadius: size / 2,
     // Thinner on the small ones, or a 16 spinner is a solid dot.
-    borderWidth: size <= 16 ? 2 : 3,
+    borderWidth: width ?? (size <= 16 ? 2 : 3),
     borderColor: track ?? color.raise,
     borderTopColor: head ?? color.spark,
   };

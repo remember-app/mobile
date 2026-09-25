@@ -165,8 +165,10 @@ test('«Готов» on the large poster is a decision mark in its own words, «
   const poster = story(<BadgeMontage state="ready" label="Готов" />);
   expect(poster).toContain('>Готов<');
   expect(poster).not.toContain('ГОТОВ');
-  // The pill a decision is drawn in: 22 on `0 8`, its words 11 / 700 untracked.
-  expect(poster).toContain(rule('height:22px'));
+  // The pill a decision is drawn in: 22 on `0 8`, its words 11 / 700 untracked. The 22 is a floor
+  // and not a height: the words grow with the system's type, and the pill grows with them (a height
+  // back on it fails `type-rules` too).
+  expect(poster).toContain(rule('min-height:22px'));
   expect(poster).toContain(rule('padding-left:8px;padding-right:8px'));
   expect(poster).not.toContain(rule('letter-spacing:0.66px'));
   const strip = story(<BadgeMontage sm state="ready" label="Готов" />);

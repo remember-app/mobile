@@ -207,9 +207,10 @@ const useStyles = themed(({ color }) =>
     pending: { backgroundColor: color.pendingSoft },
     failed: { backgroundColor: color.failedSoft },
     // Spec 7.4 — the decision mark and the tag word are the same 22/28 pill at two widths; what
-    // differs between them is the fill and whether anything ever presses it.
+    // differs between them is the fill and whether anything ever presses it. The 22 is a floor: the
+    // mark is also «Готов» on the large poster, and its words grow with the system's type.
     mark: {
-      height: 22,
+      minHeight: 22,
       justifyContent: 'center',
       paddingHorizontal: space.s2,
       borderRadius: radius.pill,

@@ -55,6 +55,19 @@ test('a message card is drawn to `UploadAccess`: the paragraph 15 / 22, and 16 b
   expect(card.gap).toBe(303 - (221 + 66));
 });
 
+test('«Разрешить доступ» is 15 / 600 in its 52, as the message card draws it', () => {
+  // `UploadAccess.json` e10: 316 × 52, Onest 15 / 600 — spec detail 45 and 10.11 («„Разрешить
+  // доступ“ 15 / 600 — так»). The 52 on its own would say the main button's 16.
+  const card = story(
+    <CardMessage icon={ImageIcon} text="Remember не видит вашу галерею">
+      <Button variant="primary" size="md" labelRole="controlMd" label="Разрешить доступ" />
+    </CardMessage>,
+  );
+  expect(card).toContain(rule('font-size:15px'));
+  expect(card).toContain(rule(`font-family:${font.semi}`));
+  expect([type.controlMd.fontSize, type.controlMd.fontFamily]).toEqual([15, font.semi]);
+});
+
 test('the button of a hint stands under its words, not under its glyph', () => {
   // `UploadLimited.json`: the words e7 and «Отдать ещё» e8 both start at 64 — the glyph e6 at 33,
   // 19 wide, 12 before the words — and the button is 12 under the last line (215 → 227).

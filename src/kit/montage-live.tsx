@@ -141,7 +141,7 @@ export function CardNow({
       {waiting ? null : (
         <View style={styles.say}>
           <View style={styles.sayWho}>
-            <SparkMark size={22} />
+            <SparkMark />
             <Text role="label">{who}</Text>
             {standing ? <Text role="meta">{standing}</Text> : null}
             <View style={styles.grow} />
@@ -258,22 +258,26 @@ function Cursor() {
   );
 }
 
-/** The `spark` circle with the sparkle in it — the director, wherever they speak. */
-function SparkMark({ size }: { size: 20 | 22 }) {
+/**
+ * The `spark` 22 with the sparkle in it — the director, wherever they speak: on the card «Сейчас»
+ * and in the plate of a thought alike (spec detail 50: one plate, the 22 with a 12 at 2.4).
+ */
+function SparkMark() {
   const { color } = useTheme();
   const styles = useStyles();
 
   return (
-    <View style={[styles.sparkMark, { width: size, height: size }]}>
-      <Icon icon={Sparkles} size={size === 22 ? 12 : 11} color={color.sparkInk} />
+    <View style={styles.sparkMark}>
+      <Icon icon={Sparkles} size={12} stroke={2.4} color={color.sparkInk} />
     </View>
   );
 }
 
 /**
  * Spec 7.6 — the director's thought as a plate: the sparkle and the sentence. It is the same plate
- * whether it holds the plan for a whole stage or the thought about one file. Where that file lay in
- * the film is not a thought but the layout's fact, and is not drawn inside it (detail 50).
+ * whether it holds the plan for a whole stage or the thought about one file — one plate, not the two
+ * the layout draws (spec detail 50, 10.11): 16 round, 12 inside, the 22 and the words 13 / 400 / 18.
+ * Where that file lay in the film is not a thought but the layout's fact, and is not drawn inside it.
  */
 export function NoteThought({
   text,
@@ -289,8 +293,8 @@ export function NoteThought({
 
   return (
     <View style={[styles.plateNote, style]}>
-      <SparkMark size={20} />
-      <Text role="note" tone="paper" style={styles.grow}>
+      <SparkMark />
+      <Text role="log" style={styles.grow}>
         <Said said={text} unsaid={unsaid} />
       </Text>
     </View>
@@ -351,9 +355,10 @@ export function LogEntry({
           ))}
         </View>
       ) : null}
-      {source ? <Text role="meta">{source}</Text> : null}
+      {/* Spec detail 61: the file and its author 11 / 500 `muted`, the thought 13 / 400 / 18. */}
+      {source ? <Text role="metaSm">{source}</Text> : null}
       {text || unsaid ? (
-        <Text role="note" tone="paper">
+        <Text role="log">
           <Said said={text} unsaid={unsaid} />
         </Text>
       ) : null}
@@ -364,7 +369,9 @@ export function LogEntry({
   return (
     <View style={styles.entry}>
       <View style={[styles.dot, fresh ? styles.dotFresh : null]} />
-      <Text role="meta" tone={fresh ? 'paper' : 'faint'}>
+      {/* Spec detail 61: 11 / 600 — «сейчас» in `paper`, every time behind it `muted` (10.1: the
+          layout's `faint` is under the floor for words that are read). */}
+      <Text role="metaTile" tone={fresh ? 'paper' : 'muted'}>
         {time}
       </Text>
       {children ?? (
@@ -378,7 +385,7 @@ export function LogEntry({
               <View style={styles.shotSmall}>
                 <Image source={{ uri }} contentFit="cover" style={StyleSheet.absoluteFill} />
                 {length ? (
-                  <Text role="badgeSm" style={styles.shotLength}>
+                  <Text role="runtimeXs" style={styles.shotLength}>
                     {length}
                   </Text>
                 ) : null}
@@ -544,10 +551,7 @@ const useStyles = themed(({ color }) =>
       borderRadius: radius.cell,
     },
     // Only the top is darkened: the plates live up there and the frame itself is the point.
-    shotTop: {
-      experimental_backgroundImage:
-        'linear-gradient(to bottom, rgba(9,9,14,0.55) 0%, rgba(9,9,14,0) 40%)',
-    },
+    shotTop: { experimental_backgroundImage: photo.now },
     plate: {
       position: 'absolute',
       top: 10,
@@ -575,6 +579,8 @@ const useStyles = themed(({ color }) =>
     say: { paddingTop: 12, paddingHorizontal: 14, paddingBottom: 14, gap: space.s2 },
     sayWho: { flexDirection: 'row', alignItems: 'center', gap: space.s2 },
     sparkMark: {
+      width: 22,
+      height: 22,
       borderRadius: radius.pill,
       backgroundColor: color.spark,
       alignItems: 'center',
@@ -630,8 +636,9 @@ const useStyles = themed(({ color }) =>
     series: { flexDirection: 'row', gap: space.s1 },
     seriesShot: { width: 44, height: 44, borderRadius: 9, backgroundColor: color.raise },
     marks: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+    // Spec detail 62: 42 — a floor, so a title grown with the system's type grows the row.
     filmAt: {
-      height: 40,
+      minHeight: 42,
       flexDirection: 'row',
       alignItems: 'center',
       gap: space.s2,

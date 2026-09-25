@@ -11,6 +11,7 @@
  * where a thing stands, and what is no longer in the file.
  */
 
+import { fontFile, wordWidth } from '@tests/helpers/font';
 import { api, flat } from '@tests/helpers/source';
 import { expect, test } from 'vitest';
 import layout from '@/app/_layout.tsx?raw';
@@ -33,6 +34,7 @@ import liveFile from '@/screens/memory/live-file.tsx?raw';
 // And the five rows of the making, which the live screen and the film's page both draw.
 import stageRows from '@/screens/memory/stage-rows.tsx?raw';
 import { en, ru } from '@/strings';
+import { type } from '@/theme';
 
 // Everything both screens of the making work out of one answer — where a stage stands, how long the
 // whole of it took, the three numbers of «Как собирался» — read as one text, the way `api` is: which
@@ -89,14 +91,21 @@ test('the montage on air is a route of one row, with the journal of a stage unde
   }
   // And the dictionary is exactly the api's five: the two names the waiting screen had of its own
   // («story», «cut») went with it, so one stage cannot be spelled two ways any more.
-  // `MontageLive`: with the story being built, the two stages still ahead are one faint line —
-  // «Дальше: ритм трека · склейка», word for word — where the app drew two more rows of names.
+  // `MontageLive`: with the story being built, the two stages still ahead are one quiet line —
+  // «Дальше: ритм трека · склейка», word for word — where the app drew two more rows of names. It
+  // wraps between stages and never inside one (spec detail 56: «не внутри „ритм трека“»), and a
+  // wrapped line starts on a stage, not on its «·» — so those two spaces are no-break ones.
   expect(
     ru.montage.live.ahead([ru.montage.stageAhead.rhythm, ru.montage.stageAhead.assembly]),
-  ).toBe('Дальше: ритм трека · склейка');
+  ).toBe('Дальше: ритм\u00a0трека\u00a0· склейка');
   // The journal's head and the line of what is ahead name the same five, by the same codes.
   for (const set of [en, ru]) {
-    for (const names of [set.montage.stage, set.montage.stageHead, set.montage.stageAhead]) {
+    for (const names of [
+      set.montage.stage,
+      set.montage.stageHead,
+      set.montage.stageAhead,
+      set.montage.progress,
+    ]) {
       expect(Object.keys(names)).toEqual([
         'screening',
         'understanding',
@@ -106,6 +115,53 @@ test('the montage on air is a route of one row, with the journal of a stage unde
       ]);
     }
   }
+});
+
+test('the five stages say their short forms and their words of progress as spec detail 56 has them', () => {
+  // Spec 10.11, «Ответы на вопросы сборки», 1 — the table of detail 56, word for word, both languages.
+  // The journal's head is short (~209 of room beside the pill): «Разбираем, что на кадрах» and
+  // «Laying them out to the beat» were the rows' long names; «the frames» in «Next: …» is «reading».
+  const table = (set: typeof ru) =>
+    (['screening', 'understanding', 'directing', 'rhythm', 'assembly'] as const).map((code) => [
+      set.montage.stageHead[code],
+      set.montage.stageAhead[code].replaceAll('\u00a0', ' '),
+      set.montage.progress[code],
+    ]);
+  expect(table(ru)).toEqual([
+    ['Отсев брака', 'отсев брака', 'проверено'],
+    ['Разбираем кадры', 'разбор кадров', 'разобрано'],
+    ['Строит историю', 'история', 'разложено'],
+    ['Кладём в ритм', 'ритм трека', 'подогнано'],
+    ['Склеиваем', 'склейка', 'склеено'],
+  ]);
+  expect(table(en)).toEqual([
+    ['Screening frames', 'screening', 'checked'],
+    ['Reading frames', 'reading', 'read'],
+    ['Builds the story', 'the story', 'placed'],
+    ['Fitting the beat', 'the beat', 'fitted'],
+    ['Cutting together', 'the cut', 'joined'],
+  ]);
+  // A stage of the «Дальше» line is one unit however it wraps: no plain space inside any of them.
+  for (const set of [en, ru]) {
+    for (const short of Object.values(set.montage.stageAhead)) expect(short).not.toContain(' ');
+  }
+  expect(en.montage.live.ahead(Object.values(en.montage.stageAhead))).toBe(
+    'Next: screening\u00a0· reading\u00a0· the\u00a0story\u00a0· the\u00a0beat\u00a0· the\u00a0cut',
+  );
+  // And every head fits its ~209 beside the pill at ×1, measured off the font file the way spec 7.1
+  // measures words: Unbounded 600 17 with −0.51 of tracking (`barTitleLive`), none over 200 — the
+  // widest «Разбираем кадры» (192) and «Screening frames» (180).
+  const face = fontFile('@expo-google-fonts/unbounded/600SemiBold/Unbounded_600SemiBold.ttf');
+  const { fontSize, letterSpacing } = type.barTitleLive;
+  const wide = (words: string) =>
+    wordWidth(face, words, Number(fontSize)) + Number(letterSpacing) * [...words].length;
+  for (const set of [en, ru]) {
+    for (const head of Object.values(set.montage.stageHead)) {
+      expect(wide(head), head).toBeLessThanOrEqual(200);
+    }
+  }
+  expect(Math.round(wide(ru.montage.stageHead.understanding))).toBe(192);
+  expect(Math.round(wide(en.montage.stageHead.screening))).toBe(180);
 });
 
 test('a card still being made is the second road onto the montage being watched', () => {
@@ -236,6 +292,10 @@ test('the stage journal is one stage’s records, cut the way the api counts the
   // The counts on the chips are the api's tally over the whole stage, not over the page on screen.
   expect(stageLog).toContain('count={row ? String(row.taken_count) : undefined}');
   expect(stageLog).toContain('count={row ? String(row.skipped_count) : undefined}');
+  // Its bar says «Этап 3 из 5 · 4 мин · 61 разложено» (spec detail 56) — the head's own line, not the
+  // row's «61 из 212 разложено · идёт 4 мин».
+  expect(stageLog).toContain('row && stageHeadLine(row, s),');
+  expect(stageLog).not.toContain('stageLine(');
 
   // Hundreds of records: a windowed list, paged backwards by cursor as it is scrolled, and a record
   // landing on top does not move what somebody is reading.
@@ -313,6 +373,12 @@ test('a finished film has a page of its own, and it is where the film is watched
   expect(player).toContain('export function FilmPlayer');
   // «2:30 · 16:9» along the bottom of it, out of what the worker made and what was ordered.
   expect(done).toContain("RATIO[montage.params.orientation ?? 'landscape']");
+  // And «Готов» beside it — the large poster's own badge, not `sm`: lower case on the decision
+  // mark's 22 pill (spec detail 24, 10.11: «„Готов“ на крупном постере — строчными, 11 / 700, без
+  // трекинга, пилюля 22»); the shouted «ГОТОВ» is the strip's alone.
+  expect(done).toContain('badge={<BadgeMontage state="ready" label={s.montage.status.ready} />}');
+  expect(done).not.toMatch(/<BadgeMontage[^>]*\bsm\b/);
+  expect(ru.montage.status.ready).toBe('Готов');
 
   // The two buttons under it are the actions the player's own button is made of, and they are
   // nobody's alone: whoever brought material gets the film back, a viewer included.

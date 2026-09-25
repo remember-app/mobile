@@ -247,7 +247,7 @@ export type StepState = 'done' | 'running' | 'waiting' | 'failed';
  *
  * The one still running opens: it takes an `accentNote` wash and carries its last few records under
  * it, so the screen shows what the director is doing without anybody having to go looking. A stage
- * still ahead is not a road at all — no meta, no chevron, one faint line naming what is coming, and
+ * still ahead is not a road at all — no meta, no chevron, one quiet line naming what is coming, and
  * the layout draws that row 44 rather than 48 (`MontageLive`).
  *
  * Nothing on it is cut: a name, a meta or the line of what is ahead that outgrows the row on large
@@ -283,7 +283,7 @@ export function RowStep({
         style={[styles.step, ahead ? styles.stepAhead : null]}
       >
         {state === 'running' ? (
-          <Spinner size={24} track={color.line} head={color.accent} />
+          <Spinner size={24} ring={2} track={color.line} head={color.accent} />
         ) : (
           <View
             style={[
@@ -298,7 +298,9 @@ export function RowStep({
           </View>
         )}
         {ahead ? (
-          <Text role="note" tone="faint" style={styles.grow}>
+          // Spec detail 56 and 10.11: 13 / 500 `muted` (the layout's `faint` is under the floor for
+          // words that are read), wrapping onto a second line of 18 rather than cut.
+          <Text role="note" style={[styles.grow, styles.aheadWords]}>
             {title}
           </Text>
         ) : (
@@ -350,12 +352,13 @@ export function StepNote({
       <View style={styles.noteShot}>
         {uri ? <Image source={{ uri }} contentFit="cover" style={StyleSheet.absoluteFill} /> : null}
         {length ? (
-          <Text role="badgeSm" style={styles.noteLength}>
+          <Text role="runtimeXs" style={styles.noteLength}>
             {length}
           </Text>
         ) : null}
       </View>
-      <Text role="meta" tone="paper" numberOfLines={2} style={styles.grow}>
+      {/* Spec detail 56: 12 / 500 / 16 in the quoted-words ink, two lines at most. */}
+      <Text role="meta" tone="quote" numberOfLines={2} style={[styles.grow, styles.quoted]}>
         {text}
       </Text>
       {mark}
@@ -600,14 +603,16 @@ const useStyles = themed(({ color }) =>
       paddingHorizontal: 14,
     },
     stepAhead: { minHeight: height.small },
+    aheadWords: { lineHeight: 18 },
     // Spec 7.7 — the stage in hand is washed rather than boxed: it is one of a list of stages, and
     // a border round it would make it a card standing apart from its own neighbours.
     stepOpen: { backgroundColor: color.accentNote },
+    // Spec detail 56 and 10.11: the ring of a stage ahead is 1, where the running one's is 2.
     stepMark: {
       width: 24,
       height: 24,
       borderRadius: radius.pill,
-      borderWidth: 1.5,
+      borderWidth: 1,
       borderColor: 'transparent',
       alignItems: 'center',
       justifyContent: 'center',
@@ -634,6 +639,7 @@ const useStyles = themed(({ color }) =>
       alignItems: 'flex-end',
     },
     noteLength: { color: photo.on, paddingRight: 3, paddingBottom: 2 },
+    quoted: { lineHeight: 16 },
     // Drawn at the layout's 40 and felt at 44 through the slop: the four points spec 10.2 asks of
     // anything a finger lands on are not four points of room under a stage. The chevron follows the
     // words rather than standing at the far edge.

@@ -36,7 +36,7 @@ import {
   type Sift,
   STAGE_COUNT,
   sifted,
-  stageLine,
+  stageHeadLine,
   stageNumber,
   useMontageJournal,
   useTypedThought,
@@ -122,11 +122,11 @@ export default function MontageLiveStageScreen() {
           <AppBar
             variant="live"
             title={s.montage.stageHead[code]}
-            // «Этап 5 из 5 · 12 из 38 · идёт 2 мин» — where this stage stands, said the same way
-            // the row it was opened from says it.
+            // «Этап 3 из 5 · 4 мин · 61 разложено» — where this stage stands, its time and how far
+            // it has got in the word of what it does (spec detail 56).
             subtitle={[
               s.montage.live.stageOf(stageNumber(code), STAGE_COUNT),
-              row && stageLine(row, s),
+              row && stageHeadLine(row, s),
             ]
               .filter(Boolean)
               .join(' · ')}

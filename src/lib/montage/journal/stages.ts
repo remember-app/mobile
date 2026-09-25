@@ -170,15 +170,37 @@ function cameOf(stage: MontageStage, s: Strings): string | undefined {
 }
 
 /**
- * «61 из 212» — how far through it is, for a stage that has not come to anything yet, and only once
- * its counter has moved. The worker counts screening by the file and assembly by the piece; the
- * other three stand at nothing until they are done, and «0 из 13» there would say nothing has been
- * done while the stage's records pile up under it.
+ * «61 из 212 разложено» — how far through it is, in the word of what the stage does, for a stage
+ * that has not come to anything yet, and only once its counter has moved (spec detail 56). The
+ * worker counts screening by the file and assembly by the piece; the other three stand at nothing
+ * until they are done, and «0 из 13» there would say nothing has been done while the stage's records
+ * pile up under it.
  */
 function soFar(stage: MontageStage, s: Strings): string | undefined {
   return stage.total_count === null || stage.done_count === 0
     ? undefined
-    : s.montage.live.doneOf(stage.done_count, stage.total_count);
+    : s.montage.live.soFar(stage.done_count, stage.total_count, s.montage.progress[stage.stage]);
+}
+
+/**
+ * What the bar over a stage's own journal says after «Этап 3 из 5» (spec detail 56,
+ * `MontageLiveStage`) — «4 мин · 61 разложено»: the stage's time, then what it came to or, while it
+ * is still at it, how many it has done so far. The bar has no room for the total the row carries,
+ * and the time there is the stage's own whichever way it stands, so it is said without «идёт».
+ */
+export function stageHeadLine(
+  stage: MontageStage,
+  s: Strings,
+  now: number = Date.now(),
+): string | undefined {
+  const { live, progress } = s.montage;
+  const minutes = stageMinutes(stage, now);
+  const parts = [
+    minutes === null ? undefined : live.minutes(minutes),
+    cameOf(stage, s) ??
+      (stage.done_count === 0 ? undefined : live.counted(stage.done_count, progress[stage.stage])),
+  ].filter((part): part is string => part !== undefined);
+  return parts.length === 0 ? undefined : parts.join(' · ');
 }
 
 /**

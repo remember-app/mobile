@@ -32,7 +32,13 @@ export function NoFeed({
   if (error !== null) {
     return (
       <CardMessage icon={ImageIcon} text={error} style={styles.message}>
-        <Button variant="primary" size="md" label={s.action.retry} onPress={onRetry} />
+        <Button
+          variant="primary"
+          size="md"
+          labelRole="controlMd"
+          label={s.action.retry}
+          onPress={onRetry}
+        />
       </CardMessage>
     );
   }
@@ -47,7 +53,7 @@ export function NoFeed({
   }
 
   // `UploadAccess`: the phone's own dialog while it is still worth asking, and Settings once the
-  // phone has stopped asking.
+  // phone has stopped asking. The card's button is 52 with its words at 15 / 600 (spec detail 45).
   if (!access.granted) {
     return (
       <CardMessage
@@ -58,6 +64,7 @@ export function NoFeed({
         <Button
           variant="primary"
           size="md"
+          labelRole="controlMd"
           label={access.canAskAgain ? s.upload.allow : s.action.openSettings}
           onPress={() => void (access.canAskAgain ? ask() : Linking.openSettings())}
         />

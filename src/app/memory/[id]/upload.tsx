@@ -42,6 +42,7 @@ import {
   IconButton,
   RowStuck,
   Sheet,
+  seamsOver,
   Text,
   Tile,
   Upload,
@@ -93,6 +94,8 @@ type Row =
       unseen?: undefined;
     }
   | { key: string; unseen: true; day?: undefined; frames?: undefined };
+
+const SeamCell = seamsOver<Row>((row) => row.day !== undefined);
 
 /**
  * Putting material into a memory: consent, the camera roll drawn the way a memory's own feed is —
@@ -386,18 +389,23 @@ export default function UploadScreen() {
   /**
    * The bottom layer of the third kind, and only while something can be sent: with picking off the
    * feed is just a feed, and `UploadAccess`, `UploadEmpty` and the rest are drawn with no layer at
-   * all. The button stands there from the start and is simply out until something is marked — the
-   * layout would rather show what this screen is for than hide it. On the feed it floats over the
-   * photographs on the deepest footer, the one that lies on them; under the queue's grid it is the
-   * board's own, fading the screen's ink the way `UploadLimited` draws it.
+   * all. With nothing going, the button stands there from the start and is simply out until
+   * something is marked — the layout would rather show what this screen is for than hide it. While
+   * something is going it stands only once something is marked (`UploadQueue`): the sending is what
+   * that screen is about, and a button with nothing to send would argue with it. On the feed it
+   * floats over the photographs on the deepest footer, the one that lies on them; under the queue's
+   * grid it is the board's own, fading the screen's ink the way `UploadLimited` draws it.
+   *
+   * The count over the button is `UploadLimited`'s alone (spec 8): everywhere else the number rides
+   * in the button, and a day or a frame is let go of by a tap on it.
    */
   const layer =
-    feed && choosing ? (
+    feed && choosing && (picked.size > 0 || queued.length === 0) ? (
       <ActionBar
         style={glass ? styles.layer : undefined}
         footer={glass ? 'upload' : undefined}
         above={
-          picked.size > 0 ? (
+          limited && picked.size > 0 ? (
             <>
               <Text role="label" style={styles.grow}>
                 {/* The total is only worth saying once the whole roll is in hand — half a count
@@ -406,7 +414,13 @@ export default function UploadScreen() {
                   ? s.upload.picked(picked.size)
                   : s.upload.pickedOf(picked.size, gallery.length)}
               </Text>
-              <Button variant="quiet" label={s.action.clear} onPress={() => setPicked(new Set())} />
+              {/* 14 / 600 (`UploadLimited`): a quiet button's words are the place's own. */}
+              <Button
+                variant="quiet"
+                labelRole="controlSm"
+                label={s.action.clear}
+                onPress={() => setPicked(new Set())}
+              />
             </>
           ) : undefined
         }
@@ -487,6 +501,8 @@ export default function UploadScreen() {
               <FlatList
                 data={rows}
                 keyExtractor={(row) => row.key}
+                // A day's band lies over the strips either side of it (spec detail 65).
+                CellRendererComponent={SeamCell}
                 contentContainerStyle={
                   glass
                     ? [

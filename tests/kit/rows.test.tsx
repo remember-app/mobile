@@ -394,10 +394,11 @@ test('a stage’s name and its line stand on their 18 and 14, in a row of 48, an
   expect(row.press.style.minHeight).toBe(48);
 });
 
-test('the stages still ahead are one faint line on a row of 44, whole however long it runs', () => {
-  // `MontageLive`: the circle at 706 and «Дальше: ритм трека · склейка» Onest 13 / 500 `faint` at
-  // 709.5 in a row from 696 to 740 — 44, where a reached stage has 48. The app drew it 48 and cut it
-  // to one line, which «Дальше:» with all five stages in it outruns.
+test('the stages still ahead are one quiet line on a row of 44, whole however long it runs', () => {
+  // `MontageLive`: the circle at 706 and «Дальше: ритм трека · склейка» Onest 13 / 500 at 709.5 in a
+  // row from 696 to 740 — 44, where a reached stage has 48. The app drew it 48 and cut it to one
+  // line, which «Дальше:» with all five stages in it outruns. Spec detail 56 and 10.11: `muted`
+  // #A4A1B2, not the layout's `faint` #6E6B7D, and a second line of 13 / 18 when it wraps.
   const row = drawnRow(
     <RowStep
       title="Дальше: отсев брака · разбор кадров · история · ритм трека · склейка"
@@ -408,9 +409,55 @@ test('the stages still ahead are one faint line on a row of 44, whole however lo
   expect(row.texts[0].lines).toBeUndefined();
   expect(row.texts[0].style).toMatchObject({
     fontSize: 13,
+    lineHeight: 18,
     fontFamily: 'Onest_500Medium',
-    color: themes.dark.color.faint,
+    color: themes.dark.color.muted,
   });
+});
+
+test('the ring of a stage ahead is 1 and the running one’s 2, as the layout draws them', () => {
+  // `MontageLive.json` e59: the stage ahead is a 24 circle in `1px solid #2C2C3A`; e45: the running
+  // one is 24 in `2px` of `#2C2C3A` with its arc in `#4B5BFF` on top. Spec 10.11: 1.5 → 1 and
+  // 2.5 → 2 — the app drew 1.5 and 3.
+  const { line, accent } = themes.dark.color;
+  const rings = (state: StepState) => {
+    let tree!: TestRenderer.ReactTestRenderer;
+    act(() => {
+      tree = TestRenderer.create(<RowStep title="Этап" state={state} onPress={() => {}} />);
+    });
+    const styles = tree.root
+      .findAll((node) => node.props.style !== undefined && typeof node.props.style !== 'function')
+      .map((node) => StyleSheet.flatten(node.props.style) as ViewStyle)
+      .filter((style) => style.width === 24 && style.height === 24);
+    act(() => tree.unmount());
+    return styles;
+  };
+  expect(rings('waiting')).toContainEqual(expect.objectContaining({ borderWidth: 1 }));
+  expect(rings('running')).toContainEqual(
+    expect.objectContaining({ borderWidth: 2, borderColor: line, borderTopColor: accent }),
+  );
+});
+
+test('a record under the stage in hand is 12 / 500 / 16 in the quoted-words ink, two lines at most', () => {
+  // `MontageLive.json` e51 and e54: «Марк роняет кольцо…» Onest 12 / 500 on a 16 line, 32 tall for
+  // two, in `#D8D5E0` — spec detail 56 and 10.11, «текст-цитата» (the `quote` tone; the 13 / 400 / 19
+  // of the `quote` role is the story in the order's summary, detail 43). The app drew the meta's 15
+  // line in `paper`. The video's «0:12» in the corner (e50) is 9 / 700 untracked, not `badgeSm`.
+  const note = drawnRow(
+    <StepNote uri="https://bucket.example/f10.jpg" length="0:12" text="Марк роняет кольцо" />,
+  );
+  const words = note.texts.find((one) => one.said === 'Марк роняет кольцо')!;
+  expect(words.lines).toBe(2);
+  expect(words.style).toMatchObject({
+    fontSize: 12,
+    lineHeight: 16,
+    fontFamily: 'Onest_500Medium',
+    color: '#D8D5E0',
+  });
+  expect(themes.dark.color.quote).toBe('#D8D5E0');
+  const time = note.texts.find((one) => one.said === '0:12')!;
+  expect(time.style).toMatchObject({ fontSize: 9, fontFamily: 'Onest_700Bold', color: '#FFFFFF' });
+  expect(time.style.letterSpacing).toBeUndefined();
 });
 
 test('the way into a stage’s journal is drawn 40 and felt 44, its chevron right after the words', () => {

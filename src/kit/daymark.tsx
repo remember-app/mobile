@@ -1,5 +1,12 @@
 import type { ReactNode } from 'react';
-import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
+import {
+  type CellRendererProps,
+  Pressable,
+  type StyleProp,
+  StyleSheet,
+  View,
+  type ViewStyle,
+} from 'react-native';
 
 import { photo, radius, space } from '@/theme';
 
@@ -103,6 +110,30 @@ export function DayMark({
 }
 
 /**
+ * The cell a feed with seams in it draws each row in — `CellRendererComponent` of its list. A seam
+ * that picks is a 44 band over a 20 strip, spilling 12 onto the rows either side, and in that spill
+ * it wins over the frames (spec 7.8, detail 65); a list stacks every row over the one before it, so
+ * the seam's own cell is lifted over both. A frame's circle is centred 19 down, clear of the spill,
+ * so the frame is still picked where its circle is.
+ */
+export function seamsOver<Row>(isSeam: (row: Row) => boolean) {
+  return function SeamCell({
+    item,
+    style,
+    children,
+    cellKey,
+    index,
+    ...rest
+  }: CellRendererProps<Row>) {
+    return (
+      <View {...rest} style={[style, isSeam(item) ? styles.over : null]}>
+        {children}
+      </View>
+    );
+  };
+}
+
+/**
  * The heading of a day over the send queue's grid (spec 8, `UploadQueue`, `UploadLimited`): the day
  * on the left in `label`, a hairline running to what stands at the end — the count of the day in
  * `muted`, or the button that takes all of it. Not a seam: that grid stands in the screen's margins,
@@ -201,6 +232,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
   },
+  over: { zIndex: 1 },
   // A long day never pushes the count off the band; the count itself never wraps.
   label: { flexShrink: 1 },
   count: { flexShrink: 0 },
