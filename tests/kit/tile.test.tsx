@@ -1,6 +1,8 @@
+import { rule } from '@tests/helpers/css';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { Copy } from 'lucide-react-native';
-import { StyleSheet, View, type ViewStyle } from 'react-native';
+import type { ReactElement } from 'react';
+import { Text as RNText, StyleSheet, View, type ViewStyle } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import { beforeAll, expect, test } from 'vitest';
 
@@ -222,6 +224,66 @@ test('the running time in the feed stands 7 from the right edge and 6 from the f
   expect(mark.gap).toBe(4);
   // The wizard's mark keeps its plate and its own glyph.
   expect(story(<FrameMark length="0:24" />)).toContain('width="9"');
+});
+
+/** The flattened styles of every view a tree draws. */
+const viewsOf = (tree: ReactElement) => {
+  let drawn!: TestRenderer.ReactTestRenderer;
+  act(() => {
+    drawn = mounted(TestRenderer.create(tree));
+  });
+  return drawn.root
+    .findAllByType(View)
+    .map((one) => StyleSheet.flatten(one.props.style) as ViewStyle)
+    .filter(Boolean);
+};
+
+test('a picked frame darkens .30 in the feed and .28 under the ring of the 117 grid', () => {
+  // Spec 2, 7.4 detail 26 and 10.11: «затемнение выбранного `.30` в ленте, `.28` под рамкой в сетке
+  // 117» (`FramesPicking.json` e10: rgba(11,11,18,0.3)).
+  const scrim = (tree: ReactElement) =>
+    viewsOf(tree).find((style) => style.position === 'absolute' && style.backgroundColor)
+      ?.backgroundColor;
+  expect(scrim(<Tile state="ready" uri={A} lane="feed" pick="send" label="Фото" />)).toBe(
+    'rgba(11,11,18,0.30)',
+  );
+  expect(scrim(<Tile state="ready" uri={A} pick="send" ring label="Фото" />)).toBe(
+    'rgba(11,11,18,0.28)',
+  );
+});
+
+test('the circle stands 7 off the corner of a feed frame and 6 off a frame of the 117 grid', () => {
+  // Spec 7.4, detail 26 and 10.11: «кружок выбора: отступы 7 (лента) и 6 (сетка 117)» —
+  // `FramesPicking.json` e8 at 7 from the top and the right of its tile, `MontageSelect.json` e14 at 6.
+  const corner = (size: 24 | 22) =>
+    viewsOf(<PickCircle kind="off" size={size} />).find((style) => style.position === 'absolute');
+  expect(corner(24)).toMatchObject({ top: 7, right: 7 });
+  expect(corner(22)).toMatchObject({ top: 6, right: 6 });
+  // And the 13 of a day gap is ringed 1, not 1.5 (spec 7.4, 10.11).
+  expect(viewsOf(<PickCircle kind="off" size={13} />)[0]).toMatchObject({ borderWidth: 1 });
+});
+
+test('the wizard’s time stands 6 off the lower left on a 20 plate; a reason is a 21 pill 5 in', () => {
+  // Spec 7.4, detail 25 and 10.11 (`MontageSelect.json`): «1:08» e39 is 51.6 × 20 at 6 from the left
+  // and the foot of its tile; «Размыто» e21 is 107.3 × 21, 5 in from either side and the foot,
+  // rounded as a pill — not the whole width of the tile.
+  const [plate] = viewsOf(<FrameMark length="1:08" />);
+  expect(plate).toMatchObject({ left: 6, bottom: 6, paddingVertical: 3 });
+  const [reason] = viewsOf(<FrameMark icon={Copy} label="Размыто" />);
+  expect(reason).toMatchObject({ left: 5, right: 5, bottom: 5, borderRadius: 999 });
+  let tree!: TestRenderer.ReactTestRenderer;
+  act(() => {
+    tree = mounted(TestRenderer.create(<FrameMark length="1:08" />));
+  });
+  // 3 + 14 + 3: the plate is 20 at the system's own type.
+  expect(StyleSheet.flatten(tree.root.findByType(RNText).props.style).lineHeight).toBe(14);
+});
+
+test('a frame that did not open says so in `muted`: it is read', () => {
+  // Spec 7.8, detail 63 and 10.1 — the glyph is the quiet part, the line under it is words.
+  const failed = story(<Tile state="failed" caption="Кадр не открылся" label="Кадр" />);
+  expect(failed).toContain('Кадр не открылся');
+  expect(failed).toContain(rule('color:rgba(164,161,178,1.00)'));
 });
 
 test('what stands on a frame’s dark plates is drawn the same in daylight as at night', async () => {

@@ -41,7 +41,8 @@ export function CardMessage({
           importantForAccessibility="no-hide-descendants"
           style={styles.square}
         >
-          <Icon icon={icon} size={24} color={color.muted} />
+          {/* Spec detail 45: the sign 24 in `paper` (sw 1.7), on the `raise` square. */}
+          <Icon icon={icon} size={24} stroke={1.7} color={color.paper} />
         </View>
       ) : null}
       {/* Spec 7.6, detail 45: the paragraph 15 / 22 — three lines in `UploadAccess`, not four. */}
@@ -85,7 +86,13 @@ export function HintNote({
           importantForAccessibility="no-hide-descendants"
           style={styles.noteIcon}
         >
-          <Icon icon={icon} size={18} color={tone === 'spark' ? color.spark : color.muted} />
+          {/* Spec detail 46: 19 at 1.8. */}
+          <Icon
+            icon={icon}
+            size={19}
+            stroke={1.8}
+            color={tone === 'spark' ? color.spark : color.muted}
+          />
         </View>
       ) : null}
       <View style={styles.noteWords}>
@@ -195,9 +202,10 @@ const useStyles = themed(({ color }) =>
     },
     // Spec 7.6, detail 47 — «поля 12–13 / 16», as the layout splits them: the error closes to 12 on
     // the right, where its cross stands; the `done` one has no cross and a 22 circle, and takes 13.
+    // Spec 2: one red for the banner wherever it stands, `.12` under `.40`.
     bannerError: {
-      backgroundColor: color.dangerSoft,
-      borderColor: color.dangerEdge,
+      backgroundColor: color.bannerSoft,
+      borderColor: color.bannerEdge,
       paddingVertical: space.s3,
       paddingRight: space.s3,
     },

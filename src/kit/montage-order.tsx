@@ -162,7 +162,7 @@ export function PosterOrder({
       {template ? (
         <View style={styles.posterPlate}>
           {templateIcon ? <Icon icon={templateIcon} size={14} color={night.paper} /> : null}
-          <Text role="label" style={styles.onPhoto}>
+          <Text role="chipXs" style={styles.onPhoto}>
             {template}
           </Text>
         </View>
@@ -191,8 +191,8 @@ export function PosterOrder({
 
 /**
  * Spec 8, `MontageStory` — the plate over the story: which template the words in the box came
- * from, or that they are the person's own. 30 tall on `accentSoft` under the accent's hairline,
- * which is the pair of tokens the theme keeps for exactly this plate and the chosen choice card.
+ * from, or that they are the person's own. 32 tall on `accentSoft` under the accent's hairline at a
+ * half (`plateEdge`), a shade firmer than the director's own plates.
  *
  * Not a chip: nothing about it can be pressed. It reports which text is in the box, and the way to
  * change that is to write in the box — a plate that took a finger would be a second place where
@@ -213,7 +213,7 @@ export function ChipTemplate({
   return (
     <View style={[styles.templateChip, icon ? null : styles.templateChipBare, style]}>
       {icon ? <Icon icon={icon} size={14} color={color.paper} /> : null}
-      {/* 12 / 600, the chip's own size — the layout calls the plate «чип 30» (spec 8). */}
+      {/* 12 / 600, the chip's own size. */}
       <Text role="chipXs">{label}</Text>
     </View>
   );
@@ -362,10 +362,7 @@ const useStyles = themed(({ color }) =>
     dimmed: { opacity: 0.4 },
     // The frame is the mood of the template and not its subject, so it stays well under the words.
     under: { opacity: 0.42 },
-    templateScrim: {
-      experimental_backgroundImage:
-        'linear-gradient(to top, rgba(11,11,18,0.94) 20%, rgba(11,11,18,0.35) 100%)',
-    },
+    templateScrim: { experimental_backgroundImage: photo.template },
     // Spec 1.8 — glass, because it is lying on a photograph.
     glass: {
       position: 'absolute',
@@ -401,10 +398,8 @@ const useStyles = themed(({ color }) =>
     // Spec 7.6 — 1.3fr 1fr 1fr: the first frame leads and the other two answer it.
     posterCell: { flex: 1, backgroundColor: color.raise, overflow: 'hidden' },
     posterLead: { flex: 1.3 },
-    posterScrim: {
-      experimental_backgroundImage:
-        'linear-gradient(to top, rgba(9,9,14,0.9) 10%, rgba(9,9,14,0.1) 70%)',
-    },
+    posterScrim: { experimental_backgroundImage: photo.posterOrder },
+    // Spec 7.6, detail 42: the plate 26 round its 12 / 600 — a floor, it grows with the type.
     posterPlate: {
       position: 'absolute',
       left: 14,
@@ -412,7 +407,7 @@ const useStyles = themed(({ color }) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
-      paddingVertical: 5,
+      minHeight: 26,
       paddingLeft: 7,
       paddingRight: 10,
       borderRadius: radius.pill,
@@ -423,12 +418,13 @@ const useStyles = themed(({ color }) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
-      minHeight: 30,
+      // Spec 8, `MontageStory` (10.11): 32 tall, ringed in the accent at a half.
+      minHeight: 32,
       paddingLeft: space.s2,
       paddingRight: 12,
       borderRadius: radius.pill,
       borderWidth: 1,
-      borderColor: color.accentEdge,
+      borderColor: color.plateEdge,
       backgroundColor: color.accentSoft,
     },
     // Without a glyph in front, the words stand in the middle of the plate rather than off to one

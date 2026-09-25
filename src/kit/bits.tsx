@@ -362,11 +362,12 @@ const useStyles = themed(({ color }) =>
     fill: { height: '100%', borderRadius: radius.pill },
     fillAccent: { backgroundColor: color.accent },
     fillSpark: { backgroundColor: color.spark },
-    videoRow: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },
+    // Spec 7.10: 10 between the timecodes, the line and the sound.
+    videoRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     // The line is 4 tall and the finger's share of it is 36 — the height of the sound button beside
     // it, so the row is no taller for being draggable.
     videoPad: { flex: 1, justifyContent: 'center', paddingVertical: space.s4 },
-    videoTrack: { height: 4, borderRadius: radius.pill, backgroundColor: photo.glass },
+    videoTrack: { height: 4, borderRadius: radius.pill, backgroundColor: photo.videoTrack },
     videoFill: { height: '100%', borderRadius: radius.pill, backgroundColor: color.spark },
     videoHandle: {
       position: 'absolute',
@@ -453,7 +454,8 @@ export function DashedNote({ text, style }: { text: string; style?: StyleProp<Vi
   const styles = useStyles();
   return (
     <View style={[styles.dashedNote, style]}>
-      <Text role="note" tone="faint" style={styles.centred}>
+      {/* 13 / 500 `muted` (spec 8, `UploadLimited`; 10.1 for the layout's `faint`). */}
+      <Text role="note" style={styles.centred}>
         {text}
       </Text>
     </View>

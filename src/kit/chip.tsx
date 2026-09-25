@@ -12,7 +12,7 @@ import { Text } from './text';
  * belonging to a place rather than to a taste (spec 7.3):
  *
  * - **40** — a filter, the tallest and the only one that carries a face;
- * - **36** — the quick days on `Create`, which stand on `surface` instead of on nothing;
+ * - **36** — the quick days on `Create`, which stand on `surface` instead of on nothing, 13 a side;
  * - **34** — the journal's own filter, where a row of them sits under a bar: 13 / 600;
  * - **28** — «Все дни» in the head of the filter's day block: 12 / 600 and pulled in to 12 a side.
  *
@@ -82,7 +82,7 @@ export function Chip({
       style={({ pressed }) => [
         styles.chip,
         { minHeight: size },
-        size === 28 ? styles.tag : null,
+        size === 28 ? styles.tag : size === 36 ? styles.quickSides : null,
         lead ? styles.chipLead : null,
         selected ? styles.selected : size === 36 ? styles.quick : styles.outlined,
         hovered && !selected ? styles.hover : null,
@@ -126,6 +126,9 @@ const useStyles = themed(({ color }) =>
       borderColor: 'transparent',
     },
     tag: { paddingHorizontal: space.s3 },
+    // Spec 7.3, detail 16 `[правлено]`: the quick days are 13 a side, so the four stand in the
+    // column of 358 on one line (353.5) — the layout's 14 ran 1.3 past it on either side.
+    quickSides: { paddingHorizontal: 13 },
     // A chip with a face or a colour in it pulls its left side in so the circle sits against the edge.
     chipLead: { paddingLeft: 6 },
     outlined: { borderColor: color.lineQuiet },

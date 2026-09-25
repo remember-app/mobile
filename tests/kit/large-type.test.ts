@@ -189,8 +189,10 @@ const HEADINGS: {
 }[] = [
   // `OnboardingHead`: the words stand 24 in from either side.
   { role: 'hero', room: IPHONE - 2 * 24, carries: () => ['Remember'] },
-  // «Присоединяем…» on `invite`: 32 in; `Consent` has 24.
+  // `Consent`: 24 in, measured at `invite`'s 32 — tighter, so it errs on the side of fitting.
   { role: 'heroNarrow', room: IPHONE - 2 * 32, carries: () => ['Remember'] },
+  // «Присоединяем…» on `invite`, `hero малый`: 32 in.
+  { role: 'heroSm', room: IPHONE - 2 * 32, carries: () => ['Remember'] },
   // The wizard's heading, in the screen's own 16.
   {
     role: 'display',

@@ -146,6 +146,31 @@ test('every size the layout draws a circle at is its own size, letters and all',
   expect(story(<Avatar name="Марк Ковалёв" size={42} />)).toContain('font-size:14px');
 });
 
+test('the initials are the size and the weight the layout gives each circle', () => {
+  // Spec 7.5, detail 31 and 10.11 («кегли инициалов по размерам»): 16 → 6 / 700 (`FramesByPeople`
+  // e2), 18 → 7 / 700 (`MontageLive` e16), 24 → 9 / 700, 32 → 11 / 600 (`SheetInvite` e13), 36 → 12
+  // / 700, 38 → 13 / 700 (`MemorySettings` e18), 42 → 14 / 600 (`Contacts` e13), 48 → 15 / 700
+  // (`SheetFilter` e8), 64 → 18 / 600 (`SheetConfirmMember` e2). They were all 600, and 24 was 8.
+  const drawn: [number, number, 'Onest_700Bold' | 'Onest_600SemiBold'][] = [
+    [16, 6, 'Onest_700Bold'],
+    [18, 7, 'Onest_700Bold'],
+    [24, 9, 'Onest_700Bold'],
+    [32, 11, 'Onest_600SemiBold'],
+    [36, 12, 'Onest_700Bold'],
+    [38, 13, 'Onest_700Bold'],
+    [42, 14, 'Onest_600SemiBold'],
+    [48, 15, 'Onest_700Bold'],
+    [64, 18, 'Onest_600SemiBold'],
+  ];
+  for (const [size, letters, face] of drawn) {
+    const circle = story(<Avatar name="Марк Ковалёв" size={size} />);
+    expect(circle, String(size)).toContain(`font-size:${letters}px`);
+    // 600 is the role's own face, a class; 700 is written over it.
+    if (face === 'Onest_700Bold') expect(circle, String(size)).toContain(`font-family:${face}`);
+    else expect(circle, String(size)).not.toContain('Onest_700Bold');
+  }
+});
+
 test('the account’s own circle sets its letters like a name, at the size a confirmation does not', () => {
   // Spec 8, `Account`: 64 with the initials in Unbounded 600 19 — the same 64 on a confirmation
   // sheet carries Onest at 18.
@@ -248,7 +273,7 @@ test('the initials of a stack show whole: 11 / 700 at 36, centred in the 22 the 
 });
 
 test('the same rule at 24: 8 / 700, centred in the 17 the next circle leaves', () => {
-  // The collar at 24 is a 1.5 hairline inside the circle, so only the overlap of 7 is hidden.
+  // The collar at 24 is a 1 hairline inside the circle, so only the overlap of 7 is hidden.
   const drawn = stackOf(
     story(<AvatarStack names={['Лиза Морозова', 'Марк Ковалёв', 'Аня Петрова']} size={24} />),
   );
@@ -281,15 +306,15 @@ test('a member row carries the name, what they brought under it, and one mark at
       name="Аня Петрова"
       meta="54 кадра"
       status={<BadgeContribution state="done" label="Всё загрузил" />}
-      ring
     />,
   );
   expect(row).toContain('Аня Петрова');
   expect(row).toContain('54 кадра');
   expect(row).toContain('aria-label="Всё загрузил"');
-  // Spec 7.5 — the organizer is told by the collar on their circle and never by a second word:
-  // «Организатор» beside a name that already wears the ring is the same thing said twice.
-  expect(row).toContain('0 0 0 1.5px #E4FF4F');
+  // Spec 7.5, detail 31 (10.11) — a roster marks nobody's role: no «Организатор» and no `spark`
+  // collar, which stands only in the seam of «По людям» (`MemorySettings.json` e18: a 1 hairline of
+  // the card and nothing round it).
+  expect(row).not.toContain('0 0 0 1.5px');
   expect(row).not.toContain('ОРГАНИЗАТОР');
 });
 
@@ -496,7 +521,7 @@ test.each(['dark', 'light'] as const)(
 );
 
 test.each(['dark', 'light'] as const)(
-  'in the %s theme the pill’s faces are 24, a 1.5 hairline in the ink they lie on, and the pill is 38 with its figure in paper',
+  'in the %s theme the pill’s faces are 24, a 1 hairline in the ink they lie on, and the pill is 38 with its figure in paper',
   async (name) => {
     const { ink, paper, surface, line } = themes[name].color;
     const pill = await drawn(
@@ -511,8 +536,10 @@ test.each(['dark', 'light'] as const)(
     const styles = viewsOf(pill.root);
     const circles = styles.filter((style) => style.width === 24);
     expect(circles).toHaveLength(4);
+    // Spec 7.5, detail 32 (10.11: «аватар: обводка 1.5 → 1»); `MontageLive.json` e6…e8 —
+    // `1px solid #0B0B12`.
     for (const style of circles) {
-      expect(style.borderWidth).toBe(1.5);
+      expect(style.borderWidth).toBe(1);
       expect(style.borderColor).toBe(ink);
       expect(style.boxShadow).toBeUndefined();
     }

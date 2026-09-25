@@ -132,6 +132,45 @@ test('an empty ordinary card says so instead of the strip, and drops the meta wi
   });
 });
 
+test('the empty strip is the layout’s: its own hole, a 20 glyph at 1.6, the words 13 / 500 in `muted`', async () => {
+  // Spec 7.6, detail 37 and 10.11. `Main.json` e33…e35: a dashed hole of #1D1D28, the `image` glyph
+  // 20 at 1.6 in `faint`, «Ни одного кадра — скиньте первые» 13 / 500 #A4A1B2 — read, so `muted`
+  // (spec 10.1). `HomeDay.json` e31…e33: the hole `raise` #F7F4EC, the glyph #8B8778, the words
+  // #6C6979. The app drew a 22 glyph and the words at 12 in `faint`, on `raise` at night.
+  const card = () =>
+    story(<CardMemory title="Корпоратив Nox" emptyText="Ни одного кадра — скиньте первые" />);
+  const night = card();
+  expect(night).toContain(rule('background-color:rgba(29,29,40,1.00)'));
+  expect(night).toContain('<svg data-glyph="ImageIcon" width="20" height="20" stroke="#6E6B7D"');
+  expect(night).toContain('stroke-width="1.6"');
+  expect(night).toContain(rule('color:rgba(164,161,178,1.00)'));
+  expect(night).toMatch(
+    new RegExp(`class="[^"]*${rule('font-size:13px')}[^"]*"[^>]*>Ни одного кадра`),
+  );
+  await setTheme('light');
+  const day = card();
+  expect(day).toContain(rule('background-color:rgba(247,244,236,1.00)'));
+  expect(day).toContain('stroke="#8B8778"');
+  await setTheme('dark');
+});
+
+test('the large card stands on #E8E3D8 by day, under its mosaic', async () => {
+  // Spec 2, «День»: «подложка крупной карточки под мозаикой #E8E3D8» (`HomeDay.json` e4) — what
+  // shows in the gaps of the mosaic. At night it is the card's own `surface` (`Main.json` e6).
+  const large = () => story(<CardMemory title="Свадьба" thumbs={SHOTS} large />);
+  expect(large()).toContain(rule('background-color:rgba(22,22,31,1.00)'));
+  await setTheme('light');
+  expect(large()).toContain(rule('background-color:rgba(232,227,216,1.00)'));
+  await setTheme('dark');
+});
+
+test('the name on the cover is set at −0.03em, a hair looser than a heading’s', () => {
+  // Spec 3 and 10.11: «`display` −0.035em везде → у имени на обложке −0.03em» — `Main.json` e17,
+  // Unbounded 26 / 700 / 29 at −0.78.
+  const large = story(<CardMemory title="Свадьба Лизы и Марка" thumbs={SHOTS} large />);
+  expect(large).toContain(rule('letter-spacing:-0.78px'));
+});
+
 test('the ordinary card is 181 with its meta and 158 without, its films badge on the foot of the words', () => {
   // TASK-383, off `Main.json`: e24 is 358 × 181 — 1 + 10 + 96 (the strip) + 13 + 22 (e29, the name)
   // + 6 + 17 (e30, the meta at 13 / 500) + 5 + 10 + 1 — and the empty card under it 158, the same

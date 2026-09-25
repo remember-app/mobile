@@ -86,7 +86,7 @@ export default function InviteScreen() {
   if (!stop) {
     return (
       <Board body={[styles.joining, { paddingBottom: insets.top }]}>
-        <Text accessibilityRole="header" role="heroNarrow">
+        <Text accessibilityRole="header" role="heroSm">
           Remember
         </Text>
         <Spinner size={spinner.join} />

@@ -134,7 +134,7 @@ const useStyles = themed(({ color }) =>
       padding: space.s3,
       justifyContent: 'space-between',
       borderRadius: radius.field,
-      borderWidth: 1.5,
+      borderWidth: 1,
       borderColor: 'transparent',
     },
     row: {
@@ -144,16 +144,16 @@ const useStyles = themed(({ color }) =>
       paddingVertical: space.s3,
       paddingHorizontal: space.s4 - 2,
       borderRadius: radius.section,
-      borderWidth: 1.5,
+      borderWidth: 1,
       borderColor: 'transparent',
     },
-    // Spec 7.3: chosen is the accent's own quiet fill under a 1.5 accent border — the one place
-    // `accentSoft` is used outside the director's own plates.
+    // Spec 7.3, detail 21: chosen is the accent's own quiet fill under a 1 accent border — the one
+    // place `accentSoft` is used outside the director's own plates.
     chosen: { backgroundColor: color.accentSoft, borderColor: color.accent },
     // A tile stands on a sheet, which is `surface`, so an unchosen one drops to `ink`; a row stands
     // on a screen, which is `ink`, so an unchosen one rises to `surface`. Same rule, both ways up.
-    plainTile: { backgroundColor: color.ink, borderColor: color.line, borderWidth: 1 },
-    plainRow: { backgroundColor: color.surface, borderColor: color.line, borderWidth: 1 },
+    plainTile: { backgroundColor: color.ink, borderColor: color.line },
+    plainRow: { backgroundColor: color.surface, borderColor: color.line },
     // Chosen, and nothing to do about it: the fill stays, the border goes quiet.
     quiet: { borderColor: color.line },
     hover: { backgroundColor: color.raise },

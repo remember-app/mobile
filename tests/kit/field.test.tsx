@@ -48,6 +48,38 @@ test('the memory’s name is 56 tall and 18 round, and the e-mail is 60 and 20',
   );
 });
 
+test('what is typed is set at the layout’s sizes, and the magnifier is 18 at 1.9, 15 from the edge', () => {
+  // Spec 7.3, detail 12 and 10.11: the address 17 / 500 (`LoginEmail.json` e10), the handle in
+  // `SheetInvite` and the search 16 / 500 (e5…e6, `Contacts.json` e8…e9) — they were 600 and 400.
+  // The magnifier: 18 at 1.9, 15 in from the box, the `@` and the words 10 after it (e7…e9).
+  const input = (variant: FieldVariant) =>
+    /<input[^>]*style="([^"]*)"/.exec(
+      story(<Field label="Поле" variant={variant} value="" />),
+    )?.[1];
+  expect(input('email')).toContain(`font-family:${font.medium}`);
+  expect(input('email')).toContain('font-size:17px');
+  for (const variant of ['handle', 'search'] as const) {
+    expect(input(variant), variant).toContain(`font-family:${font.medium}`);
+    expect(input(variant), variant).toContain('font-size:16px');
+  }
+  const search = story(
+    <Field label="Поиск" labelHidden variant="search" icon={Search} prefix="@" value="" />,
+  );
+  expect(search).toContain('<svg data-glyph="Search" width="18"');
+  expect(search).toContain('stroke-width="1.9"');
+  expect(search).toContain(rule('padding-left:14px'));
+  expect(search).toContain(rule('gap:10px'));
+});
+
+test('the long-text box keeps 16 over and under its words and 18 beside them, on a line of 24', () => {
+  // Spec 7.3, detail 14 and 10.11 (answer 7): «textarea — поля 16 сверху и снизу, 18 по бокам,
+  // интерлиньяж 24» — `MontageStory.json` e15, Onest 16 / 400 / 24; it was 16 all round on 23.
+  const box = story(<TextArea label="История" value="" onChangeText={() => {}} />);
+  expect(box).toContain(rule('line-height:24px'));
+  expect(box).toContain(rule('padding-left:18px;padding-right:18px'));
+  expect(box).toContain(rule('padding-bottom:16px;padding-top:16px'));
+});
+
 test('the label’s colour square in its field carries the night’s dark glyph in daylight too', async () => {
   await setTheme('light');
   const field = story(<Field label="Имя" variant="labelName" swatch="#FFB547" value="" />);

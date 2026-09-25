@@ -109,7 +109,7 @@ export default function ConsentScreen() {
               busy={busy}
             />
 
-            <Text role="noteSm" tone="faint" style={styles.note}>
+            <Text role="noteSm" tone="muted" style={styles.note}>
               {s.consent.required}
             </Text>
           </View>

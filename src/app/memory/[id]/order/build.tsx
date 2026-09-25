@@ -111,7 +111,7 @@ export default function BuildStep() {
             {s.montage.howLong.toUpperCase()}
           </Text>
           {preview ? (
-            <Text role="meta" tone="faint">
+            <Text role="meta">
               {s.montage.lengthUpTo(formatRuntime(preview.max_seconds) ?? '')}
             </Text>
           ) : null}

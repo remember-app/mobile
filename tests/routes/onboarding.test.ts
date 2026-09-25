@@ -209,13 +209,14 @@ test('the line about the neural network is the lit one, and it is lit with token
 test('the agreement reads at the layout’s sizes: 14 / 20 promises, a link, a 12 line under it all', () => {
   // `Consent.json`: the three promises 14 / 20 (e9, e14, e18), the lit one a weight up; «Полный
   // текст соглашения» a link 13 / 600 in accentText (e19); «Без согласия зарегистрироваться
-  // нельзя.» 12 in faint (e21); and the card, the link, «Принимаю» and that line 14 apart.
+  // нельзя.» 12 (e21) — in `muted`, not the layout's `faint`: it is read (spec 10.1, `Consent`);
+  // and the card, the link, «Принимаю» and that line 14 apart.
   expect(consent.match(/<Text role="bodyXs"/g)).toHaveLength(4);
   expect(consent).not.toContain('role="note"');
   expect(consent).toContain('style={[styles.grow, styles.medium]}');
   expect(flat(consent)).toContain('<Button variant="link" label={s.consent.readFull}');
   expect(consent).not.toContain('variant="quiet"');
-  expect(consent).toContain('<Text role="noteSm" tone="faint" style={styles.note}>');
+  expect(consent).toContain('<Text role="noteSm" tone="muted" style={styles.note}>');
   expect(consent).toContain('column: { flex: 1, gap: 14 }');
 });
 

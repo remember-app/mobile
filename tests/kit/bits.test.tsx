@@ -101,6 +101,14 @@ test('the scrubber reads both timecodes at 12 / 600 — what has played in paper
   expect(classOf('1:08')).toContain(rule('color:rgba(245,243,238,0.66)'));
 });
 
+test('the scrubber’s track is paper at .24, 10 from the timecodes either side', () => {
+  // Spec 7.10 and 10.11 (answer 7): «дорожка видео — щель 10, фон `.24`» — it lay on the viewer's
+  // glass at .10 with 12 either side.
+  const track = story(<VideoTrack at="0:24" of="1:08" value={0.35} label="Просмотрено" />);
+  expect(track).toContain(rule('background-color:rgba(245,243,238,0.24)'));
+  expect(track).toContain(rule('gap:10px'));
+});
+
 test('the scrubber takes a finger when it is given somewhere to send it, and reports when it is not', () => {
   // «Видео нельзя перемотать: ползунок не тянется, по полосе не нажимается» — off a device
   // (TASK-181). A bar that only reports is a film watched from the start every time.
@@ -221,10 +229,11 @@ test('the plate over a day’s unseen rest is hollow and dashed in `line`, where
     'padding-bottom:24px;padding-top:24px',
     'padding-left:16px;padding-right:16px',
     `font-family:${type.note.fontFamily}`,
-    'color:rgba(110,107,125,1.00)',
+    'color:rgba(164,161,178,1.00)',
     'text-align:center',
   ])
     expect(note, css).toContain(rule(css));
+  expect(note).not.toContain('color:rgba(110,107,125,1.00)');
   expect(note).not.toContain('background-color');
   expect([type.note.fontSize, type.note.fontFamily]).toEqual([13, 'Onest_500Medium']);
 });

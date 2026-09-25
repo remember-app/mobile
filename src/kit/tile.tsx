@@ -124,8 +124,9 @@ export function Tile({
           <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
             <Icon icon={ImageIcon} size={22} color={color.faint} />
           </View>
+          {/* Read, so `muted` — the glyph above it is the quiet part (spec 10.1). */}
           {caption ? (
-            <Text role="meta" tone="faint" style={styles.caption}>
+            <Text role="meta" style={styles.caption}>
               {caption}
             </Text>
           ) : null}
@@ -136,12 +137,12 @@ export function Tile({
       {reason ? <FrameMark icon={reason.icon} label={reason.label} lane={lane} /> : null}
 
       {/* Spec 7.4 — a picked frame goes down under a scrim so the circle on it stays the brightest
-          thing in the square. */}
+          thing in the square: .30 in the feed, .28 under the ring of the 117 grid (10.11). */}
       {picked ? (
         <View
           testID="tile-scrim"
           pointerEvents="none"
-          style={[StyleSheet.absoluteFill, styles.scrim]}
+          style={[StyleSheet.absoluteFill, ring ? styles.scrimRing : styles.scrim]}
         />
       ) : null}
 
@@ -219,13 +220,13 @@ export function PickCircle({
       style={[
         styles.pick,
         { width: size, height: size },
-        tiny ? null : styles.pickCorner,
+        tiny ? null : size === 24 ? styles.pickCornerFeed : styles.pickCorner,
         kind === 'send' ? [styles.pickSend, { backgroundColor: color.accent }] : null,
         kind === 'send' && tiny ? styles.pickBare : null,
         kind === 'keep' ? { backgroundColor: color.spark } : null,
         kind === 'off'
           ? tiny
-            ? { borderWidth: 1.5, borderColor: color.faint }
+            ? { borderWidth: 1, borderColor: color.faint }
             : styles.pickOff
           : null,
         kind === 'hand' ? [styles.pickHand, { borderColor: night.lineStrong }] : null,
@@ -273,6 +274,8 @@ export function FrameMark({
       <Icon
         icon={icon ?? Play}
         size={bare ? FEED_PLAY : length ? 9 : 11}
+        // Spec 7.4, detail 25: the reason's glyph is 11 at 2.
+        stroke={label ? 2 : undefined}
         color={photo.on}
         fill={length ? photo.on : undefined}
       />
@@ -306,19 +309,23 @@ const useStyles = themed(({ color }) =>
     state: { alignItems: 'center', justifyContent: 'center', gap: 6, padding: space.s2 },
     caption: { textAlign: 'center' },
     scrim: { backgroundColor: photo.picked },
+    scrimRing: { backgroundColor: photo.pickedRing },
     ring: { borderWidth: 3, borderRadius: radius.tile },
     pick: { borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
+    // Spec detail 26: the 22 of the wizard and the 117 grid 6 from the corner, the feed's 24 at 7.
     pickCorner: { position: 'absolute', top: 6, right: 6 },
+    pickCornerFeed: { position: 'absolute', top: 7, right: 7 },
     // The 24 in the feed carries a white collar so it is read over any photograph; the 13 in a day
     // gap stands on the screen's own ink and needs none.
     pickSend: { borderWidth: 2, borderColor: photo.on },
     pickBare: { borderWidth: 0 },
     pickOff: { backgroundColor: photo.pickOff, borderWidth: 2, borderColor: photo.pickEdge },
     pickHand: { backgroundColor: photo.pickHand, borderWidth: 1 },
+    // Spec 7.4, detail 25: in the wizard the time stands on a 20 plate 6 off the lower left corner.
     mark: {
       position: 'absolute',
-      left: 5,
-      bottom: 5,
+      left: 6,
+      bottom: 6,
       flexDirection: 'row',
       alignItems: 'center',
       gap: 4,
@@ -340,21 +347,21 @@ const useStyles = themed(({ color }) =>
       paddingVertical: 0,
       backgroundColor: undefined,
     },
-    // The reason runs the width of the tile — a word needs the room a timecode does not.
+    // The reason is a 21 pill across the tile, 5 in from its sides and its foot — a word needs the
+    // room a timecode does not (`MontageSelect.json` e21, e27, e42).
     markWide: {
-      left: 0,
-      right: 0,
-      bottom: 0,
-      borderRadius: 0,
-      justifyContent: 'center',
+      left: 5,
+      right: 5,
+      bottom: 5,
+      paddingHorizontal: space.s2,
       backgroundColor: photo.markStrong,
     },
-    markText: { color: photo.on, fontSize: 11, fontFamily: font.semi },
+    markText: { color: photo.on, fontSize: 11, lineHeight: 14, fontFamily: font.semi },
     markShadow: {
       textShadowColor: 'rgba(0,0,0,0.7)',
       textShadowOffset: { width: 0, height: 1 },
       textShadowRadius: 4,
     },
-    markTextSm: { color: night.muted, fontSize: 10 },
+    markTextSm: { color: night.muted, fontSize: 10, lineHeight: 15, flexShrink: 1 },
   }),
 );

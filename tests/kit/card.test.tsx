@@ -160,3 +160,27 @@ test('a banner says it is a banner, and the offline one is read in the dangerous
   // #FF8D8D on the glyph — dangerous read as a colour that can actually be read.
   expect(offline).toContain('stroke="#FF8D8D"');
 });
+
+test('the error banner is one red wherever it stands: .12 under .40', () => {
+  // Spec 2 and 10.11: «баннер `.12` / `.40` везде» — `HomeOffline`, «Вас больше нет в этом
+  // воспоминании», the error of `MemoryEdit`. It wore the price plate's .14 / .45.
+  const offline = story(<Banner text="Нет связи с сервером" />);
+  expect(offline).toContain(rule('background-color:rgba(206,48,40,0.12)'));
+  expect(offline).toContain(
+    rule(
+      'border-bottom-color:rgba(206,48,40,0.40);border-left-color:rgba(206,48,40,0.40);border-right-color:rgba(206,48,40,0.40);border-top-color:rgba(206,48,40,0.40)',
+    ),
+  );
+});
+
+test('the glyphs of a message and of a hint are the layout’s: `paper` 24 at 1.7, and 19 at 1.8', () => {
+  // Spec 7.6, details 45–46 and 10.11 (answer 4): the sign in the message card is `paper` 24
+  // (sw 1.7) on its `raise` square, the hint's `info` is 19 (sw 1.8).
+  const message = story(<CardMessage icon={ImageIcon} text="Remember не видит вашу галерею" />);
+  expect(message).toContain('width="24"');
+  expect(message).toContain('stroke="#F5F3EE"');
+  expect(message).toContain('stroke-width="1.7"');
+  const hint = story(<HintNote icon={ImageIcon} tone="spark" text="Вы отдали несколько кадров" />);
+  expect(hint).toContain('width="19"');
+  expect(hint).toContain('stroke-width="1.8"');
+});

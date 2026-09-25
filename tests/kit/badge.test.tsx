@@ -157,3 +157,31 @@ test('a tag word is what was seen on a frame, and nothing presses it', () => {
     decision: <BadgeDecision kind="pass" label="Бабушка" />,
   });
 });
+
+test('«Готов» on the large poster is a decision mark in its own words, «ГОТОВ» in the strip small caps', () => {
+  // Spec 7.4, detail 24, 10.11 (answer 2): on `MontageLiveDone` «Готов» as it is written, 11 / 700
+  // with no tracking, a 22 pill — `MontageLiveDone.json` e10, 46.4 × 22; only the card in the strip
+  // says «ГОТОВ», 10 / 700 at 0.06em, 21 tall on `0 9` (`MemoryFrames.json` e12).
+  const poster = story(<BadgeMontage state="ready" label="Готов" />);
+  expect(poster).toContain('>Готов<');
+  expect(poster).not.toContain('ГОТОВ');
+  // The pill a decision is drawn in: 22 on `0 8`, its words 11 / 700 untracked.
+  expect(poster).toContain(rule('height:22px'));
+  expect(poster).toContain(rule('padding-left:8px;padding-right:8px'));
+  expect(poster).not.toContain(rule('letter-spacing:0.66px'));
+  const strip = story(<BadgeMontage sm state="ready" label="Готов" />);
+  expect(strip).toContain('>ГОТОВ<');
+  expect(strip).toContain(rule('min-height:21px'));
+  expect(strip).toContain(rule('letter-spacing:0.6px'));
+  expect(strip).toContain(rule('padding-left:9px;padding-right:9px'));
+});
+
+test('«ещё будет» is ringed 1 in `lineStrong`, not 1.5', () => {
+  // Spec 7.4, detail 27 and 10.11: «значок вклада: обводка 1.5 → 1».
+  const planned = story(<BadgeContribution state="planned" label="Планирует загрузить" />);
+  expect(planned).toContain(
+    rule(
+      'border-bottom-width:1px;border-left-width:1px;border-right-width:1px;border-top-width:1px',
+    ),
+  );
+});

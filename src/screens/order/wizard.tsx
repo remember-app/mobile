@@ -4,7 +4,7 @@ import {
   FileText,
   Heart,
   Home,
-  LayoutGrid,
+  PanelsTopLeft,
   Plus,
   Smartphone,
   Sun,
@@ -402,7 +402,7 @@ export function OrderProvider({ id, children }: { id: string; children: ReactNod
               importantForAccessibility="no-hide-descendants"
               style={styles.sign}
             >
-              <Icon icon={LayoutGrid} size={26} color={color.muted} />
+              <Icon icon={PanelsTopLeft} size={26} color={color.muted} />
             </View>
             <Text role="sheetTitleSm" accessibilityRole="header" style={styles.grow}>
               {s.montage.tooLittleTitle}
@@ -417,7 +417,7 @@ export function OrderProvider({ id, children }: { id: string; children: ReactNod
               label={s.gallery.add}
               onPress={() => router.replace({ pathname: '/memory/[id]/upload', params: { id } })}
             />
-            <Button variant="quiet" wide label={s.montage.later} onPress={leave} />
+            <Button variant="quiet" size="ms" wide label={s.montage.later} onPress={leave} />
           </>
         }
       >
@@ -625,7 +625,7 @@ const useStyles = themed(({ color }) =>
     // it, and the grid 20 under the line (168 + 44 → 232).
     head: { paddingHorizontal: space.s4, paddingTop: 10, paddingBottom: space.s5 },
     headLine: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },
-    // Spec 8, `SheetTooLittle`: the 56 square with the montage sign — `layout-grid`, the one
+    // Spec 8, `SheetTooLittle`: the 56 square with the montage sign — `panels-top-left`, the one
     // «Начать монтаж» wears — beside the heading.
     sign: {
       width: 56,

@@ -2,6 +2,7 @@ import { rule, shorthand } from '@tests/helpers/css';
 import { fontFile, wordWidth } from '@tests/helpers/font';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { Pause, Plus } from 'lucide-react-native';
+import type { ReactElement } from 'react';
 import { StyleSheet, View, type ViewStyle } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import { beforeAll, expect, test } from 'vitest';
@@ -325,6 +326,56 @@ test('the small one at 44 reads at 14 with a 16 glyph 7 from its words, the main
   const main = story(<Button variant="primary" label="Дальше" />);
   expect(wordsOf(main, 'Дальше')).toContain(rule('font-size:16px'));
   expect(wordsOf(main, 'Дальше')).not.toContain(rule('font-size:14px'));
+});
+
+test('«Сохранить» at 44 is 18 a side and comes out 109 wide, as `Contacts` draws it', () => {
+  // Spec 7.2 and 10.11: «малая 44 — «Сохранить» 14 / 600, поля `0 18`»; `Contacts.json` e16 is
+  // 109.38 × 44. The layout's button has no border and ours a clear hairline, so the 18 is 17 and
+  // that hairline. At the main button's 20 a side it came out 113.
+  expect(across('Сохранить', 14, 17)).toBeCloseTo(109.38, 0);
+  expect(across('Сохранить', 14, 20)).toBeGreaterThan(112);
+  const save = story(<Button variant="primary" size="sm" wide={false} label="Сохранить" />);
+  expect(save).toContain(rule('padding-left:17px;padding-right:17px'));
+  expect(wordsOf(save, 'Сохранить')).toContain(rule('font-size:14px'));
+});
+
+test('the words of a button follow its height: 15 on a 52 and on the quiet 48 in a sheet, 14 on the quiet 44', () => {
+  // Spec 3, `control` 14–17, measured off the layout: «Оставить» 52 (`SheetConfirmDelete.json` e7)
+  // and «Разрешить доступ» 52 (`UploadAccess.json` e10) are 15 / 600; «Позже» and «Оставить как
+  // есть» are the quiet 48 at 15 / 600 (`SheetTooLittle.json` e8, `SheetRejected.json` e22);
+  // «Снять» is the quiet 44 at 14 / 600 (`UploadLimited.json` e22); «Новый лейбл», the dashed 52,
+  // 14 / 600 (`SheetLabels.json` e51). They were all 16.
+  const drawn: [ReactElement, string, number][] = [
+    [<Button size="md" label="Оставить" />, 'Оставить', 15],
+    [<Button variant="primary" size="md" label="Разрешить доступ" />, 'Разрешить доступ', 15],
+    [<Button variant="quiet" size="ms" wide label="Позже" />, 'Позже', 15],
+    [<Button variant="quiet" label="Снять" />, 'Снять', 14],
+    [<Button variant="dashed" label="Новый лейбл" />, 'Новый лейбл', 14],
+    // The main 56 keeps its 16.
+    [<Button variant="primary" label="Дальше" />, 'Дальше', 16],
+  ];
+  for (const [button, words, px] of drawn) {
+    const classes = wordsOf(story(button), words);
+    expect(classes, words).toContain(rule(`font-size:${px}px`));
+    for (const other of [14, 15, 16].filter((one) => one !== px))
+      expect(classes, words).not.toContain(rule(`font-size:${other}px`));
+  }
+  expect(story(<Button variant="quiet" size="ms" wide label="Позже" />)).toContain(
+    'min-height:48px',
+  );
+});
+
+test('a button in a row wears a 14 glyph at 1.8, and only «Смонтировать» its heavier plus', () => {
+  // Spec 7.2 and 10.11: «кнопка в строке — знак 14 / 1.8»; «Править состав» — the pencil 14 / 1.8,
+  // not 15 / 2.2 (`MemorySettings.json`), which is the plus of the paper «Смонтировать» alone.
+  const edit = story(
+    <Button variant="small" size="mini" wide={false} icon={Plus} label="Править" />,
+  );
+  expect(edit).toContain('<svg data-glyph="Plus" width="14" height="14"');
+  expect(edit).toContain('stroke-width="1.8"');
+  const more = story(<Button size="xs" wide={false} icon={Plus} label="Отдать ещё" />);
+  expect(more).toContain('width="14"');
+  expect(more).toContain('stroke-width="1.8"');
 });
 
 test('a round button that stays in is a switch, and one that fires is not', () => {

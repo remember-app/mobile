@@ -65,12 +65,16 @@ const WAY_IN = new Set<FieldVariant>(['email', 'username']);
 /** The layout sets the two phrases of a hint 8 apart; an en space is 6.5 of that at 13. */
 const APART = String.fromCharCode(0x2002);
 
+/**
+ * What is typed, and the `@` in front of it (spec 7.3, detail 12): the name 17 in Unbounded, the
+ * address 17 / 500, the username 19 in Unbounded, the handle and the search 16 / 500.
+ */
 const FACE: Record<FieldVariant, TextStyle> = {
   name: type.subtitleDisplay,
-  email: type.subtitle,
+  email: { ...type.subtitle, fontFamily: font.medium },
   username: { ...type.title, fontSize: 19 },
-  handle: { ...type.body, fontSize: 16 },
-  search: type.body,
+  handle: { ...type.body, fontFamily: font.medium },
+  search: { ...type.body, fontFamily: font.medium },
   labelName: { ...type.row, fontSize: 16 },
   wish: { ...type.label, fontSize: 13 },
 };
@@ -172,6 +176,7 @@ export function Field({
           styles.box,
           BOX[variant],
           variant === 'wish' ? styles.boxTight : null,
+          variant === 'search' ? styles.boxSearch : null,
           wayIn ? styles.boxWayIn : null,
           {
             borderColor: borderColor(theme, variant, state, focused),
@@ -197,6 +202,8 @@ export function Field({
           <Icon
             icon={icon}
             size={variant === 'wish' ? 16 : 18}
+            // Spec 7.3: the magnifier is 18 at 1.9.
+            stroke={variant === 'search' ? 1.9 : undefined}
             color={variant === 'wish' ? theme.color.faint : theme.color.muted}
           />
         ) : null}
@@ -388,6 +395,7 @@ export function TextArea({
         style={[
           styles.area,
           type.body,
+          styles.areaLine,
           {
             color: theme.color.paper,
             backgroundColor: theme.color.surface,
@@ -438,6 +446,8 @@ const useStyles = themed(({ color }) =>
     // The wish line stands inside a block that already has its own 16 of air around it.
     boxTight: { paddingHorizontal: space.s3, gap: space.s2 },
     boxWayIn: { paddingHorizontal: 18, gap: space.s1 },
+    // `Contacts.json` e7…e9: the magnifier 15 in from the edge, the `@` and the words 10 after it.
+    boxSearch: { paddingLeft: 14, gap: 10 },
     // Spec 2.5 — the focus ring, on the box rather than on the input, so it rings the whole field.
     boxFocus: {
       outlineWidth: 2,
@@ -485,12 +495,15 @@ const useStyles = themed(({ color }) =>
     // finger reach a view at opacity 0 nor shows it to a screen reader, and a tap on the cells is
     // how the keyboard comes back once it has been put away (TASK-377).
     codeInput: { color: 'transparent' },
+    // Spec 7.3, detail 14: 16 over and under the words and 18 beside them, on a line of 24 — not the
+    // body's 23.
     area: {
       height: 280,
       borderWidth: 1,
       borderRadius: radius.section,
-      paddingHorizontal: space.s4,
+      paddingHorizontal: 18,
       paddingVertical: space.s4,
     },
+    areaLine: { lineHeight: 24 },
   }),
 );

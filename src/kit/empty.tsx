@@ -123,9 +123,14 @@ export function Empty({
         <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
           <View style={[styles.sign, styles[SIGN[sign]]]}>
             {/* The dimmed glyph belongs to a circle that is dimmed itself. Inside the `spark` ring
-                the sign is the invitation, so it is read in `paper` like the heading under it. */}
+                the sign is the invitation, so it is read in `paper` like the heading under it.
+                Spec 7.9, detail 69: 38 in the dashed circle, 40 in the other two. */}
             {icon ? (
-              <Icon icon={icon} size={38} color={sign === 'spark' ? color.paper : color.faint} />
+              <Icon
+                icon={icon}
+                size={sign === 'dashed' ? 38 : 40}
+                color={sign === 'spark' ? color.paper : color.faint}
+              />
             ) : null}
           </View>
         </View>
