@@ -53,7 +53,7 @@ const DEFAULT_SIZE: Record<ButtonVariant, ButtonSize> = {
 };
 
 /** The loud ones run the width they are given; the two quiet ones are as wide as their words. */
-const DEFAULT_WIDE: Record<ButtonVariant, boolean> = {
+export const DEFAULT_WIDE: Record<ButtonVariant, boolean> = {
   primary: true,
   paper: true,
   secondary: true,
