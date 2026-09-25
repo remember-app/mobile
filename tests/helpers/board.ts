@@ -21,7 +21,11 @@ export const scrolled = (node: ReactTestInstance) => {
  * that are not in the body. Only one of them where the screen has only a bar or only a bottom layer.
  */
 export function blocks(root: ReactTestInstance): ReactTestInstance[] {
-  const all = root.findByType(Board).findAll(() => true);
+  // The screen on top where several are stacked, the way the wizard's steps stand.
+  const all = root
+    .findAllByType(Board)
+    .at(-1)!
+    .findAll(() => true);
   const heard = all.filter(
     (one) =>
       one.type === View &&

@@ -97,7 +97,8 @@ const listOf = (source: string): string => {
   let depth = 0;
   for (let i = at + 5; i < source.length; i += 1) {
     if (source[i] === '{') depth += 1;
-    else if (source[i] === '}' && (depth -= 1) === 0) return source.slice(at + 6, i);
+    if (source[i] === '}') depth -= 1;
+    if (depth === 0) return source.slice(at + 6, i);
   }
   return '';
 };
