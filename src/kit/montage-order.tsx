@@ -382,7 +382,7 @@ const useStyles = themed(({ color }) =>
       paddingVertical: 3,
       paddingHorizontal: space.s2,
       borderRadius: radius.pill,
-      backgroundColor: photo.plate,
+      backgroundColor: photo.plateQuiet,
     },
     templateFoot: { marginTop: 'auto', padding: 12, gap: 2 },
     onPhoto: { color: photo.on },

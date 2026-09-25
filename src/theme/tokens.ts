@@ -123,6 +123,20 @@ export const board = {
 } as const;
 
 /**
+ * The foot of the frame window (spec 8, `Viewer` / `ViewerVideo`; spec 7.10): the gaps between the
+ * picture, the scrubber a video carries and the 48 strip, which stands `board.bottom` off the edge.
+ * Measured off the layout — a photograph ends 96 above the bottom, a video 140 (704 of 844).
+ */
+export const viewerFoot = {
+  /** from the foot of a photograph down to the strip */
+  photo: 18,
+  /** from the foot of a video down to its scrubber */
+  video: 12,
+  /** from the scrubber down to the strip */
+  track: 14,
+} as const;
+
+/**
  * Motion (spec 6). Every one of these is an answer to something a person did or to an event that
  * arrived; nothing in the product moves by itself. All of it goes silent under «reduce motion»,
  * which `kit/interaction.ts` holds for the whole app.
@@ -270,8 +284,10 @@ export const type = StyleSheet.create({
   decision: { fontFamily: font.bold, fontSize: 11, lineHeight: 13, ...tabular },
   /** «ОРГАНИЗАТОР» inside a member row */
   badgeSm: { fontFamily: font.bold, fontSize: 10, lineHeight: 12, letterSpacing: 0.5 },
-  /** dates, counters, timecodes */
+  /** dates, counters */
   meta: { fontFamily: font.medium, fontSize: 12, lineHeight: 15, ...tabular },
+  /** the two timecodes of a video — the meta's size a weight up (spec 7.10) */
+  timecode: { fontFamily: font.semi, fontSize: 12, lineHeight: 15, ...tabular },
   /** «сб» and «312 кадров» on a day tile: a meta line a size down and a weight up */
   metaTile: { fontFamily: font.semi, fontSize: 11, lineHeight: 13, ...tabular },
 });
@@ -316,11 +332,21 @@ export const photo = {
   mark: 'rgba(9,9,14,0.72)',
   /** the same plate under a reason a frame was dropped — denser, it carries smaller type */
   markStrong: 'rgba(9,9,14,0.86)',
-  /** the plate a whole phrase stands on over a photograph — an author, a length, a date */
-  plate: 'rgba(11,11,18,0.58)',
-  /** the date spine's hairline down the edge of the feed, and the tick that leaves it */
+  /**
+   * The plate a whole phrase stands on over a photograph. Two values and not a range (spec 2): this
+   * one under the author and «СЕЙЧАС» on the card «Сейчас» and under the template on the poster of
+   * the summary…
+   */
+  plate: 'rgba(11,11,18,0.60)',
+  /** …and the quieter one under «3:00 · 16:9» on a template's tile and under a date on the spine */
+  plateQuiet: 'rgba(11,11,18,0.55)',
+  /** the date spine's hairline down the edge of the feed — the line and nothing else */
   spine: 'rgba(245,243,238,0.22)',
-  /** what is read on that spine — the date in its pill, and the dot on the line */
+  /** the tick from a date's pill to that line, brighter than the line… */
+  spineTick: 'rgba(245,243,238,0.35)',
+  /** …and the dot where it meets it, brighter than the tick */
+  spineDot: 'rgba(245,243,238,0.6)',
+  /** the date read in the pill on that spine */
   spineMark: 'rgba(245,243,238,0.72)',
   /** a picked tile goes down under this */
   picked: 'rgba(11,11,18,0.30)',
@@ -332,11 +358,19 @@ export const photo = {
   pickHand: 'rgba(9,9,14,0.86)',
   /** the viewer's glass: a button over a photograph has no surface under it */
   glass: 'rgba(245,243,238,0.10)',
+  /**
+   * Under «Пауза» in the middle of a playing video (spec 7.2): dark and not glass, because the
+   * viewer's glass vanishes over a bright frame and this has to hold its glyph over any.
+   */
+  video: 'rgba(6,6,10,0.5)',
   /** read on any of the above */
   on: '#FFFFFF',
   /** the second line read on any of the above — a date, a count, what a montage was made of */
   onQuiet: 'rgba(255,255,255,0.72)',
-  /** the second line of the viewer's pill — «21:47 · Марк Ковалёв» (spec 7.1, detail 5) */
+  /**
+   * The second voice of the viewer: the lower line of its pill — «21:47 · Марк Ковалёв» (spec 7.1,
+   * detail 5) — and a video's whole length beside the scrubber (spec 7.10)
+   */
   viewerMeta: 'rgba(245,243,238,0.66)',
   /** the meta dot when it stands on a photograph */
   dot: 'rgba(255,255,255,.45)',

@@ -1,3 +1,4 @@
+import { rule } from '@tests/helpers/css';
 import { ImageIcon } from 'lucide-react-native';
 import { beforeAll, expect, test } from 'vitest';
 
@@ -14,7 +15,7 @@ import {
 import { IconButton } from '@/kit/button';
 import { allDifferent, story } from '@/kit/story';
 import { Text } from '@/kit/text';
-import { setTheme } from '@/theme';
+import { font, setTheme } from '@/theme';
 
 /** Spec 7.9 — the small parts every other part is built from. */
 
@@ -82,6 +83,21 @@ test('the video scrubber is its own line above the strip, so two gestures never 
   // The handle rides the same number, so the two can never disagree.
   expect(track).toContain('left:35%');
   expect(track).toContain('aria-label="Звук"');
+});
+
+test('the scrubber reads both timecodes at 12 / 600 — what has played in paper, the length at 66%', () => {
+  // Spec 7.10 and 10.10: not the `meta` role at 500, and no white of its own: the night's `paper`
+  // for the time played, `rgba(245,243,238,.66)` for the whole length.
+  const track = story(<VideoTrack at="0:24" of="1:08" value={0.35} label="Просмотрено" />);
+  const classOf = (time: string) => track.match(new RegExp(`class="([^"]*)">${time}<`))?.[1];
+  const semi = rule(`font-family:${font.semi}`);
+  const twelve = rule('font-size:12px');
+  for (const time of ['0:24', '1:08']) {
+    expect(classOf(time)).toContain(semi);
+    expect(classOf(time)).toContain(twelve);
+  }
+  expect(classOf('0:24')).toContain(rule('color:rgba(245,243,238,1.00)'));
+  expect(classOf('1:08')).toContain(rule('color:rgba(245,243,238,0.66)'));
 });
 
 test('the scrubber takes a finger when it is given somewhere to send it, and reports when it is not', () => {

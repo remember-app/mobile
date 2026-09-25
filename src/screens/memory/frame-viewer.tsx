@@ -56,7 +56,7 @@ import {
 import { useStrings } from '@/lib/language';
 import { useTurnsWithPhone } from '@/lib/orientation';
 import { FrameInfoSheet } from '@/screens/memory/frames-sheets';
-import { board, height, photo, space, ThemePin, themed } from '@/theme';
+import { board, height, photo, space, ThemePin, themed, viewerFoot } from '@/theme';
 
 /**
  * `Viewer` and `ViewerVideo` (spec 8, «Просмотр медиа») — one frame on the whole of the phone, laid
@@ -410,16 +410,15 @@ export function FrameViewer({
                 />
 
                 {/* Pause and play, 72 in the middle of the picture — `ViewerVideo` and nowhere
-                    else. Glass, like every other button standing on a photograph: the frame has to
-                    go on showing through it. `box-none`, so everything around the circle belongs
-                    to the picture under it. */}
+                    else. Dark and not glass (spec 7.2): the viewer's glass vanishes over a bright
+                    frame, and this glyph has to hold over any. `box-none`, so everything around the
+                    circle belongs to the picture under it. */}
                 <View style={styles.middleOfFrame} pointerEvents="box-none">
                   <IconButton
                     icon={isPlaying ? Pause : Play}
                     label={isPlaying ? s.viewer.pause : s.viewer.play}
                     size={72}
-                    tone="viewer"
-                    tint={photo.on}
+                    tone="video"
                     onPress={() => (isPlaying ? player.pause() : player.play())}
                   />
                 </View>
@@ -493,7 +492,13 @@ export function FrameViewer({
             }
           />
 
-          <View style={[styles.tools, { paddingBottom: Math.max(insets.bottom, board.bottom) }]}>
+          <View
+            style={[
+              styles.tools,
+              playable !== null ? styles.toolsVideo : null,
+              { paddingBottom: Math.max(insets.bottom, board.bottom) },
+            ]}
+          >
             {/* The scrubber stands on a line of its own above the strip so that two horizontal
                 gestures never fight over the same finger (spec 8, `ViewerVideo`). */}
             {playable !== null ? (
@@ -656,9 +661,10 @@ const useStyles = themed(() =>
     // Over the picture and at the foot of it: the strip below stays the only thing under it.
     notice: { position: 'absolute', left: space.s4, right: space.s4, bottom: space.s4 },
     // The strip and, over a video, its scrubber — and nothing else: the picture above ends where
-    // this begins, which is what keeps a whole frame whole. 18 over the strip and 30 under it puts
-    // the foot of a photograph at the layout's 96.
-    tools: { gap: space.s3, paddingTop: 18 },
+    // this begins, which is what keeps a whole frame whole. The layout's own gaps put the foot of a
+    // photograph 96 above the bottom edge and the foot of a video 140.
+    tools: { gap: viewerFoot.track, paddingTop: viewerFoot.photo },
+    toolsVideo: { paddingTop: viewerFoot.video },
     // A horizontal list in a column takes every pixel it is offered unless it is told its own size.
     strip: { flexGrow: 0 },
     // The «⋯» while its menu is out (spec 7.1, detail 9).

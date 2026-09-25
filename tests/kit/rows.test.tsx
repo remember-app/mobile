@@ -1,3 +1,4 @@
+import { rule } from '@tests/helpers/css';
 import { Check, Copy, Pause, Pencil, Play, Plus, X } from 'lucide-react-native';
 import { beforeAll, expect, test } from 'vitest';
 
@@ -144,13 +145,6 @@ test('a chosen track carries its wish under its name, and its field under the ro
     rule('margin-left:64px'),
   );
 });
-
-/** The class a compiled rule was given — how a shape set in a sheet is found in the markup. */
-function rule(css: string): string {
-  const name = new RegExp(`\\.(r-[A-Za-z]+-[a-z0-9]+)\\{${css};\\}`).exec(compiled())?.[1];
-  expect(name, `no rule «${css}» was drawn`).toBeDefined();
-  return name!;
-}
 
 test('a chosen row is dragged by its name', () => {
   // Spec 7.7, detail 54: «строку берут за имя и ведут». The handlers belong to the list; what the

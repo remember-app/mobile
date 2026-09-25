@@ -107,7 +107,12 @@ export function Button({
   const focusRing = useFocusRing(variant === 'primary' && !disabled);
   const off = !!disabled;
   const tint = contentColor(theme, variant, off);
-  const tall = SIZES[size ?? DEFAULT_SIZE[variant]];
+  const sized = size ?? DEFAULT_SIZE[variant];
+  const tall = SIZES[sized];
+  // The 36s — «Сбросить» on `raise`, «Смонтировать» on paper — are smaller all through (spec 7.2,
+  // detail 40): 14 a side, the glyph 6 from the words, and the words in `label` 13 / 600.
+  const compact = sized === 'mini';
+  const glyph = variant === 'raise' ? { size: ICO_XS } : compact ? MINI_GLYPH : { size: ICO_S };
   const words = busy ? (busyLabel ?? label) : label;
 
   return (
@@ -130,7 +135,7 @@ export function Button({
         // in the row it stands in.
         variant === 'dashed' && tall >= height.sheetButton ? styles.boxed : null,
         variant === 'quiet' || variant === 'small' ? styles.tight : null,
-        variant === 'raise' ? styles.snug : null,
+        compact ? styles.snug : null,
         (wide ?? DEFAULT_WIDE[variant]) ? styles.wide : null,
         pressed && !reduced ? PRESS : null,
         focused ? focusRing : null,
@@ -138,13 +143,8 @@ export function Button({
       ]}
     >
       {busy ? <Spinner size={18} track={tint} head="transparent" /> : null}
-      {icon && !busy ? (
-        <Icon icon={icon} size={variant === 'raise' ? ICO_XS : ICO_S} color={tint} />
-      ) : null}
-      <Text
-        role={variant === 'small' || variant === 'raise' ? 'label' : 'control'}
-        style={{ color: tint }}
-      >
+      {icon && !busy ? <Icon icon={icon} {...glyph} color={tint} /> : null}
+      <Text role={variant === 'small' || compact ? 'label' : 'control'} style={{ color: tint }}>
         {words}
       </Text>
       {trailingIcon && !busy ? <Icon icon={trailingIcon} size={ICO_S} color={tint} /> : null}
@@ -167,6 +167,12 @@ function contentColor({ color }: Theme, variant: ButtonVariant, disabled: boolea
       return color.paper;
   }
 }
+
+/**
+ * The plus of «Смонтировать» (spec 8, detail 40): 15, drawn heavier than the size alone would give.
+ * `raise` keeps its own 13, since «Сбросить» is drawn apart (`SheetFilter`).
+ */
+const MINI_GLYPH = { size: 15, stroke: 2.2 } as const;
 
 /** The one dashed border in the kit, and the reason `lineQuiet` exists (spec 2). */
 const DASHED: ViewStyle = { borderStyle: 'dashed', backgroundColor: 'transparent' };
@@ -218,6 +224,9 @@ function fill(
  * underneath is the whole point. Neither is blurred: the spec's 20–28 of backdrop blur has no
  * React Native equivalent without `expo-blur`, which is not a dependency.
  *
+ * `video` is not glass at all: «Пауза» 72 in the middle of a playing video, dark, with no hairline
+ * and a filled glyph (spec 7.2) — the viewer's glass vanishes over a bright frame, this does not.
+ *
  * `label` is not optional: a glyph alone says nothing to a screen reader.
  */
 export type RoundTone =
@@ -227,6 +236,7 @@ export type RoundTone =
   | 'ghost'
   | 'glass'
   | 'viewer'
+  | 'video'
   | 'paper'
   | 'spark'
   | 'danger';
@@ -306,6 +316,7 @@ export function IconButton({
         icon={icon}
         size={size >= 64 ? 26 : size >= 48 ? 22 : size >= 40 ? 20 : size > 28 ? 18 : 14}
         color={glyph}
+        fill={tone === 'video' ? glyph : undefined}
       />
       {dot ? (
         <View
@@ -339,6 +350,7 @@ function roundGlyph(color: Theme['color'], tone: RoundTone): string {
     // pane lying over a photograph is a glyph that disappears into the brightest frame behind it.
     case 'glass':
     case 'viewer':
+    case 'video':
     // Drawn round a glyph on nothing, the ring is the button; the glyph inside it is full-voiced.
     case 'outline':
       return color.paper;
@@ -409,6 +421,8 @@ function roundFill(
     // The viewer's glass: there is no surface behind a button standing over a photograph.
     case 'viewer':
       return { backgroundColor: photo.glass };
+    case 'video':
+      return { backgroundColor: photo.video };
     case 'paper':
       return { backgroundColor: color.paper };
     case 'spark':
@@ -433,7 +447,7 @@ const useStyles = themed(({ color }) =>
     },
     // Spec 7.2: the quiet one and the small one both pull their sides in.
     tight: { paddingHorizontal: space.s3 },
-    // The raised one is smaller all through: 14 a side and a 13 glyph 6 from its words.
+    // A 36: 14 a side and the glyph 6 from its words.
     snug: { paddingHorizontal: 14, gap: 6 },
     boxed: { borderRadius: radius.cell },
     // A small button never shrinks when the row beside it runs long.

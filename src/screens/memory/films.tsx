@@ -1,4 +1,5 @@
 import { useFocusEffect, useIsFocused, useLocalSearchParams, useRouter } from 'expo-router';
+import { Plus } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
@@ -334,7 +335,14 @@ export function Films({ id, memory }: { id: string; memory: Memory | null }) {
           text={s.montage.emptyNote}
         >
           {role === 'organizer' ? (
-            <Button variant="paper" size="sm" label={s.montage.makeIt} onPress={askForOne} />
+            <Button
+              variant="paper"
+              size="mini"
+              wide={false}
+              icon={Plus}
+              label={s.montage.makeIt}
+              onPress={askForOne}
+            />
           ) : null}
         </EmptyMontages>
       ) : (

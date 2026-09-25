@@ -40,16 +40,26 @@ export function Icon({
   size = ICO,
   color: tint,
   fill,
+  stroke,
 }: {
   icon: IconComponent;
   size?: number;
   /** Left off, it is drawn in whatever the theme reads in — `paper`. */
   color?: string;
-  /** Spec 5: only two glyphs are ever filled — the play triangle and the three dots of «ещё». */
+  /** Spec 5: only three glyphs are ever filled — play, pause and the three dots of «ещё». */
   fill?: string;
+  /** Only where the layout names a stroke of its own for the place (spec 8, detail 40). */
+  stroke?: number;
 }) {
   const { color } = useTheme();
   const paint = tint ?? color.paper;
 
-  return <Glyph size={size} color={paint} strokeWidth={strokeFor(size)} fill={fill ?? 'none'} />;
+  return (
+    <Glyph
+      size={size}
+      color={paint}
+      strokeWidth={stroke ?? strokeFor(size)}
+      fill={fill ?? 'none'}
+    />
+  );
 }

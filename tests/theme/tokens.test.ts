@@ -3,7 +3,18 @@ import { createRequire } from 'node:module';
 import { contrast, luminance } from '@tests/helpers/contrast';
 import { expect, test } from 'vitest';
 
-import { font, height, night, photo, radius, space, themes, type } from '@/theme';
+import {
+  board,
+  font,
+  height,
+  night,
+  photo,
+  radius,
+  space,
+  themes,
+  type,
+  viewerFoot,
+} from '@/theme';
 
 /**
  * The tokens themselves, held against the two things about them that can be wrong without anybody
@@ -138,6 +149,47 @@ test('what lies on a photograph is the same in both themes, and is dark in both'
   // And the third: the spark is bright in both, so what is read on it is dark in both.
   expect(luminance(themes.dark.color.sparkInk)).toBeLessThan(0.1);
   expect(luminance(themes.light.color.sparkInk)).toBeLessThan(0.1);
+});
+
+test('a plate over a photograph is one of two values, each held by its place', () => {
+  // Spec 2 and 10.10: not a range from .55 to .60 but two exact values — `.60` under the author and
+  // «СЕЙЧАС» on the card «Сейчас» and under the template on the summary's poster; `.55` under the
+  // length on a template's tile and under a date on the spine.
+  expect(photo.plate).toBe('rgba(11,11,18,0.60)');
+  expect(photo.plateQuiet).toBe('rgba(11,11,18,0.55)');
+});
+
+test('the spine brightens from its line out to the date', () => {
+  // Spec 7.8, detail 66: the line .22 and nothing else at it, the tick .35, the dot .6, the date .72.
+  expect([photo.spine, photo.spineTick, photo.spineDot, photo.spineMark]).toEqual([
+    'rgba(245,243,238,0.22)',
+    'rgba(245,243,238,0.35)',
+    'rgba(245,243,238,0.6)',
+    'rgba(245,243,238,0.72)',
+  ]);
+});
+
+test('the viewer’s pause stands on dark and not on glass, and its second voice is paper at 66%', () => {
+  // Spec 7.2, «над видео»; 7.1 detail 5 and 7.10 for the pill's second line and a video's length.
+  expect(photo.video).toBe('rgba(6,6,10,0.5)');
+  expect(photo.viewerMeta).toBe('rgba(245,243,238,0.66)');
+});
+
+test('a video’s timecodes are the meta’s size a weight up', () => {
+  // Spec 7.10: 12 / 600 and tabular, not `meta` 500.
+  expect(type.timecode.fontFamily).toBe(font.semi);
+  expect(type.timecode.fontSize).toBe(type.meta.fontSize);
+  expect(type.timecode.fontVariant).toEqual(['tabular-nums']);
+});
+
+test('the foot of the frame window puts a photograph 96 above the bottom and a video 140', () => {
+  // Spec 8, `Viewer` and `ViewerVideo`: the strip 48 stands `board.bottom` off the edge; a video's
+  // scrubber is a 36 row 14 over it. 704 of 844 is where the video ends, 716–752 the scrubber.
+  const strip = 48;
+  const track = 36;
+  expect(viewerFoot.photo + strip + board.bottom).toBe(96);
+  expect(viewerFoot.video + track + viewerFoot.track + strip + board.bottom).toBe(140);
+  expect(viewerFoot.track).toBe(14);
 });
 
 test('one dangerous border everywhere, which is what spec 10.5 settles', () => {

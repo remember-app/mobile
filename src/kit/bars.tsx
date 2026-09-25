@@ -305,7 +305,8 @@ export function ViewerBar({
             disabled={!onPress}
             style={styles.viewerPill}
           >
-            <Text role="row" numberOfLines={1} style={styles.onPhoto}>
+            {/* The date in the pinned night's `paper`, #F5F3EE — not the photograph's white. */}
+            <Text role="row" numberOfLines={1}>
               {date}
             </Text>
             <Text role="meta" numberOfLines={1} style={styles.viewerMeta}>
@@ -452,7 +453,6 @@ const useStyles = themed(({ color }) =>
       borderWidth: 1,
       borderColor: photo.barEdge,
     },
-    onPhoto: { color: photo.on },
     viewerMeta: { color: photo.viewerMeta },
     layer: { paddingHorizontal: space.s4, paddingTop: space.s3, gap: space.s3 },
     layerAbove: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },
