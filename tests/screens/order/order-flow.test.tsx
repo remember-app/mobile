@@ -151,6 +151,7 @@ import {
   Segment,
   Tile,
   TileTemplate,
+  WizardBar,
 } from '@/kit';
 import { formatRuntime } from '@/lib/dates';
 import { currentLanguage, setLanguage } from '@/lib/language';
@@ -638,6 +639,36 @@ test.each([
     expect(nav.state.landed).toEqual(landed);
   },
 );
+
+test('every face of the wizard wears the bar it should: the way in and the total drop the scale, only the total drops «Отмена»', async () => {
+  serve();
+  await open();
+  // Every step of the walk stays mounted under the one on top, so the last bar is the one on screen.
+  const bar = () => root().findAllByType(WizardBar).at(-1)!.props;
+  const faces: [string, string, string, boolean][] = [];
+  const note = () =>
+    faces.push([nav.top()!, bar().variant, bar().label, bar().cancel?.label === ru.action.cancel]);
+  note();
+  await press(say().montage.ownSetup);
+  note();
+  while (nav.top() !== 'summary') {
+    await forward();
+    note();
+  }
+  expect(faces).toEqual([
+    ['index', 'summary', ru.montage.newOne, true],
+    ['frames', 'step', ru.montage.step(1, 4), true],
+    ['story', 'step', ru.montage.step(2, 4), true],
+    ['music', 'step', ru.montage.step(3, 4), true],
+    ['build', 'step', ru.montage.step(4, 4), true],
+    ['summary', 'summary', ru.montage.summaryStep, false],
+  ]);
+  expect(bar().steps).toBe(4);
+  expect(bar().back.props.label).toBe(ru.action.back);
+  // «Назад» hangs 10 past the screen's margin, as every «Назад» does (spec 7.1).
+  expect(StyleSheet.flatten(bar().back.props.style)).toMatchObject({ marginLeft: -10 });
+  expect(bar().cancel).toBeUndefined();
+});
 
 test('the same three videos, measured, are enough: the six are drawn and the order goes through', async () => {
   const server = serve({ material: videos(5) });

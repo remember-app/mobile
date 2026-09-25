@@ -14,10 +14,12 @@ vi.mock('react-native', async (importOriginal) => {
 import { rule } from '@tests/helpers/css';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { ChevronLeft, SquareCheckBig, Trash2, User, X } from 'lucide-react-native';
+import { cloneElement } from 'react';
 import { Text as RNText, StyleSheet, View, type ViewStyle } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 
 import { ActionBar, AppBar, Board, type Footer, GlassBar, ViewerBar, WizardBar } from '@/kit/bars';
+import { StepScale } from '@/kit/bits';
 import { Button, IconButton } from '@/kit/button';
 import { Icon } from '@/kit/icon';
 import { WatchingPill } from '@/kit/member';
@@ -216,7 +218,7 @@ const wizardAt = async (fontScale: number, variant: 'step' | 'summary' = 'step')
 };
 
 test('up to ×1.2 «Отмена» is the word at 14, with 64 of its 74 block to stand in', async () => {
-  for (const scale of [1, 1.118, 1.15, 1.2]) {
+  for (const scale of [0.85, 1, 1.118, 1.15, 1.1999, 1.2]) {
     const bar = await wizardAt(scale);
     expect(bar.round, `×${scale}`).toHaveLength(0);
     expect(bar.word).toHaveLength(1);
@@ -238,7 +240,7 @@ test('up to ×1.2 «Отмена» is the word at 14, with 64 of its 74 block to
 });
 
 test('past ×1.2 it is a round 44 with an «x» 22, read out as «Отмена», and both blocks close to 44', async () => {
-  for (const scale of [1.235, 1.3, 2, 3.571]) {
+  for (const scale of [1.2001, 1.21, 1.235, 1.3, 2, 3.571]) {
     const bar = await wizardAt(scale);
     expect(bar.word, `×${scale}`).toHaveLength(0);
     expect(bar.round).toHaveLength(1);
@@ -277,6 +279,139 @@ test('«Назад» is the same on any type, and the total closes its blocks wi
   expect(summary.word).toHaveLength(0);
   expect(summary.sides).toEqual([44, 44]);
   expect((await wizardAt(1, 'summary')).sides).toEqual([74, 74]);
+});
+
+/** The wizard's bar drawn at a type size, whole, so its rows can be read in the order they stand. */
+const wizardTree = async (
+  fontScale: number,
+  props: Partial<Parameters<typeof WizardBar>[0]> = {},
+) => {
+  system.fontScale = fontScale;
+  let tree!: TestRenderer.ReactTestRenderer;
+  const bar = (
+    <WizardBar
+      step={2}
+      steps={4}
+      label="Шаг 2 из 4"
+      title="Как собрать"
+      note="Без музыки или один-несколько треков."
+      back={<IconButton icon={ChevronLeft} label="Назад" />}
+      cancel={{ label: 'Отмена', onPress: () => {} }}
+      {...props}
+    />
+  );
+  await act(async () => {
+    tree = mounted(TestRenderer.create(bar));
+  });
+  system.fontScale = 1;
+  const flat = (node: TestRenderer.ReactTestInstance) =>
+    StyleSheet.flatten(node.props.style) as ViewStyle & Record<string, unknown>;
+  return {
+    tree,
+    flat,
+    rerender: async (scale: number) => {
+      system.fontScale = scale;
+      await act(async () => tree.update(cloneElement(bar)));
+      system.fontScale = 1;
+    },
+    /** The two blocks either side of the counter, and the counter, with whether they stand in that order. */
+    parts: () => {
+      const [left, right] = tree.root.findAll(
+        (one) =>
+          one.type === View &&
+          ['flex-start', 'flex-end'].includes(String(flat(one).alignItems)) &&
+          typeof flat(one).width === 'number',
+      );
+      const counter = tree.root.find((one) => one.type === Text && one.props.role === 'label');
+      const all = tree.root.findAll(() => true);
+      const inOrder =
+        all.indexOf(left) < all.indexOf(counter) && all.indexOf(counter) < all.indexOf(right);
+      return { left, counter, right, inOrder };
+    },
+    /** The block that carries a piece of the bar's words, with its own margins. */
+    around: (words: TestRenderer.ReactTestInstance) =>
+      tree.root.findAll(
+        (one) =>
+          one.type === View &&
+          flat(one).marginHorizontal === 16 &&
+          one.findAll((inner) => inner === words).length > 0,
+      )[0],
+  };
+};
+
+test('the bar’s row is «Назад», the counter, then «Отмена» — the counter between them, muted and centred', async () => {
+  for (const scale of [1, 3.571]) {
+    const { parts, flat } = await wizardTree(scale);
+    const { left, counter, right, inOrder } = parts();
+    expect(inOrder).toBe(true);
+    expect(
+      left.findAllByType(IconButton).map((one) => one.props.label),
+      `×${scale}`,
+    ).toEqual(['Назад']);
+    expect(counter.props).toMatchObject({ role: 'label', tone: 'muted', children: 'Шаг 2 из 4' });
+    // Everything the two blocks leave, the counter takes, and it is set centred in it, in figures
+    // of one width so that «Шаг 1 из 4» and «Шаг 4 из 4» do not move.
+    expect(flat(counter)).toMatchObject({ flex: 1, textAlign: 'center' });
+    expect(flat(counter).fontVariant).toEqual(['tabular-nums']);
+    // «Назад» stands at the left of its block and «Отмена» at the right of its own.
+    expect(flat(left).alignItems).toBe('flex-start');
+    expect(flat(right).alignItems).toBe('flex-end');
+    expect(right.findAllByProps({ accessibilityLabel: 'Отмена' }).length).toBeGreaterThan(0);
+  }
+});
+
+test('under the row: the scale 12 down, the heading 18 down inside the margins — 12 where there is no scale — and the note 10 under it', async () => {
+  const step = await wizardTree(1);
+  const heading = step.tree.root.find((one) => one.type === Text && one.props.role === 'display');
+  // The heading is the screen's heading for a screen reader, and the bar's — the body scrolls.
+  expect(heading.props).toMatchObject({ accessibilityRole: 'header', children: 'Как собрать' });
+  // The scale stands 12 under the row, inside the margins like everything else in a bar.
+  const scale = step.tree.root.findByType(StepScale);
+  expect(step.flat(scale)).toMatchObject({ marginTop: 12, marginHorizontal: 16 });
+  expect(step.flat(step.around(heading))).toMatchObject({ marginTop: 18, marginHorizontal: 16 });
+  const note = step.tree.root.find((one) => one.type === Text && one.props.role === 'note');
+  expect(note.props.tone).toBe('muted');
+  expect(step.flat(note)).toMatchObject({ marginTop: 10 });
+
+  const total = await wizardTree(1, { variant: 'summary' });
+  const totalHeading = total.tree.root.find(
+    (one) => one.type === Text && one.props.role === 'display',
+  );
+  expect(total.flat(total.around(totalHeading))).toMatchObject({
+    marginTop: 12,
+    marginHorizontal: 16,
+  });
+});
+
+test('the type size changed on the way turns «Отмена» from the word to the round «x» and back, and the blocks with it', async () => {
+  const { parts, flat, rerender } = await wizardTree(1);
+  const at = () => {
+    const { left, right } = parts();
+    return {
+      widths: [flat(left).width, flat(right).width],
+      word: right.findAllByType(Button).length,
+      round: right.findAllByType(IconButton).length,
+    };
+  };
+  expect(at()).toEqual({ widths: [74, 74], word: 1, round: 0 });
+  await rerender(2);
+  expect(at()).toEqual({ widths: [44, 44], word: 0, round: 1 });
+  await rerender(1.2);
+  expect(at()).toEqual({ widths: [74, 74], word: 1, round: 0 });
+  await rerender(1.2001);
+  expect(at()).toEqual({ widths: [44, 44], word: 0, round: 1 });
+});
+
+test('in English «Cancel» is the same word in the same place, and the round «x» is still called «Cancel»', async () => {
+  for (const [scale, kind] of [
+    [1.2, 'word'],
+    [1.3, 'round'],
+  ] as const) {
+    const { parts } = await wizardTree(scale, { cancel: { label: 'Cancel', onPress: () => {} } });
+    const { right } = parts();
+    expect(right.findAllByProps({ accessibilityLabel: 'Cancel' }).length, kind).toBeGreaterThan(0);
+    expect(right.findAllByType(kind === 'word' ? Button : IconButton)).toHaveLength(1);
+  }
 });
 
 test('the step’s heading belongs to the bar, because the bar is what does not scroll', () => {
