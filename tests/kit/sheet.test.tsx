@@ -329,6 +329,9 @@ test('when they do not fit, the heading and the buttons scroll with the body and
   expect(scroll().findAllByType(Button)).toHaveLength(2);
   expect(scroll().findAll((node) => node.props.testID === 'sheet-handle')).toHaveLength(0);
   expect(root.findAll((node) => node.props.testID === 'sheet-handle')).not.toHaveLength(0);
+  // A button in the scroll — these, or the nick form's own — is pressed by the first tap with the
+  // keyboard up; without this that tap only puts the keyboard away.
+  expect(scroll().props.keyboardShouldPersistTaps).toBe('handled');
 });
 
 /**
@@ -347,11 +350,9 @@ const sources = Object.entries(
 test('every sheet in the app is the kit’s sheet, and no other modal is one', () => {
   // The only other modals are not sheets: the whole-screen frame, film and phone-gallery views, and
   // the glass menu that drops from «⋯». A new one here is a sheet built past the kit.
+  // One entry per `<Modal`, so a second one beside a file's first is a new entry too.
   expect(
-    sources
-      .filter(([, source]) => /<Modal\b/.test(source))
-      .map(([path]) => path)
-      .sort(),
+    sources.flatMap(([path, source]) => source.match(/<Modal\b/g)?.map(() => path) ?? []).sort(),
   ).toEqual([
     'app/memory/[id]/upload.tsx',
     'kit/menu.tsx',

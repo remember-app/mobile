@@ -1,12 +1,15 @@
 import ts from 'typescript';
 import { expect, test } from 'vitest';
 
+import { type ButtonVariant, DEFAULT_WIDE } from '@/kit/button';
+
 /**
  * An action with words in it — a button as wide as its words, a chip — grows with the system type,
  * and a row that does not wrap has only one way to make room for it: past the edge of the screen,
  * where nobody can press it (TASK-365). So every row such an action stands in wraps, and what does
  * not fit moves under instead. A button that runs the width of its row is not one of them: it gives
- * way inside the row by itself.
+ * way inside the row by itself — and squeezes whatever words share the row to nothing, so it shares
+ * one with other buttons only.
  *
  * Read off the sources rather than a render, so a row nobody has drawn in a test is held to it too.
  * A row is a style with `flexDirection: 'row'`; the action counts wherever it lands — in a row of
@@ -20,14 +23,6 @@ const sources = Object.entries(
     eager: true,
   }),
 ).map(([path, source]) => [path.replace(/^.*\/src\//, ''), source] as const);
-
-const kitButton = sources.find(([path]) => path === 'kit/button.tsx')?.[1] ?? '';
-/** The variants that run the width of their row unless told otherwise, as the kit itself says. */
-const wideByDefault = new Set(
-  [...(/DEFAULT_WIDE[^{]*\{([^}]*)\}/.exec(kitButton)?.[1] ?? '').matchAll(/(\w+): true/g)].map(
-    ([, variant]) => variant,
-  ),
-);
 
 type Row = { at: string; wraps: boolean };
 type File = { path: string; tree: ts.SourceFile; styles: Map<string, string[]> };
@@ -116,15 +111,22 @@ for (const file of files) {
   visit(file.tree);
 }
 
-/** A button as wide as its words, or a chip — what grows sideways with the type. */
-function sizedByWords(file: File, element: ts.JsxOpeningLikeElement): boolean {
-  const tag = element.tagName.getText(file.tree);
-  if (tag === 'Chip') return true;
-  if (tag !== 'Button') return false;
+/**
+ * How wide an action stands: as wide as its words — a chip, a button told so or of a variant that is
+ * — or the width of its row. A button whose variant is picked on the fly can be either.
+ */
+function widths(file: File, element: ts.JsxOpeningLikeElement): { words: boolean; row: boolean } {
+  if (element.tagName.getText(file.tree) === 'Chip') return { words: true, row: false };
   const wide = attribute(element, 'wide');
-  if (wide) return wide.initializer?.getText(file.tree) === '{false}';
+  if (wide) {
+    const words = wide.initializer?.getText(file.tree) === '{false}';
+    return { words, row: !words };
+  }
   const variant = attribute(element, 'variant')?.initializer?.getText(file.tree) ?? "'secondary'";
-  return [...variant.matchAll(/['"](\w+)['"]/g)].some(([, one]) => !wideByDefault.has(one));
+  const runs = [...variant.matchAll(/['"](\w+)['"]/g)].map(
+    ([, one]) => DEFAULT_WIDE[one as ButtonVariant],
+  );
+  return { words: runs.some((one) => !one), row: runs.some(Boolean) };
 }
 
 /**
@@ -145,17 +147,17 @@ function rowsAround(file: File, node: ts.Node): Row[] {
   return [];
 }
 
-/** Every such action in the app, with the rows it stands in. */
+/** Every button and chip in the app: how wide it stands, and the rows it stands in. */
 const actions = files.flatMap((file) => {
-  const found: { at: string; rows: Row[] }[] = [];
+  const found: { at: string; words: boolean; row: boolean; rows: Row[] }[] = [];
   const visit = (node: ts.Node): void => {
     if (
       (ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) &&
-      sizedByWords(file, node)
+      ['Button', 'Chip'].includes(node.tagName.getText(file.tree))
     ) {
       const rows = rowsAround(file, ts.isJsxOpeningElement(node) ? node.parent : node);
       const line = file.tree.getLineAndCharacterOfPosition(node.getStart(file.tree)).line + 1;
-      found.push({ at: `${file.path}:${line}`, rows });
+      found.push({ at: `${file.path}:${line}`, ...widths(file, node), rows });
     }
     ts.forEachChild(node, visit);
   };
@@ -164,16 +166,36 @@ const actions = files.flatMap((file) => {
 });
 
 test('every row that holds a button as wide as its words, or a chip, wraps', () => {
-  const stuck = actions.flatMap(({ at, rows }) =>
-    rows.filter((row) => !row.wraps).map((row) => `${at} stands in ${row.at}`),
-  );
+  const stuck = actions
+    .filter(({ words }) => words)
+    .flatMap(({ at, rows }) =>
+      rows.filter((row) => !row.wraps).map((row) => `${at} stands in ${row.at}`),
+    );
   expect(stuck).toEqual([]);
 });
 
+/** The rows where buttons the width of the row stand side by side, with no words between them. */
+const BUTTON_ROWS = new Set([
+  'kit/bars.tsx › layerRow',
+  'app/memory/[id]/montage/[montageId]/done.tsx › actions',
+]);
+
+test('a button that runs the width of its row shares it with other buttons only, never with words', () => {
+  // «Готово» in the edit modes of the labels and the roster, «Что сняли» and «Вернуть» each did,
+  // and squeezed the words beside them to nothing on any type: beside words it is `wide={false}`.
+  const squeezing = actions
+    .filter(({ row }) => row)
+    .flatMap(({ at, rows }) =>
+      rows.filter((one) => !BUTTON_ROWS.has(one.at)).map((one) => `${at} stands in ${one.at}`),
+    );
+  expect(squeezing).toEqual([]);
+});
+
 test('the sweep sees the rows it is about, slots included', () => {
-  // Without this the test above passes on a sweep that has stopped finding anything.
-  expect(wideByDefault).toEqual(new Set(['primary', 'paper', 'secondary', 'danger', 'dashed']));
-  const seen = new Set(actions.flatMap(({ rows }) => rows.map((row) => row.at)));
+  // Without this the tests above pass on a sweep that has stopped finding anything.
+  const seen = (width: 'words' | 'row') =>
+    new Set(actions.filter((one) => one[width]).flatMap(({ rows }) => rows.map((row) => row.at)));
+  for (const row of BUTTON_ROWS) expect(seen('row'), row).toContain(row);
   for (const row of [
     'screens/memory/label-sheets.tsx › head',
     'screens/memory/invite-sheet.tsx › link',
@@ -184,5 +206,5 @@ test('the sweep sees the rows it is about, slots included', () => {
     'kit/card.tsx › banner',
     'kit/bars.tsx › layerAbove',
   ])
-    expect(seen, row).toContain(row);
+    expect(seen('words'), row).toContain(row);
 });
