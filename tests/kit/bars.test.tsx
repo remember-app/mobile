@@ -1,4 +1,4 @@
-import { ChevronLeft, SquareCheckBig, User } from 'lucide-react-native';
+import { ChevronLeft, SquareCheckBig, Trash2, User } from 'lucide-react-native';
 import { beforeAll, expect, test } from 'vitest';
 
 import { ActionBar, AppBar, Board, type Footer, GlassBar, ViewerBar, WizardBar } from '@/kit/bars';
@@ -29,7 +29,7 @@ test('the board is the screen’s own ink, with the device’s status line left 
   await setTheme('dark');
 });
 
-test('the four bars that carry words are four bars', () => {
+test('the five bars that carry words are five bars', () => {
   allDifferent({
     root: (
       <AppBar
@@ -55,7 +55,32 @@ test('the four bars that carry words are four bars', () => {
         right={<IconButton icon={User} label="Выбрать" />}
       />
     ),
+    withQuiet: (
+      <AppBar
+        title="Воспоминание"
+        left={<IconButton icon={ChevronLeft} label="Назад" />}
+        quiet={{ icon: Trash2, label: 'Удалить воспоминание', onPress: () => {} }}
+      />
+    ),
   });
+});
+
+test('the quiet action is a bare 44 in `faint`, hung outside the margin like «Назад»', () => {
+  const bar = story(
+    <AppBar
+      title="Воспоминание"
+      left={<IconButton icon={ChevronLeft} label="Назад" />}
+      quiet={{ icon: Trash2, label: 'Удалить воспоминание', onPress: () => {} }}
+    />,
+  );
+  // Spec 7.1: there, and not arguing for the eye — the glyph is `faint`, and nothing is under it.
+  expect(bar).toContain('aria-label="Удалить воспоминание"');
+  expect(bar).toMatch(/data-glyph="Trash2"[^>]*stroke="#6E6B7D"/);
+  expect(bar).toContain('r-marginRight-');
+  expect(bar).toContain('width:44px');
+  expect(
+    story(<AppBar title="Воспоминание" left={<IconButton icon={ChevronLeft} label="Назад" />} />),
+  ).not.toContain('Удалить воспоминание');
 });
 
 test('the name at the top of a screen is its heading, and a long one is cut rather than wrapped', () => {

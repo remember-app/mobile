@@ -16,6 +16,7 @@ import create from '@/app/create.tsx?raw';
 import home from '@/app/index.tsx?raw';
 import edit from '@/app/memory/[id]/edit.tsx?raw';
 import settings from '@/app/memory/[id]/settings.tsx?raw';
+import coverSlot from '@/kit/cover.tsx?raw';
 import member from '@/kit/member.tsx?raw';
 import cover from '@/screens/memory/cover.tsx?raw';
 import when from '@/screens/memory/when.tsx?raw';
@@ -28,12 +29,12 @@ test('nobody is shown a way out of a memory, and the organizer keeps the crosses
   expect(settings).not.toContain('s.members.leave');
   expect(settings).toContain('removeMember(session, id, target.id)');
   expect(settings).toContain('label={s.members.remove(memberName(member))}');
-  // The one red button the screen has is not a way out of the memory but the end of it (TASK-281,
-  // doc-01): the organizer's alone, at the foot of the body under a hairline of its own, the way
-  // `Account` stands its own dangerous one — and asked for on a sheet that names the price.
-  // What it then does is proven by rendering it, in `settings-flow.test.tsx`; the count here is
-  // the one thing a render cannot ask — that there is no *second* red button anywhere on it.
-  expect(settings.match(/variant="danger"/g)).toHaveLength(1);
+  // The end of the memory is not a red button on the screen (TASK-296, spec 7.1): it is the quiet
+  // trash in the bar, the organizer's alone, and the only red is on the sheet it opens. What it then
+  // does is proven by rendering it, in `settings-flow.test.tsx`; what a render cannot ask is that
+  // there is no red button left anywhere in the file.
+  expect(settings).not.toContain('variant="danger"');
+  expect(settings).toContain('quiet={');
 });
 
 // The settings screen (spec 8, `MemorySettings`, TASK-209): what the event is and who is in it.
@@ -58,10 +59,11 @@ test('the settings are the memory named, counted and covered, under one pencil',
 
 test('the cover a memory has is the one chain everywhere it is shown', () => {
   // Spec 6 and 10.8.3: the chosen frame, else the mosaic of the first frames, else the dashed
-  // frame — in the 68 slot and on both cards of the list, which is the kit's own `cover` prop.
-  expect(cover).toContain('shots.length > 0 ? (');
-  expect(cover).toContain('<Mosaic photos={shots} layout="strip" />');
-  expect(cover).toContain('<DashedFrame');
+  // frame — in the 68 slot, on the 64 of the sheet that asks before a memory is deleted, and on
+  // both cards of the list, which is the kit's own `cover` prop.
+  expect(coverSlot).toContain('shots.length > 0 ? (');
+  expect(coverSlot).toContain('<Mosaic photos={shots} layout="strip" />');
+  expect(coverSlot).toContain('<DashedFrame');
   expect(home).toContain('const cover = item.cover_thumbnail_url ?? null;');
   expect(home).toContain('cover={cover}');
 });

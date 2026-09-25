@@ -1,5 +1,5 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronLeft, Pencil, UserPlus, X } from 'lucide-react-native';
+import { ChevronLeft, Pencil, Trash2, UserPlus, X } from 'lucide-react-native';
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
@@ -27,6 +27,7 @@ import {
   Board,
   Button,
   ConfirmSheet,
+  CoverSlot,
   IconButton,
   PRESS,
   RowMember,
@@ -39,7 +40,6 @@ import {
 import { useAuth } from '@/lib/auth';
 import { formatEventDates } from '@/lib/dates';
 import { useStrings } from '@/lib/language';
-import { CoverSlot } from '@/screens/memory/cover';
 import { InviteSheet } from '@/screens/memory/invite-sheet';
 import { radius, space, themed } from '@/theme';
 
@@ -56,6 +56,9 @@ import { radius, space, themed } from '@/theme';
  * (spec 10.8.4): an irreversible act is entered on purpose, and what it costs is named in figures on
  * the sheet that asks. Leaving a memory is not offered here at all (TASK-113) — the api still takes
  * it, and the organizer's cross uses that same call, but nobody is shown a way out of their own.
+ *
+ * Deleting the memory whole is the quiet trash in the bar (spec 7.1): the way is there, and it does
+ * not argue with the roster or with «Пригласить» for the eye.
  */
 export default function MemorySettingsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -172,10 +175,11 @@ export default function MemorySettingsScreen() {
    * The memory itself, taken down whole (doc-01, 2026-09-24). There is nothing to stay for: the row
    * this whole screen stands on is gone, so the screen leaves for the main one, which reads its list
    * again on focus and will not find this memory in it. A 404 is somebody who got there first —
-   * the same outcome, said the same way.
+   * the same outcome, said the same way. The sheet waits on the request, busy, and goes either way:
+   * a refusal is said on the screen under it.
    */
-  const wipe = () =>
-    act(async (session) => {
+  const wipe = async () => {
+    await act(async (session) => {
       try {
         await deleteMemory(session, id);
       } catch (e) {
@@ -184,6 +188,16 @@ export default function MemorySettingsScreen() {
       router.replace('/');
       return null;
     });
+    setWiping(false);
+  };
+
+  /**
+   * `SheetConfirmMemory`'s plate — what the other people brought, off the roster's own counts. The
+   * sheet is the organizer's alone, so «other» is everybody but whoever is asking.
+   */
+  const othersBrought = (members ?? [])
+    .filter((member) => member.id !== user?.id)
+    .reduce((sum, member) => sum + (member.media_count ?? 0), 0);
 
   /**
    * How many frames that person brought here. `?? 0` and not a bare read: the app ships over the
@@ -248,6 +262,19 @@ export default function MemorySettingsScreen() {
         // The screen's own name and not the memory's: the name of the memory is on the card right
         // under it, in the one place it is edited from.
         title={s.settings.title}
+        // Nobody but the organizer is drawn it at all (spec 10.8.3: not greyed out — not drawn), and
+        // the api refuses everybody else on its own. Nor before the memory has been read: the sheet
+        // it opens is made of it, and a trash that opened nothing would be a dead button.
+        quiet={
+          organizer && memory !== null
+            ? {
+                icon: Trash2,
+                label: s.settings.delete,
+                onPress: () => setWiping(true),
+                disabled: busy,
+              }
+            : undefined
+        }
         left={
           <IconButton
             icon={ChevronLeft}
@@ -341,22 +368,6 @@ export default function MemorySettingsScreen() {
                 <View style={styles.card}>{viewers.map(row)}</View>
               </View>
             ) : null}
-
-            {/* The end of the memory: at the bottom, alone, behind a hairline — exactly where
-                `Account` keeps «Выйти из аккаунта» (spec 8), so that nothing dangerous is hit on the
-                way past. Nobody but the organizer is drawn it at all (spec 10.8.3: not greyed out —
-                not drawn), and the api refuses everybody else on its own. */}
-            {organizer ? (
-              <View style={styles.out}>
-                <Button
-                  variant="danger"
-                  size="xl"
-                  label={s.settings.delete}
-                  disabled={busy}
-                  onPress={() => setWiping(true)}
-                />
-              </View>
-            ) : null}
           </>
         )}
 
@@ -387,31 +398,23 @@ export default function MemorySettingsScreen() {
         onInvited={load}
       />
 
-      {/* The sheet that asks about the memory: the thing on it is its cover — or, with none chosen,
-          the first of the frames its card is drawn from — the meta is its name and its days, and the
-          price is in figures, how many frames and movies go. Counted off the frames, as the sheet
-          beside it counts a departure: the price always opens with them, so a memory with none says
-          «0 кадров исчезнут» — a price nobody is paying — however many movies were cut from them. */}
-      {wiping && memory !== null ? (
+      {/* `SheetConfirmMemory` as it is drawn: the cover by the card's own chain, the name and how
+          many frames it holds, whom it disappears from, and — on the plate on `ink` — the frames the
+          others brought, named apart because the one deleting takes more than their own. Nobody
+          else brought anything and there is no plate: «0 кадров» says nothing. */}
+      {wiping && memory !== null && members !== null ? (
         <ConfirmSheet
           visible
-          thumb={memory.cover_thumbnail_url ?? memory.recent_thumbnail_urls[0]}
-          meta={[memory.title, formatEventDates(memory.event_start, memory.event_end)]
-            .filter(Boolean)
-            .join(' · ')}
-          price={
-            memory.media_count
-              ? s.settings.deletePrice(memory.media_count, memory.montage_count)
-              : undefined
-          }
+          cover={{ uri: memory.cover_thumbnail_url, thumbs: memory.recent_thumbnail_urls }}
+          meta={`${memory.title} · ${s.memory.frames(memory.media_count)}`}
+          price={othersBrought > 0 ? s.settings.deleteOthers(othersBrought) : undefined}
+          priceOn="ink"
           title={s.settings.deleteAsk}
-          text={s.settings.deleteText}
+          text={s.settings.deleteText(members.length)}
           confirmLabel={s.settings.deleteDo}
           cancelLabel={s.settings.keep}
-          onConfirm={() => {
-            setWiping(false);
-            void wipe();
-          }}
+          busy={busy}
+          onConfirm={() => void wipe()}
           onCancel={() => setWiping(false)}
         />
       ) : null}
@@ -532,9 +535,6 @@ const useStyles = themed(({ color }) =>
       borderColor: color.line,
     },
     grow: { flex: 1, minWidth: 0 },
-    // The dangerous one stands at the very bottom of the body, alone behind a hairline — the way
-    // out of an account stands on `Account`.
-    out: { marginTop: 'auto', paddingTop: space.s5, borderTopWidth: 1, borderTopColor: color.line },
     // Spec 10.2: drawn as the 28 circle inside it, felt at 44 — and pulled 8 out, so the circle
     // lines up with the row's own 14 rather than with the button's edge.
     standing: {

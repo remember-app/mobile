@@ -5,6 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import { radius, space, themed, useTheme } from '@/theme';
 
 import { Button } from './button';
+import { CoverSlot } from './cover';
 import { Icon } from './icon';
 import { LabelMark } from './label';
 import { Avatar } from './member';
@@ -30,13 +31,29 @@ type ConfirmProps = {
    * the thumbnail would be. A label has no picture of its own, and a box is known by its colour.
    */
   tint?: string;
-  /** «Марк Ковалёв · 13 сентября», «@anya.p · принесла 54 кадра». */
+  /**
+   * Or the memory it is about (`SheetConfirmMemory`): its cover at 64, by the chain it is shown by
+   * everywhere — the chosen frame, else the mosaic of its frames, else the dashed frame.
+   */
+  cover?: { uri?: string | null; thumbs?: readonly string[] };
+  /** «Марк Ковалёв · 13 сентября», «Свадьба Лизы и Марка · 486 кадров» — one line, cut if long. */
   meta?: string;
   /**
    * The price named as a number, on a plate of its own: «54 кадра исчезнут из воспоминания». Spec 9
    * asks for it before the press and not after, which is the whole reason this sheet exists.
    */
   price?: string;
+  /**
+   * What that plate stands on. Red for a person taken out (`SheetConfirmMember`); `ink` for a memory
+   * deleted (`SheetConfirmMemory`), where red is only in the sign and the words — the plate names the
+   * part of the loss that was never the deleter's own, and must not shout over the red button under it.
+   */
+  priceOn?: 'danger' | 'ink';
+  /**
+   * The request is in the air: the dangerous button waits, and neither «Оставить» nor a tap beside
+   * the sheet can promise to keep what is already being taken down.
+   */
+  busy?: boolean;
   /**
    * Spec 7.1, detail 8 — the kind asked when nothing is lost: leaving an account, walking away from
    * edits nobody saved. No thumbnail, no avatar, and the button at the bottom is `paper` rather than
@@ -65,48 +82,67 @@ export function ConfirmSheet({
   thumb,
   who,
   tint,
+  cover,
   meta,
   price,
+  priceOn = 'danger',
+  busy,
   variant = 'danger',
 }: ConfirmProps) {
   const { color } = useTheme();
   const styles = useStyles();
   const gentle = variant === 'gentle';
-  // One 64 mark, whichever of the three this sheet is about.
-  const marked = thumb || who || tint;
+  // One 64 mark, whichever of the four this sheet is about.
+  const mark = thumb ? (
+    <Image source={{ uri: thumb }} contentFit="cover" style={styles.thumb} />
+  ) : cover ? (
+    <CoverSlot {...cover} size={64} />
+  ) : who ? (
+    <Avatar name={who} size={64} />
+  ) : tint ? (
+    <LabelMark tint={tint} size={64} />
+  ) : null;
+  const marked = mark !== null && !gentle;
+  const ink = priceOn === 'ink';
 
   return (
     <Sheet
       visible={visible}
-      onCancel={onCancel}
+      onCancel={busy ? () => {} : onCancel}
       narrow
       head={
-        marked && !gentle ? (
+        marked ? (
           <View style={styles.head}>
-            {thumb ? (
-              <Image source={{ uri: thumb }} contentFit="cover" style={styles.thumb} />
-            ) : null}
-            {who && !thumb ? <Avatar name={who} size={64} /> : null}
-            {tint && !thumb && !who ? <LabelMark tint={tint} size={64} /> : null}
+            {mark}
             <View style={styles.headWords}>
               <Text role="sheetTitleSm" accessibilityRole="header">
                 {title}
               </Text>
-              {meta ? <Text role="meta">{meta}</Text> : null}
+              {meta ? (
+                <Text role="meta" numberOfLines={1}>
+                  {meta}
+                </Text>
+              ) : null}
             </View>
           </View>
         ) : undefined
       }
-      title={marked && !gentle ? undefined : title}
+      title={marked ? undefined : title}
       footer={
         <>
-          <Button variant={gentle ? 'paper' : 'danger'} label={confirmLabel} onPress={onConfirm} />
+          <Button
+            variant={gentle ? 'paper' : 'danger'}
+            label={confirmLabel}
+            onPress={onConfirm}
+            busy={busy}
+          />
           <Button
             variant={gentle ? 'quiet' : 'secondary'}
             size="md"
             wide
             label={cancelLabel}
             onPress={onCancel}
+            disabled={busy}
           />
         </>
       }
@@ -115,9 +151,9 @@ export function ConfirmSheet({
         {text}
       </Text>
       {price ? (
-        <View style={styles.price}>
+        <View style={[styles.price, ink ? styles.priceInk : null]}>
           <Icon icon={TriangleAlert} size={18} color={color.dangerText} />
-          <Text role="label" tone="danger" style={styles.grow}>
+          <Text role={ink ? 'note' : 'label'} tone="danger" style={styles.grow}>
             {price}
           </Text>
         </View>
@@ -128,8 +164,10 @@ export function ConfirmSheet({
 
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
-    head: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },
-    headWords: { flex: 1, minWidth: 0, gap: 2 },
+    // Spec 8, every confirmation sheet as drawn: 14 between the mark and the words, 7 between the
+    // question and the line under it.
+    head: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+    headWords: { flex: 1, minWidth: 0, gap: 7 },
     thumb: { width: 64, height: 64, borderRadius: radius.strip, backgroundColor: color.raise },
     price: {
       flexDirection: 'row',
@@ -140,6 +178,14 @@ const useStyles = themed(({ color }) =>
       backgroundColor: color.dangerSoft,
       borderWidth: 1,
       borderColor: color.dangerEdge,
+    },
+    // Spec 7.1, detail 8 — the plate on `ink`: 18 round, 12 / 14 inside, 10 between sign and words.
+    priceInk: {
+      gap: 10,
+      paddingHorizontal: 14,
+      borderRadius: radius.field,
+      backgroundColor: color.ink,
+      borderColor: color.line,
     },
     grow: { flex: 1, minWidth: 0 },
   }),

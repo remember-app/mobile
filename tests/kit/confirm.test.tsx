@@ -38,7 +38,7 @@ test('the way out is the outlined button and never the quiet one', () => {
   expect(sheet).toContain('min-height:52px');
 });
 
-test('a frame, a person, a label and a bare question are four headers', () => {
+test('a frame, a memory, a person, a label and a bare question are five headers', () => {
   allDifferent({
     bare: <ConfirmSheet {...base} />,
     frame: (
@@ -54,6 +54,15 @@ test('a frame, a person, a label and a bare question are four headers', () => {
         title="Убрать Аню Петрову?"
         who="Аня Петрова"
         meta="@anya.p · принесла 54 кадра"
+      />
+    ),
+    // `SheetConfirmMemory` — the memory's cover, by the chain it is shown by everywhere.
+    memory: (
+      <ConfirmSheet
+        {...base}
+        title="Удалить воспоминание?"
+        cover={{ uri: 'https://bucket.example/cover.jpg' }}
+        meta="Свадьба Лизы и Марка · 486 кадров"
       />
     ),
     // Spec 10.8.1 — a label has no picture of its own: the 64 square of its colour stands in for one.
@@ -100,4 +109,64 @@ test('the gentle kind asks about what costs nothing, and never in red', () => {
   expect(gentle).not.toContain('АП');
   expect(gentle).toContain('Выйти из аккаунта?');
   expect(gentle).not.toBe(story(<ConfirmSheet {...base} title="Выйти из аккаунта?" />));
+});
+
+test('a memory is asked about under its cover at 64 — the dashed one too, when it has no frames yet', () => {
+  for (const cover of [
+    { uri: 'https://bucket.example/cover.jpg' },
+    { thumbs: ['https://b/t1'] },
+    {},
+  ]) {
+    const sheet = story(
+      <ConfirmSheet
+        {...base}
+        title="Удалить воспоминание?"
+        cover={cover}
+        meta="Свадьба Лизы и Марка · 486 кадров"
+      />,
+    );
+    expect(sheet).toContain('width:64px');
+    // The question stands beside the cover, not over the paragraph as a bare sheet's title would.
+    expect(sheet).not.toBe(
+      story(<ConfirmSheet {...base} title="Удалить воспоминание?" meta="Свадьба Лизы и Марка" />),
+    );
+  }
+});
+
+test('the line under the question is one line, cut rather than wrapped', () => {
+  expect(
+    story(
+      <ConfirmSheet
+        {...base}
+        cover={{}}
+        meta="Свадьба Лизы и Марка в Карелии на берегу Онежского озера · 486 кадров"
+      />,
+    ),
+  ).toContain('r-textOverflow');
+});
+
+test('the price plate on `ink` is another plate than the red one, with the same red sign and words', () => {
+  const plate = (priceOn?: 'danger' | 'ink') => (
+    <ConfirmSheet
+      {...base}
+      title="Удалить воспоминание?"
+      cover={{}}
+      price="358 кадров сюда принесли другие"
+      priceOn={priceOn}
+    />
+  );
+  allDifferent({ red: plate(), ink: plate('ink') });
+  expect(story(plate('ink'))).toContain('358 кадров сюда принесли другие');
+  expect(story(plate('ink'))).toContain('stroke="#FF8D8D"');
+});
+
+test('while the request is in the air the dangerous button waits and «Оставить» is out', () => {
+  allDifferent({
+    idle: <ConfirmSheet {...base} cover={{}} />,
+    busy: <ConfirmSheet {...base} cover={{}} busy />,
+  });
+  const busy = story(<ConfirmSheet {...base} busy />);
+  expect(busy).toContain('aria-disabled="true" disabled="" aria-label="Удалить"');
+  expect(busy).toContain('aria-disabled="true" disabled="" aria-label="Оставить"');
+  expect(story(<ConfirmSheet {...base} />)).not.toContain('aria-disabled="true"');
 });

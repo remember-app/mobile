@@ -19,6 +19,7 @@ import {
   Board,
   Button,
   ConfirmSheet,
+  CoverSlot,
   Field,
   Hint,
   IconButton,
@@ -29,7 +30,7 @@ import { useAuth } from '@/lib/auth';
 import { endOfDay, formatDay, startOfDay } from '@/lib/dates';
 import { mayPick, shotAt } from '@/lib/frames';
 import { useStrings } from '@/lib/language';
-import { CoverSheet, CoverSlot } from '@/screens/memory/cover';
+import { CoverSheet } from '@/screens/memory/cover';
 import { EventWhen, type Span } from '@/screens/memory/when';
 import { radius, space, themed } from '@/theme';
 

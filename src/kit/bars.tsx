@@ -6,7 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { board, height, night, photo, radius, space, ThemePin, themed, useTheme } from '@/theme';
 
 import { StepScale } from './bits';
-import { Icon } from './icon';
+import { IconButton } from './button';
+import { Icon, type IconComponent } from './icon';
 import { Text } from './text';
 
 /**
@@ -36,6 +37,8 @@ export function Board({ children, style }: { children: ReactNode; style?: StyleP
  * - **inner** — a back button, the name in `barTitle`, truncated rather than wrapped;
  * - **inner with a subtitle** — a `meta` line under the name, the whole `Upload*` family;
  * - **inner with a right action** — the same plus a round button, or the «смотрят сейчас» pill;
+ * - **inner with a quiet action** — a bare 44 whose glyph is `faint`, the way to something grave
+ *   that is there without arguing with the name or with the screen's main button;
  * - **live** — the same two floors a shade smaller (17/21), because the bar over a montage on air
  *   carries a name, a line of meta and a pill of faces in one row.
  *
@@ -48,6 +51,7 @@ export function AppBar({
   variant = 'inner',
   left,
   right,
+  quiet,
   style,
 }: {
   title: string;
@@ -56,14 +60,17 @@ export function AppBar({
   left?: ReactNode;
   /** A round button, or the pill saying who is watching — it is a slot, not a kind. */
   right?: ReactNode;
+  /** Spec 7.1 — the quiet action: «Удалить воспоминание» on `MemorySettings`. */
+  quiet?: { icon: IconComponent; label: string; onPress: () => void; disabled?: boolean };
   style?: StyleProp<ViewStyle>;
 }) {
+  const { color } = useTheme();
   const styles = useStyles();
   // Spec 7.1: an inner bar closes to 8 and hangs its «Назад» 10 outside the screen's margin, so the
-  // glyph inside it lines up with the words below rather than the button's own edge. Nothing on the
-  // right is pulled: the pill over a montage on air stands on the margin, the way the layout has it.
-  // The root bar keeps 12 and its one button stays inside the margin — it is filled, and a filled
-  // button pulled out would read as falling off the screen.
+  // glyph inside it lines up with the words below rather than the button's own edge. On the right
+  // only the quiet action is pulled, being as bare as «Назад»: the pill over a montage on air stands
+  // on the margin, the way the layout has it. The root bar keeps 12 and its one button stays inside
+  // the margin — it is filled, and a filled button pulled out would read as falling off the screen.
   const inner = variant !== 'root';
 
   return (
@@ -87,6 +94,7 @@ export function AppBar({
         ) : null}
       </View>
       {right}
+      {quiet ? <IconButton {...quiet} tint={color.faint} style={styles.pullRight} /> : null}
     </View>
   );
 }
@@ -403,6 +411,7 @@ const useStyles = themed(({ color }) =>
     },
     barInner: { gap: space.s2 },
     pullLeft: { marginLeft: -10 },
+    pullRight: { marginRight: -10 },
     // `flex: 1` with `minWidth: 0` is what makes a long name truncate instead of pushing the button
     // on the right off the screen.
     barWords: { flex: 1, minWidth: 0, gap: 2 },

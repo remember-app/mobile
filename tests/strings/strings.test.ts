@@ -40,6 +40,29 @@ test('Russian counts in three forms, English in two', () => {
   expect([1, 2].map(en.memory.people)).toEqual(['1 person', '2 people']);
 });
 
+test('the sheet that deletes a memory counts its people after «всех», and the others’ frames in three forms', () => {
+  // «У всех 21 участника», «у всех 5 участников»: after «всех» the number stands in the genitive.
+  expect([3, 5, 11, 21, 104].map((n) => ru.settings.deleteText(n).split(' — ')[0])).toEqual([
+    'Оно исчезнет у всех 3 участников',
+    'Оно исчезнет у всех 5 участников',
+    'Оно исчезнет у всех 11 участников',
+    'Оно исчезнет у всех 21 участника',
+    'Оно исчезнет у всех 104 участников',
+  ]);
+  expect(ru.settings.deleteText(2)).toContain('у обоих участников');
+  expect(ru.settings.deleteText(1)).not.toContain('участник');
+  expect(en.settings.deleteText(1)).not.toContain('people');
+  expect([1, 3, 358].map(ru.settings.deleteOthers)).toEqual([
+    '1 кадр сюда принесли другие',
+    '3 кадра сюда принесли другие',
+    '358 кадров сюда принесли другие',
+  ]);
+  expect([1, 2].map(en.settings.deleteOthers)).toEqual([
+    'Other people brought 1 frame here',
+    'Other people brought 2 frames here',
+  ]);
+});
+
 /**
  * Every route file, read as text — the idiom `tests/routes/memory/screen.test.ts` explains at length: this
  * project has no renderer, and what is worth pinning here is answered by the source anyway.
