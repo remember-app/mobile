@@ -389,6 +389,20 @@ test('the sheet of a frame sets its facts out 14 apart, as `SheetFrameInfo` draw
   expect(groupOf(story(sheet()), 'В роликах')).toContain(rule('gap:8px'));
 });
 
+test('the person who brought it: the face 32, the name 14 / 600 10 after it, the line right under', () => {
+  // `SheetFrameInfo.json` e5–e8 (TASK-390): the plate 101…158, the face at x 29, «Марк Ковалёв»
+  // 14 / 600 at x 71 on its 18, «принёс 15 сентября…» at 131 — 1 under it. The name stood at the
+  // 15 / 600 of a list row, 8 from the face and 3 over its line: the plate came out 58.7 against 56.
+  const whole = story(sheet());
+  const words = /<div class="([^"]*)"><div[^>]*>Марк Ковалёв</.exec(whole)?.[1] ?? '';
+  expect(words).toContain(rule('gap:1px'));
+  const plate = /<div class="([^"]*)"><div[^>]*style="width:32px;height:32px;/.exec(whole)?.[1];
+  expect(plate).toContain(rule('gap:10px'));
+  const name = /class="([^"]*)"[^>]*>Марк Ковалёв</.exec(whole)?.[1] ?? '';
+  expect(name).toContain(rule('font-size:14px'));
+  expect(name).toContain(rule('line-height:18px'));
+});
+
 test('the sheet is drawn in the theme the app is in, because daylight reaches it', () => {
   // The window under it is pinned dark in both themes (`frame-viewer.tsx`), and the sheet is
   // deliberately outside that pin: it is its own surface over the screen, and in daylight it is a

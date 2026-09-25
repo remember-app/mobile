@@ -51,11 +51,15 @@ export function RowSummary({
   return (
     <View>
       {divider ? <Divider soft /> : null}
-      <Tappable label={`${label}: ${value}`} onPress={onPress} style={styles.summary}>
-        <Text role="label" tone="muted" style={styles.summaryLabel}>
+      <Tappable
+        label={`${label}: ${value}`}
+        onPress={onPress}
+        style={[styles.summary, onPress ? styles.summaryTap : null]}
+      >
+        <Text role="meta" style={styles.summaryLabel}>
           {label}
         </Text>
-        <Text role="row" style={styles.grow}>
+        <Text role="summary" style={styles.grow}>
           {value}
         </Text>
         {onPress ? <Icon icon={ChevronRight} size={18} color={color.faint} /> : null}
@@ -398,9 +402,9 @@ const STEP_LINK = 40;
 
 /**
  * One action inside the glass menu that drops out of the «⋯» (spec 7.7): 50 tall, the words on the
- * left and the glyph on the right. It was a sheet's row until the menu existed; the glyph moved to
- * the far side with it, because a menu is read down its left edge. The dangerous one is the only red
- * line in the menu, and there is never more than one of it.
+ * left at 15 / 500 (spec 7.1, detail 9) and the 19 glyph on the right. It was a sheet's row until the
+ * menu existed; the glyph moved to the far side with it, because a menu is read down its left edge.
+ * The dangerous one is the only red line in the menu, and there is never more than one of it.
  */
 export function RowAction({
   icon,
@@ -423,7 +427,7 @@ export function RowAction({
     <View>
       {divider ? <Divider soft /> : null}
       <Tappable label={label} onPress={onPress} style={styles.action}>
-        <Text role="row" style={[styles.grow, { color: tint }]}>
+        <Text role="rowPlain" style={[styles.grow, { color: tint }]}>
           {label}
         </Text>
         <Icon icon={icon} size={19} color={tint} />
@@ -545,16 +549,18 @@ const useStyles = themed(({ color }) =>
   StyleSheet.create({
     grow: { flex: 1, minWidth: 0 },
     hover: { backgroundColor: color.raise },
-    // Spec 7.7: the two are read across one baseline, and the row is as tall as what it holds —
-    // 11 above and below, which on one line is the 44 every other row of the product stands at.
+    // Spec 7.7, detail 52: the two are read across one baseline, and the row is as tall as what it
+    // holds — 11 above and below the value's 18, so rows of one line stand 41 apart with their rule
+    // (`SheetFrameInfo`, «шаг 41, не 45»).
     summary: {
       flexDirection: 'row',
       alignItems: 'baseline',
       gap: space.s3,
-      minHeight: height.small,
       paddingVertical: 11,
       paddingHorizontal: space.s4,
     },
+    // A row that leads somewhere is a button, and a button is never under a finger's 44.
+    summaryTap: { minHeight: height.small },
     summaryLabel: { width: 96 },
     track: {
       minHeight: TRACK_ROW,

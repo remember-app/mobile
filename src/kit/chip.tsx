@@ -8,10 +8,12 @@ import { Avatar } from './member';
 import { Text } from './text';
 
 /**
- * Spec 7.3 — the chip: a pill that is offered rather than pressed home. Four heights, each
- * belonging to a place rather than to a taste (spec 7.3):
+ * Spec 7.3 — the chip: a pill that is offered rather than pressed home. Five heights, each
+ * belonging to a place rather than to a taste (spec 7.3, spec 8):
  *
- * - **40** — a filter, the tallest and the only one that carries a face;
+ * - **44** — a person to call in on `SheetInvite`, the tallest and the only one that carries a
+ *   face: the face at 32, the name 8 after it, a `line` hairline;
+ * - **40** — a filter;
  * - **36** — the quick days on `Create`, which stand on `surface` instead of on nothing, 13 a side;
  * - **34** — the journal's own filter, where a row of them sits under a bar: 13 / 600;
  * - **28** — «Все дни» in the head of the filter's day block: 12 / 600 and pulled in to 12 a side.
@@ -23,7 +25,7 @@ import { Text } from './text';
  * chip wider than the whole row — a long name on the largest system type — breaks its name onto a
  * second line instead of running past the edge of the screen: the width never cuts a chip.
  */
-export type ChipSize = 40 | 36 | 34 | 28;
+export type ChipSize = 44 | 40 | 36 | 34 | 28;
 
 export function Chip({
   label,
@@ -39,7 +41,7 @@ export function Chip({
 }: {
   label: string;
   size?: ChipSize;
-  /** A person's name — the chip then carries their circle at 30 in front of it. */
+  /** A person's name — the chip then carries their circle at 32 in front of it. */
   avatar?: string;
   /** A label's colour — the chip then carries an 18 square of it in front of it. */
   swatch?: string;
@@ -83,15 +85,22 @@ export function Chip({
         styles.chip,
         { minHeight: size },
         size === 28 ? styles.tag : size === 36 ? styles.quickSides : null,
+        size === 44 ? styles.person : null,
         lead ? styles.chipLead : null,
-        selected ? styles.selected : size === 36 ? styles.quick : styles.outlined,
+        selected
+          ? styles.selected
+          : size === 36
+            ? styles.quick
+            : size === 44
+              ? styles.lined
+              : styles.outlined,
         hovered && !selected ? styles.hover : null,
         pressed && !reduced ? PRESS : null,
         focused ? focusRing : null,
         style,
       ]}
     >
-      {avatar ? <Avatar name={avatar} size={30} /> : null}
+      {avatar ? <Avatar name={avatar} size={32} /> : null}
       {/* A colour with nothing in it: the label's name is right beside it, and a square that
           repeats it out loud is a second name. */}
       {swatch && !avatar ? (
@@ -129,6 +138,9 @@ const useStyles = themed(({ color }) =>
     // Spec 7.3, detail 16 `[правлено]`: the quick days are 13 a side, so the four stand in the
     // column of 358 on one line (353.5) — the layout's 14 ran 1.3 past it on either side.
     quickSides: { paddingHorizontal: 13 },
+    // `SheetInvite`: the name 8 after the face, and a `line` hairline rather than the filter's.
+    person: { gap: space.s2 },
+    lined: { borderColor: color.line },
     // A chip with a face or a colour in it pulls its left side in so the circle sits against the edge.
     chipLead: { paddingLeft: 6 },
     outlined: { borderColor: color.lineQuiet },

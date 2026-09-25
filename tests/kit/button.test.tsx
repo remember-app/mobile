@@ -92,6 +92,19 @@ test('the dashed button is a hole rather than a thing, and it is square only whe
   expect(story(<Button variant="primary" label="Создать" />)).not.toContain('dashed');
 });
 
+test('the dashed box of 52 carries its plus at 16 / 2.2, 8 from its words', () => {
+  // `SheetLabels.json` e51–e52 (TASK-390): «Новый лейбл» 358 × 52 in a dashed `lineQuiet`, a plus of
+  // 16 at stroke 2.2 at 138.1 and the words at 162.1 — 8 on. It had no plus at all, and the glyph
+  // of a 52 is 18. The pill of 32, «Свой трек», keeps its own 14.
+  const box = story(<Button variant="dashed" icon={Plus} label="Новый лейбл" />);
+  expect(box).toContain('<svg data-glyph="Plus" width="16" height="16"');
+  expect(box).toContain('stroke-width="2.2"');
+  expect(box).toContain(rule('gap:8px'));
+  expect(story(<Button variant="dashed" size="xxs" icon={Plus} label="Свой трек" />)).toContain(
+    '<svg data-glyph="Plus" width="14" height="14"',
+  );
+});
+
 test('the seven heights are seven heights, and each variant starts at its own', () => {
   allDifferent({
     // 60, and only «Выйти из аккаунта» stands at it.

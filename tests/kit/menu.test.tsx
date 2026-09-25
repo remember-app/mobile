@@ -5,7 +5,7 @@ import { beforeAll, expect, test } from 'vitest';
 import { ActionMenu } from '@/kit/menu';
 import { RowAction } from '@/kit/rows';
 import { allDifferent, story } from '@/kit/story';
-import { setTheme } from '@/theme';
+import { font, setTheme } from '@/theme';
 
 /** Spec 7.1, detail 9 — the action menu that falls out of the «⋯» button. */
 
@@ -32,6 +32,15 @@ test('the menu stands where the button it fell out of is, and carries the rows i
   // screen. Where it hangs is the one thing about it that is not a fixed shape.
   expect(open).toContain('top:66px');
   expect(open).toContain('right:12px');
+});
+
+test('the words of a row in the menu are 15 / 500', () => {
+  // Spec 7.1, detail 9 («текст 15 / 500 слева») and spec 3 (`row` — «подпись действия меню 15 /
+  // 500»); `SheetFrame.json` e5: «Поделиться» Onest 500 at 15. The row read in the list row's 600.
+  const open = story(menu());
+  const words = /class="([^"]*)"[^>]*>Поделиться</.exec(open)?.[1] ?? '';
+  expect(words).toContain(rule('font-size:15px'));
+  expect(words).toContain(rule(`font-family:${font.medium}`));
 });
 
 test('the darkness before the dangerous row is a cut and not a rule', () => {

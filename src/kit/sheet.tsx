@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { backdrop, board, duration as motion, radius, space, themed, type } from '@/theme';
 
+import { SheetFoot } from './button';
 import { DISMISS_KEYBOARD, KEYBOARD_SCROLL, useFadeIn } from './interaction';
 import { Text } from './text';
 
@@ -132,12 +133,17 @@ export function useScrimTap(onCancel: () => void): () => void {
 /** How much of the window a sheet may take; the rest stays darkness (spec 4). */
 const CEILING = 0.9;
 const HANDLE = 4;
+/**
+ * The sheet's hairline, along its top and nowhere else (spec 7.1, detail 7): no hairline down the
+ * sides, so what it holds stands 358 from x 16 like a screen's column, and the handle's top is 13
+ * from the edge — the 12 above it and this 1.
+ */
 const EDGE = 1;
 
 /**
  * Whether the handle, the heading and the buttons can stand still while the body scrolls between
- * them (spec 7.1): they, the sheet's own edges and one line of the body fit in the height the sheet
- * was actually given — nine tenths of the window at most. When they do not —
+ * them (spec 7.1): they, the sheet's own top edge and one line of the body fit in the height the
+ * sheet was actually given — nine tenths of the window at most. When they do not —
  * the smallest phone at the largest system type — the whole sheet under the handle scrolls as one;
  * pinned, the buttons would stand below the screen with nothing to bring them back, and a body
  * squeezed to nothing is a question nobody can read (TASK-358).
@@ -166,7 +172,7 @@ export function pinnable({
     (block) => block !== null,
   );
   const column = blocks.reduce((sum, block) => sum + block, 0) + gap * (blocks.length - 1);
-  return EDGE * 2 + space.s3 + column + bottom <= sheet;
+  return EDGE + space.s3 + column + bottom <= sheet;
 }
 
 /** A block's height as it was last laid out, 0 until it has been — for {@link pinnable} and `Board`. */
@@ -224,7 +230,7 @@ function Rise({
     <>
       <View style={styles.fill} />
       <View style={styles.footer} onLayout={onFoot}>
-        {footer}
+        <SheetFoot.Provider value>{footer}</SheetFoot.Provider>
       </View>
     </>
   ) : null;
@@ -311,8 +317,8 @@ const useStyles = themed(({ color }) =>
       paddingTop: space.s3,
       paddingHorizontal: space.s4,
       backgroundColor: color.surface,
-      borderWidth: EDGE,
-      borderColor: color.line,
+      borderTopWidth: EDGE,
+      borderTopColor: color.line,
       borderTopLeftRadius: radius.sheet,
       borderTopRightRadius: radius.sheet,
     },

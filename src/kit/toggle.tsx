@@ -2,8 +2,11 @@ import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from 'rea
 
 import { radius, space, themed } from '@/theme';
 
-import { TAP } from './tap';
+import { hitSlop, TAP } from './tap';
 import { Text } from './text';
+
+/** Spec 7.3, detail 17: the switch is 52 × 32. */
+const TRACK = { width: 52, height: 32 } as const;
 
 export type ToggleProps = {
   /** The word beside it — and its own name, because a switch says nothing on its own. */
@@ -39,6 +42,9 @@ function Track({ value, disabled }: { value: boolean; disabled?: boolean }) {
  * Spec 7.3 — a thing that is simply on or off, and the label stretched along the row beside it.
  * Pressing the label flips it too, which is the whole reason the row is one pressable and not a
  * label next to a switch.
+ *
+ * The row is as tall as the switch, 32, with its words at 15 / 500 (`SheetInvite`), and is felt at
+ * a finger's 44 all the same.
  */
 export function Toggle({ label, value, onValueChange, disabled }: ToggleProps) {
   const styles = useStyles();
@@ -49,10 +55,11 @@ export function Toggle({ label, value, onValueChange, disabled }: ToggleProps) {
       accessibilityLabel={label}
       accessibilityState={{ checked: value, disabled: !!disabled }}
       disabled={disabled}
+      hitSlop={hitSlop(TAP, TRACK.height)}
       onPress={() => onValueChange(!value)}
       style={styles.toggle}
     >
-      <Text role="row" style={styles.grow}>
+      <Text role="rowPlain" style={styles.grow}>
         {label}
       </Text>
       <Track value={value} disabled={disabled} />
@@ -99,8 +106,8 @@ const useStyles = themed(({ color }) =>
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: space.s3,
-      // The row keeps a finger's worth of height beside a switch drawn at 32.
-      minHeight: TAP,
+      // A floor: grown words make the row taller than the switch, never cut.
+      minHeight: TRACK.height,
     },
     grow: { flex: 1, minWidth: 0 },
     card: {
@@ -118,8 +125,7 @@ const useStyles = themed(({ color }) =>
     label: { flex: 1, minWidth: 0, fontSize: 16, lineHeight: 21 },
     // The hairline is always there and only coloured when off, so the grip stands 3 in either way.
     track: {
-      width: 52,
-      height: 32,
+      ...TRACK,
       padding: 2,
       borderWidth: 1,
       borderRadius: radius.pill,
