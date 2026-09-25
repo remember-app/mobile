@@ -5,7 +5,7 @@ import { beforeAll, expect, test } from 'vitest';
 import { ActionBar, AppBar, Board, type Footer, GlassBar, ViewerBar, WizardBar } from '@/kit/bars';
 import { Button, IconButton } from '@/kit/button';
 import { WatchingPill } from '@/kit/member';
-import { allDifferent, compiled, story } from '@/kit/story';
+import { allDifferent, story } from '@/kit/story';
 import { Text } from '@/kit/text';
 import { height, setTheme } from '@/theme';
 
@@ -242,7 +242,10 @@ test('the viewer’s pill wears the layout’s hairline and reads its second lin
   expect(pill).toContain('r-borderWidth-');
   // «21:47 · Марк Ковалёв» is `rgba(245,243,238,.66)`, and never the 45% the meta dot is drawn in:
   // a line at 45% is unreadable over a bright frame.
-  expect(compiled()).toContain('{color:rgba(245,243,238,0.66);}');
+  // Read off the element that carries the words: the sheet of compiled rules holds every colour any
+  // part drawn so far in this file used, so the rule existing somewhere says nothing about this line.
+  const second = /class="([^"]*)"[^>]*>21:47 · Марк Ковалёв</.exec(pill)?.[1] ?? '';
+  expect(second).toContain(rule('color:rgba(245,243,238,0.66)'));
   expect(pill).not.toContain('rgba(255,255,255,0.45)');
 });
 

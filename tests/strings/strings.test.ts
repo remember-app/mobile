@@ -40,6 +40,37 @@ test('Russian counts in three forms, English in two', () => {
   expect([1, 2].map(en.memory.people)).toEqual(['1 person', '2 people']);
 });
 
+test('the music step counts its tracks in the language’s own forms and says the ceiling of fifty in words', () => {
+  // The count over «Выбрано» (spec 7.7, detail 54): 1 трек, 2 трека, 5 треков, 21 трек.
+  expect([1, 2, 5, 11, 21, 22, 50].map(ru.montage.tracksPicked)).toEqual([
+    '1 трек',
+    '2 трека',
+    '5 треков',
+    '11 треков',
+    '21 трек',
+    '22 трека',
+    '50 треков',
+  ]);
+  expect([1, 2, 50].map(en.montage.tracksPicked)).toEqual(['1 track', '2 tracks', '50 tracks']);
+  expect(ru.montage.nothingAdded).toBe('ничего не добавлено');
+  expect(en.montage.nothingAdded).toBe('nothing added');
+  // What a person is told at the 51st, one sentence with the ceiling in it and what to do about it.
+  expect(ru.montage.tracksFull(50)).toBe(
+    'В ролик берут не больше 50 треков — уберите один из выбранных, чтобы добавить другой.',
+  );
+  expect(en.montage.tracksFull(50)).toBe(
+    'A film takes at most 50 tracks — remove one of the chosen to add another.',
+  );
+  // After «не больше» the number stands in the genitive: 1 трека, 2 треков, 21 трека, 25 треков.
+  expect([1, 2, 5, 21, 25].map((n) => ru.montage.tracksFull(n).split(' — ')[0])).toEqual([
+    'В ролик берут не больше 1 трека',
+    'В ролик берут не больше 2 треков',
+    'В ролик берут не больше 5 треков',
+    'В ролик берут не больше 21 трека',
+    'В ролик берут не больше 25 треков',
+  ]);
+});
+
 test('the sheet that deletes a memory counts its people after «всех», and the others’ frames in three forms', () => {
   // «У всех 21 участника», «у всех 5 участников»: after «всех» the number stands in the genitive.
   expect([3, 5, 11, 21, 104].map((n) => ru.settings.deleteText(n).split(' — ')[0])).toEqual([

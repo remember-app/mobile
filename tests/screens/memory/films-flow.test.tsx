@@ -23,15 +23,18 @@ vi.mock('@/screens/memory/film-player', () => ({
   montageTitle: (film: { id: string }) => `Ролик ${film.id}`,
 }));
 
+import { expectReachable } from '@tests/helpers/access';
 import { type Asked, later, memory, refused, serve } from '@tests/helpers/api';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
+import { Plus } from 'lucide-react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import { MONTAGE_STAGES, type Montage } from '@/api';
 import { Banner, Button, CardMontage, CardMontageNew, EmptyMontages } from '@/kit';
+import { setLanguage } from '@/lib/language';
 import { FilmPlayer } from '@/screens/memory/film-player';
 import { Films } from '@/screens/memory/films';
 import { BlockHead } from '@/screens/memory/head';
-import { ru } from '@/strings';
+import { ru, strings } from '@/strings';
 
 /**
  * The «Ролики» block at the head of a memory's feed (spec 8, `MemoryFrames` / `FilmsEmpty`): the
@@ -147,6 +150,28 @@ test('a memory with no film is the dashed block and offers to cut one to the org
     expect(other.button(ru.montage.makeIt), role).toHaveLength(0);
   }
 });
+
+test.each(['ru', 'en'] as const)(
+  'in %s «Смонтировать» on the empty strip is the paper 36 with its plus, felt at 44 and named for a screen reader',
+  async (language) => {
+    // Spec 8, detail 40 and 10.10: the plus and the words are one button, and it is a real one for a
+    // finger — 36 drawn, the rest of the 44 the slop around it.
+    await act(async () => setLanguage(language));
+    try {
+      world([]);
+      const organizer = await open('organizer');
+      const label = strings[language].montage.makeIt;
+      const [make] = organizer.button(label);
+      expect(make.props).toMatchObject({ variant: 'paper', size: 'mini', wide: false });
+      expect(make.props.icon).toBe(Plus);
+      expect(expectReachable(make)).toEqual([
+        { name: label, role: 'button', width: undefined, height: 44 },
+      ]);
+    } finally {
+      await act(async () => setLanguage('ru'));
+    }
+  },
+);
 
 test('the dashed «Новый ролик» stands first in the strip for the organizer only, and leads to the order', async () => {
   world([film('a', 'ready')]);
