@@ -19,7 +19,9 @@ import { Text } from './text';
  * What stands inside is the rest of it: words alone, a face and a name, a colour square and a name
  * (a label, spec 10.8.2), a glyph, and a count that is the same words a shade quieter.
  *
- * Chips lie in a wrapping row 8 apart and wrap as they need to; that row belongs to the screen.
+ * Chips lie in a wrapping row 8 apart and wrap as they need to; that row belongs to the screen. A
+ * chip wider than the whole row — a long name on the largest system type — breaks its name onto a
+ * second line instead of running past the edge of the screen: the width never cuts a chip.
  */
 export type ChipSize = 40 | 36 | 34 | 28;
 
@@ -100,7 +102,7 @@ export function Chip({
         />
       ) : null}
       {icon ? <Icon icon={icon} size={14} color={selected ? color.ink : color.muted} /> : null}
-      <Text role={role} numberOfLines={1} style={{ color: tint }}>
+      <Text role={role} style={[styles.label, { color: tint }]}>
         {label}
       </Text>
       {count ? (
@@ -130,6 +132,9 @@ const useStyles = themed(({ color }) =>
     // The quick days stand on a screen and not over a list, so they carry a fill of their own.
     quick: { backgroundColor: color.surface, borderColor: color.line },
     selected: { backgroundColor: color.paper },
+    // The name is what gives when the chip meets the edge of its row; the face, the square and the
+    // count keep their size.
+    label: { flexShrink: 1 },
     hover: { backgroundColor: color.raise },
     // Spec 7.3: the count is the same words at 60%, never a second colour and never a badge.
     count: { opacity: 0.6, fontVariant: ['tabular-nums'] },

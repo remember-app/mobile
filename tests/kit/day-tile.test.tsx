@@ -1,3 +1,4 @@
+import { rule } from '@tests/helpers/css';
 import { beforeAll, expect, test } from 'vitest';
 
 import { DayTile } from '@/kit/day-tile';
@@ -30,6 +31,13 @@ test('a tile carries the figure, the weekday, the bar and the count, and is read
   expect(drawn).toContain('aria-label="13 сентября, сб, 312 кадров"');
   // A switch rather than a plain button: it stays in (spec 7.3, `aria-pressed`).
   expect(drawn).toContain('role="togglebutton"');
+});
+
+test('the largest system type makes a tile taller, and never lets its words out of it', () => {
+  const drawn = story(tile());
+  // 86 is a floor: at ×3.571 the figure and the weekday take a line each and the tile grows.
+  expect(drawn).toContain(rule('min-height:86px'));
+  expect(drawn).toContain(rule('flex-wrap:wrap'));
 });
 
 test('the bar is as long as the day is full beside the fullest day, and never past either end', () => {

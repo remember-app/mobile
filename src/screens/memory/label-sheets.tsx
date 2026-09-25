@@ -370,7 +370,7 @@ export function LabelsSheet({
       rhythm="list"
       head={
         <View style={styles.head}>
-          <Text role="sheetTitle" accessibilityRole="header" style={styles.grow}>
+          <Text role="sheetTitle" accessibilityRole="header" style={styles.title}>
             {s.labels.title}
           </Text>
           {/* Spec 10.8.1: the count goes quiet while the sheet is being edited — nothing is being
@@ -384,6 +384,9 @@ export function LabelsSheet({
             <Button
               variant={editing ? 'paper' : 'small'}
               size="xs"
+              // Held in, it is still the small button of this row: `paper` on its own runs the
+              // width of the row and squeezes the title beside it to nothing.
+              wide={false}
               icon={editing ? undefined : Pencil}
               label={editing ? s.action.done : s.labels.edit}
               disabled={busy}
@@ -534,9 +537,12 @@ export function LabelNewSheet({
 
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
-    // The title, the count of what is marked and the way into the edit mode, on one line.
-    head: { flexDirection: 'row', alignItems: 'center', gap: space.s2 },
-    grow: { flex: 1, minWidth: 0 },
+    // The title, the count of what is marked and the way into the edit mode, on one line — or on as
+    // many as the largest system type needs: what does not fit moves under, never off the screen.
+    head: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s2 },
+    // The title takes the width its words need before anything else does, so on a narrow line it
+    // gets one of its own instead of being squeezed a letter at a time.
+    title: { flexGrow: 1 },
     // A heading and the block it introduces, as on every other sheet of this memory.
     group: { gap: space.s2 },
     // Spec 7.7: the rows stand in a card the hairlines are drawn inside. On a sheet the card drops

@@ -1,3 +1,4 @@
+import { rule } from '@tests/helpers/css';
 import { Pencil, Trash2 } from 'lucide-react-native';
 import { beforeAll, expect, test } from 'vitest';
 
@@ -158,6 +159,20 @@ test('a row nobody can press is not a button, and wears no circle either', () =>
       <RowLabel tint={AMBER} name="Лучшее" scope="own" scopeLabel="только вы" onPress={() => {}} />
     ),
   });
+});
+
+test('who sees a label is never cut off: on the largest type its line wraps', () => {
+  const drawn = story(
+    <RowLabel
+      tint={AMBER}
+      name="Лучшее"
+      count="23 кадра"
+      scope="shared"
+      scopeLabel="видят все"
+      onPress={() => {}}
+    />,
+  );
+  expect(drawn).toContain(rule('flex-wrap:wrap'));
 });
 
 test('the hairline belongs to the list, not to the row', () => {

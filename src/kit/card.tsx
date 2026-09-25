@@ -179,8 +179,10 @@ const useStyles = themed(({ color }) =>
     noteLine: { flexDirection: 'row', alignItems: 'flex-start', gap: space.s3 },
     // The glyph sits on the first line of the words rather than in the middle of the block.
     noteIcon: { paddingTop: 1 },
+    // A «Повторить» handed in wraps under the words on the largest type instead of past the edge.
     banner: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       alignItems: 'center',
       gap: space.s3,
       borderRadius: radius.cell,

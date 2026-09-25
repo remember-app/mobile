@@ -88,10 +88,12 @@ export function DayTile({
 
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
+    // 86 is the tile as drawn; the largest system type only ever makes it taller, never lets its
+    // words out of it.
     tile: {
       flex: 1,
       minWidth: 0,
-      height: height.dayTile,
+      minHeight: height.dayTile,
       paddingVertical: 10,
       paddingHorizontal: 11,
       justifyContent: 'space-between',
@@ -101,7 +103,7 @@ const useStyles = themed(({ color }) =>
       backgroundColor: color.ink,
     },
     chosen: { backgroundColor: color.paper, borderColor: color.paper },
-    top: { flexDirection: 'row', alignItems: 'baseline', gap: 5 },
+    top: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', gap: 5 },
     bottom: { gap: 5 },
     bar: { height: space.s1, borderRadius: radius.pill, overflow: 'hidden' },
     track: { backgroundColor: color.raise },

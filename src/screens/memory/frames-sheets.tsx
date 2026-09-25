@@ -482,18 +482,20 @@ const useStyles = themed(({ color }) =>
   StyleSheet.create({
     // Spec 8, `SheetFrameInfo`: «В роликах» and the movies under it, 8 apart.
     group: { gap: space.s2 },
-    // Spec 8 — the heading of `SheetFilter` and the small «Сбросить» share one row.
-    titleRow: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },
-    title: { flex: 1, minWidth: 0 },
+    // Spec 8 — the heading of `SheetFilter` and the small «Сбросить» share one row. On the largest
+    // system type «Сбросить» moves under the heading rather than squeeze it to a letter a line.
+    titleRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s3 },
+    title: { flexGrow: 1 },
     // Spec 7.3: chips lie in a wrapping row 8 apart and wrap as they need to.
     chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.s2 },
     // Spec 8, `SheetFilter`: 12 under «Кто принёс»; and on both tuning sheets, 10 between every
     // other heading and the row it introduces.
     faces: { gap: space.s3 },
     block: { gap: 10 },
-    // «ДЕНЬ» takes the width, and «Все дни» and the calendar stand 10 apart at its right.
-    dayHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-    grow: { flex: 1, minWidth: 0 },
+    // «ДЕНЬ» takes the width, and «Все дни» and the calendar stand 10 apart at its right — or under
+    // it, when the type is too large for the three to share a line.
+    dayHead: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10 },
+    grow: { flexGrow: 1 },
     // Spec 7.3, detail 74: the tiles share one row evenly, 8 apart — never a row that scrolls.
     tiles: { flexDirection: 'row', gap: space.s2 },
     // Spec 8: the header row of `SheetFrameInfo` is a 56 thumbnail and two lines beside it.

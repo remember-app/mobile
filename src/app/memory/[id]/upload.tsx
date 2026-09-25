@@ -608,7 +608,12 @@ const useStyles = themed(({ color }) =>
     glass: { position: 'absolute', left: 0, right: 0, top: 0 },
     layer: { position: 'absolute', left: 0, right: 0, bottom: 0 },
     parked: { gap: space.s2 },
-    parkedHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    parkedHead: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
     start: { alignSelf: 'flex-start' },
     unseen: { marginTop: space.s5, marginHorizontal: space.s4 },
     middle: { textAlign: 'center' },

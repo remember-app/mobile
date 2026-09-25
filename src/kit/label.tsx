@@ -159,8 +159,8 @@ const useStyles = themed(({ color }) =>
     inset: { marginLeft: 56 },
     words: { flex: 1, minWidth: 0, gap: 2 },
     // The name is cut short when it has to be; the meta never is — «только вы» is the whole point
-    // of the line it stands in.
-    meta: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+    // of the line it stands in — so on the largest type it wraps rather than run off the screen.
+    meta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 5 },
     circle: {
       width: 32,
       height: 32,

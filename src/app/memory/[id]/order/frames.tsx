@@ -77,7 +77,13 @@ export default function PickFramesStep() {
               : s.montage.pickMeta(inMovie.length, material.length)}
           </Text>
           {passDropped.length > 0 ? (
-            <Button size="sm" label={s.montage.whatDropped} onPress={() => setShowDropped(true)} />
+            // As wide as its words: a button the width of the row squeezes the count to nothing.
+            <Button
+              size="sm"
+              wide={false}
+              label={s.montage.whatDropped}
+              onPress={() => setShowDropped(true)}
+            />
           ) : null}
         </View>
       }
@@ -175,6 +181,7 @@ export default function PickFramesStep() {
           >
             <Button
               size="xs"
+              wide={false}
               label={s.montage.bringBack}
               onPress={() => change({ returned: new Set([...order.returned, ...group.ids]) })}
             />
@@ -197,7 +204,7 @@ const REASON_SIGN: Record<Reason, IconComponent> = {
 const useStyles = themed(() =>
   StyleSheet.create({
     grow: { flex: 1, minWidth: 0 },
-    headLine: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },
+    headLine: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s3 },
     grid: { paddingHorizontal: space.s4, paddingBottom: space.s7, gap: GRID_GAP },
     row: { flexDirection: 'row', gap: GRID_GAP },
   }),

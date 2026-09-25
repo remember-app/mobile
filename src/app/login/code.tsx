@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
   room: { flex: 1, justifyContent: 'flex-end', gap: space.s2, paddingHorizontal: space.s4 },
   column: { flex: 1, gap: space.s3 },
   // The address on the left, the way to ask again on the right — one line, so neither of them
-  // reads as the action of the screen.
-  sent: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },
+  // reads as the action of the screen. Under it, when the system type leaves no room beside.
+  sent: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s3 },
   grow: { flex: 1, minWidth: 0 },
 });

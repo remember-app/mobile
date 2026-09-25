@@ -455,7 +455,9 @@ const useStyles = themed(({ color }) =>
     },
     viewerMeta: { color: photo.viewerMeta },
     layer: { paddingHorizontal: space.s4, paddingTop: space.s3, gap: space.s3 },
-    layerAbove: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },
+    // «Выбрано 12 из 61» and a quiet «Снять»: the button moves under the words when the type is too
+    // large for both on one line.
+    layerAbove: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s3 },
     layerRow: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },
   }),
 );
