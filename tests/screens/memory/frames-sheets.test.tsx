@@ -1,10 +1,11 @@
+import { rule } from '@tests/helpers/css';
 import { beforeAll, expect, test, vi } from 'vitest';
 
 // The words come from the dictionary, and the dictionary asks the phone which language it is in.
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
 
 import type { FrameInfo, Label } from '@/api';
-import { allDifferent, rule, story } from '@/kit/story';
+import { allDifferent, story } from '@/kit/story';
 import { FILTER_NONE, type Filter, type FilterDay, SORT_DEFAULT, type Sort } from '@/lib/frames';
 import { FilterSheet, FrameInfoSheet, SortSheet } from '@/screens/memory/frames-sheets';
 import { setTheme, ThemePin } from '@/theme';

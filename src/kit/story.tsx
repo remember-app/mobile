@@ -34,16 +34,6 @@ export function compiled(): string {
 }
 
 /**
- * The class a compiled rule was given — how a shape set in a sheet is found in the markup. One
- * declaration is one class wherever it is drawn, so this names the value and not the part.
- */
-export function rule(css: string): string {
-  const name = new RegExp(`\\.(r-[A-Za-z]+-[a-z0-9]+)\\{${css};\\}`).exec(compiled())?.[1];
-  expect(name, `no rule «${css}» was drawn`).toBeDefined();
-  return name as string;
-}
-
-/**
  * Every named state draws differently from every other one. This is what a story board is for: a
  * state nobody can tell from its neighbour is not a state, and the way it usually happens is a
  * branch that was written and then never wired to a style.

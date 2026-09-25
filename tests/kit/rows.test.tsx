@@ -18,7 +18,7 @@ import {
   type StepState,
   Waveform,
 } from '@/kit/rows';
-import { allDifferent, compiled, rule, story } from '@/kit/story';
+import { allDifferent, compiled, story } from '@/kit/story';
 import { setTheme } from '@/theme';
 
 /** Spec 7.7 — the rows, each of them one line of a list somewhere in the product. */
