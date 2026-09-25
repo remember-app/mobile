@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { contrast, luminance } from '@tests/helpers/contrast';
 import { expect, test } from 'vitest';
 
 import { font, height, night, photo, radius, space, themes, type } from '@/theme';
@@ -13,19 +14,6 @@ import { font, height, night, photo, radius, space, themes, type } from '@/theme
  * сборке проверить каждую пару, а не одну» — and the second is the whole reason the faces changed:
  * Bricolage Grotesque had no Cyrillic at all.
  */
-
-/** WCAG relative luminance. */
-function luminance(hex: string): number {
-  const channels = [1, 3, 5].map((at) => parseInt(hex.slice(at, at + 2), 16) / 255);
-  const [r, g, b] = channels.map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-
-/** WCAG contrast ratio between two opaque colours. */
-function contrast(a: string, b: string): number {
-  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
-  return (hi + 0.05) / (lo + 0.05);
-}
 
 /** Every pair the product actually reads text on, in both themes. Name, words, ground. */
 const PAIRS = [

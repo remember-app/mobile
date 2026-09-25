@@ -107,7 +107,9 @@ test('the day block opens with the absence of a choice, and the people row does 
   expect(frames).toContain('filterDays(items ?? [])');
   expect(sheets).toContain('dayTiles(days)');
   // Faces and tiles, not chips (spec 7.0.1): no name under a face, no chip per day.
-  expect(sheets).toContain('<FaceToggle');
+  expect(sheets).toContain('<FaceRow');
+  // Which faces go down to half is the row's rule (spec 7.5, detail 31), not the sheet's.
+  expect(sheets).not.toContain('excluded');
   expect(sheets).toContain('<DayTile');
   expect(sheets).not.toContain('avatar={person.name}');
   expect(sheets).not.toContain('formatDayTiny');
