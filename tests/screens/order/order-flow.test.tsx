@@ -799,6 +799,34 @@ test.each([
   },
 );
 
+test.each([
+  ['an ordinary phone at the system’s own type', { height: 667, fontScale: 1 }, false],
+  ['the smallest phone at the largest type', { height: 568, fontScale: 3.571 }, true],
+])('%s: the six that did not come stand as a banner in the body, and «Настроить самому» is the way on from wherever the layer is', async (_, phoneNow, whole) => {
+  const server = serve({ failing: 'templates' });
+  await open();
+  Object.assign(handset, phoneNow);
+  await measure(root(), whole ? { bar: 260, footer: 380 } : { bar: 150, footer: 120 });
+  const inTop = (label: string) =>
+    root()
+      .findAllByType(Board)
+      .at(-1)!
+      .findAll(
+        (node) =>
+          (node.type === Button || node.type === IconButton) && node.props.label === label,
+      );
+  // The banner and its «Повторить» are in the body, whichever way the board stands.
+  expect(inTop(ru.action.retry)).toHaveLength(1);
+  expect(scrolled(inTop(ru.action.retry)[0])).toBe(true);
+  // The way on is the layer's: standing where the phone has room, and the layer's own place in the
+  // scroll where it has not — once, and not gone with the six.
+  expect(inTop(ru.montage.ownSetup)).toHaveLength(1);
+  expect(scrolled(inTop(ru.montage.ownSetup)[0])).toBe(whole);
+  await press(ru.montage.ownSetup);
+  expect(nav.top()).toBe('frames');
+  server.failing = undefined;
+});
+
 /* ── Ordering by hand ───────────────────────────────────────────────────── */
 
 test(
