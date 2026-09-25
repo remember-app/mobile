@@ -18,9 +18,9 @@ import { Text } from './text';
 
 /**
  * The sizes the layout draws an avatar at, each with the type size that goes inside it (spec 7.5):
- * 16 in a day gap, 18 on a frame on air, 24 in a stack, 30 in a chip, 32 in a sheet, 34 in a
- * section row, 38 in a member row, 42 in a contact row, 48 as a face in the filter, 64 on a
- * confirmation, 68 on the account.
+ * 16 in a day gap, 18 on a frame on air, 24 in a stack, 30 in a chip, 32 in a sheet, 36 in the
+ * stack on the account's «Контакты», 38 in a member row, 42 in a contact row, 48 as a face in the
+ * filter, 64 on a confirmation and on the account.
  * Roughly a third of the circle, rounded the way the layout rounded it.
  */
 const LETTERS: Record<number, number> = {
@@ -31,11 +31,11 @@ const LETTERS: Record<number, number> = {
   30: 11,
   32: 11,
   34: 11,
+  36: 12,
   38: 13,
   42: 14,
   48: 15,
   64: 18,
-  68: 20,
 };
 
 /**
@@ -55,6 +55,7 @@ export function Avatar({
   ring,
   ringColor,
   gone,
+  display,
   style,
 }: {
   name: string;
@@ -65,6 +66,11 @@ export function Avatar({
   ringColor?: string;
   /** A contact that has just been removed: the circle goes out without leaving the row. */
   gone?: boolean;
+  /**
+   * The account's own circle (spec 8, `Account`): the initials in the headline face, 19 at 64 — the
+   * one place a person's letters are set like a name rather than like a label.
+   */
+  display?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
   const { color } = useTheme();
@@ -96,9 +102,11 @@ export function Avatar({
         <Image source={{ uri }} contentFit="cover" style={[StyleSheet.absoluteFill, circle]} />
       ) : (
         <Text
-          role={size >= 68 ? 'subtitleDisplay' : 'row'}
+          role={display ? 'subtitleDisplay' : 'row'}
           tone={gone ? 'faint' : 'paper'}
-          style={{ fontSize: LETTERS[size] ?? Math.round(size / 3) }}
+          style={{
+            fontSize: display ? Math.round(size * 0.3) : (LETTERS[size] ?? Math.round(size / 3)),
+          }}
         >
           {initials(name)}
         </Text>
@@ -117,8 +125,8 @@ export function initials(name: string): string {
 
 /**
  * Circles overlapping in a row, each ringed in the colour of whatever they lie on so the edges stay
- * apart — the sign on the «Контакты» row of the account screen, and the faces inside the «смотрят
- * сейчас» pill (spec 7.5). They overlap by 12 at 34 and by 7 at 24: the smaller the circle, the less
+ * apart — the sign on the «Контакты» card of the account screen, and the faces inside the «смотрят
+ * сейчас» pill (spec 7.5). They overlap by 12 at 36 and by 7 at 24: the smaller the circle, the less
  * of it there is to give away.
  *
  * Four circles at most. Past that the fourth stops being a face and becomes «+N», because a row of
@@ -128,7 +136,7 @@ export function initials(name: string): string {
 export function AvatarStack({
   names,
   on,
-  size = 34,
+  size = 36,
 }: {
   names: readonly string[];
   /** The surface underneath, which is what the separating ring is drawn in. */

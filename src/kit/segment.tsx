@@ -175,7 +175,9 @@ const useStyles = themed(({ color }) =>
       justifyContent: 'center',
       borderRadius: radius.pill,
     },
-    optionWide: { flexGrow: 1, flexBasis: 0, paddingHorizontal: space.s2 },
+    // Equal parts leave a long word the whole of its part: «Как в системе» is 91pt at 13, and a third
+    // of a 360dp Android's column, less 4 a side, is 95 — measured off the font, not guessed.
+    optionWide: { flexGrow: 1, flexBasis: 0, paddingHorizontal: space.s1 },
     checked: { backgroundColor: color.paper },
     long: { fontSize: 13 },
   }),

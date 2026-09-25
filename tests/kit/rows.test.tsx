@@ -318,6 +318,20 @@ test('a sheet’s dangerous action is the only red line on it', () => {
   expect(danger).toContain('rgba(255,141,141,1.00)');
 });
 
+test('a section stands under its own heading, in the caps the layout writes it in', () => {
+  // Spec 7.7, detail 58: the eyebrow over the card, and the card itself unchanged under it.
+  const headed = story(
+    <RowSection heading="Контакты" title="8 человек" meta="Зовите выбором" onPress={() => {}} />,
+  );
+  expect(headed).toContain('КОНТАКТЫ');
+  expect(headed).toContain('role="heading"');
+  expect(headed).toContain('8 человек');
+  allDifferent({
+    bare: <RowSection title="8 человек" onPress={() => {}} />,
+    headed: <RowSection heading="Контакты" title="8 человек" onPress={() => {}} />,
+  });
+});
+
 test('a section row carries its sign, two lines and the chevron that says where it goes', () => {
   const row = story(
     <RowSection
