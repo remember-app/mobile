@@ -60,13 +60,15 @@ export function DayMark({
     <>
       {onPress ? <PickCircle kind={picked ? 'send' : 'off'} size={13} /> : null}
       {avatar ? <Avatar name={avatar} size={16} ring={organizer} /> : null}
-      {/* 10 / 12 / 600 with a hair of tracking (spec 7.8, `MemoryDated`, `FramesByPeople`): the
-          words of a seam are a quiet line, not the bold caps of a badge. */}
-      <Text role="seam" tone={lone ? 'muted' : 'paper'} numberOfLines={1} style={styles.label}>
+      {/* Spec 3, `day`: 10 / 12 / 600 with a hair of tracking (`MemoryDated`, `FramesByPeople`,
+          `Upload`) — the words of a seam are a quiet line, not the bold caps of a badge. */}
+      <Text role="day" tone={lone ? 'muted' : 'paper'} numberOfLines={1} style={styles.label}>
         {label}
       </Text>
+      {/* 10 / 12 / 500 `muted` beside every kind (spec detail 65; the layout's `faint` in `Upload`
+          is under the floor for words that are read, 10.1). */}
       {count ? (
-        <Text role="badgeSm" tone={onPress ? 'faint' : 'muted'} style={styles.count}>
+        <Text role="dayCount" tone="muted" style={styles.count}>
           {count}
         </Text>
       ) : null}
@@ -103,7 +105,7 @@ export function DayMark({
 /**
  * The heading of a day over the send queue's grid (spec 8, `UploadQueue`, `UploadLimited`): the day
  * on the left in `label`, a hairline running to what stands at the end — the count of the day in
- * `faint`, or the button that takes all of it. Not a seam: that grid stands in the screen's margins,
+ * `muted`, or the button that takes all of it. Not a seam: that grid stands in the screen's margins,
  * so the day reads off the left edge like any heading of a list.
  *
  * 17 clear above and below whatever it holds, and never under 56: `UploadLimited` draws the bare
@@ -129,11 +131,8 @@ export function DayHead({
         {label}
       </Text>
       <Divider grow />
-      {count ? (
-        <Text role="meta" tone="faint">
-          {count}
-        </Text>
-      ) : null}
+      {/* 12 / 500 `muted` (spec detail 65, `UploadLimited`; 10.1 for the layout's `faint`). */}
+      {count ? <Text role="meta">{count}</Text> : null}
       {children}
     </View>
   );
@@ -168,7 +167,7 @@ export function DateSpine({
       {marks.map((mark) => (
         <View key={`${mark.label}-${mark.top}`} style={[styles.spineMark, { top: mark.top }]}>
           <View style={styles.spinePill}>
-            <Text role="badgeSm" style={styles.spineText}>
+            <Text role="day" style={styles.spineText}>
               {mark.label}
             </Text>
           </View>
@@ -229,7 +228,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: photo.plateQuiet,
   },
-  spineText: { color: photo.spineMark, lineHeight: 16 },
+  // Spec 7.8, detail 66: the date 10 / 16 / 600, untracked (`MemoryScrub.json` e29).
+  spineText: { color: photo.spineMark, lineHeight: 16, letterSpacing: 0 },
   spineDash: { width: 8, height: 1, backgroundColor: photo.spineTick },
   spineDot: {
     width: 4,

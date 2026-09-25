@@ -114,11 +114,11 @@ export function Calendar({
       <View style={styles.week}>
         {weekdays.map((day) => (
           // The letters repeat what the column already says; a screen reader gets the whole date off
-          // each day instead.
+          // each day instead. Read, so `muted` and not the layout's `faint` (spec 7.3, 10.1).
           <Text
             key={day}
             role="badge"
-            tone="faint"
+            tone="muted"
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
             maxFontSizeMultiplier={letters}
@@ -263,7 +263,8 @@ const useStyles = themed(({ color }) =>
     head: { minHeight: height.bar, flexDirection: 'row', alignItems: 'center' },
     month: { flex: 1, textAlign: 'center' },
     week: { minHeight: 22, flexDirection: 'row', alignItems: 'center' },
-    weekday: { flex: 1, textAlign: 'center' },
+    // `ПН…ВС` 11 / 600 with the badge's 0.06em (`Create.json` e20…e26).
+    weekday: { flex: 1, textAlign: 'center', fontFamily: font.semi },
     grid: { gap: 2 },
     weekRow: { flexDirection: 'row' },
     // A seventh of the row, and the row is the card: the grid measures itself, so it fits whatever

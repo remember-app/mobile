@@ -1,3 +1,4 @@
+import { rule } from '@tests/helpers/css';
 import { Lock, Users, VolumeX } from 'lucide-react-native';
 import { beforeAll, expect, test } from 'vitest';
 
@@ -119,4 +120,24 @@ test('read-only is a value and not a button, and never a greyed-out one', () => 
       />,
     ),
   );
+});
+
+test('a choice card is ringed 1, chosen or not', () => {
+  // Spec 7.3, detail 21 and 10.11: «карточка-выбор: обводка 1.5 → 1» — chosen is a 1 of `accent`.
+  for (const selected of [true, false]) {
+    const card = story(
+      <ChoiceCard
+        icon={Lock}
+        title="Личный"
+        note="только вы"
+        selected={selected}
+        onPress={() => {}}
+      />,
+    );
+    expect(card).toContain(
+      rule(
+        'border-bottom-width:1px;border-left-width:1px;border-right-width:1px;border-top-width:1px',
+      ),
+    );
+  }
 });

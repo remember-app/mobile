@@ -17,23 +17,28 @@ import { Text } from './text';
  */
 
 /**
- * The sizes the layout draws an avatar at, each with the type size that goes inside it (spec 7.5):
- * 16 in a day gap, 18 on a frame on air, 30 in a chip, 32 in a sheet, 38 in a member row, 42 in a
- * contact row, 48 as a face in the filter, 64 on a confirmation and on the account. A stack, at 24
- * and 36, sets its letters itself (`STACK`).
+ * The sizes the layout draws an avatar at, each with the type size that goes inside it (spec 7.5,
+ * detail 31): 16 in a day gap, 18 on a frame on air, 24 and 36 alone, 30 in a chip, 32 in a sheet,
+ * 38 in a member row, 42 in a contact row, 48 as a face in the filter, 64 on a confirmation and on
+ * the account. A stack, at 24 and 36, sets its letters itself (`STACK`).
  * Roughly a third of the circle, rounded the way the layout rounded it.
  */
 const LETTERS: Record<number, number> = {
   16: 6,
   18: 7,
+  24: 9,
   26: 10,
   30: 11,
   32: 11,
+  36: 12,
   38: 13,
   42: 14,
   48: 15,
   64: 18,
 };
+
+/** The sizes whose initials are 700 (spec 7.5, detail 31); the rest — 32, 42, 64 — are 600. */
+const BOLD = new Set([16, 18, 24, 36, 38, 48]);
 
 /**
  * Initials in a circle, or the person's own photograph if there is one — the initials stay the
@@ -112,6 +117,7 @@ export function Avatar({
                   fontSize: display
                     ? Math.round(size * 0.3)
                     : (LETTERS[size] ?? Math.round(size / 3)),
+                  ...(!display && BOLD.has(size) ? { fontFamily: font.bold } : null),
                   // The headline face is borrowed for its letters, not the field's tracking.
                   letterSpacing: 0,
                 }
@@ -152,7 +158,7 @@ function lead(word: string): string {
 /**
  * The two stacks the layout draws (spec 7.5, detail 32): 36 on the account's «Контакты», 24 in the
  * «смотрят сейчас» pill. `overlap` is how far a circle slides under the next one; the collar that cuts
- * them apart is `halo` of the colour underneath standing *outside* the circle at 36, and a 1.5
+ * them apart is `halo` of the colour underneath standing *outside* the circle at 36, and a 1
  * hairline inside it at 24 (`halo` 0); `letters` is the initials' size, in 700.
  */
 const STACK = {
@@ -190,7 +196,7 @@ export function AvatarStack({
   const { overlap, halo, letters } = STACK[size];
   const collar = halo
     ? { boxShadow: `0 0 0 ${halo}px ${under}` }
-    : { borderWidth: 1.5, borderColor: under };
+    : { borderWidth: 1, borderColor: under };
   const over = { marginLeft: -overlap };
   const rest = names.length > 4 ? names.length - 3 : 0;
   const faces = rest ? names.slice(0, 3) : names.slice(0, 4);
@@ -443,9 +449,9 @@ const useStackStyles = themed(({ color }) =>
  * that takes this person out (spec 10.8.4). They replace each other rather than queue up, because
  * two marks in a 56 row is a row nobody can scan.
  *
- * Nobody's role is written out here. The organizer is told by the `spark` collar on their circle
- * and by nothing else: «Организатор» beside a name that already wears the ring is the same word
- * said twice.
+ * Nobody's role is marked here — not in words and not by the organizer's `spark` collar, which
+ * stands only in the seam of «По людям» (spec 7.5, detail 31): a roster is read for who has brought
+ * what, and the role is not what it is scanned for.
  */
 export function RowMember({
   name,
@@ -454,7 +460,6 @@ export function RowMember({
   divider,
   gone,
   uri,
-  ring,
 }: {
   name: string;
   /** «128 кадров» — written by the screen, because every part of it is a word. */
@@ -464,8 +469,6 @@ export function RowMember({
   divider?: boolean;
   gone?: boolean;
   uri?: string | null;
-  /** The `spark` collar: the organizer, and yourself. */
-  ring?: boolean;
 }) {
   const styles = useStyles();
 
@@ -473,7 +476,7 @@ export function RowMember({
     <View>
       {divider ? <Divider soft style={styles.inset} /> : null}
       <View style={styles.member}>
-        <Avatar name={name} size={38} uri={uri} ring={ring} gone={gone} />
+        <Avatar name={name} size={38} uri={uri} gone={gone} />
         <View style={styles.rowWords}>
           <Text role="row" tone={gone ? 'faint' : 'paper'} numberOfLines={1}>
             {name}

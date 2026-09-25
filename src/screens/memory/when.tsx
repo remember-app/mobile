@@ -62,12 +62,11 @@ export function quickSpans(today: Date): Record<'today' | 'yesterday' | 'weekend
 }
 
 /**
- * How far the quick days and the line under the grid reach past the screen's column of 358 on the
- * layout's 390 (`Create.html`): the four chips come to 360.6 there and stand centred over the
- * column, and the line is given 363. So on that phone, at the system's own type, each is one line as
- * drawn; on a narrower one or with larger type the chips wrap and the line takes a second.
+ * How far the line under the grid reaches past the screen's column of 358 on the layout's 390
+ * (`Create.html`): it is given 363. So on that phone, at the system's own type, it is one line as
+ * drawn; on a narrower one or with larger type it takes a second. The quick days need no such room —
+ * at 13 a side they come to 353.5 (spec 7.3, detail 16) and wrap only when they do not fit.
  */
-export const QUICK_BLEED = space.s1;
 export const ASIDE_BLEED = 5;
 
 /**
@@ -170,7 +169,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'center',
     gap: space.s2,
-    marginHorizontal: -QUICK_BLEED,
   },
   grid: { marginTop: 2 },
   aside: { marginRight: -ASIDE_BLEED },

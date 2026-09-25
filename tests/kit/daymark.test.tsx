@@ -10,6 +10,7 @@ import { Button } from '@/kit/button';
 import { DateSpine, DayHead, DayMark } from '@/kit/daymark';
 import { allDifferent, story } from '@/kit/story';
 import { Text } from '@/kit/text';
+import { themes } from '@/theme';
 
 /** Spec 7.8 — the seam between two grids of frames, and the spine that says the same while scrolling. */
 
@@ -54,13 +55,41 @@ test('the words of a seam are 10 / 12 / 600 with 0.3 of tracking, not a badge’
       tree = mounted(TestRenderer.create(<DayMark label={label} avatar={label} count="128" />));
     });
     const words = tree.root.findAllByType(Text).find((one) => one.props.children === label)!;
-    expect(words.props.role).toBe('seam');
+    // Spec 3 names the role: `day`.
+    expect(words.props.role).toBe('day');
     expect(StyleSheet.flatten(words.findByType(RNText).props.style)).toMatchObject({
       fontFamily: 'Onest_600SemiBold',
       fontSize: 10,
       lineHeight: 12,
       letterSpacing: 0.3,
     });
+  }
+});
+
+test('the count in a seam is 10 / 12 / 500 `muted` and untracked, beside every kind of seam', () => {
+  // `Upload.json` e5 «61», `FramesByPeople.json` e4 «128»: Onest 500 10 / 12 with no tracking; spec
+  // detail 65 reads it in `muted` #A4A1B2 in all three (the layout's `faint` in `Upload` is under the
+  // floor, 10.1). The app wrote it in `badgeSm` — 700 with 0.5 of tracking — and in `faint` on a day
+  // that picks.
+  for (const seam of [
+    <DayMark key="day" label="13 сентября, суббота" count="61" onPress={() => {}} />,
+    <DayMark key="picked" label="12 сентября" count="24" picked onPress={() => {}} />,
+    <DayMark key="person" label="Лиза Морозова" avatar="Лиза Морозова" count="128" />,
+  ]) {
+    let tree!: TestRenderer.ReactTestRenderer;
+    act(() => {
+      tree = mounted(TestRenderer.create(seam));
+    });
+    const said = seam.props.count as string;
+    const count = tree.root.findAllByType(RNText).find((one) => one.props.children === said)!;
+    const style = StyleSheet.flatten(count.props.style);
+    expect(style).toMatchObject({
+      fontFamily: 'Onest_500Medium',
+      fontSize: 10,
+      lineHeight: 12,
+      color: themes.dark.color.muted,
+    });
+    expect(style.letterSpacing).toBeUndefined();
   }
 });
 
@@ -145,11 +174,14 @@ test('a day over the queue’s grid is a heading with a line, 17 clear of what i
     gap: Math.round(145.28 - 16 - 117.28),
   });
   expect(495 - 434 - 44).toBe(434 - 417);
-  // «3 из 61» (e11) is 12 / 500 in `faint`; the day is the paper `label`.
+  // «3 из 61» (e11) is 12 / 500 — `faint` in the layout, `muted` in the spec (detail 65, 10.1): the
+  // meta's own tone, nothing asked; the day is the paper `label`.
   expect(bare.words).toEqual([
     ['label', undefined],
-    ['meta', 'faint'],
+    ['meta', undefined],
   ]);
+  const count = bare.root.findAllByType(RNText).find((one) => one.props.children === '3 кадра')!;
+  expect(StyleSheet.flatten(count.props.style).color).toBe(themes.dark.color.muted);
   expect(bare.root.findAllByType(Divider)).toHaveLength(1);
 });
 

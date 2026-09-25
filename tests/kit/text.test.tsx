@@ -54,8 +54,28 @@ test('words are read in paper unless they are asked for in something else', () =
     'sparkInk',
     'danger',
     'onFill',
+    'quote',
   ];
   allDifferent(Object.fromEntries(tones.map((tone) => [tone, <Text tone={tone}>Абзац</Text>])));
+});
+
+test('the eyebrow is always muted, asked or not (spec 3, 10.11)', () => {
+  // «`eyebrow` — всегда `muted`, в контактах и приглашении тоже»: the role has no other colour, so
+  // an eyebrow written without a tone — «ИЗ КОНТАКТОВ» on `SheetInvite` — is not `paper`.
+  expect(story(<Text role="eyebrow">ИЗ КОНТАКТОВ</Text>)).toBe(
+    story(
+      <Text role="eyebrow" tone="muted">
+        ИЗ КОНТАКТОВ
+      </Text>,
+    ),
+  );
+  expect(story(<Text role="eyebrow">ИЗ КОНТАКТОВ</Text>)).not.toBe(
+    story(
+      <Text role="eyebrow" tone="paper">
+        ИЗ КОНТАКТОВ
+      </Text>,
+    ),
+  );
 });
 
 test('meta and note bring muted with them, and spec 10.1 is why', () => {

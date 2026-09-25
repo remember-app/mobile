@@ -342,9 +342,9 @@ test('a memory with no montages gets the dashed block, not an empty state', () =
 });
 
 test('«Собирается» is the poster’s blue in both themes, and on a card in the strip it is the small badge', async () => {
-  // Spec 2 and detail 24, `MemoryFrames`: `rgba(75,91,255,.28)` under `#C9CDFF`, 10 / 700 caps on
-  // `4 / 9` — 92.5 × 21 in the layout. The app drew the theme's `.20` under `#A7AEFF`, 11 on
-  // `5 / 8` and a hairline: 100 × 25.
+  // Spec 2 and detail 24, `MemoryFrames`: `rgba(75,91,255,.28)` under `#C9CDFF`, 10 / 700 caps at
+  // 0.06em on `0 9`, 21 tall — 92.5 × 21 in the layout (e19). The app drew the theme's `.20` under
+  // `#A7AEFF`, 11 on `5 / 8` and a hairline: 100 × 25; then 20 on `4 / 9` at 0.05em.
   const drawn = () => {
     let tree!: TestRenderer.ReactTestRenderer;
     act(() => {
@@ -359,12 +359,15 @@ test('«Собирается» is the poster’s blue in both themes, and on a c
   expect(night.plate).toMatchObject({
     backgroundColor: 'rgba(75,91,255,0.28)',
     paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderWidth: 0,
+    minHeight: 21,
   });
+  expect(night.plate.paddingVertical).toBeUndefined();
+  expect(night.plate.height).toBeUndefined();
   expect(night.words).toMatchObject({
     color: '#C9CDFF',
     fontSize: 10,
+    lineHeight: 12,
+    letterSpacing: 0.6,
     fontFamily: 'Onest_700Bold',
   });
   await setTheme('light');

@@ -158,6 +158,35 @@ test('on the screens with a field, and on the way in, only the person’s own wo
   expect(cut).toEqual(CUT);
 });
 
+/**
+ * Spec 10.1 and 10.11: `faint` is under the floor of contrast, so words that are read never wear it —
+ * «весь читаемый вторичный текст `muted`». It stays on what is unavailable (a contact just removed,
+ * whose name and circle go out) and on the `@` in front of a name, which is a sign. Three more are
+ * the journal's and the queue's, on their way to `muted` in TASK-392: «Дальше» under the stages, the
+ * time of a record, the line under the sending block. A new `faint` word anywhere fails here.
+ */
+const FAINT: Record<string, number> = {
+  'kit/member.tsx': 4,
+  'kit/field.tsx': 1,
+  'kit/rows.tsx': 1,
+  'kit/montage-live.tsx': 1,
+  'kit/upload.tsx': 1,
+};
+
+test('words that are read are never `faint`', () => {
+  const found = Object.fromEntries(
+    sources
+      .map(([path, source]) => [
+        path,
+        (source.match(/tone=(?:"faint"|\{[^}]*'faint'[^}]*\})/g) ?? []).length,
+      ])
+      .filter(([, count]) => (count as number) > 0),
+  ) as Record<string, number>;
+  for (const [path, count] of Object.entries(found)) {
+    expect(count, path).toBeLessThanOrEqual(FAINT[path] ?? 0);
+  }
+});
+
 test('every field can be reached by a finger and by a screen reader', () => {
   // TASK-377: the code's one input lies over its six cells, and at opacity 0 iOS lets no finger
   // reach it and no screen reader find it — so once the keyboard was put away, a tap on the cells

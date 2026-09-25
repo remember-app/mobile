@@ -109,9 +109,12 @@ test('too little material stops the wizard before its first step, not after its 
   expect(wizard).toContain('const short = items !== null && (refused || !enoughMaterial(items));');
   expect(wizard).toContain('<Sheet\n        visible={short}');
   expect(wizard).toContain("router.replace({ pathname: '/memory/[id]/upload', params: { id } })");
-  // Spec 8: the square beside the heading wears the montage's own sign, `layout-grid`, and the text
-  // under it counts the frames there really are — the layout's «3 кадра» is a figure set by hand.
-  expect(wizard).toContain('<Icon icon={LayoutGrid} size={26} color={color.muted} />');
+  // Spec 8: the square beside the heading wears the montage's own sign, `panels-top-left` (spec 5,
+  // 10.11 — not `layout-grid`), and the text under it counts the frames there really are — the
+  // layout's «3 кадра» is a figure set by hand.
+  expect(wizard).toContain('<Icon icon={PanelsTopLeft} size={26} color={color.muted} />');
+  expect(summary).toContain('icon={PanelsTopLeft}');
+  expect(`${wizard}${summary}`).not.toContain('LayoutGrid');
   expect(wizard).toContain('{s.montage.tooLittleText(material.length)}');
   // And no step draws itself while that sheet is up — the shell holds its body and its button
   // back, so a step written later is silent there without a line of its own. The screen of
@@ -625,8 +628,11 @@ test('the summary only shows — every number on it is the api’s answer', () =
   expect(ru.montage.onTheBeat).toBe('склейки в ритм');
   // And the story is read back short, four lines of it, or as the director deciding.
   expect(summary).toContain('numberOfLines={4}');
-  // In the nearer of the two tokens to the layout's #D8D5E0 — `paper`, not `muted` (TASK-384).
-  expect(summary).toContain('<Text role="note" tone="paper" numberOfLines={4}>');
+  // In the quote's own shade and face (spec 7.6, detail 43: 13 / 400 / 19, #D8D5E0 — `quote`).
+  expect(summary).toContain('<Text role="quote" tone="quote" numberOfLines={4}>');
+  // «Соберём примерно за 15 минут» is read: 12 / 400 / 17 in `muted`, not the layout's `faint`
+  // (spec 10.1, `MontageSummary.json` e55).
+  expect(summary).toContain('<Text role="aside" tone="muted" style={styles.grow}>');
   expect(summary).toContain("{story === '' ? s.montage.directorDecides : story}");
 });
 

@@ -56,8 +56,10 @@ export type MontageState = 'ready' | 'pending' | 'failed';
 
 /**
  * It always lies on a poster, so «СОБИРАЕТСЯ» is the photograph's blue and not the theme's (spec 2:
- * `rgba(75,91,255,.28)` under `#C9CDFF`). `sm` is the size it wears on a card in the strip — spec
- * 7.4, detail 24: 10 on `4 / 9`, as `MemoryFrames` draws «ГОТОВ» and «СОБИРАЕТСЯ».
+ * `rgba(75,91,255,.28)` under `#C9CDFF`). Two sizes (spec 7.4, detail 24): `sm` on a card in the
+ * strip — `badgeSm` in caps, 21 tall on `0 9`, as `MemoryFrames` draws «ГОТОВ» and «СОБИРАЕТСЯ»;
+ * left off, the large poster of `MontageLiveDone` — «Готов» as it is written, 11 / 700 with no
+ * tracking, in the 22 pill of a decision mark.
  */
 export function BadgeMontage({
   label,
@@ -73,17 +75,16 @@ export function BadgeMontage({
   return (
     <View
       style={[
-        styles.pill,
-        sm ? styles.pillStrip : null,
+        sm ? styles.strip : styles.mark,
         state === 'ready' ? styles.spark : state === 'pending' ? styles.filming : styles.failed,
       ]}
     >
       <Text
-        role={sm ? 'badgeSm' : 'badge'}
+        role={sm ? 'badgeSm' : 'decision'}
         tone={state === 'ready' ? 'sparkInk' : state === 'failed' ? 'danger' : undefined}
         style={state === 'pending' ? styles.filmingInk : null}
       >
-        {label.toUpperCase()}
+        {sm ? label.toUpperCase() : label}
       </Text>
     </View>
   );
@@ -189,7 +190,14 @@ const useStyles = themed(({ color }) =>
     caps: { lineHeight: 14 },
     films: { gap: 6, paddingVertical: 6, paddingLeft: 10, paddingRight: 12, borderWidth: 0 },
     count: { fontFamily: font.semi, lineHeight: 16 },
-    pillStrip: { paddingHorizontal: 9, paddingVertical: space.s1, borderWidth: 0 },
+    // A floor and not a height: the caps grow with the system's type, and the pill with them.
+    strip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      minHeight: 21,
+      paddingHorizontal: 9,
+      borderRadius: radius.pill,
+    },
     filming: { backgroundColor: photo.pending },
     filmingInk: { color: photo.pendingInk },
     spark: { backgroundColor: color.spark },
@@ -211,11 +219,12 @@ const useStyles = themed(({ color }) =>
       width: 28,
       height: 28,
       borderRadius: radius.pill,
-      borderWidth: 1.5,
+      borderWidth: 1,
       borderColor: 'transparent',
       alignItems: 'center',
       justifyContent: 'center',
     },
+    // Spec 7.4, detail 27: «ещё будет» is ringed 1 in `lineStrong`.
     circlePlanned: { borderColor: color.lineStrong },
   }),
 );

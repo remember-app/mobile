@@ -90,8 +90,11 @@ test('a day that does not answer is the layout’s #4A4757, a step under the wee
   const off = rule('color:rgba(74,71,87,1.00)');
   expect(capped).toContain(off);
   expect(story(month())).not.toContain(off);
-  // The letters over the grid stay `faint` (e20…e26, #6E6B7D).
-  expect(capped).toContain(rule('color:rgba(110,107,125,1.00)'));
+  // The letters over the grid are read, so `muted` (spec 7.3, detail 15; 10.1) — not the layout's
+  // `faint` (e20…e26, #6E6B7D) — and 11 / 600, not the badge's 700.
+  expect(capped).toContain(rule('color:rgba(164,161,178,1.00)'));
+  expect(capped).not.toContain(rule('color:rgba(110,107,125,1.00)'));
+  expect(capped).toContain(rule('font-family:Onest_600SemiBold'));
 });
 
 test('a range lies on one ribbon per week, rounded where it meets the week’s edge', () => {

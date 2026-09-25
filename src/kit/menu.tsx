@@ -15,7 +15,7 @@ import { useFadeIn } from './interaction';
 import { useScrimTap, useShutOnBlur } from './sheet';
 
 /**
- * Spec 7.1, detail 9 — the action menu: 276 of glass that falls out of the «⋯» button it was opened
+ * Spec 7.1, detail 9 — the action menu: 278 of glass that falls out of the «⋯» button it was opened
  * from, and not up from the bottom of the screen. A sheet is a place the product takes you; this is
  * a list of what can be done to the thing already under your finger, so it stands where that thing
  * is and the button it came from stays visible behind it.
@@ -126,9 +126,10 @@ function Fall({
 // Glass and nothing else, so there is no second set of these: the menu stands over a photograph in
 // both themes, the same way the viewer does.
 const styles = StyleSheet.create({
+  // Spec 7.1, detail 9: 278 by the outer edge — rows of 276 inside a hairline either side.
   menu: {
     position: 'absolute',
-    width: 276,
+    width: 278,
     borderRadius: radius.field,
     backgroundColor: photo.menu,
     borderWidth: 1,

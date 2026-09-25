@@ -30,7 +30,7 @@ export type ButtonVariant =
  * The heights of spec 4, by the place a button stands in rather than by the number — and `line`,
  * the link's, which is the height of its words.
  */
-export type ButtonSize = 'xl' | 'lg' | 'md' | 'sm' | 'xs' | 'mini' | 'xxs' | 'line';
+export type ButtonSize = 'xl' | 'lg' | 'md' | 'ms' | 'sm' | 'xs' | 'mini' | 'xxs' | 'line';
 
 const SIZES: Record<ButtonSize, number> = {
   // Spec 7.2 gives the dangerous button two heights, and the taller one has exactly one place in the
@@ -38,6 +38,8 @@ const SIZES: Record<ButtonSize, number> = {
   xl: height.logout,
   lg: height.primary,
   md: height.sheetButton,
+  // The quiet one under the main in a sheet: «Позже», «Оставить как есть».
+  ms: height.quietSheet,
   sm: height.small,
   xs: height.rowButton,
   // «Сбросить» in the corner of `SheetFilter` — at the height of a round button in a row.
@@ -140,7 +142,9 @@ export function Button({
       ? { size: ICO_XS }
       : kind === 'small'
         ? SMALL_GLYPH
-        : (ROW_GLYPH[sized] ?? { size: ICO_S });
+        : variant === 'paper' && sized === 'mini'
+          ? MAKE_GLYPH
+          : (ROW_GLYPH[sized] ?? { size: ICO_S });
   const words = busy ? (busyLabel ?? label) : label;
 
   return (
@@ -175,10 +179,7 @@ export function Button({
       {busy ? <Spinner size={18} track={tint} head="transparent" /> : null}
       {icon && !busy ? <Icon icon={icon} {...glyph} color={tint} /> : null}
       <Text
-        role={
-          labelRole ??
-          (kind === 'row' || link ? 'label' : kind === 'small' ? 'controlSm' : 'control')
-        }
+        role={labelRole ?? wordsRole(variant, sized, kind)}
         // Spec 7.2: a label too long for one line grows the button down and is centred in it.
         style={[{ color: tint, textAlign: 'center' }, link ? styles.underline : null]}
       >
@@ -210,19 +211,24 @@ function contentColor({ color }: Theme, variant: ButtonVariant, disabled: boolea
 /**
  * Spec 7.2 — how the words sit in a button, by the place it stands in rather than by its variant:
  *
- * - **main** — 60, 56, 52: `control` 16, 20 a side, an 18 glyph 8 from the words;
+ * - **main** — 60, 56, 52: `control` 16 at 56, 15 at 52 (`controlMd`), 20 a side, an 18 glyph 8
+ *   from the words;
  * - **small** — «малая с текстом», 44: «Сохранить» and «Поделиться» under a finished film, «Сохранить»
- *   in a contact's row — the same `control` at 14 (`controlSm`), a 16 glyph 7 from the words;
+ *   in a contact's row — the same `control` at 14 (`controlSm`), 18 a side, a 16 glyph 7 from the
+ *   words;
  * - **row** — «в строке», 40 and under: «Вернуть», «Отдать ещё», «Сбросить», «Смонтировать», «Свой
  *   трек» — and the outlined `small` at whatever height it stands («Что сняли»). The words in
- *   `label` 13 / 600, 14 a side (12 in the 32 pill), the glyph 6 from the words.
+ *   `label` 13 / 600, 14 a side (12 in the 32 pill), a 14 glyph 6 from the words.
  *
  * The link's `line` is the height of its words, and a link is words alone: it never asks.
  */
-const KIND: Record<ButtonSize, 'main' | 'small' | 'row'> = {
+type Kind = 'main' | 'small' | 'row';
+
+const KIND: Record<ButtonSize, Kind> = {
   xl: 'main',
   lg: 'main',
   md: 'main',
+  ms: 'main',
   sm: 'small',
   xs: 'row',
   mini: 'row',
@@ -230,18 +236,35 @@ const KIND: Record<ButtonSize, 'main' | 'small' | 'row'> = {
   line: 'row',
 };
 
+/**
+ * The size of the words (spec 3, `control`): 16 on the main 56, 15 on a 52 and on the quiet 48 in a
+ * sheet, 14 on the small 44 and on every other quiet one («Отмена», «Снять»). «Новый лейбл», the
+ * dashed 52, is drawn at 14 like the small ones (`SheetLabels`).
+ */
+function wordsRole(variant: ButtonVariant, sized: ButtonSize, kind: Kind | null): TypeRole {
+  if (kind === 'row' || variant === 'link') return 'label';
+  if (kind === 'small') return 'controlSm';
+  if (variant === 'quiet') return SIZES[sized] >= height.quietSheet ? 'controlMd' : 'controlSm';
+  if (sized === 'md') return variant === 'dashed' ? 'controlSm' : 'controlMd';
+  return 'control';
+}
+
 /** The glyph of «Сохранить» and «Поделиться» under a finished film (spec 8, `MontageLiveDone`). */
 const SMALL_GLYPH = { size: 16 } as const;
 
 /**
- * The glyphs the layout draws heavier than their size alone would give (stroke 2.2): the plus of
- * «Смонтировать» at 15 (spec 8, detail 40) and of «Свой трек», the 32 pill, at 14 (`MontageMusic`).
- * `raise` keeps its own 13, since «Сбросить» is drawn apart (`SheetFilter`).
+ * The glyph of a button in a row (spec 7.2): 14 at 1.8 — «Править состав» wears its pencil so — and
+ * heavier in the 32 pill, «Свой трек» (`MontageMusic`). `raise` keeps its own 13, since «Сбросить»
+ * is drawn apart (`SheetFilter`).
  */
 const ROW_GLYPH: Partial<Record<ButtonSize, { size: number; stroke: number }>> = {
-  mini: { size: 15, stroke: 2.2 },
+  xs: { size: 14, stroke: 1.8 },
+  mini: { size: 14, stroke: 1.8 },
   xxs: { size: 14, stroke: 2.2 },
 };
+
+/** The plus of «Смонтировать», the paper one in a row: 15 at 2.2 (spec 8, detail 40). */
+const MAKE_GLYPH = { size: 15, stroke: 2.2 } as const;
 
 /** The one dashed border in the kit, and the reason `lineQuiet` exists (spec 2). */
 const DASHED: ViewStyle = { borderStyle: 'dashed', backgroundColor: 'transparent' };
@@ -542,8 +565,9 @@ const useStyles = themed(({ color }) =>
     // «В строке»: 14 a side and the glyph 6 from its words — 12 a side in the 32 pill.
     inRow: { paddingHorizontal: 14, gap: 6 },
     inRowPill: { paddingHorizontal: space.s3, gap: 6 },
-    // «Малая с текстом»: the glyph 7 from its words.
-    small: { gap: 7 },
+    // «Малая с текстом»: the words 18 in from the edge — 17 and the button's own hairline — and the
+    // glyph 7 from them («Сохранить» in `Contacts`, 109).
+    small: { paddingHorizontal: 17, gap: 7 },
     boxed: { borderRadius: radius.cell },
     // A small button never shrinks when the row beside it runs long.
     wide: { width: '100%', flexShrink: 1 },

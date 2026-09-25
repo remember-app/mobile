@@ -88,13 +88,7 @@ export default function PickFramesStep() {
           ) : null}
         </View>
       }
-      above={
-        enough ? undefined : (
-          <Text role="meta" tone="faint">
-            {s.montage.keepAtLeast(MIN_FRAMES)}
-          </Text>
-        )
-      }
+      above={enough ? undefined : <Text role="meta">{s.montage.keepAtLeast(MIN_FRAMES)}</Text>}
       action={
         <Button
           variant="primary"
@@ -176,6 +170,7 @@ export default function PickFramesStep() {
             />
             <Button
               variant="quiet"
+              size="ms"
               wide
               label={s.montage.leaveAsIs}
               onPress={() => setShowDropped(false)}

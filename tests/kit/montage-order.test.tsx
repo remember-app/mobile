@@ -2,6 +2,7 @@ import { contrast } from '@tests/helpers/contrast';
 import { rule } from '@tests/helpers/css';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { Heart, House, Zap } from 'lucide-react-native';
+import type { ReactElement } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import { beforeAll, expect, test } from 'vitest';
@@ -19,7 +20,7 @@ import {
 import { RowTrack } from '@/kit/rows';
 import { allDifferent, compiled, story } from '@/kit/story';
 import { Text as KitText } from '@/kit/text';
-import { font, setTheme, ThemePin, themes } from '@/theme';
+import { font, photo, setTheme, ThemePin, themes } from '@/theme';
 
 /** Spec 7.6 and 7.7 — what a person reads while they are ordering a montage. */
 
@@ -121,6 +122,41 @@ test('the poster’s second line and the plate over the story are a size down fr
   const words = wordsOf(plate, 'Шаблон «Для родителей»');
   expect(words).toContain(rule('font-size:12px'));
   expect(words).toContain(rule(`font-family:${font.semi}`));
+});
+
+test('the plate over the story is 32 and ringed at .50; the poster’s plate 26 round a 12 / 600', () => {
+  // 10.11: «плашка шаблона «чип 30» → 32, 12 / 600» (`MontageStory`) and spec 2: its hairline is
+  // `rgba(75,91,255,.50)` on `accentSoft`, where the director's plates take .35. The poster's plate
+  // (spec 7.6, detail 42; `MontageSummary.json` e12): 26 tall, «Для родителей» 12 / 600 — it was 13.
+  const plate = story(<ChipTemplate label="Шаблон «Для родителей»" icon={House} />);
+  expect(plate).toContain(rule('min-height:32px'));
+  expect(plate).toContain(
+    rule(
+      'border-bottom-color:rgba(75,91,255,0.50);border-left-color:rgba(75,91,255,0.50);border-right-color:rgba(75,91,255,0.50);border-top-color:rgba(75,91,255,0.50)',
+    ),
+  );
+  const poster = story(<PosterOrder length="2:30" template="Для родителей" templateIcon={House} />);
+  expect(poster).toContain(rule('min-height:26px'));
+  const words = wordsOf(poster, 'Для родителей');
+  expect(words).toContain(rule('font-size:12px'));
+  expect(words).toContain(rule(`font-family:${font.semi}`));
+});
+
+test('the poster and the template darken by the photograph’s own tokens', () => {
+  // Spec 2: «затемнение афиши итога» and «затемнение плитки шаблона», each one value, kept in `photo`
+  // with the rest of what lies on a picture — not written out by the part.
+  const scrims = (tree: ReactElement) => {
+    let drawn!: TestRenderer.ReactTestRenderer;
+    act(() => {
+      drawn = mounted(TestRenderer.create(tree));
+    });
+    return drawn.root
+      .findAllByType(View)
+      .map((one) => StyleSheet.flatten(one.props.style)?.experimental_backgroundImage)
+      .filter(Boolean);
+  };
+  expect(scrims(<PosterOrder length="2:30" />)).toEqual([photo.posterOrder]);
+  expect(scrims(<TileTemplate title="Для родителей" />)).toEqual([photo.template]);
 });
 
 test('the headings of the summary are read in muted, as every eyebrow in the layout is', () => {

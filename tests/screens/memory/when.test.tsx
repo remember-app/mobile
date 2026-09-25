@@ -3,15 +3,15 @@ import { beforeAll, expect, test, vi } from 'vitest';
 // The words come from the dictionary, and the dictionary asks the phone which language it is in.
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
 
-import { rule, shorthand } from '@tests/helpers/css';
+import { rule } from '@tests/helpers/css';
 import { fontFile, wordWidth } from '@tests/helpers/font';
+import { Chip } from '@/kit/chip';
 import { allDifferent, story } from '@/kit/story';
 import {
   ASIDE_BLEED,
   daysIn,
   EventWhen,
   pickDay,
-  QUICK_BLEED,
   quickSpans,
   type Span,
 } from '@/screens/memory/when';
@@ -118,16 +118,21 @@ const COLUMN = 390 - 2 * 16;
 
 test('on the layout’s 390 the four quick days are one row, and the line under the grid one line', () => {
   // `Create.json` e10…e13: the chips 86.55 / 71.1 / 98.9 / 80.1 — Onest 500 14, 14 a side inside a
-  // hairline — 8 apart, 360.6 in all, centred over the column: one row, 1.3 past it on either side.
-  const chips = ['Сегодня', 'Вчера', 'Выходные', 'Неделя'].map(
-    (word) => wordWidth(MEDIUM, word, 14) + 2 * 14 + 2,
-  );
-  for (const [chip, drawn] of chips.map((one, i) => [one, [86.55, 71.1, 98.9, 80.1][i]])) {
+  // hairline — 8 apart, 360.6 in all: 1.3 past the column on either side. Spec 7.3, detail 16
+  // `[правлено]` takes them to 13 a side, and the row to 353.5 — inside the column, one line.
+  const chips = (sides: number) =>
+    ['Сегодня', 'Вчера', 'Выходные', 'Неделя'].map(
+      (word) => wordWidth(MEDIUM, word, 14) + 2 * sides + 2,
+    );
+  for (const [chip, drawn] of chips(14).map((one, i) => [one, [86.55, 71.1, 98.9, 80.1][i]])) {
     expect(Math.abs(chip - drawn)).toBeLessThan(0.5);
   }
-  const row = chips.reduce((sum, one) => sum + one, 0) + 3 * 8;
-  expect(row).toBeGreaterThan(COLUMN);
-  expect(row).toBeLessThanOrEqual(COLUMN + 2 * QUICK_BLEED);
+  const across = (sides: number) => chips(sides).reduce((sum, one) => sum + one, 0) + 3 * 8;
+  expect(across(14)).toBeGreaterThan(COLUMN);
+  expect(across(13)).toBeCloseTo(353.5, 0);
+  expect(across(13)).toBeLessThanOrEqual(COLUMN);
+  const quick = story(<Chip label="Сегодня" size={36} onPress={() => {}} />);
+  expect(quick).toContain(rule('padding-left:13px;padding-right:13px'));
   // e87: «Один день — одно касание. Несколько — первый и последний.» 12 / 400 in one line of 359.2,
   // on a line the layout gives 363.
   const line = wordWidth(REGULAR, ru.create.dateHint, 12);
@@ -135,10 +140,10 @@ test('on the layout’s 390 the four quick days are one row, and the line under 
   expect(line).toBeLessThanOrEqual(COLUMN + ASIDE_BLEED);
   expect(COLUMN + ASIDE_BLEED).toBe(363);
 
-  // And the block reaches that far: the chips' row past both sides of the column, the line past its
-  // right; 12 from the chips down to the grid (e13 ends at 291, the card e14 starts at 303).
+  // And the block reaches that far: the line past the column's right, the chips not at all; 12 from
+  // the chips down to the grid (e13 ends at 291, the card e14 starts at 303).
   const drawn = story(block(span(12, 14)));
-  expect(drawn).toContain(shorthand('marginInline', `margin-left:-${QUICK_BLEED}px`));
+  expect(drawn).not.toContain('margin-left:-');
   expect(drawn).toContain(rule(`margin-right:-${ASIDE_BLEED}px`));
   expect(drawn).toContain(rule('margin-top:2px'));
   // Still a row that wraps: a narrower phone, or larger type, puts what does not fit under it.

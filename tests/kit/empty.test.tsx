@@ -144,3 +144,13 @@ test('the spark sign is ringed outside its 96, the way the layout draws it', () 
   expect(empty).toContain(rule('width:96px'));
   expect(empty).not.toContain('r-borderWidth');
 });
+
+test('each sign carries the glyph its kind is drawn with: 40 in the spark and the solid ring, 38 dashed', () => {
+  // Spec 7.9, detail 69 and 10.11 («знаки по видам»): `HomeEmpty.json` e6 and `InviteDead.json` e2
+  // are 40, the dashed sign of `FramesEmpty` 38 — all at 1.5.
+  const glyph = (sign: 'spark' | 'line' | 'dashed') =>
+    /data-glyph="\w+" width="(\d+)"/.exec(
+      story(<Empty sign={sign} icon={Camera} text="Пусто" />),
+    )?.[1];
+  expect([glyph('spark'), glyph('line'), glyph('dashed')]).toEqual(['40', '40', '38']);
+});

@@ -46,6 +46,8 @@ const PAIRS = [
   ['the line under it', 'muted', 'accentSoft'],
   // The lit promise of `Consent` — spec 8.
   ['the lit line in a card', 'paper', 'raiseSoft'],
+  // The story quoted back in the summary's card — spec 7.6, detail 43.
+  ['a quote on a card', 'quote', 'surface'],
 ] as const;
 
 test.each(['dark', 'light'] as const)('every pair of %s reads at the floor or above', (name) => {
@@ -193,10 +195,102 @@ test('the foot of the frame window puts a photograph 96 above the bottom and a v
   expect(viewerFoot.track).toBe(14);
 });
 
-test('one dangerous border everywhere, which is what spec 10.5 settles', () => {
-  for (const name of ['dark', 'light'] as const) {
-    expect(themes[name].color.dangerEdge).toBe('rgba(206,48,40,0.45)');
-  }
+test('the dangerous reds are exact by place, not a range (spec 2, 10.11)', () => {
+  // «баннер `.12` / `.40` везде, плашка цены `.14` / `.45`, строка застрявшего — обводка `.45`,
+  // «Не собрался» `.16`» — and the price plate's border is the stuck file's, in both themes.
+  const { color } = themes.dark;
+  expect({
+    banner: [color.bannerSoft, color.bannerEdge],
+    price: [color.dangerSoft, color.dangerEdge],
+    failed: color.failedSoft,
+  }).toEqual({
+    banner: ['rgba(206,48,40,0.12)', 'rgba(206,48,40,0.40)'],
+    price: ['rgba(206,48,40,0.14)', 'rgba(206,48,40,0.45)'],
+    failed: 'rgba(206,48,40,0.16)',
+  });
+  expect(themes.light.color.dangerEdge).toBe(color.dangerEdge);
+});
+
+test('the colours the second pass settled are the spec’s, digit for digit (10.11)', () => {
+  const { dark, light } = { dark: themes.dark.color, light: themes.light.color };
+  // «часть 2» in the journal (spec 2): `rgba(75,91,255,.22)`, `MontageLiveStage.json` e26.
+  expect(dark.pendingSoft).toBe('rgba(75,91,255,0.22)');
+  // The quote — the story in the summary, a stage's records: #D8D5E0 at night, `paper` by day.
+  expect(dark.quote).toBe('#D8D5E0');
+  expect(light.quote).toBe(light.paper);
+  // The template plate over the story is ringed at .50, the director's plates at .35.
+  expect([dark.plateEdge, dark.accentEdge]).toEqual([
+    'rgba(75,91,255,0.50)',
+    'rgba(75,91,255,0.35)',
+  ]);
+  // Spec 2, «День», `HomeDay.json` e4 and e31…e32: the large card under its mosaic, the empty strip
+  // and its glyph; at night the strip is #1D1D28 with a `faint` glyph (`Main.json` e33…e34).
+  expect([light.coverBase, light.stripEmpty, light.stripSign]).toEqual([
+    '#E8E3D8',
+    '#F7F4EC',
+    '#8B8778',
+  ]);
+  expect([dark.coverBase, dark.stripEmpty, dark.stripSign]).toEqual([
+    dark.surface,
+    '#1D1D28',
+    dark.faint,
+  ]);
+});
+
+test('what darkens a photograph is one value per place (spec 2, 10.11)', () => {
+  // A picked frame: .30 in the feed, .28 under the ring of the 117 grid.
+  expect([photo.picked, photo.pickedRing]).toEqual(['rgba(11,11,18,0.30)', 'rgba(11,11,18,0.28)']);
+  // The large poster, the summary's poster and the top of the frame «Сейчас».
+  expect(photo.posterLarge).toBe(
+    'linear-gradient(to top, rgba(9,9,14,.80) 0%, rgba(9,9,14,.05) 60%)',
+  );
+  expect(photo.posterOrder).toBe(
+    'linear-gradient(to top, rgba(9,9,14,.90) 10%, rgba(9,9,14,.10) 70%)',
+  );
+  expect(photo.now).toBe('linear-gradient(to bottom, rgba(9,9,14,.55) 0%, rgba(9,9,14,0) 40%)');
+  expect(photo.template).toBe(
+    'linear-gradient(to top, rgba(11,11,18,.94) 20%, rgba(11,11,18,.35) 100%)',
+  );
+  // A video's track is paper at .24 (10.11, answer 7), not the viewer's glass at .10.
+  expect(photo.videoTrack).toBe('rgba(245,243,238,0.24)');
+});
+
+test('the roles the second pass named are the spec’s (section 3, 10.11)', () => {
+  // `hero малый` — «Remember» on `InviteJoining` (`InviteJoining.json` e1: Unbounded 30 / 700 / 32
+  // at −1.35), its own role and not `heroNarrow` 34.
+  expect(type.heroSm).toMatchObject({ fontFamily: font.headline, fontSize: 30, lineHeight: 32 });
+  expect(type.heroSm.letterSpacing).toBeCloseTo(-0.045 * 30);
+  // `subtitle`: Unbounded 600 17 / 21 at −0.02em.
+  expect(type.subtitleDisplay).toMatchObject({
+    fontFamily: font.headlineSemi,
+    fontSize: 17,
+    lineHeight: 21,
+  });
+  expect(type.subtitleDisplay.letterSpacing).toBeCloseTo(-0.02 * 17);
+  // `display` is −0.035em, and −0.03em on the name over a cover (`Main.json`: −0.78).
+  expect(type.display.letterSpacing).toBeCloseTo(-0.035 * 26);
+  expect(type.displayCover).toMatchObject({ ...type.display, letterSpacing: -0.78 });
+  expect(type.displayCover.letterSpacing).toBeCloseTo(-0.03 * 26);
+  // `control` 14–17: 15 is a 52 and the quiet 48 in a sheet (`SheetConfirmDelete.json` e7,
+  // `SheetTooLittle.json` e8: 15 / 600, untracked).
+  expect(type.controlMd).toEqual({ fontFamily: font.semi, fontSize: 15, lineHeight: 15 });
+  // `log` 13 / 400 / 18 (`MontageLiveStage.json` e23); the quote 13 / 400 / 19
+  // (`MontageSummary.json` e29).
+  expect(type.log).toEqual({ fontFamily: font.regular, fontSize: 13, lineHeight: 18 });
+  expect(type.quote).toEqual({ fontFamily: font.regular, fontSize: 13, lineHeight: 19 });
+  // `badge малый` 10 / 700 at 0.06em in caps (`MemoryFrames.json` e12: ls 0.6), and `day` 10 / 12
+  // at 0.03em with its count at 500 and no tracking (`Upload.json` e4, e5).
+  expect(type.badgeSm).toMatchObject({ fontFamily: font.bold, fontSize: 10, letterSpacing: 0.6 });
+  expect(type.day).toMatchObject({
+    fontFamily: font.semi,
+    fontSize: 10,
+    lineHeight: 12,
+    letterSpacing: 0.3,
+  });
+  expect(type.dayCount).toMatchObject({ fontFamily: font.medium, fontSize: 10, lineHeight: 12 });
+  expect(type.dayCount.letterSpacing).toBeUndefined();
+  // The quiet button under the main in a sheet is 48 (spec 4).
+  expect(height.quietSheet).toBe(48);
 });
 
 test('the rhythm, the radii and the heights are the spec’s own numbers', () => {
@@ -261,8 +355,12 @@ test('the words of `Create`, `MemorySettings` and `Account` are the ones the lay
   expect(type.rowSm.lineHeight).toBe(18);
   // e87: the line under the calendar, 12 / 400 / 17 (spec 7.3, detail 15: «подпись 12 / 17»).
   expect(type.aside).toEqual({ fontFamily: font.regular, fontSize: 12, lineHeight: 17 });
-  // e5, and `UploadQueue.json` e6 «Отправляем»: Unbounded 600 17 at −0.02em, −0.34.
-  expect(type.subtitleDisplay).toMatchObject({ fontSize: 17, letterSpacing: -0.34 });
+  // e5, and `UploadQueue.json` e6 «Отправляем»: Unbounded 600 17 / 21 at −0.02em, −0.34.
+  expect(type.subtitleDisplay).toMatchObject({
+    fontSize: 17,
+    lineHeight: 21,
+    letterSpacing: -0.34,
+  });
   // `MemorySettings.json` e8: the memory's name, Unbounded 600 17 / 21 at −0.025em (−0.42 there).
   expect(type.titleSm).toEqual({
     fontFamily: font.headlineSemi,

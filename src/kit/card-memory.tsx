@@ -106,7 +106,7 @@ export function CardMemory({
           </View>
           <View style={styles.largeFoot}>
             <View style={styles.pair}>
-              <Text role="display" numberOfLines={3} style={styles.onPhoto}>
+              <Text role="displayCover" numberOfLines={3} style={styles.onPhoto}>
                 {title}
               </Text>
               {meta?.length ? <Meta parts={meta} onPhoto /> : null}
@@ -128,10 +128,12 @@ export function CardMemory({
               <Mosaic photos={shots} layout="strip" />
             </View>
           ) : (
-            <DashedFrame style={styles.strip}>
-              <Icon icon={ImageIcon} size={22} color={color.faint} />
+            // Spec 7.6, detail 37 (`Main`, `HomeDay`): a 20 frame glyph at 1.6 and the words under
+            // it 13 / 500 in `muted` — a sentence to read, not a sign.
+            <DashedFrame style={[styles.strip, styles.stripEmpty]}>
+              <Icon icon={ImageIcon} size={20} stroke={1.6} color={color.stripSign} />
               {emptyText ? (
-                <Text role="meta" tone="faint" style={styles.centred}>
+                <Text role="meta" style={[styles.metaWords, styles.centred]}>
                   {emptyText}
                 </Text>
               ) : null}
@@ -177,7 +179,7 @@ const useStyles = themed(({ color }) =>
       height: 340,
       borderRadius: radius.cover,
       overflow: 'hidden',
-      backgroundColor: color.surface,
+      backgroundColor: color.coverBase,
       justifyContent: 'space-between',
     },
     cover: { experimental_backgroundImage: photo.cover },
@@ -204,6 +206,7 @@ const useStyles = themed(({ color }) =>
     hover: { backgroundColor: color.raise },
     // The strip of four inside an ordinary card: 96 tall, its own 14 radius.
     strip: { height: 96, borderRadius: radius.strip, overflow: 'hidden' },
+    stripEmpty: { backgroundColor: color.stripEmpty },
     // `Main`: 13 under the strip, 5 over the card's own 10 below, and the films badge stands on the
     // foot of the words rather than in their middle — 181 for a card with a meta line, 158 without.
     foot: {

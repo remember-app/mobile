@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { Clock, LayoutGrid } from 'lucide-react-native';
+import { Clock, PanelsTopLeft } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -156,7 +156,7 @@ export default function SummaryStep() {
           <Button
             variant="primary"
             wide
-            icon={LayoutGrid}
+            icon={PanelsTopLeft}
             label={s.montage.startCut}
             busy={busy}
             onPress={() => void send()}
@@ -210,11 +210,10 @@ export default function SummaryStep() {
 
             {/* Four lines of it and no more: the whole story was read on the step that wrote it,
                 and here it is being recognised rather than read again. Nothing written is the
-                director deciding, which is a state of the order and not an empty section. The
-                layout reads it in #D8D5E0, a shade the tokens do not have: `paper` is the nearer
-                of the two, as for the director's records under a stage (`StepNote`). */}
+                director deciding, which is a state of the order and not an empty section. Quoted
+                back, so in the quote's own shade (spec 7.6, detail 43: 13 / 400 / 19, #D8D5E0). */}
             <SummarySection title={s.montage.story} divider>
-              <Text role="note" tone="paper" numberOfLines={4}>
+              <Text role="quote" tone="quote" numberOfLines={4}>
                 {story === '' ? s.montage.directorDecides : story}
               </Text>
             </SummarySection>
@@ -247,7 +246,7 @@ export default function SummaryStep() {
 
           <View style={styles.wait}>
             <Icon icon={Clock} size={ICO_S} color={color.faint} />
-            <Text role="meta" tone="faint" style={styles.grow}>
+            <Text role="aside" tone="muted" style={styles.grow}>
               {s.montage.readyIn(preview.estimate_minutes)}
             </Text>
           </View>

@@ -55,6 +55,8 @@ export const height = {
   logout: 60,
   /** secondary button in a card, small button with a label */
   small: 44,
+  /** the quiet one under the main in a sheet — «Позже», «Оставить как есть» */
+  quietSheet: 48,
   /** small button standing in a row — «Вернуть», «Отдать ещё» */
   rowButton: 40,
   /** round button at the bottom of the gallery */
@@ -263,8 +265,12 @@ export const type = StyleSheet.create({
   hero: { fontFamily: font.headline, fontSize: 42, lineHeight: 44, letterSpacing: -1.89 },
   /** «Remember» where a block of promises has to fit under it */
   heroNarrow: { fontFamily: font.headline, fontSize: 34, lineHeight: 36, letterSpacing: -1.36 },
-  /** the heading of a wizard step, the memory's name on its cover */
+  /** «Remember» over the spinner of a link being walked in (`InviteJoining`) — its own role */
+  heroSm: { fontFamily: font.headline, fontSize: 30, lineHeight: 32, letterSpacing: -1.35 },
+  /** the heading of a wizard step */
   display: { fontFamily: font.headline, fontSize: 26, lineHeight: 29, letterSpacing: -0.91 },
+  /** the memory's name on its cover — the heading's size a hair looser, −0.03em */
+  displayCover: { fontFamily: font.headline, fontSize: 26, lineHeight: 29, letterSpacing: -0.78 },
   /** «Воспоминания» on the main screen */
   displaySm: { fontFamily: font.headline, fontSize: 25, lineHeight: 28, letterSpacing: -0.75 },
   /** the heading of an empty state */
@@ -322,14 +328,17 @@ export const type = StyleSheet.create({
     letterSpacing: -0.6,
     ...tabular,
   },
-  /** «Отправляем», the value of the «Название» field — a name typed in the face it is printed in */
+  /**
+   * The spec's `subtitle`: «Отправляем», the value of the «Название» field — a name typed in the
+   * face it is printed in
+   */
   subtitleDisplay: {
     fontFamily: font.headlineSemi,
     fontSize: 17,
-    lineHeight: 22,
+    lineHeight: 21,
     letterSpacing: -0.34,
   },
-  /** a subheading in the running text face */
+  /** the same size in the running text face — «8 человек» on `Account` */
   subtitle: { fontFamily: font.semi, fontSize: 17, lineHeight: 22 },
   /** a paragraph, the text of a field */
   body: { fontFamily: font.regular, fontSize: 16, lineHeight: 23 },
@@ -354,6 +363,8 @@ export const type = StyleSheet.create({
   controlLg: { fontFamily: font.semi, fontSize: 17, lineHeight: 17, letterSpacing: -0.17 },
   /** the label of a segment */
   controlSm: { fontFamily: font.semi, fontSize: 14, lineHeight: 14 },
+  /** «Разрешить доступ» — the 52 of the message card (spec 7.6, detail 45: 15 / 600) */
+  controlMd: { fontFamily: font.semi, fontSize: 15, lineHeight: 15 },
   /** the label of a chip — the same size a shade lighter, because a chip is offered and not pressed home */
   chip: { fontFamily: font.medium, fontSize: 14, lineHeight: 14 },
   /**
@@ -367,22 +378,28 @@ export const type = StyleSheet.create({
   label: { fontFamily: font.semi, fontSize: 13, lineHeight: 16 },
   /** an explanation under something — the one 13 that runs to more than a word */
   note: { fontFamily: font.medium, fontSize: 13, lineHeight: 19 },
+  /** the director's thought, in its plate and in a record of the journal (spec 3, 10.11: 13 / 400 / 18) */
+  log: { fontFamily: font.regular, fontSize: 13, lineHeight: 18 },
   /** the words of a connection banner: the note's size a line tighter (spec 7.6, detail 47) */
   banner: { fontFamily: font.medium, fontSize: 13, lineHeight: 18 },
   /** the same explanation a size down and plain — «Без согласия зарегистрироваться нельзя.» */
   noteSm: { fontFamily: font.regular, fontSize: 12, lineHeight: 16 },
   /** «Один день — одно касание…» under the calendar — the same plain 12 on the looser line of 17 */
   aside: { fontFamily: font.regular, fontSize: 12, lineHeight: 17 },
+  /** words quoted back: the story in the summary of an order, four lines of it (spec 7.6, detail 43) */
+  quote: { fontFamily: font.regular, fontSize: 13, lineHeight: 19 },
   /** «НАЗВАНИЕ», «ИЗ КОНТАКТОВ» — on the line the layout gives every eyebrow, Onest's own at 12 */
   eyebrow: { fontFamily: font.bold, fontSize: 12, lineHeight: 16, letterSpacing: 1.2 },
   /** «ОРГАНИЗАТОР», «ГОТОВ» */
   badge: { fontFamily: font.bold, fontSize: 11, lineHeight: 13, letterSpacing: 0.66 },
   /** «Беру 0:04–0:07», «Взял 1 из 4» — the badge's size, written out rather than shouted */
   decision: { fontFamily: font.bold, fontSize: 11, lineHeight: 13, ...tabular },
-  /** «ОРГАНИЗАТОР» inside a member row, «ГОТОВ» and «СОБИРАЕТСЯ» on a card in the strip */
-  badgeSm: { fontFamily: font.bold, fontSize: 10, lineHeight: 12, letterSpacing: 0.5 },
-  /** The words of a seam between two grids — «13 сентября, суббота», a person's name (spec 7.8) */
-  seam: { fontFamily: font.semi, fontSize: 10, lineHeight: 12, letterSpacing: 0.3, ...tabular },
+  /** «ГОТОВ» and «СОБИРАЕТСЯ» on a card in the strip — spec 3, `badge малый`: 0.06em in caps */
+  badgeSm: { fontFamily: font.bold, fontSize: 10, lineHeight: 12, letterSpacing: 0.6 },
+  /** The words of a day gap — «13 сентября, суббота», a person's name (spec 3, `day`: 0.03em) */
+  day: { fontFamily: font.semi, fontSize: 10, lineHeight: 12, letterSpacing: 0.3, ...tabular },
+  /** The count beside those words — «61», «128»: the same 10 / 12 a weight down, untracked (spec 3, `day`) */
+  dayCount: { fontFamily: font.medium, fontSize: 10, lineHeight: 12, ...tabular },
   /** «Новый / ролик» under the plus of the dashed tile (spec 7.6, detail 39) */
   caption: { fontFamily: font.semi, fontSize: 12, lineHeight: 15 },
   /** dates, counters */
@@ -415,6 +432,14 @@ export const photo = {
     'linear-gradient(to top, rgba(7,7,13,.95) 0%, rgba(7,7,13,.78) 30%, rgba(7,7,13,.10) 62%, rgba(7,7,13,.28) 100%)',
   /** the poster of a montage — darker at the foot, where the name and the scale stand */
   poster: 'linear-gradient(to top, rgba(9,9,14,.82) 0%, rgba(9,9,14,0) 60%)',
+  /** the large poster of a finished film (`MontageLiveDone`): no name on it, so lighter at the top */
+  posterLarge: 'linear-gradient(to top, rgba(9,9,14,.80) 0%, rgba(9,9,14,.05) 60%)',
+  /** the poster of the film being ordered, on the summary */
+  posterOrder: 'linear-gradient(to top, rgba(9,9,14,.90) 10%, rgba(9,9,14,.10) 70%)',
+  /** a template's tile: its frame well under the words */
+  template: 'linear-gradient(to top, rgba(11,11,18,.94) 20%, rgba(11,11,18,.35) 100%)',
+  /** the top of the frame in hand on the card «Сейчас», where the author and «СЕЙЧАС» stand */
+  now: 'linear-gradient(to bottom, rgba(9,9,14,.55) 0%, rgba(9,9,14,0) 40%)',
   /**
    * The two footers that lie over photographs rather than over the screen (spec 2): the wall of
    * frames under the gallery's three buttons, and the queue under `Upload`. Dark in both themes for
@@ -463,8 +488,10 @@ export const photo = {
   spineDot: 'rgba(245,243,238,0.6)',
   /** the date read in the pill on that spine */
   spineMark: 'rgba(245,243,238,0.72)',
-  /** a picked tile goes down under this */
+  /** a picked tile goes down under this in the feed… */
   picked: 'rgba(11,11,18,0.30)',
+  /** …and a shade less under the `accent` ring of the 117 grid (spec 2, 10.11) */
+  pickedRing: 'rgba(11,11,18,0.28)',
   /** the pick circle before anything is picked — a hole in the photograph, not a surface */
   pickOff: 'rgba(11,11,18,0.18)',
   /** its hairline */
@@ -473,6 +500,8 @@ export const photo = {
   pickHand: 'rgba(9,9,14,0.86)',
   /** the viewer's glass: a button over a photograph has no surface under it */
   glass: 'rgba(245,243,238,0.10)',
+  /** the track of a video's scrubber, what is still to play (spec 7.10) */
+  videoTrack: 'rgba(245,243,238,0.24)',
   /**
    * Under «Пауза» in the middle of a playing video (spec 7.2): dark and not glass, because the
    * viewer's glass vanishes over a bright frame and this has to hold its glyph over any.

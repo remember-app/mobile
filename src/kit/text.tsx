@@ -21,7 +21,8 @@ export type TextTone =
   | 'spark'
   | 'sparkInk'
   | 'danger'
-  | 'onFill';
+  | 'onFill'
+  | 'quote';
 
 /**
  * How far words grow with the system's type (TASK-377): twice their size and no further. ×2 is
@@ -43,7 +44,10 @@ export const TYPE_MOST = 2;
 export const HEADING_MOST: Partial<Record<TypeRole, number>> = {
   hero: 1.13,
   heroNarrow: 1.33,
+  heroSm: 1.51,
   display: 1.29,
+  // A memory's name is the person's own and cannot be measured; it keeps the heading's ceiling.
+  displayCover: 1.29,
   displaySm: 1.16,
   emptyTitle: 1.93,
   sheetTitle: 1.2,
@@ -57,17 +61,20 @@ export const HEADING_MOST: Partial<Record<TypeRole, number>> = {
  * The roles that are one word — the product's name — and so shrink to the width they are given
  * rather than break: on a phone narrower than the one the ceiling was measured on, and at any size.
  */
-const ONE_WORD = new Set<TypeRole>(['hero', 'heroNarrow']);
+const ONE_WORD = new Set<TypeRole>(['hero', 'heroNarrow', 'heroSm']);
 
-/** The roles that are a secondary line by what they are, and so are read in `muted` unasked. */
-const QUIET = new Set<TypeRole>(['meta', 'metaSm', 'note']);
+/**
+ * The roles that are a secondary line by what they are, and so are read in `muted` unasked — the
+ * eyebrow among them: spec 3 gives it no other colour.
+ */
+const QUIET = new Set<TypeRole>(['meta', 'metaSm', 'note', 'eyebrow']);
 
 /**
  * Text in the product's voice. CSS inherits `color` from `body`; React Native inherits nothing and
  * defaults to black, so a screen that reaches for `type.body` alone gets black on ink — invisible.
  * This is the one place that pairs a role with the colour it is read in, so no screen has to
- * remember. Both metas and `note` bring `muted` with them: spec 10.1 keeps every readable secondary
- * line on `muted` and leaves `faint` to what is unavailable or decorative.
+ * remember. Both metas, `note` and the eyebrow bring `muted` with them: spec 10.1 keeps every readable
+ * secondary line on `muted` and leaves `faint` to what is unavailable or decorative.
  *
  * And the one place that says how far the role grows with the system's type ({@link TYPE_MOST},
  * {@link HEADING_MOST}) — a caller that measured its own room says so with `maxFontSizeMultiplier`,
@@ -108,6 +115,7 @@ const useStyles = themed(({ color }) =>
     sparkInk: { color: color.sparkInk },
     danger: { color: color.dangerText },
     onFill: { color: color.onFill },
+    quote: { color: color.quote },
   }),
 );
 

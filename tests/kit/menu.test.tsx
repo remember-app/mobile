@@ -1,3 +1,4 @@
+import { rule } from '@tests/helpers/css';
 import { Download, Share, Trash2 } from 'lucide-react-native';
 import { beforeAll, expect, test } from 'vitest';
 
@@ -51,6 +52,16 @@ test('the menu is glass over a photograph in both themes, and reads the same in 
   await setTheme('light');
   expect(story(menu())).toBe(night);
   await setTheme('dark');
+});
+
+test('the menu is 278 by its outer edge: rows of 276 inside a hairline', () => {
+  // Spec 7.1, detail 9 and 10.11: «меню действий 276 → 278 по внешнему краю (строки 276)».
+  const open = story(
+    <ActionMenu visible onCancel={() => {}} top={66}>
+      <RowAction icon={Share} label="Поделиться" onPress={() => {}} />
+    </ActionMenu>,
+  );
+  expect(open).toContain(rule('width:278px'));
 });
 
 test('a menu nobody opened draws nothing at all', () => {

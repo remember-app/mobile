@@ -31,6 +31,8 @@ export type Color = {
   muted: string;
   /** a note, unavailable text, a weak glyph. Never under running text — see spec 10.1 */
   faint: string;
+  /** words quoted back — the records under an opened stage on air (spec 2, «текст-цитата») */
+  quote: string;
   /**
    * A day of the calendar that does not answer — tomorrow and after (spec 7.3, detail 15). A step
    * under `faint`: the weekday letters over the grid are `faint`, and a week of days that cannot be
@@ -47,6 +49,8 @@ export type Color = {
   accentNote: string;
   /** the hairline round either of those two: the accent at just over a third */
   accentEdge: string;
+  /** the hairline round the template plate over the story (`MontageStory`): the accent at a half */
+  plateEdge: string;
   /** the organizer, «готово», progress, checked */
   spark: string;
   /** read on top of `spark` — dark in both themes */
@@ -67,10 +71,20 @@ export type Color = {
   hollowSoft: string;
   /** a sheet's handle, a spent bar of the waveform */
   handle: string;
-  /** the fill of a dangerous banner or plate */
+  /** under the mosaic of the large memory card — what shows between its frames */
+  coverBase: string;
+  /** the dashed hole where an ordinary card's strip of frames would be… */
+  stripEmpty: string;
+  /** …and the frame glyph inside it */
+  stripSign: string;
+  /** the fill of the price plate on red (`SheetConfirmMember`) */
   dangerSoft: string;
-  /** the border of anything dangerous — one value everywhere (spec 10.5) */
+  /** the border of that plate and of a file stuck in the queue */
   dangerEdge: string;
+  /** the fill of the error banner — one tone wherever it stands (spec 2) */
+  bannerSoft: string;
+  /** its border */
+  bannerEdge: string;
   /** the fill of the «Не собрался» badge */
   failedSoft: string;
   /** the fill of «часть 2» in the journal — «Собирается» lies on a poster and is `photo`'s */
@@ -94,12 +108,14 @@ const dark: Color = {
   paper: '#F5F3EE',
   muted: '#A4A1B2',
   faint: '#6E6B7D',
+  quote: '#D8D5E0',
   dayOff: '#4A4757',
   accent: '#4B5BFF',
   accentText: '#A7AEFF',
   accentSoft: '#1A1C33',
   accentNote: '#14152A',
   accentEdge: 'rgba(75,91,255,0.35)',
+  plateEdge: 'rgba(75,91,255,0.50)',
   spark: '#E4FF4F',
   sparkInk: '#14160A',
   danger: '#FF5A5A',
@@ -110,10 +126,19 @@ const dark: Color = {
   hollow: '#111119',
   hollowSoft: '#14141C',
   handle: '#3A3747',
+  coverBase: '#16161F',
+  // Spec 7.6, detail 37: the hole is its own shade between `surface` and `raise`, and its glyph is
+  // `faint` — a sign, not words.
+  stripEmpty: '#1D1D28',
+  stripSign: '#6E6B7D',
+  // The reds by place, not a range (spec 2): the price plate .14 / .45, the stuck file's border .45,
+  // the banner .12 / .40, «Не собрался» .16.
   dangerSoft: 'rgba(206,48,40,0.14)',
   dangerEdge: 'rgba(206,48,40,0.45)',
+  bannerSoft: 'rgba(206,48,40,0.12)',
+  bannerEdge: 'rgba(206,48,40,0.40)',
   failedSoft: 'rgba(206,48,40,0.16)',
-  pendingSoft: 'rgba(75,91,255,0.20)',
+  pendingSoft: 'rgba(75,91,255,0.22)',
   sparkSoft: 'rgba(228,255,79,0.12)',
   sparkEdge: 'rgba(228,255,79,0.40)',
 };
@@ -141,6 +166,8 @@ const light: Color = {
   // The mirror of the night's `faint`: 3.79 : 1 there on `ink`, 3.79 : 1 here. Decorative and
   // unavailable only — spec 10.1 keeps every readable secondary on `muted`.
   faint: '#7A7788',
+  // Spec 2: not drawn in daylight — there the quoted words are the paper.
+  quote: '#15151C',
   // The night's 1.99 : 1 on its card, mirrored onto the white one: `faint` taken toward the paper.
   dayOff: '#B8B7C0',
   accent: '#3B3FE0',
@@ -151,6 +178,7 @@ const light: Color = {
   accentSoft: '#ECEDFB',
   accentNote: '#F3F3FC',
   accentEdge: 'rgba(59,63,224,0.35)',
+  plateEdge: 'rgba(59,63,224,0.50)',
   spark: '#DCF531',
   sparkInk: '#16180A',
   danger: '#D93A3A',
@@ -164,8 +192,15 @@ const light: Color = {
   hollow: '#ECE8DE',
   hollowSoft: '#EFEBE2',
   handle: '#CFC8B8',
+  // Spec 2, `HomeDay`: what the day draws for a large card under its mosaic and for an empty strip.
+  coverBase: '#E8E3D8',
+  stripEmpty: '#F7F4EC',
+  stripSign: '#8B8778',
   dangerSoft: 'rgba(206,48,40,0.10)',
   dangerEdge: 'rgba(206,48,40,0.45)',
+  // The day's banner was never drawn; it keeps the lighter wash the plate has on paper.
+  bannerSoft: 'rgba(206,48,40,0.10)',
+  bannerEdge: 'rgba(206,48,40,0.45)',
   failedSoft: 'rgba(206,48,40,0.12)',
   pendingSoft: 'rgba(59,63,224,0.14)',
   sparkSoft: 'rgba(220,245,49,0.28)',

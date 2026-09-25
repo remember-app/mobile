@@ -286,8 +286,9 @@ export default function ContactsScreen() {
                   >
                     {fading ? (
                       <Button
-                        variant="small"
-                        size="xs"
+                        // Spec 7.2, «в строке»: 36 in `lineStrong`, as `Contacts` draws it.
+                        size="mini"
+                        wide={false}
                         label={s.contacts.undo}
                         onPress={() => undo(contact)}
                       />
