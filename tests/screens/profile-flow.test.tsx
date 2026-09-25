@@ -45,7 +45,7 @@ vi.mock('@/lib/auth', async (original) => {
 
 import { expectReachable } from '@tests/helpers/access';
 import { type Asked, contact, later, refused, serve } from '@tests/helpers/api';
-import { account, datesRefusal } from '@tests/helpers/contract';
+import { account, datesRefusal, languageRefusal } from '@tests/helpers/contract';
 import { mounted, mountsTrees, themesShown } from '@tests/helpers/renderer';
 import type { ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
@@ -106,7 +106,13 @@ function world({
 } = {}): Asked[] {
   let me = { ...ME, ...who };
   return serve((asked) => {
-    if (asked.path === '/me' || asked.path === '/me/language') return me;
+    if (asked.path === '/me/language') {
+      const bad = languageRefusal(asked.body);
+      if (bad) return bad;
+      me = { ...me, ...(asked.body as object) };
+      return me;
+    }
+    if (asked.path === '/me') return me;
     if (asked.path === '/me/contacts') return contacts;
     if (asked.path === '/me/dates-between-days') {
       const bad = datesRefusal(asked.body);
@@ -267,12 +273,26 @@ test('the switch shows the account’s «Даты между днями» and ch
   expect(screen.banner()).toBeUndefined();
 });
 
-test('a refused change turns the switch back and says why over the settings', async () => {
-  world({ dates: () => refused(500, 'boom') });
+test.each([
+  [
+    'refused with a reason',
+    () => refused(500, 'boom'),
+    new ApiError(500, { error: 'boom' }).message,
+  ],
+  ['refused by the schema', () => refused(400, 'body must be object'), 'body must be object'],
+  ['too many asks', () => refused(429), ru.error.tooMany],
+  ['not reached', () => 'offline', ru.error.offline],
+])('a change %s turns the switch back and says why over the settings', async (_, answer, said) => {
+  world({ dates: answer });
   const screen = await open();
   await screen.press(screen.toggle().findByType(Pressable));
   expect(screen.toggle().props.value).toBe(false);
-  expect(screen.banner()).toBe(new ApiError(500, { error: 'boom' }).message);
+  expect(screen.banner()).toBe(said);
+  // And the next press is a fresh try, not a switch stuck where the failure left it.
+  world();
+  await screen.press(screen.toggle().findByType(Pressable));
+  expect(screen.toggle().props.value).toBe(true);
+  expect(screen.banner()).toBeUndefined();
 });
 
 test('the pills turn the theme and the language', async () => {

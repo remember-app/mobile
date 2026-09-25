@@ -2,7 +2,7 @@ import { expect, test, vi } from 'vitest';
 
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
 
-import { account, datesRefusal, orderRefusal } from '@tests/helpers/contract';
+import { account, datesRefusal, languageRefusal, orderRefusal } from '@tests/helpers/contract';
 import { deleteMemory, type MontageTemplate, putDatesBetweenDays } from '@/api';
 import {
   blankOrder,
@@ -95,6 +95,19 @@ test('the account setting takes only the JSON boolean under its one name', () =>
     [true],
   ])
     expect(status(datesRefusal(body)), JSON.stringify(body)).toBe(400);
+});
+
+test('the language switch takes exactly ru or en', () => {
+  for (const ok of ['ru', 'en']) expect(languageRefusal({ language: ok })).toBeNull();
+  for (const body of [
+    null,
+    {},
+    { language: 'de' },
+    { language: 'ru-RU' },
+    { lang: 'ru' },
+    { language: 'ru', x: 1 },
+  ])
+    expect(status(languageRefusal(body)), JSON.stringify(body)).toBe(400);
 });
 
 const key = (name: string, wish?: string): PickedTrack => ({ key: name, name: null, wish });

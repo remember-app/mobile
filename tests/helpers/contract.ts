@@ -118,6 +118,16 @@ export function datesRefusal(body: unknown): Response | null {
   return ok ? null : schema('body must be {"dates_between_days": boolean}');
 }
 
+/** `POST /me/language`: exactly one of the two languages there are (doc-8) under `language`, nothing else. */
+export function languageRefusal(body: unknown): Response | null {
+  const ok =
+    typeof body === 'object' &&
+    body !== null &&
+    Object.keys(body).length === 1 &&
+    ['ru', 'en'].includes((body as Record<string, unknown>).language as string);
+  return ok ? null : schema('body must be {"language": "ru" | "en"}');
+}
+
 /**
  * The person as every api answer that carries one hands them out — `GET /me`, the sign-ins and the
  * two settings — the six fields of `docs/auth.md` and nothing else. A setting changed answers with

@@ -678,6 +678,25 @@ test('«Удалить навсегда» waits on its one request, busy, and th
   expect(screen.notice()).toEqual([]);
 });
 
+test('in daylight the deleting sheet, its plate on `ink` and its red button included, carries none of the night’s tokens', async () => {
+  world();
+  // The detector sees the night on this very sheet, or an empty answer below proves nothing.
+  const night = await open();
+  await night.press(() => night.icon(ru.settings.delete)[0]);
+  expect(themesShown(night.sheet()[0]).night.length).toBeGreaterThan(0);
+  await setTheme('light');
+  try {
+    const screen = await open();
+    await screen.press(() => screen.icon(ru.settings.delete)[0]);
+    const shown = themesShown(screen.sheet()[0]);
+    expect(shown.night).toEqual([]);
+    expect(shown.day.length).toBeGreaterThan(0);
+    expect(screen.text()).toContain('57 кадров сюда принесли другие');
+  } finally {
+    await setTheme('dark');
+  }
+});
+
 test('while the delete is in the air no press can start another, and with no connection the screen says so and lets it be tried again', async () => {
   const slow = later<unknown>();
   const w = world();

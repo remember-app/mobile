@@ -87,12 +87,19 @@ vi.mock('expo-router', () => ({
   useIsFocused: () => true,
   useRouter: () => nav.router,
 }));
-// The shelf's speaker and the phone's file picker are native; this test never presses either.
+// The shelf's speaker and the phone's file picker are native. The speaker is never pressed here; the
+// picker answers what a test sets (a cancelled pick by default), and the upload of the chosen file
+// to storage answers with the key it was given, or fails.
+const phone = vi.hoisted(() => ({
+  pick: { canceled: true } as { canceled: boolean; assets?: { uri: string; name: string }[] },
+  send: async (_file: { uri: string; name: string }): Promise<string> => 'music/own',
+}));
 vi.mock('@/lib/music', () => ({
   useTrackPreview: () => ({ playing: null, toggle: async () => {} }),
-  sendOwnTrack: async () => 'music/own',
+  sendOwnTrack: (_token: string, _memory: string, file: { uri: string; name: string }) =>
+    phone.send(file),
 }));
-vi.mock('expo-document-picker', () => ({ getDocumentAsync: async () => ({ canceled: true }) }));
+vi.mock('expo-document-picker', () => ({ getDocumentAsync: async () => phone.pick }));
 // A text input listens on the browser's `document`, which a test renderer has none of: both inputs
 // stand in as a bare element carrying their props, and a test types by calling `onChangeText`.
 //
@@ -111,10 +118,11 @@ vi.mock('@/kit', async (original) => {
 });
 
 import { expectReachable } from '@tests/helpers/access';
+import { later } from '@tests/helpers/api';
 import { orderRefusal } from '@tests/helpers/contract';
 import { act, BEAT_BY_BEAT, drives } from '@tests/helpers/drive';
 import { frame } from '@tests/helpers/labels';
-import { mountsTrees } from '@tests/helpers/renderer';
+import { mountsTrees, themesShown } from '@tests/helpers/renderer';
 import { Fragment, type ReactElement, useSyncExternalStore } from 'react';
 import TestRenderer, { act as reactAct } from 'react-test-renderer';
 import type {
@@ -145,6 +153,7 @@ import {
 import { currentLanguage, setLanguage } from '@/lib/language';
 import { ENTER_MS, OrderProvider, READ_MS, useOrder, type Wizard } from '@/screens/order/wizard';
 import { ru, strings } from '@/strings';
+import { setTheme } from '@/theme';
 
 /**
  * Ordering a movie the way the organizer does, start to finish (doc-03, m-26): the real wizard —
@@ -361,6 +370,8 @@ beforeEach(async () => {
   vi.useFakeTimers();
   calm.on = false;
   nav.reset();
+  phone.pick = { canceled: true };
+  phone.send = async () => 'music/own';
   await setLanguage('ru');
 });
 afterEach(() => {
@@ -770,6 +781,102 @@ test('a wish is written to one of several tracks, stands under its name, and can
   expect(server.orders).toHaveLength(1);
   expect(server.orders[0]?.music_tracks).toEqual(['calm', 'warm']);
   expect(server.orders[0]).not.toHaveProperty('music_wishes');
+});
+
+test('the music step in daylight, a wish standing under one track and a field open under another, wears only the day', async () => {
+  const musicStep = async () => {
+    serve();
+    await open();
+    await press(ru.montage.ownSetup);
+    await forward();
+    await forward();
+    await press(ru.montage.addTrack(ru.montage.track.warm));
+    await press(ru.montage.addTrack(ru.montage.track.calm));
+    await wishTo(ru.montage.track.warm, 'Тихо, на сборы');
+    await press(ru.montage.wishAbout(ru.montage.track.calm));
+    return themesShown(root().findAllByType(MusicStep).at(-1)!);
+  };
+  // The night is what the harness starts in, and the detector sees it on this very step.
+  expect((await musicStep()).night.length).toBeGreaterThan(0);
+  await act(async () => tree?.unmount());
+  nav.reset();
+  await setTheme('light');
+  try {
+    const shown = await musicStep();
+    expect(shown.night).toEqual([]);
+    expect(shown.day.length).toBeGreaterThan(0);
+  } finally {
+    await setTheme('dark');
+  }
+});
+
+test('a track from the phone waits for its upload, joins the list under its file name, takes a wish and goes out under its own key', async () => {
+  const server = serve();
+  await open();
+  await press(ru.montage.ownSetup);
+  await forward();
+  await forward();
+
+  const next = () => buttons(ru.montage.next).at(-1)!;
+  const upload = later<string>();
+  phone.pick = { canceled: false, assets: [{ uri: 'file:///a.mp3', name: 'Первый танец.mp3' }] };
+  phone.send = () => upload.promise;
+  await press(ru.montage.ownTrackShort);
+  // While the file goes up the wizard cannot move on, nor take a second file, and nothing is on the list.
+  expect(next().props.busy).toBe(true);
+  expect(buttons(ru.montage.ownTrackShort).at(-1)!.props.disabled).toBe(true);
+  expect(wizard.order.tracks).toEqual([]);
+  await act(async () => upload.settle('music/aaa'));
+  expect(next().props.busy).toBe(false);
+  expect(chosen('Первый танец.mp3')).toBeDefined();
+
+  // A second file, and a shelf track between them.
+  await press(ru.montage.addTrack(ru.montage.track.warm));
+  phone.pick = { canceled: false, assets: [{ uri: 'file:///b.mp3', name: 'Финал.mp3' }] };
+  phone.send = async () => 'music/bbb';
+  await press(ru.montage.ownTrackShort);
+  expect(wizard.order.tracks.map((one) => one.key)).toEqual(['music/aaa', 'warm', 'music/bbb']);
+  // The pencil of a file's row is named by the file, and the wish goes under the key R2 answered with.
+  await wishTo('Первый танец.mp3', 'Тихо, на сборы');
+  expect(chosen('Первый танец.mp3').props.wish).toBe('Тихо, на сборы');
+  expect(chosen('Финал.mp3').props.wish).toBeUndefined();
+
+  await forward();
+  await forward();
+  await run(0);
+  await press(ru.montage.startCut);
+  expect(server.orders[0]).toMatchObject({
+    music_tracks: ['music/aaa', 'warm', 'music/bbb'],
+    music_wishes: { 'music/aaa': 'Тихо, на сборы' },
+  });
+});
+
+test('a cancelled pick changes nothing, and a file that cannot be sent says so and leaves the list as it was', async () => {
+  serve();
+  await open();
+  await press(ru.montage.ownSetup);
+  await forward();
+  await forward();
+
+  await press(ru.montage.ownTrackShort);
+  expect(wizard.order.tracks).toEqual([]);
+  expect(banner()).toBeUndefined();
+
+  phone.pick = { canceled: false, assets: [{ uri: 'file:///a.mp3', name: 'Первый танец.mp3' }] };
+  phone.send = async () => {
+    throw new TypeError('Network request failed');
+  };
+  await press(ru.montage.ownTrackShort);
+  expect(wizard.order.tracks).toEqual([]);
+  expect(banner()).toBe(ru.error.offline);
+  expect(buttons(ru.montage.next).at(-1)!.props.busy).toBe(false);
+  expect(buttons(ru.montage.ownTrackShort).at(-1)!.props.disabled).toBe(false);
+
+  // Tried again and sent: the notice is gone with the next try.
+  phone.send = async () => 'music/aaa';
+  await press(ru.montage.ownTrackShort);
+  expect(banner()).toBeUndefined();
+  expect(chosen('Первый танец.mp3')).toBeDefined();
 });
 
 test.each(['ru', 'en'] as const)(
