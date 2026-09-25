@@ -170,8 +170,9 @@ test.each(SCREENS.filter(([, , label]) => WITH_BACK.includes(label)))(
       ).toMatchObject({
         paddingTop: top,
       });
-      // … and «Назад» is the first thing in what stands under it: pinned to the body's own top, 10 out
-      // of the screen's 16, and not to the window's.
+      // … and «Назад» is the first thing in what stands under it: pinned to the body's own top, not to
+      // the window's, and 10 off the edge — where the layout floats it on both screens (the measured
+      // `LoginEmail` and `LoginCode`, «Назад» at x 10 right under the status line, TASK-378).
       const back = it.root
         .findAllByType(IconButton)
         .find((one) => one.props.label === ru.action.back) as ReactTestInstance;
@@ -181,7 +182,7 @@ test.each(SCREENS.filter(([, , label]) => WITH_BACK.includes(label)))(
         holder = holder.parent as ReactTestInstance;
       expect(StyleSheet.flatten(holder.props.style) as ViewStyle).toMatchObject({
         position: 'absolute',
-        left: 6,
+        left: 10,
         top: 0,
       });
     }

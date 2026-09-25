@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
   // The kit's side inset, held by the belt rather than by the board around it — held once around
   // everything, the footer's gradient would stop short of either edge.
   room: { flexGrow: 1, justifyContent: 'flex-end', paddingHorizontal: space.s4 },
-  // Spec 8: three buttons of one size, stacked. The bottom layer lays its children in a row, so
-  // the column is this one child of it.
-  doors: { flex: 1, gap: space.s2 },
+  // Spec 8: three buttons of one size, stacked 10 apart. The bottom layer lays its children in a
+  // row, so the column is this one child of it.
+  doors: { flex: 1, gap: 10 },
 });

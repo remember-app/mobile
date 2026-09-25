@@ -58,6 +58,16 @@ export function glyph(file: Buffer, code: number): number {
   return 0;
 }
 
+/**
+ * How tall the face's own line is at `size` — its ascender to its descender, which is what a browser
+ * gives `line-height: normal` and what iOS keeps whole only when a line is at least that tall.
+ */
+export function naturalLine(file: Buffer, size: number): number {
+  const unitsPerEm = file.readUInt16BE(table(file, 'head') + 18);
+  const hhea = table(file, 'hhea');
+  return ((file.readInt16BE(hhea + 4) - file.readInt16BE(hhea + 6)) * size) / unitsPerEm;
+}
+
 /** How wide a line of words is set at `size`, advance by advance — no kerning, as the spec measures. */
 export function wordWidth(file: Buffer, words: string, size: number): number {
   const unitsPerEm = file.readUInt16BE(table(file, 'head') + 18);

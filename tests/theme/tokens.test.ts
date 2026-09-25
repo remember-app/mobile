@@ -1,5 +1,5 @@
 import { contrast, luminance } from '@tests/helpers/contrast';
-import { fontFile, glyph } from '@tests/helpers/font';
+import { fontFile, glyph, naturalLine } from '@tests/helpers/font';
 import { expect, test } from 'vitest';
 
 import {
@@ -44,6 +44,8 @@ const PAIRS = [
   // A chosen choice card is `accentSoft` with both its floors of words on it — spec 7.3, detail 21.
   ['the name on a chosen card', 'paper', 'accentSoft'],
   ['the line under it', 'muted', 'accentSoft'],
+  // The lit promise of `Consent` — spec 8.
+  ['the lit line in a card', 'paper', 'raiseSoft'],
 ] as const;
 
 test.each(['dark', 'light'] as const)('every pair of %s reads at the floor or above', (name) => {
@@ -226,6 +228,29 @@ test.each(Object.entries(FACES))('%s draws Cyrillic', (_name, path) => {
   for (const letter of ['А', 'я', 'ё', 'Ё']) {
     expect(glyph(file, letter.codePointAt(0)!), letter).not.toBe(0);
   }
+});
+
+test('the lit row of a card is the layout’s own #1A1A24 at night, a step short of raise', () => {
+  // Spec 8, `Consent`: «выделено фоном `#1A1A24`» — no other token of the night has it, and `raise`
+  // (#22222E) was a shade too loud for the one line the screen is about.
+  expect(themes.dark.color.raiseSoft).toBe('#1A1A24');
+  const { color } = themes.dark;
+  expect(luminance(color.raiseSoft)).toBeGreaterThan(luminance(color.surface));
+  expect(luminance(color.raiseSoft)).toBeLessThan(luminance(color.raise));
+});
+
+test('the small lines are the ones the layout sets, at the line the face gives them', () => {
+  // Every eyebrow the layout draws — 37 of them over the 57 boards measured in TASK-378 — is 12 on
+  // a line of 16: `line-height: normal`, Onest's own line at 12 rounded up. The same holds for the
+  // line under «Принимаю» on `Consent`, 12 plain.
+  const bold = naturalLine(fontFile(FACES.Onest_700Bold), 12);
+  const plain = naturalLine(fontFile(FACES.Onest_400Regular), 12);
+  expect(type.eyebrow).toMatchObject({ fontSize: 12, lineHeight: Math.ceil(bold) });
+  expect(type.noteSm).toMatchObject({ fontSize: 12, lineHeight: Math.ceil(plain) });
+  expect(type.eyebrow.lineHeight).toBe(16);
+  expect(type.noteSm.fontFamily).toBe(font.regular);
+  // The three promises of `Consent` are 14 / 20 plain (`Consent.json`, e9 and e18).
+  expect(type.bodyXs).toMatchObject({ fontFamily: font.regular, fontSize: 14, lineHeight: 20 });
 });
 
 test('every role in the scale is drawn in a face the app actually loads', () => {

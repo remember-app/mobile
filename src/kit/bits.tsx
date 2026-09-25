@@ -290,8 +290,11 @@ export function VideoTrack({
 
 /**
  * The stack of frames over the onboarding screens (spec 7.9): three photographs at −9°, +8° and
- * −1.5°, the middle one larger and above the other two. `small` is the squeezed version on
- * `Consent`, where a block of three promises has to fit underneath.
+ * −1.5°, the middle one larger, on top of the other two and hanging lower than them. `small` is the
+ * squeezed version on `Consent`, where a block of three promises has to fit underneath.
+ *
+ * It runs the width of the board: the side frames hang off its two edges, as the layout hangs them,
+ * so a narrower phone overlaps them more instead of pushing them off the screen.
  */
 export function PhotoStack({
   photos,
@@ -307,8 +310,9 @@ export function PhotoStack({
   style?: StyleProp<ViewStyle>;
 }) {
   const styles = useStyles();
-  const side = small ? styles.stackSideSm : styles.stackSide;
-  const mid = small ? styles.stackMidSm : styles.stackMid;
+  const place = small
+    ? [styles.stackLeftSm, styles.stackCentreSm, styles.stackRightSm]
+    : [styles.stackLeft, styles.stackCentre, styles.stackRight];
 
   return (
     <View
@@ -319,16 +323,7 @@ export function PhotoStack({
       {/* Keyed by place and not by what is in it: the three stand in fixed positions, and a picture
           that ships with the app is a number the bundler chose. */}
       {photos.slice(0, 3).map((shot, i) => (
-        <Image
-          key={i}
-          source={shot}
-          contentFit="cover"
-          style={[
-            styles.stackShot,
-            i === 1 ? mid : side,
-            i === 0 ? styles.stackLeft : i === 1 ? styles.stackCentre : styles.stackRight,
-          ]}
-        />
+        <Image key={i} source={shot} contentFit="cover" style={[styles.stackShot, place[i]]} />
       ))}
     </View>
   );
@@ -375,16 +370,67 @@ const useStyles = themed(({ color }) =>
     // Spec 7.10: what has played in the night's `paper`, the whole length a voice lower.
     elapsed: { color: night.paper },
     runs: { color: photo.viewerMeta },
-    stack: { width: 300, height: 220, alignItems: 'center', justifyContent: 'center' },
-    stackSmall: { width: 250, height: 180, alignItems: 'center', justifyContent: 'center' },
-    stackShot: { position: 'absolute', borderRadius: radius.field },
-    stackSide: { width: 144, height: 178 },
-    stackMid: { width: 168, height: 196, zIndex: 1 },
-    stackSideSm: { width: 120, height: 148 },
-    stackMidSm: { width: 140, height: 162, zIndex: 1 },
-    stackLeft: { left: 0, transform: [{ rotate: '-9deg' }] },
-    stackCentre: { transform: [{ rotate: '-1.5deg' }] },
-    stackRight: { right: 0, transform: [{ rotate: '8deg' }] },
+    // Spec 8 — `Login`'s 236 and `Consent`'s 196, and each frame where the layout puts it before it
+    // is turned: the side ones hung off their own edge of the board, the middle one centred with its
+    // foot on the stack's foot. Past the layout's 390 the stack stays that wide rather than pulling
+    // its frames apart; what reaches over its box is cut, as the layout cuts it.
+    stack: { width: '100%', maxWidth: 390, height: 236, alignItems: 'center', overflow: 'hidden' },
+    stackSmall: {
+      width: '100%',
+      maxWidth: 390,
+      height: 196,
+      alignItems: 'center',
+      overflow: 'hidden',
+    },
+    stackShot: { position: 'absolute' },
+    stackLeft: {
+      left: 24,
+      top: 30,
+      width: 144,
+      height: 178,
+      borderRadius: radius.field,
+      transform: [{ rotate: '-9deg' }],
+    },
+    stackCentre: {
+      top: 40,
+      width: 168,
+      height: 196,
+      borderRadius: radius.section,
+      zIndex: 1,
+      transform: [{ rotate: '-1.5deg' }],
+    },
+    stackRight: {
+      right: 24,
+      top: 22,
+      width: 144,
+      height: 178,
+      borderRadius: radius.field,
+      transform: [{ rotate: '8deg' }],
+    },
+    stackLeftSm: {
+      left: 34,
+      top: 26,
+      width: 120,
+      height: 148,
+      borderRadius: radius.cell,
+      transform: [{ rotate: '-9deg' }],
+    },
+    stackCentreSm: {
+      top: 34,
+      width: 140,
+      height: 162,
+      borderRadius: radius.field,
+      zIndex: 1,
+      transform: [{ rotate: '-1.5deg' }],
+    },
+    stackRightSm: {
+      right: 34,
+      top: 20,
+      width: 120,
+      height: 148,
+      borderRadius: radius.cell,
+      transform: [{ rotate: '8deg' }],
+    },
   }),
 );
 

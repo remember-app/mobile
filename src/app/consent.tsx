@@ -10,7 +10,6 @@ import {
   Board,
   Button,
   Divider,
-  Hint,
   ICO_S,
   ICO_XS,
   Icon,
@@ -67,7 +66,7 @@ export default function ConsentScreen() {
                   deleting a memory in this product, so what ends the storing is a frame deleted or
                   the person leaving. */}
               <Line icon={ImageIcon}>
-                <Text role="note" style={styles.grow}>
+                <Text role="bodyXs" tone="muted" style={styles.grow}>
                   {s.consent.storage}
                 </Text>
               </Line>
@@ -76,9 +75,9 @@ export default function ConsentScreen() {
                   the network does with a person's frames is named here and not buried in the sheet
                   below. */}
               <Line lit icon={Smile}>
-                <Text role="note" tone="paper" style={styles.grow}>
+                <Text role="bodyXs" style={[styles.grow, styles.medium]}>
                   {s.consent.recognisesBefore}
-                  <Text role="note" tone="paper" style={styles.strong}>
+                  <Text role="bodyXs" style={styles.strong}>
                     {s.consent.recognises}
                   </Text>
                   {s.consent.recognisesAfter}
@@ -86,7 +85,7 @@ export default function ConsentScreen() {
               </Line>
               <Divider />
               <Line icon={Shield}>
-                <Text role="note" style={styles.grow}>
+                <Text role="bodyXs" tone="muted" style={styles.grow}>
                   {s.consent.training}
                 </Text>
               </Line>
@@ -95,7 +94,7 @@ export default function ConsentScreen() {
             {/* The text itself is one press away and never in the way: three lines are what a
                 person actually reads, and the whole of it is what they agree to. */}
             <Button
-              variant="quiet"
+              variant="link"
               label={s.consent.readFull}
               onPress={() => setOpen(true)}
               style={styles.centre}
@@ -110,9 +109,9 @@ export default function ConsentScreen() {
               busy={busy}
             />
 
-            <Hint tone="faint" style={styles.note}>
+            <Text role="noteSm" tone="faint" style={styles.note}>
               {s.consent.required}
-            </Hint>
+            </Text>
           </View>
         </ActionBar>
       }
@@ -180,7 +179,8 @@ function Line({
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
     room: { flexGrow: 1, justifyContent: 'flex-end', paddingHorizontal: space.s4 },
-    column: { flex: 1, gap: space.s3 },
+    // Spec 8, `Consent`: the card, the link, «Принимаю» and the line under it stand 14 apart.
+    column: { flex: 1, gap: 14 },
     card: {
       borderRadius: radius.section,
       borderWidth: 1,
@@ -189,9 +189,7 @@ const useStyles = themed(({ color }) =>
       overflow: 'hidden',
     },
     line: { flexDirection: 'row', alignItems: 'flex-start', gap: space.s3, padding: space.s4 },
-    // The layout paints this row #1A1A24, which is no token — `raise` is the role it is reaching
-    // for («приподнятое над карточкой»), and it is the one that also holds in the day theme.
-    lit: { backgroundColor: color.raise },
+    lit: { backgroundColor: color.raiseSoft },
     // The glyph sits on the first line of the words rather than in the middle of the block.
     glyph: { paddingTop: 1 },
     spark: {
@@ -203,7 +201,9 @@ const useStyles = themed(({ color }) =>
       justifyContent: 'center',
     },
     // Only the face: nested text keeps the size and the leading of the line it stands in, so the
-    // weight lands on the words without breaking the paragraph around them.
+    // weight lands on the words without breaking the paragraph around them. The lit line is a weight
+    // up from the other two, and what it names a weight up again.
+    medium: { fontFamily: font.medium },
     strong: { fontFamily: font.bold },
     grow: { flex: 1, minWidth: 0 },
     centre: { alignSelf: 'center' },

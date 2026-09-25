@@ -39,6 +39,24 @@ test('the head is one element, and the four screens that share it hold it in one
   expect(head).not.toContain("justifyContent: 'center'");
 });
 
+test('the head stands where the layout measured it, and the squeezed one where Consent has it', () => {
+  // TASK-378, `Login.json`: the stack's box 68–304 under a status line of 52 (16 under it, 236
+  // tall), «Remember» at 330 — 26 under the stack — and the promise at 388, 14 under the name's 44.
+  expect(flat(head)).toContain("head: { alignItems: 'center', paddingTop: space.s4, gap: 26 }");
+  expect(flat(head)).toContain(
+    "words: { alignItems: 'center', gap: 14, paddingHorizontal: space.s6 }",
+  );
+  // `Consent.json`: the squeezed box starts at 40, 12 above the status line, and is 196 tall; the
+  // name follows at 254 — 18 under it — and the lead 12 under the name.
+  expect(flat(head)).toContain('headSmall: { paddingTop: 0, marginTop: -12, gap: 18 }');
+  expect(flat(head)).toContain('wordsSmall: { gap: space.s3 }');
+});
+
+test('the three doors stand 10 apart, as the layout stacks them', () => {
+  // `Login.json`: «Продолжить с Google» 688–744, «Продолжить по почте» from 754.
+  expect(login).toContain('doors: { flex: 1, gap: 10 }');
+});
+
 test('a way in this build cannot walk is not drawn at all', () => {
   // Both providers stand under their own signals — which ones, `tests/screens/login-flow.test.tsx`
   // walks. Drawn switched off, they are three buttons where only one works and the person finds out
@@ -117,6 +135,12 @@ test('another code is asked for from the same screen, not by walking back for it
   expect(code).toContain('label={s.login.again}');
   // Quiet: another code is a repair, never the thing the screen is for.
   expect(code).toContain('variant="quiet"');
+  // And drawn as the layout draws it (`LoginCode.json` e16–e17): 13 / 600 in paper beside the muted
+  // address, its words ending on the column's edge (x 374), the address stepping 4 in (x 20).
+  expect(code).toContain('labelRole="label"');
+  expect(code).toContain('labelTone="paper"');
+  expect(code).toContain('again: { paddingHorizontal: 14, marginRight: -15 }');
+  expect(flat(code)).toContain('gap: space.s3, paddingLeft: space.s1,');
   // And it waits under its own flag: the main button spinning under «Входим…» while a letter is
   // being posted would say something that is not happening.
   expect(code).toContain('busy={sending}');
@@ -176,10 +200,38 @@ test('the line about the neural network is the lit one, and it is lit with token
   expect(consent).toContain('style={styles.strong}');
   expect(consent).toContain('{s.consent.recognises}');
   expect(ru.consent.recognises).toMatch(/лица людей и животных/);
-  // The layout paints that row #1A1A24, which is no token: a raw hex here would be a colour the day
-  // theme has never heard of.
+  // The layout paints that row #1A1A24 (spec 8) — the night's `raiseSoft`, and never a raw hex a
+  // day theme has never heard of.
   expect(consent).not.toMatch(/'#[0-9A-Fa-f]{6}'/);
-  expect(consent).toContain('backgroundColor: color.raise');
+  expect(consent).toContain('lit: { backgroundColor: color.raiseSoft }');
+});
+
+test('the agreement reads at the layout’s sizes: 14 / 20 promises, a link, a 12 line under it all', () => {
+  // `Consent.json`: the three promises 14 / 20 (e9, e14, e18), the lit one a weight up; «Полный
+  // текст соглашения» a link 13 / 600 in accentText (e19); «Без согласия зарегистрироваться
+  // нельзя.» 12 in faint (e21); and the card, the link, «Принимаю» and that line 14 apart.
+  expect(consent.match(/<Text role="bodyXs"/g)).toHaveLength(4);
+  expect(consent).not.toContain('role="note"');
+  expect(consent).toContain('style={[styles.grow, styles.medium]}');
+  expect(flat(consent)).toContain('<Button variant="link" label={s.consent.readFull}');
+  expect(consent).not.toContain('variant="quiet"');
+  expect(consent).toContain('<Text role="noteSm" tone="faint" style={styles.note}>');
+  expect(consent).toContain('column: { flex: 1, gap: 14 }');
+});
+
+test('the six digits are asked for whole, though the layout draws the button lit at four', () => {
+  // `LoginCode.json` e18 shows «Подтвердить» in accent with four cells filled. Kept off until the
+  // sixth on purpose: the api answers any shorter code with the 401 that empties the cells.
+  expect(code).toContain('disabled={code.length < 6 || email ===');
+});
+
+test('a free name is answered and told what it is for, and the column is the way in’s 12', () => {
+  // `Username.json`: «Ник свободен.» and then «По нему вас найдут в воспоминании.» on one line
+  // (e14, e15), the label, the box, that line and «Продолжить» each 12 apart.
+  expect(form).toContain("hintAfter={state === 'ok' ? s.username.lead : undefined}");
+  expect(form).toContain("form: { alignSelf: 'stretch', gap: space.s3 }");
+  expect(ru.username.lead).toBe('По нему вас найдут в воспоминании.');
+  expect(en.username.lead).toMatch(/find you in a memory/);
 });
 
 test('the short line about storage says what actually ends it, not what the layout drew', () => {

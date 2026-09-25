@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 
-import { height, night, radius, space, type Theme, themed, type, useTheme } from '@/theme';
+import { font, height, night, radius, space, type Theme, themed, type, useTheme } from '@/theme';
 
 import { Icon, type IconComponent } from './icon';
 import { useFieldInBar } from './interaction';
@@ -53,6 +53,17 @@ const BOX: Record<FieldVariant, { minHeight: number; borderRadius: number }> = {
   labelName: { minHeight: height.field, borderRadius: radius.cell },
   wish: { minHeight: height.small, borderRadius: radius.strip },
 };
+
+/**
+ * The two 60s stand on the way in, in its column of 12 (spec 8, `LoginEmail`, `Username`): the label
+ * and the line under the box step 4 in from its edge, and what is typed starts 18 inside it, the `@`
+ * 4 before the name. The code's six cells stand in the same column. Every other field keeps the
+ * form's own 8 and its edge.
+ */
+const WAY_IN = new Set<FieldVariant>(['email', 'username']);
+
+/** The layout sets the two phrases of a hint 8 apart; an en space is 6.5 of that at 13. */
+const APART = String.fromCharCode(0x2002);
 
 const FACE: Record<FieldVariant, TextStyle> = {
   name: type.subtitleDisplay,
@@ -98,6 +109,7 @@ export function Field({
   labelHidden,
   variant = 'email',
   hint,
+  hintAfter,
   state,
   prefix,
   icon,
@@ -118,6 +130,11 @@ export function Field({
   variant?: FieldVariant;
   /** Under the field: what to do, or — in `error` — what went wrong and what to do instead. */
   hint?: string;
+  /**
+   * A second phrase after the hint, in `muted` and plain: what the answer is for — «По нему вас
+   * найдут в воспоминании.» after «Ник свободен.» (spec 8, `Username`).
+   */
+  hintAfter?: string;
   state?: FieldState;
   /** The `@` the layout puts in front of every username. */
   prefix?: string;
@@ -140,16 +157,22 @@ export function Field({
   const theme = useTheme();
   const styles = useStyles();
   const disabled = input.editable === false;
+  const wayIn = WAY_IN.has(variant);
   useFieldInBar();
 
   return (
-    <View style={styles.field}>
-      {labelHidden ? null : <Text role="eyebrow">{label.toUpperCase()}</Text>}
+    <View style={[styles.field, wayIn ? styles.fieldWayIn : null]}>
+      {labelHidden ? null : (
+        <Text role="eyebrow" tone="muted" style={wayIn ? styles.inset : null}>
+          {label.toUpperCase()}
+        </Text>
+      )}
       <View
         style={[
           styles.box,
           BOX[variant],
           variant === 'wish' ? styles.boxTight : null,
+          wayIn ? styles.boxWayIn : null,
           {
             borderColor: borderColor(theme, variant, state, focused),
             backgroundColor: disabled
@@ -177,14 +200,17 @@ export function Field({
             color={variant === 'wish' ? theme.color.faint : theme.color.muted}
           />
         ) : null}
+        {/* The `@` is decoration in front of a name, and reads `faint` (spec 8, `Username`,
+            `SheetInvite`) — except in the search, where it is the one hint of what to type there
+            (`Contacts`). */}
         {prefix ? (
-          <Text tone="muted" style={FACE[variant]}>
+          <Text tone={variant === 'search' ? 'muted' : 'faint'} style={FACE[variant]}>
             {prefix}
           </Text>
         ) : null}
         <TextInput
           accessibilityLabel={label}
-          accessibilityHint={hint}
+          accessibilityHint={hintAfter ? `${hint} ${hintAfter}` : hint}
           placeholderTextColor={theme.color.faint}
           maxFontSizeMultiplier={TYPE_MOST}
           {...input}
@@ -211,7 +237,19 @@ export function Field({
         ) : null}
       </View>
       {hint ? (
-        <Hint tone={state === 'error' ? 'danger' : state === 'ok' ? 'spark' : 'muted'}>{hint}</Hint>
+        <Hint
+          tone={state === 'error' ? 'danger' : state === 'ok' ? 'spark' : 'muted'}
+          style={[wayIn ? styles.inset : null, state === 'ok' ? styles.answer : null]}
+        >
+          {hint}
+          {/* One line of words and not a row of two, so it breaks between them like any sentence
+              on a narrow phone or large type. */}
+          {hintAfter ? (
+            <Text role="note" tone="muted" style={styles.after}>
+              {APART + hintAfter}
+            </Text>
+          ) : null}
+        </Hint>
       ) : null}
     </View>
   );
@@ -248,8 +286,10 @@ export function CodeField({
   useFieldInBar();
 
   return (
-    <View style={styles.field}>
-      <Text role="eyebrow">{label.toUpperCase()}</Text>
+    <View style={[styles.field, styles.fieldWayIn]}>
+      <Text role="eyebrow" tone="muted" style={styles.inset}>
+        {label.toUpperCase()}
+      </Text>
       <View style={styles.code}>
         {Array.from({ length }, (_, i) => (
           <View
@@ -287,7 +327,11 @@ export function CodeField({
           style={[StyleSheet.absoluteFill, styles.codeInput]}
         />
       </View>
-      {hint ? <Hint tone={state === 'error' ? 'danger' : 'muted'}>{hint}</Hint> : null}
+      {hint ? (
+        <Hint tone={state === 'error' ? 'danger' : 'muted'} style={styles.inset}>
+          {hint}
+        </Hint>
+      ) : null}
     </View>
   );
 }
@@ -325,7 +369,11 @@ export function TextArea({
 
   return (
     <View style={styles.field}>
-      {labelHidden ? null : <Text role="eyebrow">{label.toUpperCase()}</Text>}
+      {labelHidden ? null : (
+        <Text role="eyebrow" tone="muted">
+          {label.toUpperCase()}
+        </Text>
+      )}
       <TextInput
         accessibilityLabel={label}
         accessibilityHint={hint}
@@ -374,6 +422,12 @@ function borderColor(
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
     field: { alignSelf: 'stretch', gap: space.s2 },
+    fieldWayIn: { gap: space.s3 },
+    inset: { paddingLeft: space.s1 },
+    // Spec 8, `Username`: the answer the server gave is the loud half of the line, what it is for
+    // the quiet one.
+    answer: { fontFamily: font.semi },
+    after: { fontFamily: font.regular },
     box: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -383,6 +437,7 @@ const useStyles = themed(({ color }) =>
     },
     // The wish line stands inside a block that already has its own 16 of air around it.
     boxTight: { paddingHorizontal: space.s3, gap: space.s2 },
+    boxWayIn: { paddingHorizontal: 18, gap: space.s1 },
     // Spec 2.5 — the focus ring, on the box rather than on the input, so it rings the whole field.
     boxFocus: {
       outlineWidth: 2,
@@ -417,7 +472,14 @@ const useStyles = themed(({ color }) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    cellDigit: { fontFamily: type.title.fontFamily, fontSize: 22, color: color.paper },
+    // A line of its own, no shorter than the face's own at 22 (27.3). Left to the body's 23, iOS cuts
+    // the line from the top and the digits sit 3 above the middle of the cell (`LoginCode`).
+    cellDigit: {
+      fontFamily: type.title.fontFamily,
+      fontSize: 22,
+      lineHeight: 28,
+      color: color.paper,
+    },
     // The real input lies over the six boxes, so the caret and the phone's own autofill have
     // somewhere to land. Its words are see-through and not the input itself: iOS neither lets a
     // finger reach a view at opacity 0 nor shows it to a screen reader, and a tap on the cells is

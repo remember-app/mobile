@@ -1,6 +1,6 @@
 import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
-import { height, photo, radius, space, type Theme, themed, useTheme } from '@/theme';
+import { height, photo, radius, space, type Theme, themed, type, useTheme } from '@/theme';
 
 import { Spinner } from './empty';
 import { ICO_S, ICO_XS, Icon, type IconComponent } from './icon';
@@ -8,9 +8,12 @@ import { hitSlop, PRESS, useFocusRing, useHoverFocus, useReducedMotion } from '.
 import { Text, type TypeRole } from './text';
 
 /**
- * Spec 7.2 — the buttons. Eight of them wear words and one is round and wears a glyph, and which is
+ * Spec 7.2 — the buttons. Nine of them wear words and one is round and wears a glyph, and which is
  * which is a matter of weight, never of taste: exactly one `primary` per screen, because `accent`
  * is the one main action and nothing else.
+ *
+ * `link` is the quietest of the nine: words alone, in `accentText` and underlined, as tall as their
+ * line — «Полный текст соглашения» (spec 8, `Consent`). The finger's 44 grows round it.
  */
 export type ButtonVariant =
   | 'primary'
@@ -19,11 +22,15 @@ export type ButtonVariant =
   | 'small'
   | 'raise'
   | 'quiet'
+  | 'link'
   | 'danger'
   | 'dashed';
 
-/** The heights of spec 4, by the place a button stands in rather than by the number. */
-export type ButtonSize = 'xl' | 'lg' | 'md' | 'sm' | 'xs' | 'mini' | 'xxs';
+/**
+ * The heights of spec 4, by the place a button stands in rather than by the number — and `line`,
+ * the link's, which is the height of its words.
+ */
+export type ButtonSize = 'xl' | 'lg' | 'md' | 'sm' | 'xs' | 'mini' | 'xxs' | 'line';
 
 const SIZES: Record<ButtonSize, number> = {
   // Spec 7.2 gives the dangerous button two heights, and the taller one has exactly one place in the
@@ -37,6 +44,7 @@ const SIZES: Record<ButtonSize, number> = {
   mini: height.roundRow,
   // The smallest thing in the product that is still a button with words in it: «Свой трек».
   xxs: height.roundTiny,
+  line: type.label.lineHeight as number,
 };
 
 /** What each variant stands at unless a caller says otherwise. */
@@ -47,12 +55,13 @@ const DEFAULT_SIZE: Record<ButtonVariant, ButtonSize> = {
   small: 'sm',
   raise: 'mini',
   quiet: 'sm',
+  link: 'line',
   danger: 'lg',
   // «Новый лейбл», the taller of the two dashed ones.
   dashed: 'md',
 };
 
-/** The loud ones run the width they are given; the two quiet ones are as wide as their words. */
+/** The loud ones run the width they are given; the quiet ones are as wide as their words. */
 export const DEFAULT_WIDE: Record<ButtonVariant, boolean> = {
   primary: true,
   paper: true,
@@ -60,6 +69,7 @@ export const DEFAULT_WIDE: Record<ButtonVariant, boolean> = {
   small: false,
   raise: false,
   quiet: false,
+  link: false,
   danger: true,
   dashed: true,
 };
@@ -87,6 +97,12 @@ export type ButtonProps = {
    * rather than 16 (spec 7.1, detail 3). Left off, the variant decides.
    */
   labelRole?: TypeRole;
+  /**
+   * The words' own colour, only where the layout names one for the place: «Ещё раз» under the code
+   * is a quiet button in `paper`, because it stands beside a `muted` line and has to be read out of
+   * it (spec 8, `LoginCode`). Left off, the variant decides; unavailable is `faint` either way.
+   */
+  labelTone?: 'paper';
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
 };
@@ -102,6 +118,7 @@ export function Button({
   icon,
   trailingIcon,
   labelRole,
+  labelTone,
   onPress,
   style,
 }: ButtonProps) {
@@ -112,7 +129,8 @@ export function Button({
   // Spec 2.5: a ring in `paper` on the one button that is itself filled with `accent`.
   const focusRing = useFocusRing(variant === 'primary' && !disabled);
   const off = !!disabled;
-  const tint = contentColor(theme, variant, off);
+  const link = variant === 'link';
+  const tint = labelTone && !off ? theme.color[labelTone] : contentColor(theme, variant, off);
   const sized = size ?? DEFAULT_SIZE[variant];
   const tall = SIZES[sized];
   // The 36s — «Сбросить» on `raise`, «Смонтировать» on paper — are smaller all through (spec 7.2,
@@ -123,7 +141,7 @@ export function Button({
 
   return (
     <Pressable
-      accessibilityRole="button"
+      accessibilityRole={link ? 'link' : 'button'}
       accessibilityLabel={words}
       // `busy` counts as disabled here as well as below: React Native only speaks `busy` on
       // Android, so on iOS the button would otherwise read as live while it swallows every tap.
@@ -141,6 +159,7 @@ export function Button({
         // in the row it stands in.
         variant === 'dashed' && tall >= height.sheetButton ? styles.boxed : null,
         variant === 'quiet' || variant === 'small' ? styles.tight : null,
+        link ? styles.bare : null,
         compact ? styles.snug : null,
         (wide ?? DEFAULT_WIDE[variant]) ? styles.wide : null,
         pressed && !reduced ? PRESS : null,
@@ -151,9 +170,9 @@ export function Button({
       {busy ? <Spinner size={18} track={tint} head="transparent" /> : null}
       {icon && !busy ? <Icon icon={icon} {...glyph} color={tint} /> : null}
       <Text
-        role={labelRole ?? (variant === 'small' || compact ? 'label' : 'control')}
+        role={labelRole ?? (variant === 'small' || compact || link ? 'label' : 'control')}
         // Spec 7.2: a label too long for one line grows the button down and is centred in it.
-        style={{ color: tint, textAlign: 'center' }}
+        style={[{ color: tint, textAlign: 'center' }, link ? styles.underline : null]}
       >
         {words}
       </Text>
@@ -173,6 +192,8 @@ function contentColor({ color }: Theme, variant: ButtonVariant, disabled: boolea
       return color.ink;
     case 'quiet':
       return color.muted;
+    case 'link':
+      return color.accentText;
     default:
       return color.paper;
   }
@@ -218,6 +239,7 @@ function fill(
     case 'dashed':
       return { ...DASHED, borderColor: color.lineQuiet };
     case 'quiet':
+    case 'link':
       return {};
   }
 }
@@ -463,6 +485,9 @@ const useStyles = themed(({ color }) =>
     },
     // Spec 7.2: the quiet one and the small one both pull their sides in.
     tight: { paddingHorizontal: space.s3 },
+    // The link is its words and nothing round them: no sides, no hairline.
+    bare: { paddingHorizontal: 0, borderWidth: 0 },
+    underline: { textDecorationLine: 'underline' },
     // A 36: 14 a side and the glyph 6 from its words.
     snug: { paddingHorizontal: 14, gap: 6 },
     boxed: { borderRadius: radius.cell },

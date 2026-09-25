@@ -17,6 +17,8 @@ export type Color = {
   surface: string;
   /** raised above a card: chip, avatar placeholder, unavailable button */
   raise: string;
+  /** a row lit inside a card, a step short of `raise` — the recognising line of `Consent` */
+  raiseSoft: string;
   /** 1px border, divider */
   line: string;
   /** the border of a secondary button — louder than `line` */
@@ -78,6 +80,8 @@ const dark: Color = {
   ink: '#0B0B12',
   surface: '#16161F',
   raise: '#22222E',
+  // Spec 8, `Consent`.
+  raiseSoft: '#1A1A24',
   line: '#2C2C3A',
   lineStrong: '#45424F',
   lineQuiet: '#3A3747',
@@ -117,6 +121,9 @@ const light: Color = {
   ink: '#F2EFE7',
   surface: '#FFFFFF',
   raise: '#F7F4EC',
+  // The night's step sits a third of the way from the card to `raise`; on a white card that third is
+  // a tint nobody sees, so the day's lit row takes `raise` whole.
+  raiseSoft: '#F7F4EC',
   line: '#E4DFD3',
   lineStrong: '#C4BCA8',
   // The same place between the two the night's `#3A3747` holds, and the day's handle already stood
