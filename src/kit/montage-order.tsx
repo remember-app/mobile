@@ -371,7 +371,7 @@ const useStyles = themed(({ color }) =>
       width: 30,
       height: 30,
       borderRadius: radius.queue,
-      backgroundColor: photo.glass,
+      backgroundColor: photo.signGlass,
       alignItems: 'center',
       justifyContent: 'center',
     },

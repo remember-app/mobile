@@ -260,4 +260,13 @@ test('the meta and the count on a cover are read at the photograph’s quiet whi
   const rules = compiled();
   expect(rules).toContain('{color:rgba(255,255,255,0.72);}');
   expect(rules).not.toContain('{color:rgba(255,255,255,0.45);}');
+  // And the two apart (spec 7.6, detail 36): the dates and the count at .76 (`Main.json` e15, e17),
+  // the sentence under the bar at .72 (e20).
+  expect(rules).toContain('{color:rgba(255,255,255,0.76);}');
+  const card = story(
+    <CardMemory title="Свадьба" meta={['12–14 сентября', '486 кадров']} thumbs={SHOTS} large />,
+  );
+  const meta = card.match(/class="([^"]*)"[^>]*>12–14 сентября</)?.[1] ?? '';
+  expect(meta).toContain(rule('color:rgba(255,255,255,0.76)'));
+  expect(meta).not.toContain(rule('color:rgba(255,255,255,0.72)'));
 });

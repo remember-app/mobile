@@ -304,6 +304,8 @@ export default function MemorySettingsScreen() {
               variant="primary"
               wide
               icon={UserPlus}
+              // `MemorySettings.json`: the `user-plus` 19 at 1.9.
+              glyph={{ size: 19, stroke: 1.9 }}
               label={s.action.invite}
               onPress={() => setInviting(true)}
               disabled={busy}
@@ -328,9 +330,12 @@ export default function MemorySettingsScreen() {
           <View style={styles.event}>
             <CoverSlot uri={memory.cover_thumbnail_url} thumbs={memory.recent_thumbnail_urls} />
             <View style={styles.grow}>
-              {/* Whole, on as many lines as it takes: this card is where the name is read in full —
-                  the capsule over the feed cuts it (spec 10.6). */}
-              <Text role="titleSm">{memory.title}</Text>
+              {/* Up to two lines, and cut on the second (spec 8, 10.11 answer 5): the card keeps its
+                  98 — two lines of the name and the meta fit the height of the cover. Read out
+                  whole either way, and whole in the edit behind the pencil. */}
+              <Text role="titleSm" numberOfLines={2}>
+                {memory.title}
+              </Text>
               <Text role="meta" numberOfLines={1}>
                 {[
                   formatEventDates(memory.event_start, memory.event_end),
@@ -364,7 +369,8 @@ export default function MemorySettingsScreen() {
                   only you in it) and there is no button at all. */}
               {organizer && members.length > 1 ? (
                 <Button
-                  variant={editing ? 'paper' : 'small'}
+                  // Ringed in `lineQuiet` (`MemorySettings.json` e15), and held in on `paper`.
+                  variant={editing ? 'paper' : 'outline'}
                   // The row's own 36 (`MemorySettings.json`), 14 a side and the glyph 6 off the words.
                   size="mini"
                   // Held in, it is still the small button of this row: `paper` on its own runs

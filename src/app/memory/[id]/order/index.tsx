@@ -72,6 +72,8 @@ export default function TemplatesScreen() {
           variant="secondary"
           wide
           icon={Pencil}
+          // Spec 8, `MontageTemplate`: the pencil 17 at 1.8.
+          glyph={{ size: 17, stroke: 1.8 }}
           label={s.montage.ownSetup}
           // Blank, and every field of it: a template pressed before this and then abandoned would
           // otherwise walk into the steps as somebody's own answers.

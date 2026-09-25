@@ -55,6 +55,8 @@ test('the head stands where the layout measured it, and the squeezed one where C
 test('the three doors stand 10 apart, as the layout stacks them', () => {
   // `Login.json`: «Продолжить с Google» 688–744, «Продолжить по почте» from 754.
   expect(login).toContain('doors: { flex: 1, gap: 10 }');
+  // And the mail door wears the `mail` spec 8 names for it, 18 at 1.8 — not the main 56's 19 / 2.1.
+  expect(login).toContain('glyph={{ size: 18, stroke: 1.8 }}');
 });
 
 test('a way in this build cannot walk is not drawn at all', () => {

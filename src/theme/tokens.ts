@@ -147,11 +147,13 @@ export const board = {
   /** the darkening over the head of the gallery, under the glass bar */
   headGallery: 176,
   /**
-   * Where the body starts under an inner bar, from the top of the board: `MemorySettings` (and
-   * `MemoryEdit`) at 112, `Create` at 124, `Account` — its card pushed off the bar — at 132. The
-   * status line is the phone's own, so a screen pads by what lies under `status` and the bar's 44.
+   * Where the body starts under a bar, from the top of the board: `MemorySettings` (and
+   * `MemoryEdit`) at 112, the list of `Main` under its root bar at 114, `Create` at 124, `Account` —
+   * its card pushed off the bar — at 132. The status line is the phone's own, so a screen pads by
+   * what lies under `status` and the bar's 44.
    */
   bodySettings: 112,
+  bodyMain: 114,
   bodyCreate: 124,
   bodyAccount: 132,
   /**
@@ -342,7 +344,7 @@ export const type = StyleSheet.create({
   subtitle: { fontFamily: font.semi, fontSize: 17, lineHeight: 22 },
   /** a paragraph, the text of a field */
   body: { fontFamily: font.regular, fontSize: 16, lineHeight: 23 },
-  /** the same paragraph where it stands tighter — an empty state, a waiting caption */
+  /** the same paragraph where it stands tighter — an empty state */
   bodySm: { fontFamily: font.regular, fontSize: 15, lineHeight: 22 },
   /**
    * the paragraph a size down again — a line of the card of promises on `Consent`, the report under
@@ -353,7 +355,8 @@ export const type = StyleSheet.create({
   row: { fontFamily: font.semi, fontSize: 15, lineHeight: 20 },
   /**
    * the row's size a weight down (spec 3, «подпись действия меню 15 / 500»): an action in the glass
-   * menu, the words beside a switch
+   * menu, the words beside a switch, and the line under a spinner — «Собираем ваши воспоминания…»,
+   * «Присоединяем…» (spec 7.9, detail 70; `HomeLoading.json` e5, `InviteJoining.json` e3: 20 tall)
    */
   rowPlain: { fontFamily: font.medium, fontSize: 15, lineHeight: 20 },
   /** the value of a summary row — «IMG_4471.HEIC · 4,2 МБ» (spec 7.7, detail 52) */
@@ -523,6 +526,15 @@ export const photo = {
   on: '#FFFFFF',
   /** the second line read on any of the above — a date, a count, what a montage was made of */
   onQuiet: 'rgba(255,255,255,0.72)',
+  /**
+   * The dates and the count under the name on a large memory card — a hair brighter than the
+   * sentence under its bar (spec 7.6, detail 36; `Main.json` e15, e17)
+   */
+  coverMeta: 'rgba(255,255,255,0.76)',
+  /** The glass under a template's sign on its tile (spec 7.6, detail 41; `MontageTemplate.json` e11) */
+  signGlass: 'rgba(245,243,238,0.14)',
+  /** The circle with `play` in the corner of the frame in hand on the viewer's strip (spec 7.8, detail 67) */
+  playDot: 'rgba(6,6,10,0.72)',
   /**
    * The second voice of the viewer: the lower line of its pill — «21:47 · Марк Ковалёв» (spec 7.1,
    * detail 5) — and a video's whole length beside the scrubber (spec 7.10)

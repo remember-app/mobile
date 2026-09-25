@@ -1,7 +1,9 @@
 import { expect, test } from 'vitest';
 
 import invite from '@/app/invite.tsx?raw';
+import bars from '@/kit/bars.tsx?raw';
 import { en, ru } from '@/strings';
+import { board, font, height, space, type } from '@/theme';
 
 /**
  * `src/app/invite.tsx` has no renderer for the same reason the other routes read as text
@@ -62,15 +64,23 @@ test('joining is three pieces 26 apart in the middle of the whole screen, the sp
   expect(invite).toContain('gap: 26,');
   expect(invite).toContain('<Board body={[styles.joining, { paddingBottom: insets.top }]}>');
   expect(invite).not.toContain('<Waiting');
+  // e3 is 15 / 500 `muted` (spec 7.9, detail 70), the line under every spinner — not the 400 of a
+  // paragraph.
+  expect(invite).toContain('<Text role="rowPlain" tone="muted"');
+  expect(type.rowPlain).toMatchObject({ fontFamily: font.medium, fontSize: 15 });
 });
 
 test('a dead link is centred where the layout centres it, above the bottom layer’s gradient', () => {
   // `InviteDead.html`: the block stands in 0…712 — the top of the screen down to `board.footer`
   // (132) over its edge; `InviteDead.json` e1 puts the circle at 227.5. Centred on the body between
   // the status line and the action block, it stood 39 low.
-  expect(invite).toContain(
-    'const overhang = board.footer - space.s3 - height.primary - Math.max(insets.bottom, board.bottom);',
+  // The reach of the gradient over the action block is the kit's, shared with the main screen's
+  // empty list and its spinner (114…712): 132 − 12 − 56 − 30 = 34 on the drawn phone.
+  expect(invite).toContain('const overhang = useFooterOverhang();');
+  expect(bars).toContain(
+    'board.footer - space.s3 - height.primary - Math.max(insets.bottom, board.bottom)',
   );
+  expect(board.footer - space.s3 - height.primary - board.bottom).toBe(34);
   expect(invite).toContain('body={[styles.body, { paddingBottom: insets.top + overhang }]}');
   expect(invite).toContain("body: { justifyContent: 'center', paddingHorizontal: space.s4 },");
 });

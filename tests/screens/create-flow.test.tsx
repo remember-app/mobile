@@ -195,10 +195,11 @@ test('a memory cannot be of tomorrow: the calendar answers up to today, today in
   world();
   const screen = await open();
   expect(screen.root.findByType(Calendar).props.max).toEqual(startOfDay(NOW));
+  // A day of this year is read out without its year, like every date of a memory (spec 9).
   const cell = (d: number) =>
     screen.root
       .findAllByType(Pressable)
-      .find((one) => one.props.accessibilityLabel === `${d} сентября 2026`)!;
+      .find((one) => one.props.accessibilityLabel === `${d} сентября`)!;
   expect(cell(16).props.disabled).toBe(false);
   expect(cell(17).props.disabled).toBe(true);
   expect(cell(1).props.disabled).toBe(false);
@@ -208,7 +209,9 @@ test('the calendar is a gesture: a first tap is a day, the second closes the ran
   world();
   const screen = await open();
   const tap = (d: number) => act(async () => screen.root.findByType(Calendar).props.onPick(day(d)));
-  expect(screen.text()).toContain('16 сентября 2026');
+  // Spec 8, `Create`, and spec 9: one day is the date alone — and this year's, without the year.
+  expect(screen.text()).toContain('16 сентября');
+  expect(screen.text()).not.toContain('16 сентября 2026');
   expect(screen.text()).not.toContain(ru.create.days(1));
   await tap(10);
   expect(screen.when().value).toEqual({ from: day(10), to: null });

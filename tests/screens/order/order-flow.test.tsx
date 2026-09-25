@@ -773,7 +773,7 @@ test('every face of the wizard wears the bar it should: the way in and the total
     note();
   }
   expect(faces).toEqual([
-    ['index', 'summary', ru.montage.newOne, true],
+    ['index', 'entry', ru.montage.newOne, true],
     ['frames', 'step', ru.montage.step(1, 4), true],
     ['story', 'step', ru.montage.step(2, 4), true],
     ['music', 'step', ru.montage.step(3, 4), true],

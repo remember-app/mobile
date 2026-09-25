@@ -32,7 +32,7 @@ import { mayPick, shotAt } from '@/lib/frames';
 import { useStrings } from '@/lib/language';
 import { CoverSheet } from '@/screens/memory/cover';
 import { EventWhen, type Span } from '@/screens/memory/when';
-import { radius, space, themed } from '@/theme';
+import { board, height, radius, space, themed } from '@/theme';
 
 /**
  * `MemoryEdit` (spec 10.8.3) — the name, the days and the cover of a memory, changed in one go. A
@@ -292,8 +292,15 @@ const sameSpan = (a: Span, b: Span) =>
 
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
-    // Spec 10.8.3: the rhythm of `Create` — the screen's own 16 at the sides, 22 between the blocks.
-    body: { flexGrow: 1, paddingHorizontal: space.s4, paddingBottom: space.s6, gap: 22 },
+    // Spec 10.8.3: the rhythm of `Create` — the screen's own 16 at the sides, 22 between the blocks —
+    // from 112, as the settings it is opened from start (spec 4; 10.11, answer 5).
+    body: {
+      flexGrow: 1,
+      paddingTop: board.bodySettings - board.status - height.bar,
+      paddingHorizontal: space.s4,
+      paddingBottom: space.s6,
+      gap: 22,
+    },
     middle: { flexGrow: 1, justifyContent: 'center' },
     block: { gap: 9 },
     // «Выбрать» moves under the words when the system type leaves it no room beside them.

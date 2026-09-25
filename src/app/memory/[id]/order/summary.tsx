@@ -157,6 +157,8 @@ export default function SummaryStep() {
             variant="primary"
             wide
             icon={PanelsTopLeft}
+            // Spec 8, `MontageSummary`: `panels-top-left` 19 at 1.9 — lighter than the kit's 2.1.
+            glyph={{ size: 19, stroke: 1.9 }}
             label={s.montage.startCut}
             busy={busy}
             onPress={() => void send()}

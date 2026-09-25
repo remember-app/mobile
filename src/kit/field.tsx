@@ -67,12 +67,13 @@ const APART = String.fromCharCode(0x2002);
 
 /**
  * What is typed, and the `@` in front of it (spec 7.3, detail 12): the name 17 in Unbounded, the
- * address 17 / 500, the username 19 in Unbounded, the handle and the search 16 / 500.
+ * address 17 / 500, the username 19 in Unbounded — the card's name a hair looser, −0.02em
+ * (`Username.json` e11: −0.38) — the handle and the search 16 / 500.
  */
 const FACE: Record<FieldVariant, TextStyle> = {
   name: type.subtitleDisplay,
   email: { ...type.subtitle, fontFamily: font.medium },
-  username: { ...type.title, fontSize: 19 },
+  username: { ...type.title, letterSpacing: -0.02 * type.title.fontSize },
   handle: { ...type.body, fontFamily: font.medium },
   search: { ...type.body, fontFamily: font.medium },
   labelName: { ...type.row, fontSize: 16 },

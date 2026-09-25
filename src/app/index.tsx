@@ -15,12 +15,13 @@ import {
   CardMemory,
   Empty,
   IconButton,
+  useFooterOverhang,
   Waiting,
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { formatEventDates } from '@/lib/dates';
 import { useStrings } from '@/lib/language';
-import { duration, height, space } from '@/theme';
+import { board, duration, height, space } from '@/theme';
 
 /**
  * Where the connection stands, as this screen draws it (spec, «Ожидание и отказы»): the list is the
@@ -35,6 +36,7 @@ export default function HomeScreen() {
   const { token } = useAuth();
   const router = useRouter();
   const s = useStrings();
+  const overhang = useFooterOverhang();
   // null means «not loaded yet», which is what tells a first load from a refetch: a refetch keeps
   // the list on screen instead of flashing the spinner over it — and a *failed* refetch keeps it
   // too, which is the whole of `HomeOffline`.
@@ -120,7 +122,9 @@ export default function HomeScreen() {
           />
         </ActionBar>
       }
-      body={[styles.body, styles.mid]}
+      // `HomeLoading` and a first load that failed: in the middle of the body's layer, 114…712 (spec
+      // 4) — under the bar by the list's own lead, and clear of the bottom layer's gradient.
+      body={[styles.body, styles.lead, styles.mid, { paddingBottom: overhang }]}
       list={
         memories === null
           ? undefined
@@ -130,8 +134,10 @@ export default function HomeScreen() {
                 keyExtractor={(memory) => memory.id}
                 contentContainerStyle={[
                   styles.body,
+                  styles.lead,
                   styles.list,
-                  memories.length === 0 ? styles.mid : null,
+                  // `HomeEmpty`: centred on the same layer as the spinner it replaces.
+                  memories.length === 0 ? [styles.mid, { paddingBottom: overhang }] : null,
                 ]}
                 // Scrolling with the list, the bar and the bottom layer keep the screen's edges and
                 // not the list's margins.
@@ -246,9 +252,11 @@ const styles = StyleSheet.create({
   // Spec 7.1 — the 16 at the side belongs to each belt of the screen and not to the board around
   // them: held once around all three, the footer's gradient would stop 16 short of either edge.
   body: { paddingHorizontal: space.s4 },
-  // Cards a 12 gap apart, 16 under the bar, and the list keeps the full height so its empty state
-  // has somewhere to stand.
-  list: { flexGrow: 1, gap: space.s3, paddingTop: space.s4, paddingBottom: space.s5 },
+  // Spec 8, `Main`: the list starts at 114, 18 under the bar.
+  lead: { paddingTop: board.bodyMain - board.status - height.bar },
+  // Cards a 12 gap apart, and the list keeps the full height so its empty state has somewhere to
+  // stand.
+  list: { flexGrow: 1, gap: space.s3, paddingBottom: space.s5 },
   // A body with nothing to scroll holds what it has in the middle.
   mid: { justifyContent: 'center' },
   edge: { marginHorizontal: -space.s4 },

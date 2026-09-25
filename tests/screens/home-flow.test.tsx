@@ -36,7 +36,9 @@ vi.mock('expo-router', async () => {
 
 import { later, memory, serve } from '@tests/helpers/api';
 import { measure, scrolled } from '@tests/helpers/board';
+import { thisYear2026 } from '@tests/helpers/clock';
 import { mounted, mountsTrees, themesShown } from '@tests/helpers/renderer';
+import { FlatList, StyleSheet } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import type { Memory } from '@/api';
 import HomeScreen from '@/app/index';
@@ -44,6 +46,7 @@ import {
   BadgeFilms,
   BadgeOrganizer,
   Banner,
+  Board,
   Button,
   CardMemory,
   Empty,
@@ -158,6 +161,7 @@ test('the freshest memory leads on the large card — but only while it has a ph
 });
 
 test('each card is handed the cover, the signed frames and the days and count — and an api older than the fields sends none', async () => {
+  thisYear2026();
   const screen = await open([
     wedding({ cover_thumbnail_url: 'https://r2.example/cover' }),
     wedding({ id: 'c', title: 'Без обложки', event_end: null, media_count: 1 }),
@@ -167,7 +171,8 @@ test('each card is handed the cover, the signed frames and the days and count �
   expect(first.thumbs).toEqual(['https://r2.example/1', 'https://r2.example/2']);
   expect(first.meta).toEqual(['12–13 сентября', ru.memory.frames(486)]);
   expect(second.cover).toBeNull();
-  expect(second.meta).toEqual(['12 сентября 2026', ru.memory.frames(1)]);
+  // One day of this year is the day alone, like a span (spec 9: «3 октября»).
+  expect(second.meta).toEqual(['12 сентября', ru.memory.frames(1)]);
 
   // Neither field in the answer at all: the same card, and nothing thrown inside the list.
   vi.unstubAllGlobals();
@@ -242,6 +247,36 @@ test('a list on its way holds the place with a wait and keeps the one action off
   const empty = loading.root.findByType(Empty);
   expect(empty.props.title).toBe(ru.home.emptyTitle);
   expect(loading.create().props.disabled).toBe(false);
+});
+
+test('the list starts at 114, and what stands in place of it is centred on 114…712', async () => {
+  // Spec 4 and 8, `Main`: the first card at 114 — 18 under the bar, which ends at 96 — where the app
+  // stood it 16 under. `HomeLoading` and `HomeEmpty` are centred on the body's layer, 114…712: under
+  // the bar by the same 18, and over the edge by the bottom layer's gradient (132) rather than by its
+  // button block (12 + 56 + 30) — 34 handed back at the foot. `HomeLoading.json` puts the ring at
+  // 372, 413 − (44 + 18 + 20) / 2; centred on 96…746 it stood at 380.
+  const [lead, overhang] = [114 - 96, 132 - (12 + 56 + 30)];
+  const slow = later<unknown>();
+  const screen = await open(slow.promise);
+  expect(StyleSheet.flatten(screen.root.findByType(Board).props.body)).toMatchObject({
+    paddingTop: lead,
+    paddingBottom: overhang,
+    justifyContent: 'center',
+  });
+  const list = () =>
+    StyleSheet.flatten(screen.root.findByType(FlatList).props.contentContainerStyle);
+  await act(async () => slow.settle([]));
+  expect(list()).toMatchObject({
+    paddingTop: lead,
+    paddingBottom: overhang,
+    justifyContent: 'center',
+  });
+  // With cards in it the list runs from the same 114 down, and nothing is centred.
+  screen.state.list = [wedding()];
+  await screen.refocus();
+  expect(list()).toMatchObject({ paddingTop: lead });
+  expect(list().justifyContent).toBeUndefined();
+  expect(list().paddingBottom).not.toBe(overhang);
 });
 
 test('a list that never came is the failure in its place — not «no memories» — with a way to try again, and the action stays live', async () => {

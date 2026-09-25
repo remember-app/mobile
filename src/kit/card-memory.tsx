@@ -164,7 +164,7 @@ function Meta({ parts, onPhoto }: { parts: readonly string[]; onPhoto?: boolean 
       {parts.map((part, i) => (
         <View key={part} style={styles.meta}>
           {i > 0 ? <MetaDot onPhoto={onPhoto} /> : null}
-          <Text role="meta" style={[styles.metaWords, onPhoto ? styles.onPhotoMeta : null]}>
+          <Text role="meta" style={[styles.metaWords, onPhoto ? styles.onCover : null]}>
             {part}
           </Text>
         </View>
@@ -226,5 +226,6 @@ const useStyles = themed(({ color }) =>
     centred: { textAlign: 'center' },
     onPhoto: { color: photo.on },
     onPhotoMeta: { color: photo.onQuiet },
+    onCover: { color: photo.coverMeta },
   }),
 );

@@ -35,9 +35,19 @@ import { setLanguage } from '@/lib/language';
 
 const day = (y: number, m: number, d: number) => new Date(y, m - 1, d).toISOString();
 
-test('a single day is written in the kit form: full month, no year marker', () => {
-  expect(formatDay(day(2026, 9, 3), 'ru-RU')).toBe('3 сентября 2026');
-  expect(formatDay(day(2026, 9, 3), 'en-US')).toBe('3 September 2026');
+/** The today every date below is written against: the year a memory's dates leave off is this one. */
+const NOW = new Date(2026, 8, 25);
+
+test('a single day is written in the kit form: full month, and its year only when it is not this one', () => {
+  // Spec 9 (second pass, 10.11 answer 7): «3 октября» this year, «3 октября 2025» in any other —
+  // for a single day as much as for a span. The old kit wrote «3 сентября 2026» every time.
+  expect(formatDay(day(2026, 10, 3), 'ru-RU', NOW)).toBe('3 октября');
+  expect(formatDay(day(2026, 9, 3), 'en-US', NOW)).toBe('3 September');
+  expect(formatDay(day(2025, 10, 3), 'ru-RU', NOW)).toBe('3 октября 2025');
+  expect(formatDay(day(2025, 9, 3), 'en-US', NOW)).toBe('3 September 2025');
+  // No locale's own glue either way — «2026 г.», «September 3, 2026» never reach the screen.
+  expect(formatDay(day(2027, 1, 2), 'ru-RU', NOW)).toBe('2 января 2027');
+  expect(formatDay(day(2027, 1, 2), 'en-US', NOW)).toBe('2 January 2027');
 });
 
 test('a day of the phone’s roll is the layout’s «13 сентября» this year, and keeps its year in any other', () => {
@@ -84,34 +94,55 @@ test('the tiny day is the month cut short, and nothing of the locale’s own glu
   expect(formatDayTiny('not a day', 'ru-RU')).toBe('');
 });
 
-test('a span inside one month names the month once and drops the year', () => {
-  expect(formatEventDates(day(2026, 8, 12), day(2026, 8, 16), 'ru-RU')).toBe('12–16 августа');
-  expect(formatEventDates(day(2026, 8, 12), day(2026, 8, 16), 'en-US')).toBe('12–16 August');
-});
-
-test('a span across months writes both days whole', () => {
-  expect(formatEventDates(day(2026, 8, 28), day(2026, 9, 2), 'ru-RU')).toBe(
-    '28 августа 2026 — 2 сентября 2026',
+test('a span inside one month names the month once, and the year only when it is not this one', () => {
+  expect(formatEventDates(day(2026, 8, 12), day(2026, 8, 16), 'ru-RU', NOW)).toBe('12–16 августа');
+  expect(formatEventDates(day(2026, 8, 12), day(2026, 8, 16), 'en-US', NOW)).toBe('12–16 August');
+  // Spec 9: «12–14 сентября 2025».
+  expect(formatEventDates(day(2025, 9, 12), day(2025, 9, 14), 'ru-RU', NOW)).toBe(
+    '12–14 сентября 2025',
   );
 });
 
-test('a span across years writes both days whole, same month or not', () => {
-  expect(formatEventDates(day(2025, 12, 31), day(2026, 1, 1), 'en-US')).toBe(
+test('a span across months writes both days, and the year once when it is not this one', () => {
+  // Spec 9: «28 августа — 2 сентября» — no year in either half while it is this one.
+  expect(formatEventDates(day(2026, 8, 28), day(2026, 9, 2), 'ru-RU', NOW)).toBe(
+    '28 августа — 2 сентября',
+  );
+  // One year for both halves, written once at the end — the way «12–14 сентября 2025» carries it.
+  expect(formatEventDates(day(2025, 8, 28), day(2025, 9, 2), 'ru-RU', NOW)).toBe(
+    '28 августа — 2 сентября 2025',
+  );
+});
+
+test('a span across years writes both days whole, same month or not, this year among them or not', () => {
+  expect(formatEventDates(day(2025, 12, 31), day(2026, 1, 1), 'en-US', NOW)).toBe(
     '31 December 2025 — 1 January 2026',
   );
-  expect(formatEventDates(day(2025, 8, 12), day(2026, 8, 16), 'ru-RU')).toBe(
+  expect(formatEventDates(day(2025, 8, 12), day(2026, 8, 16), 'ru-RU', NOW)).toBe(
     '12 августа 2025 — 16 августа 2026',
   );
 });
 
-test('no end at all is the single day', () => {
-  expect(formatEventDates(day(2026, 9, 3), null, 'ru-RU')).toBe('3 сентября 2026');
+test('no end at all is the single day, by the single day’s own rule', () => {
+  // `FramesEmpty` (spec 8): «3 октября · пока пусто» under the name in the capsule.
+  expect(formatEventDates(day(2026, 10, 3), null, 'ru-RU', NOW)).toBe('3 октября');
+  expect(formatEventDates(day(2025, 10, 3), null, 'ru-RU', NOW)).toBe('3 октября 2025');
 });
 
 // The create screen switches an end on by setting it to the end of the day it starts on, so this
 // pair arrives from the api as a real memory — and it is one day, not a span of one.
 test('an end on the starting day is still a single day, not «3–3 сентября»', () => {
-  expect(formatEventDates(day(2026, 9, 3), day(2026, 9, 3), 'ru-RU')).toBe('3 сентября 2026');
+  expect(formatEventDates(day(2026, 9, 3), day(2026, 9, 3), 'ru-RU', NOW)).toBe('3 сентября');
+  expect(formatEventDates(day(2025, 9, 3), day(2025, 9, 3), 'ru-RU', NOW)).toBe('3 сентября 2025');
+});
+
+test('the year a date leaves off is the one the phone is in today, not a fixed one', () => {
+  // Left out, `now` is the real today: a memory of this very day never carries its year.
+  const today = new Date();
+  expect(formatDay(today, 'ru-RU')).not.toContain(String(today.getFullYear()));
+  expect(formatEventDates(today.toISOString(), null, 'ru-RU')).not.toContain(
+    String(today.getFullYear()),
+  );
 });
 
 // The app ships over the air and the api deploys on its own, so a build can meet a listing that no
@@ -126,7 +157,7 @@ test('a day the api did not send, or sent unreadable, writes nothing at all', ()
 });
 
 test('a readable start with an unreadable end is the day it began', () => {
-  expect(formatEventDates(day(2026, 9, 3), 'not-a-day', 'ru-RU')).toBe('3 сентября 2026');
+  expect(formatEventDates(day(2025, 9, 3), 'not-a-day', 'ru-RU', NOW)).toBe('3 сентября 2025');
 });
 
 // m-13: nobody names a language on the calls the screens make. The phone faked above says Russian,
@@ -135,16 +166,18 @@ test('a readable start with an unreadable end is the day it began', () => {
 
 test('a day with no language named is written in the one the app speaks', async () => {
   await setLanguage('en');
-  expect(formatDay(day(2026, 9, 3))).toBe('3 September 2026');
+  expect(formatDay(day(2025, 9, 3), undefined, NOW)).toBe('3 September 2025');
   await setLanguage('ru');
-  expect(formatDay(day(2026, 9, 3))).toBe('3 сентября 2026');
+  expect(formatDay(day(2025, 9, 3), undefined, NOW)).toBe('3 сентября 2025');
 });
 
 test('a span follows the app’s language too, both ends and the month it names once', async () => {
   await setLanguage('en');
-  expect(formatEventDates(day(2026, 8, 12), day(2026, 8, 16))).toBe('12–16 August');
+  expect(formatEventDates(day(2026, 8, 12), day(2026, 8, 16), undefined, NOW)).toBe('12–16 August');
   await setLanguage('ru');
-  expect(formatEventDates(day(2026, 8, 12), day(2026, 8, 16))).toBe('12–16 августа');
+  expect(formatEventDates(day(2026, 8, 12), day(2026, 8, 16), undefined, NOW)).toBe(
+    '12–16 августа',
+  );
 });
 
 // The calendar on `Create` knows no words: the month over its grid and the seven letters over its

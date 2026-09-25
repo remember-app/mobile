@@ -530,9 +530,10 @@ export function WizardStep({
                   ? s.montage.summaryStep
                   : s.montage.newOne
             }
-            // The bar with no scale and the heading up against the row — what the total wears,
-            // and what the way in wears too: there is no step under either of them to count.
-            variant={counted ? 'step' : 'summary'}
+            // The bar with no scale — what the total wears, and what the way in wears too: there is
+            // no step under either of them to count. The total's heading comes up to the row, the
+            // way in's stands 2 lower (`MontageTemplate`: the grid at 190).
+            variant={counted ? 'step' : summary ? 'summary' : 'entry'}
             title={title}
             note={note}
             back={
