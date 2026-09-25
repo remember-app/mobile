@@ -5,7 +5,7 @@ import spine from '@/screens/memory/frames-spine.tsx?raw';
 
 /**
  * The days on the feed (TASK-208, spec 8): off by default and read off the spine at the right edge
- * while a finger is moving the feed (`MemoryScrub`), on by the switch in the sort sheet and then
+ * while a finger is moving the feed (`MemoryScrub`), on by the account's «Даты между днями» and then
  * written into a 20px seam between the days (`MemoryDated`). Never both.
  *
  * Read as text, the idiom `tests/routes/memory/screen.test.ts` explains at length: the spine is
@@ -19,7 +19,7 @@ test('the feed nobody arranged is one wall, and the days are only on the spine',
   expect(frames).toContain("...(group.by === 'all' ? [] : [{ key: group.key, group }])");
   // And the spine is drawn only there: cut by people or by kind the days interleave, and a rail of
   // them would point at nothing. A feed shorter than the screen has no spine either (spec 8).
-  expect(frames).toContain("plain: sort.by === 'none' && !sort.dates,");
+  expect(frames).toContain("plain: sort.by === 'none' && !datesBetweenDays,");
   expect(spine).toContain('!plain || headerHeight === 0 || reach <= 0');
   expect(spine).toContain('const reach = feed.content - feed.view;');
   expect(spine).toContain('dateMarks(frames, { top: feedTop, row: rowPitch })');

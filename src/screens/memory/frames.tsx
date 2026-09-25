@@ -89,7 +89,8 @@ type Tuning = 'filter' | 'sort';
  * authority on all three.
  */
 export function Frames({ id, head }: { id: string; head: Head }) {
-  const { token, user } = useAuth();
+  // «Даты между днями» is the account's, one for every feed: `MemoryDated` on, `MemoryScrub` off.
+  const { token, user, datesBetweenDays } = useAuth();
   const router = useRouter();
   const s = useStrings();
   const styles = useStyles();
@@ -215,7 +216,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
    */
   const rows = useMemo(
     () =>
-      groupFrames(kept, sort).flatMap((group): Row[] => [
+      groupFrames(kept, sort, datesBetweenDays).flatMap((group): Row[] => [
         // The wall has no seam over it at all (`MemoryFrames`, `MemoryScrub`): with the dates off
         // and nothing grouped, the days are read off the spine at the edge instead.
         ...(group.by === 'all' ? [] : [{ key: group.key, group }]),
@@ -224,7 +225,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
           frames: group.frames.slice(i * COLUMNS, i * COLUMNS + COLUMNS),
         })),
       ]),
-    [kept, sort],
+    [kept, sort, datesBetweenDays],
   );
 
   /**
@@ -245,7 +246,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
     frames: sheet,
     // Cut into people or kinds, or with the dates written between the days, the seams already say
     // where a day begins and there is nothing for a spine to add.
-    plain: sort.by === 'none' && !sort.dates,
+    plain: sort.by === 'none' && !datesBetweenDays,
     rowPitch: cell.width + FEED_GAP,
     scrollTo,
   });
@@ -452,8 +453,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
           // The seam over its own strip (spec 7.8): what the frames under it have in common at one
           // edge, and at the other the one thing that belongs to that group — how many frames it
           // holds while the feed is being looked at, «Выбрать все 174» while it is being picked
-          // from. What decides whether a seam is drawn at all is the sort, and the dates on the
-          // feed are their own task on this screen.
+          // from. What decides whether a seam is drawn at all is the sort and the account's dates.
           if (row.group) {
             const group = row.group;
             // What «все» is here: the frames a mark would actually mean something on, by the very

@@ -30,6 +30,12 @@ export type SheetProps = {
   footer?: ReactNode;
   /** A long body — many contacts, many days — scrolls; the heading and the footer do not. */
   scroll?: boolean;
+  /**
+   * The height the layout gives this sheet (spec 4, «Высоты листов»). A floor and not a cap: a
+   * sheet that holds less pushes its footer down to it (spec 7.1, the `flex-grow` spacer), one that
+   * holds more grows as it did without it.
+   */
+  height?: number;
   children?: ReactNode;
 };
 
@@ -119,6 +125,7 @@ function Rise({
   head,
   footer,
   scroll,
+  height,
   children,
 }: Omit<SheetProps, 'visible'>) {
   const insets = useSafeAreaInsets();
@@ -162,6 +169,7 @@ function Rise({
         style={[
           styles.sheet,
           { paddingBottom: Math.max(insets.bottom, board.bottom) },
+          height ? { minHeight: height } : null,
           {
             opacity: rise,
             transform: [
@@ -172,9 +180,11 @@ function Rise({
       >
         <View testID="sheet-handle" style={styles.handle} />
         {scroll ? (
-          <ScrollView contentContainerStyle={styles.body}>{body}</ScrollView>
+          <ScrollView style={height ? styles.fill : null} contentContainerStyle={styles.body}>
+            {body}
+          </ScrollView>
         ) : (
-          <View style={styles.body}>{body}</View>
+          <View style={[styles.body, height ? styles.fill : null]}>{body}</View>
         )}
         {footer ? <View style={styles.footer}>{footer}</View> : null}
       </Animated.View>
@@ -209,6 +219,8 @@ const useStyles = themed(({ color }) =>
       marginBottom: space.s4,
     },
     body: { gap: space.s4 },
+    // The spacer of spec 7.1: what a sheet with a floor does not fill, it leaves above the footer.
+    fill: { flexGrow: 1 },
     footer: { gap: space.s3, paddingTop: space.s5 },
   }),
 );

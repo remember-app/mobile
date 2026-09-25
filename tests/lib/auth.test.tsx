@@ -15,9 +15,17 @@ vi.mock('expo-secure-store', () => ({
   },
 }));
 
+import { later } from '@tests/helpers/api';
 import { mountsTrees } from '@tests/helpers/renderer';
 import TestRenderer, { act } from 'react-test-renderer';
-import { ApiError, listMemories, signInWithApple, signInWithGoogle, verifyEmailCode } from '@/api';
+import {
+  ApiError,
+  errorMessage,
+  listMemories,
+  signInWithApple,
+  signInWithGoogle,
+  verifyEmailCode,
+} from '@/api';
 import { AuthProvider, useAuth } from '@/lib/auth';
 
 /**
@@ -197,4 +205,176 @@ test('signing out by hand still tells the api, and leaves the phone where a refu
   expect(api.calls).toEqual(['POST /auth/logout']);
   expect(auth).toMatchObject({ status: 'signed-out', token: null, user: null });
   expect(keychain).toEqual({ token: null, deleted: 1 });
+});
+
+// «Даты между днями» (TASK-292): the account's one setting for every feed. It comes with every
+// answer that carries the person and is changed by `POST /me/dates-between-days` (api docs/auth.md).
+
+/**
+ * The api holding the setting at `on`: `/me` carries it, and a change is answered by `change` when
+ * the test gives one — late, refused, unreachable — or else taken and answered with the account.
+ */
+function holding(on: boolean, change?: (asked: boolean) => Promise<Response>) {
+  let held = on;
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string, init: RequestInit = {}) => {
+      const path = new URL(url).pathname;
+      if (path === '/me') {
+        api.calls.push('GET /me');
+        return json(200, { ...ME, dates_between_days: held });
+      }
+      if (path !== '/me/dates-between-days') return answer(url, init);
+      api.calls.push(`${init.method} ${path} ${init.body}`);
+      const asked = JSON.parse(String(init.body)).dates_between_days;
+      if (change) return change(asked);
+      held = asked;
+      return json(200, { ...ME, dates_between_days: held });
+    }),
+  );
+}
+
+test('the setting is read off the profile, and is off until the profile has come', async () => {
+  const answered = later<void>();
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => {
+      await answered.promise;
+      return json(200, { ...ME, dates_between_days: true });
+    }),
+  );
+  keychain.token = SESSION;
+  await act(async () => {
+    tree = TestRenderer.create(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    );
+  });
+  // Nothing to read it off yet, so every feed draws as it does with the setting off.
+  expect(auth.status).toBe('loading');
+  expect(auth.datesBetweenDays).toBe(false);
+
+  await act(async () => answered.settle());
+  await settle();
+  expect(auth.status).toBe('ready');
+  expect(auth.datesBetweenDays).toBe(true);
+});
+
+test('an account sent without it — by an api from before the setting — reads as off', async () => {
+  await signedIn();
+  expect(auth.user).not.toHaveProperty('dates_between_days');
+  expect(auth.datesBetweenDays).toBe(false);
+});
+
+test('a change turns the app at once, goes the way the api asks, and settles on its answer', async () => {
+  const answered = later<void>();
+  holding(false, async () => {
+    await answered.promise;
+    return json(200, { ...ME, dates_between_days: true });
+  });
+  await signedIn();
+  expect(auth.datesBetweenDays).toBe(false);
+
+  let done!: Promise<void>;
+  await act(async () => {
+    done = auth.setDatesBetweenDays(true);
+  });
+  // On before the api has said a word: the feeds turn with the switch, not a round trip later.
+  expect(auth.datesBetweenDays).toBe(true);
+  expect(api.calls).toEqual(['POST /me/dates-between-days {"dates_between_days":true}']);
+  const [, init] = vi.mocked(fetch).mock.calls.at(-1)!;
+  expect((init!.headers as Record<string, string>).Authorization).toBe(`Bearer ${SESSION}`);
+
+  await act(async () => {
+    answered.settle();
+    await done;
+  });
+  expect(auth.datesBetweenDays).toBe(true);
+  expect(auth.user).toMatchObject({ dates_between_days: true });
+});
+
+test.each([
+  ['refuses it', () => Promise.resolve(json(500, { error: 'internal server error' }))],
+  ['cannot be reached', () => Promise.reject(new TypeError('Network request failed'))],
+])('a change the api %s is undone, and the caller gets the reason', async (_, fail) => {
+  const answered = later<void>();
+  holding(false, async () => {
+    await answered.promise;
+    return fail();
+  });
+  await signedIn();
+
+  let done!: Promise<void>;
+  await act(async () => {
+    done = auth.setDatesBetweenDays(true);
+  });
+  expect(auth.datesBetweenDays).toBe(true);
+
+  let reason: unknown;
+  await act(async () => {
+    answered.settle();
+    reason = await done.then(
+      () => null,
+      (e: unknown) => e,
+    );
+  });
+  expect(reason).toBeInstanceOf(Error);
+  expect(errorMessage(reason)).not.toBe('');
+  expect(auth.datesBetweenDays).toBe(false);
+  expect(auth.status).toBe('ready');
+});
+
+test('two changes in a row: a late answer to the first leaves the second standing, and a refused second leaves what the api holds', async () => {
+  const gates = [later<void>(), later<void>()];
+  let n = 0;
+  holding(false, async (asked) => {
+    await gates[n++].promise;
+    return asked
+      ? json(200, { ...ME, dates_between_days: true })
+      : json(500, { error: 'internal server error' });
+  });
+  await signedIn();
+
+  let first!: Promise<void>;
+  let second!: Promise<void>;
+  await act(async () => {
+    first = auth.setDatesBetweenDays(true);
+    second = auth.setDatesBetweenDays(false);
+  });
+  expect(auth.datesBetweenDays).toBe(false);
+
+  // The api takes the first and answers while the second is still being asked.
+  await act(async () => {
+    gates[0].settle();
+    await first;
+  });
+  expect(auth.datesBetweenDays).toBe(false);
+
+  // The second is refused: what stands is what the api holds, and the first put «on» there.
+  await act(async () => {
+    gates[1].settle();
+    await second.catch(() => {});
+  });
+  expect(auth.datesBetweenDays).toBe(true);
+});
+
+test('signed out while a change is in the air, its answer signs nobody back in', async () => {
+  const answered = later<void>();
+  holding(false, async () => {
+    await answered.promise;
+    return json(200, { ...ME, dates_between_days: true });
+  });
+  await signedIn();
+
+  let done!: Promise<void>;
+  await act(async () => {
+    done = auth.setDatesBetweenDays(true);
+  });
+  await act(() => auth.signOut());
+  await act(async () => {
+    answered.settle();
+    await done;
+  });
+  expect(auth).toMatchObject({ status: 'signed-out', user: null, datesBetweenDays: false });
 });

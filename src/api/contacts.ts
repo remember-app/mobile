@@ -7,7 +7,7 @@ import { request } from './call';
  * what `GET /users` answers and what a contact is, and the same shape a roster row is built on —
  * so `memberName` and `memberHandle` name one of these as readily as a member.
  */
-export type Contact = Omit<User, 'email'>;
+export type Contact = Pick<User, 'id' | 'username' | 'name'>;
 
 /**
  * Somebody by their exact username — no prefixes and no fuzzy matching, which would turn this into

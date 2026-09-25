@@ -253,26 +253,26 @@ export type FrameGroup = { key: string; frames: MediaItem[] } & (
 
 /**
  * How the feed is cut into groups — «СОБРАТЬ В ГРУППЫ» of `SheetSort`, and the days are deliberately
- * not one of the three: a date is a caption rather than a group, so it is its own switch.
+ * not one of the three: a date is a caption rather than a group, and whether it is written between
+ * the days is the account's setting, not this feed's.
  */
 export type GroupBy = 'none' | 'person' | 'kind';
 export type Order = 'newest' | 'oldest';
-/** The whole of `SheetSort`: which way it reads, how it is cut, and whether the days are written. */
-export type Sort = { by: GroupBy; order: Order; dates: boolean };
+/** The whole of `SheetSort`: which way it reads, and how it is cut. */
+export type Sort = { by: GroupBy; order: Order };
 
 /**
- * What the feed stands at until somebody says otherwise: nothing grouped, newest first, and the
- * dates off — which is `MemoryFrames` itself, and `MemoryScrub` the moment a finger moves it.
+ * What the feed stands at until somebody says otherwise: nothing grouped, newest first — which is
+ * `MemoryFrames` itself.
  */
-export const SORT_DEFAULT: Sort = { by: 'none', order: 'newest', dates: false };
+export const SORT_DEFAULT: Sort = { by: 'none', order: 'newest' };
 
-/** Whether it is arranged any other way — which is the whole of what the spark dot means (spec 7.4). */
+/**
+ * Whether it is arranged any other way — which is the whole of what the spark dot means (spec 7.4).
+ * The dates between the days are not asked: they are the account's, and light no dot (`MemoryDated`).
+ */
 export function arranged(sort: Sort): boolean {
-  return (
-    sort.by !== SORT_DEFAULT.by ||
-    sort.order !== SORT_DEFAULT.order ||
-    sort.dates !== SORT_DEFAULT.dates
-  );
+  return sort.by !== SORT_DEFAULT.by || sort.order !== SORT_DEFAULT.order;
 }
 
 /** Three across, in both lanes of spec 7.8 — the feed is cut by hand, so the number is named once. */
@@ -386,12 +386,16 @@ export function keepLabels(filter: Filter, keep: (labelId: string) => boolean): 
  * kinds keep the order they are named in, photos before videos, because that is a pair and not a
  * ranking.
  *
- * «Не собирать» is a cut too — into one piece, seamless. Turning the dates on cuts that one piece
- * into days (`MemoryDated`); leaving them off is the wall the spine hangs its marks beside
- * (`MemoryScrub`). Grouped by person or by kind the switch has nothing to give: the seam there is
- * already somebody's name, so the sheet holds it shut.
+ * «Не собирать» is a cut too — into one piece, seamless. `dates` — the account's «Даты между днями» —
+ * cuts that one piece into days (`MemoryDated`); off, it is the wall the spine hangs its marks beside
+ * (`MemoryScrub`). Grouped by person or by kind it has nothing to give: the seam there is already
+ * somebody's name.
  */
-export function groupFrames(items: readonly MediaItem[], { by, order, dates }: Sort): FrameGroup[] {
+export function groupFrames(
+  items: readonly MediaItem[],
+  { by, order }: Sort,
+  dates: boolean,
+): FrameGroup[] {
   const within = [...items].sort((a, b) =>
     order === 'newest' ? shotAt(b) - shotAt(a) : shotAt(a) - shotAt(b),
   );

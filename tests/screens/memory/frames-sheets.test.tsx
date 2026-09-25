@@ -252,7 +252,7 @@ test('the main button counts what it will show, and says when there is nothing t
   });
 });
 
-test('the sort sheet is the order, the three cuts, and the one switch about dates', () => {
+test('the sort sheet is the order and the three cuts, and nothing about dates', () => {
   const whole = story(sorting());
   for (const line of [
     'Сортировка',
@@ -263,18 +263,26 @@ test('the sort sheet is the order, the three cuts, and the one switch about date
     'Не собирать',
     'По людям',
     'По типу',
-    'Даты между днями',
-    'Выключено — дата видна только на полосе у края, пока листаете.',
     'Готово',
   ]) {
     expect(whole).toContain(line);
   }
-  // The switch on, the feed cut by people, and the switch held shut because of it — three sheets.
+  // Whether the days are written between the strips is the account's «Даты между днями» (spec 8,
+  // `SheetSort`), so there is no switch here at all — nor its line, in either language.
+  expect(whole).not.toContain('role="switch"');
+  for (const gone of ['Даты между днями', 'Dates between days', 'Выключено —', 'Off —']) {
+    expect(whole).not.toContain(gone);
+  }
   allDifferent({
     plain: sorting(),
-    dated: sorting({ dates: true }),
+    oldest: sorting({ order: 'oldest' }),
     byPeople: sorting({ by: 'person' }),
   });
+});
+
+test('the sort sheet is as tall as the layout draws it, the button pushed down to its foot', () => {
+  // Spec 4: `SheetSort` is 380. It holds less than that, and spec 7.1 has the spacer take the rest.
+  expect(story(sorting())).toMatch(/min-height:\s*380px/);
 });
 
 test('the sheet is drawn in the theme the app is in, because daylight reaches it', () => {
@@ -296,11 +304,11 @@ test('and so are the two the feed is tuned from — nothing on them is a colour 
   for (const both of [
     filter({ kind: 'photo' }, 184),
     filter({ labels: new Set(['best', 'mine']) }, 30),
-    sorting({ dates: true }),
+    sorting({ by: 'person' }),
   ]) {
     const night = story(<ThemePin value="dark">{both}</ThemePin>);
     const day = story(<ThemePin value="light">{both}</ThemePin>);
     expect(day).not.toBe(night);
   }
-  expect(story(<ThemePin value="light">{sorting()}</ThemePin>)).toContain('Даты между днями');
+  expect(story(<ThemePin value="light">{sorting()}</ThemePin>)).toContain('Собрать в группы');
 });
