@@ -142,9 +142,19 @@ export type MontageTemplate = {
   music_wishes: Record<string, string>;
 };
 
-/** The organizer's alone, 403 for anybody else — nobody but them can order the film. */
+/**
+ * The organizer's alone, 403 for anybody else — nobody but them can order the film.
+ *
+ * The docs promise `music_wishes` on every template, `{}` included; an older api, or a slip of this
+ * one, leaves it out or sends null. That is a template with nothing to say about its tracks, and it
+ * is made one here, where the answer comes in, so that nothing reading a template has to ask.
+ */
 export function listMontageTemplates(token: string, memoryId: string): Promise<MontageTemplate[]> {
-  return request(`/memories/${memoryId}/montage-templates`, { token });
+  return request<
+    (Omit<MontageTemplate, 'music_wishes'> & { music_wishes?: Record<string, string> | null })[]
+  >(`/memories/${memoryId}/montage-templates`, { token }).then((came) =>
+    came.map((one) => ({ ...one, music_wishes: one.music_wishes ?? {} })),
+  );
 }
 
 /**

@@ -570,6 +570,40 @@ test(
   },
 );
 
+test.each([
+  ['with no such field', {}],
+  ['with it null', { music_wishes: null }],
+  ['with it empty', { music_wishes: {} }],
+] as const)(
+  'a template that says nothing about its music’s wishes %s walks to the total, its tracks bare',
+  BEAT_BY_BEAT,
+  async (_, said) => {
+    // The docs promise the field on every template; an older api, or a slip of this one, is still
+    // a template — with nothing to say about its tracks, and not a reason to fall over on the press.
+    const bare = {
+      id: 'dopamine',
+      story_text: 'История.',
+      target_seconds: 45,
+      orientation: 'portrait',
+      music_tracks: ['bright', 'road'],
+      ...said,
+    } as unknown as MontageTemplate;
+    const server = serve({ templates: [bare] });
+    await open();
+    await act(async () => tile('dopamine').props.onPress());
+    await settle();
+
+    expect(nav.top()).toBe('summary');
+    expect(wizard.auto).toBeNull();
+    const { bright, road } = ru.montage.track;
+    expect(chosen(bright).props.wish).toBeUndefined();
+    expect(chosen(road).props.wish).toBeUndefined();
+    await press(ru.montage.startCut);
+    expect(server.orders[0]?.music_tracks).toEqual(['bright', 'road']);
+    expect(server.orders[0]).not.toHaveProperty('music_wishes');
+  },
+);
+
 /* ── Too little material at the way in ──────────────────────────────────── */
 
 /** Three videos: enough frames by the count, and only as long as the worker has measured them. */
@@ -878,6 +912,78 @@ test('a cancelled pick changes nothing, and a file that cannot be sent says so a
   expect(banner()).toBeUndefined();
   expect(chosen('Первый танец.mp3')).toBeDefined();
 });
+
+test.each(['ru', 'en'] as const)(
+  'in %s the fiftieth track goes in and the fifty-first does not, off the shelf or off the phone, and the step says why',
+  BEAT_BY_BEAT,
+  async (language) => {
+    await setLanguage(language);
+    const s = strings[language];
+    const server = serve();
+    await open();
+    await press(s.montage.ownSetup);
+    await forward();
+    await forward();
+
+    /** The next file the phone's picker hands over, and the key its upload answers with. */
+    const file = (n: number) => {
+      phone.pick = { canceled: false, assets: [{ uri: `file:///${n}.mp3`, name: `${n}.mp3` }] };
+      phone.send = async () => `music/${n}`;
+    };
+    const keys = () => wizard.order.tracks.map((track) => track.key);
+    const { bright, warm, calm, night, road } = s.montage.track;
+    // Four off the shelf and 45 of their own: one short of the api's fifty, and the files count too.
+    for (const track of [bright, warm, calm, night]) await press(s.montage.addTrack(track));
+    for (let n = 1; n <= 45; n += 1) {
+      file(n);
+      await press(s.montage.ownTrackShort);
+    }
+    expect(keys()).toHaveLength(49);
+
+    // The fiftieth, a file off the phone, goes in as any other did.
+    file(46);
+    await press(s.montage.ownTrackShort);
+    expect(keys()).toHaveLength(50);
+    expect(keys().at(-1)).toBe('music/46');
+    expect(banner()).toBeUndefined();
+
+    // The fifty-first is turned away at both doors, in words — and no file goes up for nothing.
+    await press(s.montage.addTrack(road));
+    expect(keys()).toHaveLength(50);
+    expect(keys()).not.toContain('road');
+    expect(banner()).toBe(s.montage.tracksFull(50));
+    let sent = false;
+    phone.send = async () => {
+      sent = true;
+      return 'music/51';
+    };
+    await press(s.montage.ownTrackShort);
+    expect(sent).toBe(false);
+    expect(keys()).toHaveLength(50);
+    expect(banner()).toBe(s.montage.tracksFull(50));
+
+    // One taken out makes room — but a file going up holds that place, so the shelf cannot take it.
+    await press(s.montage.unpickTrack(bright));
+    expect(banner()).toBeUndefined();
+    const upload = later<string>();
+    file(47);
+    phone.send = () => upload.promise;
+    await press(s.montage.ownTrackShort);
+    await press(s.montage.addTrack(bright));
+    expect(banner()).toBe(s.montage.tracksFull(50));
+    await act(async () => upload.settle('music/47'));
+    expect(keys()).toHaveLength(50);
+    expect(keys().at(-1)).toBe('music/47');
+    expect(keys()).not.toContain('bright');
+
+    // And fifty is an order the api takes.
+    await forward();
+    await forward();
+    await run(0);
+    await press(s.montage.startCut);
+    expect(server.orders[0]?.music_tracks).toHaveLength(50);
+  },
+);
 
 test.each(['ru', 'en'] as const)(
   'in %s the music step with a wish written, one being written and none: every control is named, sized for a finger, and the field takes at most 500 letters',

@@ -64,6 +64,13 @@ export const PRESETS = [30, 60, 90, 180] as const;
 export const WISH_LIMIT = 500;
 
 /**
+ * How many tracks one order may name: the api's schema answers 400 to the 51st
+ * (`projects/api/docs/montages.md`, `music_tracks`). One list, so a file off the phone counts as
+ * much as a track off the shelf.
+ */
+export const TRACK_LIMIT = 50;
+
+/**
  * Below this there is nothing to cut a video out of, and the api refuses the order with 409
  * (`minReadyItems` in its `montages.ts`). Asked here before the first step rather than after the
  * last one: the layout answers it with `SheetTooLittle` in place of step 1, so nobody picks frames,

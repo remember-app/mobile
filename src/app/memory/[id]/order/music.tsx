@@ -15,6 +15,7 @@ import {
   type PickedTrack,
   pickedSeconds,
   shelfTrack,
+  TRACK_LIMIT,
   TRACKS,
   WISH_LIMIT,
 } from '@/lib/montage/order';
@@ -68,6 +69,11 @@ export default function MusicStep() {
   const nameOf = (track: PickedTrack, shelf: MusicTrackId | null) =>
     shelf === null ? (track.name ?? s.montage.ownTrackShort) : s.montage.track[shelf];
   const inOrder = (key: string) => picked.some((track) => track.key === key);
+  /**
+   * No room for one more under the api's ceiling. A file still going up already holds its place:
+   * the shelf stays pressable meanwhile, and must not fill the place the file is about to land in.
+   */
+  const full = picked.length + (busy ? 1 : 0) >= TRACK_LIMIT;
 
   /**
    * Taking one back — and its wish, which is held on it, goes too. So does its field, if it was
@@ -78,9 +84,16 @@ export default function MusicStep() {
     change({ tracks: picked.filter((track) => track.key !== key) });
   };
 
-  /** One tap on the shelf's plus or tick: the track goes on the end of the list, or comes off it. */
-  const flip = (key: MusicTrackId) =>
-    inOrder(key) ? drop(key) : change({ tracks: [...picked, { key, name: null }] });
+  /**
+   * One tap on the shelf's plus or tick: the track goes on the end of the list, or comes off it —
+   * and with the list full it stays where it is, and the step says why.
+   */
+  const flip = (key: MusicTrackId) => {
+    setNotice(null);
+    if (inOrder(key)) drop(key);
+    else if (full) setNotice(s.montage.tracksFull(TRACK_LIMIT));
+    else change({ tracks: [...picked, { key, name: null }] });
+  };
 
   const move = (from: number, to: number) =>
     change({ tracks: movedTrack(picked, from, Math.max(0, Math.min(picked.length - 1, to))) });
@@ -152,10 +165,15 @@ export default function MusicStep() {
    */
   async function pickOwnTrack() {
     if (!token) return;
+    setNotice(null);
+    // Said before the phone's picker opens, not after a file has been hunted down for nothing.
+    if (full) {
+      setNotice(s.montage.tracksFull(TRACK_LIMIT));
+      return;
+    }
     // Busy from the moment the phone's own picker is up: the wizard cannot move on while the track
     // it is about to be cut to is still being chosen, let alone sent.
     setBusy(true);
-    setNotice(null);
     try {
       const file = (await getDocumentAsync({ type: 'audio/*', copyToCacheDirectory: true }))
         .assets?.[0];
