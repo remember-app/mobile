@@ -44,6 +44,7 @@ vi.mock('@/lib/auth', async (original) => {
 });
 
 import { type Asked, contact, later, refused, serve } from '@tests/helpers/api';
+import { account, datesRefusal } from '@tests/helpers/contract';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import type { ReactNode } from 'react';
 import { Pressable } from 'react-native';
@@ -86,13 +87,7 @@ afterEach(async () => {
   });
 });
 
-const ME = {
-  id: 'me',
-  username: 'liza',
-  name: 'Лиза Морозова',
-  email: 'liza@example.com',
-  dates_between_days: false,
-};
+const ME = account();
 
 /** The api: the account, its contacts, and whatever a test puts in front of the rest. */
 function world({
@@ -111,6 +106,8 @@ function world({
     if (asked.path === '/me' || asked.path === '/me/language') return me;
     if (asked.path === '/me/contacts') return contacts;
     if (asked.path === '/me/dates-between-days') {
+      const bad = datesRefusal(asked.body);
+      if (bad) return bad;
       if (dates) return dates();
       me = { ...me, ...(asked.body as object) };
       return me;

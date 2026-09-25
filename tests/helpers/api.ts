@@ -37,11 +37,26 @@ export const refused = (status: number, error = 'refused') =>
  */
 export function serve(route: (asked: Asked) => Answer): Asked[] {
   const log: Asked[] = [];
-  vi.stubGlobal('fetch', async (url: string, init: { method?: string; body?: string } = {}) => {
+  vi.stubGlobal('fetch', async (url: string, init: RequestInit = {}) => {
+    // Fastify's own two refusals, ahead of any route: a JSON header over nothing (the api's docs
+    // spell it out), and a body that does not say it is JSON. A client that slips into either would
+    // find every call on that route refused for real, and every test of it green here otherwise.
+    const claimsJson =
+      (init.headers as Record<string, string> | undefined)?.['Content-Type'] === 'application/json';
+    if (claimsJson && init.body === undefined)
+      return new Response(
+        JSON.stringify({ code: 'FST_ERR_CTP_EMPTY_JSON_BODY', statusCode: 400 }),
+        { status: 400 },
+      );
+    if (!claimsJson && init.body !== undefined)
+      return new Response(
+        JSON.stringify({ code: 'FST_ERR_CTP_INVALID_MEDIA_TYPE', statusCode: 415 }),
+        { status: 415 },
+      );
     const asked: Asked = {
       method: init.method ?? 'GET',
       path: String(url).replace(/^https?:\/\/[^/]+/, ''),
-      body: init.body ? JSON.parse(init.body) : null,
+      body: init.body ? JSON.parse(String(init.body)) : null,
     };
     log.push(asked);
     const answer = await route(asked);

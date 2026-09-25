@@ -110,6 +110,7 @@ vi.mock('@/kit', async (original) => {
   };
 });
 
+import { orderRefusal } from '@tests/helpers/contract';
 import { act, BEAT_BY_BEAT, drives } from '@tests/helpers/drive';
 import { frame } from '@tests/helpers/labels';
 import { mountsTrees } from '@tests/helpers/renderer';
@@ -230,8 +231,13 @@ function weigh(server: Server, exclude: ReadonlySet<string> = new Set()) {
 const tooLittle = (ready: number) =>
   json({ error: 'not enough material for a montage', ready_items: ready, need: 3 }, 409);
 
-/** `checkOrder` of the api's `montages.ts`, cut to the refusals a wizard can earn. */
+/**
+ * `checkOrder` of the api's `montages.ts`, cut to the refusals a wizard can earn — behind the
+ * schema the api holds the body to first (`orderRefusal`, the same one every stand-in shares).
+ */
 function total(server: Server, body: Body): Response {
+  const bad = orderRefusal(body);
+  if (bad) return bad;
   if (server.refuse?.body) return json(server.refuse.body, server.refuse.status);
   const exclude = new Set(body.exclude_media_ids);
   if (body.include_media_ids?.some((id) => exclude.has(id))) return json({ error: 'both' }, 400);
@@ -241,14 +247,6 @@ function total(server: Server, body: Body): Response {
   );
   if (missing.length > 0)
     return json({ error: 'no such ready media in this memory', media_ids: missing }, 400);
-  // A wish is about one of the order's own tracks, or it is refused by name (api `montages.ts`).
-  const stray = Object.keys(body.music_wishes ?? {}).filter(
-    (track) => !body.music_tracks?.includes(track),
-  );
-  if (stray.length > 0)
-    return json({ error: 'music wish for a track not in music_tracks', music_wishes: stray }, 400);
-  if (Object.values(body.music_wishes ?? {}).some((wish) => wish.length > 500))
-    return json({ error: 'body/music_wishes must NOT have more than 500 characters' }, 400);
 
   const { left, max, min, short } = weigh(server, exclude);
   if (server.refuse?.status === 409 || short) return tooLittle(left.length);

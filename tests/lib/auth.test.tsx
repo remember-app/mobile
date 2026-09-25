@@ -16,6 +16,7 @@ vi.mock('expo-secure-store', () => ({
 }));
 
 import { later } from '@tests/helpers/api';
+import { account, datesRefusal } from '@tests/helpers/contract';
 import { mountsTrees } from '@tests/helpers/renderer';
 import TestRenderer, { act } from 'react-test-renderer';
 import {
@@ -40,7 +41,7 @@ import { AuthProvider, useAuth } from '@/lib/auth';
 
 mountsTrees();
 
-const ME = { id: 'me', username: 'anya', name: 'Аня', email: 'anya@test.test', language: 'ru' };
+const ME = account({ username: 'anya', name: 'Аня', email: 'anya@test.test' });
 const SESSION = 'session-anya';
 
 /** The api as far as this test needs it. `honoured` is every token it still takes. */
@@ -226,6 +227,8 @@ function holding(on: boolean, change?: (asked: boolean) => Promise<Response>) {
       }
       if (path !== '/me/dates-between-days') return answer(url, init);
       api.calls.push(`${init.method} ${path} ${init.body}`);
+      const bad = datesRefusal(JSON.parse(String(init.body)));
+      if (bad) return bad;
       const asked = JSON.parse(String(init.body)).dates_between_days;
       if (change) return change(asked);
       held = asked;
@@ -262,6 +265,16 @@ test('the setting is read off the profile, and is off until the profile has come
 });
 
 test('an account sent without it — by an api from before the setting — reads as off', async () => {
+  // The api today never leaves it out (`NOT NULL`, in every answer); the app ships over the air and
+  // may meet one that has not been deployed yet.
+  const { dates_between_days: _, ...before } = ME;
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string, init: RequestInit = {}) => {
+      const res = await answer(url, init);
+      return new URL(url).pathname === '/me' && res.ok ? json(200, before) : res;
+    }),
+  );
   await signedIn();
   expect(auth.user).not.toHaveProperty('dates_between_days');
   expect(auth.datesBetweenDays).toBe(false);
