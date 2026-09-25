@@ -31,6 +31,7 @@ vi.mock('@/kit', async (original) => ({
 import { expectReachable } from '@tests/helpers/access';
 import { type Asked, later, member, memory, refused, serve } from '@tests/helpers/api';
 import { mounted, mountsTrees, themesShown } from '@tests/helpers/renderer';
+import { sheetBox } from '@tests/helpers/sheet';
 import { Pressable } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import type { Member, Memory } from '@/api';
@@ -303,11 +304,14 @@ test('taking somebody out names the price in figures, the level of it is the fra
   expect(ask.price).toBe(ru.members.priceFrames(54));
   expect(ask.text).toBe(ru.members.removeText);
   expect(ask.who).toBe('Лиза Морозова');
+  // Spec 4, `SheetConfirmMember`: 420, 18 between blocks — with a price, without one, and for a viewer.
+  expect(sheetBox(screen.sheet()[0])).toEqual({ gap: 18, minHeight: 420 });
   await act(async () => ask.onCancel());
   expect(screen.sheet()).toHaveLength(0);
 
   // Somebody who brought nothing has nothing to lose, and the sheet does not invent a price.
   await screen.press(() => screen.icon(ru.members.remove('Аня Петрова'))[0]);
+  expect(sheetBox(screen.sheet()[0])).toEqual({ gap: 18, minHeight: 420 });
   expect(screen.sheet()[0].props.price).toBeUndefined();
   expect(screen.sheet()[0].props.meta).toBe(`@anya.p · ${ru.memory.frames(0)}`);
   await act(async () => screen.sheet()[0].props.onCancel());
@@ -315,6 +319,7 @@ test('taking somebody out names the price in figures, the level of it is the fra
   // A viewer has brought nothing to be lost: the text says what is lost, and there is no line of frames.
   await screen.press(() => screen.icon(ru.members.remove('Вера'))[0]);
   expect(screen.sheet()[0].props.text).toBe(ru.members.removeViewerText);
+  expect(sheetBox(screen.sheet()[0])).toEqual({ gap: 18, minHeight: 420 });
   expect(screen.sheet()[0].props.price).toBeUndefined();
   expect(screen.sheet()[0].props.meta).toBe('@vera');
 });
@@ -624,6 +629,8 @@ test('the sheet is the memory’s cover, its name and frames, whom it disappears
   // And that is what is drawn.
   expect(screen.text()).toContain('57 кадров сюда принесли другие');
   expect(screen.text()).toContain('Удалить навсегда');
+  // Spec 4, `SheetConfirmMemory`: 434 — the layout's 430 squeezed its handle — with 18 between blocks.
+  expect(sheetBox(screen.sheet()[0])).toEqual({ gap: 18, minHeight: 434 });
 
   // «Оставить» leaves it alone: nothing was asked of the api.
   await act(async () => ask.onCancel());
@@ -645,6 +652,8 @@ test('with nothing brought by anybody else there is no plate, and alone in it no
   await screen.press(() => screen.icon(ru.settings.delete)[0]);
   expect(screen.sheet()[0].props.price).toBeUndefined();
   expect(screen.sheet()[0].props.text).toBe(ru.settings.deleteText(4));
+  // No plate, and the sheet is the same 434: what is left of it is the spacer over the buttons.
+  expect(sheetBox(screen.sheet()[0])).toEqual({ gap: 18, minHeight: 434 });
 
   world({ members: [roster()[0]], card: { media_count: 12 } });
   screen = await open();

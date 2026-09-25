@@ -31,6 +31,22 @@ test('the handle is the first thing in a sheet, whatever the sheet is', () => {
   expect(story(<Sheet visible onCancel={() => {}} />)).toContain('sheet-handle');
 });
 
+test('the handle is 40 wide and 4 tall, on every kind of sheet', () => {
+  // Spec 4 (`[правлено]`): «Ручка 40 × 4» — the layout's own files squeezed it to 3.94 and to nothing.
+  const handle = (markup: string) =>
+    /class="([^"]*)" data-testid="sheet-handle"/.exec(markup)?.[1] ?? '';
+  for (const markup of [
+    story(<Sheet visible onCancel={() => {}} title="Фильтры" />),
+    story(
+      <Sheet visible onCancel={() => {}} title="Фильтры" scroll height={560} rhythm="tuning" />,
+    ),
+    story(<Sheet visible onCancel={() => {}} head={<Text>Кадр</Text>} rhythm="list" />),
+  ]) {
+    expect(handle(markup)).toContain(rule('width:40px'));
+    expect(handle(markup)).toContain(rule('height:4px'));
+  }
+});
+
 test('the five kinds of sheet differ only in the block at the bottom', () => {
   const body = <Text>Тело листа</Text>;
   allDifferent({

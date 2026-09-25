@@ -13,6 +13,7 @@ vi.mock('@/kit', async (original) => ({
 
 import { frame, label } from '@tests/helpers/labels';
 import { mountsTrees } from '@tests/helpers/renderer';
+import { sheetBox, wordsIn } from '@tests/helpers/sheet';
 import { Unlink, WifiOff } from 'lucide-react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import type { Label, MediaItem } from '@/api';
@@ -317,6 +318,10 @@ test('deleting a label asks first, takes only the box, and tells the feed every 
   expect(sheet.confirm().props.visible).toBe(true);
   expect(sheet.confirm().props.price).toBeUndefined();
   expect(server.asked.filter((one) => one.method === 'DELETE')).toEqual([]);
+  // Spec 4, `SheetConfirmDelete`: a label — the square of its own colour beside the question, no
+  // price — is asked about on the 380 sheet, 18 between its blocks.
+  expect(sheetBox(sheet.confirm())).toEqual({ gap: 18, minHeight: 380 });
+  expect(wordsIn(sheet.confirm())).toContain(ru.labels.deleteAsk('Лучшее'));
 
   await sheet.act(() => sheet.confirm().props.onConfirm());
   expect(server.asked.filter((one) => one.method === 'DELETE')).toEqual([
