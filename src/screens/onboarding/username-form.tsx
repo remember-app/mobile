@@ -25,7 +25,8 @@ const availabilityHint = (s: Strings): Record<Availability, string> => ({
 });
 
 /**
- * The one username field, shared by the first claim (/set-username) and the change (/profile).
+ * The one username field, shared by the first claim (/set-username) and the change (the pencil on
+ * /profile, which puts it on a sheet).
  *
  * The kit's field answers before the form is sent (section 4, «Ник»): «Ник свободен.» is the
  * server's word, not this side's guess, so a well-formed name is asked about while it is being
@@ -38,9 +39,15 @@ const availabilityHint = (s: Strings): Record<Availability, string> => ({
  */
 export function UsernameForm({
   submitLabel,
+  onClaimed,
   onConsentNeeded,
 }: {
   submitLabel: string;
+  /**
+   * The api took the name. The first claim needs nothing here — the gate moves the person on — but
+   * a change made on a sheet has a sheet to close.
+   */
+  onClaimed?: () => void;
   /**
    * The api refused the first claim because the agreement has not been accepted (403, TASK-139).
    * Holding a username *is* being registered, so that answer is not an error to print but a screen
@@ -108,6 +115,7 @@ export function UsernameForm({
     setError(null);
     try {
       await setUsername(username);
+      onClaimed?.();
     } catch (e) {
       // Not a line about the name at all: the account has not accepted the agreement, and the way
       // out of that is the screen that asks for it — pressing this again would only earn the same

@@ -285,7 +285,6 @@ test('a switch flips to the other value when its row is pressed, says which it i
       (value: boolean, disabled: boolean, said: boolean[]) => (
         <RowToggle
           label="Даты между днями"
-          note="Выключено — дата видна только на полосе"
           value={value}
           disabled={disabled}
           onValueChange={(v) => said.push(v)}

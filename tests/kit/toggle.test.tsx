@@ -1,6 +1,6 @@
 import { beforeAll, expect, test } from 'vitest';
 
-import { allDifferent, story } from '@/kit/story';
+import { allDifferent, compiled, story } from '@/kit/story';
 import { RowToggle, Toggle } from '@/kit/toggle';
 import { setTheme } from '@/theme';
 
@@ -38,20 +38,22 @@ test('the words beside it are its name, and pressing them flips it too', () => {
 
 /** Spec 7.7, detail 59 — the same switch given a place to stand. */
 
-test('the switch in a card is on or off, and explains what it reaches', () => {
+test('the switch in a card is on or off, and says nothing but its name', () => {
   const card = (value: boolean) => (
-    <RowToggle
-      label="Даты между днями"
-      note="Выключено — дата видна только на полосе у края, пока листаете."
-      value={value}
-      onValueChange={() => {}}
-    />
+    <RowToggle label="Даты между днями" value={value} onValueChange={() => {}} />
   );
   allDifferent({ on: card(true), off: card(false) });
 
   const drawn = story(card(true));
-  expect(drawn).toContain('Выключено — дата видна только на полосе у края, пока листаете.');
-  // One control to a screen reader, whatever it carries.
+  // One control to a screen reader, and one line of words: spec 59 puts nothing under the name.
   expect(drawn).toContain('role="switch"');
   expect(drawn).toContain('aria-label="Даты между днями"');
+  expect(drawn.match(/dir="auto"/g)).toHaveLength(1);
+});
+
+test('the card stands on the screen’s `surface`, 26 round, and not on a sheet’s `ink`', () => {
+  story(<RowToggle label="Даты между днями" value onValueChange={() => {}} />);
+  const rules = compiled();
+  expect(rules).toContain('background-color:rgba(22,22,31,1.00)');
+  expect(rules).toContain('border-top-left-radius:26px');
 });

@@ -405,16 +405,23 @@ export function RowAction({
 }
 
 /**
- * A row that leads to a screen of its own (spec 7.6): 72 tall, a surface of its own, a sign on the
- * left, two lines of words, a chevron. The account screen's «Контакты» is the one the layout draws.
+ * A section that leads to a screen of its own (spec 7.7, detail 58): its heading in `eyebrow` over
+ * a 26 card, and in the card a sign on the left, two lines of words, a chevron. The account screen's
+ * «Контакты» is the one the layout draws.
+ *
+ * The card is read out as the words on it, not as one of them: «8 человек» alone says nothing about
+ * what is behind it, and the heading over it has already been read as a header.
  */
 export function RowSection({
+  heading,
   title,
   meta,
   sign,
   onPress,
   style,
 }: {
+  /** The section's own name over the card, drawn in caps. */
+  heading?: string;
   title: string;
   meta?: string;
   /** The stack of avatars, or a glyph — whatever stands for where this leads. */
@@ -425,10 +432,10 @@ export function RowSection({
   const styles = useStyles();
   const { color } = useTheme();
 
-  return (
-    <Tappable label={title} onPress={onPress} style={[styles.section, style]}>
+  const card = (
+    <Tappable onPress={onPress} style={[styles.section, heading ? null : style]}>
       {sign}
-      <View style={styles.grow}>
+      <View style={[styles.grow, styles.sectionWords]}>
         <Text role="subtitle" numberOfLines={1}>
           {title}
         </Text>
@@ -440,6 +447,17 @@ export function RowSection({
       </View>
       <Icon icon={ChevronRight} size={20} color={color.faint} />
     </Tappable>
+  );
+
+  return heading ? (
+    <View style={[styles.headed, style]}>
+      <Text role="eyebrow" tone="muted" accessibilityRole="header">
+        {heading.toUpperCase()}
+      </Text>
+      {card}
+    </View>
+  ) : (
+    card
   );
 }
 
@@ -602,6 +620,9 @@ const useStyles = themed(({ color }) =>
       paddingHorizontal: space.s4,
       borderRadius: radius.cell,
     },
+    // Spec 7.7, detail 58: 10 between the heading and the card; the card 26 round, 16 inside, 12
+    // between its parts, 2 between its two lines.
+    headed: { gap: 10 },
     section: {
       minHeight: 72,
       flexDirection: 'row',
@@ -610,8 +631,9 @@ const useStyles = themed(({ color }) =>
       padding: space.s4,
       borderWidth: 1,
       borderColor: color.line,
-      borderRadius: radius.section,
+      borderRadius: radius.cover,
       backgroundColor: color.surface,
     },
+    sectionWords: { gap: 2 },
   }),
 );

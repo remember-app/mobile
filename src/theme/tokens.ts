@@ -34,7 +34,7 @@ export const radius = {
   section: 20,
   /** ordinary card, montage card, message card, progress block */
   card: 22,
-  /** large memory card */
+  /** large memory card; the cards of `Account` — the profile, «Контакты», «Галерея» */
   cover: 26,
   /** top corners of a sheet */
   sheet: 28,

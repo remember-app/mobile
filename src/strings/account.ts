@@ -1,5 +1,3 @@
-import { count } from './plural';
-
 /**
  * The words of the account — the profile, the people one knows by name, the nick they are found by,
  * and the two picks that change how the whole app looks and speaks.
@@ -9,11 +7,24 @@ export const en = {
   profile: {
     title: 'Account',
     /**
-     * Under «Contacts» on the section row that leads there: what the list is worth opening for, said
-     * as what it saves rather than as what it holds.
+     * The pencil on the profile card, read out, and the heading of the sheet it opens. The username
+     * is the one thing about a person the product lets them change (doc-04): no name, no picture,
+     * and the address is the one they signed in with.
      */
-    contactsMeta: (n: number) =>
-      `${n} ${n === 1 ? 'person' : 'people'} — invite by picking, without remembering a username`,
+    edit: 'Change username',
+    /**
+     * Under the count on the «Contacts» card: what the list is worth opening for, said as what it
+     * saves rather than as what it holds.
+     */
+    contactsMeta: 'Invite by picking, not by username',
+    /** The heading over the one setting of every feed of every memory. */
+    gallery: 'Gallery',
+    datesBetweenDays: 'Dates between days',
+    /** Leaving loses nothing, and the sheet says so (spec 8, `Account`). */
+    logOutAsk: 'Log out of your account?',
+    logOutText: 'Your frames stay in the memories.',
+    logOutDo: 'Log out',
+    stay: 'Stay',
   },
 
   /**
@@ -67,25 +78,28 @@ export const en = {
     label: 'Language',
     ru: 'Русский',
     en: 'English',
-    /** Where the pick reaches past this screen — the mails and the pushes the api writes (TASK-91). */
-    hint: 'Letters and notifications come in it too.',
   },
 
   /** doc-9. The third one is not a light but the phone going on deciding. */
   theme: {
     label: 'Theme',
-    system: 'As on phone',
+    system: 'System',
     dark: 'Dark',
     light: 'Light',
-    hint: 'Changes at once — this screen is the sample.',
   },
 };
 
 export const ru: typeof en = {
   profile: {
     title: 'Аккаунт',
-    contactsMeta: (n: number) =>
-      `${count(n, 'человек', 'человека', 'человек')} — зовите выбором, не вспоминая ник`,
+    edit: 'Изменить ник',
+    contactsMeta: 'Зовите выбором, не по нику',
+    gallery: 'Галерея',
+    datesBetweenDays: 'Даты между днями',
+    logOutAsk: 'Выйти из аккаунта?',
+    logOutText: 'Кадры останутся в воспоминаниях.',
+    logOutDo: 'Выйти',
+    stay: 'Остаться',
   },
 
   contacts: {
@@ -114,14 +128,12 @@ export const ru: typeof en = {
     label: 'Язык',
     ru: 'Русский',
     en: 'English',
-    hint: 'На нём же приходят письма и уведомления.',
   },
 
   theme: {
     label: 'Тема',
-    system: 'Как в телефоне',
+    system: 'Как в системе',
     dark: 'Тёмная',
     light: 'Светлая',
-    hint: 'Меняется сразу — этот экран и есть образец.',
   },
 };

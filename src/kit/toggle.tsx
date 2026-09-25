@@ -58,22 +58,18 @@ export function Toggle({ label, value, onValueChange, disabled }: ToggleProps) {
 }
 
 /**
- * Spec 7.7 — the switch given a place to stand, in a card (`SheetSort`): a name, a line saying what
- * the setting reaches, and the switch on the right, all on `ink` inside a sheet that is already
- * `surface`. The whole thing flips, label included, the same way the bare `Toggle` does.
+ * Spec 7.7, detail 59 — the switch given a place to stand, in a 26 card on `surface` (`Account`,
+ * «Даты между днями»): the name across the card and the switch on the right, with nothing under the
+ * name — the change shows itself. The whole card flips, label included, the same way the bare
+ * `Toggle` does.
  */
 export function RowToggle({
   label,
-  note,
   value,
   onValueChange,
   disabled,
   style,
-}: ToggleProps & {
-  /** What the setting reaches, under the name. */
-  note?: string;
-  style?: StyleProp<ViewStyle>;
-}) {
+}: ToggleProps & { style?: StyleProp<ViewStyle> }) {
   const { color } = useTheme();
   const styles = useRowStyles();
 
@@ -81,22 +77,14 @@ export function RowToggle({
     <Pressable
       accessibilityRole="switch"
       accessibilityLabel={label}
-      // The line under the name says what the setting reaches — it is the only place it is explained,
-      // and a label alone would keep it from a screen reader.
-      accessibilityHint={note}
       accessibilityState={{ checked: value, disabled: !!disabled }}
       disabled={disabled}
       onPress={() => onValueChange(!value)}
       style={[styles.card, style]}
     >
-      <View style={styles.words}>
-        <Text role="row">{label}</Text>
-        {note ? (
-          <Text role="meta" tone="muted" style={styles.note}>
-            {note}
-          </Text>
-        ) : null}
-      </View>
+      <Text role="row" style={styles.label}>
+        {label}
+      </Text>
       <View pointerEvents="none">
         <Switch
           accessibilityElementsHidden
@@ -122,15 +110,13 @@ const useRowStyles = themed(({ color }) =>
       gap: space.s4 - 2,
       paddingVertical: space.s4 - 2,
       paddingHorizontal: space.s4,
-      borderRadius: radius.section,
-      backgroundColor: color.ink,
+      borderRadius: radius.cover,
+      backgroundColor: color.surface,
       borderWidth: 1,
       borderColor: color.line,
     },
-    words: { flex: 1, minWidth: 0, gap: space.s1 },
-    // The explanation runs to a second line rather than being cut: it is the only place the setting
-    // is explained at all.
-    note: { lineHeight: 17 },
+    // 16 / 600: a shade over a list row's name, because it is the whole of what the card says.
+    label: { flex: 1, minWidth: 0, fontSize: 16, lineHeight: 21 },
   }),
 );
 

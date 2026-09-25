@@ -41,7 +41,7 @@ test('two letters stand for a name, and one where there is only one word', () =>
 test('the circle is drawn at every size the layout uses', () => {
   allDifferent(
     Object.fromEntries(
-      [26, 32, 34, 42, 64, 68].map((size) => [
+      [26, 32, 34, 36, 42, 64].map((size) => [
         String(size),
         <Avatar name="Марк Ковалёв" size={size} />,
       ]),
@@ -89,15 +89,26 @@ test('a face takes its colour from the name, and the same name is the same colou
 test('every size the layout draws a circle at is its own size, letters and all', () => {
   allDifferent(
     Object.fromEntries(
-      [16, 24, 30, 32, 34, 38, 42, 64, 68].map((size) => [
+      [16, 24, 30, 32, 34, 36, 38, 42, 64].map((size) => [
         String(size),
         <Avatar name="Марк Ковалёв" size={size} />,
       ]),
     ),
   );
-  // 16 in a day gap carries 6px of letters; 68 on the account carries 20.
+  // 16 in a day gap carries 6px of letters; 36 in the account's stack carries 12.
   expect(story(<Avatar name="Марк Ковалёв" size={16} />)).toContain('font-size:6px');
-  expect(story(<Avatar name="Марк Ковалёв" size={68} />)).toContain('font-size:20px');
+  expect(story(<Avatar name="Марк Ковалёв" size={36} />)).toContain('font-size:12px');
+});
+
+test('the account’s own circle sets its letters like a name, at the size a confirmation does not', () => {
+  // Spec 8, `Account`: 64 with the initials in Unbounded 600 19 — the same 64 on a confirmation
+  // sheet carries Onest at 18.
+  allDifferent({
+    confirmation: <Avatar name="Марк Ковалёв" size={64} />,
+    account: <Avatar name="Марк Ковалёв" size={64} display />,
+  });
+  expect(story(<Avatar name="Марк Ковалёв" size={64} display />)).toContain('font-size:19px');
+  expect(story(<Avatar name="Марк Ковалёв" size={64} />)).toContain('font-size:18px');
 });
 
 test('a stack overlaps by what its circles can spare, and stops at four', () => {
@@ -105,8 +116,10 @@ test('a stack overlaps by what its circles can spare, and stops at four', () => 
   expect(stack).toContain('АН');
   expect(stack).toContain('МА');
   expect(stack).toContain('ЛИ');
-  // Spec 7.5: −12 at 34, −7 at 24 — the smaller the circle, the less of it there is to give away.
+  // Spec 7.5: −12 at 36, −7 at 24 — the smaller the circle, the less of it there is to give away.
+  // 36 is the stack's own size: the «Контакты» card is where it stands.
   expect(stack).toContain('margin-left:-12px');
+  expect(stack).toContain('width:36px');
   expect(story(<AvatarStack names={['Аня', 'Марк']} size={24} on="#16161F" />)).toContain(
     'margin-left:-7px',
   );
