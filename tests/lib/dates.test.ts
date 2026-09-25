@@ -19,6 +19,7 @@ import {
   formatMonth,
   formatRuntime,
   formatTime,
+  formatWeekday,
   lastWeekend,
   startOfDay,
   weekdayLetters,
@@ -38,8 +39,16 @@ test('a single day is written in the kit form: full month, no year marker', () =
   expect(formatDay(day(2026, 9, 3), 'en-US')).toBe('3 September 2026');
 });
 
+test('the name of a day, whole or cut short for a day tile of the filter', () => {
+  expect(formatWeekday(day(2026, 9, 13), 'ru-RU')).toBe('воскресенье');
+  // Spec 7.3, detail 74: «13 вс» on the tile — the locale's own short name.
+  expect(formatWeekday(day(2026, 9, 13), 'ru-RU', 'short')).toBe('вс');
+  expect(formatWeekday(day(2026, 9, 13), 'en-US', 'short')).toBe('Sun');
+  expect(formatWeekday('not a day', 'ru-RU', 'short')).toBe('');
+});
+
 test('the tiny day is the month cut short, and nothing of the locale’s own glue', () => {
-  // The pill on the date spine and the day chips of the filter (spec 7.8, detail 66): ten pixels
+  // The pill on the date spine (spec 7.8, detail 66): ten pixels
   // of line, so the month is the abbreviation — and Russian's own full stop after it is not part
   // of a date, the same rule the whole day is written by.
   expect(formatDayTiny(day(2026, 9, 13), 'ru-RU')).toBe('13 сент');

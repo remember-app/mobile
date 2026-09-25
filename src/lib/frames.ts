@@ -467,6 +467,54 @@ export function framesByDay(items: readonly MediaItem[]): FrameDay[] {
 }
 
 /**
+ * One day `SheetFilter` offers (spec 8, detail 74): the day, how many frames stand behind it, and how
+ * full it is beside the fullest day of the memory — `fill`, 0 to 1, the bar on its tile.
+ */
+export type FilterDay = { at: number; count: number; fill: number };
+
+/**
+ * Every day the memory holds, newest first, each counted and weighed over the whole memory rather
+ * than over what is on screen: a tile says what pressing it would bring back, not what the filter
+ * has already left.
+ *
+ * Weighed by the bytes of the files, because every record carries its `size_bytes` — so a day of
+ * a few long videos reads as the heavy day it is rather than as a thin one. Only when not one size
+ * adds up to anything is a day weighed by its frames instead.
+ */
+export function filterDays(items: readonly MediaItem[]): FilterDay[] {
+  const days = framesByDay(items);
+  const bytes = days.map((day) =>
+    day.frames.reduce((sum, item) => sum + (Number(item.size_bytes) || 0), 0),
+  );
+  const weight = bytes.some((one) => one > 0) ? bytes : days.map((day) => day.frames.length);
+  const fullest = Math.max(...weight);
+  return days.map((day, at) => ({
+    at: day.at,
+    count: day.frames.length,
+    fill: weight[at] / fullest,
+  }));
+}
+
+/**
+ * How many day tiles the row holds: three share it evenly, and there is no sideways scrolling in the
+ * product outside the filmstrip and the films (spec 1, rule 5).
+ */
+export const DAY_TILES = 3;
+
+/**
+ * Which days get a tile (TASK-294): every day up to three, and past that the three fullest by their
+ * frames — the rest are reached through the calendar, and «Все дни» takes any of them off. In date
+ * order, the earliest on the left, the way the layout lays them; of two equally full days the later
+ * one is kept, the way the feed reads newest first.
+ */
+export function dayTiles(days: readonly FilterDay[]): FilterDay[] {
+  return [...days]
+    .sort((a, b) => b.count - a.count || b.at - a.at)
+    .slice(0, DAY_TILES)
+    .sort((a, b) => a.at - b.at);
+}
+
+/**
  * Which tile the filmstrip opens on — the position of the record being shown. Never below zero: a
  * record that has just been deleted is no longer in the list, and a strip told to start at «not
  * found» starts nowhere at all, so it starts at its head instead.

@@ -8,19 +8,20 @@ import { Avatar } from './member';
 import { Text } from './text';
 
 /**
- * Spec 7.3 — the chip: a pill that is offered rather than pressed home. Three heights, each
+ * Spec 7.3 — the chip: a pill that is offered rather than pressed home. Four heights, each
  * belonging to a place rather than to a taste (spec 7.3):
  *
  * - **40** — a filter, the tallest and the only one that carries a face;
  * - **36** — the quick days on `Create`, which stand on `surface` instead of on nothing;
- * - **34** — the journal's own filter, where a row of them sits under a bar.
+ * - **34** — the journal's own filter, where a row of them sits under a bar;
+ * - **28** — «Все дни» in the head of the filter's day block: 12 / 600 and pulled in to 12 a side.
  *
  * What stands inside is the rest of it: words alone, a face and a name, a colour square and a name
  * (a label, spec 10.8.2), a glyph, and a count that is the same words a shade quieter.
  *
  * Chips lie in a wrapping row 8 apart and wrap as they need to; that row belongs to the screen.
  */
-export type ChipSize = 40 | 36 | 34;
+export type ChipSize = 40 | 36 | 34 | 28;
 
 export function Chip({
   label,
@@ -60,6 +61,7 @@ export function Chip({
   const focusRing = useFocusRing();
   const tint = disabled ? color.faint : selected ? color.ink : color.paper;
   const lead = avatar || swatch;
+  const role = size === 28 ? 'chipXs' : 'chip';
 
   return (
     <Pressable
@@ -78,6 +80,7 @@ export function Chip({
       style={({ pressed }) => [
         styles.chip,
         { minHeight: size },
+        size === 28 ? styles.tag : null,
         lead ? styles.chipLead : null,
         selected ? styles.selected : size === 36 ? styles.quick : styles.outlined,
         hovered && !selected ? styles.hover : null,
@@ -97,11 +100,11 @@ export function Chip({
         />
       ) : null}
       {icon ? <Icon icon={icon} size={14} color={selected ? color.ink : color.muted} /> : null}
-      <Text role="chip" numberOfLines={1} style={{ color: tint }}>
+      <Text role={role} numberOfLines={1} style={{ color: tint }}>
         {label}
       </Text>
       {count ? (
-        <Text role="chip" numberOfLines={1} style={[styles.count, { color: tint }]}>
+        <Text role={role} numberOfLines={1} style={[styles.count, { color: tint }]}>
           {count}
         </Text>
       ) : null}
@@ -120,6 +123,7 @@ const useStyles = themed(({ color }) =>
       borderWidth: 1,
       borderColor: 'transparent',
     },
+    tag: { paddingHorizontal: space.s3 },
     // A chip with a face or a colour in it pulls its left side in so the circle sits against the edge.
     chipLead: { paddingLeft: 6 },
     outlined: { borderColor: color.lineQuiet },

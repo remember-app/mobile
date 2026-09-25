@@ -87,7 +87,7 @@ test('the filter is a draft until it is applied, and it is applied by a button t
   expect(sheets).toContain('useState<Filter>(value)');
 });
 
-test('the day row opens with the absence of a choice, and the people row does not', () => {
+test('the day block opens with the absence of a choice, and the people row does not', () => {
   // «Все дни» is an empty set and not a value of its own, which is the whole reason a set is what
   // the filter holds. The people row has no such chip in the layout: a face is pressed off again,
   // and «Сбросить» is what clears the lot.
@@ -101,26 +101,28 @@ test('the day row opens with the absence of a choice, and the people row does no
   expect(sheets).toContain('onPress={() => setDraft(FILTER_NONE)}');
   expect(ru.gallery.reset).toBe('Сбросить');
   // Only people who actually brought something are offered, and only days the gallery holds —
-  // each day with what it holds, which is the figure on its own chip.
+  // each counted and weighed over the whole memory, which is what its tile carries.
   expect(frames).toContain('people={brought}');
   expect(frames).toContain('days={days}');
-  expect(frames).toContain(
-    'framesByDay(items ?? []).map((day) => ({ at: day.at, count: day.frames.length }))',
-  );
-  expect(sheets).toContain('count={String(day.count)}');
+  expect(frames).toContain('filterDays(items ?? [])');
+  expect(sheets).toContain('dayTiles(days)');
+  // Faces and tiles, not chips (spec 7.0.1): no name under a face, no chip per day.
+  expect(sheets).toContain('<FaceToggle');
+  expect(sheets).toContain('<DayTile');
+  expect(sheets).not.toContain('avatar={person.name}');
+  expect(sheets).not.toContain('formatDayTiny');
 });
 
-test('a day the row is not offering is reached by the calendar, and can be taken off again', () => {
-  // «Другая дата» (spec 8) opens the kit's own calendar under the row of days; a day picked there
-  // joins the same set every chip toggles.
+test('a day the tiles are not offering is reached by the calendar, and can be taken off again', () => {
+  // The round calendar beside «Все дни» (spec 8) opens the kit's own calendar under the tiles; a
+  // day picked there joins the same set every tile toggles.
   expect(sheets).toContain('label={s.gallery.otherDay}');
   expect(sheets).toContain('icon={CalendarDays}');
-  expect(sheets).toContain('selected={calendar}');
-  expect(sheets).toContain('toggled(have.days, startOfDay(day).getTime())');
-  expect(ru.gallery.otherDay).toBe('Другая дата');
-  // And it gets a chip of its own even when the memory holds nothing from that day: otherwise it
-  // would be filtering the feed with nothing on screen to say so, and nothing to press to undo it.
-  expect(sheets).toContain('.filter((at) => !held.has(at)).map((at) => ({ at, count: 0 }))');
+  expect(sheets).toContain("tone={calendar ? 'paper' : 'outline'}");
+  expect(sheets).toContain('toggleDay(startOfDay(day).getTime())');
+  expect(ru.gallery.otherDay).toBe('Выбрать другую дату');
+  // No sideways scrolling anywhere in the block (spec 1, rule 5): one row of at most three tiles.
+  expect(sheets).not.toMatch(/horizontal/);
 });
 
 test('nothing the filter or the sort was set to is remembered between runs', () => {

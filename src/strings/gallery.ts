@@ -87,8 +87,10 @@ export const en = {
     whichLabels: 'Labels',
     whichDays: 'Day',
     anyDay: 'Every day',
-    /** The chip that opens the calendar, for a day the row of days is not offering. */
-    otherDay: 'Another date',
+    /** The round calendar button beside «Every day», for a day the tiles are not offering. */
+    otherDay: 'Pick another date',
+    /** A day tile read out whole: «13 September, Sat, 312 frames». */
+    dayTile: (day: string, weekday: string, frames: string) => `${day}, ${weekday}, ${frames}`,
     show: (n: number) => `Show ${n} ${n === 1 ? 'frame' : 'frames'}`,
     /** The same button with nothing held back at all: there is no count to promise yet. */
     showAll: 'Show everything',
@@ -256,7 +258,8 @@ export const ru: typeof en = {
     whichLabels: 'Лейблы',
     whichDays: 'День',
     anyDay: 'Все дни',
-    otherDay: 'Другая дата',
+    otherDay: 'Выбрать другую дату',
+    dayTile: (day: string, weekday: string, frames: string) => `${day}, ${weekday}, ${frames}`,
     show: (n: number) => `Показать ${count(n, 'кадр', 'кадра', 'кадров')}`,
     showAll: 'Показать все',
     nothingMatched: 'Ни одного кадра под эти условия',

@@ -16,9 +16,12 @@ import { formatEventDates, startOfDay } from '@/lib/dates';
 import {
   allTaken,
   arranged,
+  DAY_TILES,
   dateMarks,
+  dayTiles,
   FILTER_NONE,
   type Filter,
+  filterDays,
   filtering,
   frameFacts,
   frameIndex,
@@ -479,6 +482,63 @@ test('a frame whose day will not parse sinks to the bottom and is not thrown awa
 
 test('an empty gallery is no days at all, which is what the sheet draws its «empty» for', () => {
   expect(framesByDay([])).toEqual([]);
+});
+
+// The «День» block of `SheetFilter` (spec 8, detail 74; TASK-294): what each tile counts and how
+// long its bar is, and which days get a tile at all.
+
+/** `n` frames shot on one day, each `bytes` heavy. */
+const shots = (date: number, n: number, bytes = '1000000') =>
+  Array.from({ length: n }, (_, at) =>
+    record({ id: `${date}-${at}`, captured_at: shotAt(date, 10), size_bytes: bytes }),
+  );
+
+test('a day counts its frames, and its bar is its bytes beside the heaviest day of the memory', () => {
+  // The 13th: 312 photos of a megabyte. The 12th: 88 of them. The 14th: four videos of 80 MB each.
+  const items = [...shots(12, 88), ...shots(13, 312), ...shots(14, 4, '80000000')];
+  expect(filterDays(items)).toEqual([
+    // Newest first, like every cut of the gallery; the tiles put them back in date order.
+    { at: day(14), count: 4, fill: 320 / 320 },
+    { at: day(13), count: 312, fill: 312 / 320 },
+    { at: day(12), count: 88, fill: 88 / 320 },
+  ]);
+  // Every record carries its size, so four long videos are the heavy day and not a thin one.
+  expect(filterDays(items)[0].count).toBeLessThan(filterDays(items)[1].count);
+});
+
+test('where no size adds up to anything, a day is weighed by its frames instead', () => {
+  const items = [...shots(12, 88, '0'), ...shots(13, 312, 'not a number')];
+  expect(filterDays(items)).toEqual([
+    { at: day(13), count: 312, fill: 1 },
+    { at: day(12), count: 88, fill: 88 / 312 },
+  ]);
+  expect(filterDays([])).toEqual([]);
+});
+
+/** Days as the sheet is handed them: the day of the month and how many frames it holds. */
+const offered = (...counts: [number, number][]) =>
+  filterDays(counts.flatMap(([date, n]) => shots(date, n)));
+const tiled = (...counts: [number, number][]) =>
+  dayTiles(offered(...counts)).map((one) => new Date(one.at).getDate());
+
+test('every day gets a tile up to three, in date order', () => {
+  expect(DAY_TILES).toBe(3);
+  expect(tiled([13, 5])).toEqual([13]);
+  expect(tiled([14, 2], [12, 9])).toEqual([12, 14]);
+  expect(tiled([14, 86], [13, 312], [12, 88])).toEqual([12, 13, 14]);
+  expect(dayTiles([])).toEqual([]);
+});
+
+test('past three days the three fullest get the tiles, and the rest are left to the calendar', () => {
+  // Four days: the thinnest one goes, whichever end of the event it is at.
+  expect(tiled([11, 3], [12, 88], [13, 312], [14, 86])).toEqual([12, 13, 14]);
+  expect(tiled([11, 40], [12, 88], [13, 1], [14, 86])).toEqual([11, 12, 14]);
+  // A week: the three fullest by frames, still in date order.
+  expect(tiled([8, 10], [9, 70], [10, 5], [11, 60], [12, 20], [13, 80], [14, 1])).toEqual([
+    9, 11, 13,
+  ]);
+  // Two equally full days for the last place: the later one keeps it, the way the feed reads.
+  expect(tiled([11, 7], [12, 7], [13, 50], [14, 40])).toEqual([12, 13, 14]);
 });
 
 // What a day's «Выбрать все N» counts, and what a single tap marks — one question, one answer
