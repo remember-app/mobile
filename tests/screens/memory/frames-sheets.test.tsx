@@ -366,8 +366,10 @@ test('the two tuning sheets stand as drawn: 20 between blocks, 10 under a headin
   expect(sheetStyle(sort)).toMatch(/^gap:20px;.*min-height:381px;/);
   expect(sheetStyle(filters)).toMatch(/^gap:20px;.*min-height:560px;/);
   for (const drawn of [sort, filters]) expect(drawn).not.toMatch(/[^-]height:\s*(381|560)px/);
-  // The filter scrolls, and keeps the same 20 inside the scroll.
-  expect(filters).toContain('<div class="css-view-g5y9jx" style="gap:20px">');
+  // The filter scrolls, and keeps the same 20 inside the scroll — between the blocks themselves.
+  expect(filters).toContain(
+    `<div class="css-view-g5y9jx" style="gap:20px"><div class="css-view-g5y9jx ${rule('gap:12px')}">`,
+  );
   // One style for a heading and its row on both sheets: 10 down to the segments and the chips, and
   // 12 down to the faces (spec 8).
   for (const [drawn, heading] of [

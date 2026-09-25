@@ -70,6 +70,13 @@ test('the sheet says what it is about, counts what is marked and lays the labels
   }
 });
 
+test('the list of labels stands 14 apart and the new label 18, as the two are drawn', () => {
+  // Spec 8: `SheetLabels` is a sheet of rows, `SheetLabelNew` a question.
+  const rhythm = (markup: string) => /style="gap:(\d+)px;[^"]*padding-bottom:/.exec(markup)?.[1];
+  expect(rhythm(story(sheet()))).toBe('14');
+  expect(rhythm(story(newSheet()))).toBe('18');
+});
+
 test('the circle is lit only where everything marked already lies', () => {
   allDifferent({
     out: sheet(),
