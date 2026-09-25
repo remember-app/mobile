@@ -234,6 +234,11 @@ test('up to ×1.2 «Отмена» is the word at 14, with 64 of its 74 block to
       marginRight: -10,
     });
     expect(bar.sides).toEqual([74, 74]);
+    // A quiet button 44 tall — the spec's, and a finger's — and a transparent one: no fill of its own.
+    const button = word.findAll((one) => one.props.accessibilityRole === 'button')[0];
+    const drawn = StyleSheet.flatten(button.props.style({ pressed: false })) as ViewStyle;
+    expect(drawn.minHeight).toBe(44);
+    expect(drawn.backgroundColor).toBeUndefined();
     await act(async () => word.props.onPress());
     expect(bar.pressed).toEqual(['cancel']);
   }
@@ -260,6 +265,15 @@ test('past ×1.2 it is a round 44 with an «x» 22, read out as «Отмена»
     });
     const pill = round.findAll((one) => one.props.accessibilityRole === 'button')[0];
     expect(pill.props.accessibilityLabel).toBe('Отмена');
+    // Round, 44 across, and transparent: a glyph on the bar and not a button on a plate.
+    expect(StyleSheet.flatten(pill.props.style({ pressed: false }))).toMatchObject({
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+    });
+    expect(StyleSheet.flatten(pill.props.style({ pressed: false })).backgroundColor).toBe(
+      'transparent',
+    );
     expect(bar.sides).toEqual([44, 44]);
     await act(async () => round.props.onPress());
     expect(bar.pressed).toEqual(['cancel']);

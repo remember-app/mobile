@@ -28,7 +28,7 @@ import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
 import { ActionBar, Board } from '@/kit/bars';
 import { Button } from '@/kit/button';
 import { Text } from '@/kit/text';
-import { type } from '@/theme';
+import { setTheme, themes, type } from '@/theme';
 
 /**
  * Spec 7.1 and TASK-372 — the board is where every screen scrolls. The bar and the bottom layer
@@ -438,3 +438,21 @@ test('a list body has the bar above it and the layer below it while they stand, 
   expect(edges.at(-1)?.foot).not.toBeNull();
   expect(it.root.findAllByType(ScrollView)).toHaveLength(0);
 });
+
+test.each(['dark', 'light'] as const)(
+  'the board is the %s theme’s own ink, and a screen’s style over it is the last word',
+  async (name) => {
+    await setTheme(name);
+    try {
+      const it = await mount(screen({ style: { paddingTop: 0 } }));
+      const board = () => StyleSheet.flatten(it.root.findByType(KeyboardAvoidingView).props.style);
+      expect(board()).toMatchObject({ flex: 1, backgroundColor: themes[name].color.ink });
+      // `Upload`'s feed runs under the status line: its style takes the padding away, and the phone's
+      // own inset — 47 here — does not bring it back.
+      await it.windowOf(667, { top: 47 });
+      expect(board().paddingTop).toBe(0);
+    } finally {
+      await setTheme('dark');
+    }
+  },
+);
