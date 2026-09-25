@@ -16,6 +16,9 @@ vi.mock('react-native', async (importOriginal) => {
       scale: 3,
       fontScale: phone.fontScale,
     }),
+    // The plain container `vitest.setup.ts` makes of it: this mock replaces that one, it does not add.
+    Modal: ({ visible, children }: { visible?: boolean; children?: unknown }) =>
+      visible === false ? null : (children as never),
   };
 });
 vi.mock('react-native-safe-area-context', () => ({

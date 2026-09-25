@@ -8,6 +8,9 @@ vi.mock('react-native', async (importOriginal) => {
   return {
     ...rn,
     useWindowDimensions: () => ({ width: 375, height: 667, scale: 2, fontScale: phone.fontScale }),
+    // The plain container `vitest.setup.ts` makes of it: this mock replaces that one, it does not add.
+    Modal: ({ visible, children }: { visible?: boolean; children?: unknown }) =>
+      visible === false ? null : (children as never),
   };
 });
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
@@ -114,7 +117,7 @@ test.each([
     for (const scale of SCALES) {
       const it = await drawCalendar(width, scale);
       const column = width / 7;
-      const cells = it.days.map((one) => flat(one).height);
+      const cells = it.days.map((one) => flat(one).height as number);
       // The layout's own cell at the system's size, or smaller — 40; larger type makes the cell 44 or more.
       if (scale <= 1) expect(new Set(cells), `×${scale}`).toEqual(new Set([40]));
       else expect(Math.min(...cells), `×${scale}`).toBeGreaterThanOrEqual(44);

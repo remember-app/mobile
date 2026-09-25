@@ -18,6 +18,9 @@ vi.mock('react-native', async (importOriginal) => {
       scale: 3,
       fontScale: phone.fontScale,
     }),
+    // The plain container `vitest.setup.ts` makes of it: this mock replaces that one, it does not add.
+    Modal: ({ visible, children }: { visible?: boolean; children?: unknown }) =>
+      visible === false ? null : (children as never),
   };
 });
 
@@ -304,12 +307,14 @@ test('in daylight the list is drawn in the day’s tokens and carries none of th
  * once they do not they are the list's own head and foot — in every state the screen has, once each,
  * and both actions still answer.
  */
-test.each([
+const STATES: [string, () => Memory[] | 'offline' | Promise<unknown>][] = [
   ['a list of memories', () => [wedding({ id: 'a' }), wedding({ id: 'b', title: 'Вторая' })]],
-  ['no memories', () => [] as Memory[]],
-  ['a list that never came', () => 'offline' as const],
+  ['no memories', () => []],
+  ['a list that never came', () => 'offline'],
   ['a list still on its way', () => later<unknown>().promise],
-] as const)(
+];
+
+test.each(STATES)(
   '%s: the bar and «Создать» stand on a phone that holds them, and scroll with the body on one that does not',
   async (_, list) => {
     phone.height = 640;

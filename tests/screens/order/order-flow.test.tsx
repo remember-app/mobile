@@ -116,6 +116,9 @@ vi.mock('react-native', async (importOriginal) => {
         fontScale: handset.fontScale || own.fontScale,
       };
     },
+    // The plain container `vitest.setup.ts` makes of it: this mock replaces that one, it does not add.
+    Modal: ({ visible, children }: { visible?: boolean; children?: unknown }) =>
+      visible === false ? null : (children as never),
   };
 });
 // A text input listens on the browser's `document`, which a test renderer has none of: both inputs
