@@ -152,7 +152,7 @@ test('the sort takes effect as it is pressed, and «Готово» is only the w
   expect(ru.gallery.orders.newest).toBe('Сначала новые');
   expect(sheets).not.toContain('RowToggle');
   expect(frames).toContain('const { token, user, datesBetweenDays } = useAuth();');
-  // Spec 4: 380 tall, and the button at its foot.
+  // Spec 4: 381 tall at least, and the button at its foot.
   expect(sheets).toContain('height={height.sheetSort}');
 });
 

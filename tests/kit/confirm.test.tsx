@@ -1,7 +1,7 @@
 import { beforeAll, expect, test } from 'vitest';
 
 import { ConfirmSheet } from '@/kit/confirm';
-import { allDifferent, story } from '@/kit/story';
+import { allDifferent, rule, story } from '@/kit/story';
 import { setTheme } from '@/theme';
 
 /** Spec «Пусто и необратимое» — the question that names the cost before the press. */
@@ -178,4 +178,113 @@ test('while the request is in the air the dangerous button waits and «Оста�
   expect(busy).toContain('aria-disabled="true" disabled="" aria-label="Удалить"');
   expect(busy).toContain('aria-disabled="true" disabled="" aria-label="Оставить"');
   expect(story(<ConfirmSheet {...base} />)).not.toContain('aria-disabled="true"');
+});
+
+/** The sheet's own style: its rhythm, and its floor when it has one. */
+const sheetStyle = (markup: string) => /style="(gap:[^"]*padding-bottom:[^"]*)"/.exec(markup)?.[1];
+
+test('each confirmation is as tall as the layout draws it — by what it is about', () => {
+  // Spec 4, «Высоты листов»: `SheetConfirmDelete` 380 — a frame, an armful of frames, a label
+  // (10.8.1) — `SheetConfirmMember` 420, `SheetConfirmMemory` 434. The screens hand over the
+  // subject and nothing else; the height is the kit's.
+  const floor = (props: Partial<Parameters<typeof ConfirmSheet>[0]>) =>
+    /min-height:(\d+)px/.exec(sheetStyle(story(<ConfirmSheet {...base} {...props} />)) ?? '')?.[1];
+  expect(floor({ thumb: 'https://bucket.example/a.jpg' })).toBe('380');
+  expect(floor({})).toBe('380');
+  expect(floor({ tint: '#FFB547' })).toBe('380');
+  expect(floor({ who: 'Аня Петрова', price: '54 кадра исчезнут из воспоминания' })).toBe('420');
+  // A viewer has no price, and the sheet is still the one drawn for a person.
+  expect(floor({ who: 'Аня Петрова' })).toBe('420');
+  expect(floor({ cover: {}, priceOn: 'ink', price: '358 кадров сюда принесли другие' })).toBe(
+    '434',
+  );
+  // The gentle kind is nobody's drawing — leaving the account, unsaved edits: it fits its words.
+  expect(floor({ variant: 'gentle', title: 'Выйти из аккаунта?' })).toBeUndefined();
+});
+
+test('the confirmation keeps the layout’s rhythm: 18 between blocks, 8 between the buttons', () => {
+  const sheet = story(<ConfirmSheet {...base} thumb="https://bucket.example/a.jpg" />);
+  expect(sheetStyle(sheet)).toMatch(/^gap:18px;/);
+  expect(sheet).toContain(`<div class="css-view-g5y9jx ${rule('gap:8px')}"><button`);
+  // Spec 7.1, detail 8: the paragraph is 15 / 22.
+  expect(sheet).toMatch(
+    new RegExp(
+      `class="[^"]*${rule('font-size:15px')}[^"]*${rule('line-height:22px')}"[^>]*>Оно уйдёт`,
+    ),
+  );
+});
+
+/** The classes of the price plate, and of the words on it. */
+const plate = (markup: string) => ({
+  box: /<div class="([^"]+)"><svg data-glyph="TriangleAlert"/.exec(markup)?.[1] ?? '',
+  words:
+    /data-glyph="TriangleAlert"[^>]*><\/svg><div dir="auto" class="([^"]+)"/.exec(markup)?.[1] ??
+    '',
+});
+
+test('the price plates stand as drawn: red 11 apart, `ink` 10 apart with 13 / 18 words, both 12 / 14 inside', () => {
+  const red = plate(
+    story(
+      <ConfirmSheet
+        {...base}
+        title="Убрать Аню Петрову?"
+        who="Аня Петрова"
+        price="54 кадра исчезнут из воспоминания"
+      />,
+    ),
+  );
+  const ink = plate(
+    story(
+      <ConfirmSheet
+        {...base}
+        title="Удалить воспоминание?"
+        cover={{}}
+        price="358 кадров сюда принесли другие"
+        priceOn="ink"
+      />,
+    ),
+  );
+  // `SheetConfirmMember`: 11 between the sign and the words; `SheetConfirmMemory`: 10.
+  expect(red.box).toContain(rule('gap:11px'));
+  expect(ink.box).toContain(rule('gap:10px'));
+  for (const box of [red.box, ink.box]) {
+    expect(box).toContain(rule('padding-bottom:12px;padding-top:12px'));
+    expect(box).toContain(rule('padding-left:14px;padding-right:14px'));
+  }
+  expect(ink.words).toContain(rule('line-height:18px'));
+  expect(red.words).not.toContain(rule('line-height:18px'));
+});
+
+test('a long question in English grows the sheet past its floor and squeezes nothing on it', () => {
+  // Spec 10.10: the layout's own `SheetConfirmMemory` squeezed its handle to nothing once the
+  // question took two lines. Here the floor is `min-height`, so however long the words run, the
+  // handle, the question, the plate and both buttons are all there, in order, at their size.
+  const sheet = story(
+    <ConfirmSheet
+      {...base}
+      title="Delete this memory for everyone who was ever part of it?"
+      meta="Lisa and Mark’s wedding by the lake, the whole weekend · 486 frames"
+      cover={{}}
+      text={'It disappears for all six people in it — frames, movies and montage logs. '.repeat(6)}
+      price="358 frames here were brought by somebody else, and they go with it too"
+      priceOn="ink"
+      confirmLabel="Delete forever, for everyone"
+      cancelLabel="Keep it"
+    />,
+  );
+  expect(sheetStyle(sheet)).toContain('min-height:434px');
+  expect(sheet).not.toMatch(/[^-]height:\s*434px/);
+  const order = [
+    'data-testid="sheet-handle"',
+    'Delete this memory for everyone',
+    'It disappears for all six',
+    '358 frames here',
+    rule('flex-grow:1'),
+    'aria-label="Delete forever, for everyone"',
+    'aria-label="Keep it"',
+  ].map((part) => sheet.indexOf(part));
+  expect(order.every((at) => at >= 0)).toBe(true);
+  expect([...order].sort((a, b) => a - b)).toEqual(order);
+  expect(sheet).toContain('min-height:56px');
+  expect(sheet).toContain('min-height:52px');
 });

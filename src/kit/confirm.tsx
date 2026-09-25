@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import { TriangleAlert } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 
-import { radius, space, themed, useTheme } from '@/theme';
+import { height, radius, space, themed, useTheme } from '@/theme';
 
 import { Button } from './button';
 import { CoverSlot } from './cover';
@@ -108,11 +108,24 @@ export function ConfirmSheet({
   ) : null;
   const marked = mark !== null && !gentle;
   const ink = priceOn === 'ink';
+  // Spec 4 draws each confirmation by what it is about: a memory's 434, a person's 420, a frame's —
+  // and a label's (10.8.1), or an armful of frames with no picture yet — 380. The gentle kind is
+  // nobody's drawing, so it is as tall as what it holds.
+  const floor = gentle
+    ? undefined
+    : thumb
+      ? height.sheetConfirmDelete
+      : cover
+        ? height.sheetConfirmMemory
+        : who
+          ? height.sheetConfirmMember
+          : height.sheetConfirmDelete;
 
   return (
     <Sheet
       visible={visible}
       onCancel={busy ? () => {} : onCancel}
+      height={floor}
       narrow
       head={
         marked ? (
@@ -151,13 +164,17 @@ export function ConfirmSheet({
         </>
       }
     >
-      <Text role="body" tone="muted">
+      <Text role="bodySm" tone="muted">
         {text}
       </Text>
       {price ? (
         <View style={[styles.price, ink ? styles.priceInk : null]}>
           <Icon icon={TriangleAlert} size={18} color={color.dangerText} />
-          <Text role={ink ? 'note' : 'label'} tone="danger" style={styles.grow}>
+          <Text
+            role={ink ? 'note' : 'label'}
+            tone="danger"
+            style={[styles.grow, ink ? styles.priceInkWords : null]}
+          >
             {price}
           </Text>
         </View>
@@ -173,24 +190,27 @@ const useStyles = themed(({ color }) =>
     head: { flexDirection: 'row', alignItems: 'center', gap: 14 },
     headWords: { flex: 1, minWidth: 0, gap: 7 },
     thumb: { width: 64, height: 64, borderRadius: radius.strip, backgroundColor: color.raise },
+    // Spec 7.1, detail 8 — the plate on red, as `SheetConfirmMember` draws it: 16 round, 12 / 14
+    // inside, 11 between sign and words.
     price: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: space.s2,
-      padding: space.s3,
+      gap: 11,
+      paddingVertical: space.s3,
+      paddingHorizontal: 14,
       borderRadius: radius.cell,
       backgroundColor: color.dangerSoft,
       borderWidth: 1,
       borderColor: color.dangerEdge,
     },
-    // Spec 7.1, detail 8 — the plate on `ink`: 18 round, 12 / 14 inside, 10 between sign and words.
+    // And on `ink`: 18 round, 10 between sign and words, the words 13 / 18.
     priceInk: {
       gap: 10,
-      paddingHorizontal: 14,
       borderRadius: radius.field,
       backgroundColor: color.ink,
       borderColor: color.line,
     },
+    priceInkWords: { lineHeight: 18 },
     grow: { flex: 1, minWidth: 0 },
   }),
 );

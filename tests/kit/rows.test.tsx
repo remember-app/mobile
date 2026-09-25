@@ -17,7 +17,7 @@ import {
   type StepState,
   Waveform,
 } from '@/kit/rows';
-import { allDifferent, compiled, story } from '@/kit/story';
+import { allDifferent, compiled, rule, story } from '@/kit/story';
 import { setTheme } from '@/theme';
 
 /** Spec 7.7 — the rows, each of them one line of a list somewhere in the product. */
@@ -144,13 +144,6 @@ test('a chosen track carries its wish under its name, and its field under the ro
     rule('margin-left:64px'),
   );
 });
-
-/** The class a compiled rule was given — how a shape set in a sheet is found in the markup. */
-function rule(css: string): string {
-  const name = new RegExp(`\\.(r-[A-Za-z]+-[a-z0-9]+)\\{${css};\\}`).exec(compiled())?.[1];
-  expect(name, `no rule «${css}» was drawn`).toBeDefined();
-  return name!;
-}
 
 test('a chosen row is dragged by its name', () => {
   // Spec 7.7, detail 54: «строку берут за имя и ведут». The handlers belong to the list; what the

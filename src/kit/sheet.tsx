@@ -28,16 +28,25 @@ export type SheetProps = {
   head?: ReactNode;
   /** The block of buttons at the bottom. It stays put while the body scrolls. */
   footer?: ReactNode;
-  /** A long body — many contacts, many days — scrolls; the heading and the footer do not. */
+  /** A long body — many contacts, many days — scrolls; the handle, heading and footer do not. */
   scroll?: boolean;
   /**
    * The height the layout gives this sheet (spec 4, «Высоты листов»). A floor and not a cap: a
    * sheet that holds less pushes its footer down to it (spec 7.1, the `flex-grow` spacer), one that
-   * holds more grows as it did without it.
+   * holds more grows to hold it — the handle, the heading and the buttons are never what gives.
    */
   height?: number;
+  /**
+   * What stands between one block of the sheet and the next, the handle and the buttons included
+   * (spec 8). A question — every confirmation, «Это всё?», «Материала мало» — is the default 18;
+   * the two sheets the feed is tuned from are `tuning`, 20; the ones that set out facts or rows are
+   * `list`, 14.
+   */
+  rhythm?: keyof typeof RHYTHM;
   children?: ReactNode;
 };
+
+const RHYTHM = { list: 14, question: 18, tuning: 20 } as const;
 
 /**
  * Spec 7.1 — the sheet. It comes up from the bottom over the screen it interrupts, with a handle at
@@ -126,24 +135,14 @@ function Rise({
   footer,
   scroll,
   height,
+  rhythm = 'question',
   children,
 }: Omit<SheetProps, 'visible'>) {
   const insets = useSafeAreaInsets();
   const rise = useFadeIn(motion.sheet);
   const styles = useStyles();
   const onScrimTap = useScrimTap(onCancel);
-
-  const body = (
-    <>
-      {head}
-      {title ? (
-        <Text role={narrow ? 'sheetTitleSm' : 'sheetTitle'} accessibilityRole="header">
-          {title}
-        </Text>
-      ) : null}
-      {children}
-    </>
-  );
+  const gap = { gap: RHYTHM[rhythm] };
 
   return (
     // A sheet sits where the keyboard comes up, so anything typed into one would be typed blind.
@@ -164,10 +163,15 @@ function Rise({
         <Animated.View style={[styles.backdrop, { opacity: rise }]} />
       </Pressable>
 
+      {/* One column with one gap, as the layout draws it: handle, blocks, spacer, buttons. The
+          spacer takes a gap on either side of it even when it has nothing to give, so the buttons
+          never stand closer than two gaps under the last block — the measure the heights of spec 4
+          were taken by. */}
       <Animated.View
         accessibilityViewIsModal
         style={[
           styles.sheet,
+          gap,
           { paddingBottom: Math.max(insets.bottom, board.bottom) },
           height ? { minHeight: height } : null,
           {
@@ -179,12 +183,19 @@ function Rise({
         ]}
       >
         <View testID="sheet-handle" style={styles.handle} />
-        {scroll ? (
-          <ScrollView contentContainerStyle={styles.body}>{body}</ScrollView>
-        ) : (
-          <View style={[styles.body, height ? styles.fill : null]}>{body}</View>
-        )}
-        {footer ? <View style={styles.footer}>{footer}</View> : null}
+        {head}
+        {title ? (
+          <Text role={narrow ? 'sheetTitleSm' : 'sheetTitle'} accessibilityRole="header">
+            {title}
+          </Text>
+        ) : null}
+        {scroll ? <ScrollView contentContainerStyle={gap}>{children}</ScrollView> : children}
+        {footer ? (
+          <>
+            <View style={styles.fill} />
+            <View style={styles.footer}>{footer}</View>
+          </>
+        ) : null}
       </Animated.View>
     </KeyboardAvoidingView>
   );
@@ -214,11 +225,10 @@ const useStyles = themed(({ color }) =>
       borderRadius: radius.pill,
       backgroundColor: color.handle,
       alignSelf: 'center',
-      marginBottom: space.s4,
     },
-    body: { gap: space.s4 },
     // The spacer of spec 7.1: what a sheet with a floor does not fill, it leaves above the footer.
     fill: { flexGrow: 1 },
-    footer: { gap: space.s3, paddingTop: space.s5 },
+    // Spec 7.1, detail 8: the buttons at the foot stand 8 apart.
+    footer: { gap: space.s2 },
   }),
 );
