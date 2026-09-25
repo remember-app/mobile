@@ -171,6 +171,9 @@ export const en = {
     /** A track off the phone — on its pill, its row, the summary and a finished movie's card. */
     ownTrackShort: 'Your own track',
     sendingTrack: 'Sending the track…',
+    /** One more track pressed for, off the shelf or the phone, when the film already has all it takes. */
+    tracksFull: (most: number) =>
+      `A film takes at most ${most} tracks — remove one of the chosen to add another.`,
     /** The block of what was taken, and how much of it there is. */
     picked: 'Chosen',
     tracksPicked: (n: number) => `${n} ${n === 1 ? 'track' : 'tracks'}`,
@@ -469,6 +472,8 @@ export const ru: typeof en = {
     stopTrack: (track: string) => `Остановить «${track}»`,
     ownTrackShort: 'Свой трек',
     sendingTrack: 'Загружаем трек…',
+    tracksFull: (most: number) =>
+      `В ролик берут не больше ${count(most, 'трека', 'треков', 'треков')} — уберите один из выбранных, чтобы добавить другой.`,
     picked: 'Выбрано',
     tracksPicked: (n: number) => count(n, 'трек', 'трека', 'треков'),
     nothingAdded: 'ничего не добавлено',
