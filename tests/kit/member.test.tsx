@@ -1,3 +1,4 @@
+import { rule } from '@tests/helpers/css';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { X } from 'lucide-react-native';
 import { StyleSheet, Text, View } from 'react-native';
@@ -338,6 +339,13 @@ test('the three states of a contact row are three rows', () => {
   expect(
     story(<RowContact name="Марина Ким" handle="Убрали из контактов" variant="gone" />),
   ).toContain('Убрали из контактов');
+  // The found one is a card to `Contacts.json`'s measure (TASK-383): e12 358 × 66, the circle at x27
+  // (e13) and the name at x81 (e14) — 10 round the circle and above and below a 44 «Сохранить», 12
+  // past it. At 12 a side and 11 above and below it stood 68 tall, everything 2 to the right.
+  const found = story(<RowContact name="Марина Белова" handle="@marina" variant="found" />);
+  expect(found).toContain(rule('padding-bottom:10px;padding-top:10px'));
+  expect(found).toContain(rule('padding-left:10px'));
+  expect(found).toContain(rule('padding-right:12px'));
 });
 
 const face = (selected: boolean, excluded = false) => (

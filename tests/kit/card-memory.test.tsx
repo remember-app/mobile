@@ -1,3 +1,4 @@
+import { rule } from '@tests/helpers/css';
 import { beforeAll, expect, test } from 'vitest';
 
 import { BadgeFilms, BadgeOrganizer } from '@/kit/badge';
@@ -129,6 +130,64 @@ test('an empty ordinary card says so instead of the strip, and drops the meta wi
     full: <CardMemory title="Поход" meta={['12 сентября', '86 кадров']} thumbs={SHOTS} />,
     empty: <CardMemory title="Поход" emptyText="Ни одного кадра — скиньте первые" />,
   });
+});
+
+test('the ordinary card is 181 with its meta and 158 without, its films badge on the foot of the words', () => {
+  // TASK-383, off `Main.json`: e24 is 358 × 181 — 1 + 10 + 96 (the strip) + 13 + 22 (e29, the name)
+  // + 6 + 17 (e30, the meta at 13 / 500) + 5 + 10 + 1 — and the empty card under it 158, the same
+  // without the meta. The badge (e33, h30) ends where the meta ends (y673 + 30 = 686 + 17). The
+  // old card was 167 — 12 under the strip, nothing under the words, meta 12 / 15 flush on the name
+  // and the badge in the middle of them — and the empty one 152.
+  const full = story(
+    <CardMemory
+      title="Поход на Ладогу"
+      meta={['2–5 августа', '212 кадров']}
+      thumbs={SHOTS}
+      films={<BadgeFilms label="1 ролик" />}
+    />,
+  );
+  const empty = story(
+    <CardMemory title="Корпоратив Nox" emptyText="Ни одного кадра — скиньте первые" />,
+  );
+  for (const card of [full, empty]) {
+    expect(card).toContain(rule('padding-top:13px'));
+    expect(card).toContain(rule('padding-bottom:5px'));
+  }
+  expect(full).toContain(rule('align-items:flex-end'));
+  // The 6 is the one between the name and its meta: on the column the name stands in.
+  expect(full).toMatch(
+    new RegExp(`class="[^"]*${rule('gap:6px')}[^"]*"><div[^>]*>Поход на Ладогу<`),
+  );
+  expect(full).toContain(rule('font-size:13px'));
+  expect(full).toContain(rule('line-height:17px'));
+});
+
+test('the large card hangs its badges 14 off the top and stands its words 18 off the bottom', () => {
+  // `Main.json`: the badges at x30 / y201 of a card at x16 / y186 (e14, e15 — centred in a 28 row
+  // at 14); the name, meta, bar and sentence end 18 over the card's foot at x34, 7 inside each pair
+  // and 12 between them (e17…e23: name ends at 445, meta 452–469, bar at 481, the sentence 492–508
+  // of a card ending at 526). The sentence is 12 / 600 (e23 h16).
+  const large = story(
+    <CardMemory
+      title="Свадьба Лизы и Марка"
+      meta={['12–14 сентября', '486 кадров']}
+      thumbs={SHOTS}
+      large
+      organizer={<BadgeOrganizer label="Организатор" />}
+      films={<BadgeFilms label="2 ролика" filled />}
+      progress={7 / 9}
+      progressLabel="7 из 9 уже скинули свои кадры"
+    />,
+  );
+  expect(large).toContain(rule('padding-top:14px'));
+  expect(large).toContain(rule('padding-left:14px;padding-right:14px'));
+  expect(large).toContain(rule('padding-left:18px;padding-right:18px'));
+  expect(large).toContain(rule('padding-bottom:18px'));
+  expect(large).toMatch(
+    new RegExp(`class="[^"]*${rule('gap:7px')}[^"]*"><div[^>]*>Свадьба Лизы и Марка<`),
+  );
+  expect(large).toContain(rule('gap:12px'));
+  expect(large).toContain(rule('line-height:16px'));
 });
 
 test('a long name balances over three lines rather than running out of the card', () => {

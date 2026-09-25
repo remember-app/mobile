@@ -32,9 +32,9 @@ test('the material of a memory has one name — on the card, on the switch, over
   expect(frames).toContain('title={s.memory.framesPlain}');
   expect(home).toContain('s.home.noFrames');
   for (const set of [en, ru]) {
-    // «0 кадров» → «кадров», which is what «Кадров пока нет» has to be built on too. Russian
-    // declines it, so the counted form is the one both lines are held against.
-    expect(set.home.noFrames.toLowerCase()).toContain(set.memory.frames(0).split(' ')[1]);
+    // «1 кадр» → «кадр», which is what «Ни одного кадра — скиньте первые» (spec 7.6, detail 37) is
+    // built on too. Russian declines it, so the word is held by its stem, the singular.
+    expect(set.home.noFrames.toLowerCase()).toContain(set.memory.frames(1).split(' ')[1]);
   }
 });
 

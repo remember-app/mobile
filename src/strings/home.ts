@@ -18,7 +18,7 @@ export const en = {
     empty:
       'Start a memory for your next event — and the photos will land here from everyone who was there.',
     /** A memory with nothing in it at all — said on the film of its own card. */
-    noFrames: 'No frames yet. Add the first ones.',
+    noFrames: 'No frames yet — share the first ones',
     /** Under the bar on a large card: how many of the guests have brought their frames in. */
     brought: (done: number, all: number) => `${done} of ${all} have already shared their frames`,
     /**
@@ -78,7 +78,7 @@ export const ru: typeof en = {
     emptyTitle: 'Здесь пока пусто',
     empty:
       'Заведите воспоминание к ближайшему событию — и снимки начнут стекаться сюда от всех, кто там был.',
-    noFrames: 'Кадров пока нет. Добавьте первые.',
+    noFrames: 'Ни одного кадра — скиньте первые',
     // Про людей, а не про файлы: считаются те, кто ответил за свой материал, — и сказано это
     // так же, как на «Людях» воспоминания.
     brought: (done: number, all: number) => `${done} из ${all} уже скинули свои кадры`,

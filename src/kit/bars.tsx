@@ -439,7 +439,9 @@ export function GlassBar({
             {words}
           </View>
         )}
-        {right}
+        {/* An empty slot still holds its 48 (`FramesEmpty`): the capsule stays in the middle of the
+            bar instead of running to the edge and taking the name off-centre with it. */}
+        {right ?? <View style={styles.slot} />}
       </View>
     </ThemePin>
   );
@@ -614,6 +616,7 @@ const useStyles = themed(({ color }) =>
       borderWidth: 1,
       borderColor: photo.barEdge,
     },
+    slot: { width: height.roundViewer },
     wizardScale: { marginHorizontal: space.s4, marginTop: space.s3 },
     // Spec 7.1: 18 under the scale, and 12 where there is no scale to stand under.
     wizardWords: { marginHorizontal: space.s4, marginTop: 18 },

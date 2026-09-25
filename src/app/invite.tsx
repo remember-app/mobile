@@ -2,13 +2,14 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Link2Off } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ApiError, acceptInvite, errorMessage } from '@/api';
-import { ActionBar, Board, Button, Empty, Text, Waiting } from '@/kit';
+import { ActionBar, Board, Button, Empty, Spinner, Text } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { useStrings } from '@/lib/language';
 import { clearInvite, peekInvite, stashInvite } from '@/lib/push';
-import { space } from '@/theme';
+import { board, height, space, spinner } from '@/theme';
 
 /**
  * Where `remember://invite?token=…` lands. There is no web page for an invite and no anonymous
@@ -23,6 +24,7 @@ export default function InviteScreen() {
   const params = useLocalSearchParams<{ token?: string | string[] }>();
   const { status, token: session } = useAuth();
   const s = useStrings();
+  const insets = useSafeAreaInsets();
   // The dead end, in the two lines it is made of: what happened, and — when it is the one failure
   // this screen has a name for — the heading that says it is not the person's doing.
   const [stop, setStop] = useState<{ title?: string; text: string } | null>(null);
@@ -78,25 +80,33 @@ export default function InviteScreen() {
     };
   }, [invite, status, session]);
 
-  // `InviteJoining`: the name of the product, the spinner the spec turns at 34 for a link being
-  // walked in, and the line saying what is being waited for. It lives a second and leads inward.
+  // `InviteJoining`: the name of the product, the spinner of a link being walked in, and the line
+  // saying what is being waited for — three pieces 26 apart, in the middle of the whole screen: the
+  // status line's height is handed back at the bottom. It lives a second and leads inward.
   if (!stop) {
     return (
-      <Board body={styles.joining}>
+      <Board body={[styles.joining, { paddingBottom: insets.top }]}>
         <Text accessibilityRole="header" role="heroNarrow">
           Remember
         </Text>
-        <Waiting text={s.state.joining} size={34} />
+        <Spinner size={spinner.join} />
+        <Text role="bodySm" tone="muted" style={styles.centred}>
+          {s.state.joining}
+        </Text>
       </Board>
     );
   }
 
   // `InviteDead`: an empty state with the sign of a link pulled apart, and the way out standing in
   // the bottom layer — «replace», like every other exit from here, because a spent invite must not
-  // sit in the back stack.
+  // sit in the back stack. The layout centres it on the screen from its very top down to where the
+  // bottom layer's gradient begins, `board.footer` over the edge; the body here runs from under the
+  // status line down to the action block, which stands lower than that gradient reaches — so both
+  // are handed back at the bottom.
+  const overhang = board.footer - space.s3 - height.primary - Math.max(insets.bottom, board.bottom);
   return (
     <Board
-      body={styles.body}
+      body={[styles.body, { paddingBottom: insets.top + overhang }]}
       footer={
         <ActionBar>
           <Button variant="primary" label={s.join.home} onPress={() => router.replace('/')} />
@@ -109,14 +119,15 @@ export default function InviteScreen() {
 }
 
 const styles = StyleSheet.create({
-  // Nothing is above or below it, so the whole board is the block: the spec's 26 between the three
-  // pieces, and margins wide enough that the word never runs to the edges.
+  // Nothing is above or below it, so the whole board is the block: the layout's 26 between the
+  // three pieces, and margins wide enough that the word never runs to the edges.
   joining: {
     justifyContent: 'center',
     alignItems: 'center',
-    gap: space.s6,
+    gap: 26,
     paddingHorizontal: space.s7,
   },
-  // The body is what is left above the bottom layer, and the empty state stands in the middle of it.
-  body: { justifyContent: 'center' },
+  centred: { textAlign: 'center' },
+  // The screen's own 16 at the sides, inside which the empty state keeps its own.
+  body: { justifyContent: 'center', paddingHorizontal: space.s4 },
 });

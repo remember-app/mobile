@@ -207,10 +207,10 @@ const HEADINGS: {
   },
   // The root bar: 16 a side, and the round 44 on the right 12 away.
   { role: 'displaySm', room: IPHONE - 2 * 16 - 44 - 12, carries: (s) => [s.home.title] },
-  // The empty state stands 32 in.
+  // The empty state stands 36 in (spec 4, `HomeEmpty`: the paragraph is 318 of 390).
   {
     role: 'emptyTitle',
-    room: IPHONE - 2 * 32,
+    room: IPHONE - 2 * 36,
     carries: (s) => [
       s.contacts.emptyTitle,
       s.gallery.emptyTitle,

@@ -220,10 +220,11 @@ export default function ContactsScreen() {
           </View>
         </>
       }
+      // The rows keep clear of the phone's bottom edge; the empty state in the middle is centred on
+      // the whole body down to that edge, as `ContactsEmpty` draws it (184 to 844).
       body={[
         styles.body,
-        nothing ? styles.mid : null,
-        { paddingBottom: Math.max(insets.bottom, board.bottom) },
+        nothing ? styles.mid : { paddingBottom: Math.max(insets.bottom, board.bottom) },
       ]}
     >
       {error !== null ? (
@@ -241,7 +242,7 @@ export default function ContactsScreen() {
               stands above the saved list, where the eye already is after typing. */}
           {stranger !== null ? (
             <View style={styles.section}>
-              <Text accessibilityRole="header" role="eyebrow">
+              <Text accessibilityRole="header" role="eyebrow" tone="muted">
                 {s.contacts.notSaved.toUpperCase()}
               </Text>
               <RowContact
@@ -253,6 +254,8 @@ export default function ContactsScreen() {
                   variant="primary"
                   size="sm"
                   wide={false}
+                  // Spec 7.2, «Малая с текстом»: `Contacts` says «Сохранить» at 14, not 16.
+                  labelRole="controlSm"
                   label={s.contacts.save}
                   busy={saving}
                   onPress={() => save(stranger)}
@@ -333,7 +336,7 @@ const useStyles = themed(() =>
     body: { flexGrow: 1, gap: space.s5, paddingHorizontal: space.s4, paddingTop: space.s6 },
     // The spec's `.screen__body-mid`.
     mid: { justifyContent: 'center' },
-    // The rule and the row it introduces.
-    section: { gap: space.s2 },
+    // The rule and the row it introduces: 10 between them in `Contacts`.
+    section: { gap: 10 },
   }),
 );
