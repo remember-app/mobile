@@ -1,4 +1,4 @@
-import { rule } from '@tests/helpers/css';
+import { rule, shorthand } from '@tests/helpers/css';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { Keyboard, ScrollView } from 'react-native';
 import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
@@ -185,6 +185,49 @@ test('the buttons at the foot stand 8 apart, under a spacer that takes a gap on 
   );
 });
 
+test('the hairline runs along the top alone: the sheet holds 358 from x 16, its handle 13 from the edge', () => {
+  // Spec 7.1, detail 7 and 10.11 («лист — обводка только сверху, 358 от x 16, ручка в 13»): every
+  // `Sheet*.json` draws the canvas with `border-top: 1px solid #2C2C3A` and no other side, its handle
+  // at y 13 and its blocks at x 16, 358 wide. A hairline all round took 1 off either side of what the
+  // sheet holds — 356 from x 17 (R9 of the comparison) — and put the handle nowhere else.
+  const sheet = /<div class="([^"]*)" style="gap:\d+px;padding-bottom:/.exec(drawn())?.[1] ?? '';
+  expect(sheet).toContain(rule('border-top-width:1px'));
+  expect(sheet).not.toMatch(/r-border(Width|LeftWidth|RightWidth|BottomWidth)-/);
+  // 16 a side of a 390 window: 358 from x 16, like a screen's own column.
+  expect(sheet).toContain(shorthand('paddingInline', 'padding-left:16px'));
+  // 12 over the handle and the 1 of the hairline: the handle's top is 13 from the sheet's edge.
+  expect(sheet).toContain(rule('padding-top:12px'));
+});
+
+test('the quiet button under a sheet’s main one is 48 with its words at 15, wherever the sheet was raised', () => {
+  // Spec 4 («тихая кнопка под главной в листе — 48»), 3 («control 15 — тихая 48 в листе») and 10.11;
+  // `SheetTooLittle.json` «Позже» and `SheetRejected.json` «Оставить как есть»: 358 × 48, 15 / 600.
+  // `SheetRejected` raises it from a screen that never said so, and it stood at the quiet 44 at 14.
+  const quiet = /<button aria-label="Позже"[^>]*>(.*?)<\/button>/.exec(drawn())?.[0] ?? '';
+  expect(quiet).toContain('min-height:48px');
+  expect(quiet).toContain(rule('font-size:15px'));
+  // Only the place makes it so: the same button off a sheet, and one told its height, keep theirs.
+  const off = story(<Button variant="quiet" label="Позже" />);
+  expect(off).toContain('min-height:44px');
+  expect(off).toContain(rule('font-size:14px'));
+  const told = story(
+    <Sheet
+      visible
+      onCancel={() => {}}
+      footer={<Button variant="quiet" size="md" label="Остаться" />}
+    />,
+  );
+  expect(told).toContain('min-height:52px');
+  // And nothing in the body is the foot's: a quiet button among the blocks stays a quiet button.
+  const inBody = story(
+    <Sheet visible onCancel={() => {}}>
+      <Button variant="quiet" label="Заменить ссылку" />
+    </Sheet>,
+  );
+  expect(inBody).toContain('min-height:44px');
+  expect(inBody).not.toContain('min-height:48px');
+});
+
 test('the drawn height is a floor: a sheet holding more grows, and the handle, heading and buttons never give', () => {
   // Spec 4 and detail 7 `[правлено]`: `min-height` and never `height` — the layout's own
   // `SheetSort` at a fixed 380 squeezed its handle to 3.94 and «Готово» to 55.06.
@@ -260,10 +303,11 @@ test('the heading and the buttons stay put while they, the handle and a line of 
   expect(pinnable({ sheet: 600, line: 23 * 3.571, gap: 18, bottom: 30, top: 520, foot: 190 })).toBe(
     false,
   );
-  // The edge, counted: 2 + 12 of the sheet's own, then handle 4, heading 100, a line 23, spacer,
-  // buttons, four gaps of 18 and the 30 under them — 360 in a sheet of 360 still fits.
-  expect(pinnable({ sheet: 360, line: 23, gap: 18, bottom: 30, top: 100, foot: 117 })).toBe(true);
-  expect(pinnable({ sheet: 360, line: 23, gap: 18, bottom: 30, top: 100, foot: 118 })).toBe(false);
+  // The edge, counted: 1 + 12 of the sheet's own — its hairline is along the top alone (spec 7.1,
+  // detail 7) — then handle 4, heading 100, a line 23, spacer, buttons, four gaps of 18 and the 30
+  // under them: 360 in a sheet of 360 still fits.
+  expect(pinnable({ sheet: 360, line: 23, gap: 18, bottom: 30, top: 100, foot: 118 })).toBe(true);
+  expect(pinnable({ sheet: 360, line: 23, gap: 18, bottom: 30, top: 100, foot: 119 })).toBe(false);
   // No heading and no buttons — the journal's file — leave nothing to pin but the handle.
   expect(pinnable({ sheet: 150, line: 82, gap: 14, bottom: 30, top: null, foot: null })).toBe(true);
 });

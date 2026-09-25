@@ -349,8 +349,15 @@ export const type = StyleSheet.create({
    * the heading of `SheetRejected` («68 кадров из 486…») (spec 8)
    */
   bodyXs: { fontFamily: font.regular, fontSize: 14, lineHeight: 20 },
-  /** a name in a list row, the label of a sheet action */
+  /** a name in a list row */
   row: { fontFamily: font.semi, fontSize: 15, lineHeight: 20 },
+  /**
+   * the row's size a weight down (spec 3, «подпись действия меню 15 / 500»): an action in the glass
+   * menu, the words beside a switch
+   */
+  rowPlain: { fontFamily: font.medium, fontSize: 15, lineHeight: 20 },
+  /** the value of a summary row — «IMG_4471.HEIC · 4,2 МБ» (spec 7.7, detail 52) */
+  summary: { fontFamily: font.medium, fontSize: 14, lineHeight: 18, ...tabular },
   /**
    * a name in a tighter row — a stage of the build (spec 7.7, detail 56), a file on its sheet
    * (`SheetLiveFile`), «12 файлов ушли…»; the days picked beside «КОГДА ЭТО БЫЛО». 18 is Onest's own

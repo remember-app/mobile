@@ -3,6 +3,7 @@ import { beforeAll, expect, test, vi } from 'vitest';
 // The words come from the dictionary, and the dictionary asks the phone which language it is in.
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
 
+import { rule } from '@tests/helpers/css';
 import { label } from '@tests/helpers/labels';
 import { Tag as TagIcon } from 'lucide-react-native';
 import { allDifferent, story } from '@/kit/story';
@@ -75,6 +76,28 @@ test('the list of labels stands 14 apart and the new label 18, as the two are dr
   const rhythm = (markup: string) => /style="gap:(\d+)px;[^"]*padding-bottom:/.exec(markup)?.[1];
   expect(rhythm(story(sheet()))).toBe('14');
   expect(rhythm(story(newSheet()))).toBe('18');
+});
+
+test('the count is `muted`, «Править» a button in the row of 36, and «Новый лейбл» carries its plus', () => {
+  // `SheetLabels.json` (TASK-390): «4 кадра» 13 / 600 #A4A1B2 beside the heading — spec 7.1, detail
+  // 7: «рядом бывает счётчик `label` `muted`» — and «Новый лейбл» with a plus 16 in front of its
+  // words. The count stood in `paper`, the plus was missing. Spec 10.8.1: «Править» is the same
+  // button in the row of 36 as «Править состав» — it stood at 40.
+  const whole = story(sheet());
+  const count = /class="([^"]*)"[^>]*>4 кадра</.exec(whole)?.[1] ?? '';
+  expect(count).toContain(rule('color:rgba(164,161,178,1.00)'));
+  expect(/<button aria-label="Править"[^>]*style="min-height:(\d+)px/.exec(whole)?.[1]).toBe('36');
+  expect(whole).toMatch(/<button aria-label="Новый лейбл"[^>]*>\s*<svg data-glyph="Plus"/);
+});
+
+test('the eight colours stand 10 under «ЦВЕТ» and 18 over «КТО ВИДИТ», in a row a finger can hit', () => {
+  // `SheetLabelNew.json` e8–e17: «ЦВЕТ» at 173, the circles 199…235, «КТО ВИДИТ» at 253. The row
+  // of circles is 44 for a finger (`Palette`), 4 round each 36 — so the block with it stands 6 under
+  // its heading and lets the next one 4 into it. It stood 8 under, and the next 4 lower than drawn.
+  const made = story(newSheet());
+  const colours = /<div class="([^"]*)"><h1[^>]*>ЦВЕТ</.exec(made)?.[1] ?? '';
+  expect(colours).toContain(rule('gap:6px'));
+  expect(colours).toContain(rule('margin-bottom:-4px'));
 });
 
 test('the circle is lit only where everything marked already lies', () => {

@@ -64,6 +64,29 @@ test('the same row stating a fact has no arrow on it', () => {
   expect(fact).not.toContain('data-glyph');
 });
 
+test('a summary row is 11 over and under a value of 14 / 500 on its 18 — rows of one line 41 apart', () => {
+  // Spec 7.7, detail 52 («подпись 12 / 500 muted, значение 14 / 500 tabular, поля 11 / 0») and 10.11
+  // («SheetFrameInfo шаг 41»); `SheetFrameInfo.json` e9–e11: «Файл» 12 / 500, «IMG_4471.HEIC · 4,2
+  // МБ» 14 / 500 on 18, the rule at 212 and the next value at 224. The row stood on a floor of 44 with
+  // its value at 15 / 600 and its label at 13 / 600: 45 apart.
+  const fact = story(<RowSummary label="Файл" value="IMG_4471.HEIC · 4,2 МБ" />);
+  const row = /<div[^>]*class="([^"]*)"><div[^>]*>Файл</.exec(fact)?.[1] ?? '';
+  expect(row).toContain(rule('padding-bottom:11px;padding-top:11px'));
+  expect(row).not.toContain('r-minHeight-');
+  const value = /class="([^"]*)"[^>]*>IMG_4471/.exec(fact)?.[1] ?? '';
+  expect(value).toContain(rule('font-size:14px'));
+  expect(value).toContain(rule('line-height:18px'));
+  expect(value).toContain(rule(`font-family:${font.medium}`));
+  const label = /class="([^"]*)"[^>]*>Файл</.exec(fact)?.[1] ?? '';
+  expect(label).toContain(rule('font-size:12px'));
+  expect(label).toContain(rule(`font-family:${font.medium}`));
+  expect(label).toContain(rule('color:rgba(164,161,178,1.00)'));
+  // A row that leads somewhere is a button, and a button is felt at a finger's 44 all the same.
+  expect(story(<RowSummary label="Кадры" value="214 из 486" onPress={() => {}} />)).toContain(
+    rule('min-height:44px'),
+  );
+});
+
 test('a track row is a row, and what picks it is the button on its right', () => {
   const take = <IconButton size={36} icon={Plus} label="Добавить «Яркая»" />;
   const listen = { label: 'Послушать «Яркая»', onPress: () => {} };

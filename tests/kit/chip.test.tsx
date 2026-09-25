@@ -1,4 +1,4 @@
-import { rule } from '@tests/helpers/css';
+import { rule, shorthand } from '@tests/helpers/css';
 import { fontFile, wordWidth } from '@tests/helpers/font';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { CalendarDays, Lock } from 'lucide-react-native';
@@ -10,7 +10,7 @@ import { Chip } from '@/kit/chip';
 import { allDifferent, story } from '@/kit/story';
 import { font, setTheme } from '@/theme';
 
-/** Spec 7.3 — the chip: four heights, and everything that can stand inside one. */
+/** Spec 7.3 — the chip: five heights, and everything that can stand inside one. */
 
 mountsTrees();
 
@@ -42,8 +42,9 @@ test('the chips are as many as the things that can stand in one', () => {
   });
 });
 
-test('the four heights are four heights, and the quick one stands on a fill of its own', () => {
+test('the five heights are five heights, and the quick one stands on a fill of its own', () => {
   allDifferent({
+    person: <Chip label="Все" size={44} onPress={() => {}} />,
     filter: <Chip label="Все" onPress={() => {}} />,
     quick: <Chip label="Сегодня" size={36} onPress={() => {}} />,
     journal: <Chip label="Мысли" size={34} onPress={() => {}} />,
@@ -141,4 +142,23 @@ test('a chip with a face in it carries the face and the name, and only the name 
   const who = story(<Chip label="Аня Петрова" avatar="Аня Петрова" onPress={() => {}} />);
   expect(who).toContain('АП');
   expect(who).toContain('aria-label="Аня Петрова"');
+});
+
+test('a person to call in is the chip of 44: the face at 32, the name 8 after it, a `line` hairline', () => {
+  // Spec 8, `SheetInvite` («чипы-кнопки 44 (радиус 22, обводка line, поля 0 14 0 6, аватар 32 и имя
+  // 14 / 500, щель 8)»), `SheetInvite.json` e12–e13: «Марина» 44 tall in #2C2C3A, its face 32. The
+  // chip stood at the filter's 40 with a face of 30, 6 from the name, in the filter's `lineQuiet`.
+  const who = story(
+    <Chip size={44} label="Марина Белова" avatar="Марина Белова" onPress={() => {}} />,
+  );
+  expect(who).toContain('min-height:44px');
+  const chip = /<button[^>]*class="([^"]*)"/.exec(who)?.[1] ?? '';
+  expect(chip).toContain(rule('gap:8px'));
+  expect(chip).toContain(rule('padding-left:6px'));
+  expect(chip).toContain(shorthand('paddingInline', 'padding-right:14px'));
+  expect(chip).toContain(shorthand('borderColor', 'border-top-color:rgba(44,44,58,1.00)'));
+  expect(who).toContain('style="width:32px;height:32px;');
+  const name = /class="([^"]*)"[^>]*>Марина Белова</.exec(who)?.[1] ?? '';
+  expect(name).toContain(rule('font-size:14px'));
+  expect(name).toContain(rule(`font-family:${font.medium}`));
 });

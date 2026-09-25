@@ -1,6 +1,7 @@
 import {
   Lock,
   Pencil,
+  Plus,
   Tag as TagIcon,
   Trash2,
   TriangleAlert,
@@ -29,6 +30,7 @@ import {
   ConfirmSheet,
   Field,
   Hint,
+  hitSlop,
   IconButton,
   type IconComponent,
   Palette,
@@ -373,17 +375,18 @@ export function LabelsSheet({
           <Text role="sheetTitle" accessibilityRole="header" style={styles.title}>
             {s.labels.title}
           </Text>
-          {/* Spec 10.8.1: the count goes quiet while the sheet is being edited — nothing is being
-              filed in that mode. */}
-          <Text role="label" tone={editing ? 'muted' : 'paper'}>
+          {/* Spec 7.1, detail 7: the count beside a sheet's heading is `label` in `muted` — and
+              quiet in the edit mode too (10.8.1), where nothing is being filed. */}
+          <Text role="label" tone="muted">
             {count}
           </Text>
           {/* The same part as «Править состав» in the settings, and the same switch: the way in
-              becomes the way out. Nothing this person may edit is no button at all. */}
+              becomes the way out — a button in the row, 36 (spec 10.8.1). Nothing this person may
+              edit is no button at all. */}
           {labels?.some((label) => label.can_edit) ? (
             <Button
               variant={editing ? 'paper' : 'small'}
-              size="xs"
+              size="mini"
               // Held in, it is still the small button of this row: `paper` on its own runs the
               // width of the row and squeezes the title beside it to nothing.
               wide={false}
@@ -395,7 +398,15 @@ export function LabelsSheet({
           ) : null}
         </View>
       }
-      footer={<Button variant="dashed" label={s.labels.newOne} disabled={busy} onPress={onNew} />}
+      footer={
+        <Button
+          variant="dashed"
+          icon={Plus}
+          label={s.labels.newOne}
+          disabled={busy}
+          onPress={onNew}
+        />
+      }
     >
       {error === null ? null : <Banner tone="error" text={error.text} icon={error.icon} />}
       {labels === null ? (
@@ -484,7 +495,7 @@ export function LabelNewSheet({
         editable={!busy}
       />
 
-      <View style={styles.group}>
+      <View style={[styles.group, styles.colours]}>
         <Text role="eyebrow" tone="muted" accessibilityRole="header">
           {s.labels.colour.toUpperCase()}
         </Text>
@@ -535,6 +546,9 @@ export function LabelNewSheet({
   );
 }
 
+/** The air the palette's row of 44 leaves over and under each circle of 36 (`Palette`, spec 10.2). */
+const PALETTE_AIR = hitSlop(36).top;
+
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
     // The title, the count of what is marked and the way into the edit mode, on one line — or on as
@@ -545,6 +559,10 @@ const useStyles = themed(({ color }) =>
     title: { flexGrow: 1 },
     // A heading and the block it introduces, as on every other sheet of this memory.
     group: { gap: space.s2 },
+    // `SheetLabelNew.json`: the eight circles 10 under «ЦВЕТ» and 18 over «КТО ВИДИТ». Their row is
+    // 44 for a finger (`Palette`), 4 over each circle's 36 on either side — so 4 less above, and
+    // the next block laid 4 into it.
+    colours: { gap: 10 - PALETTE_AIR, marginBottom: -PALETTE_AIR },
     // Spec 7.7: the rows stand in a card the hairlines are drawn inside. On a sheet the card drops
     // to `ink` — the sheet itself is already `surface`.
     card: {

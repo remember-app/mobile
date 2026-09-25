@@ -434,8 +434,8 @@ export function FrameInfoSheet({
               about somebody rather than about a file. */}
           <View style={styles.author}>
             <Avatar name={memberName(info.uploaded_by)} size={32} />
-            <View style={styles.headWords}>
-              <Text role="row" numberOfLines={1}>
+            <View style={styles.authorWords}>
+              <Text role="rowSm" numberOfLines={1}>
                 {memberName(info.uploaded_by)}
               </Text>
               <Text role="meta" numberOfLines={1}>
@@ -498,13 +498,15 @@ const useStyles = themed(({ color }) =>
     // Spec 8: the header row of `SheetFrameInfo` is a 56 thumbnail and two lines beside it.
     head: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },
     headWords: { flex: 1, minWidth: 0, gap: 3 },
+    authorWords: { flex: 1, minWidth: 0, gap: 1 },
     thumb: { width: 56, height: 56, borderRadius: radius.strip, backgroundColor: color.raise },
     waiting: { alignItems: 'center', paddingVertical: space.s5 },
-    // Spec 8: the person stands on `ink` inside the sheet's own surface, ringed like a field.
+    // Spec 8: the person stands on `ink` inside the sheet's own surface, ringed like a field —
+    // `SheetFrameInfo.json`: the face 32, the name 14 / 600 10 after it and the line right under.
     author: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: space.s2,
+      gap: 10,
       paddingVertical: 10,
       paddingHorizontal: space.s3,
       borderRadius: radius.cell,

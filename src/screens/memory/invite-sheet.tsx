@@ -215,8 +215,7 @@ export function InviteSheet({
         }
       />
 
-      {/* The kit has no switch of its own, so the platform's wears the kit's colours — once, in
-          `kit/toggle.tsx`, rather than spelled out on every screen that needs one (TASK-56). */}
+      {/* The kit's own switch, 52 × 32 on a row as tall as it (`kit/toggle.tsx`). */}
       <Toggle label={s.members.mayAdd} value={mayAdd} onValueChange={setMayAdd} disabled={busy} />
 
       {/* The first road in, sieved by the field above it. Nobody left to offer — no contacts at all,
@@ -231,6 +230,7 @@ export function InviteSheet({
             {pickable.map((contact) => (
               <Chip
                 key={contact.id}
+                size={44}
                 avatar={memberName(contact)}
                 label={memberName(contact)}
                 selected={picked?.id === contact.id}
@@ -249,39 +249,45 @@ export function InviteSheet({
 
       {/* The other road, for whoever's nick nobody knows — under a rule of its own, the way the
           layout separates it from the two above. */}
-      <Divider />
-      <View style={styles.link}>
-        <View style={styles.grow}>
-          <Text role="row">{s.members.inviteLink}</Text>
-          {/* What following it will grant: the link's own level once there is one, and until then
-              the level the switch above is set to — which is what a fresh link would carry. */}
-          <Text role="note">{s.members.linkGrants(s.role[invite?.role ?? newcomerRole])}</Text>
+      <View style={styles.road}>
+        <Divider />
+        <View style={styles.link}>
+          <View style={styles.grow}>
+            <Text role="rowSm">{s.members.inviteLink}</Text>
+            {/* What following it will grant: the link's own level once there is one, and until
+                then the level the switch above is set to — which is what a fresh link would carry. */}
+            <Text role="aside" tone="muted">
+              {s.members.linkGrants(s.role[invite?.role ?? newcomerRole])}
+            </Text>
+          </View>
+          {shareable === null ? (
+            // Asked for rather than loaded with the sheet: the api mints the link on this very
+            // call, and a memory nobody shares should not carry one.
+            <Button
+              variant="small"
+              label={s.members.getLink}
+              disabled={busy}
+              style={styles.strong}
+              onPress={() =>
+                act(async (session) => {
+                  setInvite(await fetchInvite(session, memoryId));
+                  return null;
+                })
+              }
+            />
+          ) : (
+            // The platform's own share sheet, which is also the copy button — no clipboard
+            // dependency for something every OS already does better.
+            <Button
+              variant="small"
+              icon={Share2}
+              label={s.action.share}
+              onPress={() => void Share.share({ message: shareable.link }).catch(() => {})}
+              disabled={busy}
+              style={styles.strong}
+            />
+          )}
         </View>
-        {shareable === null ? (
-          // Asked for rather than loaded with the sheet: the api mints the link on this very call,
-          // and a memory nobody shares should not carry one.
-          <Button
-            variant="small"
-            label={s.members.getLink}
-            disabled={busy}
-            onPress={() =>
-              act(async (session) => {
-                setInvite(await fetchInvite(session, memoryId));
-                return null;
-              })
-            }
-          />
-        ) : (
-          // The platform's own share sheet, which is also the copy button — no clipboard dependency
-          // for something every OS already does better.
-          <Button
-            variant="small"
-            icon={Share2}
-            label={s.action.share}
-            onPress={() => void Share.share({ message: shareable.link }).catch(() => {})}
-            disabled={busy}
-          />
-        )}
       </View>
       {/* Replacing a link is a quiet thing beside it, not a red button — and there is nothing to
           replace until one has been asked for. */}
@@ -306,16 +312,22 @@ export function InviteSheet({
   );
 }
 
-const useStyles = themed(() =>
+const useStyles = themed(({ color }) =>
   StyleSheet.create({
-    // A rule and the block it introduces, the way the contacts screen sets the same pair.
-    section: { gap: space.s2 },
+    // Spec 8, `SheetInvite`: «ИЗ КОНТАКТОВ» and 10 under it the chips.
+    section: { gap: 10 },
     // Spec 7.3: chips lie in a row that wraps, 8 apart.
     chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.s2 },
     quiet: { alignSelf: 'flex-start' },
+    // The words of the link stand 17 under the rule — its 1 and 16 (`SheetInvite.json`).
+    road: { gap: space.s4 },
     // The words keep at least half the row: the button beside them goes under rather than squeeze
-    // them to a letter a line on large type (TASK-377).
-    grow: { flex: 1, minWidth: '50%' },
+    // them to a letter a line on large type (TASK-377). «Ссылка-приглашение» and 4 under it what
+    // following it grants.
+    grow: { flex: 1, minWidth: '50%', gap: space.s1 },
+    // Spec 7.2: the small button of the link is ringed in `lineStrong`, not the `line` of «Что сняли»,
+    // and stands 16 a side — «Получить» 94.2 wide (`SheetInvite.json` e23: its words 60.25).
+    strong: { borderColor: color.lineStrong, paddingHorizontal: space.s4 },
     // The link and what the sheet offers to do with it, side by side — the button moving under the
     // words once the system type is too large for it to fit beside them.
     link: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s3 },

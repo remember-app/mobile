@@ -1,3 +1,4 @@
+import { createContext, useContext } from 'react';
 import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
 import { height, photo, radius, space, type Theme, themed, type, useTheme } from '@/theme';
@@ -62,6 +63,14 @@ const DEFAULT_SIZE: Record<ButtonVariant, ButtonSize> = {
   // «Новый лейбл», the taller of the two dashed ones.
   dashed: 'md',
 };
+
+/**
+ * Whether a button stands in the block at the foot of a sheet — `Sheet` says so. Spec 4 and 7.2 give
+ * the quiet one there a place of its own, «Позже» and «Оставить как есть»: `ms`, 48 tall with its
+ * words at 15. The place decides it, wherever the sheet was raised from, so no screen has to
+ * remember; a height named outright is still the button's own.
+ */
+export const SheetFoot = createContext(false);
 
 /** The loud ones run the width they are given; the quiet ones are as wide as their words. */
 export const DEFAULT_WIDE: Record<ButtonVariant, boolean> = {
@@ -133,18 +142,24 @@ export function Button({
   const off = !!disabled;
   const link = variant === 'link';
   const tint = labelTone && !off ? theme.color[labelTone] : contentColor(theme, variant, off);
-  const sized = size ?? DEFAULT_SIZE[variant];
+  const footQuiet = useContext(SheetFoot) && variant === 'quiet';
+  const sized = size ?? (footQuiet ? 'ms' : DEFAULT_SIZE[variant]);
   const tall = SIZES[sized];
+  // Spec 7.2 draws the dashed one twice and squares it off only where it is tall: «Новый лейбл» at
+  // 52 is a box with a hole in it, «Свой трек» at 32 is a pill like every other chip in its row.
+  const boxed = variant === 'dashed' && tall >= height.sheetButton;
   // The quiet one and the link are words and not a shape, and keep their own sides at any height.
   const kind = variant === 'quiet' || link ? null : variant === 'small' ? 'row' : KIND[sized];
   const glyph =
     variant === 'raise'
       ? { size: ICO_XS }
-      : kind === 'small'
-        ? SMALL_GLYPH
-        : variant === 'paper' && sized === 'mini'
-          ? MAKE_GLYPH
-          : (ROW_GLYPH[sized] ?? { size: ICO_S });
+      : boxed
+        ? BOXED_GLYPH
+        : kind === 'small'
+          ? SMALL_GLYPH
+          : variant === 'paper' && sized === 'mini'
+            ? MAKE_GLYPH
+            : (ROW_GLYPH[sized] ?? { size: ICO_S });
   const words = busy ? (busyLabel ?? label) : label;
 
   return (
@@ -162,10 +177,7 @@ export function Button({
         styles.btn,
         { minHeight: tall },
         fill(theme, variant, off, hovered),
-        // Spec 7.2 draws the dashed one twice and squares it off only where it is tall: «Новый
-        // лейбл» at 52 is a box with a hole in it, «Свой трек» at 32 is a pill like every other chip
-        // in the row it stands in.
-        variant === 'dashed' && tall >= height.sheetButton ? styles.boxed : null,
+        boxed ? styles.boxed : null,
         variant === 'quiet' ? styles.tight : null,
         link ? styles.bare : null,
         kind === 'row' ? (sized === 'xxs' ? styles.inRowPill : styles.inRow) : null,
@@ -251,6 +263,12 @@ function wordsRole(variant: ButtonVariant, sized: ButtonSize, kind: Kind | null)
 
 /** The glyph of «Сохранить» and «Поделиться» under a finished film (spec 8, `MontageLiveDone`). */
 const SMALL_GLYPH = { size: 16 } as const;
+
+/**
+ * The plus of «Новый лейбл», the dashed box of 52 (`SheetLabels.json` e52): 16 at stroke 2.2, 8 from
+ * its words at 14 — the small button's glyph rather than the 18 of a 52.
+ */
+const BOXED_GLYPH = { size: 16, stroke: 2.2 } as const;
 
 /**
  * The glyph of a button in a row (spec 7.2): 14 at 1.8 — «Править состав» wears its pencil so — and

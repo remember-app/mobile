@@ -141,7 +141,7 @@ export const ru: typeof en = {
     fromContacts: 'Из контактов',
     inviteDo: 'Позвать',
     inviteLink: 'Ссылка-приглашение',
-    getLink: 'Получить ссылку',
+    getLink: 'Получить',
     linkGrants: (role: string) => `Кто перейдёт по ней, войдёт как «${role}».`,
     replaceLink: 'Заменить ссылку',
     linkReplaced: 'Новая ссылка готова. Старая больше ничего не открывает.',

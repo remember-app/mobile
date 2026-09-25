@@ -1,11 +1,15 @@
 import { rule, shorthand } from '@tests/helpers/css';
+import { mounted, mountsTrees } from '@tests/helpers/renderer';
+import TestRenderer, { act } from 'react-test-renderer';
 import { beforeAll, expect, test } from 'vitest';
 
 import { allDifferent, compiled, story } from '@/kit/story';
 import { RowToggle, Toggle } from '@/kit/toggle';
-import { setTheme } from '@/theme';
+import { font, setTheme } from '@/theme';
 
 /** Spec 7.3 — the thing that is simply on or off. */
+
+mountsTrees();
 
 beforeAll(async () => {
   await setTheme('dark');
@@ -46,6 +50,29 @@ test('the words beside it are its name, and pressing them flips it too', () => {
   // The whole row is the control — which is why the switch inside it is hidden from the reader.
   expect(row).toContain('role="switch"');
   expect(row).toContain('aria-label="Сможет добавлять фото"');
+});
+
+test('the row is as tall as the switch, 32, felt at 44, with its words at 15 / 500', async () => {
+  // Spec 8, `SheetInvite` («строка-тумблер 32 «Сможет добавлять фото» 15 / 500») and
+  // `SheetInvite.json` e7–e8: the row 358 × 32, the words 15 / 500. The row kept a floor of 44, so
+  // the switch stood 6 lower under the field and «ИЗ КОНТАКТОВ» 12 lower than drawn.
+  const row = story(<Toggle label="Сможет добавлять фото" value onValueChange={() => {}} />);
+  const own = /<div[^>]*role="switch"[^>]*class="([^"]*)"/.exec(row)?.[1] ?? '';
+  expect(own).toContain(rule('min-height:32px'));
+  const words = /class="([^"]*)"[^>]*>Сможет добавлять фото</.exec(row)?.[1] ?? '';
+  expect(words).toContain(rule('font-size:15px'));
+  expect(words).toContain(rule(`font-family:${font.medium}`));
+  // Drawn at 32 and felt at a finger's 44: 6 more above and below (spec 10.2).
+  let tree: TestRenderer.ReactTestRenderer | undefined;
+  await act(async () => {
+    tree = mounted(
+      TestRenderer.create(<Toggle label="Сможет добавлять фото" value onValueChange={() => {}} />),
+    );
+  });
+  const pressed = (tree as TestRenderer.ReactTestRenderer).root.find(
+    (one) => one.props.accessibilityRole === 'switch' && one.props.hitSlop !== undefined,
+  );
+  expect(pressed.props.hitSlop).toEqual({ left: 0, right: 0, top: 6, bottom: 6 });
 });
 
 /** Spec 7.7, detail 59 — the same switch given a place to stand. */

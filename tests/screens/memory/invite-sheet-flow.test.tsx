@@ -9,12 +9,15 @@ vi.mock('@/kit', async (original) => ({
 }));
 
 import { type Asked, contact, later, member, refused, serve } from '@tests/helpers/api';
+import { fontFile, wordWidth } from '@tests/helpers/font';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
-import TestRenderer, { act } from 'react-test-renderer';
+import { Text as RNText, StyleSheet, View } from 'react-native';
+import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
 import type { Contact, Member } from '@/api';
-import { Banner, Button, Chip, Field, Toggle } from '@/kit';
+import { Banner, Button, Chip, Divider, Field, Text, Toggle } from '@/kit';
 import { InviteSheet } from '@/screens/memory/invite-sheet';
 import { ru } from '@/strings';
+import { currentTheme, themes } from '@/theme';
 
 /**
  * `SheetInvite` (spec 8) — both roads into a memory on one sheet: the nick of somebody whose name is
@@ -141,6 +144,60 @@ test('the chips are the saved people who are not in the memory yet, and the shee
   expect(reads()).toBe(1);
   await screen.reopen();
   expect(reads()).toBe(2);
+});
+
+test('the sheet stands as `SheetInvite.json` draws it: a quiet heading, chips of 44, the link and «Получить»', async () => {
+  // Spec 8, `SheetInvite`, 10.11 and `SheetInvite.json` (TASK-390). «ИЗ КОНТАКТОВ» is `eyebrow` in
+  // `muted` (e11, #A4A1B2 — it stood in `paper`) with the chips 10 under it (e12 at 227 under 201…
+  // 217), each a chip of 44 with the face 32 (it was the filter's 40). Across the rule (e20, its
+  // top hairline) the words stand 17 from it — the rule's 1 and 16: «Ссылка-приглашение» 14 / 600
+  // (e21, it was 15), 4 over «Кто перейдёт по ней…» 12 / 400 / 17 `muted` (e22, it was 13 / 500 /
+  // 19). The button is «Получить», not «Получить ссылку» (e23), ringed in `lineStrong` #45424F.
+  world();
+  const screen = await open();
+  const said = (words: string) =>
+    screen.root.find((one) => one.type === Text && one.props.children === words);
+  const style = (node: { props: { style?: unknown } } | null) =>
+    StyleSheet.flatten(node?.props.style as never) as Record<string, unknown>;
+  /** The View a node stands in. */
+  const holder = (node: ReactTestInstance) => {
+    let up = node.parent;
+    while (up && up.type !== View) up = up.parent;
+    return up;
+  };
+
+  const heading = said(ru.members.fromContacts.toUpperCase());
+  expect(heading.props.role).toBe('eyebrow');
+  expect(style(heading.findByType(RNText))).toMatchObject({
+    color: themes[currentTheme()].color.muted,
+  });
+  expect(style(holder(heading))).toMatchObject({ gap: 10 });
+  expect(screen.chips().map((one) => one.props.size)).toEqual([44, 44]);
+
+  const link = said(ru.members.inviteLink);
+  expect(link.props.role).toBe('rowSm');
+  expect(style(holder(link))).toMatchObject({ gap: 4 });
+  expect(said(ru.members.linkGrants(ru.role.contributor)).props).toMatchObject({
+    role: 'aside',
+    tone: 'muted',
+  });
+  const road = holder(screen.root.findByType(Divider));
+  expect(style(road)).toMatchObject({ gap: 16 });
+  expect(road?.findAllByType(Text).map((one) => one.props.children)[0]).toBe(ru.members.inviteLink);
+
+  expect(ru.members.getLink).toBe('Получить');
+  const get = screen.button(ru.members.getLink)!;
+  expect(style(get)).toMatchObject({
+    borderColor: themes[currentTheme()].color.lineStrong,
+    paddingHorizontal: 16,
+  });
+  // 94.2 wide in the layout: a hairline and 16 a side round the words at 13 / 600, read off the font.
+  const words = wordWidth(
+    fontFile('@expo-google-fonts/onest/600SemiBold/Onest_600SemiBold.ttf'),
+    ru.members.getLink,
+    13,
+  );
+  expect(2 + 2 * 16 + words).toBeCloseTo(94.2, 0);
 });
 
 test('with no contacts, or every one of them here already, there is no block and no empty list saying so', async () => {
