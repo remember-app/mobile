@@ -65,10 +65,48 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={navigation}>
       <AuthProvider>
-        <RootNavigator />
+        <Startup />
       </AuthProvider>
     </ThemeProvider>
   );
+}
+
+/**
+ * The app coming up: the splash stands until the session is checked and the faces are in, and no
+ * screen exists before the faces do. A screen drawn ahead of them is not swapped to them later —
+ * its text was laid out in the system font and nothing makes it lay itself out again, so the whole
+ * first screen keeps the system's letters, widths and line breaks (TASK-380).
+ */
+function Startup() {
+  const { status } = useAuth();
+
+  // Every word in the product is in one of these six faces — Unbounded for headings, Onest for
+  // everything else, both with Cyrillic. `error` counts as settled: a missing font is not a reason
+  // to sit on the splash forever, and the app opens in the system's.
+  const [fontsLoaded, fontError] = useFonts({
+    Unbounded_600SemiBold,
+    Unbounded_700Bold,
+    Onest_400Regular,
+    Onest_500Medium,
+    Onest_600SemiBold,
+    Onest_700Bold,
+  });
+  const fontsSettled = fontsLoaded || fontError !== null;
+
+  useEffect(() => {
+    if (fontError) console.warn('fonts fail to load, the app opens in the system font:', fontError);
+  }, [fontError]);
+
+  // Here and not on the upload screen: a queue left over from a launch that was cut short, or
+  // from a tunnel, has to pick itself back up whatever screen the app opens on. Above the wait for
+  // the faces, because it needs no screen at all.
+  useUploads();
+
+  useEffect(() => {
+    if (status !== 'loading' && fontsSettled) SplashScreen.hideAsync().catch(() => {});
+  }, [status, fontsSettled]);
+
+  return fontsSettled ? <RootNavigator /> : null;
 }
 
 /**
@@ -78,32 +116,11 @@ export default function RootLayout() {
 function RootNavigator() {
   const { status } = useAuth();
 
-  // Every word in the product is in one of these six faces — Unbounded for headings, Onest for
-  // everything else, both with Cyrillic — so the splash gate below waits on them rather than
-  // letting the first screen draw in the system font and swap. `error` counts as settled: a missing
-  // font is not a reason to sit on the splash forever.
-  const [fontsLoaded, fontError] = useFonts({
-    Unbounded_600SemiBold,
-    Unbounded_700Bold,
-    Onest_400Regular,
-    Onest_500Medium,
-    Onest_600SemiBold,
-    Onest_700Bold,
-  });
-
   // Pushes, tapped pushes and a stashed invite link — all of them only mean anything once
-  // there is a session, and all of them gate on that themselves.
+  // there is a session, and all of them gate on that themselves. Beside the navigator and not
+  // above it: each of them ends in a navigation, and one issued before a navigator is mounted
+  // throws instead of going anywhere.
   usePush();
-
-  // Here and not on the upload screen: a queue left over from a launch that was cut short, or
-  // from a tunnel, has to pick itself back up whatever screen the app opens on.
-  useUploads();
-
-  useEffect(() => {
-    if (status !== 'loading' && (fontsLoaded || fontError)) {
-      SplashScreen.hideAsync().catch(() => {});
-    }
-  }, [status, fontsLoaded, fontError]);
 
   // No native header anywhere: every screen draws the kit's own appbar over the kit's own
   // background, and a white system bar on top of that would be two headers.
