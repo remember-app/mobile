@@ -68,14 +68,12 @@ const HELD: Record<string, string> = {
   'kit/montage-live.tsx › wait': 'the frame on air, waiting',
   'kit/rows.tsx › noteShot': 'a 34 frame',
   // A plate or a pill the layout draws to a height, not yet measured at the largest type.
-  'kit/badge.tsx › mark': 'badge 22',
   'kit/badge.tsx › tag': 'tag 28',
   'kit/bars.tsx › viewerPill': 'the viewer pill, 48',
   'kit/daymark.tsx › spineMark': 'the date on the spine',
   'kit/daymark.tsx › spinePill': 'the date on the spine',
   'kit/member.tsx › inline': 'the «+N» circle of a stack',
   'kit/member.tsx › pill': '«смотрят сейчас»',
-  'kit/montage-live.tsx › filmAt': 'the film strip on air, 40',
 };
 
 type File = { path: string; tree: ts.SourceFile; heights: Set<string> };
@@ -161,16 +159,12 @@ test('on the screens with a field, and on the way in, only the person’s own wo
 /**
  * Spec 10.1 and 10.11: `faint` is under the floor of contrast, so words that are read never wear it —
  * «весь читаемый вторичный текст `muted`». It stays on what is unavailable (a contact just removed,
- * whose name and circle go out) and on the `@` in front of a name, which is a sign. Three more are
- * the journal's and the queue's, on their way to `muted` in TASK-392: «Дальше» under the stages, the
- * time of a record, the line under the sending block. A new `faint` word anywhere fails here.
+ * whose name and circle go out) and on the `@` in front of a name, which is a sign. A new `faint`
+ * word anywhere fails here.
  */
 const FAINT: Record<string, number> = {
   'kit/member.tsx': 4,
   'kit/field.tsx': 1,
-  'kit/rows.tsx': 1,
-  'kit/montage-live.tsx': 1,
-  'kit/upload.tsx': 1,
 };
 
 test('words that are read are never `faint`', () => {

@@ -1,10 +1,17 @@
 import { rule } from '@tests/helpers/css';
 import { mountsTrees } from '@tests/helpers/renderer';
-import { Text as RNText, StyleSheet, type TextStyle, type ViewStyle } from 'react-native';
+import {
+  Pressable,
+  Text as RNText,
+  StyleSheet,
+  type TextStyle,
+  type ViewStyle,
+} from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import { beforeAll, expect, test } from 'vitest';
 
 import { BadgeDecision } from '@/kit/badge';
+import { Icon } from '@/kit/icon';
 import {
   CardNow,
   GAZE,
@@ -18,7 +25,7 @@ import {
   TileNumber,
 } from '@/kit/montage-live';
 import { allDifferent, story } from '@/kit/story';
-import { setTheme, themes } from '@/theme';
+import { photo, setTheme, themes } from '@/theme';
 
 /** Spec 7.6 and 7.7 — the surface of a montage being made: what is happening now, and every why. */
 
@@ -319,6 +326,133 @@ test('the card’s thought is 14 / 20 and the author’s plate 11 / 600, as `Mon
     fontFamily: 'Onest_600SemiBold',
   });
   card.done();
+});
+
+/** The words a thought is said in: the `Text` holding the sentence that is (partly) said. */
+const thoughtOf = (said: string) => (props: Record<string, unknown>) =>
+  (props.children as { props?: { said?: string } } | undefined)?.props?.said === said;
+
+test('a thought is one plate wherever it stands: 16 round, 12 in, the 22 with its 12 sparkle, 13 / 400 / 18', () => {
+  // Spec detail 50 and 10.11, «Плашка мысли — одна»: `SheetLiveFile.json` e16–e19 — radius 16, 12 in
+  // inside its hairline (29 − 16 − 1), the `spark` 22 with a sparkle 12 at 2.4, the words 10 after it
+  // at 13 / 400; `MontageLiveStage.json` e52–e55 drew another, 14 round with a 20 and 13 / 500. The
+  // spec keeps one, on the 18 line — the app drew the journal's 20 and 13 / 500 / 19 in both places.
+  const { accentEdge, accentNote, spark, sparkInk, paper } = themes.dark.color;
+  let tree!: TestRenderer.ReactTestRenderer;
+  act(() => {
+    tree = TestRenderer.create(<NoteThought text="План: три части" />);
+  });
+  const boxes = tree.root
+    .findAll((node) => node.props.style !== undefined && typeof node.props.style !== 'function')
+    .map((node) => StyleSheet.flatten(node.props.style) as ViewStyle);
+  expect(boxes.find((box) => box.borderColor === accentEdge)).toMatchObject({
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    gap: 10,
+    backgroundColor: accentNote,
+  });
+  expect(accentEdge).toBe('rgba(75,91,255,0.35)');
+  expect(boxes.find((box) => box.backgroundColor === spark)).toMatchObject({
+    width: 22,
+    height: 22,
+  });
+  expect(tree.root.findByType(Icon).props).toMatchObject({
+    size: 12,
+    stroke: 2.4,
+    color: sparkInk,
+  });
+  expect(
+    StyleSheet.flatten(tree.root.find((node) => node.type === RNText).props.style),
+  ).toMatchObject({ fontSize: 13, lineHeight: 18, fontFamily: 'Onest_400Regular', color: paper });
+  act(() => tree.unmount());
+});
+
+test('a record’s time is 11 / 600 — «сейчас» in paper, every one behind it muted — over its file at 11 / 500 and the thought at 13 / 400 / 18', () => {
+  // Spec detail 61 and `MontageLiveStage.json`: «сейчас» (e19) Onest 11 / 600 `#F5F3EE`, «16:43»
+  // (e28) 11 / 600 — `faint` in the layout, `muted` in the spec (10.1, 10.11); «IMG_2041 · Аня»
+  // (e22) 11 / 500 `muted`; the thought (e23) 13 / 400 / 18 `paper`. The app drew the time and the
+  // file in the meta's 12 / 500, the older times in `faint`, and the thought 13 / 500 / 19.
+  const { muted, paper } = themes.dark.color;
+  const fresh = drawn(
+    <LogEntry time="сейчас" fresh uri={SHOT} source="IMG_2041 · Аня" text="Бабушка смеётся" />,
+  );
+  expect(fresh.words('сейчас')).toMatchObject({
+    fontSize: 11,
+    fontFamily: 'Onest_600SemiBold',
+    color: paper,
+  });
+  expect(fresh.words('IMG_2041 · Аня')).toMatchObject({
+    fontSize: 11,
+    fontFamily: 'Onest_500Medium',
+    color: muted,
+  });
+  expect(fresh.text(thoughtOf('Бабушка смеётся'))).toMatchObject({
+    fontSize: 13,
+    lineHeight: 18,
+    fontFamily: 'Onest_400Regular',
+    color: paper,
+  });
+  fresh.done();
+  const older = drawn(<LogEntry time="16:43" uri={SHOT} text="Дубль прошлого кадра" />);
+  expect(older.words('16:43')).toMatchObject({
+    fontSize: 11,
+    fontFamily: 'Onest_600SemiBold',
+    color: muted,
+  });
+  older.done();
+});
+
+test('a video’s time on a journal thumbnail is 9 / 700 and untracked, 3 in and 2 up', () => {
+  // `MontageLive.json` e50 and `MontageLiveStage.json` e31: «0:12» Onest 9 / 700 white, 12 tall,
+  // ending 3 from the thumbnail's right and 2 above its foot (spec detail 56). The app wrote it in
+  // `badgeSm` — 10 / 700 at 0.6 of tracking.
+  const entry = drawn(<LogEntry time="16:43" uri={SHOT} length="0:12" text="Марк роняет кольцо" />);
+  const time = entry.words('0:12');
+  expect(time).toMatchObject({
+    fontSize: 9,
+    lineHeight: 12,
+    fontFamily: 'Onest_700Bold',
+    color: '#FFFFFF',
+    paddingRight: 101 - (76.89 + 21.11),
+    paddingBottom: 603 - (589 + 12),
+  });
+  expect(time.letterSpacing).toBeUndefined();
+  entry.done();
+});
+
+test('the frame in hand is darkened at the top only, by the spec’s own gradient', () => {
+  // Spec 2 and 10.11, «верх кадра в карточке „Сейчас“»: `rgba(9,9,14,.55) → transparent 40%`, the
+  // plates stand in it — now `photo.now` and not a string written on the card.
+  const card = drawn(<CardNow uri={SHOT} who="Режиссёр" />);
+  expect(card.boxes.map((box) => box.experimental_backgroundImage).filter(Boolean)).toEqual([
+    photo.now,
+  ]);
+  expect(photo.now).toBe('linear-gradient(to bottom, rgba(9,9,14,.55) 0%, rgba(9,9,14,0) 40%)');
+  card.done();
+});
+
+test('a film a frame lies in is a row of 42 — a floor, the words grow it', () => {
+  // Spec detail 62 and 10.11 («строка ролика в сведениях 40 → 42»), `SheetFrameInfo.json` e21:
+  // 358 × 42, radius 12, `#14152A` in `rgba(75,91,255,0.35)`.
+  let tree!: TestRenderer.ReactTestRenderer;
+  act(() => {
+    tree = TestRenderer.create(
+      <RowFilmAt title="«Для родителей»" at="на 1:12" onPress={() => {}} />,
+    );
+  });
+  const press = tree.root.findByType(Pressable).props.style as (state: {
+    pressed: boolean;
+  }) => unknown;
+  const box = StyleSheet.flatten(press({ pressed: false }) as ViewStyle) as ViewStyle;
+  expect(box).toMatchObject({
+    minHeight: 42,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    borderColor: themes.dark.color.accentEdge,
+  });
+  expect(box.height).toBeUndefined();
+  act(() => tree.unmount());
 });
 
 test('a number tile is 66 tall: 13 in, the 24 figure, 2, the 11 / 500 word on its 14 line, 13 out', () => {

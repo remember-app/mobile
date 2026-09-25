@@ -116,6 +116,33 @@ test('a picked frame goes down under a scrim, and the queue’s frame is ringed 
   expect(picked).not.toContain('tile-ring');
 });
 
+/** The pick circle a frame draws in its corner, found by its size — none at all if it draws none. */
+function circleOf(element: React.ReactElement) {
+  let tree!: TestRenderer.ReactTestRenderer;
+  act(() => {
+    tree = mounted(TestRenderer.create(element));
+  });
+  return tree.root
+    .findAll((node) => node.props.style !== undefined && typeof node.props.style !== 'function')
+    .map((node) => StyleSheet.flatten(node.props.style) as ViewStyle)
+    .find((box) => box.width === 24 || box.width === 22);
+}
+
+test('in the 117 grid a frame not picked is a clean frame, and still a checkbox a tap picks', () => {
+  // Spec detail 26 and 10.11: «не выбран — кружка нет вовсе» (`UploadLimited.json` e16, e17 and
+  // `UploadQueue.json` e29–e31 carry none) — the app drew the empty 22 on every one of them. The
+  // feed's and the wizard's empty circles stay.
+  expect(circleOf(<Tile state="ready" uri={A} pick="off" ring label="Фото" />)).toBeUndefined();
+  expect(
+    story(<Tile state="ready" uri={A} pick="off" ring label="Фото" onPress={() => {}} />),
+  ).toContain('role="checkbox"');
+  expect(circleOf(<Tile state="ready" uri={A} pick="send" ring label="Фото" />)).toBeDefined();
+  expect(circleOf(<Tile state="ready" uri={A} pick="off" label="Фото" />)).toBeDefined();
+  expect(
+    circleOf(<Tile state="ready" uri={A} lane="feed" pick="off" label="Фото" />),
+  ).toBeDefined();
+});
+
 test('the feed and the wizard are two grids, and a frame knows which one it is in', () => {
   // Spec 7.8 — edge to edge with nothing rounded off in the feed, inside the screen's 16 with a
   // hair more air and a 4 radius in the wizard and the queue.

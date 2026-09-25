@@ -68,9 +68,9 @@ export function Tile({
   /** The circle in the corner. Left off, the frame is not in a picking mode at all. */
   pick?: PickKind;
   /**
-   * The send queue's own frame around a picked file (spec 7.4): 3px of `accent` inset over the
-   * picture. Only there — in the feed a picked frame is told by the darkening alone, and in the
-   * wizard by the circle.
+   * The 117 grid of the send queue and the cover sheet (spec 7.4, detail 26): 3px of `accent`
+   * inset over a picked frame, and no empty circle on one that is not. Only there — in the feed a
+   * picked frame is told by the darkening alone, and in the wizard by the circle.
    */
   ring?: boolean;
   /** A video's running time as the screen writes it, «0:24». */
@@ -156,7 +156,11 @@ export function Tile({
         />
       ) : null}
 
-      {pick && pick !== 'auto' ? <PickCircle kind={pick} size={lane === 'feed' ? 24 : 22} /> : null}
+      {/* The 117 grid that rings a picked frame draws no empty circle at all (spec detail 26): a
+          frame not picked there is a clean frame, and a tap on it picks it. */}
+      {pick && pick !== 'auto' && !(ring && pick === 'off') ? (
+        <PickCircle kind={pick} size={lane === 'feed' ? 24 : 22} />
+      ) : null}
     </>
   );
 

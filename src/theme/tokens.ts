@@ -396,6 +396,11 @@ export const type = StyleSheet.create({
   decision: { fontFamily: font.bold, fontSize: 11, lineHeight: 13, ...tabular },
   /** «ГОТОВ» and «СОБИРАЕТСЯ» on a card in the strip — spec 3, `badge малый`: 0.06em in caps */
   badgeSm: { fontFamily: font.bold, fontSize: 10, lineHeight: 12, letterSpacing: 0.6 },
+  /**
+   * A video's running time in the corner of a journal's thumbnail, 34 or 62 — 9 / 700 and untracked
+   * (spec detail 56, `MontageLive`, `MontageLiveStage`)
+   */
+  runtimeXs: { fontFamily: font.bold, fontSize: 9, lineHeight: 12, ...tabular },
   /** The words of a day gap — «13 сентября, суббота», a person's name (spec 3, `day`: 0.03em) */
   day: { fontFamily: font.semi, fontSize: 10, lineHeight: 12, letterSpacing: 0.3, ...tabular },
   /** The count beside those words — «61», «128»: the same 10 / 12 a weight down, untracked (spec 3, `day`) */

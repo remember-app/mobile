@@ -334,13 +334,14 @@ const useStyles = themed(({ color }) =>
     divider: { height: 1, backgroundColor: color.line },
     dividerSoft: { backgroundColor: color.raise },
     dividerGrow: { flex: 1 },
-    // `UploadLimited`: 1 of dashed `line` and no fill, 24 / 16 round the words, 18 at the corners.
+    // `UploadLimited`: 1 of dashed `line` and no fill, 18 at the corners, 67 round one line of the
+    // note's 19 — 23 over and under it inside the hairline, 16 at the sides.
     dashedNote: {
       borderWidth: 1,
       borderStyle: 'dashed',
       borderColor: color.line,
       borderRadius: radius.field,
-      paddingVertical: space.s6,
+      paddingVertical: 23,
       paddingHorizontal: space.s4,
     },
     centred: { textAlign: 'center' },

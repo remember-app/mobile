@@ -130,7 +130,15 @@ test('the send button stands from the start and is simply out until something is
   // the queue's grid the board's own, the 176 of `UploadLimited` with the count over the button.
   expect(layer).toContain("footer={glass ? 'upload' : undefined}");
   // With picking off there is nothing to send, and the faces with no feed carry no layer at all.
-  expect(upload).toContain('feed && choosing ? (\n      <ActionBar');
+  // Spec 8, `UploadQueue` and 10.11: while something is going the layer stands only once something
+  // is marked — a dead «Отправить» would argue with the sending the screen is about.
+  expect(upload).toContain(
+    'feed && choosing && (picked.size > 0 || queued.length === 0) ? (\n      <ActionBar',
+  );
+  // The count over the button is `UploadLimited`'s alone (spec 8, `Upload`: «Строки счёта … здесь
+  // нет»), and its quiet «Снять» is 14 / 600 (`UploadLimited.json` e22).
+  expect(layer).toContain('above={\n          limited && picked.size > 0 ? (');
+  expect(layer).toContain('labelRole="controlSm"');
 });
 
 test('the four other faces are this screen with no feed under it', () => {
@@ -139,6 +147,9 @@ test('the four other faces are this screen with no feed under it', () => {
   expect(upload).toContain('const feed = granted && rows.length > 0;');
   expect(upload).toContain('subtitle={subtitleFor(memory)}');
   expect(noFeed).toContain('label={access.canAskAgain ? s.upload.allow : s.action.openSettings}');
+  // Both buttons of the message card say their words at 15 / 600 (spec detail 45; `UploadAccess.json`
+  // e10), not the 16 a 52 says elsewhere.
+  expect(noFeed.match(/size="md"\s+labelRole="controlMd"/g)).toHaveLength(2);
   expect(noFeed).toContain('sign="dashed"');
   expect(noFeed).toContain('title={s.upload.emptyTitle}');
   // The sending and the grant are blocks over the grid — and over whatever stands where a feed

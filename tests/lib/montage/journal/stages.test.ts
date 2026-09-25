@@ -26,6 +26,7 @@ import {
   placeLine,
   recordsOf,
   sifted,
+  stageHeadLine,
   stageLine,
   stageMinutes,
   stageNumber,
@@ -208,15 +209,65 @@ describe('the line under a stage', () => {
     expect(stageLine(screening, en, now)).toBe('212 of 214 are usable · 1 min');
   });
 
-  test('a stage still running is counted rather than concluded', () => {
+  test('a stage still running is counted rather than concluded, in the word of what it does', () => {
     const directing: MontageStage = {
       ...stage('directing', 'running'),
       started_at: began,
       done_count: 61,
       total_count: 212,
     };
-    // «идёт» and not «за»: it is still happening, and the number is what has gone by so far.
-    expect(stageLine(directing, ru, now)).toBe('61 из 212 · идёт 4 мин');
+    // «идёт» and not «за»: it is still happening, and the number is what has gone by so far. Spec
+    // detail 56 and `MontageLive.json` e47: «61 из 212 разложено · идёт 4 мин» — the stage's own
+    // word of progress after the count.
+    expect(stageLine(directing, ru, now)).toBe('61 из 212 разложено · идёт 4 мин');
+    expect(stageLine(directing, en, now)).toBe('61 of 212 placed · 4 min so far');
+  });
+
+  test('every stage counts in its own word, and a count that has not moved says neither', () => {
+    // Spec detail 56, the table: проверено · разобрано · разложено · подогнано · склеено /
+    // checked · read · placed · fitted · joined.
+    const words = {
+      screening: ['проверено', 'checked'],
+      understanding: ['разобрано', 'read'],
+      directing: ['разложено', 'placed'],
+      rhythm: ['подогнано', 'fitted'],
+      assembly: ['склеено', 'joined'],
+    } as const;
+    for (const [code, [said, word]] of Object.entries(words)) {
+      const running = {
+        ...stage(code as MontageStage['stage'], 'running'),
+        done_count: 5,
+        total_count: 9,
+      };
+      expect(stageLine(running, ru)).toBe(`5 из 9 ${said}`);
+      expect(stageLine(running, en)).toBe(`5 of 9 ${word}`);
+      expect(stageHeadLine(running, ru)).toBe(`5 ${said}`);
+    }
+    const still = { ...stage('directing', 'running'), done_count: 0, total_count: 212 };
+    expect(stageLine(still, ru)).toBe(undefined);
+    expect(stageHeadLine(still, ru)).toBe(undefined);
+  });
+
+  test('over its own journal a stage says its time, then how far — or what it came to', () => {
+    // `MontageLiveStage.json` e4: «Этап 3 из 5 · 4 мин · 61 разложено» (en «Stage 3 of 5 · 4 min ·
+    // 61 placed», spec detail 56). Done, the count gives way to the outcome, as in the row.
+    const directing: MontageStage = {
+      ...stage('directing', 'running'),
+      started_at: began,
+      done_count: 61,
+      total_count: 212,
+    };
+    expect(stageHeadLine(directing, ru, now)).toBe('4 мин · 61 разложено');
+    expect(stageHeadLine(directing, en, now)).toBe('4 min · 61 placed');
+    const screening: MontageStage = {
+      ...stage('screening', 'done'),
+      started_at: began,
+      finished_at: '2026-09-21T16:39:00Z',
+      done_count: 214,
+      total_count: 214,
+      outcome: { kept: 212, of: 214 },
+    };
+    expect(stageHeadLine(screening, ru, now)).toBe('1 мин · 212 из 214 годятся');
   });
 
   test('what the worker has said wins over how far through it is', () => {

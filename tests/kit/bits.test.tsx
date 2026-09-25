@@ -214,9 +214,11 @@ test('the dashed frame stands where a strip of photographs would, and says why i
 });
 
 test('the plate over a day’s unseen rest is hollow and dashed in `line`, where the empty strip is filled', () => {
-  // `UploadLimited.json` e18/e19: 358 × 67, `1px dashed #2C2C3A`, radius 18, no fill — 24 above and
-  // below one line of 13 / 500 `#6E6B7D`, centred. The app drew it as the empty strip of a card:
-  // filled with `raise`, dashed in `dashed`, 49 tall.
+  // `UploadLimited.json` e18/e19: 358 × 67, `1px dashed #2C2C3A`, radius 18, no fill — one line of
+  // 13 / 500, centred. Spec 8 (`UploadLimited`) and 10.1 read that line in `muted` #A4A1B2, not the
+  // layout's `faint` #6E6B7D; the note's line is 19, so 23 over and under it inside the hairline make
+  // the 67 (it was 24, and the plate came out 69). The app first drew it as the empty strip of a
+  // card: filled with `raise`, dashed in `dashed`, 49 tall.
   const note = story(<DashedNote text="Остальное с этого дня Remember не видит" />);
   expect(note).toContain('Остальное с этого дня Remember не видит');
   for (const [property, css] of [
@@ -226,7 +228,7 @@ test('the plate over a day’s unseen rest is hollow and dashed in `line`, where
   ])
     expect(note, css).toContain(shorthand(property, css));
   for (const css of [
-    'padding-bottom:24px;padding-top:24px',
+    'padding-bottom:23px;padding-top:23px',
     'padding-left:16px;padding-right:16px',
     `font-family:${type.note.fontFamily}`,
     'color:rgba(164,161,178,1.00)',
@@ -236,6 +238,7 @@ test('the plate over a day’s unseen rest is hollow and dashed in `line`, where
   expect(note).not.toContain('color:rgba(110,107,125,1.00)');
   expect(note).not.toContain('background-color');
   expect([type.note.fontSize, type.note.fontFamily]).toEqual([13, 'Onest_500Medium']);
+  expect(1 + 23 + Number(type.note.lineHeight) + 23 + 1).toBe(67);
 });
 
 test('the live dot is its own mark, and it is not the meta dot in red', () => {

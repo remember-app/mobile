@@ -7,7 +7,7 @@ import { expect, test } from 'vitest';
 
 import { Divider } from '@/kit/bits';
 import { Button } from '@/kit/button';
-import { DateSpine, DayHead, DayMark } from '@/kit/daymark';
+import { DateSpine, DayHead, DayMark, seamsOver } from '@/kit/daymark';
 import { allDifferent, story } from '@/kit/story';
 import { Text } from '@/kit/text';
 import { themes } from '@/theme';
@@ -91,6 +91,30 @@ test('the count in a seam is 10 / 12 / 500 `muted` and untracked, beside every k
     });
     expect(style.letterSpacing).toBeUndefined();
   }
+});
+
+test('a seam’s own cell lies over the rows either side of it, and a row’s does not', () => {
+  // Spec detail 65, «Как сшить»: the 44 band of a day spills 12 onto the rows over and under it and
+  // wins there over the frames. A list stacks each row over the one before, so without this the row
+  // under a seam took the lower 12 of its band.
+  const Cell = seamsOver<{ seam: boolean }>((row) => row.seam);
+  const cell = (seam: boolean) => {
+    let tree!: TestRenderer.ReactTestRenderer;
+    act(() => {
+      tree = mounted(
+        TestRenderer.create(
+          <Cell cellKey="k" index={0} item={{ seam }} style={{ flexDirection: 'row' }}>
+            <View />
+          </Cell>,
+        ),
+      );
+    });
+    return StyleSheet.flatten(tree.root.findAllByType(View)[0].props.style);
+  };
+  expect(cell(true)).toMatchObject({ zIndex: 1, flexDirection: 'row' });
+  expect(cell(false).zIndex).toBeUndefined();
+  // And the centre of a frame's circle — 7 down and 24 across in the feed — stays out of the 12.
+  expect(7 + 24 / 2).toBeGreaterThan(12);
 });
 
 test('a seam that picks is a checkbox over the whole band, and one that does not is a heading', () => {

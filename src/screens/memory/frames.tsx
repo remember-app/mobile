@@ -24,6 +24,7 @@ import {
   Empty,
   FEED_GAP,
   IconButton,
+  seamsOver,
   Tile,
   Waiting,
 } from '@/kit';
@@ -70,6 +71,8 @@ type Seam = Exclude<FrameGroup, { by: 'all' }>;
 type Row =
   | { key: string; group: Seam; frames?: undefined }
   | { key: string; frames: MediaItem[]; group?: undefined };
+
+const SeamCell = seamsOver<Row>((row) => row.group !== undefined);
 
 /** Which of the two sheets the feed is being tuned from, if either. */
 type Tuning = 'filter' | 'sort';
@@ -402,6 +405,8 @@ export function Frames({ id, head }: { id: string; head: Head }) {
         ref={list}
         data={rows}
         keyExtractor={(row) => row.key}
+        // A group's band, while it picks, lies over the rows either side of it (spec detail 65).
+        CellRendererComponent={SeamCell}
         // What the spine is hung on: the offset goes to the native side, where the marks are moved
         // with the photographs, and the listener is what lights the thing and puts it out again.
         onScroll={onScroll}
@@ -510,6 +515,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
                     : undefined
                 }
                 pressLabel={s.gallery.selectDay(markable.length)}
+                style={styles.seam}
               />
             );
           }
@@ -829,6 +835,10 @@ const useStyles = themed(() =>
     // the screen's own margins, which the feed does not have.
     feedEmpty: { justifyContent: 'center', paddingHorizontal: space.s4 },
     feedRow: { flexDirection: 'row', gap: FEED_GAP },
+    // A seam takes the place of the gutter on each side of it rather than standing between two
+    // (spec detail 65, `MemoryDated`): the row over it ends on its top edge, the next starts on its
+    // bottom one.
+    seam: { marginVertical: -FEED_GAP },
     // Spec 8: 22 between the films and the heading over the material, 10 down to the first row.
     framesHead: { marginTop: 22, marginBottom: 10 },
     // The bottom layer stands over the feed and takes no room from it: the gradient inside it is

@@ -80,6 +80,27 @@ test('ready, building and broken are three cards and not three colours of one', 
   });
 });
 
+test('the large poster is darkened its own way, lighter at the top where no name stands', () => {
+  // Spec 2 and 10.11 («нет → затемнения крупного постера»): `MontageLiveDone` has no name on the
+  // poster, so its gradient is `.80` at the foot to `.05` at 60% — the strip's card keeps `.82 → 0`.
+  const scrim = (large: boolean) => {
+    let tree!: TestRenderer.ReactTestRenderer;
+    act(() => {
+      tree = TestRenderer.create(
+        <CardMontage title="Ролик" state="ready" poster={POSTER} large={large} />,
+      );
+    });
+    const found = tree.root
+      .findAll((one) => one.props.pointerEvents === 'none' && one.props.style !== undefined)
+      .map((one) => StyleSheet.flatten(one.props.style) as ViewStyle)
+      .find((style) => style.experimental_backgroundImage !== undefined);
+    act(() => tree.unmount());
+    return found?.experimental_backgroundImage;
+  };
+  expect(scrim(true)).toBe('linear-gradient(to top, rgba(9,9,14,.80) 0%, rgba(9,9,14,.05) 60%)');
+  expect(scrim(false)).toBe('linear-gradient(to top, rgba(9,9,14,.82) 0%, rgba(9,9,14,0) 60%)');
+});
+
 test('the large poster says «Готов» and what the film came out as in one row, and nothing lies on anything', () => {
   // `MontageLiveDone`: the badge 46.42 × 22 at 30, 270 — 14 in from the poster's left, 12 up from
   // its foot at 304 — and «2:30 · 16:9» Onest 13 / 600 white, tabular, at 84.42: 8 after the badge,

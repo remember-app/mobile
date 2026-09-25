@@ -185,7 +185,10 @@ export function CardMontage({
           style={[StyleSheet.absoluteFill, ready ? null : styles.unfocused]}
         />
       ) : null}
-      <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.scrim]} />
+      <View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, large ? styles.scrimLarge : styles.scrim]}
+      />
 
       {onPress ? (
         <Pressable
@@ -349,6 +352,8 @@ const useStyles = themed(({ color }) =>
     // edges, so the blur has something to eat into instead of fading to the card's corner.
     unfocused: { opacity: 0.55, transform: [{ scale: 1.15 }] },
     scrim: { experimental_backgroundImage: photo.poster },
+    // The large poster has no name on it, so its top is lighter (spec 2, 10.11: `MontageLiveDone`).
+    scrimLarge: { experimental_backgroundImage: photo.posterLarge },
     stripBadge: { position: 'absolute', left: 10, top: 10 },
     playLarge: {
       position: 'absolute',

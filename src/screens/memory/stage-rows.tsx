@@ -18,7 +18,7 @@ import { radius, themed } from '@/theme';
 
 /**
  * The five stages of a making as one block (spec 7.6, detail 56): every stage the worker has reached
- * is a row of its own, and those still ahead are one faint line naming them — «Дальше: ритм трека ·
+ * is a row of its own, and those still ahead are one quiet line naming them — «Дальше: ритм трека ·
  * склейка» (`MontageLive`). All five are always accounted for: what is ahead is part of the answer
  * to «how far along is it». The live screen and the finished film's page draw the very same rows, so
  * they are drawn here once.

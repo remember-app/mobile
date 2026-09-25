@@ -242,22 +242,24 @@ test('the mode of picking is on from the first moment, and the button is there a
   expect(screen.root.findByType(ActionBar).props.above).toBeUndefined();
 });
 
-test('a tap marks a frame, and the button counts what it will send, and says how much of the roll that is', async () => {
+test('a tap marks a frame, and the button counts what it will send — the feed has no line of counting', async () => {
   const screen = await open();
   await screen.press(screen.tile('a1'));
   await screen.press(screen.tile('b2'));
   expect(screen.mark('a1')).toBe('send');
   expect(screen.send().props.label).toBe(ru.upload.send(2));
   expect(screen.send().props.disabled).toBe(false);
-  expect(screen.text()).toContain(ru.upload.pickedOf(2, 6));
+  // Spec 8, `Upload` and 10.11: «Строки счёта „Выбрано N из M“ с „Снять“ здесь нет» — the number
+  // rides in the button, and a frame or a day is let go of by a tap on it.
+  expect(screen.root.findByType(ActionBar).props.above).toBeUndefined();
+  expect(screen.text()).not.toContain(ru.upload.pickedOf(2, 6));
+  expect(screen.button(ru.action.clear)).toHaveLength(0);
   // The same tap again takes it back.
   await screen.press(screen.tile('a1'));
   expect(screen.mark('a1')).toBe('off');
   expect(screen.send().props.label).toBe(ru.upload.send(1));
-  // «Снять» empties the whole selection at once.
-  await screen.press(() => screen.button(ru.action.clear)[0]);
+  await screen.press(screen.tile('b2'));
   expect(screen.send().props.disabled).toBe(true);
-  expect(screen.mark('b2')).toBe('off');
 });
 
 test('a seam takes the whole of its day and gives it back, and never touches another day’s marks', async () => {
@@ -379,7 +381,7 @@ test('the question is not asked on a visit that sent nothing, nor about a differ
   expect(screen.asking().props.visible).toBe(false);
 });
 
-test('while the roll is still coming a seam does not answer, and the count is of the marks alone', async () => {
+test('while the roll is still coming a seam does not answer, and once the whole of it is in it does', async () => {
   const second = later<unknown>();
   lib.getAssetsAsync
     .mockResolvedValueOnce({ assets: roll().slice(0, 3), hasNextPage: true, endCursor: 'next' })
@@ -389,17 +391,39 @@ test('while the roll is still coming a seam does not answer, and the count is of
   expect(screen.seam(0)().props.onPress).toBeUndefined();
   expect(screen.text()).toContain(ru.upload.reading);
   await screen.press(screen.tile('a1'));
-  expect(screen.text()).toContain(ru.upload.picked(1));
-  expect(screen.text()).not.toContain(ru.upload.pickedOf(1, 3));
-  // The second page comes: the seams answer, and the whole roll is what the count is against.
+  expect(screen.send().props.label).toBe(ru.upload.send(1));
+  // The second page comes: the seams answer.
   await act(async () =>
     second.settle({ assets: roll().slice(3), hasNextPage: false, endCursor: undefined }),
   );
   expect(lib.getAssetsAsync).toHaveBeenLastCalledWith(expect.objectContaining({ after: 'next' }));
   expect(screen.tiles()).toEqual(['a1', 'a2', 'a3', 'b1', 'b2', 'c1']);
   expect(screen.seam(0)().props.onPress).toBeDefined();
-  expect(screen.text()).toContain(ru.upload.pickedOf(1, 6));
   expect(screen.text()).not.toContain(ru.upload.reading);
+});
+
+test('under a partial grant the line over the button counts the marks — against the roll once the whole of it is in — and «Снять» lets all of them go', async () => {
+  // `UploadLimited.json` e21 and e22: «Выбрано 1 из 3» 13 / 600 and the quiet «Снять» 14 / 600 over
+  // «Отправить 1 файл» — the one face the spec gives that line (spec 8, 10.11).
+  lib.access = { granted: true, canAskAgain: true, accessPrivileges: 'limited' };
+  const second = later<unknown>();
+  lib.getAssetsAsync
+    .mockResolvedValueOnce({ assets: roll().slice(0, 3), hasNextPage: true, endCursor: 'next' })
+    .mockReturnValueOnce(second.promise);
+  const screen = await open();
+  expect(screen.root.findByType(ActionBar).props.above).toBeUndefined();
+  await screen.press(screen.tile('a1'));
+  expect(screen.text()).toContain(ru.upload.picked(1));
+  expect(screen.text()).not.toContain(ru.upload.pickedOf(1, 3));
+  await act(async () =>
+    second.settle({ assets: roll().slice(3), hasNextPage: false, endCursor: undefined }),
+  );
+  expect(screen.text()).toContain(ru.upload.pickedOf(1, 6));
+  const clear = () => screen.button(ru.action.clear)[0];
+  expect(clear().props).toMatchObject({ variant: 'quiet', labelRole: 'controlSm' });
+  await screen.press(clear);
+  expect(screen.send().props.disabled).toBe(true);
+  expect(screen.mark('a1')).toBe('off');
 });
 
 test('a partial grant shows only what was handed over: a day is a heading with its count, each day says the rest is unseen, and «Отдать ещё» reads the roll again', async () => {
@@ -732,7 +756,12 @@ test('while something is being sent the roll stands in the queue’s face: the p
   expect((390 - 16 * 2 - GRID_GAP * 2) / 3).toBeCloseTo(117.33, 2);
   expect(screen.tile('a1')().props.lane).toBe('pick');
   expect(screen.tile('a1')().props.ring).toBe(true);
-  // «Снято 13 сентября» … «Выбрать все 3», and the button takes the day and gives it back.
+  // Spec 8, `UploadQueue` and 10.11: nothing marked, no «Отправить» and no bottom layer at all — the
+  // sending is what the screen is about, and a dead button would argue with it.
+  expect(screen.root.findAllByType(ActionBar)).toHaveLength(0);
+  expect(screen.button(ru.action.send)).toHaveLength(0);
+  // «Снято 13 сентября» … «Выбрать все 3», and the button takes the day and gives it back — «Снять
+  // все 3» once the whole day is marked (spec detail 65).
   const head = () => screen.heads()[0];
   const button = () => head().findByType(Button);
   expect(head().props.label).toBe(ru.upload.shotOn('13 сентября'));
@@ -742,12 +771,17 @@ test('while something is being sent the roll stands in the queue’s face: the p
   await screen.press(button);
   expect(['a1', 'a2', 'a3'].map(screen.mark)).toEqual(['send', 'send', 'send']);
   expect(button().props.label).toBe(ru.upload.unselectDay(3));
-  await screen.press(button);
-  expect(['a1', 'a2', 'a3'].map(screen.mark)).toEqual(['off', 'off', 'off']);
-  // The bottom layer is the board's own there, not one floating over photographs.
+  expect(ru.upload.unselectDay(61)).toBe('Снять все 61');
+  // Something marked: the layer stands, the board's own there and not one floating over
+  // photographs, the number in the button and no line of counting over it.
   const layer = screen.root.findByType(ActionBar);
   expect(layer.props.footer).toBeUndefined();
   expect(layer.props.style).toBeUndefined();
+  expect(layer.props.above).toBeUndefined();
+  expect(screen.send().props.label).toBe(ru.upload.send(3));
+  await screen.press(button);
+  expect(['a1', 'a2', 'a3'].map(screen.mark)).toEqual(['off', 'off', 'off']);
+  expect(screen.root.findAllByType(ActionBar)).toHaveLength(0);
 });
 
 test('the queue’s face keeps picking on even when the switch on the glass was left off, and the feed comes back once everything is in', async () => {
@@ -756,9 +790,12 @@ test('the queue’s face keeps picking on even when the switch on the glass was 
   expect(screen.mark('a1')).toBeUndefined();
   uploads.queue = [going];
   await screen.redraw();
-  // No switch to turn it on with, so it is on.
+  // No switch to turn it on with, so it is on — and with nothing marked, no layer (`UploadQueue`).
   expect(screen.mark('a1')).toBe('off');
+  expect(screen.root.findAllByType(ActionBar)).toHaveLength(0);
+  await screen.press(screen.tile('a1'));
   expect(screen.root.findAllByType(ActionBar)).toHaveLength(1);
+  await screen.press(screen.tile('a1'));
   uploads.queue = [];
   await screen.redraw();
   expect(screen.root.findAllByType(GlassBar)).toHaveLength(1);
@@ -784,4 +821,14 @@ test('on the feed a day’s seam is flush with its strips, the gutter stands bet
     [FEED_GAP, FEED_GAP],
     [FEED_GAP, FEED_GAP],
   ]);
+  // Spec detail 65, «Как сшить»: the day's 44 band lies over the strips either side of it, so in the
+  // 12 it spills onto them it is the band that a finger lands on, not the frame.
+  const cells = screen.root
+    .findAllByType(list.props.CellRendererComponent)
+    .map((one) => [
+      one.props.item.day !== undefined,
+      StyleSheet.flatten(one.findByType(View).props.style)?.zIndex,
+    ]);
+  expect(cells[0]).toEqual([true, 1]);
+  expect(cells.slice(1).every(([seam, z]) => !seam && z === undefined)).toBe(true);
 });

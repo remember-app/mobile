@@ -265,23 +265,35 @@ export const en = {
       assembly: 'Cutting it together',
     },
     /**
-     * The same five over the journal of one stage (`MontageLiveStage`): there the bar also carries
-     * who is watching, so the director, whose journal it is anyway, is not named twice.
+     * The same five over the journal of one stage (`MontageLiveStage`), short: the bar also carries
+     * who is watching, and the name has ~209 beside that pill — every one of these is 200 or under
+     * at ×1 (spec detail 56).
      */
     stageHead: {
-      screening: 'Dropping the spoiled frames',
-      understanding: 'Working out what is in them',
+      screening: 'Screening frames',
+      understanding: 'Reading frames',
       directing: 'Builds the story',
-      rhythm: 'Laying them out to the beat',
-      assembly: 'Cutting it together',
+      rhythm: 'Fitting the beat',
+      assembly: 'Cutting together',
     },
-    /** And as a word each, for the one faint line that names the stages still ahead. */
+    /**
+     * And as a word each, for the one quiet line that names the stages still ahead. The line breaks
+     * between stages and never inside one, so a stage of two words is held by a no-break space.
+     */
     stageAhead: {
       screening: 'screening',
-      understanding: 'the frames',
-      directing: 'the story',
-      rhythm: 'the beat',
-      assembly: 'the cut',
+      understanding: 'reading',
+      directing: 'the\u00a0story',
+      rhythm: 'the\u00a0beat',
+      assembly: 'the\u00a0cut',
+    },
+    /** What each stage has done to a frame, beside how many — «61 placed» (spec detail 56). */
+    progress: {
+      screening: 'checked',
+      understanding: 'read',
+      directing: 'placed',
+      rhythm: 'fitted',
+      assembly: 'joined',
     },
 
     /**
@@ -341,10 +353,20 @@ export const en = {
       /** What the rhythm of a film with no music came to — in place of «0 cuts», which is no answer. */
       noTrack: 'no music, nothing to fit to',
       doneOf: (n: number, of: number) => `${n} of ${of}`,
+      /**
+       * How far a stage that has not come to anything yet has got, in the word of what it does —
+       * `progress` — out of all of it under its row («61 of 212 placed»), and on its own over its
+       * journal («61 placed»).
+       */
+      soFar: (n: number, of: number, done: string) => `${n} of ${of} ${done}`,
+      counted: (n: number, done: string) => `${n} ${done}`,
       /** Under the stage in hand: the way into everything it has said. */
       wholeStage: (n: number) => `The whole stage journal · ${n} ${n === 1 ? 'record' : 'records'}`,
-      /** The stages not reached yet, as one line under the rest — `stageAhead` each. */
-      ahead: (stages: readonly string[]) => `Next: ${stages.join(' · ')}`,
+      /**
+       * The stages not reached yet, as one line under the rest — `stageAhead` each. The dot keeps to
+       * the stage before it, so a line that wraps starts on a stage and not on a «·».
+       */
+      ahead: (stages: readonly string[]) => `Next: ${stages.join('\u00a0· ')}`,
       /** The time over a record that landed while somebody was watching. */
       justNow: 'just now',
       /** The four chips over the journal. Two of them carry the api's own count beside the word. */
@@ -540,17 +562,24 @@ export const ru: typeof en = {
     },
     stageHead: {
       screening: 'Отсев брака',
-      understanding: 'Разбираем, что на кадрах',
+      understanding: 'Разбираем кадры',
       directing: 'Строит историю',
-      rhythm: 'Раскладываем в ритм трека',
+      rhythm: 'Кладём в ритм',
       assembly: 'Склеиваем',
     },
     stageAhead: {
-      screening: 'отсев брака',
-      understanding: 'разбор кадров',
+      screening: 'отсев\u00a0брака',
+      understanding: 'разбор\u00a0кадров',
       directing: 'история',
-      rhythm: 'ритм трека',
+      rhythm: 'ритм\u00a0трека',
       assembly: 'склейка',
+    },
+    progress: {
+      screening: 'проверено',
+      understanding: 'разобрано',
+      directing: 'разложено',
+      rhythm: 'подогнано',
+      assembly: 'склеено',
     },
 
     live: {
@@ -579,8 +608,10 @@ export const ru: typeof en = {
       cuts: (n: number) => count(n, 'склейка', 'склейки', 'склеек'),
       noTrack: 'без музыки, подгонять не подо что',
       doneOf: (n: number, of: number) => `${n} из ${of}`,
+      soFar: (n: number, of: number, done: string) => `${n} из ${of} ${done}`,
+      counted: (n: number, done: string) => `${n} ${done}`,
       wholeStage: (n: number) => `Весь журнал этапа · ${count(n, 'запись', 'записи', 'записей')}`,
-      ahead: (stages: readonly string[]) => `Дальше: ${stages.join(' · ')}`,
+      ahead: (stages: readonly string[]) => `Дальше: ${stages.join('\u00a0· ')}`,
       justNow: 'сейчас',
       all: 'Всё',
       thoughts: 'Мысли',

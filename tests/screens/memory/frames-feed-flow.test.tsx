@@ -70,7 +70,7 @@ import { touch } from '@tests/helpers/gesture';
 import { label } from '@tests/helpers/labels';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { sheetBox, wordsIn } from '@tests/helpers/sheet';
-import { FlatList, RefreshControl, StyleSheet } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import type { Label, MediaItem, Member } from '@/api';
 import {
@@ -675,6 +675,33 @@ test('with the account’s dates on, each day is written over its strip, and the
   await openSort(screen);
   await choose(() => segment(sortSheet(screen), ru.gallery.order), 'oldest');
   expect(screen.icon(ru.gallery.sorting)().props.dot).toBe(true);
+});
+
+test('a seam takes the place of the gutter on each side of it, and lies over the rows around it', async () => {
+  // Spec detail 65 and 10.11 («щель дня заменяет щель 2»), `MemoryDated.json`: the strip e19 ends at
+  // 653, «12 сентября, пятница» (e22) is centred in the 20 from 653 and the next strip (e23) starts
+  // at 673 — no gutter on either side. The feed stands its rows `FEED_GAP` apart, so a seam takes
+  // that back on both edges; it was 4 taller than the layout's.
+  who.dates = true;
+  world();
+  const screen = await open();
+  const list = screen.root.findByType(FlatList);
+  expect(StyleSheet.flatten(list.props.contentContainerStyle).gap).toBe(FEED_GAP);
+  for (const seam of screen.seams()) {
+    expect(StyleSheet.flatten(seam.props.style)).toMatchObject({ marginVertical: -FEED_GAP });
+  }
+  expect(673 - 653).toBe(20);
+  // The band of a seam that picks spills 12 onto its neighbours and wins there (detail 65), so its
+  // cell is the one on top.
+  const cells = screen.root
+    .findAllByType(list.props.CellRendererComponent)
+    .map((one) => [
+      one.props.item.group !== undefined,
+      StyleSheet.flatten(one.findByType(View).props.style)?.zIndex,
+    ]);
+  expect(cells.filter(([seam]) => seam).every(([, z]) => z === 1)).toBe(true);
+  expect(cells.filter(([seam]) => !seam).every(([, z]) => z === undefined)).toBe(true);
+  expect(cells.some(([seam]) => seam)).toBe(true);
 });
 
 test('the three segments of the sheets are the spec’s: their names, their words in order, the sheet’s own ground, at 14', async () => {

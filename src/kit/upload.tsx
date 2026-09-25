@@ -46,13 +46,18 @@ export function Upload({
         <Text role="subtitleDisplay" style={styles.grow}>
           {title}
         </Text>
-        {meta ? <Text role="meta">{meta}</Text> : null}
+        {/* Spec detail 48: «Осталось 9 файлов» 13 / 600 `muted` — not the meta's 12 / 500. */}
+        {meta ? (
+          <Text role="label" tone="muted">
+            {meta}
+          </Text>
+        ) : null}
       </View>
       <Progress value={value} label={meta ?? title} />
-      {/* 12 / 400 (spec 7.6, detail 48; `UploadQueue`): at the meta's 500 the line ran 3 past the
-          block's 324 and broke in two. */}
+      {/* 12 / 400 / 16 `muted` (spec 7.6, detail 48 and 10.1; `UploadQueue`): at the meta's 500 the
+          line ran 3 past the block's 324 and broke in two. */}
       {hint ? (
-        <Text role="noteSm" tone="faint">
+        <Text role="noteSm" tone="muted">
           {hint}
         </Text>
       ) : null}
