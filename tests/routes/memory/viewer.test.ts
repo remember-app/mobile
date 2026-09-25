@@ -23,6 +23,7 @@ import frames from '@/screens/memory/frames.tsx?raw';
 import material from '@/screens/memory/frames-material.ts?raw';
 import sheets from '@/screens/memory/frames-sheets.tsx?raw';
 import { en, ru } from '@/strings';
+import { photo } from '@/theme';
 
 test('the material of a memory has one name — on the card, on the switch, over the sheet', () => {
   // «N frames» on the card, «Photos and videos (N)» on the guest list, «Gallery» over the contact
@@ -206,6 +207,9 @@ test('the window is a dark room, and the sheets over it are in the theme the app
   // are outside it, because a sheet is its own surface and daylight has to reach it (спека 2, «день
   // подстановкой»). Nothing here names a colour of its own: every one of them is a token.
   expect(viewer).toContain('<ThemePin value="dark">');
+  // Spec 8, `Viewer`: «фон #08080C», deeper than `ink` — the frame hangs in black.
+  expect(viewer).toContain('viewer: { flex: 1, backgroundColor: photo.viewer }');
+  expect(photo.viewer).toBe('#08080C');
   const pinned = viewer.indexOf('</ThemePin>');
   expect(viewer.indexOf('<ActionMenu')).toBeLessThan(pinned);
   expect(pinned).toBeLessThan(viewer.indexOf('<FrameInfoSheet'));

@@ -134,11 +134,12 @@ test('the glass bar floats over the feed, with a door in the middle and a slot a
   // The way out of a memory is the bar's own, because it is the same on every state of it: a tapped
   // push and a followed invite both open this screen with nothing behind it to go back to.
   expect(head).toContain("router.canGoBack() ? router.back() : router.replace('/')");
-  // The capsule is a door in the feed and an action while picking, and only the door wears a
-  // chevron (spec 7.1). The kit draws one or the other; it never invents the words.
-  expect(head).toContain('chevron={chevron}');
-  expect(bars).toContain('{onCapsule && chevron ? <Icon icon={ChevronDown}');
-  expect(frames).toContain('chevron={!picking}');
+  // The capsule is a door in the feed and an action while picking, and neither wears a chevron
+  // (spec 1, rule 9): there is no switch for one to come back through, in the kit or here.
+  for (const part of [head, bars, frames]) {
+    expect(part).not.toMatch(/\bchevron\s*\??\s*[:=]/);
+    expect(part).not.toContain('ChevronDown');
+  }
   // Where the capsule leads: the memory's settings, which is where the people went.
   expect(frames).toContain("router.push({ pathname: '/memory/[id]/settings', params: { id } })");
   expect(ru.memory.settings('Свадьба')).toBe('Свадьба. Настройки воспоминания и люди');

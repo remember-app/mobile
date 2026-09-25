@@ -53,11 +53,15 @@ export function DayMark({
   const { focused, props } = useHoverFocus();
   const focusRing = useFocusRing();
 
+  // A date on its own is a quiet marker between two walls of frames (spec 7.8, `MemoryDated`); a
+  // label that leads something — a person, a count, the day's own switch — is read in `paper`.
+  const lone = !avatar && !count && !onPress;
+
   const inner = (
     <>
       {onPress ? <PickCircle kind={picked ? 'send' : 'off'} size={13} /> : null}
       {avatar ? <Avatar name={avatar} size={16} ring={organizer} /> : null}
-      <Text role="badgeSm" tone="paper" numberOfLines={1} style={styles.label}>
+      <Text role="badgeSm" tone={lone ? 'muted' : 'paper'} numberOfLines={1} style={styles.label}>
         {label}
       </Text>
       {count ? (

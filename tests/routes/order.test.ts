@@ -109,6 +109,10 @@ test('too little material stops the wizard before its first step, not after its 
   expect(wizard).toContain('const short = items !== null && (refused || !enoughMaterial(items));');
   expect(wizard).toContain('<Sheet\n        visible={short}');
   expect(wizard).toContain("router.replace({ pathname: '/memory/[id]/upload', params: { id } })");
+  // Spec 8: the square beside the heading wears the montage's own sign, `layout-grid`, and the text
+  // under it counts the frames there really are — the layout's «3 кадра» is a figure set by hand.
+  expect(wizard).toContain('<Icon icon={LayoutGrid} size={26} color={color.muted} />');
+  expect(wizard).toContain('{s.montage.tooLittleText(material.length)}');
   // And no step draws itself while that sheet is up — the shell holds its body and its button
   // back, so a step written later is silent there without a line of its own. The screen of
   // templates is inside that silence too: a tile that cannot be pressed into an order is not a

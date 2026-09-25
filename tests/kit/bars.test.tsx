@@ -227,7 +227,7 @@ test('the viewer’s bar and the glass bar over the feed read the same in daylig
   await setTheme('dark');
 });
 
-test('the viewer’s pill wears the layout’s hairline and reads its second line at the photograph’s quiet white', () => {
+test('the viewer’s pill wears the layout’s hairline and reads its second line at the layout’s 66% paper', () => {
   // Spec 7.1, detail 5 and `Viewer`: the capsule has a 1px edge that the two round buttons do not.
   const pill = story(
     <ViewerBar
@@ -239,17 +239,15 @@ test('the viewer’s pill wears the layout’s hairline and reads its second lin
   );
   expect(pill).toContain('r-borderColor-');
   expect(pill).toContain('r-borderWidth-');
-  // The chevron beside the words is drawn at the same quiet white as the words themselves — 72%, not
-  // the 45% the meta dot is drawn in: a glyph or a line at 45% is unreadable over a bright frame.
-  expect(pill).toContain('stroke="rgba(255,255,255,0.72)"');
+  // «21:47 · Марк Ковалёв» is `rgba(245,243,238,.66)`, and never the 45% the meta dot is drawn in:
+  // a line at 45% is unreadable over a bright frame.
+  expect(compiled()).toContain('{color:rgba(245,243,238,0.66);}');
   expect(pill).not.toContain('rgba(255,255,255,0.45)');
-  expect(compiled()).toContain('{color:rgba(255,255,255,0.72);}');
-  expect(compiled()).not.toContain('{color:rgba(255,255,255,0.45);}');
 });
 
-test('the pill in the middle of it is a button where it leads somewhere', () => {
-  // Spec 7.1, detail 5: the whole capsule opens the frame's own sheet, and the `chevron-down` on it
-  // is what says so. A pill with nowhere to go keeps its two floors and grows no arrow.
+test('the pill in the middle of it is a button where it leads somewhere, and wears no chevron either way', () => {
+  // Spec 7.1, detail 5 and rule 9 of spec 1: the whole capsule opens the frame's own sheet, and it
+  // says so by being the capsule — an arrow in it would only take room from the date and the name.
   const opens = story(
     <ViewerBar
       date="13 сентября"
@@ -260,7 +258,7 @@ test('the pill in the middle of it is a button where it leads somewhere', () => 
   );
   expect(opens).toContain('role="button"');
   expect(opens).toContain('aria-label="Сведения о кадре: 13 сентября, 21:47 · Марк Ковалёв"');
-  expect(opens).toContain('data-glyph');
+  expect(opens).not.toContain('data-glyph');
   allDifferent({
     plain: <ViewerBar date="13 сентября" meta="21:47 · Марк Ковалёв" />,
     opens: (
@@ -316,7 +314,7 @@ test('the glass bar over the feed is three pieces of glass and its own darkening
 
 test('the capsule is a plate where it leads nowhere', () => {
   // `Upload`: «Ваши кадры» over the memory the material is going into, and nothing under it to open
-  // — so the chevron goes with the press, and what is left announces itself as a heading.
+  // — so it is not pressed, and announces itself as a heading.
   const plate = story(
     <GlassBar
       title="Ваши кадры"
@@ -327,7 +325,6 @@ test('the capsule is a plate where it leads nowhere', () => {
   );
   expect(plate).toContain('в «Свадьба Лизы и Марка»');
   expect(plate).toContain('role="heading"');
-  // The same capsule with somewhere to go is a button and wears the chevron; this one has neither.
   const button = story(
     <GlassBar
       title="Ваши кадры"
@@ -341,45 +338,37 @@ test('the capsule is a plate where it leads nowhere', () => {
   expect(plate).not.toBe(button);
 });
 
-test('a capsule that acts instead of leading keeps the press and loses the chevron', () => {
-  // `FramesPicking`: the same capsule counts what is marked and takes every frame — it is pressed,
-  // and it opens nothing, so the glyph that promises something underneath goes.
-  const [door, action] = [true, false].map((chevron) =>
+test('the capsule wears no chevron, whether it opens something, takes every frame or only names', () => {
+  // Rule 9 of spec 1: a central capsule is a button by being the capsule, and an arrow in it only
+  // takes room from the name. The two round buttons are left off, so any glyph here is the capsule's.
+  const capsule = (title: string, onCapsule?: () => void) =>
     story(
       <GlassBar
-        title="Выбрано 4"
-        meta="38 МБ · 3 фото и 1 видео"
-        capsuleLabel="Выбрано 4. Нажмите, чтобы выбрать все"
-        onCapsule={() => {}}
-        chevron={chevron}
-        left={<IconButton icon={ChevronLeft} label="Лейблы" tone="glass" size={48} />}
-      />,
-    ),
-  );
-  // Both are buttons and both carry the same words; only one of them says it leads anywhere.
-  for (const bar of [door, action]) {
-    expect(bar).toContain('role="button"');
-    expect(bar).toContain('38 МБ · 3 фото и 1 видео');
-  }
-  expect(door).not.toBe(action);
-});
-
-test('a capsule that leads somewhere wears the chevron without being told to, and one that leads nowhere has none to wear', () => {
-  const bar = (props: { onCapsule?: () => void; chevron?: boolean }) =>
-    story(
-      <GlassBar
-        title="Свадьба"
-        meta="12–14 сентября"
-        capsuleLabel="Свадьба. Настройки"
-        left={<IconButton icon={ChevronLeft} label="Назад" tone="glass" size={48} />}
-        {...props}
+        title={title}
+        meta="12–14 сентября · 6 человек"
+        capsuleLabel={`${title}. Настройки воспоминания и люди`}
+        onCapsule={onCapsule}
       />,
     );
-  // The default is the door: a chevron says there is something underneath, and only an action turns it off.
-  expect(bar({ onCapsule: () => {} })).toBe(bar({ onCapsule: () => {}, chevron: true }));
-  expect(bar({ onCapsule: () => {} })).not.toBe(bar({ onCapsule: () => {}, chevron: false }));
-  // A plate leads nowhere, so there is no press and no chevron whatever it is told.
-  expect(bar({})).toBe(bar({ chevron: true }));
+  // The door of the feed, «выбрать все» of `FramesPicking`, and the plate of `Upload`.
+  const drawn = [
+    capsule('Свадьба Лизы и Марка', () => {}),
+    capsule('Выбрано 4', () => {}),
+    capsule('Ваши кадры'),
+  ];
+  for (const one of drawn) expect(one).not.toContain('data-glyph');
+  // The name is the capsule's first line on its own, cut only by the capsule's edge.
+  expect(drawn[0]).toMatch(/r-textOverflow[^>]*>Свадьба Лизы и Марка</);
+});
+
+test('nothing in the product draws a `chevron-down`, so there is no second place for one to come back', () => {
+  // Spec 1, rule 9: «`chevron-down` в продукте не встречается вовсе». Swept over the sources rather
+  // than named per screen: what would bring it back is the next capsule written by copying an old one.
+  const sources = Object.entries(
+    import.meta.glob<string>('@/**/*.{ts,tsx}', { query: '?raw', import: 'default', eager: true }),
+  );
+  expect(sources.length).toBeGreaterThan(50);
+  for (const [path, source] of sources) expect(source, path).not.toMatch(/\bChevronDown\b/);
 });
 
 test('the right slot of the glass bar is empty where there is nothing to pick', () => {

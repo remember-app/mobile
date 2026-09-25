@@ -39,7 +39,6 @@ export function MemoryHead({
   meta,
   capsuleLabel,
   onCapsule,
-  chevron,
   left,
   right,
   error,
@@ -49,7 +48,6 @@ export function MemoryHead({
   meta?: string;
   capsuleLabel: string;
   onCapsule?: () => void;
-  chevron?: boolean;
   left?: ReactNode;
   right?: ReactNode;
 }) {
@@ -65,7 +63,6 @@ export function MemoryHead({
         meta={meta}
         capsuleLabel={capsuleLabel}
         onCapsule={onCapsule}
-        chevron={chevron}
         left={
           left ?? (
             <IconButton
