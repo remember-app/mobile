@@ -3,7 +3,13 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 const { who, router } = vi.hoisted(() => ({
   /** Who is asking. A test sets it before it opens the screen. */
   who: { id: 'me' },
-  router: { push: vi.fn(), back: vi.fn(), replace: vi.fn(), canGoBack: vi.fn(() => true) },
+  router: {
+    push: vi.fn(),
+    back: vi.fn(),
+    replace: vi.fn(),
+    dismissAll: vi.fn(),
+    canGoBack: vi.fn(() => true),
+  },
 }));
 
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
@@ -58,6 +64,7 @@ beforeEach(() => {
   router.push.mockClear();
   router.back.mockClear();
   router.replace.mockClear();
+  router.dismissAll.mockClear();
   router.canGoBack.mockReturnValue(true);
 });
 afterEach(() => vi.unstubAllGlobals());
@@ -668,6 +675,7 @@ test('«Удалить навсегда» waits on its one request, busy, and th
   await act(async () => screen.sheet()[0].findByType(Sheet).props.onCancel());
   expect(screen.sheet()).toHaveLength(1);
   expect(router.replace).not.toHaveBeenCalled();
+  expect(router.dismissAll).not.toHaveBeenCalled();
 
   await act(async () => slow.settle({ ok: true }));
   expect(w.log.filter((one) => one.method === 'DELETE')).toEqual([

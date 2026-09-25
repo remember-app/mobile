@@ -177,6 +177,11 @@ export default function MemorySettingsScreen() {
    * again on focus and will not find this memory in it. A 404 is somebody who got there first —
    * the same outcome, said the same way. The sheet waits on the request, busy, and goes either way:
    * a refusal is said on the screen under it.
+   *
+   * The whole stack goes, not just this screen (TASK-336): it is flat, and a bare `replace` swaps
+   * only the top, leaving the deleted memory one back gesture under the main screen. Nor
+   * `dismissTo('/')`: a memory opened with nothing under it (an invite accepted on a cold start)
+   * has no main screen to go back to, and would stay under the one it puts on top.
    */
   const wipe = async () => {
     await act(async (session) => {
@@ -185,6 +190,7 @@ export default function MemorySettingsScreen() {
       } catch (e) {
         if (!(e instanceof ApiError && e.status === 404)) throw e;
       }
+      router.dismissAll();
       router.replace('/');
       return null;
     });
