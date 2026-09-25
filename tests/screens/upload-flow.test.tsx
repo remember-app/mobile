@@ -30,7 +30,10 @@ const { router, lib, uploads } = vi.hoisted(() => ({
 }));
 
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
-vi.mock('@/lib/auth', () => ({ useAuth: () => ({ token: 'session', user: { id: 'me' } }) }));
+// The account's «Даты между днями» is off, and «Ваши кадры» draws the day between its strips all the same (spec 8).
+vi.mock('@/lib/auth', () => ({
+  useAuth: () => ({ token: 'session', user: { id: 'me' }, datesBetweenDays: false }),
+}));
 vi.mock('expo-router', () => ({
   useFocusEffect: () => {},
   useLocalSearchParams: () => ({ id: 'm1' }),
