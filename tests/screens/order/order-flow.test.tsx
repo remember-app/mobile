@@ -110,6 +110,7 @@ vi.mock('@/kit', async (original) => {
   };
 });
 
+import { expectReachable } from '@tests/helpers/access';
 import { orderRefusal } from '@tests/helpers/contract';
 import { act, BEAT_BY_BEAT, drives } from '@tests/helpers/drive';
 import { frame } from '@tests/helpers/labels';
@@ -770,6 +771,52 @@ test('a wish is written to one of several tracks, stands under its name, and can
   expect(server.orders[0]?.music_tracks).toEqual(['calm', 'warm']);
   expect(server.orders[0]).not.toHaveProperty('music_wishes');
 });
+
+test.each(['ru', 'en'] as const)(
+  'in %s the music step with a wish written, one being written and none: every control is named, sized for a finger, and the field takes at most 500 letters',
+  async (language) => {
+    await setLanguage(language);
+    const s = strings[language];
+    serve();
+    await open();
+    await press(s.montage.ownSetup);
+    await forward();
+    await forward();
+
+    const { warm, calm, road } = s.montage.track;
+    for (const track of [warm, calm, road]) await press(s.montage.addTrack(track));
+    const field = (track: string) =>
+      root()
+        .findAllByType('input-stub' as never)
+        .find((one) => one.props.label === s.montage.wishAbout(track));
+    await press(s.montage.wishAbout(warm));
+    await act(async () => field(warm)!.props.onChangeText('  Тихо, на сборы  '));
+    await act(async () => field(warm)!.props.onBlur());
+    // «Calm» has its pencil pressed and its field open; «Road» has nothing.
+    await press(s.montage.wishAbout(calm));
+    expect(field(calm)!.props.maxLength).toBe(500);
+    expect(field(warm)).toBeUndefined();
+
+    // This step alone: the ones under it stay mounted, and a window of no width sizes their tiles at nothing.
+    const names = expectReachable(root().findAllByType(MusicStep).at(-1)!).map((one) => one.name);
+    for (const name of [
+      s.montage.wishEdit(warm),
+      s.montage.wishAbout(calm),
+      s.montage.wishAbout(road),
+      s.montage.dropTrack(warm),
+      s.montage.dropTrack(road),
+      s.montage.addTrack(s.montage.track.bright),
+      s.montage.unpickTrack(warm),
+      s.montage.next,
+    ])
+      expect(names, name).toContain(name);
+    // A wish typed and a wish being typed: the first stands under its track and is read out with it.
+    expect(chosen(warm).props.wish).toBe('Тихо, на сборы');
+    const grip = chosen(warm).props.grip;
+    expect(grip.accessibilityLabel).toContain('Тихо, на сборы');
+    expect(grip.accessibilityRole).toBe('adjustable');
+  },
+);
 
 test('a track taken out with a wish takes the wish along, and comes back without one', async () => {
   const server = serve();

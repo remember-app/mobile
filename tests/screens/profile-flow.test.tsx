@@ -43,11 +43,12 @@ vi.mock('@/lib/auth', async (original) => {
   };
 });
 
+import { expectReachable } from '@tests/helpers/access';
 import { type Asked, contact, later, refused, serve } from '@tests/helpers/api';
 import { account, datesRefusal } from '@tests/helpers/contract';
-import { mounted, mountsTrees } from '@tests/helpers/renderer';
+import { mounted, mountsTrees, themesShown } from '@tests/helpers/renderer';
 import type { ReactNode } from 'react';
-import { Pressable } from 'react-native';
+import { Pressable, View } from 'react-native';
 import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
 import { ApiError } from '@/api';
 import ProfileScreen from '@/app/profile';
@@ -67,7 +68,7 @@ import {
 } from '@/kit';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { setLanguage } from '@/lib/language';
-import { ru } from '@/strings';
+import { ru, strings } from '@/strings';
 import { setTheme } from '@/theme';
 
 /**
@@ -95,13 +96,15 @@ function world({
   dates,
   username,
   logout,
+  who,
 }: {
-  contacts?: unknown[];
+  who?: Partial<typeof ME>;
+  contacts?: unknown;
   dates?: () => unknown;
   username?: () => unknown;
   logout?: () => unknown;
 } = {}): Asked[] {
-  let me = { ...ME };
+  let me = { ...ME, ...who };
   return serve((asked) => {
     if (asked.path === '/me' || asked.path === '/me/language') return me;
     if (asked.path === '/me/contacts') return contacts;
@@ -368,4 +371,137 @@ test('a way out that fails lets the button go and says why', async () => {
   expect(screen.shown()).toBe(true);
   expect(screen.button(ru.action.logOut)?.props.busy).toBe(false);
   expect(screen.banner()).toBe(new ApiError(503, { error: 'keychain says no' }).message);
+});
+
+test('a very long name and address are each cut to one line, so the circle and the pencil never move', async () => {
+  world({
+    who: {
+      name: 'Александра-Виктория '.repeat(6).trim(),
+      email: `${'очень.длинный.адрес'.repeat(5)}@example.com`,
+    },
+  });
+  const screen = await open();
+  const card = screen
+    .root()
+    .findAllByType(Text)
+    .filter((one) => one.props.numberOfLines === 1);
+  const said = card.map((one) => [one.props.children].flat().join(''));
+  expect(said).toEqual(
+    expect.arrayContaining([
+      'Александра-Виктория '.repeat(6).trim(),
+      '@liza',
+      `${'очень.длинный.адрес'.repeat(5)}@example.com`,
+    ]),
+  );
+});
+
+test('a contact list that cannot be read is no count and no faces, and the switch still works', async () => {
+  const asked = world({ contacts: refused(500, 'boom') });
+  const screen = await open();
+  expect(screen.root().findAllByType(AvatarStack)).toHaveLength(0);
+  expect(screen.root().findByType(RowSection).props.meta).toBeUndefined();
+  expect(screen.banner()).toBeUndefined();
+  await screen.press(screen.toggle().findByType(Pressable));
+  expect(asked.filter((one) => one.path === '/me/dates-between-days')).toHaveLength(1);
+  expect(screen.toggle().props.value).toBe(true);
+});
+
+test('the switch pressed twice in a row ends on the last press, and what the api holds is the same', async () => {
+  const asked = world();
+  const screen = await open();
+  const press = () =>
+    act(async () => screen.toggle().props.onValueChange(!screen.toggle().props.value));
+  await press();
+  await press();
+  await settle();
+  const sent = asked
+    .filter((one) => one.path === '/me/dates-between-days')
+    .map((one) => (one.body as { dates_between_days: boolean }).dates_between_days);
+  expect(sent).toEqual([true, false]);
+  expect(screen.toggle().props.value).toBe(false);
+  expect(screen.banner()).toBeUndefined();
+});
+
+test.each([
+  ['en', 'dark'],
+  ['ru', 'light'],
+  ['en', 'light'],
+] as const)(
+  'in %s and in the %s theme the screen says the same things in the same order and wears only its own theme',
+  async (lang, theme) => {
+    world();
+    await act(async () => {
+      await setLanguage(lang);
+      await setTheme(theme);
+    });
+    const screen = await open();
+    const said = strings[lang];
+    const words = screen.words();
+    const order = [
+      said.profile.title,
+      '@liza',
+      said.contacts.title.toUpperCase(),
+      said.profile.contactsMeta,
+      said.theme.label.toUpperCase(),
+      said.language.label.toUpperCase(),
+      said.profile.gallery.toUpperCase(),
+      said.profile.datesBetweenDays,
+      said.action.logOut,
+    ].map((word) => words.indexOf(word));
+    expect(order).not.toContain(-1);
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+    // The pencil is read out in the app's language, the pills name themselves in their own.
+    expect(
+      screen
+        .root()
+        .findAllByType(IconButton)
+        .some((one) => one.props.label === said.profile.edit),
+    ).toBe(true);
+    expect(
+      screen.segment(said.language.label).props.options.map((o: { label: string }) => o.label),
+    ).toEqual(['Русский', 'English']);
+    const shown = themesShown(screen.root());
+    expect(theme === 'light' ? shown.night : shown.day).toEqual([]);
+    expect(theme === 'light' ? shown.day : shown.night).not.toEqual([]);
+  },
+);
+
+test('every control on the screen has a role and a name, a finger can hit it, and the order of reading is the order of the layout', async () => {
+  world();
+  const screen = await open();
+  const found = expectReachable(screen.root());
+  // Top to bottom, as the layout stacks them: the way back, the pencil, the contacts, the pills of
+  // the theme and of the language, the switch, the way out — read out as they are drawn.
+  expect(found.map((one) => one.name)).toEqual([
+    ru.action.back,
+    ru.profile.edit,
+    `2 человека ${ru.profile.contactsMeta}`,
+    'Как в системе',
+    'Тёмная',
+    'Светлая',
+    'Русский',
+    'English',
+    ru.profile.datesBetweenDays,
+    ru.action.logOut,
+  ]);
+  expect(found.map((one) => one.role)).toEqual([
+    'button',
+    'button',
+    'button',
+    ...Array(5).fill('radio'),
+    'switch',
+    'button',
+  ]);
+  // The pills carry no line of their own, so the group is what says what they choose between.
+  expect(
+    screen
+      .root()
+      .findAllByType(View)
+      .filter((one) => one.props.accessibilityRole === 'radiogroup')
+      .map((one) => one.props.accessibilityLabel),
+  ).toEqual([ru.theme.label, ru.language.label]);
+  // And the switch says which way it stands, not only that it is one.
+  expect(screen.toggle().findByType(Pressable).props.accessibilityState).toMatchObject({
+    checked: false,
+  });
 });
