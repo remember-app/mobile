@@ -2,7 +2,7 @@ import { count, form } from './plural';
 
 /**
  * The words of a memory's settings — who is in it and on what footing, what the event is called and
- * when it was, and the two dangerous buttons at the foot of the screen.
+ * when it was, and the end of it.
  */
 export const en = {
   /** The guest list: who is in a memory, how to get more people in, and how to take somebody out. */
@@ -72,22 +72,25 @@ export const en = {
      */
     yourStanding: (standing: string) => `Your standing: ${standing}. Change it`,
     /**
-     * The one dangerous act of the memory, at the foot of the screen under a hairline of its own —
-     * the way `Account` stands «Выйти из аккаунта» (spec 8). The organizer's alone: nobody else is
-     * drawn it, and the api refuses them anyway.
+     * The quiet trash at the right of the bar (spec 7.1, `MemorySettings`), read out. The organizer's
+     * alone: nobody else is drawn it, and the api refuses them anyway.
      */
     delete: 'Delete the memory',
-    deleteAsk: 'Delete this memory?',
-    /** «Навсегда» is said here for the second time in the whole product, and it is meant. */
-    deleteText:
-      'It goes from everybody who is in it, with everything inside — for good. There is no getting it back.',
-    /** Spec 9: the price in figures before the press. The movies are only named when there are any. */
-    deletePrice: (frames: number, movies: number) => {
-      const parts = [`${frames} ${frames === 1 ? 'frame' : 'frames'}`];
-      if (movies > 0) parts.push(`${movies} ${movies === 1 ? 'movie' : 'movies'}`);
-      return `${parts.join(' and ')} ${frames + movies === 1 ? 'disappears' : 'disappear'} for good`;
-    },
-    deleteDo: 'Delete',
+    /** `SheetConfirmMemory` — the heaviest question in the product: it takes everybody's archive. */
+    deleteAsk: 'Delete the memory?',
+    /**
+     * Everybody inside is counted, viewers too — the way the capsule's «6 человек» counts (spec
+     * 10.6). Alone in it, the organizer has nobody for it to disappear from.
+     */
+    deleteText: (people: number) =>
+      people > 1
+        ? `It disappears for ${people === 2 ? 'both' : `all ${people}`} people in it — frames, movies and montage journals. There is no getting it back.`
+        : 'It disappears with its frames, movies and montage journals. There is no getting it back.',
+    /** The plate: the part of the loss that was never the deleter's own, named as a figure. */
+    deleteOthers: (frames: number) =>
+      `Other people brought ${frames} ${frames === 1 ? 'frame' : 'frames'} here`,
+    /** «Навсегда» is said here and over one frame, and nowhere else in the product. */
+    deleteDo: 'Delete for good',
     keep: 'Keep it',
   },
 
@@ -165,17 +168,19 @@ export const ru: typeof en = {
     viewers: 'Зрители',
     yourStanding: (standing: string) => `Ваш статус: ${standing.toLowerCase()}. Изменить`,
     delete: 'Удалить воспоминание',
-    deleteAsk: 'Удалить это воспоминание?',
-    deleteText:
-      'Оно исчезнет у всех участников вместе со всем, что внутри, — навсегда. Вернуть это не получится.',
-    deletePrice: (frames: number, movies: number) => {
-      const parts = [count(frames, 'кадр', 'кадра', 'кадров')];
-      if (movies > 0) parts.push(count(movies, 'ролик', 'ролика', 'роликов'));
-      // «1 кадр исчезнет», но «1 кадр и 1 ролик исчезнут» — считается вся пара.
-      const verb = movies > 0 ? 'исчезнут' : form(frames, 'исчезнет', 'исчезнут', 'исчезнут');
-      return `${parts.join(' и ')} ${verb} навсегда`;
-    },
-    deleteDo: 'Удалить',
+    deleteAsk: 'Удалить воспоминание?',
+    // «У всех 21 участника», но «у всех 5 участников»: после «всех» число стоит в родительном.
+    deleteText: (people: number) =>
+      people > 1
+        ? `Оно исчезнет у ${
+            people === 2
+              ? 'обоих участников'
+              : `всех ${people} ${form(people, 'участника', 'участников', 'участников')}`
+          } — кадры, ролики и журналы монтажа. Вернуть будет нельзя.`
+        : 'Оно исчезнет вместе с кадрами, роликами и журналами монтажа. Вернуть будет нельзя.',
+    deleteOthers: (frames: number) =>
+      `${count(frames, 'кадр', 'кадра', 'кадров')} сюда принесли другие`,
+    deleteDo: 'Удалить навсегда',
     keep: 'Оставить',
   },
 

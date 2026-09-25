@@ -29,12 +29,14 @@ import TestRenderer, { act } from 'react-test-renderer';
 import type { Member, Memory } from '@/api';
 import MemorySettingsScreen from '@/app/memory/[id]/settings';
 import {
+  AppBar,
   BadgeContribution,
   Banner,
   Button,
   ConfirmSheet,
   IconButton,
   RowMember,
+  Sheet,
   Waiting,
 } from '@/kit';
 import { InviteSheet } from '@/screens/memory/invite-sheet';
@@ -561,44 +563,59 @@ test('in daylight the screen is drawn in the day’s tokens and carries none of 
 });
 
 /**
- * Удаление воспоминания целиком (doc-01, 2026-09-24) — опасное действие внизу настроек: у
- * организатора оно есть, у остальных его нет вовсе, и лист-подтверждение называет цену цифрами.
+ * Удаление воспоминания целиком (doc-01, 2026-09-24): тусклая корзина в шапке (спека 7.1) — только у
+ * организатора — и лист `SheetConfirmMemory`, который называет цену так, как она нарисована.
  */
-test('the way to delete the whole memory is drawn to the organizer and to nobody else', async () => {
+test('the way to delete the whole memory is the quiet trash in the bar, drawn to the organizer and to nobody else', async () => {
   world();
   let screen = await open();
-  expect(screen.button(ru.settings.delete)).toHaveLength(1);
-  expect(screen.button(ru.settings.delete)[0].props.variant).toBe('danger');
+  expect(screen.icon(ru.settings.delete)).toHaveLength(1);
+  expect(screen.root.findByType(AppBar).props.quiet.label).toBe(ru.settings.delete);
+  // No red button anywhere on the screen: the only red is on the sheet it opens.
+  expect(screen.root.findAllByType(Button).filter((one) => one.props.variant === 'danger')).toEqual(
+    [],
+  );
 
   for (const id of ['liza', 'vera']) {
     who.id = id;
     world();
     screen = await open();
-    expect(screen.button(ru.settings.delete), id).toHaveLength(0);
+    expect(screen.icon(ru.settings.delete), id).toHaveLength(0);
+    expect(screen.root.findByType(AppBar).props.quiet, id).toBeUndefined();
   }
 });
 
-test('the sheet names the price in figures — how many frames and movies go — and says it is for good', async () => {
+test('the sheet is the memory’s cover, its name and frames, whom it disappears from, and the others’ frames on a plate of their own', async () => {
   const state = world({
-    card: { media_count: 69, montage_count: 2, cover_thumbnail_url: 'https://r2.example/cover' },
+    card: {
+      media_count: 69,
+      montage_count: 2,
+      cover_thumbnail_url: 'https://r2.example/cover',
+      recent_thumbnail_urls: ['https://r2.example/t1'],
+    },
   });
   const screen = await open();
   expect(screen.sheet()).toHaveLength(0);
 
-  await screen.press(() => screen.button(ru.settings.delete)[0]);
+  await screen.press(() => screen.icon(ru.settings.delete)[0]);
   const ask = screen.sheet()[0].props;
-  expect(ask.title).toBe(ru.settings.deleteAsk);
-  expect(ask.text).toBe(ru.settings.deleteText);
-  expect(ask.price).toBe(ru.settings.deletePrice(69, 2));
-  expect(ask.price).toContain('69');
-  expect(ask.price).toContain('2 ролика');
-  expect(ask.text).toContain('навсегда');
-  expect(ask.confirmLabel).toBe(ru.settings.deleteDo);
-  expect(ask.cancelLabel).toBe(ru.settings.keep);
-  // The memory itself is the thing on the sheet: its cover, its name and its days.
-  expect(ask.thumb).toBe('https://r2.example/cover');
-  expect(ask.meta).toContain('Свадьба Лизы и Марка');
-  expect(ask.meta).toContain('12–13 сентября');
+  expect(ask.title).toBe('Удалить воспоминание?');
+  expect(ask.cover).toEqual({ uri: 'https://r2.example/cover', thumbs: ['https://r2.example/t1'] });
+  expect(ask.meta).toBe('Свадьба Лизы и Марка · 69 кадров');
+  // Everybody inside is counted, the viewer too (spec 10.6): five people.
+  expect(ask.text).toBe(
+    'Оно исчезнет у всех 5 участников — кадры, ролики и журналы монтажа. Вернуть будет нельзя.',
+  );
+  // Liza 54, Anya 0, Pavel 3, Vera 0 — the organizer’s own 12 are not «other».
+  expect(ask.price).toBe('57 кадров сюда принесли другие');
+  expect(ask.priceOn).toBe('ink');
+  // The layout names no movies in the price, and neither does the sheet.
+  expect(ask.price).not.toContain('ролик');
+  expect(ask.confirmLabel).toBe('Удалить навсегда');
+  expect(ask.cancelLabel).toBe('Оставить');
+  // And that is what is drawn.
+  expect(screen.text()).toContain('57 кадров сюда принесли другие');
+  expect(screen.text()).toContain('Удалить навсегда');
 
   // «Оставить» leaves it alone: nothing was asked of the api.
   await act(async () => ask.onCancel());
@@ -606,29 +623,53 @@ test('the sheet names the price in figures — how many frames and movies go —
   expect(state.log.filter((one) => one.method === 'DELETE')).toEqual([]);
 });
 
-test('a memory with no frames in it names no price: there is nothing to count it in', async () => {
-  world({ card: { media_count: 0, montage_count: 0 } });
+test('with nothing brought by anybody else there is no plate, and alone in it nobody is counted', async () => {
+  // Anya and Vera brought nothing, and Liza’s count did not come at all: «0 кадров» names no price.
+  world({
+    members: [
+      roster()[0],
+      roster()[2],
+      roster()[4],
+      { ...roster()[1], media_count: undefined as never },
+    ],
+  });
   let screen = await open();
-  await screen.press(() => screen.button(ru.settings.delete)[0]);
+  await screen.press(() => screen.icon(ru.settings.delete)[0]);
   expect(screen.sheet()[0].props.price).toBeUndefined();
-  // No cover and no frames — the sheet is the plain one, with the words alone.
-  expect(screen.sheet()[0].props.thumb).toBeUndefined();
+  expect(screen.sheet()[0].props.text).toBe(ru.settings.deleteText(4));
 
-  // And the same with movies still on it: the price is written in frames first, so «0 кадров и
-  // 1 ролик» is what naming one here would read as.
-  world({ card: { media_count: 0, montage_count: 2 } });
+  world({ members: [roster()[0]], card: { media_count: 12 } });
   screen = await open();
-  await screen.press(() => screen.button(ru.settings.delete)[0]);
+  await screen.press(() => screen.icon(ru.settings.delete)[0]);
   expect(screen.sheet()[0].props.price).toBeUndefined();
+  expect(screen.sheet()[0].props.text).toBe(
+    'Оно исчезнет вместе с кадрами, роликами и журналами монтажа. Вернуть будет нельзя.',
+  );
 });
 
-test('confirming deletes it in one request and leaves for the main screen', async () => {
-  const state = world({ card: { montage_count: 2 } });
+test('«Удалить навсегда» waits on its one request, busy, and then leaves for the main screen', async () => {
+  const slow = later<unknown>();
+  const w = world();
+  w.log = serve((asked) => {
+    if (asked.path === '/memories') return [memory({ media_count: 69 })];
+    if (asked.path === '/memories/m1/members') return w.members;
+    if (asked.method === 'DELETE') return slow.promise;
+    return undefined;
+  });
   const screen = await open();
-  await screen.press(() => screen.button(ru.settings.delete)[0]);
-  await act(async () => screen.sheet()[0].props.onConfirm());
+  await screen.press(() => screen.icon(ru.settings.delete)[0]);
+  await act(async () => void screen.sheet()[0].props.onConfirm());
 
-  expect(state.log.filter((one) => one.method === 'DELETE')).toEqual([
+  // In the air: the sheet stays, its button is busy, and nothing can promise to keep the memory.
+  expect(screen.sheet()[0].props.busy).toBe(true);
+  expect(screen.button(ru.settings.deleteDo)[0].props.busy).toBe(true);
+  expect(screen.button(ru.settings.keep)[0].props.disabled).toBe(true);
+  await act(async () => screen.sheet()[0].findByType(Sheet).props.onCancel());
+  expect(screen.sheet()).toHaveLength(1);
+  expect(router.replace).not.toHaveBeenCalled();
+
+  await act(async () => slow.settle({ ok: true }));
+  expect(w.log.filter((one) => one.method === 'DELETE')).toEqual([
     { method: 'DELETE', path: '/memories/m1', body: null },
   ]);
   expect(router.replace).toHaveBeenCalledWith('/');
@@ -636,10 +677,10 @@ test('confirming deletes it in one request and leaves for the main screen', asyn
   expect(screen.notice()).toEqual([]);
 });
 
-test('a memory somebody already deleted is the same outcome, and a refusal keeps the screen where it is', async () => {
+test('a memory somebody already deleted is the same outcome, and a refusal is said on the screen with the trash live again', async () => {
   world({ onWipe: refused(404) });
   let screen = await open();
-  await screen.press(() => screen.button(ru.settings.delete)[0]);
+  await screen.press(() => screen.icon(ru.settings.delete)[0]);
   await act(async () => screen.sheet()[0].props.onConfirm());
   // Gone is gone, however it went: the screen still leaves and says nothing about it.
   expect(router.replace).toHaveBeenCalledWith('/');
@@ -648,10 +689,11 @@ test('a memory somebody already deleted is the same outcome, and a refusal keeps
   router.replace.mockClear();
   world({ onWipe: refused(500, 'boom') });
   screen = await open();
-  await screen.press(() => screen.button(ru.settings.delete)[0]);
+  await screen.press(() => screen.icon(ru.settings.delete)[0]);
   await act(async () => screen.sheet()[0].props.onConfirm());
+  // The sheet goes so that the line under it can be read, and the way to try again is not stuck.
+  expect(screen.sheet()).toHaveLength(0);
   expect(screen.notice()).toEqual(['boom']);
   expect(router.replace).not.toHaveBeenCalled();
-  // And the way to try again is live, not stuck behind a busy button.
-  expect(screen.button(ru.settings.delete)[0].props.disabled).toBe(false);
+  expect(screen.icon(ru.settings.delete)[0].props.disabled).toBe(false);
 });
