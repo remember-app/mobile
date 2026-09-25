@@ -699,6 +699,7 @@ test.each([
     });
     /** Where the step on top has its button and its «Отмена»: true when they scroll with its body. */
     const seen: [string, boolean, boolean | 'none'][] = [];
+    const bodies: [string, string][] = [];
     const look = async () => {
       const step = nav.top()!;
       // What a phone would report: an ordinary bar and layer, or the same grown with the type.
@@ -718,6 +719,16 @@ test.each([
       expect(main, `${step}: the step’s button`).toBeDefined();
       expect(cancel.length, `${step}: «Отмена»`).toBe(step === 'summary' ? 0 : 1);
       seen.push([step, scrolled(main), cancel.length === 0 ? 'none' : scrolled(cancel[0])]);
+      // The step's own column: the screen's 16 at the sides and room to grow — never `flex: 1` — and
+      // for the one step that is a list, no column at all: the list is the body.
+      if (step !== 'summary') {
+        const { body, list } = top.props;
+        const column = StyleSheet.flatten(body) ?? {};
+        bodies.push([
+          step,
+          list ? 'list' : `${column.paddingHorizontal}/${column.flexGrow}/${column.flex}`,
+        ]);
+      }
       return { main, cancel };
     };
     await look();
@@ -734,6 +745,13 @@ test.each([
         step === 'summary' ? 'none' : whole,
       ]),
     );
+    expect(bodies).toEqual([
+      ['index', '16/1/undefined'],
+      ['frames', 'list'],
+      ['story', '16/1/undefined'],
+      ['music', '16/1/undefined'],
+      ['build', '16/1/undefined'],
+    ]);
   },
 );
 
