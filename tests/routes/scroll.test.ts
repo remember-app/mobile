@@ -90,6 +90,57 @@ test('the keyboard is given way to by the board alone', () => {
     expect(/<Board\b|<WizardStep\b/.test(source), path).toBe(true);
 });
 
+/** Where the expressions of every `name={…}` prop stand in the source, brace to brace. */
+const spansOf = (source: string, name: string): [number, number][] => {
+  const spans: [number, number][] = [];
+  for (const found of source.matchAll(new RegExp(`\\b${name}=\\{`, 'g'))) {
+    const start = (found.index ?? 0) + found[0].length - 1;
+    let depth = 0;
+    for (let i = start; i < source.length; i += 1) {
+      if (source[i] === '{') depth += 1;
+      if (source[i] === '}') depth -= 1;
+      if (depth === 0) {
+        spans.push([start, i]);
+        break;
+      }
+    }
+  }
+  return spans;
+};
+
+test('a bar is never in the body and a bottom layer is never in it either: they are the board’s `bar` and `footer`', () => {
+  // The body is what scrolls; the bar and the layer are what stands — or, where they no longer can,
+  // what the board takes into the scroll itself. Drawn in the body they would scroll away for good.
+  // The one layer outside a `footer`: the phone's own photographs on `Upload` run under the status
+  // line and to the bottom edge, and the layer that sends what is picked floats over them.
+  const uploads = 'app/memory/[id]/upload.tsx';
+  const floats = routes.find(([path]) => path === uploads)![1];
+  expect(floats).toMatch(/layer: \{ position: 'absolute'/);
+  // The wizard's step builds its layer as a value before it hands it to the board, so only its bar
+  // is read here; the steps' layers are walked in `order-flow`.
+  const screens = [
+    ...routes.filter(([path]) => path !== uploads),
+    ['screens/order/wizard.tsx', wizard] as const,
+  ];
+  let bars = 0;
+  for (const [path, source] of screens)
+    for (const [part, prop] of [
+      [/<(AppBar|WizardBar)\b/g, 'bar'],
+      ...(path.startsWith('screens/') ? [] : [[/<ActionBar\b/g, 'footer'] as const]),
+    ] as const) {
+      const inside = spansOf(source, prop);
+      for (const found of source.matchAll(part)) {
+        bars += 1;
+        const at = found.index ?? 0;
+        expect(
+          inside.some(([from, to]) => from < at && at < to),
+          `${path}: ${found[0]} outside ${prop}={…}`,
+        ).toBe(true);
+      }
+    }
+  expect(bars).toBeGreaterThan(15);
+});
+
 /** What a `list={…}` prop of the board holds: the expression between its braces. */
 const listOf = (source: string): string => {
   const at = source.indexOf('list={');
