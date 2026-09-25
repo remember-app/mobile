@@ -40,10 +40,9 @@ test('the head is one element, and the four screens that share it hold it in one
 });
 
 test('a way in this build cannot walk is not drawn at all', () => {
-  // Both providers stand under their own signal. Drawn switched off, they are three buttons where
-  // only one works and the person finds out which by pressing.
-  expect(login).toContain('{appleAvailable ? (');
-  expect(login).toContain('{GOOGLE_CLIENT_ID ? (');
+  // Both providers stand under their own signals — which ones, `tests/screens/login-flow.test.tsx`
+  // walks. Drawn switched off, they are three buttons where only one works and the person finds out
+  // which by pressing.
   expect(login).not.toContain('disabled={!appleAvailable}');
   // `disabled={!googleRequest}` stays inside the branch: with an id the button is real and only
   // waits for the request to be built. Without one it is not there to wait.

@@ -61,6 +61,14 @@ export function acceptConsent(token: string): Promise<{ accepted_at: string }> {
   return request('/me/consent', { method: 'POST', token });
 }
 
+/** The ways in the api has switched on: mail always, Apple and Google only once it holds their keys. */
+export type AuthMethods = { email: boolean; apple: boolean; google: boolean };
+
+/** Asked before anybody is signed in, so it carries no token. */
+export function fetchAuthMethods(): Promise<AuthMethods> {
+  return request('/auth/methods');
+}
+
 /** Trade an Apple identity token for a session. 501 while the provider has no keys. */
 export function signInWithApple(idToken: string): Promise<Session> {
   return request('/auth/apple', { method: 'POST', body: { idToken } });
