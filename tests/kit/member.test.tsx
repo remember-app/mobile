@@ -38,6 +38,52 @@ test('two letters stand for a name, and one where there is only one word', () =>
   expect(initials('')).toBe('');
 });
 
+/** Names with a character that UTF-16 stores in more than one unit, and what their circle says. */
+const WHOLE: Record<string, string> = {
+  '😀 Аня': '😀А',
+  'Аня 🌸': 'А🌸',
+  'Аня 😀 Петрова': 'А😀',
+  'Аня😀Петрова': 'АН',
+  '😀': '😀',
+  '😀😀😀': '😀😀',
+  '🌸 🌿': '🌸🌿',
+  '🇷🇺 Россия': '🇷🇺Р',
+  '🇷🇺🇺🇦': '🇷🇺🇺🇦',
+  '🏴󠁧󠁢󠁥󠁮󠁧󠁿 Том': '🏴󠁧󠁢󠁥󠁮󠁧󠁿Т',
+  '👩‍👩‍👧 Семья': '👩‍👩‍👧С',
+  '🏳️‍🌈 Pride': '🏳️‍🌈P',
+  '👍🏽 Марк': '👍🏽М',
+  'Dev 👩🏽‍💻': 'D👩🏽‍💻',
+  '1️⃣ Лиза': '1️⃣Л',
+  'Ёжик Élise': 'ЁÉ',
+  'e\u0301lise': 'E\u0301L',
+  'и\u0306ван и\u0306ванов': 'И\u0306И\u0306',
+  'john smith': 'JS',
+  '𝓐nna 𝓑erg': '𝓐𝓑',
+  '   ': '',
+};
+
+test('an initial is a character whole — an emoji, a flag, a letter with its marks — never half', () => {
+  const drawn = Object.fromEntries(Object.keys(WHOLE).map((name) => [name, initials(name)]));
+  expect(drawn).toEqual(WHOLE);
+  for (const letters of Object.values(drawn)) expect(letters.isWellFormed()).toBe(true);
+});
+
+test('every circle that draws initials draws them whole', () => {
+  const name = '😀 Аня';
+  for (const markup of [
+    story(<Avatar name={name} />),
+    story(<AvatarStack names={[name, name]} />),
+    story(<WatchingPill names={[name, name]} count={2} label="Смотрят сейчас: 2" />),
+    story(<FaceToggle name={name} selected={false} onPress={() => {}} />),
+    story(<RowMember name={name} />),
+    story(<RowContact name={name} />),
+  ]) {
+    expect(markup).toContain('>😀А<');
+    expect(markup.isWellFormed()).toBe(true);
+  }
+});
+
 test('the circle is drawn at every size the layout uses', () => {
   allDifferent(
     Object.fromEntries(
