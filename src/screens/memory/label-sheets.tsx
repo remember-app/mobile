@@ -367,7 +367,6 @@ export function LabelsSheet({
     <Sheet
       visible={visible}
       onCancel={onClose}
-      scroll
       rhythm="list"
       head={
         <View style={styles.head}>
@@ -456,7 +455,6 @@ export function LabelNewSheet({
       visible
       onCancel={onCancel}
       title={label ? s.labels.editTitle : s.labels.newOne}
-      scroll
       footer={
         <Button
           variant="primary"

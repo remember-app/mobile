@@ -50,7 +50,6 @@ export function CoverSheet({
       visible={visible}
       onCancel={onCancel}
       title={s.edit.cover}
-      scroll
       footer={
         <Button
           variant="primary"

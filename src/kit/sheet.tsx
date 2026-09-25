@@ -1,18 +1,20 @@
 import { useFocusEffect } from 'expo-router';
-import { type ReactNode, useCallback, useRef } from 'react';
+import { type ReactNode, useCallback, useRef, useState } from 'react';
 import {
   Animated,
   KeyboardAvoidingView,
+  type LayoutChangeEvent,
   Modal,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { backdrop, board, duration as motion, radius, space, themed } from '@/theme';
+import { backdrop, board, duration as motion, radius, space, themed, type } from '@/theme';
 
 import { useFadeIn } from './interaction';
 import { Text } from './text';
@@ -27,8 +29,6 @@ export type SheetProps = {
   head?: ReactNode;
   /** The block of buttons at the bottom. It stays put while the body scrolls. */
   footer?: ReactNode;
-  /** A long body — many contacts, many days — scrolls; the handle, heading and footer do not. */
-  scroll?: boolean;
   /**
    * The height the layout gives this sheet (spec 4, «Высоты листов»). A floor and not a cap: a
    * sheet that holds less pushes its footer down to it (spec 7.1, the `flex-grow` spacer), one that
@@ -57,6 +57,9 @@ const RHYTHM = { list: 14, question: 18, tuning: 20 } as const;
  *
  * A plain React Native `Modal` and nothing else: a bottom-sheet library would bring gestures the
  * layout never asked for.
+ *
+ * Every body scrolls once it outgrows the sheet — there is no sheet that does not, so a new one
+ * cannot forget to (TASK-358). What stands still around it is {@link pinnable}'s call.
  */
 export function Sheet({ visible, onCancel, ...rest }: SheetProps) {
   useShutOnBlur(visible, onCancel);
@@ -126,21 +129,104 @@ export function useScrimTap(onCancel: () => void): () => void {
   };
 }
 
+/** How much of the window a sheet may take; the rest stays darkness (spec 4). */
+const CEILING = 0.9;
+const HANDLE = 4;
+const EDGE = 1;
+
+/**
+ * Whether the handle, the heading and the buttons can stand still while the body scrolls between
+ * them (spec 7.1): they, the sheet's own edges and one line of the body fit in the height the sheet
+ * was actually given — nine tenths of the window at most. When they do not —
+ * the smallest phone at the largest system type — the whole sheet under the handle scrolls as one;
+ * pinned, the buttons would stand below the screen with nothing to bring them back, and a body
+ * squeezed to nothing is a question nobody can read (TASK-358).
+ *
+ * All of it is measured: `sheet` is the sheet as laid out, `top` and `foot` the heading and the
+ * buttons (`null` where it has none). Scrolling or not, the sheet holds the same blocks with the
+ * same gaps, so its height — and the answer — is the same in both, and one never flips the other.
+ */
+export function pinnable({
+  sheet,
+  line,
+  gap,
+  bottom,
+  top,
+  foot,
+}: {
+  sheet: number;
+  line: number;
+  gap: number;
+  bottom: number;
+  top: number | null;
+  foot: number | null;
+}): boolean {
+  // The column as `Rise` stacks it: handle, heading, body, spacer, buttons — one gap between each.
+  const blocks = [HANDLE, top, line, ...(foot === null ? [] : [0, foot])].filter(
+    (block) => block !== null,
+  );
+  const column = blocks.reduce((sum, block) => sum + block, 0) + gap * (blocks.length - 1);
+  return EDGE * 2 + space.s3 + column + bottom <= sheet;
+}
+
+/** A block's height as it was last laid out, for {@link pinnable}. */
+function useMeasured(): [number, (event: LayoutChangeEvent) => void] {
+  const [height, setHeight] = useState(0);
+  return [height, (event) => setHeight(event.nativeEvent.layout.height)];
+}
+
 function Rise({
   onCancel,
   title,
   head,
   footer,
-  scroll,
   height,
   rhythm = 'question',
   children,
 }: Omit<SheetProps, 'visible'>) {
   const insets = useSafeAreaInsets();
+  const { fontScale } = useWindowDimensions();
   const rise = useFadeIn(motion.sheet);
   const styles = useStyles();
   const onScrimTap = useScrimTap(onCancel);
   const gap = { gap: RHYTHM[rhythm] };
+  const bottom = Math.max(insets.bottom, board.bottom);
+  const [sheet, onSheet] = useMeasured();
+  const [top, onTop] = useMeasured();
+  const [foot, onFoot] = useMeasured();
+  const heading = head || title;
+  // Until the sheet has been laid out it stands as drawn.
+  const pinned =
+    sheet === 0 ||
+    pinnable({
+      sheet,
+      line: type.body.lineHeight * fontScale,
+      gap: RHYTHM[rhythm],
+      bottom,
+      top: heading ? top : null,
+      foot: footer ? foot : null,
+    });
+
+  // Measured wherever they stand — the same width in the column and in the scroll — so moving them
+  // from one to the other never changes the answer that moved them.
+  const heads = heading ? (
+    <View style={gap} onLayout={onTop}>
+      {head}
+      {title ? (
+        <Text role="sheetTitle" accessibilityRole="header">
+          {title}
+        </Text>
+      ) : null}
+    </View>
+  ) : null;
+  const buttons = footer ? (
+    <>
+      <View style={styles.fill} />
+      <View style={styles.footer} onLayout={onFoot}>
+        {footer}
+      </View>
+    </>
+  ) : null;
 
   return (
     // A sheet sits where the keyboard comes up, so anything typed into one would be typed blind.
@@ -164,13 +250,15 @@ function Rise({
       {/* One column with one gap, as the layout draws it: handle, blocks, spacer, buttons. The
           spacer takes a gap on either side of it even when it has nothing to give, so the buttons
           never stand closer than two gaps under the last block — the measure the heights of spec 4
-          were taken by. */}
+          were taken by. Not pinned, the heading and the buttons go into the scroll in the same
+          order and with the same gap, so a sheet that fits looks the same either way. */}
       <Animated.View
         accessibilityViewIsModal
+        onLayout={onSheet}
         style={[
           styles.sheet,
           gap,
-          { paddingBottom: Math.max(insets.bottom, board.bottom) },
+          { paddingBottom: bottom },
           height ? { minHeight: height } : null,
           {
             opacity: rise,
@@ -181,19 +269,20 @@ function Rise({
         ]}
       >
         <View testID="sheet-handle" style={styles.handle} />
-        {head}
-        {title ? (
-          <Text role="sheetTitle" accessibilityRole="header">
-            {title}
-          </Text>
-        ) : null}
-        {scroll ? <ScrollView contentContainerStyle={gap}>{children}</ScrollView> : children}
-        {footer ? (
-          <>
-            <View style={styles.fill} />
-            <View style={styles.footer}>{footer}</View>
-          </>
-        ) : null}
+        {pinned ? heads : null}
+        {/* A body that fits neither scrolls nor bounces. Taps land on what they hit even with the
+            keyboard up — a form in the body keeps its own button. */}
+        <ScrollView
+          style={pinned ? styles.body : null}
+          contentContainerStyle={[gap, pinned ? null : styles.fill]}
+          alwaysBounceVertical={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {pinned ? null : heads}
+          {children}
+          {pinned ? null : buttons}
+        </ScrollView>
+        {pinned ? buttons : null}
       </Animated.View>
     </KeyboardAvoidingView>
   );
@@ -206,12 +295,12 @@ const useStyles = themed(({ color }) =>
     sheet: {
       width: '100%',
       maxWidth: 420,
-      maxHeight: '90%',
+      maxHeight: `${CEILING * 100}%`,
       alignSelf: 'center',
       paddingTop: space.s3,
       paddingHorizontal: space.s4,
       backgroundColor: color.surface,
-      borderWidth: 1,
+      borderWidth: EDGE,
       borderColor: color.line,
       borderTopLeftRadius: radius.sheet,
       borderTopRightRadius: radius.sheet,
@@ -219,11 +308,14 @@ const useStyles = themed(({ color }) =>
     // Spec 7.1: the handle is always the first thing in a sheet, 40 × 4.
     handle: {
       width: 40,
-      height: 4,
+      height: HANDLE,
       borderRadius: radius.pill,
       backgroundColor: color.handle,
       alignSelf: 'center',
     },
+    // Between a pinned heading and pinned buttons the body is as tall as it is — the spacer, not
+    // the scroll, takes what a floor leaves over — and gives way once it outgrows the sheet.
+    body: { flexGrow: 0 },
     // The spacer of spec 7.1: what a sheet with a floor does not fill, it leaves above the footer.
     fill: { flexGrow: 1 },
     // Spec 7.1, detail 8: the buttons at the foot stand 8 apart.

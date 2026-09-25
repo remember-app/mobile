@@ -1,17 +1,17 @@
 import { rule } from '@tests/helpers/css';
-import { beforeAll, expect, test, vi } from 'vitest';
+import { mounted, mountsTrees } from '@tests/helpers/renderer';
+import { ScrollView } from 'react-native';
+import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
+import { expect, test, vi } from 'vitest';
 
 import { Button } from '@/kit/button';
-import { SCRIM_DEAF_MS, Sheet, type SheetProps, useScrimTap } from '@/kit/sheet';
+import { pinnable, SCRIM_DEAF_MS, Sheet, type SheetProps, useScrimTap } from '@/kit/sheet';
 import { allDifferent, story } from '@/kit/story';
 import { Text } from '@/kit/text';
-import { setTheme } from '@/theme';
 
 /** Spec 7.1 — the sheet, and the five bottom blocks that are its five kinds. */
 
-beforeAll(async () => {
-  await setTheme('dark');
-});
+mountsTrees();
 
 test('a sheet that is not up draws nothing at all', () => {
   expect(story(<Sheet visible={false} onCancel={() => {}} title="Фильтры" />)).toBe('');
@@ -37,9 +37,7 @@ test('the handle is 40 wide and 4 tall, on every kind of sheet', () => {
     /class="([^"]*)" data-testid="sheet-handle"/.exec(markup)?.[1] ?? '';
   for (const markup of [
     story(<Sheet visible onCancel={() => {}} title="Фильтры" />),
-    story(
-      <Sheet visible onCancel={() => {}} title="Фильтры" scroll height={560} rhythm="tuning" />,
-    ),
+    story(<Sheet visible onCancel={() => {}} title="Фильтры" height={560} rhythm="tuning" />),
     story(<Sheet visible onCancel={() => {}} head={<Text>Кадр</Text>} rhythm="list" />),
   ]) {
     expect(handle(markup)).toContain(rule('width:40px'));
@@ -130,27 +128,11 @@ test('a header row replaces the heading outright', () => {
   });
 });
 
-test('a long body scrolls while the heading and the bottom block stay put', () => {
-  allDifferent({
-    still: (
-      <Sheet visible onCancel={() => {}} title="Позвать человека">
-        <Text>Из контактов</Text>
-      </Sheet>
-    ),
-    scrolling: (
-      <Sheet visible onCancel={() => {}} title="Позвать человека" scroll>
-        <Text>Из контактов</Text>
-      </Sheet>
-    ),
-  });
-});
-
 const drawn = ({
   height,
   rhythm,
-  scroll,
   lines = 1,
-}: Pick<SheetProps, 'height' | 'rhythm' | 'scroll'> & { lines?: number } = {}) =>
+}: Pick<SheetProps, 'height' | 'rhythm'> & { lines?: number } = {}) =>
   story(
     <Sheet
       visible
@@ -158,7 +140,6 @@ const drawn = ({
       title="Сортировка"
       height={height}
       rhythm={rhythm}
-      scroll={scroll}
       footer={
         <>
           <Button variant="primary" label="Готово" />
@@ -184,10 +165,8 @@ test('one gap runs down the whole sheet — 18 on a question, 20 on the tuning s
   expect(sheetStyle(drawn({ rhythm: 'list' }))).toMatch(/^gap:14px;/);
   expect(drawn()).toMatch(/class="[^"]*r-width-[a-z0-9]+" data-testid="sheet-handle"/);
   expect(drawn()).not.toMatch(/r-margin[A-Za-z]*-[a-z0-9]+[^"]*" data-testid="sheet-handle"/);
-  // A body that scrolls keeps the same rhythm inside it.
-  expect(drawn({ scroll: true, rhythm: 'tuning' })).toContain(
-    '<div class="css-view-g5y9jx" style="gap:20px">',
-  );
+  // The body scrolls, and keeps the same rhythm inside the scroll.
+  expect(drawn({ rhythm: 'tuning' })).toContain('<div class="css-view-g5y9jx" style="gap:20px">');
 });
 
 test('the buttons at the foot stand 8 apart, under a spacer that takes a gap on either side', () => {
@@ -224,12 +203,171 @@ test('the drawn height is a floor: a sheet holding more grows, and the handle, h
 test('a long body scrolls under the handle and the heading, over the buttons', () => {
   // Spec 7.1 `[дописано]`: past the top of the screen the content scrolls inside, and the handle,
   // the heading and the main button stay where they are — so the heading is not in the scroll.
-  const sheet = drawn({ scroll: true, lines: 40 });
+  const sheet = drawn({ lines: 40 });
   const scroller = sheet.indexOf('r-overflowY-');
   expect(sheet.indexOf('data-testid="sheet-handle"')).toBeLessThan(scroller);
   expect(sheet.indexOf('Сортировка')).toBeLessThan(scroller);
   expect(sheet.indexOf('Строка 1<')).toBeGreaterThan(scroller);
   expect(sheet.indexOf('aria-label="Готово"')).toBeGreaterThan(sheet.indexOf('Строка 40<'));
+});
+
+test('every kind of sheet holds its body in a scroll, under a ceiling of nine tenths of the window', () => {
+  // TASK-358: a sheet whose body could not scroll left its buttons under the edge of a small phone
+  // at the largest system type, with no way to reach them. There is no sheet without the scroll now
+  // — no prop to leave it out — so this walks every shape a sheet comes in.
+  const body = <Text>Тело листа</Text>;
+  const buttons = (
+    <>
+      <Button variant="danger" label="Удалить" />
+      <Button variant="secondary" size="md" label="Оставить" />
+    </>
+  );
+  for (const markup of [
+    story(
+      <Sheet visible onCancel={() => {}} title="Сортировка" footer={buttons}>
+        {body}
+      </Sheet>,
+    ),
+    story(
+      <Sheet visible onCancel={() => {}} head={<Text>Кадр</Text>} footer={buttons} height={380}>
+        {body}
+      </Sheet>,
+    ),
+    story(
+      <Sheet visible onCancel={() => {}} title="Фильтры" height={560} rhythm="tuning">
+        {body}
+      </Sheet>,
+    ),
+    story(
+      <Sheet visible onCancel={() => {}} rhythm="list">
+        {body}
+      </Sheet>,
+    ),
+  ]) {
+    const scroller = markup.indexOf('r-overflowY-');
+    expect(scroller).toBeGreaterThan(markup.indexOf('data-testid="sheet-handle"'));
+    expect(markup.indexOf('Тело листа')).toBeGreaterThan(scroller);
+    expect(markup).toContain(rule('max-height:90%'));
+  }
+});
+
+test('the heading and the buttons stay put while they, the handle and a line of the body fit', () => {
+  // The sort sheet as drawn, 381 on a 390 × 844 phone at the default type: all of it stands still.
+  expect(pinnable({ sheet: 381, line: 23, gap: 20, bottom: 34, top: 26, foot: 56 })).toBe(true);
+  // A memory's confirmation on the smallest phone the app installs on (375 × 667) at the largest
+  // type iOS offers (× 3.571), the sheet at its ceiling of 600: the heading and the two buttons
+  // alone overrun it.
+  expect(pinnable({ sheet: 600, line: 23 * 3.571, gap: 18, bottom: 30, top: 520, foot: 190 })).toBe(
+    false,
+  );
+  // The edge, counted: 2 + 12 of the sheet's own, then handle 4, heading 100, a line 23, spacer,
+  // buttons, four gaps of 18 and the 30 under them — 360 in a sheet of 360 still fits.
+  expect(pinnable({ sheet: 360, line: 23, gap: 18, bottom: 30, top: 100, foot: 117 })).toBe(true);
+  expect(pinnable({ sheet: 360, line: 23, gap: 18, bottom: 30, top: 100, foot: 118 })).toBe(false);
+  // No heading and no buttons — the journal's file — leave nothing to pin but the handle.
+  expect(pinnable({ sheet: 150, line: 82, gap: 14, bottom: 30, top: null, foot: null })).toBe(true);
+});
+
+/** What the phone reports once it has laid a view out. */
+const laidOut = (node: ReactTestInstance, height: number) =>
+  act(() => node.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 375, height } } }));
+
+test('when they do not fit, the heading and the buttons scroll with the body and the handle stays', async () => {
+  let tree: TestRenderer.ReactTestRenderer | undefined;
+  await act(async () => {
+    tree = mounted(
+      TestRenderer.create(
+        <Sheet
+          visible
+          onCancel={() => {}}
+          title="Удалить воспоминание?"
+          footer={
+            <>
+              <Button variant="danger" label="Удалить навсегда" />
+              <Button variant="secondary" size="md" label="Оставить" />
+            </>
+          }
+        >
+          <Text>Оно исчезнет у всех</Text>
+        </Sheet>,
+      ),
+    );
+  });
+  const root = (tree as TestRenderer.ReactTestRenderer).root;
+  const scroll = () => root.findByType(ScrollView);
+  const inScroll = (words: string) => scroll().findAll((node) => node.props.children === words);
+  // The block the sheet measures around a node: the nearest one it listens to the layout of.
+  const block = (node: ReactTestInstance) => {
+    let up = node.parent;
+    while (up && typeof up.props.onLayout !== 'function') up = up.parent;
+    return up as ReactTestInstance;
+  };
+  const heading = () =>
+    block(
+      root.find((node) => node.type === Text && node.props.children === 'Удалить воспоминание?'),
+    );
+  const buttons = () => block(root.findAllByType(Button)[0]);
+  const [sheet] = root.findAll(
+    (node) =>
+      node.props.accessibilityViewIsModal === true && typeof node.props.onLayout === 'function',
+  );
+
+  // Until the sheet is laid out, and wherever it fits, it stands as drawn.
+  expect(inScroll('Оно исчезнет у всех')).not.toHaveLength(0);
+  expect(inScroll('Удалить воспоминание?')).toHaveLength(0);
+  await laidOut(sheet, 400);
+  await laidOut(heading(), 60);
+  await laidOut(buttons(), 120);
+  expect(inScroll('Удалить воспоминание?')).toHaveLength(0);
+  expect(scroll().findAllByType(Button)).toHaveLength(0);
+
+  // The largest type: the heading and the buttons alone are taller than the sheet at its ceiling.
+  await laidOut(heading(), 600);
+  await laidOut(buttons(), 200);
+  await laidOut(sheet, 760);
+  expect(inScroll('Удалить воспоминание?')).not.toHaveLength(0);
+  expect(scroll().findAllByType(Button)).toHaveLength(2);
+  expect(scroll().findAll((node) => node.props.testID === 'sheet-handle')).toHaveLength(0);
+  expect(root.findAll((node) => node.props.testID === 'sheet-handle')).not.toHaveLength(0);
+});
+
+/**
+ * Every sheet the app raises, found by sweeping the sources rather than named one by one: a sheet
+ * that is the kit's scrolls (above), so the one to catch is a sheet that is not — a `Modal` of its
+ * own with a column of buttons in it, which scrolls only if its author remembered to.
+ */
+const sources = Object.entries(
+  import.meta.glob<string>('@/{app,screens,kit}/**/*.tsx', {
+    query: '?raw',
+    import: 'default',
+    eager: true,
+  }),
+).map(([path, source]) => [path.replace(/^.*\/src\//, ''), source] as const);
+
+test('every sheet in the app is the kit’s sheet, and no other modal is one', () => {
+  // The only other modals are not sheets: the whole-screen frame, film and phone-gallery views, and
+  // the glass menu that drops from «⋯». A new one here is a sheet built past the kit.
+  expect(
+    sources
+      .filter(([, source]) => /<Modal\b/.test(source))
+      .map(([path]) => path)
+      .sort(),
+  ).toEqual([
+    'app/memory/[id]/upload.tsx',
+    'kit/menu.tsx',
+    'kit/sheet.tsx',
+    'screens/memory/film-player.tsx',
+    'screens/memory/frame-viewer.tsx',
+  ]);
+  const raising = sources.filter(([, source]) => /<(Sheet|ConfirmSheet)\b/.test(source));
+  // Confirmations, sort, filter, frame info, labels, a new label, the invite, the cover, the
+  // journal's file, «Это всё?», «Материала мало», what the pass dropped, the agreement, the nick.
+  expect(raising.length).toBeGreaterThanOrEqual(14);
+  for (const [path, source] of raising) {
+    expect(source, path).toMatch(
+      /import \{[^}]*\b(Sheet|ConfirmSheet)\b[^}]*\} from '(@\/kit|\.\/sheet)'/,
+    );
+  }
 });
 
 /**

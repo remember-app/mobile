@@ -135,7 +135,6 @@ export default function PickFramesStep() {
         visible={showDropped}
         onCancel={() => setShowDropped(false)}
         title={s.montage.droppedTitle}
-        scroll
         footer={
           <>
             <Button
