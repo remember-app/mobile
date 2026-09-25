@@ -140,14 +140,19 @@ export function useLoop(ms: number): Animated.Value | null {
  * is attached to, so wrapping somebody else's component in `Animated.createAnimatedComponent` gets
  * a value that climbs in JS over a picture that never moves — see the tile, which fades through
  * `expo-image`'s own `transition` for exactly that reason.
+ *
+ * `onDone` is told once the value has arrived, and only then does React's own copy of the view hold
+ * the 1: until the end the native driver writes past it, so a layout animation that catches the
+ * view mid-way plays it out of the starting values and leaves it there (TASK-386, see `Sheet`).
  */
-export function useFadeIn(ms: number): Animated.Value {
+export function useFadeIn(ms: number, onDone?: () => void): Animated.Value {
   const reduced = useReducedMotion();
   const value = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (reduced) {
       value.setValue(1);
+      onDone?.();
       return;
     }
     const run = Animated.timing(value, {
@@ -156,7 +161,9 @@ export function useFadeIn(ms: number): Animated.Value {
       easing: EASE,
       useNativeDriver: true,
     });
-    run.start();
+    run.start(({ finished }) => {
+      if (finished) onDone?.();
+    });
     return () => run.stop();
   }, [reduced, ms, value]);
 
