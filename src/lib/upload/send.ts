@@ -173,9 +173,11 @@ async function planFor(file: QueuedFile, token: string, size: number): Promise<U
 }
 
 /**
- * One slice, straight to R2. Answers with the etag R2 receipts it with, or null when the link has
- * simply run out of its hour — the one failure that is fixed by asking the api again rather than
- * by trying harder.
+ * One slice, straight to storage. Answers with the etag storage receipts it with, or null when the
+ * link has outlived the time the api signed it for — the one failure that is fixed by asking the
+ * api again rather than by trying harder. Google says so with a 400 whose body carries the code
+ * `ExpiredToken`, and the body is read for that alone; a 403 is taken the same way, which is how
+ * R2 and MinIO say it.
  */
 async function putPart(url: string, source: File, part: PartRange): Promise<string | null> {
   const handle = source.open();
@@ -194,6 +196,9 @@ async function putPart(url: string, source: File, part: PartRange): Promise<stri
 
   const response = await fetch(url, { method: 'PUT', body: bytes });
   if (response.status === 403) return null;
+  if (response.status === 400 && (await response.text()).includes('<Code>ExpiredToken</Code>')) {
+    return null;
+  }
   if (!response.ok) {
     throw new UploadError({ reason: 'partRefused', part: part.number, status: response.status });
   }
@@ -218,7 +223,7 @@ async function send(file: QueuedFile, token: string) {
   for (const part of missingParts(size, partSize, file.parts)) {
     let etag = await putPart(linkFor(part.number), source, part);
     if (etag === null) {
-      // The hour ran out mid-file. Fresh links, same upload, and this part is the only one that
+      // The link ran out mid-file. Fresh links, same upload, and this part is the only one that
       // has to be sent again — everything before it is already receipted.
       plan = await planFor(file, token, size);
       // `planFor` throws the etags away if the api's part size moved, and this loop is cutting to
