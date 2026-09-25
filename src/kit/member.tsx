@@ -18,19 +18,17 @@ import { Text } from './text';
 
 /**
  * The sizes the layout draws an avatar at, each with the type size that goes inside it (spec 7.5):
- * 16 in a day gap, 18 on a frame on air, 24 in a stack, 30 in a chip, 32 in a sheet, 36 in the
- * stack on the account's «Контакты», 38 in a member row, 42 in a contact row, 48 as a face in the
- * filter, 64 on a confirmation and on the account.
+ * 16 in a day gap, 18 on a frame on air, 30 in a chip, 32 in a sheet, 38 in a member row, 42 in a
+ * contact row, 48 as a face in the filter, 64 on a confirmation and on the account. A stack, at 24
+ * and 36, sets its letters itself (`STACK`).
  * Roughly a third of the circle, rounded the way the layout rounded it.
  */
 const LETTERS: Record<number, number> = {
   16: 6,
   18: 7,
-  24: 9,
   26: 10,
   30: 11,
   32: 11,
-  36: 12,
   38: 13,
   42: 14,
   48: 15,
@@ -42,27 +40,24 @@ const LETTERS: Record<number, number> = {
  * spare (spec 7.5). The circle's colour is dealt from the palette of faces by the name itself, so
  * two people side by side are two colours and the same person is the same colour everywhere.
  *
- * Two rings, and they are different things: `ring` is the `spark` collar the organizer wears — the
- * only place a person is marked by colour in this product — and it lies *outside* the circle, while
- * `ringColor` is the 1.5 hairline in the colour of whatever is underneath, which is what lets
- * overlapping circles cut each other. An organizer inside a stack wears both.
+ * `ring` is the `spark` collar the organizer wears — the only place a person is marked by colour in
+ * this product — and it lies *outside* the circle. The collar that cuts overlapping circles apart is
+ * the stack's (`AvatarStack`), and arrives in `style`.
  */
 export function Avatar({
   name,
   size = 42,
   uri,
   ring,
-  ringColor,
   gone,
   display,
+  stacked,
   style,
 }: {
   name: string;
   size?: number;
   uri?: string | null;
   ring?: boolean;
-  /** What the hairline is drawn in when it is separating overlapping circles rather than marking one. */
-  ringColor?: string;
   /** A contact that has just been removed: the circle goes out without leaving the row. */
   gone?: boolean;
   /**
@@ -70,15 +65,16 @@ export function Avatar({
    * one place a person's letters are set like a name rather than like a label.
    */
   display?: boolean;
+  /**
+   * A circle in a stack (spec 7.5, detail 32): the initials at the stack's own size in 700, centred
+   * in what the next circle leaves showing — `covered` is how much of the right side it lies over.
+   */
+  stacked?: { letters: number; covered: number };
   style?: StyleProp<ViewStyle>;
 }) {
   const { color } = useTheme();
   const styles = useStyles();
-  // No border at all unless there is one to draw: a transparent 0-wide ring still writes its colour
-  // into the style, and a circle that carries a hairline it cannot be seen against is a lie the next
-  // reader has to check by eye.
-  const collar = ringColor ? { borderWidth: 1.5, borderColor: ringColor } : null;
-  const circle = { width: size, height: size, borderRadius: size / 2, ...collar };
+  const circle = { width: size, height: size, borderRadius: size / 2 };
 
   return (
     <View
@@ -88,8 +84,8 @@ export function Avatar({
       style={[
         styles.avatar,
         circle,
-        // Spec 7.5: the organizer's collar is a shadow and not a border, so it can stand outside the
-        // hairline instead of replacing it.
+        // Spec 7.5: the organizer's collar is a shadow and not a border, so it stands outside the
+        // circle instead of eating into it.
         ring ? { boxShadow: `0 0 0 1.5px ${color.spark}` } : null,
         // A removed contact's circle goes a step down from `raise` and no further: the layout draws it
         // #1B1B24, between `surface` and `raise`, so it is still a circle on the `ink` of a list.
@@ -103,9 +99,21 @@ export function Avatar({
         <Text
           role={display ? 'subtitleDisplay' : 'row'}
           tone={gone ? 'faint' : 'paper'}
-          style={{
-            fontSize: display ? Math.round(size * 0.3) : (LETTERS[size] ?? Math.round(size / 3)),
-          }}
+          style={
+            stacked
+              ? {
+                  fontSize: stacked.letters,
+                  fontFamily: font.bold,
+                  // The letters' box grows on the right by what is hidden there, so the circle's own
+                  // centring puts the glyphs in the middle of what is left showing.
+                  paddingRight: stacked.covered,
+                }
+              : {
+                  fontSize: display
+                    ? Math.round(size * 0.3)
+                    : (LETTERS[size] ?? Math.round(size / 3)),
+                }
+          }
         >
           {initials(name)}
         </Text>
@@ -123,10 +131,25 @@ export function initials(name: string): string {
 }
 
 /**
- * Circles overlapping in a row, each ringed in the colour of whatever they lie on so the edges stay
- * apart — the sign on the «Контакты» card of the account screen, and the faces inside the «смотрят
- * сейчас» pill (spec 7.5). They overlap by 12 at 36 and by 7 at 24: the smaller the circle, the less
- * of it there is to give away.
+ * The two stacks the layout draws (spec 7.5, detail 32): 36 on the account's «Контакты», 24 in the
+ * «смотрят сейчас» pill. `overlap` is how far a circle slides under the next one; the collar that cuts
+ * them apart is `halo` of the colour underneath standing *outside* the circle at 36, and a 1.5
+ * hairline inside it at 24 (`halo` 0); `letters` is the initials' size, in 700.
+ */
+const STACK = {
+  36: { overlap: 12, halo: 2, letters: 11 },
+  24: { overlap: 7, halo: 0, letters: 8 },
+} as const;
+
+/**
+ * Circles overlapping in a row, each collared in the colour of whatever they lie on so the edges
+ * stay apart — the sign on the «Контакты» card of the account screen, and the faces inside the
+ * «смотрят сейчас» pill (spec 7.5). They overlap by 12 at 36 and by 7 at 24: the smaller the circle,
+ * the less of it there is to give away.
+ *
+ * The next circle, collar and all, hides the right side of the one under it — 14 of 36, 7 of 24 — so
+ * every circle but the last centres its initials in the part still showing: centred in the whole
+ * circle, «МК» reads «МI». The last one, and a «+N», have nothing over them and keep the middle.
  *
  * Four circles at most. Past that the fourth stops being a face and becomes «+N», because a row of
  * faces is a glance and not a list — and the number it carries is the people it stands for, the
@@ -138,16 +161,21 @@ export function AvatarStack({
   size = 36,
 }: {
   names: readonly string[];
-  /** The surface underneath, which is what the separating ring is drawn in. */
+  /** The surface underneath, which is what the separating collar is drawn in. */
   on?: string;
-  size?: number;
+  size?: keyof typeof STACK;
 }) {
   const { color } = useTheme();
   const styles = useStackStyles();
   const under = on ?? color.surface;
-  const over = { marginLeft: size >= 30 ? -12 : -7 };
+  const { overlap, halo, letters } = STACK[size];
+  const collar = halo
+    ? { boxShadow: `0 0 0 ${halo}px ${under}` }
+    : { borderWidth: 1.5, borderColor: under };
+  const over = { marginLeft: -overlap };
   const rest = names.length > 4 ? names.length - 3 : 0;
   const faces = rest ? names.slice(0, 3) : names.slice(0, 4);
+  const last = rest ? -1 : faces.length - 1;
 
   return (
     <View style={styles.row}>
@@ -156,21 +184,17 @@ export function AvatarStack({
           key={`${name}-${i}`}
           name={name}
           size={size}
-          ringColor={under}
-          style={i === 0 ? undefined : over}
+          stacked={{ letters, covered: i === last ? 0 : overlap + halo }}
+          style={[collar, i === 0 ? null : over]}
         />
       ))}
       {rest ? (
         <View
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
-          style={[
-            styles.more,
-            over,
-            { width: size, height: size, borderRadius: size / 2, borderColor: under },
-          ]}
+          style={[styles.more, collar, over, { width: size, height: size, borderRadius: size / 2 }]}
         >
-          <Text role="row" style={{ fontSize: LETTERS[size] ?? Math.round(size / 3) }}>
+          <Text role="row" style={{ fontSize: letters, fontFamily: font.bold }}>
             +{rest}
           </Text>
         </View>
@@ -185,17 +209,20 @@ export function AvatarStack({
  * circle, and the name is what it is called out as.
  *
  * Chosen, it stands in a double ring — 2 of the sheet's `surface`, then 2 of `paper` — with a `paper`
- * tick in its lower corner; not chosen, the whole face goes down to half. It lives on the sheet, so
+ * tick in its lower corner; `excluded`, the whole face goes down to half. It lives on the sheet, so
  * `surface` is what the inner ring and the tick's collar are cut in.
  */
 export function FaceToggle({
   name,
   selected,
+  excluded,
   onPress,
 }: {
   /** The whole name: the initials come out of it, and it is what the face is read out as. */
   name: string;
   selected: boolean;
+  /** Left out of the feed — somebody else is chosen and this one is not. The row says when. */
+  excluded?: boolean;
   onPress: () => void;
 }) {
   const { focused, props } = useHoverFocus();
@@ -215,7 +242,9 @@ export function FaceToggle({
         styles.face,
         selected
           ? { boxShadow: `0 0 0 2px ${color.surface}, 0 0 0 4px ${color.paper}` }
-          : styles.dim,
+          : excluded
+            ? styles.dim
+            : null,
         pressed && !reduced ? PRESS : null,
         focused ? focusRing : null,
       ]}
@@ -255,18 +284,37 @@ export function faceGap(width: number, count: number): number | undefined {
  * The row the faces stand in (spec 8, «Кто принёс»): spread across the sheet and wrapping onto a
  * second row rather than scrolling or hiding anybody (TASK-294). It measures itself — how many faces
  * fit is a question of the phone's width. The eyebrow over it is what names the group.
+ *
+ * Half strength means «left out», and whether anybody is left out is the row's to know, not a face's
+ * (spec 7.5, detail 31): with nobody chosen there is no filter by people and every face stands at full
+ * strength; once one is chosen, every face that is not goes down to half.
  */
-export function FaceRow({ children }: { children: ReactNode[] }) {
+export function FaceRow({
+  faces,
+  onToggle,
+}: {
+  faces: readonly { id: string; name: string; selected: boolean }[];
+  onToggle: (id: string) => void;
+}) {
   const styles = useFaceStyles();
   const [width, setWidth] = useState(0);
-  const gap = faceGap(width - FACE_EDGE * 2, children.length);
+  const gap = faceGap(width - FACE_EDGE * 2, faces.length);
+  const filtering = faces.some((face) => face.selected);
 
   return (
     <View
       onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
       style={[styles.row, gap === undefined ? styles.spread : { columnGap: gap }]}
     >
-      {children}
+      {faces.map((face) => (
+        <FaceToggle
+          key={face.id}
+          name={face.name}
+          selected={face.selected}
+          excluded={filtering && !face.selected}
+          onPress={() => onToggle(face.id)}
+        />
+      ))}
     </View>
   );
 }
@@ -344,7 +392,6 @@ const useStackStyles = themed(({ color }) =>
   StyleSheet.create({
     row: { flexDirection: 'row', alignItems: 'center' },
     more: {
-      borderWidth: 1.5,
       backgroundColor: color.raise,
       alignItems: 'center',
       justifyContent: 'center',

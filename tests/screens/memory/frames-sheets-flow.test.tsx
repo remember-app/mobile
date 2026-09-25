@@ -174,16 +174,25 @@ async function work(over: { who?: number; days?: number; labels?: Label[]; value
 
 test('the faces are pressed on and off, «Все дни» empties only the days, «Сбросить» empties everything and goes dim', async () => {
   const sheet = await work({ who: 7 });
-  // Nothing chosen: nothing to clear, the button offers the lot.
+  /** Which faces are drawn left out, at half — by the number in their name. */
+  const leftOut = () =>
+    sheet.root
+      .findAllByType(FaceToggle)
+      .filter((one) => one.props.excluded)
+      .map((one) => Number(one.props.name.replace('Гость Номер', '')));
+  // Nothing chosen: nothing to clear, the button offers the lot — and nobody is left out, so every
+  // face is at full strength (spec 7.5, detail 31).
   expect(sheet.button(ru.gallery.reset).props.disabled).toBe(true);
   expect(sheet.button(ru.gallery.showAll).props.disabled).toBeFalsy();
   expect(sheet.chip(ru.gallery.anyDay).props.selected).toBe(true);
+  expect(leftOut()).toEqual([]);
 
   await sheet.press(sheet.face(2));
   await sheet.press(sheet.face(7));
   await sheet.press(sheet.tiles()[1]);
   expect(sheet.face(2).props.selected).toBe(true);
   expect(sheet.face(1).props.selected).toBe(false);
+  expect(leftOut()).toEqual([1, 3, 4, 5, 6]);
   expect(sheet.tiles().map((one) => one.props.selected)).toEqual([false, true, false]);
   expect(sheet.chip(ru.gallery.anyDay).props.selected).toBe(false);
   // The button says what this draft leaves, live, and the sheet has not applied anything yet.
@@ -205,6 +214,7 @@ test('the faces are pressed on and off, «Все дни» empties only the days,
   await sheet.press(sheet.face(1));
   await sheet.press(sheet.button(ru.gallery.reset));
   expect(sheet.root.findAllByType(FaceToggle).some((one) => one.props.selected)).toBe(false);
+  expect(leftOut()).toEqual([]);
   expect(sheet.button(ru.gallery.reset).props.disabled).toBe(true);
   await sheet.press(sheet.button(ru.gallery.showAll));
   expect(sheet.applied).toHaveLength(1);

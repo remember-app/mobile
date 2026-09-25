@@ -12,7 +12,6 @@ import {
   Chip,
   DayTile,
   FaceRow,
-  FaceToggle,
   IconButton,
   RowFilmAt,
   RowSummary,
@@ -176,18 +175,10 @@ export function FilterSheet({
           <GroupLabel>{s.gallery.whoBrought}</GroupLabel>
           {/* Faces and no names (spec 8): a person is known by their circle, and the whole name is
               what the circle is read out as. More than a row of them wraps onto the next. */}
-          <FaceRow>
-            {people.map((person) => (
-              <FaceToggle
-                key={person.id}
-                name={person.name}
-                selected={draft.people.has(person.id)}
-                onPress={() =>
-                  setDraft((have) => ({ ...have, people: toggled(have.people, person.id) }))
-                }
-              />
-            ))}
-          </FaceRow>
+          <FaceRow
+            faces={people.map((person) => ({ ...person, selected: draft.people.has(person.id) }))}
+            onToggle={(id) => setDraft((have) => ({ ...have, people: toggled(have.people, id) }))}
+          />
         </View>
 
         <View style={styles.block}>

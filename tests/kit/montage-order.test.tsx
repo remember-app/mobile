@@ -1,4 +1,8 @@
+import { contrast } from '@tests/helpers/contrast';
+import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { Heart, House, Zap } from 'lucide-react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import TestRenderer, { act } from 'react-test-renderer';
 import { beforeAll, expect, test } from 'vitest';
 
 import {
@@ -13,9 +17,11 @@ import {
 } from '@/kit/montage-order';
 import { RowTrack } from '@/kit/rows';
 import { allDifferent, compiled, story } from '@/kit/story';
-import { setTheme } from '@/theme';
+import { setTheme, ThemePin, themes } from '@/theme';
 
 /** Spec 7.6 and 7.7 — what a person reads while they are ordering a montage. */
+
+mountsTrees();
 
 const SHOTS = ['https://b/1.jpg', 'https://b/2.jpg', 'https://b/3.jpg'];
 
@@ -187,6 +193,45 @@ test('with nothing chosen the block stays and says the film will have no music',
     ),
   });
 });
+
+test.each([
+  ['dark', 7.12],
+  ['light', 5.34],
+] as const)(
+  'the count in the head of «Выбрано» reads in `muted` on the block, %s',
+  async (theme, spec) => {
+    // Spec 7.7, detail 54 (10.10): the layout set it in `faint` — 3.48 : 1 on the block, under the 4.5
+    // floor for 12 px. The colour and the ground are read off what the block draws, not the tokens.
+    for (const [count, empty] of [
+      ['2 трека · 3:45', undefined],
+      [
+        'ничего не добавлено',
+        { title: 'Ролик будет без музыки', note: 'Только живой звук из видео' },
+      ],
+    ] as const) {
+      let tree!: TestRenderer.ReactTestRenderer;
+      await act(async () => {
+        tree = mounted(
+          TestRenderer.create(
+            <ThemePin value={theme}>
+              <BlockPicked title="Выбрано" count={count} empty={empty} />
+            </ThemePin>,
+          ),
+        );
+      });
+      const words = tree.root.findAllByType(Text).filter((one) => one.props.children === count);
+      expect(words).toHaveLength(1);
+      const ink = StyleSheet.flatten(words[0].props.style).color as string;
+      const ground = StyleSheet.flatten(tree.root.findAllByType(View)[0].props.style)
+        .backgroundColor as string;
+      expect(ink).toBe(themes[theme].color.muted);
+      expect(ground).toBe(themes[theme].color.surface);
+      const ratio = contrast(ink, ground);
+      expect(ratio, `${count} — ${ratio.toFixed(2)} : 1`).toBeGreaterThanOrEqual(4.5);
+      expect(ratio).toBeCloseTo(spec, 2);
+    }
+  },
+);
 
 test('the plate over the story names the template, or says the words are the person’s own', () => {
   const plate = story(<ChipTemplate label="Шаблон «Для родителей»" icon={House} />);

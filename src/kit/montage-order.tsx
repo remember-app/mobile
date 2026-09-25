@@ -323,11 +323,9 @@ export function BlockPicked({
         <Text role="eyebrow" tone="muted" accessibilityRole="header" style={styles.grow}>
           {title.toUpperCase()}
         </Text>
-        {count ? (
-          <Text role="meta" tone="faint">
-            {count}
-          </Text>
-        ) : null}
+        {/* `meta` reads in `muted`, as the spec writes it (detail 54): the layout's `faint` here is
+            3.48 : 1 on the block, under the floor for 12 px. */}
+        {count ? <Text role="meta">{count}</Text> : null}
       </View>
       {empty ? (
         <View accessible style={styles.silence}>

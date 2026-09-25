@@ -1,6 +1,6 @@
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { X } from 'lucide-react-native';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import { beforeAll, expect, test } from 'vitest';
 
@@ -63,13 +63,12 @@ test('the five kinds of circle are five kinds', () => {
     plain: <Avatar name="Марк Ковалёв" />,
     ringed: <Avatar name="Марк Ковалёв" ring />,
     gone: <Avatar name="Марк Ковалёв" gone />,
-    separated: <Avatar name="Марк Ковалёв" ringColor="#16161F" />,
+    stacked: <Avatar name="Марк Ковалёв" stacked={{ letters: 11, covered: 14 }} />,
     photo: <Avatar name="Марк Ковалёв" uri="https://bucket.example/m.jpg" />,
   });
   // The collar is `spark`, and it lies outside the circle: the one place a person is marked by
-  // colour, and the one ring that has to coexist with the hairline of a stack.
+  // colour.
   expect(story(<Avatar name="Марк Ковалёв" ring />)).toContain('0 0 0 1.5px #E4FF4F');
-  expect(story(<Avatar name="Марк Ковалёв" ring ringColor="#16161F" />)).toContain('1.5px');
   // A photograph takes the circle whole, and the initials stay the spare.
   expect(story(<Avatar name="Марк Ковалёв" uri="https://bucket.example/m.jpg" />)).not.toContain(
     'МК',
@@ -95,9 +94,9 @@ test('every size the layout draws a circle at is its own size, letters and all',
       ]),
     ),
   );
-  // 16 in a day gap carries 6px of letters; 36 in the account's stack carries 12.
+  // 16 in a day gap carries 6px of letters; 42 in a contact row carries 14.
   expect(story(<Avatar name="Марк Ковалёв" size={16} />)).toContain('font-size:6px');
-  expect(story(<Avatar name="Марк Ковалёв" size={36} />)).toContain('font-size:12px');
+  expect(story(<Avatar name="Марк Ковалёв" size={42} />)).toContain('font-size:14px');
 });
 
 test('the account’s own circle sets its letters like a name, at the size a confirmation does not', () => {
@@ -132,15 +131,101 @@ test('a stack overlaps by what its circles can spare, and stops at four', () => 
   expect(many).not.toContain('ИР');
 });
 
-test('the watching pill says how many are watching, in one sentence and not four', () => {
-  const pill = story(
-    <WatchingPill names={['Аня', 'Марк', 'Лиза']} count={3} label="Смотрят сейчас: 3" />,
+/** A number off a written style, `undefined` where the style does not carry it. */
+const px = (style: string, property: string) => {
+  const found = new RegExp(`(?:^|;)${property}:(-?[\\d.]+)px`).exec(style);
+  return found ? Number(found[1]) : undefined;
+};
+
+/**
+ * A drawn stack read back circle by circle, as the numbers that decide whether its initials show
+ * whole: how far the circle is covered by the next one — the overlap plus that one's collar where it
+ * stands outside the circle (a box-shadow; a border lies inside and hides nothing) — so what is left
+ * showing, and where the letters stand in it, at what size and weight.
+ */
+function stackOf(markup: string) {
+  const circles = [
+    ...markup.matchAll(/<div[^>]*style="([^"]*)"><div dir="auto"[^>]*style="([^"]*)">([^<]*)</g),
+  ].map(([, circle, letters, text]) => ({
+    text,
+    width: px(circle, 'width') ?? 0,
+    tuck: -(px(circle, 'margin-left') ?? 0),
+    halo: Number(/box-shadow:0 0 0 ([\d.]+)px/.exec(circle)?.[1] ?? 0),
+    letters,
+  }));
+  return circles.map(({ text, width, tuck, letters }, at) => {
+    const next = circles[at + 1];
+    const covered = next ? next.tuck + next.halo : 0;
+    return {
+      text,
+      // What the circle adds to the stack's width.
+      across: width - tuck,
+      visible: width - covered,
+      // The letters' box grows on the right by its padding, so the glyphs stand at the middle of
+      // what is left of the circle — this far left of the circle's own middle.
+      shift: (px(letters, 'padding-right') ?? 0) / 2,
+      size: px(letters, 'font-size'),
+      bold: letters.includes('font-family:Onest_700Bold'),
+    };
+  });
+}
+
+test('the initials of a stack show whole: 11 / 700 at 36, centred in the 22 the next circle leaves', () => {
+  // Spec 7.5, detail 32 (10.10): the next circle and its 2 collar hide the right 14 of 36, and
+  // letters centred in the whole circle lost 5.4 px of «МК». The overlap and the width stay.
+  const drawn = stackOf(
+    story(
+      <AvatarStack
+        names={['Марк Ковалёв', 'Аня Петрова', 'Вера Горина', 'Жанна Щукина']}
+        on="#16161F"
+      />,
+    ),
   );
-  expect(pill).toContain('aria-label="Смотрят сейчас: 3"');
-  expect(pill).toContain('>3<');
-  // Three faces at 24, overlapping by 7 and cut apart by a hairline in the colour under them.
-  expect(pill).toContain('margin-left:-7px');
-  expect(pill).toContain('font-size:9px');
+  expect(drawn.map((one) => one.text)).toEqual(['МК', 'АП', 'ВГ', 'ЖЩ']);
+  for (const circle of drawn.slice(0, -1)) {
+    expect(circle).toMatchObject({ visible: 22, shift: 7, size: 11, bold: true });
+    // Centred in what shows: as much room on either side of the letters' middle.
+    expect(18 - circle.shift).toBe(circle.visible / 2);
+  }
+  // The last one has nothing over it and keeps the middle.
+  expect(drawn.at(-1)).toMatchObject({ visible: 36, shift: 0, size: 11, bold: true });
+  // Four circles of 36 overlapping by 12: 108 across, as before.
+  expect(drawn.reduce((sum, one) => sum + one.across, 0)).toBe(108);
+  // A «+N» in the fourth place is the last circle: centred, and the third face gives way to it.
+  const many = stackOf(
+    story(<AvatarStack names={['Аня', 'Марк', 'Лиза', 'Ира', 'Пётр']} on="#16161F" />),
+  );
+  expect(many.map((one) => one.text)).toEqual(['АН', 'МА', 'ЛИ', '+2']);
+  expect(many[2]).toMatchObject({ visible: 22, shift: 7 });
+  expect(many[3]).toMatchObject({ visible: 36, shift: 0, size: 11, bold: true });
+});
+
+test('the same rule at 24: 8 / 700, centred in the 17 the next circle leaves', () => {
+  // The collar at 24 is a 1.5 hairline inside the circle, so only the overlap of 7 is hidden.
+  const drawn = stackOf(
+    story(<AvatarStack names={['Лиза Морозова', 'Марк Ковалёв', 'Аня Петрова']} size={24} />),
+  );
+  expect(drawn.map((one) => one.text)).toEqual(['ЛМ', 'МК', 'АП']);
+  for (const circle of drawn.slice(0, -1)) {
+    expect(circle).toMatchObject({ visible: 17, shift: 3.5, size: 8, bold: true });
+    expect(12 - circle.shift).toBe(circle.visible / 2);
+  }
+  expect(drawn.at(-1)).toMatchObject({ visible: 24, shift: 0, size: 8, bold: true });
+});
+
+test('the watching pill says how many are watching, in one sentence and not four', () => {
+  const markup = story(
+    <WatchingPill names={['Лиза Морозова', 'Марк Ковалёв']} count={3} label="Смотрят сейчас: 3" />,
+  );
+  expect(markup).toContain('aria-label="Смотрят сейчас: 3"');
+  expect(markup).toContain('>3<');
+  // The faces are the stack at 24, overlapping by 7 and cut apart by a hairline in the colour under
+  // them — the stack's own rule for the initials, not a copy of it.
+  expect(markup).toContain('margin-left:-7px');
+  expect(stackOf(markup)).toMatchObject([
+    { text: 'ЛМ', visible: 17, shift: 3.5, size: 8, bold: true },
+    { text: 'МК', visible: 24, shift: 0, size: 8, bold: true },
+  ]);
 });
 
 test('a member row carries the name, what they brought under it, and one mark at its edge', () => {
@@ -209,8 +294,8 @@ test('the three states of a contact row are three rows', () => {
   ).toContain('Убрали из контактов');
 });
 
-const face = (selected: boolean, name = 'Лиза Морозова') => (
-  <FaceToggle name={name} selected={selected} onPress={() => {}} />
+const face = (selected: boolean, excluded = false) => (
+  <FaceToggle name="Лиза Морозова" selected={selected} excluded={excluded} onPress={() => {}} />
 );
 
 test('a face in the filter is the circle alone, read out by the whole name', () => {
@@ -225,17 +310,52 @@ test('a face in the filter is the circle alone, read out by the whole name', () 
   expect(drawn).toContain('width:48px');
 });
 
-test('chosen is the double ring and the tick; not chosen is the whole face at half', () => {
-  allDifferent({ off: face(false), on: face(true) });
+test('chosen is the double ring and the tick; left out is the whole face at half', () => {
+  allDifferent({ off: face(false), on: face(true), left: face(false, true) });
   const on = story(face(true));
   // 2 of the sheet's `surface` (#16161F), then 2 of `paper` (#F5F3EE), and the tick in `paper`.
   expect(on).toContain('0 0 0 2px #16161F, 0 0 0 4px #F5F3EE');
   expect(on).toContain('data-glyph="Check"');
-  const off = story(face(false));
-  expect(off).not.toContain('4px #F5F3EE');
-  expect(off).not.toContain('data-glyph="Check"');
+  for (const off of [story(face(false)), story(face(false, true))]) {
+    expect(off).not.toContain('4px #F5F3EE');
+    expect(off).not.toContain('data-glyph="Check"');
+  }
   // Both swap with the theme: the rings are cut in the sheet's own colours.
   expect(story(<ThemePin value="light">{face(true)}</ThemePin>)).not.toContain('#16161F');
+});
+
+test('with nobody chosen every face is at full strength; once one is, the rest go down to half', async () => {
+  // Spec 7.5, detail 31 (chief, 25 September): half means «left out», and with no filter by people
+  // nobody is left out — so the rule is the row's, and it comes back whole when the choice is emptied.
+  const people = ['Лиза Морозова', 'Марк Ковалёв', 'Аня Петрова'];
+  const pressed: string[] = [];
+  const row = (chosen: string[]) => (
+    <FaceRow
+      faces={people.map((name) => ({ id: name, name, selected: chosen.includes(name) }))}
+      onToggle={(id) => pressed.push(id)}
+    />
+  );
+  let tree!: TestRenderer.ReactTestRenderer;
+  await act(async () => {
+    tree = mounted(TestRenderer.create(row([])));
+  });
+  const faces = () => tree.root.findAllByType(FaceToggle);
+  // The opacity the face's own press surface is drawn at — 1 where nothing sets one.
+  const strength = () =>
+    faces().map((one) => StyleSheet.flatten(one.findAllByType(View)[0].props.style).opacity ?? 1);
+
+  expect(strength()).toEqual([1, 1, 1]);
+  expect(faces().map((one) => one.props.excluded)).toEqual([false, false, false]);
+  await act(async () => tree.update(row(['Марк Ковалёв'])));
+  expect(strength()).toEqual([0.5, 1, 0.5]);
+  await act(async () => tree.update(row(['Марк Ковалёв', 'Аня Петрова'])));
+  expect(strength()).toEqual([0.5, 1, 1]);
+  // «Сбросить»: nobody chosen again, and everybody back at full strength.
+  await act(async () => tree.update(row([])));
+  expect(strength()).toEqual([1, 1, 1]);
+  // A press hands the row's owner the id of the face pressed, and nothing else.
+  await act(async () => faces()[2].props.onPress());
+  expect(pressed).toEqual(['Аня Петрова']);
 });
 
 test('one row of faces is spread edge to edge; past a row they wrap and keep the first row’s columns', () => {
@@ -261,11 +381,10 @@ test('the row wraps rather than scrolls, and hides nobody behind a «+N»', asyn
   await act(async () => {
     tree = mounted(
       TestRenderer.create(
-        <FaceRow>
-          {names.map((name) => (
-            <FaceToggle key={name} name={name} selected={false} onPress={() => {}} />
-          ))}
-        </FaceRow>,
+        <FaceRow
+          faces={names.map((name) => ({ id: name, name, selected: false }))}
+          onToggle={() => {}}
+        />,
       ),
     );
   });
