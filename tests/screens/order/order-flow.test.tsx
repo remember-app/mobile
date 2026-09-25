@@ -829,6 +829,27 @@ test(
   },
 );
 
+test(
+  'the pencil pressed while a template walks takes the wheel: the field stays, and so does the step',
+  BEAT_BY_BEAT,
+  async () => {
+    serve();
+    await open();
+    await act(async () => tile('dopamine').props.onPress());
+    await until(() => wizard.order.tracks.length === 1);
+    const { bright } = ru.montage.track;
+    await press(ru.montage.wishEdit(bright));
+    await settle();
+
+    expect(wizard.auto).toBeNull();
+    expect(nav.top()).toBe('music');
+    expect(wishField(bright)?.props.value).toBe(WISHES.dopamine?.bright);
+    // Only what had landed stays, with the person's own words on it.
+    await act(async () => wishField(bright)!.props.onChangeText('Моё'));
+    expect(wizard.order.tracks).toEqual([{ key: 'bright', name: null, wish: 'Моё' }]);
+  },
+);
+
 /* ── «Стоп» and the way out ─────────────────────────────────────────────── */
 
 const fullStory = (id: MontageTemplateId) =>
