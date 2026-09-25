@@ -378,3 +378,28 @@ test('signed out while a change is in the air, its answer signs nobody back in',
   });
   expect(auth).toMatchObject({ status: 'signed-out', user: null, datesBetweenDays: false });
 });
+
+test('signed in as somebody else before it answers, the answer stays on the account that asked', async () => {
+  const answered = later<void>();
+  holding(false, async () => {
+    await answered.promise;
+    return json(200, { ...ME, dates_between_days: true });
+  });
+  await signedIn();
+
+  let done!: Promise<void>;
+  await act(async () => {
+    done = auth.setDatesBetweenDays(true);
+  });
+  await act(() => auth.signOut());
+  const OTHER = { ...ME, id: 'mark', username: 'mark', dates_between_days: false };
+  api.honoured.add('session-mark');
+  vi.mocked(fetch).mockImplementationOnce(async () => json(200, OTHER));
+  await act(() => auth.signIn('session-mark'));
+  await act(async () => {
+    answered.settle();
+    await done;
+  });
+  expect(auth.user).toEqual(OTHER);
+  expect(auth.datesBetweenDays).toBe(false);
+});
