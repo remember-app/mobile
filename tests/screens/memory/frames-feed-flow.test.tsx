@@ -1,8 +1,11 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
 const { who, router, downloads } = vi.hoisted(() => ({
-  /** Who is asking. A test sets it before it opens the screen. */
-  who: { id: 'me' },
+  /**
+   * Who is asking, and their account's «Даты между днями». A test sets both before it opens the
+   * screen; the setting turned while a feed is open is `frames-dates-flow.test.tsx`'s.
+   */
+  who: { id: 'me', dates: false },
   router: { push: vi.fn(), back: vi.fn(), replace: vi.fn(), canGoBack: vi.fn(() => true) },
   // The phone's side of taking frames home: the grant, the gallery, and the share sheet.
   downloads: { maySaveToPhone: vi.fn(), saveToPhone: vi.fn(), shareFiles: vi.fn() },
@@ -21,7 +24,9 @@ vi.mock('react-native', async (importOriginal) => {
       visible === false ? null : (children as never),
   };
 });
-vi.mock('@/lib/auth', () => ({ useAuth: () => ({ token: 'session', user: { id: who.id } }) }));
+vi.mock('@/lib/auth', () => ({
+  useAuth: () => ({ token: 'session', user: { id: who.id }, datesBetweenDays: who.dates }),
+}));
 // The screen reads on focus, and the router that says when is not here: focus is «now, once».
 vi.mock('expo-router', async () => {
   const { useEffect } = await import('react');
@@ -69,7 +74,6 @@ import {
   FEED_GAP,
   GlassBar,
   IconButton,
-  RowToggle,
   Tile,
   Waiting,
 } from '@/kit';
@@ -96,6 +100,7 @@ mountsTrees();
 
 beforeEach(() => {
   who.id = 'me';
+  who.dates = false;
   router.push.mockClear();
   router.back.mockClear();
   router.replace.mockClear();
@@ -551,7 +556,7 @@ const openFilter = (screen: Screen) => screen.press(screen.icon(ru.gallery.filte
 /** A control of a sheet, found by the name it answers to. */
 const control = (
   sheet: TestRenderer.ReactTestInstance,
-  type: typeof Chip | typeof RowToggle | typeof Button,
+  type: typeof Chip | typeof Button,
   name: string,
 ) =>
   sheet.findAllByType(type as never).find((one) => (one.props.label ?? one.props.name) === name)!;
@@ -570,16 +575,10 @@ const seamsOf = (screen: Screen) =>
     ...(one.props.avatar === undefined ? {} : { avatar: one.props.avatar as string }),
   }));
 
-test('turning the dates on writes each day over its strip, and the round button says the order is no longer the default', async () => {
+test('with the account’s dates on, each day is written over its strip, and the sort button stays at its default', async () => {
+  who.dates = true;
   world();
   const screen = await open();
-  expect(screen.seams()).toHaveLength(0);
-  expect(screen.icon(ru.gallery.sorting)().props.dot).toBe(false);
-
-  await openSort(screen);
-  await act(async () =>
-    control(sortSheet(screen), RowToggle, ru.gallery.datesBetween).props.onValueChange(true),
-  );
   // A seam per day, newest first, the day and its name and never the year; a day carries no count.
   expect(seamsOf(screen)).toEqual([
     { label: '13 сентября, воскресенье', count: undefined },
@@ -588,28 +587,27 @@ test('turning the dates on writes each day over its strip, and the round button 
   ]);
   // The frames themselves have not moved; only the seams were put between them.
   expect(screen.feed()).toEqual(['a', 'b', 'c', 'd', 'e']);
-  // It takes effect as it is pressed — the sheet is still up, and «Готово» is only the way out.
-  expect(screen.root.findAllByType(SortSheet)).toHaveLength(1);
-  expect(screen.icon(ru.gallery.sorting)().props.dot).toBe(true);
-  await act(async () => sortSheet(screen).props.onDone());
-  expect(screen.root.findAllByType(SortSheet)).toHaveLength(0);
-  expect(screen.seams()).toHaveLength(3);
-  // And off again it is the default, and the dot goes with it.
+  // The dot on the sort button is the order and the groups only (spec 8, `MemoryDated`): the dates
+  // are the account's, and this feed has not been arranged at all.
+  expect(screen.icon(ru.gallery.sorting)().props.dot).toBe(false);
   await openSort(screen);
-  await act(async () =>
-    control(sortSheet(screen), RowToggle, ru.gallery.datesBetween).props.onValueChange(false),
-  );
+  await choose(() => segment(sortSheet(screen), ru.gallery.order), 'oldest');
+  expect(screen.icon(ru.gallery.sorting)().props.dot).toBe(true);
+});
+
+test('with them off the feed is the one wall, with not one seam in it', async () => {
+  world();
+  const screen = await open();
   expect(screen.seams()).toHaveLength(0);
+  expect(screen.feed()).toEqual(['a', 'b', 'c', 'd', 'e']);
   expect(screen.icon(ru.gallery.sorting)().props.dot).toBe(false);
 });
 
 test('«Сначала старые» turns the whole feed around, the days and the frames inside them', async () => {
+  who.dates = true;
   world();
   const screen = await open();
   await openSort(screen);
-  await act(async () =>
-    control(sortSheet(screen), RowToggle, ru.gallery.datesBetween).props.onValueChange(true),
-  );
   await choose(() => segment(sortSheet(screen), ru.gallery.order), 'oldest');
   expect(screen.feed()).toEqual(['e', 'd', 'c', 'b', 'a']);
   expect(seamsOf(screen).map((one) => one.label)).toEqual([
@@ -621,6 +619,8 @@ test('«Сначала старые» turns the whole feed around, the days and 
 });
 
 test('by people the seam is a person: their circle, the organizer’s ringed, the one with more frames first', async () => {
+  // With the account's dates on, too: a seam that is already a name has no date to add (`FramesByPeople`).
+  who.dates = true;
   world();
   const screen = await open();
   await openSort(screen);
@@ -632,18 +632,15 @@ test('by people the seam is a person: their circle, the organizer’s ringed, th
   ]);
   expect(screen.seams().map((one) => one.props.organizer)).toEqual([true, false]);
   expect(screen.feed()).toEqual(['a', 'd', 'e', 'b', 'c']);
-  // The seam is already a name, so the switch for dates is held shut.
-  expect(control(sortSheet(screen), RowToggle, ru.gallery.datesBetween).props.disabled).toBe(true);
   // By kind it is the two words, photographs before videos.
   await choose(() => segment(sortSheet(screen), ru.gallery.groupBy), 'kind');
   expect(seamsOf(screen)).toEqual([
     { label: ru.media.photo, count: '4' },
     { label: ru.media.video, count: '1' },
   ]);
-  // And «Не собирать» gives the switch back.
+  // And «Не собирать» gives the days back.
   await choose(() => segment(sortSheet(screen), ru.gallery.groupBy), 'none');
-  expect(control(sortSheet(screen), RowToggle, ru.gallery.datesBetween).props.disabled).toBe(false);
-  expect(screen.seams()).toHaveLength(0);
+  expect(screen.seams()).toHaveLength(3);
 });
 
 test('while picking a seam is a switch over its own day: it counts what a tap could mark, takes it, and gives it back', async () => {
@@ -654,12 +651,8 @@ test('while picking a seam is a switch over its own day: it counts what a tap co
     ],
   });
   void w;
+  who.dates = true;
   const screen = await open();
-  await openSort(screen);
-  await act(async () =>
-    control(sortSheet(screen), RowToggle, ru.gallery.datesBetween).props.onValueChange(true),
-  );
-  await act(async () => sortSheet(screen).props.onDone());
   await screen.startPicking();
   const seams = () =>
     screen.seams().map((one) => ({
@@ -886,20 +879,19 @@ test('a feed no longer than the screen has no spine at all', async () => {
   expect(spine(screen)).toHaveLength(2);
 });
 
-test('with the dates written between the days, or the feed cut by people or by kind, the spine is gone', async () => {
+test('with the account’s dates written between the days, or the feed cut by people or by kind, the spine is gone', async () => {
+  who.dates = true;
   world();
+  const dated = await open();
+  await measure(dated);
+  expect(spine(dated)).toEqual([]);
+  await dated.unmount();
+
+  who.dates = false;
   const screen = await open();
   await measure(screen);
   expect(spine(screen)).toHaveLength(2);
   await openSort(screen);
-  await act(async () =>
-    control(sortSheet(screen), RowToggle, ru.gallery.datesBetween).props.onValueChange(true),
-  );
-  expect(spine(screen)).toEqual([]);
-  await act(async () =>
-    control(sortSheet(screen), RowToggle, ru.gallery.datesBetween).props.onValueChange(false),
-  );
-  expect(spine(screen)).toHaveLength(2);
   await choose(() => segment(sortSheet(screen), ru.gallery.groupBy), 'person');
   expect(spine(screen)).toEqual([]);
   await choose(() => segment(sortSheet(screen), ru.gallery.groupBy), 'kind');

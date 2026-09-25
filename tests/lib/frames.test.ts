@@ -526,9 +526,12 @@ test('a name nobody claimed is the username, and somebody off the roster is «So
 // here for the reason the cut into days does — the screen that draws them cannot be rendered by any
 // test in this project, and the counts on both sheets have to agree with what they then show.
 
-/** The sheet as the face draws it: each heading with the frames standing under it. */
-const groups = (items: MediaItem[], sort = SORT_DEFAULT) =>
-  groupFrames(items, sort).map((group) => [group.key, group.frames.map((item) => item.id)]);
+/**
+ * The sheet as the face draws it: each heading with the frames standing under it. `dates` is the
+ * account's «Даты между днями», off as on a new account.
+ */
+const groups = (items: MediaItem[], sort = SORT_DEFAULT, dates = false) =>
+  groupFrames(items, sort, dates).map((group) => [group.key, group.frames.map((item) => item.id)]);
 
 /**
  * Three days of a wedding, as `listMedia` hands them over: oldest shot first. Two boxes lie over
@@ -555,11 +558,11 @@ test('the feed nobody has arranged is one wall with no seam in it at all', () =>
   expect(groups(wedding3)).toEqual([
     ['all', ['goodbyes', 'breakfast', 'dancing', 'vows', 'morning']],
   ]);
-  expect(groupFrames([], SORT_DEFAULT)).toEqual([]);
+  expect(groupFrames([], SORT_DEFAULT, false)).toEqual([]);
 });
 
-test('turning the dates on cuts that wall into days — `MemoryDated`', () => {
-  expect(groups(wedding3, { ...SORT_DEFAULT, dates: true })).toEqual([
+test('the account’s dates between the days cut that wall into days — `MemoryDated`', () => {
+  expect(groups(wedding3, SORT_DEFAULT, true)).toEqual([
     [`day-${day(5)}`, ['goodbyes']],
     [`day-${day(4)}`, ['breakfast', 'dancing']],
     [`day-${day(3)}`, ['vows', 'morning']],
@@ -569,37 +572,37 @@ test('turning the dates on cuts that wall into days — `MemoryDated`', () => {
 test('«Сначала старые» turns the whole sheet around, the days as well as their frames', () => {
   // The direction is one answer for the sheet: a strip read one way under headings read the other
   // is nobody's idea of an order.
-  expect(groups(wedding3, { by: 'none', order: 'oldest', dates: true })).toEqual([
+  expect(groups(wedding3, { by: 'none', order: 'oldest' }, true)).toEqual([
     [`day-${day(3)}`, ['morning', 'vows']],
     [`day-${day(4)}`, ['dancing', 'breakfast']],
     [`day-${day(5)}`, ['goodbyes']],
   ]);
-  expect(groups(wedding3, { by: 'none', order: 'oldest', dates: false })).toEqual([
+  expect(groups(wedding3, { by: 'none', order: 'oldest' }, false)).toEqual([
     ['all', ['morning', 'vows', 'dancing', 'breakfast', 'goodbyes']],
   ]);
 });
 
 test('by people, whoever brought the most stands first — `FramesByPeople`', () => {
-  expect(groups(wedding3, { by: 'person', order: 'newest', dates: true })).toEqual([
+  expect(groups(wedding3, { by: 'person', order: 'newest' }, true)).toEqual([
     ['who-liza', ['goodbyes', 'dancing', 'morning']],
     // Two people who brought the same amount fall in the sheet's own direction: Anya's one frame is
     // the newer of the two, and reading newest first that is the heading that comes first.
     ['who-anya', ['breakfast']],
     ['who-mark', ['vows']],
   ]);
-  // A seam about somebody is already saying where their frames begin, so the switch of dates has
-  // nothing left to give here — the sheet holds it shut, and the cut answers the same either way.
-  expect(groups(wedding3, { by: 'person', order: 'newest', dates: false })).toEqual(
-    groups(wedding3, { by: 'person', order: 'newest', dates: true }),
+  // A seam about somebody is already saying where their frames begin, so the account's dates have
+  // nothing left to give here — the cut answers the same either way.
+  expect(groups(wedding3, { by: 'person', order: 'newest' }, false)).toEqual(
+    groups(wedding3, { by: 'person', order: 'newest' }, true),
   );
 });
 
 test('by kind, photos before videos, and a kind nobody brought is not a heading', () => {
-  const byKind: Sort = { by: 'kind', order: 'newest', dates: false };
+  const byKind: Sort = { by: 'kind', order: 'newest' };
   expect(groups(wedding3, byKind).map(([key]) => key)).toEqual(['kind-photo', 'kind-video']);
   const photos = wedding3.filter((item) => item.kind === 'photo');
   expect(groups(photos, byKind).map(([key]) => key)).toEqual(['kind-photo']);
-  expect(groupFrames([], byKind)).toEqual([]);
+  expect(groupFrames([], byKind, false)).toEqual([]);
 });
 
 test('every day of the wall is a mark on the spine, on the seam between two rows', () => {
@@ -607,7 +610,7 @@ test('every day of the wall is a mark on the spine, on the seam between two rows
   // across: «goodbyes», «breakfast» and «dancing» make the first row, «vows» and «morning» the
   // second. So the last day opens the feed at its very top, and the first day opens the second row
   // one pitch down.
-  const wall = groupFrames(wedding3, SORT_DEFAULT)[0].frames;
+  const wall = groupFrames(wedding3, SORT_DEFAULT, false)[0].frames;
   expect(dateMarks(wall, { top: 100, row: 131 })).toEqual([
     { at: day(5), top: 100 },
     { at: day(3), top: 231 },
@@ -719,9 +722,9 @@ test('the spark dot means «no longer at its default», and nothing else', () =>
   expect(arranged(SORT_DEFAULT)).toBe(false);
   expect(arranged({ ...SORT_DEFAULT, by: 'person' })).toBe(true);
   expect(arranged({ ...SORT_DEFAULT, order: 'oldest' })).toBe(true);
-  // The dates between the days are an arrangement like any other, and `MemoryDated` is drawn with
-  // the dot burning on the round button they were turned on from.
-  expect(arranged({ ...SORT_DEFAULT, dates: true })).toBe(true);
+  // The dates between the days are not asked at all: they are the account's setting and not this
+  // feed's arrangement, so `MemoryDated` at the default order burns no dot (spec 8).
+  expect(SORT_DEFAULT).toEqual({ by: 'none', order: 'newest' });
 });
 
 // «Выбрать все» in the capsule of the picking mode (spec 8, `FramesPicking`): every frame a mark could

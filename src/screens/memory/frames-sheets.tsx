@@ -12,7 +12,6 @@ import {
   Chip,
   RowFilmAt,
   RowSummary,
-  RowToggle,
   Segment,
   Sheet,
   Spinner,
@@ -39,7 +38,7 @@ import {
 import { usePlaceName } from '@/lib/geocoder';
 import { labelTint } from '@/lib/labels';
 import { useStrings } from '@/lib/language';
-import { radius, space, themed, useTheme } from '@/theme';
+import { height, radius, space, themed, useTheme } from '@/theme';
 
 /**
  * The sheets the gallery raises (spec 8): the two it is tuned from — the left round button at the
@@ -300,10 +299,9 @@ export function FilterSheet({
 }
 
 /**
- * `SheetSort` — in what order to show it (spec 8). Two rows of pills with every answer visible at
- * once, and under them the one switch: **a date is a caption and not a group**, which is why the
- * days are not among the three cuts. On — a 20px seam between the days (`MemoryDated`); off — the
- * spine at the right edge of the feed, and only while a finger is moving it (`MemoryScrub`).
+ * `SheetSort` — in what order to show it (spec 8), and nothing else: two rows of pills with every
+ * answer visible at once. Whether the days are written between the strips is not decided here — it
+ * is the account's «Даты между днями», one for every feed.
  *
  * Everything here takes effect as it is pressed: there is nothing to preview on a sheet standing
  * over the very thing it rearranges, so «Готово» is a way out and not a commitment.
@@ -325,6 +323,7 @@ export function SortSheet({
       visible
       onCancel={onDone}
       title={s.gallery.sorting}
+      height={height.sheetSort}
       footer={<Button variant="primary" label={s.action.done} onPress={onDone} />}
     >
       <View style={styles.group}>
@@ -359,17 +358,6 @@ export function SortSheet({
           ]}
         />
       </View>
-
-      {/* Held shut while the feed is cut by people or by kind: the seam there is already a name,
-          and a switch that would change nothing at all is worse than one that says it cannot. It
-          comes back live with «Не собирать», which is the row right above it. */}
-      <RowToggle
-        label={s.gallery.datesBetween}
-        note={s.gallery.datesNote}
-        value={value.dates}
-        onValueChange={(dates) => onChange({ ...value, dates })}
-        disabled={value.by !== 'none'}
-      />
     </Sheet>
   );
 }

@@ -140,20 +140,16 @@ test('the sort takes effect as it is pressed, and «Готово» is only the w
   expect(sheets).toContain('onChange={(by: GroupBy) => onChange({ ...value, by })}');
   expect(sheets).toContain('onChange={(order: Order) => onChange({ ...value, order })}');
   expect(sheets).toContain('label={s.action.done}');
-  // The three cuts of the layout, and the days are none of them: a date is a caption over a strip,
-  // so it has a switch of its own with a line under it saying what off means.
+  // The three cuts of the layout, and the days are none of them: whether a date stands between the
+  // strips is the account's «Даты между днями», read by the feed and not decided on this sheet.
   expect(ru.gallery.groups.none).toBe('Не собирать');
   expect(ru.gallery.groups.person).toBe('По людям');
   expect(ru.gallery.order).toBe('Порядок');
   expect(ru.gallery.orders.newest).toBe('Сначала новые');
-  expect(ru.gallery.datesBetween).toBe('Даты между днями');
-  expect(ru.gallery.datesNote).toBe(
-    'Выключено — дата видна только на полосе у края, пока листаете.',
-  );
-  expect(sheets).toContain('onValueChange={(dates) => onChange({ ...value, dates })}');
-  // Held shut while the feed is cut by people or by kind: there the seam is already a name, and a
-  // switch that would change nothing is worse than one that says it cannot.
-  expect(sheets).toContain("disabled={value.by !== 'none'}");
+  expect(sheets).not.toContain('RowToggle');
+  expect(frames).toContain('const { token, user, datesBetweenDays } = useAuth();');
+  // Spec 4: 380 tall, and the button at its foot.
+  expect(sheets).toContain('height={height.sheetSort}');
 });
 
 test('each of the two sheets glows exactly once', () => {

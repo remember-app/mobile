@@ -1,12 +1,21 @@
 import * as SecureStore from 'expo-secure-store';
 import type { ReactNode } from 'react';
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 
 import {
   ApiError,
   endSession,
   fetchMe,
   onSessionRefused,
+  putDatesBetweenDays,
   putLanguage,
   putUsername,
   type User,
@@ -32,6 +41,16 @@ type Auth = {
   signOut: () => Promise<void>;
   /** Claim or change the username. Throws ApiError 409 (taken) / 400 (format) for the caller to show. */
   setUsername: (username: string) => Promise<void>;
+  /**
+   * «Даты между днями» — the account's one setting for every feed (spec 8, `MemoryDated`). Read
+   * here and not off `user`: a change in flight is already this value. Off until the account is read.
+   */
+  datesBetweenDays: boolean;
+  /**
+   * Change it on the account. Every feed turns at once; a refusal turns them back to what the api
+   * holds and rejects with the api's error for the caller to show.
+   */
+  setDatesBetweenDays: (on: boolean) => Promise<void>;
 };
 
 const AuthContext = createContext<Auth | null>(null);
@@ -46,6 +65,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  /**
+   * What the latest change of «Даты между днями» asked for, until the api has answered it. `user`
+   * only ever holds what the api said, so letting go of this is the whole of the rollback.
+   */
+  const [datesAsked, setDatesAsked] = useState<boolean | null>(null);
+  const datesCall = useRef(0);
   const language = useLanguage();
 
   /**
@@ -56,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const forget = useCallback(async () => {
     setToken(null);
     setUser(null);
+    setDatesAsked(null);
     await SecureStore.deleteItemAsync(TOKEN_KEY);
   }, []);
 
@@ -149,6 +175,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [token],
   );
 
+  const setDatesBetweenDays = useCallback(
+    async (on: boolean) => {
+      if (!token) throw new Error('not signed in');
+      const call = ++datesCall.current;
+      setDatesAsked(on);
+      try {
+        const me = await putDatesBetweenDays(token, on);
+        // Onto the account it was asked for only: signed out while this was in the air stays out.
+        setUser((have) => (have?.id === me.id ? me : have));
+      } finally {
+        // An earlier change answering late leaves the latest one's ask standing.
+        if (call === datesCall.current) setDatesAsked(null);
+      }
+    },
+    [token],
+  );
+  const datesBetweenDays = datesAsked ?? user?.dates_between_days ?? false;
+
   const status: AuthStatus = loading
     ? 'loading'
     : !user
@@ -158,8 +202,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         : 'ready';
 
   const value = useMemo(
-    () => ({ token, user, status, signIn, signOut, setUsername }),
-    [token, user, status, signIn, signOut, setUsername],
+    () => ({
+      token,
+      user,
+      status,
+      signIn,
+      signOut,
+      setUsername,
+      datesBetweenDays,
+      setDatesBetweenDays,
+    }),
+    [token, user, status, signIn, signOut, setUsername, datesBetweenDays, setDatesBetweenDays],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -370,7 +370,7 @@ test('the sheet is one flat list of headings and strips, never a three-column gr
   // sort sheet gave, and it comes off `@/lib/frames` rather than off `@/lib/media-window` — this face has
   // no event window to sort by, every frame in it is already the event's.
   expect(upload).toContain('frames: day');
-  expect(frames).toContain('groupFrames(kept, sort)');
+  expect(frames).toContain('groupFrames(kept, sort, datesBetweenDays)');
   expect(frames).toContain('frames: group.frames.slice(i * COLUMNS, i * COLUMNS + COLUMNS)');
   expect(frames).not.toContain('assetsByDay');
   // What is laid out is what the filter left, and both are asked of `@/lib/frames` so the sheet, the
@@ -379,7 +379,7 @@ test('the sheet is one flat list of headings and strips, never a three-column gr
   // Cut once per read and held, not on every tap: marking a frame is a render, and the sheet of a
   // whole wedding is re-cut in it.
   expect(frames).toContain('const rows = useMemo(');
-  expect(frames).toContain('[kept, sort],');
+  expect(frames).toContain('[kept, sort, datesBetweenDays],');
 });
 
 test('the seam over a strip says what is under it, and takes the whole day while picking', () => {

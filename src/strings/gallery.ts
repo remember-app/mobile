@@ -96,8 +96,8 @@ export const en = {
     reset: 'Reset',
 
     /**
-     * `SheetSort` — in what order, and how it is cut. The dates are neither: a date is a caption
-     * over a strip and not a group, so it has a switch of its own with a line saying what it does.
+     * `SheetSort` — in what order, and how it is cut. The dates are neither: whether they stand
+     * between the days is the account's setting, not the sheet's.
      */
     sorting: 'Sorting',
     order: 'Order',
@@ -105,8 +105,6 @@ export const en = {
     /** The three cuts: nothing at all, the person who brought it, photo against video. */
     groups: { none: 'No groups', person: 'By person', kind: 'By kind' },
     orders: { newest: 'Newest first', oldest: 'Oldest first' },
-    datesBetween: 'Dates between days',
-    datesNote: 'Off — the date is only on the rail at the edge, while you scroll.',
     deleteAsk: (kind: 'photo' | 'video') => `Delete this ${kind === 'video' ? 'video' : 'photo'}?`,
     /** The same question over an armful, with the price named as a number before the press. */
     deleteAskMany: (n: number) => `Delete ${n} ${n === 1 ? 'frame' : 'frames'}?`,
@@ -269,8 +267,6 @@ export const ru: typeof en = {
     groupBy: 'Собрать в группы',
     groups: { none: 'Не собирать', person: 'По людям', kind: 'По типу' },
     orders: { newest: 'Сначала новые', oldest: 'Сначала старые' },
-    datesBetween: 'Даты между днями',
-    datesNote: 'Выключено — дата видна только на полосе у края, пока листаете.',
     deleteAsk: (kind: 'photo' | 'video') => `Удалить это ${kind === 'video' ? 'видео' : 'фото'}?`,
     deleteAskMany: (n: number) => `Удалить ${count(n, 'кадр', 'кадра', 'кадров')}?`,
     deleteText: 'Оно уйдёт из воспоминания навсегда. В уже собранном ролике останется.',

@@ -91,6 +91,8 @@ export const height = {
   chipXs: 34,
   /** the «смотрят сейчас» pill in a bar */
   watchPill: 36,
+  /** `SheetSort`, the whole sheet from its top edge down */
+  sheetSort: 380,
 } as const;
 
 /**

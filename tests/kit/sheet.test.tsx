@@ -130,6 +130,28 @@ test('a long body scrolls while the heading and the bottom block stay put', () =
   });
 });
 
+test('a sheet given the layout’s height is at least that tall, and one without it fits what it holds', () => {
+  const sheet = (height?: number) =>
+    story(
+      <Sheet
+        visible
+        onCancel={() => {}}
+        title="Сортировка"
+        height={height}
+        footer={<Button variant="primary" label="Готово" />}
+      >
+        <Text>Порядок</Text>
+      </Sheet>,
+    );
+  // A floor, so a sheet holding more than 380 still grows to hold it (spec 7.1).
+  expect(sheet(380)).toMatch(/min-height:\s*380px/);
+  expect(sheet(380)).not.toMatch(/[^-]height:\s*380px/);
+  // And the body takes what is left over, which is what puts the button at the foot.
+  expect(sheet(380)).toContain('r-flexGrow');
+  expect(sheet()).not.toMatch(/min-height:\s*380px/);
+  expect(sheet()).not.toContain('r-flexGrow');
+});
+
 /**
  * The darkness is deaf for its first moments. The second tap of a double tap on the button that
  * opened the sheet lands where that button was — which is now the darkness — and closes what has

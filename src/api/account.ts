@@ -8,6 +8,8 @@ export type User = {
   username: string | null;
   name: string | null;
   email: string | null;
+  /** «Даты между днями»: one setting of the person for every feed of theirs, off on a new account. */
+  dates_between_days: boolean;
 };
 
 /** What every sign-in endpoint answers with: the session token plus the account it belongs to. */
@@ -92,6 +94,18 @@ export function putUsername(token: string, username: string): Promise<User> {
  */
 export function putLanguage(token: string, language: Language): Promise<User> {
   return request('/me/language', { method: 'POST', body: { language }, token });
+}
+
+/**
+ * Turn «Даты между днями» on or off for the account — every feed of every memory, on every phone the
+ * person is signed in on. Answers with the account, same as `putLanguage`.
+ */
+export function putDatesBetweenDays(token: string, on: boolean): Promise<User> {
+  return request('/me/dates-between-days', {
+    method: 'POST',
+    body: { dates_between_days: on },
+    token,
+  });
 }
 
 /**
