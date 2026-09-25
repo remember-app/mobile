@@ -14,5 +14,12 @@
         "EXPO_PUBLIC_API_URL": "https://dev-api-remember.noxlabs.xyz"
       }
     }
+  },
+  "submit": {
+    "testflight": {
+      "ios": {
+        "ascAppId": "6816034455"
+      }
+    }
   }
 }
