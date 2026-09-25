@@ -98,10 +98,12 @@ const ME = {
 function world({
   contacts = [contact('mark', 'Марк Ковалёв'), contact('anya', 'Аня Петрова')],
   dates,
+  username,
   logout,
 }: {
   contacts?: unknown[];
   dates?: () => unknown;
+  username?: () => unknown;
   logout?: () => unknown;
 } = {}): Asked[] {
   let me = { ...ME };
@@ -115,6 +117,7 @@ function world({
     }
     if (asked.path.startsWith('/me/username/available')) return { available: true };
     if (asked.path === '/me/username') {
+      if (username) return username();
       me = { ...me, ...(asked.body as object) };
       return me;
     }
@@ -180,6 +183,10 @@ async function open() {
             one.props.accessibilityRole === 'radio' && one.props.accessibilityLabel === label,
         )!,
     toggle: () => root().findByType(RowToggle),
+    pencil: () =>
+      root()
+        .findAllByType(IconButton)
+        .find((one) => one.props.label === ru.profile.edit)!,
     /** The sheet of the pencil — the other sheet on this screen is the question before the way out. */
     renaming: () =>
       root()
@@ -215,12 +222,7 @@ test('the screen is the card, «Контакты», «Тема» and «Язык�
     'Аня Петрова',
   ]);
   // The pencil, the three and the two pills, the switch, and the red way out last of all.
-  expect(
-    screen
-      .root()
-      .findAllByType(IconButton)
-      .find((one) => one.props.label === ru.profile.edit),
-  ).toBeDefined();
+  expect(screen.pencil()).toBeDefined();
   expect(
     screen.segment(ru.theme.label).props.options.map((o: { label: string }) => o.label),
   ).toEqual(['Как в системе', 'Тёмная', 'Светлая']);
@@ -291,11 +293,7 @@ test('the pills turn the theme and the language', async () => {
 test('the pencil opens the one username form on a sheet, and a new name closes it', async () => {
   const asked = world();
   const screen = await open();
-  const pencil = screen
-    .root()
-    .findAllByType(IconButton)
-    .find((one) => one.props.label === ru.profile.edit)!;
-  await screen.press(pencil);
+  await screen.press(screen.pencil());
   const sheet = screen.renaming;
   expect(sheet().props.visible).toBe(true);
   // Not a route: /set-username is the last step of the way in, and the gate keeps it there.
@@ -312,6 +310,22 @@ test('the pencil opens the one username form on a sheet, and a new name closes i
   });
   expect(sheet().props.visible).toBe(false);
   expect(screen.words()).toContain('@liza.m');
+});
+
+test('a name somebody holds keeps the sheet up and says so; closed and opened again, the form starts over', async () => {
+  world({ username: () => refused(409, 'username taken') });
+  const screen = await open();
+  await screen.press(screen.pencil());
+  const field = () => screen.renaming().findByType(Field);
+  await act(async () => field().props.onChangeText('mark'));
+  await screen.press(screen.button(ru.action.save)!);
+  expect(screen.renaming().props.visible).toBe(true);
+  expect(field().props.hint).toBe(ru.error.usernameTaken);
+  expect(screen.words()).toContain('@liza');
+
+  await act(async () => screen.renaming().props.onCancel());
+  await screen.press(screen.pencil());
+  expect(field().props).toMatchObject({ value: 'liza', hint: ru.username.lead });
 });
 
 test('the way out asks first, and «Остаться» keeps the person here', async () => {
