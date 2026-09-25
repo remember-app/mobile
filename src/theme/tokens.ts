@@ -97,8 +97,16 @@ export const height = {
   dayTile: 86,
   /** the «смотрят сейчас» pill in a bar */
   watchPill: 36,
-  /** `SheetSort`, the whole sheet from its top edge down */
-  sheetSort: 380,
+  /**
+   * The sheets (spec 4, «Высоты листов»), each from its top edge down — a floor and not a cap: a
+   * sheet holding more grows to hold it. `SheetSort` and `SheetConfirmMemory` are what their
+   * content comes to (381 and 434), because the drawn 380 and 430 squeeze the handle and a button.
+   */
+  sheetConfirmDelete: 380,
+  sheetSort: 381,
+  sheetConfirmMember: 420,
+  sheetConfirmMemory: 434,
+  sheetFilter: 560,
 } as const;
 
 /**

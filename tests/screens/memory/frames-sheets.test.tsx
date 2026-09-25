@@ -4,7 +4,7 @@ import { beforeAll, expect, test, vi } from 'vitest';
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
 
 import type { FrameInfo, Label } from '@/api';
-import { allDifferent, story } from '@/kit/story';
+import { allDifferent, rule, story } from '@/kit/story';
 import { FILTER_NONE, type Filter, type FilterDay, SORT_DEFAULT, type Sort } from '@/lib/frames';
 import { FilterSheet, FrameInfoSheet, SortSheet } from '@/screens/memory/frames-sheets';
 import { setTheme, ThemePin } from '@/theme';
@@ -351,9 +351,39 @@ test('the sort sheet is the order and the three cuts, and nothing about dates', 
   });
 });
 
-test('the sort sheet is as tall as the layout draws it, the button pushed down to its foot', () => {
-  // Spec 4: `SheetSort` is 380. It holds less than that, and spec 7.1 has the spacer take the rest.
-  expect(story(sorting())).toMatch(/min-height:\s*380px/);
+/** The sheet's own style: its rhythm, and its floor when it has one. */
+const sheetStyle = (markup: string) => /style="(gap:[^"]*padding-bottom:[^"]*)"/.exec(markup)?.[1];
+/** The classes of the block a group's heading opens: the heading and the row it introduces. */
+const groupOf = (markup: string, heading: string) =>
+  new RegExp(`<div class="([^"]+)"><h1[^>]*>${heading}</h1>`).exec(markup)?.[1];
+
+test('the two tuning sheets stand as drawn: 20 between blocks, 10 under a heading, 381 and 560 tall', () => {
+  const sort = story(sorting());
+  const filters = story(filter());
+  // Spec 4 and 10.10: `SheetSort` is 381 — the layout's 380 squeezed its handle and «Готово» — and
+  // `SheetFilter` 560, both a floor the sheet grows past rather than a height it is cut to.
+  expect(sheetStyle(sort)).toMatch(/^gap:20px;.*min-height:381px;/);
+  expect(sheetStyle(filters)).toMatch(/^gap:20px;.*min-height:560px;/);
+  for (const drawn of [sort, filters]) expect(drawn).not.toMatch(/[^-]height:\s*(381|560)px/);
+  // The filter scrolls, and keeps the same 20 inside the scroll.
+  expect(filters).toContain('<div class="css-view-g5y9jx" style="gap:20px">');
+  // One style for a heading and its row on both sheets: 10 down to the segments and the chips, and
+  // 12 down to the faces (spec 8).
+  for (const [drawn, heading] of [
+    [sort, 'ПОРЯДОК'],
+    [sort, 'СОБРАТЬ В ГРУППЫ'],
+    [filters, 'ТИП'],
+    [filters, 'ЛЕЙБЛЫ'],
+  ]) {
+    expect(groupOf(drawn, heading), heading).toContain(rule('gap:10px'));
+  }
+  expect(groupOf(filters, 'КТО ПРИНЁС')).toContain(rule('gap:12px'));
+});
+
+test('the sheet of a frame sets its facts out 14 apart, as `SheetFrameInfo` draws them', () => {
+  expect(sheetStyle(story(sheet()))).toMatch(/^gap:14px;/);
+  // «В роликах» and the movie under it stand 8 apart.
+  expect(groupOf(story(sheet()), 'В роликах')).toContain(rule('gap:8px'));
 });
 
 test('the sheet is drawn in the theme the app is in, because daylight reaches it', () => {

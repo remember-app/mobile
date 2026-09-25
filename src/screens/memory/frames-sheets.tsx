@@ -155,6 +155,8 @@ export function FilterSheet({
         </View>
       }
       scroll
+      rhythm="tuning"
+      height={height.sheetFilter}
       footer={
         <Button
           variant="primary"
@@ -322,10 +324,11 @@ export function SortSheet({
       visible
       onCancel={onDone}
       title={s.gallery.sorting}
+      rhythm="tuning"
       height={height.sheetSort}
       footer={<Button variant="primary" label={s.action.done} onPress={onDone} />}
     >
-      <View style={styles.group}>
+      <View style={styles.block}>
         <GroupLabel>{s.gallery.order}</GroupLabel>
         <Segment
           wide
@@ -341,7 +344,7 @@ export function SortSheet({
         />
       </View>
 
-      <View style={styles.group}>
+      <View style={styles.block}>
         <GroupLabel>{s.gallery.groupBy}</GroupLabel>
         <Segment
           wide
@@ -421,6 +424,7 @@ export function FrameInfoSheet({
       // No footer: the sheet is closed by the darkness, the handle and the back key, like every
       // other one. A button saying «Закрыть» under a sheet that only shows things is furniture.
       scroll
+      rhythm="list"
     >
       {error !== null ? <Banner tone="error" text={error} /> : null}
       {info === null ? (
@@ -480,14 +484,15 @@ export function FrameInfoSheet({
 
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
-    // A heading and the row it introduces, the way every group on the two tuning sheets is built.
+    // Spec 8, `SheetFrameInfo`: «В роликах» and the movies under it, 8 apart.
     group: { gap: space.s2 },
     // Spec 8 — the heading of `SheetFilter` and the small «Сбросить» share one row.
     titleRow: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },
     title: { flex: 1, minWidth: 0 },
     // Spec 7.3: chips lie in a wrapping row 8 apart and wrap as they need to.
     chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.s2 },
-    // Spec 8, `SheetFilter`: 20 between its blocks, 12 under «Кто принёс», 10 under the others.
+    // Spec 8, `SheetFilter`: 20 between its blocks, 12 under «Кто принёс»; and on both tuning
+    // sheets, 10 between every other heading and the row it introduces.
     blocks: { gap: space.s5 },
     faces: { gap: space.s3 },
     block: { gap: 10 },
