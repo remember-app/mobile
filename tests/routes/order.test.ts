@@ -55,7 +55,7 @@ test('the wizard is a folder of steps, and no step declares another', () => {
     expect(step).not.toContain('<Board>');
   }
   expect(wizard).toContain('? s.montage.step(step, STEPS)');
-  expect(wizard).toContain('label={s.action.cancel}');
+  expect(wizard).toContain('label: s.action.cancel,');
 });
 
 test('what was answered lives above the steps, so walking back and forth loses nothing', () => {
@@ -227,7 +227,7 @@ test('while the autopilot walks, the bottom layer says so and hands the wheel ba
     'onPress={() => {\n              stop();\n              if (router.canGoBack()) router.back();',
   );
   expect(wizard).toContain(
-    'onPress={() => {\n                stop();\n                if (entered(order)) setLeaving(true);',
+    'onPress: () => {\n                  stop();\n                  if (entered(order)) setLeaving(true);',
   );
   // Stopped, the step is a step again and everything already filled in stays: the only thing
   // `stop` touches is which walk is the current one.
@@ -256,7 +256,7 @@ test('the wizard’s bar wears three faces, and only the total has nothing on it
   expect(wizard).toContain("const counted = typeof step === 'number';");
   expect(wizard).toContain("variant={counted ? 'step' : 'summary'}");
   expect(wizard).toContain(': s.montage.newOne');
-  expect(wizard).toContain('cancel={\n          summary ? undefined : (');
+  expect(wizard).toContain('cancel={\n          summary\n            ? undefined\n            : {');
   expect(templates).toContain('step="templates"');
   expect(summary).toContain('step="summary"');
   // The «Назад» is on all of them: from the way in it is the way out of the wizard, because there

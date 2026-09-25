@@ -1,19 +1,33 @@
+import { expect, test, vi } from 'vitest';
+
+const { system } = vi.hoisted(() => ({ system: { fontScale: 1 } }));
+
+// The system's type size, turned by the test: the wizard's «Отмена» is drawn by it.
+vi.mock('react-native', async (importOriginal) => {
+  const rn = await importOriginal<typeof import('react-native')>();
+  return {
+    ...rn,
+    useWindowDimensions: () => ({ width: 375, height: 667, scale: 2, fontScale: system.fontScale }),
+  };
+});
+
 import { rule } from '@tests/helpers/css';
-import { ChevronLeft, SquareCheckBig, Trash2, User } from 'lucide-react-native';
-import { beforeAll, expect, test } from 'vitest';
+import { mounted, mountsTrees } from '@tests/helpers/renderer';
+import { ChevronLeft, SquareCheckBig, Trash2, User, X } from 'lucide-react-native';
+import { Text as RNText, StyleSheet, View, type ViewStyle } from 'react-native';
+import TestRenderer, { act } from 'react-test-renderer';
 
 import { ActionBar, AppBar, Board, type Footer, GlassBar, ViewerBar, WizardBar } from '@/kit/bars';
 import { Button, IconButton } from '@/kit/button';
+import { Icon } from '@/kit/icon';
 import { WatchingPill } from '@/kit/member';
 import { allDifferent, story } from '@/kit/story';
 import { Text } from '@/kit/text';
-import { height, setTheme } from '@/theme';
+import { height, setTheme, themes } from '@/theme';
 
 /** Spec 7.1 — the frame of a screen: the board, the bar at the top, the layer at the bottom. */
 
-beforeAll(async () => {
-  await setTheme('dark');
-});
+mountsTrees();
 
 test('the board is the screen’s own ink, with the device’s status line left empty', async () => {
   const board = (
@@ -140,7 +154,7 @@ test('the wizard’s counter sits dead centre whatever stands on either side of 
       steps={4}
       label="Шаг 2 из 4"
       back={<IconButton icon={ChevronLeft} label="Назад" />}
-      cancel={<Button variant="quiet" label="Отмена" />}
+      cancel={{ label: 'Отмена', onPress: () => {} }}
     />,
   );
   expect(wizard).toContain('Шаг 2 из 4');
@@ -151,6 +165,118 @@ test('the wizard’s counter sits dead centre whatever stands on either side of 
     first: <WizardBar step={1} steps={4} label="Шаг 1 из 4" />,
     last: <WizardBar step={4} steps={4} label="Шаг 4 из 4" />,
   });
+});
+
+/**
+ * Spec 7.1, detail 3 — «Отмена» on large type. Up to ×1.2 of the system's type it is the word, 14 /
+ * 600, 10 a side and hung 10 past the margin; from the next size up (iOS 1.235, Android 1.3) a round
+ * 44 with an «x» 22, still read out as «Отмена», and both side blocks close from 74 to 44.
+ */
+const wizardAt = async (fontScale: number, variant: 'step' | 'summary' = 'step') => {
+  system.fontScale = fontScale;
+  const pressed: string[] = [];
+  let tree!: TestRenderer.ReactTestRenderer;
+  await act(async () => {
+    tree = mounted(
+      TestRenderer.create(
+        <WizardBar
+          step={2}
+          steps={4}
+          label="Шаг 2 из 4"
+          variant={variant}
+          back={
+            <IconButton icon={ChevronLeft} label="Назад" onPress={() => pressed.push('back')} />
+          }
+          cancel={
+            variant === 'summary'
+              ? undefined
+              : { label: 'Отмена', onPress: () => pressed.push('cancel') }
+          }
+        />,
+      ),
+    );
+  });
+  system.fontScale = 1;
+  const root = tree.root;
+  const flat = (node: TestRenderer.ReactTestInstance) =>
+    StyleSheet.flatten(node.props.style) as ViewStyle;
+  return {
+    pressed,
+    word: root.findAllByType(Button),
+    round: root.findAllByType(IconButton).filter((one) => one.props.label === 'Отмена'),
+    back: root.findAllByType(IconButton).filter((one) => one.props.label === 'Назад'),
+    sides: root
+      .findAll(
+        (one) =>
+          one.type === View && ['flex-start', 'flex-end'].includes(String(flat(one).alignItems)),
+      )
+      .map((one) => flat(one).width),
+    flat,
+  };
+};
+
+test('up to ×1.2 «Отмена» is the word at 14, with 64 of its 74 block to stand in', async () => {
+  for (const scale of [1, 1.118, 1.15, 1.2]) {
+    const bar = await wizardAt(scale);
+    expect(bar.round, `×${scale}`).toHaveLength(0);
+    expect(bar.word).toHaveLength(1);
+    const [word] = bar.word;
+    expect(word.props).toMatchObject({ variant: 'quiet', label: 'Отмена', labelRole: 'controlSm' });
+    expect(StyleSheet.flatten(word.findByType(RNText).props.style)).toMatchObject({
+      fontSize: 14,
+      fontFamily: 'Onest_600SemiBold',
+      color: themes.dark.color.muted,
+    });
+    expect(StyleSheet.flatten(word.props.style)).toEqual({
+      paddingHorizontal: 10,
+      marginRight: -10,
+    });
+    expect(bar.sides).toEqual([74, 74]);
+    await act(async () => word.props.onPress());
+    expect(bar.pressed).toEqual(['cancel']);
+  }
+});
+
+test('past ×1.2 it is a round 44 with an «x» 22, read out as «Отмена», and both blocks close to 44', async () => {
+  for (const scale of [1.235, 1.3, 2, 3.571]) {
+    const bar = await wizardAt(scale);
+    expect(bar.word, `×${scale}`).toHaveLength(0);
+    expect(bar.round).toHaveLength(1);
+    const [round] = bar.round;
+    expect(round.props).toMatchObject({
+      icon: X,
+      label: 'Отмена',
+      glyph: { size: 22, stroke: 1.9 },
+    });
+    expect(round.props.size).toBeUndefined();
+    expect(round.props.tone).toBeUndefined();
+    expect(StyleSheet.flatten(round.props.style)).toEqual({ marginRight: -10 });
+    expect(round.findByType(Icon).props).toMatchObject({
+      size: 22,
+      stroke: 1.9,
+      color: themes.dark.color.muted,
+    });
+    const pill = round.findAll((one) => one.props.accessibilityRole === 'button')[0];
+    expect(pill.props.accessibilityLabel).toBe('Отмена');
+    expect(bar.sides).toEqual([44, 44]);
+    await act(async () => round.props.onPress());
+    expect(bar.pressed).toEqual(['cancel']);
+  }
+});
+
+test('«Назад» is the same on any type, and the total closes its blocks with the rest', async () => {
+  const [small, large] = [await wizardAt(1), await wizardAt(3.571)];
+  for (const bar of [small, large]) {
+    expect(bar.back).toHaveLength(1);
+    expect(bar.back[0].props.icon).toBe(ChevronLeft);
+    expect(bar.back[0].findByType(Icon).props.size).toBe(20);
+  }
+  // Nothing on the right of the total, but the same blocks, so the counter does not move between steps.
+  const summary = await wizardAt(3.571, 'summary');
+  expect(summary.round).toHaveLength(0);
+  expect(summary.word).toHaveLength(0);
+  expect(summary.sides).toEqual([44, 44]);
+  expect((await wizardAt(1, 'summary')).sides).toEqual([74, 74]);
 });
 
 test('the step’s heading belongs to the bar, because the bar is what does not scroll', () => {

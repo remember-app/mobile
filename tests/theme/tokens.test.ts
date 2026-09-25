@@ -1,6 +1,5 @@
-import { readFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
 import { contrast, luminance } from '@tests/helpers/contrast';
+import { fontFile, glyph } from '@tests/helpers/font';
 import { expect, test } from 'vitest';
 
 import {
@@ -221,51 +220,11 @@ const FACES = {
   Onest_700Bold: '@expo-google-fonts/onest/700Bold/Onest_700Bold.ttf',
 };
 
-/**
- * Where a face actually lies, asked of the module resolver rather than spelled out from the working
- * directory: `node_modules/…` is only the answer when the test is run from the root of the checkout,
- * and a git worktree — which is where an agent builds — has its own root and the packages in the
- * other one.
- */
-const resolve = createRequire(import.meta.url).resolve;
-
-/** Whether a TrueType file's character map covers a code point. Formats 4 and 12, which is all
- *  Google's own builds ever use. */
-function covers(file: Buffer, code: number): boolean {
-  const tables = file.readUInt16BE(4);
-  let cmap = 0;
-  for (let i = 0; i < tables; i += 1) {
-    const at = 12 + 16 * i;
-    if (file.toString('latin1', at, at + 4) === 'cmap') cmap = file.readUInt32BE(at + 8);
-  }
-  if (!cmap) return false;
-
-  for (let i = 0; i < file.readUInt16BE(cmap + 2); i += 1) {
-    const sub = cmap + file.readUInt32BE(cmap + 4 + 8 * i + 4);
-    const format = file.readUInt16BE(sub);
-    if (format === 4) {
-      const segments = file.readUInt16BE(sub + 6) / 2;
-      for (let s = 0; s < segments; s += 1) {
-        const end = file.readUInt16BE(sub + 14 + 2 * s);
-        const start = file.readUInt16BE(sub + 16 + segments * 2 + 2 * s);
-        if (start <= code && code <= end) return true;
-      }
-    } else if (format === 12) {
-      const groups = file.readUInt32BE(sub + 12);
-      for (let g = 0; g < groups; g += 1) {
-        const at = sub + 16 + 12 * g;
-        if (file.readUInt32BE(at) <= code && code <= file.readUInt32BE(at + 4)) return true;
-      }
-    }
-  }
-  return false;
-}
-
 test.each(Object.entries(FACES))('%s draws Cyrillic', (_name, path) => {
-  const file = readFileSync(resolve(path));
+  const file = fontFile(path);
   // «А», «я», «ё» — the ends of the alphabet and the letter a partial subset drops first.
   for (const letter of ['А', 'я', 'ё', 'Ё']) {
-    expect(covers(file, letter.codePointAt(0)!), letter).toBe(true);
+    expect(glyph(file, letter.codePointAt(0)!), letter).not.toBe(0);
   }
 });
 

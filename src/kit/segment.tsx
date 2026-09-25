@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   Pressable,
   Text as RNText,
@@ -30,6 +31,8 @@ export type SegmentProps<T extends string> = {
   hint?: string;
   /** Spec 7.3: 36 inside a memory's own header pill, 40 everywhere else. */
   sm?: boolean;
+  /** Spec 7.3, detail 18: the words at 13 and not 14 — «Тема» on `Account` alone, as drawn. */
+  small?: boolean;
   /** Inside a sheet the container is `ink`, because the sheet itself is already `surface`. */
   onSurface?: boolean;
   options: readonly SegmentOption<T>[];
@@ -39,8 +42,33 @@ export type SegmentProps<T extends string> = {
 };
 
 /**
+ * Spec 7.3, detail 18: a word grows with the system's type up to twice its size and no further —
+ * past that the longest of them would not fit whole even in a cell of its own on the smallest phone.
+ */
+const MOST = 2;
+
+/** Spec 7.3, detail 18: the stacked container's corners; its cells sit concentric, 4 inside them. */
+const STACKED = 22;
+
+/**
+ * Spec 7.3, detail 18 — whether the group stands as a row in a column `width` wide: every word, as
+ * wide as it is drawn, whole on one line in its equal share, with 4 to spare on each side. The
+ * container's padding and hairline come off first (4 + 1 a side), then the gaps between the cells.
+ */
+export function rowHolds(width: number, words: readonly number[]): boolean {
+  const cell = (width - 2 * (space.s1 + 1) - space.s1 * (words.length - 1)) / words.length;
+  return words.every((word) => word <= cell - 2 * space.s1);
+}
+
+/**
  * Spec 7.3 — a choice of two or three, drawn as a row of pills inside one. Every value is visible at
  * once on purpose: nobody opens a list to find out what a product even offers.
+ *
+ * A row only while every word reads whole in its cell; otherwise the whole group stands as a column,
+ * a cell per word the width of the container (spec 7.3, detail 18) — never an ellipsis, never a
+ * word broken letter by letter. Which of the two is decided off the words as they are drawn right
+ * now, at the system's type size and in the app's language, and before the group is first seen, so
+ * it never jumps in front of anyone. Picking a value moves no width, so it never moves the group.
  *
  * Controlled and wordless, like everything else here: the caller holds the value and says what the
  * words are.
@@ -51,6 +79,7 @@ export function Segment<T extends string>({
   wide,
   hint,
   sm,
+  small,
   onSurface,
   options,
   value,
@@ -58,14 +87,26 @@ export function Segment<T extends string>({
   style,
 }: SegmentProps<T>) {
   const styles = useStyles();
-  // Spec 7.3: a long word steps down to 13 rather than wrapping or being cut.
-  const long = options.some((option) => option.label.length > 11);
+  const [width, setWidth] = useState(0);
+  const [words, setWords] = useState<readonly number[]>([]);
+  const drawn = options.map((_, at) => words[at]);
+  const measured = width > 0 && drawn.every((word) => word !== undefined);
+  const stacked = measured && !rowHolds(width, drawn);
 
   return (
-    <View style={[styles.group, style]}>
+    <View
+      style={[styles.group, style]}
+      onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
+    >
       {hideLabel ? null : <Text role="label">{label}</Text>}
       <View
-        style={[styles.segment, onSurface ? styles.onSurface : null, wide ? styles.wide : null]}
+        style={[
+          styles.segment,
+          onSurface ? styles.onSurface : null,
+          wide ? styles.wide : null,
+          stacked ? styles.stacked : null,
+          measured ? null : styles.unseen,
+        ]}
         accessibilityRole="radiogroup"
         accessibilityLabel={label}
         // Read out with the group rather than left to the eye: the line says what picking here
@@ -78,13 +119,36 @@ export function Segment<T extends string>({
             label={option.label}
             wide={wide}
             sm={sm}
-            long={long}
+            small={small}
+            stacked={stacked}
             checked={option.value === value}
             onPress={() => onChange(option.value)}
           />
         ))}
       </View>
       {hint ? <Hint>{hint}</Hint> : null}
+      {/* The same words once more, unseen and outside any cell, so each lays out exactly as wide as
+          it is drawn — and lays out again, and says so, when the type size or the language changes. */}
+      <View
+        pointerEvents="none"
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={styles.measure}
+      >
+        {options.map((option, at) => (
+          <RNText
+            key={option.value}
+            maxFontSizeMultiplier={MOST}
+            style={[type.controlSm, small ? styles.small : null]}
+            onLayout={(event) => {
+              const word = event.nativeEvent.layout.width;
+              setWords((had) => (had[at] === word ? had : Object.assign([...had], { [at]: word })));
+            }}
+          >
+            {option.label}
+          </RNText>
+        ))}
+      </View>
     </View>
   );
 }
@@ -100,14 +164,16 @@ function Option({
   label,
   wide,
   sm,
-  long,
+  small,
+  stacked,
   checked,
   onPress,
 }: {
   label: string;
   wide?: boolean;
   sm?: boolean;
-  long?: boolean;
+  small?: boolean;
+  stacked: boolean;
   checked: boolean;
   onPress: () => void;
 }) {
@@ -115,7 +181,8 @@ function Option({
   const { color } = useTheme();
   const styles = useStyles();
   const focusRing = useFocusRing();
-  const tall = sm ? height.segmentSm : height.segment;
+  // In the row a cell is drawn at 40 and felt at 44; stacked, it is never under 44 to begin with.
+  const tall = stacked ? TAP : sm ? height.segmentSm : height.segment;
 
   return (
     <Pressable
@@ -128,16 +195,17 @@ function Option({
       style={[
         styles.option,
         { minHeight: tall },
-        wide ? styles.optionWide : null,
+        stacked ? styles.optionStacked : wide ? styles.optionWide : null,
         checked ? styles.checked : null,
         focused ? focusRing : null,
       ]}
     >
       <RNText
-        numberOfLines={1}
+        maxFontSizeMultiplier={MOST}
         style={[
           type.controlSm,
-          long ? styles.long : null,
+          small ? styles.small : null,
+          stacked ? (small ? styles.linesSmall : styles.lines) : null,
           // Chosen is read on `paper` in `ink`; the rest stay muted — and on web the one under the
           // cursor lights up on its way to being picked.
           { color: checked ? color.ink : hovered ? color.paper : color.muted },
@@ -166,6 +234,15 @@ const useStyles = themed(({ color }) =>
     },
     onSurface: { backgroundColor: color.ink },
     wide: { alignSelf: 'stretch' },
+    stacked: {
+      alignSelf: 'stretch',
+      flexDirection: 'column',
+      alignItems: 'stretch',
+      borderRadius: STACKED,
+    },
+    // Until its words are measured the group does not know which way it stands, so it is not seen.
+    unseen: { opacity: 0 },
+    measure: { position: 'absolute', top: 0, left: 0, alignItems: 'flex-start', opacity: 0 },
     option: {
       paddingHorizontal: space.s3,
       // Below the smallest phone, or with huge type on, a pill that gives way beats a row that runs
@@ -175,10 +252,18 @@ const useStyles = themed(({ color }) =>
       justifyContent: 'center',
       borderRadius: radius.pill,
     },
-    // Equal parts leave a long word the whole of its part: «Как в системе» is 91pt at 13, and a third
-    // of a 360dp Android's column, less 4 a side, is 95 — measured off the font, not guessed.
+    // Equal parts, 4 to spare on each side of the word: the row stands only while every word fits
+    // whole in that (`rowHolds`).
     optionWide: { flexGrow: 1, flexBasis: 0, paddingHorizontal: space.s1 },
+    optionStacked: {
+      paddingVertical: space.s2,
+      paddingHorizontal: space.s3,
+      borderRadius: STACKED - space.s1,
+    },
     checked: { backgroundColor: color.paper },
-    long: { fontSize: 13 },
+    small: { fontSize: 13 },
+    // Stacked, a word too long for its line goes on to the next one whole, centred under it.
+    lines: { lineHeight: 18, textAlign: 'center' },
+    linesSmall: { lineHeight: 17, textAlign: 'center' },
   }),
 );
