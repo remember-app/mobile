@@ -12,7 +12,8 @@
       "bundleIdentifier": "com.noxlabs.remember",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "buildNumber": "2"
     },
     "android": {
       "adaptiveIcon": {
