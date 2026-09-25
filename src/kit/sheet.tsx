@@ -186,7 +186,8 @@ function Rise({
 }: Omit<SheetProps, 'visible'>) {
   const insets = useSafeAreaInsets();
   const { fontScale } = useWindowDimensions();
-  const rise = useFadeIn(motion.sheet);
+  const [risen, setRisen] = useState(false);
+  const rise = useFadeIn(motion.sheet, () => setRisen(true));
   const styles = useStyles();
   const onScrimTap = useScrimTap(onCancel);
   const gap = { gap: RHYTHM[rhythm] };
@@ -231,9 +232,17 @@ function Rise({
   return (
     // A sheet sits where the keyboard comes up, so anything typed into one would be typed blind.
     // Android's modals already resize themselves; iOS needs telling.
+    //
+    // Not while the sheet is still rising (TASK-386). Giving way is a layout animation, and one
+    // that catches the sheet mid-rise plays it out of the values React holds for it — still the
+    // rise's start, invisible and 24 lower, because the rise runs on the native driver — and leaves
+    // it there: a field that takes the keyboard on opening («Новый лейбл») got the darkness and the
+    // keyboard and no sheet. What the keyboard did meanwhile is kept and given way to at once when
+    // the rise ends.
     <KeyboardAvoidingView
       style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      enabled={risen}
     >
       {/* Tapping beside the sheet is the same as declining — once the sheet is up, see
           `useScrimTap`. Hidden from screen readers: they have the sheet's own way out below, and a
