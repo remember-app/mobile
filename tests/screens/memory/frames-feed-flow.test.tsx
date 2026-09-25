@@ -647,6 +647,43 @@ test('with the account’s dates on, each day is written over its strip, and the
   expect(screen.icon(ru.gallery.sorting)().props.dot).toBe(true);
 });
 
+test('the three segments of the sheets are the spec’s: their names, their words in order, the sheet’s own ground, at 14', async () => {
+  world();
+  const screen = await open();
+  const drawn = (sheet: TestRenderer.ReactTestInstance, name: string) => {
+    const { options, hideLabel, onSurface, small, hint } = segment(sheet, name).props;
+    return {
+      words: (options as { label: string }[]).map((one) => one.label),
+      values: (options as { value: string }[]).map((one) => one.value),
+      // The sheet titles the group itself, so the group is named and not drawn twice.
+      quiet: [hideLabel, onSurface, small, hint],
+    };
+  };
+  await openSort(screen);
+  expect(drawn(sortSheet(screen), ru.gallery.order)).toEqual({
+    words: ['Сначала новые', 'Сначала старые'],
+    values: ['newest', 'oldest'],
+    quiet: [true, true, undefined, undefined],
+  });
+  expect(drawn(sortSheet(screen), ru.gallery.groupBy)).toEqual({
+    words: ['Не собирать', 'По людям', 'По типу'],
+    values: ['none', 'person', 'kind'],
+    quiet: [true, true, undefined, undefined],
+  });
+  await act(async () => sortSheet(screen).props.onDone());
+  await openFilter(screen);
+  expect(drawn(filterSheet(screen), ru.gallery.whatKind)).toEqual({
+    words: ['Всё', 'Фото', 'Видео'],
+    values: ['all', 'photo', 'video'],
+    quiet: [true, true, undefined, undefined],
+  });
+  expect([ru.gallery.order, ru.gallery.groupBy, ru.gallery.whatKind]).toEqual([
+    'Порядок',
+    'Собрать в группы',
+    'Тип',
+  ]);
+});
+
 test('with them off the feed is the one wall, with not one seam in it', async () => {
   world();
   const screen = await open();

@@ -4,8 +4,9 @@ import { Pressable, StyleSheet, Text, type TextStyle, View, type ViewStyle } fro
 import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
 import { expect, test } from 'vitest';
 
-import { Segment } from '@/kit/segment';
+import { rowHolds, Segment } from '@/kit/segment';
 import { allDifferent, story } from '@/kit/story';
+import { setTheme, themes } from '@/theme';
 
 /** Spec 7.3 — the choice of two or three, drawn as a row of pills inside one. */
 
@@ -75,13 +76,20 @@ test('the heading over the row can be spoken without being drawn, and the hint i
  * Spec 7.3, detail 18 — row or column, off the words as they are drawn. A group is mounted, then told
  * what the phone would have told it: how wide its column is and how wide each word lays out.
  */
+const trees: TestRenderer.ReactTestRenderer[] = [];
 const draw = async (node: ReactElement) => {
   let tree!: TestRenderer.ReactTestRenderer;
   await act(async () => {
     tree = mounted(TestRenderer.create(node));
   });
+  trees.push(tree);
   return tree.root;
 };
+/** Takes down what the test drew so far: two groups standing at once share one theme, and say so. */
+const release = () =>
+  act(async () => {
+    for (const tree of trees.splice(0)) tree.unmount();
+  });
 
 const flat = <T,>(node: ReactTestInstance) => StyleSheet.flatten(node.props.style) as T;
 const container = (root: ReactTestInstance) =>
@@ -257,4 +265,201 @@ test('row or column, it reads out the same: a named radiogroup of named radios, 
     );
     expect(rulers(hidden)).toHaveLength(FACES.length);
   }
+});
+
+/**
+ * The spec's own figures for the room a word has in a row (spec 7.3, detail 18, «Замер»): the cell
+ * less its 4 a side, for three words and for two, on the columns of 375, 360 and 320 — 343, 328 and
+ * 288 wide. A word of exactly that stands; a hair more makes the group a column.
+ */
+test.each([
+  [343, 3, 100.33],
+  [328, 3, 95.33],
+  [288, 3, 82],
+  [343, 2, 156.5],
+  [328, 2, 149],
+  [288, 2, 129],
+])(
+  'in a column %s wide, %s words stand in a row up to %s each and not a hair past it',
+  (width, count, most) => {
+    const words = (word: number) => Array.from({ length: count }, () => word);
+    expect(rowHolds(width, words(most - 0.01))).toBe(true);
+    expect(rowHolds(width, words(most + 0.01))).toBe(false);
+    // The widest of them decides, wherever it stands.
+    expect(rowHolds(width, [...words(most - 1).slice(1), most + 1])).toBe(false);
+  },
+);
+
+test('a column with no width, or none left, holds nothing in a row', () => {
+  expect(rowHolds(0, [10, 10])).toBe(false);
+  expect(rowHolds(-20, [10, 10])).toBe(false);
+  expect(rowHolds(10, [0, 0, 0])).toBe(false);
+});
+
+test('a group is drawn only once its column and every one of its words are measured', async () => {
+  const seen = async (width: number | null, words: (number | null)[]) => {
+    const root = await draw(
+      <Segment label="Лицо" options={FACES} value="frames" onChange={() => {}} />,
+    );
+    await act(async () => {
+      if (width !== null)
+        root
+          .findAll((one) => one.type === View && typeof one.props.onLayout === 'function')[0]
+          .props.onLayout({ nativeEvent: { layout: { width } } });
+      for (const [at, ruler] of rulers(root).entries())
+        if (words[at] !== null)
+          ruler.props.onLayout({ nativeEvent: { layout: { width: words[at] } } });
+    });
+    const shown = flat<ViewStyle>(container(root)).opacity !== 0;
+    await release();
+    return shown;
+  };
+  // The words alone are not enough, nor the column alone, nor a column of none, nor most of the words.
+  expect(await seen(null, [40, 40, 40])).toBe(false);
+  expect(await seen(343, [null, null, null])).toBe(false);
+  expect(await seen(0, [40, 40, 40])).toBe(false);
+  expect(await seen(343, [40, 40, null])).toBe(false);
+  expect(await seen(343, [null, 40, 40])).toBe(false);
+  expect(await seen(343, [40, 40, 40])).toBe(true);
+});
+
+test('a press hands the value of the pill pressed, in a row and in a column, however fast they come', async () => {
+  const chosen: string[] = [];
+  const root = await draw(
+    <Segment label="Лицо" options={FACES} value="films" onChange={(value) => chosen.push(value)} />,
+  );
+  for (const words of [
+    [40, 40, 40],
+    [200, 40, 40],
+  ]) {
+    await lay(root, 343, words);
+    chosen.length = 0;
+    // Three pills in a breath, the chosen one and one of the others twice: every press is heard.
+    await act(async () => {
+      for (const at of [0, 1, 2, 2, 0]) cells(root)[at].props.onPress();
+    });
+    expect(chosen).toEqual(['frames', 'films', 'people', 'people', 'frames']);
+  }
+});
+
+test('the group’s hint is read out with it, and the unseen words stand out of the way and out of every press', async () => {
+  const root = await draw(
+    <Segment
+      label="Лицо"
+      options={FACES}
+      value="films"
+      onChange={() => {}}
+      hint="Меняется сразу"
+    />,
+  );
+  await lay(root, 343, [40, 40, 40]);
+  expect(container(root).props.accessibilityHint).toBe('Меняется сразу');
+  const [hidden] = root.findAll(
+    (one) => one.type === View && one.props.accessibilityElementsHidden === true,
+  );
+  expect(hidden.props.pointerEvents).toBe('none');
+  // Laid out for the measure but never drawn: absolute, so no gap of the group is spent on it, and
+  // clear.
+  expect(flat<ViewStyle>(hidden)).toMatchObject({ position: 'absolute', opacity: 0 });
+});
+
+test('the row is a pill of 4 and 4 inside a hairline, its cells 4 in from each side of their word', async () => {
+  const root = await draw(
+    <Segment label="Лицо" options={FACES} value="films" onChange={() => {}} />,
+  );
+  await lay(root, 343, [40, 40, 40]);
+  expect(flat<ViewStyle>(container(root))).toMatchObject({
+    flexDirection: 'row',
+    borderRadius: 999,
+    borderWidth: 1,
+    padding: 4,
+    gap: 4,
+  });
+  for (const cell of cells(root)) expect(flat<ViewStyle>(cell).paddingHorizontal).toBe(4);
+  // Stacked, the hairline and the 4 stay and only the corners and the cells change.
+  await lay(root, 343, [200, 40, 40]);
+  expect(flat<ViewStyle>(container(root))).toMatchObject({ borderWidth: 1, padding: 4, gap: 4 });
+});
+
+/** The tokens the group is drawn in, read off the theme it stands in and not off the colour it happened to be. */
+test.each(['dark', 'light'] as const)(
+  'in the %s theme the chosen pill is paper with ink on it, the rest muted, and the ground is surface — ink in a sheet',
+  async (name) => {
+    await setTheme(name);
+    try {
+      const { color } = themes[name];
+      for (const stacked of [false, true]) {
+        const words = stacked ? [200, 40, 40] : [40, 40, 40];
+        const sheet = await draw(
+          <Segment label="Лицо" options={FACES} value="films" onChange={() => {}} onSurface />,
+        );
+        await lay(sheet, 343, words);
+        expect(flat<ViewStyle>(container(sheet)).backgroundColor).toBe(color.ink);
+        await release();
+        const plain = await draw(
+          <Segment label="Лицо" options={FACES} value="films" onChange={() => {}} />,
+        );
+        await lay(plain, 343, words);
+        expect(flat<ViewStyle>(container(plain))).toMatchObject({
+          backgroundColor: color.surface,
+          borderColor: color.line,
+        });
+        expect(cells(plain).map((cell) => flat<ViewStyle>(cell).backgroundColor)).toEqual([
+          undefined,
+          color.paper,
+          undefined,
+        ]);
+        expect(shown(plain).map((word) => flat<TextStyle>(word).color)).toEqual([
+          color.muted,
+          color.ink,
+          color.muted,
+        ]);
+        // On the web the one under the cursor lights up on its way to being picked; the chosen one
+        // stays as it is.
+        await act(async () => {
+          cells(plain)[0].props.onHoverIn();
+          cells(plain)[1].props.onHoverIn();
+        });
+        expect(shown(plain).map((word) => flat<TextStyle>(word).color)).toEqual([
+          color.paper,
+          color.ink,
+          color.muted,
+        ]);
+        await release();
+      }
+    } finally {
+      await setTheme('dark');
+    }
+  },
+);
+
+test('the words change with the language and the group decides again off the new ones', async () => {
+  const at = (labels: readonly string[]) => (
+    <Segment
+      label="Лицо"
+      options={FACES.map((face, i) => ({ value: face.value, label: labels[i] }))}
+      value="frames"
+      onChange={() => {}}
+    />
+  );
+  let tree!: TestRenderer.ReactTestRenderer;
+  await act(async () => {
+    tree = mounted(TestRenderer.create(at(['Кадры', 'Ролики', 'Люди'])));
+  });
+  await lay(tree.root, 343, [40, 50, 36]);
+  expect(flat<ViewStyle>(container(tree.root)).flexDirection).toBe('row');
+  await act(async () => tree.update(at(['Frames', 'Movies', 'People'])));
+  expect(shown(tree.root).map((word) => word.props.children)).toEqual([
+    'Frames',
+    'Movies',
+    'People',
+  ]);
+  // The new words lay themselves out and say how wide they are: one is too wide for its cell.
+  await lay(tree.root, 343, [45, 130, 40]);
+  expect(flat<ViewStyle>(container(tree.root)).flexDirection).toBe('column');
+  expect(cells(tree.root).map((cell) => cell.props.accessibilityLabel)).toEqual([
+    'Frames',
+    'Movies',
+    'People',
+  ]);
 });

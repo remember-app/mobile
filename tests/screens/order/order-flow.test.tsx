@@ -640,6 +640,24 @@ test.each([
   },
 );
 
+test('«Формат» is the wizard’s one segment: two words, Wide first, at 14, on the screen’s own ground', async () => {
+  serve();
+  await open();
+  await walkToSummary();
+  // The summary is drawn; the build step underneath it is still mounted with its segment.
+  const segment = root().findByType(Segment).props;
+  expect(segment).toMatchObject({ label: ru.montage.shape });
+  expect(segment.options).toEqual([
+    { value: 'landscape', label: 'Горизонтальный' },
+    { value: 'portrait', label: 'Вертикальный' },
+  ]);
+  expect([segment.small, segment.onSurface, segment.hideLabel]).toEqual([
+    undefined,
+    undefined,
+    undefined,
+  ]);
+});
+
 test('every face of the wizard wears the bar it should: the way in and the total drop the scale, only the total drops «Отмена»', async () => {
   serve();
   await open();

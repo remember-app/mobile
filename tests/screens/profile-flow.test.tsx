@@ -245,6 +245,33 @@ test('the screen is the card, «Контакты», «Тема» and «Язык�
   expect(screen.renaming().props.visible).toBe(false);
 });
 
+test('«Тема» is set at 13 and «Язык» at 14, each a group of its own that the card titles, on the screen’s ground', async () => {
+  world();
+  const screen = await open();
+  const props = (label: string) => {
+    const { hideLabel, small, onSurface, options } = screen.segment(label).props;
+    return {
+      hideLabel,
+      small: small === true,
+      onSurface: onSurface === true,
+      values: options.map((o: { value: string }) => o.value),
+    };
+  };
+  // Spec 7.3, detail 18: 13 is «Тема» alone; no group is drawn on a ground of a sheet here.
+  expect(props(ru.theme.label)).toEqual({
+    hideLabel: true,
+    small: true,
+    onSurface: false,
+    values: ['system', 'dark', 'light'],
+  });
+  expect(props(ru.language.label)).toEqual({
+    hideLabel: true,
+    small: false,
+    onSurface: false,
+    values: ['ru', 'en'],
+  });
+});
+
 const crowd = () =>
   [
     'Марк Ковалёв',
