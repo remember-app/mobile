@@ -103,7 +103,7 @@ export function Hint({
   style?: StyleProp<TextStyle>;
 }) {
   return (
-    <Text role="note" tone={tone} style={style}>
+    <Text role="hint" tone={tone} style={style}>
       {children}
     </Text>
   );
@@ -253,7 +253,7 @@ export function Field({
           {/* One line of words and not a row of two, so it breaks between them like any sentence
               on a narrow phone or large type. */}
           {hintAfter ? (
-            <Text role="note" tone="muted" style={styles.after}>
+            <Text role="hint" tone="muted" style={styles.after}>
               {APART + hintAfter}
             </Text>
           ) : null}

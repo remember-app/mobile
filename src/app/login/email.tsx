@@ -1,10 +1,9 @@
 import { useRouter } from 'expo-router';
-import { ChevronLeft } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ApiError, errorMessage, startEmailSignIn } from '@/api';
-import { ActionBar, Banner, Board, Button, Field, IconButton } from '@/kit';
+import { ActionBar, BackButton, Banner, Board, Button, Field } from '@/kit';
 import { useStrings } from '@/lib/language';
 import { OnboardingHead } from '@/screens/onboarding/head';
 import { space } from '@/theme';
@@ -81,7 +80,7 @@ export default function LoginEmailScreen() {
       }
     >
       <View style={styles.back}>
-        <IconButton icon={ChevronLeft} label={s.action.back} onPress={() => router.back()} />
+        <BackButton label={s.action.back} onPress={() => router.back()} />
       </View>
 
       <OnboardingHead />

@@ -1,10 +1,9 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronLeft } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ApiError, errorMessage, startEmailSignIn, verifyEmailCode } from '@/api';
-import { ActionBar, Banner, Board, Button, CodeField, IconButton, Text } from '@/kit';
+import { ActionBar, BackButton, Banner, Board, Button, CodeField, Text } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { useStrings } from '@/lib/language';
 import { OnboardingHead } from '@/screens/onboarding/head';
@@ -134,7 +133,7 @@ export default function LoginCodeScreen() {
       }
     >
       <View style={styles.back}>
-        <IconButton icon={ChevronLeft} label={s.action.back} onPress={() => router.back()} />
+        <BackButton label={s.action.back} onPress={() => router.back()} />
       </View>
 
       <OnboardingHead />
@@ -165,7 +164,6 @@ const styles = StyleSheet.create({
     paddingLeft: space.s1,
   },
   grow: { flexGrow: 1 },
-  // 14 a side, and pulled out by all of it and the button's hairline, so the words end on the
-  // column's edge.
-  again: { paddingHorizontal: 14, marginRight: -15 },
+  // The quiet button's own 14 a side, pulled out by all of it, so the words end on the column's edge.
+  again: { marginRight: -14 },
 });

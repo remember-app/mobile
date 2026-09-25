@@ -1,7 +1,8 @@
 import { rule } from '@tests/helpers/css';
+import { fontFile, wordWidth } from '@tests/helpers/font';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { ImageIcon, Unlink, UserPlus } from 'lucide-react-native';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, type ViewStyle } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import { beforeAll, expect, test } from 'vitest';
 
@@ -12,6 +13,8 @@ import { Text } from '@/kit/text';
 import { font, setTheme, space, type } from '@/theme';
 
 mountsTrees();
+
+const ONEST_SEMI = fontFile('@expo-google-fonts/onest/600SemiBold/Onest_600SemiBold.ttf');
 
 /** Spec 7.6 — the three surfaces that carry a sentence rather than a thing. */
 
@@ -75,9 +78,12 @@ test('the button of a hint stands under its words, not under its glyph', () => {
   act(() => {
     tree = mounted(
       TestRenderer.create(
-        <HintNote icon={ImageIcon} tone="spark" text="Здесь только те снимки">
-          <Button variant="secondary" size="xs" wide={false} label="Отдать ещё" />
-        </HintNote>,
+        <HintNote
+          icon={ImageIcon}
+          tone="spark"
+          text="Здесь только те снимки"
+          action={{ label: 'Отдать ещё', onPress: () => {} }}
+        />,
       ),
     );
   });
@@ -92,14 +98,52 @@ test('the button of a hint stands under its words, not under its glyph', () => {
   expect(note).toMatchObject({ flexDirection: 'row', gap: 64 - (33 + 19) });
 });
 
+test('the hint draws its own button: a 40 in a row ringed in lineStrong, 16 a side — 108.3 wide, as drawn', () => {
+  // Spec 7.6, detail 46, and 7.2 («поля `0 14` (у „Отдать ещё“ `0 16`)»); `UploadLimited.json` e8:
+  // 108.34 × 40, `1px solid #45424F`, its words 81 − 64 = 17 in — the hairline and 16 — at 13 / 600.
+  // At the row's 14 a side it came out 104.7 (TASK-397).
+  expect(2 + 2 * 16 + wordWidth(ONEST_SEMI, 'Отдать ещё', 13)).toBeCloseTo(108.34, 0);
+  expect(2 + 2 * 14 + wordWidth(ONEST_SEMI, 'Отдать ещё', 13)).toBeLessThan(108.34 - 3);
+  let tree!: TestRenderer.ReactTestRenderer;
+  act(() => {
+    tree = mounted(
+      TestRenderer.create(
+        <HintNote
+          icon={ImageIcon}
+          text="Доступ ограничен"
+          action={{ label: 'Отдать ещё', onPress: () => {} }}
+        />,
+      ),
+    );
+  });
+  const button = tree.root.findByType(Button);
+  expect(button.props).toMatchObject({ size: 'xs', wide: false, label: 'Отдать ещё' });
+  expect(button.props.variant).toBeUndefined();
+  const pressable = button.findAll((one) => one.props.accessibilityRole === 'button')[0];
+  const drawn = StyleSheet.flatten(pressable.props.style({ pressed: false })) as ViewStyle;
+  expect(drawn).toMatchObject({ paddingHorizontal: 16, borderWidth: 1, alignSelf: 'flex-start' });
+  const hint = story(
+    <HintNote
+      icon={ImageIcon}
+      text="Доступ ограничен"
+      action={{ label: 'Отдать ещё', onPress: () => {} }}
+    />,
+  );
+  expect(hint).toContain('min-height:40px');
+  expect(hint).toContain('border-top-color:rgba(69,66,79,1.00)');
+  expect(hint).toContain(rule('font-size:13px'));
+});
+
 test('a hint is spark when it is about people and muted when it is about anything else', () => {
   allDifferent({
     people: <HintNote icon={UserPlus} tone="spark" text="Позвать участников можно сразу" />,
     neutral: <HintNote icon={ImageIcon} text="Доступ ограничен" />,
     withAction: (
-      <HintNote icon={ImageIcon} text="Доступ ограничен">
-        <Button variant="small" size="xs" label="Отдать ещё" />
-      </HintNote>
+      <HintNote
+        icon={ImageIcon}
+        text="Доступ ограничен"
+        action={{ label: 'Отдать ещё', onPress: () => {} }}
+      />
     ),
   });
   // #E4FF4F on the glyph, and spec 1.2 is what keeps it off the neutral one.
@@ -114,9 +158,10 @@ test('a hint is spark when it is about people and muted when it is about anythin
 test('the two connection banners are two banners, and only one of them can be put away', () => {
   allDifferent({
     offline: (
-      <Banner text="Нет связи с сервером. Показываем то, что уже загружено.">
-        <IconButton icon={ImageIcon} label="Скрыть сообщение" size={32} />
-      </Banner>
+      <Banner
+        text="Нет связи с сервером. Показываем то, что уже загружено."
+        hide={{ label: 'Скрыть сообщение', onPress: () => {} }}
+      />
     ),
     online: <Banner tone="done" text="Соединение установлено" />,
   });
@@ -124,12 +169,31 @@ test('the two connection banners are two banners, and only one of them can be pu
   // The `done` one leaves by itself after three seconds, so a button on it is a button nobody
   // reaches — it is dropped even when a caller hands one over.
   const online = story(
-    <Banner tone="done" text="Соединение установлено">
-      <IconButton icon={ImageIcon} label="Скрыть сообщение" size={32} />
+    <Banner
+      tone="done"
+      text="Соединение установлено"
+      hide={{ label: 'Скрыть сообщение', onPress: () => {} }}
+    >
+      <IconButton icon={ImageIcon} label="Повторить" size={32} />
     </Banner>,
   );
   expect(online).not.toContain('aria-label="Скрыть сообщение"');
+  expect(online).not.toContain('aria-label="Повторить"');
   expect(online).toContain('Соединение установлено');
+});
+
+test('the cross of the lost connection is the banner’s own: a 32 with its sign at 15 / 2.2', () => {
+  // Spec 7.6, detail 47 («справа крестик 32 (знак 15, sw 2.2) в 13 от правого края»), and
+  // `HomeOffline.json` e7. The screen handed in a 32 whose circle rule gave it 18 — ink 10.7 against
+  // the layout's 9 (TASK-397). The 12 of padding and the edge's 1 are the 13.
+  const offline = story(
+    <Banner text="Нет связи с сервером" hide={{ label: 'Скрыть сообщение', onPress: () => {} }} />,
+  );
+  expect(offline).toContain('aria-label="Скрыть сообщение"');
+  expect(offline).toContain('<svg data-glyph="X" width="15" height="15"');
+  expect(offline).toContain('stroke-width="2.2"');
+  expect(offline).toContain('width:32px');
+  expect(offline).toContain(rule('padding-right:12px'));
 });
 
 test('the banners are drawn to the layout’s measure: 62 for two lines of the lost one, 50 for the back one', () => {
@@ -138,9 +202,10 @@ test('the banners are drawn to the layout’s measure: 62 for two lines of the l
   // — 13 above and below the 22 circle, the words 13 / 18 at 600. At the old 13 / 16 and 12 all
   // round they were 58 and 48, the cross 4 further in.
   const offline = story(
-    <Banner text="Нет связи с сервером. Показываем то, что уже загружено.">
-      <IconButton icon={ImageIcon} label="Скрыть сообщение" size={32} />
-    </Banner>,
+    <Banner
+      text="Нет связи с сервером. Показываем то, что уже загружено."
+      hide={{ label: 'Скрыть сообщение', onPress: () => {} }}
+    />,
   );
   const online = story(<Banner tone="done" text="Соединение установлено" />);
   expect([type.banner.fontSize, type.banner.lineHeight]).toEqual([13, 18]);

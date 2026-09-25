@@ -197,6 +197,11 @@ test('a day over the queue’s grid is a heading with a line, 17 clear of what i
     alignItems: 'center',
     gap: Math.round(145.28 - 16 - 117.28),
   });
+  // Centred on 310 is centred in the 56, and a row that wraps stacks its line at the top of the room
+  // over it unless told: on the phone the words stood 17 under the plate, 3 higher than drawn
+  // (TASK-397, R'13 — 25 from the plate instead of 28).
+  expect(bare.row.alignContent).toBe('center');
+  expect(282 + (338 - 282) / 2).toBe(310);
   expect(495 - 434 - 44).toBe(434 - 417);
   // «3 из 61» (e11) is 12 / 500 — `faint` in the layout, `muted` in the spec (detail 65, 10.1): the
   // meta's own tone, nothing asked; the day is the paper `label`.
@@ -269,6 +274,28 @@ test('on the spine the line is the quietest thing and each mark on it louder tha
     ].map(rule),
   );
   expect(spine).toContain(rule('color:rgba(245,243,238,0.72)'));
+});
+
+test('a mark hangs from the line in a layer as wide as the feed, never in the 1 of the line itself', () => {
+  // TASK-397 (R'12), measured on the phone: a mark hung inside a 1-wide spine was held to that 1
+  // (an absolute child of a column is fitted to its parent's width on iOS) — the pill drew «13» of
+  // «13 сент», 22 wide, and its tick and dot past the line. `MemoryScrub.json` e29: the pill 45.4 ×
+  // 16 at x 322.1, the tick 8 and the dot on the line at 377 — 12 off the right edge.
+  let drawn!: TestRenderer.ReactTestRenderer;
+  act(() => {
+    drawn = mounted(TestRenderer.create(<DateSpine marks={[{ label: '13 сент', top: 195 }]} />));
+  });
+  const views = drawn.root.findAllByType(View).map((one) => ({
+    one,
+    style: StyleSheet.flatten(one.props.style),
+  }));
+  expect(views[0].style).toMatchObject({ position: 'absolute', left: 0, right: 0 });
+  const line = views.find(({ style }) => style.width === 1)!;
+  expect(line.style).toMatchObject({ position: 'absolute', right: 390 - 377 - 1 });
+  expect(line.one.findAllByType(View)).toHaveLength(1);
+  const mark = views.find(({ style }) => style.top === 195)!;
+  expect(mark.style).toMatchObject({ position: 'absolute', right: line.style.right });
+  expect(line.one.findAllByType(View)).not.toContain(mark.one);
 });
 
 test('a spine with no days in it is a bare line', () => {

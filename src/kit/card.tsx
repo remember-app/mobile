@@ -1,9 +1,10 @@
-import { Check, WifiOff } from 'lucide-react-native';
+import { Check, WifiOff, X } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
-import { font, radius, space, themed, useTheme } from '@/theme';
+import { font, height, radius, space, themed, useTheme } from '@/theme';
 
+import { Button, IconButton } from './button';
 import { Icon, type IconComponent } from './icon';
 import { Text } from './text';
 
@@ -59,18 +60,23 @@ export function CardMessage({
  * button under it. `spark` when the hint is about people, muted when it is about anything else;
  * spec 1.2 keeps `spark` for the organizer, «готово» and progress, and inviting people is the first
  * of those.
+ *
+ * The button is the plate's to draw, the way «Отмена» is the wizard bar's: detail 46 names it — a 40
+ * in a row, ringed in `lineStrong`, 13 / 600 — and gives it 16 a side where every other one in a row
+ * has 14 (spec 7.2; `UploadLimited.json` e8: «Отдать ещё» 108.34 — the hairline, 16 and the words).
  */
 export function HintNote({
   icon,
   tone = 'muted',
   text,
-  children,
+  action,
   style,
 }: {
   icon?: IconComponent;
   tone?: 'spark' | 'muted';
   text: string;
-  children?: ReactNode;
+  /** «Отдать ещё» — its words and what it does. */
+  action?: { label: string; onPress: () => void };
   style?: StyleProp<ViewStyle>;
 }) {
   const { color } = useTheme();
@@ -97,7 +103,15 @@ export function HintNote({
       ) : null}
       <View style={styles.noteWords}>
         <Text role="note">{text}</Text>
-        {children}
+        {action ? (
+          <Button
+            size="xs"
+            wide={false}
+            label={action.label}
+            onPress={action.onPress}
+            style={styles.noteAction}
+          />
+        ) : null}
       </View>
     </View>
   );
@@ -120,6 +134,7 @@ export function Banner({
   text,
   tone = 'error',
   icon,
+  hide,
   children,
   style,
 }: {
@@ -127,7 +142,12 @@ export function Banner({
   tone?: BannerTone;
   /** An override where the banner is not about the connection at all. */
   icon?: IconComponent;
-  /** «Скрыть сообщение» — the 32 round button, on the `error` tone alone. */
+  /**
+   * «Скрыть сообщение» — the cross the banner draws itself, on the `error` tone alone (spec 7.6,
+   * detail 47): a 32 with its sign at 15 / 2.2, 13 in from the right edge.
+   */
+  hide?: { label: string; onPress: () => void };
+  /** What else the words call for — «Повторить». */
   children?: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
@@ -153,9 +173,22 @@ export function Banner({
         {text}
       </Text>
       {done ? null : children}
+      {done || !hide ? null : (
+        <IconButton
+          icon={X}
+          label={hide.label}
+          size={height.roundTiny}
+          tone="danger"
+          glyph={CROSS}
+          onPress={hide.onPress}
+        />
+      )}
     </View>
   );
 }
+
+/** The banner's cross (spec 7.6, detail 47; `HomeOffline.json` e7): 15 at 2.2 in its 32. */
+const CROSS = { size: 15, stroke: 2.2 } as const;
 
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
@@ -188,6 +221,8 @@ const useStyles = themed(({ color }) =>
       paddingHorizontal: space.s4,
     },
     noteWords: { flex: 1, minWidth: 0, gap: space.s3 },
+    // Under the words and from their edge, as wide as its own words with detail 46's 16 a side.
+    noteAction: { alignSelf: 'flex-start', paddingHorizontal: space.s4 },
     // The glyph sits on the first line of the words rather than in the middle of the block.
     noteIcon: { paddingTop: 1 },
     // A «Повторить» handed in wraps under the words on the largest type instead of past the edge.

@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { ChevronLeft, Search, UserPlus, X } from 'lucide-react-native';
+import { Search, UserPlus, X } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,6 +17,7 @@ import {
 } from '@/api';
 import {
   AppBar,
+  BackButton,
   Banner,
   Board,
   Button,
@@ -183,8 +184,7 @@ export default function ContactsScreen() {
           <AppBar
             title={s.contacts.title}
             left={
-              <IconButton
-                icon={ChevronLeft}
+              <BackButton
                 label={s.action.back}
                 // Same as everywhere else: nothing behind means home, never a button that answers
                 // nothing.

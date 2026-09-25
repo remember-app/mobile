@@ -93,7 +93,7 @@ test('the address is asked for on a screen of its own, which the mail door opens
   // And both of the screens after the first have a way back — a floating one, because a header row
   // would push the head down 44 and break what the test above pins.
   for (const [name, screen] of Object.entries({ email, code })) {
-    expect(screen, name).toContain('icon={ChevronLeft}');
+    expect(screen, name).toContain('<BackButton label={s.action.back}');
     expect(screen, name).toContain("back: { position: 'absolute'");
     expect(screen, name).not.toContain('<AppBar');
     // The arrow is drawn beside `router.back()` — otherwise the doc comment's «way back» promise is
@@ -141,7 +141,8 @@ test('another code is asked for from the same screen, not by walking back for it
   // address, its words ending on the column's edge (x 374), the address stepping 4 in (x 20).
   expect(code).toContain('labelRole="label"');
   expect(code).toContain('labelTone="paper"');
-  expect(code).toContain('again: { paddingHorizontal: 14, marginRight: -15 }');
+  // The quiet button's own 14 a side (no hairline round it — TASK-397), all of it hung out.
+  expect(code).toContain('again: { marginRight: -14 }');
   expect(flat(code)).toContain('gap: space.s3, paddingLeft: space.s1,');
   // And it waits under its own flag: the main button spinning under «Входим…» while a letter is
   // being posted would say something that is not happening.

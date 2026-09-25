@@ -239,6 +239,10 @@ test('up to ×1.2 «Отмена» is the word at 14, with 64 of its 74 block to
     const drawn = StyleSheet.flatten(button.props.style({ pressed: false })) as ViewStyle;
     expect(drawn.minHeight).toBe(44);
     expect(drawn.backgroundColor).toBeUndefined();
+    // And no hairline round it (TASK-397, R'8): 10, the words, 10 — 71.9 wide from x 312.1, as
+    // `MontageSelect.json` e4 draws it; a clear one made it 74 from x 310, the word 1 to the left.
+    expect(drawn.borderWidth).toBe(0);
+    expect(drawn.paddingHorizontal).toBe(10);
     await act(async () => word.props.onPress());
     expect(bar.pressed).toEqual(['cancel']);
   }

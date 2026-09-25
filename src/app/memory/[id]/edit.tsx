@@ -1,5 +1,4 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronLeft } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -15,6 +14,7 @@ import {
 import {
   ActionBar,
   AppBar,
+  BackButton,
   Banner,
   Board,
   Button,
@@ -22,7 +22,6 @@ import {
   CoverSlot,
   Field,
   Hint,
-  IconButton,
   Text,
   Waiting,
 } from '@/kit';
@@ -142,8 +141,7 @@ export default function MemoryEditScreen() {
           // again.
           title={s.edit.title}
           left={
-            <IconButton
-              icon={ChevronLeft}
+            <BackButton
               label={s.action.back}
               // Live while the save is in flight (spec 10.8.3) — the only control on the screen
               // that is.

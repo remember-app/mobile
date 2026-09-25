@@ -215,6 +215,9 @@ export function DateSpine({
   );
 }
 
+/** How far the spine's line stands in from the right edge of the feed (`MemoryScrub.json`: x 377). */
+const SPINE_RIGHT = 12;
+
 /**
  * No `themed()` in this file: every colour the seam and the spine draw in belongs to the photograph
  * under them, and `photo` is the same in both themes on purpose (spec 2). The words go through
@@ -241,21 +244,36 @@ const styles = StyleSheet.create({
   // A long day never pushes the count off the band; the count itself never wraps.
   label: { flexShrink: 1 },
   count: { flexShrink: 0 },
+  // The line in the middle of the 56 and not at its top: a row that wraps stacks its lines from the
+  // top of what is over them, and the bare heading of `UploadLimited` stood 3 high in it — 17 under
+  // the plate, where the layout has its words 19.5 under it and 19.5 over the grid (TASK-397).
   head: {
     minHeight: 56,
     paddingVertical: 17,
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
+    alignContent: 'center',
     gap: space.s3,
   },
   // The eyebrow's 16 and 9 over and under it — a floor, it grows with the type.
   headList: { minHeight: 34, paddingVertical: 9 },
-  spine: { position: 'absolute', top: 0, bottom: 0, right: 12, width: 1 },
-  spineLine: { flex: 1, width: 1, backgroundColor: photo.spine },
+  // The layer is as wide as the feed and the line is drawn in it, 12 off the right edge — not a
+  // layer 1 wide: an absolute child of a column is held to its parent's width on iOS, and a mark
+  // hung in a 1-wide spine measured its words in 1 and drew «13» of «13 сент», its tick and dot
+  // past the line (TASK-397, R'12).
+  spine: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 },
+  spineLine: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    right: SPINE_RIGHT,
+    width: 1,
+    backgroundColor: photo.spine,
+  },
   spineMark: {
     position: 'absolute',
-    right: 0,
+    right: SPINE_RIGHT,
     height: 16,
     flexDirection: 'row',
     alignItems: 'center',

@@ -300,14 +300,21 @@ test('a read that fails over a list that is there is a line above it that can be
   // The list stays: the connection is a line above it and never a replacement for it.
   expect(screen.cards()).toHaveLength(1);
   expect(screen.banners()).toEqual([{ text: ru.home.offline, tone: undefined }]);
+  // Spec 4: «112 — … баннер связи на главном» — 16 under the bar's 96, not the list's 18 (the cards
+  // then 12 under it, `HomeOffline.json` e4 → e9: 112 + 62 + 12 = 186). It stood at 114 (TASK-397).
+  const lead = () =>
+    StyleSheet.flatten(screen.root.findByType(FlatList).props.contentContainerStyle).paddingTop;
+  expect(lead()).toBe(112 - 96);
   // Put away by hand, and the connection is still not back — so the good news is still owed.
   await screen.press(
     () => screen.root.findAllByType(IconButton).find((one) => one.props.label === ru.action.hide)!,
   );
   expect(screen.banners()).toEqual([]);
+  expect(lead()).toBe(114 - 96);
   screen.state.list = [wedding()];
   await screen.refocus();
   expect(screen.banners()).toEqual([{ text: ru.home.online, tone: 'done' }]);
+  expect(lead()).toBe(112 - 96);
   // It goes by itself after its time, and a read while it stands does not start the time over.
   await act(async () => void vi.advanceTimersByTime(duration.hold - 500));
   await screen.refocus();

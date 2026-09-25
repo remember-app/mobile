@@ -154,6 +154,11 @@ export const board = {
    */
   bodySettings: 112,
   bodyMain: 114,
+  /**
+   * The connection banner over the list of `Main` (spec 4: «112 — … баннер связи на главном»): 16
+   * under the bar, 2 above where the list itself starts, and the cards 12 under it.
+   */
+  bannerMain: 112,
   bodyCreate: 124,
   bodyAccount: 132,
   /**
@@ -253,6 +258,13 @@ export const font = {
   semi: 'Onest_600SemiBold',
   bold: 'Onest_700Bold',
 } as const;
+
+/**
+ * Onest's own line at `size` — its ascender to its descender, 970 + 305 of its 1000 units, the same
+ * in every weight: what the browser gives `line-height: normal`, and the shortest line iOS centres
+ * the face in rather than cutting its top.
+ */
+const onestLine = (size: number): number => (size * (970 + 305)) / 1000;
 
 /** Figures never dance: every counter, date, timecode and «N из M» is tabular (spec 3). */
 const tabular: TextStyle = { fontVariant: ['tabular-nums'] };
@@ -367,14 +379,30 @@ export const type = StyleSheet.create({
    * line at 14: on a shorter one iOS sets the figures 3–4 higher than the layout does.
    */
   rowSm: { fontFamily: font.semi, fontSize: 14, lineHeight: 18 },
-  /** the label of a button */
-  control: { fontFamily: font.semi, fontSize: 16, lineHeight: 16, letterSpacing: -0.16 },
+  /**
+   * The label of a button. Every button of the layout sets its words on `line-height: normal`, and
+   * the four `control` roles stand on that line — Onest's own ({@link onestLine}). On a line shorter
+   * than the face iOS keeps the descent and cuts the ascent, and the words rode 2 higher in the
+   * button than the layout has them (TASK-397); on the face's own line iOS and Android both centre
+   * it, as the browser does.
+   */
+  control: {
+    fontFamily: font.semi,
+    fontSize: 16,
+    lineHeight: onestLine(16),
+    letterSpacing: -0.16,
+  },
   /** «Выйти из аккаунта» — the label of the one 60, a size over every other button's */
-  controlLg: { fontFamily: font.semi, fontSize: 17, lineHeight: 17, letterSpacing: -0.17 },
+  controlLg: {
+    fontFamily: font.semi,
+    fontSize: 17,
+    lineHeight: onestLine(17),
+    letterSpacing: -0.17,
+  },
   /** the label of a segment */
-  controlSm: { fontFamily: font.semi, fontSize: 14, lineHeight: 14 },
+  controlSm: { fontFamily: font.semi, fontSize: 14, lineHeight: onestLine(14) },
   /** «Разрешить доступ» — the 52 of the message card (spec 7.6, detail 45: 15 / 600) */
-  controlMd: { fontFamily: font.semi, fontSize: 15, lineHeight: 15 },
+  controlMd: { fontFamily: font.semi, fontSize: 15, lineHeight: onestLine(15) },
   /** the label of a chip — the same size a shade lighter, because a chip is offered and not pressed home */
   chip: { fontFamily: font.medium, fontSize: 14, lineHeight: 14 },
   /**
@@ -388,6 +416,12 @@ export const type = StyleSheet.create({
   label: { fontFamily: font.semi, fontSize: 13, lineHeight: 16 },
   /** an explanation under something — the one 13 that runs to more than a word */
   note: { fontFamily: font.medium, fontSize: 13, lineHeight: 19 },
+  /**
+   * The line under a control — a field, the switches: the note's words on Onest's own line at 13
+   * (`Username.json` e14–e15: 13 on `normal`, 17 tall), where the note of a wizard step and of a
+   * hint plate keeps its looser 19
+   */
+  hint: { fontFamily: font.medium, fontSize: 13, lineHeight: 17 },
   /** the director's thought, in its plate and in a record of the journal (spec 3, 10.11: 13 / 400 / 18) */
   log: { fontFamily: font.regular, fontSize: 13, lineHeight: 18 },
   /** the words of a connection banner: the note's size a line tighter (spec 7.6, detail 47) */

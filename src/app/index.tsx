@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Camera, Plus, User, WifiOff, X } from 'lucide-react-native';
+import { Camera, Plus, User, WifiOff } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 
@@ -74,15 +74,10 @@ export default function HomeScreen() {
   // what is under it, so it never lies over it.
   const banner =
     link.at === 'gone' ? (
-      <Banner text={s.home.offline}>
-        <IconButton
-          icon={X}
-          label={s.action.hide}
-          size={height.roundTiny}
-          tone="danger"
-          onPress={() => setLink({ at: 'hushed', why: link.why })}
-        />
-      </Banner>
+      <Banner
+        text={s.home.offline}
+        hide={{ label: s.action.hide, onPress: () => setLink({ at: 'hushed', why: link.why }) }}
+      />
     ) : link.at === 'back' ? (
       <Banner tone="done" text={s.home.online} />
     ) : null;
@@ -134,7 +129,7 @@ export default function HomeScreen() {
                 keyExtractor={(memory) => memory.id}
                 contentContainerStyle={[
                   styles.body,
-                  styles.lead,
+                  banner ? styles.leadBanner : styles.lead,
                   styles.list,
                   // `HomeEmpty`: centred on the same layer as the spinner it replaces.
                   memories.length === 0 ? [styles.mid, { paddingBottom: overhang }] : null,
@@ -254,6 +249,8 @@ const styles = StyleSheet.create({
   body: { paddingHorizontal: space.s4 },
   // Spec 8, `Main`: the list starts at 114, 18 under the bar.
   lead: { paddingTop: board.bodyMain - board.status - height.bar },
+  // …and a connection banner over it at 112, 16 under the bar (spec 4; `HomeOffline`, `HomeOnline`).
+  leadBanner: { paddingTop: board.bannerMain - board.status - height.bar },
   // Cards a 12 gap apart, and the list keeps the full height so its empty state has somewhere to
   // stand.
   list: { flexGrow: 1, gap: space.s3, paddingBottom: space.s5 },

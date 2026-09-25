@@ -1,10 +1,11 @@
+import { ChevronLeft } from 'lucide-react-native';
 import { createContext, useContext } from 'react';
 import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
 import { height, photo, radius, space, type Theme, themed, type, useTheme } from '@/theme';
 
 import { Spinner } from './empty';
-import { ICO_S, ICO_XS, Icon, type IconComponent } from './icon';
+import { ICO, ICO_S, ICO_XS, Icon, type IconComponent } from './icon';
 import { hitSlop, PRESS, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
 import { Text, type TypeRole } from './text';
 
@@ -77,6 +78,15 @@ const DEFAULT_SIZE: Record<ButtonVariant, ButtonSize> = {
  * remember; a height named outright is still the button's own.
  */
 export const SheetFoot = createContext(false);
+
+/**
+ * The four that are drawn round with a hairline. Every other one is its fill, or its words alone,
+ * and has none — as in the layout, where their sides are counted from the edge (`FilmsEmpty.json`:
+ * «Смонтировать» 14 from its edge to the plus; `MontageSelect.json`: «Отмена» 10 to its words). A
+ * clear hairline round them made each 2 wider than drawn (TASK-397). By the variant and not the
+ * state: a ringed button that cannot be pressed loses the ring's colour, not its width.
+ */
+const RINGED = new Set<ButtonVariant>(['secondary', 'small', 'outline', 'dashed']);
 
 /** The loud ones run the width they are given; the quiet ones are as wide as their words. */
 export const DEFAULT_WIDE: Record<ButtonVariant, boolean> = {
@@ -193,6 +203,7 @@ export function Button({
       style={({ pressed }) => [
         styles.btn,
         { minHeight: tall },
+        RINGED.has(variant) ? null : styles.flat,
         fill(theme, variant, off, hovered),
         boxed ? styles.boxed : null,
         variant === 'quiet' ? styles.tight : null,
@@ -434,7 +445,7 @@ export function IconButton({
     ? color.faint
     : onAccent
       ? color.onFill
-      : (tint ?? roundGlyph(color, tone));
+      : (tint ?? roundGlyph(color, tone, size));
 
   return (
     <Pressable
@@ -497,11 +508,46 @@ const DOT_RING = 2;
 const DOT_INSET = 10 / 56;
 
 /**
- * What the glyph is read in. A round button standing on a fill of its own — the account in the root
- * bar, the two at the foot of the gallery — carries its glyph in the plain colour of text; `muted`
- * belongs to the 36 and the 32 that stand on nothing (spec 7.2).
+ * The glyph of a round 44 in a bar (spec 5: «chevron-left — все шапки»): 22 at 1.9, where the
+ * circle's own rule gives a 44 its 20 — «Назад» on all 22 inner bars of the layout (`Create.json`
+ * e2) and the wizard's «x» that mirrors it (spec 7.1, detail 3).
  */
-function roundGlyph(color: Theme['color'], tone: RoundTone): string {
+export const BAR_GLYPH = { size: ICO, stroke: 1.9 } as const;
+
+/**
+ * «Назад» (spec 7.1, detail 2) — the round 44 on nothing at the left of an inner bar, of the wizard's
+ * and of the way in, drawn by the layout the same on every screen: the chevron at `BAR_GLYPH` in
+ * `paper`. One part, so the next screen with a way back cannot draw it any other way.
+ */
+export function BackButton({
+  label,
+  onPress,
+  style,
+}: {
+  /** «Назад» — the words live with the screens. */
+  label: string;
+  onPress: () => void;
+  style?: StyleProp<ViewStyle>;
+}) {
+  return (
+    <IconButton
+      icon={ChevronLeft}
+      label={label}
+      glyph={BAR_GLYPH}
+      onPress={onPress}
+      style={style}
+    />
+  );
+}
+
+/**
+ * What the glyph is read in. A round button standing on a fill of its own — the account in the root
+ * bar, the two at the foot of the gallery — carries its glyph in the plain colour of text. On
+ * nothing it is by size: the 44 of a bar and of the calendar's months is `paper` («Назад»,
+ * «Предыдущий месяц» — `Create.json` e2, e16), and `muted` belongs to the 36 and the 32 in a row
+ * (the cross of a contact, of a parked file — `Contacts.json` e24, `UploadQueue.json` e18).
+ */
+function roundGlyph(color: Theme['color'], tone: RoundTone, size: number): string {
   switch (tone) {
     case 'surface':
     // Raised above a card — the ± of the length slider. A fill of its own, so a full-voice glyph.
@@ -521,8 +567,8 @@ function roundGlyph(color: Theme['color'], tone: RoundTone): string {
       return color.sparkInk;
     case 'danger':
       return color.dangerText;
-    default:
-      return color.muted;
+    case 'ghost':
+      return size >= height.roundBar ? color.paper : color.muted;
   }
 }
 
@@ -605,17 +651,19 @@ const useStyles = themed(({ color }) =>
       flexDirection: 'row',
       gap: space.s2,
     },
-    // Spec 7.2: the quiet one pulls its sides in.
-    tight: { paddingHorizontal: space.s3 },
+    // A fill, or words on nothing: no hairline (`RINGED`).
+    flat: { borderWidth: 0 },
+    // Spec 7.2: the quiet one pulls its sides in — 14, «Снять» (`UploadLimited.json` e22) and «Ещё
+    // раз» (`LoginCode.json` e17) alike.
+    tight: { paddingHorizontal: 14 },
     // The link is its words and nothing round them: no sides, no hairline.
     bare: { paddingHorizontal: 0, borderWidth: 0 },
     underline: { textDecorationLine: 'underline' },
     // «В строке»: 14 a side and the glyph 6 from its words — 12 a side in the 32 pill.
     inRow: { paddingHorizontal: 14, gap: 6 },
     inRowPill: { paddingHorizontal: space.s3, gap: 6 },
-    // «Малая с текстом»: the words 18 in from the edge — 17 and the button's own hairline — and the
-    // glyph 7 from them («Сохранить» in `Contacts`, 109).
-    small: { paddingHorizontal: 17, gap: 7 },
+    // «Малая с текстом»: `0 18` and the glyph 7 from the words («Сохранить» in `Contacts`, 109).
+    small: { paddingHorizontal: 18, gap: 7 },
     // The main 56: its glyph 9 from its words (spec 7.2, detail 10).
     main: { gap: 9 },
     boxed: { borderRadius: radius.cell },

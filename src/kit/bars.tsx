@@ -18,7 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { board, height, photo, radius, space, ThemePin, themed, type, useTheme } from '@/theme';
 
 import { StepScale } from './bits';
-import { Button, IconButton } from './button';
+import { BAR_GLYPH, Button, IconButton } from './button';
 import { focusedField } from './field';
 import type { IconComponent } from './icon';
 import { DISMISS_KEYBOARD, FieldInBar, KEYBOARD_SCROLL } from './interaction';
@@ -255,9 +255,6 @@ export function AppBar({
  */
 export const CANCEL_WORD_SCALE = 1.2;
 
-/** The wizard's «x» (spec 7.1, detail 3): drawn at its own size, so it does not grow with the type. */
-const CANCEL_GLYPH = { size: 22, stroke: 1.9 } as const;
-
 /**
  * The wizard's bar (spec 7.1, detail 3): a 74-wide block on each side so the step counter sits dead
  * centre whatever the words in those blocks are, the step scale under it, and the step's own heading
@@ -300,6 +297,7 @@ export function WizardBar({
   style?: StyleProp<ViewStyle>;
 }) {
   const styles = useStyles();
+  const { color } = useTheme();
   const summary = variant === 'summary';
   const { fontScale } = useWindowDimensions();
   const glyph = fontScale > CANCEL_WORD_SCALE;
@@ -314,10 +312,13 @@ export function WizardBar({
         </Text>
         <View style={[side, styles.wizardRight]}>
           {cancel === undefined ? null : glyph ? (
+            // «Назад»'s own 22 / 1.9, so it does not grow with the type — and `muted`, the word's
+            // colour, where «Назад» on nothing is `paper` (spec 7.1, detail 3).
             <IconButton
               icon={X}
               label={cancel.label}
-              glyph={CANCEL_GLYPH}
+              glyph={BAR_GLYPH}
+              tint={color.muted}
               onPress={cancel.onPress}
               style={styles.pullRight}
             />

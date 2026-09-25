@@ -1,5 +1,5 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronLeft, Unlink } from 'lucide-react-native';
+import { Unlink } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
@@ -18,12 +18,12 @@ import {
 import {
   ActionBar,
   AppBar,
+  BackButton,
   BadgeDecision,
   Banner,
   Board,
   Button,
   CardNow,
-  IconButton,
   SHOT,
   Spinner,
   Text,
@@ -194,7 +194,7 @@ export default function MontageLiveScreen() {
           <AppBar
             variant="live"
             title={s.montage.live.title}
-            left={<IconButton icon={ChevronLeft} label={s.action.back} onPress={leave} />}
+            left={<BackButton label={s.action.back} onPress={leave} />}
           />
         }
         body={styles.body}
@@ -211,7 +211,7 @@ export default function MontageLiveScreen() {
           variant="live"
           title={failed ? s.montage.status.failed : s.montage.live.title}
           subtitle={montage === null ? undefined : orderedTo(montage)}
-          left={<IconButton icon={ChevronLeft} label={s.action.back} onPress={leave} />}
+          left={<BackButton label={s.action.back} onPress={leave} />}
           // Nobody watching is not a pill saying zero: it is a fact about people, and the pill is
           // only drawn when there are some (spec 7.5). The api hands out a username and no more,
           // and initials of one are enough for a 24 circle.

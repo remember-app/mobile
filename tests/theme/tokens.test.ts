@@ -273,7 +273,8 @@ test('the roles the second pass named are the spec’s (section 3, 10.11)', () =
   expect(type.displayCover.letterSpacing).toBeCloseTo(-0.03 * 26);
   // `control` 14–17: 15 is a 52 and the quiet 48 in a sheet (`SheetConfirmDelete.json` e7,
   // `SheetTooLittle.json` e8: 15 / 600, untracked).
-  expect(type.controlMd).toEqual({ fontFamily: font.semi, fontSize: 15, lineHeight: 15 });
+  expect(type.controlMd).toMatchObject({ fontFamily: font.semi, fontSize: 15 });
+  expect(type.controlMd).not.toHaveProperty('letterSpacing');
   // `log` 13 / 400 / 18 (`MontageLiveStage.json` e23); the quote 13 / 400 / 19
   // (`MontageSummary.json` e29).
   expect(type.log).toEqual({ fontFamily: font.regular, fontSize: 13, lineHeight: 18 });
@@ -345,6 +346,37 @@ test('the small lines are the ones the layout sets, at the line the face gives t
   expect(type.noteSm.fontFamily).toBe(font.regular);
   // The three promises of `Consent` are 14 / 20 plain (`Consent.json`, e9 and e18).
   expect(type.bodyXs).toMatchObject({ fontFamily: font.regular, fontSize: 14, lineHeight: 20 });
+});
+
+test('the words of a button stand on the face’s own line, where iOS sets them as the layout does', () => {
+  // TASK-397 (R'1). Every button with words the layout draws sets them on `line-height: normal` —
+  // all 123 over the 57 boards measured in TASK-378 (`Create.json` e89 «Создать», `Account.json` e37
+  // «Выйти из аккаунта», `UploadAccess.json` e10, the segments of `Account`…) — Onest's own line,
+  // read here off the file. The roles stood on their size instead (16 / 16), and on a line shorter
+  // than the face iOS keeps the descent and cuts the ascent: the words rode (16 − 20.4) / 2 = 2.2
+  // higher in a 56 than drawn, measured 2.0–2.7 on twelve screens.
+  const semi = fontFile(FACES.Onest_600SemiBold);
+  for (const role of ['control', 'controlLg', 'controlSm', 'controlMd'] as const) {
+    const { fontSize, lineHeight } = type[role];
+    expect(lineHeight, role).toBeCloseTo(naturalLine(semi, fontSize), 6);
+    expect(lineHeight, role).toBeGreaterThan(fontSize * 1.25);
+  }
+});
+
+test('the line under a field is the layout’s 13 on Onest’s own line, and the notes keep their 19', () => {
+  // TASK-397 (R'3). `Username.json` e14–e15: «Ник свободен.» 13 / 600 and «По нему вас найдут…»
+  // 13 / 400 on `line-height: normal`, 17 tall at 725 — the one line under a field the layout draws.
+  // At the note's 19 the block of «НИК», the field and that line, standing on the button, rode 2
+  // high. The note of a wizard step and of the hint plate is 13 / 500 / 19 in the layout
+  // (`MontageTemplate.json`, `UploadLimited.json` e7), and keeps it.
+  const medium = naturalLine(fontFile(FACES.Onest_500Medium), 13);
+  expect(type.hint).toEqual({
+    fontFamily: font.medium,
+    fontSize: 13,
+    lineHeight: Math.ceil(medium),
+  });
+  expect(type.hint.lineHeight).toBe(17);
+  expect(type.note).toMatchObject({ fontSize: 13, lineHeight: 19 });
 });
 
 test('the words of `Create`, `MemorySettings` and `Account` are the ones the layout sets (TASK-387)', () => {

@@ -1,17 +1,17 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronLeft, Download, Share } from 'lucide-react-native';
+import { Download, Share } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { listMontages, type Montage } from '@/api';
 import {
   AppBar,
+  BackButton,
   BadgeMontage,
   Banner,
   Board,
   Button,
   CardMontage,
-  IconButton,
   Text,
   TileNumber,
 } from '@/kit';
@@ -103,8 +103,7 @@ export default function MontageDoneScreen() {
                   .join(' · ')
           }
           left={
-            <IconButton
-              icon={ChevronLeft}
+            <BackButton
               label={s.action.back}
               // The strip of films is under this page both ways in; a montage that landed here by a
               // `replace` off the live screen has the memory itself under it.

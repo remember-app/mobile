@@ -1,10 +1,9 @@
 import { useRouter } from 'expo-router';
-import { ChevronLeft } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet } from 'react-native';
 
 import { createMemory, errorMessage } from '@/api';
-import { ActionBar, AppBar, Banner, Board, Button, Field, IconButton } from '@/kit';
+import { ActionBar, AppBar, BackButton, Banner, Board, Button, Field } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { endOfDay, startOfDay } from '@/lib/dates';
 import { useStrings } from '@/lib/language';
@@ -55,7 +54,7 @@ export default function CreateMemoryScreen() {
           // spot of a replace, and a button that answers nothing is worse than no button.
           left={
             router.canGoBack() ? (
-              <IconButton icon={ChevronLeft} label={s.action.back} onPress={() => router.back()} />
+              <BackButton label={s.action.back} onPress={() => router.back()} />
             ) : null
           }
         />
