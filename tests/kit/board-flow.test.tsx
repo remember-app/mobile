@@ -2,7 +2,10 @@ import { expect, test, vi } from 'vitest';
 
 // The phone, turned by the test: its window, the type size the person set and the status line. The
 // board decides by them whether the bar and the bottom layer stand still.
-const { phone } = vi.hoisted(() => ({ phone: { height: 667, fontScale: 1, top: 0 } }));
+const { phone, focus } = vi.hoisted(() => ({
+  phone: { height: 667, fontScale: 1, top: 0 },
+  focus: { field: null as { y: number; h: number; outside?: boolean } | null },
+}));
 
 vi.mock('react-native', async (importOriginal) => {
   const rn = await importOriginal<typeof import('react-native')>();
@@ -19,9 +22,24 @@ vi.mock('react-native', async (importOriginal) => {
       visible === false ? null : (children as never),
   };
 });
+// The field the keyboard is up for, where the phone laid it out in the body — or outside the body,
+// where it cannot be measured against it — or none.
+vi.mock('@/kit/field', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/kit/field')>()),
+  focusedField: () =>
+    focus.field && {
+      measureLayout: (
+        _body: unknown,
+        done: (x: number, y: number, w: number, h: number) => void,
+        fail: () => void,
+      ) => (focus.field?.outside ? fail() : done(0, focus.field?.y ?? 0, 375, focus.field?.h ?? 0)),
+    },
+}));
 vi.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: phone.top, right: 0, bottom: 0, left: 0 }),
 }));
+
+import { readFileSync } from 'node:fs';
 
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { cloneElement, type ReactElement, type ReactNode, useEffect } from 'react';
@@ -33,10 +51,15 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
+import TestRenderer, {
+  act,
+  type ReactTestInstance,
+  type TestRendererOptions,
+} from 'react-test-renderer';
 
 import { ActionBar, Board } from '@/kit/bars';
 import { Button } from '@/kit/button';
+import { useFieldInBar } from '@/kit/interaction';
 import { Sheet } from '@/kit/sheet';
 import { Text } from '@/kit/text';
 import { setTheme, themes, type } from '@/theme';
@@ -57,11 +80,11 @@ const laidOut = (node: ReactTestInstance, height: number) =>
 /** One line of the body, at the system's own size — what has to be left for the body at least. */
 const LINE = type.body.lineHeight;
 
-async function mount(board: ReactElement) {
+async function mount(board: ReactElement, options?: TestRendererOptions) {
   Object.assign(phone, { height: 667, fontScale: 1, top: 0 });
   let tree!: TestRenderer.ReactTestRenderer;
   await act(async () => {
-    tree = mounted(TestRenderer.create(board));
+    tree = mounted(TestRenderer.create(board, options));
   });
   const root = tree.root;
   /** The block the board measures around a node: the nearest one it listens to the layout of. */
@@ -119,17 +142,6 @@ test('while they fit, the bar and the bottom layer stand still and only the body
   expect(scroll().findAllByType(Button)).toHaveLength(0);
 });
 
-test('the keyboard never moves the bar or the bottom layer, so a field in either keeps it', async () => {
-  const { root } = await mount(
-    <Board bar={<Text>Шапка</Text>} footer={<Text>Поле</Text>}>
-      <Text>Тело</Text>
-    </Board>,
-  );
-  // The keyboard takes the room between the two, and that room is nothing the board listens to:
-  // moved into the scroll, a field would be drawn anew and the keyboard would go down with it.
-  expect(root.findByType(ScrollView).props.onLayout).toBeUndefined();
-});
-
 test('a body that is a list is handed the bar and the layer to scroll at its head and foot', async () => {
   const edges: { head: ReactNode; foot: ReactNode }[] = [];
   const { root, block, words, windowOf } = await mount(
@@ -183,6 +195,23 @@ function Field() {
   return <Text>Поле</Text>;
 }
 
+/** The same count for a field in the body or in the bar — the one the bar hears about, in the bar. */
+const typed = { started: 0, alive: 0 };
+function Typed() {
+  useEffect(() => {
+    typed.started += 1;
+    typed.alive += 1;
+    return () => {
+      typed.alive -= 1;
+    };
+  }, []);
+  return <Text>Ввод</Text>;
+}
+function BarField() {
+  useFieldInBar();
+  return <Typed />;
+}
+
 const screen = (over: Partial<Parameters<typeof Board>[0]> = {}) => (
   <Board bar={<Text>Шапка</Text>} footer={<Field />} {...over}>
     <Text>Тело</Text>
@@ -202,8 +231,8 @@ const order = (tree: TestRenderer.ReactTestRenderer, pieces = ['Шапка', 'Т
 const fits = (line = LINE) => 100 + 120 + line;
 
 /** A screen laid out by the phone: the bar 100 tall, the bottom layer 120. */
-async function measured(board: ReactElement = screen()) {
-  const it = await mount(board);
+async function measured(board: ReactElement = screen(), options?: TestRendererOptions) {
+  const it = await mount(board, options);
   await laidOut(it.block(it.words('Шапка')), 100);
   await laidOut(it.block(it.root.findByType(Field)), 120);
   const scroll = () => it.root.findByType(ScrollView);
@@ -366,24 +395,188 @@ test('the body scrolls only when it must, keeps a form’s own button pressable,
   expect(StyleSheet.flatten(column.props.style).flex).toBeUndefined();
 });
 
-test('the keyboard takes room from the body and from nothing the board listens to', async () => {
-  const it = await measured();
-  await it.windowOf(fits() + 200);
-  expect(it.standing()).toBe(true);
-  const started = life.started;
-  // Everything the phone can lay out again when the keyboard comes up: the room, the scroll, the
-  // board, the body. The bar and the layer keep their own heights, and none of it is the board's
-  // business — the field in the layer is the same field afterwards, with the keyboard up for it.
+/**
+ * TASK-381 changed what the keyboard may move. It was nothing (TASK-374: a field in the bottom layer
+ * moved into the scroll is drawn anew, and the keyboard goes down with it). On the smallest phone at
+ * the largest type that left the wizard's heading, its row and «Дальше» taller than the room over the
+ * keyboard: the field in the body was squeezed to nothing and «Назад» stood under the status line.
+ * Now the bottom layer is still never moved by the keyboard, and the bar is — into the scroll, over a
+ * body that is never drawn anew.
+ */
+/** What the phone lays out again when the keyboard comes up: everything but the bar and the layer. */
+async function keyboard(it: Awaited<ReturnType<typeof measured>>, room: number) {
   const bar = it.block(it.words('Шапка'));
   const layer = it.block(it.root.findByType(Field));
   const others = it.root.findAll(
     (one) => typeof one.props.onLayout === 'function' && one !== bar && one !== layer,
   );
-  for (const node of others) await laidOut(node, 3);
+  for (const node of others) await laidOut(node, room);
+}
+
+test('the keyboard never moves the bottom layer: its field is the same one, standing over the keyboard', async () => {
+  const it = await measured();
   await it.windowOf(fits() + 200);
-  expect(it.standing()).toBe(true);
+  const started = life.started;
+  // The keyboard took all but 3 of the room over the layer: the layer does not go anywhere.
+  await keyboard(it, 3);
+  expect(it.scroll().findAllByType(Field)).toHaveLength(0);
   expect(life.started).toBe(started);
   expect(life.alive).toBe(1);
+});
+
+test('short of the bar and a line of the body over the keyboard, the bar goes to the head of the scroll, and comes back', async () => {
+  const it = await measured();
+  await it.windowOf(fits() + 200);
+  // The room over the layer holds the bar and a line: nothing moves.
+  await keyboard(it, 100 + LINE);
+  expect(it.inScroll('Шапка')).toHaveLength(0);
+  // A point less: the bar scrolls, first in the scroll, and the layer stays under it and out of it.
+  await keyboard(it, 100 + LINE - 1);
+  expect(it.inScroll('Шапка')).not.toHaveLength(0);
+  expect(it.scroll().findAllByType(Field)).toHaveLength(0);
+  expect(order(it.tree)).toEqual(['Шапка', 'Тело', 'Поле']);
+  expect(
+    it.root.findAll((one) => one.type === Text && one.props.children === 'Шапка'),
+  ).toHaveLength(1);
+  // At the largest type the line is taller, and so is what the room has to hold.
+  await keyboard(it, 100 + LINE * 3.571 - 1);
+  await it.windowOf(fits(LINE * 3.571) + 200, { fontScale: 3.571 });
+  expect(it.inScroll('Шапка')).not.toHaveLength(0);
+  // The keyboard goes down: the bar stands again.
+  await keyboard(it, 700);
+  expect(it.inScroll('Шапка')).toHaveLength(0);
+});
+
+test('a field in the body is never drawn anew when the bar goes into the scroll over it or comes back', async () => {
+  const it = await measured(
+    <Board bar={<Text>Шапка</Text>} footer={<Field />}>
+      <Text>Тело</Text>
+      <Typed />
+    </Board>,
+  );
+  await it.windowOf(fits() + 200);
+  const started = typed.started;
+  expect(typed.alive).toBe(1);
+  for (const room of [3, 700, 50, 100 + LINE, 100 + LINE - 1, 700]) {
+    await keyboard(it, room);
+    expect(typed.started, `room ${room}`).toBe(started);
+    expect(typed.alive).toBe(1);
+  }
+});
+
+test('a bar holding a field of its own stays put for the keyboard, and the top gives instead', async () => {
+  const it = await measured(
+    <Board
+      bar={
+        <>
+          <Text>Шапка</Text>
+          <BarField />
+        </>
+      }
+      footer={<Field />}
+    >
+      <Text>Тело</Text>
+    </Board>,
+  );
+  await it.windowOf(fits() + 200);
+  const started = typed.started;
+  await keyboard(it, 3);
+  expect(it.inScroll('Шапка')).toHaveLength(0);
+  expect(typed.started).toBe(started);
+  expect(typed.alive).toBe(1);
+  // What does not fit goes past the top, never the bottom: the layer is the one over the keyboard.
+  const room = it.root.findAll(
+    (one) =>
+      one.type === View &&
+      typeof one.props.onLayout === 'function' &&
+      one.parent?.type !== KeyboardAvoidingView &&
+      one.findAllByType(ScrollView).length > 0,
+  )[0];
+  expect(StyleSheet.flatten(room.props.style).justifyContent).toBe('flex-end');
+  // Gone from the bar, the field no longer holds it.
+  await act(async () =>
+    it.tree.update(
+      <Board bar={<Text>Шапка</Text>} footer={<Field />}>
+        <Text>Тело</Text>
+      </Board>,
+    ),
+  );
+  await keyboard(it, 3);
+  expect(it.inScroll('Шапка')).not.toHaveLength(0);
+});
+
+test('the body keeps its place on the screen while the bar goes into the scroll above it and back', async () => {
+  const to = vi.fn();
+  // The phone's scroll, which node has none of: where it is told to go is what the test reads.
+  const it = await measured(screen(), { createNodeMock: () => ({ scroll: to }) });
+  await it.windowOf(fits() + 200);
+  // Scrolled 40 down the body when the keyboard came up.
+  await act(async () => it.scroll().props.onScroll({ nativeEvent: { contentOffset: { y: 40 } } }));
+  await keyboard(it, 50);
+  // The bar (100) is now over the body in the scroll: scrolled past it, the body stands where it did.
+  expect(to).toHaveBeenLastCalledWith(expect.objectContaining({ top: 140 }));
+  await act(async () => it.scroll().props.onScroll({ nativeEvent: { contentOffset: { y: 150 } } }));
+  await keyboard(it, 700);
+  expect(to).toHaveBeenLastCalledWith(expect.objectContaining({ top: 50 }));
+  // The window moving both the bar and the layer into the scroll is the board starting from its top.
+  to.mockClear();
+  await it.windowOf(fits() - 1);
+  expect(to).not.toHaveBeenCalled();
+});
+
+test('the field being typed into is brought into what the keyboard leaves of the body', async () => {
+  const to = vi.fn();
+  const it = await measured(screen(), { createNodeMock: () => ({ scroll: to }) });
+  const scrolled = (y: number) =>
+    act(async () => it.scroll().props.onScroll({ nativeEvent: { contentOffset: { y } } }));
+  /** The keyboard down and up again, over a field this far down the body and this tall. */
+  const typing = async (field: typeof focus.field, room = 300) => {
+    focus.field = null;
+    await keyboard(it, 600);
+    focus.field = field;
+    to.mockClear();
+    await keyboard(it, room);
+  };
+  try {
+    await it.windowOf(fits() + 600);
+    // 300 over the layer, 100 of it the bar: the field 450 down and 50 tall comes up to the edge,
+    // with the box round the input (12 each side) in sight too.
+    await typing({ y: 450, h: 50 });
+    expect(to).toHaveBeenLastCalledWith(expect.objectContaining({ top: 450 + 50 + 12 - 200 }));
+    // Scrolled past it, it comes back down to its top.
+    await scrolled(480);
+    await typing({ y: 450, h: 50 });
+    expect(to).toHaveBeenLastCalledWith(expect.objectContaining({ top: 450 - 12 }));
+    // Taller than what is left, it is shown from its top.
+    await scrolled(0);
+    await typing({ y: 350, h: 250 });
+    expect(to).toHaveBeenLastCalledWith(expect.objectContaining({ top: 350 - 12 }));
+    // In sight already: nothing moves.
+    await scrolled(0);
+    await typing({ y: 20, h: 50 });
+    expect(to).not.toHaveBeenCalled();
+    // Not in the body — in the bar or the bottom layer, which stand — and nothing focused: the same.
+    await typing({ y: 450, h: 50, outside: true });
+    expect(to).not.toHaveBeenCalled();
+    await typing(null);
+    expect(to).not.toHaveBeenCalled();
+    // The bar gone into the scroll over it: counted from the body's new place under the bar.
+    await typing({ y: 200, h: 50 }, 100 + LINE - 1);
+    expect(to).toHaveBeenLastCalledWith(
+      expect.objectContaining({ top: 100 + 200 + 50 + 12 - (100 + LINE - 1) }),
+    );
+  } finally {
+    focus.field = null;
+  }
+});
+
+test('every field of the kit tells a bar it stands in that it is there', () => {
+  // A field in the bar moved into the scroll is drawn anew, and the keyboard goes down with it: the
+  // bar learns it holds one from the field itself, so no field of the kit may forget to say so.
+  const source = readFileSync(new URL('../../src/kit/field.tsx', import.meta.url), 'utf8');
+  const inputs = source.match(/<TextInput\b/g) ?? [];
+  expect(inputs.length).toBeGreaterThan(2);
+  expect(source.match(/\buseFieldInBar\(\);/g) ?? []).toHaveLength(inputs.length);
 });
 
 test('a field in the layer is drawn once while the window has room, and only once more, alone, when the board scrolls it', async () => {
