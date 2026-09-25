@@ -89,3 +89,52 @@ test('the keyboard is given way to by the board alone', () => {
   for (const [path, source] of routes.filter(([p]) => typed.includes(p)))
     expect(/<Board\b|<WizardStep\b/.test(source), path).toBe(true);
 });
+
+/** What a `list={…}` prop of the board holds: the expression between its braces. */
+const listOf = (source: string): string => {
+  const at = source.indexOf('list={');
+  if (at < 0) return '';
+  let depth = 0;
+  for (let i = at + 5; i < source.length; i += 1) {
+    if (source[i] === '{') depth += 1;
+    else if (source[i] === '}' && (depth -= 1) === 0) return source.slice(at + 6, i);
+  }
+  return '';
+};
+
+test('a vertical list stands only in the board’s `list`, never inside the scroll of its body', () => {
+  // A list in the body's own column is a list inside a scroll: it would draw every row and never
+  // recycle one. Every list of a screen is the one the board is handed.
+  const lists = routes.filter(([, source]) => /<(Animated\.)?FlatList\b/.test(source));
+  expect(lists.map(([path]) => path).sort()).toEqual([
+    'app/index.tsx',
+    'app/memory/[id]/montage/[montageId]/stage/[stage].tsx',
+    'app/memory/[id]/order/frames.tsx',
+    'app/memory/[id]/upload.tsx',
+  ]);
+  for (const [path, source] of lists)
+    expect(listOf(source).match(/<FlatList\b/g), path).toHaveLength(
+      source.match(/<FlatList\b/g)?.length ?? 0,
+    );
+});
+
+/**
+ * The windows that cover a screen or a part of it, and why none is a scroll of the board's: a sheet
+ * and a menu are windows of their own over it; the frame viewer, the film player and the phone's
+ * photograph on `Upload` are full-screen views to look at — and each answers the system's own «back»,
+ * so nothing in them is out of reach.
+ */
+const WINDOWS = [
+  'app/memory/[id]/upload.tsx',
+  'kit/menu.tsx',
+  'kit/sheet.tsx',
+  'screens/memory/film-player.tsx',
+  'screens/memory/frame-viewer.tsx',
+];
+
+test('the windows over a screen are the named ones, and each closes on the system’s back', () => {
+  const windows = sources.filter(([, source]) => /<Modal\b/.test(source));
+  expect(windows.map(([path]) => path).sort()).toEqual(WINDOWS);
+  for (const [path, source] of windows)
+    expect(flat(source), path).toMatch(/<Modal [^>]*onRequestClose=/);
+});
