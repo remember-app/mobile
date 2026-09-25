@@ -87,12 +87,19 @@ vi.mock('expo-router', () => ({
   useIsFocused: () => true,
   useRouter: () => nav.router,
 }));
-// The shelf's speaker and the phone's file picker are native; this test never presses either.
+// The shelf's speaker and the phone's file picker are native. The speaker is never pressed here; the
+// picker answers what a test sets (a cancelled pick by default), and the upload of the chosen file
+// to storage answers with the key it was given, or fails.
+const phone = vi.hoisted(() => ({
+  pick: { canceled: true } as { canceled: boolean; assets?: { uri: string; name: string }[] },
+  send: async (_file: { uri: string; name: string }): Promise<string> => 'music/own',
+}));
 vi.mock('@/lib/music', () => ({
   useTrackPreview: () => ({ playing: null, toggle: async () => {} }),
-  sendOwnTrack: async () => 'music/own',
+  sendOwnTrack: (_token: string, _memory: string, file: { uri: string; name: string }) =>
+    phone.send(file),
 }));
-vi.mock('expo-document-picker', () => ({ getDocumentAsync: async () => ({ canceled: true }) }));
+vi.mock('expo-document-picker', () => ({ getDocumentAsync: async () => phone.pick }));
 // A text input listens on the browser's `document`, which a test renderer has none of: both inputs
 // stand in as a bare element carrying their props, and a test types by calling `onChangeText`.
 //
@@ -110,9 +117,12 @@ vi.mock('@/kit', async (original) => {
   };
 });
 
+import { expectReachable } from '@tests/helpers/access';
+import { later } from '@tests/helpers/api';
+import { orderRefusal } from '@tests/helpers/contract';
 import { act, BEAT_BY_BEAT, drives } from '@tests/helpers/drive';
 import { frame } from '@tests/helpers/labels';
-import { mountsTrees } from '@tests/helpers/renderer';
+import { mountsTrees, themesShown } from '@tests/helpers/renderer';
 import { Fragment, type ReactElement, useSyncExternalStore } from 'react';
 import TestRenderer, { act as reactAct } from 'react-test-renderer';
 import type {
@@ -143,6 +153,7 @@ import {
 import { currentLanguage, setLanguage } from '@/lib/language';
 import { ENTER_MS, OrderProvider, READ_MS, useOrder, type Wizard } from '@/screens/order/wizard';
 import { ru, strings } from '@/strings';
+import { setTheme } from '@/theme';
 
 /**
  * Ordering a movie the way the organizer does, start to finish (doc-03, m-26): the real wizard —
@@ -230,8 +241,13 @@ function weigh(server: Server, exclude: ReadonlySet<string> = new Set()) {
 const tooLittle = (ready: number) =>
   json({ error: 'not enough material for a montage', ready_items: ready, need: 3 }, 409);
 
-/** `checkOrder` of the api's `montages.ts`, cut to the refusals a wizard can earn. */
+/**
+ * `checkOrder` of the api's `montages.ts`, cut to the refusals a wizard can earn — behind the
+ * schema the api holds the body to first (`orderRefusal`, the same one every stand-in shares).
+ */
 function total(server: Server, body: Body): Response {
+  const bad = orderRefusal(body);
+  if (bad) return bad;
   if (server.refuse?.body) return json(server.refuse.body, server.refuse.status);
   const exclude = new Set(body.exclude_media_ids);
   if (body.include_media_ids?.some((id) => exclude.has(id))) return json({ error: 'both' }, 400);
@@ -241,14 +257,6 @@ function total(server: Server, body: Body): Response {
   );
   if (missing.length > 0)
     return json({ error: 'no such ready media in this memory', media_ids: missing }, 400);
-  // A wish is about one of the order's own tracks, or it is refused by name (api `montages.ts`).
-  const stray = Object.keys(body.music_wishes ?? {}).filter(
-    (track) => !body.music_tracks?.includes(track),
-  );
-  if (stray.length > 0)
-    return json({ error: 'music wish for a track not in music_tracks', music_wishes: stray }, 400);
-  if (Object.values(body.music_wishes ?? {}).some((wish) => wish.length > 500))
-    return json({ error: 'body/music_wishes must NOT have more than 500 characters' }, 400);
 
   const { left, max, min, short } = weigh(server, exclude);
   if (server.refuse?.status === 409 || short) return tooLittle(left.length);
@@ -362,6 +370,8 @@ beforeEach(async () => {
   vi.useFakeTimers();
   calm.on = false;
   nav.reset();
+  phone.pick = { canceled: true };
+  phone.send = async () => 'music/own';
   await setLanguage('ru');
 });
 afterEach(() => {
@@ -772,6 +782,148 @@ test('a wish is written to one of several tracks, stands under its name, and can
   expect(server.orders[0]?.music_tracks).toEqual(['calm', 'warm']);
   expect(server.orders[0]).not.toHaveProperty('music_wishes');
 });
+
+test('the music step in daylight, a wish standing under one track and a field open under another, wears only the day', async () => {
+  const musicStep = async () => {
+    serve();
+    await open();
+    await press(ru.montage.ownSetup);
+    await forward();
+    await forward();
+    await press(ru.montage.addTrack(ru.montage.track.warm));
+    await press(ru.montage.addTrack(ru.montage.track.calm));
+    await wishTo(ru.montage.track.warm, 'Тихо, на сборы');
+    await press(ru.montage.wishAbout(ru.montage.track.calm));
+    return themesShown(root().findAllByType(MusicStep).at(-1)!);
+  };
+  // The night is what the harness starts in, and the detector sees it on this very step.
+  expect((await musicStep()).night.length).toBeGreaterThan(0);
+  await act(async () => tree?.unmount());
+  nav.reset();
+  await setTheme('light');
+  try {
+    const shown = await musicStep();
+    expect(shown.night).toEqual([]);
+    expect(shown.day.length).toBeGreaterThan(0);
+  } finally {
+    await setTheme('dark');
+  }
+});
+
+test('a track from the phone waits for its upload, joins the list under its file name, takes a wish and goes out under its own key', async () => {
+  const server = serve();
+  await open();
+  await press(ru.montage.ownSetup);
+  await forward();
+  await forward();
+
+  const next = () => buttons(ru.montage.next).at(-1)!;
+  const upload = later<string>();
+  phone.pick = { canceled: false, assets: [{ uri: 'file:///a.mp3', name: 'Первый танец.mp3' }] };
+  phone.send = () => upload.promise;
+  await press(ru.montage.ownTrackShort);
+  // While the file goes up the wizard cannot move on, nor take a second file, and nothing is on the list.
+  expect(next().props.busy).toBe(true);
+  expect(buttons(ru.montage.ownTrackShort).at(-1)!.props.disabled).toBe(true);
+  expect(wizard.order.tracks).toEqual([]);
+  await act(async () => upload.settle('music/aaa'));
+  expect(next().props.busy).toBe(false);
+  expect(chosen('Первый танец.mp3')).toBeDefined();
+
+  // A second file, and a shelf track between them.
+  await press(ru.montage.addTrack(ru.montage.track.warm));
+  phone.pick = { canceled: false, assets: [{ uri: 'file:///b.mp3', name: 'Финал.mp3' }] };
+  phone.send = async () => 'music/bbb';
+  await press(ru.montage.ownTrackShort);
+  expect(wizard.order.tracks.map((one) => one.key)).toEqual(['music/aaa', 'warm', 'music/bbb']);
+  // The pencil of a file's row is named by the file, and the wish goes under the key R2 answered with.
+  await wishTo('Первый танец.mp3', 'Тихо, на сборы');
+  expect(chosen('Первый танец.mp3').props.wish).toBe('Тихо, на сборы');
+  expect(chosen('Финал.mp3').props.wish).toBeUndefined();
+
+  await forward();
+  await forward();
+  await run(0);
+  await press(ru.montage.startCut);
+  expect(server.orders[0]).toMatchObject({
+    music_tracks: ['music/aaa', 'warm', 'music/bbb'],
+    music_wishes: { 'music/aaa': 'Тихо, на сборы' },
+  });
+});
+
+test('a cancelled pick changes nothing, and a file that cannot be sent says so and leaves the list as it was', async () => {
+  serve();
+  await open();
+  await press(ru.montage.ownSetup);
+  await forward();
+  await forward();
+
+  await press(ru.montage.ownTrackShort);
+  expect(wizard.order.tracks).toEqual([]);
+  expect(banner()).toBeUndefined();
+
+  phone.pick = { canceled: false, assets: [{ uri: 'file:///a.mp3', name: 'Первый танец.mp3' }] };
+  phone.send = async () => {
+    throw new TypeError('Network request failed');
+  };
+  await press(ru.montage.ownTrackShort);
+  expect(wizard.order.tracks).toEqual([]);
+  expect(banner()).toBe(ru.error.offline);
+  expect(buttons(ru.montage.next).at(-1)!.props.busy).toBe(false);
+  expect(buttons(ru.montage.ownTrackShort).at(-1)!.props.disabled).toBe(false);
+
+  // Tried again and sent: the notice is gone with the next try.
+  phone.send = async () => 'music/aaa';
+  await press(ru.montage.ownTrackShort);
+  expect(banner()).toBeUndefined();
+  expect(chosen('Первый танец.mp3')).toBeDefined();
+});
+
+test.each(['ru', 'en'] as const)(
+  'in %s the music step with a wish written, one being written and none: every control is named, sized for a finger, and the field takes at most 500 letters',
+  async (language) => {
+    await setLanguage(language);
+    const s = strings[language];
+    serve();
+    await open();
+    await press(s.montage.ownSetup);
+    await forward();
+    await forward();
+
+    const { warm, calm, road } = s.montage.track;
+    for (const track of [warm, calm, road]) await press(s.montage.addTrack(track));
+    const field = (track: string) =>
+      root()
+        .findAllByType('input-stub' as never)
+        .find((one) => one.props.label === s.montage.wishAbout(track));
+    await press(s.montage.wishAbout(warm));
+    await act(async () => field(warm)!.props.onChangeText('  Тихо, на сборы  '));
+    await act(async () => field(warm)!.props.onBlur());
+    // «Calm» has its pencil pressed and its field open; «Road» has nothing.
+    await press(s.montage.wishAbout(calm));
+    expect(field(calm)!.props.maxLength).toBe(500);
+    expect(field(warm)).toBeUndefined();
+
+    // This step alone: the ones under it stay mounted, and a window of no width sizes their tiles at nothing.
+    const names = expectReachable(root().findAllByType(MusicStep).at(-1)!).map((one) => one.name);
+    for (const name of [
+      s.montage.wishEdit(warm),
+      s.montage.wishAbout(calm),
+      s.montage.wishAbout(road),
+      s.montage.dropTrack(warm),
+      s.montage.dropTrack(road),
+      s.montage.addTrack(s.montage.track.bright),
+      s.montage.unpickTrack(warm),
+      s.montage.next,
+    ])
+      expect(names, name).toContain(name);
+    // A wish typed and a wish being typed: the first stands under its track and is read out with it.
+    expect(chosen(warm).props.wish).toBe('Тихо, на сборы');
+    const grip = chosen(warm).props.grip;
+    expect(grip.accessibilityLabel).toContain('Тихо, на сборы');
+    expect(grip.accessibilityRole).toBe('adjustable');
+  },
+);
 
 test('a track taken out with a wish takes the wish along, and comes back without one', async () => {
   const server = serve();

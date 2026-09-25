@@ -39,6 +39,7 @@ vi.mock('@/kit', async (original) => ({
 }));
 
 import { type Asked, later, member, memory, photo, refused, serve } from '@tests/helpers/api';
+import { account, datesRefusal } from '@tests/helpers/contract';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import type { ReactNode } from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
@@ -58,7 +59,7 @@ import { ru } from '@/strings';
 mountsTrees();
 afterEach(() => vi.unstubAllGlobals());
 
-const ME = { id: 'me', username: 'me', name: 'Я', email: 'me@test.test', language: 'ru' };
+const ME = account({ username: 'me', name: 'Я', email: 'me@test.test' });
 
 /** Three days of September in each memory: the 13th, the 12th, the 11th. */
 const at = (day: number) => new Date(2026, 8, day, 12).toISOString();
@@ -76,6 +77,8 @@ function world(on: boolean, change?: () => unknown): Asked[] {
       return { ...ME, dates_between_days: held };
     }
     if (asked.path === '/me/dates-between-days') {
+      const bad = datesRefusal(asked.body);
+      if (bad) return bad;
       if (change) return change();
       held = (asked.body as { dates_between_days: boolean }).dates_between_days;
       return { ...ME, dates_between_days: held };

@@ -22,6 +22,7 @@ vi.mock('@/kit', async (original) => ({
   Field: () => null,
 }));
 
+import { expectReachable } from '@tests/helpers/access';
 import { type Asked, later, member, memory, refused, serve } from '@tests/helpers/api';
 import { mounted, mountsTrees, themesShown } from '@tests/helpers/renderer';
 import { Pressable } from 'react-native';
@@ -675,6 +676,84 @@ test('«Удалить навсегда» waits on its one request, busy, and th
   expect(router.replace).toHaveBeenCalledWith('/');
   expect(screen.sheet()).toHaveLength(0);
   expect(screen.notice()).toEqual([]);
+});
+
+test('in daylight the deleting sheet, its plate on `ink` and its red button included, carries none of the night’s tokens', async () => {
+  world();
+  // The detector sees the night on this very sheet, or an empty answer below proves nothing.
+  const night = await open();
+  await night.press(() => night.icon(ru.settings.delete)[0]);
+  expect(themesShown(night.sheet()[0]).night.length).toBeGreaterThan(0);
+  await setTheme('light');
+  try {
+    const screen = await open();
+    await screen.press(() => screen.icon(ru.settings.delete)[0]);
+    const shown = themesShown(screen.sheet()[0]);
+    expect(shown.night).toEqual([]);
+    expect(shown.day.length).toBeGreaterThan(0);
+    expect(screen.text()).toContain('57 кадров сюда принесли другие');
+  } finally {
+    await setTheme('dark');
+  }
+});
+
+test('while the delete is in the air no press can start another, and with no connection the screen says so and lets it be tried again', async () => {
+  const slow = later<unknown>();
+  const w = world();
+  w.log = serve((asked) => {
+    if (asked.path === '/memories') return [memory({ media_count: 69 })];
+    if (asked.path === '/memories/m1/members') return w.members;
+    if (asked.method === 'DELETE') return slow.promise;
+    return undefined;
+  });
+  const screen = await open();
+  await screen.press(() => screen.icon(ru.settings.delete)[0]);
+  await act(async () => void screen.sheet()[0].props.onConfirm());
+  // What a finger reaches: the red button and its way out are both dead to it, and so is the trash.
+  const dead = (label: string) =>
+    screen.button(label)[0].findByType(Pressable).props.disabled as boolean;
+  expect(dead(ru.settings.deleteDo)).toBe(true);
+  expect(dead(ru.settings.keep)).toBe(true);
+  expect(screen.icon(ru.settings.delete)[0].props.disabled).toBe(true);
+  await act(async () => slow.settle({ ok: true }));
+  expect(w.log.filter((one) => one.method === 'DELETE')).toHaveLength(1);
+
+  router.replace.mockClear();
+  serve((asked) => {
+    if (asked.path === '/memories') return [memory({ media_count: 69 })];
+    if (asked.path === '/memories/m1/members') return w.members;
+    if (asked.method === 'DELETE') return 'offline';
+    return undefined;
+  });
+  const again = await open();
+  await again.press(() => again.icon(ru.settings.delete)[0]);
+  await act(async () => again.sheet()[0].props.onConfirm());
+  expect(router.replace).not.toHaveBeenCalled();
+  expect(again.notice()).toEqual([ru.error.offline]);
+  expect(again.sheet()).toHaveLength(0);
+  expect(again.icon(ru.settings.delete)[0].props.disabled).toBe(false);
+});
+
+test('every control of the screen and of the deleting sheet is named, has a role and is felt at 44', async () => {
+  world();
+  const screen = await open();
+  const bare = expectReachable(screen.root);
+  expect(bare.map((one) => one.name)).toEqual([
+    ru.action.back,
+    ru.settings.delete,
+    ru.settings.edit,
+    ru.members.edit,
+    'Ваш статус: всё загрузил. Изменить',
+    ru.action.invite,
+  ]);
+  await screen.press(() => screen.icon(ru.settings.delete)[0]);
+  const asked = expectReachable(screen.root);
+  // The sheet’s two are read in the order they are drawn: the dangerous one first, then the way out of it.
+  expect(asked.map((one) => one.name).slice(bare.length)).toEqual([
+    ru.settings.deleteDo,
+    ru.settings.keep,
+  ]);
+  expect(asked.slice(bare.length).map((one) => one.role)).toEqual(['button', 'button']);
 });
 
 test('a memory somebody already deleted is the same outcome, and a refusal is said on the screen with the trash live again', async () => {

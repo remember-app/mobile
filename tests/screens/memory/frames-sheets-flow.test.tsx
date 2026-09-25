@@ -2,14 +2,28 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
 
+import { expectReachable } from '@tests/helpers/access';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { Image } from 'expo-image';
+import { Pressable, StyleSheet } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 
-import { Banner, Calendar, IconButton, RowSummary, Spinner } from '@/kit';
-import { FILTER_NONE, type Filter } from '@/lib/frames';
-import { FilterSheet, FrameInfoSheet } from '@/screens/memory/frames-sheets';
-import { ru } from '@/strings';
+import type { Label } from '@/api';
+import {
+  Banner,
+  Button,
+  Calendar,
+  Chip,
+  DayTile,
+  FaceToggle,
+  IconButton,
+  RowSummary,
+  Spinner,
+} from '@/kit';
+import { FILTER_NONE, type Filter, type FilterDay, SORT_DEFAULT } from '@/lib/frames';
+import { setLanguage } from '@/lib/language';
+import { FilterSheet, FrameInfoSheet, SortSheet } from '@/screens/memory/frames-sheets';
+import { ru, strings } from '@/strings';
 
 /**
  * Two things about the sheets of a memory the feed cannot show. `SheetFilter`'s calendar (spec 8,
@@ -104,6 +118,189 @@ test('and on the latest of the days that are — never the first — with that d
   expect(early.month.getMonth()).toBe(6);
   expect(early.from).toEqual(new Date(2026, 6, 5));
 });
+
+/** The filter sheet as a person works it: faces, tiles, «Все дни», «Сбросить», and the button that applies. */
+const dayAt = (d: number) => new Date(2026, 8, d).getTime();
+const crowd = (n: number) =>
+  Array.from({ length: n }, (_, at) => ({ id: `p${at}`, name: `Гость Номер${at + 1}` }));
+const spread = (n: number): FilterDay[] =>
+  Array.from({ length: n }, (_, at) => ({
+    at: dayAt(10 + at),
+    count: 10 * (at + 1),
+    fill: (at + 1) / n,
+  }));
+
+async function work(over: { who?: number; days?: number; labels?: Label[]; value?: Filter } = {}) {
+  const applied: Filter[] = [];
+  const asked: Filter[] = [];
+  let tree!: TestRenderer.ReactTestRenderer;
+  await act(async () => {
+    tree = mounted(
+      TestRenderer.create(
+        <FilterSheet
+          people={crowd(over.who ?? 3)}
+          labels={over.labels ?? []}
+          days={spread(over.days ?? 3)}
+          value={over.value ?? FILTER_NONE}
+          // Every draft it is asked about is remembered; the count is what the draft leaves of 100.
+          count={(draft) => {
+            asked.push(draft);
+            return draft.people.size === 0 ? 100 : 100 - draft.people.size * 10;
+          }}
+          onApply={(filter) => applied.push(filter)}
+          onCancel={() => {}}
+        />,
+      ),
+    );
+  });
+  const root = tree.root;
+  return {
+    root,
+    applied,
+    asked,
+    face: (n: number) =>
+      root.findAllByType(FaceToggle).find((one) => one.props.name === `Гость Номер${n}`)!,
+    tiles: () => root.findAllByType(DayTile),
+    button: (label: string | RegExp) =>
+      root
+        .findAllByType(Button)
+        .find((one) =>
+          typeof label === 'string' ? one.props.label === label : label.test(one.props.label),
+        )!,
+    chip: (label: string) => root.findAllByType(Chip).find((one) => one.props.label === label)!,
+    press: (node: TestRenderer.ReactTestInstance) => act(async () => node.props.onPress()),
+  };
+}
+
+test('the faces are pressed on and off, «Все дни» empties only the days, «Сбросить» empties everything and goes dim', async () => {
+  const sheet = await work({ who: 7 });
+  // Nothing chosen: nothing to clear, the button offers the lot.
+  expect(sheet.button(ru.gallery.reset).props.disabled).toBe(true);
+  expect(sheet.button(ru.gallery.showAll).props.disabled).toBeFalsy();
+  expect(sheet.chip(ru.gallery.anyDay).props.selected).toBe(true);
+
+  await sheet.press(sheet.face(2));
+  await sheet.press(sheet.face(7));
+  await sheet.press(sheet.tiles()[1]);
+  expect(sheet.face(2).props.selected).toBe(true);
+  expect(sheet.face(1).props.selected).toBe(false);
+  expect(sheet.tiles().map((one) => one.props.selected)).toEqual([false, true, false]);
+  expect(sheet.chip(ru.gallery.anyDay).props.selected).toBe(false);
+  // The button says what this draft leaves, live, and the sheet has not applied anything yet.
+  expect(sheet.button(ru.gallery.show(80))).toBeDefined();
+  expect(sheet.applied).toEqual([]);
+
+  // A second press on a chosen face or tile takes it back.
+  await sheet.press(sheet.face(7));
+  expect(sheet.face(7).props.selected).toBe(false);
+  await sheet.press(sheet.tiles()[1]);
+  await sheet.press(sheet.tiles()[0]);
+  await sheet.press(sheet.tiles()[2]);
+  expect(sheet.tiles().map((one) => one.props.selected)).toEqual([true, false, true]);
+  // «Все дни» lets go of the days and leaves the people alone.
+  await sheet.press(sheet.chip(ru.gallery.anyDay));
+  expect(sheet.tiles().map((one) => one.props.selected)).toEqual([false, false, false]);
+  expect(sheet.face(2).props.selected).toBe(true);
+
+  await sheet.press(sheet.face(1));
+  await sheet.press(sheet.button(ru.gallery.reset));
+  expect(sheet.root.findAllByType(FaceToggle).some((one) => one.props.selected)).toBe(false);
+  expect(sheet.button(ru.gallery.reset).props.disabled).toBe(true);
+  await sheet.press(sheet.button(ru.gallery.showAll));
+  expect(sheet.applied).toHaveLength(1);
+  expect(sheet.applied[0].people.size + sheet.applied[0].days.size).toBe(0);
+});
+
+test('a filter that is applied hands over exactly what was chosen, and later edits of the draft cannot change it', async () => {
+  const sheet = await work({ who: 3 });
+  await sheet.press(sheet.face(3));
+  await sheet.press(sheet.tiles()[2]);
+  await sheet.press(sheet.button(ru.gallery.show(90)));
+  const [sent] = sheet.applied;
+  expect([...sent.people]).toEqual(['p2']);
+  expect([...sent.days]).toEqual([dayAt(12)]);
+  await sheet.press(sheet.face(1));
+  expect([...sent.people]).toEqual(['p2']);
+});
+
+test('one day and two days stretch their tiles across the row, three share it evenly, and more than three stay three', async () => {
+  for (const [days, drawn] of [
+    [1, 1],
+    [2, 2],
+    [3, 3],
+    [4, 3],
+    [9, 3],
+  ] as const) {
+    const sheet = await work({ days });
+    expect(sheet.tiles(), `${days} days`).toHaveLength(drawn);
+    // Every tile asks for an equal share of what is left (`flex: 1`) and none for a width of its own,
+    // so the row is filled whatever their number is.
+    for (const tile of sheet.tiles()) {
+      const style = StyleSheet.flatten(tile.findByType(Pressable).props.style({ pressed: false }));
+      expect(style.flex, `${days} days`).toBe(1);
+      expect(style.width, `${days} days`).toBeUndefined();
+    }
+  }
+});
+
+test.each(['ru', 'en'] as const)(
+  'in %s the filter and the sort sheets: every control has a role and a name, faces and tiles are read as switches, and none is under 44',
+  async (language) => {
+    await act(async () => setLanguage(language));
+    try {
+      const s = strings[language];
+      const sheet = await work({
+        who: 12,
+        days: 5,
+        labels: [
+          {
+            id: 'best',
+            title: 'Лучшее',
+            color: 2,
+            shared: true,
+            mine: true,
+            can_edit: true,
+            can_add_media: true,
+            media_count: 23,
+          } as Label,
+        ],
+      });
+      const found = expectReachable(sheet.root);
+      const names = found.map((one) => one.name);
+      for (const name of [
+        s.gallery.reset,
+        s.gallery.anyDay,
+        s.gallery.otherDay,
+        s.gallery.showAll,
+        'Гость Номер12',
+      ])
+        expect(names, name).toContain(name);
+      // Twelve faces and three tiles, all of them switches that say which way they stand.
+      const roles = found.filter((one) => one.role === 'togglebutton').length;
+      expect(roles).toBeGreaterThanOrEqual(12 + 3);
+      for (const toggle of [...sheet.root.findAllByType(FaceToggle), ...sheet.tiles()])
+        expect(toggle.findByType(Pressable).props.accessibilityState).toMatchObject({
+          checked: false,
+        });
+      // The main button is the last thing read, the reset the first: the order of the layout.
+      expect(names[0]).toBe(s.gallery.reset);
+      expect(names.at(-1)).toBe(s.gallery.showAll);
+
+      let tree!: TestRenderer.ReactTestRenderer;
+      await act(async () => {
+        tree = mounted(
+          TestRenderer.create(
+            <SortSheet value={SORT_DEFAULT} onChange={() => {}} onDone={() => {}} />,
+          ),
+        );
+      });
+      const sorting = expectReachable(tree.root).map((one) => one.name);
+      expect(sorting.at(-1)).toBe(s.action.done);
+    } finally {
+      await act(async () => setLanguage('ru'));
+    }
+  },
+);
 
 /** The sheet of a frame in its three states, read off the tree rather than told apart by markup. */
 const info = (over: Partial<React.ComponentProps<typeof FrameInfoSheet>> = {}) => (
