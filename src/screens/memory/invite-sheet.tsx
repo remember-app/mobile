@@ -172,7 +172,6 @@ export function InviteSheet({
       visible={visible}
       onCancel={onCancel}
       title={s.members.inviteTitle}
-      scroll
       footer={
         <Button
           variant="primary"

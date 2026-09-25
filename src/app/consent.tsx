@@ -123,7 +123,6 @@ export default function ConsentScreen() {
         visible={open}
         onCancel={() => setOpen(false)}
         title={s.consent.agreement.title}
-        scroll
         footer={
           <Button variant="secondary" label={s.action.close} onPress={() => setOpen(false)} />
         }

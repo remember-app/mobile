@@ -154,7 +154,6 @@ export function FilterSheet({
           />
         </View>
       }
-      scroll
       rhythm="tuning"
       height={height.sheetFilter}
       footer={
@@ -421,7 +420,6 @@ export function FrameInfoSheet({
       }
       // No footer: the sheet is closed by the darkness, the handle and the back key, like every
       // other one. A button saying «Закрыть» under a sheet that only shows things is furniture.
-      scroll
       rhythm="list"
     >
       {error !== null ? <Banner tone="error" text={error} /> : null}
