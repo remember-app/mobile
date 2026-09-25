@@ -30,7 +30,6 @@ const LETTERS: Record<number, number> = {
   26: 10,
   30: 11,
   32: 11,
-  34: 11,
   36: 12,
   38: 13,
   42: 14,

@@ -180,9 +180,7 @@ function Rise({
       >
         <View testID="sheet-handle" style={styles.handle} />
         {scroll ? (
-          <ScrollView style={height ? styles.fill : null} contentContainerStyle={styles.body}>
-            {body}
-          </ScrollView>
+          <ScrollView contentContainerStyle={styles.body}>{body}</ScrollView>
         ) : (
           <View style={[styles.body, height ? styles.fill : null]}>{body}</View>
         )}
