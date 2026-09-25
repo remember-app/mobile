@@ -57,6 +57,19 @@ test('the settings are the memory named, counted and covered, under one pencil',
   expect(settings).not.toContain('disabled={!organizer}');
 });
 
+test('the card stands 16 under the bar and carries the name whole; «Править состав» is the row’s 36', () => {
+  // `MemorySettings.json`: the card at y112 (spec 4 — the body of the screen starts there), the name
+  // Unbounded 17 / 21 at −0.42 on two lines («Свадьба Лизы и / Марка») where the app cut it at one
+  // with «Свадьба Лизы…», and «Править состав» 36 tall.
+  expect(flat(settings)).toContain('paddingTop: board.bodySettings - board.status - height.bar');
+  expect(flat(settings)).toContain('<Text role="titleSm">{memory.title}</Text>');
+  expect(flat(settings)).toContain('size="mini"');
+  // e9 — the line under the name 5 below it; e13 and e49 — «Люди» and «Зрители» at x18, 2 in from
+  // the cards' edge at 16.
+  expect(flat(settings)).toContain('grow: { flex: 1, minWidth: 0, gap: 5 }');
+  expect(flat(settings)).toMatch(/headWords: \{[^}]*paddingLeft: 2,/);
+});
+
 test('the cover a memory has is the one chain everywhere it is shown', () => {
   // Spec 6 and 10.8.3: the chosen frame, else the mosaic of the first frames, else the dashed
   // frame — in the 68 slot, on the 64 of the sheet that asks before a memory is deleted, and on
@@ -124,10 +137,9 @@ test('every row says how many frames that person brought, and the api is what co
   expect(settings).toContain('s.memory.frames(member.media_count ?? 0)');
   expect(settings).not.toContain('listMedia(');
   expect(settings).not.toContain('uploaded_by');
-  // The role is not written into the row at all (spec 8, «роли в строке не выделяем»): the organizer
-  // is told by the `spark` collar on their circle, and one fact said twice in a 56 row is what the
-  // layout took out.
-  expect(settings).toContain("ring={member.role === 'organizer'}");
+  // The role is not in the row at all (spec 8, «роли в строке не выделяем»): no word for it, and no
+  // `spark` collar either — `MemorySettings.json` draws the organizer's circle as bare as the rest.
+  expect(settings).not.toContain('ring=');
   expect(settings).not.toContain('s.role[member.role]');
   // `spark` belongs to «Всё загрузил» alone (spec 1.2): that mark is what the organizer scans for,
   // and spec 7.4 leaves the circle two states — brought, or still coming.

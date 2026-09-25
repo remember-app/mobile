@@ -124,3 +124,8 @@ test('the screen invents no colour of its own, so daylight is a substitution of 
   expect(create).not.toMatch(/rgba?\(/);
   expect(create).not.toContain('useTheme');
 });
+
+test('the body starts at 124, 28 under the bar (spec 4)', () => {
+  // `Create.json` e4: «НАЗВАНИЕ» at y124 — on the kit's 24 the app stood it 4 higher.
+  expect(create).toContain('paddingTop: board.bodyCreate - board.status - height.bar');
+});

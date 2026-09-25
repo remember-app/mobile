@@ -112,6 +112,8 @@ export function Avatar({
                   fontSize: display
                     ? Math.round(size * 0.3)
                     : (LETTERS[size] ?? Math.round(size / 3)),
+                  // The headline face is borrowed for its letters, not the field's tracking.
+                  letterSpacing: 0,
                 }
           }
         >

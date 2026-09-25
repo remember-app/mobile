@@ -194,8 +194,15 @@ test('every row says how many frames that person brought — and a viewer’s sa
   expect(screen.row('Лиза Морозова').props.meta).toBe(ru.memory.frames(54));
   expect(screen.row('Аня Петрова').props.meta).toBe(ru.memory.frames(0));
   expect(screen.row('Вера').props.meta).toBeUndefined();
-  // The organizer’s circle wears the collar and nobody else’s does.
-  expect(screen.rows().map((one) => one.props.ring)).toEqual([true, false, false, false, false]);
+  // No circle wears the organizer's collar, the organizer's own included: `MemorySettings.json` draws
+  // Лиза's bare, under «Роли в строке не выделяем».
+  expect(screen.rows().map((one) => one.props.ring ?? false)).toEqual([
+    false,
+    false,
+    false,
+    false,
+    false,
+  ]);
 });
 
 test('a viewer has no standing: nothing at the right of their row, and no button either', async () => {

@@ -1,7 +1,7 @@
 /**
- * The arithmetic under the calendar (spec 7.3, detail 15): which square a day stands in, and which
- * half of it the range's ribbon fills. Pure and free of any React Native import on purpose, so a
- * test can run it under any time zone — a day is a *local* day here, taken apart with the local
+ * The arithmetic under the calendar (spec 7.3, detail 15): which square a day stands in, and how
+ * much of each week the range's ribbon covers. Pure and free of any React Native import on purpose,
+ * so a test can run it under any time zone — a day is a *local* day here, taken apart with the local
  * getters and never through `toISOString()`, which is what would slide it onto its neighbour for
  * anyone east or west of UTC.
  */
@@ -11,21 +11,29 @@ export function dayKey(day: Date): number {
   return new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime();
 }
 
-/** Which half of a square the range's ribbon fills — see {@link laneOf}. */
-export type Lane = 'left' | 'right' | 'full' | null;
-
 /**
- * Which half of a square the range's ribbon fills: all of it between the ends, the right half under
- * the first day, the left half under the last — so a range reads as one ribbon and not as three
- * separate marks. `null` at both ends of the question: no range, or a day outside it.
+ * Where the range's ribbon runs across one week, in columns from its left edge: from the middle of
+ * the first day — under its circle — or from the edge the range came into the week by, to the middle
+ * of the last day or the edge it leaves by. One piece per week, so a range reads as one ribbon and
+ * not as a mark per day. `null` when the week holds none of it, and when there is no range: one day
+ * picked twice is one day, and one day is not a ribbon.
  */
-export function laneOf(at: number, start: number | null, end: number | null): Lane {
-  // One day picked twice is one day, and one day is not a ribbon.
+export function ribbonOf(
+  week: readonly (Date | null)[],
+  start: number | null,
+  end: number | null,
+): { from: number; to: number } | null {
   if (start === null || end === null || end <= start) return null;
-  if (at > start && at < end) return 'full';
-  if (at === start) return 'right';
-  if (at === end) return 'left';
-  return null;
+  const inside = week.flatMap((day, column) =>
+    day && dayKey(day) >= start && dayKey(day) <= end ? [{ column, at: dayKey(day) }] : [],
+  );
+  const first = inside[0];
+  const last = inside[inside.length - 1];
+  if (!first || !last) return null;
+  return {
+    from: first.column + (first.at === start ? 0.5 : 0),
+    to: last.column + 1 - (last.at === end ? 0.5 : 0),
+  };
 }
 
 /**

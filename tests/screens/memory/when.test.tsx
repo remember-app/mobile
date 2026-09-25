@@ -3,8 +3,20 @@ import { beforeAll, expect, test, vi } from 'vitest';
 // The words come from the dictionary, and the dictionary asks the phone which language it is in.
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
 
+import { rule, shorthand } from '@tests/helpers/css';
+import { fontFile, wordWidth } from '@tests/helpers/font';
 import { allDifferent, story } from '@/kit/story';
-import { daysIn, EventWhen, pickDay, quickSpans, type Span } from '@/screens/memory/when';
+import {
+  ASIDE_BLEED,
+  daysIn,
+  EventWhen,
+  pickDay,
+  QUICK_BLEED,
+  quickSpans,
+  type Span,
+} from '@/screens/memory/when';
+import when from '@/screens/memory/when.tsx?raw';
+import { ru } from '@/strings';
 import { setTheme } from '@/theme';
 
 /**
@@ -94,6 +106,55 @@ test('one day is a date with no length, and a span says how long it is', () => {
   expect(two).toContain('· 2 дня');
   // A span that ends where it began is one day and says nothing of length.
   expect(story(block(span(12, 12)))).not.toContain('· 1 день');
+});
+
+/**
+ * `Create` at the layout's 390 and the system's own type (TASK-387), measured off the font file the
+ * way the spec measures words. The column is 358; what the layout draws is wider than that.
+ */
+const MEDIUM = fontFile('@expo-google-fonts/onest/500Medium/Onest_500Medium.ttf');
+const REGULAR = fontFile('@expo-google-fonts/onest/400Regular/Onest_400Regular.ttf');
+const COLUMN = 390 - 2 * 16;
+
+test('on the layout’s 390 the four quick days are one row, and the line under the grid one line', () => {
+  // `Create.json` e10…e13: the chips 86.55 / 71.1 / 98.9 / 80.1 — Onest 500 14, 14 a side inside a
+  // hairline — 8 apart, 360.6 in all, centred over the column: one row, 1.3 past it on either side.
+  const chips = ['Сегодня', 'Вчера', 'Выходные', 'Неделя'].map(
+    (word) => wordWidth(MEDIUM, word, 14) + 2 * 14 + 2,
+  );
+  for (const [chip, drawn] of chips.map((one, i) => [one, [86.55, 71.1, 98.9, 80.1][i]])) {
+    expect(Math.abs(chip - drawn)).toBeLessThan(0.5);
+  }
+  const row = chips.reduce((sum, one) => sum + one, 0) + 3 * 8;
+  expect(row).toBeGreaterThan(COLUMN);
+  expect(row).toBeLessThanOrEqual(COLUMN + 2 * QUICK_BLEED);
+  // e87: «Один день — одно касание. Несколько — первый и последний.» 12 / 400 in one line of 359.2,
+  // on a line the layout gives 363.
+  const line = wordWidth(REGULAR, ru.create.dateHint, 12);
+  expect(line).toBeGreaterThan(COLUMN);
+  expect(line).toBeLessThanOrEqual(COLUMN + ASIDE_BLEED);
+  expect(COLUMN + ASIDE_BLEED).toBe(363);
+
+  // And the block reaches that far: the chips' row past both sides of the column, the line past its
+  // right; 12 from the chips down to the grid (e13 ends at 291, the card e14 starts at 303).
+  const drawn = story(block(span(12, 14)));
+  expect(drawn).toContain(shorthand('marginInline', `margin-left:-${QUICK_BLEED}px`));
+  expect(drawn).toContain(rule(`margin-right:-${ASIDE_BLEED}px`));
+  expect(drawn).toContain(rule('margin-top:2px'));
+  // Still a row that wraps: a narrower phone, or larger type, puts what does not fit under it.
+  expect(drawn).toContain(rule('flex-wrap:wrap'));
+});
+
+test('the head of the block is the layout’s: a quiet eyebrow, the days on their own line of 18, the line under the grid 12 / 17', () => {
+  const drawn = story(block(span(12, 14)));
+  // `Create.json` e7: «КОГДА ЭТО БЫЛО» #A4A1B2 (`muted`), not the `paper` of the words beside it.
+  expect(when).toContain('<Text role="eyebrow" tone="muted"');
+  expect(when).toContain('<Text role="rowSm"');
+  expect(drawn).toContain(rule('line-height:18px'));
+  // e87 — the kit's `Hint` is 13 / 19: a size up, and on the phone it took two lines.
+  expect(when).toContain('<Text role="aside" tone="muted"');
+  expect(when).not.toContain('<Hint');
+  expect(drawn).toContain(rule('line-height:17px'));
 });
 
 test('the four quick days stand over the calendar, and switch off with the screen', () => {

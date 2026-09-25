@@ -1,3 +1,4 @@
+import { rule, shorthand } from '@tests/helpers/css';
 import { beforeAll, expect, test } from 'vitest';
 
 import { allDifferent, compiled, story } from '@/kit/story';
@@ -18,14 +19,25 @@ test('on, off and unavailable are three states of one switch', () => {
   });
 });
 
-test('on is accent, off is raise, and the grip is white on both sides', () => {
+test('the switch is the layout’s 52 × 32 with a 26 white grip 3 in: at the right on `accent`, at the left on `raise` in a hairline', () => {
   const on = story(<Toggle label="Сможет добавлять фото" value onValueChange={() => {}} />);
   const off = story(
     <Toggle label="Сможет добавлять фото" value={false} onValueChange={() => {}} />,
   );
-  expect(on).toContain('rgba(75,91,255,1.00)');
-  expect(off).toContain('rgba(34,34,46,1.00)');
-  for (const drawn of [on, off]) expect(drawn).toContain('rgba(255,255,255,1.00)');
+  // `Account.json`, e34 and e35: the track 52 × 32 at x305, the grip 26 × 26 at x328 — 3 from the
+  // track's right edge, which is 2 of padding inside a hairline of 1.
+  for (const drawn of [on, off]) {
+    for (const size of ['width:52px', 'height:32px', 'width:26px', 'height:26px', 'padding:2px'])
+      expect(drawn).toContain(rule(size));
+    expect(drawn).toContain(shorthand('borderWidth', 'border-top-width:1px'));
+    expect(drawn).toContain(rule('background-color:rgba(255,255,255,1.00)'));
+  }
+  expect(on).toContain(rule('background-color:rgba(75,91,255,1.00)'));
+  expect(on).toContain(rule('justify-content:flex-end'));
+  // Spec 7.3, detail 17: off is `raise` with a `line` hairline and the grip pressed to the left.
+  expect(off).toContain(rule('background-color:rgba(34,34,46,1.00)'));
+  expect(off).toContain(shorthand('borderColor', 'border-top-color:rgba(44,44,58,1.00)'));
+  expect(off).toContain(rule('justify-content:flex-start'));
 });
 
 test('the words beside it are its name, and pressing them flips it too', () => {

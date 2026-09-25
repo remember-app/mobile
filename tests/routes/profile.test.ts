@@ -93,3 +93,10 @@ test('the lines the layout took off are gone from the dictionary too', () => {
   }
   expect(ru.theme.system).toBe('Как в системе');
 });
+
+test('the body starts at 132, and the way out carries its words a size up', () => {
+  // Spec 4 and `Account.json` e4: the profile card at y132. e37: «Выйти из аккаунта» 17 / 600 at
+  // −0.17 — at the kit's 16 the words came out 6 % narrower than the layout's.
+  expect(profile).toContain('paddingTop: board.bodyAccount - board.status - height.bar');
+  expect(profile).toContain('labelRole="controlLg"');
+});

@@ -468,14 +468,12 @@ test('nothing on this screen pushes the screen it is already on', () => {
   expect(frames).not.toContain('/memory/[id]/montage');
 });
 
-test('the platform switch is spelled out once, in the kit', () => {
-  // TASK-56: the same four colour props stood word for word on two screens, and one of them is the
-  // kind nobody notices missing. The invite sheet takes the kit's component now.
+test('the switch is spelled out once, in the kit', () => {
+  // TASK-56: the same switch stood word for word on two screens. The invite sheet takes the kit's
+  // component now, and no face draws one of its own.
   expect(inviteSheet).toContain('<Toggle');
-  for (const face of [frames, films, settings, inviteSheet]) {
-    expect(face).not.toContain('thumbColor');
-  }
-  expect(toggle).toContain('activeThumbColor');
+  for (const face of [frames, films, settings, inviteSheet]) expect(face).not.toMatch(/<Switch\b/);
+  expect(toggle).toContain('export function Toggle');
 });
 
 test('every face shuts its own windows when it loses focus', () => {

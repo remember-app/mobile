@@ -41,7 +41,7 @@ import { useAuth } from '@/lib/auth';
 import { formatEventDates } from '@/lib/dates';
 import { useStrings } from '@/lib/language';
 import { InviteSheet } from '@/screens/memory/invite-sheet';
-import { radius, space, themed } from '@/theme';
+import { board, height, radius, space, themed } from '@/theme';
 
 /**
  * `MemorySettings` (spec 8) — what the event is and who is in it. The people used to be the third
@@ -252,11 +252,10 @@ export default function MemorySettingsScreen() {
     <RowMember
       key={member.id}
       name={member.id === user?.id ? s.members.you(memberName(member)) : memberName(member)}
-      // Spec 8 writes the second line as the count and nothing else: «Роли в строке не выделяем»,
-      // and the organizer is already told by the `spark` collar on their circle. A viewer's row
-      // carries no meta at all — there is nothing behind them to count.
+      // Spec 8 writes the second line as the count and nothing else, and the layout draws every
+      // circle bare, the organizer's too: «Роли в строке не выделяем». A viewer's row carries no
+      // meta at all — there is nothing behind them to count.
       meta={member.role === 'viewer' ? undefined : framesOf(member)}
-      ring={member.role === 'organizer'}
       status={markFor(member)}
       divider={index > 0}
     />
@@ -329,9 +328,9 @@ export default function MemorySettingsScreen() {
           <View style={styles.event}>
             <CoverSlot uri={memory.cover_thumbnail_url} thumbs={memory.recent_thumbnail_urls} />
             <View style={styles.grow}>
-              <Text role="subtitleDisplay" numberOfLines={1}>
-                {memory.title}
-              </Text>
+              {/* Whole, on as many lines as it takes: this card is where the name is read in full —
+                  the capsule over the feed cuts it (spec 10.6). */}
+              <Text role="titleSm">{memory.title}</Text>
               <Text role="meta" numberOfLines={1}>
                 {[
                   formatEventDates(memory.event_start, memory.event_end),
@@ -366,7 +365,8 @@ export default function MemorySettingsScreen() {
               {organizer && members.length > 1 ? (
                 <Button
                   variant={editing ? 'paper' : 'small'}
-                  size="xs"
+                  // The row's own 36 (`MemorySettings.json`), 14 a side and the glyph 6 off the words.
+                  size="mini"
                   // Held in, it is still the small button of this row: `paper` on its own runs
                   // the width of the row and squeezes the heading beside it to nothing.
                   wide={false}
@@ -512,8 +512,15 @@ function StandingButton({
 
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
-    // Spec 8: the body starts under the bar in the screen's own 16, and the blocks stand 22 apart.
-    body: { flexGrow: 1, paddingHorizontal: space.s4, paddingBottom: space.s6, gap: 22 },
+    // Spec 8: the body starts at 112, 16 clear of the bar, in the screen's own 16 at the sides, and
+    // the blocks stand 22 apart.
+    body: {
+      flexGrow: 1,
+      paddingTop: board.bodySettings - board.status - height.bar,
+      paddingHorizontal: space.s4,
+      paddingBottom: space.s6,
+      gap: 22,
+    },
     // Waiting holds the place of the roster in the middle of the body rather than blinking at the
     // top.
     middle: { flexGrow: 1, justifyContent: 'center' },
@@ -530,13 +537,15 @@ const useStyles = themed(({ color }) =>
     block: { gap: 10 },
     // «Править состав» stands at the right of the heading, or under it once it does not fit there.
     head: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10 },
-    // The heading and its count share a baseline, the way the layout sets every pair of them.
+    // The heading and its count share a baseline, the way the layout sets every pair of them, 2 in
+    // from the edge of the card under them (`MemorySettings.html`, both blocks).
     headWords: {
       flex: 1,
       flexDirection: 'row',
       alignItems: 'baseline',
       gap: space.s2,
       minWidth: 0,
+      paddingLeft: 2,
     },
     // The rows stand inside one surface with the corners cut off it, so the hairline between two of
     // them never reaches the rounding.
@@ -547,7 +556,8 @@ const useStyles = themed(({ color }) =>
       borderWidth: 1,
       borderColor: color.line,
     },
-    grow: { flex: 1, minWidth: 0 },
+    // The name and the line under it, 5 apart (`MemorySettings.html`).
+    grow: { flex: 1, minWidth: 0, gap: 5 },
     // Spec 10.2: drawn as the 28 circle inside it, felt at 44 — and pulled 8 out, so the circle
     // lines up with the row's own 14 rather than with the button's edge.
     standing: {
