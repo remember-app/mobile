@@ -12,6 +12,7 @@ import {
 import { height, night, radius, space, type Theme, themed, type, useTheme } from '@/theme';
 
 import { Icon, type IconComponent } from './icon';
+import { useFieldInBar } from './interaction';
 import { Text, TYPE_MOST } from './text';
 
 /**
@@ -62,6 +63,14 @@ const FACE: Record<FieldVariant, TextStyle> = {
   labelName: { ...type.row, fontSize: 16 },
   wish: { ...type.label, fontSize: 13 },
 };
+
+/**
+ * The field the keyboard is up for, wherever it stands, or null — asked here, where every input of
+ * the app is: the board brings it into sight when the keyboard takes the room it stood in.
+ */
+export function focusedField() {
+  return TextInput.State.currentlyFocusedInput?.() ?? null;
+}
 
 /**
  * The small line under a control saying what it does or how far it reaches. Not the field's alone —
@@ -131,6 +140,7 @@ export function Field({
   const theme = useTheme();
   const styles = useStyles();
   const disabled = input.editable === false;
+  useFieldInBar();
 
   return (
     <View style={styles.field}>
@@ -235,6 +245,7 @@ export function CodeField({
   const [focused, setFocused] = useState(false);
   const theme = useTheme();
   const styles = useStyles();
+  useFieldInBar();
 
   return (
     <View style={styles.field}>
@@ -310,6 +321,7 @@ export function TextArea({
 }) {
   const theme = useTheme();
   const styles = useStyles();
+  useFieldInBar();
 
   return (
     <View style={styles.field}>

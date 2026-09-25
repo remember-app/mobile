@@ -30,8 +30,10 @@ export function blocks(root: ReactTestInstance): ReactTestInstance[] {
     (one) =>
       one.type === View &&
       typeof one.props.onLayout === 'function' &&
-      // The board's own view, which the keyboard-avoiding view keeps its frame on.
+      // The board's own views: the one the keyboard-avoiding view keeps its frame on, and the room
+      // over the bottom layer, which holds the body's scroll (a list's too).
       one.parent?.type !== KeyboardAvoidingView &&
+      one.findAllByType(ScrollView).length === 0 &&
       !scrolled(one),
   );
   return heard

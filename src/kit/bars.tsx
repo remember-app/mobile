@@ -1,7 +1,9 @@
 import { X } from 'lucide-react-native';
-import type { ReactNode } from 'react';
+import { type ReactNode, useCallback, useLayoutEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   Platform,
   Pressable,
   ScrollView,
@@ -17,8 +19,9 @@ import { board, height, photo, radius, space, ThemePin, themed, type, useTheme }
 
 import { StepScale } from './bits';
 import { Button, IconButton } from './button';
+import { focusedField } from './field';
 import type { IconComponent } from './icon';
-import { DISMISS_KEYBOARD, KEYBOARD_SCROLL } from './interaction';
+import { DISMISS_KEYBOARD, FieldInBar, KEYBOARD_SCROLL } from './interaction';
 import { useMeasured } from './sheet';
 import { Text } from './text';
 
@@ -59,29 +62,83 @@ export type BoardProps = {
  * system type — the whole board scrolls as one, the way a sheet does (`pinnable` in `sheet.tsx`),
  * or the actions in them would stand past the edge with nothing to bring them back.
  *
- * The window decides and not the room left between the two: that room is what the keyboard takes,
- * and a field in the bar or the bottom layer moved into the scroll the moment the keyboard came up
- * for it is a field drawn anew — the keyboard goes down with it. A window of no height has not been
- * measured (off a phone), and stands as drawn.
+ * The window decides for the bottom layer and not the room left over it: that room is what the
+ * keyboard takes, and a field in the bottom layer moved into the scroll the moment the keyboard came
+ * up for it is a field drawn anew — the keyboard goes down with it. A window of no height has not
+ * been measured (off a phone), and stands as drawn.
  *
  * The keyboard is the board's to handle, once for every screen (TASK-377). Whatever stands at the
- * bottom rides up over it, the screen's action with it; when the keyboard leaves less room than the
- * bar and the bottom layer need — a small phone, the largest type — it is the top that gives and
- * not the action: the board stands on its bottom edge. And the keyboard goes down the ordinary ways
- * — a tap on anything that is not a field or a button, a drag anywhere ({@link KEYBOARD_SCROLL},
- * {@link DISMISS_KEYBOARD}).
+ * bottom rides up over it, the screen's action with it, and stays there whatever the type size. The
+ * bar gives way instead (TASK-381): when the room the keyboard leaves over the bottom layer cannot
+ * hold the bar and a line of the body — the smallest phone at the largest type, the wizard's heading
+ * over a field — the bar goes into the scroll at the body's head, and the body stays where it was
+ * on the screen; the bar is a scroll up. The field being typed into in the body is then brought into
+ * what the keyboard left, whole where it fits. The body is never what moves, so a field in it is
+ * never drawn anew; a bar holding a field of its own (`useFieldInBar`) stays put for the same
+ * reason, and past it the top gives rather than the action — the board stands on its bottom edge.
+ * The keyboard goes down the ordinary ways — a tap on anything that is not a field or a button, a
+ * drag anywhere ({@link KEYBOARD_SCROLL}, {@link DISMISS_KEYBOARD}) — and the bar stands again.
  */
+/** How far a field's box reaches past the input the keyboard is up for — its border and inner air. */
+const FIELD_BOX = space.s3;
+
 export function Board({ bar, footer, body, list, children, style }: BoardProps) {
   const insets = useSafeAreaInsets();
   const { fontScale, height: tall } = useWindowDimensions();
   const styles = useStyles();
   const [top, onTop] = useMeasured();
   const [foot, onFoot] = useMeasured();
-  const pinned =
-    tall === 0 ||
-    (bar ? top : 0) + (footer ? foot : 0) + type.body.lineHeight * fontScale <= tall - insets.top;
+  const [room, onRoom] = useMeasured();
+  const [fields, setFields] = useState(0);
+  const holdBar = useCallback(() => {
+    setFields((n) => n + 1);
+    return () => setFields((n) => n - 1);
+  }, []);
+  const line = type.body.lineHeight * fontScale;
+  const pinned = tall === 0 || (bar ? top : 0) + (footer ? foot : 0) + line <= tall - insets.top;
+  // The room is what is left over the bottom layer, wherever the bar stands, so moving the bar never
+  // changes the answer that moved it. Not measured yet, it is nothing to go by.
+  const stands = pinned && (room === 0 || fields > 0 || top + line <= room);
 
-  const head = bar ? <View onLayout={onTop}>{bar}</View> : null;
+  const scroll = useRef<ScrollView>(null);
+  const column = useRef<View>(null);
+  const offset = useRef(0);
+  const follow = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    offset.current = e.nativeEvent.contentOffset.y;
+  };
+  const to = (y: number) => {
+    offset.current = Math.max(0, y);
+    scroll.current?.scrollTo({ y: offset.current, animated: false });
+  };
+  const was = useRef({ stands, room });
+  useLayoutEffect(() => {
+    const before = was.current;
+    was.current = { stands, room };
+    // The bar in and out of the scroll's head while the bottom layer stands: the body keeps its
+    // place on the screen. When the window moved both, the board starts from its top.
+    if (before.stands !== stands && pinned) to(offset.current + (stands ? -top : top));
+    // Less room — the keyboard has come up: the field being typed into in the body is brought
+    // into what is left of it, box and all, or from its top where it is taller than that.
+    const field = focusedField();
+    if (room >= before.room || !field || !column.current) return;
+    const sight = room - (stands ? top : 0);
+    field.measureLayout(
+      column.current,
+      (_x, y, _w, h) => {
+        const from = y + (stands ? 0 : top) - FIELD_BOX;
+        const whole = h + FIELD_BOX * 2;
+        if (from < offset.current || whole > sight) to(from);
+        else if (from + whole > offset.current + sight) to(from + whole - sight);
+      },
+      () => {},
+    );
+  }, [stands, room, pinned, top]);
+
+  const head = bar ? (
+    <FieldInBar.Provider value={holdBar}>
+      <View onLayout={onTop}>{bar}</View>
+    </FieldInBar.Provider>
+  ) : null;
   const tail = footer ? <View onLayout={onFoot}>{footer}</View> : null;
 
   return (
@@ -92,24 +149,31 @@ export function Board({ bar, footer, body, list, children, style }: BoardProps) 
       style={[styles.board, list ? null : styles.stands, { paddingTop: insets.top }, style]}
       {...DISMISS_KEYBOARD}
     >
-      {pinned ? head : null}
-      {list ? (
-        <View style={styles.room}>
-          {list({ head: pinned ? null : head, foot: pinned ? null : tail })}
-        </View>
-      ) : (
-        // A body that fits neither scrolls nor bounces.
-        <ScrollView
-          style={styles.room}
-          contentContainerStyle={styles.grow}
-          alwaysBounceVertical={false}
-          {...KEYBOARD_SCROLL}
-        >
-          {pinned ? null : head}
-          <View style={[styles.grow, body]}>{children}</View>
-          {pinned ? null : tail}
-        </ScrollView>
-      )}
+      <View style={[styles.room, list ? null : styles.stands]} onLayout={onRoom}>
+        {stands ? head : null}
+        {list ? (
+          <View style={styles.room}>
+            {list({ head: stands ? null : head, foot: pinned ? null : tail })}
+          </View>
+        ) : (
+          // A body that fits neither scrolls nor bounces.
+          <ScrollView
+            ref={scroll}
+            style={styles.room}
+            contentContainerStyle={styles.grow}
+            alwaysBounceVertical={false}
+            onScroll={follow}
+            scrollEventThrottle={16}
+            {...KEYBOARD_SCROLL}
+          >
+            {stands ? null : head}
+            <View ref={column} style={[styles.grow, body]}>
+              {children}
+            </View>
+            {pinned ? null : tail}
+          </ScrollView>
+        )}
+      </View>
       {pinned ? tail : null}
       {list ? children : null}
     </KeyboardAvoidingView>
@@ -128,8 +192,8 @@ export function Board({ bar, footer, body, list, children, style }: BoardProps) 
  * - **live** — the same two floors a shade smaller (17/21), because the bar over a montage on air
  *   carries a name, a line of meta and a pill of faces in one row.
  *
- * The other two kinds have components of their own: `WizardBar` and `ViewerBar`. The bar never
- * scrolls, whichever it is.
+ * The other two kinds have components of their own: `WizardBar` and `ViewerBar`. The bar does not
+ * scroll with the body, whichever it is, for as long as the board has room for it (`Board`).
  */
 export function AppBar({
   title,
@@ -198,7 +262,7 @@ const CANCEL_GLYPH = { size: 22, stroke: 1.9 } as const;
  * The wizard's bar (spec 7.1, detail 3): a 74-wide block on each side so the step counter sits dead
  * centre whatever the words in those blocks are, the step scale under it, and the step's own heading
  * under that — the heading belongs to the bar and not to the body, because the body scrolls and this
- * does not.
+ * does not, for as long as the board has room for it over the keyboard (`Board`).
  *
  * `summary` is the last face of it, the one the order's own total wears: no scale, because there is
  * no step after it, and the heading comes up to meet the row.

@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import {
   AccessibilityInfo,
   Animated,
@@ -254,3 +262,17 @@ export const DISMISS_KEYBOARD = {
   onMoveShouldSetResponder: () => Keyboard.isVisible(),
   onResponderRelease: () => Keyboard.dismiss(),
 } as const;
+
+/**
+ * Where a field says it stands in a board's bar (TASK-381). The bar gives way to the keyboard by going
+ * into the scroll, and a field moved there is drawn anew — the keyboard goes down with it (TASK-374) —
+ * so a bar holding one never does. `Board` hands the bar this, and every field of the kit calls
+ * {@link useFieldInBar}.
+ */
+export const FieldInBar = createContext<(() => () => void) | null>(null);
+
+/** Called by every field of the kit; in a board's bar it keeps the bar standing. */
+export function useFieldInBar(): void {
+  const hold = useContext(FieldInBar);
+  useEffect(() => hold?.(), [hold]);
+}
