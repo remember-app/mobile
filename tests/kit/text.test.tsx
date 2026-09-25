@@ -107,3 +107,40 @@ test('words in a cell the layout fixes grow as far as the cell holds them, and t
   // Not measured yet: nothing is held, and the cell is as tall as the type it will hold.
   expect(fitCell({ ...day, fontScale: 2, width: 0 })).toEqual({ most: undefined, height: 48 });
 });
+
+test('a cell is the layout’s own at the system’s size or smaller, and never below a finger from the first size up', () => {
+  const day = { role: 'bodySm', em: 1.35, rest: 40 } as const;
+  // Smaller than the system's default is the layout's cell too, whatever room the column has.
+  for (const fontScale of [0.5, 0.85, 1])
+    for (const width of [0, 10, 37.4, 400])
+      expect(fitCell({ ...day, fontScale, width }).height, `×${fontScale} in ${width}`).toBe(40);
+  // The first hair past the system's size is a 44 at least, and the tightest cell keeps to it.
+  for (const width of [0, 20, 37.4, 400])
+    expect(
+      fitCell({ ...day, fontScale: 1.0001, width }).height,
+      `in ${width}`,
+    ).toBeGreaterThanOrEqual(44);
+});
+
+test('the type is held only to what the cell holds and never below the system’s own size, an unmeasured cell holds nothing', () => {
+  const day = { role: 'bodySm', em: 1.35, rest: 40 } as const;
+  // A column too narrow for even one size of it still shows the size the person has: it is the
+  // cell that has to give, and the floor is the type's, not the cell's.
+  expect(fitCell({ ...day, fontScale: 3, width: 10 }).most).toBe(1);
+  expect(fitCell({ ...day, fontScale: 3, width: 4 }).most).toBe(1);
+  // Nothing measured is nothing held — a width of nothing, and a width less than nothing.
+  for (const width of [0, -1, -37.4])
+    expect(fitCell({ ...day, fontScale: 3, width }).most).toBeUndefined();
+  // Held to the column less 4, in em of the role's own size: 60 leaves 56 for 15 × 1.35 a size.
+  expect(fitCell({ ...day, fontScale: 3.571, width: 60 }).most).toBeCloseTo(56 / (15 * 1.35), 6);
+});
+
+test('the cell grows down by the line the held type takes, rounded up, and 4 more — 44 at the least', () => {
+  const day = { role: 'bodySm', em: 1.35, rest: 40 } as const;
+  // Room to spare: the type is the system's own, 22 × 3.571 = 78.56, so 79 and 4.
+  expect(fitCell({ ...day, fontScale: 3.571, width: 200 }).height).toBe(83);
+  // Held to ×2.765 in a column of 60: 22 × 2.765 = 60.8, so 61 and 4 — not the 83 the system asked for.
+  expect(fitCell({ ...day, fontScale: 3.571, width: 60 }).height).toBe(65);
+  // Held to ×1.65 in the zoomed SE's 37.4: 37 and 4 is 41, and a finger wants 44.
+  expect(fitCell({ ...day, fontScale: 3.571, width: 37.4 }).height).toBe(44);
+});
