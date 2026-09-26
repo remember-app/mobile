@@ -78,6 +78,7 @@ import {
   ActionBar,
   AppBar,
   Avatar,
+  BackButton,
   BadgeDecision,
   Banner,
   Button,
@@ -233,6 +234,12 @@ function words(root: ReactTestInstance): string {
   walk(root);
   return out.join('\n');
 }
+
+/** Every banner on the screen: its words, and the glyph drawn beside them. */
+const banners = (screen: Screen) =>
+  screen.root
+    .findAllByType(Banner)
+    .map((one) => [one.props.text, one.findByType(Icon).props.icon] as const);
 
 const nodeProps = (node: unknown) => (node as { props: Record<string, unknown> }).props;
 /** «1:12» — written here on its own, to the whole second, as the film's own length is. */
@@ -886,6 +893,37 @@ describe.each(SCENARIOS)('%s — the journal of one stage and the card of a file
     await screen.unmount();
   });
 
+  test('a first read that does not come back is «Связь пропала, ждём», not «Загружаем…», and the records come with the connection', async () => {
+    let failing: 'offline' | undefined = 'offline';
+    const api = replay(steps, {
+      only: ['journal_of_ready_montage'],
+      cutFrom: 'journal_of_ready_montage',
+      extra,
+      refuse: () => failing,
+    });
+    route.params = { id: MEMORY, montageId: MONTAGE, stage: 'directing' };
+    const screen = await mount(<MontageLiveStageScreen />, api);
+
+    // TASK-405: this used to be «Загружаем…» for as long as the connection stayed away.
+    expect(banners(screen)).toEqual([[ru.montage.live.lost, WifiOff]]);
+    expect(words(screen.root)).not.toContain(ru.state.loading);
+    expect(inList(screen)).toEqual([]);
+
+    // On the smallest phone at the largest type the banner goes with the bar and the chips into the
+    // head of the list — scrolled to, never out of reach.
+    Object.assign(handset, { height: 568, fontScale: 3.571 });
+    await measure(screen.root, { bar: 640 });
+    expect(scrolled(screen.root.findByType(Banner))).toBe(true);
+    expect(banners(screen)).toHaveLength(1);
+
+    failing = undefined;
+    await screen.tick();
+    expect(banners(screen)).toEqual([]);
+    expect(inList(screen).length).toBeGreaterThan(0);
+    expect(api.unmatched).toEqual([]);
+    await screen.unmount();
+  });
+
   // Ready under the journal of one stage that was read while the film was being made. The files it
   // holds were sent with their records, before the film was laid out, so they have no places; the
   // ready montage has them. What is asked of the screen: at «готов» the frames' cards know where the
@@ -1080,7 +1118,9 @@ describe.each(SCENARIOS)('%s — «Ролик готов» and «Как соби
   };
 
   /** The film's page over `hundreds`, and every read of the journal it sent, limit and all. */
-  async function openHundreds(refuse?: (query: URLSearchParams) => number | undefined) {
+  async function openHundreds(
+    refuse?: (query: URLSearchParams, path: string) => number | undefined,
+  ) {
     const api = replay(steps, {
       only,
       cutFrom: 'journal_of_ready_montage',
@@ -1121,20 +1161,121 @@ describe.each(SCENARIOS)('%s — «Ролик готов» and «Как соби
     await screen.unmount();
   });
 
-  test('a journal that does not come back leaves «Как собирался» out, and the film is still there', async () => {
-    const { screen } = await openHundreds(() => 500);
+  const poster = (step(steps, 'montage_list_after_ready').response.body as Montage[]).find(
+    (one) => one.id === MONTAGE,
+  )!.poster_url;
+  /** «Сохранить» and «Поделиться» under the poster, as they are drawn. */
+  const keepAndHand = (screen: Screen) =>
+    screen.root
+      .findAllByType(Button)
+      .filter((one) => [ru.action.save, ru.action.share].includes(one.props.label));
 
+  test('a journal that does not come back is the connection banner over the film, and «Как собирался» comes back with it', async () => {
+    let failing: number | undefined = 500;
+    const { screen } = await openHundreds((_, path) =>
+      path.endsWith('/journal') ? failing : undefined,
+    );
+
+    // TASK-405: the block used to go without a word. The film itself is there, and works.
+    expect(banners(screen)).toEqual([[ru.montage.live.lost, WifiOff]]);
     expect(words(screen.root)).not.toContain(ru.montage.live.howMade);
     expect(screen.root.findAllByType(RowStep)).toEqual([]);
-    const film = step(steps, 'montage_list_after_ready').response.body as {
-      id: string;
-      poster_url: string;
-    }[];
-    expect(screen.root.findByType(CardMontage).props.poster).toBe(
-      film.find((one) => one.id === MONTAGE)!.poster_url,
-    );
+    expect(screen.root.findByType(CardMontage).props.poster).toBe(poster);
+    expect(keepAndHand(screen).map((one) => one.props.disabled)).toEqual([false, false]);
+
+    failing = undefined;
+    await screen.tick();
+    expect(banners(screen)).toEqual([]);
+    expect(words(screen.root)).toContain(ru.montage.live.howMade);
+    expect(screen.root.findAllByType(RowStep)).toHaveLength(MONTAGE_STAGES.length);
     await screen.unmount();
   });
+
+  test('without a connection the page says so over whatever it has, keeps asking, and is whole again once it answers', async () => {
+    let failing: 'offline' | undefined = 'offline';
+    const api = replay(steps, { only, extra, refuse: () => failing });
+    route.params = { id: MEMORY, montageId: MONTAGE };
+    const screen = await mount(<MontageDoneScreen />, api);
+    const knocks = (route: string) =>
+      api.served.filter((one) => one.endsWith(`${route} (refused)`)).length;
+
+    // Nothing read at all: one banner, the connection's own glyph and words, first in the page and
+    // in its scroll — within reach on any phone at any type size. Under it the poster without a
+    // film and the two buttons, which have nothing to keep or hand on yet.
+    expect(banners(screen)).toEqual([[ru.montage.live.lost, WifiOff]]);
+    expect(scrolled(screen.root.findByType(Banner))).toBe(true);
+    expect(words(screen.root)).not.toContain(ru.montage.live.howMade);
+    expect(screen.root.findByType(CardMontage).props.poster).toBeUndefined();
+    expect(keepAndHand(screen).map((one) => one.props.disabled)).toEqual([true, true]);
+
+    // «ждём» is not a figure of speech: both reads are asked again on every beat.
+    const before = [knocks('/journal'), knocks(listPath)];
+    await screen.tick();
+    await screen.tick();
+    expect([knocks('/journal'), knocks(listPath)]).toEqual(before.map((n) => n + 2));
+
+    // Back: the banner goes by itself, and the whole page is there — the poster with its film, both
+    // buttons live, «Как собирался» and its five rows.
+    failing = undefined;
+    await screen.tick();
+    expect(banners(screen)).toEqual([]);
+    expect(screen.root.findByType(CardMontage).props.poster).toBe(poster);
+    expect(screen.root.findByType(CardMontage).props.onPress).toBeTypeOf('function');
+    expect(keepAndHand(screen).map((one) => one.props.disabled)).toEqual([false, false]);
+    expect(words(screen.root)).toContain(ru.montage.live.howMade);
+    expect(screen.root.findAllByType(RowStep)).toHaveLength(MONTAGE_STAGES.length);
+
+    // And nothing is asked after that: the film is finished, and the list has answered.
+    const calls = api.calls;
+    await screen.tick();
+    await screen.tick();
+    expect(api.calls).toBe(calls);
+    expect(api.unmatched).toEqual([]);
+    await screen.unmount();
+  });
+
+  // A stranger, or somebody taken out of the memory: the api answers 404 to either read, and it will
+  // answer the same the next time. The journal's 404 to a stranger is the recording's own; the list's
+  // is `refuse` — not words of the api.
+  test.each([
+    ['a stranger, refused both', 'stranger', ['journal_of_stranger'], 'both'],
+    ['the list refused', 'organizer', only, 'list'],
+    ['the journal refused', 'organizer', only, 'journal'],
+  ] as const)(
+    '%s: «Вас больше нет в этом воспоминании», the way back, and nothing dead under it',
+    async (_name, as, recorded, which) => {
+      const api = replay(steps, {
+        only: recorded,
+        extra,
+        refuse: (_query, path) =>
+          (which !== 'journal' && path === listPath) ||
+          (which === 'journal' && path.endsWith('/journal'))
+            ? 404
+            : undefined,
+      });
+      route.params = { id: MEMORY, montageId: MONTAGE };
+      const screen = await mount(<MontageDoneScreen />, api, as);
+
+      // The one line every screen of a memory says it with, under a tie that is cut and not a
+      // signal that is lost — and nothing of the film: no poster to press, no buttons that could
+      // only be refused, no journal.
+      expect(banners(screen)).toEqual([[ru.memory.gone, Unlink]]);
+      expect(screen.root.findByType(AppBar).props.title).toBe(ru.montage.live.doneTitle);
+      expect(screen.root.findAllByType(CardMontage)).toEqual([]);
+      expect(keepAndHand(screen)).toEqual([]);
+      expect(words(screen.root)).not.toContain(ru.montage.live.howMade);
+      expect(words(screen.root)).not.toContain(ru.montage.live.lost);
+
+      // Not knocked on again, and «Назад» leads out.
+      const calls = api.calls;
+      for (let beat = 0; beat < 3; beat++) await screen.tick();
+      expect(api.calls).toBe(calls);
+      await screen.press(screen.root.findByType(BackButton));
+      expect(router.back).toHaveBeenCalledTimes(1);
+      expect(api.unmatched).toEqual([]);
+      await screen.unmount();
+    },
+  );
 
   test('a film cut before the journal is the poster and the two buttons, with no «Как собирался»', async () => {
     const api = replay(steps, { only, extra });
