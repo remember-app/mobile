@@ -142,7 +142,8 @@ export function EventWhen({
         monthLabel={formatMonth(month)}
         prevLabel={s.create.prevMonth}
         nextLabel={s.create.nextMonth}
-        // The whole date out loud, year and all: the grid's own heading is not read with it.
+        // The whole date out loud, the grid's own heading not being read with it — and its year
+        // whenever that is not this one, by the rule every date of a memory keeps (spec 9).
         dayLabel={formatDay}
         style={styles.grid}
       />
