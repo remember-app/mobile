@@ -1,5 +1,5 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronLeft, Pencil, Trash2, UserPlus, X } from 'lucide-react-native';
+import { Pencil, Trash2, UserPlus, X } from 'lucide-react-native';
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -22,6 +22,7 @@ import {
 import {
   ActionBar,
   AppBar,
+  BackButton,
   BadgeContribution,
   Banner,
   Board,
@@ -282,8 +283,7 @@ export default function MemorySettingsScreen() {
               : undefined
           }
           left={
-            <IconButton
-              icon={ChevronLeft}
+            <BackButton
               label={s.action.back}
               onPress={() =>
                 router.canGoBack()

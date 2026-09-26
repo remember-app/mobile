@@ -35,7 +35,8 @@ test('one icon stands in the header and it opens the account', () => {
   // Spec 8, `Main`: the main screen has exactly one button beside its name. There were two — the
   // contact list had its own — and the second one is what this stops coming back, because a screen
   // gains an icon far more easily than it loses one.
-  expect(index.match(/<IconButton/g)).toHaveLength(2); // the account, and the cross on the banner
+  // The account — the cross on the banner is the banner's own (`hide`).
+  expect(index.match(/<IconButton/g)).toHaveLength(1);
   expect(index).toContain('label={s.home.account}');
   expect(index).toContain("router.push('/profile')");
   expect(index).not.toContain("router.push('/contacts')");
@@ -74,7 +75,8 @@ test('the connection is a line over the list and never a replacement for it', ()
   // cleared the list — or stood an error in its place — would be the screen the design refuses.
   expect(index).not.toContain('setMemories(null)');
   expect(index).toContain('ListHeaderComponent');
-  expect(index).toContain('<Banner text={s.home.offline}>');
+  expect(index).toContain('text={s.home.offline}');
+  expect(index).toContain('hide={{ label: s.action.hide');
   // And the one that says it is back has no button on it at all, in either language: it leaves by
   // itself, and a button on something already going is a button nobody reaches.
   expect(index).toContain('<Banner tone="done" text={s.home.online} />');

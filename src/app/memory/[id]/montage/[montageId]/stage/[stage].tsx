@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronLeft, Unlink } from 'lucide-react-native';
+import { Unlink } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,11 +15,11 @@ import {
 } from '@/api';
 import {
   AppBar,
+  BackButton,
   BadgeDecision,
   Banner,
   Board,
   Chip,
-  IconButton,
   JournalLine,
   LogEntry,
   NoteThought,
@@ -103,9 +103,7 @@ export default function MontageLiveStageScreen() {
           <AppBar
             variant="live"
             title={s.montage.stageHead[code]}
-            left={
-              <IconButton icon={ChevronLeft} label={s.action.back} onPress={() => router.back()} />
-            }
+            left={<BackButton label={s.action.back} onPress={() => router.back()} />}
           />
         }
         body={styles.gone}
@@ -130,9 +128,7 @@ export default function MontageLiveStageScreen() {
             ]
               .filter(Boolean)
               .join(' · ')}
-            left={
-              <IconButton icon={ChevronLeft} label={s.action.back} onPress={() => router.back()} />
-            }
+            left={<BackButton label={s.action.back} onPress={() => router.back()} />}
             right={
               journal.viewers.length > 0 ? (
                 <WatchingPill

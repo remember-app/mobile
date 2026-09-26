@@ -1,6 +1,5 @@
 import { useRouter } from 'expo-router';
 import {
-  ChevronLeft,
   FileText,
   Heart,
   Home,
@@ -32,13 +31,13 @@ import {
 } from '@/api';
 import {
   ActionBar,
+  BackButton,
   Banner,
   Board,
   type BoardProps,
   Button,
   ConfirmSheet,
   Icon,
-  IconButton,
   type IconComponent,
   Sheet,
   soften,
@@ -537,8 +536,7 @@ export function WizardStep({
             title={title}
             note={note}
             back={
-              <IconButton
-                icon={ChevronLeft}
+              <BackButton
                 label={s.action.back}
                 style={styles.back}
                 // One step back, and out of the wizard from the first one — there is no step

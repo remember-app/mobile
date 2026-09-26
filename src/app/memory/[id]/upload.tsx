@@ -28,6 +28,7 @@ import { errorMessage, listMemories, type Memory } from '@/api';
 import {
   ActionBar,
   AppBar,
+  BackButton,
   Banner,
   Board,
   Button,
@@ -367,16 +368,12 @@ export default function UploadScreen() {
         {/* `UploadLimited`: what is on this screen is what was handed over, and the days below
             carry counts instead of «Выбрать все» — there is nothing to select all of. */}
         {limited ? (
-          <HintNote icon={Info} tone="spark" text={s.upload.limited}>
-            <Button
-              variant="secondary"
-              size="xs"
-              wide={false}
-              label={s.upload.chooseMore}
-              onPress={() => void chooseMore()}
-              style={styles.start}
-            />
-          </HintNote>
+          <HintNote
+            icon={Info}
+            tone="spark"
+            text={s.upload.limited}
+            action={{ label: s.upload.chooseMore, onPress: () => void chooseMore() }}
+          />
         ) : null}
 
         {/* Why a day's «Выбрать все» is out: the roll is still arriving, and a count taken
@@ -489,7 +486,7 @@ export default function UploadScreen() {
           <AppBar
             title={s.upload.title}
             subtitle={subtitleFor(memory)}
-            left={<IconButton icon={ChevronLeft} label={s.action.back} onPress={leave} />}
+            left={<BackButton label={s.action.back} onPress={leave} />}
           />
         )
       }
@@ -748,7 +745,6 @@ const useStyles = themed(({ color }) =>
       alignItems: 'center',
       justifyContent: 'space-between',
     },
-    start: { alignSelf: 'flex-start' },
     unseen: { marginTop: uploadGaps.unseen },
     grow: { flex: 1, minWidth: 0 },
     // The one frame opened full screen, and the room stays dark in daylight (spec 2).

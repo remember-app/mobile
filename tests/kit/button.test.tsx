@@ -7,7 +7,7 @@ import { StyleSheet, View, type ViewStyle } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import { beforeAll, expect, test } from 'vitest';
 
-import { Button, type ButtonVariant, IconButton } from '@/kit/button';
+import { BackButton, Button, type ButtonVariant, IconButton } from '@/kit/button';
 import { allDifferent, story } from '@/kit/story';
 import { font, setTheme } from '@/theme';
 
@@ -366,15 +366,56 @@ test('the small one at 44 reads at 14 with a 16 glyph 7 from its words, the main
   expect(wordsOf(main, 'Дальше')).not.toContain(rule('font-size:14px'));
 });
 
+/** How wide a button with no hairline comes out — a fill, or words on nothing. */
+const flatAcross = (words: string, size: number, sides: number, glyph = 0) =>
+  2 * sides + glyph + wordWidth(ONEST_SEMI, words, size);
+
 test('«Сохранить» at 44 is 18 a side and comes out 109 wide, as `Contacts` draws it', () => {
   // Spec 7.2 and 10.11: «малая 44 — «Сохранить» 14 / 600, поля `0 18`»; `Contacts.json` e16 is
-  // 109.38 × 44. The layout's button has no border and ours a clear hairline, so the 18 is 17 and
-  // that hairline. At the main button's 20 a side it came out 113.
-  expect(across('Сохранить', 14, 17)).toBeCloseTo(109.38, 0);
-  expect(across('Сохранить', 14, 20)).toBeGreaterThan(112);
+  // 109.38 × 44, no border. At the main button's 20 a side it came out 113.
+  expect(flatAcross('Сохранить', 14, 18)).toBeCloseTo(109.38, 0);
+  expect(flatAcross('Сохранить', 14, 20)).toBeGreaterThan(112);
   const save = story(<Button variant="primary" size="sm" wide={false} label="Сохранить" />);
-  expect(save).toContain(rule('padding-left:17px;padding-right:17px'));
+  expect(save).toContain(rule('padding-left:18px;padding-right:18px'));
+  expect(save).toContain(shorthand('borderWidth', 'border-top-width:0px'));
   expect(wordsOf(save, 'Сохранить')).toContain(rule('font-size:14px'));
+});
+
+test('a button that is its fill, or its words alone, has no hairline: its sides are counted from its edge', () => {
+  // TASK-397 (R'8, R'9). The layout rings only four buttons — `lineStrong`, `line`, `lineQuiet` and
+  // the dashed one — and the rest have no border at all, their sides counted from the edge. Measured
+  // (`m28-mock-measure`): «Смонтировать» on `FilmsEmpty` is 140.91 — 14, the plus 15, 6, the words,
+  // 14; «Сбросить» on `SheetFilter` 108.44 — 14, the cross 13, 6, the words, 14; the wizard's quiet
+  // «Отмена» 71.89 — 10, the words, 10 (`MontageSelect.json` e4); the quiet «Снять» 68.39 and «Ещё
+  // раз» 80.19 — 14 a side (`UploadLimited.json` e22, `LoginCode.json` e17). A clear hairline round
+  // every button made each of them 2 wider than drawn, and hung «Отмена» 2 to the left.
+  expect(flatAcross('Смонтировать', 13, 14, 15 + 6)).toBeCloseTo(140.91, 0);
+  expect(flatAcross('Сбросить', 13, 14, 13 + 6)).toBeCloseTo(108.44, 0);
+  expect(flatAcross('Отмена', 14, 10)).toBeCloseTo(71.89, 0);
+  expect(flatAcross('Снять', 14, 14)).toBeCloseTo(68.39, 0);
+  expect(flatAcross('Ещё раз', 13, 14)).toBeCloseTo(80.19, 0);
+  // …and with a hairline each of them is off by the 2 the layout never drew.
+  expect(across('Смонтировать', 13, 14, 15 + 6) - 140.91).toBeGreaterThan(1.9);
+
+  const flat = (['primary', 'paper', 'raise', 'quiet', 'danger', 'link'] as const).map(
+    (variant) => [variant, story(<Button variant={variant} label="Смонтировать" />)] as const,
+  );
+  const ringed = (['secondary', 'small', 'outline', 'dashed'] as const).map(
+    (variant) => [variant, story(<Button variant={variant} label="Смонтировать" />)] as const,
+  );
+  const none = shorthand('borderWidth', 'border-top-width:0px');
+  const one = shorthand('borderWidth', 'border-top-width:1px');
+  for (const [variant, drawn] of flat) expect(drawn, variant).toContain(none);
+  for (const [variant, drawn] of ringed) {
+    expect(drawn, variant).toContain(one);
+    expect(drawn, variant).not.toContain(none);
+  }
+  // Out of reach, a ringed one keeps the width of its ring: the colour goes, the size does not jump.
+  expect(story(<Button variant="secondary" label="Смонтировать" disabled />)).toContain(one);
+  // The quiet one's own sides are 14.
+  expect(story(<Button variant="quiet" labelRole="controlSm" label="Снять" />)).toContain(
+    rule('padding-left:14px;padding-right:14px'),
+  );
 });
 
 test('the words of a button follow its height: 15 on a 52 and on the quiet 48 in a sheet, 14 on the quiet 44', () => {
@@ -473,6 +514,46 @@ test('a round button standing on a fill of its own reads its glyph in full voice
     'stroke="#F5F3EE"',
   );
   expect(story(<IconButton icon={Plus} label="Закрыть" size={36} />)).toContain('stroke="#A4A1B2"');
+});
+
+test('on nothing, the 44 of a bar and of the calendar reads in paper, and the 36 in a row in muted', () => {
+  // TASK-397 (R'2). `Create.json` e2 «Назад» and e16/e19, the months: #F5F3EE; `Contacts.json` e24
+  // and `UploadQueue.json` e18, the crosses of a row: #A4A1B2. Every ghost glyph was muted, and the
+  // way back on 22 screens was grey where the layout has it white.
+  expect(story(<IconButton icon={Plus} label="Предыдущий месяц" />)).toContain('stroke="#F5F3EE"');
+  expect(story(<IconButton icon={Plus} label="Убрать" size={36} />)).toContain('stroke="#A4A1B2"');
+  expect(story(<IconButton icon={Plus} label="Скрыть" size={32} />)).toContain('stroke="#A4A1B2"');
+});
+
+test('«Назад» is one part: the chevron at 22 / 1.9 in paper, in its 44', () => {
+  // TASK-397 (R'2). Every «Назад» the layout draws in a 44 — 22 inner bars, the wizard's, the way
+  // in's — is `chevron-left` 22 at stroke 1.9 in #F5F3EE (`Create.json` e2, ink 7.3 × 12.7). By the
+  // circle's own rule a 44 wore 20 at 1.75 in muted (ink 6.0 × 11.3).
+  const back = story(<BackButton label="Назад" onPress={() => {}} />);
+  expect(back).toContain('<svg data-glyph="ChevronLeft" width="22" height="22" stroke="#F5F3EE"');
+  expect(back).toContain('stroke-width="1.9"');
+  expect(back).toContain('width:44px');
+  expect(back).toContain('aria-label="Назад"');
+  // The circle's own rule for a 44 stays what it was elsewhere — the month arrows keep their 20.
+  expect(story(<IconButton icon={Plus} label="Следующий месяц" />)).toContain('width="20"');
+});
+
+test('no screen draws a way back of its own on nothing: every one of them is `BackButton`', () => {
+  // Read off the sources, so the next screen with a way back cannot draw the chevron at the circle's
+  // 20 again. A chevron on glass — the feed's bar, the viewer's close — is another part, 48 and drawn
+  // on its own pane (spec 7.1, details 4 and 5), and says so with its `tone`.
+  const screens = Object.entries(
+    import.meta.glob<string>('@/{app,screens}/**/*.tsx', {
+      query: '?raw',
+      import: 'default',
+      eager: true,
+    }),
+  );
+  expect(screens.length).toBeGreaterThan(20);
+  for (const [path, source] of screens) {
+    for (const drawn of source.match(/<IconButton\b[^>]*?icon=\{ChevronLeft\}[\s\S]*?\/>/g) ?? [])
+      expect(drawn, path).toMatch(/tone="(glass|viewer)"/);
+  }
 });
 
 test('the spark dot says a setting has moved off its default, and is not a state of its own', () => {

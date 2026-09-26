@@ -112,7 +112,7 @@ test('a placed memory leaves by the back it arrived on, or the list when there i
 
 test('the back chevron is drawn only where going back means something', () => {
   expect(create).toContain('router.canGoBack() ? (');
-  expect(create).toContain('<IconButton icon={ChevronLeft}');
+  expect(create).toContain('<BackButton label={s.action.back}');
 });
 
 test('the screen invents no colour of its own, so daylight is a substitution of tokens', () => {
