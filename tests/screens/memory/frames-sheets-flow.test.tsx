@@ -19,6 +19,7 @@ import {
   IconButton,
   RowSummary,
   Segment,
+  Shares,
   Spinner,
 } from '@/kit';
 import { FILTER_NONE, type Filter, type FilterDay, SORT_DEFAULT } from '@/lib/frames';
@@ -317,11 +318,18 @@ test('one day and two days stretch their tiles across the row, three share it ev
   ] as const) {
     const sheet = await work({ days });
     expect(sheet.tiles(), `${days} days`).toHaveLength(drawn);
-    // Every tile asks for an equal share of what is left (`flex: 1`) and none for a width of its own,
-    // so the row is filled whatever their number is.
+    // Every tile stands in an equal share of the row (`Shares`) and fills it, none with a width of
+    // its own, so the row is filled whatever their number is — and the tiles stand one under another
+    // once a word on one of them breaks (TASK-400).
     for (const tile of sheet.tiles()) {
+      let row = tile.parent;
+      while (row && row.type !== Shares) row = row.parent;
+      expect(row, `${days} days`).toBeTruthy();
+      let share = tile.parent;
+      while (share && share.type !== View) share = share.parent;
+      expect(StyleSheet.flatten(share?.props.style).flex, `${days} days`).toBe(1);
       const style = StyleSheet.flatten(tile.findByType(Pressable).props.style({ pressed: false }));
-      expect(style.flex, `${days} days`).toBe(1);
+      expect(style.flexGrow, `${days} days`).toBe(1);
       expect(style.width, `${days} days`).toBeUndefined();
     }
   }

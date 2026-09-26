@@ -505,7 +505,7 @@ export function RowFilmAt({
   return (
     <Touch label={`${title} ${at}`} onPress={onPress} style={styles.filmAt}>
       <Icon icon={Play} size={16} color={color.paper} fill={color.paper} />
-      <Text role="label" numberOfLines={1} style={styles.grow}>
+      <Text role="label" style={styles.grow}>
         {title}
       </Text>
       <Text role="meta" tone="accent">
@@ -517,7 +517,8 @@ export function RowFilmAt({
 
 /**
  * Spec 7.6 — one number out of how a montage was put together, and the word for what it counts.
- * They stand three to a row and say nothing on their own: «214» is an answer to «просмотрел».
+ * They stand three to a row and say nothing on their own: «214» is an answer to «просмотрел». The row
+ * is `Shares`: a tile fills the height of its share, so three stand even whatever each one wraps to.
  */
 export function TileNumber({ figure, label }: { figure: string; label: string }) {
   const styles = useStyles();
@@ -663,7 +664,7 @@ const useStyles = themed(({ color }) =>
       backgroundColor: color.accentNote,
     },
     number: {
-      flex: 1,
+      flexGrow: 1,
       gap: 2,
       padding: space.s3,
       borderRadius: radius.cell,

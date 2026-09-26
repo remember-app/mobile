@@ -237,8 +237,11 @@ export function Board({ bar, heading, footer, body, list, children, style }: Boa
  * The bar at the top of a screen (spec 7.1), in the kinds that carry words:
  *
  * - **root** — the screen's own name in `displaySm` and one round button on the right;
- * - **inner** — a back button, the name in `barTitle`, truncated rather than wrapped;
- * - **inner with a subtitle** — a `meta` line under the name, the whole `Upload*` family;
+ * - **inner** — a back button, the name in `barTitle` — the product's own word, which does not grow
+ *   and fits its line on 375; on a narrower phone it wraps at a space rather than lose its end;
+ * - **inner with a subtitle** — a `meta` line under the name, the whole `Upload*` family: a memory's
+ *   name, a film's, how long it took — words that carry sense, so they wrap and the bar grows down
+ *   (TASK-400);
  * - **inner with a right action** — the same plus a round button, or the «смотрят сейчас» pill;
  * - **inner with a quiet action** — a bare 44 whose glyph is `faint`, the way to something grave
  *   that is there without arguing with the name or with the screen's main button;
@@ -286,15 +289,10 @@ export function AppBar({
         <Text
           accessibilityRole="header"
           role={variant === 'root' ? 'displaySm' : variant === 'live' ? 'barTitleLive' : 'barTitle'}
-          numberOfLines={1}
         >
           {title}
         </Text>
-        {subtitle ? (
-          <Text role="meta" numberOfLines={1}>
-            {subtitle}
-          </Text>
-        ) : null}
+        {subtitle ? <Text role="meta">{subtitle}</Text> : null}
       </View>
       {right}
       {quiet ? <IconButton {...quiet} tint={color.faint} style={styles.pullRight} /> : null}
@@ -473,6 +471,8 @@ export function GlassBar({
   const insets = useSafeAreaInsets();
   const styles = useStyles();
   // A plate and a button are the same capsule and the same two lines: only one of them is pressed.
+  // Both are cut — one of the few lines the spec cuts itself (7.1, detail 4; 10.6): the full name
+  // lives in the memory's settings a tap away and is read out whole from `capsuleLabel`.
   const words = (
     <>
       <Text role="pillTitle" numberOfLines={1}>
@@ -577,11 +577,13 @@ export function ViewerBar({
             disabled={!onPress}
             style={styles.viewerPill}
           >
-            {/* The date in the pinned night's `paper`, #F5F3EE — not the photograph's white. */}
-            <Text role="row" numberOfLines={1}>
+            {/* The date in the pinned night's `paper`, #F5F3EE — not the photograph's white. Both
+                wrap on large type and the pill grows down: the author is who brought the frame,
+                and the date is the one place the viewer says when (TASK-400). */}
+            <Text role="row" style={styles.centred}>
               {date}
             </Text>
-            <Text role="meta" numberOfLines={1} style={styles.viewerMeta}>
+            <Text role="meta" style={[styles.viewerMeta, styles.centred]}>
               {meta}
             </Text>
           </Pressable>
@@ -714,8 +716,8 @@ const useStyles = themed(({ color }) =>
     barInner: { gap: space.s2 },
     pullLeft: { marginLeft: -10 },
     pullRight: { marginRight: -10 },
-    // `flex: 1` with `minWidth: 0` is what makes a long name truncate instead of pushing the button
-    // on the right off the screen.
+    // `flex: 1` with `minWidth: 0` is what makes a long line wrap instead of pushing the button on the
+    // right off the screen.
     barWords: { flex: 1, minWidth: 0, gap: 2 },
     // Spec 7.1: the glass bar keeps 12 on each side instead of the screen's 16 — the two round
     // buttons are glass and float, and glass hung on the margin reads as stuck to the edge.
@@ -725,10 +727,12 @@ const useStyles = themed(({ color }) =>
       gap: space.s2,
       paddingHorizontal: space.s3,
     },
+    // 48 a floor: the name does not grow, but the meta under it does, and at the largest type the
+    // two lines are taller than the drawn capsule.
     capsule: {
       flex: 1,
       minWidth: 0,
-      height: height.roundViewer,
+      minHeight: height.roundViewer,
       alignItems: 'center',
       justifyContent: 'center',
       gap: 2,
@@ -761,20 +765,23 @@ const useStyles = themed(({ color }) =>
     // The pill is as wide as its words and stands in the middle of what the two buttons leave —
     // it is not a strip laid across the bar. The hairline is the layout's, and only the pill has it.
     viewerMiddle: { flex: 1, minWidth: 0, alignItems: 'center' },
-    // Two floors, centred by the same 20 on both sides; a long name is cut, never the pill widened.
+    // Two floors, centred by the same 20 on both sides, never wider than the room between the two
+    // buttons; 48 is a floor, and the words wrap inside it rather than run past its edge.
     viewerPill: {
-      height: height.roundViewer,
+      minHeight: height.roundViewer,
       maxWidth: '100%',
       alignItems: 'center',
       justifyContent: 'center',
       gap: 1,
       paddingHorizontal: 20,
+      paddingVertical: space.s1,
       borderRadius: radius.pill,
       backgroundColor: photo.glass,
       borderWidth: 1,
       borderColor: photo.barEdge,
     },
     viewerMeta: { color: photo.viewerMeta },
+    centred: { textAlign: 'center' },
     layer: { paddingHorizontal: space.s4, paddingTop: space.s3, gap: space.s3 },
     // «Выбрано 12 из 61» and a quiet «Снять»: the button moves under the words when the type is too
     // large for both on one line.

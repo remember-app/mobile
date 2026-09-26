@@ -23,7 +23,7 @@ vi.mock('react-native-safe-area-context', () => ({
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { ArrowUpDown, Funnel } from 'lucide-react-native';
 import type { ReactElement } from 'react';
-import { Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, type TextStyle, View, type ViewStyle } from 'react-native';
 import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
 
 import {
@@ -33,6 +33,7 @@ import {
   BadgeDecision,
   BadgeFilms,
   BadgeMontage,
+  BlockPicked,
   Button,
   brokeWord,
   CardMemory,
@@ -41,10 +42,17 @@ import {
   EmptyMontages,
   IconButton,
   PosterOrder,
+  RowTrack,
+  Shares,
   StepNote,
   Text,
+  Tile,
+  TileNumber,
   TileTemplate,
+  Upload,
+  wholeAt,
 } from '@/kit';
+import { type } from '@/theme';
 
 /**
  * TASK-375 — the parts whose words share a line with something else — round buttons, a badge, a
@@ -329,4 +337,202 @@ test('the initials are part of the circle and keep to its size, whatever the typ
   const letters = stack.root.findAllByType(Text);
   expect(letters.map((one) => one.props.children)).toContainEqual(['+', 2]);
   for (const one of letters) expect(one.props.maxFontSizeMultiplier).toBe(1);
+});
+
+/**
+ * TASK-400 — the last resort, for words that break even where the part has no roomier way left, or
+ * that stand in no such part: they grow no further than their line holds the widest of them whole.
+ * The phone reports each line with its width, and what broke is found where two lines meet mid-word.
+ */
+test('a broken word is found where it broke, and the words are set as far as the line holds it', () => {
+  // «Приглашение» at the largest type on 320, the line 248: «Приглаше» fills it, «ние» starts the next.
+  const torn = [
+    { text: 'Приглаше', width: 247.5 },
+    { text: 'ние не ', width: 150 },
+    { text: 'действует', width: 230 },
+  ];
+  // The word is the whole first line and three letters of the six of the second: 247.5 + 75 — and
+  // 2% to spare, for the rounding of the phone's measures.
+  expect(wholeAt(torn, 1.39)).toBeCloseTo((1.39 * 0.98 * 247.5) / 322.5, 3);
+  // Words that wrap at their spaces and dashes change nothing.
+  expect(
+    wholeAt(
+      [
+        { text: 'Приглашение ', width: 247 },
+        { text: 'не действует', width: 190 },
+      ],
+      1.39,
+    ),
+  ).toBeUndefined();
+  expect(wholeAt([{ text: 'Добавить ещё', width: 200 }], 2)).toBeUndefined();
+  // A piece guessed short is still a step down, never the same size again.
+  expect(
+    wholeAt(
+      [
+        { text: 'Проявляем', width: 100 },
+        { text: '…', width: 1 },
+      ],
+      2,
+    ),
+  ).toBeCloseTo(1.9, 5);
+  // And a line with no width told is a step down too, never an answer that is not a number.
+  expect(wholeAt(TORN as never, 2)).toBeCloseTo(1.9, 5);
+});
+
+/**
+ * How far the words grow on this phone (×3.571): the platform's own text under the kit's, its size
+ * against the role's, times the growth it is let have. Set smaller, the words are drawn at their
+ * grown size and let grow no further — a lower cap alone is kept out of React Native's measure cache.
+ */
+const drawnOf = (tree: TestRenderer.ReactTestRenderer, words: string) =>
+  tree.root
+    .find((one) => one.type === Text && one.props.children === words)
+    .findAll((one) => one.type !== Text && typeof one.props.maxFontSizeMultiplier === 'number')[0]
+    .props;
+const grows = (tree: TestRenderer.ReactTestRenderer, words: string) => {
+  const kit = tree.root.find((one) => one.type === Text && one.props.children === words);
+  const drawn = drawnOf(tree, words);
+  const size = (style: unknown) => (StyleSheet.flatten(style as never) as TextStyle).fontSize ?? 0;
+  const own = size([type[(kit.props.role ?? 'body') as keyof typeof type], kit.props.style]);
+  return (size(drawn.style) / own) * Math.min(phone.fontScale, drawn.maxFontSizeMultiplier);
+};
+
+test('a heading in the wide face that breaks a word grows only as far as its line holds it, and never under its size', async () => {
+  const words = 'Приглашение не действует';
+  const tree = await draw(<Text role="emptyTitle">{words}</Text>);
+  expect(grows(tree, words)).toBe(1.39);
+  await layOut(tree, [
+    { text: 'Приглаше', width: 247.5 },
+    { text: 'ние не ', width: 150 },
+    { text: 'действует', width: 230 },
+  ] as never);
+  const settled = grows(tree, words);
+  expect(settled).toBeCloseTo((1.39 * 0.98 * 247.5) / 322.5, 3);
+  // Set at that size and let grow no further — not only capped there: React Native measures a text
+  // by its size and not by its cap, and a cap alone kept the box as tall as the torn lines.
+  expect(drawnOf(tree, words).maxFontSizeMultiplier).toBe(1);
+  expect(StyleSheet.flatten(drawnOf(tree, words).style).lineHeight).toBeCloseTo(28 * settled, 3);
+  // Whole at that size, it stays there.
+  await layOut(tree, [
+    { text: 'Приглашение ', width: 230 },
+    { text: 'не действует', width: 200 },
+  ] as never);
+  expect(grows(tree, words)).toBe(settled);
+  // Torn again at it, it steps down again — and the spec's own size is the floor.
+  for (let i = 0; i < 40; i += 1)
+    await layOut(tree, [
+      { text: 'Пригла', width: 247 },
+      { text: 'шение', width: 200 },
+    ] as never);
+  expect(grows(tree, words)).toBe(1);
+});
+
+test('running text asks nothing of its lines unless it stands in a box that cannot widen', async () => {
+  // A second layout of every paragraph is what listening costs; only what can break a word listens.
+  const plain = await draw(<Text role="body">Абзац</Text>);
+  expect(plain.root.findAll((one) => typeof one.props.onTextLayout === 'function')).toHaveLength(0);
+  const fitted = await draw(
+    <Text role="meta" fit>
+      Проявляем…
+    </Text>,
+  );
+  await layOut(fitted, [
+    { text: 'Проявля', width: 107 },
+    { text: 'ем…', width: 30 },
+  ] as never);
+  expect(grows(fitted, 'Проявляем…')).toBeLessThan(2);
+  // «Remember» shrinks to fit its one line, and the bar's headings do not grow: neither listens.
+  for (const role of ['hero', 'barTitle', 'pillTitle'] as const) {
+    const one = await draw(<Text role={role}>Remember</Text>);
+    expect(
+      one.root.findAll((node) => typeof node.props.onTextLayout === 'function'),
+      role,
+    ).toHaveLength(0);
+  }
+});
+
+test('things in equal shares stand side by side until a word in one breaks, then one under another', async () => {
+  const shared = () => (
+    <Shares>
+      <Button variant="primary" size="sm" wide label="Сохранить" />
+      <Button size="sm" wide label="Поделиться" />
+    </Shares>
+  );
+  const tree = await draw(shared());
+  const buttons = () => tree.root.findAllByType(Button);
+  const row = () => flat(box(box(buttons()[0])));
+  // As drawn: one row, each button in a share of its own.
+  expect(row().flexDirection).toBe('row');
+  expect(buttons().map((one) => flat(box(one)).flex)).toEqual([1, 1]);
+  expect(box(box(buttons()[0]))).toBe(box(box(buttons()[1])));
+  // «Сохрани / ть»: one under another, each the whole width — by stretching, never by a basis.
+  await layOut(tree, TORN);
+  expect(row().flexDirection).toBe('column');
+  for (const one of buttons()) {
+    expect(flat(box(one)).alignSelf).toBe('stretch');
+    expect(flat(box(one)).flexBasis).toBeUndefined();
+  }
+  // Stacked and still torn — the smallest phone, the largest type: the words grow less instead.
+  const label = 'Поделиться';
+  const before = grows(tree, label);
+  await layOut(tree, [
+    { text: 'Поделит', width: 280 },
+    { text: 'ься', width: 60 },
+  ] as never);
+  expect(grows(tree, label)).toBeLessThan(before);
+  // Another type size is another question: the row stands as drawn and asks again.
+  phone.fontScale = 2;
+  await act(async () => tree.update(shared()));
+  expect(row().flexDirection).toBe('row');
+  phone.fontScale = 3.571;
+});
+
+test('words beside a count or a length move it under themselves, and a tile’s caption fits its tile', async () => {
+  // «Отпр / авляе / м» beside «Осталось 9 файлов», «ВЫБ / РАН / О» beside «ничего не добавлено»,
+  // «Спокой…» beside «2:05» (TASK-400): the row wraps, and the words grow from their own width —
+  // never `flex: 1`, whose basis of 0 keeps the neighbour on their line and squeezes them instead.
+  const tree = await draw(
+    <View>
+      <Upload title="Отправляем" meta="Осталось 9 файлов" value={0.3} />
+      <BlockPicked
+        title="Выбрано"
+        count="ничего не добавлено"
+        empty={{ title: 'Ролик будет без музыки', note: 'Только живой звук из видео' }}
+      />
+      <RowTrack title="Спокойная" length="2:05" picked />
+    </View>,
+  );
+  for (const words of ['Отправляем', 'ВЫБРАНО', 'Спокойная']) {
+    const text = tree.root.find((one) => one.type === Text && one.props.children === words);
+    expect(flat(box(text)).flexWrap, words).toBe('wrap');
+    expect(flat(text).flex, words).toBeUndefined();
+    expect(text.props.numberOfLines, words).toBeUndefined();
+  }
+  // A developing frame's tile is a third of the screen whatever the type: its word grows less.
+  const tile = await draw(<Tile state="processing" lane="feed" caption="Проявляем…" />);
+  expect(
+    tile.root.find((one) => one.type === Text && one.props.children === 'Проявляем…').props.fit,
+  ).toBe(true);
+});
+
+test('the number tiles fill their shares, so three stand even whatever each one wraps to', async () => {
+  const tree = await draw(
+    <Shares>
+      <TileNumber figure="214" label="просмотрел" />
+      <TileNumber figure="3" label="части" />
+      <TileNumber figure="21" label="склейки" />
+    </Shares>,
+  );
+  const tiles = tree.root.findAllByType(TileNumber);
+  expect(tiles).toHaveLength(3);
+  for (const tile of tiles) {
+    const face = flat(tile.findAllByType(View)[0]);
+    expect(face.flexGrow).toBe(1);
+    expect(face.flex).toBeUndefined();
+  }
+  await layOut(tree, [
+    { text: 'просмот', width: 60 },
+    { text: 'рел', width: 30 },
+  ] as never);
+  expect(flat(box(box(tiles[0]))).flexDirection).toBe('column');
 });

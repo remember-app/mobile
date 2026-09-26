@@ -331,13 +331,10 @@ export default function MemorySettingsScreen() {
           <View style={styles.event}>
             <CoverSlot uri={memory.cover_thumbnail_url} thumbs={memory.recent_thumbnail_urls} />
             <View style={styles.grow}>
-              {/* Up to two lines, and cut on the second (spec 8, 10.11 answer 5): the card keeps its
-                  98 — two lines of the name and the meta fit the height of the cover. Read out
-                  whole either way, and whole in the edit behind the pencil. */}
-              <Text role="titleSm" numberOfLines={2}>
-                {memory.title}
-              </Text>
-              <Text role="meta" numberOfLines={1}>
+              {/* Whole, however long (TASK-400): this card is where the memory's full name lives
+                  (spec 10.6), so it wraps and the card grows down past the cover's height. */}
+              <Text role="titleSm">{memory.title}</Text>
+              <Text role="meta">
                 {[
                   formatEventDates(memory.event_start, memory.event_end),
                   s.memory.frames(memory.media_count),

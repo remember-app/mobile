@@ -249,7 +249,10 @@ test.each(faces)(
     // The drawn name is cut with an ellipsis on purpose; the one read out is whole (spec 10.6).
     expect(capsule.props.accessibilityLabel).toBe(ru.memory.settings('Свадьба Лизы и Марка'));
     expect(capsule.findAllByType(Icon)).toHaveLength(0);
-    expect(StyleSheet.flatten(capsule.props.style).height).toBeGreaterThanOrEqual(44);
+    // A floor, and not a height: the meta under the name grows with the system's type (TASK-400).
+    const box = StyleSheet.flatten(capsule.props.style);
+    expect(box.minHeight).toBeGreaterThanOrEqual(44);
+    expect(box.height).toBeUndefined();
 
     await act(async () => capsule.props.onPress());
     expect(router.push).toHaveBeenLastCalledWith({

@@ -486,26 +486,22 @@ test('a way out that fails lets the button go and says why', async () => {
   expect(screen.banner()).toBe(new ApiError(503, { error: 'keychain says no' }).message);
 });
 
-test('a very long name and address are each cut to one line, so the circle and the pencil never move', async () => {
-  world({
-    who: {
-      name: 'Александра-Виктория '.repeat(6).trim(),
-      email: `${'очень.длинный.адрес'.repeat(5)}@example.com`,
-    },
-  });
+test('a very long name and address are whole on the card, and the circle and the pencil stay put', async () => {
+  // TASK-400: «Лиза Мороз…» was what the smallest phone left of the name at the ordinary size. The
+  // name wraps at its spaces; the address has none to wrap at, so it grows no further than its line
+  // holds it (`fit`); the circle and the pencil keep their places either side of the words.
+  const name = 'Александра-Виктория '.repeat(6).trim();
+  const email = `${'очень.длинный.адрес'.repeat(5)}@example.com`;
+  world({ who: { name, email } });
   const screen = await open();
-  const card = screen
-    .root()
-    .findAllByType(Text)
-    .filter((one) => one.props.numberOfLines === 1);
-  const said = card.map((one) => [one.props.children].flat().join(''));
-  expect(said).toEqual(
-    expect.arrayContaining([
-      'Александра-Виктория '.repeat(6).trim(),
-      '@liza',
-      `${'очень.длинный.адрес'.repeat(5)}@example.com`,
-    ]),
-  );
+  const words = (said: string) =>
+    screen
+      .root()
+      .findAllByType(Text)
+      .find((one) => [one.props.children].flat().join('') === said)?.props;
+  for (const said of [name, '@liza', email])
+    expect(words(said)?.numberOfLines, said).toBeUndefined();
+  expect(words(email)?.fit).toBe(true);
 });
 
 test('a contact list that cannot be read is no count and no faces, and the switch still works', async () => {

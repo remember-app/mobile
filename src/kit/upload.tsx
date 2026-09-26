@@ -43,7 +43,7 @@ export function Upload({
   return (
     <View style={[styles.upload, style]}>
       <View style={styles.head}>
-        <Text role="subtitleDisplay" style={styles.grow}>
+        <Text role="subtitleDisplay" style={styles.lead}>
           {title}
         </Text>
         {/* Spec detail 48: «Осталось 9 файлов» 13 / 600 `muted` — not the meta's 12 / 500. */}
@@ -105,6 +105,8 @@ export function RowStuck({
         </View>
       )}
       <View style={styles.words}>
+        {/* One line cut short, as spec 7.7 (detail 51) draws it: a file's name is not words to wrap,
+            and it is said whole by the cross beside it (`dropLabel`). */}
         <Text role="rowSm" numberOfLines={1}>
           {name}
         </Text>
@@ -133,8 +135,16 @@ const useStyles = themed(({ color }) =>
       padding: space.s4,
       gap: space.s3,
     },
-    head: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },
-    grow: { flex: 1, minWidth: 0 },
+    // «Осталось 9 файлов» goes under «Отправляем» once the two no longer share a line, rather than
+    // squeeze it a letter at a time: the title is as wide as its word and the rest of the line.
+    head: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      columnGap: space.s3,
+      rowGap: space.s1,
+    },
+    lead: { flexGrow: 1 },
     // Spec 7.7, detail 51: 12 above and below, 14 at the sides.
     stuck: {
       flexDirection: 'row',

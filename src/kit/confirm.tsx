@@ -37,9 +37,9 @@ type ConfirmProps = {
    */
   cover?: { uri?: string | null; thumbs?: readonly string[] };
   /**
-   * «Марк Ковалёв · 13 сентября», «Свадьба Лизы и Марка · 486 кадров». Under a cover it is one line,
-   * cut if long (`SheetConfirmMemory`); elsewhere it wraps — over an armful of frames it is the
-   * sentence saying why fewer go than were marked, and cut short that says nothing.
+   * «Марк Ковалёв · 13 сентября», «Свадьба Лизы и Марка · 486 кадров». It wraps wherever it stands:
+   * under a cover it is which memory goes and how many frames with it, over an armful of frames the
+   * sentence saying why fewer go than were marked — and cut short, either says nothing.
    */
   meta?: string;
   /**
@@ -132,11 +132,7 @@ export function ConfirmSheet({
             <Text role="sheetTitleSm" accessibilityRole="header">
               {title}
             </Text>
-            {meta ? (
-              <Text role="meta" numberOfLines={cover ? 1 : undefined}>
-                {meta}
-              </Text>
-            ) : null}
+            {meta ? <Text role="meta">{meta}</Text> : null}
           </View>
         </View>
       }

@@ -107,11 +107,14 @@ export function Tile({
         />
       ) : null}
 
+      {/* The caption grows only as far as the tile holds its longest word (`fit`, TASK-400): the
+          tile is a third of the screen whatever the type, and has no roomier way to stand —
+          «Проявля / ем…» was what the smallest phone on large type made of it. */}
       {state === 'processing' ? (
         <View style={[StyleSheet.absoluteFill, styles.state]}>
           <Spinner size={16} />
           {caption ? (
-            <Text role="meta" style={styles.caption}>
+            <Text role="meta" fit style={styles.caption}>
               {caption}
             </Text>
           ) : null}
@@ -126,7 +129,7 @@ export function Tile({
           </View>
           {/* Read, so `muted` — the glyph above it is the quiet part (spec 10.1). */}
           {caption ? (
-            <Text role="meta" style={styles.caption}>
+            <Text role="meta" fit style={styles.caption}>
               {caption}
             </Text>
           ) : null}

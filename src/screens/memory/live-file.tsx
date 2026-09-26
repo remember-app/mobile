@@ -62,14 +62,12 @@ export function SheetLiveFile({
         <View style={styles.who}>
           <Avatar name={author} size={32} />
           <View style={styles.grow}>
-            <Text role="rowSm" numberOfLines={1}>
-              {file === undefined ? author : s.media[file.kind]}
-            </Text>
+            <Text role="rowSm">{file === undefined ? author : s.media[file.kind]}</Text>
             {/* A file that is gone takes this line with it: there is nobody to name and nothing
                 to date, and «Someone · » would be a sentence about the hole rather than about the
                 frame. */}
             {file === undefined ? null : (
-              <Text role="meta" numberOfLines={1}>
+              <Text role="meta">
                 {file.captured_at
                   ? `${author} · ${formatDayShort(file.captured_at)}, ${formatTime(file.captured_at)}`
                   : author}

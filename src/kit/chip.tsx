@@ -115,7 +115,7 @@ export function Chip({
         {label}
       </Text>
       {count ? (
-        <Text role={role} numberOfLines={1} style={[styles.count, { color: tint }]}>
+        <Text role={role} style={[styles.count, { color: tint }]}>
           {count}
         </Text>
       ) : null}

@@ -110,21 +110,16 @@ export default function ProfileScreen() {
       // that has to clear, and it is the taller of the two.
       body={[styles.body, { paddingBottom: Math.max(insets.bottom, board.bottom) }]}
     >
-      {/* The profile card. A long name and a long address each cut with an ellipsis rather than
-          wrapping, so neither the circle nor the pencil ever moves. */}
+      {/* The profile card. The circle and the pencil stay where they are, and the words between
+          them are whole: a long name wraps at its spaces (TASK-400), and the address — one word
+          with no space to wrap at — grows no further than its line holds it. */}
       <View style={styles.card}>
         <Avatar name={name} size={64} display />
         <View style={styles.cardWords}>
-          <Text role="title" numberOfLines={1}>
-            {name}
-          </Text>
-          {handle ? (
-            <Text role="label" numberOfLines={1}>
-              {handle}
-            </Text>
-          ) : null}
+          <Text role="title">{name}</Text>
+          {handle ? <Text role="label">{handle}</Text> : null}
           {user?.email ? (
-            <Text role="meta" numberOfLines={1}>
+            <Text role="meta" fit>
               {user.email}
             </Text>
           ) : null}

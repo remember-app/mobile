@@ -134,7 +134,9 @@ test('a memory is asked about under its cover at 64 — the dashed one too, when
   }
 });
 
-test('the line under a memory’s question is one line, cut rather than wrapped — and a sentence under a frame is read whole', () => {
+test('the line under the question is whole wherever it stands — under a memory and under a frame', () => {
+  // TASK-400: under a memory it is which memory goes and how many frames with it — the price of the
+  // one step nobody can take back; cut, «Свадьба Лизы и Марка · 340 кадр…» hid the price.
   expect(
     story(
       <ConfirmSheet
@@ -143,7 +145,7 @@ test('the line under a memory’s question is one line, cut rather than wrapped 
         meta="Свадьба Лизы и Марка в Карелии на берегу Онежского озера · 486 кадров"
       />,
     ),
-  ).toContain('r-textOverflow');
+  ).not.toContain('r-textOverflow');
   expect(
     story(
       <ConfirmSheet

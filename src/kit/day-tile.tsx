@@ -10,7 +10,9 @@ import { Text } from './text';
  * top, and under them a bar of how much the day holds beside the fullest day of the memory and the
  * count in words. By the bar alone one sees where the material is and where there is next to none.
  *
- * Tiles share their row evenly (`flex: 1`), so one tile or two run the whole width of it.
+ * Tiles share their row evenly (`Shares`), so one tile or two run the whole width of it — and stand
+ * one under another once a word on one of them breaks. A tile fills the height of its share, so the
+ * tiles of a row stand even whatever each one's words wrap to.
  *
  * Chosen is `paper` and `ink` — a choice that goes nowhere (spec 1, rule 7). The quieter lines on a
  * chosen tile are the tile's own `ink` thinned, never a colour of their own, so they swap with the
@@ -62,10 +64,10 @@ export function DayTile({
       ]}
     >
       <View style={styles.top}>
-        <Text role="figureDay" numberOfLines={1} style={figure}>
+        <Text role="figureDay" style={figure}>
           {day}
         </Text>
-        <Text role="metaTile" numberOfLines={1} style={quiet}>
+        <Text role="metaTile" style={quiet}>
           {weekday}
         </Text>
       </View>
@@ -78,7 +80,7 @@ export function DayTile({
             style={[styles.fill, { width, backgroundColor: selected ? color.ink : color.faint }]}
           />
         </View>
-        <Text role="metaTile" numberOfLines={1} style={quiet}>
+        <Text role="metaTile" style={quiet}>
           {count}
         </Text>
       </View>
@@ -91,8 +93,7 @@ const useStyles = themed(({ color }) =>
     // 86 is the tile as drawn; the largest system type only ever makes it taller, never lets its
     // words out of it.
     tile: {
-      flex: 1,
-      minWidth: 0,
+      flexGrow: 1,
       minHeight: height.dayTile,
       paddingVertical: 10,
       paddingHorizontal: 11,

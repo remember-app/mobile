@@ -112,10 +112,12 @@ test('a name wider than the whole row breaks onto a second line inside the chip,
   });
   const words = (text: string) =>
     tree.root.find((node) => node.type === Text && node.props.children === text).props;
-  // Spec 7.3: the width never cuts a chip. The name is what gives; the count stays one figure.
+  // Spec 7.3: the width never cuts a chip. The name is what gives; the count stays one figure —
+  // it never shrinks, so nothing ever cuts it either (TASK-400: no line counts on words).
   expect(words('Лучшие кадры свадьбы').numberOfLines).toBeUndefined();
   expect(StyleSheet.flatten(words('Лучшие кадры свадьбы').style).flexShrink).toBe(1);
-  expect(words('23').numberOfLines).toBe(1);
+  expect(words('23').numberOfLines).toBeUndefined();
+  expect(StyleSheet.flatten(words('23').style).flexShrink ?? 0).toBe(0);
 });
 
 test('a chosen chip fills with paper and is read in ink, the way a segment is', () => {

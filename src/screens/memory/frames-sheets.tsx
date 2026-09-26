@@ -16,6 +16,7 @@ import {
   RowFilmAt,
   RowSummary,
   Segment,
+  Shares,
   Sheet,
   Spinner,
   Text,
@@ -253,7 +254,8 @@ export function FilterSheet({
           />
         </View>
         {tiles.length === 0 ? null : (
-          <View style={styles.tiles}>
+          // Spec 7.3, detail 74: the tiles share one row evenly, 8 apart — never a row that scrolls.
+          <Shares>
             {tiles.map((day) => {
               const date = new Date(day.at);
               const weekday = formatWeekday(date, undefined, 'short');
@@ -271,7 +273,7 @@ export function FilterSheet({
                 />
               );
             })}
-          </View>
+          </Shares>
         )}
         {calendar ? (
           <Calendar
@@ -406,12 +408,10 @@ export function FrameInfoSheet({
         <View style={styles.head}>
           {thumb ? <Image source={{ uri: thumb }} contentFit="cover" style={styles.thumb} /> : null}
           <View style={styles.headWords}>
-            <Text role="section" numberOfLines={1} accessibilityRole="header">
+            <Text role="section" accessibilityRole="header">
               {title}
             </Text>
-            <Text role="meta" numberOfLines={1}>
-              {meta}
-            </Text>
+            <Text role="meta">{meta}</Text>
           </View>
         </View>
       }
@@ -435,10 +435,8 @@ export function FrameInfoSheet({
           <View style={styles.author}>
             <Avatar name={memberName(info.uploaded_by)} size={32} />
             <View style={styles.authorWords}>
-              <Text role="rowSm" numberOfLines={1}>
-                {memberName(info.uploaded_by)}
-              </Text>
-              <Text role="meta" numberOfLines={1}>
+              <Text role="rowSm">{memberName(info.uploaded_by)}</Text>
+              <Text role="meta">
                 {s.viewer.brought(formatDayShort(info.created_at), info.uploaded_by.media_count)}
               </Text>
             </View>
@@ -493,8 +491,6 @@ const useStyles = themed(({ color }) =>
     // it, when the type is too large for the three to share a line.
     dayHead: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10 },
     grow: { flexGrow: 1 },
-    // Spec 7.3, detail 74: the tiles share one row evenly, 8 apart — never a row that scrolls.
-    tiles: { flexDirection: 'row', gap: space.s2 },
     // Spec 8: the header row of `SheetFrameInfo` is a 56 thumbnail and two lines beside it.
     head: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },
     headWords: { flex: 1, minWidth: 0, gap: 3 },
