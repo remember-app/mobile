@@ -1,8 +1,20 @@
+import { expect, test, vi } from 'vitest';
+
+// The system's type size, turned by the test; the system's own size unless a test says otherwise.
+const { phone } = vi.hoisted(() => ({ phone: { fontScale: 1 } }));
+
+vi.mock('react-native', async (importOriginal) => {
+  const rn = await importOriginal<typeof import('react-native')>();
+  return {
+    ...rn,
+    useWindowDimensions: () => ({ width: 375, height: 667, scale: 2, fontScale: phone.fontScale }),
+  };
+});
+
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import type { ReactElement } from 'react';
 import { Pressable, StyleSheet, Text, type TextStyle, View, type ViewStyle } from 'react-native';
 import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
-import { expect, test } from 'vitest';
 
 import { rowHolds, Segment } from '@/kit/segment';
 import { allDifferent, story } from '@/kit/story';
@@ -194,6 +206,8 @@ test('in the row a cell is an equal part, drawn at 40 and felt at 44, inside its
 });
 
 test('no word is ever cut to one line or given an ellipsis, and none grows past twice its size', async () => {
+  // The largest type of iOS, ×3.571: the words — and the copies they are measured on — stop at ×2.
+  phone.fontScale = 3.571;
   const root = await draw(
     <Segment label="Лицо" options={FACES} value="frames" onChange={() => {}} />,
   );
@@ -204,9 +218,13 @@ test('no word is ever cut to one line or given an ellipsis, and none grows past 
     await lay(root, 343, words);
     for (const word of [...shown(root), ...rulers(root)]) {
       expect(word.props.numberOfLines).toBeUndefined();
-      expect(word.props.maxFontSizeMultiplier).toBe(2);
+      // Drawn at the size handed over, which the platform does not grow on top.
+      expect(word.props.allowFontScaling).toBe(false);
+      expect(flat<TextStyle>(word).fontSize).toBeCloseTo(14 * 2, 5);
     }
   }
+  await release();
+  phone.fontScale = 1;
 });
 
 test('every word is set at 14 however long it is, and at 13 only where the group asks for it', async () => {

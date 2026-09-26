@@ -1,8 +1,20 @@
+import { beforeAll, expect, test, vi } from 'vitest';
+
+// The system's type size, turned by the test; the system's own size unless a test says otherwise.
+const { phone } = vi.hoisted(() => ({ phone: { fontScale: 1 } }));
+
+vi.mock('react-native', async (importOriginal) => {
+  const rn = await importOriginal<typeof import('react-native')>();
+  return {
+    ...rn,
+    useWindowDimensions: () => ({ width: 375, height: 667, scale: 2, fontScale: phone.fontScale }),
+  };
+});
+
 import { fontFile, wordWidth } from '@tests/helpers/font';
 import type { ReactElement } from 'react';
-import { Text as RNText } from 'react-native';
+import { Text as RNText, StyleSheet, type TextStyle } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
-import { beforeAll, expect, test } from 'vitest';
 
 import { allDifferent, story } from '@/kit/story';
 import {
@@ -205,6 +217,13 @@ test('a balanced text is the words once, read out once', () => {
   expect(unseen.length).toBeGreaterThan(0);
   const measures = unseen[0].findAllByType(RNText).map((one) => one.props.children);
   expect(measures).toEqual(['Свадьба', 'Лизы', 'и', 'Марка', 'Свадьба Лизы']);
+  // Each on one line, whatever the box the name stands in: held to the card, «Свадьба Лизы» on the
+  // largest type came out wrapped and as wide as the card — a space of 4.5 between the words, and
+  // the name balanced a line longer than counted (TASK-406).
+  expect(StyleSheet.flatten(unseen[0].props.style)).toMatchObject({
+    width: 4096,
+    alignItems: 'flex-start',
+  });
   act(() => tree.unmount());
   // One word has nothing to balance, and is the plain text.
   expect(
@@ -237,28 +256,65 @@ test('words in a cell the layout fixes grow as far as the cell holds them, and t
   expect(fitCell({ ...day, fontScale: 2, width: 0 })).toEqual({ most: undefined, height: 48 });
 });
 
-/** What the kit hands the platform's own text for one role. */
-function drawnAs(text: ReactElement) {
+/** What the kit hands the platform's own text for one role, on a phone at `fontScale`. */
+function drawnAs(text: ReactElement, fontScale = 1) {
+  phone.fontScale = fontScale;
   let tree!: TestRenderer.ReactTestRenderer;
   act(() => {
     tree = TestRenderer.create(text);
   });
-  const { props } = tree.root.findByType(RNText);
+  const { props } = tree.root.findAllByType(RNText)[0];
   act(() => tree.unmount());
+  phone.fontScale = 1;
   return props;
+}
+
+/** How many times its role's own size the platform is told to draw a text — and nothing more. */
+function grownAs(text: ReactElement, fontScale: number) {
+  const props = drawnAs(text, fontScale);
+  // The platform does not grow it on top: the size handed over is the size drawn.
+  expect(props.allowFontScaling).toBe(false);
+  expect(props.maxFontSizeMultiplier).toBeUndefined();
+  const role = (text.props as { role?: TypeRole }).role ?? 'body';
+  const drawn = StyleSheet.flatten(props.style) as TextStyle;
+  const by = (drawn.fontSize ?? 0) / Number(type[role].fontSize);
+  if (type[role].lineHeight !== undefined)
+    expect(drawn.lineHeight, role).toBeCloseTo(Number(type[role].lineHeight) * by, 5);
+  return by;
 }
 
 test('every role grows with the system type only as far as its ceiling, and a caller can say less', () => {
   // TASK-377: the numbers themselves are measured in `large-type.test.ts`; here, that each role
   // gets its own — and that nothing is left to grow as far as the phone asks.
   for (const role of ROLES)
-    expect(drawnAs(<Text role={role}>Слово</Text>).maxFontSizeMultiplier, role).toBe(
+    expect(grownAs(<Text role={role}>Слово</Text>, 3.571), role).toBeCloseTo(
       HEADING_MOST[role] ?? TYPE_MOST,
+      5,
     );
-  expect(drawnAs(<Text role="body">Абзац</Text>).maxFontSizeMultiplier).toBe(2);
-  expect(drawnAs(<Text role="hero">Remember</Text>).maxFontSizeMultiplier).toBe(1.13);
+  expect(grownAs(<Text role="body">Абзац</Text>, 3.571)).toBeCloseTo(2, 5);
+  expect(grownAs(<Text role="hero">Remember</Text>, 3.571)).toBeCloseTo(1.13, 5);
+  // Under its ceiling a role grows as far as the phone asks, and shrinks with it below its size.
+  expect(grownAs(<Text role="body">Абзац</Text>, 1.353)).toBeCloseTo(1.353, 5);
+  expect(grownAs(<Text role="body">Абзац</Text>, 0.823)).toBeCloseTo(0.823, 5);
   // A cell that measured its own room says so, and is heard.
-  expect(drawnAs(<Text maxFontSizeMultiplier={1.4}>12</Text>).maxFontSizeMultiplier).toBe(1.4);
+  expect(grownAs(<Text maxFontSizeMultiplier={1.4}>12</Text>, 3.571)).toBeCloseTo(1.4, 5);
+});
+
+test('the size a text is drawn at is in its props, so a change of the system’s type reaches every text', () => {
+  // TASK-406. React Native keys its measured text on the size and not the cap, and a text whose
+  // props stayed the same through a change of the system's type was attached again, by React's next
+  // commit, as the node laid out at the old one: on the iPhone SE turned from AX5 to L with the
+  // app open, the finished film's tiles and stages stayed as tall as at AX5 around words drawn at L.
+  // So the platform scales nothing, and every step of the system's type is another size handed over.
+  const at = (fontScale: number) =>
+    StyleSheet.flatten(drawnAs(<Text role="meta">Проявляем…</Text>, fontScale).style) as TextStyle;
+  const sizes = [0.823, 1, 1.118, 1.353, 1.786, 2.143, 3.571].map((scale) => at(scale).fontSize);
+  // Every step up to the ceiling a size of its own; the steps past it all at the ceiling.
+  expect(new Set(sizes.slice(0, 5)).size).toBe(5);
+  expect(sizes[5]).toBe(sizes[6]);
+  expect(sizes[6]).toBeCloseTo(Number(type.meta.fontSize) * TYPE_MOST, 5);
+  // At the system's own size the words are the role's, as drawn.
+  expect(at(1)).toMatchObject({ fontSize: type.meta.fontSize, lineHeight: type.meta.lineHeight });
 });
 
 test('the product’s name is one line that shrinks to its room, and nothing else is', () => {

@@ -56,13 +56,17 @@ export function Divider({
  * over their number, and Yoga has no smallest width of a word to keep it from being narrower.
  */
 export function Shares({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
-  const { roomy, room } = useWordRoom();
+  const { roomy, way, room } = useWordRoom();
 
   return (
     <WordRoom.Provider value={room}>
       <View style={[shares.row, roomy ? shares.column : null, style]}>
         {Children.map(children, (child) =>
-          child ? <View style={roomy ? shares.whole : shares.share}>{child}</View> : null,
+          child ? (
+            <View key={way} style={roomy ? shares.whole : shares.share}>
+              {child}
+            </View>
+          ) : null,
         )}
       </View>
     </WordRoom.Provider>

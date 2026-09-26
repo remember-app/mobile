@@ -244,6 +244,37 @@ test('the ordinary card puts its films badge under a name that broke a word besi
   expect(whole()[0].findAllByType(BadgeFilms)).toHaveLength(0);
 });
 
+test('a part turning to its other way lays the box out as a new one, and so back to its share from the whole width', async () => {
+  // TASK-406. Yoga works a node's flex basis out once it is set (`flex: 1` sets it) and React Native
+  // never has it worked out again: turned from AX5 to L with the app open, a card back from its
+  // roomier way kept its words the whole width, and the films badge under a name with room beside it.
+  // Each way is its own node — the platform's view under the box is a new one on every turn.
+  const card = () => (
+    <CardMemory
+      title="Корпоратив Nox"
+      meta={['3 октября', '12 кадров']}
+      thumbs={['a.jpg']}
+      films={<BadgeFilms label="2 ролика" />}
+      onPress={() => {}}
+    />
+  );
+  const tree = await draw(card());
+  const words = () =>
+    box(tree.root.find((one) => one.type === Text && one.props.children === 'Корпоратив Nox'));
+  // Which node the box is: React makes a new one for a new key, and keeps the one it has otherwise.
+  const node = () => (words() as unknown as { _fiber: { key: string | null } })._fiber.key;
+  const drawn = node();
+  await layOut(tree, [{ text: 'Корпорат' }, { text: 'ив Nox' }]);
+  expect(flat(words()).width).toBe('100%');
+  expect(node()).not.toBe(drawn);
+  const roomy = node();
+  phone.fontScale = 2;
+  await act(async () => tree.update(card()));
+  expect(flat(words()).width).toBeUndefined();
+  expect(node()).not.toBe(roomy);
+  phone.fontScale = 3.571;
+});
+
 test('a finished film in the strip stands its circle over its words once a word beside it breaks', async () => {
   const tree = await draw(
     <CardMontage
@@ -382,20 +413,20 @@ test('a broken word is found where it broke, and the words are set as far as the
 
 /**
  * How far the words grow on this phone (×3.571): the platform's own text under the kit's, its size
- * against the role's, times the growth it is let have. Set smaller, the words are drawn at their
- * grown size and let grow no further — a lower cap alone is kept out of React Native's measure cache.
+ * against the role's. The size handed over is the size drawn — the platform is told not to grow it
+ * on top (TASK-406): a lower cap alone is kept out of React Native's measure cache.
  */
 const drawnOf = (tree: TestRenderer.ReactTestRenderer, words: string) =>
   tree.root
     .find((one) => one.type === Text && one.props.children === words)
-    .findAll((one) => one.type !== Text && typeof one.props.maxFontSizeMultiplier === 'number')[0]
-    .props;
+    .findAll((one) => one.type !== Text && one.props.allowFontScaling === false)[0].props;
 const grows = (tree: TestRenderer.ReactTestRenderer, words: string) => {
   const kit = tree.root.find((one) => one.type === Text && one.props.children === words);
   const drawn = drawnOf(tree, words);
+  expect(drawn.maxFontSizeMultiplier).toBeUndefined();
   const size = (style: unknown) => (StyleSheet.flatten(style as never) as TextStyle).fontSize ?? 0;
   const own = size([type[(kit.props.role ?? 'body') as keyof typeof type], kit.props.style]);
-  return (size(drawn.style) / own) * Math.min(phone.fontScale, drawn.maxFontSizeMultiplier);
+  return size(drawn.style) / own;
 };
 
 test('a heading in the wide face that breaks a word grows only as far as its line holds it, and never under its size', async () => {
@@ -411,7 +442,7 @@ test('a heading in the wide face that breaks a word grows only as far as its lin
   expect(settled).toBeCloseTo((1.39 * 0.98 * 247.5) / 322.5, 3);
   // Set at that size and let grow no further — not only capped there: React Native measures a text
   // by its size and not by its cap, and a cap alone kept the box as tall as the torn lines.
-  expect(drawnOf(tree, words).maxFontSizeMultiplier).toBe(1);
+  expect(drawnOf(tree, words).allowFontScaling).toBe(false);
   expect(StyleSheet.flatten(drawnOf(tree, words).style).lineHeight).toBeCloseTo(28 * settled, 3);
   // Whole at that size, it stays there.
   await layOut(tree, [
@@ -444,9 +475,9 @@ test('a cap a cell measures once its words are drawn reaches the phone as their 
   const drawn = StyleSheet.flatten(drawnOf(tree, '28').style);
   expect(drawn.fontSize).toBeCloseTo(15 * 1.78, 5);
   expect(drawn.lineHeight).toBeCloseTo(22 * 1.78, 5);
-  // A cap over the phone's own size holds nothing back, and changes nothing drawn.
+  // A cap over the phone's own size holds nothing back: the figure grows as far as the phone asks.
   await act(async () => tree.update(cell(4)));
-  expect(StyleSheet.flatten(drawnOf(tree, '28').style).fontSize).toBe(15);
+  expect(StyleSheet.flatten(drawnOf(tree, '28').style).fontSize).toBeCloseTo(15 * 3.571, 5);
 });
 
 test('running text asks nothing of its lines unless it stands in a box that cannot widen', async () => {
@@ -563,5 +594,6 @@ test('the number tiles fill their shares, so three stand even whatever each one 
     { text: 'просмот', width: 60 },
     { text: 'рел', width: 30 },
   ] as never);
-  expect(flat(box(box(tiles[0]))).flexDirection).toBe('column');
+  // Stood the other way, each share is laid out anew (`way`), and the tiles with it.
+  expect(flat(box(box(tree.root.findAllByType(TileNumber)[0]))).flexDirection).toBe('column');
 });

@@ -242,11 +242,13 @@ test('up to ×1.2 «Отмена» is the word at 14, with 64 of its 74 block to
     expect(bar.word).toHaveLength(1);
     const [word] = bar.word;
     expect(word.props).toMatchObject({ variant: 'quiet', label: 'Отмена', labelRole: 'controlSm' });
-    expect(StyleSheet.flatten(word.findByType(RNText).props.style)).toMatchObject({
-      fontSize: 14,
+    // 14 at the system's own size, grown with it like all words — by the kit, in the size itself.
+    const words = StyleSheet.flatten(word.findByType(RNText).props.style);
+    expect(words).toMatchObject({
       fontFamily: 'Onest_600SemiBold',
       color: themes.dark.color.muted,
     });
+    expect(words.fontSize).toBeCloseTo(14 * scale, 5);
     expect(StyleSheet.flatten(word.props.style)).toEqual({
       paddingHorizontal: 10,
       marginRight: -10,
