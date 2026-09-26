@@ -1007,6 +1007,43 @@ test('a finger that trembles on a button over the keyboard keeps its press, on a
   }
 });
 
+test('a tap anywhere around the bottom layer’s button, down to the keyboard, is the board’s and takes the keyboard down', async () => {
+  // TASK-404: the layer's own 30 under «Дальше» reaches the keyboard's top, and nothing between the
+  // button and the board may take the start of a touch there — a view that did would leave a strip
+  // over the keyboard that a tap does not clear. The keyboard's own row of suggestions over its keys
+  // is the keyboard's, and no view of the app hears a tap in it.
+  const isVisible = vi.spyOn(Keyboard, 'isVisible').mockReturnValue(true);
+  try {
+    const it = await mount(
+      screen({
+        footer: (
+          <ActionBar>
+            <Button variant="primary" label="Дальше" />
+          </ActionBar>
+        ),
+      }),
+    );
+    const board = it.root.findByType(KeyboardAvoidingView);
+    const takers: string[] = [];
+    // Every view from the button up to the board's own, which carries the board's handlers and is
+    // the one that should hear it.
+    for (let up = it.root.findByType(Button).parent; up && up !== board; up = up.parent)
+      for (const asked of ['onStartShouldSetResponderCapture', 'onStartShouldSetResponder'])
+        if (
+          typeof up.props[asked] === 'function' &&
+          up.props[asked] !== board.props[asked] &&
+          up.props[asked]({ nativeEvent: {} })
+        ) {
+          const { displayName, name } = up.type as { displayName?: string; name?: string };
+          takers.push(`${displayName ?? name} › ${asked}`);
+        }
+    expect(takers).toEqual([]);
+    expect(board.props.onStartShouldSetResponder()).toBe(true);
+  } finally {
+    isVisible.mockRestore();
+  }
+});
+
 test('a body that is a list keeps the top of the screen where it is', async () => {
   // A list has no field on it (`tests/routes/scroll.test.ts`), and what floats over it is laid out
   // from the top — so its board does not stand on its bottom edge.
