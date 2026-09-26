@@ -809,12 +809,34 @@ test('while picking a seam is a switch over its own day: it counts what a tap co
       live: one.props.onPress !== undefined,
     }));
   // 13th: a and b. 12th: c — d is still developing and is no part of «все». 11th: e. 10th: only x,
-  // which is developing, so there is nothing to take and the band does not answer.
+  // which is developing, so there is nothing to take and the band does not answer. Read out, the
+  // band's own words are replaced by the press — so the press says whose day it takes, or every
+  // seam is the same «Выбрать все» to a screen reader.
   expect(seams()).toEqual([
-    { count: '2', picked: false, press: ru.gallery.selectDay(2), live: true },
-    { count: '1', picked: false, press: ru.gallery.selectDay(1), live: true },
-    { count: '1', picked: false, press: ru.gallery.selectDay(1), live: true },
-    { count: '0', picked: false, press: ru.gallery.selectDay(0), live: false },
+    {
+      count: '2',
+      picked: false,
+      press: `13 сентября, воскресенье, ${ru.gallery.selectDay(2)}`,
+      live: true,
+    },
+    {
+      count: '1',
+      picked: false,
+      press: `12 сентября, суббота, ${ru.gallery.selectDay(1)}`,
+      live: true,
+    },
+    {
+      count: '1',
+      picked: false,
+      press: `11 сентября, пятница, ${ru.gallery.selectDay(1)}`,
+      live: true,
+    },
+    {
+      count: '0',
+      picked: false,
+      press: `10 сентября, четверг, ${ru.gallery.selectDay(0)}`,
+      live: false,
+    },
   ]);
 
   await act(async () => screen.seams()[0].props.onPress());

@@ -404,7 +404,8 @@ test('the seam over a strip says what is under it, and takes the whole day while
     frames.indexOf('/>', frames.indexOf('<DayMark')),
   );
   // Three kinds of seam, one component, and which one it is comes from the group itself.
-  expect(daymark).toContain('{...headingOf(group)}');
+  expect(frames).toContain('const heading = headingOf(group);');
+  expect(daymark).toContain('{...heading}');
   // Spec 7.8 — a figure and never a sentence: «128» after a person's name, and over a day nothing
   // at all, because `MemoryDated` draws the date by itself. While the mode is on every seam counts:
   // the band itself is then the button that takes the group.
@@ -412,7 +413,10 @@ test('the seam over a strip says what is under it, and takes the whole day while
     "picking || group.by !== 'day'\n                    ? String(picking ? markable.length : group.frames.length)\n                    : undefined",
   );
   expect(daymark).toContain('onPress={');
-  expect(daymark).toContain('pressLabel={s.gallery.selectDay(markable.length)}');
+  // Read out in place of the band's words, the press names the group it takes.
+  expect(daymark).toContain(
+    'pressLabel={`${heading.label}, ${s.gallery.selectDay(markable.length)}`}',
+  );
 });
 
 test('a heading is a day, a person with their circle, or one of the two kinds', () => {

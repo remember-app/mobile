@@ -507,9 +507,10 @@ export function Frames({ id, head }: { id: string; head: Head }) {
             // rule the single tap below is gated on. A group still being developed whole has
             // nothing to offer, so the action is off rather than counting to zero.
             const markable = group.frames.filter(mayPick);
+            const heading = headingOf(group);
             return (
               <DayMark
-                {...headingOf(group)}
+                {...heading}
                 // The seam holds one figure and never a sentence (spec 7.8): how many that person
                 // brought, and over a day nothing at all — `MemoryDated` writes the date alone.
                 // While the mode is on every seam counts, because the whole band is then the button
@@ -527,7 +528,9 @@ export function Frames({ id, head }: { id: string; head: Head }) {
                     ? () => setPicked((have) => toggleDay(markable, have))
                     : undefined
                 }
-                pressLabel={s.gallery.selectDay(markable.length)}
+                // Read out in place of the band's own words, so it names whose frames it takes:
+                // «Выбрать все 5» alone would be every seam of the feed at once.
+                pressLabel={`${heading.label}, ${s.gallery.selectDay(markable.length)}`}
                 style={styles.seam}
               />
             );
