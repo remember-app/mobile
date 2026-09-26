@@ -93,7 +93,7 @@ import {
   Upload,
   Waiting,
 } from '@/kit';
-import { ru } from '@/strings';
+import { en, ru } from '@/strings';
 
 /**
  * `Upload`, «Ваши кадры» (spec 8): the phone's roll drawn the way a memory's feed is, with the mode of
@@ -288,13 +288,23 @@ test('a seam over a day with one frame marked completes the day instead of clear
   expect(screen.seam(0)().props.picked).toBe(false);
 });
 
-test('the seam says how many frames it takes, so «выбрать все» is a number and not a guess', async () => {
+test('the seam is read out with the day it takes, and which way it goes now', async () => {
+  // Spec detail 65: «Выбрать все кадры за 13 сентября, суббота» / «Снять выбор со всех кадров за 12
+  // сентября, пятница». The band's label stands in for its words, so a label without the day would
+  // leave a screen reader one «select all» per day and no way to tell them apart.
   const screen = await open();
   expect(screen.seams().map((one) => one.props.pressLabel)).toEqual([
-    ru.upload.selectDay(3),
-    ru.upload.selectDay(2),
-    ru.upload.selectDay(1),
+    'Выбрать все кадры за 13 сентября, воскресенье',
+    'Выбрать все кадры за 12 сентября, суббота',
+    'Выбрать все кадры за 5 сентября, суббота',
   ]);
+  await screen.press(screen.seam(0));
+  expect(screen.seam(0)().props.pressLabel).toBe(
+    'Снять выбор со всех кадров за 13 сентября, воскресенье',
+  );
+  expect(en.upload.leaveDay('12 September, Friday')).toBe(
+    'Unselect every frame from 12 September, Friday',
+  );
 });
 
 test('sending hands the marked frames to the queue in the order of the roll, empties the selection, and asks nothing yet', async () => {

@@ -448,16 +448,18 @@ export default function UploadScreen() {
     const at = new Date(day.at);
     const frames = day.assets.length;
     const takes = choosing && !limited && !reading;
-    if (glass)
+    if (glass) {
+      const label = `${formatDay(at)}, ${formatWeekday(at)}`;
       return (
         <DayMark
-          label={`${formatDay(at)}, ${formatWeekday(at)}`}
+          label={label}
           count={String(frames)}
           picked={dayTaken(day)}
           onPress={takes ? () => toggleDay(day) : undefined}
-          pressLabel={s.upload.selectDay(frames)}
+          pressLabel={dayTaken(day) ? s.upload.leaveDay(label) : s.upload.takeDay(label)}
         />
       );
+    }
     return (
       <DayHead
         label={s.upload.shotOn(formatDay(at))}
