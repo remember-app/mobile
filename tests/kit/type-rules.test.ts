@@ -26,22 +26,39 @@ const fromNative = (source: string) =>
 
 test('words reach the screen through the kit, where the ceiling is', () => {
   // The platform's own text grows as far as the phone asks — ×3.571 on iOS — so it is only drawn
-  // where the kit sets the ceiling itself: `Text` and the segment's measured words; the unsaid part
-  // of a live line is a span inside a kit `Text` and takes that one's.
+  // where the kit grows it itself: `Text`; the unsaid part of a live line is a span inside a kit
+  // `Text` and takes that one's size.
   const text = sources
     .filter(([, source]) => fromNative(source).some((name) => /^Text( as \w+)?$/.test(name)))
     .map(([path]) => path);
-  expect(text.sort()).toEqual(['kit/montage-live.tsx', 'kit/segment.tsx', 'kit/text.tsx']);
-  // Every field is the kit's field, and each of its three inputs stops at the kit's ceiling.
+  expect(text.sort()).toEqual(['kit/montage-live.tsx', 'kit/text.tsx']);
+  // Every field is the kit's field, and each of its three inputs stops at the kit's ceiling. An
+  // input's cap is the same one everywhere, and an input asks the phone's scale anew when it changes:
+  // it measures what it holds off its own view, and a size handed over in the props reached it a
+  // commit late — the name on the memory's edit stayed as tall as at the old type (TASK-406).
   const inputs = sources
     .filter(([, source]) => fromNative(source).includes('TextInput'))
     .map(([path]) => path);
   expect(inputs).toEqual(['kit/field.tsx']);
-  const field = sources.find(([path]) => path === 'kit/field.tsx')?.[1] ?? '';
+  const own = (path: string) => sources.find(([at]) => at === path)?.[1] ?? '';
+  const field = own('kit/field.tsx');
   expect(field.match(/<TextInput\b/g)).toHaveLength(3);
   expect(field.match(/maxFontSizeMultiplier=\{TYPE_MOST\}/g)).toHaveLength(3);
-  // And nothing opts out of the system's type altogether.
-  expect(sources.filter(([, source]) => /allowFontScaling/.test(source))).toEqual([]);
+  // The words are grown by the kit and never by the platform (TASK-406): every text the platform
+  // draws is handed its size already grown and told not to grow it again — a cap left to the
+  // platform is out of its measure cache's key, and a text whose props stay the same through a
+  // change of the system's type keeps the layout of the old one.
+  const kit = own('kit/text.tsx');
+  const platformTexts = kit.match(/<RNText\b/g)?.length ?? 0;
+  expect(platformTexts).toBeGreaterThan(0);
+  expect(kit.match(/allowFontScaling=\{false\}/g)).toHaveLength(platformTexts);
+  // And nothing else opts out of the system's type.
+  expect(
+    sources
+      .filter(([, source]) => /allowFontScaling/.test(source))
+      .map(([path]) => path)
+      .sort(),
+  ).toEqual(['kit/text.tsx']);
 });
 
 /**

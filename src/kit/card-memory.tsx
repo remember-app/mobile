@@ -72,7 +72,7 @@ export function CardMemory({
   const { color, shadow } = useTheme();
   const styles = useStyles();
   const focusRing = useFocusRing();
-  const { roomy, room } = useWordRoom();
+  const { roomy, way, room } = useWordRoom();
   // The chosen frame leads the strip and is never repeated further along it (spec 10.8.3): four
   // cells, and the first of them is now spoken for.
   const shots = cover ? [cover, ...(thumbs ?? []).filter((uri) => uri !== cover)] : (thumbs ?? []);
@@ -148,7 +148,7 @@ export function CardMemory({
           )}
           <View style={styles.foot}>
             <WordRoom.Provider value={room}>
-              <View style={[styles.grow, styles.words, roomy ? styles.whole : null]}>
+              <View key={way} style={[styles.grow, styles.words, roomy ? styles.whole : null]}>
                 <Text role="title">{title}</Text>
                 {/* An empty memory has nothing to count, so it wears its name alone. */}
                 {shots.length && meta?.length ? <Meta parts={meta} /> : null}

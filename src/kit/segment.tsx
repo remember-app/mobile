@@ -1,18 +1,11 @@
 import { useState } from 'react';
-import {
-  Pressable,
-  Text as RNText,
-  type StyleProp,
-  StyleSheet,
-  View,
-  type ViewStyle,
-} from 'react-native';
+import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
-import { height, radius, space, themed, type, useTheme } from '@/theme';
+import { height, radius, space, themed, useTheme } from '@/theme';
 
 import { Hint } from './field';
 import { hitSlop, TAP, useFocusRing, useHoverFocus } from './interaction';
-import { Text, TYPE_MOST } from './text';
+import { Text } from './text';
 
 /** One of the values on offer, and the word it is offered under. */
 export type SegmentOption<T extends string> = { value: T; label: string };
@@ -128,17 +121,17 @@ export function Segment<T extends string>({
         style={styles.measure}
       >
         {options.map((option, at) => (
-          <RNText
+          <Text
             key={option.value}
-            maxFontSizeMultiplier={TYPE_MOST}
-            style={[type.controlSm, small ? styles.small : null]}
+            role="controlSm"
+            style={small ? styles.small : null}
             onLayout={(event) => {
               const word = event.nativeEvent.layout.width;
               setWords((had) => (had[at] === word ? had : Object.assign([...had], { [at]: word })));
             }}
           >
             {option.label}
-          </RNText>
+          </Text>
         ))}
       </View>
     </View>
@@ -188,10 +181,9 @@ function Option({
         focused ? focusRing : null,
       ]}
     >
-      <RNText
-        maxFontSizeMultiplier={TYPE_MOST}
+      <Text
+        role="controlSm"
         style={[
-          type.controlSm,
           small ? styles.small : null,
           stacked ? (small ? styles.linesSmall : styles.lines) : null,
           // Chosen is read on `paper` in `ink`; the rest stay muted — and on web the one under the
@@ -200,7 +192,7 @@ function Option({
         ]}
       >
         {label}
-      </RNText>
+      </Text>
     </Pressable>
   );
 }

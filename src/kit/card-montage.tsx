@@ -91,7 +91,7 @@ export function CardMontage({
   const reduced = useReducedMotion();
   const styles = useStyles();
   const focusRing = useFocusRing();
-  const { roomy, room } = useWordRoom();
+  const { roomy, way, room } = useWordRoom();
   const ready = state === 'ready';
   const action = ready ? null : children;
   // The badge and the button under a fallen card lie on the poster, which is a photograph in both
@@ -131,7 +131,7 @@ export function CardMontage({
           <View style={[styles.readyLine, roomy ? styles.readyLineRoomy : null]}>
             <PlayCircle size={34} />
             <WordRoom.Provider value={room}>
-              <View style={[styles.grow, roomy ? styles.readyWordsRoomy : null]}>
+              <View key={way} style={[styles.grow, roomy ? styles.readyWordsRoomy : null]}>
                 <Text role="label" style={styles.onPhoto}>
                   {title}
                 </Text>
@@ -325,7 +325,7 @@ export function EmptyMontages({
   style?: StyleProp<ViewStyle>;
 }) {
   const styles = useStyles();
-  const { roomy, room } = useWordRoom();
+  const { roomy, way, room } = useWordRoom();
 
   return (
     <View style={[styles.emptyBlock, roomy ? styles.emptyRoomy : null, style]}>
@@ -344,7 +344,7 @@ export function EmptyMontages({
         ))}
       </View>
       <WordRoom.Provider value={room}>
-        <View style={[styles.emptyWords, roomy ? styles.emptyWordsRoomy : null]}>
+        <View key={way} style={[styles.emptyWords, roomy ? styles.emptyWordsRoomy : null]}>
           <Text role="note" style={styles.emptyText}>
             {text}
           </Text>
