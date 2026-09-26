@@ -120,11 +120,12 @@ export const en = {
    * words on screen, not four: the first two both read as «still to come», because the difference
    * between «has not started» and «is still adding» is the api's bookkeeping and not anything the
    * organizer does differently — the count beside the standing already says how far along they are
-   * (doc-06, уточнено 2026-09-08).
+   * (doc-06, уточнено 2026-09-08). «Still to come» is the layout's word, the one the person answers
+   * `SheetAskAll` with (`upload.moreToCome`); the layout has none for «nothing», so doc-06's stays.
    */
   standing: {
-    not_started: 'Planning to upload',
-    more_coming: 'Planning to upload',
+    not_started: 'More to come',
+    more_coming: 'More to come',
     done: 'All uploaded',
     nothing: 'Nothing to add',
   },
@@ -201,8 +202,8 @@ export const ru: typeof en = {
   role: { organizer: 'Организатор', contributor: 'Добавление', viewer: 'Просмотр' },
 
   standing: {
-    not_started: 'Планирует загрузить',
-    more_coming: 'Планирует загрузить',
+    not_started: 'Ещё будет',
+    more_coming: 'Ещё будет',
     done: 'Всё загрузил',
     nothing: 'Нечего добавлять',
   },

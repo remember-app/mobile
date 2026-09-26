@@ -102,8 +102,11 @@ test('a standing is one of three words, and «nothing to add» is not one of the
     expect(set.standing.nothing).not.toBe(set.standing.done);
     expect(set.standing.nothing).not.toBe(set.standing.not_started);
   }
-  expect(ru.standing.more_coming).toBe('Планирует загрузить');
+  // The layout's words (`MemorySettings.json`: «Ещё будет», «Всё загрузил»; chief, 26 September) —
+  // and «Ещё будет» is one thing under one name: what the person answered on `SheetAskAll`.
+  expect(ru.standing.more_coming).toBe('Ещё будет');
   expect(ru.standing.done).toBe('Всё загрузил');
+  for (const set of [en, ru]) expect(set.standing.more_coming).toBe(set.upload.moreToCome);
   // And the three a person may actually ask for: `not_started` is what an invite leaves behind and
   // the api refuses it back, so it is not on the way round either.
   expect(api).toContain("status: 'more_coming' | 'done' | 'nothing',");

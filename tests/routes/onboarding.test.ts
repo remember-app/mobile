@@ -1,3 +1,4 @@
+import { fontFile, wordWidth } from '@tests/helpers/font';
 import { api, flat } from '@tests/helpers/source';
 import { expect, test } from 'vitest';
 
@@ -8,9 +9,12 @@ import code from '@/app/login/code.tsx?raw';
 import email from '@/app/login/email.tsx?raw';
 import login from '@/app/login.tsx?raw';
 import username from '@/app/set-username.tsx?raw';
+import { ICO_S } from '@/kit/icon';
+import { TYPE_MOST } from '@/kit/text';
 import head from '@/screens/onboarding/head.tsx?raw';
 import form from '@/screens/onboarding/username-form.tsx?raw';
-import { en, ru } from '@/strings';
+import { en, ru, type Strings } from '@/strings';
+import { space, type } from '@/theme';
 
 /**
  * The five screens of the way in (spec 8, «Онбординг») — `Login`, `LoginEmail`, `LoginCode`,
@@ -238,16 +242,83 @@ test('a free name is answered and told what it is for, and the column is the way
   expect(en.username.lead).toMatch(/find you in a memory/);
 });
 
-test('the short line about storage says what actually ends it, not what the layout drew', () => {
-  // The layout says «пока вы не удалите их или воспоминание». There is no deleting a memory in this
-  // product, so that half is a door that does not exist; what ends the storing is a frame deleted
-  // or the person leaving.
-  expect(ru.consent.storage).toContain('не выйдете из воспоминания');
-  expect(ru.consent.storage).not.toContain('воспоминание.');
-  expect(en.consent.storage).toMatch(/leave the memory/i);
+test('the short line about storage is the layout’s own sentence, word for word', () => {
+  // `Consent.json` e9 (chief, 26 September: the layout is the newer word, TASK-409).
+  expect(ru.consent.storage).toBe(
+    'Ваши фото и видео хранятся у нас, пока вы не удалите их или воспоминание.',
+  );
+  expect(en.consent.storage).toMatch(/until you delete them or the memory\.$/);
   // The full text keeps the whole of it, being removed from a memory included.
   expect(ru.consent.agreement.parts[1]?.text).toMatch(/расшифровывает речь/);
   expect(ru.consent.agreement.parts[0]?.text).toMatch(/исключены/);
+});
+
+const ONEST = {
+  regular: fontFile('@expo-google-fonts/onest/400Regular/Onest_400Regular.ttf'),
+  medium: fontFile('@expo-google-fonts/onest/500Medium/Onest_500Medium.ttf'),
+  bold: fontFile('@expo-google-fonts/onest/700Bold/Onest_700Bold.ttf'),
+};
+/** The words of a line of the card, each in the face it is drawn in. */
+const inFace = (face: Buffer, text: string) =>
+  text
+    .split(' ')
+    .filter(Boolean)
+    .map((word) => [face, word] as const);
+/** The three lines of the card as their words, the lit one a weight up and its middle two. */
+const promises = (s: Strings) => [
+  inFace(ONEST.regular, s.consent.storage),
+  [
+    ...inFace(ONEST.medium, s.consent.recognisesBefore),
+    ...inFace(ONEST.bold, s.consent.recognises),
+    ...inFace(ONEST.medium, s.consent.recognisesAfter),
+  ],
+  inFace(ONEST.regular, s.consent.training),
+];
+/** How many lines words fall into at `width`, each filled before the next is begun. */
+function lineCount(words: readonly (readonly [Buffer, string])[], width: number, size: number) {
+  let lines = 0;
+  let at = Number.POSITIVE_INFINITY;
+  for (const [face, word] of words) {
+    const wide = wordWidth(face, word, size);
+    const next = at + wordWidth(face, ' ', size) + wide;
+    if (next <= width) at = next;
+    else [lines, at] = [lines + 1, wide];
+  }
+  return lines;
+}
+
+test('the card of three promises is as tall as the layout’s at 390, and its words wrap whole on 320 at the largest type', () => {
+  // `Consent.json` e7: the card 358 × 240 — rows 72 / 92 / 72 (e9, e11, e18: two lines, three, two)
+  // between two hairlines, inside one. The storage line used to take three, and the card stood 19
+  // taller than the layout's. A row is its lines of 20 and 16 over and under them; the words stand
+  // 12 after the 18 glyph — the lit row's 22 circle — inside 16 and the card's hairline.
+  expect(consent).toContain(
+    "line: { flexDirection: 'row', alignItems: 'flex-start', gap: space.s3, padding: space.s4 },",
+  );
+  expect(consent).toContain('size={lit ? ICO_XS : ICO_S}');
+  expect(flat(consent)).toContain('spark: { width: 22, height: 22,');
+  expect(flat(consent)).toContain('borderRadius: radius.section, borderWidth: 1,');
+  const { fontSize, lineHeight } = type.bodyXs;
+  const column = (phone: number, glyph: number) =>
+    phone - 2 * space.s4 - 2 - 2 * space.s4 - glyph - space.s3;
+  const glyphs = [ICO_S, 22, ICO_S];
+  for (const s of [ru, en]) {
+    const lines = promises(s).map((words, at) =>
+      lineCount(words, column(390, glyphs[at]), Number(fontSize)),
+    );
+    if (s === ru) expect(lines).toEqual([2, 3, 2]);
+    // The English storage line is two as well — the row the layout draws, whatever the language.
+    expect(lines[0], 'storage').toBe(2);
+    const card = 2 + 2 + lines.reduce((sum, n) => sum + 2 * space.s4 + n * Number(lineHeight), 0);
+    if (s === ru) expect(card).toBe(240);
+    // No word of the three is wider than its column on 320 at the ceiling its words grow to: they
+    // wrap there, a word to a line at worst, and never break (spec 10.2; `TYPE_MOST`).
+    for (const [at, words] of promises(s).entries())
+      for (const [face, word] of words)
+        expect(wordWidth(face, word, Number(fontSize)) * TYPE_MOST, word).toBeLessThanOrEqual(
+          column(320, glyphs[at]),
+        );
+  }
 });
 
 test('the username field is the one the layout draws, and the form still guards the claim', () => {

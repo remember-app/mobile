@@ -62,9 +62,6 @@ export default function ConsentScreen() {
         <ActionBar>
           <View style={styles.column}>
             <View style={styles.card}>
-              {/* Deliberately not the layout's own sentence — see `strings.ts`: there is no
-                  deleting a memory in this product, so what ends the storing is a frame deleted or
-                  the person leaving. */}
               <Line icon={ImageIcon}>
                 <Text role="bodyXs" tone="muted" style={styles.grow}>
                   {s.consent.storage}
