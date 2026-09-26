@@ -22,8 +22,10 @@ import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
 
 import { Calendar } from '@/kit/calendar';
 import { LengthSlider } from '@/kit/slider';
-import { Text } from '@/kit/text';
-import { type } from '@/theme';
+import { Text, TYPE_MOST } from '@/kit/text';
+import { formatRuntime, weekdayLetters } from '@/lib/dates';
+import { strings } from '@/strings';
+import { space, type } from '@/theme';
 
 /**
  * TASK-372, spec 7.3 details 15 and 19 — the two parts whose cells the layout fixes (a day of the
@@ -56,7 +58,12 @@ const flat = (node: ReactTestInstance) => {
   ) as ViewStyle;
 };
 
-async function drawCalendar(width: number, fontScale: number, picked: Date[] = []) {
+async function drawCalendar(
+  width: number,
+  fontScale: number,
+  picked: Date[] = [],
+  weekdays = weekdayLetters('ru'),
+) {
   phone.fontScale = fontScale;
   let tree!: TestRenderer.ReactTestRenderer;
   await act(async () => {
@@ -67,7 +74,7 @@ async function drawCalendar(width: number, fontScale: number, picked: Date[] = [
           onMonth={() => {}}
           from={new Date(2026, 8, 28)}
           onPick={(day) => picked.push(day)}
-          weekdays={['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС']}
+          weekdays={weekdays}
           monthLabel="Сентябрь 2026"
           prevLabel="Назад"
           nextLabel="Вперёд"
@@ -158,24 +165,43 @@ test.each([
   },
 );
 
-test('the weekday letters keep to their column as well, in both languages’ two-letter shortenings', async () => {
-  const bold = ONEST('700Bold');
-  const widest = Math.max(
-    ...['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(
-      // The badge's tracking is 0.66 after each of the two.
-      (word) => wordWidth(bold, word, type.badge.fontSize) / type.badge.fontSize + 2 * 0.06,
-    ),
-  );
-  for (const width of [262, 256, 343]) {
-    for (const scale of [1, 1.5, 2, 3.571]) {
-      const it = await drawCalendar(width, scale);
-      for (const letters of it.weekdays()) {
-        const most = letters.props.maxFontSizeMultiplier as number;
-        expect(most).toBeGreaterThanOrEqual(1);
-        expect(
-          type.badge.fontSize * Math.min(scale, most) * widest,
-          `${width} ×${scale}`,
-        ).toBeLessThanOrEqual(width / 7 - 4 + 0.01);
+/** The week inside the calendar's card, which stands in the screen's 16 margins or a sheet's. */
+const WEEKS = [
+  [262, 'the zoomed iPhone SE'],
+  [302, 'Android at 360'],
+  [317, 'the iPhone SE'],
+  [332, 'the iPhone 17e'],
+  [382, 'the iPhone 17 Pro Max'],
+] as const;
+
+test('the weekday letters stay whole in their column in both languages, measured off the face they are drawn in', async () => {
+  // TASK-404: the letters the phone draws are «MON»…«SUN» in English, 2.59 em where «ПН» is 1.59 —
+  // a measure taken off «ПН» alone broke them into «MO / N» on the SE and the 17e from AX-XL up.
+  const words = [...weekdayLetters('ru'), ...weekdayLetters('en')];
+  expect(words).toEqual(expect.arrayContaining(['ПН', 'ВС', 'MON', 'WED', 'SUN']));
+  const tracking = type.badge.letterSpacing / type.badge.fontSize;
+  for (const [width, where] of WEEKS) {
+    const column = width / 7;
+    for (const scale of SCALES) {
+      for (const language of ['ru', 'en']) {
+        const it = await drawCalendar(width, scale, [], weekdayLetters(language));
+        for (const letters of it.weekdays()) {
+          const { fontFamily } = StyleSheet.flatten([type.badge, letters.props.style]);
+          const face = ONEST(String(fontFamily).replace(/^Onest_/, ''));
+          // The widest of both languages, with the badge's tracking after every letter.
+          const widest = Math.max(
+            ...words.map((word) => wordWidth(face, word, 1) + word.length * tracking),
+          );
+          const most = letters.props.maxFontSizeMultiplier as number;
+          const at = `${where} ×${scale} ${language}`;
+          expect(most, at).toBeGreaterThanOrEqual(1);
+          expect(type.badge.fontSize * Math.min(scale, most) * widest, at).toBeLessThanOrEqual(
+            column - 4 + 0.01,
+          );
+          // And held back no further than the widest of them needs.
+          const fits = (column - 4) / (type.badge.fontSize * widest);
+          expect(most, at).toBeGreaterThanOrEqual(Math.max(1, fits / 1.05));
+        }
       }
     }
   }
@@ -313,4 +339,92 @@ test('the ready lengths hold nothing back until the row is measured, and share t
   expect(three.word('0:30').props.maxFontSizeMultiplier).toBeGreaterThan(
     five.word('0:30').props.maxFontSizeMultiplier,
   );
+});
+
+/** The two ends under the line, and the row they stand in, as the slider draws them. */
+async function drawEnds(min: string, max: string) {
+  let tree!: TestRenderer.ReactTestRenderer;
+  await act(async () => {
+    tree = mounted(
+      TestRenderer.create(
+        <LengthSlider
+          value={150}
+          onChange={() => {}}
+          min={10}
+          max={600}
+          valueLabel="2:30"
+          minLabel={min}
+          maxLabel={max}
+          label="Длина"
+          shorterLabel="Короче"
+          longerLabel="Длиннее"
+        />,
+      ),
+    );
+  });
+  const words = (text: string) => (one: ReactTestInstance) =>
+    one.type === Text && one.props.children === text;
+  // The innermost view that holds both.
+  const row = tree.root
+    .findAll(
+      (one) => one.type === View && [min, max].every((end) => one.findAll(words(end)).length),
+    )
+    .pop() as ReactTestInstance;
+  const style = (one: ReactTestInstance) => StyleSheet.flatten(one.props.style) ?? {};
+  return {
+    row: flat(row),
+    left: style(row.find(words(min))),
+    right: style(row.find(words(max))),
+  };
+}
+
+test('the two ends of the line keep apart and inside the card, the right one under the left once one line no longer holds both', async () => {
+  // TASK-404: at ×2 «0:10» and «10:00 · everything there is» stood end to end — «0:1010:00 · …» on
+  // the 17e, and past the card's edge on the SE: one row, `space-between`, neither a gap nor a wrap.
+  // The words are measured off the face they are drawn in, figures tabular; the row's own style says
+  // how the phone lays them out — flex wrap sends the right one to the next line when it and the gap
+  // no longer fit after the left one.
+  const medium = ONEST('500Medium');
+  const figure = [...'0123456789'].sort(
+    (a, b) => wordWidth(medium, b, 1) - wordWidth(medium, a, 1),
+  )[0];
+  const wide = (words: string, size: number) =>
+    wordWidth(medium, words.replace(/\d/g, figure), size);
+  // A phone's width less the build step's margins, the card's own and its hairline.
+  const inside = (phone: number) => phone - 2 * space.s4 - 2 * space.s4 - 2;
+  const scales = [...SCALES, ...Array.from({ length: 101 }, (_, i) => 1 + i / 100)];
+  for (const language of ['ru', 'en'] as const) {
+    const min = formatRuntime(10) ?? '';
+    const max = strings[language].montage.lengthEnd(formatRuntime(600) ?? '');
+    const { row, left, right } = await drawEnds(min, max);
+    const gap = Number(row.columnGap ?? row.gap ?? 0);
+    console.log(JSON.stringify({ row, left, right }));
+    for (const phone of [320, 360, 375, 390, 440]) {
+      const room = inside(phone);
+      for (const scale of scales) {
+        const size = type.metaSm.fontSize * Math.min(scale, TYPE_MOST);
+        const [a, b] = [wide(min, size), wide(max, size)];
+        const at = `${language} ${phone} ×${scale}`;
+        const oneLine = a + gap + b <= room || row.flexWrap !== 'wrap';
+        // At the system's own size and under it the two stand on one line, as the layout draws them.
+        if (scale <= 1) expect(oneLine, at).toBe(true);
+        if (oneLine) {
+          // The left one at the start, the right one at the end, and air between them to read by.
+          expect(left.marginLeft ?? 0, at).toBe(0);
+          expect(right.marginLeft === 'auto' || row.justifyContent === 'space-between', at).toBe(
+            true,
+          );
+          expect(room - a - b, at).toBeGreaterThanOrEqual(space.s2);
+        } else {
+          // The right one on a line of its own, still at the right end and inside the card.
+          expect(right.marginLeft, at).toBe('auto');
+          expect(a, at).toBeLessThanOrEqual(room);
+          expect(
+            Math.max(...max.split(' ').map((word) => wide(word, size))),
+            at,
+          ).toBeLessThanOrEqual(room);
+        }
+      }
+    }
+  }
 });

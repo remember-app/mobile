@@ -218,10 +218,14 @@ export function LengthSlider({
             <View style={[styles.handle, { left: `${at * 100}%` }]} />
           </View>
         </View>
-        {/* 11 / 500 as drawn; `muted` and not the layout's `faint`, which spec 10.1 names here. */}
+        {/* 11 / 500 as drawn; `muted` and not the layout's `faint`, which spec 10.1 names here.
+            On large type the two no longer fit one line apart, and the right one goes under the
+            left, still at the right end (TASK-404). */}
         <View style={styles.ends}>
           <Text role="metaSm">{minLabel}</Text>
-          <Text role="metaSm">{maxLabel}</Text>
+          <Text role="metaSm" style={styles.endRight}>
+            {maxLabel}
+          </Text>
         </View>
       </View>
 
@@ -345,7 +349,8 @@ const useStyles = themed(({ color }) =>
       backgroundColor: color.onFill,
       boxShadow: '0 2px 10px rgba(0,0,0,0.45)',
     },
-    ends: { flexDirection: 'row', justifyContent: 'space-between' },
+    ends: { flexDirection: 'row', flexWrap: 'wrap', columnGap: space.s3 },
+    endRight: { marginLeft: 'auto', textAlign: 'right' },
     presets: { flexDirection: 'row', gap: PRESET_GAP },
     preset: {
       flex: 1,
