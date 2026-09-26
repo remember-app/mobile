@@ -66,6 +66,7 @@ import {
   refused,
   serve,
 } from '@tests/helpers/api';
+import { thisYear2026 } from '@tests/helpers/clock';
 import { touch } from '@tests/helpers/gesture';
 import { label } from '@tests/helpers/labels';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
@@ -1646,6 +1647,8 @@ test('each tile is called out in the line it is drawn with, and a video says how
 });
 
 test('the capsule says the days of the event and how many are in the memory, and before the memory is read only what is known', async () => {
+  // The fixture's days are of 2026, and this year's go without it (spec 9).
+  thisYear2026();
   world();
   const screen = await open({ memory: memory({ member_count: 3 }), error: null, reload: () => {} });
   expect(screen.capsule()).toEqual({
