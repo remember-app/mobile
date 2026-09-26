@@ -111,13 +111,17 @@ export default function ProfileScreen() {
       body={[styles.body, { paddingBottom: Math.max(insets.bottom, board.bottom) }]}
     >
       {/* The profile card. The circle and the pencil stay where they are, and the words between
-          them are whole: a long name wraps at its spaces (TASK-400), and the address — one word
-          with no space to wrap at — grows no further than its line holds it. */}
+          them are whole: a long name wraps at its spaces (TASK-400), and the nick and the address —
+          each one word with no space to wrap at — grow no further than their line holds them. */}
       <View style={styles.card}>
         <Avatar name={name} size={64} display />
         <View style={styles.cardWords}>
           <Text role="title">{name}</Text>
-          {handle ? <Text role="label">{handle}</Text> : null}
+          {handle ? (
+            <Text role="label" fit>
+              {handle}
+            </Text>
+          ) : null}
           {user?.email ? (
             <Text role="meta" fit>
               {user.email}

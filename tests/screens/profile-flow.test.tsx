@@ -488,8 +488,9 @@ test('a way out that fails lets the button go and says why', async () => {
 
 test('a very long name and address are whole on the card, and the circle and the pencil stay put', async () => {
   // TASK-400: «Лиза Мороз…» was what the smallest phone left of the name at the ordinary size. The
-  // name wraps at its spaces; the address has none to wrap at, so it grows no further than its line
-  // holds it (`fit`); the circle and the pencil keep their places either side of the words.
+  // name wraps at its spaces; the nick and the address have none to wrap at, so each grows no
+  // further than its line holds it (`fit`); the circle and the pencil keep their places either side
+  // of the words.
   const name = 'Александра-Виктория '.repeat(6).trim();
   const email = `${'очень.длинный.адрес'.repeat(5)}@example.com`;
   world({ who: { name, email } });
@@ -501,7 +502,7 @@ test('a very long name and address are whole on the card, and the circle and the
       .find((one) => [one.props.children].flat().join('') === said)?.props;
   for (const said of [name, '@liza', email])
     expect(words(said)?.numberOfLines, said).toBeUndefined();
-  expect(words(email)?.fit).toBe(true);
+  for (const said of ['@liza', email]) expect(words(said)?.fit, said).toBe(true);
 });
 
 test('a contact list that cannot be read is no count and no faces, and the switch still works', async () => {

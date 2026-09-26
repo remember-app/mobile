@@ -538,8 +538,10 @@ export function RowContact({
           <Text role="row" tone={gone ? 'faint' : 'paper'}>
             {name}
           </Text>
+          {/* «@marina.k» is one word with no space to wrap at: it grows only as far as its line
+              holds it whole (TASK-400). */}
           {handle ? (
-            <Text role="meta" tone={gone ? 'faint' : 'muted'}>
+            <Text role="meta" tone={gone ? 'faint' : 'muted'} fit>
               {handle}
             </Text>
           ) : null}

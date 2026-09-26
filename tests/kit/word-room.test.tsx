@@ -42,6 +42,7 @@ import {
   EmptyMontages,
   IconButton,
   PosterOrder,
+  RowContact,
   RowTrack,
   Shares,
   StepNote,
@@ -462,6 +463,13 @@ test('running text asks nothing of its lines unless it stands in a box that cann
     { text: 'ем…', width: 30 },
   ] as never);
   expect(grows(fitted, 'Проявляем…')).toBeLessThan(2);
+  // A contact's «@nick» has no space to wrap at either: torn beside the circle, it grows less.
+  const contact = await draw(<RowContact name="Александра Морозова" handle="@alexandra.moroz" />);
+  await layOut(contact, [
+    { text: '@alexandra.mo', width: 230 },
+    { text: 'roz', width: 50 },
+  ] as never);
+  expect(grows(contact, '@alexandra.moroz')).toBeLessThan(2);
   // «Remember» shrinks to fit its one line, and the bar's headings do not grow: neither listens.
   for (const role of ['hero', 'barTitle', 'pillTitle'] as const) {
     const one = await draw(<Text role={role}>Remember</Text>);
