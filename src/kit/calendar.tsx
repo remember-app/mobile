@@ -44,7 +44,7 @@ export type CalendarProps = {
   min?: Date;
   /** Nothing after it either: a memory cannot have happened tomorrow. */
   max?: Date;
-  /** «ПН»…«ВС», Monday first. */
+  /** «ПН»…«ВС», «MON»…«SUN», Monday first. */
   weekdays: readonly string[];
   /** «Сентябрь 2026». */
   monthLabel: string;
@@ -190,11 +190,12 @@ export function Calendar({
 }
 
 /**
- * How wide the widest pair of figures (tabular «28») and of weekday letters («ПН» with the badge's
- * tracking) run, in em of their own size — measured off Onest.
+ * How wide the widest pair of figures (tabular «28») and the widest weekday letters of either
+ * language run, in em of their own size — measured off Onest. The letters are «MON», Onest 600 with
+ * the badge's 0.06em after each of the three: 2.59, where «ПН» is 1.59 (TASK-404).
  */
 const FIGURES_EM = 1.35;
-const LETTERS_EM = 1.8;
+const LETTERS_EM = 2.6;
 
 function Day({
   day,

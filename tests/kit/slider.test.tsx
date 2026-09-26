@@ -92,16 +92,22 @@ test('the two ends of the line are the meta a size down, in muted', () => {
   // TASK-384, `MontageBuild.json`: «0:10» and «9:10 · всё, что есть» are 11 / 500 (they were the
   // scale's `meta` 12). The layout's `faint` there is what spec 10.1 names and replaces with `muted`.
   const card = story(slider());
+  const classOf = (markup: string, end: string) =>
+    (markup.match(new RegExp(`class="([^"]*)"[^>]*>${end}<`))?.[1] ?? '').split(' ');
   for (const end of ['0:10', '9:10 · всё, что есть']) {
-    expect(card).toContain(
+    // Every class of the meta in muted, and whatever places the right one at the end besides.
+    const drawn = classOf(card, end);
+    const meta = classOf(
       story(
         <Text role="metaSm" tone="muted">
           {end}
         </Text>,
       ),
+      end,
     );
-    const words = card.match(new RegExp(`class="([^"]*)"[^>]*>${end}<`))?.[1] ?? '';
-    expect(words).toContain(rule('font-size:11px'));
+    expect(meta.length).toBeGreaterThan(1);
+    expect(drawn).toEqual(expect.arrayContaining(meta));
+    expect(drawn).toContain(rule('font-size:11px'));
   }
 });
 
