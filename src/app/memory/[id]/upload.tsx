@@ -49,7 +49,7 @@ import {
   Upload,
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
-import { formatEventDates, formatRollDay, formatRuntime, formatWeekday } from '@/lib/dates';
+import { formatDay, formatEventDates, formatRuntime, formatWeekday } from '@/lib/dates';
 import { useStrings } from '@/lib/language';
 import { assetsByDay, type ShootingDay } from '@/lib/media-window';
 import { failureText, progress, type QueuedFile, type UploadFailure } from '@/lib/upload/queue';
@@ -451,7 +451,7 @@ export default function UploadScreen() {
     if (glass)
       return (
         <DayMark
-          label={`${formatRollDay(at)}, ${formatWeekday(at)}`}
+          label={`${formatDay(at)}, ${formatWeekday(at)}`}
           count={String(frames)}
           picked={dayTaken(day)}
           onPress={takes ? () => toggleDay(day) : undefined}
@@ -460,7 +460,7 @@ export default function UploadScreen() {
       );
     return (
       <DayHead
-        label={s.upload.shotOn(formatRollDay(at))}
+        label={s.upload.shotOn(formatDay(at))}
         count={takes ? undefined : s.memory.frames(frames)}
       >
         {takes ? (

@@ -132,7 +132,7 @@ const roll = (): Asset[] => [
 
 beforeEach(() => {
   // «Today» is the layout's own day, 25 September 2026: a day of the roll this year is written
-  // without its year, the way the layout writes it (`formatRollDay`). Only the clock is stood in for.
+  // without its year, the way the layout writes it (`formatDay`). Only the clock is stood in for.
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date(2026, 8, 25, 12));
   lib.access = { granted: true, canAskAgain: true };

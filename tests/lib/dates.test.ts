@@ -17,7 +17,6 @@ import {
   formatDayTiny,
   formatEventDates,
   formatMonth,
-  formatRollDay,
   formatRuntime,
   formatTime,
   formatWeekday,
@@ -48,16 +47,6 @@ test('a single day is written in the kit form: full month, and its year only whe
   // No locale's own glue either way — «2026 г.», «September 3, 2026» never reach the screen.
   expect(formatDay(day(2027, 1, 2), 'ru-RU', NOW)).toBe('2 января 2027');
   expect(formatDay(day(2027, 1, 2), 'en-US', NOW)).toBe('2 January 2027');
-});
-
-test('a day of the phone’s roll is the layout’s «13 сентября» this year, and keeps its year in any other', () => {
-  // `UploadQueue` / `UploadLimited`: «Снято 13 сентября»; `Upload`: «13 сентября, суббота». The roll
-  // runs back years, so a day of another one says which — the kit's single day, year and all.
-  const now = new Date(2026, 8, 25);
-  expect(formatRollDay(day(2026, 9, 13), now, 'ru-RU')).toBe('13 сентября');
-  expect(formatRollDay(day(2026, 1, 2), now, 'en-US')).toBe('2 January');
-  expect(formatRollDay(day(2025, 9, 13), now, 'ru-RU')).toBe('13 сентября 2025');
-  expect(formatRollDay('не дата', now)).toBe('');
 });
 
 test('the name of a day, whole or cut short for a day tile of the filter', () => {
