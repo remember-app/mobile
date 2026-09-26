@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { type ReactNode, useRef, useState } from 'react';
+import { Children, type ReactNode, useRef, useState } from 'react';
 import {
   Animated,
   type GestureResponderEvent,
@@ -13,7 +13,7 @@ import {
 import { night, photo, radius, space, themed, useTheme } from '@/theme';
 
 import { useReach } from './interaction';
-import { Text } from './text';
+import { Text, useWordRoom, WordRoom } from './text';
 
 /**
  * Spec 7.9 — the small parts. None of them is a component in its own right on any screen; every one
@@ -47,6 +47,36 @@ export function Divider({
     />
   );
 }
+
+/**
+ * Things side by side in equal shares, 8 apart — «Сохранить» and «Поделиться» under a finished film,
+ * its three number tiles, the day tiles of the filter (TASK-400). They stand as the layout draws them
+ * until a word in any of them breaks at the phone's type size and width, and from then on one under
+ * another, each the whole width (`useWordRoom`): a share of a row is only ever as wide as the row
+ * over their number, and Yoga has no smallest width of a word to keep it from being narrower.
+ */
+export function Shares({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
+  const { roomy, room } = useWordRoom();
+
+  return (
+    <WordRoom.Provider value={room}>
+      <View style={[shares.row, roomy ? shares.column : null, style]}>
+        {Children.map(children, (child) =>
+          child ? <View style={roomy ? shares.whole : shares.share}>{child}</View> : null,
+        )}
+      </View>
+    </WordRoom.Provider>
+  );
+}
+
+const shares = StyleSheet.create({
+  row: { flexDirection: 'row', gap: space.s2 },
+  column: { flexDirection: 'column' },
+  share: { flex: 1, minWidth: 0 },
+  // Stacked, each takes the width by stretching and not by a basis: Yoga keeps the basis it first
+  // worked out for a node, and a new one would never reach the phone (TASK-375).
+  whole: { flex: 0, alignSelf: 'stretch' },
+});
 
 /**
  * The 3px dot between two pieces of meta, and nowhere else in the product. Over a photograph it is

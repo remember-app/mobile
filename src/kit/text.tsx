@@ -56,7 +56,8 @@ export const HEADING_MOST: Partial<Record<TypeRole, number>> = {
   // A memory's name is the person's own and cannot be measured; it keeps the heading's ceiling.
   displayCover: 1.29,
   displaySm: 1.16,
-  emptyTitle: 1.93,
+  // «Приглашение» on `InviteDead`, 217.6 at 24, in the 303 an empty state leaves on 375 (TASK-400).
+  emptyTitle: 1.39,
   sheetTitle: 1.2,
   sheetTitleSm: 1.28,
   barTitle: 1,
@@ -69,6 +70,22 @@ export const HEADING_MOST: Partial<Record<TypeRole, number>> = {
  * rather than break: on a phone narrower than the one the ceiling was measured on, and at any size.
  */
 const ONE_WORD = new Set<TypeRole>(['hero', 'heroNarrow', 'heroSm']);
+
+/**
+ * The roles set in Unbounded that grow with the system's type (TASK-400). The face is the wide one,
+ * and what it carries is either measured on 375 only (`HEADING_MOST`) or cannot be measured at all —
+ * a memory's name, a person's — so on a narrower phone, or with a longer word, it can outgrow its
+ * line. These always keep their words whole (`useWhole`); the bar's one-line headings do not grow and
+ * «Remember» shrinks to fit, so neither is here.
+ */
+const WIDE = new Set(
+  (Object.keys(type) as TypeRole[]).filter(
+    (role) =>
+      String(type[role].fontFamily).startsWith('Unbounded') &&
+      !ONE_WORD.has(role) &&
+      HEADING_MOST[role] !== 1,
+  ),
+);
 
 /**
  * The roles that are a secondary line by what they are, and so are read in `muted` unasked — the
@@ -97,12 +114,20 @@ type KitTextProps = Omit<TextProps, 'role'> & {
    * the full width (spec 3 — the name on the cover). Words, not a node: a string child.
    */
   balance?: boolean;
+  /**
+   * Words in a box whose width the layout fixes and that has no roomier way to stand — the caption
+   * on a tile, an address: they grow only as far as the box holds the longest of them whole
+   * (`useWhole`). The wide face does this unasked, and so does every text of a `WordRoom` part once
+   * the part has no more room to give; `false` keeps a text of the wide face out of it.
+   */
+  fit?: boolean;
 };
 
 export function Text({
   role = 'body',
   tone,
   balance,
+  fit,
   style,
   maxFontSizeMultiplier,
   onTextLayout,
@@ -111,12 +136,24 @@ export function Text({
 }: KitTextProps) {
   const styles = useStyles();
   const room = useContext(WordRoom);
+  const whole = useWhole(
+    maxFontSizeMultiplier ?? HEADING_MOST[role] ?? TYPE_MOST,
+    typeof children === 'string' || typeof children === 'number' ? children : null,
+  );
+  // Set smaller, the words are drawn at their size already grown, and grow no further. Through the
+  // size and not `maxFontSizeMultiplier`: React Native's cache of measured text keys on the size and
+  // leaves the cap out, so a lower cap was drawn smaller and measured — box and lines — as before.
+  const set = whole.fitted === null ? null : grownBy([type[role], style], whole.fitted);
+  // Only what can break a word is asked where its lines fell: measuring them is a second layout of
+  // the text, and the one line of «Remember» or of a bar's heading never breaks anything.
+  const watching = room !== null || (fit ?? WIDE.has(role));
 
   if (balance && typeof children === 'string')
     return (
       <Balanced
         role={role}
         tone={tone}
+        fit={fit}
         style={style}
         maxFontSizeMultiplier={maxFontSizeMultiplier}
         onTextLayout={onTextLayout}
@@ -127,14 +164,19 @@ export function Text({
     );
   return (
     <RNText
-      style={[styles[tone ?? (QUIET.has(role) ? 'muted' : 'paper')], type[role], style]}
-      maxFontSizeMultiplier={maxFontSizeMultiplier ?? HEADING_MOST[role] ?? TYPE_MOST}
+      // And a new node, so nothing of the torn layout is kept.
+      key={whole.fitted ?? 'grown'}
+      style={[styles[tone ?? (QUIET.has(role) ? 'muted' : 'paper')], type[role], style, set]}
+      maxFontSizeMultiplier={set ? 1 : whole.most}
       {...(ONE_WORD.has(role) ? { numberOfLines: 1, adjustsFontSizeToFit: true } : null)}
       onTextLayout={
-        room
+        watching
           ? (event) => {
               onTextLayout?.(event);
-              if (brokeWord(event.nativeEvent.lines)) room();
+              const { lines } = event.nativeEvent;
+              // The part stands the roomier way first; a word that breaks even there, or with no
+              // part round it, is set smaller.
+              if (brokeWord(lines) && !room?.()) whole.less(lines);
             }
           : onTextLayout
       }
@@ -145,15 +187,94 @@ export function Text({
   );
 }
 
+/** Whether the phone broke a word where these two lines meet: neither a space nor a hyphen or dash. */
+const tornAt = (above: { text: string }, below: { text: string }) =>
+  !/[\s\-‐–—]$/.test(above.text) && !/^\s/.test(below.text);
+
 /**
  * Whether a laid-out text broke a word between two of its lines: at some join of the lines the phone
  * reports (`onTextLayout`) there is neither a space nor a hyphen or a dash. The one sign the layout
  * gives that a box is narrower than a word it holds — Yoga has no min-content to keep it from being so.
  */
 export function brokeWord(lines: readonly { text: string }[]): boolean {
-  return lines.some(
-    (line, i) => i > 0 && !/[\s\-‐–—]$/.test(lines[i - 1].text) && !/^\s/.test(line.text),
+  return lines.some((line, i) => i > 0 && tornAt(lines[i - 1], line));
+}
+
+/**
+ * How far words laid out at `grown` times their size may grow for every word the phone broke to
+ * stand whole on one line (TASK-400); `undefined` where none broke. The line is as wide as the widest
+ * one laid out — a word too wide for it fills it to the last letter that fits — and a piece of a word
+ * on a line it shares with others counts by its share of that line's letters; 2% under that, for the
+ * rounding of the phone's own measures, which otherwise tore the word by a hair once more. Never
+ * more than 95% of `grown`, so each answer is a step down even where that share guessed short; a
+ * word the phone still breaks at the new size asks again on the next layout.
+ */
+export function wholeAt(
+  lines: readonly { text: string; width: number }[],
+  grown: number,
+): number | undefined {
+  const share = (line: { text: string; width: number }, piece: string) =>
+    (line.width * piece.length) / Math.max(1, line.text.trimEnd().length);
+  let widest = 0;
+  let word = 0;
+  lines.forEach((line, i) => {
+    if (i === 0 || !tornAt(lines[i - 1], line)) {
+      widest = Math.max(widest, word);
+      word = 0;
+      return;
+    }
+    const above = lines[i - 1];
+    if (word === 0) word = share(above, above.text.split(/\s/).pop() ?? '');
+    const text = line.text.trimEnd();
+    const piece = text.split(/\s/)[0];
+    word += piece.length === text.length ? line.width : share(line, piece);
+  });
+  widest = Math.max(widest, word);
+  if (widest === 0) return undefined;
+  const held = (0.98 * Math.max(...lines.map((line) => line.width))) / widest;
+  // A line the phone told no width of is a step down all the same.
+  return grown * (held < 0.95 ? held : 0.95);
+}
+
+/**
+ * The growth a text keeps its words whole at (TASK-400): the role's ceiling, until a word breaks at
+ * the phone's type size and width — then as far as `wholeAt` says, and no lower than the spec's own
+ * size. Held while the type size, the window's width and the words themselves stay what they were;
+ * on a change of any of them the text grows to its ceiling again and asks anew.
+ */
+function useWhole(most: number, words: string | number | null) {
+  const { fontScale, width } = useWindowDimensions();
+  const here = `${fontScale} ${width}`;
+  const [held, setHeld] = useState<{ here: string; words: typeof words; most: number } | null>(
+    null,
   );
+  /** How far the words are grown once set smaller; `null` while they grow as the role says. */
+  const fitted =
+    held?.here === here && held.words === words && held.most < Math.min(fontScale, most)
+      ? held.most
+      : null;
+  return {
+    most,
+    fitted,
+    less: (lines: readonly { text: string; width: number }[]) => {
+      const grown = fitted ?? Math.min(fontScale, most);
+      if (grown <= 1) return;
+      const next = wholeAt(lines, grown);
+      if (next !== undefined) setHeld({ here, words, most: Math.max(1, next) });
+    },
+  };
+}
+
+/** The size, and the line under it, of words drawn `by` times their own: set, not grown. */
+function grownBy(style: Parameters<typeof StyleSheet.flatten>[0], by: number) {
+  const { fontSize, lineHeight } = StyleSheet.flatten(style) as {
+    fontSize?: number;
+    lineHeight?: number;
+  };
+  return {
+    fontSize: (fontSize ?? 14) * by,
+    ...(lineHeight === undefined ? null : { lineHeight: lineHeight * by }),
+  };
 }
 
 /**
@@ -207,6 +328,7 @@ function Balanced({
   children,
   role,
   tone,
+  fit,
   maxFontSizeMultiplier,
   numberOfLines,
   style,
@@ -220,7 +342,7 @@ function Balanced({
   const face = { role, tone, maxFontSizeMultiplier, style };
   if (words.length < 2)
     return (
-      <Text {...face} numberOfLines={numberOfLines} onTextLayout={onTextLayout} {...rest}>
+      <Text {...face} fit={fit} numberOfLines={numberOfLines} onTextLayout={onTextLayout} {...rest}>
         {children}
       </Text>
     );
@@ -243,6 +365,7 @@ function Balanced({
     <View onLayout={(event) => setRoom(event.nativeEvent.layout.width)}>
       <Text
         {...face}
+        fit={fit}
         style={[style, narrow, measured ? null : hidden.unseen]}
         numberOfLines={numberOfLines}
         onTextLayout={(event) => {
@@ -262,6 +385,8 @@ function Balanced({
           <Text
             key={at}
             {...face}
+            // A measure is the word at its full size, whatever the visible one comes to.
+            fit={false}
             onLayout={(event) => {
               const wide = event.nativeEvent.layout.width;
               setDrawn((had) => (had[at] === wide ? had : Object.assign([...had], { [at]: wide })));
@@ -277,9 +402,11 @@ function Balanced({
 
 /**
  * Where a kit `Text` says it has broken a word: every `Text` inside the provider tells it, whichever
- * part drew it — a button handed in through a slot as well as the part's own words.
+ * part drew it — a button handed in through a slot as well as the part's own words. The answer is
+ * whether the part made room; a part already standing its roomier way has none left to make, and the
+ * text then keeps its words whole by growing less (`Text`'s `fit`).
  */
-export const WordRoom = createContext<(() => void) | null>(null);
+export const WordRoom = createContext<(() => boolean) | null>(null);
 
 /**
  * A part whose words share a line with something else — round buttons, a badge, a stack of photos,
@@ -288,11 +415,18 @@ export const WordRoom = createContext<(() => void) | null>(null);
  * then on, until either changes: in the roomier way nothing breaks any more, so it is not what decides.
  * `room` goes to `WordRoom.Provider` round the words.
  */
-export function useWordRoom(): { roomy: boolean; room: () => void } {
+export function useWordRoom(): { roomy: boolean; room: () => boolean } {
   const { fontScale, width } = useWindowDimensions();
   const here = `${fontScale} ${width}`;
   const [broke, setBroke] = useState<string | null>(null);
-  return { roomy: broke === here, room: () => setBroke(here) };
+  return {
+    roomy: broke === here,
+    room: () => {
+      if (broke === here) return false;
+      setBroke(here);
+      return true;
+    },
+  };
 }
 
 const useStyles = themed(({ color }) =>

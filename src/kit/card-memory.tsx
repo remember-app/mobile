@@ -24,7 +24,8 @@ import { Text, useWordRoom, WordRoom } from './text';
  *
  * Both heights are floors (TASK-375): on large type the words wrap and the card grows down, and the
  * badges go under what no longer leaves them room — the films badge under the organizer's on the
- * large card, under the name on the ordinary one once the name breaks a word beside it.
+ * large card, under the name on the ordinary one once the name breaks a word beside it. The name is
+ * never cut on either (TASK-400): it is the one place the list says which memory this is.
  */
 export function CardMemory({
   title,
@@ -112,7 +113,7 @@ export function CardMemory({
           <View style={styles.largeFoot}>
             <View style={styles.pair}>
               {/* Spec 3 and 7.6, detail 36: the name is balanced — «Свадьба / Лизы и Марка». */}
-              <Text role="displayCover" balance numberOfLines={3} style={styles.onPhoto}>
+              <Text role="displayCover" balance style={styles.onPhoto}>
                 {title}
               </Text>
               {meta?.length ? <Meta parts={meta} onPhoto /> : null}
@@ -148,9 +149,7 @@ export function CardMemory({
           <View style={styles.foot}>
             <WordRoom.Provider value={room}>
               <View style={[styles.grow, styles.words, roomy ? styles.whole : null]}>
-                <Text role="title" numberOfLines={2}>
-                  {title}
-                </Text>
+                <Text role="title">{title}</Text>
                 {/* An empty memory has nothing to count, so it wears its name alone. */}
                 {shots.length && meta?.length ? <Meta parts={meta} /> : null}
               </View>

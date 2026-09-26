@@ -964,7 +964,9 @@ test.each([
     );
     expect(pill.findAllByType(Icon)).toHaveLength(0);
     const box = StyleSheet.flatten(pill.props.style);
-    expect(box.height).toBeGreaterThanOrEqual(44);
+    // A floor: on large type the date and the author wrap, and the pill grows down (TASK-400).
+    expect(box.minHeight).toBeGreaterThanOrEqual(44);
+    expect(box.height).toBeUndefined();
     expect(box.paddingHorizontal).toBe(20);
     expect(box.paddingRight).toBeUndefined();
 

@@ -65,10 +65,10 @@ test('the card stands 16 under the bar and carries the name whole; «Прави�
   // And the edit behind the pencil stands at the same 112 (spec 4, 10.11 answer 5), where it had no
   // air under its bar at all.
   expect(flat(edit)).toContain('paddingTop: board.bodySettings - board.status - height.bar');
-  // Spec 8 and 10.11 (answer 5): «до двух строк, многоточие на второй» — not one line, not whole.
-  expect(flat(settings)).toContain(
-    '<Text role="titleSm" numberOfLines={2}> {memory.title} </Text>',
-  );
+  // TASK-400: whole, however long — spec 10.6 makes this card the place the full name lives, and «до
+  // двух строк, многоточие на второй» (spec 8, 10.11 answer 5) left «Свадьба Лизы и / Ма…» of it on
+  // large type. The card's height is its content's.
+  expect(flat(settings)).toContain('<Text role="titleSm">{memory.title}</Text>');
   expect(flat(settings)).toContain('size="mini"');
   // e15: ringed in `lineQuiet` (#3A3747), the quieter of the kit's rings, not the small one's `line`.
   expect(flat(settings)).toContain("variant={editing ? 'paper' : 'outline'}");

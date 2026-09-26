@@ -156,16 +156,13 @@ export function RowTrack({
         ) : null}
         <View {...grip} style={[styles.grow, styles.trackWords]}>
           <View style={styles.trackLine}>
-            <Text
-              role="row"
-              tone={playing ? 'spark' : 'paper'}
-              numberOfLines={1}
-              style={styles.shrink}
-            >
+            <Text role="row" tone={playing ? 'spark' : 'paper'} style={styles.shrink}>
               {title}
             </Text>
             <Text role="meta">{length}</Text>
           </View>
+          {/* One line cut short (spec 7.7, detail 54; `MontageMusic`: «полностью видно в раскрытом
+              поле») — the wish is said whole in the field the pencil unfolds. */}
           {wish ? (
             <Text role="meta" numberOfLines={1} style={styles.wish}>
               {wish}
@@ -237,9 +234,7 @@ export function RowRejected({
           <Icon icon={icon} size={18} color={color.muted} />
         </View>
         <View style={styles.grow}>
-          <Text role="row" numberOfLines={1}>
-            {title}
-          </Text>
+          <Text role="row">{title}</Text>
           <Text role="meta">{count}</Text>
         </View>
         {children}
@@ -368,7 +363,8 @@ export function StepNote({
         ) : null}
       </View>
       <View style={[styles.grow, styles.noteWords]}>
-        {/* Spec detail 56: 12 / 500 / 16 in the quoted-words ink, two lines at most. */}
+        {/* Spec detail 56: 12 / 500 / 16 in the quoted-words ink, two lines at most — a glance at
+            a record the stage's journal, one press away, gives whole. */}
         <WordRoom.Provider value={room}>
           <Text role="meta" tone="quote" numberOfLines={2} style={styles.quoted}>
             {text}
@@ -479,14 +475,8 @@ export function RowSection({
     <Tappable onPress={onPress} style={[styles.section, heading ? null : style]}>
       {sign}
       <View style={[styles.grow, styles.sectionWords]}>
-        <Text role="subtitle" numberOfLines={1}>
-          {title}
-        </Text>
-        {meta ? (
-          <Text role="meta" numberOfLines={1}>
-            {meta}
-          </Text>
-        ) : null}
+        <Text role="subtitle">{title}</Text>
+        {meta ? <Text role="meta">{meta}</Text> : null}
       </View>
       <Icon icon={ChevronRight} size={20} color={color.faint} />
     </Tappable>
@@ -598,7 +588,13 @@ const useStyles = themed(({ color }) =>
     insetTrack: { marginLeft: 64 },
     insetPicked: { marginLeft: 60 },
     trackWords: { gap: 2 },
-    trackLine: { flexDirection: 'row', alignItems: 'baseline', gap: space.s2 },
+    // The length goes under the name, rather than squeeze it, once the two no longer share a line.
+    trackLine: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'baseline',
+      columnGap: space.s2,
+    },
     shrink: { flexShrink: 1 },
     wish: { lineHeight: 16 },
     // The field under a chosen row keeps to the row's own sides, and stands clear of the next one.

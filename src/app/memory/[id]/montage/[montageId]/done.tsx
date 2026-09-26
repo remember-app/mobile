@@ -1,7 +1,7 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Download, Share } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import { listMontages, type Montage } from '@/api';
 import {
@@ -12,6 +12,7 @@ import {
   Board,
   Button,
   CardMontage,
+  Shares,
   Text,
   TileNumber,
 } from '@/kit';
@@ -136,7 +137,7 @@ export default function MontageDoneScreen() {
       {/* Neither of them touches the api: the video goes down the link the list carried, into the
           phone's own gallery or out through its own share sheet. Neither is anybody's alone
           either — whoever brought material gets the film back, a viewer included. */}
-      <View style={styles.actions}>
+      <Shares>
         {/* Both at 44, which is what the layout draws them at and the floor spec 10.2 holds
             anything a finger lands on to. */}
         <Button
@@ -147,7 +148,6 @@ export default function MontageDoneScreen() {
           label={s.action.save}
           disabled={busy || film === null}
           onPress={() => film && void run(film, 'save')}
-          style={styles.grow}
         />
         <Button
           size="sm"
@@ -156,9 +156,8 @@ export default function MontageDoneScreen() {
           label={s.action.share}
           disabled={busy || film === null}
           onPress={() => film && void run(film, 'share')}
-          style={styles.grow}
         />
-      </View>
+      </Shares>
 
       {notice ? <Banner text={notice} /> : null}
 
@@ -174,11 +173,11 @@ export default function MontageDoneScreen() {
           {/* Three numbers out of the stages' own outcomes (detail 44). A key the worker did not
               write leaves its tile out rather than standing a dash in it. */}
           {tiles.length === 0 ? null : (
-            <View style={styles.tiles}>
+            <Shares>
               {tiles.map((tile) => (
                 <TileNumber key={tile.label} figure={String(tile.figure)} label={tile.label} />
               ))}
-            </View>
+            </Shares>
           )}
 
           {/* All five, closed (`MontageLiveDone`): the journal of each is still there and still
@@ -211,14 +210,11 @@ const styles = StyleSheet.create({
     paddingTop: space.s3,
     paddingBottom: space.s6,
     // The layout stands everything on this screen 12 apart, and the two rows that hold several
-    // things in one line — the buttons, the tiles — keep 8 inside themselves.
+    // things in one line — the buttons, the tiles — keep 8 inside themselves (`Shares`: equal
+    // shares as drawn, one under another once a word in them breaks).
     gap: space.s3,
   },
-  // The two buttons stand in one row of equal halves, as the layout draws them.
-  actions: { flexDirection: 'row', gap: space.s2 },
-  grow: { flex: 1, minWidth: 0 },
   // The heading of the journal keeps the layout's own breath over it, and its left edge is the
   // two points the rest of the words on this screen start at.
   head: { paddingTop: 6, paddingHorizontal: 2 },
-  tiles: { flexDirection: 'row', gap: space.s2 },
 });

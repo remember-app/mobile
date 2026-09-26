@@ -487,14 +487,10 @@ export function RowMember({
       <View style={styles.member}>
         <Avatar name={name} size={38} uri={uri} gone={gone} />
         <View style={styles.rowWords}>
-          <Text role="row" tone={gone ? 'faint' : 'paper'} numberOfLines={1}>
+          <Text role="row" tone={gone ? 'faint' : 'paper'}>
             {name}
           </Text>
-          {meta ? (
-            <Text role="meta" numberOfLines={1}>
-              {meta}
-            </Text>
-          ) : null}
+          {meta ? <Text role="meta">{meta}</Text> : null}
         </View>
         {status}
       </View>
@@ -538,12 +534,12 @@ export function RowContact({
       {divider && variant === 'saved' ? <Divider /> : null}
       <View style={[styles.contact, variant === 'found' ? styles.card : null]}>
         <Avatar name={name} size={42} gone={gone} />
-        <View style={styles.rowWords}>
-          <Text role="row" tone={gone ? 'faint' : 'paper'} numberOfLines={1}>
+        <View style={styles.contactWords}>
+          <Text role="row" tone={gone ? 'faint' : 'paper'}>
             {name}
           </Text>
           {handle ? (
-            <Text role="meta" tone={gone ? 'faint' : 'muted'} numberOfLines={1}>
+            <Text role="meta" tone={gone ? 'faint' : 'muted'}>
               {handle}
             </Text>
           ) : null}
@@ -588,6 +584,11 @@ const useStyles = themed(({ color }) =>
       borderRadius: radius.field,
     },
     rowWords: { flex: 1, minWidth: 0, gap: 2 },
+    // Beside «Сохранить» or «Вернуть» the name keeps two fifths of the row at least, so on large
+    // type the button goes under it rather than squeeze it to a letter a line (TASK-375, TASK-400).
+    // No more than that: at the ordinary size the found card holds the name and its 109 «Сохранить»
+    // on one line from 375 up, as the layout draws it.
+    contactWords: { flex: 1, minWidth: '40%', gap: 2 },
     rowLine: { flexDirection: 'row', alignItems: 'center', gap: space.s2 },
     grow: { flexShrink: 1 },
   }),

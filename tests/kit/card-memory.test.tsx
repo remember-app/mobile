@@ -230,12 +230,17 @@ test('the large card hangs its badges 14 off the top and stands its words 18 off
   expect(large).toContain(rule('line-height:16px'));
 });
 
-test('a long name balances over three lines rather than running out of the card', () => {
-  const long = story(
-    <CardMemory title="Свадьба Лизы и Марка в Карелии на берегу Ладоги" thumbs={SHOTS} large />,
-  );
-  expect(long).toContain('Свадьба Лизы и Марка в Карелии на берегу Ладоги');
-  expect(long).toContain('-webkit-line-clamp:3');
+test('a long name is whole on both cards — it wraps and the card grows, never cut to a line count', () => {
+  // TASK-400: «Свадьба / Лизы и Ма…» was what the ordinary card left of a name on the smallest phone
+  // on large type, and three lines were the large one's. The name is the one place the list says
+  // which memory this is; both cards' heights are floors, so it takes the lines it needs.
+  const title = 'Свадьба Лизы и Марка в Карелии на берегу Ладоги';
+  for (const large of [true, false]) {
+    const drawn = story(<CardMemory title={title} thumbs={SHOTS} large={large} />);
+    expect(drawn).toContain(title);
+    expect(drawn).not.toContain('line-clamp');
+    expect(drawn).not.toContain('r-textOverflow');
+  }
 });
 
 test('the name on the cover is balanced, and the ordinary card’s name is not', () => {

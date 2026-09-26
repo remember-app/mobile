@@ -63,9 +63,6 @@ const HELD: Record<string, string> = {
   'kit/montage-live.tsx › wait': 'the frame on air, waiting',
   'kit/rows.tsx › noteShot': 'a 34 frame',
   // A plate or a pill the layout draws to a height, not yet measured at the largest type.
-  'kit/badge.tsx › tag': 'tag 28',
-  'kit/bars.tsx › capsule': 'the glass capsule, 48 — its words drawn through a variable',
-  'kit/bars.tsx › viewerPill': 'the viewer pill, 48',
   'kit/daymark.tsx › band': 'the day gap in the feed, felt at 44 — its words through a variable',
   'kit/daymark.tsx › mark': 'the day gap in the feed, 20',
   'kit/daymark.tsx › spineMark': 'the date on the spine',
@@ -155,33 +152,52 @@ test('no box with words in it is held to a fixed height', () => {
 });
 
 /**
- * On the way in and on every screen and sheet with a field, the words are never cut: a line that
- * does not fit wraps (TASK-377 — «Отп…» on `LoginCode` at the largest type was the address the
- * letter went to). What is still cut is the person's own — their name, nick and address on the
- * profile card, which the spec cuts with an ellipsis so the circle and the pencil never move.
+ * Words that carry sense are never cut to a count of lines (TASK-400): a name, a date, a meta line, a
+ * caption, the name of a track wrap at their spaces and the row or card they stand in grows down —
+ * «Лиза Мороз…», «12–14 сентябр…», «Спокой…» were what large type left of them (TASK-377: «Отп…» on
+ * `LoginCode` was the address the letter went to). A line is cut only where the spec cuts it itself
+ * and the words are whole a tap away or read out whole — the designer's list — and where the kit
+ * cut it before and the cut is left open, named in TASK-400's report. A new cut anywhere fails here,
+ * and so does one of these that is taken away without leaving the list.
  */
-const CUT: Record<string, number> = { 'app/profile.tsx': 3 };
+const CUT: Record<string, number> = {
+  // Cut by the spec, whole elsewhere. The story quoted back on the total, four lines (7.6, detail
+  // 43; 10.6) — whole on the step it was written on.
+  'app/memory/[id]/order/summary.tsx': 1,
+  // The capsule's name and meta over the feed (7.1, detail 4; 10.6) — whole in the settings it
+  // opens, and in what it is read out as.
+  'kit/bars.tsx': 2,
+  // A track's wish (7.7, detail 54; `MontageMusic`) — whole in the field its pencil unfolds; a
+  // record under an opened stage, two lines (7.7, detail 56) — whole in the stage's journal.
+  'kit/rows.tsx': 2,
+  // A stuck file's name (7.7, detail 51) — whole in what its cross is read out as.
+  'kit/upload.tsx': 1,
+  // A label's name in its row (7.7, detail 60) — whole in what the row is read out as.
+  'kit/label.tsx': 1,
+  // Cut by the kit, not by the spec: left open. Why a film fell over, one line on its card in the
+  // strip — whole on the screen the card opens; wrapped, it would move the strip at the ordinary size.
+  'kit/card-montage.tsx': 1,
+  // The words of the 20 seam between two days of the feed (7.8, detail 65), which cannot grow.
+  'kit/daymark.tsx': 1,
+  // The reason on a frame the wizard dropped, in a pill across the tile.
+  'kit/tile.tsx': 1,
+};
 
-test('on the screens with a field, and on the way in, only the person’s own words are cut', () => {
-  const typed = sources
-    .filter(([path]) => !path.startsWith('kit/'))
-    .filter(([, source]) => /<(Field|CodeField|TextArea|UsernameForm)\b/.test(source))
-    .map(([path]) => path);
-  expect(typed.length).toBeGreaterThan(8);
-  const walked = [
-    ...typed,
-    'app/login.tsx',
-    'app/consent.tsx',
-    'screens/onboarding/head.tsx',
-    'screens/memory/when.tsx',
-  ];
+test('words that carry sense are never cut to a count of lines, but for the lines the spec cuts', () => {
   const cut = Object.fromEntries(
     sources
-      .filter(([path]) => walked.includes(path))
-      .map(([path, source]) => [path, (source.match(/numberOfLines=/g) ?? []).length] as const)
+      .map(
+        ([path, source]) => [path, (source.match(/numberOfLines=\{\d+\}/g) ?? []).length] as const,
+      )
       .filter(([, count]) => count > 0),
   );
   expect(cut).toEqual(CUT);
+  // Nor is a line count handed on under another name: `Text` passes one on only inside `balance`.
+  const handed = sources
+    .filter(([path]) => path !== 'kit/text.tsx')
+    .filter(([, source]) => /numberOfLines=\{(?!\d)/.test(source))
+    .map(([path]) => path);
+  expect(handed).toEqual([]);
 });
 
 /**

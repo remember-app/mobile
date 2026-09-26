@@ -199,10 +199,10 @@ export function PosterOrder({
               {shape}
             </Text>
           ) : null}
-          {/* Spec 7.6, detail 42: «16:9 · Свадьба Лизы и Марка» is 11 / 500 — the memory's name is
-              the person's own, and cut rather than wrapped. */}
+          {/* Spec 7.6, detail 42: «16:9 · Свадьба Лизы и Марка» is 11 / 500 — and whole: a long
+              name wraps under the shape and the poster grows (TASK-400). */}
           {about ? (
-            <Text role="metaSm" numberOfLines={1} style={styles.onPhotoQuiet}>
+            <Text role="metaSm" style={[styles.onPhotoQuiet, styles.toRight]}>
               {about}
             </Text>
           ) : null}
@@ -306,9 +306,12 @@ export function SummaryTrack({ title, note }: { title: string; note?: string }) 
 
   return (
     <View style={styles.summaryTrack}>
-      <Text role="row">{title}</Text>
-      {note ? <Text role="meta">{note}</Text> : null}
-      <View style={styles.grow} />
+      {/* The names and the note share a line while they fit beside the wave; on large type the
+          note goes under the names rather than past the edge of the card. */}
+      <View style={[styles.grow, styles.trackWords]}>
+        <Text role="row">{title}</Text>
+        {note ? <Text role="meta">{note}</Text> : null}
+      </View>
       <Waveform />
     </View>
   );
@@ -346,7 +349,7 @@ export function BlockPicked({
   return (
     <View style={[styles.picked, empty ? styles.pickedEmpty : null, style]}>
       <View style={[styles.pickedHead, empty ? null : styles.pickedHeadOverRows]}>
-        <Text role="eyebrow" tone="muted" accessibilityRole="header" style={styles.grow}>
+        <Text role="eyebrow" tone="muted" accessibilityRole="header" style={styles.lead}>
           {title.toUpperCase()}
         </Text>
         {/* `meta` reads in `muted`, as the spec writes it (detail 54): the layout's `faint` here is
@@ -421,7 +424,12 @@ const useStyles = themed(({ color }) =>
     templateFoot: { marginTop: 'auto', padding: 12, gap: 2 },
     onPhoto: { color: photo.on },
     onPhotoQuiet: { color: photo.onQuiet },
+    // The shape and the line under it hang off the right edge, and so do the lines it wraps into.
+    toRight: { textAlign: 'right' },
     grow: { flex: 1, minWidth: 0 },
+    // The eyebrow as wide as its word and the rest of the line: the count goes under it once the
+    // two no longer share one, rather than squeeze «ВЫБРАНО» a letter at a time (TASK-400).
+    lead: { flexGrow: 1 },
     // The plate at the top and the length at the foot; on large type, where they meet, 8 between them.
     poster: {
       minHeight: 136,
@@ -491,6 +499,12 @@ const useStyles = themed(({ color }) =>
     shots: { flexDirection: 'row', gap: space.s1 },
     shot: { flex: 1, height: 44, borderRadius: 8, backgroundColor: color.raise },
     summaryTrack: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },
+    trackWords: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      columnGap: space.s3,
+    },
     picked: {
       borderRadius: radius.section,
       borderWidth: 1,
@@ -500,7 +514,12 @@ const useStyles = themed(({ color }) =>
     },
     // Spec 7.7, detail 54: empty, the block holds its head and its one row inside `12 / 14 / 14`.
     pickedEmpty: { paddingTop: space.s3, paddingHorizontal: 14, paddingBottom: 14, gap: 10 },
-    pickedHead: { flexDirection: 'row', alignItems: 'baseline', gap: space.s2 },
+    pickedHead: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'baseline',
+      columnGap: space.s2,
+    },
     // Over the rows the head carries its own `12 / 14 / 6`, because the rows run edge to edge.
     pickedHeadOverRows: { paddingTop: space.s3, paddingHorizontal: 14, paddingBottom: 6 },
     silence: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },

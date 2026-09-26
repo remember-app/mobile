@@ -180,6 +180,31 @@ const faceOf = (role: TypeRole) => {
   return fontFile(`@expo-google-fonts/${name.toLowerCase()}/${weight}/${family}.ttf`);
 };
 
+/**
+ * The headings of the empty states, one per `<Empty title=…>` in the sources. «Приглашение» on
+ * `InviteDead` (TASK-400) was missing here, and at the ceiling the four others allowed — ×1.93 — it
+ * broke «Приглаше / ние» on 375.
+ */
+const EMPTY_TITLES: ((s: Strings) => string)[] = [
+  (s) => s.contacts.emptyTitle,
+  (s) => s.gallery.emptyTitle,
+  (s) => s.home.emptyTitle,
+  (s) => s.upload.emptyTitle,
+  (s) => s.join.deadTitle,
+];
+
+test('every empty state that carries a heading is measured with the others', () => {
+  const sources = Object.values(
+    import.meta.glob<string>('@/{app,screens}/**/*.tsx', {
+      query: '?raw',
+      import: 'default',
+      eager: true,
+    }),
+  );
+  const titled = sources.flatMap((source) => source.match(/<Empty\b[^>]*\btitle=/g) ?? []);
+  expect(titled).toHaveLength(EMPTY_TITLES.length);
+});
+
 /** The words of a line, without the marks around them that never stand alone at a line's edge. */
 const wordsOf = (lines: string[]) =>
   lines.flatMap((line) => line.split(/[\s—–]+/)).map((word) => word.replace(/[«»“”,.:;!?…]/g, ''));
@@ -216,16 +241,12 @@ const HEADINGS: {
   },
   // The root bar: 16 a side, and the round 44 on the right 12 away.
   { role: 'displaySm', room: IPHONE - 2 * 16 - 44 - 12, carries: (s) => [s.home.title] },
-  // The empty state stands 36 in (spec 4, `HomeEmpty`: the paragraph is 318 of 390).
+  // The empty state stands 36 in (spec 4, `HomeEmpty`: the paragraph is 318 of 390). Every heading an
+  // `Empty` is handed — held to that by the sweep of the sources below.
   {
     role: 'emptyTitle',
     room: IPHONE - 2 * 36,
-    carries: (s) => [
-      s.contacts.emptyTitle,
-      s.gallery.emptyTitle,
-      s.home.emptyTitle,
-      s.upload.emptyTitle,
-    ],
+    carries: (s) => EMPTY_TITLES.map((title) => title(s)),
   },
   // A sheet: 16 a side inside a hairline.
   {

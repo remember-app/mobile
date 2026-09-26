@@ -108,12 +108,22 @@ test('the quiet action is a bare 44 in `faint`, hung outside the margin like «�
   ).not.toContain('Удалить воспоминание');
 });
 
-test('the name at the top of a screen is its heading, and a long one is cut rather than wrapped', () => {
-  const bar = story(<AppBar title="Свадьба Лизы и Марка в Карелии" />);
+test('the name at the top of a screen is its heading, and it and the line under it wrap rather than cut', () => {
+  // TASK-400: «Ролик на 1:00 · собран за 1 мин» over a finished film and «Корпоратив Nox · 20
+  // июля» over `Upload*` ran to «Ролик на 1:00 · собран…» on large type. The words wrap and the bar
+  // grows down; the button on the right keeps its place, since the words take what is left of the row.
+  const bar = story(
+    <AppBar
+      title="Свадьба Лизы и Марка в Карелии"
+      subtitle="Ролик на 1:00 · собран за 14 мин"
+      left={<IconButton icon={ChevronLeft} label="Назад" />}
+      right={<IconButton icon={User} label="Выбрать" />}
+    />,
+  );
   expect(bar).toContain('role="heading"');
-  // Cut with an ellipsis: the button on the right of the bar must not be pushed off the screen by
-  // a long memory name.
-  expect(bar).toContain('r-textOverflow');
+  expect(bar).not.toContain('r-textOverflow');
+  expect(bar).toContain('Ролик на 1:00 · собран за 14 мин');
+  expect(bar).toContain(rule('min-height:44px'));
 });
 
 test('an inner bar closes to 8 and hangs its «Назад» outside the screen’s margin — and only it', () => {

@@ -231,11 +231,12 @@ test('the words beside a button as wide as its words grow from their own width',
   expect([...squeezed]).toEqual([]);
 });
 
-/** The rows where buttons the width of the row stand side by side, with no words between them. */
-const BUTTON_ROWS = new Set([
-  'kit/bars.tsx › layerRow',
-  'app/memory/[id]/montage/[montageId]/done.tsx › actions',
-]);
+/**
+ * The rows where buttons the width of the row stand side by side, with no words between them. «Сохранить»
+ * and «Поделиться» under a finished film stand in `Shares`, each in a share of its own, and not in a row
+ * with anything (TASK-400).
+ */
+const BUTTON_ROWS = new Set(['kit/bars.tsx › layerRow']);
 
 test('a button that runs the width of its row shares it with other buttons only, never with words', () => {
   // «Готово» in the edit modes of the labels and the roster, «Что сняли» and «Вернуть» each did,

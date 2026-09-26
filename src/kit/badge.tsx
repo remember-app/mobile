@@ -172,7 +172,7 @@ export function Tag({ label }: { label: string }) {
 
   return (
     <View style={[styles.mark, styles.tag, styles.raise]}>
-      <Text role="meta" tone="paper" numberOfLines={1}>
+      <Text role="meta" tone="paper">
         {label}
       </Text>
     </View>
@@ -227,7 +227,8 @@ const useStyles = themed(({ color }) =>
       paddingHorizontal: space.s2,
       borderRadius: radius.pill,
     },
-    tag: { height: 28, paddingHorizontal: 10 },
+    // 28 a floor too: «тёплый свет» at the largest type wraps at its space and the pill grows down.
+    tag: { minHeight: 28, paddingHorizontal: 10 },
     circle: {
       width: 28,
       height: 28,
