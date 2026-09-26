@@ -143,7 +143,14 @@ export function Text({
   // Set smaller, the words are drawn at their size already grown, and grow no further. Through the
   // size and not `maxFontSizeMultiplier`: React Native's cache of measured text keys on the size and
   // leaves the cap out, so a lower cap was drawn smaller and measured — box and lines — as before.
-  const set = whole.fitted === null ? null : grownBy([type[role], style], whole.fitted);
+  // A caller's own cap goes the same way: `fitCell` learns it once its cell is laid out, over words
+  // already drawn at the role's.
+  const own =
+    typeof maxFontSizeMultiplier === 'number' && maxFontSizeMultiplier < whole.scale
+      ? maxFontSizeMultiplier
+      : null;
+  const by = whole.fitted ?? own;
+  const set = by === null ? null : grownBy([type[role], style], by);
   // Only what can break a word is asked where its lines fell: measuring them is a second layout of
   // the text, and the one line of «Remember» or of a bar's heading never breaks anything.
   const watching = room !== null || (fit ?? WIDE.has(role));
@@ -256,6 +263,7 @@ function useWhole(most: number, words: string | number | null) {
   return {
     most,
     fitted,
+    scale: fontScale,
     less: (lines: readonly { text: string; width: number }[]) => {
       const grown = fitted ?? Math.min(fontScale, most);
       if (grown <= 1) return;

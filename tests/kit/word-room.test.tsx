@@ -42,6 +42,7 @@ import {
   EmptyMontages,
   IconButton,
   PosterOrder,
+  RowContact,
   RowTrack,
   Shares,
   StepNote,
@@ -427,6 +428,27 @@ test('a heading in the wide face that breaks a word grows only as far as its lin
   expect(grows(tree, words)).toBe(1);
 });
 
+test('a cap a cell measures once its words are drawn reaches the phone as their size', async () => {
+  // `fitCell` — a day of the calendar, a ready length on the slider — knows its room only once laid
+  // out, so its cap lands on «28» already drawn at the role's ×2. React Native's measure cache keys
+  // on the size and not on the cap: the cap alone drew the figure at ×1.78 in the box of ×2.
+  const cell = (most?: number) => (
+    <Text role="bodySm" maxFontSizeMultiplier={most}>
+      28
+    </Text>
+  );
+  const tree = await draw(cell());
+  expect(grows(tree, '28')).toBe(2);
+  await act(async () => tree.update(cell(1.78)));
+  expect(grows(tree, '28')).toBeCloseTo(1.78, 5);
+  const drawn = StyleSheet.flatten(drawnOf(tree, '28').style);
+  expect(drawn.fontSize).toBeCloseTo(15 * 1.78, 5);
+  expect(drawn.lineHeight).toBeCloseTo(22 * 1.78, 5);
+  // A cap over the phone's own size holds nothing back, and changes nothing drawn.
+  await act(async () => tree.update(cell(4)));
+  expect(StyleSheet.flatten(drawnOf(tree, '28').style).fontSize).toBe(15);
+});
+
 test('running text asks nothing of its lines unless it stands in a box that cannot widen', async () => {
   // A second layout of every paragraph is what listening costs; only what can break a word listens.
   const plain = await draw(<Text role="body">Абзац</Text>);
@@ -441,6 +463,13 @@ test('running text asks nothing of its lines unless it stands in a box that cann
     { text: 'ем…', width: 30 },
   ] as never);
   expect(grows(fitted, 'Проявляем…')).toBeLessThan(2);
+  // A contact's «@nick» has no space to wrap at either: torn beside the circle, it grows less.
+  const contact = await draw(<RowContact name="Александра Морозова" handle="@alexandra.moroz" />);
+  await layOut(contact, [
+    { text: '@alexandra.mo', width: 230 },
+    { text: 'roz', width: 50 },
+  ] as never);
+  expect(grows(contact, '@alexandra.moroz')).toBeLessThan(2);
   // «Remember» shrinks to fit its one line, and the bar's headings do not grow: neither listens.
   for (const role of ['hero', 'barTitle', 'pillTitle'] as const) {
     const one = await draw(<Text role={role}>Remember</Text>);
