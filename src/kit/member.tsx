@@ -223,7 +223,12 @@ export function AvatarStack({
           importantForAccessibility="no-hide-descendants"
           style={[styles.more, collar, over, { width: size, height: size, borderRadius: size / 2 }]}
         >
-          <Text role="row" style={{ fontSize: letters, fontFamily: font.bold }}>
+          {/* Part of the circle, like the initials beside it (`Avatar`). */}
+          <Text
+            role="row"
+            maxFontSizeMultiplier={1}
+            style={{ fontSize: letters, fontFamily: font.bold }}
+          >
             +{rest}
           </Text>
         </View>
