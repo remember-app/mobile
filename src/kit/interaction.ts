@@ -256,17 +256,18 @@ export const KEYBOARD_SCROLL = {
 } as const;
 
 /**
- * A tap or a drag on nothing takes the keyboard down (TASK-377) — the background, a line of words,
- * the gap between blocks, the bottom layer around its field, a sheet whose body has nothing to
+ * A tap or a drag begun on nothing takes the keyboard down (TASK-377) — the background, a line of
+ * words, the gap between blocks, the bottom layer around its field, a sheet whose body has nothing to
  * scroll. Asked last: React Native offers a touch to the deepest view first, so a button or a field
  * that wants it has it, and this only hears the rest; a drag that scrolls is the scroll's, and
- * `KEYBOARD_SCROLL` takes the keyboard down there. A drag begun on a button takes it from the
- * button, which is what a drag is — the sliders and the rows dragged by hand refuse to give it up.
+ * `KEYBOARD_SCROLL` takes the keyboard down there. Asked when a touch begins and never as it moves:
+ * every move of a finger offers the touch again to the parents of whatever holds it, and a parent
+ * that said yes there took the press from under a finger that only trembled — the tap on «Сохранить»
+ * over the keyboard, or on the next field, put the keyboard away instead.
  * Only while the keyboard is up, so otherwise it stands in the way of nothing.
  */
 export const DISMISS_KEYBOARD = {
   onStartShouldSetResponder: () => Keyboard.isVisible(),
-  onMoveShouldSetResponder: () => Keyboard.isVisible(),
   onResponderRelease: () => Keyboard.dismiss(),
 } as const;
 

@@ -76,8 +76,9 @@ export type BoardProps = {
  * what the keyboard left, whole where it fits. The body is never what moves, so a field in it is
  * never drawn anew; a bar holding a field of its own (`useFieldInBar`) stays put for the same
  * reason, and past it the top gives rather than the action — the board stands on its bottom edge.
- * The keyboard goes down the ordinary ways — a tap on anything that is not a field or a button, a
- * drag anywhere ({@link KEYBOARD_SCROLL}, {@link DISMISS_KEYBOARD}) — and the bar stands again.
+ * The keyboard goes down the ordinary ways — a tap or a drag begun on anything that is not a field or
+ * a button, a drag of the body ({@link KEYBOARD_SCROLL}, {@link DISMISS_KEYBOARD}) — and the bar
+ * stands again.
  */
 /** How far a field's box reaches past the input the keyboard is up for — its border and inner air. */
 const FIELD_BOX = space.s3;
