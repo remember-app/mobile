@@ -270,13 +270,17 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   // `FramesEmpty` (spec 4): the body's layer of the feed is the whole screen, 0…844 — the glass and
   // the bottom layer lie over it — so what stands in an empty feed is centred on the screen and not
   // on the room between the two, which the taller layer pushes up. It is let down by the difference,
-  // as far as the room under it allows: never under the bottom layer.
-  const lift =
-    rows.length === 0 ? Math.max(0, Math.min(bottom - top, screen - top - bottom - emptied)) : 0;
+  // as far as the room under it allows — less the line at the head of the feed, when it stands there:
+  // never under the bottom layer.
+  const liftUnder = (taken: number) =>
+    rows.length === 0
+      ? Math.max(0, Math.min(bottom - top, screen - top - bottom - emptied - taken))
+      : 0;
   const lineEnds = insets.top + height.roundViewer + space.s2 + troubled;
   const floats =
     lineEnds + layer + type.body.lineHeight * fontScale <= screen &&
-    (any || top + (screen - top - bottom - emptied + lift) / 2 >= lineEnds);
+    (any || top + (screen - top - bottom - emptied + liftUnder(0)) / 2 >= lineEnds);
+  const lift = liftUnder(head.error !== null && !floats ? troubled : 0);
   const trouble =
     head.error === null ? null : (
       <HeadTrouble
@@ -503,9 +507,10 @@ export function Frames({ id, head }: { id: string; head: Head }) {
             // rule the single tap below is gated on. A group still being developed whole has
             // nothing to offer, so the action is off rather than counting to zero.
             const markable = group.frames.filter(mayPick);
+            const heading = headingOf(group);
             return (
               <DayMark
-                {...headingOf(group)}
+                {...heading}
                 // The seam holds one figure and never a sentence (spec 7.8): how many that person
                 // brought, and over a day nothing at all — `MemoryDated` writes the date alone.
                 // While the mode is on every seam counts, because the whole band is then the button
@@ -523,7 +528,9 @@ export function Frames({ id, head }: { id: string; head: Head }) {
                     ? () => setPicked((have) => toggleDay(markable, have))
                     : undefined
                 }
-                pressLabel={s.gallery.selectDay(markable.length)}
+                // Read out in place of the band's own words, so it names whose frames it takes:
+                // «Выбрать все 5» alone would be every seam of the feed at once.
+                pressLabel={`${heading.label}, ${s.gallery.selectDay(markable.length)}`}
                 style={styles.seam}
               />
             );

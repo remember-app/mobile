@@ -42,6 +42,7 @@ import {
   Banner,
   Button,
   ConfirmSheet,
+  DRAWN,
   IconButton,
   RowMember,
   Sheet,
@@ -234,6 +235,20 @@ test('only the organizer is drawn the pencil and the way into taking people out;
   const screen = await open();
   expect(screen.icon(ru.settings.edit)).toHaveLength(1);
   expect(screen.button(ru.members.edit)).toHaveLength(1);
+});
+
+test('both pencils are the layout’s pen — 17 / 1.8 on the card, 14 / 1.8 on «Править состав»', async () => {
+  // Spec 8, `MemorySettings`, and `MemorySettings.html`: the round 44 «править» carries the pen
+  // `M12 20h9 · M16.5 3.5…` at 17 / 1.8, the button in the row the same pen at 14 / 1.8 — the drawing
+  // the kit holds as `DRAWN.pen`, tighter than Lucide's pencil. At the circle's own 20 Lucide's read a
+  // third wider than drawn.
+  world();
+  const screen = await open();
+  expect(screen.icon(ru.settings.edit)[0].props).toMatchObject({
+    icon: DRAWN.pen,
+    glyph: { size: 17, stroke: 1.8 },
+  });
+  expect(screen.button(ru.members.edit)[0].props.icon).toBe(DRAWN.pen);
 });
 
 test('the pencil leads to the edit screen of this memory', async () => {

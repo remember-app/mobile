@@ -1,5 +1,5 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { Pencil, Trash2, UserPlus, X } from 'lucide-react-native';
+import { Trash2, UserPlus, X } from 'lucide-react-native';
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -29,6 +29,7 @@ import {
   Button,
   ConfirmSheet,
   CoverSlot,
+  DRAWN,
   IconButton,
   PRESS,
   RowMember,
@@ -347,7 +348,9 @@ export default function MemorySettingsScreen() {
             </View>
             {organizer ? (
               <IconButton
-                icon={Pencil}
+                icon={DRAWN.pen}
+                // Spec 8, `MemorySettings`: the pen 17 at 1.8.
+                glyph={{ size: 17, stroke: 1.8 }}
                 tone="raise"
                 label={s.settings.edit}
                 disabled={busy}
@@ -376,7 +379,7 @@ export default function MemorySettingsScreen() {
                   // Held in, it is still the small button of this row: `paper` on its own runs
                   // the width of the row and squeezes the heading beside it to nothing.
                   wide={false}
-                  icon={editing ? undefined : Pencil}
+                  icon={editing ? undefined : DRAWN.pen}
                   label={editing ? s.action.done : s.members.edit}
                   onPress={() => setEditing((was) => !was)}
                   disabled={busy}

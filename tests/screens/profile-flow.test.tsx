@@ -63,6 +63,7 @@ import {
   Banner,
   Button,
   ConfirmSheet,
+  DRAWN,
   Field,
   IconButton,
   RowSection,
@@ -233,7 +234,12 @@ test('the screen is the card, «Контакты», «Тема» and «Язык�
     'Аня Петрова',
   ]);
   // The pencil, the three and the two pills, the switch, and the red way out last of all.
-  expect(screen.pencil()).toBeDefined();
+  // The pencil is the layout's pen at 17 / 1.8 (spec 8, `Account.html`) — the kit's `DRAWN.pen`,
+  // not Lucide's pencil at the circle's 20.
+  expect(screen.pencil().props).toMatchObject({
+    icon: DRAWN.pen,
+    glyph: { size: 17, stroke: 1.8 },
+  });
   expect(
     screen.segment(ru.theme.label).props.options.map((o: { label: string }) => o.label),
   ).toEqual(['Как в системе', 'Тёмная', 'Светлая']);
