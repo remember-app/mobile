@@ -1,6 +1,6 @@
 import { rule, shorthand } from '@tests/helpers/css';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
-import { Keyboard, ScrollView } from 'react-native';
+import { Keyboard, ScrollView, StyleSheet } from 'react-native';
 import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
 import { expect, test, vi } from 'vitest';
 
@@ -394,6 +394,74 @@ test('when they do not fit, the heading and the buttons scroll with the body and
     dismiss.mockRestore();
     isVisible.mockRestore();
   }
+});
+
+test('the paragraph under the heading stands 8 under it and is the body’s first words, pinned or not', async () => {
+  // Spec 4: the handle, the heading and the buttons stand still — not the paragraph. Stood still with
+  // them, it left `SheetRejected`'s rows a 139 slit on a 375 × 667 phone at ×2.6 (TASK-401).
+  let tree: TestRenderer.ReactTestRenderer | undefined;
+  await act(async () => {
+    tree = mounted(
+      TestRenderer.create(
+        <Sheet
+          visible
+          onCancel={() => {}}
+          title="Что убрали сами"
+          lead={<Text>Ничего не потеряно</Text>}
+          footer={<Button variant="primary" label="Вернуть все" />}
+        >
+          <Text>Смазано</Text>
+        </Sheet>,
+      ),
+    );
+  });
+  const root = (tree as TestRenderer.ReactTestRenderer).root;
+  const scroll = () => root.findByType(ScrollView);
+  const words = (text: string) =>
+    root.find((node) => node.type === Text && node.props.children === text);
+  const inScroll = (text: string) => scroll().findAll((node) => node.props.children === text);
+  const flat = (node: ReactTestInstance) => StyleSheet.flatten(node.props.style) ?? {};
+  /** How far a block is pulled up — the web's flatten writes it in px. */
+  const pull = (node: ReactTestInstance) => Number.parseFloat(String(flat(node).marginTop));
+  // Pinned: the heading stands, the paragraph opens the scroll ahead of the rows, and the scroll
+  // itself comes up to 8 under the heading — the sheet's gap of 18 less 10.
+  expect(inScroll('Что убрали сами')).toHaveLength(0);
+  expect(inScroll('Ничего не потеряно')).not.toHaveLength(0);
+  expect(pull(scroll())).toBe(8 - 18);
+  const inOrder = scroll().findAll((node) => node.type === Text);
+  expect(inOrder.map((node) => node.props.children)).toEqual(['Ничего не потеряно', 'Смазано']);
+
+  // Not pinned — the heading and the buttons alone overrun the sheet: all of it scrolls, the
+  // paragraph still 8 under the heading, and the scroll no longer pulled up.
+  const block = (node: ReactTestInstance) => {
+    let up = node.parent;
+    while (up && typeof up.props.onLayout !== 'function') up = up.parent;
+    return up as ReactTestInstance;
+  };
+  const [sheet] = root.findAll(
+    (node) =>
+      node.props.accessibilityViewIsModal === true && typeof node.props.onLayout === 'function',
+  );
+  await laidOut(block(words('Что убрали сами')), 600);
+  await laidOut(block(root.findByType(Button)), 200);
+  await laidOut(sheet, 760);
+  expect(inScroll('Что убрали сами')).not.toHaveLength(0);
+  expect(flat(scroll()).marginTop).toBeUndefined();
+  expect(pull(words('Ничего не потеряно').parent as ReactTestInstance)).toBe(8 - 18);
+  // No heading over it, it keeps the sheet's own gap.
+  let bare: TestRenderer.ReactTestRenderer | undefined;
+  await act(async () => {
+    bare = mounted(
+      TestRenderer.create(
+        <Sheet visible onCancel={() => {}} lead={<Text>Ничего не потеряно</Text>}>
+          <Text>Смазано</Text>
+        </Sheet>,
+      ),
+    );
+  });
+  expect(
+    flat((bare as TestRenderer.ReactTestRenderer).root.findByType(ScrollView)).marginTop,
+  ).toBeUndefined();
 });
 
 /**

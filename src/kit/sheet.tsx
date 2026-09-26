@@ -18,7 +18,7 @@ import { backdrop, board, duration as motion, radius, space, themed, type } from
 
 import { SheetFoot } from './button';
 import { DISMISS_KEYBOARD, KEYBOARD_SCROLL, useFadeIn } from './interaction';
-import { Text } from './text';
+import { Text, TYPE_MOST } from './text';
 
 export type SheetProps = {
   visible: boolean;
@@ -28,6 +28,13 @@ export type SheetProps = {
   title?: string;
   /** A header row instead of a heading: a thumbnail or an avatar with two lines beside it. */
   head?: ReactNode;
+  /**
+   * The paragraph under the heading, 8 under it rather than a gap of the sheet away, so the two read
+   * as one block (`SheetRejected`, `SheetAskAll`). It is the body's first words and not the
+   * heading's: spec 4 stands the handle, the heading and the buttons still, and a paragraph stood
+   * still with them left the body a slit on the smallest phone at the largest type.
+   */
+  lead?: ReactNode;
   /** The block of buttons at the bottom. It stays put while the body scrolls. */
   footer?: ReactNode;
   /**
@@ -181,10 +188,14 @@ export function useMeasured(): [number, (event: LayoutChangeEvent) => void] {
   return [height, (event) => setHeight(event.nativeEvent.layout.height)];
 }
 
+/** How far the paragraph stands under the heading (spec 8, `SheetRejected`, `SheetAskAll`). */
+const LEAD = space.s2;
+
 function Rise({
   onCancel,
   title,
   head,
+  lead,
   footer,
   height,
   rhythm = 'question',
@@ -202,12 +213,15 @@ function Rise({
   const [top, onTop] = useMeasured();
   const [foot, onFoot] = useMeasured();
   const heading = head || title;
+  // Under a heading the paragraph closes the sheet's gap to its own 8.
+  const closer = lead && heading ? { marginTop: LEAD - RHYTHM[rhythm] } : null;
   // Until the sheet has been laid out it stands as drawn.
   const pinned =
     sheet === 0 ||
     pinnable({
       sheet,
-      line: type.body.lineHeight * fontScale,
+      // The body's words grow no further than `TYPE_MOST`, and neither does its line.
+      line: type.body.lineHeight * Math.min(fontScale, TYPE_MOST),
       gap: RHYTHM[rhythm],
       bottom,
       top: heading ? top : null,
@@ -288,14 +302,16 @@ function Rise({
       >
         <View testID="sheet-handle" style={styles.handle} />
         {pinned ? heads : null}
-        {/* A body that fits neither scrolls nor bounces. */}
+        {/* A body that fits neither scrolls nor bounces. The paragraph under the heading is its
+            first words: pinned, the scroll itself comes up to 8 under the heading. */}
         <ScrollView
-          style={pinned ? styles.body : null}
+          style={pinned ? [styles.body, closer] : null}
           contentContainerStyle={[gap, pinned ? null : styles.fill]}
           alwaysBounceVertical={false}
           {...KEYBOARD_SCROLL}
         >
           {pinned ? null : heads}
+          {lead ? <View style={pinned ? null : closer}>{lead}</View> : null}
           {children}
           {pinned ? null : buttons}
         </ScrollView>

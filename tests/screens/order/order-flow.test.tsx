@@ -174,6 +174,7 @@ import {
   RowRejected,
   RowTrack,
   Segment,
+  Sheet,
   Tile,
   TileTemplate,
   WizardBar,
@@ -846,17 +847,19 @@ test('«Что сняли» opens a sheet that reports: the paragraph 8 under th
   await press(ru.montage.whatDropped);
 
   // TASK-384 (R8), `SheetRejected.json`: the heading at 31, two lines, 52 tall; the paragraph at 91,
-  // 14 / 400 / 20 — one block, 8 under it. It was 16 / 23 and the sheet's own 18 under.
-  const heading = root()
-    .findAllByType(KitText)
-    .filter((one) => one.props.children === ru.montage.droppedTitle)
-    .at(-1)!;
-  expect(heading.props.role).toBe('sheetTitle');
-  let block = heading.parent;
-  while (block && StyleSheet.flatten(block.props.style)?.gap === undefined) block = block.parent;
-  expect(StyleSheet.flatten(block?.props.style)).toMatchObject({ gap: 91 - (31 + 52) });
-  const [, paragraph] = block!.findAllByType(KitText);
+  // 14 / 400 / 20 — one block, 8 under it. It was 16 / 23 and the sheet's own 18 under. The sheet's
+  // own heading and its lead: the lead is the body's first words and scrolls with the rows, so on the
+  // smallest phone at large type it no longer leaves them a slit (TASK-401); the 8 is the kit's.
+  const dropped = root()
+    .findAllByType(Sheet)
+    .find((one) => one.props.title === ru.montage.droppedTitle)!;
+  expect(dropped.props.visible).toBe(true);
+  const paragraph = dropped.props.lead;
+  expect(paragraph.type).toBe(KitText);
   expect(paragraph.props.children).toBe(ru.montage.droppedText(2, 9));
+  expect(
+    dropped.findAll((one) => one.props.children === ru.montage.droppedText(2, 9)),
+  ).not.toHaveLength(0);
   expect(scale[paragraph.props.role as keyof typeof scale]).toMatchObject({
     fontSize: 14,
     lineHeight: 20,

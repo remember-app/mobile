@@ -262,7 +262,10 @@ test('the wizard’s bar wears three faces, and only the total has nothing on it
   expect(wizard).toContain("const counted = typeof step === 'number';");
   // The way in and the total are two faces, not one: the way in's heading stands 14 under the row,
   // the total's 12 (`MontageTemplate.html`, `MontageSummary.html`).
-  expect(wizard).toContain("variant={counted ? 'step' : summary ? 'summary' : 'entry'}");
+  expect(wizard).toContain("const face = counted ? 'step' : summary ? 'summary' : 'entry';");
+  // The bar and the heading under it wear the same face: the heading is its own piece of the board
+  // (it gives way to the keyboard before the bar's row does, TASK-401), not a part of the bar.
+  expect(wizard.match(/variant=\{face\}/g)).toHaveLength(2);
   expect(wizard).toContain(': s.montage.newOne');
   expect(flat(wizard)).toContain('cancel={ summary ? undefined : {');
   expect(templates).toContain('step="templates"');

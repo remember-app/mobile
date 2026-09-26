@@ -1,6 +1,7 @@
 import { X } from 'lucide-react-native';
-import { type ReactNode, useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
+  Keyboard,
   KeyboardAvoidingView,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
@@ -19,11 +20,11 @@ import { board, height, photo, radius, space, ThemePin, themed, type, useTheme }
 
 import { StepScale } from './bits';
 import { BAR_GLYPH, Button, IconButton } from './button';
-import { focusedField } from './field';
+import { AreaRoom, areaSight, focusedField } from './field';
 import type { IconComponent } from './icon';
 import { DISMISS_KEYBOARD, FieldInBar, KEYBOARD_SCROLL } from './interaction';
 import { useMeasured } from './sheet';
-import { Text, useWordRoom, WordRoom } from './text';
+import { Text, TYPE_MOST, useWordRoom, WordRoom } from './text';
 
 /**
  * Spec 7.1 — the frame of a screen: the board it is drawn on, the bar at the top, the layer at the
@@ -33,6 +34,13 @@ import { Text, useWordRoom, WordRoom } from './text';
 export type BoardProps = {
   /** What stands at the top: the bar, and whatever the screen nails under it. */
   bar?: ReactNode;
+  /**
+   * The heading hung under the bar — the wizard step's own, and what stands under it. It stands
+   * with the bar while the body keeps room under it for three lines of what is typed there, and is
+   * the first to go into the scroll when the keyboard takes that room: the bar's row, with the way
+   * back and the way out, stays on the screen.
+   */
+  heading?: ReactNode;
   /** What stands at the bottom: the bottom layer, and whatever speaks over it. */
   footer?: ReactNode;
   /** The body's own column — its margins and gaps, where it holds what it has. */
@@ -72,22 +80,28 @@ const FIELD_BOX = space.s3;
  *
  * The keyboard is the board's to handle, once for every screen (TASK-377). Whatever stands at the
  * bottom rides up over it, the screen's action with it, and stays there whatever the type size. The
- * bar gives way instead (TASK-381): when the room the keyboard leaves over the bottom layer cannot
- * hold the bar and a line of the body — the smallest phone at the largest type, the wizard's heading
- * over a field — the bar goes into the scroll at the body's head, and the body stays where it was
- * on the screen; the bar is a scroll up. The field being typed into in the body is then brought into
- * what the keyboard left, whole where it fits. The body is never what moves, so a field in it is
- * never drawn anew; a bar holding a field of its own (`useFieldInBar`) stays put for the same
- * reason, and past it the top gives rather than the action — the board stands on its bottom edge.
- * The keyboard goes down the ordinary ways — a tap or a drag begun on anything that is not a field or
- * a button, a drag of the body ({@link KEYBOARD_SCROLL}, {@link DISMISS_KEYBOARD}) — and the bar
- * stands again.
+ * top gives way instead (TASK-381, TASK-401), a piece at a time. First the heading under the bar:
+ * when the room the keyboard leaves over the bottom layer cannot hold the bar, the heading and a
+ * long-text box of three lines under them ({@link areaSight}) — a small phone, or large type, the
+ * wizard's heading over the story — the heading goes into the scroll at the body's head, and the
+ * bar's row with «Назад» and «Отмена» stays where a finger finds it. Then the bar itself, once the
+ * room cannot hold it and a line of the body. The body stays where it was on the screen either way;
+ * what went into the scroll is a scroll up. The field being typed into in the body is then brought
+ * into what the keyboard left, whole where it fits — and a long-text box, which scrolls inside
+ * itself, is never taller than what the board shows of the body ({@link AreaRoom}), so its caret
+ * is never behind «Дальше» or the keyboard. The
+ * body is never what moves, so a field in it is never drawn anew; a bar holding a field of its own
+ * (`useFieldInBar`) stays put for the same reason, and past it the top gives rather than the
+ * action — the board stands on its bottom edge. The keyboard goes down the ordinary ways — a tap or
+ * a drag begun on anything that is not a field or a button, the bar's row among them, a drag of the
+ * body ({@link KEYBOARD_SCROLL}, {@link DISMISS_KEYBOARD}) — and the top stands again.
  */
-export function Board({ bar, footer, body, list, children, style }: BoardProps) {
+export function Board({ bar, heading, footer, body, list, children, style }: BoardProps) {
   const insets = useSafeAreaInsets();
   const { fontScale, height: tall } = useWindowDimensions();
   const styles = useStyles();
   const [top, onTop] = useMeasured();
+  const [lead, onLead] = useMeasured();
   const [foot, onFoot] = useMeasured();
   const [room, onRoom] = useMeasured();
   const [fields, setFields] = useState(0);
@@ -95,11 +109,22 @@ export function Board({ bar, footer, body, list, children, style }: BoardProps) 
     setFields((n) => n + 1);
     return () => setFields((n) => n - 1);
   }, []);
-  const line = type.body.lineHeight * fontScale;
-  const pinned = tall === 0 || (bar ? top : 0) + (footer ? foot : 0) + line <= tall - insets.top;
-  // The room is what is left over the bottom layer, wherever the bar stands, so moving the bar never
+  // The body's words grow no further than `TYPE_MOST`, and neither does its line.
+  const line = type.body.lineHeight * Math.min(fontScale, TYPE_MOST);
+  const barTall = bar ? top : 0;
+  const leadTall = heading ? lead : 0;
+  const pinned = tall === 0 || barTall + leadTall + (footer ? foot : 0) + line <= tall - insets.top;
+  // The room is what is left over the bottom layer, wherever the top stands, so moving the top never
   // changes the answer that moved it. Not measured yet, it is nothing to go by.
-  const stands = pinned && (room === 0 || fields > 0 || top + line <= room);
+  const held = room === 0 || fields > 0;
+  const stands = pinned && (held || barTall + line <= room);
+  const leads =
+    stands &&
+    (!heading || held || barTall + leadTall + FIELD_BOX * 2 + areaSight(fontScale) <= room);
+  /** What of the top is in the scroll's head now — and the column stands that far down it. */
+  const lifted = (stands ? 0 : barTall) + (leads ? 0 : leadTall);
+  /** The part of the room the body has on the screen. */
+  const sight = room - (barTall + leadTall - lifted);
 
   const scroll = useRef<ScrollView>(null);
   const column = useRef<View>(null);
@@ -111,35 +136,59 @@ export function Board({ bar, footer, body, list, children, style }: BoardProps) 
     offset.current = Math.max(0, y);
     scroll.current?.scrollTo({ y: offset.current, animated: false });
   };
-  const was = useRef({ stands, room });
-  useLayoutEffect(() => {
-    const before = was.current;
-    was.current = { stands, room };
-    // The bar in and out of the scroll's head while the bottom layer stands: the body keeps its
-    // place on the screen. When the window moved both, the board starts from its top.
-    if (before.stands !== stands && pinned) to(offset.current + (stands ? -top : top));
-    // Less room — the keyboard has come up: the field being typed into in the body is brought
-    // into what is left of it, box and all, or from its top where it is taller than that.
+  const was = useRef({ lifted, room, sight });
+  /**
+   * The field being typed into in the body, brought into what the keyboard left of it: box and all,
+   * or from its top where it is taller than that.
+   */
+  const bring = () => {
     const field = focusedField();
-    if (room >= before.room || !field || !column.current) return;
-    const sight = room - (stands ? top : 0);
+    if (!field || !column.current) return;
+    const now = was.current;
     field.measureLayout(
       column.current,
       (_x, y, _w, h) => {
-        const from = y + (stands ? 0 : top) - FIELD_BOX;
+        const from = y + now.lifted - FIELD_BOX;
         const whole = h + FIELD_BOX * 2;
-        if (from < offset.current || whole > sight) to(from);
-        else if (from + whole > offset.current + sight) to(from + whole - sight);
+        if (from < offset.current || whole > now.sight) to(from);
+        else if (from + whole > offset.current + now.sight) to(from + whole - now.sight);
       },
       () => {},
     );
-  }, [stands, room, pinned, top]);
+  };
+  useLayoutEffect(() => {
+    const before = was.current;
+    was.current = { lifted, room, sight };
+    // The top in and out of the scroll's head while the bottom layer stands: the body keeps its
+    // place on the screen. When the window moved it all, the board starts from its top.
+    if (before.lifted !== lifted && pinned) to(offset.current + lifted - before.lifted);
+    // Less room — the keyboard has come up.
+    if (room < before.room) bring();
+  }, [lifted, room, pinned, sight]);
+  // The field's focus and the keyboard's room reach the board by two roads, and the room is often
+  // first — the board then knows of no field yet (TASK-401). Once the keyboard is up, it does.
+  useEffect(() => {
+    const shown = Keyboard.addListener('keyboardDidShow', bring);
+    return () => shown.remove();
+  }, []);
 
   const head = bar ? (
     <FieldInBar.Provider value={holdBar}>
       <View onLayout={onTop}>{bar}</View>
     </FieldInBar.Provider>
   ) : null;
+  const under = heading ? (
+    <FieldInBar.Provider value={holdBar}>
+      <View onLayout={onLead}>{heading}</View>
+    </FieldInBar.Provider>
+  ) : null;
+  const scrolled =
+    (!stands && head) || (!leads && under) ? (
+      <>
+        {stands ? null : head}
+        {leads ? null : under}
+      </>
+    ) : null;
   const tail = footer ? <View onLayout={onFoot}>{footer}</View> : null;
 
   return (
@@ -152,10 +201,9 @@ export function Board({ bar, footer, body, list, children, style }: BoardProps) 
     >
       <View style={[styles.room, list ? null : styles.stands]} onLayout={onRoom}>
         {stands ? head : null}
+        {leads ? under : null}
         {list ? (
-          <View style={styles.room}>
-            {list({ head: stands ? null : head, foot: pinned ? null : tail })}
-          </View>
+          <View style={styles.room}>{list({ head: scrolled, foot: pinned ? null : tail })}</View>
         ) : (
           // A body that fits neither scrolls nor bounces.
           <ScrollView
@@ -167,9 +215,13 @@ export function Board({ bar, footer, body, list, children, style }: BoardProps) 
             scrollEventThrottle={16}
             {...KEYBOARD_SCROLL}
           >
-            {stands ? null : head}
+            {scrolled}
             <View ref={column} style={[styles.grow, body]}>
-              {children}
+              <AreaRoom.Provider
+                value={pinned && room > 0 ? Math.max(0, sight - FIELD_BOX * 2) : null}
+              >
+                {children}
+              </AreaRoom.Provider>
             </View>
             {pinned ? null : tail}
           </ScrollView>
@@ -257,15 +309,19 @@ export function AppBar({
 export const CANCEL_WORD_SCALE = 1.2;
 
 /**
- * The wizard's bar (spec 7.1, detail 3): a 74-wide block on each side so the step counter sits dead
- * centre whatever the words in those blocks are, the step scale under it, and the step's own heading
- * under that — the heading belongs to the bar and not to the body, because the body scrolls and this
- * does not, for as long as the board has room for it over the keyboard (`Board`).
- *
- * `summary` is the last face of it, the one the order's own total wears: no scale, because there is
- * no step after it, and the heading comes up to meet the row. `entry` is the first, the templates
- * of the way in: no scale either, and the heading 14 under the row (`MontageTemplate.html`), 2 lower
+ * The faces of the wizard's bar: a numbered `step`; `summary`, the order's own total — no scale,
+ * because there is no step after it, and the heading comes up to meet the row; `entry`, the templates
+ * of the way in — no scale either, and the heading 14 under the row (`MontageTemplate.html`), 2 lower
  * than the total's.
+ */
+export type WizardFace = 'step' | 'summary' | 'entry';
+
+/**
+ * The wizard's bar (spec 7.1, detail 3): a 74-wide block on each side so the step counter sits dead
+ * centre whatever the words in those blocks are, and the step scale under it. The step's own heading
+ * under that is {@link WizardHeading}, and the board stands it under this one (`Board`'s `heading`):
+ * it does not scroll with the body while there is room for it, and it is the first thing to give
+ * way to the keyboard — this row, with the way back and the way out, is not.
  *
  * «Отмена» is the bar's own to draw, because what it looks like depends on the type size and not on
  * the step: the word 14 / 600 up to ×1.2 of the system's type, and past that a round 44 with an «x»
@@ -276,8 +332,6 @@ export function WizardBar({
   step,
   steps,
   label,
-  title,
-  note,
   variant = 'step',
   back,
   cancel,
@@ -287,11 +341,7 @@ export function WizardBar({
   steps: number;
   /** «Шаг 2 из 4», «Итог» — a sentence, so the screen writes it. */
   label: string;
-  /** «Как собрать» — the step's own heading. */
-  title?: string;
-  /** The line under it, where a step needs one: «Без музыки или один-несколько треков.» */
-  note?: string;
-  variant?: 'step' | 'summary' | 'entry';
+  variant?: WizardFace;
   back?: ReactNode;
   /** «Отмена» — its word, which a screen reader hears either way, and what it does. */
   cancel?: { label: string; onPress: () => void };
@@ -299,7 +349,6 @@ export function WizardBar({
 }) {
   const styles = useStyles();
   const { color } = useTheme();
-  const summary = variant === 'summary';
   const { fontScale } = useWindowDimensions();
   const glyph = fontScale > CANCEL_WORD_SCALE;
   const side = glyph ? styles.wizardSideNarrow : styles.wizardSide;
@@ -339,22 +388,45 @@ export function WizardBar({
       {variant === 'step' ? (
         <StepScale steps={steps} done={step} style={styles.wizardScale} />
       ) : null}
-      {title ? (
-        <View
-          style={[
-            styles.wizardWords,
-            summary ? styles.wizardWordsUp : variant === 'entry' ? styles.wizardWordsEntry : null,
-          ]}
-        >
-          <Text role="display" accessibilityRole="header">
-            {title}
-          </Text>
-          {note ? (
-            <Text role="note" tone="muted" style={styles.wizardNote}>
-              {note}
-            </Text>
-          ) : null}
-        </View>
+    </View>
+  );
+}
+
+/**
+ * The step's own heading under the wizard's bar (spec 7.1, detail 3): `display`, 18 under the
+ * scale — 12 on the total, 14 on the way in — and the line under it 10 lower, where a step has one.
+ */
+export function WizardHeading({
+  title,
+  note,
+  variant = 'step',
+}: {
+  /** «Как собрать». */
+  title: string;
+  /** The line under it, where a step needs one: «Без музыки или один-несколько треков.» */
+  note?: string;
+  variant?: WizardFace;
+}) {
+  const styles = useStyles();
+
+  return (
+    <View
+      style={[
+        styles.wizardWords,
+        variant === 'summary'
+          ? styles.wizardWordsUp
+          : variant === 'entry'
+            ? styles.wizardWordsEntry
+            : null,
+      ]}
+    >
+      <Text role="display" accessibilityRole="header">
+        {title}
+      </Text>
+      {note ? (
+        <Text role="note" tone="muted" style={styles.wizardNote}>
+          {note}
+        </Text>
       ) : null}
     </View>
   );

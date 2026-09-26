@@ -3,7 +3,7 @@ import { fontFile, naturalLine } from '@tests/helpers/font';
 import { Pencil, Search } from 'lucide-react-native';
 import { beforeAll, expect, test } from 'vitest';
 
-import { CodeField, Field, type FieldVariant, Hint, TextArea } from '@/kit/field';
+import { AreaRoom, CodeField, Field, type FieldVariant, Hint, TextArea } from '@/kit/field';
 import { allDifferent, compiled, story } from '@/kit/story';
 import { font, setTheme, type } from '@/theme';
 
@@ -78,6 +78,19 @@ test('the long-text box keeps 16 over and under its words and 18 beside them, on
   expect(box).toContain(rule('line-height:24px'));
   expect(box).toContain(rule('padding-left:18px;padding-right:18px'));
   expect(box).toContain(rule('padding-bottom:16px;padding-top:16px'));
+});
+
+test('the long-text box is 280 tall, and no taller than what the board says the keyboard left of the body', () => {
+  // TASK-401: the box scrolls inside itself and keeps its caret in its own frame, so a box taller
+  // than the body's sight kept the caret behind the keyboard on the smallest phone at large type.
+  const area = <TextArea label="История" value="" onChangeText={() => {}} />;
+  expect(story(area)).toContain('height:280px');
+  expect(story(<AreaRoom.Provider value={205}>{area}</AreaRoom.Provider>)).toContain(
+    'height:205px',
+  );
+  expect(story(<AreaRoom.Provider value={400}>{area}</AreaRoom.Provider>)).toContain(
+    'height:280px',
+  );
 });
 
 test('the label’s colour square in its field carries the night’s dark glyph in daylight too', async () => {

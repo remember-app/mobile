@@ -14,11 +14,19 @@ vi.mock('react-native', async (importOriginal) => {
 import { rule } from '@tests/helpers/css';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { ChevronLeft, SquareCheckBig, Trash2, User, X } from 'lucide-react-native';
-import { cloneElement } from 'react';
 import { Text as RNText, StyleSheet, View, type ViewStyle } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 
-import { ActionBar, AppBar, Board, type Footer, GlassBar, ViewerBar, WizardBar } from '@/kit/bars';
+import {
+  ActionBar,
+  AppBar,
+  Board,
+  type Footer,
+  GlassBar,
+  ViewerBar,
+  WizardBar,
+  WizardHeading,
+} from '@/kit/bars';
 import { StepScale } from '@/kit/bits';
 import { Button, IconButton } from '@/kit/button';
 import { Icon } from '@/kit/icon';
@@ -299,25 +307,34 @@ test('«Назад» is the same on any type, and the total closes its blocks wi
   expect((await wizardAt(1, 'summary')).sides).toEqual([74, 74]);
 });
 
-/** The wizard's bar drawn at a type size, whole, so its rows can be read in the order they stand. */
+/**
+ * The wizard's bar and the step's heading under it, drawn at a type size the way the board stacks
+ * them while they stand, so their rows can be read in the order they stand.
+ */
 const wizardTree = async (
   fontScale: number,
   props: Partial<Parameters<typeof WizardBar>[0]> = {},
 ) => {
   system.fontScale = fontScale;
   let tree!: TestRenderer.ReactTestRenderer;
-  const bar = (
-    <WizardBar
-      step={2}
-      steps={4}
-      label="Шаг 2 из 4"
-      title="Как собрать"
-      note="Без музыки или один-несколько треков."
-      back={<IconButton icon={ChevronLeft} label="Назад" />}
-      cancel={{ label: 'Отмена', onPress: () => {} }}
-      {...props}
-    />
+  const drawn = () => (
+    <View>
+      <WizardBar
+        step={2}
+        steps={4}
+        label="Шаг 2 из 4"
+        back={<IconButton icon={ChevronLeft} label="Назад" />}
+        cancel={{ label: 'Отмена', onPress: () => {} }}
+        {...props}
+      />
+      <WizardHeading
+        title="Как собрать"
+        note="Без музыки или один-несколько треков."
+        variant={props.variant}
+      />
+    </View>
   );
+  const bar = drawn();
   await act(async () => {
     tree = mounted(TestRenderer.create(bar));
   });
@@ -329,7 +346,7 @@ const wizardTree = async (
     flat,
     rerender: async (scale: number) => {
       system.fontScale = scale;
-      await act(async () => tree.update(cloneElement(bar)));
+      await act(async () => tree.update(drawn()));
       system.fontScale = 1;
     },
     /** The two blocks either side of the counter, and the counter, with whether they stand in that order. */
@@ -445,31 +462,23 @@ test('in English «Cancel» is the same word in the same place, and the round «
   }
 });
 
-test('the step’s heading belongs to the bar, because the bar is what does not scroll', () => {
+test('the step’s heading is its own piece under the bar, with the line under it where a step has one', () => {
+  // The bar's row is what always stands; the heading is what gives way to the keyboard first
+  // (`Board`'s `heading`, TASK-401) — so the two are two pieces, and the bar carries no heading.
   const step = story(
-    <WizardBar
-      step={3}
-      steps={4}
-      label="Шаг 3 из 4"
-      title="Под что монтировать"
-      note="Без музыки или один-несколько треков."
-    />,
+    <WizardHeading title="Под что монтировать" note="Без музыки или один-несколько треков." />,
   );
   expect(step).toContain('Под что монтировать');
   expect(step).toContain('Без музыки или один-несколько треков.');
-  // The line under the heading is there only where a step has one.
-  expect(
-    story(<WizardBar step={3} steps={4} label="Шаг 3 из 4" title="Под что монтировать" />),
-  ).not.toContain('Без музыки');
+  expect(story(<WizardHeading title="Под что монтировать" />)).not.toContain('Без музыки');
+  expect(story(<WizardBar step={3} steps={4} label="Шаг 3 из 4" />)).not.toContain('Под что');
 });
 
 test('the total has no scale under it, because there is no step after it', () => {
-  const summary = story(
-    <WizardBar step={4} steps={4} label="Итог" title="Свадьба Лизы и Марка" variant="summary" />,
-  );
+  const summary = story(<WizardBar step={4} steps={4} label="Итог" variant="summary" />);
   // The scale is what says how far there is left to go, and the wizard's own progressbar with it.
   expect(summary).not.toContain('role="progressbar"');
-  expect(story(<WizardBar step={4} steps={4} label="Шаг 4 из 4" title="Как собрать" />)).toContain(
+  expect(story(<WizardBar step={4} steps={4} label="Шаг 4 из 4" />)).toContain(
     'role="progressbar"',
   );
 });

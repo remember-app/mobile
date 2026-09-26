@@ -42,7 +42,7 @@ vi.mock('react-native-safe-area-context', () => ({
 import { readFileSync } from 'node:fs';
 
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
-import { cloneElement, type ReactElement, type ReactNode, useEffect } from 'react';
+import { cloneElement, type ReactElement, type ReactNode, useContext, useEffect } from 'react';
 import {
   Keyboard,
   KeyboardAvoidingView,
@@ -59,9 +59,10 @@ import TestRenderer, {
 
 import { ActionBar, Board } from '@/kit/bars';
 import { Button } from '@/kit/button';
+import { AreaRoom, areaSight } from '@/kit/field';
 import { useFieldInBar } from '@/kit/interaction';
 import { Sheet } from '@/kit/sheet';
-import { Text } from '@/kit/text';
+import { Text, TYPE_MOST } from '@/kit/text';
 import { setTheme, themes, type } from '@/theme';
 
 /**
@@ -270,11 +271,14 @@ test.each([
 ])(
   'at ×%s type under a status line %s high the bar and the layer stand while a line of the body is left',
   async (fontScale, top) => {
-    // The line of the body grows with the type, and the status line is no room of the body's at all.
+    // The line of the body grows with the type — up to ×2, `TYPE_MOST`, past which the body's words
+    // stop growing (TASK-401: counted at ×3.571, the bar and the layer went into the scroll 36 early
+    // for a line that is never drawn that tall) — and the status line is no room of the body's at all.
+    const line = LINE * Math.min(fontScale, TYPE_MOST);
     const it = await measured();
-    await it.windowOf(fits(LINE * fontScale) + top, { fontScale, top });
+    await it.windowOf(fits(line) + top, { fontScale, top });
     expect(it.standing()).toBe(true);
-    await it.windowOf(fits(LINE * fontScale) + top - 0.5, { fontScale, top });
+    await it.windowOf(fits(line) + top - 0.5, { fontScale, top });
     expect(it.standing()).toBe(false);
     // The board itself keeps clear of the status line either way.
     expect(StyleSheet.flatten(it.root.findByType(KeyboardAvoidingView).props.style)).toMatchObject({
@@ -403,12 +407,23 @@ test('the body scrolls only when it must, keeps a form’s own button pressable,
  * Now the bottom layer is still never moved by the keyboard, and the bar is — into the scroll, over a
  * body that is never drawn anew.
  */
-/** What the phone lays out again when the keyboard comes up: everything but the bar and the layer. */
-async function keyboard(it: Awaited<ReturnType<typeof measured>>, room: number) {
-  const bar = it.block(it.words('Шапка'));
-  const layer = it.block(it.root.findByType(Field));
+/**
+ * What the phone lays out again when the keyboard comes up: everything but the bar, the heading
+ * under it and the layer, which are as tall as they were.
+ */
+async function keyboard(
+  it: Pick<Awaited<ReturnType<typeof mount>>, 'root' | 'block' | 'words'>,
+  room: number,
+) {
+  const kept = [
+    it.block(it.words('Шапка')),
+    it.block(it.root.findByType(Field)),
+    ...it.root
+      .findAll((one) => one.type === Text && one.props.children === 'Заголовок')
+      .map(it.block),
+  ];
   const others = it.root.findAll(
-    (one) => typeof one.props.onLayout === 'function' && one !== bar && one !== layer,
+    (one) => typeof one.props.onLayout === 'function' && !kept.includes(one),
   );
   for (const node of others) await laidOut(node, room);
 }
@@ -438,9 +453,12 @@ test('short of the bar and a line of the body over the keyboard, the bar goes to
   expect(
     it.root.findAll((one) => one.type === Text && one.props.children === 'Шапка'),
   ).toHaveLength(1);
-  // At the largest type the line is taller, and so is what the room has to hold.
-  await keyboard(it, 100 + LINE * 3.571 - 1);
+  // At large type the line is taller, and so is what the room has to hold — as tall as the body's
+  // words grow, ×2, and no taller at the largest type.
   await it.windowOf(fits(LINE * 3.571) + 200, { fontScale: 3.571 });
+  await keyboard(it, 100 + LINE * TYPE_MOST);
+  expect(it.inScroll('Шапка')).toHaveLength(0);
+  await keyboard(it, 100 + LINE * TYPE_MOST - 1);
   expect(it.inScroll('Шапка')).not.toHaveLength(0);
   // The keyboard goes down: the bar stands again.
   await keyboard(it, 700);
@@ -570,6 +588,219 @@ test('the field being typed into is brought into what the keyboard leaves of the
   }
 });
 
+/**
+ * TASK-401 (R3). The wizard's heading and the story under it on the smallest phone with the
+ * keyboard up: the room over «Дальше» held the heading and one or two lines of the story, and past
+ * that the whole bar went into the scroll over a box that filled what was left — «Назад» and
+ * «Отмена» a scroll up that no finger could make, since every drag landed in the box. Now the
+ * heading goes first, and the bar's row stays.
+ */
+/** What the board tells a long-text box in its body (`TextArea` draws its height from it). */
+let told: number | null = null;
+function Story() {
+  told = useContext(AreaRoom);
+  return null;
+}
+
+/** The wizard as the board sees it: a bar 100 tall, a heading 150 under it, the story in the body. */
+async function headed() {
+  const it = await mount(
+    <Board bar={<Text>Шапка</Text>} heading={<Text>Заголовок</Text>} footer={<Field />}>
+      <Text>Тело</Text>
+      <Story />
+    </Board>,
+  );
+  await laidOut(it.block(it.words('Шапка')), 100);
+  await laidOut(it.block(it.words('Заголовок')), 150);
+  await laidOut(it.block(it.root.findByType(Field)), 120);
+  await it.windowOf(100 + 150 + 120 + 600);
+  const scroll = () => it.root.findByType(ScrollView);
+  const inScroll = (text: string) => scroll().findAll((one) => one.props.children === text);
+  return { ...it, scroll, inScroll, keyboard: (room: number) => keyboard(it, room) };
+}
+
+/**
+ * The room the heading needs over the keyboard: the bar, itself, and a story box of three lines
+ * with its 12 of air over and under it.
+ */
+const holding = (scale: number) => 100 + 150 + 12 * 2 + areaSight(scale);
+
+test('short of three lines of the story under the heading, the heading goes into the scroll first, and the bar’s row stays', async () => {
+  const it = await headed();
+  // A box of three lines is its edges (1 + 16 over and under) and three of its 24 lines.
+  expect(areaSight(1)).toBe(2 * (1 + 16) + 3 * 24);
+  await it.keyboard(holding(1));
+  expect(it.inScroll('Заголовок')).toHaveLength(0);
+  expect(it.inScroll('Шапка')).toHaveLength(0);
+  // The story's box, which scrolls inside itself and keeps its caret in its own frame, is told what
+  // the body has on the screen, less its 12 of air on each side: three lines, whole.
+  expect(told).toBe(areaSight(1));
+
+  // A point less: the heading is the scroll's head, over the body; the bar stands, and so does the
+  // layer under the keyboard.
+  await it.keyboard(holding(1) - 1);
+  expect(it.inScroll('Заголовок')).not.toHaveLength(0);
+  expect(it.inScroll('Шапка')).toHaveLength(0);
+  expect(it.scroll().findAllByType(Field)).toHaveLength(0);
+  expect(order(it.tree, ['Шапка', 'Заголовок', 'Тело', 'Поле'])).toEqual([
+    'Шапка',
+    'Заголовок',
+    'Тело',
+    'Поле',
+  ]);
+  // The box is told what the body has on the screen under the bar now.
+  expect(told).toBe(holding(1) - 1 - 100 - 24);
+
+  // Short of the bar and a line of the body too: the bar follows, over the heading.
+  await it.keyboard(100 + LINE - 1);
+  expect(it.inScroll('Шапка')).not.toHaveLength(0);
+  expect(order(it.tree, ['Шапка', 'Заголовок', 'Тело'])).toEqual(['Шапка', 'Заголовок', 'Тело']);
+  expect(told).toBe(100 + LINE - 1 - 24);
+
+  // The keyboard goes down: both stand again, and the body has more than the box's own 280.
+  await it.keyboard(700);
+  expect(it.inScroll('Шапка')).toHaveLength(0);
+  expect(it.inScroll('Заголовок')).toHaveLength(0);
+  expect(told).toBe(700 - 100 - 150 - 24);
+  // A window the top and the layer overrun scrolls whole: nothing to fit the box to.
+  await it.windowOf(100 + 150 + 120 + LINE - 1);
+  expect(told).toBeNull();
+});
+
+test('three lines of the story are counted at the size its words grow to, and no larger', async () => {
+  const it = await headed();
+  for (const scale of [1.353, 2, 3.571]) {
+    await it.windowOf(100 + 150 + 120 + 600, { fontScale: scale });
+    await it.keyboard(holding(scale));
+    expect(it.inScroll('Заголовок'), `×${scale}`).toHaveLength(0);
+    await it.keyboard(holding(scale) - 1);
+    expect(it.inScroll('Заголовок'), `×${scale}`).not.toHaveLength(0);
+    expect(it.inScroll('Шапка'), `×${scale}`).toHaveLength(0);
+  }
+  // The box's words stop at ×2, and so do its lines.
+  expect(areaSight(3.571)).toBe(areaSight(TYPE_MOST));
+});
+
+test('the body keeps its place while the heading goes into the scroll above it, and the story is brought into what is left', async () => {
+  const to = vi.fn();
+  const it = await mount(
+    <Board bar={<Text>Шапка</Text>} heading={<Text>Заголовок</Text>} footer={<Field />}>
+      <Text>Тело</Text>
+    </Board>,
+    { createNodeMock: () => ({ scroll: to }) },
+  );
+  await laidOut(it.block(it.words('Шапка')), 100);
+  await laidOut(it.block(it.words('Заголовок')), 150);
+  await laidOut(it.block(it.root.findByType(Field)), 120);
+  await it.windowOf(100 + 150 + 120 + 600);
+  const scroll = () => it.root.findByType(ScrollView);
+  const room = (height: number) => keyboard(it, height);
+  await room(700);
+  await act(async () => scroll().props.onScroll({ nativeEvent: { contentOffset: { y: 40 } } }));
+  // The heading (150) is now over the body in the scroll: scrolled past it, the body stands where
+  // it did.
+  await room(300);
+  expect(to).toHaveBeenLastCalledWith(expect.objectContaining({ top: 40 + 150 }));
+  await act(async () => scroll().props.onScroll({ nativeEvent: { contentOffset: { y: 200 } } }));
+  await room(700);
+  expect(to).toHaveBeenLastCalledWith(expect.objectContaining({ top: 50 }));
+
+  // The story 60 down the body and 150 tall, the keyboard up for it: counted from the body's place
+  // under the heading in the scroll, and whole in the 200 the body has under the bar.
+  try {
+    focus.field = { y: 60, h: 150 };
+    await act(async () => scroll().props.onScroll({ nativeEvent: { contentOffset: { y: 0 } } }));
+    await room(300);
+    expect(to).toHaveBeenLastCalledWith(
+      expect.objectContaining({ top: 150 + 60 + 150 + 12 - 200 }),
+    );
+  } finally {
+    focus.field = null;
+  }
+});
+
+test('a body that is a list takes the heading in at its head when the room under it is short, the bar standing', async () => {
+  const edges: { head: ReactNode; foot: ReactNode }[] = [];
+  const it = await mount(
+    <Board
+      bar={<Text>Шапка</Text>}
+      heading={<Text>Заголовок</Text>}
+      footer={<Text>Низ</Text>}
+      list={(given) => {
+        edges.push(given);
+        return (
+          <View>
+            {given.head}
+            <Text>Список</Text>
+          </View>
+        );
+      }}
+    />,
+  );
+  await laidOut(it.block(it.words('Шапка')), 100);
+  await laidOut(it.block(it.words('Заголовок')), 150);
+  await laidOut(it.block(it.words('Низ')), 120);
+  await it.windowOf(100 + 150 + 120 + 600);
+  // The room over the layer: the block that holds the list, and not the keyboard's own wrapper.
+  const roomView = it.root.findAll(
+    (one) =>
+      typeof one.props.onLayout === 'function' &&
+      one.parent?.type !== KeyboardAvoidingView &&
+      one.findAll((inner) => inner.props.children === 'Список').length > 0,
+  )[0];
+  await laidOut(roomView, holding(1));
+  expect(edges.at(-1)?.head).toBeNull();
+  await laidOut(roomView, holding(1) - 1);
+  expect(order(it.tree, ['Шапка', 'Заголовок', 'Список'])).toEqual([
+    'Шапка',
+    'Заголовок',
+    'Список',
+  ]);
+  expect(
+    it.root.findAll((one) => one.type === Text && one.props.children === 'Заголовок'),
+  ).toHaveLength(1);
+  // Only the heading went into the list: the bar stands over it.
+  const listed = it.root.find(
+    (one) =>
+      one.type === View &&
+      [one.props.children].flat().some((child) => child?.props?.children === 'Список'),
+  );
+  expect(listed.findAll((one) => one.props.children === 'Заголовок')).not.toHaveLength(0);
+  expect(listed.findAll((one) => one.props.children === 'Шапка')).toHaveLength(0);
+});
+
+test('the field is brought into sight once the keyboard is up, whichever reached the board first — the room or the focus', async () => {
+  // TASK-401: on the phone the field's focus and the keyboard's room come to the board by two roads,
+  // and the room often comes first. The board then knew of no field: on iPhone SE and on 390 × 844
+  // at the ordinary type the story stood where it was, one or two of its lines over «Дальше».
+  const heard: Record<string, () => void> = {};
+  const listen = vi.spyOn(Keyboard, 'addListener').mockImplementation(((
+    event: string,
+    handler: () => void,
+  ) => {
+    heard[event] = handler;
+    return { remove: () => {} };
+  }) as never);
+  const to = vi.fn();
+  try {
+    const it = await measured(screen(), { createNodeMock: () => ({ scroll: to }) });
+    await it.windowOf(fits() + 600);
+    await keyboard(it, 600);
+    to.mockClear();
+    // The room first, with no field known yet: nothing to bring.
+    await keyboard(it, 300);
+    expect(to).not.toHaveBeenCalled();
+    // The keyboard is up, and by then the field it came up for is known: 450 down and 50 tall, it
+    // comes up to the edge of the 200 the body has under the bar.
+    focus.field = { y: 450, h: 50 };
+    await act(async () => heard.keyboardDidShow?.());
+    expect(to).toHaveBeenLastCalledWith(expect.objectContaining({ top: 450 + 50 + 12 - 200 }));
+  } finally {
+    listen.mockRestore();
+    focus.field = null;
+  }
+});
+
 test('every field of the kit tells a bar it stands in that it is there', () => {
   // A field in the bar moved into the scroll is drawn anew, and the keyboard goes down with it: the
   // bar learns it holds one from the field itself, so no field of the kit may forget to say so.
@@ -683,6 +914,39 @@ test('a sheet is the other place the keyboard is given way to: iOS is told, Andr
   } finally {
     Platform.OS = system;
   }
+});
+
+test('at the largest type a sheet keeps its heading and buttons still while a line of the body as tall as its words grow fits', async () => {
+  // TASK-401: the body's words stop at ×2 (`TYPE_MOST`), so its line does too — counted at ×3.571
+  // the sheet let go of its heading and buttons 36 too early. The sheet at its ceiling of 600: 1 + 12
+  // of its own, the handle 4, the heading 300, four gaps of 18 and the 30 under the buttons leave a
+  // ×2 line (46) exactly with buttons 135 tall.
+  const it = await mount(
+    <Sheet
+      visible
+      onCancel={() => {}}
+      title="Ник"
+      footer={<Button variant="primary" label="Сохранить" />}
+    >
+      <Text>Поле</Text>
+    </Sheet>,
+  );
+  const sheet = it.root.findAll(
+    (one) =>
+      one.props.accessibilityViewIsModal === true && typeof one.props.onLayout === 'function',
+  )[0];
+  const pinnedWith = async (buttons: number) => {
+    await laidOut(it.block(it.words('Ник')), 300);
+    await laidOut(it.block(it.root.findByType(Button)), buttons);
+    await laidOut(sheet, 600);
+    return (
+      it.root.findByType(ScrollView).findAll((one) => one.props.children === 'Ник').length === 0
+    );
+  };
+  await it.windowOf(667, { fontScale: 3.571 });
+  expect(1 + 12 + 4 + 300 + LINE * TYPE_MOST + 135 + 4 * 18 + 30).toBe(600);
+  expect(await pinnedWith(135)).toBe(true);
+  expect(await pinnedWith(136)).toBe(false);
 });
 
 test('the keyboard goes down by a tap or a drag on anything but a field or a button, and by a drag of the body', async () => {

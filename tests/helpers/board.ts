@@ -16,9 +16,9 @@ export const scrolled = (node: ReactTestInstance) => {
 };
 
 /**
- * The two blocks the board listens to — around the bar and around the bottom layer — as they stand
- * before anything is measured, that is outside the scroll: the outermost views with a layout handler
- * that are not in the body. Only one of them where the screen has only a bar or only a bottom layer.
+ * The blocks the board listens to — around the bar, the heading under it and the bottom layer — as
+ * they stand before anything is measured, that is outside the scroll: the outermost views with a
+ * layout handler that are not in the body. Only those of them the screen has.
  */
 export function blocks(root: ReactTestInstance): ReactTestInstance[] {
   // The screen on top where several are stacked, the way the wizard's steps stand.
@@ -43,21 +43,19 @@ export function blocks(root: ReactTestInstance): ReactTestInstance[] {
     .sort((a, b) => all.indexOf(a) - all.indexOf(b));
 }
 
-/** The phone laying the bar out `bar` tall and the bottom layer `footer` tall. */
+/** The phone laying out the bar, the heading and the bottom layer this tall — those it is told of. */
 export async function measure(
   root: ReactTestInstance,
-  { bar, footer }: { bar?: number; footer?: number },
+  sizes: { bar?: number; heading?: number; footer?: number },
 ) {
-  const [first, second] = blocks(root);
-  const to: [ReactTestInstance | undefined, number | undefined][] =
-    bar !== undefined && footer !== undefined
-      ? [
-          [first, bar],
-          [second, footer],
-        ]
-      : [[first, bar ?? footer]];
-  for (const [node, height] of to)
+  const board = root.findAllByType(Board).at(-1)!;
+  const pieces = (['bar', 'heading', 'footer'] as const).filter((piece) => board.props[piece]);
+  const found = blocks(root);
+  for (const [i, piece] of pieces.entries()) {
+    const height = sizes[piece];
+    if (height === undefined) continue;
     await act(async () =>
-      node?.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 360, height } } }),
+      found[i]?.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 360, height } } }),
     );
+  }
 }

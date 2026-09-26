@@ -142,17 +142,12 @@ export default function PickFramesStep() {
       <Sheet
         visible={showDropped}
         onCancel={() => setShowDropped(false)}
-        // Spec 8, `SheetRejected`: the paragraph stands 8 under the heading — closer than the sheet's
-        // own gap — so the two are one block, and the heading is drawn here rather than as `title`.
-        head={
-          <View style={styles.lead}>
-            <Text role="sheetTitle" accessibilityRole="header">
-              {s.montage.droppedTitle}
-            </Text>
-            <Text role="bodyXs" tone="muted">
-              {s.montage.droppedText(passDropped.length, material.length)}
-            </Text>
-          </View>
+        title={s.montage.droppedTitle}
+        // Spec 8, `SheetRejected`: the paragraph stands 8 under the heading, one block with it.
+        lead={
+          <Text role="bodyXs" tone="muted">
+            {s.montage.droppedText(passDropped.length, material.length)}
+          </Text>
         }
         footer={
           <>
@@ -224,7 +219,6 @@ const useStyles = themed(() =>
     headLine: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s3 },
     // The layout hangs it 4 past the screen's margin (`MontageSelect`: its right edge at 378).
     whatDropped: { marginRight: -space.s1 },
-    lead: { gap: space.s2 },
     grid: { paddingHorizontal: space.s4, paddingBottom: space.s7, gap: GRID_GAP },
     edge: { marginHorizontal: -space.s4 },
     row: { flexDirection: 'row', gap: GRID_GAP },
