@@ -347,30 +347,31 @@ export function CodeField({
 /** Spec 7.3, detail 14: the long-text box is 280 tall, and its line is 24 — not the body's 23. */
 const AREA = 280;
 const AREA_LINE = 24;
-/** Its border and the 16 of air over its first line. */
-const AREA_TOP = 1 + space.s4;
+/** Its border and the 16 of air on either side of its lines. */
+const AREA_EDGE = 1 + space.s4;
 
 /**
- * How much of the long-text box has to be in sight for a person to be writing in it: its top edge
- * and three lines, at the size its words grow to. What a board leaves under its heading while the
- * keyboard is up is measured by this (`Board`).
+ * The smallest long-text box a person can write in: three lines, at the size its words grow to, and
+ * its edges. What a board leaves under its heading while the keyboard is up is measured by this
+ * (`Board`).
  */
 export function areaSight(fontScale: number): number {
-  return AREA_TOP + 3 * AREA_LINE * Math.min(fontScale, TYPE_MOST);
+  return AREA_EDGE * 2 + 3 * AREA_LINE * Math.min(fontScale, TYPE_MOST);
 }
 
 /**
- * How tall a long-text box may stand where the keyboard has left the body less than its 280 — told
- * by the board, null where it has room. The box scrolls inside itself and keeps its caret in its own
- * frame, so a box taller than what is left of the body would keep the caret behind the keyboard.
+ * How much of the body a board has on the screen for a long-text box — null off a board, or before
+ * it has been measured. The box scrolls inside itself and keeps its caret in its own frame, so a box
+ * taller than what the board shows of it — the keyboard up, a small phone, large type — kept the
+ * caret out of sight, behind «Дальше» and the keyboard.
  */
 export const AreaRoom = createContext<number | null>(null);
 
 /**
  * The long-text box (spec 7.3): 280 tall, never dragged bigger by hand, scrolling inside itself, and
  * wearing the accent border at rest — it is the one thing a step of the wizard asks for, and the
- * border says so before the caret arrives. Where the keyboard leaves the board less than that, the
- * box is as tall as what is left ({@link AreaRoom}), whole in sight with its caret.
+ * border says so before the caret arrives. Where the board shows less of the body than that, the
+ * box is as tall as what it shows ({@link AreaRoom}), whole in sight with its caret.
  *
  * No counter under it any more. A story told to a director is not a form field with a quota, and the
  * limit — which is still enforced, because the api has one — is not something anybody should be

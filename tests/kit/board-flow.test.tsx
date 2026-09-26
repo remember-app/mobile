@@ -619,19 +619,22 @@ async function headed() {
   return { ...it, scroll, inScroll, keyboard: (room: number) => keyboard(it, room) };
 }
 
-/** The room the heading needs over the keyboard: the bar, itself, and three lines of the story. */
-const holding = (scale: number) => 100 + 150 + 12 + areaSight(scale);
+/**
+ * The room the heading needs over the keyboard: the bar, itself, and a story box of three lines
+ * with its 12 of air over and under it.
+ */
+const holding = (scale: number) => 100 + 150 + 12 * 2 + areaSight(scale);
 
 test('short of three lines of the story under the heading, the heading goes into the scroll first, and the bar’s row stays', async () => {
   const it = await headed();
-  // Three lines of the story are its top edge (1 + 16) and three of its 24 lines, in sight 12 under
-  // the heading.
-  expect(areaSight(1)).toBe(1 + 16 + 3 * 24);
+  // A box of three lines is its edges (1 + 16 over and under) and three of its 24 lines.
+  expect(areaSight(1)).toBe(2 * (1 + 16) + 3 * 24);
   await it.keyboard(holding(1));
   expect(it.inScroll('Заголовок')).toHaveLength(0);
   expect(it.inScroll('Шапка')).toHaveLength(0);
-  // With the top standing the box has its own 280.
-  expect(told).toBeNull();
+  // The story's box, which scrolls inside itself and keeps its caret in its own frame, is told what
+  // the body has on the screen, less its 12 of air on each side: three lines, whole.
+  expect(told).toBe(areaSight(1));
 
   // A point less: the heading is the scroll's head, over the body; the bar stands, and so does the
   // layer under the keyboard.
@@ -645,8 +648,7 @@ test('short of three lines of the story under the heading, the heading goes into
     'Тело',
     'Поле',
   ]);
-  // The story's box, which scrolls inside itself and keeps its caret in its own frame, is told what
-  // the body has on the screen under the bar, less its 12 of air on each side.
+  // The box is told what the body has on the screen under the bar now.
   expect(told).toBe(holding(1) - 1 - 100 - 24);
 
   // Short of the bar and a line of the body too: the bar follows, over the heading.
@@ -655,10 +657,13 @@ test('short of three lines of the story under the heading, the heading goes into
   expect(order(it.tree, ['Шапка', 'Заголовок', 'Тело'])).toEqual(['Шапка', 'Заголовок', 'Тело']);
   expect(told).toBe(100 + LINE - 1 - 24);
 
-  // The keyboard goes down: both stand again, and the box is its own 280.
+  // The keyboard goes down: both stand again, and the body has more than the box's own 280.
   await it.keyboard(700);
   expect(it.inScroll('Шапка')).toHaveLength(0);
   expect(it.inScroll('Заголовок')).toHaveLength(0);
+  expect(told).toBe(700 - 100 - 150 - 24);
+  // A window the top and the layer overrun scrolls whole: nothing to fit the box to.
+  await it.windowOf(100 + 150 + 120 + LINE - 1);
   expect(told).toBeNull();
 });
 
@@ -762,6 +767,38 @@ test('a body that is a list takes the heading in at its head when the room under
   );
   expect(listed.findAll((one) => one.props.children === 'Заголовок')).not.toHaveLength(0);
   expect(listed.findAll((one) => one.props.children === 'Шапка')).toHaveLength(0);
+});
+
+test('the field is brought into sight once the keyboard is up, whichever reached the board first — the room or the focus', async () => {
+  // TASK-401: on the phone the field's focus and the keyboard's room come to the board by two roads,
+  // and the room often comes first. The board then knew of no field: on iPhone SE and on 390 × 844
+  // at the ordinary type the story stood where it was, one or two of its lines over «Дальше».
+  const heard: Record<string, () => void> = {};
+  const listen = vi.spyOn(Keyboard, 'addListener').mockImplementation(((
+    event: string,
+    handler: () => void,
+  ) => {
+    heard[event] = handler;
+    return { remove: () => {} };
+  }) as never);
+  const to = vi.fn();
+  try {
+    const it = await measured(screen(), { createNodeMock: () => ({ scroll: to }) });
+    await it.windowOf(fits() + 600);
+    await keyboard(it, 600);
+    to.mockClear();
+    // The room first, with no field known yet: nothing to bring.
+    await keyboard(it, 300);
+    expect(to).not.toHaveBeenCalled();
+    // The keyboard is up, and by then the field it came up for is known: 450 down and 50 tall, it
+    // comes up to the edge of the 200 the body has under the bar.
+    focus.field = { y: 450, h: 50 };
+    await act(async () => heard.keyboardDidShow?.());
+    expect(to).toHaveBeenLastCalledWith(expect.objectContaining({ top: 450 + 50 + 12 - 200 }));
+  } finally {
+    listen.mockRestore();
+    focus.field = null;
+  }
 });
 
 test('every field of the kit tells a bar it stands in that it is there', () => {

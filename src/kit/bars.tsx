@@ -1,6 +1,7 @@
 import { X } from 'lucide-react-native';
-import { type ReactNode, useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
+  Keyboard,
   KeyboardAvoidingView,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
@@ -80,14 +81,15 @@ const FIELD_BOX = space.s3;
  * The keyboard is the board's to handle, once for every screen (TASK-377). Whatever stands at the
  * bottom rides up over it, the screen's action with it, and stays there whatever the type size. The
  * top gives way instead (TASK-381, TASK-401), a piece at a time. First the heading under the bar:
- * when the room the keyboard leaves over the bottom layer cannot hold the bar, the heading and three
- * lines of a long text under them ({@link areaSight}) — a small phone, or large type, the wizard's
- * heading over the story — the heading goes into the scroll at the body's head, and the bar's row
- * with «Назад» and «Отмена» stays where a finger finds it. Then the bar itself, once the room cannot
- * hold it and a line of the body. The body stays where it was on the screen either way; what went
- * into the scroll is a scroll up. The field being typed into in the body is then brought into what
- * the keyboard left, whole where it fits — and a long-text box, which scrolls inside itself, is
- * made as tall as what is left ({@link AreaRoom}), so its caret is never behind the keyboard. The
+ * when the room the keyboard leaves over the bottom layer cannot hold the bar, the heading and a
+ * long-text box of three lines under them ({@link areaSight}) — a small phone, or large type, the
+ * wizard's heading over the story — the heading goes into the scroll at the body's head, and the
+ * bar's row with «Назад» and «Отмена» stays where a finger finds it. Then the bar itself, once the
+ * room cannot hold it and a line of the body. The body stays where it was on the screen either way;
+ * what went into the scroll is a scroll up. The field being typed into in the body is then brought
+ * into what the keyboard left, whole where it fits — and a long-text box, which scrolls inside
+ * itself, is never taller than what the board shows of the body ({@link AreaRoom}), so its caret
+ * is never behind «Дальше» or the keyboard. The
  * body is never what moves, so a field in it is never drawn anew; a bar holding a field of its own
  * (`useFieldInBar`) stays put for the same reason, and past it the top gives rather than the
  * action — the board stands on its bottom edge. The keyboard goes down the ordinary ways — a tap or
@@ -117,13 +119,12 @@ export function Board({ bar, heading, footer, body, list, children, style }: Boa
   const held = room === 0 || fields > 0;
   const stands = pinned && (held || barTall + line <= room);
   const leads =
-    stands && (!heading || held || barTall + leadTall + FIELD_BOX + areaSight(fontScale) <= room);
+    stands &&
+    (!heading || held || barTall + leadTall + FIELD_BOX * 2 + areaSight(fontScale) <= room);
   /** What of the top is in the scroll's head now — and the column stands that far down it. */
   const lifted = (stands ? 0 : barTall) + (leads ? 0 : leadTall);
   /** The part of the room the body has on the screen. */
   const sight = room - (barTall + leadTall - lifted);
-  /** Only once the keyboard has moved the top: a long-text box then fits what the body has. */
-  const areaRoom = pinned && !leads && room > 0 ? Math.max(0, sight - FIELD_BOX * 2) : null;
 
   const scroll = useRef<ScrollView>(null);
   const column = useRef<View>(null);
@@ -135,28 +136,41 @@ export function Board({ bar, heading, footer, body, list, children, style }: Boa
     offset.current = Math.max(0, y);
     scroll.current?.scrollTo({ y: offset.current, animated: false });
   };
-  const was = useRef({ lifted, room });
-  useLayoutEffect(() => {
-    const before = was.current;
-    was.current = { lifted, room };
-    // The top in and out of the scroll's head while the bottom layer stands: the body keeps its
-    // place on the screen. When the window moved it all, the board starts from its top.
-    if (before.lifted !== lifted && pinned) to(offset.current + lifted - before.lifted);
-    // Less room — the keyboard has come up: the field being typed into in the body is brought
-    // into what is left of it, box and all, or from its top where it is taller than that.
+  const was = useRef({ lifted, room, sight });
+  /**
+   * The field being typed into in the body, brought into what the keyboard left of it: box and all,
+   * or from its top where it is taller than that.
+   */
+  const bring = () => {
     const field = focusedField();
-    if (room >= before.room || !field || !column.current) return;
+    if (!field || !column.current) return;
+    const now = was.current;
     field.measureLayout(
       column.current,
       (_x, y, _w, h) => {
-        const from = y + lifted - FIELD_BOX;
+        const from = y + now.lifted - FIELD_BOX;
         const whole = h + FIELD_BOX * 2;
-        if (from < offset.current || whole > sight) to(from);
-        else if (from + whole > offset.current + sight) to(from + whole - sight);
+        if (from < offset.current || whole > now.sight) to(from);
+        else if (from + whole > offset.current + now.sight) to(from + whole - now.sight);
       },
       () => {},
     );
+  };
+  useLayoutEffect(() => {
+    const before = was.current;
+    was.current = { lifted, room, sight };
+    // The top in and out of the scroll's head while the bottom layer stands: the body keeps its
+    // place on the screen. When the window moved it all, the board starts from its top.
+    if (before.lifted !== lifted && pinned) to(offset.current + lifted - before.lifted);
+    // Less room — the keyboard has come up.
+    if (room < before.room) bring();
   }, [lifted, room, pinned, sight]);
+  // The field's focus and the keyboard's room reach the board by two roads, and the room is often
+  // first — the board then knows of no field yet (TASK-401). Once the keyboard is up, it does.
+  useEffect(() => {
+    const shown = Keyboard.addListener('keyboardDidShow', bring);
+    return () => shown.remove();
+  }, []);
 
   const head = bar ? (
     <FieldInBar.Provider value={holdBar}>
@@ -203,7 +217,11 @@ export function Board({ bar, heading, footer, body, list, children, style }: Boa
           >
             {scrolled}
             <View ref={column} style={[styles.grow, body]}>
-              <AreaRoom.Provider value={areaRoom}>{children}</AreaRoom.Provider>
+              <AreaRoom.Provider
+                value={pinned && room > 0 ? Math.max(0, sight - FIELD_BOX * 2) : null}
+              >
+                {children}
+              </AreaRoom.Provider>
             </View>
             {pinned ? null : tail}
           </ScrollView>
