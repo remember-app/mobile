@@ -623,10 +623,14 @@ describe.each(SCENARIOS)('%s — the journal of one stage and the card of a file
     expect(chips().map(scrolled)).toEqual([false, false, false, false]);
     expect(screen.root.findAllByType(JournalLine)).toHaveLength(1);
 
-    // At ×3.571 on 320 × 568 the bar and the chips are the list's own head, once each, and the
-    // line — which would run behind them — is not drawn.
+    // At ×3.571 on 320 × 568 a bar and chips 520 tall still leave the records a line — at ×2, as
+    // far as the body's words grow (`TYPE_MOST`, TASK-401) — and they stand.
     Object.assign(handset, { height: 568, fontScale: 3.571 });
     await measure(screen.root, { bar: 520 });
+    expect(scrolled(bar()[0])).toBe(false);
+    // 540 leave none: the bar and the chips are the list's own head, once each, and the line —
+    // which would run behind them — is not drawn.
+    await measure(screen.root, { bar: 540 });
     expect([bar().length, chips().length]).toEqual([1, 4]);
     expect(scrolled(bar()[0])).toBe(true);
     expect(chips().map(scrolled)).toEqual([true, true, true, true]);

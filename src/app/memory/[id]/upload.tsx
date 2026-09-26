@@ -664,28 +664,24 @@ export default function UploadScreen() {
         visible={asking}
         onCancel={() => answerAskAll(null)}
         // Spec 8, `SheetAskAll`: the line of what went, then the question with its paragraph 8 under
-        // it — closer than the sheet's own gap, so the heading is drawn here rather than as `title`.
+        // it, one block with it.
         head={
-          <>
-            <View style={styles.result}>
-              <View
-                accessibilityElementsHidden
-                importantForAccessibility="no-hide-descendants"
-                style={styles.tick}
-              >
-                <Icon icon={Check} size={15} color={color.sparkInk} />
-              </View>
-              <Text role="rowSm">{s.upload.sentToMemory(sent)}</Text>
+          <View style={styles.result}>
+            <View
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+              style={styles.tick}
+            >
+              <Icon icon={Check} size={15} color={color.sparkInk} />
             </View>
-            <View style={styles.ask}>
-              <Text role="sheetTitle" accessibilityRole="header">
-                {s.upload.askAll}
-              </Text>
-              <Text role="bodySm" tone="muted">
-                {s.upload.askAllText}
-              </Text>
-            </View>
-          </>
+            <Text role="rowSm">{s.upload.sentToMemory(sent)}</Text>
+          </View>
+        }
+        title={s.upload.askAll}
+        lead={
+          <Text role="bodySm" tone="muted">
+            {s.upload.askAllText}
+          </Text>
         }
         footer={
           <>
@@ -753,7 +749,6 @@ const useStyles = themed(({ color }) =>
     room: { flex: 1, backgroundColor: room.ink },
     roomBar: { paddingHorizontal: space.s3 },
     result: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },
-    ask: { gap: space.s2 },
     // The 26 circle of spec 7.6's «готово», on the line that says what has just gone.
     tick: {
       width: 26,

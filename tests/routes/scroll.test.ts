@@ -152,6 +152,8 @@ test('a bar is never in the body and a bottom layer is never in it either: they 
   for (const [path, source] of screens)
     for (const [part, prop] of [
       [/<(AppBar|WizardBar)\b/g, 'bar'],
+      // The step's heading is the board's too: it goes into the scroll before the bar does.
+      [/<WizardHeading\b/g, 'heading'],
       ...(path.startsWith('screens/') ? [] : [[/<ActionBar\b/g, 'footer'] as const]),
     ] as const) {
       const inside = spansOf(source, prop);

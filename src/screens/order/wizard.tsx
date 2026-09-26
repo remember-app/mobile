@@ -37,6 +37,7 @@ import {
   useReducedMotion,
   Waiting,
   WizardBar,
+  WizardHeading,
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { formatRuntime } from '@/lib/dates';
@@ -480,6 +481,10 @@ export function WizardStep({
   const summary = step === 'summary';
   /** A numbered step of the four, as against the two screens that only look like one. */
   const counted = typeof step === 'number';
+  // The bar with no scale — what the total wears, and what the way in wears too: there is no step
+  // under either of them to count. The total's heading comes up to the row, the way in's stands 2
+  // lower (`MontageTemplate`: the grid at 190).
+  const face = counted ? 'step' : summary ? 'summary' : 'entry';
   /** «Отмена» pressed over a walk that has something in it — asked before it is thrown away. */
   const [leaving, setLeaving] = useState(false);
   // The walk only ever pushes, so a step going away is somebody leaving it — the system's back
@@ -508,56 +513,55 @@ export function WizardStep({
     ) : null;
 
   return (
-    // The step's body scrolls in the board, the one place every screen of the app scrolls in — and
-    // the bar with the heading scrolls with it once the two of them outgrow the phone.
+    // The step's body scrolls in the board, the one place every screen of the app scrolls in. The
+    // heading under the bar goes into that scroll first when the keyboard leaves too little room for
+    // it and the story under it; the bar's row, with «Назад» and «Отмена», stays.
     <Board
       bar={
+        <WizardBar
+          step={counted ? step : STEPS}
+          steps={STEPS}
+          label={
+            counted
+              ? s.montage.step(step, STEPS)
+              : summary
+                ? s.montage.summaryStep
+                : s.montage.newOne
+          }
+          variant={face}
+          back={
+            <BackButton
+              label={s.action.back}
+              style={styles.back}
+              // One step back, and out of the wizard from the first one — there is no step
+              // behind it.
+              onPress={() => {
+                stop();
+                if (router.canGoBack()) router.back();
+                else leave();
+              }}
+            />
+          }
+          cancel={
+            summary
+              ? undefined
+              : {
+                  label: s.action.cancel,
+                  // Nothing said is nothing to lose: the wizard then closes on the press, the
+                  // way it always did. Asked here and not inside `leave()`, which is also what
+                  // «Позже» on `SheetTooLittle` presses — one sheet must never raise another.
+                  onPress: () => {
+                    stop();
+                    if (entered(order)) setLeaving(true);
+                    else leave();
+                  },
+                }
+          }
+        />
+      }
+      heading={
         <>
-          <WizardBar
-            step={counted ? step : STEPS}
-            steps={STEPS}
-            label={
-              counted
-                ? s.montage.step(step, STEPS)
-                : summary
-                  ? s.montage.summaryStep
-                  : s.montage.newOne
-            }
-            // The bar with no scale — what the total wears, and what the way in wears too: there is
-            // no step under either of them to count. The total's heading comes up to the row, the
-            // way in's stands 2 lower (`MontageTemplate`: the grid at 190).
-            variant={counted ? 'step' : summary ? 'summary' : 'entry'}
-            title={title}
-            note={note}
-            back={
-              <BackButton
-                label={s.action.back}
-                style={styles.back}
-                // One step back, and out of the wizard from the first one — there is no step
-                // behind it.
-                onPress={() => {
-                  stop();
-                  if (router.canGoBack()) router.back();
-                  else leave();
-                }}
-              />
-            }
-            cancel={
-              summary
-                ? undefined
-                : {
-                    label: s.action.cancel,
-                    // Nothing said is nothing to lose: the wizard then closes on the press, the
-                    // way it always did. Asked here and not inside `leave()`, which is also what
-                    // «Позже» on `SheetTooLittle` presses — one sheet must never raise another.
-                    onPress: () => {
-                      stop();
-                      if (entered(order)) setLeaving(true);
-                      else leave();
-                    },
-                  }
-            }
-          />
+          <WizardHeading title={title} note={note} variant={face} />
           {ready && head ? <View style={styles.head}>{head}</View> : null}
         </>
       }
