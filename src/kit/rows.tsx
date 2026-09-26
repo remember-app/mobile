@@ -342,7 +342,6 @@ export function StepNote({
   length,
   text,
   mark,
-  onPress,
 }: {
   uri?: string;
   /** A video's running time in the corner of the thumbnail. */
@@ -350,21 +349,16 @@ export function StepNote({
   text: string;
   /** The decision pill — `BadgeDecision`, handed in so this row knows no words. */
   mark?: ReactNode;
-  /**
-   * The frame's own card, where there is one to open (`SheetLiveFile`). Without it the row is a
-   * glance and takes no finger at all — which is what it is while the montage is still being cut
-   * and the record on it is a second old.
-   */
-  onPress?: () => void;
 }) {
   const styles = useStyles();
   const { roomy, room } = useWordRoom();
 
   return (
-    // No label of its own: the thought is what a person means by the row, but the decision beside it
-    // — «Беру», «Мимо» — is the other half of what the record says, and a label of the thought alone
-    // would keep it from a screen reader.
-    <Tappable onPress={onPress} style={styles.note}>
+    // A glance and not a way anywhere: the frame's own card is one press further, on the stage's
+    // journal. Read out whole and with no label of its own: the thought is what a person means by
+    // the row, but the decision beside it — «Беру», «Мимо» — is the other half of what the record
+    // says, and a label of the thought alone would keep it from a screen reader.
+    <View accessible style={styles.note}>
       <View style={styles.noteShot}>
         {uri ? <Image source={{ uri }} contentFit="cover" style={StyleSheet.absoluteFill} /> : null}
         {length ? (
@@ -383,7 +377,7 @@ export function StepNote({
         {roomy ? mark : null}
       </View>
       {roomy ? null : mark}
-    </Tappable>
+    </View>
   );
 }
 

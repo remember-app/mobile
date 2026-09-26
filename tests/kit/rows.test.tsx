@@ -335,30 +335,21 @@ test('the stage in hand opens out, and the ones around it do not', () => {
   expect(story(shut)).not.toContain('Марк роняет кольцо');
 });
 
-test('a record under a stage opens that frame’s card where there is one to open', () => {
-  // On the finished film's page every record leads to `SheetLiveFile` (TASK-222); while the montage
-  // is still being cut the same row is a glance and takes no finger, so the press is optional and
-  // the row is not a button without one.
-  const note = (onPress?: () => void) =>
-    story(
-      <StepNote uri="https://bucket.example/f10.jpg" text="Марк роняет кольцо" onPress={onPress} />,
-    );
-  expect(note(() => {})).toContain('role="button"');
-  expect(note()).not.toContain('role="button"');
-  // It carries no label of its own: a screen reader is given the thought and the decision beside it
-  // as they stand. A label of the thought alone would keep «Беру» / «Мимо» — the other half of what
-  // the record says — from anybody who cannot see the pill.
-  expect(note(() => {})).not.toContain('aria-label');
-  expect(
-    story(
-      <StepNote
-        uri="https://bucket.example/f10.jpg"
-        text="Марк роняет кольцо"
-        mark={<BadgeDecision kind="take" label="Беру 0:04–0:07" />}
-        onPress={() => {}}
-      />,
-    ),
-  ).toContain('Беру 0:04–0:07');
+test('a record under a stage is a glance, read out with its decision', () => {
+  // The frame's card is one press further, on the stage's own journal (TASK-388): the record here
+  // takes no finger. It carries no label of its own either: a screen reader is given the thought and
+  // the decision beside it as they stand. A label of the thought alone would keep «Беру» / «Мимо» —
+  // the other half of what the record says — from anybody who cannot see the pill.
+  const note = story(
+    <StepNote
+      uri="https://bucket.example/f10.jpg"
+      text="Марк роняет кольцо"
+      mark={<BadgeDecision kind="take" label="Беру 0:04–0:07" />}
+    />,
+  );
+  expect(note).not.toContain('role="button"');
+  expect(note).not.toContain('aria-label');
+  expect(note).toContain('Беру 0:04–0:07');
 });
 
 test('a row nobody can press is read as a line of facts, not as a control that is out', () => {
