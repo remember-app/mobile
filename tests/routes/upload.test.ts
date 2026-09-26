@@ -84,12 +84,17 @@ test('the date between two days takes the whole day and gives it back', () => {
   expect(daymark).toContain('onPress={takes ? () => toggleDay(day) : undefined}');
   expect(upload).toContain('const takes = choosing && !limited && !reading;');
   // `Upload.json`: «13 сентября, суббота» and «61» — the day and its name, and a bare figure.
-  expect(daymark).toContain('label={`${formatRollDay(at)}, ${formatWeekday(at)}`}');
+  expect(upload).toContain('const label = `${formatDay(at)}, ${formatWeekday(at)}`;');
+  expect(daymark).toContain('label={label}');
+  // Read out with that day, and which way it goes (spec detail 65).
+  expect(daymark).toContain(
+    'pressLabel={dayTaken(day) ? s.upload.leaveDay(label) : s.upload.takeDay(label)}',
+  );
   expect(daymark).toContain('count={String(frames)}');
   // Over the queue's grid the same press is a button at the end of the day's heading, and it says
   // which way it goes (`UploadQueue`: «Снято 13 сентября» … «Выбрать все 61»).
   const heading = upload.slice(upload.indexOf('<DayHead'), upload.indexOf('</DayHead>'));
-  expect(heading).toContain('label={s.upload.shotOn(formatRollDay(at))}');
+  expect(heading).toContain('label={s.upload.shotOn(formatDay(at))}');
   expect(heading).toContain(
     'label={dayTaken(day) ? s.upload.unselectDay(frames) : s.upload.selectDay(frames)}',
   );

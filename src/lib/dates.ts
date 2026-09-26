@@ -76,22 +76,6 @@ export function formatDayShort(value: string | Date, locale?: string): string {
 }
 
 /**
- * A day of the phone's own roll (spec 8, `Upload*`): «13 сентября», the way the layout writes it
- * over the frames — but with its year once it is not this one. Unlike a memory's feed, where the
- * memory settles the year, the roll runs back years, and «13 сентября» twice over would be two days
- * nobody can tell apart. `now` is only for tests.
- */
-export function formatRollDay(
-  value: string | Date,
-  now: Date = new Date(),
-  locale?: string,
-): string {
-  return new Date(value).getFullYear() === now.getFullYear()
-    ? formatDayShort(value, locale)
-    : formatDay(value, locale);
-}
-
-/**
  * The shortest a day gets — «13 сент», «13 Sep»: the pill on the date spine (spec 7.8, detail 66),
  * which holds one line ten pixels tall. The month is the locale's own abbreviation with its full
  * stop taken off, the way the layout writes it.

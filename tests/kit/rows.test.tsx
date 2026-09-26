@@ -7,6 +7,7 @@ import {
   Text as RNText,
   StyleSheet,
   type TextStyle,
+  View,
   type ViewStyle,
 } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
@@ -334,30 +335,39 @@ test('the stage in hand opens out, and the ones around it do not', () => {
   expect(story(shut)).not.toContain('Марк роняет кольцо');
 });
 
-test('a record under a stage opens that frame’s card where there is one to open', () => {
-  // On the finished film's page every record leads to `SheetLiveFile` (TASK-222); while the montage
-  // is still being cut the same row is a glance and takes no finger, so the press is optional and
-  // the row is not a button without one.
-  const note = (onPress?: () => void) =>
-    story(
-      <StepNote uri="https://bucket.example/f10.jpg" text="Марк роняет кольцо" onPress={onPress} />,
-    );
-  expect(note(() => {})).toContain('role="button"');
-  expect(note()).not.toContain('role="button"');
-  // It carries no label of its own: a screen reader is given the thought and the decision beside it
-  // as they stand. A label of the thought alone would keep «Беру» / «Мимо» — the other half of what
-  // the record says — from anybody who cannot see the pill.
-  expect(note(() => {})).not.toContain('aria-label');
-  expect(
-    story(
-      <StepNote
-        uri="https://bucket.example/f10.jpg"
-        text="Марк роняет кольцо"
-        mark={<BadgeDecision kind="take" label="Беру 0:04–0:07" />}
-        onPress={() => {}}
-      />,
-    ),
-  ).toContain('Беру 0:04–0:07');
+test('a record under a stage is a glance, read out with its decision', () => {
+  // The frame's card is one press further, on the stage's own journal (TASK-388): the record here
+  // takes no finger. It carries no label of its own either: a screen reader is given the thought and
+  // the decision beside it as they stand. A label of the thought alone would keep «Беру» / «Мимо» —
+  // the other half of what the record says — from anybody who cannot see the pill.
+  const note = story(
+    <StepNote
+      uri="https://bucket.example/f10.jpg"
+      text="Марк роняет кольцо"
+      mark={<BadgeDecision kind="take" label="Беру 0:04–0:07" />}
+    />,
+  );
+  expect(note).not.toContain('role="button"');
+  expect(note).not.toContain('aria-label');
+  expect(note).toContain('Беру 0:04–0:07');
+});
+
+test('a row nobody can press is read as a line of facts, not as a control that is out', () => {
+  // A `Pressable` held `disabled` is announced «недоступно» / «dimmed»: the facts of a frame, the
+  // stages still ahead and a record under a stage are none of them a button that is switched off.
+  for (const row of [
+    <RowSummary key="fact" label="Файл" value="IMG_4471.HEIC · 4,2 МБ" />,
+    <RowStep key="ahead" title="Дальше: ритм трека · склейка" state="waiting" />,
+    <StepNote key="glance" uri="https://bucket.example/f10.jpg" text="Марк роняет кольцо" />,
+  ]) {
+    const drawn = story(row);
+    expect(drawn).not.toContain('aria-disabled');
+    expect(drawn).not.toContain('role="button"');
+  }
+  // One that leads somewhere is still the button it always was.
+  expect(story(<RowSummary label="Кадры" value="214 из 486" onPress={() => {}} />)).toContain(
+    'role="button"',
+  );
 });
 
 test('the last line of an opened stage is the way into the whole of its journal', () => {
@@ -375,13 +385,20 @@ test('the last line of an opened stage is the way into the whole of its journal'
 
 /* ── The layout's numbers for the stages (`MontageLive`, `MontageLiveDone`, measured) ─────────── */
 
-/** A row drawn once: the style of its press area and of each native text, and the texts' props. */
+/**
+ * A row drawn once: the style of its press area — the plain view a row nobody can press stands in —
+ * and of each native text, and the texts' props.
+ */
 function drawnRow(element: React.ReactElement) {
   let tree!: TestRenderer.ReactTestRenderer;
   act(() => {
     tree = TestRenderer.create(element);
   });
-  const press = tree.root.findByType(Pressable).props;
+  const [{ props: press }] = tree.root.findAll(
+    (node) => node.type === Pressable || (node.type === View && node.props.accessible === true),
+  );
+  const pressStyle = (pressed: boolean) =>
+    typeof press.style === 'function' ? press.style({ pressed }) : press.style;
   const texts = tree.root.findAllByType(RNText).map((one) => ({
     said: [one.props.children].flat().join(''),
     lines: one.props.numberOfLines as number | undefined,
@@ -390,7 +407,7 @@ function drawnRow(element: React.ReactElement) {
   act(() => tree.unmount());
   return {
     press: {
-      style: StyleSheet.flatten(press.style({ pressed: false })) as ViewStyle,
+      style: StyleSheet.flatten(pressStyle(false)) as ViewStyle,
       hitSlop: press.hitSlop as Insets | undefined,
     },
     texts,

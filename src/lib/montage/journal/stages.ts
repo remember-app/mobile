@@ -52,7 +52,7 @@ export const inHand = (entries: readonly JournalEntry[]): JournalEntry | null =>
   entries.find((entry) => entry.media_id !== null) ?? null;
 
 /** How many of its last records an opened stage shows (spec 7.6). */
-export const LAST = 2;
+const LAST = 2;
 
 /** The last records of one stage, freshest first — what its row shows opened out. */
 export const lastOfStage = (
