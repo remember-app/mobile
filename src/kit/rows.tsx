@@ -514,6 +514,9 @@ export function RowSection({
  * The pressable behind every row above: one place that holds the press dip, the focus ring and the
  * rule that a row nobody can press is not a button. Rows differ in what they carry, never in how
  * they answer a finger.
+ *
+ * A row nobody can press is a plain view, read out whole as one: a `Pressable` held `disabled`
+ * would be read as a control that is out («недоступно», «dimmed»), which a line of facts is not.
  */
 function Tappable({
   label,
@@ -540,13 +543,20 @@ function Tappable({
   const reduced = useReducedMotion();
   const styles = useStyles();
   const focusRing = useFocusRing();
+  const state = selected === undefined ? undefined : { selected };
+
+  if (!onPress)
+    return (
+      <View accessible accessibilityLabel={label} accessibilityState={state} style={style}>
+        {children}
+      </View>
+    );
 
   return (
     <Pressable
-      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={selected === undefined ? undefined : { selected }}
-      disabled={!onPress}
+      accessibilityState={state}
       hitSlop={slop}
       onPress={onPress}
       {...props}

@@ -7,6 +7,7 @@ import {
   Text as RNText,
   StyleSheet,
   type TextStyle,
+  View,
   type ViewStyle,
 } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
@@ -360,6 +361,24 @@ test('a record under a stage opens that frame’s card where there is one to ope
   ).toContain('Беру 0:04–0:07');
 });
 
+test('a row nobody can press is read as a line of facts, not as a control that is out', () => {
+  // A `Pressable` held `disabled` is announced «недоступно» / «dimmed»: the facts of a frame, the
+  // stages still ahead and a record under a stage are none of them a button that is switched off.
+  for (const row of [
+    <RowSummary key="fact" label="Файл" value="IMG_4471.HEIC · 4,2 МБ" />,
+    <RowStep key="ahead" title="Дальше: ритм трека · склейка" state="waiting" />,
+    <StepNote key="glance" uri="https://bucket.example/f10.jpg" text="Марк роняет кольцо" />,
+  ]) {
+    const drawn = story(row);
+    expect(drawn).not.toContain('aria-disabled');
+    expect(drawn).not.toContain('role="button"');
+  }
+  // One that leads somewhere is still the button it always was.
+  expect(story(<RowSummary label="Кадры" value="214 из 486" onPress={() => {}} />)).toContain(
+    'role="button"',
+  );
+});
+
 test('the last line of an opened stage is the way into the whole of its journal', () => {
   const link = story(<StepLink label="Весь журнал этапа · 148 записей" onPress={() => {}} />);
   expect(link).toContain('Весь журнал этапа · 148 записей');
@@ -375,13 +394,20 @@ test('the last line of an opened stage is the way into the whole of its journal'
 
 /* ── The layout's numbers for the stages (`MontageLive`, `MontageLiveDone`, measured) ─────────── */
 
-/** A row drawn once: the style of its press area and of each native text, and the texts' props. */
+/**
+ * A row drawn once: the style of its press area — the plain view a row nobody can press stands in —
+ * and of each native text, and the texts' props.
+ */
 function drawnRow(element: React.ReactElement) {
   let tree!: TestRenderer.ReactTestRenderer;
   act(() => {
     tree = TestRenderer.create(element);
   });
-  const press = tree.root.findByType(Pressable).props;
+  const [{ props: press }] = tree.root.findAll(
+    (node) => node.type === Pressable || (node.type === View && node.props.accessible === true),
+  );
+  const pressStyle = (pressed: boolean) =>
+    typeof press.style === 'function' ? press.style({ pressed }) : press.style;
   const texts = tree.root.findAllByType(RNText).map((one) => ({
     said: [one.props.children].flat().join(''),
     lines: one.props.numberOfLines as number | undefined,
@@ -390,7 +416,7 @@ function drawnRow(element: React.ReactElement) {
   act(() => tree.unmount());
   return {
     press: {
-      style: StyleSheet.flatten(press.style({ pressed: false })) as ViewStyle,
+      style: StyleSheet.flatten(pressStyle(false)) as ViewStyle,
       hitSlop: press.hitSlop as Insets | undefined,
     },
     texts,
