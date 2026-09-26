@@ -1,5 +1,4 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Pencil } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,6 +13,7 @@ import {
   Board,
   Button,
   ConfirmSheet,
+  DRAWN,
   IconButton,
   RowSection,
   RowToggle,
@@ -130,7 +130,9 @@ export default function ProfileScreen() {
           ) : null}
         </View>
         <IconButton
-          icon={Pencil}
+          icon={DRAWN.pen}
+          // Spec 8, `Account`: the pen 17 at 1.8.
+          glyph={{ size: 17, stroke: 1.8 }}
           label={s.profile.edit}
           tone="raise"
           onPress={() => setRenaming(true)}
