@@ -48,6 +48,9 @@ export type BoardProps = {
   style?: StyleProp<ViewStyle>;
 };
 
+/** How far a field's box reaches past the input the keyboard is up for — its border and inner air. */
+const FIELD_BOX = space.s3;
+
 /**
  * The board (spec 7.1). Background `ink`, the device's status line left empty at the top, and the
  * body as its own layer between the bar and the bottom layer — the body is the only thing that
@@ -80,9 +83,6 @@ export type BoardProps = {
  * a button, a drag of the body ({@link KEYBOARD_SCROLL}, {@link DISMISS_KEYBOARD}) — and the bar
  * stands again.
  */
-/** How far a field's box reaches past the input the keyboard is up for — its border and inner air. */
-const FIELD_BOX = space.s3;
-
 export function Board({ bar, footer, body, list, children, style }: BoardProps) {
   const insets = useSafeAreaInsets();
   const { fontScale, height: tall } = useWindowDimensions();
