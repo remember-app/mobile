@@ -29,6 +29,7 @@ import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
 import {
   ActionBar,
   Avatar,
+  AvatarStack,
   BadgeDecision,
   BadgeFilms,
   BadgeMontage,
@@ -323,4 +324,9 @@ test('the length on the summary poster is never squeezed by the shape beside it'
 test('the initials are part of the circle and keep to its size, whatever the type', async () => {
   const tree = await draw(<Avatar name="Борис Носов" size={38} />);
   expect(tree.root.findByType(Text).props.maxFontSizeMultiplier).toBe(1);
+  // And so is the «+N» closing a stack: at ×2 «+12» ran past its 36 onto the circle beside it.
+  const stack = await draw(<AvatarStack names={['Аня', 'Марк', 'Лиза', 'Ира', 'Пётр']} />);
+  const letters = stack.root.findAllByType(Text);
+  expect(letters.map((one) => one.props.children)).toContainEqual(['+', 2]);
+  for (const one of letters) expect(one.props.maxFontSizeMultiplier).toBe(1);
 });

@@ -701,10 +701,8 @@ test('the keyboard goes down by a tap or a drag on anything but a field or a but
   const isVisible = vi.spyOn(Keyboard, 'isVisible').mockReturnValue(false);
   try {
     expect(board.props.onStartShouldSetResponder()).toBe(false);
-    expect(board.props.onMoveShouldSetResponder()).toBe(false);
     isVisible.mockReturnValue(true);
     expect(board.props.onStartShouldSetResponder()).toBe(true);
-    expect(board.props.onMoveShouldSetResponder()).toBe(true);
     board.props.onResponderRelease();
     expect(dismiss).toHaveBeenCalledOnce();
   } finally {
@@ -715,6 +713,34 @@ test('the keyboard goes down by a tap or a drag on anything but a field or a but
   // When the keyboard leaves less room than the bar and the bottom layer need, the top gives: the
   // board stands on its bottom edge, and the action there stays over the keyboard.
   expect(StyleSheet.flatten(board.props.style).justifyContent).toBe('flex-end');
+});
+
+test('a finger that trembles on a button over the keyboard keeps its press, on a board and on a sheet', async () => {
+  // Every move of a finger offers the touch again to the parents of what holds it: one that says yes
+  // takes the press from under the finger, and the tap on «Сохранить» — or on the next field — only
+  // puts the keyboard away.
+  const save = <Button variant="primary" label="Сохранить" />;
+  const isVisible = vi.spyOn(Keyboard, 'isVisible').mockReturnValue(true);
+  try {
+    for (const drawn of [
+      screen({ footer: save }),
+      <Sheet key="sheet" visible onCancel={() => {}} title="Новый лейбл" footer={save}>
+        <Text>Поле</Text>
+      </Sheet>,
+    ]) {
+      const it = await mount(drawn);
+      const takers: string[] = [];
+      for (let up = it.root.findByType(Button).parent; up; up = up.parent)
+        for (const asked of ['onMoveShouldSetResponderCapture', 'onMoveShouldSetResponder'])
+          if (typeof up.props[asked] === 'function' && up.props[asked]({ nativeEvent: {} })) {
+            const { displayName, name } = up.type as { displayName?: string; name?: string };
+            takers.push(`${displayName ?? name} › ${asked}`);
+          }
+      expect(takers).toEqual([]);
+    }
+  } finally {
+    isVisible.mockRestore();
+  }
 });
 
 test('a body that is a list keeps the top of the screen where it is', async () => {
