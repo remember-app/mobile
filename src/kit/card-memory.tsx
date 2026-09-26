@@ -111,7 +111,8 @@ export function CardMemory({
           </View>
           <View style={styles.largeFoot}>
             <View style={styles.pair}>
-              <Text role="displayCover" numberOfLines={3} style={styles.onPhoto}>
+              {/* Spec 3 and 7.6, detail 36: the name is balanced — «Свадьба / Лизы и Марка». */}
+              <Text role="displayCover" balance numberOfLines={3} style={styles.onPhoto}>
                 {title}
               </Text>
               {meta?.length ? <Meta parts={meta} onPhoto /> : null}

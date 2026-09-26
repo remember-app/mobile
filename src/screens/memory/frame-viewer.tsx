@@ -36,6 +36,7 @@ import {
   ConfirmSheet,
   Empty,
   Filmstrip,
+  ICO_S,
   IconButton,
   RowAction,
   VideoTrack,
@@ -529,6 +530,7 @@ export function FrameViewer({
                       size={height.roundRow}
                       tone="ghost"
                       tint={photo.on}
+                      glyph={SOUND_GLYPH}
                       style={styles.sound}
                       onPress={() => {
                         player.muted = !player.muted;
@@ -631,6 +633,13 @@ export function FrameViewer({
     </Modal>
   );
 }
+
+/**
+ * The sound switch on the track, in its 36 (`ViewerVideo.json` e18): the layout draws its speaker 19
+ * at 1.8, a tighter drawing than Lucide's, and Lucide's at 18 lands on it (16.5 across against 15.7)
+ * — larger than the 16 the circle gives a cross or a plus in a row.
+ */
+const SOUND_GLYPH = { size: ICO_S } as const;
 
 /** What a timecode says before there is anything to count — «0:00» in every language. */
 const ZERO = '0:00';

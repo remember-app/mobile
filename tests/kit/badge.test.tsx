@@ -11,6 +11,7 @@ import {
   type MontageState,
   Tag,
 } from '@/kit/badge';
+import { playFor, strokeFor } from '@/kit/icon';
 import { allDifferent, story } from '@/kit/story';
 import { setTheme } from '@/theme';
 
@@ -82,6 +83,24 @@ test('the badges of a memory card stand as tall as the layout draws them: 26, 28
   // Spec 7.4, detail 23: the outline is `accent` itself, the words `accentText` — #4B5BFF round
   // #A7AEFF at night.
   expect(outlined).toContain(edges('color', 'rgba(75,91,255,1.00)'));
+});
+
+test('the films badge carries the layout’s small play in the box the layout gives it', () => {
+  // TASK-398 (R'4). `Main.json` e13 and e31: the triangle `M8 5.2v13.6L19 12z` in a 13 box on the
+  // cover's badge and a 12 on the card's, 6 from the count. Lucide's play at the box read ≈ 10 × 11
+  // against 6 × 7: it is drawn at `playFor(box)`, and the box stays, so the count stays where it is.
+  for (const [filled, box] of [
+    [true, 13],
+    [false, 12],
+  ] as const) {
+    const badge = story(<BadgeFilms label="2 ролика" filled={filled} />);
+    expect(badge).toContain(`<svg data-glyph="Play" width="${playFor(box)}"`);
+    expect(badge).toMatch(new RegExp(`style="[^"]*width:${box}px;height:${box}px`));
+    // Lucide's filled play reaches 18 of its grid with the stroke round it, the layout's 13.6.
+    const drawn = ((18 + strokeFor(playFor(box))) * playFor(box)) / 24;
+    expect(Math.abs(drawn - (13.6 * box) / 24)).toBeLessThan(1);
+  }
+  expect(playFor(13)).toBeLessThan(13);
 });
 
 test('the three states of a montage are three fills, and each says its own word', () => {

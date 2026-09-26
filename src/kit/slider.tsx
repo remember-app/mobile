@@ -14,6 +14,7 @@ import {
 import { height, radius, space, themed, useTheme } from '@/theme';
 
 import { IconButton } from './button';
+import { drawnAs } from './icon';
 import { hitSlop, PRESS, TAP, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
 import { fitCell, Text } from './text';
 
@@ -32,6 +33,15 @@ import { fitCell, Text } from './text';
  * was until somebody moves it.
  */
 const NUDGE = 5;
+
+/**
+ * The − and + on either side of the figure (spec 7.3, detail 19; `MontageBuild.json` e15, e19): 18 at
+ * 2.2 in the 44, and the layout's own strokes — `M6 12h12`, `M12 6v12` — 12 of the grid long where
+ * Lucide's run 14. Drawn at the circle's 20, Lucide's pair read 12.7 across against 10.7 (TASK-398).
+ */
+const NUDGE_GLYPH = { size: 18, stroke: 2.2 } as const;
+const LESS = drawnAs(Minus, 12 / 14);
+const MORE = drawnAs(Plus, 12 / 14);
 
 export type LengthSliderProps = {
   /** Seconds. */
@@ -161,9 +171,10 @@ export function LengthSlider({
     <View style={[styles.card, style]}>
       <View style={styles.figureRow}>
         <IconButton
-          icon={Minus}
+          icon={LESS}
           label={shorterLabel}
           tone="raise"
+          glyph={NUDGE_GLYPH}
           onPress={() => move(-NUDGE)}
           disabled={value <= min}
         />
@@ -172,9 +183,10 @@ export function LengthSlider({
           {note ? <Text role="meta">{note}</Text> : null}
         </View>
         <IconButton
-          icon={Plus}
+          icon={MORE}
           label={longerLabel}
           tone="raise"
+          glyph={NUDGE_GLYPH}
           onPress={() => move(NUDGE)}
           disabled={value >= max}
         />

@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { font, photo, radius, space, themed, useTheme } from '@/theme';
 
-import { Icon } from './icon';
+import { Icon, playFor } from './icon';
 import { Text } from './text';
 
 /**
@@ -35,21 +35,31 @@ export function BadgeOrganizer({ label, sm }: { label: string; sm?: boolean }) {
 export function BadgeFilms({ label, filled }: { label: string; filled?: boolean }) {
   const { color } = useTheme();
   const styles = useStyles();
+  const box = filled ? FILMS_PLAY.filled : FILMS_PLAY.outlined;
 
   return (
     <View style={[styles.pill, styles.films, filled ? styles.accent : styles.accentLine]}>
-      <Icon
-        icon={Play}
-        size={filled ? 13 : 12}
-        color={filled ? color.onFill : color.accentText}
-        fill={filled ? color.onFill : color.accentText}
-      />
+      <View style={[styles.playBox, { width: box, height: box }]}>
+        <Icon
+          icon={Play}
+          size={playFor(box)}
+          color={filled ? color.onFill : color.accentText}
+          fill={filled ? color.onFill : color.accentText}
+        />
+      </View>
       <Text role="meta" tone={filled ? 'onFill' : 'accent'} style={styles.count}>
         {label}
       </Text>
     </View>
   );
 }
+
+/**
+ * The box of the films badge's play (`Main.json` e13, e31): 13 on the cover, 12 on the card, and the
+ * layout's own small triangle in it (`playFor`) — the box keeps the count 6 from it, as drawn. Lucide's
+ * play at the box itself read about 10 × 11 against 6 × 7 (TASK-398).
+ */
+const FILMS_PLAY = { filled: 13, outlined: 12 } as const;
 
 /** Where a montage stands (spec 7.4). Three states, and the words for them belong to the screen. */
 export type MontageState = 'ready' | 'pending' | 'failed';
@@ -189,6 +199,7 @@ const useStyles = themed(({ color }) =>
     caps: { lineHeight: 14 },
     films: { gap: 6, paddingVertical: 6, paddingLeft: 10, paddingRight: 12, borderWidth: 0 },
     count: { fontFamily: font.semi, lineHeight: 16 },
+    playBox: { alignItems: 'center', justifyContent: 'center' },
     // A floor and not a height: the caps grow with the system's type, and the pill with them.
     strip: {
       flexDirection: 'row',

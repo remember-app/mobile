@@ -403,13 +403,19 @@ export const type = StyleSheet.create({
   controlSm: { fontFamily: font.semi, fontSize: 14, lineHeight: onestLine(14) },
   /** «Разрешить доступ» — the 52 of the message card (spec 7.6, detail 45: 15 / 600) */
   controlMd: { fontFamily: font.semi, fontSize: 15, lineHeight: onestLine(15) },
-  /** the label of a chip — the same size a shade lighter, because a chip is offered and not pressed home */
-  chip: { fontFamily: font.medium, fontSize: 14, lineHeight: 14 },
+  /**
+   * The label of a chip — the same size a shade lighter, because a chip is offered and not pressed
+   * home. On Onest's own line, like the words of a button: the layout sets every chip and plate on
+   * `line-height: normal`, and on the 14 of its size iOS cut the ascent and the words rode 1.3–1.9
+   * higher in the pill than drawn (TASK-398).
+   */
+  chip: { fontFamily: font.medium, fontSize: 14, lineHeight: onestLine(14) },
   /**
    * «Все дни» in the head of the filter's day block — the smallest chip, and a heavier one; the
-   * plate over the story on `MontageStory` is the same 12 / 600
+   * plate over the story on `MontageStory` and the template's plate on the summary's poster are the
+   * same 12 / 600, on Onest's own line (`MontageStory.json` e12: 16 in a 32)
    */
-  chipXs: { fontFamily: font.semi, fontSize: 12, lineHeight: 12 },
+  chipXs: { fontFamily: font.semi, fontSize: 12, lineHeight: onestLine(12) },
   /** a template's name on its tile (spec 7.6, detail 41) — the one 14 in the bold weight */
   tileTitle: { fontFamily: font.bold, fontSize: 14, lineHeight: 17 },
   /** a small button's label, a frame group's heading, a button standing in a row, the journal's chip */

@@ -5,7 +5,18 @@ import { useRef, useState } from 'react';
 import { PanResponder, StyleSheet, View } from 'react-native';
 
 import type { MusicTrackId } from '@/api';
-import { BlockPicked, Button, Field, IconButton, RowTrack, soften, Text, TRACK_ROW } from '@/kit';
+import {
+  BlockPicked,
+  Button,
+  DRAWN,
+  Field,
+  IconButton,
+  RowTrack,
+  soften,
+  Text,
+  TRACK_ROW,
+  WISH_GLYPH,
+} from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { formatRuntime } from '@/lib/dates';
 import { useStrings } from '@/lib/language';
@@ -285,9 +296,10 @@ export default function MusicStep() {
                       {/* Spec 7.7, detail 54 — filled once something is written, outlined while
                           nothing is: the button says which of the two it would open on. */}
                       <IconButton
-                        icon={Pencil}
+                        icon={DRAWN.pen}
                         label={written ? s.montage.wishEdit(name) : s.montage.wishAbout(name)}
                         size={36}
+                        glyph={WISH_GLYPH}
                         tone={written ? 'raise' : 'ghost'}
                         style={written ? undefined : styles.outlined}
                         onPress={() => unfold(track.key)}

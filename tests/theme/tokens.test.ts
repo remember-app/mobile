@@ -363,6 +363,19 @@ test('the words of a button stand on the face’s own line, where iOS sets them 
   }
 });
 
+test('the words of a chip and of a plate stand on the face’s own line too', () => {
+  // TASK-398, the same cause as the buttons'. The layout sets every chip and plate on `line-height:
+  // normal` — «Шаблон «Для родителей»» 12 / 600 on 16 in its 32 (`MontageStory.json` e12), «Для
+  // родителей» on the summary's poster (`MontageSummary.json` e12). On a line of their size iOS cut
+  // the ascent and the words rode 1.3 higher in the plate than drawn, measured on both.
+  const medium = fontFile(FACES.Onest_500Medium);
+  const semi = fontFile(FACES.Onest_600SemiBold);
+  expect(type.chip.lineHeight).toBeCloseTo(naturalLine(medium, 14), 6);
+  expect(type.chipXs.lineHeight).toBeCloseTo(naturalLine(semi, 12), 6);
+  for (const role of ['chip', 'chipXs'] as const)
+    expect(type[role].lineHeight, role).toBeGreaterThan(Number(type[role].fontSize) * 1.25);
+});
+
 test('the line under a field is the layout’s 13 on Onest’s own line, and the notes keep their 19', () => {
   // TASK-397 (R'3). `Username.json` e14–e15: «Ник свободен.» 13 / 600 and «По нему вас найдут…»
   // 13 / 400 on `line-height: normal`, 17 tall at 725 — the one line under a field the layout draws.

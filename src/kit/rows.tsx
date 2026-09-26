@@ -79,6 +79,13 @@ export const TRACK_ROW = 52;
 const PLAY_GLYPH = { size: playFor(16), filled: true } as const;
 
 /**
+ * The pencil of a track's wish, in its 36 among the chosen (spec 7.7, detail 54; `MontageMusic.json`
+ * e20, e29): the layout's pen (`DRAWN.pen`) at 15 / 1.9 — a size under the circle's own 16, as the
+ * layout draws it. Lucide's pencil at the circle's 18 read 16 × 16 against 12.3 × 11.7 (TASK-398).
+ */
+export const WISH_GLYPH = { size: 15, stroke: 1.9 } as const;
+
+/**
  * A music track (spec 7.7): the round «послушать» on the left, the name and its length on one
  * baseline, and on the right the buttons that act on it.
  *

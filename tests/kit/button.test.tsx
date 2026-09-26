@@ -1,13 +1,13 @@
 import { rule, shorthand } from '@tests/helpers/css';
 import { fontFile, wordWidth } from '@tests/helpers/font';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
-import { Pause, Plus } from 'lucide-react-native';
+import { Pause, Plus, X } from 'lucide-react-native';
 import type { ReactElement } from 'react';
 import { StyleSheet, View, type ViewStyle } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import { beforeAll, expect, test } from 'vitest';
 
-import { BackButton, Button, type ButtonVariant, IconButton } from '@/kit/button';
+import { BackButton, Button, type ButtonVariant, IconButton, roundGlyphSize } from '@/kit/button';
 import { allDifferent, story } from '@/kit/story';
 import { font, setTheme } from '@/theme';
 
@@ -213,6 +213,25 @@ test('the round button is drawn at the seven diameters the layout uses', () => {
   const calendar = story(<IconButton icon={Plus} label="Выбрать другую дату" size={28} />);
   expect(calendar).toContain('width="14"');
   expect(calendar).toContain('width:28px');
+});
+
+test('a round 36 or 32 in a row carries the glyph the layout draws there, 16 and 15', () => {
+  // TASK-398 (R'6). Lucide's own crosses and pluses, as drawn in the rows of the layout: 16 in a 36 —
+  // the cross of a contact (`Contacts.json`), of a parked file (`UploadQueue.json`), of a track, and
+  // the plus of one (`MontageMusic.json` e22, e42) — and 15 in a 32 (the plus of a label,
+  // `SheetLabels.json`; the banner's cross, `HomeOffline.json`). The circle's own 18 read 12.0 across
+  // the plus of a track against 10.7.
+  const drawn = { 36: 16, 32: 15 } as const;
+  for (const [circle, glyph] of Object.entries(drawn)) {
+    const size = roundGlyphSize(Number(circle));
+    expect(Math.abs(size - glyph), `${circle}`).toBeLessThanOrEqual(1);
+    expect(story(<IconButton icon={X} label="Убрать" size={Number(circle)} />)).toContain(
+      `width="${size}"`,
+    );
+  }
+  expect(roundGlyphSize(36)).toBe(16);
+  // The circles the layout draws otherwise keep what they had.
+  expect([72, 56, 48, 44, 40, 28].map(roundGlyphSize)).toEqual([26, 22, 22, 20, 20, 14]);
 });
 
 test('every round tone is its own fill, and none of them is a word', () => {

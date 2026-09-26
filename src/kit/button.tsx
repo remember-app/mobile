@@ -468,13 +468,9 @@ export function IconButton({
         style,
       ]}
     >
-      {/* The glyph grows with the circle: 22 in a 48 reads as a button, 22 in the viewer's 72
-          reads as a plate with something small lost in it. The layout draws that one at 26. */}
       <Icon
         icon={icon}
-        size={
-          drawn?.size ?? (size >= 64 ? 26 : size >= 48 ? 22 : size >= 40 ? 20 : size > 28 ? 18 : 14)
-        }
+        size={drawn?.size ?? roundGlyphSize(size)}
         stroke={drawn?.stroke}
         color={glyph}
         fill={tone === 'video' || drawn?.filled ? glyph : undefined}
@@ -506,6 +502,22 @@ export function IconButton({
 const DOT = 9;
 const DOT_RING = 2;
 const DOT_INSET = 10 / 56;
+
+/**
+ * The glyph of a round button by its circle, where the place names no other (spec 7.2, detail 11:
+ * «16–18 в малом»). It grows with the circle: 22 in a 48 reads as a button, 22 in the viewer's 72
+ * reads as a plate with something small lost in it — the layout draws that one at 26. In the 36 and
+ * the 32 of a row the layout draws 16 and 15 — the cross of a contact and of a parked file, the cross
+ * and the plus of a track (`Contacts.json`, `UploadQueue.json`, `MontageMusic.json`, `SheetLabels.json`)
+ * — and 18 made each of them 2 wider in ink than drawn (TASK-398).
+ */
+export function roundGlyphSize(diameter: number): number {
+  if (diameter >= 64) return 26;
+  if (diameter >= 48) return 22;
+  if (diameter >= 40) return 20;
+  if (diameter > 28) return 16;
+  return 14;
+}
 
 /**
  * The glyph of a round 44 in a bar (spec 5: «chevron-left — все шапки»): 22 at 1.9, where the

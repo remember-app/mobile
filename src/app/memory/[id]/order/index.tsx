@@ -1,10 +1,9 @@
 import { useRouter } from 'expo-router';
-import { Pencil } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ApiError, listMontageTemplates, type MontageTemplate } from '@/api';
-import { Banner, Button, TileTemplate, Waiting } from '@/kit';
+import { Banner, Button, DRAWN, TileTemplate, Waiting } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { formatRuntime } from '@/lib/dates';
 import { useStrings } from '@/lib/language';
@@ -68,8 +67,8 @@ export default function TemplatesScreen() {
         <Button
           variant="secondary"
           wide
-          icon={Pencil}
-          // Spec 8, `MontageTemplate`: the pencil 17 at 1.8.
+          icon={DRAWN.pen}
+          // Spec 8, `MontageTemplate`: the layout's pen 17 at 1.8.
           glyph={{ size: 17, stroke: 1.8 }}
           label={s.montage.ownSetup}
           // Blank, and every field of it: a template pressed before this and then abandoned would

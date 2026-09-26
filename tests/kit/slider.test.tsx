@@ -69,6 +69,25 @@ test('the card carries the figure, the two buttons, the line and the five ready 
   for (const preset of PRESETS) expect(card).toContain(`>${preset.label}<`);
 });
 
+test('the − and + are the layout’s own shorter strokes, 18 at 2.2 in their 44', () => {
+  // TASK-398 (R'6). `MontageBuild.json` e15, e19: `M6 12h12` and `M12 6v12M6 12h12` in an 18 box at
+  // 2.2 — 12 of the grid long, 10.7 of ink across; Lucide's run 14, and at the circle's own 20 they
+  // read 12.7. The ink here is the stroke's reach plus its weight, scaled to the size drawn.
+  const card = story(slider());
+  const layout = ((12 + 2.2) * 18) / 24;
+  for (const glyph of ['Minus', 'Plus']) {
+    const drawn = card.match(
+      new RegExp(`<svg data-glyph="${glyph}" width="([\\d.]+)"[^>]*stroke-width="([\\d.]+)"`),
+    );
+    expect(drawn, glyph).not.toBeNull();
+    const [size, weight] = [Number(drawn?.[1]), Number(drawn?.[2])];
+    expect(Math.abs(((14 + weight) * size) / 24 - layout), glyph).toBeLessThan(1);
+    // The same weight of line the layout draws, 1.65 of a point.
+    expect((weight * size) / 24).toBeCloseTo((2.2 * 18) / 24, 6);
+  }
+  expect(card).toContain('width:18px');
+});
+
 test('the two ends of the line are the meta a size down, in muted', () => {
   // TASK-384, `MontageBuild.json`: «0:10» and «9:10 · всё, что есть» are 11 / 500 (they were the
   // scale's `meta` 12). The layout's `faint` there is what spec 10.1 names and replaces with `muted`.

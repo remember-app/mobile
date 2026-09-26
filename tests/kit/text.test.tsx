@@ -1,3 +1,4 @@
+import { fontFile, wordWidth } from '@tests/helpers/font';
 import type { ReactElement } from 'react';
 import { Text as RNText } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
@@ -5,6 +6,7 @@ import { beforeAll, expect, test } from 'vitest';
 
 import { allDifferent, story } from '@/kit/story';
 import {
+  balanced,
   fitCell,
   HEADING_MOST,
   HiddenLabel,
@@ -116,6 +118,102 @@ test('a label the eye does not need is still there for a screen reader', () => {
   // Clipped rather than styled out of the way: nothing it shares with a line that is meant to be
   // read, which is the whole difference between a hidden label and an invisible one.
   expect(hidden).not.toBe(story(<Text role="label">Ник</Text>));
+});
+
+/** How the name on a cover is set: its words off the font file, Unbounded 700 at 26 and −0.78. */
+const COVER = fontFile('@expo-google-fonts/unbounded/700Bold/Unbounded_700Bold.ttf');
+const coverWide = (words: string, scale = 1) =>
+  (wordWidth(COVER, words, Number(type.displayCover.fontSize)) +
+    Number(type.displayCover.letterSpacing) * [...words].length) *
+  scale;
+
+/** The lines words fall into at `width`, each filled before the next is begun. */
+function setIn(words: readonly string[], width: number, scale = 1): string[] {
+  const lines: string[] = [];
+  for (const word of words) {
+    const last = lines.at(-1);
+    if (last !== undefined && coverWide(`${last} ${word}`, scale) <= width)
+      lines[lines.length - 1] = `${last} ${word}`;
+    else lines.push(word);
+  }
+  return lines;
+}
+
+test('the name on a cover is balanced: its lines as even as its words allow (spec 3)', () => {
+  // TASK-398 (R'7). `Main.json` e14: «Свадьба Лизы и Марка» with `text-wrap: balance` in a block of
+  // 322 — «Свадьба» over «Лизы и Марка», its text 231.67 wide. Filled line by line, the same words go
+  // «Свадьба Лизы и» over «Марка», and did.
+  const words = 'Свадьба Лизы и Марка'.split(' ');
+  const space = coverWide('Свадьба Лизы') - coverWide('Свадьба') - coverWide('Лизы');
+  expect(setIn(words, 322)).toEqual(['Свадьба Лизы и', 'Марка']);
+  const even = balanced(
+    words.map((word) => coverWide(word)),
+    space,
+    322,
+    3,
+  );
+  expect(even?.lines).toBe(2);
+  const width = even?.width ?? 322;
+  // The kit sets it a point wider than found, for the rounding of what it measured.
+  for (const room of [width, width + 1])
+    expect(setIn(words, room)).toEqual(['Свадьба', 'Лизы и Марка']);
+  expect(Math.abs(width - 231.67)).toBeLessThan(3);
+});
+
+test('a balanced name never takes more lines than it would, nor a word less room than it needs', () => {
+  const words = 'Свадьба Лизы и Марка'.split(' ');
+  const measure = (scale: number) => ({
+    widths: words.map((word) => coverWide(word, scale)),
+    space:
+      coverWide('Свадьба Лизы', scale) - coverWide('Свадьба', scale) - coverWide('Лизы', scale),
+  });
+  // On large type (the heading's ceiling, ×1.29) the name takes more lines, and stays as many.
+  const grown = measure(HEADING_MOST.displayCover ?? 1);
+  const even = balanced(grown.widths, grown.space, 322, 3);
+  const full = setIn(words, 322, HEADING_MOST.displayCover);
+  expect(even?.lines).toBe(full.length);
+  expect(setIn(words, even?.width ?? 0, HEADING_MOST.displayCover)).toHaveLength(full.length);
+  expect(even?.width).toBeGreaterThanOrEqual(Math.max(...grown.widths));
+  // Nothing to even out: one line, a word wider than the room, more lines than are shown.
+  const plain = measure(1);
+  expect(balanced(plain.widths, plain.space, 1000)).toBeUndefined();
+  expect(balanced(plain.widths, plain.space, 100)).toBeUndefined();
+  expect(balanced(plain.widths, plain.space, 322, 1)).toBeUndefined();
+});
+
+test('a balanced text is the words once, read out once', () => {
+  // The measures laid out beside it are unseen and never read out: the name is said once.
+  const name = story(
+    <Text role="displayCover" balance numberOfLines={3}>
+      Свадьба Лизы и Марка
+    </Text>,
+  );
+  expect(name.match(/>Свадьба Лизы и Марка</g)).toHaveLength(1);
+  let tree!: TestRenderer.ReactTestRenderer;
+  act(() => {
+    tree = TestRenderer.create(
+      <Text role="displayCover" balance>
+        Свадьба Лизы и Марка
+      </Text>,
+    );
+  });
+  const unseen = tree.root.findAll(
+    (node) =>
+      node.props.accessibilityElementsHidden === true &&
+      node.props.importantForAccessibility === 'no-hide-descendants',
+  );
+  expect(unseen.length).toBeGreaterThan(0);
+  const measures = unseen[0].findAllByType(RNText).map((one) => one.props.children);
+  expect(measures).toEqual(['Свадьба', 'Лизы', 'и', 'Марка', 'Свадьба Лизы']);
+  act(() => tree.unmount());
+  // One word has nothing to balance, and is the plain text.
+  expect(
+    story(
+      <Text role="displayCover" balance>
+        Свадьба
+      </Text>,
+    ),
+  ).toBe(story(<Text role="displayCover">Свадьба</Text>));
 });
 
 test('words in a cell the layout fixes grow as far as the cell holds them, and the cell grows down', () => {
