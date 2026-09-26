@@ -119,6 +119,9 @@ test('too little material stops the wizard before its first step, not after its 
   // монтаж» at 19 / 1.9, the pencil of «Настроить самому» at 17 / 1.8 (`MontageTemplate.json`).
   expect(summary).toContain('glyph={{ size: 19, stroke: 1.9 }}');
   expect(templates).toContain('glyph={{ size: 17, stroke: 1.8 }}');
+  // And that pencil is the layout's own pen, tighter than Lucide's (TASK-398: 15 × 15 of ink
+  // against 13.7 × 13.0).
+  expect(templates).toContain('icon={DRAWN.pen}');
   expect(wizard).toContain('{s.montage.tooLittleText(material.length)}');
   // And no step draws itself while that sheet is up — the shell holds its body and its button
   // back, so a step written later is silent there without a line of its own. The screen of
@@ -310,6 +313,18 @@ test('step 2 is skippable, and the plate says whose words are in the box', () =>
   expect(story).toContain('? s.montage.ownText');
   expect(story).toContain(': s.montage.fromTemplate(s.montage.template[template])');
   expect(flat(story)).toContain('stop(); change({ story, ownStory: true });');
+  // The sign of a template is the same picture on its tile and on this plate — and four of the six
+  // are the layout's own, tighter drawings (TASK-398: Lucide's heart read 14.7 across the tile
+  // against 10.7); the sun is Lucide's own, the phone a drawing Lucide does not have.
+  for (const sign of [
+    'for_myself: DRAWN.heart',
+    'quick: DRAWN.zap',
+    'report: DRAWN.fileText',
+    'short_form: Smartphone',
+    'parents: DRAWN.house',
+    'dopamine: Sun',
+  ])
+    expect(wizard).toContain(sign);
   // The six templates the api hands out have a word each in both sets, by its own ids.
   const ids = [...api.matchAll(/^ {2}\| '(\w+)'/gm)].map(([, id]) => id);
   expect(ids).toEqual(['for_myself', 'quick', 'report', 'short_form', 'parents', 'dopamine']);
@@ -454,7 +469,11 @@ test('step 3 is an empty «Выбрано» until a track is taken, and the trac
 test('a wish is written to one track, behind the pencil in its row', () => {
   // Spec 7.7, detail 54: the pencil is filled once something is written and outlined while not,
   // and says which: «Изменить пожелание к …» or «Как использовать …».
-  expect(music).toContain('icon={Pencil}');
+  // The layout's own pen at 15 / 1.9 in the 36 (TASK-398: Lucide's pencil at the circle's 18 read
+  // 16 × 16 of ink against 12.3 × 11.7).
+  expect(flat(music)).toContain(
+    'icon={DRAWN.pen} label={written ? s.montage.wishEdit(name) : s.montage.wishAbout(name)} size={36} glyph={WISH_GLYPH}',
+  );
   expect(music).toContain('label={written ? s.montage.wishEdit(name) : s.montage.wishAbout(name)}');
   expect(music).toContain("tone={written ? 'raise' : 'ghost'}");
   expect(ru.montage.wishEdit('Тёплая')).toBe('Изменить пожелание к «Тёплая»');

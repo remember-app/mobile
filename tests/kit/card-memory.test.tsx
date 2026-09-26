@@ -222,8 +222,9 @@ test('the large card hangs its badges 14 off the top and stands its words 18 off
   expect(large).toContain(rule('padding-left:14px;padding-right:14px'));
   expect(large).toContain(rule('padding-left:18px;padding-right:18px'));
   expect(large).toContain(rule('padding-bottom:18px'));
+  // The name first in its pair — in the box it measures its room in, to be balanced (spec 3).
   expect(large).toMatch(
-    new RegExp(`class="[^"]*${rule('gap:7px')}[^"]*"><div[^>]*>Свадьба Лизы и Марка<`),
+    new RegExp(`class="[^"]*${rule('gap:7px')}[^"]*"><div[^>]*><div[^>]*>Свадьба Лизы и Марка<`),
   );
   expect(large).toContain(rule('gap:12px'));
   expect(large).toContain(rule('line-height:16px'));
@@ -235,6 +236,15 @@ test('a long name balances over three lines rather than running out of the card'
   );
   expect(long).toContain('Свадьба Лизы и Марка в Карелии на берегу Ладоги');
   expect(long).toContain('-webkit-line-clamp:3');
+});
+
+test('the name on the cover is balanced, and the ordinary card’s name is not', () => {
+  // Spec 3 and 7.6, detail 36: `text-wrap: balance` on the name on the cover alone — `Main.json` e14
+  // «Свадьба / Лизы и Марка» (TASK-398). The measures that balance it are the words one by one.
+  const large = story(<CardMemory title="Свадьба Лизы и Марка" thumbs={SHOTS} large />);
+  const ordinary = story(<CardMemory title="Свадьба Лизы и Марка" thumbs={SHOTS} />);
+  expect(large).toContain('>Свадьба Лизы<');
+  expect(ordinary).not.toContain('>Свадьба Лизы<');
 });
 
 test('a card that leads somewhere is a button, and one that does not is not', () => {

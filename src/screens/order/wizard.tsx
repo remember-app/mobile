@@ -1,14 +1,5 @@
 import { useRouter } from 'expo-router';
-import {
-  FileText,
-  Heart,
-  Home,
-  PanelsTopLeft,
-  Plus,
-  Smartphone,
-  Sun,
-  Zap,
-} from 'lucide-react-native';
+import { PanelsTopLeft, Plus, Smartphone, Sun } from 'lucide-react-native';
 import {
   createContext,
   type ReactNode,
@@ -37,6 +28,7 @@ import {
   type BoardProps,
   Button,
   ConfirmSheet,
+  DRAWN,
   Icon,
   type IconComponent,
   Sheet,
@@ -154,14 +146,16 @@ const RIDE_STEPS = 24;
  * The character of each of the six templates as a glyph (spec 5): it stands on the tile that
  * starts the order and on the plate over the story it wrote, and both have to be the same picture
  * for the plate to read as «this one». Kept here beside the rest of the wizard's shared parts and
- * not in `@/lib/montage/order`, which holds no values the phone has to load.
+ * not in `@/lib/montage/order`, which holds no values the phone has to load. Four of them are the
+ * layout's own, tighter drawings (`DRAWN`): Lucide's heart at the tile's 16 read 14.7 across
+ * against 10.7 (TASK-398).
  */
 export const TEMPLATE_SIGN: Record<MontageTemplateId, IconComponent> = {
-  for_myself: Heart,
-  quick: Zap,
-  report: FileText,
+  for_myself: DRAWN.heart,
+  quick: DRAWN.zap,
+  report: DRAWN.fileText,
   short_form: Smartphone,
-  parents: Home,
+  parents: DRAWN.house,
   dopamine: Sun,
 };
 

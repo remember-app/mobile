@@ -17,6 +17,14 @@ import { Text, useWordRoom, WordRoom } from './text';
  */
 
 /**
+ * The stroke a template's sign is drawn at wherever it stands — its tile, the plate over the story,
+ * the summary's poster (`MontageTemplate.json` e12, `MontageStory.json` e13, `MontageSummary.json`
+ * e13): 1.9, where the kit's own for 16 and 14 is 2 and 2.1. Four of the signs are the layout's own
+ * drawings (`DRAWN`, TASK-398).
+ */
+const SIGN_STROKE = 1.9;
+
+/**
  * Spec 7.6 — one template, 118 tall. A frame of the memory's own under a darkening, the character
  * of the template as a glyph on glass, its length and shape on a plate, and two lines saying what
  * kind of film it is. Pressing one runs the whole wizard by itself (spec 6), which is why it is a
@@ -89,7 +97,7 @@ export function TileTemplate({
         {icon ? (
           <View style={styles.glass}>
             {/* On glass over a photograph: the night's paper in both themes, like the words beside it. */}
-            <Icon icon={icon} size={16} color={night.paper} />
+            <Icon icon={icon} size={16} stroke={SIGN_STROKE} color={night.paper} />
           </View>
         ) : null}
         {/* Spec 7.6, detail 41: the plate 11 / 600, the name 14 / 17 / 700, the line 11 / 14 / 500. */}
@@ -171,7 +179,9 @@ export function PosterOrder({
       <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.posterScrim]} />
       {template ? (
         <View style={styles.posterPlate}>
-          {templateIcon ? <Icon icon={templateIcon} size={14} color={night.paper} /> : null}
+          {templateIcon ? (
+            <Icon icon={templateIcon} size={14} stroke={SIGN_STROKE} color={night.paper} />
+          ) : null}
           <Text role="chipXs" style={styles.onPhoto}>
             {template}
           </Text>
@@ -225,7 +235,7 @@ export function ChipTemplate({
 
   return (
     <View style={[styles.templateChip, icon ? null : styles.templateChipBare, style]}>
-      {icon ? <Icon icon={icon} size={14} color={color.paper} /> : null}
+      {icon ? <Icon icon={icon} size={14} stroke={SIGN_STROKE} color={color.paper} /> : null}
       {/* 12 / 600, the chip's own size. */}
       <Text role="chipXs">{label}</Text>
     </View>

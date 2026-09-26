@@ -1,5 +1,11 @@
 import { createContext, useContext, useState } from 'react';
-import { Text as RNText, StyleSheet, type TextProps, useWindowDimensions } from 'react-native';
+import {
+  Text as RNText,
+  StyleSheet,
+  type TextProps,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 
 import { themed, type } from '@/theme';
 
@@ -81,22 +87,44 @@ const QUIET = new Set<TypeRole>(['meta', 'metaSm', 'note', 'hint', 'eyebrow']);
  * {@link HEADING_MOST}) — a caller that measured its own room says so with `maxFontSizeMultiplier`,
  * and is heard.
  */
+// React Native's own `role` is the ARIA one, and it is `accessibilityRole` spelled twice; the spec's
+// roles are the useful meaning of the word here, so this takes the name over.
+type KitTextProps = Omit<TextProps, 'role'> & {
+  role?: TypeRole;
+  tone?: TextTone;
+  /**
+   * CSS `text-wrap: balance`: the lines as even as the words allow, in as few lines as they take at
+   * the full width (spec 3 — the name on the cover). Words, not a node: a string child.
+   */
+  balance?: boolean;
+};
+
 export function Text({
   role = 'body',
   tone,
+  balance,
   style,
   maxFontSizeMultiplier,
   onTextLayout,
+  children,
   ...rest
-}: // React Native's own `role` is the ARIA one, and it is `accessibilityRole` spelled twice; the
-// spec's roles are the useful meaning of the word here, so this takes the name over.
-Omit<TextProps, 'role'> & {
-  role?: TypeRole;
-  tone?: TextTone;
-}) {
+}: KitTextProps) {
   const styles = useStyles();
   const room = useContext(WordRoom);
 
+  if (balance && typeof children === 'string')
+    return (
+      <Balanced
+        role={role}
+        tone={tone}
+        style={style}
+        maxFontSizeMultiplier={maxFontSizeMultiplier}
+        onTextLayout={onTextLayout}
+        {...rest}
+      >
+        {children}
+      </Balanced>
+    );
   return (
     <RNText
       style={[styles[tone ?? (QUIET.has(role) ? 'muted' : 'paper')], type[role], style]}
@@ -111,7 +139,9 @@ Omit<TextProps, 'role'> & {
           : onTextLayout
       }
       {...rest}
-    />
+    >
+      {children}
+    </RNText>
   );
 }
 
@@ -123,6 +153,125 @@ Omit<TextProps, 'role'> & {
 export function brokeWord(lines: readonly { text: string }[]): boolean {
   return lines.some(
     (line, i) => i > 0 && !/[\s\-‐–—]$/.test(lines[i - 1].text) && !/^\s/.test(line.text),
+  );
+}
+
+/**
+ * CSS `text-wrap: balance` for words of known widths (spec 3): the narrowest width at which they still
+ * take no more lines than they take in `room` — so the lines come out as even as the words allow,
+ * «Свадьба / Лизы и Марка» where filling each line first gives «Свадьба Лизы и / Марка» (`Main.json`
+ * e14). Nothing to even out — one line, a word wider than the room, more lines than `most` shows — is
+ * `undefined`.
+ */
+export function balanced(
+  words: readonly number[],
+  space: number,
+  room: number,
+  most = Number.POSITIVE_INFINITY,
+): { width: number; lines: number } | undefined {
+  const linesAt = (width: number) => {
+    let lines = 1;
+    let run = words[0];
+    for (const word of words.slice(1)) {
+      if (run + space + word <= width) run += space + word;
+      else {
+        lines += 1;
+        run = word;
+      }
+    }
+    return lines;
+  };
+  const widest = Math.max(...words);
+  const lines = linesAt(room);
+  if (lines < 2 || lines > most || widest > room) return undefined;
+  // The narrower the width, the more lines, never fewer — so halving finds the edge.
+  let short = widest;
+  let width = room;
+  while (width - short > 0.01) {
+    const mid = (short + width) / 2;
+    if (linesAt(mid) > lines) short = mid;
+    else width = mid;
+  }
+  return { width, lines };
+}
+
+/**
+ * `balance` on a kit `Text`. React Native has no `text-wrap: balance`, so the words are laid out once
+ * more, unseen and one by one — each exactly as wide as the phone draws it at its type size, and the
+ * first two together for the space between — and the visible text is narrowed to what `balanced`
+ * finds, a point over it for the rounding of the measures. It is not seen until they are measured, so
+ * its lines never jump in front of anyone; and if the phone still sets it in more lines than they were
+ * counted in, it goes back to the full width rather than lose a line under `numberOfLines`.
+ */
+function Balanced({
+  children,
+  role,
+  tone,
+  maxFontSizeMultiplier,
+  numberOfLines,
+  style,
+  onTextLayout,
+  ...rest
+}: Omit<KitTextProps, 'balance' | 'children'> & { children: string }) {
+  const words = children.split(' ').filter(Boolean);
+  const [room, setRoom] = useState(0);
+  const [drawn, setDrawn] = useState<readonly number[]>([]);
+  const [missed, setMissed] = useState<string | null>(null);
+  const face = { role, tone, maxFontSizeMultiplier, style };
+  if (words.length < 2)
+    return (
+      <Text {...face} numberOfLines={numberOfLines} onTextLayout={onTextLayout} {...rest}>
+        {children}
+      </Text>
+    );
+
+  const measures = [...words, `${words[0]} ${words[1]}`];
+  const measured = room > 0 && measures.every((_, at) => drawn[at] !== undefined);
+  const even = measured
+    ? balanced(
+        drawn.slice(0, words.length),
+        drawn[words.length] - drawn[0] - drawn[1],
+        room,
+        numberOfLines,
+      )
+    : undefined;
+  const width = even ? Math.ceil(even.width) + 1 : undefined;
+  const tried = `${room} ${width}`;
+  const narrow = even && missed !== tried ? { maxWidth: width } : null;
+
+  return (
+    <View onLayout={(event) => setRoom(event.nativeEvent.layout.width)}>
+      <Text
+        {...face}
+        style={[style, narrow, measured ? null : hidden.unseen]}
+        numberOfLines={numberOfLines}
+        onTextLayout={(event) => {
+          onTextLayout?.(event);
+          if (narrow && even && event.nativeEvent.lines.length > even.lines) setMissed(tried);
+        }}
+        {...rest}
+      >
+        {children}
+      </Text>
+      <View
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={hidden.measure}
+      >
+        {measures.map((words, at) => (
+          <Text
+            key={at}
+            {...face}
+            onLayout={(event) => {
+              const wide = event.nativeEvent.layout.width;
+              setDrawn((had) => (had[at] === wide ? had : Object.assign([...had], { [at]: wide })));
+            }}
+          >
+            {words}
+          </Text>
+        ))}
+      </View>
+    </View>
   );
 }
 
@@ -209,4 +358,13 @@ export function HiddenLabel({ children, nativeID }: { children: string; nativeID
 
 const hidden = StyleSheet.create({
   clip: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0 },
+  unseen: { opacity: 0 },
+  measure: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    alignItems: 'flex-start',
+    opacity: 0,
+    pointerEvents: 'none',
+  },
 });
