@@ -270,13 +270,17 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   // `FramesEmpty` (spec 4): the body's layer of the feed is the whole screen, 0…844 — the glass and
   // the bottom layer lie over it — so what stands in an empty feed is centred on the screen and not
   // on the room between the two, which the taller layer pushes up. It is let down by the difference,
-  // as far as the room under it allows: never under the bottom layer.
-  const lift =
-    rows.length === 0 ? Math.max(0, Math.min(bottom - top, screen - top - bottom - emptied)) : 0;
+  // as far as the room under it allows — less the line at the head of the feed, when it stands there:
+  // never under the bottom layer.
+  const liftUnder = (taken: number) =>
+    rows.length === 0
+      ? Math.max(0, Math.min(bottom - top, screen - top - bottom - emptied - taken))
+      : 0;
   const lineEnds = insets.top + height.roundViewer + space.s2 + troubled;
   const floats =
     lineEnds + layer + type.body.lineHeight * fontScale <= screen &&
-    (any || top + (screen - top - bottom - emptied + lift) / 2 >= lineEnds);
+    (any || top + (screen - top - bottom - emptied + liftUnder(0)) / 2 >= lineEnds);
+  const lift = liftUnder(head.error !== null && !floats ? troubled : 0);
   const trouble =
     head.error === null ? null : (
       <HeadTrouble

@@ -1989,6 +1989,23 @@ test('an empty feed centres what it holds on the whole screen, 0…844, and neve
   expect(topOf(600)).toBe(116);
 });
 
+test('an empty feed with the line at its head lets the block down only as far as the room the line leaves', async () => {
+  // 844 under a status line of 52: the room between the glass (116) and the layer (190) is 538. A
+  // line of 120 and a block of 400 would crowd the middle, so the line stands at the head of the
+  // feed — and the two together are exactly the room. Let down the whole 74 the centring asks for,
+  // the block ran 56 under the layer, where it had stood clear of it before it was let down at all.
+  const it = await trouble({ height: 844, top: 52 }, { line: 120, layer: 190 }, 400);
+  expect(it.head()).toBe(true);
+  const block = it.screen.root
+    .findByType(Empty)
+    .parent!.parent!.findAll(
+      (one) => typeof one.props.onLayout === 'function' && one.findAllByType(Empty).length > 0,
+    )[0];
+  const lift = Number(StyleSheet.flatten(block.props.style)?.marginTop ?? 0);
+  expect(lift).toBe(538 - 120 - 400);
+  expect(116 + 120 + lift + 400).toBe(844 - 190);
+});
+
 test('the line comes back under the glass when the room for it does, and goes when it is gone', async () => {
   const it = await trouble({ height: 700 }, { line: 120, layer: 260 });
   expect(it.floats()).toBe(true);
