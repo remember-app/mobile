@@ -1,5 +1,4 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Unlink } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -42,6 +41,7 @@ import {
   useTypedThought,
 } from '@/lib/montage/journal';
 import { SheetLiveFile } from '@/screens/memory/live-file';
+import { MontageGone } from '@/screens/memory/montage-gone';
 import { space } from '@/theme';
 
 /**
@@ -95,22 +95,8 @@ export default function MontageLiveStageScreen() {
   const card = journal.entries.find((entry) => entry.id === opened);
   const cardFile = card?.media_id ? journal.files[card.media_id] : undefined;
 
-  // The api's 404: this reader is not in the memory any more — said the way the live screen says it.
   if (journal.standing === 'refused') {
-    return (
-      <Board
-        bar={
-          <AppBar
-            variant="live"
-            title={s.montage.stageHead[code]}
-            left={<BackButton label={s.action.back} onPress={() => router.back()} />}
-          />
-        }
-        body={styles.gone}
-      >
-        <Banner tone="error" icon={Unlink} text={s.memory.gone} />
-      </Board>
-    );
+    return <MontageGone title={s.montage.stageHead[code]} onBack={() => router.back()} />;
   }
 
   return (
@@ -171,6 +157,12 @@ export default function MontageLiveStageScreen() {
               onPress={() => setSift('skip')}
             />
           </View>
+
+          {/* The read never came back. Standing with the chips rather than in the list, so it is in
+              sight however far the records have been scrolled — and they stay as they were. */}
+          {journal.standing === 'offline' ? (
+            <Banner text={s.montage.live.lost} style={styles.lost} />
+          ) : null}
         </>
       }
       // A list and not a column of everything: a stage's journal is hundreds of records with a
@@ -214,9 +206,10 @@ export default function MontageLiveStageScreen() {
             onEndReachedThreshold={0.6}
             // Only the first answer is waited for here. A stage with no records once it is known
             // has simply said nothing — rhythm and assembly never do — and «Ждём очереди» over a
-            // finished film's stage would be a lie; the only way in is a stage already reached.
+            // finished film's stage would be a lie; the only way in is a stage already reached. A
+            // first answer that never came is the banner's to say, not a wait.
             ListEmptyComponent={
-              journal.status === null ? <Text role="note">{s.state.loading}</Text> : null
+              journal.standing === 'opening' ? <Text role="note">{s.state.loading}</Text> : null
             }
           />
         </View>
@@ -306,6 +299,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.s4,
     paddingTop: space.s3,
   },
+  lost: { marginHorizontal: space.s4, marginTop: space.s3 },
   // The screen's own margin lives here so the line behind the list is measured from it; the records
   // then stand 22 in, which is where the kit hangs their dots.
   feed: { flex: 1, paddingHorizontal: space.s4 },
@@ -315,5 +309,4 @@ const styles = StyleSheet.create({
   records: { paddingLeft: 22, gap: 18 },
   // Scrolling with the records, the bar and the chips keep the screen's edges, not the records'.
   edge: { marginLeft: -space.s4 - 22, marginRight: -space.s4 },
-  gone: { paddingHorizontal: space.s4, paddingTop: space.s4 },
 });

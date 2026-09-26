@@ -305,10 +305,13 @@ test('the stage journal is one stage’s records, cut the way the api counts the
   // Only the freshest record is still being said — the rest of a page stands there finished.
   expect(stageLog).toContain('newest={index === 0}');
   // Empty is «loading» until the first answer and nothing after it: rhythm and assembly write no
-  // records at all, and a finished film's stage is not waiting for any queue.
+  // records at all, and a finished film's stage is not waiting for any queue. A first answer that
+  // never came is not a wait either — it is the connection, said by the banner (TASK-405).
   expect(stageLog).toContain(
-    'journal.status === null ? <Text role="note">{s.state.loading}</Text> : null',
+    'journal.standing === \'opening\' ? <Text role="note">{s.state.loading}</Text> : null',
   );
+  expect(stageLog).toContain("journal.standing === 'offline' ? (");
+  expect(stageLog).toContain('<Banner text={s.montage.live.lost}');
   expect(stageLog).not.toContain('s.montage.live.inQueue');
 });
 

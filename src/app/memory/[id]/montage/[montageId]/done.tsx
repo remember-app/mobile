@@ -1,9 +1,9 @@
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useIsFocused, useLocalSearchParams, useRouter } from 'expo-router';
 import { Download, Share } from 'lucide-react-native';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet } from 'react-native';
 
-import { listMontages, type Montage } from '@/api';
+import { ApiError, listMontages, type Montage } from '@/api';
 import {
   AppBar,
   BackButton,
@@ -19,9 +19,10 @@ import {
 import { useAuth } from '@/lib/auth';
 import { formatRuntime } from '@/lib/dates';
 import { useStrings } from '@/lib/language';
-import { howMade, madeInMinutes, useMontageJournal } from '@/lib/montage/journal';
+import { howMade, madeInMinutes, useMontageJournal, WHILE_LIVE_MS } from '@/lib/montage/journal';
 import { RATIO } from '@/lib/montage/order';
 import { FilmPlayer, montageTitle, useFilmActions } from '@/screens/memory/film-player';
+import { MontageGone } from '@/screens/memory/montage-gone';
 import { StageRows } from '@/screens/memory/stage-rows';
 import { space } from '@/theme';
 
@@ -53,8 +54,14 @@ export default function MontageDoneScreen() {
   const journal = useMontageJournal(token, id, montageId);
 
   const [montage, setMontage] = useState<Montage | null>(null);
+  /**
+   * How the last read of the list went: `lost` is a connection that will come back, `refused` the
+   * api's 404 — this reader is not in the memory. Null until the first answer.
+   */
+  const [listed, setListed] = useState<'read' | 'lost' | 'refused' | null>(null);
   /** Whether the film is being watched — the player is the one in `film-player`, and it is a window. */
   const [playing, setPlaying] = useState(false);
+  const focused = useIsFocused();
 
   /** Keeping the film and handing it on — the two buttons under the poster, one busy line for both. */
   const { busy, notice, run } = useFilmActions();
@@ -67,10 +74,21 @@ export default function MontageDoneScreen() {
   const read = useCallback(() => {
     if (!token) return;
     listMontages(token, id).then(
-      (list) => setMontage(list.find((one) => one.id === montageId) ?? null),
-      () => {},
+      (list) => {
+        setMontage(list.find((one) => one.id === montageId) ?? null);
+        setListed('read');
+      },
+      (e: unknown) => setListed(e instanceof ApiError && e.status === 404 ? 'refused' : 'lost'),
     );
   }, [token, id, montageId]);
+
+  // Lost, the list is asked again on the journal's own beat until it answers — the poster, its link
+  // and both buttons hang off it, and «Связь пропала, ждём» over them promises exactly that.
+  useEffect(() => {
+    if (!focused || listed !== 'lost') return;
+    const timer = setInterval(read, WHILE_LIVE_MS);
+    return () => clearInterval(timer);
+  }, [focused, listed, read]);
 
   // And the player is shut on the way out: a `router.push` off a tapped push leaves this screen
   // mounted behind it, and a playing film would otherwise stand over whatever came next (TASK-94).
@@ -86,6 +104,17 @@ export default function MontageDoneScreen() {
   const tiles = howMade(journal.stages, s);
   /** The film once there is a link to it — what «смотреть», «Сохранить» and «Поделиться» all need. */
   const film = montage?.video_url ? montage : null;
+  // The strip of films is under this page both ways in; a montage that landed here by a `replace`
+  // off the live screen has the memory itself under it.
+  const back = () =>
+    router.canGoBack()
+      ? router.back()
+      : router.replace({ pathname: '/memory/[id]', params: { id } });
+
+  // Either read's 404 is the same news: the poster, the buttons and the journal would all be refused.
+  if (journal.standing === 'refused' || listed === 'refused') {
+    return <MontageGone title={s.montage.live.doneTitle} onBack={back} />;
+  }
 
   return (
     <Board
@@ -103,22 +132,18 @@ export default function MontageDoneScreen() {
                   .filter(Boolean)
                   .join(' · ')
           }
-          left={
-            <BackButton
-              label={s.action.back}
-              // The strip of films is under this page both ways in; a montage that landed here by a
-              // `replace` off the live screen has the memory itself under it.
-              onPress={() =>
-                router.canGoBack()
-                  ? router.back()
-                  : router.replace({ pathname: '/memory/[id]', params: { id } })
-              }
-            />
-          }
+          left={<BackButton label={s.action.back} onPress={back} />}
         />
       }
       body={styles.body}
     >
+      {/* A read that has not come back: what was read stays as it was, and the banner goes by
+          itself once both answer — «Как собирался» and the poster's link come back with them.
+          First in the body, where the connection banner stands everywhere: it is about all of it. */}
+      {journal.standing === 'offline' || listed === 'lost' ? (
+        <Banner text={s.montage.live.lost} />
+      ) : null}
+
       {/* Spec detail 38, «Крупный вид готового» — 196 of poster with the play circle in the middle
           of it, the «Готов» badge and «2:30 · 16:9» along the bottom. The press is the whole card
           and it raises the one player this product has; a film whose link has not been read back

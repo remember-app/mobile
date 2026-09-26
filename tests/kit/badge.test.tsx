@@ -126,7 +126,7 @@ test('the three states of a montage are three fills, and each says its own word'
 test('what a participant has brought is a circle, and the circle is read out in words', () => {
   const states: Record<Contribution, string> = {
     done: 'Всё загрузил',
-    planned: 'Планирует загрузить',
+    planned: 'Ещё будет',
   };
   allDifferent(
     Object.fromEntries(
@@ -199,7 +199,7 @@ test('«Готов» on the large poster is a decision mark in its own words, «
 
 test('«ещё будет» is ringed 1 in `lineStrong`, not 1.5', () => {
   // Spec 7.4, detail 27 and 10.11: «значок вклада: обводка 1.5 → 1».
-  const planned = story(<BadgeContribution state="planned" label="Планирует загрузить" />);
+  const planned = story(<BadgeContribution state="planned" label="Ещё будет" />);
   expect(planned).toContain(
     rule(
       'border-bottom-width:1px;border-left-width:1px;border-right-width:1px;border-top-width:1px',

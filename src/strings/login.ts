@@ -61,13 +61,8 @@ export const en = {
    */
   consent: {
     lead: 'Before you come in — three things you are agreeing to.',
-    /**
-     * Deliberately not the layout's own sentence: there is no deleting a memory in this product,
-     * so «until you delete them or the memory» would promise a door that does not exist. What
-     * actually ends the storing is a frame deleted or the person leaving.
-     */
-    storage:
-      'Your photos and video are stored with us until they are deleted, or until you leave the memory.',
+    /** The layout's own sentence (`Consent.json` e9): two lines in the card, as the layout sets it. */
+    storage: 'Your photos and videos are stored with us until you delete them or the memory.',
     /** The highlighted line, in three pieces so the middle one can carry the weight. */
     recognisesBefore: 'A neural network goes through the frames and ',
     recognises: 'recognises the faces of people and animals in them',
@@ -134,8 +129,7 @@ export const ru: typeof en = {
 
   consent: {
     lead: 'Прежде чем войти — три вещи, на которые вы соглашаетесь.',
-    storage:
-      'Ваши фото и видео хранятся у нас, пока их не удалят или вы не выйдете из воспоминания.',
+    storage: 'Ваши фото и видео хранятся у нас, пока вы не удалите их или воспоминание.',
     recognisesBefore: 'Нейросеть разбирает кадры и ',
     recognises: 'узнаёт на них лица людей и животных',
     recognisesAfter: ' — без этого ролик не собрать.',

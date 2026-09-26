@@ -168,8 +168,11 @@ type Options = {
    * the api signs and lays out a file when it sends it.
    */
   moments?: readonly string[];
-  /** A request the api refuses or the network drops, before any recorded answer is looked for. */
-  refuse?: (query: URLSearchParams) => number | 'offline' | undefined;
+  /**
+   * A request the api refuses or the network drops, before any recorded answer is looked for — on
+   * the journal and on the list of montages alike, never on `extra`. `path` is the route asked.
+   */
+  refuse?: (query: URLSearchParams, path: string) => number | 'offline' | undefined;
   /** Answers for routes the recording does not cover (`/memories`, `/members`) — plain data. */
   extra?: Record<string, unknown>;
   /** Answers instead of the recorded one, for a step named here — a mutation of real data. */
@@ -256,9 +259,7 @@ export function replay(steps: readonly Step[], options: Options = {}): Replay {
       return json(extra);
     }
 
-    const refused = url.pathname.endsWith('/journal')
-      ? options.refuse?.(url.searchParams)
-      : undefined;
+    const refused = options.refuse?.(url.searchParams, url.pathname);
     if (refused !== undefined) {
       state.served.push(`${label} (refused)`);
       if (refused === 'offline') throw new TypeError('Network request failed');
