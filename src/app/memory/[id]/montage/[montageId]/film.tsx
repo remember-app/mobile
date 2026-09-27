@@ -7,6 +7,7 @@ import {
   ApiError,
   deleteMontage,
   errorMessage,
+  listMembers,
   listMemories,
   listMontages,
   type Memory,
@@ -60,6 +61,8 @@ export default function FilmScreen() {
   const journal = useMontageJournal(token, id, montageId);
   const [montage, setMontage] = useState<Montage | null>(null);
   const [memory, setMemory] = useState<Memory | null>(null);
+  /** Everybody in the memory, viewers too — whom «Посмотрели» counts out of. */
+  const [people, setPeople] = useState<number | undefined>(undefined);
   /** How the last read went: `lost` comes back by itself, `refused` is the api's 404. */
   const [listed, setListed] = useState<'read' | 'lost' | 'refused' | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -73,15 +76,17 @@ export default function FilmScreen() {
 
   /**
    * The film out of its memory's list — there is no route for one — and the memory itself, for its
-   * name in the capsule, its counts in the sheet and the reader's level. On focus: `video_url` is
-   * signed for a quarter of an hour.
+   * name in the capsule, its counts in the sheet and the reader's level; and the roster, because the
+   * memory's `member_count` leaves out the viewers, who watch too. On focus: `video_url` is signed
+   * for a quarter of an hour.
    */
   const read = useCallback(() => {
     if (!token) return;
-    Promise.all([listMontages(token, id), listMemories(token)]).then(
-      ([films, memories]) => {
+    Promise.all([listMontages(token, id), listMemories(token), listMembers(token, id)]).then(
+      ([films, memories, members]) => {
         setMontage(films.find((one) => one.id === montageId) ?? null);
         setMemory(memories.find((one) => one.id === id) ?? null);
+        setPeople(members.length);
         setListed('read');
       },
       (e: unknown) => setListed(e instanceof ApiError && e.status === 404 ? 'refused' : 'lost'),
@@ -251,6 +256,7 @@ export default function FilmScreen() {
         <FilmInfoSheet
           film={montage}
           memory={memory}
+          people={people}
           taken={journal.stages.find((one) => one.stage === 'directing')?.outcome.frames}
           mayEdit={memory?.role === 'organizer'}
           onRename={() => {

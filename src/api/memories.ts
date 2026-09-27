@@ -26,10 +26,10 @@ export type Memory = {
   media_count: number;
   /**
    * How many frames deleting it would actually take — the hidden ones too, which `media_count`
-   * leaves out. Sent to the organizer alone, since nobody else can delete it; missing for everybody
-   * else.
+   * leaves out. Counted for the organizer alone, since nobody else can delete it; `null` for
+   * everybody else, and missing from an api older than the field.
    */
-  removal_media_count?: number;
+  removal_media_count?: number | null;
   /**
    * Up to four signed thumbnail urls, most recently captured first — the frames the card draws.
    * Only ready media has one, so this is a tail of `media_count` and never all of it; empty

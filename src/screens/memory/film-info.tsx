@@ -28,6 +28,7 @@ export const cutAs = (montage: Montage): string =>
 export function FilmInfoSheet({
   film,
   memory,
+  people,
   taken,
   mayEdit,
   onRename,
@@ -35,8 +36,13 @@ export function FilmInfoSheet({
   onClose,
 }: {
   film: Montage;
-  /** The memory's name and its counts, once its listing is read. */
-  memory: Pick<Memory, 'title' | 'media_count' | 'member_count'> | null;
+  /** The memory's name and its count of frames, once its listing is read. */
+  memory: Pick<Memory, 'title' | 'media_count'> | null;
+  /**
+   * Everybody in the memory, viewers too, once the roster is read: «Посмотрели» counts out of them.
+   * Not `member_count`, which leaves the viewers out while `watched_by` has them in.
+   */
+  people?: number;
   /** How many frames the director took in — its journal's; not known, the row is not drawn. */
   taken?: number;
   /** The organizer's: the api answers anybody else's rename or delete with 403. */
@@ -101,7 +107,7 @@ export function FilmInfoSheet({
         />
         <RowProp
           label={s.montage.film.watchedBy}
-          value={of(watched.length, memory?.member_count)}
+          value={of(watched.length, people)}
           empty={s.mine.none}
           faces={watched}
         />

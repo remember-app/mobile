@@ -20,10 +20,11 @@ export type Member = Contact & {
   media_count: number;
   /**
    * How many frames taking that person out would actually take with them — the hidden ones too,
-   * which `media_count` leaves out. Sent only to whoever can do it: the organizer on every row, and
-   * a member on their own (they may leave). Missing everywhere else.
+   * which `media_count` leaves out. Counted only for whoever can do it: the organizer on every row,
+   * and a member on their own (they may leave). `null` on every other row, and missing from an api
+   * older than the field.
    */
-  removal_media_count?: number;
+  removal_media_count?: number | null;
 };
 
 /**
