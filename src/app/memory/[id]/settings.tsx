@@ -200,12 +200,18 @@ export default function MemorySettingsScreen() {
   };
 
   /**
-   * `SheetConfirmMemory`'s plate — what the other people brought, off the roster's own counts. The
-   * sheet is the organizer's alone, so «other» is everybody but whoever is asking.
+   * What deleting goes on to take — the frames nobody is shown any more too, which the visible
+   * count leaves out. Both sheets name this and not what the rows and the card show. The api sends
+   * it only to whoever may delete, and this screen's sheets are the organizer's alone; missing, it is
+   * an api from before the field, and the visible count stands in, as these sheets named until then.
    */
-  const othersBrought = (members ?? [])
-    .filter((member) => member.id !== user?.id)
-    .reduce((sum, member) => sum + (member.media_count ?? 0), 0);
+  const lost = (of: Pick<Member, 'media_count' | 'removal_media_count'>) =>
+    of.removal_media_count ?? of.media_count ?? 0;
+
+  /** `SheetConfirmMemory`'s plate — the frames of everybody but the organizer that go with it. */
+  const othersLost = (members ?? [])
+    .filter((member) => member.role !== 'organizer')
+    .reduce((sum, member) => sum + lost(member), 0);
 
   /**
    * How many frames that person brought here. `?? 0` and not a bare read: the app ships over the
@@ -416,15 +422,15 @@ export default function MemorySettingsScreen() {
       />
 
       {/* `SheetConfirmMemory` as it is drawn: the cover by the card's own chain, the name and how
-          many frames it holds, whom it disappears from, and — on the plate on `ink` — the frames the
-          others brought, named apart because the one deleting takes more than their own. Nobody
-          else brought anything and there is no plate: «0 кадров» says nothing. */}
+          many frames go with it, whom it disappears from, and — on the plate on `ink` — the others'
+          frames that go too, named apart because the one deleting takes more than their own. None
+          of theirs goes and there is no plate: «0 кадров» says nothing. */}
       {wiping && memory !== null && members !== null ? (
         <ConfirmSheet
           visible
           cover={{ uri: memory.cover_thumbnail_url, thumbs: memory.recent_thumbnail_urls }}
-          meta={`${memory.title} · ${s.memory.frames(memory.media_count)}`}
-          price={othersBrought > 0 ? s.settings.deleteOthers(othersBrought) : undefined}
+          meta={`${memory.title} · ${s.memory.frames(lost(memory))}`}
+          price={othersLost > 0 ? s.settings.deleteOthers(othersLost) : undefined}
           priceOn="ink"
           title={s.settings.deleteAsk}
           text={s.settings.deleteText(members.length)}
@@ -437,17 +443,20 @@ export default function MemorySettingsScreen() {
       ) : null}
 
       {/* `SheetConfirmMember` — irreversible, and doc-01 takes the material with the person. So the
-          sheet carries their face, what they brought, and the price in figures before the press; the
-          button repeats the verb of the question. A viewer has nothing behind them, so there is no
-          price and the paragraph says what is actually lost (spec 10.8.4). */}
+          sheet carries their face, what goes with them, and the price in figures before the press;
+          the button repeats the verb of the question. A viewer has nothing behind them, so there is
+          no price and the paragraph says what is actually lost (spec 10.8.4). */}
       {dropping !== null ? (
         <ConfirmSheet
           visible
           who={memberName(dropping)}
-          meta={[memberHandle(dropping), dropping.role === 'viewer' ? null : framesOf(dropping)]
+          meta={[
+            memberHandle(dropping),
+            dropping.role === 'viewer' ? null : s.memory.frames(lost(dropping)),
+          ]
             .filter(Boolean)
             .join(' · ')}
-          price={dropping.media_count ? s.members.priceFrames(dropping.media_count) : undefined}
+          price={lost(dropping) ? s.members.priceFrames(lost(dropping)) : undefined}
           title={s.members.removeAsk(memberName(dropping))}
           text={dropping.role === 'viewer' ? s.members.removeViewerText : s.members.removeText}
           confirmLabel={s.members.removeDo}

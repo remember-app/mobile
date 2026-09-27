@@ -88,7 +88,7 @@ export const en = {
         : 'It disappears with its frames, movies and montage journals. There is no getting it back.',
     /** The plate: the part of the loss that was never the deleter's own, named as a figure. */
     deleteOthers: (frames: number) =>
-      `Other people brought ${frames} ${frames === 1 ? 'frame' : 'frames'} here`,
+      `${frames} ${frames === 1 ? 'frame' : 'frames'} from other people ${frames === 1 ? 'disappears' : 'disappear'} too`,
     /** «Навсегда» is said here and over one frame, and nowhere else in the product. */
     deleteDo: 'Delete for good',
     keep: 'Keep it',
@@ -154,9 +154,7 @@ export const ru: typeof en = {
     removeText:
       'Всё, что этот человек сюда загрузил, уйдёт вместе с ним. Вернуть это не получится.',
     priceFrames: (n: number) =>
-      `${count(n, 'кадр', 'кадра', 'кадров')} ${
-        n % 10 === 1 && n % 100 !== 11 ? 'исчезнет' : 'исчезнут'
-      } из воспоминания`,
+      `${count(n, 'кадр', 'кадра', 'кадров')} ${form(n, 'исчезнет', 'исчезнут', 'исчезнут')} из воспоминания`,
     removeDo: 'Убрать',
     keepThem: 'Оставить',
     removeViewerText: 'Этот человек больше не увидит воспоминание.',
@@ -179,7 +177,7 @@ export const ru: typeof en = {
           } — кадры, ролики и журналы монтажа. Вернуть будет нельзя.`
         : 'Оно исчезнет вместе с кадрами, роликами и журналами монтажа. Вернуть будет нельзя.',
     deleteOthers: (frames: number) =>
-      `${count(frames, 'кадр', 'кадра', 'кадров')} сюда принесли другие`,
+      `${count(frames, 'кадр', 'кадра', 'кадров')} других участников тоже ${form(frames, 'исчезнет', 'исчезнут', 'исчезнут')}`,
     deleteDo: 'Удалить навсегда',
     keep: 'Оставить',
   },

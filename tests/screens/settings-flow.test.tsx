@@ -314,8 +314,11 @@ test('nobody is shown a cross until the mode is on, and then everyone but onesel
   expect(screen.mark('Лиза Морозова')).toBe('badge:planned');
 });
 
-test('taking somebody out names the price in figures, the level of it is the frames they brought, and a viewer has no price', async () => {
-  world();
+test('taking somebody out names the price in figures, the level of it is the frames that go with them, and a viewer has no price', async () => {
+  // Liza shows 54, and 6 more of hers are hidden: all 60 go with her (TASK-442).
+  world({
+    members: roster().map((one) => (one.id === 'liza' ? { ...one, removal_media_count: 60 } : one)),
+  });
   const screen = await open();
   await screen.press(() => screen.button(ru.members.edit)[0]);
   expect(screen.sheet()).toHaveLength(0);
@@ -323,7 +326,10 @@ test('taking somebody out names the price in figures, the level of it is the fra
   await screen.press(() => screen.icon(ru.members.remove('Лиза Морозова'))[0]);
   const ask = screen.sheet()[0].props;
   expect(ask.title).toBe(ru.members.removeAsk('Лиза Морозова'));
-  expect(ask.price).toBe(ru.members.priceFrames(54));
+  expect(ask.price).toBe(ru.members.priceFrames(60));
+  expect(ask.meta).toBe(`@liza · ${ru.memory.frames(60)}`);
+  // The row under the sheet keeps the count everybody sees.
+  expect(screen.row('Лиза Морозова').props.meta).toBe(ru.memory.frames(54));
   expect(ask.text).toBe(ru.members.removeText);
   expect(ask.who).toBe('Лиза Морозова');
   // Spec 4, `SheetConfirmMember`: 420, 18 between blocks — with a price, without one, and for a viewer.
@@ -620,10 +626,17 @@ test('the way to delete the whole memory is the quiet trash in the bar, drawn to
   }
 });
 
-test('the sheet is the memory’s cover, its name and frames, whom it disappears from, and the others’ frames on a plate of their own', async () => {
+test('the sheet is the memory’s cover, its name and the frames that go, whom it disappears from, and the others’ frames on a plate of their own', async () => {
+  // What goes, hidden frames included, is more than what is shown (TASK-442). Pavel's and Vera's
+  // rows carry no such count, and theirs is the visible one.
+  const going: Record<string, number> = { me: 14, liza: 58, anya: 2 };
   const state = world({
+    members: roster().map((one) =>
+      one.id in going ? { ...one, removal_media_count: going[one.id] } : one,
+    ),
     card: {
       media_count: 69,
+      removal_media_count: 77,
       montage_count: 2,
       cover_thumbnail_url: 'https://r2.example/cover',
       recent_thumbnail_urls: ['https://r2.example/t1'],
@@ -631,25 +644,26 @@ test('the sheet is the memory’s cover, its name and frames, whom it disappears
   });
   const screen = await open();
   expect(screen.sheet()).toHaveLength(0);
+  expect(screen.text()).toContain(ru.memory.frames(69));
 
   await screen.press(() => screen.icon(ru.settings.delete)[0]);
   const ask = screen.sheet()[0].props;
   expect(ask.title).toBe('Удалить воспоминание?');
   expect(ask.cover).toEqual({ uri: 'https://r2.example/cover', thumbs: ['https://r2.example/t1'] });
-  expect(ask.meta).toBe('Свадьба Лизы и Марка · 69 кадров');
+  expect(ask.meta).toBe('Свадьба Лизы и Марка · 77 кадров');
   // Everybody inside is counted, the viewer too (spec 10.6): five people.
   expect(ask.text).toBe(
     'Оно исчезнет у всех 5 участников — кадры, ролики и журналы монтажа. Вернуть будет нельзя.',
   );
-  // Liza 54, Anya 0, Pavel 3, Vera 0 — the organizer’s own 12 are not «other».
-  expect(ask.price).toBe('57 кадров сюда принесли другие');
+  // Liza 58, Anya 2, Pavel 3, Vera 0 — the organizer’s own 14 are not «other».
+  expect(ask.price).toBe('63 кадра других участников тоже исчезнут');
   expect(ask.priceOn).toBe('ink');
   // The layout names no movies in the price, and neither does the sheet.
   expect(ask.price).not.toContain('ролик');
   expect(ask.confirmLabel).toBe('Удалить навсегда');
   expect(ask.cancelLabel).toBe('Оставить');
   // And that is what is drawn.
-  expect(screen.text()).toContain('57 кадров сюда принесли другие');
+  expect(screen.text()).toContain('63 кадра других участников тоже исчезнут');
   expect(screen.text()).toContain('Удалить навсегда');
   // Spec 4, `SheetConfirmMemory`: 434 — the layout's 430 squeezed its handle — with 18 between blocks.
   expect(sheetBox(screen.sheet()[0])).toEqual({ gap: 18, minHeight: 434 });
@@ -730,7 +744,8 @@ test('in daylight the deleting sheet, its plate on `ink` and its red button incl
     const shown = themesShown(screen.sheet()[0]);
     expect(shown.night).toEqual([]);
     expect(shown.day.length).toBeGreaterThan(0);
-    expect(screen.text()).toContain('57 кадров сюда принесли другие');
+    // No count of what goes came with the rows, and the visible one stands in: 54 + 0 + 3 + 0.
+    expect(screen.text()).toContain('57 кадров других участников тоже исчезнут');
   } finally {
     await setTheme('dark');
   }
