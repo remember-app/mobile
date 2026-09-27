@@ -437,8 +437,8 @@ export function groupFrames(
  * buckets themselves come back in the order they were first met, so whoever sorts them afterwards
  * gets a stable answer out of a stable one.
  */
-function cut<K>(items: readonly MediaItem[], keyOf: (item: MediaItem) => K): [K, MediaItem[]][] {
-  const groups = new Map<K, MediaItem[]>();
+function cut<T, K>(items: readonly T[], keyOf: (item: T) => K): [K, T[]][] {
+  const groups = new Map<K, T[]>();
   for (const item of items) {
     const key = keyOf(item);
     const held = groups.get(key);
@@ -469,7 +469,18 @@ function cut<K>(items: readonly MediaItem[], keyOf: (item: MediaItem) => K): [K,
  * every frame is already the event's — there is no window left to sort by.
  */
 export function framesByDay(items: readonly MediaItem[]): FrameDay[] {
-  return cut(items, dayOf)
+  return byDay(items, shotAt);
+}
+
+/**
+ * The same cut over anything that happened at an instant — «Мои кадры» cuts the frames already in
+ * the memory and the ones still on their way up from the phone into one run of days.
+ */
+export function byDay<T>(
+  things: readonly T[],
+  when: (thing: T) => number,
+): { at: number; frames: T[] }[] {
+  return cut(things, (thing) => startOfDay(new Date(when(thing))).getTime())
     .map(([at, frames]) => ({ at, frames }))
     .sort((a, b) => b.at - a.at);
 }

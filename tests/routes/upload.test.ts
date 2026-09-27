@@ -1,6 +1,8 @@
 import { api, flat } from '@tests/helpers/source';
 import { expect, test } from 'vitest';
 
+import layout from '@/app/_layout.tsx?raw';
+import queueRoute from '@/app/memory/[id]/queue.tsx?raw';
 import upload from '@/app/memory/[id]/upload.tsx?raw';
 import uploads from '@/lib/upload/send.ts?raw';
 import noFeed from '@/screens/upload/message.tsx?raw';
@@ -9,7 +11,7 @@ import { strings } from '@/strings';
 import { board, height, uploadGaps } from '@/theme';
 
 /**
- * «Ваши кадры» — the camera roll drawn the way a memory's own feed is (TASK-210). Read as text, the
+ * «Добавить кадры» — the camera roll drawn the way a memory's own feed is (TASK-210). Read as text, the
  * way `tests/routes/memory/screen.test.ts` gives at length: this is an `expo-router` screen wired to a native
  * gallery module, and there is no renderer for one here. What is worth pinning is what the layout
  * decided and what a later reader would undo by accident.
@@ -37,8 +39,14 @@ test('the roll is the kit’s feed edge to edge, and the queue’s grid in the m
 
 test('the queue and a partial grant are drawn in the plain face, and the feed is glass only with nothing said over it', () => {
   // `UploadQueue` and `UploadLimited` wear the plain bar with the memory named under the heading,
-  // and no switch for the mode: picking is simply on there.
-  expect(upload).toContain('const glass = feed && !limited && queued.length === 0;');
+  // and no switch for the mode: picking is simply on there. The queue's face is a route of its own
+  // (27 September): `Upload` itself says nothing of the sending.
+  expect(upload).toContain('const glass = feed && !limited && !queue;');
+  expect(upload).toContain(
+    'const queued = queue ? uploads.filter((file) => file.memoryId === id) : [];',
+  );
+  expect(queueRoute).toContain('<UploadScreen queue />');
+  expect(layout).toContain('<Stack.Screen name="memory/[id]/queue"');
   expect(upload).toContain('const choosing = picking || !glass;');
   expect(flat(upload)).toContain('<Board style={glass ? styles.bleed : undefined}');
   expect(upload).toContain('footer={glass ? undefined : layer}');
@@ -47,7 +55,7 @@ test('the queue and a partial grant are drawn in the plain face, and the feed is
 
 test('the bar over the feed is glass, and its capsule is a plate rather than a button', () => {
   const bar = upload.slice(upload.indexOf('<GlassBar'), upload.indexOf('{glass ? layer'));
-  // «Ваши кадры» over «в „Свадьба Лизы и Марка“» — the screen is about this phone's roll, and the
+  // «Добавить кадры» over «в „Свадьба Лизы и Марка“» — the screen is about this phone's roll, and the
   // memory is the line under it.
   expect(bar).toContain('title={s.upload.title}');
   expect(bar).toContain('meta={memory ? s.upload.into(memory.title) : undefined}');
@@ -160,9 +168,12 @@ test('the four other faces are this screen with no feed under it', () => {
   // The sending and the grant are blocks over the grid — and over whatever stands where a feed
   // would, so a queue is still visible on an empty roll.
   expect(upload).toContain('{queued.length > 0 ? (\n          <Upload');
-  expect(upload).toContain('{s.upload.notSent(stuck.length).toUpperCase()}');
+  expect(upload).toContain('title={s.upload.notSent(stuck.length)}');
   expect(upload).toContain('<BlockStuck');
-  expect(upload).toContain('onDrop: () => drop(id, ...line.files.map((file) => file.assetId)),');
+  // A line to a file (spec detail 51), and its cross lets go of that one file.
+  expect(upload).toContain('onDrop: () => drop(id, file.assetId),');
+  // «Ещё раз» is the queue's own wake, as «Повторить» was — the sending is not written anew.
+  expect(upload).toContain('retry={{ label: s.upload.again, onPress: wake }}');
   expect(upload).toContain('{limited ? (\n          <HintNote');
 });
 
@@ -175,10 +186,8 @@ test('the plain face’s body starts where the layout starts it: 124, and the me
   expect(upload).toContain('body: { paddingHorizontal: space.s4, paddingTop: LEAD }');
   expect(upload).toContain('lead: { paddingTop: LEAD }');
   expect(noFeed).toContain('message: { marginTop: board.bodyUploadCard - board.bodyUpload }');
-  // «НЕ УШЛИ» 10 over the block of parked files (e12 → e13), the unseen plate 22 under its strip
-  // (e12 ends at 455, e18 at 477).
-  expect(uploadGaps).toEqual({ parked: 267 - (241 + 16), unseen: 477 - (338 + 117) });
-  expect(upload).toContain('parked: { gap: uploadGaps.parked }');
+  // The unseen plate 22 under its strip (`UploadLimited.json`: e12 ends at 455, e18 at 477).
+  expect(uploadGaps).toEqual({ unseen: 477 - (338 + 117) });
   expect(upload).toContain('unseen: { marginTop: uploadGaps.unseen }');
 });
 

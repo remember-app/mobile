@@ -2,8 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   failureText,
   missingParts,
-  type ParkedFile,
-  parkedLines,
+  parkedReason,
   partDeadline,
   progress,
   type QueuedFile,
@@ -124,32 +123,20 @@ describe('failureText', () => {
   });
 });
 
-describe('parkedLines', () => {
-  const parked = (assetId: string, error: UploadFailure): ParkedFile => ({
-    assetId,
-    memoryId: 'm1',
-    filename: `IMG_${assetId}.HEIC`,
-    kind: 'photo',
-    capturedAt: null,
-    durationSeconds: null,
-    parts: {},
-    error,
-  });
-
-  it('counts the files under one line a reason, the most first, with storage’s codes said once on it', () => {
-    const lines = parkedLines(ru, [
-      parked('a', { reason: 'gone' }),
-      parked('b', { reason: 'partRefused', part: 1, status: 503 }),
-      parked('c', { reason: 'partRefused', part: 4, status: 503 }),
-      parked('d', { reason: 'partNotTaken', part: 2 }),
-      parked('e', { reason: 'partRefused', part: 2, status: 400 }),
-      parked('f', { reason: 'offline' }),
-    ]);
-    expect(lines.map((line) => [line.text, line.files.map((file) => file.assetId)])).toEqual([
-      ['Хранилище отказало (503, 400)', ['b', 'c', 'd', 'e']],
-      ['Больше нет на этом телефоне', ['a']],
-      [ru.error.offline, ['f']],
-    ]);
+describe('parkedReason', () => {
+  // Spec detail 51: a line to a file in the block of failures, and storage's own code on it where
+  // storage answered with one (TASK-413 wants them seen).
+  it('says why one file stopped, with storage’s code after the words where there is one', () => {
+    expect(parkedReason(ru, { reason: 'partRefused', part: 3, status: 503 })).toBe(
+      'Хранилище отказало (503)',
+    );
+    expect(parkedReason(ru, { reason: 'storageOffline', part: 1, status: 400 })).toBe(
+      'Связь с хранилищем оборвалась (400)',
+    );
+    expect(parkedReason(ru, { reason: 'storageOffline', part: 1 })).toBe(
+      'Связь с хранилищем оборвалась',
+    );
+    expect(parkedReason(ru, { reason: 'gone' })).toBe('Больше нет на этом телефоне');
   });
 });
 

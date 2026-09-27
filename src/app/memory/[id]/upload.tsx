@@ -44,7 +44,7 @@ import { useAuth } from '@/lib/auth';
 import { formatDay, formatEventDates, formatRuntime, formatWeekday } from '@/lib/dates';
 import { useStrings } from '@/lib/language';
 import { assetsByDay, type ShootingDay } from '@/lib/media-window';
-import { type ParkedFile, parkedLines, progress } from '@/lib/upload/queue';
+import { type ParkedFile, parkedReason, progress } from '@/lib/upload/queue';
 import { answerAskAll, drop, enqueue, useAskAll, useUploads, wake } from '@/lib/upload/send';
 import { NoFeed } from '@/screens/upload/message';
 import { useRoll } from '@/screens/upload/roll';
@@ -91,25 +91,28 @@ type Row =
 const SeamCell = seamsOver<Row>((row) => row.day !== undefined);
 
 /**
- * Putting material into a memory: consent, the camera roll drawn the way a memory's own feed is —
- * three to a row, edge to edge, the date standing between one day and the next — the selection to
- * trim, the sending itself (handed to `@/lib/upload/send`, which carries on without this screen) and the
- * one question doc-06 asks afterwards. Nothing here asks what the memory's status is: material goes
- * in during the event and long after the montage was made (doc-02).
+ * «Добавить кадры» — putting material into a memory: consent, the camera roll drawn the way a
+ * memory's own feed is — three to a row, edge to edge, the date standing between one day and the
+ * next — the selection to trim, and the sending itself (handed to `@/lib/upload/send`, which carries
+ * on without this screen). What was already given lives on «Мои кадры» (`mine.tsx`), not here.
+ * Nothing here asks what the memory's status is: material goes in during the event and long after
+ * the montage was made (doc-02).
  *
  * Spec «Экраны»: `Upload`, and its four other faces — `UploadAccess`, `UploadLimited`,
- * `UploadQueue`, `UploadEmpty` — plus the sheet `SheetAskAll`. All of them are this one file, in
- * three faces the layout draws apart:
+ * `UploadQueue`, `UploadEmpty` — plus the sheet `SheetAskAll`. `UploadQueue` is a route of its own
+ * (`queue.tsx`, this screen with `queue` on): «Отправить» hands the pick over and moves there, and
+ * «Разобрать» on «Мои кадры» leads there. Three faces the layout draws apart:
  *
  * - **the feed** (`Upload`) — the whole roll and nothing to say over it: photographs edge to edge
  *   under the glass bar, the days as seams between them;
  * - **the queue** (`UploadQueue`, `UploadLimited`) — the same roll with something said over it, the
- *   sending or the partial grant: the plain bar with the memory named under the heading, the frames
- *   in the screen's margins the way a list of things being sent is, each day headed with a line;
+ *   sending and what did not go, or the partial grant: the plain bar with the memory named under the
+ *   heading, the frames in the screen's margins, each day headed with a line;
  * - **no feed** (`UploadAccess`, `UploadEmpty`, the waits) — the plain bar over a message.
  */
-export default function UploadScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+export default function UploadScreen({ queue = false }: { queue?: boolean }) {
+  // `sent` is what the picking face handed over on its way here, for «Это всё?» to count.
+  const { id, sent: handed } = useLocalSearchParams<{ id: string; sent?: string }>();
   const router = useRouter();
   const { token } = useAuth();
   const { color } = useTheme();
@@ -145,7 +148,9 @@ export default function UploadScreen() {
   /** The frame being looked at full screen, which is what a tap does once picking is off. */
   const [open, setOpen] = useState<MediaLibrary.Asset | null>(null);
   // What this visit has handed to the queue — the number the «Это всё?» sheet counts out loud.
-  const [sent, setSent] = useState(0);
+  const [sent, setSent] = useState(() => Number(handed) || 0);
+  /** Whether the failures folded away under the first two are open (spec detail 78). */
+  const [unfolded, setUnfolded] = useState(false);
   // Its own and not the roll's, because the two cost different things. A gallery that will not
   // open leaves nothing to put on the screen; an api that cannot be reached only costs the event
   // dates — picking and queueing carry on, which is the whole point of a queue that waits.
@@ -196,10 +201,10 @@ export default function UploadScreen() {
     again();
   }
 
-  // This memory's share of the queue: the one going up right now, and the ones parked. One bar for
-  // the whole sending and not thirty-four (spec 7.6) — and the parked ones counted under «НЕ УШЛИ»
-  // by what stopped them, not named one by one.
-  const queued = uploads.filter((file) => file.memoryId === id);
+  // This memory's share of the queue: the one going up right now, and the ones parked — said on the
+  // queue's face alone. One bar for the whole sending and not thirty-four (spec 7.6), and every file
+  // that did not go in one block under it.
+  const queued = queue ? uploads.filter((file) => file.memoryId === id) : [];
   const sending = queued.find((file) => file.error === undefined);
   const stuck = queued.filter((file): file is ParkedFile => file.error !== undefined);
 
@@ -215,11 +220,11 @@ export default function UploadScreen() {
 
   const feed = granted && rows.length > 0;
   /**
-   * The feed face is the roll with nothing said over it. A sending or a partial grant is said over
-   * it, and the layout draws those two in the queue face instead (`UploadQueue`, `UploadLimited`):
-   * the plain bar, and the frames in the margins. When the last file is in, the feed is back.
+   * The feed face is the roll with nothing said over it. The sending and a partial grant are said
+   * over it, and the layout draws those two in the queue face instead (`UploadQueue`,
+   * `UploadLimited`): the plain bar, and the frames in the margins.
    */
-  const glass = feed && !limited && queued.length === 0;
+  const glass = feed && !limited && !queue;
   /**
    * The queue face has no switch for the mode — its bar is the plain one — so picking is on there
    * whatever the switch on the glass was left at.
@@ -270,8 +275,17 @@ export default function UploadScreen() {
   function send() {
     const chosen = gallery.filter((asset) => picked.has(asset.id));
     enqueue(id, chosen);
-    setSent((n) => n + chosen.length);
     setPicked(new Set());
+    // Spec 8, `Upload`: «отправка идёт — UploadQueue». The picking face hands over and gives way to
+    // the queue's own, which says how it goes and asks «Это всё?» once it is all in.
+    if (!queue) {
+      router.replace({
+        pathname: '/memory/[id]/queue',
+        params: { id, sent: String(sent + chosen.length) },
+      });
+      return;
+    }
+    setSent((n) => n + chosen.length);
   }
 
   /** The way out. Reached by a tapped push there is nothing behind it, so the list is the answer. */
@@ -284,12 +298,7 @@ export default function UploadScreen() {
   // Everything the sending and the grant have to say. It stands over the feed and scrolls away with
   // it, and on a screen with no feed at all — an empty gallery with a queue still going — it stands
   // over whatever is being said instead.
-  const said =
-    apiError !== null ||
-    queued.length > 0 ||
-    stuck.length > 0 ||
-    limited ||
-    (reading && rows.length > 0);
+  const said = apiError !== null || queued.length > 0 || limited || (reading && rows.length > 0);
 
   function blocks() {
     return (
@@ -316,39 +325,30 @@ export default function UploadScreen() {
           />
         ) : null}
 
-        {/* How many did not go and why, in one block: a line to each reason, however many files
-            it stopped (TASK-417), and a cross on it for the files somebody would rather not send
-            after all. The queue retries by itself — on a timer and on coming back to the app — so
-            the button is for whoever would rather not wait for either. It is as tall as the words
-            beside it and felt at 44, so «НЕ УШЛИ» stands 10 over the block the way the layout has
-            it, button or not. */}
+        {/* Every file that did not go, in one block (spec detail 78): its name, why, and a cross
+            for a file somebody would rather not send after all. The queue retries by itself — on a
+            timer and on coming back to the app — so «Ещё раз» is for whoever would rather not wait
+            for either. The freshest stand first: the pump goes down the queue in order, so the last
+            ones in it are the last to have stopped. */}
         {stuck.length > 0 ? (
-          <View style={styles.parked}>
-            <View style={styles.parkedHead}>
-              <Text role="eyebrow" tone="muted">
-                {s.upload.notSent(stuck.length).toUpperCase()}
-              </Text>
-              <Button
-                size="line"
-                variant="quiet"
-                labelRole="label"
-                label={s.action.retry}
-                onPress={wake}
-              />
-            </View>
-            <BlockStuck
-              // The queue keeps the reason and not the sentence, so the words are picked here, in
-              // the language this render is in — a language switched while they sit parked turns
-              // these lines with the rest of the screen (TASK-93).
-              lines={parkedLines(s, stuck).map((line) => ({
-                key: line.text,
-                count: s.upload.files(line.files.length),
-                reason: line.text,
-                dropLabel: s.upload.dropFiles(line.files.length),
-                onDrop: () => drop(id, ...line.files.map((file) => file.assetId)),
-              }))}
-            />
-          </View>
+          <BlockStuck
+            title={s.upload.notSent(stuck.length)}
+            retry={{ label: s.upload.again, onPress: wake }}
+            // The queue keeps the reason and not the sentence, so the words are picked here, in the
+            // language this render is in — a language switched while they sit parked turns these
+            // lines with the rest of the screen (TASK-93).
+            lines={[...stuck].reverse().map((file) => ({
+              key: file.assetId,
+              name: file.filename,
+              reason: parkedReason(s, file.error),
+              dropLabel: s.upload.dropFile(file.filename),
+              onDrop: () => drop(id, file.assetId),
+            }))}
+            open={unfolded}
+            onToggle={() => setUnfolded((was) => !was)}
+            more={s.upload.folded(stuck.length - 2)}
+            less={s.upload.fold}
+          />
         ) : null}
 
         {/* `UploadLimited`: what is on this screen is what was handed over, and the days below
@@ -576,7 +576,7 @@ export default function UploadScreen() {
         </>
       )}
 
-      {/* Over the feed and not above it, which is what makes it glass. «Ваши кадры» over the memory
+      {/* Over the feed and not above it, which is what makes it glass. «Добавить кадры» over the memory
           this material is going into — a plate and not a button: the memory's own screen is behind
           «Назад», and there is nothing else here to open. */}
       {glass ? (
@@ -689,7 +689,7 @@ export default function UploadScreen() {
 }
 
 /**
- * The line under «Ваши кадры» on the plain bar: which memory this is going into and when it
+ * The line under «Добавить кадры» on the plain bar: which memory this is going into and when it
  * happened. The separator goes with the dates, so a memory whose dates will not read is never left
  * hanging off a «·» — `@/lib/frames` learnt that one the hard way.
  */
@@ -722,13 +722,6 @@ const useStyles = themed(({ color }) =>
     headSaid: { paddingBottom: space.s4 },
     glass: { position: 'absolute', left: 0, right: 0, top: 0 },
     layer: { position: 'absolute', left: 0, right: 0, bottom: 0 },
-    parked: { gap: uploadGaps.parked },
-    parkedHead: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-    },
     unseen: { marginTop: uploadGaps.unseen },
     grow: { flex: 1, minWidth: 0 },
     // The one frame opened full screen, and the room stays dark in daylight (spec 2).

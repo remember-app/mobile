@@ -4,10 +4,20 @@
 // video with its poster frame too, and hands back a bitmap already scaled to the tile instead of a
 // twelve-megapixel original — which is what makes a grid of thousands survivable.
 import { Image } from 'expo-image';
-import { Check, ImageIcon, Play, X } from 'lucide-react-native';
+import { Check, EyeOff, ImageIcon, Play, X } from 'lucide-react-native';
 import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
-import { font, duration as motion, night, photo, radius, space, themed, useTheme } from '@/theme';
+import {
+  font,
+  duration as motion,
+  night,
+  photo,
+  radius,
+  space,
+  spinner,
+  themed,
+  useTheme,
+} from '@/theme';
 
 import { Spinner } from './empty';
 import { Icon, type IconComponent } from './icon';
@@ -35,6 +45,13 @@ export type PickKind = 'send' | 'keep' | 'off' | 'auto' | 'hand';
 export type TileLane = 'feed' | 'pick';
 
 /**
+ * What has become of a frame on its owner's own feed (spec 7.8, detail 63, `MyFrames`): on its way
+ * up, stuck on the way, or taken out of the shared feed. One sign to a tile — the states do not add
+ * up, since only a frame that is in can be hidden.
+ */
+export type OwnState = 'flying' | 'stuck' | 'hidden';
+
+/**
  * The gutter between two frames, one per lane, and the whole of what stands between them. Here
  * rather than in the screens that draw a grid: each has to work a column width out of it, and a
  * gutter of two minds would tell them two different widths.
@@ -57,12 +74,18 @@ export function Tile({
   length,
   reason,
   caption,
+  own,
+  percent,
   label,
   onPress,
   style,
 }: {
   state: TileState;
   uri?: string;
+  /** What has become of a frame of one's own — `MyFrames` and nowhere else. */
+  own?: OwnState;
+  /** How much of a `flying` one has gone, «62%». */
+  percent?: string;
   /** Which grid this one stands in — it settles the rounding and the size of the circle. */
   lane?: TileLane;
   /** The circle in the corner. Left off, the frame is not in a picking mode at all. */
@@ -135,6 +158,9 @@ export function Tile({
           ) : null}
         </View>
       ) : null}
+
+      {/* Under the running time: the length of a video stays readable over any of the three. */}
+      {own ? <OwnLayer own={own} percent={percent} /> : null}
 
       {length && state === 'ready' && !reason ? <FrameMark length={length} lane={lane} /> : null}
       {reason ? <FrameMark icon={reason.icon} label={reason.label} lane={lane} /> : null}
@@ -242,6 +268,65 @@ export function PickCircle({
       {kind === 'send' ? <Icon icon={Check} size={tick} color={color.onFill} /> : null}
       {kind === 'keep' ? <Icon icon={Check} size={tick} color={color.sparkInk} /> : null}
       {kind === 'hand' ? <Icon icon={X} size={tick} color={night.muted} /> : null}
+    </View>
+  );
+}
+
+const OWN_SCRIM: Record<OwnState, string> = {
+  flying: photo.flying,
+  stuck: photo.stuck,
+  hidden: photo.hidden,
+};
+
+/**
+ * Spec detail 63 — the frame's own state over its picture. On its way: the ring turning in the
+ * middle and how much has gone in the lower left corner — the ring says it is going, the number how
+ * far. Stuck: a red edge inside the tile and «!» in the corner where a pick circle would stand.
+ * Hidden: the darkest of the three, and the struck-out eye in that corner.
+ */
+function OwnLayer({ own, percent }: { own: OwnState; percent?: string }) {
+  const { color } = useTheme();
+  const styles = useStyles();
+
+  return (
+    <View
+      testID="tile-own"
+      pointerEvents="none"
+      style={[
+        StyleSheet.absoluteFill,
+        { backgroundColor: OWN_SCRIM[own] },
+        own === 'stuck' ? { borderWidth: 2, borderColor: color.dangerFill } : null,
+      ]}
+    >
+      {own === 'flying' ? (
+        <>
+          <View style={styles.ownMiddle}>
+            <Spinner size={spinner.card} ring={2.5} track={photo.flyingTrack} />
+          </View>
+          {percent ? (
+            <View style={styles.percent}>
+              <Text role="percent" style={styles.onPlate}>
+                {percent}
+              </Text>
+            </View>
+          ) : null}
+        </>
+      ) : (
+        <View
+          style={[
+            styles.ownSign,
+            { backgroundColor: own === 'stuck' ? color.dangerFill : photo.ownPlate },
+          ]}
+        >
+          {own === 'stuck' ? (
+            <Text role="percent" style={[styles.onPlate, styles.bang]}>
+              !
+            </Text>
+          ) : (
+            <Icon icon={EyeOff} size={13} stroke={2} color={night.paper} />
+          )}
+        </View>
+      )}
     </View>
   );
 }
@@ -370,5 +455,29 @@ const useStyles = themed(({ color }) =>
       textShadowRadius: 4,
     },
     markTextSm: { color: night.muted, fontSize: 10, lineHeight: 15, flexShrink: 1 },
+    ownMiddle: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
+    // Spec detail 63: the percent 6 / 6 off the lower left corner, 2 / 7 inside its plate.
+    percent: {
+      position: 'absolute',
+      left: 6,
+      bottom: 6,
+      paddingVertical: 2,
+      paddingHorizontal: 7,
+      borderRadius: radius.pill,
+      backgroundColor: photo.ownPlate,
+    },
+    // The 22 in the corner where a pick circle would stand, 6 from both edges.
+    ownSign: {
+      position: 'absolute',
+      top: 6,
+      right: 6,
+      width: 22,
+      height: 22,
+      borderRadius: radius.pill,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    onPlate: { color: night.paper },
+    bang: { color: photo.on, fontSize: 13, lineHeight: 16 },
   }),
 );

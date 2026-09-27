@@ -60,6 +60,7 @@ const shot = (id: string, at: number): MediaItem => ({
   kind: 'photo',
   status: 'ready',
   uploaded_by: 'me',
+  hidden: false,
   size_bytes: '1',
   captured_at: `2026-09-20T10:0${at}:00.000Z`,
   width: null,

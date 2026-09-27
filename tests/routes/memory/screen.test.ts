@@ -447,7 +447,7 @@ test('«Выбрать все N» counts the frames a tap could reach, and the s
   );
   expect(daymark).toContain('picking && markable.length > 0');
   // The circle says whether the whole group is taken and a second press gives it back — the kit's
-  // contract for `DayMark`, and what «Ваши кадры» does. What the press does to the selection is
+  // contract for `DayMark`, and what «Добавить кадры» does. What the press does to the selection is
   // `toggleDay` (`tests/lib/frames.test.ts`), which only ever touches this group's frames.
   expect(daymark).toContain('picked={allTaken(markable, picked)}');
   expect(daymark).toContain('setPicked((have) => toggleDay(markable, have))');

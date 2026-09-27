@@ -97,6 +97,23 @@ export function formatTime(value: string | Date, locale: string = currentLanguag
 }
 
 /**
+ * The clock as it is typed back in, «18:42» — round the clock in every language, because it is a
+ * field and not a sentence: one shape to type is one shape to check.
+ */
+export function clockOf(value: Date): string {
+  return `${String(value.getHours()).padStart(2, '0')}:${String(value.getMinutes()).padStart(2, '0')}`;
+}
+
+/** That day at a typed clock, «9:05» or «18:42» — `null` when what was typed is not a time of day. */
+export function atClock(day: Date, clock: string): Date | null {
+  const typed = /^\s*([01]?\d|2[0-3])[:.]([0-5]\d)\s*$/.exec(clock);
+  if (typed === null) return null;
+  const at = new Date(day);
+  at.setHours(Number(typed[1]), Number(typed[2]), 0, 0);
+  return at;
+}
+
+/**
  * And the name of that day — «суббота», «Saturday» — the second line of the frame's own sheet; cut
  * short — «сб», «Sat» — beside the figure on a day tile of `SheetFilter` (spec 7.3, detail 74).
  *

@@ -690,14 +690,18 @@ test('the capsule wears no chevron, whether it opens something, takes every fram
   expect(drawn[0]).toMatch(/r-textOverflow[^>]*>Свадьба Лизы и Марка</);
 });
 
-test('nothing in the product draws a `chevron-down`, so there is no second place for one to come back', () => {
-  // Spec 1, rule 9: «`chevron-down` в продукте не встречается вовсе». Swept over the sources rather
-  // than named per screen: what would bring it back is the next capsule written by copying an old one.
+test('`chevron-down` stands in one place in the product, so there is no second place for one to come back', () => {
+  // Spec 1, rule 9: «`chevron-down` стоит в продукте ровно в одном месте — «Ещё 3 файла» в блоке
+  // неудач». Swept over the sources rather than named per screen: what would bring it back is the
+  // next capsule written by copying an old one.
   const sources = Object.entries(
     import.meta.glob<string>('@/**/*.{ts,tsx}', { query: '?raw', import: 'default', eager: true }),
   );
   expect(sources.length).toBeGreaterThan(50);
-  for (const [path, source] of sources) expect(source, path).not.toMatch(/\bChevronDown\b/);
+  const drawing = sources
+    .filter(([, source]) => /\bChevronDown\b/.test(source))
+    .map(([path]) => path.replace(/^.*\/src\//, ''));
+  expect(drawing).toEqual(['kit/upload.tsx']);
 });
 
 test('the right slot of the glass bar is empty where there is nothing to pick', () => {

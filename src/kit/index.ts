@@ -40,6 +40,7 @@ export * from './menu';
 export * from './montage-live';
 export * from './montage-order';
 export * from './palette';
+export * from './row-card';
 export * from './rows';
 export * from './segment';
 export * from './sheet';

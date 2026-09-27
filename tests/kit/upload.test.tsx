@@ -4,14 +4,17 @@ import { Text as RNText, StyleSheet, View, type ViewStyle } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import { beforeAll, expect, test, vi } from 'vitest';
 
-import { Divider } from '@/kit/bits';
-import { IconButton } from '@/kit/button';
+import { Progress } from '@/kit/bits';
+import { Button, IconButton } from '@/kit/button';
 import { allDifferent, story } from '@/kit/story';
 import { Text } from '@/kit/text';
-import { BlockStuck, type StuckLine, Upload } from '@/kit/upload';
+import { BlockStuck, type StuckLine, Upload, UploadLine } from '@/kit/upload';
 import { setTheme, themes, type } from '@/theme';
 
-/** Spec 7.6 — sending: the block that counts it down, and the block for the files that will not go. */
+/**
+ * Spec 7.6 — sending: the block that counts it down, the same said as one line over one's own feed,
+ * and the block for the files that will not go.
+ */
 
 mountsTrees();
 
@@ -105,99 +108,137 @@ test('going and paused are the same block saying two different things under the 
   });
 });
 
-/** A line of the stuck block, with its cross wired to nothing. */
-const line = (count: string, reason: string, onDrop = () => {}): StuckLine => ({
-  key: reason,
-  count,
+/** The line over one's own feed, with whichever of its floors it is handed. */
+const sendingLine = (over: Partial<Parameters<typeof UploadLine>[0]> = {}) => (
+  <UploadLine
+    title="Отправляем"
+    meta="осталось 9"
+    value={0.4}
+    failed="5 файлов не ушли"
+    action="Разобрать"
+    label="Отправляем, осталось 9, 5 файлов не ушли. Разобрать"
+    onPress={() => {}}
+    {...over}
+  />
+);
+
+test('the line over one’s own feed says what is going, what is left and what did not go — and the whole of it is the way in', () => {
+  // Spec detail 48, «строка отправки» (`MyFrames`): «Отправляем» 15 / 600 and «осталось 9», the bar,
+  // and the line of failures with «Разобрать» at its end.
+  const onPress = vi.fn();
+  let tree!: TestRenderer.ReactTestRenderer;
+  act(() => {
+    tree = mounted(TestRenderer.create(sendingLine({ onPress })));
+  });
+  expect(tree.root.findAllByType(Text).map((one) => [one.props.children, one.props.role])).toEqual([
+    ['Отправляем', 'row'],
+    ['осталось 9', 'timecode'],
+    ['5 файлов не ушли', 'meta'],
+    ['Разобрать', 'timecode'],
+  ]);
+  expect(tree.root.findAllByType(Progress)).toHaveLength(1);
+  const link = tree.root.findByProps({ accessibilityRole: 'link' });
+  expect(link.props.accessibilityLabel).toBe('Отправляем, осталось 9, 5 файлов не ушли. Разобрать');
+  act(() => link.props.onPress());
+  expect(onPress).toHaveBeenCalledTimes(1);
+});
+
+test('nothing going up leaves the line of failures alone, and nothing failed leaves it out', () => {
+  allDifferent({
+    both: sendingLine(),
+    stuckOnly: sendingLine({ title: undefined, meta: undefined }),
+    goingOnly: sendingLine({ failed: undefined }),
+  });
+  expect(story(sendingLine({ title: undefined, meta: undefined }))).not.toContain('progressbar');
+  expect(story(sendingLine({ failed: undefined, label: 'Отправляем, осталось 9' }))).not.toContain(
+    'Разобрать',
+  );
+});
+
+/** A file that did not go, with its cross wired to nothing. */
+const line = (name: string, reason: string, onDrop = () => {}): StuckLine => ({
+  key: name,
+  name,
   reason,
-  dropLabel: `Убрать ${count} из очереди`,
+  dropLabel: `Убрать ${name} из очереди`,
   onDrop,
 });
 
-test('the files that did not go are one block: how many, and why, in technical words a person can act on', () => {
-  const stuck = story(
-    <BlockStuck
-      lines={[
-        line('7 файлов', 'Связь с хранилищем оборвалась'),
-        line('2 файла', 'Хранилище отказало (503)'),
-      ]}
-    />,
-  );
-  expect(stuck).toContain('7 файлов');
-  expect(stuck).toContain('Связь с хранилищем оборвалась');
-  expect(stuck).toContain('Хранилище отказало (503)');
-  expect(stuck).toContain('aria-label="Убрать 2 файла из очереди"');
-});
+/** The block over the files it is handed, folded or open. */
+const block = (lines: StuckLine[], open = false, onRetry = () => {}) => (
+  <BlockStuck
+    title={`Не ушли ${lines.length} файлов`}
+    retry={{ label: 'Ещё раз', onPress: onRetry }}
+    lines={lines}
+    open={open}
+    onToggle={() => {}}
+    more={`Ещё ${lines.length - 2} файла`}
+    less="Свернуть"
+  />
+);
 
-test('each line of the stuck block keeps the layout’s row: 12 / 14 round it, the count 3 over its reason, the cross 36 with a 16 glyph', () => {
-  // `UploadQueue.json`: the row e13 at 16, 267 (358 × 70) — 1 of edge and 14 at the side, 12 on
-  // top; the name e15 (14 / 600, 18 tall at 283.5) and the reason e16 at 304.5; the cross e17
-  // 36 × 36 with its glyph e18 16 × 16. One edge round the block now, and a line inside it per reason.
+test('every file that did not go is in one block: the count and «Ещё раз» in its head, a line to a file with its name and why', () => {
+  // Spec detail 78 and 51: the head's triangle, «Не ушли 5 файлов» and the 32 «Ещё раз»; each line
+  // the file's name 14 / 600 cut to one line, and the reason 12 / 500 `dangerText`, which wraps.
+  const onRetry = vi.fn();
   const onDrop = vi.fn();
   let tree!: TestRenderer.ReactTestRenderer;
   act(() => {
     tree = mounted(
       TestRenderer.create(
-        <BlockStuck
-          lines={[
-            line('3 файла', 'Больше нет на этом телефоне', onDrop),
-            line('1 файл', 'Хранилище отказало'),
-          ]}
-        />,
+        block(
+          [
+            line('IMG_4471.HEIC', 'Хранилище отказало (503)', onDrop),
+            line('IMG_4470.HEIC', 'Больше нет на этом телефоне'),
+          ],
+          false,
+          onRetry,
+        ),
       ),
     );
   });
-  const views = tree.root.findAllByType(View).map((one) => StyleSheet.flatten(one.props.style));
-  const [block] = views;
-  expect(block).toMatchObject({ borderWidth: 1, paddingHorizontal: 31 - 16 - 1 });
-  expect(views.filter((one) => one?.paddingVertical === 280 - 267 - 1)).toHaveLength(2);
-  expect(views.find((one) => one?.flex === 1)!.gap).toBe(304.5 - (283.5 + 18));
-  expect(tree.root.findAllByType(Text).map((one) => one.props.role)).toEqual([
-    'rowSm',
-    'meta',
-    'rowSm',
-    'meta',
-  ]);
-  expect([type.rowSm.fontSize, type.rowSm.lineHeight]).toEqual([14, 18]);
+  const text = (words: string) =>
+    tree.root.findAllByType(Text).find((one) => one.props.children === words)!;
+  expect(text('Не ушли 2 файлов').props.role).toBe('row');
+  expect(text('IMG_4471.HEIC').props).toMatchObject({ role: 'rowSm', numberOfLines: 1 });
+  expect(text('Хранилище отказало (503)').props).toMatchObject({ role: 'meta', tone: 'danger' });
+  expect(text('Хранилище отказало (503)').props.numberOfLines).toBeUndefined();
+  const again = tree.root.findAllByType(Button).find((one) => one.props.label === 'Ещё раз')!;
+  expect(again.props).toMatchObject({ variant: 'secondary', size: 'xxs' });
+  act(() => again.props.onPress());
+  expect(onRetry).toHaveBeenCalledTimes(1);
   const [cross] = tree.root.findAllByType(IconButton);
-  expect(cross.props.size).toBe(36);
-  expect(cross.props.glyph).toEqual({ size: 16 });
-  expect(cross.props.label).toBe('Убрать 3 файла из очереди');
+  expect(cross.props).toMatchObject({ size: 36, label: 'Убрать IMG_4471.HEIC из очереди' });
   act(() => cross.props.onPress());
   expect(onDrop).toHaveBeenCalledTimes(1);
-});
-
-test('one reason is one line and several are a hairline apart, all inside the one edge', () => {
-  allDifferent({
-    one: <BlockStuck lines={[line('7 файлов', 'Связь с хранилищем оборвалась')]} />,
-    several: (
-      <BlockStuck
-        lines={[
-          line('7 файлов', 'Связь с хранилищем оборвалась'),
-          line('2 файла', 'Больше нет на этом телефоне'),
-        ]}
-      />
-    ),
-  });
-  let several!: TestRenderer.ReactTestRenderer;
-  act(() => {
-    several = mounted(
-      TestRenderer.create(
-        <BlockStuck
-          lines={[
-            line('7 файлов', 'Связь с хранилищем оборвалась'),
-            line('2 файла', 'Больше нет на этом телефоне'),
-            line('1 файл', 'Хранилище отказало'),
-          ]}
-        />,
-      ),
-    );
-  });
-  expect(several.root.findAllByType(Divider)).toHaveLength(2);
-  const edges = several.root
+  // One edge round the lot, and it is danger's.
+  const edges = tree.root
     .findAllByType(View)
     .filter(
       (one) => StyleSheet.flatten(one.props.style)?.borderColor === themes.dark.color.dangerEdge,
     );
   expect(edges).toHaveLength(1);
+});
+
+test('two lines stand open and the rest fold behind «Ещё N», which opens them where they stand', () => {
+  const five = ['a', 'b', 'c', 'd', 'e'].map((n) =>
+    line(`IMG_${n}.HEIC`, 'Связь с хранилищем оборвалась'),
+  );
+  const names = (open: boolean) => {
+    let tree!: TestRenderer.ReactTestRenderer;
+    act(() => {
+      tree = mounted(TestRenderer.create(block(five, open)));
+    });
+    return tree.root
+      .findAllByType(Text)
+      .map((one) => one.props.children)
+      .filter((words) => typeof words === 'string' && words.startsWith('IMG_'));
+  };
+  expect(names(false)).toEqual(['IMG_a.HEIC', 'IMG_b.HEIC']);
+  expect(names(true)).toHaveLength(5);
+  expect(story(block(five))).toContain('Ещё 3 файла');
+  expect(story(block(five, true))).toContain('Свернуть');
+  // Two or fewer: nothing to fold.
+  expect(story(block(five.slice(0, 2)))).not.toContain('Ещё 0');
+  allDifferent({ folded: block(five), open: block(five, true) });
 });

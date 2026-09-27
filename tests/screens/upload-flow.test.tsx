@@ -9,8 +9,10 @@ type Asset = {
   duration: number;
 };
 
-const { router, lib, uploads } = vi.hoisted(() => ({
+const { router, params, lib, uploads } = vi.hoisted(() => ({
   router: { push: vi.fn(), back: vi.fn(), replace: vi.fn(), canGoBack: vi.fn(() => true) },
+  // What the route was opened with: the memory, and what the picking face handed the queue's.
+  params: { id: 'm1' } as { id: string; sent?: string },
   // The phone's library: what the grant says, what each page of the roll holds, and the two calls.
   lib: {
     access: null as null | { granted: boolean; canAskAgain: boolean; accessPrivileges?: string },
@@ -30,13 +32,13 @@ const { router, lib, uploads } = vi.hoisted(() => ({
 }));
 
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
-// The account's «Даты между днями» is off, and «Ваши кадры» draws the day between its strips all the same (spec 8).
+// The account's «Даты между днями» is off, and «Добавить кадры» draws the day between its strips all the same (spec 8).
 vi.mock('@/lib/auth', () => ({
   useAuth: () => ({ token: 'session', user: { id: 'me' }, datesBetweenDays: false }),
 }));
 vi.mock('expo-router', () => ({
   useFocusEffect: () => {},
-  useLocalSearchParams: () => ({ id: 'm1' }),
+  useLocalSearchParams: () => params,
   useRouter: () => router,
 }));
 vi.mock('expo-media-library/legacy', () => ({
@@ -69,6 +71,7 @@ import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { Image } from 'expo-image';
 import { FlatList, Linking, StyleSheet, View } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
+import UploadQueue from '@/app/memory/[id]/queue';
 import UploadScreen from '@/app/memory/[id]/upload';
 import {
   ActionBar,
@@ -95,11 +98,12 @@ import {
 import { en, ru } from '@/strings';
 
 /**
- * `Upload`, «Ваши кадры» (spec 8): the phone's roll drawn the way a memory's feed is, with the mode of
- * picking on from the first moment and one button to send what is marked. The queue that carries the
- * files up and the phone's library are stood in for; what is read is what the screen does with them —
- * which days it draws and in what order, what a seam and a tile mark, what «Отправить» hands over, and
- * which of the states of the layout the screen is in.
+ * `Upload`, «Добавить кадры» (spec 8): the phone's roll drawn the way a memory's feed is, with the
+ * mode of picking on from the first moment and one button to send what is marked — and
+ * `UploadQueue`, the same screen in its queue face on a route of its own, where the sending and what
+ * did not go are said. The queue that carries the files up and the phone's library are stood in for;
+ * what is read is what the screen does with them — which days it draws and in what order, what a
+ * seam and a tile mark, what «Отправить» hands over, and which of the states of the layout it is in.
  */
 
 mountsTrees();
@@ -154,6 +158,8 @@ beforeEach(() => {
   ])
     fn.mockReset();
   router.canGoBack.mockReturnValue(true);
+  for (const key of Object.keys(params)) delete params[key as keyof typeof params];
+  params.id = 'm1';
   uploads.queue = [];
   uploads.asking = null;
   serve((asked) => (asked.path === '/memories' ? [memory()] : undefined));
@@ -163,11 +169,13 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-async function open() {
+/** `Upload`, or — `queue` — the queue's own route, `UploadQueue`. */
+async function open({ queue = false }: { queue?: boolean } = {}) {
   let tree!: TestRenderer.ReactTestRenderer;
-  const draw = () => act(async () => tree.update(<UploadScreen />));
+  const drawn = () => (queue ? <UploadQueue /> : <UploadScreen />);
+  const draw = () => act(async () => tree.update(drawn()));
   await act(async () => {
-    tree = mounted(TestRenderer.create(<UploadScreen />));
+    tree = mounted(TestRenderer.create(drawn()));
   });
   const root = tree.root;
   const press = (find: () => { props: { onPress?: () => void } }) =>
@@ -314,15 +322,32 @@ test('sending hands the marked frames to the queue in the order of the roll, emp
   // What was handed over is no longer marked, and the button is off again.
   expect(['a1', 'a2', 'b1'].map(screen.mark)).toEqual(['off', 'off', 'off']);
   expect(screen.send().props.disabled).toBe(true);
-  // The queue still holds it, so the question about «is that all» is not up.
+  // Spec 8, `Upload`: «отправка идёт — UploadQueue». The picking gives way to the queue's own face,
+  // and hands it the count «Это всё?» will say.
+  expect(router.replace).toHaveBeenCalledWith({
+    pathname: '/memory/[id]/queue',
+    params: { id: 'm1', sent: '3' },
+  });
   expect(screen.asking().props.visible).toBe(false);
 });
 
-test('once everything this visit sent is in and the queue is asking, the sheet counts it and puts the two answers side by side', async () => {
+test('the picking face says nothing of the queue: no sending, no failures, glass over the roll whatever is going', async () => {
+  // Spec 8, 27 September: `Upload` is the picking alone — what goes and what did not live on
+  // `UploadQueue`, a route of its own.
+  uploads.queue = [going, { ...going, assetId: 'x1', error: { reason: 'gone' } }];
   const screen = await open();
-  await screen.press(screen.tile('a1'));
-  await screen.press(screen.tile('a3'));
-  await screen.press(() => screen.send());
+  expect(screen.root.findAllByType(Upload)).toHaveLength(0);
+  expect(screen.root.findAllByType(BlockStuck)).toHaveLength(0);
+  expect(screen.root.findAllByType(GlassBar)).toHaveLength(1);
+  expect(screen.root.findByType(GlassBar).props.title).toBe('Добавить кадры');
+  // The button stands from the start, sending or not.
+  expect(screen.send().props.disabled).toBe(true);
+});
+
+test('once everything this visit sent is in and the queue is asking, the sheet counts it and puts the two answers side by side', async () => {
+  // What the picking face handed over on its way to the queue's.
+  params.sent = '2';
+  const screen = await open({ queue: true });
   // The queue is still working: nothing is asked while anything of this memory is left in it.
   uploads.asking = 'm1';
   uploads.queue = [
@@ -369,7 +394,7 @@ test('once everything this visit sent is in and the queue is asking, the sheet c
 });
 
 test('the question is not asked on a visit that sent nothing, nor about a different memory', async () => {
-  const screen = await open();
+  const screen = await open({ queue: true });
   uploads.asking = 'm1';
   await screen.redraw();
   expect(screen.asking().props.visible).toBe(false);
@@ -378,6 +403,12 @@ test('the question is not asked on a visit that sent nothing, nor about a differ
   uploads.asking = 'other';
   await screen.redraw();
   expect(screen.asking().props.visible).toBe(false);
+  // Sent from the queue's own roll, it stays where it is and counts it.
+  expect(router.replace).not.toHaveBeenCalled();
+  uploads.asking = 'm1';
+  await screen.redraw();
+  expect(screen.asking().props.visible).toBe(true);
+  expect(screen.text()).toContain(ru.upload.sentToMemory(1));
 });
 
 test('while the roll is still coming a seam does not answer, and once the whole of it is in it does', async () => {
@@ -548,7 +579,7 @@ test('the event’s days lead the roll even when they are the oldest in it', asy
   expect(screen.seams().map((one) => one.props.label)[0]).toBe('5 сентября, суббота');
 });
 
-test('a queue with something in it says how much is left, and the parked files are counted by their reasons and can be let go of', async () => {
+test('a queue with something in it says how much is left, and each parked file is named with why, and can be let go of', async () => {
   uploads.queue = [
     {
       assetId: 'a1',
@@ -583,23 +614,25 @@ test('a queue with something in it says how much is left, and the parked files a
       error: { reason: 'gone' },
     },
   ];
-  const screen = await open();
+  const screen = await open({ queue: true });
   const bar = screen.root.findByType(Upload);
   // Two of this memory’s: one going up, one parked. The bar stands at what the one going up has sent.
   expect(bar.props.meta).toBe(ru.upload.stillToSend(2));
   expect(bar.props.value).toBe(0.5);
   const stuck = screen.root.findByType(BlockStuck);
-  expect(screen.text()).toContain(ru.upload.notSent(1).toUpperCase());
+  expect(stuck.props.title).toBe(ru.upload.notSent(1));
   expect(stuck.props.lines).toHaveLength(1);
-  expect(stuck.props.lines[0].count).toBe(ru.upload.files(1));
+  expect(stuck.props.lines[0].name).toBe('IMG_b1.HEIC');
   expect(stuck.props.lines[0].reason).toBe(ru.error.offline);
+  expect(stuck.props.lines[0].dropLabel).toBe('Убрать IMG_b1.HEIC из очереди');
   await act(async () => stuck.findByType(IconButton).props.onPress());
   expect(uploads.drop).toHaveBeenCalledWith('m1', 'b1');
-  await screen.press(() => screen.button(ru.action.retry)[0]);
+  // «Ещё раз» is the queue's own wake — nothing about sending is written anew here.
+  await screen.press(() => screen.button(ru.upload.again)[0]);
   expect(uploads.wake).toHaveBeenCalledTimes(1);
 });
 
-test('ten files that did not go are one block: the total over it and a line to each reason, not a card to each file', async () => {
+test('ten files that did not go are one block: the total in its head, a line to each file with why — the freshest two open and the rest folded', async () => {
   const file = (assetId: string, error: unknown) => ({
     assetId,
     memoryId: 'm1',
@@ -619,22 +652,28 @@ test('ten files that did not go are one block: the total over it and a line to e
     file('g1', { reason: 'gone' }),
     file('g2', { reason: 'gone' }),
   ];
-  const screen = await open();
+  const screen = await open({ queue: true });
   expect(screen.root.findAllByType(BlockStuck)).toHaveLength(1);
-  expect(screen.text()).toContain(ru.upload.notSent(10).toUpperCase());
-  const lines = screen.root.findByType(BlockStuck).props.lines as {
-    count: string;
-    reason: string;
-    onDrop: () => void;
-  }[];
-  expect(lines.map((line) => [line.count, line.reason])).toEqual([
-    [ru.upload.files(6), ru.upload.storageOffline],
-    [ru.upload.files(2), `${ru.upload.storageRefused} (503)`],
-    [ru.upload.files(2), ru.upload.gone],
+  const block = () => screen.root.findByType(BlockStuck);
+  expect(block().props.title).toBe(ru.upload.notSent(10));
+  const lines = block().props.lines as { name: string; reason: string; onDrop: () => void }[];
+  // The last in the queue stopped last, and stands first.
+  expect(lines.slice(0, 3).map((line) => [line.name, line.reason])).toEqual([
+    ['IMG_g2.HEIC', ru.upload.gone],
+    ['IMG_g1.HEIC', ru.upload.gone],
+    ['IMG_r2.HEIC', ru.upload.storageRefused],
   ]);
-  // The cross on a line lets go of every file under it, and only those.
-  await act(async () => lines[2].onDrop());
-  expect(uploads.drop).toHaveBeenCalledWith('m1', 'g1', 'g2');
+  expect(lines.find((line) => line.name === 'IMG_r1.HEIC')!.reason).toBe(
+    `${ru.upload.storageRefused} (503)`,
+  );
+  expect(lines).toHaveLength(10);
+  expect(block().props.more).toBe('Ещё 8 файлов');
+  expect(block().props.open).toBe(false);
+  await act(async () => block().props.onToggle());
+  expect(block().props.open).toBe(true);
+  // The cross on a line lets go of that file, and only that one.
+  await act(async () => lines[0].onDrop());
+  expect(uploads.drop).toHaveBeenCalledWith('m1', 'g2');
 });
 
 test('the way out is the back it arrived on, or the list when there is none', async () => {
@@ -698,7 +737,7 @@ test('a page that lands after the roll was read again is not added to it', async
 
 test('one file sent is enough to ask whether that is all, and a partial grant’s button is a small one', async () => {
   lib.access = { granted: true, canAskAgain: true, accessPrivileges: 'limited' };
-  const screen = await open();
+  const screen = await open({ queue: true });
   expect(screen.button(ru.upload.chooseMore)[0].props.wide).toBe(false);
   await screen.press(screen.tile('a1'));
   await screen.press(() => screen.send());
@@ -718,7 +757,7 @@ test('the block of sending is there only while this memory has something in the 
     durationSeconds: null,
     parts: {},
   };
-  const screen = await open();
+  const screen = await open({ queue: true });
   expect(screen.root.findAllByType(Upload)).toHaveLength(0);
   expect(screen.root.findAllByType(BlockStuck)).toHaveLength(0);
   uploads.queue = [one];
@@ -740,6 +779,12 @@ test('the block of sending is there only while this memory has something in the 
   await screen.redraw();
   expect(screen.root.findByType(Upload).props.value).toBe(0);
   expect(screen.root.findByType(BlockStuck).props.lines[0].reason).toBe(ru.upload.gone);
+  // Everything in and nothing stuck: both blocks go, and the roll stays (spec 8, `UploadQueue`).
+  uploads.queue = [];
+  await screen.redraw();
+  expect(screen.root.findAllByType(Upload)).toHaveLength(0);
+  expect(screen.root.findAllByType(BlockStuck)).toHaveLength(0);
+  expect(screen.tiles()).toHaveLength(6);
 });
 
 test('the plate over the roll names the memory and says when it was — and without a memory, or a day that will not read, says less and never a dot alone', async () => {
@@ -780,10 +825,11 @@ const going = {
   parts: {},
 };
 
-test('while something is being sent the roll stands in the queue’s face: the plain bar, the grid in the margins, each day headed with a line and a button', async () => {
+test('on the queue’s route the roll stands in the queue’s face: the plain bar, the grid in the margins, each day headed with a line and a button', async () => {
   uploads.queue = [going];
-  const screen = await open();
-  // `UploadQueue`: «Ваши кадры» over «Свадьба Лизы и Марка · 12–13 сентября», no glass, no switch.
+  const screen = await open({ queue: true });
+  // `UploadQueue`: «Добавить кадры» over «Свадьба Лизы и Марка · 12–13 сентября», no glass, no switch.
+  expect(screen.root.findByType(AppBar).props.title).toBe('Добавить кадры');
   expect(screen.root.findAllByType(GlassBar)).toHaveLength(0);
   expect(screen.root.findByType(AppBar).props.subtitle).toBe(
     'Свадьба Лизы и Марка · 12–13 сентября',
@@ -822,13 +868,11 @@ test('while something is being sent the roll stands in the queue’s face: the p
   expect(screen.root.findAllByType(ActionBar)).toHaveLength(0);
 });
 
-test('the queue’s face keeps picking on even when the switch on the glass was left off, and the feed comes back once everything is in', async () => {
-  const screen = await open();
-  await screen.press(() => screen.icon(ru.upload.picking)[0]);
-  expect(screen.mark('a1')).toBeUndefined();
+test('the queue’s face picks with no switch, and once nothing goes its «Отправить» stands out, the way it does on `Upload`', async () => {
   uploads.queue = [going];
-  await screen.redraw();
+  const screen = await open({ queue: true });
   // No switch to turn it on with, so it is on — and with nothing marked, no layer (`UploadQueue`).
+  expect(screen.icon(ru.upload.picking)).toHaveLength(0);
   expect(screen.mark('a1')).toBe('off');
   expect(screen.root.findAllByType(ActionBar)).toHaveLength(0);
   await screen.press(screen.tile('a1'));
@@ -836,9 +880,10 @@ test('the queue’s face keeps picking on even when the switch on the glass was 
   await screen.press(screen.tile('a1'));
   uploads.queue = [];
   await screen.redraw();
-  expect(screen.root.findAllByType(GlassBar)).toHaveLength(1);
-  expect(screen.heads()).toHaveLength(0);
-  expect(screen.mark('a1')).toBeUndefined();
+  // Everything went: the same plain face and its grid, and the button back, out until something is marked.
+  expect(screen.root.findAllByType(GlassBar)).toHaveLength(0);
+  expect(screen.heads()).toHaveLength(3);
+  expect(screen.send().props.disabled).toBe(true);
 });
 
 test('on the feed a day’s seam is flush with its strips, the gutter stands between strips, and nothing stands over the first day', async () => {

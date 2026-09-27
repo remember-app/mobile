@@ -25,7 +25,7 @@ export type ToggleProps = {
  * the grip is simply at the other end. It is the row that is pressed and read out, so the drawing
  * itself is hidden from a screen reader.
  */
-function Track({ value, disabled }: { value: boolean; disabled?: boolean }) {
+export function Track({ value, disabled }: { value: boolean; disabled?: boolean }) {
   const styles = useStyles();
   return (
     <View

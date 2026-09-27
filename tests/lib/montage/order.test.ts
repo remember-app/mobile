@@ -110,6 +110,7 @@ const frame = (over: Partial<MediaItem>): MediaItem => ({
   kind: 'photo',
   status: 'ready',
   uploaded_by: 'u',
+  hidden: false,
   size_bytes: '1',
   captured_at: null,
   width: null,

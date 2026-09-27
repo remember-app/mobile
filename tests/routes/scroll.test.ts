@@ -32,8 +32,9 @@ const sources = read(
  * - `memory/[id]` is the feed, and the feed is a list the height of the phone: it scrolls by itself,
  *   under a glass bar and a bottom layer that float over it rather than take room from it. It pads
  *   itself by what floats as it came out (`screens/memory/frames.tsx`), not by the drawing.
+ * - `memory/[id]/queue` is `upload` in its queue face — the same screen, which stands on the board.
  */
-const OFF_BOARD = ['app/+not-found.tsx', 'app/memory/[id].tsx'];
+const OFF_BOARD = ['app/+not-found.tsx', 'app/memory/[id].tsx', 'app/memory/[id]/queue.tsx'];
 
 test('every screen stands on the board, directly or through the wizard’s step', () => {
   expect(routes.length).toBeGreaterThan(20);
@@ -137,15 +138,17 @@ const spansOf = (source: string, name: string): [number, number][] => {
 test('a bar is never in the body and a bottom layer is never in it either: they are the board’s `bar` and `footer`', () => {
   // The body is what scrolls; the bar and the layer are what stands — or, where they no longer can,
   // what the board takes into the scroll itself. Drawn in the body they would scroll away for good.
-  // The one layer outside a `footer`: the phone's own photographs on `Upload` run under the status
-  // line and to the bottom edge, and the layer that sends what is picked floats over them.
-  const uploads = 'app/memory/[id]/upload.tsx';
-  const floats = routes.find(([path]) => path === uploads)![1];
-  expect(floats).toMatch(/layer: \{ position: 'absolute'/);
+  // The two layers outside a `footer`: the phone's own photographs on `Upload`, and one's own frames
+  // on `MyFrames`, run under the status line and to the bottom edge, and the layer floats over them.
+  const feeds = ['app/memory/[id]/upload.tsx', 'app/memory/[id]/mine.tsx'];
+  for (const feed of feeds)
+    expect(routes.find(([path]) => path === feed)![1], feed).toMatch(
+      /layer: \{ position: 'absolute'/,
+    );
   // The wizard's step builds its layer as a value before it hands it to the board, so only its bar
   // is read here; the steps' layers are walked in `order-flow`.
   const screens = [
-    ...routes.filter(([path]) => path !== uploads),
+    ...routes.filter(([path]) => !feeds.includes(path)),
     ['screens/order/wizard.tsx', wizard] as const,
   ];
   let bars = 0;
@@ -188,6 +191,7 @@ test('a vertical list stands only in the board’s `list`, never inside the scro
   const lists = routes.filter(([, source]) => /<(Animated\.)?FlatList\b/.test(source));
   expect(lists.map(([path]) => path).sort()).toEqual([
     'app/index.tsx',
+    'app/memory/[id]/mine.tsx',
     'app/memory/[id]/montage/[montageId]/stage/[stage].tsx',
     'app/memory/[id]/order/frames.tsx',
     'app/memory/[id]/upload.tsx',
