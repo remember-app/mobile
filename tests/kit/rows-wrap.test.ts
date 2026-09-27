@@ -259,7 +259,8 @@ test('the sweep sees the rows it is about, slots included', () => {
     'screens/memory/invite-sheet.tsx › link',
     'screens/memory/invite-sheet.tsx › chips',
     'screens/memory/frames-sheets.tsx › titleRow',
-    'screens/memory/frames-sheets.tsx › dayHead',
+    // «Все» and the calendar over a filter section, handed into the head of the block (detail 80).
+    'kit/block-head.tsx › row',
     // Handed in through a slot: «Повторить» in a banner, «Снять» over the bottom layer.
     'kit/card.tsx › banner',
     'kit/bars.tsx › layerAbove',

@@ -1,12 +1,13 @@
 import { Image } from 'expo-image';
 import { CalendarDays, Lock, X } from 'lucide-react-native';
-import { useMemo, useState } from 'react';
+import { type ReactNode, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { type FrameInfo, type Label, memberName } from '@/api';
 import {
   Avatar,
   Banner,
+  BlockHead,
   Button,
   Calendar,
   Chip,
@@ -66,6 +67,40 @@ function GroupLabel({ children }: { children: string }) {
   );
 }
 
+/**
+ * The head of one section of `SheetFilter` (detail 80): its name, and «Все» — lit while the section
+ * holds nothing back, and the one press that lets go of whatever it does hold. Lit, it does nothing:
+ * there is nothing left to let go of.
+ */
+function SectionHead({
+  label,
+  open,
+  onAll,
+  children,
+}: {
+  label: string;
+  /** Nothing chosen in the section. */
+  open: boolean;
+  onAll: () => void;
+  /** What stands after «Все»: the calendar, over the days. */
+  children?: ReactNode;
+}) {
+  const s = useStrings();
+  return (
+    <BlockHead label={label.toUpperCase()}>
+      <Chip
+        size={28}
+        toggle
+        label={s.gallery.all}
+        name={s.gallery.allOf(label)}
+        selected={open}
+        onPress={onAll}
+      />
+      {children}
+    </BlockHead>
+  );
+}
+
 /** A choice pressed on or off again, without disturbing the set it came from. */
 function toggled<T>(set: ReadonlySet<T>, value: T): Set<T> {
   const next = new Set(set);
@@ -74,9 +109,10 @@ function toggled<T>(set: ReadonlySet<T>, value: T): Set<T> {
 }
 
 /**
- * `SheetFilter` — what of the gallery to show (spec 8). Four groups: who brought it, what it is,
- * which boxes it lies in (spec 10.8.2), which day it is from. It scrolls inside itself once the
- * labels, a second row of faces or the calendar make it longer than the screen.
+ * `SheetFilter` — what of the gallery to show (spec 8). Five sections: who brought it, what it is,
+ * which way it stands, which boxes it lies in (spec 10.8.2), which day it is from. Each is headed the
+ * same way, its name and «Все» (detail 80). It scrolls inside itself once the labels, a second row of
+ * faces or the calendar make it longer than the screen.
  *
  * «Сбросить» stands small beside the heading rather than under the main button: it is needed rarely
  * and must not argue with the one glowing thing on the sheet.
@@ -133,6 +169,7 @@ export function FilterSheet({
   // would say which day the feed is cut to.
   const [calendar, setCalendar] = useState(untiled.length > 0);
   const toggleDay = (at: number) => setDraft((have) => ({ ...have, days: toggled(have.days, at) }));
+  const change = (part: Partial<Filter>) => setDraft((have) => ({ ...have, ...part }));
 
   return (
     <Sheet
@@ -173,7 +210,11 @@ export function FilterSheet({
       }
     >
       <View style={styles.faces}>
-        <GroupLabel>{s.gallery.whoBrought}</GroupLabel>
+        <SectionHead
+          label={s.gallery.whoBrought}
+          open={draft.people.size === 0}
+          onAll={() => change({ people: new Set() })}
+        />
         {/* Faces and no names (spec 8): a person is known by their circle, and the whole name is
             what the circle is read out as. More than a row of them wraps onto the next. */}
         <FaceRow
@@ -182,31 +223,63 @@ export function FilterSheet({
         />
       </View>
 
+      {/* «Тип» and «Ориентация» may stand with no cell chosen — that is «Все», and «Все» in the head
+          says so rather than a cell of its own (spec 7.3, detail 18). */}
       <View style={styles.block}>
-        <GroupLabel>{s.gallery.whatKind}</GroupLabel>
+        <SectionHead
+          label={s.gallery.whatKind}
+          open={draft.kind === null}
+          onAll={() => change({ kind: null })}
+        />
         <Segment
           // Inside a sheet the container is `ink`: the sheet itself is already `surface` (spec 7.3).
           onSurface
           hideLabel
           label={s.gallery.whatKind}
           value={draft.kind}
-          onChange={(kind) => setDraft((have) => ({ ...have, kind }))}
+          onChange={(kind) => change({ kind })}
+          onClear={() => change({ kind: null })}
           options={[
-            { value: 'all', label: s.gallery.anyKind },
             { value: 'photo', label: s.media.photo },
             { value: 'video', label: s.media.video },
           ]}
         />
       </View>
 
-      {/* «ЛЕЙБЛЫ» — the boxes of this memory, third of the four and between the type and the days
-          (spec 10.8.2). This is how the contents of a label are looked at: there is no screen of
+      {/* A separate axis from the type: tall frames are for a film in reels, wide ones for a
+          television. A square frame is neither and is only shown under «Все». */}
+      <View style={styles.block}>
+        <SectionHead
+          label={s.gallery.whichOrientation}
+          open={draft.orientation === null}
+          onAll={() => change({ orientation: null })}
+        />
+        <Segment
+          onSurface
+          hideLabel
+          label={s.gallery.whichOrientation}
+          value={draft.orientation}
+          onChange={(orientation) => change({ orientation })}
+          onClear={() => change({ orientation: null })}
+          options={[
+            { value: 'landscape', label: s.gallery.orientations.landscape },
+            { value: 'portrait', label: s.gallery.orientations.portrait },
+          ]}
+        />
+      </View>
+
+      {/* «ЛЕЙБЛЫ» — the boxes of this memory, fourth of the five and between the orientation and the
+          days (spec 10.8.2). This is how the contents of a label are looked at: there is no screen of
           its own for one, the feed is narrowed to it instead. A memory with no boxes has no group
           here at all rather than an empty row — and no private box of one's own simply makes the
           row shorter. */}
       {labels.length === 0 ? null : (
         <View style={styles.block}>
-          <GroupLabel>{s.gallery.whichLabels}</GroupLabel>
+          <SectionHead
+            label={s.gallery.whichLabels}
+            open={draft.labels.size === 0}
+            onAll={() => change({ labels: new Set() })}
+          />
           <View style={styles.chips}>
             {labels.map((label) => (
               <Chip
@@ -230,18 +303,11 @@ export function FilterSheet({
       )}
 
       <View style={styles.block}>
-        <View style={styles.dayHead}>
-          <View style={styles.grow}>
-            <GroupLabel>{s.gallery.whichDays}</GroupLabel>
-          </View>
-          {/* «Все дни» is the absence of a choice rather than a choice of its own, so pressing it
-              is emptying the set and nothing else. */}
-          <Chip
-            size={28}
-            label={s.gallery.anyDay}
-            selected={draft.days.size === 0}
-            onPress={() => setDraft((have) => ({ ...have, days: new Set() }))}
-          />
+        <SectionHead
+          label={s.gallery.whichDays}
+          open={draft.days.size === 0}
+          onAll={() => change({ days: new Set() })}
+        >
           {/* A day the tiles are not offering — past the three fullest, or one that holds nothing
               at all. Held in while the calendar is open under the tiles. */}
           <IconButton
@@ -252,7 +318,7 @@ export function FilterSheet({
             label={s.gallery.otherDay}
             onPress={() => setCalendar((open) => !open)}
           />
-        </View>
+        </SectionHead>
         {tiles.length === 0 ? null : (
           // Spec 7.3, detail 74: the tiles share one row evenly, 8 apart — never a row that scrolls.
           <Shares>
@@ -487,10 +553,6 @@ const useStyles = themed(({ color }) =>
     // other heading and the row it introduces.
     faces: { gap: space.s3 },
     block: { gap: 10 },
-    // «ДЕНЬ» takes the width, and «Все дни» and the calendar stand 10 apart at its right — or under
-    // it, when the type is too large for the three to share a line.
-    dayHead: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10 },
-    grow: { flexGrow: 1 },
     // Spec 8: the header row of `SheetFrameInfo` is a 56 thumbnail and two lines beside it.
     head: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },
     headWords: { flex: 1, minWidth: 0, gap: 3 },

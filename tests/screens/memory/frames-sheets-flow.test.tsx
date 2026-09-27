@@ -121,7 +121,9 @@ test('and on the latest of the days that are — never the first — with that d
   expect(early.from).toEqual(new Date(2026, 6, 5));
 });
 
-/** The filter sheet as a person works it: faces, tiles, «Все дни», «Сбросить», and the button that applies. */
+/** The filter sheet as a person works it: faces, tiles, «Все», «Сбросить», and the button that applies. */
+/** «Все» over the days — one of five on the sheet, so found by the name it is read out as. */
+const ANY_DAY = ru.gallery.allOf(ru.gallery.whichDays);
 const dayAt = (d: number) => new Date(2026, 8, d).getTime();
 const crowd = (n: number) =>
   Array.from({ length: n }, (_, at) => ({ id: `p${at}`, name: `Гость Номер${at + 1}` }));
@@ -169,12 +171,15 @@ async function work(over: { who?: number; days?: number; labels?: Label[]; value
         .find((one) =>
           typeof label === 'string' ? one.props.label === label : label.test(one.props.label),
         )!,
-    chip: (label: string) => root.findAllByType(Chip).find((one) => one.props.label === label)!,
+    chip: (label: string) =>
+      root
+        .findAllByType(Chip)
+        .find((one) => one.props.name === label || one.props.label === label)!,
     press: (node: TestRenderer.ReactTestInstance) => act(async () => node.props.onPress()),
   };
 }
 
-test('the faces are pressed on and off, «Все дни» empties only the days, «Сбросить» empties everything and goes dim', async () => {
+test('the faces are pressed on and off, «Все» over the days empties only the days, «Сбросить» empties everything and goes dim', async () => {
   const sheet = await work({ who: 7 });
   /** Which faces are drawn left out, at half — by the number in their name. */
   const leftOut = () =>
@@ -186,7 +191,7 @@ test('the faces are pressed on and off, «Все дни» empties only the days,
   // face is at full strength (spec 7.5, detail 31).
   expect(sheet.button(ru.gallery.reset).props.disabled).toBe(true);
   expect(sheet.button(ru.gallery.showAll).props.disabled).toBeFalsy();
-  expect(sheet.chip(ru.gallery.anyDay).props.selected).toBe(true);
+  expect(sheet.chip(ANY_DAY).props.selected).toBe(true);
   expect(leftOut()).toEqual([]);
 
   await sheet.press(sheet.face(2));
@@ -196,7 +201,7 @@ test('the faces are pressed on and off, «Все дни» empties only the days,
   expect(sheet.face(1).props.selected).toBe(false);
   expect(leftOut()).toEqual([1, 3, 4, 5, 6]);
   expect(sheet.tiles().map((one) => one.props.selected)).toEqual([false, true, false]);
-  expect(sheet.chip(ru.gallery.anyDay).props.selected).toBe(false);
+  expect(sheet.chip(ANY_DAY).props.selected).toBe(false);
   // The button says what this draft leaves, live, and the sheet has not applied anything yet.
   expect(sheet.button(ru.gallery.show(80))).toBeDefined();
   expect(sheet.applied).toEqual([]);
@@ -208,8 +213,8 @@ test('the faces are pressed on and off, «Все дни» empties only the days,
   await sheet.press(sheet.tiles()[0]);
   await sheet.press(sheet.tiles()[2]);
   expect(sheet.tiles().map((one) => one.props.selected)).toEqual([true, false, true]);
-  // «Все дни» lets go of the days and leaves the people alone.
-  await sheet.press(sheet.chip(ru.gallery.anyDay));
+  // «Все» over the days lets go of the days and leaves the people alone.
+  await sheet.press(sheet.chip(ANY_DAY));
   expect(sheet.tiles().map((one) => one.props.selected)).toEqual([false, false, false]);
   expect(sheet.face(2).props.selected).toBe(true);
 
@@ -281,6 +286,7 @@ test('«Сбросить» empties every group of the sheet at once, not the fac
   const sheet = await work({ who: 3, days: 3, labels: [box('Лучшее'), box('Дорога')] });
   await sheet.press(sheet.face(2));
   await act(async () => sheet.root.findAllByType(Segment)[0].props.onChange('video'));
+  await act(async () => sheet.root.findAllByType(Segment)[1].props.onChange('portrait'));
   await sheet.press(sheet.chip('Лучшее'));
   await sheet.press(sheet.tiles()[1]);
   expect(sheet.button(ru.gallery.reset).props.disabled).toBe(false);
@@ -289,10 +295,17 @@ test('«Сбросить» empties every group of the sheet at once, not the fac
   expect(sheet.button(ru.gallery.reset).props.disabled).toBe(true);
   expect(sheet.tiles().map((one) => one.props.selected)).toEqual([false, false, false]);
   expect(sheet.chip('Лучшее').props.selected).toBe(false);
-  expect(sheet.chip(ru.gallery.anyDay).props.selected).toBe(true);
+  expect(sheet.chip(ANY_DAY).props.selected).toBe(true);
+  // Every section's «Все» is lit again — the one sign that the sheet holds nothing back (spec 8).
+  expect(
+    sheet.root
+      .findAllByType(Chip)
+      .filter((one) => one.props.label === ru.gallery.all)
+      .map((one) => one.props.selected),
+  ).toEqual([true, true, true, true, true]);
   await sheet.press(sheet.button(ru.gallery.showAll));
   const [applied] = sheet.applied;
-  expect(applied.kind).toBe('all');
+  expect([applied.kind, applied.orientation]).toEqual([null, null]);
   expect([applied.people.size, applied.labels.size, applied.days.size]).toEqual([0, 0, 0]);
 });
 
@@ -361,7 +374,7 @@ test.each(['ru', 'en'] as const)(
       const names = found.map((one) => one.name);
       for (const name of [
         s.gallery.reset,
-        s.gallery.anyDay,
+        s.gallery.allOf(s.gallery.whichDays),
         s.gallery.otherDay,
         s.gallery.showAll,
         'Гость Номер12',

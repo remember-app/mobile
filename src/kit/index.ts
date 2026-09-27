@@ -17,6 +17,7 @@
 export * from './badge';
 export * from './bars';
 export * from './bits';
+export * from './block-head';
 export * from './button';
 export * from './calendar';
 export * from './card';

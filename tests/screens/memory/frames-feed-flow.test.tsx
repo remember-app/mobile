@@ -637,12 +637,16 @@ const filterSheet = (screen: Screen) => screen.root.findByType(FilterSheet);
 const openSort = (screen: Screen) => screen.press(screen.icon(ru.gallery.sorting));
 const openFilter = (screen: Screen) => screen.press(screen.icon(ru.gallery.filters));
 /** A control of a sheet, found by the name it answers to. */
+/** «Все» over the days — one of five «Все» on the sheet, so found by the name it is read out as. */
+const ANY_DAY = ru.gallery.allOf(ru.gallery.whichDays);
 const control = (
   sheet: TestRenderer.ReactTestInstance,
   type: typeof Chip | typeof Button,
   name: string,
 ) =>
-  sheet.findAllByType(type as never).find((one) => (one.props.label ?? one.props.name) === name)!;
+  sheet
+    .findAllByType(type as never)
+    .find((one) => one.props.name === name || one.props.label === name)!;
 const segment = (sheet: TestRenderer.ReactTestInstance, name: string) =>
   sheet.findAll(
     (one) =>
@@ -730,16 +734,23 @@ test('the three segments of the sheets are the spec’s: their names, their word
   });
   await act(async () => sortSheet(screen).props.onDone());
   await openFilter(screen);
+  // No «Всё» cell any more: «Все» in the head of the section is that (spec 7.3, detail 18).
   expect(drawn(filterSheet(screen), ru.gallery.whatKind)).toEqual({
-    words: ['Всё', 'Фото', 'Видео'],
-    values: ['all', 'photo', 'video'],
+    words: ['Фото', 'Видео'],
+    values: ['photo', 'video'],
     quiet: [true, true, undefined, undefined],
   });
-  expect([ru.gallery.order, ru.gallery.groupBy, ru.gallery.whatKind]).toEqual([
-    'Порядок',
-    'Собрать в группы',
-    'Тип',
-  ]);
+  expect(drawn(filterSheet(screen), ru.gallery.whichOrientation)).toEqual({
+    words: ['Горизонтальные', 'Вертикальные'],
+    values: ['landscape', 'portrait'],
+    quiet: [true, true, undefined, undefined],
+  });
+  expect([
+    ru.gallery.order,
+    ru.gallery.groupBy,
+    ru.gallery.whatKind,
+    ru.gallery.whichOrientation,
+  ]).toEqual(['Порядок', 'Собрать в группы', 'Тип', 'Ориентация']);
 });
 
 test('with them off the feed is the one wall, with not one seam in it', async () => {
@@ -960,12 +971,12 @@ test('a day tile is the frames of that day: counted, weighed by its bytes, and r
   await screen.press(dayTile(screen, 12));
   await screen.press(dayTile(screen, 11));
   expect(dayTile(screen, 12)().props.selected).toBe(true);
-  expect(control(filterSheet(screen), Chip, ru.gallery.anyDay).props.selected).toBe(false);
+  expect(control(filterSheet(screen), Chip, ANY_DAY).props.selected).toBe(false);
   await screen.press(applyButton(screen));
   expect(screen.feed()).toEqual(['c', 'd', 'e']);
-  // «Все дни» is the absence of a choice: pressing it empties the set, and every tile lets go.
+  // «Все» over the days is the absence of a choice: pressing it empties the set, and every tile lets go.
   await openFilter(screen);
-  const anyDay = () => control(filterSheet(screen), Chip, ru.gallery.anyDay);
+  const anyDay = () => control(filterSheet(screen), Chip, ANY_DAY);
   expect(anyDay().props.selected).toBe(false);
   await act(async () => anyDay().props.onPress());
   expect(anyDay().props.selected).toBe(true);
@@ -978,7 +989,7 @@ test('a day tile is the frames of that day: counted, weighed by its bytes, and r
   expect(screen.feed()).toEqual(['a', 'b', 'c', 'd', 'e']);
 });
 
-test('the calendar beside «Все дни» opens under the tiles; a day picked on it is chosen, and picking it again takes it off', async () => {
+test('the calendar beside «Все» over the days opens under the tiles; a day picked on it is chosen, and picking it again takes it off', async () => {
   world();
   const screen = await open();
   await openFilter(screen);
@@ -1002,16 +1013,16 @@ test('the calendar beside «Все дни» opens under the tiles; a day picked 
   expect(apply().props.label).toBe(ru.gallery.show(1));
   await act(async () => calendar().props.onPick(new Date(2026, 8, 11)));
   expect(apply().props.label).toBe(ru.gallery.nothingMatched);
-  expect(control(filterSheet(screen), Chip, ru.gallery.anyDay).props.selected).toBe(false);
+  expect(control(filterSheet(screen), Chip, ANY_DAY).props.selected).toBe(false);
   await act(async () => calendar().props.onPick(new Date(2026, 8, 5)));
   expect(apply().props.label).toBe(ru.gallery.showAll);
-  expect(control(filterSheet(screen), Chip, ru.gallery.anyDay).props.selected).toBe(true);
+  expect(control(filterSheet(screen), Chip, ANY_DAY).props.selected).toBe(true);
   await screen.press(calendarButton(screen));
   expect(filterSheet(screen).findAllByType(Calendar)).toHaveLength(0);
   expect(calendarButton(screen)().props.tone).toBe('outline');
 });
 
-test('past three days the fullest three are tiles, and a day off the tiles is the calendar’s — and «Все дни» takes it off', async () => {
+test('past three days the fullest three are tiles, and a day off the tiles is the calendar’s — and «Все» takes it off', async () => {
   // Four days: the 10th holds three, the 12th and 13th two each, the 11th one — it gets no tile.
   world({
     media: [
@@ -1030,13 +1041,13 @@ test('past three days the fullest three are tiles, and a day off the tiles is th
       .findByType(Calendar)
       .props.onPick(new Date(2026, 8, 11)),
   );
-  // Chosen with no tile standing for it: every tile stays out, and «Все дни» is off.
+  // Chosen with no tile standing for it: every tile stays out, and «Все» over the days is off.
   expect(
     filterSheet(screen)
       .findAllByType(DayTile)
       .map((one) => one.props.selected),
   ).toEqual([false, false, false]);
-  expect(control(filterSheet(screen), Chip, ru.gallery.anyDay).props.selected).toBe(false);
+  expect(control(filterSheet(screen), Chip, ANY_DAY).props.selected).toBe(false);
   expect(applyButton(screen)().props.label).toBe(ru.gallery.show(1));
   await screen.press(applyButton(screen));
   expect(screen.feed()).toEqual(['e']);
@@ -1046,7 +1057,7 @@ test('past three days the fullest three are tiles, and a day off the tiles is th
   await openFilter(screen);
   expect(filterSheet(screen).findByType(Calendar).props.from).toEqual(new Date(2026, 8, 11));
   expect(calendarButton(screen)().props.on).toBe(true);
-  await act(async () => control(filterSheet(screen), Chip, ru.gallery.anyDay).props.onPress());
+  await act(async () => control(filterSheet(screen), Chip, ANY_DAY).props.onPress());
   await screen.press(applyButton(screen));
   expect(screen.feed()).toEqual(['a', 'b', 'c', 'd', 'e', 'x3', 'x2', 'x1']);
 });

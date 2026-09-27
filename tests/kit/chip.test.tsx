@@ -58,8 +58,8 @@ test('the five heights are five heights, and the quick one stands on a fill of i
   expect(story(<Chip label="Все" onPress={() => {}} />)).not.toContain('r-backgroundColor-');
   // And all of them are felt at 44 however they are drawn (spec 10.2).
   expect(story(<Chip label="Мысли" size={34} onPress={() => {}} />)).toContain('min-height:34px');
-  // «Все дни» in the head of the filter's day block (spec 7.3) is the smallest of them.
-  expect(story(<Chip label="Все дни" size={28} onPress={() => {}} />)).toContain('min-height:28px');
+  // «Все» in the head of a filter section (spec 7.3, detail 16) is the smallest of them.
+  expect(story(<Chip label="Все" size={28} onPress={() => {}} />)).toContain('min-height:28px');
 });
 
 test('the journal’s chips come out as wide as the layout draws them — «Всё» 53.44, «Мысли» 73.44', async () => {

@@ -75,13 +75,19 @@ export const en = {
     add: 'Add frames',
 
     /**
-     * `SheetFilter` — what of the gallery is shown. Four groups of its own; the glowing button
+     * `SheetFilter` — what of the gallery is shown. Five sections of its own; the glowing button
      * counts what is about to be shown, so it says outright when that count is nought.
      */
     filters: 'Filters',
+    /** In the head of every section: lit while the section holds nothing back. */
+    all: 'All',
+    /** The same «All» read out with its section, since five of them in a row are otherwise one word. */
+    allOf: (section: string) => `All: ${section}`,
     whoBrought: 'Who brought it',
     whatKind: 'Type',
-    anyKind: 'All of it',
+    /** The words of «Формат» on `MontageBuild` — the same axis (spec 7.3, detail 18). */
+    whichOrientation: 'Orientation',
+    orientations: { landscape: 'Wide', portrait: 'Tall' },
     /**
      * The heading over the row of boxes (spec 10.8.2). The plural of `labels.title`'s own subject
      * and not a sentence: the chips under it say the rest. This is the only way the contents of a
@@ -89,8 +95,7 @@ export const en = {
      */
     whichLabels: 'Labels',
     whichDays: 'Day',
-    anyDay: 'Every day',
-    /** The round calendar button beside «Every day», for a day the tiles are not offering. */
+    /** The round calendar button beside the day section's «All», for a day the tiles are not offering. */
     otherDay: 'Pick another date',
     /** A day tile read out whole: «13 September, Sat, 312 frames». */
     dayTile: (day: string, weekday: string, frames: string) => `${day}, ${weekday}, ${frames}`,
@@ -255,12 +260,14 @@ export const ru: typeof en = {
     add: 'Добавить кадры',
 
     filters: 'Фильтры',
+    all: 'Все',
+    allOf: (section: string) => `Все: ${section}`,
     whoBrought: 'Кто принёс',
     whatKind: 'Тип',
-    anyKind: 'Всё',
+    whichOrientation: 'Ориентация',
+    orientations: { landscape: 'Горизонтальные', portrait: 'Вертикальные' },
     whichLabels: 'Лейблы',
     whichDays: 'День',
-    anyDay: 'Все дни',
     otherDay: 'Выбрать другую дату',
     dayTile: (day: string, weekday: string, frames: string) => `${day}, ${weekday}, ${frames}`,
     show: (n: number) => `Показать ${count(n, 'кадр', 'кадра', 'кадров')}`,

@@ -83,6 +83,7 @@ export const photo = (
   captured_at: at,
   width: null,
   height: null,
+  orientation: null,
   duration_seconds: null,
   created_at: at,
   label_ids: [],

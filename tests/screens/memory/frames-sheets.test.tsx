@@ -166,7 +166,7 @@ const sorting = (over: Partial<Sort> = {}) => (
   <SortSheet value={{ ...SORT_DEFAULT, ...over }} onChange={() => {}} onDone={() => {}} />
 );
 
-test('the filter is four groups: faces, the type, the boxes and the day tiles', () => {
+test('the filter is five sections: faces, the type, the orientation, the boxes and the day tiles', () => {
   const whole = story(filter());
   for (const line of [
     'Фильтры',
@@ -179,13 +179,21 @@ test('the filter is four groups: faces, the type, the boxes and the day tiles', 
     'aria-label="Лиза Морозова"',
     'aria-label="Марк Ковалёв"',
     'ТИП',
-    'Всё',
     'Фото',
     'Видео',
+    'ОРИЕНТАЦИЯ',
+    'Горизонтальные',
+    'Вертикальные',
     'ЛЕЙБЛЫ',
     'Лучшее',
     'ДЕНЬ',
-    '>Все дни<',
+    // «Все» heads every section, and is read out with the section it stands over (detail 16).
+    '>Все<',
+    'aria-label="Все: Кто принёс"',
+    'aria-label="Все: Тип"',
+    'aria-label="Все: Ориентация"',
+    'aria-label="Все: Лейблы"',
+    'aria-label="Все: День"',
     'aria-label="Выбрать другую дату"',
     // A tile: the figure, the weekday, the count declined — and all of it in words out loud.
     '>13<',
@@ -206,6 +214,9 @@ test('the filter is four groups: faces, the type, the boxes and the day tiles', 
   expect(whole).not.toContain('>Лиза Морозова<');
   expect(whole).not.toContain('>13 сент<');
   expect(whole).not.toContain('Другая дата<');
+  // No «Всё» cell in the type and no «Все дни» over the days: «Все» in each head is both.
+  expect(whole).not.toContain('>Всё<');
+  expect(whole).not.toContain('Все дни');
   // The tiles run in date order, the earliest on the left — whatever order the days arrive in.
   expect(whole.indexOf('12 сентября, сб')).toBeLessThan(whole.indexOf('13 сентября, вс'));
   // The calendar is behind its button and not under the tiles from the start: it is for the day
@@ -230,10 +241,10 @@ test('a tile per day up to three; past three, the three fullest — and never a 
   // Four days and a week: the fullest three, still earliest first; the rest are the calendar's.
   expect(tilesOf(story(filter({}, 10, labels, daysOf(4))))).toEqual(['11', '12', '13']);
   expect(tilesOf(story(filter({}, 28, labels, daysOf(7))))).toEqual(['14', '15', '16']);
-  // And the head of the block is the same whatever the count: «Все дни» and the calendar.
+  // And the head of the block is the same whatever the count: «Все» and the calendar.
   for (const n of [1, 2, 3, 4, 7]) {
     const drawn = story(filter({}, 1, labels, daysOf(n)));
-    expect(drawn).toContain('>Все дни<');
+    expect(drawn).toContain('aria-label="Все: День"');
     expect(drawn).toContain('aria-label="Выбрать другую дату"');
   }
 });
@@ -251,19 +262,22 @@ test('every person who brought something is a face — one, six, seven or twelve
   }
 });
 
-test('a chosen face, a chosen tile and «Все дни» are each a sheet of their own', () => {
+test('a chosen face, a chosen tile, a type and an orientation are each a sheet of their own', () => {
   allDifferent({
     nothing: filter(),
     person: filter({ people: new Set(['liza']) }, 212),
     day: filter({ days: new Set([days[0].at]) }, 312),
     both: filter({ people: new Set(['liza']), days: new Set([days[0].at]) }, 100),
+    photo: filter({ kind: 'photo' }, 300),
+    tall: filter({ orientation: 'portrait' }, 120),
   });
 });
 
-test('the boxes stand third, between the type and the days — and that is how one is looked at', () => {
-  // Spec 10.8.2: the row of labels lands between «ТИП» and «ДЕНЬ», read off the sheet itself.
+test('the boxes stand fourth, between the orientation and the days — and that is how one is looked at', () => {
+  // Spec 10.8.2: the row of labels lands between «ОРИЕНТАЦИЯ» and «ДЕНЬ», read off the sheet itself.
   const whole = story(filter());
-  expect(whole.indexOf('ТИП')).toBeLessThan(whole.indexOf('ЛЕЙБЛЫ'));
+  expect(whole.indexOf('ТИП')).toBeLessThan(whole.indexOf('ОРИЕНТАЦИЯ'));
+  expect(whole.indexOf('ОРИЕНТАЦИЯ')).toBeLessThan(whole.indexOf('ЛЕЙБЛЫ'));
   expect(whole.indexOf('ЛЕЙБЛЫ')).toBeLessThan(whole.indexOf('ДЕНЬ'));
   // The chip is the kit's label chip (detail 73): the colour the api's cell stands for, the name,
   // and what the box holds — read out as one thing, the way a day's count is. Which paint each cell
@@ -357,30 +371,30 @@ const sheetStyle = (markup: string) => /style="(gap:[^"]*padding-bottom:[^"]*)"/
 /** The classes of the block a group's heading opens: the heading and the row it introduces. */
 const groupOf = (markup: string, heading: string) =>
   new RegExp(`<div class="([^"]+)"><h1[^>]*>${heading}</h1>`).exec(markup)?.[1];
+/** The same, where the heading stands in the head of the block with «Все» beside it (detail 80). */
+const sectionOf = (markup: string, heading: string) =>
+  new RegExp(`<div class="([^"]+)"><div class="[^"]+"><h1[^>]*>${heading}</h1>`).exec(markup)?.[1];
 
-test('the two tuning sheets stand as drawn: 20 between blocks, 10 under a heading, 381 and 560 tall', () => {
+test('the two tuning sheets stand as drawn: 20 between blocks, 10 under a heading, 381 and 669 tall', () => {
   const sort = story(sorting());
   const filters = story(filter());
   // Spec 4 and 10.10: `SheetSort` is 381 — the layout's 380 squeezed its handle and «Готово» — and
-  // `SheetFilter` 560, both a floor the sheet grows past rather than a height it is cut to.
+  // `SheetFilter` 669 — its five sections, where the layout's 650 squeezed the handle and the button;
+  // both a floor the sheet grows past rather than a height it is cut to.
   expect(sheetStyle(sort)).toMatch(/^gap:20px;.*min-height:381px;/);
-  expect(sheetStyle(filters)).toMatch(/^gap:20px;.*min-height:560px;/);
-  for (const drawn of [sort, filters]) expect(drawn).not.toMatch(/[^-]height:\s*(381|560)px/);
+  expect(sheetStyle(filters)).toMatch(/^gap:20px;.*min-height:669px;/);
+  for (const drawn of [sort, filters]) expect(drawn).not.toMatch(/[^-]height:\s*(381|669)px/);
   // The filter scrolls, and keeps the same 20 inside the scroll — between the blocks themselves.
   expect(filters).toContain(
     `<div class="css-view-g5y9jx" style="gap:20px"><div class="css-view-g5y9jx ${rule('gap:12px')}">`,
   );
   // One style for a heading and its row on both sheets: 10 down to the segments and the chips, and
   // 12 down to the faces (spec 8).
-  for (const [drawn, heading] of [
-    [sort, 'ПОРЯДОК'],
-    [sort, 'СОБРАТЬ В ГРУППЫ'],
-    [filters, 'ТИП'],
-    [filters, 'ЛЕЙБЛЫ'],
-  ]) {
-    expect(groupOf(drawn, heading), heading).toContain(rule('gap:10px'));
-  }
-  expect(groupOf(filters, 'КТО ПРИНЁС')).toContain(rule('gap:12px'));
+  for (const heading of ['ПОРЯДОК', 'СОБРАТЬ В ГРУППЫ'])
+    expect(groupOf(sort, heading), heading).toContain(rule('gap:10px'));
+  for (const heading of ['ТИП', 'ОРИЕНТАЦИЯ', 'ЛЕЙБЛЫ', 'ДЕНЬ'])
+    expect(sectionOf(filters, heading), heading).toContain(rule('gap:10px'));
+  expect(sectionOf(filters, 'КТО ПРИНЁС')).toContain(rule('gap:12px'));
 });
 
 test('the sheet of a frame sets its facts out 14 apart, as `SheetFrameInfo` draws them', () => {

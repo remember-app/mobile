@@ -114,6 +114,7 @@ const frame = (over: Partial<MediaItem>): MediaItem => ({
   captured_at: null,
   width: null,
   height: null,
+  orientation: null,
   duration_seconds: null,
   created_at: '2026-09-18T10:00:00.000Z',
   label_ids: [],

@@ -309,16 +309,21 @@ export function dateMarks(
 }
 
 /**
- * What of the gallery is shown (`SheetFilter`): who brought it, what it is, which boxes it lies in,
- * which day it is from. An empty set is «everybody», «every label» and «every day» rather than
- * «nobody» — the chip that says so is the one the sheet opens with.
+ * What of the gallery is shown (`SheetFilter`): who brought it, what it is, which way it stands,
+ * which boxes it lies in, which day it is from. An empty set and a null are «all of them» rather than
+ * «none» — the lit «Все» over the section is what says so.
  */
 export type Filter = {
   people: ReadonlySet<string>;
   /** Which labels, by id — this is how the contents of a box are looked at (spec 10.8.2). */
   labels: ReadonlySet<string>;
   days: ReadonlySet<number>;
-  kind: MediaItem['kind'] | 'all';
+  kind: MediaItem['kind'] | null;
+  /**
+   * Wide or tall. A square frame is neither, and neither is one the worker has not measured yet:
+   * both are shown only while this is null (spec 8, `SheetFilter`).
+   */
+  orientation: 'landscape' | 'portrait' | null;
 };
 
 /** Nothing filtered out, which is what the gallery stands at until the sheet says otherwise. */
@@ -326,7 +331,8 @@ export const FILTER_NONE: Filter = {
   people: new Set(),
   labels: new Set(),
   days: new Set(),
-  kind: 'all',
+  kind: null,
+  orientation: null,
 };
 
 /** Whether anything is being held back — the other spark dot, one rule over every group on it. */
@@ -335,27 +341,29 @@ export function filtering(filter: Filter): boolean {
     filter.people.size > 0 ||
     filter.labels.size > 0 ||
     filter.days.size > 0 ||
-    filter.kind !== 'all'
+    filter.kind !== null ||
+    filter.orientation !== null
   );
 }
 
 /**
- * The gallery as the filter leaves it. Four questions, all four answered against the record itself,
- * so the count the sheet's own button carries («Показать 486 кадров») is worked out by exactly what
- * the sheet will then show.
+ * The gallery as the filter leaves it. Five questions, all answered against the record itself, so
+ * the count the sheet's own button carries («Показать 486 кадров») is worked out by exactly what the
+ * sheet will then show.
  *
  * The labels are read off the record's own `label_ids`, the way everything else here is: the api
  * cannot narrow a gallery by a label and deliberately does not try (api README, «Лейблы кадра»), and
  * that array already holds only the boxes this person is allowed to see — somebody else's private
  * label leaves no trace in it, so there is nothing here to hide and nothing to check.
  *
- * Several labels are «any of these», the same «or» the people row is (spec 10.8.2), and the four
- * questions narrow each other exactly as the other three already did.
+ * Several labels are «any of these», the same «or» the people row is (spec 10.8.2), and the
+ * questions narrow each other: «и» between sections, «или» inside one.
  */
 export function framesMatching(items: readonly MediaItem[], filter: Filter): MediaItem[] {
   return items.filter(
     (item) =>
-      (filter.kind === 'all' || item.kind === filter.kind) &&
+      (filter.kind === null || item.kind === filter.kind) &&
+      (filter.orientation === null || item.orientation === filter.orientation) &&
       (filter.people.size === 0 || filter.people.has(item.uploaded_by)) &&
       (filter.labels.size === 0 || item.label_ids.some((one) => filter.labels.has(one))) &&
       (filter.days.size === 0 || filter.days.has(dayOf(item))),
@@ -503,7 +511,7 @@ export const DAY_TILES = 3;
 
 /**
  * Which days get a tile (TASK-294): every day up to three, and past that the three fullest by their
- * frames — the rest are reached through the calendar, and «Все дни» takes any of them off. In date
+ * frames — the rest are reached through the calendar, and «Все» takes any of them off. In date
  * order, the earliest on the left, the way the layout lays them; of two equally full days the later
  * one is kept, the way the feed reads newest first.
  */

@@ -209,7 +209,7 @@ test('the round button is drawn at the seven diameters the layout uses', () => {
   // 26 in it, and 22 there reads as a plate with something small lost in the middle (TASK-181).
   expect(story(<IconButton icon={Plus} label="Пауза" size={72} />)).toContain('width="26"');
   expect(story(<IconButton icon={Plus} label="Закрыть" size={48} />)).toContain('width="22"');
-  // And the 28 beside «Все дни» carries a 14 (spec 8), felt at 44 all the same (spec 10.2).
+  // And the 28 beside «Все» carries a 14 (spec 8), felt at 44 all the same (spec 10.2).
   const calendar = story(<IconButton icon={Plus} label="Выбрать другую дату" size={28} />);
   expect(calendar).toContain('width="14"');
   expect(calendar).toContain('width:28px');

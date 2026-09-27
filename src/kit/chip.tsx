@@ -16,7 +16,8 @@ import { Text } from './text';
  * - **40** — a filter;
  * - **36** — the quick days on `Create`, which stand on `surface` instead of on nothing, 13 a side;
  * - **34** — the journal's own filter, where a row of them sits under a bar: 13 / 600;
- * - **28** — «Все дни» in the head of the filter's day block: 12 / 600 and pulled in to 12 a side.
+ * - **28** — «Все» in the head of every section of the filter (detail 80): 12 / 600 and pulled in to
+ *   12 a side.
  *
  * What stands inside is the rest of it: words alone, a face and a name, a colour square and a name
  * (a label, spec 10.8.2), a glyph, and a count that is the same words a shade quieter.
@@ -35,6 +36,8 @@ export function Chip({
   icon,
   count,
   selected,
+  toggle,
+  name,
   disabled,
   onPress,
   style,
@@ -54,6 +57,13 @@ export function Chip({
   count?: string;
   /** Chosen: the chip fills with `paper` and loses its border, the way a segment does. */
   selected?: boolean;
+  /**
+   * Read out as a switch that says which way it stands (`aria-pressed`) rather than as a button —
+   * «Все» over a filter section, which is at once that section's state and the way to clear it.
+   */
+  toggle?: boolean;
+  /** What it is read out as when the words alone do not say which one it is: «Все: Тип». */
+  name?: string;
   disabled?: boolean;
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
@@ -71,10 +81,16 @@ export function Chip({
     <Pressable
       // A chip nobody can press is a label, and a label is not a button — so it says nothing about
       // being pressable to a screen reader either.
-      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityRole={onPress ? (toggle ? 'togglebutton' : 'button') : undefined}
       // The count belongs to the name when it is read out: «13 сентября 312» is one thing.
-      accessibilityLabel={count ? `${label} ${count}` : label}
-      accessibilityState={onPress ? { disabled: !!disabled, selected: !!selected } : undefined}
+      accessibilityLabel={name ?? (count ? `${label} ${count}` : label)}
+      accessibilityState={
+        onPress
+          ? toggle
+            ? { disabled: !!disabled, checked: !!selected }
+            : { disabled: !!disabled, selected: !!selected }
+          : undefined
+      }
       disabled={disabled || !onPress}
       // Spec 10.2: every one of them is drawn under 44 and felt at 44. Height only — a chip is
       // as wide as its words, and those are already wider than a finger.
