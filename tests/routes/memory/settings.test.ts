@@ -194,9 +194,7 @@ test('taking somebody out names the price, and a viewer has none to name', () =>
   // `SheetConfirmMember` as it is drawn: the face, «@anya.p · принесла 54 кадра», the paragraph and
   // the plate with the figure on it. Spec 10.8.4 gives a viewer a different paragraph and no plate —
   // there is no material behind them, and «0 кадров исчезнут» names no price at all.
-  expect(settings).toContain(
-    'dropping.media_count ? s.members.priceFrames(dropping.media_count) : undefined',
-  );
+  expect(settings).toContain('lost(dropping) ? s.members.priceFrames(lost(dropping)) : undefined');
   expect(settings).toContain(
     "text={dropping.role === 'viewer' ? s.members.removeViewerText : s.members.removeText}",
   );

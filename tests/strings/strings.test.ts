@@ -83,14 +83,17 @@ test('the sheet that deletes a memory counts its people after «всех», and 
   expect(ru.settings.deleteText(2)).toContain('у обоих участников');
   expect(ru.settings.deleteText(1)).not.toContain('участник');
   expect(en.settings.deleteText(1)).not.toContain('people');
-  expect([1, 3, 358].map(ru.settings.deleteOthers)).toEqual([
-    '1 кадр сюда принесли другие',
-    '3 кадра сюда принесли другие',
-    '358 кадров сюда принесли другие',
+  // The plate says what goes, and the verb agrees with the number: «1 кадр … исчезнет», «11 … исчезнут».
+  expect([1, 3, 11, 21, 358].map(ru.settings.deleteOthers)).toEqual([
+    '1 кадр других участников тоже исчезнет',
+    '3 кадра других участников тоже исчезнут',
+    '11 кадров других участников тоже исчезнут',
+    '21 кадр других участников тоже исчезнет',
+    '358 кадров других участников тоже исчезнут',
   ]);
   expect([1, 2].map(en.settings.deleteOthers)).toEqual([
-    'Other people brought 1 frame here',
-    'Other people brought 2 frames here',
+    '1 frame from other people disappears too',
+    '2 frames from other people disappear too',
   ]);
 });
 

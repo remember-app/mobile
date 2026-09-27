@@ -18,6 +18,12 @@ export type Member = Contact & {
    * this screen used to read the whole gallery to count it itself.
    */
   media_count: number;
+  /**
+   * How many frames taking that person out would actually take with them — the hidden ones too,
+   * which `media_count` leaves out. Sent only to whoever can do it: the organizer on every row, and
+   * a member on their own (they may leave). Missing everywhere else.
+   */
+  removal_media_count?: number;
 };
 
 /**
