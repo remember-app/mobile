@@ -446,13 +446,15 @@ export function enqueue(memoryId: string, assets: readonly MediaLibrary.Asset[])
 }
 
 /**
- * Give up on one: the file that has left the phone, or one nobody wants sent after all.
+ * Give up on some: the files that have left the phone, or ones nobody wants sent after all — all of
+ * them in one write, since the screen lets go of every file parked for one reason at once.
  *
  * Keyed on the pair `enqueue` composes and not on the asset alone — the same photo may be owed to
  * two memories, and dropping it from one screen must not take the other one's copy with it.
  */
-export function drop(memoryId: string, assetId: string) {
-  queue = queue.filter((file) => file.memoryId !== memoryId || file.assetId !== assetId);
+export function drop(memoryId: string, ...assetIds: string[]) {
+  const leaving = new Set(assetIds);
+  queue = queue.filter((file) => file.memoryId !== memoryId || !leaving.has(file.assetId));
   changed();
 }
 

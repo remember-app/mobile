@@ -1,17 +1,15 @@
-import { Image } from 'expo-image';
 import { X } from 'lucide-react-native';
 import { type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
-import { height, radius, space, themed, useTheme } from '@/theme';
+import { height, radius, space, themed } from '@/theme';
 
-import { Progress } from './bits';
+import { Divider, Progress } from './bits';
 import { IconButton } from './button';
-import { Icon, type IconComponent } from './icon';
 import { Text } from './text';
 
 /**
- * Spec 7.6 — sending. The block that says how far along it is, and the row for a file that will not
- * go.
+ * Spec 7.6 — sending. The block that says how far along it is, and the block for the files that
+ * will not go.
  */
 
 /**
@@ -65,62 +63,60 @@ export function Upload({
   );
 }
 
-/**
- * A file that stopped on its way out (spec 7.6). The reason is technical and exact — «Хранилище
- * отказало на части 3 (503)», «Этого файла больше нет на телефоне» — because spec 9 would rather be
- * precise than soothing, and because a person can act on the second one.
- *
- * A file the phone no longer has has no thumbnail to show either, so a glyph square stands where the
- * picture would. The 36 cross at the end lets the file go, its glyph 16 (`UploadQueue`).
- */
-export function RowStuck({
-  name,
-  reason,
-  uri,
-  icon,
-  dropLabel,
-  onDrop,
-  style,
-}: {
-  name: string;
+/** One reason files stopped for, in `BlockStuck`. */
+export type StuckLine = {
+  key: string;
+  /** «3 файла». */
+  count: string;
+  /** «Связь с хранилищем оборвалась». */
   reason: string;
-  uri?: string;
-  /** Drawn instead of the thumbnail when the file itself is gone. */
-  icon?: IconComponent;
-  /** «Убрать IMG_4471.HEIC из очереди» — what the cross is called out as. */
+  /** «Убрать 3 файла из очереди» — what the cross is called out as. */
   dropLabel: string;
   onDrop: () => void;
+};
+
+/**
+ * The files that stopped on their way out (spec 7.6), in one block and not a card each: ten files
+ * that did not go are one thing gone wrong in a few ways, and ten red cards said it ten times
+ * (TASK-417). A line to every reason — how many, and why — and the 36 cross at its end, glyph 16,
+ * that lets all of them go (`UploadQueue`).
+ *
+ * The reason is technical and exact — «Хранилище отказало (503)», «Больше нет на этом телефоне» —
+ * because spec 9 would rather be precise than soothing, and because a person can act on the second
+ * one. Each line keeps detail 51's measure: 12 above and below, 14 at the sides, the count 3 over
+ * its reason; a soft hairline between two, as inside any list.
+ */
+export function BlockStuck({
+  lines,
+  style,
+}: {
+  lines: readonly StuckLine[];
   style?: StyleProp<ViewStyle>;
 }) {
-  const { color } = useTheme();
   const styles = useStyles();
 
   return (
     <View style={[styles.stuck, style]}>
-      {uri ? (
-        <Image source={{ uri }} contentFit="cover" style={styles.thumb} />
-      ) : (
-        <View style={[styles.thumb, styles.thumbGone]}>
-          {icon ? <Icon icon={icon} size={20} color={color.faint} /> : null}
+      {lines.map((line, index) => (
+        <View key={line.key}>
+          {index > 0 ? <Divider soft /> : null}
+          <View style={styles.line}>
+            <View style={styles.words}>
+              <Text role="rowSm">{line.count}</Text>
+              <Text role="meta" tone="danger">
+                {line.reason}
+              </Text>
+            </View>
+            <IconButton
+              icon={X}
+              size={height.roundRow}
+              glyph={{ size: 16 }}
+              label={line.dropLabel}
+              onPress={line.onDrop}
+            />
+          </View>
         </View>
-      )}
-      <View style={styles.words}>
-        {/* One line cut short, as spec 7.7 (detail 51) draws it: a file's name is not words to wrap,
-            and it is said whole by the cross beside it (`dropLabel`). */}
-        <Text role="rowSm" numberOfLines={1}>
-          {name}
-        </Text>
-        <Text role="meta" tone="danger">
-          {reason}
-        </Text>
-      </View>
-      <IconButton
-        icon={X}
-        size={height.roundRow}
-        glyph={{ size: 16 }}
-        label={dropLabel}
-        onPress={onDrop}
-      />
+      ))}
     </View>
   );
 }
@@ -147,28 +143,19 @@ const useStyles = themed(({ color }) =>
     lead: { flexGrow: 1 },
     // Spec 7.7, detail 51: 12 above and below, 14 at the sides.
     stuck: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: space.s3,
       borderRadius: radius.field,
       borderWidth: 1,
       borderColor: color.dangerEdge,
       backgroundColor: color.surface,
-      paddingVertical: space.s3,
       paddingHorizontal: 14,
     },
-    // The name and its reason 3 apart (`UploadQueue`).
-    words: { flex: 1, minWidth: 0, gap: 3 },
-    // The picture is pulled back to 60%: it is the reason that has to be read, not the frame.
-    thumb: {
-      width: 44,
-      height: 44,
-      borderRadius: radius.queue,
-      backgroundColor: color.raise,
-      opacity: 0.6,
+    line: {
+      flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
+      gap: space.s3,
+      paddingVertical: space.s3,
     },
-    thumbGone: { opacity: 1 },
+    // The count and its reason 3 apart (`UploadQueue`).
+    words: { flex: 1, minWidth: 0, gap: 3 },
   }),
 );

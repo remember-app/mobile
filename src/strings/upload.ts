@@ -1,4 +1,4 @@
-import { count } from './plural';
+import { count, form } from './plural';
 
 /**
  * The words of the screen that picks frames off the phone and sends them.
@@ -44,25 +44,27 @@ export const en = {
     emptyText: 'This phone’s gallery is empty. Shoot something — and the frames will show up here.',
     stillToSend: (n: number) => `${n} still to send`,
     carriesOn: 'The app can be put away — sending carries on.',
-    /** The heading over the files the queue could not get out, «НЕ УШЛИ». */
-    notSent: 'Not sent',
-    dropFile: (name: string) => `Drop ${name} from the queue`,
+    /** The heading over the files the queue could not get out, «НЕ УШЛИ 12 ФАЙЛОВ». */
+    notSent: (n: number) => `${n} ${n === 1 ? 'file' : 'files'} not sent`,
+    /** How many of them stopped for one reason — the line that reason is said on. */
+    files: (n: number) => `${n} ${n === 1 ? 'file' : 'files'}`,
+    dropFiles: (n: number) => `Drop ${n} ${n === 1 ? 'file' : 'files'} from the queue`,
     picked: (n: number) => `${n} selected`,
     pickedOf: (n: number, total: number) => `${n} selected of ${total}`,
     /** The one glowing button of the screen, carrying what it is about to take with it. */
     send: (n: number) => `Send ${n} ${n === 1 ? 'file' : 'files'}`,
-    /** What the queue parks a file with. The filename is the phone's own and stays as it is. */
-    gone: (name: string) => `${name} is no longer on this phone.`,
+    /**
+     * Why files were parked — each said of one file or of many, since a line of them stands under
+     * «3 files». A storage code, where there was one, is put after the words in brackets.
+     */
+    gone: 'No longer on this phone',
     /** The gallery still has it; the phone could not read it. About the file, never a server. */
-    unreadable: (name: string) => `The phone could not read ${name} from its gallery.`,
-    partRefused: (part: number, status: number) => `Storage refused part ${part} (${status}).`,
+    unreadable: 'Could not be read from the phone’s gallery',
+    storageRefused: 'Storage refused',
     /** Storage, not the api: the connection to it dropped or went quiet mid-part. */
-    storageOffline: (part: number, status?: number) =>
-      `The connection to storage broke off on part ${part}${status === undefined ? '' : ` (${status})`}.`,
-    noReceipt: (part: number) => `Storage took part ${part} without a receipt.`,
-    noLink: (part: number) => `The api signed no link for part ${part}.`,
-    partSizeChanged: 'The part size changed.',
-    partNotTaken: (part: number) => `Storage would not take part ${part}.`,
+    storageOffline: 'The connection to storage broke off',
+    noLink: 'The api signed no link for a part',
+    partSizeChanged: 'The part size changed',
     /** doc-06, asked once: the sheet that comes up after the first files land in a memory. */
     askAll: 'Is that everything?',
     askAllText:
@@ -99,21 +101,19 @@ export const ru: typeof en = {
     emptyText: 'Галерея этого телефона пуста. Снимите что-нибудь — и кадры появятся здесь.',
     stillToSend: (n: number) => `Осталось ${count(n, 'файл', 'файла', 'файлов')}`,
     carriesOn: 'Приложение можно свернуть — отправка продолжится.',
-    notSent: 'Не ушли',
-    dropFile: (name: string) => `Убрать ${name} из очереди`,
+    notSent: (n: number) =>
+      `Не ${form(n, 'ушёл', 'ушли', 'ушли')} ${count(n, 'файл', 'файла', 'файлов')}`,
+    files: (n: number) => count(n, 'файл', 'файла', 'файлов'),
+    dropFiles: (n: number) => `Убрать ${count(n, 'файл', 'файла', 'файлов')} из очереди`,
     picked: (n: number) => `Выбрано ${n}`,
     pickedOf: (n: number, total: number) => `Выбрано ${n} из ${total}`,
     send: (n: number) => `Отправить ${count(n, 'файл', 'файла', 'файлов')}`,
-    gone: (name: string) => `${name} больше нет на этом телефоне.`,
-    unreadable: (name: string) => `Телефон не смог прочитать ${name} из галереи.`,
-    partRefused: (part: number, status: number) =>
-      `Хранилище отказало на части ${part} (${status}).`,
-    storageOffline: (part: number, status?: number) =>
-      `Связь с хранилищем оборвалась на части ${part}${status === undefined ? '' : ` (${status})`}.`,
-    noReceipt: (part: number) => `Хранилище приняло часть ${part} без квитанции.`,
-    noLink: (part: number) => `Сервер не подписал ссылку для части ${part}.`,
-    partSizeChanged: 'Размер части изменился.',
-    partNotTaken: (part: number) => `Хранилище не приняло часть ${part}.`,
+    gone: 'Больше нет на этом телефоне',
+    unreadable: 'Телефон не смог прочитать из галереи',
+    storageRefused: 'Хранилище отказало',
+    storageOffline: 'Связь с хранилищем оборвалась',
+    noLink: 'Сервер не подписал ссылку для одной из частей',
+    partSizeChanged: 'Размер части изменился',
     askAll: 'Это всё?',
     askAllText:
       'Или что-то ещё осталось? Организатор увидит ваш ответ и поймёт, ждать вас или нет.',

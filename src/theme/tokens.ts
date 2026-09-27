@@ -174,7 +174,7 @@ export const board = {
  * `UploadLimited`) — measured off the layout, the way `wizardLead` is.
  */
 export const uploadGaps = {
-  /** under «НЕ УШЛИ», and between the parked files under it */
+  /** under «НЕ УШЛИ», over the block of parked files */
   parked: 10,
   /** from the last strip of a day down to the plate saying the rest of it is unseen */
   unseen: 22,

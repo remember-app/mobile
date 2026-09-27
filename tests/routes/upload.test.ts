@@ -160,9 +160,9 @@ test('the four other faces are this screen with no feed under it', () => {
   // The sending and the grant are blocks over the grid — and over whatever stands where a feed
   // would, so a queue is still visible on an empty roll.
   expect(upload).toContain('{queued.length > 0 ? (\n          <Upload');
-  expect(upload).toContain('{s.upload.notSent.toUpperCase()}');
-  expect(upload).toContain('<RowStuck');
-  expect(upload).toContain('onDrop={() => drop(file.memoryId, file.assetId)}');
+  expect(upload).toContain('{s.upload.notSent(stuck.length).toUpperCase()}');
+  expect(upload).toContain('<BlockStuck');
+  expect(upload).toContain('onDrop: () => drop(id, ...line.files.map((file) => file.assetId)),');
   expect(upload).toContain('{limited ? (\n          <HintNote');
 });
 
@@ -175,8 +175,8 @@ test('the plain face’s body starts where the layout starts it: 124, and the me
   expect(upload).toContain('body: { paddingHorizontal: space.s4, paddingTop: LEAD }');
   expect(upload).toContain('lead: { paddingTop: LEAD }');
   expect(noFeed).toContain('message: { marginTop: board.bodyUploadCard - board.bodyUpload }');
-  // «НЕ УШЛИ» 10 over its rows and the rows 10 apart (e12 → e13 → e19), the unseen plate 22 under
-  // its strip (e12 ends at 455, e18 at 477).
+  // «НЕ УШЛИ» 10 over the block of parked files (e12 → e13), the unseen plate 22 under its strip
+  // (e12 ends at 455, e18 at 477).
   expect(uploadGaps).toEqual({ parked: 267 - (241 + 16), unseen: 477 - (338 + 117) });
   expect(upload).toContain('parked: { gap: uploadGaps.parked }');
   expect(upload).toContain('unseen: { marginTop: uploadGaps.unseen }');

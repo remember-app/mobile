@@ -187,8 +187,6 @@ const CUT: Record<string, number> = {
   // A track's wish (7.7, detail 54; `MontageMusic`) — whole in the field its pencil unfolds; a
   // record under an opened stage, two lines (7.7, detail 56) — whole in the stage's journal.
   'kit/rows.tsx': 2,
-  // A stuck file's name (7.7, detail 51) — whole in what its cross is read out as.
-  'kit/upload.tsx': 1,
   // A label's name in its row (7.7, detail 60) — whole in what the row is read out as.
   'kit/label.tsx': 1,
   // Cut by the kit, not by the spec: left open. Why a film fell over, one line on its card in the

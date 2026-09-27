@@ -14,12 +14,12 @@ import type { Strings } from '@/strings';
  * happened to be in (TASK-93). The words are picked in `failureText`, when the banner is drawn.
  */
 export type UploadFailure =
-  /** The gallery no longer has the entry. It is named by the queue's own `filename`. */
+  /** The gallery no longer has the entry. */
   | { reason: 'gone' }
   /**
    * The gallery has the entry and the phone could not hand its bytes over — on an iPhone that is
    * ordinarily a photo iCloud keeps off the phone under «Optimise Storage», which has to come down
-   * first. Named by `filename` too: it is about the file, not about any server.
+   * first. It is about the file, not about any server.
    */
   | { reason: 'unreadable' }
   | { reason: 'partSizeChanged' }
@@ -42,34 +42,74 @@ export type UploadFailure =
   | { reason: 'api'; status: number; said?: string };
 
 /**
- * That reason in the language the app is speaking right now. The two api fallbacks are the same
- * two `errorMessage` picks in `@/api` — said here rather than imported, because importing that
- * module drags the whole native side in behind it.
+ * That reason in the language the app is speaking right now, said of however many files it stopped
+ * — the parked files are counted under these words, one line to each (TASK-417). So a file name or
+ * a part number is never in them: that is where it happened, not what happened. Nor is which of
+ * storage's three ways of not taking a part it was — a refusal, links that kept running out, a
+ * part taken with no receipt all leave the file in the same place, on storage's side.
+ *
+ * The two api fallbacks are the same two `errorMessage` picks in `@/api` — said here rather than
+ * imported, because importing that module drags the whole native side in behind it.
  */
-export function failureText(s: Strings, failure: UploadFailure, filename: string): string {
+export function failureText(s: Strings, failure: UploadFailure): string {
   switch (failure.reason) {
     case 'gone':
-      return s.upload.gone(filename);
+      return s.upload.gone;
     case 'unreadable':
-      return s.upload.unreadable(filename);
+      return s.upload.unreadable;
     case 'partSizeChanged':
       return s.upload.partSizeChanged;
-    case 'noReceipt':
-      return s.upload.noReceipt(failure.part);
     case 'noLink':
-      return s.upload.noLink(failure.part);
-    case 'partNotTaken':
-      return s.upload.partNotTaken(failure.part);
+      return s.upload.noLink;
     case 'partRefused':
-      return s.upload.partRefused(failure.part, failure.status);
+    case 'partNotTaken':
+    case 'noReceipt':
+      return s.upload.storageRefused;
     case 'storageOffline':
-      return s.upload.storageOffline(failure.part, failure.status);
+      return s.upload.storageOffline;
     case 'offline':
       return s.error.offline;
     case 'api':
       if (failure.status === 429) return s.error.tooMany;
       return failure.said ?? s.error.status(failure.status);
   }
+}
+
+/** Storage's own code, where it answered with one — what the words above leave out on purpose. */
+function storageCode(failure: UploadFailure): number | undefined {
+  return failure.reason === 'partRefused' || failure.reason === 'storageOffline'
+    ? failure.status
+    : undefined;
+}
+
+/** A file the queue could not get out, and why. */
+export type ParkedFile = QueuedFile & { error: UploadFailure };
+
+/**
+ * The parked files as a person reads them: one line to each thing that went wrong, however many
+ * files it happened to — the most first. Storage's codes are said once on the line they belong to
+ * (TASK-413 wants them seen) rather than splitting it: a 503 on one file and a 400 on another are
+ * still storage saying no.
+ */
+export function parkedLines(
+  s: Strings,
+  files: readonly ParkedFile[],
+): { text: string; files: ParkedFile[] }[] {
+  const lines = new Map<string, { codes: Set<number>; files: ParkedFile[] }>();
+  for (const file of files) {
+    const words = failureText(s, file.error);
+    const line = lines.get(words) ?? { codes: new Set<number>(), files: [] };
+    lines.set(words, line);
+    line.files.push(file);
+    const code = storageCode(file.error);
+    if (code !== undefined) line.codes.add(code);
+  }
+  return [...lines]
+    .map(([words, { codes, files }]) => ({
+      text: codes.size > 0 ? `${words} (${[...codes].join(', ')})` : words,
+      files,
+    }))
+    .sort((a, b) => b.files.length - a.files.length);
 }
 
 /** One file waiting to go into a memory, and how far it got. This is what survives a restart. */

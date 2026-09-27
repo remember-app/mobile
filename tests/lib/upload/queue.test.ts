@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   failureText,
   missingParts,
+  type ParkedFile,
+  parkedLines,
   partDeadline,
   progress,
   type QueuedFile,
@@ -55,8 +57,6 @@ describe('uploadedParts', () => {
  * language it is asked in.
  */
 describe('failureText', () => {
-  const NAME = 'IMG_0001.HEIC';
-
   /** One of every way the pump parks a file, and the two answers the api gets worded by. */
   const every: UploadFailure[] = [
     { reason: 'gone' },
@@ -75,47 +75,81 @@ describe('failureText', () => {
 
   it('says every reason in the language it is asked in', () => {
     for (const failure of every) {
-      expect(failureText(ru, failure, NAME)).not.toBe(failureText(en, failure, NAME));
+      expect(failureText(ru, failure)).not.toBe(failureText(en, failure));
     }
-  });
-
-  it('names the file the phone no longer has', () => {
-    expect(failureText(en, { reason: 'gone' }, NAME)).toBe(`${NAME} is no longer on this phone.`);
-    expect(failureText(ru, { reason: 'gone' }, NAME)).toBe(`${NAME} больше нет на этом телефоне.`);
   });
 
   // TASK-413: a server that did not answer, storage that went quiet on a part, and a file the phone
   // could not read are three lines — and only the first of them is about the server.
   it('says the api, storage and the file on the phone apart', () => {
     for (const s of [en, ru]) {
-      const api = failureText(s, { reason: 'offline' }, NAME);
-      const storage = failureText(s, { reason: 'storageOffline', part: 2 }, NAME);
-      const file = failureText(s, { reason: 'unreadable' }, NAME);
+      const api = failureText(s, { reason: 'offline' });
+      const storage = failureText(s, { reason: 'storageOffline', part: 2 });
+      const file = failureText(s, { reason: 'unreadable' });
       expect(new Set([api, storage, file]).size).toBe(3);
-      expect(file).toContain(NAME);
     }
-    expect(failureText(en, { reason: 'storageOffline', part: 2 }, NAME)).toBe(
-      'The connection to storage broke off on part 2.',
-    );
-    expect(failureText(ru, { reason: 'storageOffline', part: 2, status: 400 }, NAME)).toBe(
-      'Связь с хранилищем оборвалась на части 2 (400).',
-    );
-    expect(failureText(en, { reason: 'unreadable' }, NAME)).toBe(
-      `The phone could not read ${NAME} from its gallery.`,
+    expect(failureText(en, { reason: 'storageOffline', part: 2 })).toBe(
+      'The connection to storage broke off',
     );
     for (const text of [
-      failureText(en, { reason: 'storageOffline', part: 2 }, NAME),
-      failureText(en, { reason: 'unreadable' }, NAME),
+      failureText(en, { reason: 'storageOffline', part: 2 }),
+      failureText(en, { reason: 'unreadable' }),
     ]) {
       expect(text).not.toMatch(/api|server/i);
+    }
+  });
+
+  // TASK-417: the words are what parked files are counted under, so they are about the reason and
+  // never about the one file or the one part it happened on.
+  it('says a reason the same whichever part it happened on, and storage’s three ways of saying no as one', () => {
+    for (const s of [en, ru]) {
+      expect(failureText(s, { reason: 'storageOffline', part: 2 })).toBe(
+        failureText(s, { reason: 'storageOffline', part: 7 }),
+      );
+      const no = [
+        failureText(s, { reason: 'partRefused', part: 2, status: 503 }),
+        failureText(s, { reason: 'partRefused', part: 5, status: 400 }),
+        failureText(s, { reason: 'partNotTaken', part: 1 }),
+        failureText(s, { reason: 'noReceipt', part: 3 }),
+      ];
+      expect(new Set(no).size).toBe(1);
     }
   });
 
   // The one reason nothing here translates: the api wrote it, and this side only carries it.
   it('hands the api’s own sentence on as it came', () => {
     const refused: UploadFailure = { reason: 'api', status: 403, said: 'Memory is closed' };
-    expect(failureText(ru, refused, NAME)).toBe('Memory is closed');
-    expect(failureText(en, refused, NAME)).toBe('Memory is closed');
+    expect(failureText(ru, refused)).toBe('Memory is closed');
+    expect(failureText(en, refused)).toBe('Memory is closed');
+  });
+});
+
+describe('parkedLines', () => {
+  const parked = (assetId: string, error: UploadFailure): ParkedFile => ({
+    assetId,
+    memoryId: 'm1',
+    filename: `IMG_${assetId}.HEIC`,
+    kind: 'photo',
+    capturedAt: null,
+    durationSeconds: null,
+    parts: {},
+    error,
+  });
+
+  it('counts the files under one line a reason, the most first, with storage’s codes said once on it', () => {
+    const lines = parkedLines(ru, [
+      parked('a', { reason: 'gone' }),
+      parked('b', { reason: 'partRefused', part: 1, status: 503 }),
+      parked('c', { reason: 'partRefused', part: 4, status: 503 }),
+      parked('d', { reason: 'partNotTaken', part: 2 }),
+      parked('e', { reason: 'partRefused', part: 2, status: 400 }),
+      parked('f', { reason: 'offline' }),
+    ]);
+    expect(lines.map((line) => [line.text, line.files.map((file) => file.assetId)])).toEqual([
+      ['Хранилище отказало (503, 400)', ['b', 'c', 'd', 'e']],
+      ['Больше нет на этом телефоне', ['a']],
+      [ru.error.offline, ['f']],
+    ]);
   });
 });
 

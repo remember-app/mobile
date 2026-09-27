@@ -11,15 +11,7 @@ import { Image } from 'expo-image';
 // pays for the uris with `getInfo()`.
 import type * as MediaLibrary from 'expo-media-library/legacy';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import {
-  ArrowUp,
-  Check,
-  ChevronLeft,
-  CircleCheckBig,
-  ImageIcon,
-  Info,
-  X,
-} from 'lucide-react-native';
+import { ArrowUp, Check, ChevronLeft, CircleCheckBig, Info, X } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Modal, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,6 +22,7 @@ import {
   AppBar,
   BackButton,
   Banner,
+  BlockStuck,
   Board,
   Button,
   DashedNote,
@@ -41,7 +34,6 @@ import {
   HintNote,
   Icon,
   IconButton,
-  RowStuck,
   Sheet,
   seamsOver,
   Text,
@@ -52,7 +44,7 @@ import { useAuth } from '@/lib/auth';
 import { formatDay, formatEventDates, formatRuntime, formatWeekday } from '@/lib/dates';
 import { useStrings } from '@/lib/language';
 import { assetsByDay, type ShootingDay } from '@/lib/media-window';
-import { failureText, progress, type QueuedFile, type UploadFailure } from '@/lib/upload/queue';
+import { type ParkedFile, parkedLines, progress } from '@/lib/upload/queue';
 import { answerAskAll, drop, enqueue, useAskAll, useUploads, wake } from '@/lib/upload/send';
 import { NoFeed } from '@/screens/upload/message';
 import { useRoll } from '@/screens/upload/roll';
@@ -205,13 +197,11 @@ export default function UploadScreen() {
   }
 
   // This memory's share of the queue: the one going up right now, and the ones parked. One bar for
-  // the whole sending and not thirty-four (spec 7.6) — the parked ones are named one by one under
-  // «НЕ УШЛИ», because each of them carries its own reason and can be let go of.
+  // the whole sending and not thirty-four (spec 7.6) — and the parked ones counted under «НЕ УШЛИ»
+  // by what stopped them, not named one by one.
   const queued = uploads.filter((file) => file.memoryId === id);
   const sending = queued.find((file) => file.error === undefined);
-  const stuck = queued.filter(
-    (file): file is QueuedFile & { error: UploadFailure } => file.error !== undefined,
-  );
+  const stuck = queued.filter((file): file is ParkedFile => file.error !== undefined);
 
   /**
    * doc-06, and the layout's `SheetAskAll`: asked once, and only once everything this visit sent is
@@ -324,16 +314,17 @@ export default function UploadScreen() {
           />
         ) : null}
 
-        {/* Named one by one, because each of them carries its own reason and because one of them
-            is the file somebody would rather not send after all. The queue retries by itself —
-            on a timer and on coming back to the app — so the button is for whoever would rather
-            not wait for either. It is as tall as the words beside it and felt at 44, so «НЕ
-            УШЛИ» stands 10 over the first row the way the layout has it, button or not. */}
+        {/* How many did not go and why, in one block: a line to each reason, however many files
+            it stopped (TASK-417), and a cross on it for the files somebody would rather not send
+            after all. The queue retries by itself — on a timer and on coming back to the app — so
+            the button is for whoever would rather not wait for either. It is as tall as the words
+            beside it and felt at 44, so «НЕ УШЛИ» stands 10 over the block the way the layout has
+            it, button or not. */}
         {stuck.length > 0 ? (
           <View style={styles.parked}>
             <View style={styles.parkedHead}>
               <Text role="eyebrow" tone="muted">
-                {s.upload.notSent.toUpperCase()}
+                {s.upload.notSent(stuck.length).toUpperCase()}
               </Text>
               <Button
                 size="line"
@@ -343,25 +334,18 @@ export default function UploadScreen() {
                 onPress={wake}
               />
             </View>
-            {stuck.map((file) => (
-              <RowStuck
-                key={file.assetId}
-                name={file.filename}
-                // The queue keeps the reason and not the sentence, so the words are picked here,
-                // in the language this render is in — a language switched while they sit parked
-                // turns these lines with the rest of the screen (TASK-93).
-                reason={failureText(s, file.error, file.filename)}
-                // The roll is in hand, so the parked file can show itself. A file the phone no
-                // longer has is not in it, and the kit draws a glyph square instead.
-                // ponytail: a scan of the roll per parked file per render. Hundreds parked at
-                // once — a whole event that went out on no signal — is the day this becomes an
-                // id→uri map cut beside `rows`.
-                uri={gallery.find((asset) => asset.id === file.assetId)?.uri}
-                icon={ImageIcon}
-                dropLabel={s.upload.dropFile(file.filename)}
-                onDrop={() => drop(file.memoryId, file.assetId)}
-              />
-            ))}
+            <BlockStuck
+              // The queue keeps the reason and not the sentence, so the words are picked here, in
+              // the language this render is in — a language switched while they sit parked turns
+              // these lines with the rest of the screen (TASK-93).
+              lines={parkedLines(s, stuck).map((line) => ({
+                key: line.text,
+                count: s.upload.files(line.files.length),
+                reason: line.text,
+                dropLabel: s.upload.dropFiles(line.files.length),
+                onDrop: () => drop(id, ...line.files.map((file) => file.assetId)),
+              }))}
+            />
           </View>
         ) : null}
 

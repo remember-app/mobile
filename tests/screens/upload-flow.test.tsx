@@ -74,6 +74,7 @@ import {
   ActionBar,
   AppBar,
   Banner,
+  BlockStuck,
   Button,
   CardMessage,
   DashedNote,
@@ -85,7 +86,6 @@ import {
   GRID_GAP,
   HintNote,
   IconButton,
-  RowStuck,
   Sheet,
   Text,
   Tile,
@@ -548,7 +548,7 @@ test('the event’s days lead the roll even when they are the oldest in it', asy
   expect(screen.seams().map((one) => one.props.label)[0]).toBe('5 сентября, суббота');
 });
 
-test('a queue with something in it says how much is left, and the parked files are named with their reasons and can be let go of', async () => {
+test('a queue with something in it says how much is left, and the parked files are counted by their reasons and can be let go of', async () => {
   uploads.queue = [
     {
       assetId: 'a1',
@@ -588,14 +588,53 @@ test('a queue with something in it says how much is left, and the parked files a
   // Two of this memory’s: one going up, one parked. The bar stands at what the one going up has sent.
   expect(bar.props.meta).toBe(ru.upload.stillToSend(2));
   expect(bar.props.value).toBe(0.5);
-  const stuck = screen.root.findAllByType(RowStuck);
-  expect(stuck).toHaveLength(1);
-  expect(stuck[0].props.name).toBe('IMG_b1.HEIC');
-  expect(stuck[0].props.reason).toBe(ru.error.offline);
-  await act(async () => stuck[0].findByType(IconButton).props.onPress());
+  const stuck = screen.root.findByType(BlockStuck);
+  expect(screen.text()).toContain(ru.upload.notSent(1).toUpperCase());
+  expect(stuck.props.lines).toHaveLength(1);
+  expect(stuck.props.lines[0].count).toBe(ru.upload.files(1));
+  expect(stuck.props.lines[0].reason).toBe(ru.error.offline);
+  await act(async () => stuck.findByType(IconButton).props.onPress());
   expect(uploads.drop).toHaveBeenCalledWith('m1', 'b1');
   await screen.press(() => screen.button(ru.action.retry)[0]);
   expect(uploads.wake).toHaveBeenCalledTimes(1);
+});
+
+test('ten files that did not go are one block: the total over it and a line to each reason, not a card to each file', async () => {
+  const file = (assetId: string, error: unknown) => ({
+    assetId,
+    memoryId: 'm1',
+    filename: `IMG_${assetId}.HEIC`,
+    kind: 'photo',
+    capturedAt: null,
+    durationSeconds: null,
+    parts: {},
+    error,
+  });
+  uploads.queue = [
+    ...Array.from({ length: 6 }, (_, i) =>
+      file(`s${i}`, { reason: 'storageOffline', part: i + 1 }),
+    ),
+    file('r1', { reason: 'partRefused', part: 2, status: 503 }),
+    file('r2', { reason: 'partNotTaken', part: 3 }),
+    file('g1', { reason: 'gone' }),
+    file('g2', { reason: 'gone' }),
+  ];
+  const screen = await open();
+  expect(screen.root.findAllByType(BlockStuck)).toHaveLength(1);
+  expect(screen.text()).toContain(ru.upload.notSent(10).toUpperCase());
+  const lines = screen.root.findByType(BlockStuck).props.lines as {
+    count: string;
+    reason: string;
+    onDrop: () => void;
+  }[];
+  expect(lines.map((line) => [line.count, line.reason])).toEqual([
+    [ru.upload.files(6), ru.upload.storageOffline],
+    [ru.upload.files(2), `${ru.upload.storageRefused} (503)`],
+    [ru.upload.files(2), ru.upload.gone],
+  ]);
+  // The cross on a line lets go of every file under it, and only those.
+  await act(async () => lines[2].onDrop());
+  expect(uploads.drop).toHaveBeenCalledWith('m1', 'g1', 'g2');
 });
 
 test('the way out is the back it arrived on, or the list when there is none', async () => {
@@ -681,26 +720,19 @@ test('the block of sending is there only while this memory has something in the 
   };
   const screen = await open();
   expect(screen.root.findAllByType(Upload)).toHaveLength(0);
-  expect(screen.root.findAllByType(RowStuck)).toHaveLength(0);
+  expect(screen.root.findAllByType(BlockStuck)).toHaveLength(0);
   uploads.queue = [one];
   await screen.redraw();
   expect(screen.root.findAllByType(Upload)).toHaveLength(1);
   expect(screen.root.findByType(Upload).props.meta).toBe(ru.upload.stillToSend(1));
   expect(screen.root.findByType(Upload).props.value).toBe(0);
-  // Everything of it parked: the bar has nothing going up to stand at, and the parked file shows its own picture.
-  uploads.queue = [
-    { ...one, assetId: 'b1', filename: 'IMG_b1.HEIC', error: { reason: 'offline' } },
-  ];
-  await screen.redraw();
-  expect(screen.root.findByType(Upload).props.value).toBe(0);
-  expect(screen.root.findByType(RowStuck).props.uri).toBe('ph://b1');
-  // A file the phone no longer has is not in the roll, and the row draws a glyph square instead.
+  // Everything of it parked: the bar has nothing going up to stand at, and the block says why.
   uploads.queue = [
     { ...one, assetId: 'gone', filename: 'IMG_gone.HEIC', error: { reason: 'gone' } },
   ];
   await screen.redraw();
-  expect(screen.root.findByType(RowStuck).props.uri).toBeUndefined();
-  expect(screen.root.findByType(RowStuck).props.reason).toBe(ru.upload.gone('IMG_gone.HEIC'));
+  expect(screen.root.findByType(Upload).props.value).toBe(0);
+  expect(screen.root.findByType(BlockStuck).props.lines[0].reason).toBe(ru.upload.gone);
 });
 
 test('the plate over the roll names the memory and says when it was — and without a memory, or a day that will not read, says less and never a dot alone', async () => {

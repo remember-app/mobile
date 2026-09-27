@@ -1,18 +1,17 @@
 import { rule } from '@tests/helpers/css';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
-import { ImageIcon } from 'lucide-react-native';
 import { Text as RNText, StyleSheet, View, type ViewStyle } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import { beforeAll, expect, test, vi } from 'vitest';
 
+import { Divider } from '@/kit/bits';
 import { IconButton } from '@/kit/button';
-import { Icon } from '@/kit/icon';
 import { allDifferent, story } from '@/kit/story';
 import { Text } from '@/kit/text';
-import { RowStuck, Upload } from '@/kit/upload';
+import { BlockStuck, type StuckLine, Upload } from '@/kit/upload';
 import { setTheme, themes, type } from '@/theme';
 
-/** Spec 7.6 — sending: the block that counts it down, and the row for a file that will not go. */
+/** Spec 7.6 — sending: the block that counts it down, and the block for the files that will not go. */
 
 mountsTrees();
 
@@ -106,77 +105,99 @@ test('going and paused are the same block saying two different things under the 
   });
 });
 
-test('a stuck file names the reason in technical words, because a person can act on them', () => {
-  const stuck = story(
-    <RowStuck
-      name="IMG_4821.HEIC"
-      reason="Хранилище отказало на части 3 (503)"
-      uri="https://b/1.jpg"
-      dropLabel="Убрать IMG_4821.HEIC из очереди"
-      onDrop={() => {}}
-    />,
-  );
-  expect(stuck).toContain('IMG_4821.HEIC');
-  expect(stuck).toContain('Хранилище отказало на части 3 (503)');
-  expect(stuck).toContain('aria-label="Убрать IMG_4821.HEIC из очереди"');
+/** A line of the stuck block, with its cross wired to nothing. */
+const line = (count: string, reason: string, onDrop = () => {}): StuckLine => ({
+  key: reason,
+  count,
+  reason,
+  dropLabel: `Убрать ${count} из очереди`,
+  onDrop,
 });
 
-test('a stuck file is drawn to the layout: 12 / 14 round it, the name 3 over its reason, the cross 36 with a 16 glyph', () => {
-  // `UploadQueue.json`: the row e13 at 16, 267 (358 × 70) with its thumbnail e14 at 31, 280 — 1 of
-  // edge and 14 at the side, 12 on top; the name e15 (14 / 600, 18 tall at 283.5) and the reason e16
-  // at 304.5; the cross e17 36 × 36 with its glyph e18 16 × 16; a file that is gone, e21, 20 × 20.
+test('the files that did not go are one block: how many, and why, in technical words a person can act on', () => {
+  const stuck = story(
+    <BlockStuck
+      lines={[
+        line('7 файлов', 'Связь с хранилищем оборвалась'),
+        line('2 файла', 'Хранилище отказало (503)'),
+      ]}
+    />,
+  );
+  expect(stuck).toContain('7 файлов');
+  expect(stuck).toContain('Связь с хранилищем оборвалась');
+  expect(stuck).toContain('Хранилище отказало (503)');
+  expect(stuck).toContain('aria-label="Убрать 2 файла из очереди"');
+});
+
+test('each line of the stuck block keeps the layout’s row: 12 / 14 round it, the count 3 over its reason, the cross 36 with a 16 glyph', () => {
+  // `UploadQueue.json`: the row e13 at 16, 267 (358 × 70) — 1 of edge and 14 at the side, 12 on
+  // top; the name e15 (14 / 600, 18 tall at 283.5) and the reason e16 at 304.5; the cross e17
+  // 36 × 36 with its glyph e18 16 × 16. One edge round the block now, and a line inside it per reason.
   const onDrop = vi.fn();
   let tree!: TestRenderer.ReactTestRenderer;
   act(() => {
     tree = mounted(
       TestRenderer.create(
-        <RowStuck
-          name="IMG_4503.MOV"
-          reason="Этого файла больше нет на телефоне"
-          icon={ImageIcon}
-          dropLabel="Убрать IMG_4503.MOV из очереди"
-          onDrop={onDrop}
+        <BlockStuck
+          lines={[
+            line('3 файла', 'Больше нет на этом телефоне', onDrop),
+            line('1 файл', 'Хранилище отказало'),
+          ]}
         />,
       ),
     );
   });
   const views = tree.root.findAllByType(View).map((one) => StyleSheet.flatten(one.props.style));
-  const [row] = views;
-  const words = views.find((one) => one?.flex === 1)!;
-  expect(row).toMatchObject({
-    paddingVertical: 280 - 267 - 1,
-    paddingHorizontal: 31 - 16 - 1,
-  });
-  expect(words.gap).toBe(304.5 - (283.5 + 18));
-  expect(tree.root.findAllByType(Text).map((one) => one.props.role)).toEqual(['rowSm', 'meta']);
+  const [block] = views;
+  expect(block).toMatchObject({ borderWidth: 1, paddingHorizontal: 31 - 16 - 1 });
+  expect(views.filter((one) => one?.paddingVertical === 280 - 267 - 1)).toHaveLength(2);
+  expect(views.find((one) => one?.flex === 1)!.gap).toBe(304.5 - (283.5 + 18));
+  expect(tree.root.findAllByType(Text).map((one) => one.props.role)).toEqual([
+    'rowSm',
+    'meta',
+    'rowSm',
+    'meta',
+  ]);
   expect([type.rowSm.fontSize, type.rowSm.lineHeight]).toEqual([14, 18]);
-  const cross = tree.root.findByType(IconButton);
+  const [cross] = tree.root.findAllByType(IconButton);
   expect(cross.props.size).toBe(36);
   expect(cross.props.glyph).toEqual({ size: 16 });
-  expect(cross.props.label).toBe('Убрать IMG_4503.MOV из очереди');
+  expect(cross.props.label).toBe('Убрать 3 файла из очереди');
   act(() => cross.props.onPress());
   expect(onDrop).toHaveBeenCalledTimes(1);
-  expect(
-    tree.root.findAllByType(Icon).find((one) => one.props.icon === ImageIcon)?.props.size,
-  ).toBe(20);
 });
 
-test('a file the phone no longer has shows a glyph where its picture would be', () => {
-  const drop = { dropLabel: 'Убрать из очереди', onDrop: () => {} };
+test('one reason is one line and several are a hairline apart, all inside the one edge', () => {
   allDifferent({
-    withThumb: (
-      <RowStuck name="IMG_4821.HEIC" reason="Хранилище отказало" uri="https://b/1.jpg" {...drop} />
-    ),
-    gone: (
-      <RowStuck
-        name="IMG_4821.HEIC"
-        reason="Этого файла больше нет на телефоне"
-        icon={ImageIcon}
-        {...drop}
+    one: <BlockStuck lines={[line('7 файлов', 'Связь с хранилищем оборвалась')]} />,
+    several: (
+      <BlockStuck
+        lines={[
+          line('7 файлов', 'Связь с хранилищем оборвалась'),
+          line('2 файла', 'Больше нет на этом телефоне'),
+        ]}
       />
     ),
   });
-  expect(
-    story(<RowStuck name="IMG_4821.HEIC" reason="Файла больше нет" icon={ImageIcon} {...drop} />),
-  ).toContain('data-glyph');
+  let several!: TestRenderer.ReactTestRenderer;
+  act(() => {
+    several = mounted(
+      TestRenderer.create(
+        <BlockStuck
+          lines={[
+            line('7 файлов', 'Связь с хранилищем оборвалась'),
+            line('2 файла', 'Больше нет на этом телефоне'),
+            line('1 файл', 'Хранилище отказало'),
+          ]}
+        />,
+      ),
+    );
+  });
+  expect(several.root.findAllByType(Divider)).toHaveLength(2);
+  const edges = several.root
+    .findAllByType(View)
+    .filter(
+      (one) => StyleSheet.flatten(one.props.style)?.borderColor === themes.dark.color.dangerEdge,
+    );
+  expect(edges).toHaveLength(1);
 });
