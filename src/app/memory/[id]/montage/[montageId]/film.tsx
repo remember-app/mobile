@@ -252,8 +252,13 @@ export default function FilmScreen() {
 
       <FilmPlayer film={playing ? film : null} onClose={() => setPlaying(false)} />
 
-      {up === 'info' && montage ? (
+      {/* Mounted for the life of the screen and driven by `visible` rather than by being put up and
+          taken down — see the sheet's own doc: unmounting it on the way to «Переименовать» or
+          «Удалить» fired its `useShutOnBlur` and snapped `up` back to null before the next sheet
+          ever showed (found in review, m-30). */}
+      {montage ? (
         <FilmInfoSheet
+          visible={up === 'info'}
           film={montage}
           memory={memory}
           people={people}

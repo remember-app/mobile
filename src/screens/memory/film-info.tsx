@@ -26,6 +26,7 @@ export const cutAs = (montage: Montage): string =>
  * screen reads and writes, so every state of the sheet can be drawn on its own.
  */
 export function FilmInfoSheet({
+  visible = true,
   film,
   memory,
   people,
@@ -35,6 +36,14 @@ export function FilmInfoSheet({
   onRemove,
   onClose,
 }: {
+  /**
+   * Open on its own prop rather than by being mounted or not (TASK-428 review): the screen that
+   * raises this sheet stands another one over it the moment «Переименовать» or «Удалить» is
+   * pressed, in the same breath that asks for this one to go — and `Sheet`'s own `useShutOnBlur`
+   * shuts *whatever* sheet it is holding the instant that one unmounts, thinking the screen itself
+   * was left. Mounted throughout instead, so unmounting it is never what closes it.
+   */
+  visible?: boolean;
   film: Montage;
   /** The memory's name and its count of frames, once its listing is read. */
   memory: Pick<Memory, 'title' | 'media_count'> | null;
@@ -60,7 +69,7 @@ export function FilmInfoSheet({
 
   return (
     <Sheet
-      visible
+      visible={visible}
       onCancel={onClose}
       rhythm="list"
       head={
