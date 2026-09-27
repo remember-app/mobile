@@ -358,6 +358,8 @@ export const type = StyleSheet.create({
   body: { fontFamily: font.regular, fontSize: 16, lineHeight: 23 },
   /** the same paragraph where it stands tighter — an empty state */
   bodySm: { fontFamily: font.regular, fontSize: 15, lineHeight: 22 },
+  /** the same size a line tighter — the lead under the heading of an onboarding step (detail 76) */
+  lead: { fontFamily: font.regular, fontSize: 15, lineHeight: 21 },
   /**
    * the paragraph a size down again — a line of the card of promises on `Consent`, the report under
    * the heading of `SheetRejected` («68 кадров из 486…») (spec 8)
@@ -489,6 +491,10 @@ export const photo = {
   poster: 'linear-gradient(to top, rgba(9,9,14,.82) 0%, rgba(9,9,14,0) 60%)',
   /** the large poster of a finished film (`MontageLiveDone`): no name on it, so lighter at the top */
   posterLarge: 'linear-gradient(to top, rgba(9,9,14,.80) 0%, rgba(9,9,14,.05) 60%)',
+  /** the frame of the film drawn on the third onboarding step (spec 2, detail 76) */
+  filmArt: 'linear-gradient(to top, rgba(11,11,18,.85) 0%, rgba(11,11,18,.10) 60%)',
+  /** the track under that frame, what is still to play */
+  filmArtTrack: 'rgba(245,243,238,0.28)',
   /** the poster of the film being ordered, on the summary */
   posterOrder: 'linear-gradient(to top, rgba(9,9,14,.90) 10%, rgba(9,9,14,.10) 70%)',
   /** a template's tile: its frame well under the words */

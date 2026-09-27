@@ -58,15 +58,20 @@ export const en = {
   },
 
   /**
-   * The one username field, shared by the first claim and the change. There is no heading over it
-   * any more: the onboarding head says where a person is (spec 8, `Username`), and `lead` is the
-   * line under the field saying what the name is for.
+   * The one username field, shared by the first claim and the change. On the sheet of the change,
+   * `free` and `lead` are the line under the field; on the way in (spec 8, `Username`) the answer is
+   * one word over it — `available`, `taken` — and what the name is for is said by the step's head.
    */
   username: {
     label: 'Username',
     placeholder: 'username',
     free: 'Username is free.',
     lead: 'This is how other people find you in a memory.',
+    available: 'Free',
+    taken: 'Taken',
+    title: 'What should we call you',
+    intro:
+      'In a memory, people call you in by picking you from a list. A username is how they find you.',
     continue: 'Continue',
   },
 
@@ -121,6 +126,10 @@ export const ru: typeof en = {
     placeholder: 'ник',
     free: 'Ник свободен.',
     lead: 'По нему вас найдут в воспоминании.',
+    available: 'Свободен',
+    taken: 'Занят',
+    title: 'Как вас звать',
+    intro: 'В воспоминании вас зовут выбором из списка. Ник — чтобы вас нашли по нему.',
     continue: 'Продолжить',
   },
 

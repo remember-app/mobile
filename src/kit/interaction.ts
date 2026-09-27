@@ -13,6 +13,7 @@ import {
   Easing,
   Keyboard,
   LayoutAnimation,
+  Platform,
   type ViewStyle,
 } from 'react-native';
 
@@ -270,6 +271,28 @@ export const DISMISS_KEYBOARD = {
   onStartShouldSetResponder: () => Keyboard.isVisible(),
   onResponderRelease: () => Keyboard.dismiss(),
 } as const;
+
+/**
+ * Whether the keyboard is up. iOS says so as it starts to rise, so what answers it moves with it;
+ * Android only once it has.
+ */
+export function useKeyboardShown(): boolean {
+  const [shown, setShown] = useState(() => Keyboard.isVisible());
+  useEffect(() => {
+    const ios = Platform.OS === 'ios';
+    const up = Keyboard.addListener(ios ? 'keyboardWillShow' : 'keyboardDidShow', () =>
+      setShown(true),
+    );
+    const down = Keyboard.addListener(ios ? 'keyboardWillHide' : 'keyboardDidHide', () =>
+      setShown(false),
+    );
+    return () => {
+      up.remove();
+      down.remove();
+    };
+  }, []);
+  return shown;
+}
 
 /**
  * Where a field says it stands in a board's bar (TASK-381). The bar gives way to the keyboard by going

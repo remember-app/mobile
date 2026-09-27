@@ -1,10 +1,11 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ApiError, errorMessage, startEmailSignIn, verifyEmailCode } from '@/api';
-import { ActionBar, BackButton, Banner, Board, Button, CodeField, Text } from '@/kit';
+import { ActionBar, Banner, Board, Button, CodeField } from '@/kit';
 import { useAuth } from '@/lib/auth';
+import { formatRuntime } from '@/lib/dates';
 import { useStrings } from '@/lib/language';
 import { OnboardingHead } from '@/screens/onboarding/head';
 import { space } from '@/theme';
@@ -13,10 +14,42 @@ import { space } from '@/theme';
 const one = (value: string | string[] | undefined) =>
   (Array.isArray(value) ? value[0] : value) ?? '';
 
+/** How long «Ещё раз» rests after a new letter went out (spec 8, `LoginCode`). */
+const AGAIN_AFTER_MS = 60_000;
+
+/** A zero-width space: a place a line may break, and nothing to see or to hear. */
+const MAY_BREAK = String.fromCharCode(0x200b);
+
 /**
- * `LoginCode` — the six digits from the letter (spec 8). The head stands where the two screens
- * before it had it; under it, the cells, the line saying where the letter went with a quiet way to
- * send another, and the screen's one main action.
+ * The address the way it was typed, with room to break after «@» and after each dot: a long one
+ * wraps there instead of being cut, or torn anywhere (spec, detail 80).
+ */
+const breakable = (address: string) => address.replace(/[@.]/g, `$&${MAY_BREAK}`);
+
+/** Whole seconds until `until`, counted down once a second while there are any. */
+function useSecondsTo(until: number): number {
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    setNow(Date.now());
+    if (until <= Date.now()) return;
+    const timer = setInterval(() => {
+      const at = Date.now();
+      setNow(at);
+      if (at >= until) clearInterval(timer);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [until]);
+  return Math.max(0, Math.ceil((until - now) / 1000));
+}
+
+/**
+ * `LoginCode` — the six digits from the letter, step 3 of the way in (spec 8). The step's head, the
+ * cells under it with where the letter went and a way to send another over them, and the screen's one
+ * main action at the bottom edge.
+ *
+ * `LoginCodeKeys` is this same screen with the keyboard up, and not a route of its own: the cells
+ * stand in the body and nothing stands under them, so the keyboard covers only the bottom and moves
+ * only the button (spec 7.1, detail 76).
  *
  * The address travels in the route rather than in a store: the code is only ever the secret *of an
  * address*, and the api is handed both together (`verifyEmailCode`).
@@ -35,11 +68,14 @@ export default function LoginCodeScreen() {
   // spinning under «Входим…» while a letter is being posted says something that is not happening.
   const [sending, setSending] = useState(false);
   // Two different things and two different places for them: digits the api refused are answered
-  // under the cells they were typed into, and a failure that has nothing to do with the code —
-  // no connection, no mail keys — stands over the block as a line of its own.
+  // over the cells they were typed into, and a failure that has nothing to do with the code — no
+  // connection, no mail keys — over the button, where the keyboard leaves it in sight.
   const [bad, setBad] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(one(params.code) === '' ? null : s.login.devCode);
+  // A new letter just went out: «Ещё раз» counts the minute down instead of saying so in a line.
+  const [rested, setRested] = useState(0);
+  const wait = useSecondsTo(rested);
 
   async function confirm() {
     setBusy(true);
@@ -72,7 +108,8 @@ export default function LoginCodeScreen() {
       const { code: handed } = await startEmailSignIn(email);
       // A fresh code kills the one that was typed, whether or not anything was typed yet.
       setCode(handed ?? '');
-      setNote(handed ? s.login.devCode : s.login.codeSent);
+      if (handed) setNote(s.login.devCode);
+      setRested(Date.now() + AGAIN_AFTER_MS);
     } catch (e) {
       setError(e instanceof ApiError && e.status === 503 ? s.login.mailDown : errorMessage(e));
     } finally {
@@ -83,40 +120,10 @@ export default function LoginCodeScreen() {
   return (
     <Board
       footer={
-        <ActionBar>
+        <ActionBar keyboardGap={space.s4}>
           <View style={styles.column}>
-            <CodeField
-              label={s.login.code}
-              value={code}
-              onChangeText={(next) => {
-                setCode(next);
-                setBad(false);
-              }}
-              state={bad ? 'error' : undefined}
-              hint={bad ? s.login.codeBad : undefined}
-              autoFocus
-            />
-
-            <View style={styles.sent}>
-              <Text role="note" style={styles.grow}>
-                {s.login.sentTo(email)}
-              </Text>
-              {/* Quiet, and beside the line it belongs to: another code is a repair, never the
-                  thing this screen is for. The layout draws it in the line's own size and in
-                  `paper`, its words flush with the edge of the column. */}
-              <Button
-                variant="quiet"
-                labelRole="label"
-                labelTone="paper"
-                label={s.login.again}
-                busyLabel={s.state.sending}
-                onPress={again}
-                busy={sending}
-                disabled={busy}
-                style={styles.again}
-              />
-            </View>
-
+            {note ? <Banner tone="done" text={note} /> : null}
+            {error ? <Banner tone="error" text={error} /> : null}
             <Button
               variant="primary"
               wide
@@ -132,38 +139,44 @@ export default function LoginCodeScreen() {
         </ActionBar>
       }
     >
-      <View style={styles.back}>
-        <BackButton label={s.action.back} onPress={() => router.back()} />
-      </View>
-
-      <OnboardingHead />
-
-      <View style={styles.room}>
-        {note ? <Banner tone="done" text={note} /> : null}
-        {error ? <Banner tone="error" text={error} /> : null}
-      </View>
+      <OnboardingHead step={3} back={() => router.back()}>
+        <CodeField
+          label={
+            bad
+              ? s.login.codeBad.toUpperCase()
+              : `${s.login.codeTo.toUpperCase()} ${breakable(email)}`
+          }
+          tail={
+            // Beside the address it belongs to, on `raise` and in `paper`: another code is a repair,
+            // never the thing this screen is for (detail 80).
+            <Button
+              variant="raise"
+              size="xxs"
+              labelRole="chipXs"
+              labelTone="paper"
+              label={wait > 0 ? s.login.againIn(formatRuntime(wait) ?? '') : s.login.again}
+              busyLabel={s.state.sending}
+              onPress={again}
+              busy={sending}
+              disabled={busy || wait > 0}
+              style={styles.again}
+            />
+          }
+          value={code}
+          onChangeText={(next) => {
+            setCode(next);
+            setBad(false);
+          }}
+          state={bad ? 'error' : undefined}
+          autoFocus
+        />
+      </OnboardingHead>
     </Board>
   );
 }
 
 const styles = StyleSheet.create({
-  // Spec 8, `LoginCode`: the way back floats 10 off the edge of the board — there is no bar here to
-  // pull it into.
-  back: { position: 'absolute', left: 10, top: 0, zIndex: 2 },
-  room: { flexGrow: 1, justifyContent: 'flex-end', gap: space.s2, paddingHorizontal: space.s4 },
   column: { flex: 1, gap: space.s3 },
-  // The address on the left, the way to ask again on the right — one line, so neither of them
-  // reads as the action of the screen. Under it, when the address and the button do not both fit:
-  // the address is never cut, it is where the letter went. The address steps 4 in, as the label
-  // over the cells does.
-  sent: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: space.s3,
-    paddingLeft: space.s1,
-  },
-  grow: { flexGrow: 1 },
-  // The quiet button's own 14 a side, pulled out by all of it, so the words end on the column's edge.
-  again: { marginRight: -14 },
+  // Detail 80: hung 8 past the column's edge.
+  again: { marginRight: -space.s2 },
 });

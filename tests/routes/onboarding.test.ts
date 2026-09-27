@@ -10,8 +10,10 @@ import email from '@/app/login/email.tsx?raw';
 import login from '@/app/login.tsx?raw';
 import username from '@/app/set-username.tsx?raw';
 import { ICO_S } from '@/kit/icon';
+import stepHead from '@/kit/step-head.tsx?raw';
 import { TYPE_MOST } from '@/kit/text';
 import head from '@/screens/onboarding/head.tsx?raw';
+import progress from '@/screens/onboarding/progress.tsx?raw';
 import form from '@/screens/onboarding/username-form.tsx?raw';
 import { en, ru, type Strings } from '@/strings';
 import { space, type } from '@/theme';
@@ -26,34 +28,72 @@ import { space, type } from '@/theme';
  * drifts up the screen as the block under it grows.
  */
 
-const walk = { login, email, code, username };
+const walk = { login, email, code, consent, username };
 
-test('the head is one element, and the four screens that share it hold it in one place', () => {
-  // Four screens, one part, no variant: whatever is different about them happens at the bottom.
-  for (const [name, screen] of Object.entries(walk)) {
-    expect(screen, name).toContain('<OnboardingHead />');
+test('every step has a head of its own, and the five of them are one part', () => {
+  // Spec 8, 27 September: the stack and the promise, the feed, the film, the faces, the people —
+  // one head per step, drawn by the kit's `StepHead` with that step's picture and words.
+  for (const [at, [name, screen]] of Object.entries(walk).entries()) {
+    expect(flat(screen), name).toContain(`<OnboardingHead step={${at + 1}}`);
   }
-  // `Consent` is the one that squeezes it, because a card of three promises stands underneath.
-  expect(consent).toContain('<OnboardingHead small />');
-
-  // Anchored to the top of the board and not centred in what is left over: centred, the name would
-  // ride up and down as the footer under it grew a field, then six cells — which is the one thing
-  // these four screens must not do.
-  expect(head).toContain('paddingTop: space.s4');
-  expect(head).not.toContain("justifyContent: 'center'");
+  expect(head).toContain('<StepHead');
+  for (const art of ['<PhotoStack', '<FeedArt', '<FilmArt', '<FacesArt', '<PeopleArt'])
+    expect(head, art).toContain(art);
+  // The words are the dictionary's, in both languages — step 4 and 5 as the layout writes them.
+  expect(ru.consent.title).toBe('Прежде чем войти');
+  expect(ru.consent.lead).toBe('Три вещи, на которые вы соглашаетесь.');
+  expect(ru.username.title).toBe('Как вас звать');
+  expect(ru.login.feed.title).toBe('Одна лента на всех');
+  expect(ru.login.film.title).toBe('И сразу ролик');
+  expect(ru.login.step(3)).toBe('Шаг 3 из 5');
+  expect(en.login.step(3)).toBe('Step 3 of 5');
 });
 
-test('the head stands where the layout measured it, and the squeezed one where Consent has it', () => {
-  // TASK-378, `Login.json`: the stack's box 68–304 under a status line of 52 (16 under it, 236
-  // tall), «Remember» at 330 — 26 under the stack — and the promise at 388, 14 under the name's 44.
-  expect(flat(head)).toContain("head: { alignItems: 'center', paddingTop: space.s4, gap: 26 }");
-  expect(flat(head)).toContain(
-    "words: { alignItems: 'center', gap: 14, paddingHorizontal: space.s6 }",
+test('the head stands where the layout measured it, and never moves', () => {
+  // Detail 76, from the status line (the layout's 52): «Назад» 18 under it, 10 off the edge; the
+  // picture 60 under it, 90 tall — the first step's stack 176; the heading 12 under the picture (16
+  // under the stack); the block of the field at the layout's 312, and at least 16 under the lead.
+  const kit = flat(stepHead);
+  expect(kit).toContain('head: { minHeight: 312 - 52 - space.s4 }');
+  expect(kit).toContain("art: { height: 90, marginTop: 60, alignItems: 'center' }");
+  expect(kit).toContain('artFirst: { height: 176 }');
+  expect(kit).toContain('marginTop: space.s3, paddingHorizontal: space.s6');
+  expect(kit).toContain('wordsFirst: { marginTop: space.s4 }');
+  expect(kit).toContain('block: { marginTop: space.s4, paddingHorizontal: space.s4 }');
+  expect(kit).toContain("back: { position: 'absolute', left: 10, top: 18 }");
+  // Anchored to the top of the board and not centred in what is left over: centred, it would ride
+  // up and down as the keyboard took the room under it.
+  expect(stepHead).not.toContain("justifyContent: 'center' }");
+});
+
+test('the keyboard moves only the main button: the field stands in the body, nothing under it', () => {
+  // Spec 7.1, detail 76, `LoginCodeKeys`: the field is the head's `children`, in the body the board
+  // never moves, and only the button is in the bottom layer the keyboard lifts — 16 over it.
+  for (const [name, screen] of Object.entries({ email, code, username })) {
+    const footer = screen.slice(screen.indexOf('footer={'), screen.indexOf('<OnboardingHead'));
+    expect(footer, name).toContain('<ActionBar keyboardGap={space.s4}>');
+    expect(footer, name).not.toMatch(/<(Field|CodeField|UsernameField)\b/);
+    const body = screen.slice(screen.indexOf('<OnboardingHead'));
+    expect(body, name).toMatch(/<(Field|CodeField|UsernameField)\b/);
+  }
+  // `LoginCodeKeys` is not a route: it is `LoginCode` with the keyboard up.
+  expect(layout).not.toContain('LoginCodeKeys');
+  // And the answer about what was typed is over the field, never under it.
+  expect(email).toContain('hintAbove');
+  expect(form).toContain('hintAbove={wayIn}');
+});
+
+test('one progress over the whole way in, over the navigator and not in the screens', () => {
+  // Detail 75: five segments, one bar for all the steps — so it is drawn once, over the stack, and
+  // can fill the next segment as a step is walked, the second to the fourth at once after Apple or
+  // Google, and empty the one a step back left.
+  expect(layout).toContain('<OnboardingProgress />');
+  expect(flat(progress)).toContain(
+    "'/login': 1, '/login/email': 2, '/login/code': 3, '/consent': 4, '/set-username': 5,",
   );
-  // `Consent.json`: the squeezed box starts at 40, 12 above the status line, and is 196 tall; the
-  // name follows at 254 — 18 under it — and the lead 12 under the name.
-  expect(flat(head)).toContain('headSmall: { paddingTop: 0, marginTop: -12, gap: 18 }');
-  expect(flat(head)).toContain('wordsSmall: { gap: space.s3 }');
+  expect(progress).toContain('<StepScale tone="paper" steps={5} done={step}');
+  expect(progress).toContain('top: insets.top + 6');
+  for (const screen of Object.values(walk)) expect(screen).not.toContain('StepScale');
 });
 
 test('the three doors stand 10 apart, as the layout stacks them', () => {
@@ -94,18 +134,20 @@ test('the address is asked for on a screen of its own, which the mail door opens
   // the first one has to be read past.
   expect(login).not.toContain('<Field');
   expect(email).toContain('<Field');
-  // And both of the screens after the first have a way back — a floating one, because a header row
+  // And every step after the first has a way back — floating in the head, because a header row
   // would push the head down 44 and break what the test above pins.
-  for (const [name, screen] of Object.entries({ email, code })) {
-    expect(screen, name).toContain('<BackButton label={s.action.back}');
-    expect(screen, name).toContain("back: { position: 'absolute'");
+  expect(stepHead).toContain('<BackButton label={back.label} onPress={back.onPress} />');
+  for (const [name, screen] of Object.entries({ email, code, username })) {
     expect(screen, name).not.toContain('<AppBar');
-    // The arrow is drawn beside `router.back()` — otherwise the doc comment's «way back» promise is
-    // an icon that leads nowhere.
-    expect(screen, name).toContain('onPress={() => router.back()}');
+    // The arrow leads to the step before — otherwise it is an icon that leads nowhere.
+    expect(screen, name).toContain('back={() => router.back()}');
   }
+  // The address and the code behind the agreement are spent: going back from it is walking away,
+  // and it ends the session they bought — the gate stands the way in from its first step.
+  expect(flat(consent)).toContain('back={() => signOut().catch(');
   // `Login` has no way back at all — «нет пути назад, потому что это начало» — and `Consent` has no
-  // decline to dress up as one either: walking away from the screen is the only refusal it offers.
+  // decline to dress up as a second choice either.
+  expect(login).not.toContain('back=');
   expect(login).not.toContain('ChevronLeft');
   expect(consent).not.toContain('ChevronLeft');
 });
@@ -123,7 +165,7 @@ test('the letter carries six digits now, and the address is sent with them', () 
   expect(code).toContain('<CodeField');
 });
 
-test('digits the api refuses are answered under the cells, and the cells are emptied', () => {
+test('digits the api refuses are answered over the cells, and the cells are emptied', () => {
   // The api answers 401 to every way six digits can fail — wrong, expired, spent, used up — so this
   // side says one thing back instead of guessing which half to blame.
   const caught = code.slice(code.indexOf('} catch (e) {'), code.indexOf('} finally {'));
@@ -131,23 +173,36 @@ test('digits the api refuses are answered under the cells, and the cells are emp
   expect(caught).toContain("setCode('')");
   expect(caught).toContain('setBad(true)');
   expect(code).toContain("state={bad ? 'error' : undefined}");
-  expect(code).toContain('hint={bad ? s.login.codeBad : undefined}');
+  // Detail 12: the head of the block says so, in place of where the letter went — under the cells
+  // there is nothing.
+  expect(flat(code)).toContain('bad ? s.login.codeBad.toUpperCase()');
+  expect(ru.login.codeBad).toBe('Код не подошёл');
   expect(en.login.codeBad).toMatch(/code/i);
-  expect(ru.login.codeBad).toMatch(/код/i);
 });
 
-test('another code is asked for from the same screen, not by walking back for it', () => {
+test('the address in the head is the one that was typed — never in capitals — and breaks after @ or a dot', () => {
+  // Detail 80, `[правлено]`: «КОД НА liza@example.com»; a long address wraps after «@» or a dot.
+  expect(flat(code)).toContain('`${s.login.codeTo.toUpperCase()} ${breakable(email)}`');
+  expect(code).toContain('const MAY_BREAK = String.fromCharCode(0x200b);');
+  expect(code).toContain('address.replace(/[@.]/g, `$&${MAY_BREAK}`)');
+  expect(ru.login.codeTo).toBe('Код на');
+});
+
+test('another code is asked for from the same screen, and then rests for a minute', () => {
   expect(code).toContain('const { code: handed } = await startEmailSignIn(email);');
-  expect(code).toContain('label={s.login.again}');
-  // Quiet: another code is a repair, never the thing the screen is for.
-  expect(code).toContain('variant="quiet"');
-  // And drawn as the layout draws it (`LoginCode.json` e16–e17): 13 / 600 in paper beside the muted
-  // address, its words ending on the column's edge (x 374), the address stepping 4 in (x 20).
-  expect(code).toContain('labelRole="label"');
+  // Drawn as detail 80 has it: the small 32 on `raise`, no hairline, 12 / 600 in paper, hung 8 past
+  // the column's edge — a repair beside the address, never the thing the screen is for.
+  expect(code).toContain('variant="raise"');
+  expect(code).toContain('size="xxs"');
+  expect(code).toContain('labelRole="chipXs"');
   expect(code).toContain('labelTone="paper"');
-  // The quiet button's own 14 a side (no hairline round it — TASK-397), all of it hung out.
-  expect(code).toContain('again: { marginRight: -14 }');
-  expect(flat(code)).toContain('gap: space.s3, paddingLeft: space.s1,');
+  expect(code).toContain('again: { marginRight: -space.s2 }');
+  // A minute after a letter went out it waits and counts: «Ещё раз через 0:47».
+  expect(code).toContain('const AGAIN_AFTER_MS = 60_000;');
+  expect(code).toContain('setRested(Date.now() + AGAIN_AFTER_MS);');
+  expect(code).toContain('s.login.againIn(formatRuntime(wait)');
+  expect(code).toContain('disabled={busy || wait > 0}');
+  expect(ru.login.againIn('0:47')).toBe('Ещё раз через 0:47');
   // And it waits under its own flag: the main button spinning under «Входим…» while a letter is
   // being posted would say something that is not happening.
   expect(code).toContain('busy={sending}');
@@ -169,7 +224,8 @@ test('the development door hands the code forward instead of trading it out of s
 test('the agreement stands before the name, and the gate is what puts it there', () => {
   expect(api).toContain("return request('/me/consent', { method: 'POST', token });");
   expect(consent).toContain('await acceptConsent(token);');
-  expect(consent).toContain("router.replace('/set-username');");
+  // Pushed, so the name's «Назад» leads back to it.
+  expect(consent).toContain("router.push('/set-username');");
 
   // The first screen a guard declares is the one the navigator falls back to, so a fresh session
   // lands on the agreement and not on the name it would be refused.
@@ -182,7 +238,7 @@ test('a name refused for want of the agreement moves the person, it does not pri
   // a second time. Which screen answers it belongs to whoever put the form up.
   expect(form).toContain('e.status === 403 && onConsentNeeded');
   expect(form).toContain('onConsentNeeded();');
-  expect(username).toContain("onConsentNeeded={() => router.replace('/consent')}");
+  expect(username).toContain("useUsername({ onConsentNeeded: () => router.replace('/consent') })");
 });
 
 test('the agreement screen offers no refusal, and says so instead of hiding it', () => {
@@ -233,10 +289,18 @@ test('the six digits are asked for whole, though the layout draws the button lit
   expect(code).toContain('disabled={code.length < 6 || email ===');
 });
 
-test('a free name is answered and told what it is for, and the column is the way in’s 12', () => {
-  // `Username.json`: «Ник свободен.» and then «По нему вас найдут в воспоминании.» on one line
-  // (e14, e15), the label, the box, that line and «Продолжить» each 12 apart.
-  expect(form).toContain("hintAfter={state === 'ok' ? s.username.lead : undefined}");
+test('on the way in a name is answered in one word over the field; on the sheet, in a line under it', () => {
+  // Spec 8, `Username` (27 September): «СВОБОДЕН» or «ЗАНЯТ» beside «НИК», a spinner in the field while
+  // the server is asked, nothing under the box — what the name is for is the head's lead.
+  expect(ru.username.available).toBe('Свободен');
+  expect(ru.username.taken).toBe('Занят');
+  expect(form).toContain('pending={wayIn && availability ===');
+  expect(ru.username.intro).toBe(
+    'В воспоминании вас зовут выбором из списка. Ник — чтобы вас нашли по нему.',
+  );
+  // The sheet over the account keeps «Ник свободен.» and then «По нему вас найдут в воспоминании.»
+  // on one line, and its column of 12.
+  expect(form).toContain("hintAfter={!wayIn && state === 'ok' ? s.username.lead : undefined}");
   expect(form).toContain("form: { alignSelf: 'stretch', gap: space.s3 }");
   expect(ru.username.lead).toBe('По нему вас найдут в воспоминании.');
   expect(en.username.lead).toMatch(/find you in a memory/);

@@ -63,6 +63,8 @@ vi.mock('@/lib/upload/send', () => ({
 vi.mock('@/lib/orientation', () => ({ lockPortrait: () => {} }));
 vi.mock('expo-router', () => ({
   Stack: Object.assign(() => null, { Screen: () => null, Protected: () => null }),
+  // Where the navigator stands — off the way in, so its progress is not drawn.
+  usePathname: () => '/',
   ThemeProvider: ({ children }: { children: unknown }) => children,
   DarkTheme: { dark: true, colors: {} },
   DefaultTheme: { dark: false, colors: {} },

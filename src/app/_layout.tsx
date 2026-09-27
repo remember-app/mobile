@@ -12,13 +12,14 @@ import { Image } from 'expo-image';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { Platform } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { lockPortrait } from '@/lib/orientation';
 import { usePush } from '@/lib/push';
 import { useLaunchUpdate } from '@/lib/updates';
 import { useUploads } from '@/lib/upload/send';
+import { OnboardingProgress } from '@/screens/onboarding/progress';
 import { useTheme } from '@/theme';
 
 // Hold the splash until the stored session has been checked, so no screen flashes
@@ -111,7 +112,14 @@ function Startup() {
     if (status !== 'loading' && fontsSettled) SplashScreen.hideAsync().catch(() => {});
   }, [status, fontsSettled]);
 
-  return fontsSettled ? <RootNavigator /> : null;
+  // The one progress of the way in lies over the navigator and under none of its screens: it stays
+  // put while the steps change beneath it.
+  return fontsSettled ? (
+    <View style={styles.root}>
+      <RootNavigator />
+      <OnboardingProgress />
+    </View>
+  ) : null;
 }
 
 /**
@@ -200,3 +208,5 @@ function RootNavigator() {
     </Stack>
   );
 }
+
+const styles = StyleSheet.create({ root: { flex: 1 } });

@@ -9,8 +9,21 @@ import {
   View,
 } from 'react-native';
 
-import { font, height, night, radius, space, type Theme, themed, type, useTheme } from '@/theme';
+import {
+  font,
+  height,
+  night,
+  radius,
+  space,
+  spinner,
+  type Theme,
+  themed,
+  type,
+  useTheme,
+} from '@/theme';
 
+import { BlockHead } from './block-head';
+import { Spinner } from './empty';
 import { Icon, type IconComponent } from './icon';
 import { useFieldInBar } from './interaction';
 import { Text, TYPE_MOST } from './text';
@@ -55,10 +68,11 @@ const BOX: Record<FieldVariant, { minHeight: number; borderRadius: number }> = {
 };
 
 /**
- * The two 60s stand on the way in, in its column of 12 (spec 8, `LoginEmail`, `Username`): the label
+ * The two 60s of the way in (spec 8, `LoginEmail`, `Username`, and the name on a sheet): the label
  * and the line under the box step 4 in from its edge, and what is typed starts 18 inside it, the `@`
- * 4 before the name. The code's six cells stand in the same column. Every other field keeps the
- * form's own 8 and its edge.
+ * 4 before the name. Under a line of their own they stand 12 apart; with the answer in the label's
+ * row (`hintAbove`) and nothing under the box, 8. Every other field keeps the form's own 8 and its
+ * edge.
  */
 const WAY_IN = new Set<FieldVariant>(['email', 'username']);
 
@@ -115,7 +129,9 @@ export function Field({
   variant = 'email',
   hint,
   hintAfter,
+  hintAbove,
   state,
+  pending,
   prefix,
   icon,
   swatch,
@@ -140,7 +156,15 @@ export function Field({
    * найдут в воспоминании.» after «Ник свободен.» (spec 8, `Username`).
    */
   hintAfter?: string;
+  /**
+   * The way in (spec 7.3, detail 12): the hint is one word of status in the label's row — «СВОБОДЕН»
+   * in `spark`, «ЗАНЯТ» and «ПРОВЕРЬТЕ АДРЕС» in `dangerText` (detail 80) — and nothing stands under
+   * the box, where the keyboard comes up to the button.
+   */
+  hintAbove?: boolean;
   state?: FieldState;
+  /** The server is being asked about what is typed: a 16 spinner where the tick would stand. */
+  pending?: boolean;
   /** The `@` the layout puts in front of every username. */
   prefix?: string;
   /** The magnifier on the search field, the pencil on a track's wish. */
@@ -163,11 +187,22 @@ export function Field({
   const styles = useStyles();
   const disabled = input.editable === false;
   const wayIn = WAY_IN.has(variant);
+  const tone = state === 'error' ? 'danger' : state === 'ok' ? 'spark' : 'muted';
   useFieldInBar();
 
   return (
-    <View style={[styles.field, wayIn ? styles.fieldWayIn : null]}>
-      {labelHidden ? null : (
+    <View style={[styles.field, wayIn && !hintAbove ? styles.fieldWayIn : null]}>
+      {labelHidden ? null : hintAbove ? (
+        <View style={wayIn ? styles.inset : null}>
+          <BlockHead label={label.toUpperCase()}>
+            {hint ? (
+              <Text role="eyebrow" tone={tone} style={styles.status}>
+                {hint.toUpperCase()}
+              </Text>
+            ) : null}
+          </BlockHead>
+        </View>
+      ) : (
         <Text role="eyebrow" tone="muted" style={wayIn ? styles.inset : null}>
           {label.toUpperCase()}
         </Text>
@@ -237,16 +272,19 @@ export function Field({
             style,
           ]}
         />
-        {/* Spec 7.3 — «проверено»: a 22 spark circle inside the field, beside the name it approves. */}
-        {state === 'ok' ? (
+        {/* Spec 7.3 — «проверено»: a 22 spark circle inside the field, beside the name it approves;
+            while the server is still being asked, a 16 spinner in its place (spec 8, `Username`). */}
+        {pending ? (
+          <Spinner size={spinner.tile} />
+        ) : state === 'ok' ? (
           <View style={styles.tick}>
             <Icon icon={Check} size={13} color={theme.color.sparkInk} />
           </View>
         ) : null}
       </View>
-      {hint ? (
+      {hint && !hintAbove ? (
         <Hint
-          tone={state === 'error' ? 'danger' : state === 'ok' ? 'spark' : 'muted'}
+          tone={tone}
           style={[wayIn ? styles.inset : null, state === 'ok' ? styles.answer : null]}
         >
           {hint}
@@ -264,28 +302,36 @@ export function Field({
 }
 
 /**
- * The six cells of a code from an e-mail (spec 7.3). One input behind six boxes: the phone's own
- * one-time-code autofill wants a single field, and six separate ones each steal the caret from the
- * last.
+ * The six cells of a code from an e-mail (spec 7.3, detail 13). One input behind six boxes: the
+ * phone's own one-time-code autofill wants a single field, and six separate ones each steal the caret
+ * from the last.
+ *
+ * Over the cells, 8 up, the head of the block (detail 80) — where the letter went and the way to ask
+ * for another — and under them nothing: the keyboard comes up to the button (27 September).
  *
  * `error` marks all six at once, because the code is one value and not six — and the screen clears
- * it, which is what puts the caret back in the first cell.
+ * it, which is what puts the caret back in the first cell. The head then says so in `dangerText`.
  */
 export function CodeField({
   label,
+  tail,
   value,
   onChangeText,
   length = 6,
   state,
-  hint,
   autoFocus,
 }: {
+  /**
+   * The head's words, the caller's case and all — «КОД НА liza@example.com»: the address as it was
+   * typed, never in capitals — and «КОД НЕ ПОДОШЁЛ» once the api refused the digits.
+   */
   label: string;
+  /** What stands at the right of the head — «Ещё раз». */
+  tail?: ReactNode;
   value: string;
   onChangeText: (next: string) => void;
   length?: number;
   state?: FieldState;
-  hint?: string;
   autoFocus?: boolean;
 }) {
   const [focused, setFocused] = useState(false);
@@ -294,10 +340,12 @@ export function CodeField({
   useFieldInBar();
 
   return (
-    <View style={[styles.field, styles.fieldWayIn]}>
-      <Text role="eyebrow" tone="muted" style={styles.inset}>
-        {label.toUpperCase()}
-      </Text>
+    <View style={styles.field}>
+      <View style={styles.inset}>
+        <BlockHead label={label} tone={state === 'error' ? 'danger' : 'muted'}>
+          {tail}
+        </BlockHead>
+      </View>
       <View style={styles.code}>
         {Array.from({ length }, (_, i) => (
           <View
@@ -319,7 +367,6 @@ export function CodeField({
         ))}
         <TextInput
           accessibilityLabel={label}
-          accessibilityHint={hint}
           value={value}
           onChangeText={(next) => onChangeText(next.replace(/\D/g, '').slice(0, length))}
           keyboardType="number-pad"
@@ -335,11 +382,6 @@ export function CodeField({
           style={[StyleSheet.absoluteFill, styles.codeInput]}
         />
       </View>
-      {hint ? (
-        <Hint tone={state === 'error' ? 'danger' : 'muted'} style={styles.inset}>
-          {hint}
-        </Hint>
-      ) : null}
     </View>
   );
 }
@@ -459,6 +501,8 @@ const useStyles = themed(({ color }) =>
     field: { alignSelf: 'stretch', gap: space.s2 },
     fieldWayIn: { gap: space.s3 },
     inset: { paddingLeft: space.s1 },
+    // Detail 80: the status is the eyebrow's 12 / 700 in capitals, tracked a little closer — 0.06em.
+    status: { letterSpacing: 0.72 },
     // Spec 8, `Username`: the answer the server gave is the loud half of the line, what it is for
     // the quiet one.
     answer: { fontFamily: font.semi },

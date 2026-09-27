@@ -131,12 +131,8 @@ test('the scrubber takes a finger when it is given somewhere to send it, and rep
   expect(story(past)).toContain('left:100%');
 });
 
-test('the onboarding stack is three photographs at three angles, in two sizes', () => {
+test('the onboarding stack is three photographs at three angles', () => {
   const photos = ['https://b/1.jpg', 'https://b/2.jpg', 'https://b/3.jpg'];
-  allDifferent({
-    large: <PhotoStack photos={photos} />,
-    small: <PhotoStack photos={photos} small />,
-  });
   // Three and no more, however many are handed over, and none of them is read out.
   const many = story(<PhotoStack photos={[...photos, 'https://b/4.jpg']} />);
   expect(many.match(/data-testid="image"/g)).toHaveLength(3);
@@ -144,30 +140,17 @@ test('the onboarding stack is three photographs at three angles, in two sizes', 
 });
 
 /**
- * Where the layout puts each frame before it is turned — `design/screens/Login.html` and
- * `Consent.html`, measured in TASK-378 (`Login.json` e1–e4, `Consent.json` e1–e3; the rotated frames'
- * boxes there come back to these exact numbers). Left, middle, right, in the order they are drawn.
+ * Where the layout puts each frame before it is turned — spec 7.10, `design/screens/Login.html` of
+ * 27 September: the box 176, the side frames 34 off their own edge, the middle one centred and lower
+ * than the two beside it. Left, middle, right, in the order they are drawn.
  */
 const LAYOUT = {
-  // 236 tall (spec 8, «стопка кадров 236»); the side frames 24 off their own edge, the middle one
-  // centred with its foot on the stack's foot — 40 down, lower than the two beside it.
-  large: {
-    stack: ['height:236px'],
-    frames: [
-      ['left:24px', 'top:30px', 'width:144px', 'height:178px', 'rotate(-9deg)', 'radius:18px'],
-      ['top:40px', 'width:168px', 'height:196px', 'rotate(-1.5deg)', 'radius:20px'],
-      ['right:24px', 'top:22px', 'width:144px', 'height:178px', 'rotate(8deg)', 'radius:18px'],
-    ],
-  },
-  // `Consent`: 196, everything 17 % smaller and the side frames 34 off their edges.
-  small: {
-    stack: ['height:196px'],
-    frames: [
-      ['left:34px', 'top:26px', 'width:120px', 'height:148px', 'rotate(-9deg)', 'radius:16px'],
-      ['top:34px', 'width:140px', 'height:162px', 'rotate(-1.5deg)', 'radius:18px'],
-      ['right:34px', 'top:20px', 'width:120px', 'height:148px', 'rotate(8deg)', 'radius:16px'],
-    ],
-  },
+  stack: ['height:176px'],
+  frames: [
+    ['left:34px', 'top:12px', 'width:116px', 'height:144px', 'rotate(-9deg)', 'radius:16px'],
+    ['top:16px', 'width:136px', 'height:158px', 'rotate(-1.5deg)', 'radius:18px'],
+    ['right:34px', 'top:6px', 'width:116px', 'height:144px', 'rotate(8deg)', 'radius:16px'],
+  ],
 } as const;
 
 /** The class a declaration of the stack compiled to, by the short name `LAYOUT` gives it. */
@@ -178,22 +161,18 @@ const declared = (short: string) =>
       ? shorthand('borderRadius', `border-top-left-radius:${short.slice(7)}`)
       : rule(short);
 
-test.each(['large', 'small'] as const)(
-  'the %s stack puts its three frames where the layout measured them',
-  (size) => {
-    const photos = ['https://b/1.jpg', 'https://b/2.jpg', 'https://b/3.jpg'];
-    const drawn = story(<PhotoStack photos={photos} small={size === 'small'} />);
-    const [box, ...frames] = drawn.split('data-testid="image"');
-    const { stack, frames: placed } = LAYOUT[size];
-    for (const css of stack) expect(box, css).toContain(declared(css));
-    // The last class list before each marker is that frame's own.
-    placed.forEach((shot, i) => {
-      const own = (i === 0 ? box : frames[i - 1]).split('class="').at(-1) ?? '';
-      for (const css of shot) expect(own, `frame ${i}: ${css}`).toContain(declared(css));
-    });
-    expect(frames).toHaveLength(3);
-  },
-);
+test('the stack puts its three frames where the layout measured them', () => {
+  const photos = ['https://b/1.jpg', 'https://b/2.jpg', 'https://b/3.jpg'];
+  const drawn = story(<PhotoStack photos={photos} />);
+  const [box, ...frames] = drawn.split('data-testid="image"');
+  for (const css of LAYOUT.stack) expect(box, css).toContain(declared(css));
+  // The last class list before each marker is that frame's own.
+  LAYOUT.frames.forEach((shot, i) => {
+    const own = (i === 0 ? box : frames[i - 1]).split('class="').at(-1) ?? '';
+    for (const css of shot) expect(own, `frame ${i}: ${css}`).toContain(declared(css));
+  });
+  expect(frames).toHaveLength(3);
+});
 
 test('the stack runs the width of the board, so the side frames never leave a narrow phone', () => {
   // Hung off the board's edges and not off a box of their own: 320 overlaps them more and keeps

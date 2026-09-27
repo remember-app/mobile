@@ -88,7 +88,7 @@ const SCREENS: [string, () => ReactElement, string, boolean][] = [
   ['«Agreement»', () => <ConsentScreen />, ru.consent.accept, false],
   ['«Pick a username»', () => <SetUsernameScreen />, ru.username.continue, true],
 ];
-const WITH_BACK = [ru.login.sendCode, ru.login.confirm];
+const WITH_BACK = [ru.login.sendCode, ru.login.confirm, ru.consent.accept, ru.username.continue];
 
 async function open(screen: () => ReactElement, over: Partial<typeof phone>) {
   Object.assign(phone, { width: 360, height: 640, fontScale: 1, top: 24 }, over);
@@ -108,7 +108,7 @@ async function open(screen: () => ReactElement, over: Partial<typeof phone>) {
 }
 
 test.each(SCREENS)(
-  '%s on 360 × 640 keeps its field and its button at the bottom, out of the scroll, and the keyboard changes nothing',
+  '%s on 360 × 640 keeps its button at the bottom and its field in the body, and the keyboard redraws nothing',
   async (_, screen, label, field) => {
     const it = await open(screen, {});
     const [layer] = it.main(label);
@@ -117,6 +117,12 @@ test.each(SCREENS)(
     // The layer is the ActionBar's: the bottom layer of the spec, not a button left in the body.
     expect(it.root.findAllByType(ActionBar)).toHaveLength(1);
     expect(it.root.findByType(ActionBar).findAllByType(Button).includes(layer)).toBe(true);
+    // The field stands in the body under the step's head, not in the layer the keyboard lifts
+    // (spec 7.1, detail 76): the keyboard moves the button and nothing else.
+    for (const input of it.root.findAllByType('input-stub' as never)) {
+      expect(scrolled(input)).toBe(true);
+      expect(it.root.findByType(ActionBar).findAll((one) => one === input)).toHaveLength(0);
+    }
 
     // A layer of 300 on a 640 screen leaves the body more than a line: it stands.
     await measure(it.root, { footer: 300 });
@@ -160,7 +166,7 @@ test.each(SCREENS)(
 );
 
 test.each(SCREENS.filter(([, , label]) => WITH_BACK.includes(label)))(
-  '%s: «Назад» stands just under the status line, in the body',
+  '%s: «Назад» stands 18 under the status line, in the body',
   async (_, screen) => {
     for (const top of [24, 47]) {
       const it = await open(screen, { top });
@@ -170,9 +176,9 @@ test.each(SCREENS.filter(([, , label]) => WITH_BACK.includes(label)))(
       ).toMatchObject({
         paddingTop: top,
       });
-      // … and «Назад» is the first thing in what stands under it: pinned to the body's own top, not to
-      // the window's, and 10 off the edge — where the layout floats it on both screens (the measured
-      // `LoginEmail` and `LoginCode`, «Назад» at x 10 right under the status line, TASK-378).
+      // … and «Назад» floats in what stands under it: pinned to the body's own top, not to the
+      // window's, 10 off the edge and 18 down — where the layout floats it on steps 2–5 (spec 7.1,
+      // detail 76: `left 10`, `top 70` under a status line of 52).
       const back = it.root
         .findAllByType(IconButton)
         .find((one) => one.props.label === ru.action.back) as ReactTestInstance;
@@ -183,7 +189,7 @@ test.each(SCREENS.filter(([, , label]) => WITH_BACK.includes(label)))(
       expect(StyleSheet.flatten(holder.props.style) as ViewStyle).toMatchObject({
         position: 'absolute',
         left: 10,
-        top: 0,
+        top: 18,
       });
     }
   },

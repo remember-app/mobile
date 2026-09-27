@@ -23,15 +23,17 @@ import { OnboardingHead } from '@/screens/onboarding/head';
 import { font, radius, space, themed, useTheme } from '@/theme';
 
 /**
- * `Consent` — the agreement (spec 8, doc-04, decision-9). The one thing that has to happen before a
- * person may register, and the only onboarding screen whose head is squeezed: the card of three
- * promises has to fit under it.
+ * `Consent` — the agreement, step 4 of the way in (spec 8, doc-04, decision-9). The one thing that has
+ * to happen before a person may register: the step's head, and the card of three promises standing
+ * from the bottom edge with the button under it. No field here, so the keyboard never comes up.
  *
  * There is no decline button. Declining is walking away from the screen, and the line under the
- * main action says so out loud rather than dressing the refusal up as a second choice.
+ * main action says so out loud rather than dressing the refusal up as a second choice. «Назад» is that
+ * walk: the address and the code behind this step are spent, and the session they bought is not
+ * wanted without the agreement — so it ends, and the gate stands the way in from its first step.
  */
 export default function ConsentScreen() {
-  const { token } = useAuth();
+  const { token, signOut } = useAuth();
   const router = useRouter();
   const s = useStrings();
   const styles = useStyles();
@@ -47,8 +49,8 @@ export default function ConsentScreen() {
       // Idempotent on the api's side, so a second «Принимаю» — a lost answer, a session picked up
       // again between this screen and the next — costs nothing and moves the moment nowhere.
       await acceptConsent(token);
-      // replace, not push: what is behind this screen is the way in, and it has been walked.
-      router.replace('/set-username');
+      // Pushed, so the name's «Назад» comes back here.
+      router.push('/set-username');
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -113,7 +115,10 @@ export default function ConsentScreen() {
         </ActionBar>
       }
     >
-      <OnboardingHead small />
+      <OnboardingHead
+        step={4}
+        back={() => signOut().catch((e: unknown) => setError(errorMessage(e)))}
+      />
 
       <View style={styles.room}>{error ? <Banner tone="error" text={error} /> : null}</View>
 
