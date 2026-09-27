@@ -22,7 +22,7 @@ import {
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { formatDay, formatRuntime, formatWeekday } from '@/lib/dates';
-import { byDay, COLUMNS, frameOf, shotAt } from '@/lib/frames';
+import { byDay, COLUMNS, frameOf, removeFrames, shotAt } from '@/lib/frames';
 import { useStrings } from '@/lib/language';
 import { type ParkedFile, progress } from '@/lib/upload/queue';
 import { useUploads } from '@/lib/upload/send';
@@ -176,15 +176,12 @@ export default function MyFramesScreen() {
     );
   }
 
+  // The shared feed's own rule: a frame already gone from the server is gone here too, not a failure.
   async function remove(item: MediaItem) {
     if (!token) return;
     setDropFailed(null);
-    try {
-      await deleteMedia(token, id, item.id);
-    } catch (e) {
-      setDropFailed(errorMessage(e));
-      return;
-    }
+    const { failure } = await removeFrames([item], (one) => deleteMedia(token, id, one.id));
+    if (failure !== undefined) return setDropFailed(errorMessage(failure));
     wrote((have) => have?.filter((one) => one.id !== item.id) ?? null);
   }
 
@@ -237,7 +234,10 @@ export default function MyFramesScreen() {
                       variant="quiet"
                       size="xs"
                       label={s.action.retry}
-                      onPress={() => read()}
+                      onPress={() => {
+                        setDropFailed(null);
+                        read();
+                      }}
                     />
                   </Banner>
                 ) : null}
