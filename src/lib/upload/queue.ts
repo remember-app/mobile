@@ -17,17 +17,17 @@ export type UploadFailure =
   /** The gallery no longer has the entry. */
   | { reason: 'gone' }
   /**
-   * The gallery has the entry and there is no file behind it at all: nothing on the phone, or a
-   * grant taken back since the pick. It is about the file, not about any server — and not about
-   * iCloud either, which has its own reason below (TASK-419).
+   * The phone would not hand the file over: no file behind the entry, a grant taken back since the
+   * pick, or bytes that would not come off it. It is about the file, not about any server — and not
+   * about iCloud either, which has its own reason below (TASK-419).
    */
-  | { reason: 'unreadable' }
+  | { reason: 'unreadable'; detail: string }
   /**
    * The original lives in iCloud — «Оптимизация хранения», the ordinary state of a full iPhone —
    * and could not be brought down just now. The phone carries the download on in the background,
    * so this is a file to try again and not one to give up on.
    */
-  | { reason: 'iCloud' }
+  | { reason: 'iCloud'; detail: string }
   | { reason: 'partSizeChanged' }
   | { reason: 'noReceipt' | 'noLink' | 'partNotTaken'; part: number }
   | { reason: 'partRefused'; part: number; status: number }
@@ -90,6 +90,13 @@ function storageCode(failure: UploadFailure): number | undefined {
     : undefined;
 }
 
+/** The step the phone balked at and what it said there, word for word — left out of the words too. */
+function phoneDetail(failure: UploadFailure): string | undefined {
+  return failure.reason === 'unreadable' || failure.reason === 'iCloud'
+    ? failure.detail
+    : undefined;
+}
+
 /** A file the queue could not get out, and why. */
 export type ParkedFile = QueuedFile & { error: UploadFailure };
 
@@ -98,25 +105,33 @@ export type ParkedFile = QueuedFile & { error: UploadFailure };
  * files it happened to — the most first. Storage's codes are said once on the line they belong to
  * (TASK-413 wants them seen) rather than splitting it: a 503 on one file and a 400 on another are
  * still storage saying no.
+ *
+ * The phone's own answer goes on its line too, so a screenshot says where the file stuck without a
+ * round of guessing (TASK-434) — the first file's only: it names the file it was about, so ten files
+ * would be ten sentences, and the api's log has every one of them.
  */
 export function parkedLines(
   s: Strings,
   files: readonly ParkedFile[],
 ): { text: string; files: ParkedFile[] }[] {
-  const lines = new Map<string, { codes: Set<number>; files: ParkedFile[] }>();
+  const lines = new Map<string, { codes: Set<number>; detail?: string; files: ParkedFile[] }>();
   for (const file of files) {
     const words = failureText(s, file.error);
-    const line = lines.get(words) ?? { codes: new Set<number>(), files: [] };
+    const line = lines.get(words) ?? {
+      codes: new Set<number>(),
+      detail: phoneDetail(file.error),
+      files: [],
+    };
     lines.set(words, line);
     line.files.push(file);
     const code = storageCode(file.error);
     if (code !== undefined) line.codes.add(code);
   }
   return [...lines]
-    .map(([words, { codes, files }]) => ({
-      text: codes.size > 0 ? `${words} (${[...codes].join(', ')})` : words,
-      files,
-    }))
+    .map(([words, { codes, detail, files }]) => {
+      const said = codes.size > 0 ? [...codes].join(', ') : detail;
+      return { text: said === undefined ? words : `${words} (${said})`, files };
+    })
     .sort((a, b) => b.files.length - a.files.length);
 }
 

@@ -7,13 +7,20 @@ import type { UploadPlan } from '@/api';
 import { partDeadline, type QueuedFile, type UploadFailure } from '@/lib/upload/queue';
 import { drop, enqueue, useUploads, wake } from '@/lib/upload/send';
 
-const { api, library, foreground, disk } = vi.hoisted(() => ({
-  api: { startUpload: vi.fn(), refreshUpload: vi.fn(), finishUpload: vi.fn() },
+const { api, library, foreground, disk, modes } = vi.hoisted(() => ({
+  api: {
+    startUpload: vi.fn(),
+    refreshUpload: vi.fn(),
+    finishUpload: vi.fn(),
+    reportUploadFailure: vi.fn(),
+  },
   library: { getAssetInfoAsync: vi.fn() },
   /** Whoever is listening for the app to come back to the foreground. */
   foreground: new Set<(state: string) => void>(),
   /** Every queue the pump wrote down, the last one last. */
   disk: [] as string[],
+  /** The mode every gallery file was opened in, in order. */
+  modes: [] as (string | undefined)[],
 }));
 
 vi.mock('@/api', () => ({
@@ -28,8 +35,13 @@ vi.mock('expo-media-library/legacy', () => library);
 // The queue's own file is the same class, and keeps what it is handed. `ph://…` is the library's
 // handle and not a path, which the real class cannot open either; a file under `locked/` opens and
 // then will not give its bytes up.
+//
+// A gallery original opens for reading and for nothing else, as on a phone: `open` with no mode is
+// the library's read-and-write (its own typings say so), and the phone refuses that for a file the
+// app was only let read. The simulator does not fence an app in, so it never said no (TASK-434).
 vi.mock('expo-file-system', () => ({
   Paths: { document: 'documents' },
+  FileMode: { ReadOnly: 'r' },
   File: class {
     uri: string;
     constructor(...path: string[]) {
@@ -41,14 +53,22 @@ vi.mock('expo-file-system', () => ({
     size = 20;
     textSync = () => '[]';
     write = (text: string) => disk.push(text);
-    open = () => ({
-      offset: 0,
-      readBytes: (length: number) => {
-        if (this.uri.includes('locked/')) throw new Error('The file couldn’t be opened.');
-        return new Uint8Array(length);
-      },
-      close() {},
-    });
+    open = (mode?: string) => {
+      modes.push(mode);
+      if (mode !== 'r') {
+        throw new Error(
+          `Calling the 'open' function has failed\n→ Caused by: ${this.uri} is not writable`,
+        );
+      }
+      return {
+        offset: 0,
+        readBytes: (length: number) => {
+          if (this.uri.includes('locked/')) throw new Error('The file couldn’t be opened.');
+          return new Uint8Array(length);
+        },
+        close() {},
+      };
+    };
   },
 }));
 // Off a phone `react-native-web` hands out no subscription at all, and the hook removes its own.
@@ -133,6 +153,8 @@ const onPhone = async (id: string) => ({ id, uri: `ph://${id}`, localUri: `file:
 
 beforeEach(() => {
   disk.length = 0;
+  modes.length = 0;
+  api.reportUploadFailure.mockResolvedValue({ status: 'ok' });
   api.startUpload.mockResolvedValue(plan('first'));
   api.refreshUpload.mockResolvedValue(plan('fresh'));
   api.finishUpload.mockResolvedValue({ id: 'media-1', status: 'processing', first_upload: false });
@@ -151,6 +173,14 @@ it('seals the file with the receipt storage gave for every part', async () => {
   expect(put).toEqual([1, 2, 3].map((n) => `https://storage/first/${n}`));
   expect(api.refreshUpload).not.toHaveBeenCalled();
   expect(api.finishUpload).toHaveBeenCalledWith('session', 'm1', 'media-1', SEALED);
+  expect(queue).toEqual([]);
+});
+
+// TASK-434: every part used to open the original with no mode — for writing as well — and a phone
+// lets the app read a gallery file and no more.
+it('opens the original for reading only, a part at a time', async () => {
+  const { queue } = await upload(receipted);
+  expect(modes).toEqual(['r', 'r', 'r']);
   expect(queue).toEqual([]);
 });
 
@@ -211,6 +241,8 @@ it.each<[string, () => Response, UploadFailure]>([
   expect(api.finishUpload).not.toHaveBeenCalled();
   // Exactly the reason and nothing more: whatever storage wrote in the body stays out of the queue.
   expect(queue.map((file) => file.error)).toEqual([reason]);
+  // Storage's refusals are the api's to see already; only the phone's own go to its log.
+  expect(api.reportUploadFailure).not.toHaveBeenCalled();
 });
 
 // TASK-413: three different things all used to come out as «Cannot reach the API». Each is named
@@ -293,23 +325,38 @@ it('keeps storage’s code when the line goes after storage had answered', async
   ]);
 });
 
-it.each<[string, (id: string) => Promise<unknown>]>([
+// Each with the step the phone balked at and what it said there, word for word (TASK-434): the
+// words on the screen are one line for all of these, and only the detail tells them apart.
+it.each<[string, (id: string) => Promise<unknown>, string]>([
   [
     'the gallery will not answer for it',
     async () => {
       throw new Error('Missing MEDIA_LIBRARY permissions.');
     },
+    'getAssetInfoAsync, download off: Missing MEDIA_LIBRARY permissions.',
   ],
   // The entry with nothing behind it and not a word about iCloud: nothing to bring down, so
   // nothing to wait for either — a file the phone genuinely cannot read (TASK-419).
-  ['the gallery has the entry and no file behind it', async (id) => ({ id, uri: `ph://${id}` })],
-])('names the file and not a server when %s, and asks the api nothing', async (_, answer) => {
-  library.getAssetInfoAsync.mockImplementation(answer);
-  const { put, queue } = await upload(receipted);
-  expect(api.startUpload).not.toHaveBeenCalled();
-  expect(put).toEqual([]);
-  expect(queue.map((file) => file.error)).toEqual([{ reason: 'unreadable' }]);
-});
+  [
+    'the gallery has the entry and no file behind it',
+    async (id) => ({ id, uri: `ph://${id}` }),
+    'no localUri, isNetworkAsset undefined',
+  ],
+  [
+    'the entry points at a file that is not there',
+    async (id) => ({ id, uri: `ph://${id}`, localUri: `ph://${id}` }),
+    'ph://a1: exists false, size 20',
+  ],
+])(
+  'names the file and not a server when %s, and asks the api nothing',
+  async (_, answer, detail) => {
+    library.getAssetInfoAsync.mockImplementation(answer);
+    const { put, queue } = await upload(receipted);
+    expect(api.startUpload).not.toHaveBeenCalled();
+    expect(put).toEqual([]);
+    expect(queue.map((file) => file.error)).toEqual([{ reason: 'unreadable', detail }]);
+  },
+);
 
 it('names the file when its bytes will not come off the phone, and sends storage nothing', async () => {
   library.getAssetInfoAsync.mockImplementation(async (id: string) => ({
@@ -319,7 +366,9 @@ it('names the file when its bytes will not come off the phone, and sends storage
   }));
   const { put, queue } = await upload(receipted);
   expect(put).toEqual([]);
-  expect(queue.map((file) => file.error)).toEqual([{ reason: 'unreadable' }]);
+  expect(queue.map((file) => file.error)).toEqual([
+    { reason: 'unreadable', detail: 'read part 1: The file couldn’t be opened.' },
+  ]);
 });
 
 /**
@@ -364,7 +413,9 @@ it('names iCloud and not the phone when the frame will not come down, and asks t
   expect(saidCloud()).toBe(true);
   // Parked with its own reason, and not as a file the phone could not read — the queue's pause
   // brings it round again, by which time iOS has ordinarily finished the download in the background.
-  expect(queue.map((file) => file.error)).toEqual([{ reason: 'iCloud' }]);
+  expect(queue.map((file) => file.error)).toEqual([
+    { reason: 'iCloud', detail: 'no localUri, isNetworkAsset true' },
+  ]);
   expect(queue.map((file) => file.cloud)).toEqual([undefined]);
 });
 
@@ -447,4 +498,27 @@ it('stops trying by itself once pause after pause sends nothing — until the pe
   await act(async () => wake());
   await wait(0);
   expect(tries()).toBe(gaveUp + 2);
+});
+
+// TASK-434: what the phone said stayed on the phone, and the only way to it was a screenshot.
+it('tells the api where the phone balked and what it said — once, however often the file is tried', async () => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  library.getAssetInfoAsync.mockImplementation(async (id: string) => ({
+    id,
+    uri: `ph://${id}`,
+    localUri: `file:///locked/${id}`,
+  }));
+  await upload(receipted);
+  await wait(PAUSE);
+  expect(tries()).toBe(2);
+  expect(api.reportUploadFailure).toHaveBeenCalledTimes(1);
+  expect(api.reportUploadFailure).toHaveBeenCalledWith(
+    expect.objectContaining({
+      upload_failure: 'unreadable',
+      detail: 'read part 1: The file couldn’t be opened.',
+      file: 'IMG_0001.HEIC',
+      memory: 'm1',
+      media: 'media-1',
+    }),
+  );
 });

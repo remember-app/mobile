@@ -7,16 +7,17 @@
 // state rather than screen state, so an upload outlives the screen that started it. Nothing here
 // asks what the memory's status is: material goes in during the event and long after the montage
 // was made (doc-02).
-import { File, Paths } from 'expo-file-system';
+import { File, FileMode, Paths } from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library/legacy';
 import { useEffect, useSyncExternalStore } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 
 import {
   ApiError,
   apiReason,
   finishUpload,
   refreshUpload,
+  reportUploadFailure,
   setContributionStatus,
   startUpload,
   type UploadPlan,
@@ -72,6 +73,37 @@ function failure(error: unknown): UploadFailure {
   }
   console.warn('upload parks, the api does not answer:', error);
   return { reason: 'offline' };
+}
+
+/** An error as one line: a native one carries the call and its cause on lines of their own. */
+const said = (error: unknown) =>
+  (error instanceof Error ? error.message : String(error)).replace(/\s+/g, ' ');
+
+/**
+ * What each file last told the api's log. A parked file is tried every fifteen seconds, and the same
+ * line every time is a log nobody reads to the end; a file picked again, or a new launch, is a new
+ * entry and says it once more.
+ */
+const reported = new WeakMap<QueuedFile, string>();
+
+/**
+ * The phone refusing a file, sent to the api as well as drawn on the screen — the one failure that
+ * otherwise never leaves the phone it happened on (TASK-434). Nothing waits on it: a report that
+ * does not get through is a line in the phone's own log and nothing more.
+ */
+function report(file: QueuedFile, failure: UploadFailure) {
+  if (failure.reason !== 'unreadable' && failure.reason !== 'iCloud') return;
+  const line = `${failure.reason}: ${failure.detail}`;
+  if (reported.get(file) === line) return;
+  reported.set(file, line);
+  reportUploadFailure({
+    upload_failure: failure.reason,
+    detail: failure.detail,
+    file: file.filename,
+    memory: file.memoryId,
+    ...(file.mediaId === undefined ? {} : { media: file.mediaId }),
+    platform: `${Platform.OS} ${Platform.Version}`,
+  }).catch((error) => console.warn('the upload failure does not reach the api:', error));
 }
 
 let queue: QueuedFile[] = [];
@@ -156,27 +188,30 @@ async function assetInfo(
     return await MediaLibrary.getAssetInfoAsync(file.assetId, { shouldDownloadFromNetwork });
   } catch (error) {
     console.warn(`${file.filename} cannot be read off the gallery:`, error);
-    throw new UploadError({ reason: 'unreadable' });
+    throw new UploadError({
+      reason: 'unreadable',
+      detail: `getAssetInfoAsync, download ${shouldDownloadFromNetwork ? 'on' : 'off'}: ${said(error)}`,
+    });
   }
 }
 
 /**
- * The bytes behind that entry, when the phone has them to open — `null` when it has not, which is
- * the answer for a photo whose original is still in iCloud.
+ * The bytes behind that entry when the phone has them to open, and otherwise what stood in the way,
+ * as the phone put it — no `localUri` at all is the answer for a photo whose original is still in
+ * iCloud.
  *
  * `localUri` is the actual file and the only thing the parts can be cut from; `uri` is the library's
  * own handle — `ph://…` on iOS — which is not a path and which nothing here can open.
  */
-function openable(file: QueuedFile, asset: MediaLibrary.AssetInfo): File | null {
-  if (!asset.localUri) return null;
+function openable(asset: MediaLibrary.AssetInfo): File | string {
+  if (!asset.localUri) return `no localUri, isNetworkAsset ${asset.isNetworkAsset}`;
   try {
     const source = new File(asset.localUri);
     if (source.exists && source.size > 0) return source;
-    console.warn(`${file.filename} is an entry with an empty file behind it: ${asset.localUri}`);
+    return `${asset.localUri}: exists ${source.exists}, size ${source.size}`;
   } catch (error) {
-    console.warn(`${file.filename} cannot be opened:`, error);
+    return `${asset.localUri}: ${said(error)}`;
   }
-  return null;
 }
 
 /**
@@ -195,8 +230,8 @@ function openable(file: QueuedFile, asset: MediaLibrary.AssetInfo): File | null 
 async function sourceFile(file: QueuedFile): Promise<File> {
   const asset = await assetInfo(file, false);
   if (!asset) throw new UploadError({ reason: 'gone' });
-  const onPhone = openable(file, asset);
-  if (onPhone !== null) return onPhone;
+  const onPhone = openable(asset);
+  if (typeof onPhone !== 'string') return onPhone;
 
   // Nothing on the phone, so the second ask — the one with the download on — is the download
   // itself. It goes out whatever the flag said: an original iOS did not flag as iCloud's but still
@@ -213,14 +248,14 @@ async function sourceFile(file: QueuedFile): Promise<File> {
   }
   try {
     const brought = await assetInfo(file, true);
-    const down = brought === null ? null : openable(file, brought);
-    if (down !== null) return down;
+    const down = brought === null ? 'no entry on the second ask' : openable(brought);
+    if (typeof down !== 'string') return down;
     // Parked and not dropped: iOS carries a download it has started on in the background, and the
     // queue's own pause brings this file round again — by then it is ordinarily on the phone.
     console.warn(
-      `${file.filename} does not come down from ${cloud ? 'iCloud' : 'the gallery'}, the file parks`,
+      `${file.filename} does not come down from ${cloud ? 'iCloud' : 'the gallery'}, the file parks: ${down}`,
     );
-    throw new UploadError({ reason: cloud ? 'iCloud' : 'unreadable' });
+    throw new UploadError({ reason: cloud ? 'iCloud' : 'unreadable', detail: down });
   } finally {
     if (cloud) {
       delete file.cloud;
@@ -274,7 +309,9 @@ async function planFor(file: QueuedFile, token: string, size: number): Promise<U
  */
 function readPart(source: File, part: PartRange): Uint8Array<ArrayBuffer> {
   try {
-    const handle = source.open();
+    // Read-only, and said so: with no mode the library opens a `file://` for reading *and writing*,
+    // and a gallery original is the phone's to read and never ours to write (TASK-434).
+    const handle = source.open(FileMode.ReadOnly);
     try {
       handle.offset = part.start;
       // ponytail: a synchronous read of one part (8 MB by default) on the JS thread — the only
@@ -286,7 +323,10 @@ function readPart(source: File, part: PartRange): Uint8Array<ArrayBuffer> {
     }
   } catch (error) {
     console.warn(`part ${part.number} cannot be read off the phone:`, error);
-    throw new UploadError({ reason: 'unreadable' });
+    throw new UploadError({
+      reason: 'unreadable',
+      detail: `read part ${part.number}: ${said(error)}`,
+    });
   }
 }
 
@@ -446,7 +486,10 @@ async function run() {
         // swept away after a day, a membership that ended — is retried until somebody drops the
         // row by hand. Worth splitting permanent from transient the day that stares at anyone.
         if (alreadyIn(error)) queue = queue.filter((file) => file !== next);
-        else next.error = failure(error);
+        else {
+          next.error = failure(error);
+          report(next, next.error);
+        }
       }
       changed();
     }
