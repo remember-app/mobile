@@ -64,6 +64,7 @@ const shot = (id: string, at: number): MediaItem => ({
   captured_at: `2026-09-20T10:0${at}:00.000Z`,
   width: null,
   height: null,
+  orientation: null,
   duration_seconds: null,
   created_at: '2026-09-20T10:00:00.000Z',
   label_ids: [],

@@ -92,14 +92,21 @@ test('the filter is a draft until it is applied, and it is applied by a button t
   expect(sheets).toContain('useState<Filter>(value)');
 });
 
-test('the day block opens with the absence of a choice, and the people row does not', () => {
-  // «Все дни» is an empty set and not a value of its own, which is the whole reason a set is what
-  // the filter holds. The people row has no such chip in the layout: a face is pressed off again,
-  // and «Сбросить» is what clears the lot.
-  expect(sheets).toContain('selected={draft.days.size === 0}');
-  expect(sheets).toContain('onPress={() => setDraft((have) => ({ ...have, days: new Set() }))}');
-  expect(sheets).not.toContain('people: new Set() }))}');
-  expect(ru.gallery.anyDay).toBe('Все дни');
+test('every section opens with the absence of a choice, and «Все» over it is that absence', () => {
+  // «Все» is an empty set or a null and not a value of its own (spec 8, detail 80): lit while the
+  // section holds nothing back, and pressing it is emptying the section and nothing else.
+  for (const [open, all] of [
+    ['draft.people.size === 0', '{ people: new Set() }'],
+    ['draft.kind === null', '{ kind: null }'],
+    ['draft.orientation === null', '{ orientation: null }'],
+    ['draft.labels.size === 0', '{ labels: new Set() }'],
+    ['draft.days.size === 0', '{ days: new Set() }'],
+  ]) {
+    expect(sheets).toContain(`open={${open}}`);
+    expect(sheets).toContain(`onAll={() => change(${all})}`);
+  }
+  expect(ru.gallery.all).toBe('Все');
+  expect(ru.gallery.allOf(ru.gallery.whoBrought)).toBe('Все: Кто принёс');
   // «Сбросить» stands small beside the heading and not under the main button (spec 8), and says by
   // being off that there is nothing to clear.
   expect(sheets).toContain('disabled={!chosen}');
@@ -121,7 +128,7 @@ test('the day block opens with the absence of a choice, and the people row does 
 });
 
 test('a day the tiles are not offering is reached by the calendar, and can be taken off again', () => {
-  // The round calendar beside «Все дни» (spec 8) opens the kit's own calendar under the tiles; a
+  // The round calendar beside «Все» over the days (spec 8) opens the kit's own calendar under the tiles; a
   // day picked there joins the same set every tile toggles.
   expect(sheets).toContain('label={s.gallery.otherDay}');
   expect(sheets).toContain('icon={CalendarDays}');

@@ -28,8 +28,15 @@ export type SegmentProps<T extends string> = {
   /** Inside a sheet the container is `ink`, because the sheet itself is already `surface`. */
   onSurface?: boolean;
   options: readonly SegmentOption<T>[];
-  value: T;
+  /** No cell chosen — only ever so in a group that can be let go of (`onClear`). */
+  value: T | null;
   onChange: (value: T) => void;
+  /**
+   * The group may stand with no cell chosen (spec 7.3, detail 18 — the filters): a tap on the chosen
+   * cell lets it go. Read out as a row of switches rather than a radiogroup: a radio cannot be
+   * unchecked.
+   */
+  onClear?: () => void;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -68,6 +75,7 @@ export function Segment<T extends string>({
   options,
   value,
   onChange,
+  onClear,
   style,
 }: SegmentProps<T>) {
   const styles = useStyles();
@@ -94,22 +102,26 @@ export function Segment<T extends string>({
           stacked ? styles.stacked : null,
           measured ? null : styles.unseen,
         ]}
-        accessibilityRole="radiogroup"
+        accessibilityRole={onClear ? undefined : 'radiogroup'}
         accessibilityLabel={label}
         // Read out with the group rather than left to the eye: the line says what picking here
         // actually does, and a screen reader stepping over it would leave the switch unexplained.
         accessibilityHint={hint}
       >
-        {options.map((option) => (
-          <Option
-            key={option.value}
-            label={option.label}
-            small={small}
-            stacked={stacked}
-            checked={option.value === value}
-            onPress={() => onChange(option.value)}
-          />
-        ))}
+        {options.map((option) => {
+          const checked = option.value === value;
+          return (
+            <Option
+              key={option.value}
+              label={option.label}
+              small={small}
+              stacked={stacked}
+              checked={checked}
+              switchable={!!onClear}
+              onPress={checked && onClear ? onClear : () => onChange(option.value)}
+            />
+          );
+        })}
       </View>
       {hint ? <Hint>{hint}</Hint> : null}
       {/* The same words once more, unseen and outside any cell, so each lays out exactly as wide as
@@ -150,12 +162,15 @@ function Option({
   small,
   stacked,
   checked,
+  switchable,
   onPress,
 }: {
   label: string;
   small?: boolean;
   stacked: boolean;
   checked: boolean;
+  /** A cell of a group that may be left with none chosen: a switch, not a radio. */
+  switchable: boolean;
   onPress: () => void;
 }) {
   const { hovered, focused, props } = useHoverFocus();
@@ -167,7 +182,7 @@ function Option({
 
   return (
     <Pressable
-      accessibilityRole="radio"
+      accessibilityRole={switchable ? 'togglebutton' : 'radio'}
       accessibilityLabel={label}
       accessibilityState={{ checked }}
       hitSlop={hitSlop(TAP, tall)}

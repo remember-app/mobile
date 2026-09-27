@@ -10,7 +10,7 @@ import { en, ru, type Strings } from '@/strings';
 import { type } from '@/theme';
 
 /**
- * The wizard's «Отмена» and the six groups of segments on the smallest phones with the largest type
+ * The wizard's «Отмена» and the seven groups of segments on the smallest phones with the largest type
  * (TASK-373), worked out the way the spec works them out: each word from the dictionary, measured
  * off the font file the app draws it in (Onest 600, no kerning), times the system's type size, in
  * the room each phone leaves (spec 7.1, detail 3 and spec 7.3, detail 18). The numbers held here are
@@ -87,12 +87,13 @@ test('with the side blocks at 44, the words of the counter fit whole at the larg
   expect(width(ru.montage.newOne.split(' ')[0], 13) * 3.571).toBeGreaterThan(room(320, 74));
 });
 
-/** The six groups (spec 7.3, detail 18), their words from the dictionary and the size each is set in. */
+/** The seven groups (spec 7.3, detail 18), their words from the dictionary and the size each is set in. */
 const GROUPS: { name: string; size: number; words: (s: Strings) => string[] }[] = [
+  { name: 'Тип', size: 14, words: (s) => [s.media.photo, s.media.video] },
   {
-    name: 'Тип',
+    name: 'Ориентация',
     size: 14,
-    words: (s) => [s.gallery.anyKind, s.media.photo, s.media.video],
+    words: (s) => [s.gallery.orientations.landscape, s.gallery.orientations.portrait],
   },
   {
     name: 'Порядок',
@@ -119,7 +120,8 @@ const GROUPS: { name: string; size: number; words: (s: Strings) => string[] }[] 
  */
 const TABLE: Record<string, Record<'ru' | 'en', string>> = {
   //                          375×1  375×2  360×1  360×2  320×1  320×2
-  Тип: { ru: 'r r r r r c', en: 'r r r r r c' },
+  Тип: { ru: 'r r r r r r', en: 'r r r r r r' },
+  Ориентация: { ru: 'r c r c r c', en: 'r r r r r r' },
   Порядок: { ru: 'r c r c r c', en: 'r c r c r c' },
   'Собрать в группы': { ru: 'r c r c c c', en: 'r c r c r c' },
   Тема: { ru: 'r c r c c c', en: 'r r r r r c' },
@@ -352,7 +354,7 @@ test('at ×2 the widest word of running text fits whole on the narrowest phones'
 });
 
 /**
- * The words themselves, as the spec writes them in the table of the six groups — and the widest of
+ * The words themselves, as the spec writes them in the table of the seven groups — and the widest of
  * each, at the size the spec measured it at. The rows-and-columns table above is only as good as the
  * words it is worked out from: a shorter word in the dictionary would quietly turn a column back
  * into a row and this file would go on agreeing with itself.
@@ -361,7 +363,12 @@ test('the dictionary’s words are the spec’s, and the widest of each group is
   // `widest` is ru and en at the group's own size and ×1: «(111)» in the spec is ×1, «(86)» and
   // «(93)» are ×2, halved here.
   const spec: Record<string, { ru: string[]; en: string[]; widest: [number, number] }> = {
-    Тип: { ru: ['Всё', 'Фото', 'Видео'], en: ['All of it', 'Photo', 'Video'], widest: [43, 46.4] },
+    Тип: { ru: ['Фото', 'Видео'], en: ['Photo', 'Video'], widest: [43, 39.3] },
+    Ориентация: {
+      ru: ['Горизонтальные', 'Вертикальные'],
+      en: ['Wide', 'Tall'],
+      widest: [113.9, 34],
+    },
     Порядок: {
       ru: ['Сначала новые', 'Сначала старые'],
       en: ['Newest first', 'Oldest first'],

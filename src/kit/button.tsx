@@ -367,7 +367,7 @@ function fill(
 /**
  * Spec 7.2 — the round button, at the seven diameters the layout draws: 56 at the foot of the
  * gallery, 48 on the glass bar and in the viewer, 44 in a bar, 40 in a track row, 36 in a row, 32 on
- * a banner, 28 beside «Все дни» in the filter (spec 8). Under 44 the drawn size stays and the finger
+ * a banner, 28 beside «Все» over the filter's days (spec 8). Under 44 the drawn size stays and the finger
  * target grows out to 44 (spec 10.2).
  *
  * The two glasses are two tones and not one: `glass` is the bar over the feed — `ink` at 62%, with a
@@ -623,7 +623,7 @@ function roundFill(
   switch (tone) {
     case 'surface':
       return { backgroundColor: color.surface, borderColor: color.line };
-    // The calendar beside «Все дни» (spec 8, `SheetFilter`): transparent inside a `lineQuiet` ring,
+    // The calendar beside «Все» over the days (spec 8, `SheetFilter`): transparent inside a `lineQuiet` ring,
     // the same ring the chip beside it wears.
     case 'outline':
       return {

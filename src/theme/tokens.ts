@@ -96,7 +96,7 @@ export const height = {
   chipSm: 36,
   /** the journal's filter */
   chipXs: 34,
-  /** «Все дни» and the calendar in the head of the filter's day block. Drawn at 28, felt at `TAP` */
+  /** «Все» in the head of a filter section, and the calendar over the days. Drawn at 28, felt at `TAP` */
   chipTag: 28,
   /** a face in «Кто принёс» */
   face: 48,
@@ -109,14 +109,15 @@ export const height = {
   watchPill: 38,
   /**
    * The sheets (spec 4, «Высоты листов»), each from its top edge down — a floor and not a cap: a
-   * sheet holding more grows to hold it. `SheetSort` and `SheetConfirmMemory` are what their
-   * content comes to (381 and 434), because the drawn 380 and 430 squeeze the handle and a button.
+   * sheet holding more grows to hold it. `SheetSort`, `SheetConfirmMemory` and `SheetFilter` are
+   * what their content comes to (381, 434 and 669), because the drawn 380, 430 and 650 squeeze the
+   * handle and a button.
    */
   sheetConfirmDelete: 380,
   sheetSort: 381,
   sheetConfirmMember: 420,
   sheetConfirmMemory: 434,
-  sheetFilter: 560,
+  sheetFilter: 669,
 } as const;
 
 /**
@@ -411,7 +412,7 @@ export const type = StyleSheet.create({
    */
   chip: { fontFamily: font.medium, fontSize: 14, lineHeight: onestLine(14) },
   /**
-   * «Все дни» in the head of the filter's day block — the smallest chip, and a heavier one; the
+   * «Все» in the head of a filter section — the smallest chip, and a heavier one; the
    * plate over the story on `MontageStory` and the template's plate on the summary's poster are the
    * same 12 / 600, on Onest's own line (`MontageStory.json` e12: 16 in a 32)
    */

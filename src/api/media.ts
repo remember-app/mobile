@@ -101,6 +101,11 @@ export type MediaItem = {
   captured_at: string | null;
   width: number | null;
   height: number | null;
+  /**
+   * Which way the frame stands as it is seen — worked out by the api from `width` and `height`, so
+   * null exactly while those are. A separate axis from `kind`, filtered on the phone like the rest.
+   */
+  orientation: 'landscape' | 'portrait' | 'square' | null;
   duration_seconds: number | null;
   created_at: string;
   /**

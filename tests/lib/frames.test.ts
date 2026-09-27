@@ -63,6 +63,7 @@ const record = (over: Partial<MediaItem>): MediaItem => ({
   captured_at: null,
   width: null,
   height: null,
+  orientation: null,
   duration_seconds: null,
   created_at: '2026-09-06T10:00:00.000Z',
   label_ids: [],
@@ -729,6 +730,26 @@ test('the filter holds back by who brought it, what it is, and which day it is f
   // The combination the sheet will not let anybody apply — the count on its button is what says so
   // before the press, and this is the question that count is asked.
   expect(only({ people: new Set(['mark']), kind: 'photo' })).toEqual([]);
+});
+
+test('wide or tall is its own axis: a square frame and one never measured stand only under «Все»', () => {
+  // Spec 8, `SheetFilter`, «Ориентация»: the api's `orientation`, a separate axis from `kind`.
+  const shaped = [
+    record({ id: 'wide', orientation: 'landscape' }),
+    record({ id: 'tall', orientation: 'portrait' }),
+    record({ id: 'tallVideo', kind: 'video', orientation: 'portrait' }),
+    record({ id: 'square', orientation: 'square' }),
+    record({ id: 'unmeasured', orientation: null }),
+  ];
+  const only = (over: Partial<Filter>) =>
+    framesMatching(shaped, { ...FILTER_NONE, ...over }).map((item) => item.id);
+
+  expect(only({})).toEqual(['wide', 'tall', 'tallVideo', 'square', 'unmeasured']);
+  expect(only({ orientation: 'landscape' })).toEqual(['wide']);
+  expect(only({ orientation: 'portrait' })).toEqual(['tall', 'tallVideo']);
+  // «и» between sections: the tall ones of the videos.
+  expect(only({ orientation: 'portrait', kind: 'video' })).toEqual(['tallVideo']);
+  expect(filtering({ ...FILTER_NONE, orientation: 'portrait' })).toBe(true);
 });
 
 test('a label is looked at by narrowing the feed to it — there is no screen of its own', () => {
