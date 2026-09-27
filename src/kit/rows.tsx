@@ -287,6 +287,7 @@ export function RowStep({
   const { color } = useTheme();
   const ahead = state === 'waiting';
   const mark = large ? { size: 14, stroke: 3 } : { size: 13 };
+  const chevron = large ? { size: 17, stroke: 2 } : { size: 16 };
 
   return (
     <View style={open ? styles.stepOpen : null}>
@@ -324,11 +325,7 @@ export function RowStep({
             {meta ? <Text role={large ? 'meta' : 'metaSm'}>{meta}</Text> : null}
           </View>
         )}
-        {ahead ? null : large ? (
-          <Icon icon={ChevronRight} size={17} stroke={2} color={color.faint} />
-        ) : (
-          <Icon icon={ChevronRight} size={16} color={color.faint} />
-        )}
+        {ahead ? null : <Icon icon={ChevronRight} {...chevron} color={color.faint} />}
       </Tappable>
       {open ? children : null}
     </View>

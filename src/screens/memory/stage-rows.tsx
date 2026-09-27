@@ -58,6 +58,7 @@ export function StageRows({
   const rowOf = (code: MontageStageCode) => journal.stages.find((one) => one.stage === code);
   const ahead = MONTAGE_STAGES.filter((code) => stageStanding(rowOf(code)) === 'waiting');
   const reached = MONTAGE_STAGES.filter((code) => !ahead.includes(code));
+  const between = large ? styles.betweenLarge : styles.between;
 
   return (
     <View style={[styles.stages, large ? styles.stagesLarge : null]}>
@@ -69,7 +70,7 @@ export function StageRows({
           <Fragment key={code}>
             {/* The hairline between two stages, inset to where their names start — the kit's soft
                 rule, because five of `line` in a row would read as a grid. */}
-            {at > 0 ? <Divider soft style={large ? styles.betweenLarge : styles.between} /> : null}
+            {at > 0 ? <Divider soft style={between} /> : null}
             <RowStep
               large={large}
               title={s.montage.stage[code]}
@@ -113,9 +114,7 @@ export function StageRows({
       })}
       {ahead.length > 0 ? (
         <>
-          {reached.length > 0 ? (
-            <Divider soft style={large ? styles.betweenLarge : styles.between} />
-          ) : null}
+          {reached.length > 0 ? <Divider soft style={between} /> : null}
           <RowStep
             title={s.montage.live.ahead(ahead.map((code) => s.montage.stageAhead[code]))}
             state="waiting"
