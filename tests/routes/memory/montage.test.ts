@@ -374,8 +374,9 @@ test('a finished film has a page of its own, and it is where the film is watched
   expect(done).not.toContain('useVideoPlayer');
   expect(done).not.toContain('<Modal');
   expect(player).toContain('export function FilmPlayer');
-  // «2:30 · 16:9» along the bottom of it, out of what the worker made and what was ordered.
-  expect(done).toContain("RATIO[montage.params.orientation ?? 'landscape']");
+  // «2:30 · 16:9» along the bottom of it, out of what the worker made and what was ordered — the
+  // one line the film's own screen and its sheet say it in too (`cutAs`).
+  expect(done).toContain('meta={montage === null ? undefined : cutAs(montage)}');
   // And «Готов» beside it — the large poster's own badge, not `sm`: lower case on the decision
   // mark's 22 pill (spec detail 24, 10.11: «„Готов“ на крупном постере — строчными, 11 / 700, без
   // трекинга, пилюля 22»); the shouted «ГОТОВ» is the strip's alone.
@@ -433,12 +434,12 @@ test('the montage that turns ready leads to its own page and never back into the
   expect(live).toContain('router.replace({');
   expect(live).toContain("if (journal.status === 'ready') leave();");
 
-  // And the card in the strip is the other road to the same page — the one anybody takes a week
-  // later. A push, because the memory under it is what «Назад» comes home to.
+  // And the card in the strip leads to the film's own screen (`Film`, 27 сентября) — the road
+  // anybody takes a week later. A push, because the memory under it is what «Назад» comes home to.
   const leads = films.slice(films.indexOf('const openFilm'));
   const road = leads.slice(0, leads.indexOf('});'));
   expect(road).toContain('router.push({');
-  expect(road).toContain("pathname: '/memory/[id]/montage/[montageId]/done',");
+  expect(road).toContain("pathname: '/memory/[id]/montage/[montageId]/film',");
   expect(road).toContain('params: { id, montageId: montage.id },');
   // The other road to the player is untouched: a frame's own sheet names a film on the way in, and
   // it is still the memory's route that raises the window over the feed (TASK-211).

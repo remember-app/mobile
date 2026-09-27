@@ -160,14 +160,17 @@ function lead(word: string): string {
 }
 
 /**
- * The two stacks the layout draws (spec 7.5, detail 32): 36 on the account's «Контакты», 24 in the
- * «смотрят сейчас» pill. `overlap` is how far a circle slides under the next one; the collar that cuts
- * them apart is `halo` of the colour underneath standing *outside* the circle at 36, and a 1
- * hairline inside it at 24 (`halo` 0); `letters` is the initials' size, in 700.
+ * The three stacks the layout draws (spec 7.5, detail 32): 36 on the account's «Контакты», 24 in the
+ * «смотрят сейчас» pill, and 26 in a row with no overlap at all — «Посмотрели» in `SheetFilmInfo`.
+ * `overlap` is how far a circle slides under the next one, and a negative one is the gap between two
+ * that do not touch; the collar that cuts overlapping ones apart is `halo` of the colour underneath
+ * standing *outside* the circle at 36, and a 1 hairline inside it at 24 (`halo` 0); `letters` is the
+ * initials' size, in 700.
  */
 const STACK = {
   36: { overlap: 12, halo: 2, letters: 11 },
   24: { overlap: 7, halo: 0, letters: 8 },
+  26: { overlap: -5, halo: 0, letters: 10 },
 } as const;
 
 /**
@@ -183,6 +186,9 @@ const STACK = {
  * Four circles at most. Past that the fourth stops being a face and becomes «+N», because a row of
  * faces is a glance and not a list — and the number it carries is the people it stands for, the
  * three drawn ones excluded.
+ *
+ * The row at 26 cuts nothing, so it has no collar, every circle keeps its initials in the middle, and
+ * its «+N» is `muted`, 10 / 700 tabular (detail 32, 27 сентября).
  */
 export function AvatarStack({
   names,
@@ -198,9 +204,12 @@ export function AvatarStack({
   const styles = useStackStyles();
   const under = on ?? color.surface;
   const { overlap, halo, letters } = STACK[size];
-  const collar = halo
-    ? { boxShadow: `0 0 0 ${halo}px ${under}` }
-    : { borderWidth: 1, borderColor: under };
+  const apart = overlap < 0;
+  const collar = apart
+    ? null
+    : halo
+      ? { boxShadow: `0 0 0 ${halo}px ${under}` }
+      : { borderWidth: 1, borderColor: under };
   const over = { marginLeft: -overlap };
   const rest = names.length > 4 ? names.length - 3 : 0;
   const faces = rest ? names.slice(0, 3) : names.slice(0, 4);
@@ -213,7 +222,7 @@ export function AvatarStack({
           key={`${name}-${i}`}
           name={name}
           size={size}
-          stacked={{ letters, covered: i === last ? 0 : overlap + halo }}
+          stacked={{ letters, covered: i === last || apart ? 0 : overlap + halo }}
           style={[collar, i === 0 ? null : over]}
         />
       ))}
@@ -226,8 +235,12 @@ export function AvatarStack({
           {/* Part of the circle, like the initials beside it (`Avatar`). */}
           <Text
             role="row"
+            tone={apart ? 'muted' : undefined}
             maxFontSizeMultiplier={1}
-            style={{ fontSize: letters, fontFamily: font.bold }}
+            style={[
+              { fontSize: letters, fontFamily: font.bold },
+              apart ? styles.moreFigures : null,
+            ]}
           >
             +{rest}
           </Text>
@@ -430,6 +443,7 @@ const useStackStyles = themed(({ color }) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
+    moreFigures: { fontVariant: ['tabular-nums'] },
     pill: {
       height: height.watchPill,
       flexDirection: 'row',

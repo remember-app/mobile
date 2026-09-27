@@ -42,8 +42,11 @@ afterEach(() => vi.unstubAllGlobals());
 const film = (id: string, params: Montage['params']): Montage => ({
   id,
   memory_id: 'm1',
-  ordered_by: 'me',
+  ordered_by: { id: 'me', username: 'me', name: null },
   status: 'ready',
+  name: 'Ролик на 1:30',
+  template: null,
+  size_bytes: null,
   duration_seconds: 90,
   params,
   error_text: null,

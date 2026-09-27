@@ -17,6 +17,7 @@ import type {
   MontageWishes,
   MusicTrackId,
 } from '@/api';
+import type { Strings } from '@/strings';
 
 /**
  * The shelf of tracks, in the layout's own order (`design/screens/MontageMusic.html`), each with the
@@ -44,6 +45,22 @@ export const TRACKS: readonly { id: MusicTrackId; seconds: number }[] = [
  */
 export const shelfTrack = (key: string): MusicTrackId | null =>
   TRACKS.some((track) => track.id === key) ? (key as MusicTrackId) : null;
+
+/**
+ * The music a film was cut to, in the order it plays, a word to a track — a shelf one by its name,
+ * one off the phone as one. A montage ordered before the list names its one track in either of the
+ * two single fields the api took then; it is still in the strip, so both are read.
+ */
+export function trackWords(params: Montage['params'], s: Strings): string[] {
+  const { music_tracks, music_track_id, music_track_key } = params;
+  if (music_tracks?.length)
+    return music_tracks.map((key) => {
+      const shelf = shelfTrack(key);
+      return shelf ? s.montage.track[shelf] : s.montage.ownTrackShort;
+    });
+  if (music_track_id) return [s.montage.track[music_track_id]];
+  return music_track_key ? [s.montage.ownTrackShort] : [];
+}
 
 /**
  * The four ready answers of `MontageBuild` (spec 7.3, detail 19). The fifth pill is «Всё» and is

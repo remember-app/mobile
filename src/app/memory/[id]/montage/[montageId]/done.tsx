@@ -17,11 +17,10 @@ import {
   TileNumber,
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
-import { formatRuntime } from '@/lib/dates';
 import { useStrings } from '@/lib/language';
 import { howMade, madeInMinutes, useMontageJournal, WHILE_LIVE_MS } from '@/lib/montage/journal';
-import { RATIO } from '@/lib/montage/order';
-import { FilmPlayer, montageTitle, useFilmActions } from '@/screens/memory/film-player';
+import { cutAs } from '@/screens/memory/film-info';
+import { FilmPlayer, useFilmActions } from '@/screens/memory/film-player';
 import { MontageGone } from '@/screens/memory/montage-gone';
 import { StageRows } from '@/screens/memory/stage-rows';
 import { space } from '@/theme';
@@ -99,7 +98,7 @@ export default function MontageDoneScreen() {
     }, [read]),
   );
 
-  const title = montage === null ? '' : montageTitle(montage, s);
+  const title = montage?.name ?? '';
   const made = madeInMinutes(journal.stages);
   const tiles = howMade(journal.stages, s);
   /** The film once there is a link to it — what «смотреть», «Сохранить» and «Поделиться» all need. */
@@ -152,7 +151,7 @@ export default function MontageDoneScreen() {
         large
         state="ready"
         title={title}
-        meta={madeTo(montage)}
+        meta={montage === null ? undefined : cutAs(montage)}
         poster={montage?.poster_url ?? undefined}
         badge={<BadgeMontage state="ready" label={s.montage.status.ready} />}
         label={s.montage.watch(title)}
@@ -214,17 +213,6 @@ export default function MontageDoneScreen() {
       <FilmPlayer film={playing ? film : null} onClose={() => setPlaying(false)} />
     </Board>
   );
-}
-
-/**
- * «2:30 · 16:9» along the bottom of the poster: what the film actually came out as. The running time
- * is the worker's own and the shape is what was ordered — the api reads a montage with no
- * orientation on it as horizontal, which is what every montage was before the choice existed.
- */
-function madeTo(montage: Montage | null): string | undefined {
-  if (montage === null) return undefined;
-  const runtime = formatRuntime(montage.duration_seconds);
-  return [runtime, RATIO[montage.params.orientation ?? 'landscape']].filter(Boolean).join(' · ');
 }
 
 // Nothing here carries a colour of its own — every piece on this page brings the kit's with it.

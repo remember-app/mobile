@@ -15,8 +15,12 @@ import { Text } from './text';
 type ConfirmProps = {
   visible: boolean;
   title: string;
-  /** The consequence, spelled out. The question is what will be lost, never «are you sure». */
-  text: string;
+  /**
+   * The consequence, spelled out. The question is what will be lost, never «are you sure». Left off
+   * only where the loss is not settled yet and the sheet says no more than its question
+   * (`SheetFilmInfo`, «Удалить ролик?»).
+   */
+  text?: string;
   /** The verb from the title — «Удалить», «Убрать», never «ОК». */
   confirmLabel: string;
   cancelLabel: string;
@@ -155,9 +159,11 @@ export function ConfirmSheet({
         </>
       }
     >
-      <Text role="bodySm" tone="muted">
-        {text}
-      </Text>
+      {text ? (
+        <Text role="bodySm" tone="muted">
+          {text}
+        </Text>
+      ) : null}
       {price ? (
         <View style={[styles.price, ink ? styles.priceInk : null]}>
           <Icon icon={TriangleAlert} size={18} color={color.dangerText} />

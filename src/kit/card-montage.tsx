@@ -224,18 +224,82 @@ export function CardMontage({
   );
 }
 
+/** Spec 8, `Film` — the poster the film's own screen starts with, from the top edge of the phone. */
+const FILM_POSTER = 300;
+
 /**
- * The `paper` circle a finished montage is watched from — 34 in the strip, 60 when it is the screen.
- * It lies on the poster, so it is the night's paper with the night's ink in it in both themes (the
- * layout draws it `rgba(245,243,238,.95)` with `#0B0B12` inside): in daylight the theme's own `ink`
- * is a cream, and a cream triangle on a cream circle is a circle with nothing in it.
+ * Spec 8, `Film` — the poster of a finished film as the first thing on its own screen: the still
+ * across the whole width and 300 down from the top edge, under the glass bar, darkened 150 from the
+ * top for the bar and 140 from the foot into the screen's own `ink`, so the picture runs into the page
+ * under it. The play circle of 68 stands 152 down and «1:00 · 16:9» 232 down, both centred.
+ *
+ * The whole poster is one press — the film is watched — and a poster with no film behind it yet (the
+ * link not read) takes no finger rather than open an empty window.
  */
-function PlayCircle({ size }: { size: 34 | 60 }) {
+export function PosterFilm({
+  poster,
+  meta,
+  label,
+  onPress,
+}: {
+  poster?: string | null;
+  /** «1:00 · 16:9» — written by the screen. */
+  meta?: string;
+  /** «Смотреть ролик» — what the poster is read out as. */
+  label: string;
+  onPress?: () => void;
+}) {
+  const { color } = useTheme();
+  const { focused, props } = useHoverFocus();
+  const styles = useStyles();
+  const focusRing = useFocusRing();
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      disabled={!onPress}
+      onPress={onPress}
+      {...props}
+      style={[styles.film, focused ? focusRing : null]}
+    >
+      {poster ? (
+        <Image source={{ uri: poster }} contentFit="cover" style={StyleSheet.absoluteFill} />
+      ) : null}
+      <View pointerEvents="none" style={styles.filmHead} />
+      <View
+        pointerEvents="none"
+        style={[
+          styles.filmFoot,
+          { experimental_backgroundImage: `linear-gradient(to top, ${color.ink} 4%, transparent)` },
+        ]}
+      />
+      <View style={styles.filmPlay}>
+        <PlayCircle size={68} />
+      </View>
+      {meta ? (
+        <Text role="label" style={[styles.onPhoto, styles.figures, styles.filmMeta]}>
+          {meta}
+        </Text>
+      ) : null}
+    </Pressable>
+  );
+}
+
+/**
+ * The `paper` circle a finished montage is watched from — 34 in the strip, 60 when it is the screen,
+ * 68 on the film's own. It lies on the poster, so it is the night's paper with the night's ink in it
+ * in both themes (the layout draws it `rgba(245,243,238,.95)` with `#0B0B12` inside): in daylight the
+ * theme's own `ink` is a cream, and a cream triangle on a cream circle is a circle with nothing in it.
+ */
+const PLAY_GLYPH = { 34: 15, 60: 24, 68: 27 } as const;
+
+function PlayCircle({ size }: { size: keyof typeof PLAY_GLYPH }) {
   const styles = useStyles();
 
   return (
     <View style={[styles.play, { width: size, height: size }]}>
-      <Icon icon={Play} size={size === 60 ? 24 : 15} color={night.ink} fill={night.ink} />
+      <Icon icon={Play} size={PLAY_GLYPH[size]} color={night.ink} fill={night.ink} />
     </View>
   );
 }
@@ -378,6 +442,27 @@ const useStyles = themed(({ color }) =>
       bottom: 0,
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    film: { minHeight: FILM_POSTER, backgroundColor: color.raise, overflow: 'hidden' },
+    filmHead: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 150,
+      experimental_backgroundImage: photo.filmHead,
+    },
+    filmFoot: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 140 },
+    filmPlay: { position: 'absolute', top: 152, left: 0, right: 0, alignItems: 'center' },
+    filmMeta: {
+      position: 'absolute',
+      top: 232,
+      left: space.s4,
+      right: space.s4,
+      textAlign: 'center',
+      textShadowColor: photo.figureShadow,
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 6,
     },
     play: {
       borderRadius: radius.pill,

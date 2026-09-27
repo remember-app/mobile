@@ -443,6 +443,7 @@ export function OrderProvider({ id, children }: { id: string; children: ReactNod
 export function WizardStep({
   step,
   title,
+  named,
   note,
   head,
   notice,
@@ -457,7 +458,13 @@ export function WizardStep({
    * neither is a step, so neither has a number or a place on the scale.
    */
   step: number | 'summary' | 'templates';
-  title: string;
+  /** The step's heading, in words — every step's but the total's. */
+  title?: string;
+  /**
+   * What stands in the heading's place on the total: the film's name, pressed to rename it (spec 8,
+   * `MontageSummary`, detail 79) — the words that used to head it are the bar's counter now.
+   */
+  named?: ReactNode;
   /** The line under the heading: «Можно пропустить — тогда режиссёр решит сам». */
   note?: string;
   /** What stands between the heading and the body, out of the scroll — a count, a way into a sheet. */
@@ -525,7 +532,7 @@ export function WizardStep({
             counted
               ? s.montage.step(step, STEPS)
               : summary
-                ? s.montage.summaryStep
+                ? s.montage.summaryTitle
                 : s.montage.newOne
           }
           variant={face}
@@ -561,7 +568,7 @@ export function WizardStep({
       }
       heading={
         <>
-          <WizardHeading title={title} note={note} variant={face} />
+          {title === undefined ? named : <WizardHeading title={title} note={note} variant={face} />}
           {ready && head ? <View style={styles.head}>{head}</View> : null}
         </>
       }

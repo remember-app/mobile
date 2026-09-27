@@ -179,6 +179,8 @@ function RootNavigator() {
           name="memory/[id]/montage/[montageId]/done"
           options={{ title: 'The movie is ready' }}
         />
+        {/* And the film's own screen, where a finished card in the strip leads (spec 8, `Film`). */}
+        <Stack.Screen name="memory/[id]/montage/[montageId]/film" options={{ title: 'Movie' }} />
         <Stack.Screen name="contacts" options={{ title: 'Contacts' }} />
         <Stack.Screen name="profile" options={{ title: 'Profile' }} />
         <Stack.Screen name="about" options={{ title: 'About' }} />

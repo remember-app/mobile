@@ -258,12 +258,17 @@ export type StepState = 'done' | 'running' | 'waiting' | 'failed';
  *
  * Nothing on it is cut: a name, a meta or the line of what is ahead that outgrows the row on large
  * system type wraps, and the row grows down with it.
+ *
+ * `large` is the same row where «Как собирался» is the main block of the screen (`Film`, detail 56
+ * «крупная свёрнутая»): 58 tall, a 26 circle with a heavier tick, the name 15 / 600 over its outcome
+ * 12 / 500, and a 17 chevron.
  */
 export function RowStep({
   title,
   meta,
   state,
   open,
+  large,
   onPress,
   children,
 }: {
@@ -273,6 +278,7 @@ export function RowStep({
   state: StepState;
   /** The stage in hand, opened out: its last records and the way into the whole journal. */
   open?: boolean;
+  large?: boolean;
   onPress?: () => void;
   /** Those records — `StepNote` each, and the link under them. */
   children?: ReactNode;
@@ -280,13 +286,14 @@ export function RowStep({
   const styles = useStyles();
   const { color } = useTheme();
   const ahead = state === 'waiting';
+  const mark = large ? { size: 14, stroke: 3 } : { size: 13 };
 
   return (
     <View style={open ? styles.stepOpen : null}>
       <Tappable
         label={[title, meta].filter(Boolean).join('. ')}
         onPress={ahead ? undefined : onPress}
-        style={[styles.step, ahead ? styles.stepAhead : null]}
+        style={[styles.step, large ? styles.stepLarge : null, ahead ? styles.stepAhead : null]}
       >
         {state === 'running' ? (
           <Spinner size={24} ring={2} track={color.line} head={color.accent} />
@@ -294,13 +301,14 @@ export function RowStep({
           <View
             style={[
               styles.stepMark,
+              large ? styles.stepMarkLarge : null,
               state === 'done' ? styles.stepDone : null,
               state === 'failed' ? styles.stepFailed : null,
               ahead ? styles.stepWaiting : null,
             ]}
           >
-            {state === 'done' ? <Icon icon={Check} size={13} color={color.sparkInk} /> : null}
-            {state === 'failed' ? <Icon icon={X} size={13} color={color.dangerText} /> : null}
+            {state === 'done' ? <Icon icon={Check} {...mark} color={color.sparkInk} /> : null}
+            {state === 'failed' ? <Icon icon={X} {...mark} color={color.dangerText} /> : null}
           </View>
         )}
         {ahead ? (
@@ -311,12 +319,16 @@ export function RowStep({
           </Text>
         ) : (
           // Spec 7.7, detail 56: the name 14 / 600 and the line under it 11 / 500 `muted`.
-          <View style={styles.grow}>
-            <Text role="rowSm">{title}</Text>
-            {meta ? <Text role="metaSm">{meta}</Text> : null}
+          <View style={[styles.grow, large ? styles.stepWordsLarge : null]}>
+            <Text role={large ? 'row' : 'rowSm'}>{title}</Text>
+            {meta ? <Text role={large ? 'meta' : 'metaSm'}>{meta}</Text> : null}
           </View>
         )}
-        {ahead ? null : <Icon icon={ChevronRight} size={16} color={color.faint} />}
+        {ahead ? null : large ? (
+          <Icon icon={ChevronRight} size={17} stroke={2} color={color.faint} />
+        ) : (
+          <Icon icon={ChevronRight} size={16} color={color.faint} />
+        )}
       </Tappable>
       {open ? children : null}
     </View>
@@ -625,6 +637,8 @@ const useStyles = themed(({ color }) =>
       gap: space.s3,
       paddingHorizontal: 14,
     },
+    stepLarge: { minHeight: 58 },
+    stepWordsLarge: { gap: 2 },
     stepAhead: { minHeight: height.small },
     aheadWords: { lineHeight: 18 },
     // Spec 7.7 — the stage in hand is washed rather than boxed: it is one of a list of stages, and
@@ -640,6 +654,7 @@ const useStyles = themed(({ color }) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
+    stepMarkLarge: { width: 26, height: 26 },
     stepDone: { backgroundColor: color.spark },
     stepFailed: { borderColor: color.dangerText },
     stepWaiting: { borderColor: color.line },

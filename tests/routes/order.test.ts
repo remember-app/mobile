@@ -339,7 +339,9 @@ test('one call at the end of the walk, and it carries every wish of spec 8', () 
   // Nothing leaves the phone until the last button, which is the summary's: only the screen that
   // has it calls the api at all, and their own track — sent when it is picked — is the one
   // exception, so that the last button is one call and not two.
-  expect(summary).toContain('const made = await orderMontage(token, id, wishes(items, order));');
+  expect(flat(summary)).toContain(
+    'const made = await orderMontage(token, id, { ...wishes(items, order),',
+  );
   for (const step of [frames, story, music, build]) expect(step).not.toContain('orderMontage');
   expect(music).toContain('await sendOwnTrack(token, id,');
 
