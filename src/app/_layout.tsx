@@ -17,6 +17,7 @@ import { Platform } from 'react-native';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { lockPortrait } from '@/lib/orientation';
 import { usePush } from '@/lib/push';
+import { useLaunchUpdate } from '@/lib/updates';
 import { useUploads } from '@/lib/upload/send';
 import { useTheme } from '@/theme';
 
@@ -101,6 +102,10 @@ function Startup() {
   // from a tunnel, has to pick itself back up whatever screen the app opens on. Above the wait for
   // the faces, because it needs no screen at all.
   useUploads();
+
+  // A fix published over the air, taken on this launch (TASK-420). Beside the queue, for its reason:
+  // it needs no screen, and the sooner it runs the less there is on screen to restart.
+  useLaunchUpdate();
 
   useEffect(() => {
     if (status !== 'loading' && fontsSettled) SplashScreen.hideAsync().catch(() => {});

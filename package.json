@@ -11,7 +11,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "biome check --error-on-warnings",
-    "format": "biome format --write"
+    "format": "biome format --write",
+    "update:dev": "EXPO_NO_DOTENV=1 EXPO_PUBLIC_API_URL=https://dev-api-remember.noxlabs.xyz eas update --channel dev --environment preview"
   },
   "dependencies": {
     "@expo-google-fonts/onest": "^0.4.2",
@@ -36,6 +37,7 @@
     "expo-secure-store": "~57.0.3",
     "expo-sharing": "~57.0.21",
     "expo-splash-screen": "~57.0.8",
+    "expo-updates": "~57.0.23",
     "expo-video": "~57.0.3",
     "expo-web-browser": "~57.0.2",
     "lucide-react-native": "^1.41.0",

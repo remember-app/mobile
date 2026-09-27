@@ -23,6 +23,12 @@ vi.mock('expo-secure-store', () => ({
 // the coordinates; the test that is about the geocoder itself mocks it again with answers of its own.
 vi.mock('expo-location', () => ({ reverseGeocodeAsync: async () => [] }));
 
+// Over-the-air updates, which are off everywhere but a store build: nothing is ever pending here.
+vi.mock('expo-updates', () => ({
+  useUpdates: () => ({ isUpdatePending: false }),
+  reloadAsync: async () => {},
+}));
+
 // The phone's own share sheet. Here it opens and is closed at once; the test that is about what
 // goes into it mocks it again and watches the call.
 vi.mock('expo-sharing', () => ({ shareAsync: async () => {} }));
