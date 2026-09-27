@@ -37,6 +37,7 @@ import {
   sifted,
   stageHeadLine,
   stageNumber,
+  takenBefore,
   useMontageJournal,
   useTypedThought,
 } from '@/lib/montage/journal';
@@ -219,6 +220,7 @@ export default function MontageLiveStageScreen() {
         <SheetLiveFile
           entry={card}
           file={cardFile}
+          nth={takenBefore(card, journal.entries)}
           author={whose(cardFile)}
           onCancel={() => setOpened(null)}
         />

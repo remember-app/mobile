@@ -31,6 +31,7 @@ import {
   stageMinutes,
   stageNumber,
   stageStanding,
+  takenBefore,
 } from '@/lib/montage/journal';
 import { en, ru } from '@/strings';
 
@@ -463,19 +464,19 @@ describe('where a frame ended up', () => {
 
   test('is the part of the story and the seconds it plays for', () => {
     const took = entry(1, { decision: 'take', story_part: 2, story_part_title: 'Клятвы' });
-    expect(placeLine(took, file, ru)).toBe('Часть 2 «Клятвы» · 1:12–1:16');
-    expect(placeLine(took, file, en)).toBe('Part 2 «Клятвы» · 1:12–1:16');
+    expect(placeLine(took, file, 0, ru)).toBe('Часть 2 «Клятвы» · 1:12–1:16');
+    expect(placeLine(took, file, 0, en)).toBe('Part 2 «Клятвы» · 1:12–1:16');
   });
 
   test('is the layout’s and not the thought’s: a record with nothing said still has its place', () => {
     // The road without the director: «беру» and no thought, no part of any story.
-    expect(placeLine(entry(1, { decision: 'take', thought: null }), file, ru)).toBe('1:12–1:16');
+    expect(placeLine(entry(1, { decision: 'take', thought: null }), file, 0, ru)).toBe('1:12–1:16');
     // And the part of the story it went into is the layout's as well: it is not left off with the thought.
-    expect(placeLine(entry(1, { decision: 'take', thought: null, story_part: 2 }), file, ru)).toBe(
-      'Часть 2 · 1:12–1:16',
-    );
+    expect(
+      placeLine(entry(1, { decision: 'take', thought: null, story_part: 2 }), file, 0, ru),
+    ).toBe('Часть 2 · 1:12–1:16');
     // A record that settled nothing — what was seen on the frame — is about a frame laid out all the same.
-    expect(placeLine(entry(1, { stage: 'understanding', media_id: 'f1' }), file, ru)).toBe(
+    expect(placeLine(entry(1, { stage: 'understanding', media_id: 'f1' }), file, 0, ru)).toBe(
       '1:12–1:16',
     );
   });
@@ -485,24 +486,62 @@ describe('where a frame ended up', () => {
       ...file,
       places: [...file.places, { start_seconds: 150, duration_seconds: 3 }],
     };
-    expect(placeLine(entry(1, { decision: 'take', story_part: 2 }), twice, ru)).toBe(
+    expect(placeLine(entry(1, { decision: 'take', story_part: 2 }), twice, 0, ru)).toBe(
       'Часть 2 · 1:12–1:16 · и ещё 1',
     );
   });
 
+  // TASK-456: a clip cut into two pieces is two «беру» and two places, in the same order.
+  describe('a clip taken twice', () => {
+    const twice = {
+      ...file,
+      places: [...file.places, { start_seconds: 150, duration_seconds: 3 }],
+    };
+    const first = entry(3, { media_id: 'f1', decision: 'take', story_part: 2 });
+    const second = entry(8, { media_id: 'f1', decision: 'take', story_part: 3 });
+    // Newest first, as the journal is held, with other files and records between the two.
+    const held = [
+      second,
+      entry(7, { media_id: 'f2', decision: 'take' }),
+      entry(5, { media_id: 'f1', decision: 'skip', reason: 'no_room' }),
+      entry(4, { media_id: 'f1' }),
+      first,
+      entry(2, { media_id: 'f2', decision: 'take' }),
+    ];
+
+    test('each «беру» names its own place, not the first one twice', () => {
+      expect(takenBefore(first, held)).toBe(0);
+      expect(takenBefore(second, held)).toBe(1);
+      const lines = [first, second].map((one) => placeLine(one, twice, takenBefore(one, held), ru));
+      expect(lines).toEqual(['Часть 2 · 1:12–1:16 · и ещё 1', 'Часть 3 · 2:30–2:33 · и ещё 1']);
+    });
+
+    test('a record that took nothing is about the frame, and names its first place', () => {
+      expect(takenBefore(held[3], held)).toBe(0);
+      expect(takenBefore(held[2], held)).toBe(0);
+    });
+
+    test('a «беру» whose piece has no place of its own names none — not another piece’s', () => {
+      // The ten-minute ceiling cuts the film's tail: the second piece was taken and never laid.
+      expect(placeLine(second, file, takenBefore(second, held), ru)).toBe('Часть 3');
+    });
+  });
+
   test('a record that passed the frame over has no place, however the file is laid out', () => {
-    expect(placeLine(entry(1, { decision: 'skip', reason: 'blur' }), file, ru)).toBe(undefined);
+    expect(placeLine(entry(1, { decision: 'skip', reason: 'blur' }), file, 0, ru)).toBe(undefined);
     expect(
-      placeLine(entry(1, { decision: 'skip', reason: 'exposure', thought: null }), file, ru),
+      placeLine(entry(1, { decision: 'skip', reason: 'exposure', thought: null }), file, 0, ru),
     ).toBe(undefined);
   });
 
   test('a frame with no place yet says only which part it is going into', () => {
     expect(
-      placeLine(entry(1, { decision: 'take', story_part: 1 }), { ...file, places: [] }, ru),
+      placeLine(entry(1, { decision: 'take', story_part: 1 }), { ...file, places: [] }, 0, ru),
     ).toBe('Часть 1');
     // And one the layout has not reached at all has nothing to say rather than an empty line.
-    expect(placeLine(entry(1, { decision: 'take' }), undefined, ru)).toBe(undefined);
-    expect(placeLine(entry(1, { decision: 'take' }), { ...file, places: [] }, ru)).toBe(undefined);
+    expect(placeLine(entry(1, { decision: 'take' }), undefined, 0, ru)).toBe(undefined);
+    expect(placeLine(entry(1, { decision: 'take' }), { ...file, places: [] }, 0, ru)).toBe(
+      undefined,
+    );
   });
 });

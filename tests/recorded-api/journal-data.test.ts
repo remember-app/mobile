@@ -34,6 +34,7 @@ import {
   recordsOf as recordsInStage,
   stageLine,
   stageStanding,
+  takenBefore,
 } from '@/lib/montage/journal';
 import { en, ru } from '@/strings';
 
@@ -423,10 +424,11 @@ describe.each(SCENARIOS)('%s — the worker’s words, in the app’s', (scenari
     // on either, and every one of them where there is no director at all.
     expect(placed.some((one) => one.decision === 'take' && one.thought === null)).toBe(true);
     for (const record of placed) {
-      const [first] = file(record.media_id)!.places;
-      const line = placeLine(record, file(record.media_id), ru);
+      const nth = takenBefore(record, full.entries);
+      const own = file(record.media_id)!.places[nth];
+      const line = placeLine(record, file(record.media_id), nth, ru);
       expect(line, `record ${record.id}`).toContain(
-        `${clock(first.start_seconds)}–${clock(first.start_seconds + first.duration_seconds)}`,
+        `${clock(own.start_seconds)}–${clock(own.start_seconds + own.duration_seconds)}`,
       );
       if (record.story_part !== null) expect(line).toContain(`Часть ${record.story_part}`);
     }
@@ -435,7 +437,7 @@ describe.each(SCENARIOS)('%s — the worker’s words, in the app’s', (scenari
     const passed = full.entries.filter((one) => one.decision === 'skip');
     expect(passed.some((one) => file(one.media_id)?.places.length)).toBe(true);
     for (const record of passed)
-      expect(placeLine(record, file(record.media_id), ru)).toBeUndefined();
+      expect(placeLine(record, file(record.media_id), 0, ru)).toBeUndefined();
   });
 
   test('the three numbers of «Как собирался» are the worker’s own tallies', () => {

@@ -171,7 +171,13 @@ describe.each(LANGUAGES)('every reason the worker writes, on the card (%s)', (la
     await act(async () => {
       tree = mounted(
         TestRenderer.create(
-          <SheetLiveFile entry={entry} file={file} author="Аня Петрова" onCancel={() => {}} />,
+          <SheetLiveFile
+            entry={entry}
+            file={file}
+            nth={0}
+            author="Аня Петрова"
+            onCancel={() => {}}
+          />,
         ),
       );
     });

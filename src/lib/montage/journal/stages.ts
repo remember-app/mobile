@@ -281,34 +281,55 @@ export function sifted(entries: readonly JournalEntry[], sift: Sift): JournalEnt
 }
 
 /**
+ * Which of its file's places in the film is this record's own, counted from the first: how many
+ * times the director took the same file before it. One clip can go into a video as several pieces,
+ * each with its own «беру», and the api hands a file's places in the order they play — the same
+ * order the worker writes those records in (api `docs/journal.md`, TASK-457). So the second «беру»
+ * of a clip is its second place, not its first again. Anything but a «беру» is about the frame as a
+ * whole and names the first.
+ *
+ * ponytail: counts only the records held, so a take whose earlier takes of the same file sit on a
+ * page not yet paged back to counts short. A directing stage is a page for the memories this app is
+ * used for; if one ever is not, ask the api for the file's records alone (`media_id`).
+ */
+export const takenBefore = (entry: JournalEntry, entries: readonly JournalEntry[]): number =>
+  entry.decision !== 'take'
+    ? 0
+    : entries.filter(
+        (one) => one.decision === 'take' && one.media_id === entry.media_id && one.id < entry.id,
+      ).length;
+
+/**
  * Where a frame lay in the film (spec 7.6, `SheetLiveFile`) — «Часть 2 «Клятвы» · 1:12–1:16 · и ещё
  * 1». A fact of the layout and not of the thought: the seconds are the file's own `places`, so the
  * line is there whether the director said anything about the frame or not — and on the road without
- * the director it never does. The part of the story is the record's, and a frame that stands in the
- * video twice says so by a count rather than by a second line: the sheet is about the frame, not
- * about the cutting list.
+ * the director it never does. The part of the story is the record's, and so is the place: `nth` of
+ * the file's places (`takenBefore`). The others the frame stands in are said by a count rather than
+ * by a line each: the sheet is about the frame, not about the cutting list.
  *
  * A record that passed the frame over has none of this, however the file is laid out: its card is
  * about why it was passed over, and a frame the organizer then asked for is placed on the card of
- * the record that took it.
+ * the record that took it. Nor does a «беру» whose piece has no place of its own — cut off the tail
+ * of a film that ran past its ceiling: the seconds of another piece are not where this one went.
  */
 export function placeLine(
   entry: JournalEntry,
   file: JournalFile | undefined,
+  nth: number,
   s: Strings,
 ): string | undefined {
   if (entry.decision === 'skip') return undefined;
   const { live } = s.montage;
-  const [place, ...rest] = file?.places ?? [];
-  const from = place === undefined ? undefined : formatRuntime(place.start_seconds);
-  const to =
-    place === undefined ? undefined : formatRuntime(place.start_seconds + place.duration_seconds);
+  const places = file?.places ?? [];
+  const place = places[nth];
   const parts = [
     entry.story_part === null
       ? undefined
       : live.partOf(entry.story_part, entry.story_part_title ?? undefined),
-    from !== undefined && to !== undefined ? `${from}–${to}` : undefined,
-    rest.length === 0 ? undefined : live.morePlaces(rest.length),
+    place === undefined
+      ? undefined
+      : `${formatRuntime(place.start_seconds)}–${formatRuntime(place.start_seconds + place.duration_seconds)}`,
+    place === undefined || places.length === 1 ? undefined : live.morePlaces(places.length - 1),
   ].filter((part): part is string => part !== undefined);
   return parts.length === 0 ? undefined : parts.join(' · ');
 }
