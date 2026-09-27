@@ -342,7 +342,10 @@ test('a record about a file opens that file’s card, and a deleted file is stil
   expect(liveFile).toContain('<Tag key={at} label={label} />');
   // Where the frame lay is the layout's and not the thought's: a line of its own, not a part of the
   // plate — so a record with no thought still has it.
-  expect(liveFile).toContain('const place = placeLine(entry, file, s);');
+  expect(liveFile).toContain('const place = placeLine(entry, file, nth, s);');
+  // …and the place is the record's own: a clip taken twice is two «беру» and two places, and the
+  // second «беру» is the second place (TASK-456), counted over the journal the screen holds.
+  expect(stageLog).toContain('nth={takenBefore(card, journal.entries)}');
   expect(liveFile).not.toContain('outcome=');
 });
 

@@ -53,7 +53,13 @@ test('the file is named 14 / 600, and where it lay is said 12 / 600 in accent', 
   let tree!: TestRenderer.ReactTestRenderer;
   await act(async () => {
     tree = TestRenderer.create(
-      <SheetLiveFile entry={entry()} file={file} author="Аня Петрова" onCancel={() => {}} />,
+      <SheetLiveFile
+        entry={entry()}
+        file={file}
+        nth={0}
+        author="Аня Петрова"
+        onCancel={() => {}}
+      />,
     );
   });
   const style = (said: string) =>
@@ -89,7 +95,7 @@ test.each([
   async (language, one, of) => {
     await setLanguage(language);
     const drawn = story(
-      <SheetLiveFile entry={one} file={of} author="Аня Петрова" onCancel={() => {}} />,
+      <SheetLiveFile entry={one} file={of} nth={0} author="Аня Петрова" onCancel={() => {}} />,
     );
     expect(sheetStyle(drawn)).toMatch(/^gap:14px;/);
     // It scrolls once it outgrows the screen, and keeps the same 14 inside the scroll.

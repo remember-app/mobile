@@ -601,11 +601,12 @@ describe.each(SCENARIOS)('%s — the journal of one stage and the card of a file
   const steps = load(scenario);
   const whole = bodyOf(steps, 'journal_of_ready_montage');
 
-  async function open(stage: string) {
+  async function open(stage: string, patch?: Record<string, (body: unknown) => unknown>) {
     const api = replay(steps, {
       only: ['journal_of_ready_montage'],
       cutFrom: 'journal_of_ready_montage',
       extra,
+      patch,
     });
     route.params = { id: MEMORY, montageId: MONTAGE, stage };
     return { api, screen: await mount(<MontageLiveStageScreen />, api) };
@@ -868,6 +869,45 @@ describe.each(SCENARIOS)('%s — the journal of one stage and the card of a file
       expect(words(sheet), `record ${record.id}`).toContain(
         `${clock(place.start_seconds)}–${clock(place.start_seconds + place.duration_seconds)}`,
       );
+      await act(async () => sheet.props.onCancel());
+    }
+    await screen.unmount();
+  });
+
+  // NOT WORDS OF THE API — the recording predates a clip cut into pieces (TASK-449). Its taken clip
+  // is taken a second time, later in the plan, and so stands in the film a second time, later on.
+  test('a clip taken twice: each «беру» opens on its own place in the film, not the first one twice', async () => {
+    const files = new Map(whole.files.map((one) => [one.id, one]));
+    const once = recordsOn('directing').find(
+      (one) => one.decision === 'take' && files.get(one.media_id!)?.kind === 'video',
+    )!;
+    const clip = files.get(once.media_id!)!;
+    const [first] = clip.places;
+    const places = [first, { start_seconds: first.start_seconds + 20, duration_seconds: 2 }];
+    const again = { ...once, id: Math.max(...whole.entries.map((one) => one.id)) + 1 };
+    const { screen } = await open('directing', {
+      journal_of_ready_montage: (body) => {
+        const journal = body as MontageJournal;
+        return {
+          ...journal,
+          entries: [again, ...journal.entries],
+          files: journal.files.map((one) => (one.id === clip.id ? { ...one, places } : one)),
+        };
+      },
+    });
+    const listed = [again, ...recordsOn('directing')];
+    const span = ({ start_seconds, duration_seconds }: (typeof places)[number]) =>
+      `${clock(start_seconds)}–${clock(start_seconds + duration_seconds)}`;
+
+    for (const [record, own, other] of [
+      [once, places[0], places[1]],
+      [again, places[1], places[0]],
+    ] as const) {
+      await screen.press(inList(screen)[listed.indexOf(record)]);
+      const sheet = screen.root.findByType(SheetLiveFile);
+      expect(sheet.props.entry.id).toBe(record.id);
+      expect(words(sheet), `record ${record.id}`).toContain(span(own));
+      expect(words(sheet), `record ${record.id}`).not.toContain(span(other));
       await act(async () => sheet.props.onCancel());
     }
     await screen.unmount();

@@ -24,18 +24,23 @@ import { space } from '@/theme';
  *
  * Its own component and not a piece of the journal screen: it is handed the record and the file
  * rather than the montage — nothing on it is about the video as a whole — and the author by name,
- * because who that is comes off the memory's roster and a sheet reads nothing for itself. The
- * journal of a stage raises it, whether the montage is being watched live or was finished months ago.
+ * because who that is comes off the memory's roster and a sheet reads nothing for itself. So is
+ * which of the file's places is the record's own: that is counted over the journal it was read in.
+ * The journal of a stage raises it, whether the montage is being watched live or was finished
+ * months ago.
  */
 export function SheetLiveFile({
   entry,
   file,
+  nth,
   author,
   onCancel,
 }: {
   entry: JournalEntry;
   /** Gone from the memory since: the sheet then has the words and no picture (api README). */
   file?: JournalFile;
+  /** Which of the file's places is this record's, from 0 — `takenBefore`. */
+  nth: number;
   /** «Аня Петрова» — off the roster, by `memberName`. */
   author: string;
   onCancel: () => void;
@@ -44,7 +49,7 @@ export function SheetLiveFile({
   const { width } = useWindowDimensions();
   const [mark] = marksOf(entry, s);
   const why = whyDecided(entry, s);
-  const place = placeLine(entry, file, s);
+  const place = placeLine(entry, file, nth, s);
   // The frame runs the width of the sheet inside its own margins, and the sheet itself stops at the
   // 420 `kit/sheet.tsx` holds it to. The gaze arrives as fractions of the picture, so this is what
   // turns them into points of the one actually drawn.
