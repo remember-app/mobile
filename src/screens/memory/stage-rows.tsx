@@ -31,6 +31,7 @@ export function StageRows({
   montageId,
   journal,
   opens,
+  large,
 }: {
   memoryId: string;
   montageId: string;
@@ -40,6 +41,11 @@ export function StageRows({
    * is: the finished film's page lists its five closed (`MontageLiveDone`).
    */
   opens?: (code: MontageStageCode) => boolean;
+  /**
+   * The five as the main block of the film's own screen (`Film`, detail 56 «крупная свёрнутая»):
+   * larger rows in a card of 20, the rule between them 52 in.
+   */
+  large?: boolean;
 }) {
   const router = useRouter();
   const s = useStrings();
@@ -54,7 +60,7 @@ export function StageRows({
   const reached = MONTAGE_STAGES.filter((code) => !ahead.includes(code));
 
   return (
-    <View style={styles.stages}>
+    <View style={[styles.stages, large ? styles.stagesLarge : null]}>
       {reached.map((code, at) => {
         const row = rowOf(code);
         const last = lastOfStage(journal.entries, code);
@@ -63,8 +69,9 @@ export function StageRows({
           <Fragment key={code}>
             {/* The hairline between two stages, inset to where their names start — the kit's soft
                 rule, because five of `line` in a row would read as a grid. */}
-            {at > 0 ? <Divider soft style={styles.between} /> : null}
+            {at > 0 ? <Divider soft style={large ? styles.betweenLarge : styles.between} /> : null}
             <RowStep
+              large={large}
               title={s.montage.stage[code]}
               meta={row && stageLine(row, s)}
               state={stageStanding(row)}
@@ -106,7 +113,9 @@ export function StageRows({
       })}
       {ahead.length > 0 ? (
         <>
-          {reached.length > 0 ? <Divider soft style={styles.between} /> : null}
+          {reached.length > 0 ? (
+            <Divider soft style={large ? styles.betweenLarge : styles.between} />
+          ) : null}
           <RowStep
             title={s.montage.live.ahead(ahead.map((code) => s.montage.stageAhead[code]))}
             state="waiting"
@@ -127,7 +136,9 @@ const useStyles = themed(({ color }) =>
       backgroundColor: color.surface,
       overflow: 'hidden',
     },
+    stagesLarge: { borderRadius: radius.section },
     // Spec detail 56: the rule between two stages starts where their names do.
     between: { marginLeft: 50 },
+    betweenLarge: { marginLeft: 52 },
   }),
 );

@@ -36,7 +36,6 @@ export const en = {
     /** How many a memory has, for the badge on its card — the Russian declines it, so it is a word. */
     count: (n: number) => `${n} ${n === 1 ? 'movie' : 'movies'}`,
     ofLength: (runtime: string) => `Movie of ${runtime}`,
-    fromDay: (day: string) => `Movie from ${day}`,
     /** The second line of a card that fell over, where a finished one says what it was made of. */
     broke: 'The cut broke off halfway',
     /** Spoken off the poster of a finished movie: the card is a button and the film is its name. */
@@ -74,8 +73,6 @@ export const en = {
      * of the wizard first, then the four steps in order, then the two sheets that stand in for one.
      */
     step: (n: number, of: number) => `Step ${n} of ${of}`,
-    /** What the bar says over the total instead of a step: there is no step after it, and no scale. */
-    summaryStep: 'Summary',
     next: 'Next',
 
     /** `MontageTemplate` — the way in: six ready-made films, and the door beside them. */
@@ -217,9 +214,24 @@ export const en = {
 
     /**
      * `MontageSummary` — the order read back before it is spent. Everything counted in it is the
-     * api's own answer and nothing on the screen can be edited, so these are all read-only words.
+     * api's own answer, and the one thing on it that is edited is the film's name.
+     *
+     * What the bar says over the total instead of a step: there is no step after it, and no scale —
+     * the heading under it is the film's name.
      */
     summaryTitle: 'Everything is ready',
+    /**
+     * A film's name until somebody gives it one, by the template the order started from (spec 8,
+     * `MontageSummary`, chief, 27 September); without one it is `ofLength`, the api's own.
+     */
+    defaultName: {
+      for_myself: 'Movie for myself',
+      quick: 'Quick movie',
+      report: 'Official movie',
+      short_form: 'Movie for TikTok',
+      parents: 'Movie for the parents',
+      dopamine: 'Dopamine bomb',
+    },
     /** «168 photos · 46 videos» — the frames that are actually going in, counted by the api. */
     shots: (photos: number, videos: number) =>
       `${photos} ${photos === 1 ? 'photo' : 'photos'} · ${videos} ${videos === 1 ? 'video' : 'videos'}`,
@@ -408,6 +420,37 @@ export const en = {
       },
     },
 
+    /**
+     * `Film` and `SheetFilmInfo` — the finished film's own screen and the sheet of what it is. The
+     * rows reuse the words that already name the same thing: «Music», «Frames», «File».
+     */
+    film: {
+      /** The glass button in the bar: the film handed on through the phone's own sheet. */
+      share: 'Share the movie',
+      /** The capsule in the bar, read out — it opens the sheet. */
+      about: (name: string) => `${name}. About the movie`,
+      /** Beside «How it was made»: how many stages it took, and their minutes together. */
+      took: (stages: number, minutes: number | null) =>
+        [
+          `${stages} ${stages === 1 ? 'stage' : 'stages'}`,
+          minutes === null ? null : `${minutes} min`,
+        ]
+          .filter(Boolean)
+          .join(' · '),
+      template: 'Template',
+      /** Every track, in the order they play. */
+      tracks: (names: readonly string[]) => names.map((name) => `“${name}”`).join(', '),
+      noMusic: 'No music',
+      made: 'Made',
+      watchedBy: 'Watched',
+      rename: 'Rename',
+      remove: 'Delete the movie',
+      removeAsk: 'Delete the movie?',
+      /** The sheet the name is changed on — from the sheet above and from the total's heading. */
+      nameTitle: 'Movie title',
+      renameNow: (name: string) => `Rename the movie. Now: ${name}`,
+    },
+
     /** `SheetTooLittle` — raised in place of step 1, when the order would not go through. */
     tooLittleTitle: 'Too little material yet',
     tooLittleText: (n: number) =>
@@ -429,7 +472,6 @@ export const ru: typeof en = {
     orientation: { landscape: 'Горизонтальный', portrait: 'Вертикальный' },
     count: (n: number) => count(n, 'ролик', 'ролика', 'роликов'),
     ofLength: (runtime: string) => `Ролик на ${runtime}`,
-    fromDay: (day: string) => `Ролик от ${day}`,
     broke: 'Сборка оборвалась на полпути',
     watch: (title: string) => `Смотреть: ${title}`,
     saveShare: 'Сохранить и поделиться',
@@ -447,7 +489,6 @@ export const ru: typeof en = {
     shareFailed: 'Не получилось поделиться роликом.',
 
     step: (n: number, of: number) => `Шаг ${n} из ${of}`,
-    summaryStep: 'Итог',
     next: 'Дальше',
 
     templateTitle: 'Каким будет ролик',
@@ -537,6 +578,14 @@ export const ru: typeof en = {
     toSummary: 'К итогу',
 
     summaryTitle: 'Всё готово к монтажу',
+    defaultName: {
+      for_myself: 'Ролик для себя',
+      quick: 'Быстрый ролик',
+      report: 'Официальный ролик',
+      short_form: 'Ролик для TikTok',
+      parents: 'Ролик для родителей',
+      dopamine: 'Дофаминовая бомба',
+    },
     shots: (photos: number, videos: number) => `${photos} фото · ${videos} видео`,
     byPeople: (n: number) => `от ${count(n, 'человека', 'человек', 'человек')}`,
     noMusicLive: 'Без музыки · живой звук',
@@ -635,6 +684,25 @@ export const ru: typeof en = {
         included: 'Взят по слову организатора',
         other: 'Не подошёл',
       },
+    },
+
+    film: {
+      share: 'Поделиться роликом',
+      about: (name: string) => `${name}. Сведения о ролике`,
+      took: (stages: number, minutes: number | null) =>
+        [count(stages, 'этап', 'этапа', 'этапов'), minutes === null ? null : `${minutes} мин`]
+          .filter(Boolean)
+          .join(' · '),
+      template: 'Шаблон',
+      tracks: (names: readonly string[]) => names.map((name) => `„${name}“`).join(', '),
+      noMusic: 'Без музыки',
+      made: 'Собран',
+      watchedBy: 'Посмотрели',
+      rename: 'Переименовать',
+      remove: 'Удалить ролик',
+      removeAsk: 'Удалить ролик?',
+      nameTitle: 'Название ролика',
+      renameNow: (name: string) => `Переименовать ролик. Сейчас: ${name}`,
     },
 
     tooLittleTitle: 'Материала пока мало',

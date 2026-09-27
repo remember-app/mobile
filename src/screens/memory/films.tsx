@@ -27,10 +27,9 @@ import { formatDay } from '@/lib/dates';
 import { keepReady } from '@/lib/frames';
 import { useStrings } from '@/lib/language';
 import { currentStage, STAGE_COUNT, stageNumber } from '@/lib/montage/journal';
-import { beingMade, shelfTrack, WHILE_MAKING_MS } from '@/lib/montage/order';
-// The one player this product has, and what a film is called — both of them shared with the film's
-// own page, which watches and saves the very same video (TASK-222).
-import { FilmPlayer, montageTitle } from '@/screens/memory/film-player';
+import { beingMade, trackWords, WHILE_MAKING_MS } from '@/lib/montage/order';
+// The one player this product has, shared with the film's own screen, which plays the very same video.
+import { FilmPlayer } from '@/screens/memory/film-player';
 import { BlockHead } from '@/screens/memory/head';
 import type { Strings } from '@/strings';
 import { height, space } from '@/theme';
@@ -69,25 +68,18 @@ function stepOf(montage: Montage, s: Strings) {
 /**
  * What a finished montage was made of — «14 сентября · горизонтальный · Тёплая» (spec 7.6). The day
  * it was ordered on, and the wishes that shaped it; a montage cut before any of them could be asked
- * for simply says less, rather than saying a default somebody never chose. A track off the phone is
- * named as one: its key is a storage path and never a word for a person.
- *
- * The music is a list now, in the order it plays, and one card may name several tracks. An older
- * montage carries neither list nor empty list but one of the two single fields the api took before
- * it — and it is still on the same screen, so both are read here.
+ * for simply says less, rather than saying a default somebody never chose. The music is every track
+ * in the order it plays (`trackWords`).
  */
 function madeOf(montage: Montage, s: Strings): string {
-  const parts = [formatDay(montage.created_at)];
-  const { orientation, music_tracks, music_track_id, music_track_key } = montage.params;
-  if (orientation) parts.push(s.montage.orientation[orientation]);
-  if (music_tracks?.length) {
-    for (const key of music_tracks) {
-      const shelf = shelfTrack(key);
-      parts.push(shelf ? s.montage.track[shelf] : s.montage.ownTrackShort);
-    }
-  } else if (music_track_id) parts.push(s.montage.track[music_track_id]);
-  else if (music_track_key) parts.push(s.montage.ownTrackShort);
-  return parts.join(' · ');
+  const { orientation } = montage.params;
+  return [
+    formatDay(montage.created_at),
+    orientation ? s.montage.orientation[orientation] : null,
+    ...trackWords(montage.params, s),
+  ]
+    .filter(Boolean)
+    .join(' · ');
 }
 
 /**
@@ -259,17 +251,16 @@ export function Films({ id, memory }: { id: string; memory: Memory | null }) {
     });
 
   /**
-   * And where a finished one lives — «Ролик готов» (spec 8, `MontageLiveDone`, TASK-222). The card
-   * used to raise the player over the strip; the film has a page of its own now, because the journal
-   * of how it was cut stays with it for ever and there would otherwise be nothing to open it from.
-   * The player is on that page and it is this very one: «смотреть» is a press on its poster.
+   * And where a finished one lives — its own screen, `Film` (spec 8, 27 сентября): the poster it is
+   * watched from, how it was cut, and the sheet of what it is. `MontageLiveDone` stays the end of
+   * the live screen and nothing else.
    *
    * The other road here is untouched and is not this one: `montage` on the memory's own route raises
    * the player over the feed, which is what «В роликах» on a frame's sheet asks for (TASK-211).
    */
   const openFilm = (montage: Montage) =>
     router.push({
-      pathname: '/memory/[id]/montage/[montageId]/done',
+      pathname: '/memory/[id]/montage/[montageId]/film',
       params: { id, montageId: montage.id },
     });
 
@@ -365,7 +356,7 @@ export function Films({ id, memory }: { id: string; memory: Memory | null }) {
               <CardMontage
                 key={montage.id}
                 state={state}
-                title={montageTitle(montage, s)}
+                title={montage.name}
                 // Spec 7.6 gives the three states three different bodies: a finished one says what
                 // it was made of, one that fell over says why in the worker's own sentence (spec
                 // detail 38), or the general line where the worker said none. One still being cut

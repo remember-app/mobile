@@ -10,6 +10,7 @@ import {
   Button,
   ICO_S,
   Icon,
+  NameHeading,
   PosterOrder,
   SummarySection,
   SummaryShots,
@@ -21,6 +22,7 @@ import { useAuth } from '@/lib/auth';
 import { formatRuntime } from '@/lib/dates';
 import { useStrings } from '@/lib/language';
 import { RATIO, shelfTrack, taken, wishes } from '@/lib/montage/order';
+import { FilmNameSheet } from '@/screens/memory/film-info';
 import {
   type Refusal,
   refusal,
@@ -32,13 +34,15 @@ import {
 import { space, themed, useTheme, wizardLead } from '@/theme';
 
 /**
- * The summary, `MontageSummary` (spec 8) — the order read back and then spent. The poster of the
- * film that does not exist yet, the three sections of what was asked for, the wait in minutes, and
- * the one button.
+ * The summary, `MontageSummary` (spec 8) — the order read back and then spent. The film's name at
+ * the head of it, the poster of the film that does not exist yet, the three sections of what was
+ * asked for, the wait in minutes, and the one button.
  *
- * Nothing on this screen can be edited, and that is the whole of its design: the way to change an
- * answer is «Назад» to the step that gave it, because a field here would be a second place where
- * the same thing is decided — and the summary would then be a summary of something else.
+ * The name is the one thing edited here (detail 79): it is asked nowhere else, and it goes with the
+ * order. Until it is typed over it is the template's own, or «Ролик на 2:30» off the length without
+ * one. Every other answer is changed by «Назад» to the step that gave it, because a field here would
+ * be a second place where the same thing is decided — and the summary would then be a summary of
+ * something else.
  *
  * Every number on it is the api's: how many photos, how many videos, how many people and how long
  * the making takes all come from one `previewMontage` call, made with the very body the order
@@ -58,6 +62,9 @@ export default function SummaryStep() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [title, setTitle] = useState<string | null>(null);
+  /** The name typed over the one the film would get, and whether the sheet it is typed on is up. */
+  const [named, setNamed] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState(false);
   const gone = useStillHere();
   const inMovie = taken(material, order);
   const shots = inMovie.map((item) => item.thumbnail_url).filter((uri) => uri !== null);
@@ -106,7 +113,11 @@ export default function SummaryStep() {
     setBusy(true);
     setNotice(null);
     try {
-      const made = await orderMontage(token, id, wishes(items, order));
+      const made = await orderMontage(token, id, {
+        ...wishes(items, order),
+        ...(template === null ? {} : { template }),
+        ...(sent === null ? {} : { name: sent }),
+      });
       // Left while it was in flight: the order is placed and cannot be unsent, but the screen that
       // asked for it is not here to lead anywhere — the list on the memory is where it shows up.
       if (gone.current) return;
@@ -145,11 +156,30 @@ export default function SummaryStep() {
 
   const story = order.story.trim();
   const template = order.template;
+  /**
+   * What goes out as the name: the one typed, else the template's out of the dictionary; with
+   * neither, nothing, and the api calls it by its length in each reader's own language.
+   */
+  const sent = named ?? (template === null ? null : s.montage.defaultName[template]);
+  /** The heading, once the total is in: the name that goes out, or the length the api will name. */
+  const shown =
+    preview === null
+      ? null
+      : (sent ?? s.montage.ofLength(formatRuntime(preview.target_seconds) ?? ''));
 
   return (
     <WizardStep
       step="summary"
-      title={s.montage.summaryTitle}
+      named={
+        shown === null ? undefined : (
+          <NameHeading
+            name={shown}
+            label={s.montage.film.renameNow(shown)}
+            onPress={() => setRenaming(true)}
+            style={styles.name}
+          />
+        )
+      }
       notice={notice}
       action={
         preview === null ? undefined : (
@@ -252,6 +282,19 @@ export default function SummaryStep() {
               {s.montage.readyIn(preview.estimate_minutes)}
             </Text>
           </View>
+
+          {/* The same sheet «Переименовать» raises over a finished film; here the name only goes
+              with the order, so saving it is setting it. */}
+          {renaming && shown !== null ? (
+            <FilmNameSheet
+              name={shown}
+              onSave={(next) => {
+                setNamed(next);
+                setRenaming(false);
+              }}
+              onClose={() => setRenaming(false)}
+            />
+          ) : null}
         </>
       )}
     </WizardStep>
@@ -263,6 +306,8 @@ const useStyles = themed(() =>
     grow: { flex: 1, minWidth: 0 },
     middle: { flexGrow: 1, justifyContent: 'center' },
     banner: { marginHorizontal: space.s4 },
+    // Spec 8, `MontageSummary`: 10 under the bar's row, in the column's 16.
+    name: { marginTop: 10, marginHorizontal: space.s4 },
     body: {
       flexGrow: 1,
       paddingHorizontal: space.s4,

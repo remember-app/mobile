@@ -407,7 +407,7 @@ test('the bar’s row is «Назад», the counter, then «Отмена» — 
   }
 });
 
-test('under the row: the scale 12 down, the heading 18 down inside the margins — 12 where there is no scale — and the note 10 under it', async () => {
+test('under the row: the scale 12 down, the heading 18 down inside the margins — 14 where there is no scale — and the note 10 under it', async () => {
   const step = await wizardTree(1);
   const heading = step.tree.root.find((one) => one.type === Text && one.props.role === 'display');
   // The heading is the screen's heading for a screen reader, and the bar's — the body scrolls.
@@ -420,18 +420,9 @@ test('under the row: the scale 12 down, the heading 18 down inside the margins �
   expect(note.props.tone).toBe('muted');
   expect(step.flat(note)).toMatchObject({ marginTop: 10 });
 
-  const total = await wizardTree(1, { variant: 'summary' });
-  const totalHeading = total.tree.root.find(
-    (one) => one.type === Text && one.props.role === 'display',
-  );
-  expect(total.flat(total.around(totalHeading))).toMatchObject({
-    marginTop: 12,
-    marginHorizontal: 16,
-  });
-
-  // The way in has no scale either, and its heading 14 under the row: `MontageTemplate.html`
-  // `margin: 14px 0 0` — «Каким будет ролик» at 110 against the total's 108, which is what stands
-  // its grid at 190 (spec 4) and not at 188.
+  // The way in has no scale, and its heading 14 under the row: `MontageTemplate.html`
+  // `margin: 14px 0 0` — «Каким будет ролик» at 110, which is what stands its grid at 190 (spec 4).
+  // The total has no scale either, and no heading of words: the film's name heads it (detail 79).
   const entry = await wizardTree(1, { variant: 'entry' });
   const entryHeading = entry.tree.root.find(
     (one) => one.type === Text && one.props.role === 'display',

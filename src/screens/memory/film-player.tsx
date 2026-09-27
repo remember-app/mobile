@@ -5,30 +5,18 @@ import { Modal, StyleSheet, View } from 'react-native';
 
 import type { Montage } from '@/api';
 import { ActionBar, Banner, Button } from '@/kit';
-import { formatDay, formatRuntime } from '@/lib/dates';
 import { maySaveToPhone, saveAndShare, saveToPhone, shareFile } from '@/lib/downloads';
 import { useStrings } from '@/lib/language';
 import { useTurnsWithPhone } from '@/lib/orientation';
-import type { Strings } from '@/strings';
 import { space, ThemePin, themes } from '@/theme';
 
 /**
- * The finished film itself: the one window it is watched in, the two things that can be done with
- * it, and what it is called. Its own module because there are two places a film is watched from —
- * the strip on a memory's feed (`films.tsx`) and its own page (`MontageLiveDone`, TASK-222) — and
- * there is exactly one player in this product: a second one would be a second set of answers about
- * orientation, about the signed link, and about what «Поделиться» actually sends.
+ * The finished film itself: the one window it is watched in and the things that can be done with
+ * it. Its own module because a film is watched from three places — the strip on a memory's feed
+ * (`films.tsx`), the page the making ends on (`MontageLiveDone`, TASK-222) and the film's own screen
+ * (`Film`) — and there is exactly one player in this product: a second one would be a second set of
+ * answers about orientation, about the signed link, and about what «Поделиться» actually sends.
  */
-
-/**
- * What a montage is called on screen: how long it runs once it does, and the day it was asked for
- * until then — a length is the one thing about it that is worth a title, and there is none to say
- * until the worker has made it.
- */
-export const montageTitle = (montage: Montage, s: Strings) => {
-  const runtime = formatRuntime(montage.duration_seconds);
-  return runtime ? s.montage.ofLength(runtime) : s.montage.fromDay(formatDay(montage.created_at));
-};
 
 /** Keeping the film, handing it on, or the one press that does both. */
 export type WithFilm = 'save' | 'share' | 'both';

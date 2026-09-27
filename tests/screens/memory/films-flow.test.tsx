@@ -20,7 +20,6 @@ vi.mock('expo-router', async () => {
 // The player is `expo-video` over a window of its own — `film-player` is not what these tests are about.
 vi.mock('@/screens/memory/film-player', () => ({
   FilmPlayer: () => null,
-  montageTitle: (film: { id: string }) => `Ролик ${film.id}`,
 }));
 
 import { expectReachable } from '@tests/helpers/access';
@@ -65,8 +64,11 @@ afterEach(() => {
 const film = (id: string, status: Montage['status'], over: Partial<Montage> = {}): Montage => ({
   id,
   memory_id: 'm1',
-  ordered_by: 'me',
+  ordered_by: { id: 'me', username: 'me', name: null },
   status,
+  name: `Ролик ${id}`,
+  template: null,
+  size_bytes: null,
   duration_seconds: status === 'ready' ? 150 : null,
   params: {},
   error_text: null,
@@ -93,7 +95,7 @@ function world(films: Montage[], over: Partial<Pick<World, 'read' | 'onRetry'>> 
       return w.read?.(w.reads) ?? w.films;
     }
     if (one.method === 'POST' && one.path.endsWith('/retry'))
-      return w.onRetry ?? { ...film('x', 'queued'), id: one.path.split('/')[4] };
+      return w.onRetry ?? film(one.path.split('/')[4], 'queued');
     return undefined;
   });
   return w;
@@ -229,7 +231,7 @@ test('the three states of a film are three cards, and each leads where it should
   // Finished: the film’s own page.
   await screen.press(() => screen.card('r'));
   expect(router.push).toHaveBeenLastCalledWith({
-    pathname: '/memory/[id]/montage/[montageId]/done',
+    pathname: '/memory/[id]/montage/[montageId]/film',
     params: { id: 'm1', montageId: 'r' },
   });
   // Fallen: the same screen as a film being cut, stopped at the stage that broke — and the words say where.

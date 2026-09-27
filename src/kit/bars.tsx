@@ -308,9 +308,9 @@ export const CANCEL_WORD_SCALE = 1.2;
 
 /**
  * The faces of the wizard's bar: a numbered `step`; `summary`, the order's own total — no scale,
- * because there is no step after it, and the heading comes up to meet the row; `entry`, the templates
- * of the way in — no scale either, and the heading 14 under the row (`MontageTemplate.html`), 2 lower
- * than the total's.
+ * because there is no step after it, and the film's name 10 under the row (detail 79); `entry`, the
+ * templates of the way in — no scale either, and the heading 14 under the row
+ * (`MontageTemplate.html`).
  */
 export type WizardFace = 'step' | 'summary' | 'entry';
 
@@ -392,7 +392,8 @@ export function WizardBar({
 
 /**
  * The step's own heading under the wizard's bar (spec 7.1, detail 3): `display`, 18 under the
- * scale — 12 on the total, 14 on the way in — and the line under it 10 lower, where a step has one.
+ * scale — 14 on the way in — and the line under it 10 lower, where a step has one. The total is
+ * headed by the film's name instead (`NameHeading`, detail 79).
  */
 export function WizardHeading({
   title,
@@ -408,16 +409,7 @@ export function WizardHeading({
   const styles = useStyles();
 
   return (
-    <View
-      style={[
-        styles.wizardWords,
-        variant === 'summary'
-          ? styles.wizardWordsUp
-          : variant === 'entry'
-            ? styles.wizardWordsEntry
-            : null,
-      ]}
-    >
+    <View style={[styles.wizardWords, variant === 'entry' ? styles.wizardWordsEntry : null]}>
       <Text role="display" accessibilityRole="header">
         {title}
       </Text>
@@ -446,7 +438,8 @@ export function WizardHeading({
  * gets is the caller's `capsuleLabel`, which carries the name in full either way.
  *
  * It draws its own darkening: 176 of gradient behind it, which is what keeps a white glyph readable
- * when the frame under the bar happens to be a white wall.
+ * when the frame under the bar happens to be a white wall — except `bare`, over the film's own poster
+ * (`Film`), which brings its darkening with it and takes it away when it scrolls off.
  */
 export function GlassBar({
   title,
@@ -455,6 +448,7 @@ export function GlassBar({
   onCapsule,
   left,
   right,
+  bare,
   style,
 }: {
   title: string;
@@ -466,6 +460,7 @@ export function GlassBar({
   left?: ReactNode;
   /** Empty on `FramesEmpty`: with no frames there is nothing to pick. */
   right?: ReactNode;
+  bare?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
   const insets = useSafeAreaInsets();
@@ -491,17 +486,19 @@ export function GlassBar({
     // the two round buttons a screen hands in — is read in the night's ink, whatever the app is in.
     <ThemePin value="dark">
       <View style={[styles.glassBar, { paddingTop: insets.top }, style]}>
-        <View
-          pointerEvents="none"
-          style={[
-            StyleSheet.absoluteFill,
-            {
-              bottom: undefined,
-              height: board.headGallery,
-              experimental_backgroundImage: photo.headGallery,
-            },
-          ]}
-        />
+        {bare ? null : (
+          <View
+            pointerEvents="none"
+            style={[
+              StyleSheet.absoluteFill,
+              {
+                bottom: undefined,
+                height: board.headGallery,
+                experimental_backgroundImage: photo.headGallery,
+              },
+            ]}
+          />
+        )}
         {left}
         {onCapsule ? (
           <Pressable
@@ -753,9 +750,8 @@ const useStyles = themed(({ color }) =>
     },
     slot: { width: height.roundViewer },
     wizardScale: { marginHorizontal: space.s4, marginTop: space.s3 },
-    // Spec 7.1: 18 under the scale, and 12 where there is no scale to stand under — 14 on the way in.
+    // Spec 7.1: 18 under the scale, and 14 on the way in, where there is no scale to stand under.
     wizardWords: { marginHorizontal: space.s4, marginTop: 18 },
-    wizardWordsUp: { marginTop: space.s3 },
     wizardWordsEntry: { marginTop: 14 },
     wizardNote: { marginTop: 10 },
     wizardSide: { width: 74, alignItems: 'flex-start' },

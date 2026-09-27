@@ -1,4 +1,5 @@
 import { request } from './call';
+import type { Contact } from './contacts';
 
 /** Ordering a movie and reading what became of it. */
 /**
@@ -64,9 +65,19 @@ export type MontageWishes = {
 export type Montage = {
   id: string;
   memory_id: string;
-  ordered_by: string;
+  /** Who ordered it — a person, in the three public fields, and not the bare id it once was. */
+  ordered_by: Contact;
   status: 'queued' | 'processing' | 'ready' | 'failed';
+  /**
+   * What it is called, and never empty: the name the organizer gave it, or the api's own «Ролик на
+   * 1:00» off the length it was ordered at — in the reader's language, so the app never works one out.
+   */
+  name: string;
+  /** The template the order started from; null is «Настроить самому». */
+  template: MontageTemplateId | null;
   duration_seconds: number | null;
+  /** Bytes in the finished video — a string, as the api hands its bigints over; null until it is made. */
+  size_bytes: string | null;
   /**
    * The wishes it was ordered with. An order placed before the list of tracks named one track in
    * one of two fields the api no longer takes, and one placed before the wishes went to each track
@@ -95,6 +106,11 @@ export type Montage = {
    * gives back, which is why it is optional as well as nullable.
    */
   stages?: MontageStep[] | null;
+  /**
+   * Who of the memory's people has opened the finished film, in the order they first did — a fact
+   * and not a count of plays (`markWatched`). Only the list carries it, empty on anything not ready.
+   */
+  watched_by?: Contact[];
 };
 
 /** One of the five as the list reports it: where it stands, and not a word more. */
@@ -200,13 +216,48 @@ export function previewMontage(
  * anything out of, and the body then carries how much there is against how much is needed; 400 for
  * a frame named as both in and out, for a frame that is not this memory's, for a track that is
  * neither off the shelf nor this memory's, and for a wish about a track the order does not name.
+ *
+ * Beside the wishes, two things the worker never reads and the film keeps: the template the order
+ * started from, and what it is called — the template's name out of the app's dictionary, or what
+ * the organizer typed on the summary. Neither sent is «Настроить самому» and «Ролик на 2:30».
  */
 export function orderMontage(
   token: string,
   memoryId: string,
-  wishes: MontageWishes,
+  order: MontageWishes & { name?: string; template?: MontageTemplateId },
 ): Promise<Montage> {
-  return request(`/memories/${memoryId}/montages`, { method: 'POST', body: wishes, token });
+  return request(`/memories/${memoryId}/montages`, { method: 'POST', body: order, token });
+}
+
+/**
+ * «Переименовать» — the organizer's, at any status; the answer is the film as it now stands. A blank
+ * name gives it back the api's own «Ролик на 1:00».
+ */
+export function renameMontage(
+  token: string,
+  memoryId: string,
+  montageId: string,
+  name: string,
+): Promise<Montage> {
+  return request(`/memories/${memoryId}/montages/${montageId}`, {
+    method: 'PATCH',
+    body: { name },
+    token,
+  });
+}
+
+/**
+ * «Посмотрел»: the film's own screen says so when it opens a finished one — the video plays straight
+ * off storage and never passes the api. Any member, a viewer included; a second time changes nothing,
+ * and one not ready yet is a 409.
+ */
+export function markWatched(token: string, memoryId: string, montageId: string): Promise<void> {
+  return request(`/memories/${memoryId}/montages/${montageId}/watched`, { method: 'POST', token });
+}
+
+/** «Удалить ролик» — the organizer's, and for good: the film, its file and its journal. */
+export function deleteMontage(token: string, memoryId: string, montageId: string): Promise<void> {
+  return request(`/memories/${memoryId}/montages/${montageId}`, { method: 'DELETE', token });
 }
 
 /**

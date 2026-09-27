@@ -39,6 +39,7 @@ export * from './member';
 export * from './menu';
 export * from './montage-live';
 export * from './montage-order';
+export * from './name-heading';
 export * from './palette';
 export * from './row-card';
 export * from './rows';

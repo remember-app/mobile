@@ -22,7 +22,13 @@ const KNOWN = [
   'music_tracks',
   'music_wishes',
   'orientation',
+  // Not the worker's: the film keeps them in columns of their own (`src/montages/order.ts`).
+  'name',
+  'template',
 ];
+
+/** The six templates by the api's own ids (`src/montages/row.ts`, `templateIds`). */
+const TEMPLATES = ['for_myself', 'quick', 'report', 'short_form', 'parents', 'dopamine'];
 
 const isList = (value: unknown, item: (one: unknown) => boolean): value is unknown[] =>
   Array.isArray(value) && value.every(item);
@@ -66,6 +72,10 @@ export function orderRefusal(body: unknown): Response | null {
     order.orientation !== 'portrait'
   )
     return schema('body/orientation must be equal to one of the allowed values');
+  if ('name' in order && !isText(order.name, 200))
+    return schema('body/name must be a string of at most 200 characters');
+  if ('template' in order && !TEMPLATES.includes(order.template as string))
+    return schema('body/template must be equal to one of the allowed values');
 
   const tracks = order.music_tracks;
   if ('music_tracks' in order) {

@@ -190,6 +190,9 @@ const CUT: Record<string, number> = {
   'kit/rows.tsx': 2,
   // A label's name in its row (7.7, detail 60) — whole in what the row is read out as.
   'kit/label.tsx': 1,
+  // A film's name heading the order's total, past its smallest size (7.2, detail 79; the seventh
+  // place, confirmed by chief) — whole a press away, on the sheet that renames it.
+  'kit/name-heading.tsx': 1,
   // Cut by the kit, not by the spec: left open. Why a film fell over, one line on its card in the
   // strip — whole on the screen the card opens; wrapped, it would move the strip at the ordinary size.
   'kit/card-montage.tsx': 1,

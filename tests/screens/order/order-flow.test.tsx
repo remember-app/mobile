@@ -171,6 +171,7 @@ import {
   IconButton,
   Text as KitText,
   LengthSlider,
+  NameHeading,
   RowRejected,
   RowTrack,
   Segment,
@@ -526,8 +527,15 @@ test.each(SIX.map(([id]) => id))(
     expect(shown()).toContain(ru.montage.shots(6, 1));
     expect(shown()).toContain(ru.montage.byPeople(2));
 
+    // The total is headed by the name the film will get — the template's own (spec 8, chief's table).
+    expect(root().findByType(NameHeading).props.name).toBe(ru.montage.defaultName[id]);
+
     await press(ru.montage.startCut);
-    expect(server.orders).toEqual([expected]);
+    // The order is the total, and beside it the two things the film keeps: which template it started
+    // from and what it is called.
+    expect(server.orders).toEqual([
+      { ...expected, template: id, name: ru.montage.defaultName[id] },
+    ]);
     // Onto the waiting for the montage that was just made, with the count of frames going in.
     expect(nav.state.landed).toEqual({
       pathname: '/memory/[id]/montage/[montageId]',
@@ -535,6 +543,27 @@ test.each(SIX.map(([id]) => id))(
     });
   },
 );
+
+test('the name heads the total, and the one typed over it on its sheet goes with the order', async () => {
+  const server = serve();
+  await open();
+  await walkToSummary();
+  const heading = () => root().findByType(NameHeading);
+  // No template: the name is the length's, which the api says itself — so none goes out.
+  expect(heading().props.name).toMatch(/^Ролик на \d+:\d\d$/);
+  expect(heading().props.label).toBe(ru.montage.film.renameNow(heading().props.name));
+
+  await act(async () => heading().props.onPress());
+  // Nothing new typed, nothing to save.
+  expect(buttons(ru.action.save).at(-1)!.props.disabled).toBe(true);
+  await type('Лето на даче');
+  await press(ru.action.save);
+  expect(heading().props.name).toBe('Лето на даче');
+
+  await press(ru.montage.startCut);
+  expect(server.orders.at(-1)).toMatchObject({ name: 'Лето на даче' });
+  expect(server.orders.at(-1)).not.toHaveProperty('template');
+});
 
 test(
   'a template’s length the material cannot carry is held inside what it can, before the order',
@@ -779,7 +808,7 @@ test('every face of the wizard wears the bar it should: the way in and the total
     ['story', 'step', ru.montage.step(2, 4), true],
     ['music', 'step', ru.montage.step(3, 4), true],
     ['build', 'step', ru.montage.step(4, 4), true],
-    ['summary', 'summary', ru.montage.summaryStep, false],
+    ['summary', 'summary', ru.montage.summaryTitle, false],
   ]);
   expect(bar().steps).toBe(4);
   expect(bar().back.props.label).toBe(ru.action.back);
@@ -789,19 +818,20 @@ test('every face of the wizard wears the bar it should: the way in and the total
 });
 
 test('each step’s body starts where the layout pins it, under whatever its heading ends with', async () => {
-  // TASK-384 (R3). Spec 4 pins the body of a step — «190–238 — тело шага мастера», «150 — тело
+  // TASK-384 (R3). Spec 4 pins the body of a step — «190–238 — тело шага мастера», «190 — тело
   // итога» — and the app lays the heading out in flow, so each pin is kept as the gap under the
   // heading's last line. Read off the layout (`m28-mock-measure/<Screen>.json`): the line under the
   // heading of `MontageTemplate` stands at 149 and is 19 tall, the grid at 190; `MontageStory`'s
   // line at 197, the plate at 238; `MontageMusic`'s at 168, «Выбрано» at 206; the heading of
-  // `MontageBuild` at 129 and 29 tall, «ДЛИНА» at 190; the total's heading at 108, the poster at
-  // 150. The bodies stood right under their headings — 13 to 36 too high.
+  // `MontageBuild` at 129 and 29 tall, «ДЛИНА» at 190. The bodies stood right under their headings
+  // — 13 to 36 too high. The total is headed by the film's name since 27 September: 106–156, the
+  // poster at 190 (detail 79).
   const pinned = {
     index: 190 - (149 + 19),
     story: 238 - (197 + 19),
     music: 206 - (168 + 19),
     build: 190 - (129 + 29),
-    summary: 150 - (108 + 29),
+    summary: 190 - 156,
   };
   serve();
   await open();

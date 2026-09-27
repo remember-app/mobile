@@ -39,7 +39,6 @@ vi.mock('expo-router', async () => {
 // it, which is `expo-video` in a window of its own, is not.
 vi.mock('@/screens/memory/film-player', () => ({
   FilmPlayer: () => null,
-  montageTitle: (film: { id: string }) => `Ролик ${film.id}`,
 }));
 vi.mock('@/screens/memory/frame-viewer', () => ({ FrameViewer: () => null }));
 // The phone's side of taking frames home: native, and nothing here takes any.
@@ -99,8 +98,11 @@ const frames = (): MediaItem[] => [
 const film: Montage = {
   id: 'f1',
   memory_id: 'm1',
-  ordered_by: 'me',
+  ordered_by: { id: 'me', username: 'me', name: null },
   status: 'ready',
+  name: 'Ролик f1',
+  template: null,
+  size_bytes: null,
   duration_seconds: 60,
   params: {},
   error_text: null,

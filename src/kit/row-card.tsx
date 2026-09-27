@@ -8,13 +8,14 @@ import { Divider } from './bits';
 import { Spinner } from './empty';
 import { Icon, type IconComponent } from './icon';
 import { useFocusRing, useHoverFocus } from './interaction';
+import { AvatarStack } from './member';
 import { Text } from './text';
 import { Track } from './toggle';
 
 /**
  * Spec 7.7, detail 77 — what one thing in a sheet is and what can be done with it, as rows in a card
- * on `ink` (`SheetMyFrame`). Unlike a summary row or a menu action, these stand in a card of their
- * own, and a property in it may be pressed to change it.
+ * on `ink` (`SheetMyFrame`, `SheetFilmInfo`). Unlike a summary row or a menu action, these stand in
+ * a card of their own, and a property in it may be pressed to change it.
  */
 
 /** The card: rows one under another, a `raise` hairline between two, 16 in from the left. */
@@ -44,11 +45,15 @@ export function RowCard({
  * A property — «Снято», «Место»: its name in a column of 92 and what it is, which wraps (it is the
  * sense of the row). With `onPress` it leads somewhere and wears the chevron; `busy` stands the
  * spinner in its place. No value is said in `muted` — `empty`, «Не указано».
+ *
+ * With `faces` it is «Посмотрели» (`SheetFilmInfo`): the people in a row of 26 (detail 32) and the
+ * value after them as a count, 13 / 500 `muted` — «4 из 6». Nobody yet is the count alone.
  */
 export function RowProp({
   label,
   value,
   empty,
+  faces,
   busy,
   onPress,
 }: {
@@ -56,6 +61,8 @@ export function RowProp({
   value?: string;
   /** What stands for no value at all. */
   empty: string;
+  /** The names of the people the value counts. */
+  faces?: readonly string[];
   busy?: boolean;
   onPress?: () => void;
 }) {
@@ -68,9 +75,16 @@ export function RowProp({
       <Text role="note" style={styles.propLabel}>
         {label}
       </Text>
-      <Text role="rowSm" tone={value ? 'paper' : 'muted'} style={styles.grow}>
-        {said}
-      </Text>
+      {faces ? (
+        <View style={[styles.grow, styles.faces]}>
+          {faces.length > 0 ? <AvatarStack names={faces} size={26} /> : null}
+          <Text role="note">{said}</Text>
+        </View>
+      ) : (
+        <Text role="rowSm" tone={value ? 'paper' : 'muted'} style={styles.grow}>
+          {said}
+        </Text>
+      )}
       {busy ? (
         <Spinner size={16} />
       ) : onPress ? (
@@ -205,6 +219,8 @@ const useStyles = themed(({ color }) =>
       paddingVertical: space.s2,
     },
     propLabel: { width: 92 },
+    // The count goes under the faces, rather than squeeze them, once the two no longer share a line.
+    faces: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s2 },
     act: {
       minHeight: 52,
       flexDirection: 'row',

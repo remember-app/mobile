@@ -181,7 +181,7 @@ export const uploadGaps = {
 
 /**
  * How far a wizard step's body stands under its heading (spec 4: «190–238 — тело шага мастера»,
- * «150 — тело итога заказа»). The layout pins each body at an anchor of its own; the app lays the
+ * «190 — тело итога заказа»). The layout pins each body at an anchor of its own; the app lays the
  * heading out in flow and the body under it, so each anchor is kept as the gap under whatever the
  * heading ends with — measured off the layout, step by step.
  */
@@ -192,8 +192,8 @@ export const wizardLead = {
   music: 19,
   /** under a heading with no line — `MontageBuild` (190) */
   title: 32,
-  /** under the total's heading, which has no scale over it — `MontageSummary` (150) */
-  total: 13,
+  /** under the film's name, which heads the total — `MontageSummary` (190, detail 79) */
+  total: 34,
 } as const;
 
 /**
@@ -284,6 +284,11 @@ export const type = StyleSheet.create({
   display: { fontFamily: font.headline, fontSize: 26, lineHeight: 29, letterSpacing: -0.91 },
   /** the memory's name on its cover — the heading's size a hair looser, −0.03em */
   displayCover: { fontFamily: font.headline, fontSize: 26, lineHeight: 29, letterSpacing: -0.78 },
+  /**
+   * A film's name as the heading of the order's total (detail 79) — at its largest; the heading sets
+   * it smaller for a longer name, and the line stays
+   */
+  filmName: { fontFamily: font.headline, fontSize: 33, lineHeight: 40, letterSpacing: -1.32 },
   /** «Воспоминания» on the main screen */
   displaySm: { fontFamily: font.headline, fontSize: 25, lineHeight: 28, letterSpacing: -0.75 },
   /** the heading of an empty state */
@@ -496,6 +501,10 @@ export const photo = {
   filmArt: 'linear-gradient(to top, rgba(11,11,18,.85) 0%, rgba(11,11,18,.10) 60%)',
   /** the track under that frame, what is still to play */
   filmArtTrack: 'rgba(245,243,238,0.28)',
+  /** the top of the film's own poster (`Film`), under the glass bar — 150 of it */
+  filmHead: 'linear-gradient(to bottom, rgba(11,11,18,.82) 0%, rgba(11,11,18,0) 100%)',
+  /** the shade under «1:00 · 16:9» on that poster, which has no plate */
+  figureShadow: 'rgba(0,0,0,0.6)',
   /** the poster of the film being ordered, on the summary */
   posterOrder: 'linear-gradient(to top, rgba(9,9,14,.90) 10%, rgba(9,9,14,.10) 70%)',
   /** a template's tile: its frame well under the words */
