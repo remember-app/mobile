@@ -5,6 +5,7 @@ import { beforeAll, expect, test } from 'vitest';
 
 import { AreaRoom, CodeField, Field, type FieldVariant, Hint, TextArea } from '@/kit/field';
 import { allDifferent, compiled, story } from '@/kit/story';
+import { Text } from '@/kit/text';
 import { font, setTheme, type } from '@/theme';
 
 /** Spec 7.3 — every field of the layout, in every state it can be in. */
@@ -203,15 +204,7 @@ test('the code is one value behind six boxes, not six values', () => {
     empty: <CodeField label="Код" value="" onChangeText={() => {}} />,
     half: <CodeField label="Код" value="1234" onChangeText={() => {}} />,
     full: <CodeField label="Код" value="123456" onChangeText={() => {}} />,
-    error: (
-      <CodeField
-        label="Код"
-        value=""
-        onChangeText={() => {}}
-        state="error"
-        hint="Код не подошёл — наберите ещё раз"
-      />
-    ),
+    error: <CodeField label="КОД НЕ ПОДОШЁЛ" value="" onChangeText={() => {}} state="error" />,
   });
   // All six take the error at once, because a code is one value: #FF8D8D.
   expect(story(<CodeField label="Код" value="" onChangeText={() => {}} state="error" />)).toContain(
@@ -251,17 +244,21 @@ test('every label over a field reads in muted, as every eyebrow of the layout do
     ['ПОЧТА', story(<Field label="Почта" value="" />)],
     ['НИК', story(<Field label="Ник" variant="username" prefix="@" value="" />)],
     ['НАЗВАНИЕ', story(<Field label="Название" variant="name" value="" />)],
-    ['КОД ИЗ ПИСЬМА', story(<CodeField label="Код из письма" value="" onChangeText={() => {}} />)],
+    [
+      'КОД НА liza@example.com',
+      story(<CodeField label="КОД НА liza@example.com" value="" onChangeText={() => {}} />),
+    ],
     ['ИСТОРИЯ', story(<TextArea label="История" value="" onChangeText={() => {}} />)],
   ];
   for (const [words, markup] of labels) expect(classOf(markup, words), words).toContain(muted);
 });
 
-test('the fields on the way in stand in its column of 12, their words 4 in from its edge', () => {
-  // Spec 8, measured off `LoginEmail`, `LoginCode` and `Username` (TASK-378): the label 12 over the
-  // box and 4 in from its edge (x 20 against the box's 16), the line under the box 12 below it and
-  // 4 in as well; what is typed starts 18 inside the box, and the `@` stands 4 before the name
-  // (x 35 and 58.7). `Create` and the sheets keep the form's own 8 and its edge.
+test('the fields of the way in stand in its column, their words 4 in from its edge', () => {
+  // Spec 8, measured off `LoginEmail`, `LoginCode` and `Username` (TASK-378): the label 4 in from the
+  // box's edge (x 20 against the box's 16); what is typed starts 18 inside the box, and the `@`
+  // stands 4 before the name (x 35 and 58.7). With a line under the box — the name on the account's
+  // sheet — label, box and line are 12 apart, the line 4 in as well. `Create` and the sheets keep the
+  // form's own 8 and its edge.
   const [twelve, eight, four] = ['gap:12px', 'gap:8px', 'padding-left:4px'].map(rule);
   /** The field's own column is the first thing drawn. */
   const column = (markup: string) => markup.split('class="')[1] ?? '';
@@ -271,11 +268,6 @@ test('the fields on the way in stand in its column of 12, their words 4 in from 
       story(<Field label="Ник" variant="username" prefix="@" value="" hint="Ник занят" />),
       'НИК',
       'Ник занят',
-    ],
-    [
-      story(<CodeField label="Код" value="" onChangeText={() => {}} hint="Код не подошёл" />),
-      'КОД',
-      'Код не подошёл',
     ],
   ];
   for (const [markup, label, hint] of wayIn) {
@@ -287,6 +279,46 @@ test('the fields on the way in stand in its column of 12, their words 4 in from 
   expect(wayIn[0][0]).toContain(typed);
   expect(wayIn[1][0]).toContain(typed);
   expect(wayIn[1][0]).toContain(rule('gap:4px'));
+
+  // 27 September (detail 12, 80): the answer is a word in the label's row, the row 4 in, the box 8
+  // under it — and nothing under the box, where the keyboard comes up to the button.
+  const above: [string, string][] = [
+    [
+      story(<Field label="Почта" value="" state="error" hint="Проверьте адрес" hintAbove />),
+      'ПРОВЕРЬТЕ АДРЕС',
+    ],
+    [
+      story(
+        <Field
+          label="Ник"
+          variant="username"
+          prefix="@"
+          value="liza"
+          state="ok"
+          hint="Свободен"
+          hintAbove
+        />,
+      ),
+      'СВОБОДЕН',
+    ],
+    [
+      story(
+        <CodeField
+          label="КОД НА liza@example.com"
+          value=""
+          onChangeText={() => {}}
+          tail={<Text>Ещё раз</Text>}
+        />,
+      ),
+      'Ещё раз',
+    ],
+  ];
+  for (const [markup, said] of above) {
+    expect(column(markup), said).toContain(eight);
+    expect(markup, said).toContain(four);
+    expect(markup.indexOf(`>${said}<`), said).toBeGreaterThan(0);
+    expect(markup.indexOf(`>${said}<`), said).toBeLessThan(markup.indexOf('<input'));
+  }
 
   const form = story(<Field label="Название" variant="name" value="" hint="Как в календаре" />);
   expect(column(form)).toContain(eight);

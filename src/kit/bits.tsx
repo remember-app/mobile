@@ -122,37 +122,66 @@ export function LiveDot({ style }: { style?: StyleProp<ViewStyle> }) {
  *
  * `tone="spark"` is the five-segment variant on the card of a montage being built, where what is
  * done is done rather than in hand — `spark` behind, `accent` on the one running now.
+ *
+ * `tone="paper"` is the onboarding's one progress (spec 7.1, detail 75): 4px, what is walked and
+ * where the person stands in `paper` — «where I am», neither work nor the main action. It is the one
+ * scale that stays on the screen while the steps change under it, so its fill moves (spec 6): the
+ * next segment fills left to right, a jump fills every segment it passes in one movement, and a step
+ * back empties the one it left the same way back.
  */
 export function StepScale({
   steps,
   done,
   tone = 'accent',
+  label,
   style,
 }: {
   steps: number;
   /** How many are behind, the current one included. */
   done: number;
-  tone?: 'accent' | 'spark';
+  tone?: 'accent' | 'spark' | 'paper';
+  /** For a screen reader: «Шаг 3 из 5». The segments are not read one by one. */
+  label?: string;
   style?: StyleProp<ViewStyle>;
 }) {
   const styles = useStyles();
+  const reach = useReach(done);
+  const paper = tone === 'paper';
 
   return (
     <View
       accessibilityRole="progressbar"
-      accessibilityValue={{ min: 0, max: steps, now: done }}
+      accessibilityLabel={label}
+      accessibilityValue={{ min: paper ? 1 : 0, max: steps, now: done }}
       style={[styles.scale, style]}
     >
-      {Array.from({ length: steps }, (_, i) => (
-        <View
-          key={i}
-          style={[
-            styles.scaleStep,
-            i < done - 1 && tone === 'spark' ? styles.scaleSpark : null,
-            i < done && (tone === 'accent' || i === done - 1) ? styles.scaleAccent : null,
-          ]}
-        />
-      ))}
+      {Array.from({ length: steps }, (_, i) =>
+        paper ? (
+          <View key={i} style={[styles.scaleStep, styles.scaleStepPaper]}>
+            <Animated.View
+              style={[
+                styles.scaleFill,
+                {
+                  width: reach.interpolate({
+                    inputRange: [i, i + 1],
+                    outputRange: ['0%', '100%'],
+                    extrapolate: 'clamp',
+                  }),
+                },
+              ]}
+            />
+          </View>
+        ) : (
+          <View
+            key={i}
+            style={[
+              styles.scaleStep,
+              i < done - 1 && tone === 'spark' ? styles.scaleSpark : null,
+              i < done && (tone === 'accent' || i === done - 1) ? styles.scaleAccent : null,
+            ]}
+          />
+        ),
+      )}
     </View>
   );
 }
@@ -323,16 +352,14 @@ export function VideoTrack({
 }
 
 /**
- * The stack of frames over the onboarding screens (spec 7.9): three photographs at −9°, +8° and
- * −1.5°, the middle one larger, on top of the other two and hanging lower than them. `small` is the
- * squeezed version on `Consent`, where a block of three promises has to fit underneath.
+ * The stack of frames on the first onboarding step (spec 7.10, detail 76): three photographs at −9°,
+ * +8° and −1.5°, the middle one larger, on top of the other two and hanging lower than them.
  *
  * It runs the width of the board: the side frames hang off its two edges, as the layout hangs them,
  * so a narrower phone overlaps them more instead of pushing them off the screen.
  */
 export function PhotoStack({
   photos,
-  small,
   style,
 }: {
   /**
@@ -340,19 +367,16 @@ export function PhotoStack({
    * and have no frames of a memory to draw. `expo-image` takes either unchanged (`src/image.d.ts`).
    */
   photos: readonly (string | number)[];
-  small?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
   const styles = useStyles();
-  const place = small
-    ? [styles.stackLeftSm, styles.stackCentreSm, styles.stackRightSm]
-    : [styles.stackLeft, styles.stackCentre, styles.stackRight];
+  const place = [styles.stackLeft, styles.stackCentre, styles.stackRight];
 
   return (
     <View
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={[small ? styles.stackSmall : styles.stack, style]}
+      style={[styles.stack, style]}
     >
       {/* Keyed by place and not by what is in it: the three stand in fixed positions, and a picture
           that ships with the app is a number the bundler chose. */}
@@ -384,6 +408,8 @@ const useStyles = themed(({ color }) =>
     live: { width: 6, height: 6, borderRadius: 3, backgroundColor: color.danger },
     scale: { flexDirection: 'row', gap: 6 },
     scaleStep: { flex: 1, height: 3, borderRadius: radius.pill, backgroundColor: color.line },
+    scaleStepPaper: { height: 4, overflow: 'hidden' },
+    scaleFill: { height: '100%', borderRadius: radius.pill, backgroundColor: color.paper },
     scaleAccent: { backgroundColor: color.accent },
     scaleSpark: { backgroundColor: color.spark },
     track: {
@@ -416,64 +442,33 @@ const useStyles = themed(({ color }) =>
     // Spec 7.10: what has played in the night's `paper`, the whole length a voice lower.
     elapsed: { color: night.paper },
     runs: { color: photo.viewerMeta },
-    // Spec 8 — `Login`'s 236 and `Consent`'s 196, and each frame where the layout puts it before it
-    // is turned: the side ones hung off their own edge of the board, the middle one centred with its
-    // foot on the stack's foot. Past the layout's 390 the stack stays that wide rather than pulling
-    // its frames apart; what reaches over its box is cut, as the layout cuts it.
-    stack: { width: '100%', maxWidth: 390, height: 236, alignItems: 'center', overflow: 'hidden' },
-    stackSmall: {
-      width: '100%',
-      maxWidth: 390,
-      height: 196,
-      alignItems: 'center',
-      overflow: 'hidden',
-    },
+    // Spec 7.10 — the box 176, and each frame where the layout puts it before it is turned: the side
+    // ones hung 34 off their own edge of the board, the middle one centred. Past the layout's 390 the
+    // stack stays that wide rather than pulling its frames apart; what reaches over its box is cut,
+    // as the layout cuts it.
+    stack: { width: '100%', maxWidth: 390, height: 176, alignItems: 'center', overflow: 'hidden' },
     stackShot: { position: 'absolute' },
     stackLeft: {
-      left: 24,
-      top: 30,
-      width: 144,
-      height: 178,
-      borderRadius: radius.field,
+      left: 34,
+      top: 12,
+      width: 116,
+      height: 144,
+      borderRadius: radius.cell,
       transform: [{ rotate: '-9deg' }],
     },
     stackCentre: {
-      top: 40,
-      width: 168,
-      height: 196,
-      borderRadius: radius.section,
+      top: 16,
+      width: 136,
+      height: 158,
+      borderRadius: radius.field,
       zIndex: 1,
       transform: [{ rotate: '-1.5deg' }],
     },
     stackRight: {
-      right: 24,
-      top: 22,
-      width: 144,
-      height: 178,
-      borderRadius: radius.field,
-      transform: [{ rotate: '8deg' }],
-    },
-    stackLeftSm: {
-      left: 34,
-      top: 26,
-      width: 120,
-      height: 148,
-      borderRadius: radius.cell,
-      transform: [{ rotate: '-9deg' }],
-    },
-    stackCentreSm: {
-      top: 34,
-      width: 140,
-      height: 162,
-      borderRadius: radius.field,
-      zIndex: 1,
-      transform: [{ rotate: '-1.5deg' }],
-    },
-    stackRightSm: {
       right: 34,
-      top: 20,
-      width: 120,
-      height: 148,
+      top: 6,
+      width: 116,
+      height: 144,
       borderRadius: radius.cell,
       transform: [{ rotate: '8deg' }],
     },

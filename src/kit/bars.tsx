@@ -22,7 +22,7 @@ import { StepScale } from './bits';
 import { BAR_GLYPH, Button, IconButton } from './button';
 import { AreaRoom, areaSight, focusedField } from './field';
 import type { IconComponent } from './icon';
-import { DISMISS_KEYBOARD, FieldInBar, KEYBOARD_SCROLL } from './interaction';
+import { DISMISS_KEYBOARD, FieldInBar, KEYBOARD_SCROLL, useKeyboardShown } from './interaction';
 import { useMeasured } from './sheet';
 import { Text, TYPE_MOST, useWordRoom, WordRoom } from './text';
 
@@ -631,6 +631,7 @@ export function ActionBar({
   end,
   above,
   footer,
+  keyboardGap,
   style,
 }: {
   children: ReactNode;
@@ -642,17 +643,25 @@ export function ActionBar({
   above?: ReactNode;
   /** Left off: 176 when something stands above the button, 132 when nothing does. */
   footer?: Footer;
+  /**
+   * How far the action sits over a raised keyboard — the way in's 16 (spec 7.1, detail 76), where
+   * the button is the one thing the keyboard moves. Left off, it keeps its gap to the edge.
+   */
+  keyboardGap?: number;
   style?: StyleProp<ViewStyle>;
 }) {
   const insets = useSafeAreaInsets();
   const { color } = useTheme();
   const styles = useStyles();
   const { roomy, room } = useWordRoom();
+  const keyboard = useKeyboardShown();
   const kind = FOOTERS[footer ?? (above ? 'count' : 'plain')];
   const sides = start !== undefined || end !== undefined;
+  const bottom =
+    keyboard && keyboardGap !== undefined ? keyboardGap : Math.max(insets.bottom, board.bottom);
 
   return (
-    <View style={[styles.layer, { paddingBottom: Math.max(insets.bottom, board.bottom) }, style]}>
+    <View style={[styles.layer, { paddingBottom: bottom }, style]}>
       <View
         pointerEvents="none"
         style={[

@@ -23,7 +23,7 @@ test('the field asks nothing about the name the account already holds', () => {
 test('the submit only glows once the name in the field is a different one', () => {
   // Same guard, second job (TASK-74): the ember marks what there is to do, and a field already
   // holding the account's name has nothing. It lights when the name changes.
-  expect(form).toContain("variant={unchanged ? 'secondary' : 'primary'}");
+  expect(form).toContain("variant={name.unchanged ? 'secondary' : 'primary'}");
 });
 
 test('the pencil changes the username on a sheet over the account, and nowhere else', () => {
@@ -36,7 +36,10 @@ test('the pencil changes the username on a sheet over the account, and nowhere e
   expect(layout).toMatch(
     /<Stack\.Protected guard=\{status === 'needs-username'\}>\s*<Stack\.Screen name="consent"[^/]*\/>\s*<Stack\.Screen name="set-username"/,
   );
-  expect(setUsername).toContain('<UsernameForm');
+  // The way in draws the same claim apart — the field in the step, the button at the bottom edge.
+  expect(setUsername).toContain('useUsername(');
+  expect(setUsername).toContain('<UsernameField name={name} wayIn />');
+  expect(setUsername).toContain('<UsernameButton name={name}');
   // No field the product has nothing behind: no name, no picture, no address to edit.
   expect(profile).not.toContain('<Field');
 });

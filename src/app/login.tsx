@@ -38,8 +38,10 @@ function providerError(s: Strings, provider: string, error: unknown): string {
 }
 
 /**
- * `Login` — the three doors (spec 8, «Онбординг»). Three buttons of one size at the bottom edge and
- * the shared head above them; no way back, because this is the beginning.
+ * `Login` — the three doors, step 1 of the way in (spec 8, «Онбординг»). Three buttons of one size at
+ * the bottom edge and the step's head above them — the stack, «Remember» and the promise; no way
+ * back, because this is the beginning. Apple and Google skip the address and the code and land on
+ * the agreement, and the progress over the steps fills the three at once.
  *
  * None of the three is the main action: there is no `accent` on this screen at all. Which door a
  * person owns is not for the app to have an opinion about, and lighting one of them would be one.
@@ -155,7 +157,7 @@ export default function LoginScreen() {
         </ActionBar>
       }
     >
-      <OnboardingHead />
+      <OnboardingHead step={1} />
 
       {/* The room between the head and the doors. Anything that has to be said stands at the foot
           of it — over the buttons it is about, never over the name. */}

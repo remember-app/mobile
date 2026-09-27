@@ -10,11 +10,22 @@ import { Text } from './text';
  *
  * The name takes the width and the tail never gives; on the largest type the tail goes under the
  * name rather than squeeze it to a letter a line.
+ *
+ * `tone="danger"` is the name turned into the answer — «КОД НЕ ПОДОШЁЛ» over the cells of a code the
+ * api refused (detail 12).
  */
-export function BlockHead({ label, children }: { label: string; children?: ReactNode }) {
+export function BlockHead({
+  label,
+  tone = 'muted',
+  children,
+}: {
+  label: string;
+  tone?: 'muted' | 'danger';
+  children?: ReactNode;
+}) {
   return (
     <View style={styles.row}>
-      <Text role="eyebrow" tone="muted" accessibilityRole="header" style={styles.label}>
+      <Text role="eyebrow" tone={tone} accessibilityRole="header" style={styles.label}>
         {label}
       </Text>
       {children}

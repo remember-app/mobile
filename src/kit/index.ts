@@ -44,6 +44,7 @@ export * from './rows';
 export * from './segment';
 export * from './sheet';
 export * from './slider';
+export * from './step-head';
 export * from './text';
 export * from './tile';
 export * from './toggle';

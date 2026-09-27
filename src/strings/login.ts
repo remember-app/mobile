@@ -15,6 +15,21 @@ export const en = {
      */
     promise:
       'After the event the frames scatter across ten phones. Here they come back together — and turn into a film.',
+    /** The one progress over the whole way in, read out (spec 7.1, detail 75). */
+    step: (n: number) => `Step ${n} of 5`,
+    /**
+     * The heads of the steps after the first (detail 76): together with the promise they tell in
+     * short what the app is — one feed, a film out of it, what the network does, how people are
+     * called in.
+     */
+    feed: {
+      title: 'One feed for everyone',
+      lead: 'Invite your people — and the frames from every phone land in one feed.',
+    },
+    film: {
+      title: 'And then a film',
+      lead: 'A neural network cuts a film out of the shared feed — you decide what kind.',
+    },
     withApple: 'Continue with Apple',
     withGoogle: 'Continue with Google',
     /**
@@ -28,19 +43,24 @@ export const en = {
     withEmail: 'Continue with email',
     email: 'Email',
     emailPlaceholder: 'you@example.com',
+    /** The address the api refused as not an address (400) — beside the label, in capitals. */
+    checkAddress: 'Check the address',
     sendCode: 'Send the code',
-    /** The label over the six cells. */
-    code: 'Code from the letter',
-    sentTo: (email: string) => `Sent to ${email}`,
-    /** The quiet button beside that line: another code to the same address. */
+    /**
+     * The head over the six cells, before the address as it was typed: the screen writes these
+     * words in capitals and leaves the address alone (spec, detail 80).
+     */
+    codeTo: 'Code sent to',
+    /** The button beside that head: another code to the same address. */
     again: 'Again',
+    /** And that button for the minute after it was pressed. */
+    againIn: (time: string) => `Again in ${time}`,
     confirm: 'Confirm',
     /**
-     * One line for every way six digits can fail (the api answers 401 to all of them on purpose),
-     * and it says what to do rather than which half was wrong.
+     * The head over the cells once the api refused the digits — one line for every way six digits
+     * can fail (the api answers 401 to all of them on purpose).
      */
-    codeBad: 'That code did not work — check it, or ask for a new one.',
-    codeSent: 'A new code is on its way.',
+    codeBad: 'That code did not work',
     /**
      * 503 is the api saying it has no mail keys. Its own wording for that is written for whoever
      * runs it, so the screen answers in its own words rather than passing the server's along.
@@ -60,7 +80,8 @@ export const en = {
    * sheet carries the text itself — the app ships it, nothing is fetched.
    */
   consent: {
-    lead: 'Before you come in — three things you are agreeing to.',
+    title: 'Before you come in',
+    lead: 'Three things you are agreeing to.',
     /** The layout's own sentence (`Consent.json` e9): two lines in the card, as the layout sets it. */
     storage: 'Your photos and videos are stored with us until you delete them or the memory.',
     /** The highlighted line, in three pieces so the middle one can carry the weight. */
@@ -109,6 +130,15 @@ export const ru: typeof en = {
   login: {
     promise:
       'После события кадры расходятся по десяти телефонам. Здесь они сходятся обратно — и становятся роликом.',
+    step: (n: number) => `Шаг ${n} из 5`,
+    feed: {
+      title: 'Одна лента на всех',
+      lead: 'Зовёте своих — и кадры со всех телефонов падают в одну ленту.',
+    },
+    film: {
+      title: 'И сразу ролик',
+      lead: 'Из общей ленты нейросеть соберёт ролик — каким, решаете вы.',
+    },
     withApple: 'Продолжить с Apple',
     withGoogle: 'Продолжить с Google',
     providerUnavailable: (provider: string) => `Вход через ${provider} пока не работает.`,
@@ -116,19 +146,20 @@ export const ru: typeof en = {
     withEmail: 'Продолжить по почте',
     email: 'Почта',
     emailPlaceholder: 'ivan@example.com',
+    checkAddress: 'Проверьте адрес',
     sendCode: 'Отправить код',
-    code: 'Код из письма',
-    sentTo: (email: string) => `Отправили на ${email}`,
+    codeTo: 'Код на',
     again: 'Ещё раз',
+    againIn: (time: string) => `Ещё раз через ${time}`,
     confirm: 'Подтвердить',
-    codeBad: 'Код не подошёл — проверьте его или запросите новый.',
-    codeSent: 'Отправили новый код.',
+    codeBad: 'Код не подошёл',
     mailDown: 'Сейчас мы не можем отправлять коды для входа — попробуйте позже.',
     devCode: 'Вход для разработки: почты здесь нет, код подставлен.',
   },
 
   consent: {
-    lead: 'Прежде чем войти — три вещи, на которые вы соглашаетесь.',
+    title: 'Прежде чем войти',
+    lead: 'Три вещи, на которые вы соглашаетесь.',
     storage: 'Ваши фото и видео хранятся у нас, пока вы не удалите их или воспоминание.',
     recognisesBefore: 'Нейросеть разбирает кадры и ',
     recognises: 'узнаёт на них лица людей и животных',

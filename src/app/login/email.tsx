@@ -3,29 +3,35 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ApiError, errorMessage, startEmailSignIn } from '@/api';
-import { ActionBar, BackButton, Banner, Board, Button, Field } from '@/kit';
+import { ActionBar, Banner, Board, Button, Field } from '@/kit';
 import { useStrings } from '@/lib/language';
 import { OnboardingHead } from '@/screens/onboarding/head';
 import { space } from '@/theme';
 
 /**
- * `LoginEmail` — the address (spec 8). The head does not move from where `Login` had it; the only
- * thing that changed is the block at the bottom, where the three doors gave way to one field and
- * the screen's one main action.
+ * `LoginEmail` — the address, step 2 of the way in (spec 8). The step's head, the field under it at
+ * the head's own place, and the screen's one main action at the bottom edge.
  *
- * The way back floats over the head instead of standing in a bar of its own: a header row here
- * would push the name down 44 and break the one promise these four screens make together.
+ * The keyboard moves nothing but that action (spec 7.1, detail 76): the field stands in the body and
+ * not in the bottom layer, so it stays where it was drawn while the button rides the keyboard up, and
+ * nothing stands under the field for the keyboard to cover — the answer about the address is beside
+ * the field's label.
  */
 export default function LoginEmailScreen() {
   const router = useRouter();
   const s = useStrings();
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
+  // Two different things and two different places for them: an address the api refused as not
+  // being one (400) is answered at the field, and a failure that has nothing to do with what was
+  // typed — no connection, no mail keys — over the button, where the keyboard leaves it in sight.
+  const [bad, setBad] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function send() {
     const address = email.trim();
     setBusy(true);
+    setBad(false);
     setError(null);
     try {
       const { code } = await startEmailSignIn(address);
@@ -39,31 +45,19 @@ export default function LoginEmailScreen() {
     } catch (e) {
       // 503 is the api saying it has no mail keys, and its own wording for that is written for
       // whoever runs the server; 429 already comes back in the dictionary's words.
-      setError(e instanceof ApiError && e.status === 503 ? s.login.mailDown : errorMessage(e));
+      if (e instanceof ApiError && e.status === 400) setBad(true);
+      else setError(e instanceof ApiError && e.status === 503 ? s.login.mailDown : errorMessage(e));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    // The field stands at the bottom edge, which is exactly where the keyboard comes up — the
-    // board is what rides it up over it.
     <Board
       footer={
-        <ActionBar>
+        <ActionBar keyboardGap={space.s4}>
           <View style={styles.column}>
-            <Field
-              label={s.login.email}
-              value={email}
-              onChangeText={setEmail}
-              placeholder={s.login.emailPlaceholder}
-              inputMode="email"
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete="email"
-              editable={!busy}
-              autoFocus
-            />
+            {error ? <Banner tone="error" text={error} /> : null}
             {/* `busy` already blocks the press, so the button only goes out when there is nothing
                 to send. */}
             <Button
@@ -79,21 +73,30 @@ export default function LoginEmailScreen() {
         </ActionBar>
       }
     >
-      <View style={styles.back}>
-        <BackButton label={s.action.back} onPress={() => router.back()} />
-      </View>
-
-      <OnboardingHead />
-
-      <View style={styles.room}>{error ? <Banner tone="error" text={error} /> : null}</View>
+      <OnboardingHead step={2} back={() => router.back()}>
+        <Field
+          label={s.login.email}
+          hintAbove
+          hint={bad ? s.login.checkAddress : undefined}
+          state={bad ? 'error' : undefined}
+          value={email}
+          onChangeText={(next) => {
+            setEmail(next);
+            setBad(false);
+          }}
+          placeholder={s.login.emailPlaceholder}
+          inputMode="email"
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete="email"
+          editable={!busy}
+          autoFocus
+        />
+      </OnboardingHead>
     </Board>
   );
 }
 
 const styles = StyleSheet.create({
-  // Spec 8, `LoginEmail`: a 44 floating 10 off the edge of the board — there is no bar here to pull
-  // it into. Absolute, so it lies over the head rather than moving it.
-  back: { position: 'absolute', left: 10, top: 0, zIndex: 2 },
-  room: { flexGrow: 1, justifyContent: 'flex-end', paddingHorizontal: space.s4 },
   column: { flex: 1, gap: space.s3 },
 });
