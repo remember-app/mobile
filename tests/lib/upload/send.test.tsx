@@ -4,11 +4,14 @@ import TestRenderer, { act } from 'react-test-renderer';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 import type { UploadPlan } from '@/api';
-import type { QueuedFile, UploadFailure } from '@/lib/upload/queue';
-import { drop, enqueue, useUploads } from '@/lib/upload/send';
+import { partDeadline, type QueuedFile, type UploadFailure } from '@/lib/upload/queue';
+import { drop, enqueue, useUploads, wake } from '@/lib/upload/send';
 
-const { api, disk } = vi.hoisted(() => ({
+const { api, library, foreground, disk } = vi.hoisted(() => ({
   api: { startUpload: vi.fn(), refreshUpload: vi.fn(), finishUpload: vi.fn() },
+  library: { getAssetInfoAsync: vi.fn() },
+  /** Whoever is listening for the app to come back to the foreground. */
+  foreground: new Set<(state: string) => void>(),
   /** Every queue the pump wrote down, the last one last. */
   disk: [] as string[],
 }));
@@ -20,25 +23,43 @@ vi.mock('@/api', () => ({
   setContributionStatus: async () => {},
 }));
 vi.mock('@/lib/auth', () => ({ useAuth: () => ({ status: 'ready', token: 'session' }) }));
-vi.mock('expo-media-library/legacy', () => ({
-  getAssetInfoAsync: async (id: string) => ({ id, uri: `ph://${id}`, localUri: `file:///${id}` }),
-}));
+vi.mock('expo-media-library/legacy', () => library);
 // Twenty bytes at eight to a part is three parts: one before and one after the part a case is about.
-// The queue's own file is the same class, and keeps what it is handed.
+// The queue's own file is the same class, and keeps what it is handed. `ph://…` is the library's
+// handle and not a path, which the real class cannot open either; a file under `locked/` opens and
+// then will not give its bytes up.
 vi.mock('expo-file-system', () => ({
   Paths: { document: 'documents' },
   File: class {
-    exists = true;
+    uri: string;
+    constructor(...path: string[]) {
+      this.uri = path.join('/');
+    }
+    get exists() {
+      return !this.uri.startsWith('ph://');
+    }
     size = 20;
     textSync = () => '[]';
     write = (text: string) => disk.push(text);
-    open = () => ({ offset: 0, readBytes: (length: number) => new Uint8Array(length), close() {} });
+    open = () => ({
+      offset: 0,
+      readBytes: (length: number) => {
+        if (this.uri.includes('locked/')) throw new Error('The file couldn’t be opened.');
+        return new Uint8Array(length);
+      },
+      close() {},
+    });
   },
 }));
 // Off a phone `react-native-web` hands out no subscription at all, and the hook removes its own.
 vi.mock('react-native', async (importOriginal) => ({
   ...(await importOriginal<typeof import('react-native')>()),
-  AppState: { addEventListener: () => ({ remove() {} }) },
+  AppState: {
+    addEventListener: (_: string, listener: (state: string) => void) => {
+      foreground.add(listener);
+      return { remove: () => foreground.delete(listener) };
+    },
+  },
 }));
 
 mountsTrees();
@@ -82,34 +103,44 @@ function Pump() {
   return null;
 }
 
+/** What storage says to a part: a response, or nothing yet. */
+type Answer = (url: string, signal: AbortSignal) => Response | Promise<Response>;
+
 /**
  * One photo through the pump, storage answering each part with `answer`. Done when the pump is: the
- * file sealed and gone from the queue, or parked in it with a reason.
+ * file sealed and gone from the queue, or parked in it with a reason. `wait` is how long the clock
+ * is moved on first, for a case about storage that never answers.
  */
-async function upload(answer: (url: string) => Response) {
+async function upload(answer: Answer, wait = 0) {
   const put: string[] = [];
-  vi.stubGlobal('fetch', async (url: string) => {
+  vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
     put.push(url);
-    return answer(url);
+    return answer(url, init.signal as AbortSignal);
   });
   await act(async () => {
     mounted(TestRenderer.create(<Pump />));
   });
   await act(async () => {
     enqueue('m1', [PHOTO]);
+    if (wait > 0) await vi.advanceTimersByTimeAsync(wait);
     await vi.waitFor(() => expect(written().every((file) => file.error !== undefined)).toBe(true));
   });
   return { put, queue: written() };
 }
 
+/** The gallery's answer for an entry, as the phone gives it when all is well. */
+const onPhone = async (id: string) => ({ id, uri: `ph://${id}`, localUri: `file:///${id}` });
+
 beforeEach(() => {
   api.startUpload.mockResolvedValue(plan('first'));
   api.refreshUpload.mockResolvedValue(plan('fresh'));
   api.finishUpload.mockResolvedValue({ id: 'media-1', status: 'processing', first_upload: false });
+  library.getAssetInfoAsync.mockImplementation(onPhone);
 });
 
 afterEach(async () => {
   await act(async () => drop('m1', PHOTO.id));
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.clearAllMocks();
 });
@@ -179,4 +210,194 @@ it.each<[string, () => Response, UploadFailure]>([
   expect(api.finishUpload).not.toHaveBeenCalled();
   // Exactly the reason and nothing more: whatever storage wrote in the body stays out of the queue.
   expect(queue.map((file) => file.error)).toEqual([reason]);
+});
+
+// TASK-413: three different things all used to come out as «Cannot reach the API». Each is named
+// where it happens now, and only a call to the api that got no answer is still that line.
+
+it('names an api that never answered as the api, and sends storage nothing', async () => {
+  api.startUpload.mockRejectedValue(new TypeError('Network request failed'));
+  const { put, queue } = await upload(receipted);
+  expect(put).toEqual([]);
+  expect(queue.map((file) => file.error)).toEqual([{ reason: 'offline' }]);
+  expect(console.warn).toHaveBeenCalledWith(
+    'upload parks, the api does not answer:',
+    expect.any(TypeError),
+  );
+});
+
+/** Storage that takes the connection and never says a word — until the phone gives up on it. */
+const silent: Answer = (_, signal) =>
+  new Promise((_, reject) => signal.addEventListener('abort', () => reject(signal.reason)));
+
+/** How long the pump waits on one part of this test's file before storage counts as gone quiet. */
+const DEADLINE = Math.ceil(partDeadline(8));
+
+/** The two ways storage goes quiet on a part, and how long it takes the pump to see each. */
+const QUIET: [string, Answer, number][] = [
+  ['a dropped connection', () => Promise.reject(new TypeError('Network request failed')), 0],
+  ['no answer within the deadline', silent, DEADLINE],
+];
+
+it.each(QUIET)(
+  'takes %s as storage gone quiet: fresh links, and only that part goes again',
+  async (_, quiet, deadline) => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const { put, queue } = await upload(
+      (url, signal) => (url === 'https://storage/first/2' ? quiet(url, signal) : receipted(url)),
+      deadline,
+    );
+    expect(api.refreshUpload).toHaveBeenCalledTimes(1);
+    expect(put).toEqual([
+      'https://storage/first/1',
+      'https://storage/first/2',
+      'https://storage/fresh/2',
+      'https://storage/fresh/3',
+    ]);
+    expect(api.finishUpload).toHaveBeenCalledWith('session', 'm1', 'media-1', SEALED);
+    expect(queue).toEqual([]);
+  },
+);
+
+it.each(QUIET)(
+  'parks the file on %s from the fresh link too, and names storage for it',
+  async (_, quiet, deadline) => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const { put, queue } = await upload(
+      (url, signal) => (url.endsWith('/2') ? quiet(url, signal) : receipted(url)),
+      deadline * 2,
+    );
+    expect(api.refreshUpload).toHaveBeenCalledTimes(1);
+    expect(put).toEqual([
+      'https://storage/first/1',
+      'https://storage/first/2',
+      'https://storage/fresh/2',
+    ]);
+    expect(api.finishUpload).not.toHaveBeenCalled();
+    expect(queue.map((file) => file.error)).toEqual([{ reason: 'storageOffline', part: 2 }]);
+    expect(console.warn).toHaveBeenCalledWith('part 2 does not reach storage:', expect.anything());
+  },
+);
+
+it('keeps storage’s code when the line goes after storage had answered', async () => {
+  // A 400 is read to the end for `ExpiredToken`, and the connection can drop in the middle of that.
+  const cut = () =>
+    new Response(
+      new ReadableStream({ start: (body) => body.error(new TypeError('Network request failed')) }),
+      { status: 400 },
+    );
+  const { queue } = await upload((url) => (url.endsWith('/2') ? cut() : receipted(url)));
+  expect(queue.map((file) => file.error)).toEqual([
+    { reason: 'storageOffline', part: 2, status: 400 },
+  ]);
+});
+
+it.each<[string, (id: string) => Promise<unknown>]>([
+  [
+    'the gallery will not answer for it',
+    async () => {
+      throw new Error('Missing MEDIA_LIBRARY permissions.');
+    },
+  ],
+  // What iOS answers for a photo iCloud keeps off the phone and could not bring down: the entry,
+  // with no file behind it.
+  ['the gallery has the entry and no file behind it', async (id) => ({ id, uri: `ph://${id}` })],
+])('names the file and not a server when %s, and asks the api nothing', async (_, answer) => {
+  library.getAssetInfoAsync.mockImplementation(answer);
+  const { put, queue } = await upload(receipted);
+  expect(api.startUpload).not.toHaveBeenCalled();
+  expect(put).toEqual([]);
+  expect(queue.map((file) => file.error)).toEqual([{ reason: 'unreadable' }]);
+});
+
+it('names the file when its bytes will not come off the phone, and sends storage nothing', async () => {
+  library.getAssetInfoAsync.mockImplementation(async (id: string) => ({
+    id,
+    uri: `ph://${id}`,
+    localUri: `file:///locked/${id}`,
+  }));
+  const { put, queue } = await upload(receipted);
+  expect(put).toEqual([]);
+  expect(queue.map((file) => file.error)).toEqual([{ reason: 'unreadable' }]);
+});
+
+it('still calls a file the gallery no longer has gone', async () => {
+  library.getAssetInfoAsync.mockResolvedValue(null);
+  const { queue } = await upload(receipted);
+  expect(queue.map((file) => file.error)).toEqual([{ reason: 'gone' }]);
+});
+
+// TASK-413, the other half: a parked file blinked off and on every second or two on the phone. The
+// only things that clear a reason by themselves are the pause and the app coming back to the front,
+// and the second used to do it on the spot — for every pulled-down notification, every system prompt.
+
+/** README: «по таймеру раз в 15 секунд». */
+const PAUSE = 15_000;
+
+const tries = () => library.getAssetInfoAsync.mock.calls.length;
+
+/** Moves the clock on, and lets whatever that set going run to its end. */
+async function wait(ms: number) {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(ms);
+  });
+}
+
+/** The app back in front, heard by both places that listen: the root and the upload screen. */
+const comeBack = () =>
+  act(async () => {
+    for (const listener of foreground) listener('active');
+  });
+
+/** A file the pump parks at once, and without a word to the log: the gallery no longer has it. */
+async function parked() {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  library.getAssetInfoAsync.mockResolvedValue(null);
+  await act(async () => {
+    mounted(
+      TestRenderer.create(
+        <>
+          <Pump />
+          <Pump />
+        </>,
+      ),
+    );
+  });
+  await act(async () => enqueue('m1', [PHOTO]));
+  await wait(0);
+  expect(written().map((file) => file.error)).toEqual([{ reason: 'gone' }]);
+}
+
+it('tries a parked file again only after the pause, however often the app comes back to the front', async () => {
+  await parked();
+  await comeBack();
+  await comeBack();
+  await wait(PAUSE - 1);
+  await comeBack();
+  expect(tries()).toBe(1);
+  // Nor did the reason go off and on in the meantime: nothing cleared it.
+  expect(written().map((file) => file.error)).toEqual([{ reason: 'gone' }]);
+  await wait(1);
+  expect(tries()).toBe(2);
+});
+
+it('stops trying by itself once pause after pause sends nothing — until the person, or the front', async () => {
+  await parked();
+  await wait(60 * 60_000);
+  const gaveUp = tries();
+  expect(gaveUp).toBeGreaterThan(1);
+  expect(gaveUp).toBeLessThan((60 * 60_000) / PAUSE);
+  await wait(60 * 60_000);
+  expect(tries()).toBe(gaveUp);
+
+  // Back in front, the count starts over — one pause from now, not on the spot.
+  await comeBack();
+  expect(tries()).toBe(gaveUp);
+  await wait(PAUSE);
+  expect(tries()).toBe(gaveUp + 1);
+
+  // «Повторить» waits for nothing.
+  await act(async () => wake());
+  await wait(0);
+  expect(tries()).toBe(gaveUp + 2);
 });

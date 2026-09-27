@@ -53,7 +53,12 @@ export const en = {
     send: (n: number) => `Send ${n} ${n === 1 ? 'file' : 'files'}`,
     /** What the queue parks a file with. The filename is the phone's own and stays as it is. */
     gone: (name: string) => `${name} is no longer on this phone.`,
+    /** The gallery still has it; the phone could not read it. About the file, never a server. */
+    unreadable: (name: string) => `The phone could not read ${name} from its gallery.`,
     partRefused: (part: number, status: number) => `Storage refused part ${part} (${status}).`,
+    /** Storage, not the api: the connection to it dropped or went quiet mid-part. */
+    storageOffline: (part: number, status?: number) =>
+      `The connection to storage broke off on part ${part}${status === undefined ? '' : ` (${status})`}.`,
     noReceipt: (part: number) => `Storage took part ${part} without a receipt.`,
     noLink: (part: number) => `The api signed no link for part ${part}.`,
     partSizeChanged: 'The part size changed.',
@@ -100,8 +105,11 @@ export const ru: typeof en = {
     pickedOf: (n: number, total: number) => `Выбрано ${n} из ${total}`,
     send: (n: number) => `Отправить ${count(n, 'файл', 'файла', 'файлов')}`,
     gone: (name: string) => `${name} больше нет на этом телефоне.`,
+    unreadable: (name: string) => `Телефон не смог прочитать ${name} из галереи.`,
     partRefused: (part: number, status: number) =>
       `Хранилище отказало на части ${part} (${status}).`,
+    storageOffline: (part: number, status?: number) =>
+      `Связь с хранилищем оборвалась на части ${part}${status === undefined ? '' : ` (${status})`}.`,
     noReceipt: (part: number) => `Хранилище приняло часть ${part} без квитанции.`,
     noLink: (part: number) => `Сервер не подписал ссылку для части ${part}.`,
     partSizeChanged: 'Размер части изменился.',

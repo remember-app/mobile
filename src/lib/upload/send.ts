@@ -25,6 +25,7 @@ import { useAuth } from '@/lib/auth';
 import {
   missingParts,
   type PartRange,
+  partDeadline,
   type QueuedFile,
   type UploadFailure,
   uploadedParts,
@@ -33,14 +34,25 @@ import {
 /** Where the queue waits between launches. Documents and not cache — nothing may sweep this. */
 const QUEUE_FILE = 'uploads.json';
 
-/** How long a parked queue waits before trying itself again, for the tunnel that ends mid-file. */
+/**
+ * How long a parked queue waits before trying itself again, for the tunnel that ends mid-file.
+ * Counted from the moment the pump stops, and nothing but the person's own «Повторить» cuts it
+ * short (TASK-413).
+ */
 const RETRY_MS = 15_000;
+
+/**
+ * How many of those waits in a row may pass with nothing at all going up before the queue stops
+ * trying by itself — five minutes of it. A parked file then waits for the person: «Повторить», or
+ * the app coming back to the foreground, which starts the count again.
+ */
+const RETRIES = 20;
 
 /**
  * A failure the pump names itself, carried as the line to say and not as the sentence — the queue
  * holds no words at all, so nothing in it can be left in yesterday's language (TASK-93). The
- * `Error` message is for a log and never for a person. Everything else that lands in the pump — a
- * dead api, a dropped connection — is named by `failure` below.
+ * `Error` message is for a log and never for a person. The gallery and storage are named here,
+ * where they fail; what else lands in the pump is named by `failure` below.
  */
 class UploadError extends Error {
   constructor(readonly failure: UploadFailure) {
@@ -48,13 +60,19 @@ class UploadError extends Error {
   }
 }
 
-/** Whatever came out of the pump, as the queue keeps it: the pump's own reason, or the api's. */
-const failure = (error: unknown): UploadFailure =>
-  error instanceof UploadError
-    ? error.failure
-    : error instanceof ApiError
-      ? { reason: 'api', status: error.status, said: apiReason(error.body) }
-      : { reason: 'offline' };
+/**
+ * Whatever came out of the pump, as the queue keeps it: the pump's own reason, or the api's. What
+ * is left after both is a call to the api that got no answer at all — and it goes to the log as it
+ * came, the one place a dead api can still be told apart from anything else that ends up here.
+ */
+function failure(error: unknown): UploadFailure {
+  if (error instanceof UploadError) return error.failure;
+  if (error instanceof ApiError) {
+    return { reason: 'api', status: error.status, said: apiReason(error.body) };
+  }
+  console.warn('upload parks, the api does not answer:', error);
+  return { reason: 'offline' };
+}
 
 let queue: QueuedFile[] = [];
 let restored = false;
@@ -71,6 +89,8 @@ let session: string | null = null;
 let asking: string | null = null;
 let running = false;
 let retrying: ReturnType<typeof setTimeout> | null = null;
+/** Timed retries since a part last went up, or since the person last asked. */
+let idle = 0;
 const listeners = new Set<() => void>();
 
 const store = () => new File(Paths.document, QUEUE_FILE);
@@ -124,15 +144,28 @@ function changed() {
 /**
  * The file behind a gallery entry. `uri` is the library's own handle — `ph://…` on iOS — and
  * cannot be read as a path; `localUri` is the actual file, which is what the parts are cut from.
+ *
+ * No entry at all is a file the gallery no longer has — both platforms answer that with nothing
+ * rather than with an error. Everything else that goes wrong here is the phone not handing the file
+ * over: iOS answers with no `localUri` for a photo iCloud keeps off the phone and could not bring
+ * down just now. Neither is the server, which nobody has asked anything yet.
  */
-function sourceFile(asset: MediaLibrary.AssetInfo): File {
+async function sourceFile(file: QueuedFile): Promise<File> {
+  let asset: MediaLibrary.AssetInfo | null;
+  try {
+    asset = await MediaLibrary.getAssetInfoAsync(file.assetId);
+  } catch (error) {
+    console.warn(`${file.filename} cannot be read off the gallery:`, error);
+    throw new UploadError({ reason: 'unreadable' });
+  }
+  if (!asset) throw new UploadError({ reason: 'gone' });
   try {
     const source = new File(asset.localUri ?? asset.uri);
     if (source.exists && source.size > 0) return source;
-  } catch {
-    // Whatever the reason, it comes to the same thing as the line below.
+  } catch (error) {
+    console.warn(`${file.filename} cannot be opened:`, error);
   }
-  throw new UploadError({ reason: 'gone' });
+  throw new UploadError({ reason: 'unreadable' });
 }
 
 /**
@@ -173,32 +206,64 @@ async function planFor(file: QueuedFile, token: string, size: number): Promise<U
 }
 
 /**
- * One slice, straight to storage. Answers with the etag storage receipts it with, or null when the
- * link has outlived the time the api signed it for — the one failure that is fixed by asking the
- * api again rather than by trying harder. Google says so with a 400 whose body carries the code
- * `ExpiredToken`, and the body is read for that alone; a 403 is taken the same way, which is how
- * R2 and MinIO say it.
+ * One slice's bytes, off the phone. A read that breaks here is the file's, never the network's.
+ *
+ * Typed as the handle hands them back rather than as a plain `Uint8Array`: a view over a
+ * `SharedArrayBuffer` is not a body `fetch` will take, and the two say so differently.
  */
-async function putPart(url: string, source: File, part: PartRange): Promise<string | null> {
-  const handle = source.open();
-  // Typed as the handle hands it back rather than as a plain `Uint8Array`: a view over a
-  // `SharedArrayBuffer` is not a body `fetch` will take, and the two say so differently.
-  let bytes: Uint8Array<ArrayBuffer>;
+function readPart(source: File, part: PartRange): Uint8Array<ArrayBuffer> {
   try {
-    handle.offset = part.start;
-    // ponytail: a synchronous read of one part (8 MB by default) on the JS thread — the only
-    // read-at-an-offset the platform offers. If it ever janks the grid, the part size is the knob:
-    // architecture.md allows 5–10 MB and the api hands the number out.
-    bytes = handle.readBytes(part.length);
-  } finally {
-    handle.close();
+    const handle = source.open();
+    try {
+      handle.offset = part.start;
+      // ponytail: a synchronous read of one part (8 MB by default) on the JS thread — the only
+      // read-at-an-offset the platform offers. If it ever janks the grid, the part size is the
+      // knob: architecture.md allows 5–10 MB and the api hands the number out.
+      return handle.readBytes(part.length);
+    } finally {
+      handle.close();
+    }
+  } catch (error) {
+    console.warn(`part ${part.number} cannot be read off the phone:`, error);
+    throw new UploadError({ reason: 'unreadable' });
   }
+}
 
-  const response = await fetch(url, { method: 'PUT', body: bytes });
-  if (response.status === 403) return null;
-  if (response.status === 400 && (await response.text()).includes('<Code>ExpiredToken</Code>')) {
-    return null;
+/**
+ * One slice, straight to storage. Answers with the etag storage receipts it with — or, for the two
+ * failures a fresh link and one more try can fix, with the reason to park on if that try fails too.
+ *
+ * One is a link that has outlived the time the api signed it for. Google says so with a 400 whose
+ * body carries the code `ExpiredToken`, and the body is read for that alone; a 403 is taken the same
+ * way, which is how R2 and MinIO say it. The other is storage not answering at all — the connection
+ * dropped, or nothing came back within `partDeadline` — which is the network between this phone and
+ * storage, and not the api.
+ */
+async function putPart(
+  url: string,
+  source: File,
+  part: PartRange,
+): Promise<string | UploadFailure> {
+  const bytes = readPart(source, part);
+  const abort = new AbortController();
+  // Without this a connection that died quietly holds the whole queue for as long as it likes.
+  const timer = setTimeout(() => abort.abort(), partDeadline(part.length));
+  let status: number | undefined;
+  let response: Response;
+  let expired: boolean;
+  try {
+    response = await fetch(url, { method: 'PUT', body: bytes, signal: abort.signal });
+    status = response.status;
+    expired =
+      status === 403 ||
+      (status === 400 && (await response.text()).includes('<Code>ExpiredToken</Code>'));
+  } catch (error) {
+    console.warn(`part ${part.number} does not reach storage:`, error);
+    return { reason: 'storageOffline', part: part.number, status };
+  } finally {
+    clearTimeout(timer);
   }
+  if (expired) return { reason: 'partNotTaken', part: part.number };
   if (!response.ok) {
     throw new UploadError({ reason: 'partRefused', part: part.number, status: response.status });
   }
@@ -209,7 +274,7 @@ async function putPart(url: string, source: File, part: PartRange): Promise<stri
 
 /** One file, all the way: announce it, send what is missing, and tell the api it is there. */
 async function send(file: QueuedFile, token: string) {
-  const source = sourceFile(await MediaLibrary.getAssetInfoAsync(file.assetId));
+  const source = await sourceFile(file);
   let plan = await planFor(file, token, source.size);
   const size = file.size ?? source.size;
   const partSize = plan.upload.part_size;
@@ -221,18 +286,21 @@ async function send(file: QueuedFile, token: string) {
   };
 
   for (const part of missingParts(size, partSize, file.parts)) {
-    let etag = await putPart(linkFor(part.number), source, part);
-    if (etag === null) {
-      // The link ran out mid-file. Fresh links, same upload, and this part is the only one that
+    let sent = await putPart(linkFor(part.number), source, part);
+    if (typeof sent !== 'string') {
+      // The link ran out mid-file, or storage went silent on it — and a link that hung for minutes
+      // is that much nearer its hour. Fresh links, same upload, and this part is the only one that
       // has to be sent again — everything before it is already receipted.
       plan = await planFor(file, token, size);
       // `planFor` throws the etags away if the api's part size moved, and this loop is cutting to
       // the old one: it stops here and the next run starts the file on slices that line up.
       if (plan.upload.part_size !== partSize) throw new UploadError({ reason: 'partSizeChanged' });
-      etag = await putPart(linkFor(part.number), source, part);
-      if (etag === null) throw new UploadError({ reason: 'partNotTaken', part: part.number });
+      sent = await putPart(linkFor(part.number), source, part);
+      // One fresh set per pass: twice is no longer a stale link or a blip, and the file parks.
+      if (typeof sent !== 'string') throw new UploadError(sent);
     }
-    file.parts[part.number] = etag;
+    file.parts[part.number] = sent;
+    idle = 0;
     // Written down before the next part goes out: an app killed here resumes from this line.
     changed();
   }
@@ -299,11 +367,16 @@ async function run() {
   if (running || session === null) return;
   const token = session;
   running = true;
+  // The pause starts when the pump stops. One still ticking from before this round would clear,
+  // mid-round, a reason this round parked a file with seconds ago — and try it again on the spot.
+  if (retrying !== null) clearTimeout(retrying);
+  retrying = null;
   try {
     for (let next = waiting(); next !== undefined; next = waiting()) {
       try {
         await send(next, token);
         queue = queue.filter((file) => file !== next);
+        idle = 0;
       } catch (error) {
         // Parked, not dropped: offline is the ordinary reason to be here, and the material is
         // still owed to the memory. What is written down is the reason and not a sentence — the
@@ -319,22 +392,34 @@ async function run() {
   } finally {
     running = false;
   }
-
-  // Nothing else would ever kick it while the app stays open and the tunnel ends.
-  if (queue.length > 0 && retrying === null) {
-    retrying = setTimeout(() => {
-      retrying = null;
-      wake();
-    }, RETRY_MS);
-  }
+  retryLater();
 }
 
-/** Clear what parked them and go again — a foreground, that timer, or the button on the screen. */
-export function wake() {
-  if (queue.length === 0) return;
+/**
+ * The next round, one pause from now — the only way the queue tries again by itself. Nothing else
+ * would ever kick it while the app stays open and the tunnel ends.
+ */
+function retryLater() {
+  if (queue.length === 0 || retrying !== null || idle >= RETRIES) return;
+  retrying = setTimeout(() => {
+    retrying = null;
+    idle += 1;
+    retry();
+  }, RETRY_MS);
+}
+
+/** Clear what parked them and go again. */
+function retry() {
   for (const file of queue) delete file.error;
   changed();
   void run();
+}
+
+/** «Повторить» on the screen: the person's own say-so, the one retry that waits for no pause. */
+export function wake() {
+  if (queue.length === 0) return;
+  idle = 0;
+  retry();
 }
 
 /** Take a pick from the grid into the queue. The same file twice is the same one entry. */
@@ -408,9 +493,15 @@ export function useUploads(): QueuedFile[] {
 
   useEffect(() => {
     // «Повтор при возврате в приложение»: the phone that went into the lift comes back with the
-    // app in the foreground, and that is the moment worth trying again.
+    // app in the foreground, and that is the moment the queue starts trying again — one pause from
+    // now, not on the spot. iOS goes inactive and back for a pulled-down notification, a system
+    // prompt, a glance at the app switcher, and a retry on each of those is a parked file blinking
+    // on and off faster than any pause (TASK-413). A wait already ticking is left to run out: a
+    // timer that fell due while the app was away fires the moment it is back.
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') wake();
+      if (state !== 'active') return;
+      idle = 0;
+      if (!running) retryLater();
     });
     return () => subscription.remove();
   }, []);

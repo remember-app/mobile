@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   failureText,
   missingParts,
+  partDeadline,
   progress,
   type QueuedFile,
   type UploadFailure,
@@ -59,11 +60,14 @@ describe('failureText', () => {
   /** One of every way the pump parks a file, and the two answers the api gets worded by. */
   const every: UploadFailure[] = [
     { reason: 'gone' },
+    { reason: 'unreadable' },
     { reason: 'partSizeChanged' },
     { reason: 'noReceipt', part: 2 },
     { reason: 'noLink', part: 2 },
     { reason: 'partNotTaken', part: 2 },
     { reason: 'partRefused', part: 2, status: 503 },
+    { reason: 'storageOffline', part: 2 },
+    { reason: 'storageOffline', part: 2, status: 400 },
     { reason: 'offline' },
     { reason: 'api', status: 429 },
     { reason: 'api', status: 500 },
@@ -80,11 +84,53 @@ describe('failureText', () => {
     expect(failureText(ru, { reason: 'gone' }, NAME)).toBe(`${NAME} больше нет на этом телефоне.`);
   });
 
+  // TASK-413: a server that did not answer, storage that went quiet on a part, and a file the phone
+  // could not read are three lines — and only the first of them is about the server.
+  it('says the api, storage and the file on the phone apart', () => {
+    for (const s of [en, ru]) {
+      const api = failureText(s, { reason: 'offline' }, NAME);
+      const storage = failureText(s, { reason: 'storageOffline', part: 2 }, NAME);
+      const file = failureText(s, { reason: 'unreadable' }, NAME);
+      expect(new Set([api, storage, file]).size).toBe(3);
+      expect(file).toContain(NAME);
+    }
+    expect(failureText(en, { reason: 'storageOffline', part: 2 }, NAME)).toBe(
+      'The connection to storage broke off on part 2.',
+    );
+    expect(failureText(ru, { reason: 'storageOffline', part: 2, status: 400 }, NAME)).toBe(
+      'Связь с хранилищем оборвалась на части 2 (400).',
+    );
+    expect(failureText(en, { reason: 'unreadable' }, NAME)).toBe(
+      `The phone could not read ${NAME} from its gallery.`,
+    );
+    for (const text of [
+      failureText(en, { reason: 'storageOffline', part: 2 }, NAME),
+      failureText(en, { reason: 'unreadable' }, NAME),
+    ]) {
+      expect(text).not.toMatch(/api|server/i);
+    }
+  });
+
   // The one reason nothing here translates: the api wrote it, and this side only carries it.
   it('hands the api’s own sentence on as it came', () => {
     const refused: UploadFailure = { reason: 'api', status: 403, said: 'Memory is closed' };
     expect(failureText(ru, refused, NAME)).toBe('Memory is closed');
     expect(failureText(en, refused, NAME)).toBe('Memory is closed');
+  });
+});
+
+describe('partDeadline', () => {
+  // A deadline shorter than the part honestly takes is a file that never goes up on a slow link:
+  // every try is cut off at the same place and starts the part over. 256 kbit/s is the slowest
+  // uplink the queue promises to wait out, and 8 MiB is the part the api hands out today.
+  it('outlasts a whole part at the slowest uplink it waits out', () => {
+    const atSlowCell = (bytes: number) => ((bytes * 8) / 256_000) * 1000;
+    expect(partDeadline(8 * MB)).toBeGreaterThan(atSlowCell(8 * MB));
+    expect(partDeadline(1000)).toBeGreaterThan(atSlowCell(1000));
+  });
+
+  it('gives a small part less time than a whole one', () => {
+    expect(partDeadline(1000)).toBeLessThan(partDeadline(8 * MB));
   });
 });
 

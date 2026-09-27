@@ -14,12 +14,26 @@ import type { Strings } from '@/strings';
  * happened to be in (TASK-93). The words are picked in `failureText`, when the banner is drawn.
  */
 export type UploadFailure =
-  /** The file behind the gallery entry is gone. It is named by the queue's own `filename`. */
+  /** The gallery no longer has the entry. It is named by the queue's own `filename`. */
   | { reason: 'gone' }
+  /**
+   * The gallery has the entry and the phone could not hand its bytes over — on an iPhone that is
+   * ordinarily a photo iCloud keeps off the phone under «Optimise Storage», which has to come down
+   * first. Named by `filename` too: it is about the file, not about any server.
+   */
+  | { reason: 'unreadable' }
   | { reason: 'partSizeChanged' }
   | { reason: 'noReceipt' | 'noLink' | 'partNotTaken'; part: number }
   | { reason: 'partRefused'; part: number; status: number }
-  /** No api at the other end at all — the line every screen shows for a dead network. */
+  /**
+   * Storage never answered for a part: the connection dropped, or it went quiet past
+   * `partDeadline`. `status` is storage's code when one had come before the line went.
+   */
+  | { reason: 'storageOffline'; part: number; status?: number }
+  /**
+   * No api at the other end at all — the line every screen shows for a dead network. Only a call to
+   * the api lands here: storage and the phone's own gallery have reasons of their own (TASK-413).
+   */
   | { reason: 'offline' }
   /**
    * The api answered and refused. `said` is its own wording when it sent one: that comes down the
@@ -36,6 +50,8 @@ export function failureText(s: Strings, failure: UploadFailure, filename: string
   switch (failure.reason) {
     case 'gone':
       return s.upload.gone(filename);
+    case 'unreadable':
+      return s.upload.unreadable(filename);
     case 'partSizeChanged':
       return s.upload.partSizeChanged;
     case 'noReceipt':
@@ -46,6 +62,8 @@ export function failureText(s: Strings, failure: UploadFailure, filename: string
       return s.upload.partNotTaken(failure.part);
     case 'partRefused':
       return s.upload.partRefused(failure.part, failure.status);
+    case 'storageOffline':
+      return s.upload.storageOffline(failure.part, failure.status);
     case 'offline':
       return s.error.offline;
     case 'api':
@@ -80,6 +98,26 @@ export type PartRange = { number: number; start: number; length: number };
 /** How many slices a file of this size falls into — the same count the api signs links for. */
 export const partCount = (size: number, partSize: number) =>
   Math.max(1, Math.ceil(size / partSize));
+
+/**
+ * The slowest uplink a part is still waited out on, in bytes a millisecond: 32 is 256 kbit/s, a
+ * phone at the edge of a cell in a crowd. A whole 8 MiB part takes a little over four minutes at that.
+ */
+const SLOWEST_UPLINK = 32;
+
+/** On top of the bytes themselves: the connection, the handshake, storage taking the part in. */
+const PART_GRACE_MS = 30_000;
+
+/**
+ * How long storage is given for one part before it counts as not answering. Scaled to the part and
+ * not one number for all: the part size is the api's to hand out (8 MiB today), and a small photo's
+ * one part has no business hanging for the minutes a whole part may honestly take.
+ *
+ * ponytail: a deadline for the whole part and not for silence — `fetch` reports no upload progress,
+ * so a link slower than `SLOWEST_UPLINK` never gets a whole part through and parks as a dropped
+ * connection. XHR's `upload.onprogress` is the way to a timer that restarts on every byte sent.
+ */
+export const partDeadline = (bytes: number) => PART_GRACE_MS + bytes / SLOWEST_UPLINK;
 
 /**
  * The slices still to send: every part R2 has not answered for yet, in order.
