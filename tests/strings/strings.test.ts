@@ -94,6 +94,22 @@ test('the sheet that deletes a memory counts its people after «всех», and 
   ]);
 });
 
+test('the upload screen holds its words for a file it could not get, and names iCloud for itself', () => {
+  // On a real phone this line was read as «prone's gallery» (TASK-419). The dictionary never said
+  // it — and these are the exact words, so a typo in them fails here and not on somebody's screen.
+  expect(en.upload.unreadable).toBe('Could not be read from the phone’s gallery');
+  expect(ru.upload.unreadable).toBe('Телефон не смог прочитать из галереи');
+  // A frame in iCloud is its own state and its own reason, in both languages — never the phone's
+  // failure to read something it can read perfectly well once it is here.
+  expect(en.upload.fromCloud).toBe('The frame is coming down from iCloud');
+  expect(ru.upload.fromCloud).toBe('Кадр подгружается из iCloud');
+  expect(en.upload.iCloud).toBe('Could not be brought down from iCloud');
+  expect(ru.upload.iCloud).toBe('Не удалось скачать из iCloud');
+  // And nothing else this screen says in English misspells the phone.
+  const said = Object.values(en.upload).filter((line): line is string => typeof line === 'string');
+  expect(said.filter((line) => /prone/i.test(line))).toEqual([]);
+});
+
 /**
  * Every route file, read as text — the idiom `tests/routes/memory/screen.test.ts` explains at length: this
  * project has no renderer, and what is worth pinning here is answered by the source anyway.

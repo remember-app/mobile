@@ -304,10 +304,12 @@ export default function UploadScreen() {
         ) : null}
 
         {/* `UploadQueue`. One bar for the lot: it stands at whatever the file going up right now
-            has sent, and the count beside it is what is still owed to this memory. */}
+            has sent, and the count beside it is what is still owed to this memory. The heading is
+            the same block's, saying which of the two the file is doing: going up, or still coming
+            down out of iCloud before it can (TASK-419). */}
         {queued.length > 0 ? (
           <Upload
-            title={s.state.sending}
+            title={sending?.cloud ? s.upload.fromCloud : s.state.sending}
             meta={s.upload.stillToSend(queued.length)}
             value={sending ? progress(sending) : 0}
             hint={s.upload.carriesOn}

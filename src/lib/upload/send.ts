@@ -107,7 +107,9 @@ function restore() {
     // finished sentence and not a line to say (TASK-93) — and it costs nothing: a queue that comes
     // back parked is woken by the retry timer fifteen seconds later anyway.
     if (saved.exists) {
-      queue = (JSON.parse(saved.textSync()) as QueuedFile[]).map(({ error, ...file }) => file);
+      queue = (JSON.parse(saved.textSync()) as QueuedFile[]).map(
+        ({ error, cloud, ...file }) => file,
+      );
     }
   } catch {
     // A queue that cannot be read is a list of what to send again, not the material itself —
@@ -142,30 +144,89 @@ function changed() {
 }
 
 /**
- * The file behind a gallery entry. `uri` is the library's own handle — `ph://…` on iOS — and
- * cannot be read as a path; `localUri` is the actual file, which is what the parts are cut from.
- *
- * No entry at all is a file the gallery no longer has — both platforms answer that with nothing
- * rather than with an error. Everything else that goes wrong here is the phone not handing the file
- * over: iOS answers with no `localUri` for a photo iCloud keeps off the phone and could not bring
- * down just now. Neither is the server, which nobody has asked anything yet.
+ * The gallery's own entry for a file, with the download from iCloud allowed or refused. Nothing at
+ * all is an entry the gallery no longer has — both platforms answer that way rather than with an
+ * error. A throw is the library refusing to answer anything: a grant taken back since the pick.
  */
-async function sourceFile(file: QueuedFile): Promise<File> {
-  let asset: MediaLibrary.AssetInfo | null;
+async function assetInfo(
+  file: QueuedFile,
+  shouldDownloadFromNetwork: boolean,
+): Promise<MediaLibrary.AssetInfo | null> {
   try {
-    asset = await MediaLibrary.getAssetInfoAsync(file.assetId);
+    return await MediaLibrary.getAssetInfoAsync(file.assetId, { shouldDownloadFromNetwork });
   } catch (error) {
     console.warn(`${file.filename} cannot be read off the gallery:`, error);
     throw new UploadError({ reason: 'unreadable' });
   }
-  if (!asset) throw new UploadError({ reason: 'gone' });
+}
+
+/**
+ * The bytes behind that entry, when the phone has them to open — `null` when it has not, which is
+ * the answer for a photo whose original is still in iCloud.
+ *
+ * `localUri` is the actual file and the only thing the parts can be cut from; `uri` is the library's
+ * own handle — `ph://…` on iOS — which is not a path and which nothing here can open.
+ */
+function openable(file: QueuedFile, asset: MediaLibrary.AssetInfo): File | null {
+  if (!asset.localUri) return null;
   try {
-    const source = new File(asset.localUri ?? asset.uri);
+    const source = new File(asset.localUri);
     if (source.exists && source.size > 0) return source;
+    console.warn(`${file.filename} is an entry with an empty file behind it: ${asset.localUri}`);
   } catch (error) {
     console.warn(`${file.filename} cannot be opened:`, error);
   }
-  throw new UploadError({ reason: 'unreadable' });
+  return null;
+}
+
+/**
+ * The file behind a gallery entry, brought down from iCloud first if that is where the original is.
+ * On an iPhone with «Оптимизация хранения» on — the ordinary state of a full phone — the gallery
+ * holds a thumbnail and the original is in iCloud, so there is no file to cut parts from until it
+ * has come down (TASK-419).
+ *
+ * Which is why the entry is asked for twice, and the first time with the download turned off: iOS
+ * fills `isNetworkAsset` in that mode alone, so it is the one answer that tells a photo waiting in
+ * iCloud from a file that genuinely cannot be read. Asked with the download on — the library's own
+ * default — the two come back identical: an entry with no `localUri` on it and no word why.
+ *
+ * Nothing here is the server, which nobody has asked anything yet.
+ */
+async function sourceFile(file: QueuedFile): Promise<File> {
+  const asset = await assetInfo(file, false);
+  if (!asset) throw new UploadError({ reason: 'gone' });
+  const onPhone = openable(file, asset);
+  if (onPhone !== null) return onPhone;
+
+  // Nothing on the phone, so the second ask — the one with the download on — is the download
+  // itself. It goes out whatever the flag said: an original iOS did not flag as iCloud's but still
+  // will not hand over locally (a shared album, a request it cancelled) is worth the one attempt.
+  // The flag decides what the person is told, not whether it is worth trying.
+  const cloud = asset.isNetworkAsset === true;
+  if (cloud) {
+    console.info(`${file.filename} comes down from iCloud before it goes up`);
+    // Said on the screen while it happens, in the sending's own block: the download takes as long
+    // as the original and the line make it, and a person watching a bar at nought is owed the
+    // reason. The library reports no progress for it, so it is the state and never a figure.
+    file.cloud = true;
+    changed();
+  }
+  try {
+    const brought = await assetInfo(file, true);
+    const down = brought === null ? null : openable(file, brought);
+    if (down !== null) return down;
+    // Parked and not dropped: iOS carries a download it has started on in the background, and the
+    // queue's own pause brings this file round again — by then it is ordinarily on the phone.
+    console.warn(
+      `${file.filename} does not come down from ${cloud ? 'iCloud' : 'the gallery'}, the file parks`,
+    );
+    throw new UploadError({ reason: cloud ? 'iCloud' : 'unreadable' });
+  } finally {
+    if (cloud) {
+      delete file.cloud;
+      changed();
+    }
+  }
 }
 
 /**

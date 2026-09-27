@@ -44,6 +44,12 @@ export const en = {
     emptyText: 'This phone’s gallery is empty. Shoot something — and the frames will show up here.',
     stillToSend: (n: number) => `${n} still to send`,
     carriesOn: 'The app can be put away — sending carries on.',
+    /**
+     * The sending's own block while an original is coming down from iCloud — «Оптимизация
+     * хранения» keeps it off the phone. It stands where «Sending» does, and the bar under it at
+     * nought until the file is here: the phone reports no progress for that download (TASK-419).
+     */
+    fromCloud: 'The frame is coming down from iCloud',
     /** The heading over the files the queue could not get out, «НЕ УШЛИ 12 ФАЙЛОВ». */
     notSent: (n: number) => `${n} ${n === 1 ? 'file' : 'files'} not sent`,
     /** How many of them stopped for one reason — the line that reason is said on. */
@@ -60,6 +66,8 @@ export const en = {
     gone: 'No longer on this phone',
     /** The gallery still has it; the phone could not read it. About the file, never a server. */
     unreadable: 'Could not be read from the phone’s gallery',
+    /** iCloud has the original and would not hand it over — about iCloud, never the phone. */
+    iCloud: 'Could not be brought down from iCloud',
     storageRefused: 'Storage refused',
     /** Storage, not the api: the connection to it dropped or went quiet mid-part. */
     storageOffline: 'The connection to storage broke off',
@@ -101,6 +109,7 @@ export const ru: typeof en = {
     emptyText: 'Галерея этого телефона пуста. Снимите что-нибудь — и кадры появятся здесь.',
     stillToSend: (n: number) => `Осталось ${count(n, 'файл', 'файла', 'файлов')}`,
     carriesOn: 'Приложение можно свернуть — отправка продолжится.',
+    fromCloud: 'Кадр подгружается из iCloud',
     notSent: (n: number) =>
       `Не ${form(n, 'ушёл', 'ушли', 'ушли')} ${count(n, 'файл', 'файла', 'файлов')}`,
     files: (n: number) => count(n, 'файл', 'файла', 'файлов'),
@@ -110,6 +119,7 @@ export const ru: typeof en = {
     send: (n: number) => `Отправить ${count(n, 'файл', 'файла', 'файлов')}`,
     gone: 'Больше нет на этом телефоне',
     unreadable: 'Телефон не смог прочитать из галереи',
+    iCloud: 'Не удалось скачать из iCloud',
     storageRefused: 'Хранилище отказало',
     storageOffline: 'Связь с хранилищем оборвалась',
     noLink: 'Сервер не подписал ссылку для одной из частей',

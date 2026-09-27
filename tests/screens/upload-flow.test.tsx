@@ -726,6 +726,13 @@ test('the block of sending is there only while this memory has something in the 
   expect(screen.root.findAllByType(Upload)).toHaveLength(1);
   expect(screen.root.findByType(Upload).props.meta).toBe(ru.upload.stillToSend(1));
   expect(screen.root.findByType(Upload).props.value).toBe(0);
+  expect(screen.root.findByType(Upload).props.title).toBe(ru.state.sending);
+  // TASK-419: the same block while the original is still coming down out of iCloud — the heading
+  // says which of the two the file is doing, so a bar at nought is never read as a failure.
+  uploads.queue = [{ ...one, cloud: true }];
+  await screen.redraw();
+  expect(screen.root.findByType(Upload).props.title).toBe(ru.upload.fromCloud);
+  expect(screen.root.findAllByType(BlockStuck)).toHaveLength(0);
   // Everything of it parked: the bar has nothing going up to stand at, and the block says why.
   uploads.queue = [
     { ...one, assetId: 'gone', filename: 'IMG_gone.HEIC', error: { reason: 'gone' } },

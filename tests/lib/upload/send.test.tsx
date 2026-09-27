@@ -132,6 +132,7 @@ async function upload(answer: Answer, wait = 0) {
 const onPhone = async (id: string) => ({ id, uri: `ph://${id}`, localUri: `file:///${id}` });
 
 beforeEach(() => {
+  disk.length = 0;
   api.startUpload.mockResolvedValue(plan('first'));
   api.refreshUpload.mockResolvedValue(plan('fresh'));
   api.finishUpload.mockResolvedValue({ id: 'media-1', status: 'processing', first_upload: false });
@@ -299,8 +300,8 @@ it.each<[string, (id: string) => Promise<unknown>]>([
       throw new Error('Missing MEDIA_LIBRARY permissions.');
     },
   ],
-  // What iOS answers for a photo iCloud keeps off the phone and could not bring down: the entry,
-  // with no file behind it.
+  // The entry with nothing behind it and not a word about iCloud: nothing to bring down, so
+  // nothing to wait for either — a file the phone genuinely cannot read (TASK-419).
   ['the gallery has the entry and no file behind it', async (id) => ({ id, uri: `ph://${id}` })],
 ])('names the file and not a server when %s, and asks the api nothing', async (_, answer) => {
   library.getAssetInfoAsync.mockImplementation(answer);
@@ -319,6 +320,52 @@ it('names the file when its bytes will not come off the phone, and sends storage
   const { put, queue } = await upload(receipted);
   expect(put).toEqual([]);
   expect(queue.map((file) => file.error)).toEqual([{ reason: 'unreadable' }]);
+});
+
+/**
+ * TASK-419: with «Оптимизация хранения» on, the gallery holds a thumbnail and the original is in
+ * iCloud. iOS says which of the two only when it is told not to fetch — so that is the first
+ * question — and hands the file over on the second, once it has come down.
+ */
+const inCloud = async (id: string, options: { shouldDownloadFromNetwork: boolean }) =>
+  options.shouldDownloadFromNetwork
+    ? { id, uri: `ph://${id}`, localUri: `file:///${id}` }
+    : { id, uri: `ph://${id}`, isNetworkAsset: true };
+
+/** Whether any queue the pump wrote down said this file was coming down from iCloud. */
+const saidCloud = () =>
+  disk.some((written) => (JSON.parse(written) as QueuedFile[]).some((file) => file.cloud === true));
+
+it('brings a frame down from iCloud, says so while it does, and sends it', async () => {
+  library.getAssetInfoAsync.mockImplementation(inCloud);
+  const { put, queue } = await upload(receipted);
+  // Asked with the fetch off first — the one answer that names iCloud — and then with it on.
+  expect(library.getAssetInfoAsync.mock.calls.map(([, options]) => options)).toEqual([
+    { shouldDownloadFromNetwork: false },
+    { shouldDownloadFromNetwork: true },
+  ]);
+  // Said while it was coming down, and not left on the file afterwards.
+  expect(saidCloud()).toBe(true);
+  expect(put).toEqual([1, 2, 3].map((n) => `https://storage/first/${n}`));
+  expect(api.finishUpload).toHaveBeenCalledWith('session', 'm1', 'media-1', SEALED);
+  expect(queue).toEqual([]);
+});
+
+it('names iCloud and not the phone when the frame will not come down, and asks the api nothing', async () => {
+  // The fetch was allowed and the original still is not here: the download did not finish now.
+  library.getAssetInfoAsync.mockImplementation(async (id: string) => ({
+    id,
+    uri: `ph://${id}`,
+    isNetworkAsset: true,
+  }));
+  const { put, queue } = await upload(receipted);
+  expect(api.startUpload).not.toHaveBeenCalled();
+  expect(put).toEqual([]);
+  expect(saidCloud()).toBe(true);
+  // Parked with its own reason, and not as a file the phone could not read — the queue's pause
+  // brings it round again, by which time iOS has ordinarily finished the download in the background.
+  expect(queue.map((file) => file.error)).toEqual([{ reason: 'iCloud' }]);
+  expect(queue.map((file) => file.cloud)).toEqual([undefined]);
 });
 
 it('still calls a file the gallery no longer has gone', async () => {

@@ -17,11 +17,17 @@ export type UploadFailure =
   /** The gallery no longer has the entry. */
   | { reason: 'gone' }
   /**
-   * The gallery has the entry and the phone could not hand its bytes over — on an iPhone that is
-   * ordinarily a photo iCloud keeps off the phone under «Optimise Storage», which has to come down
-   * first. It is about the file, not about any server.
+   * The gallery has the entry and there is no file behind it at all: nothing on the phone, or a
+   * grant taken back since the pick. It is about the file, not about any server — and not about
+   * iCloud either, which has its own reason below (TASK-419).
    */
   | { reason: 'unreadable' }
+  /**
+   * The original lives in iCloud — «Оптимизация хранения», the ordinary state of a full iPhone —
+   * and could not be brought down just now. The phone carries the download on in the background,
+   * so this is a file to try again and not one to give up on.
+   */
+  | { reason: 'iCloud' }
   | { reason: 'partSizeChanged' }
   | { reason: 'noReceipt' | 'noLink' | 'partNotTaken'; part: number }
   | { reason: 'partRefused'; part: number; status: number }
@@ -57,6 +63,8 @@ export function failureText(s: Strings, failure: UploadFailure): string {
       return s.upload.gone;
     case 'unreadable':
       return s.upload.unreadable;
+    case 'iCloud':
+      return s.upload.iCloud;
     case 'partSizeChanged':
       return s.upload.partSizeChanged;
     case 'noLink':
@@ -130,6 +138,12 @@ export type QueuedFile = {
   parts: Record<number, string>;
   /** Why it is parked. Cleared on every retry, so it is always the last reason and not the first. */
   error?: UploadFailure;
+  /**
+   * Set while the original is being brought down from iCloud, so the screen can say that instead of
+   * standing at nought with no word for it. As transient as `error` and dropped the same way when a
+   * queue comes back from disk: a download the app was killed in the middle of is not going on.
+   */
+  cloud?: true;
 };
 
 /** One slice of the file: which part number it is, and the bytes it is cut from. */
