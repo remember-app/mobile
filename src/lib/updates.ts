@@ -13,6 +13,9 @@ import { useEffect } from 'react';
  */
 export function useLaunchUpdate() {
   const { isUpdatePending, checkError, downloadError } = Updates.useUpdates();
+  // The message and not the error: every state change after a failure carries it again as a new
+  // object, and each of those would be logged once more.
+  const failed = (checkError ?? downloadError)?.message;
 
   useEffect(() => {
     if (!isUpdatePending) return;
@@ -23,7 +26,6 @@ export function useLaunchUpdate() {
   }, [isUpdatePending]);
 
   useEffect(() => {
-    const error = checkError ?? downloadError;
-    if (error) console.warn('update check fails, the app runs the bundle it has:', error);
-  }, [checkError, downloadError]);
+    if (failed) console.warn('update does not come down, the app runs the bundle it has:', failed);
+  }, [failed]);
 }

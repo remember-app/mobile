@@ -24,10 +24,7 @@ vi.mock('expo-secure-store', () => ({
 vi.mock('expo-location', () => ({ reverseGeocodeAsync: async () => [] }));
 
 // Over-the-air updates, which are off everywhere but a store build: nothing is ever pending here.
-vi.mock('expo-updates', () => ({
-  useUpdates: () => ({ isUpdatePending: false }),
-  reloadAsync: async () => {},
-}));
+vi.mock('expo-updates', () => ({ useUpdates: () => ({ isUpdatePending: false }) }));
 
 // The phone's own share sheet. Here it opens and is closed at once; the test that is about what
 // goes into it mocks it again and watches the call.
