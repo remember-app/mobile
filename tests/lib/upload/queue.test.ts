@@ -59,7 +59,8 @@ describe('failureText', () => {
   /** One of every way the pump parks a file, and the two answers the api gets worded by. */
   const every: UploadFailure[] = [
     { reason: 'gone' },
-    { reason: 'unreadable' },
+    { reason: 'unreadable', detail: 'read part 1' },
+    { reason: 'iCloud', detail: 'no localUri' },
     { reason: 'partSizeChanged' },
     { reason: 'noReceipt', part: 2 },
     { reason: 'noLink', part: 2 },
@@ -84,7 +85,7 @@ describe('failureText', () => {
     for (const s of [en, ru]) {
       const api = failureText(s, { reason: 'offline' });
       const storage = failureText(s, { reason: 'storageOffline', part: 2 });
-      const file = failureText(s, { reason: 'unreadable' });
+      const file = failureText(s, { reason: 'unreadable', detail: 'read part 1' });
       expect(new Set([api, storage, file]).size).toBe(3);
     }
     expect(failureText(en, { reason: 'storageOffline', part: 2 })).toBe(
@@ -92,7 +93,7 @@ describe('failureText', () => {
     );
     for (const text of [
       failureText(en, { reason: 'storageOffline', part: 2 }),
-      failureText(en, { reason: 'unreadable' }),
+      failureText(en, { reason: 'unreadable', detail: 'read part 1' }),
     ]) {
       expect(text).not.toMatch(/api|server/i);
     }
@@ -137,6 +138,17 @@ describe('parkedReason', () => {
       'Связь с хранилищем оборвалась',
     );
     expect(parkedReason(ru, { reason: 'gone' })).toBe('Больше нет на этом телефоне');
+  });
+
+  // TASK-434: the phone's own answer goes on the file's line too, so a screenshot says where it
+  // stuck without a round of guessing.
+  it('says what the phone answered, when it was the phone that refused the file', () => {
+    expect(
+      parkedReason(en, { reason: 'unreadable', detail: 'read part 1: IMG_a is not writable' }),
+    ).toBe(`${en.upload.unreadable} (read part 1: IMG_a is not writable)`);
+    expect(parkedReason(en, { reason: 'iCloud', detail: 'does not come down from iCloud' })).toBe(
+      `${en.upload.iCloud} (does not come down from iCloud)`,
+    );
   });
 });
 

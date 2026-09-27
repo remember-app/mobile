@@ -17,17 +17,17 @@ export type UploadFailure =
   /** The gallery no longer has the entry. */
   | { reason: 'gone' }
   /**
-   * The gallery has the entry and there is no file behind it at all: nothing on the phone, or a
-   * grant taken back since the pick. It is about the file, not about any server — and not about
-   * iCloud either, which has its own reason below (TASK-419).
+   * The phone would not hand the file over: no file behind the entry, a grant taken back since the
+   * pick, or bytes that would not come off it. It is about the file, not about any server — and not
+   * about iCloud either, which has its own reason below (TASK-419).
    */
-  | { reason: 'unreadable' }
+  | { reason: 'unreadable'; detail: string }
   /**
    * The original lives in iCloud — «Оптимизация хранения», the ordinary state of a full iPhone —
    * and could not be brought down just now. The phone carries the download on in the background,
    * so this is a file to try again and not one to give up on.
    */
-  | { reason: 'iCloud' }
+  | { reason: 'iCloud'; detail: string }
   | { reason: 'partSizeChanged' }
   | { reason: 'noReceipt' | 'noLink' | 'partNotTaken'; part: number }
   | { reason: 'partRefused'; part: number; status: number }
@@ -89,18 +89,26 @@ function storageCode(failure: UploadFailure): number | undefined {
     : undefined;
 }
 
+/** The step the phone balked at and what it said there, word for word — left out of the words too. */
+function phoneDetail(failure: UploadFailure): string | undefined {
+  return failure.reason === 'unreadable' || failure.reason === 'iCloud'
+    ? failure.detail
+    : undefined;
+}
+
 /** A file the queue could not get out, and why. */
 export type ParkedFile = QueuedFile & { error: UploadFailure };
 
 /**
  * Why one parked file did not go, as its line in the block of failures says it (spec detail 51):
- * the reason, and storage's own code after it where storage answered with one — TASK-413 wants
- * those seen.
+ * the reason, and after it whichever the file itself can add — storage's own code where storage
+ * answered with one (TASK-413 wants it seen), or the phone's own words where it refused the file
+ * (TASK-434). A failure is always one or the other, never both.
  */
 export function parkedReason(s: Strings, failure: UploadFailure): string {
   const words = failureText(s, failure);
-  const code = storageCode(failure);
-  return code === undefined ? words : `${words} (${code})`;
+  const said = storageCode(failure) ?? phoneDetail(failure);
+  return said === undefined ? words : `${words} (${said})`;
 }
 
 /** One file waiting to go into a memory, and how far it got. This is what survives a restart. */

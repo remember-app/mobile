@@ -85,6 +85,19 @@ export function finishUpload(
 }
 
 /**
+ * A file the phone would not hand over, told to the one place on the api's side that hears a phone
+ * today: its request log, which writes down every url it is asked for, query and all (TASK-434).
+ * `/health` because it does nothing and wants no session — the report costs the api nothing and
+ * gets through whatever state the session is in.
+ *
+ * ponytail: the log is the whole sink, and it lives as long as the api's pod does. A route and a
+ * table of their own when there is more than one path's failures to hear.
+ */
+export function reportUploadFailure(report: Record<string, string>): Promise<unknown> {
+  return request(`/health?${new URLSearchParams(report)}`);
+}
+
+/**
  * One record in a memory's gallery. `pending_upload` never appears — those are uploads still in
  * flight, with no bytes in the store to show — so the three statuses here are the whole set.
  *
