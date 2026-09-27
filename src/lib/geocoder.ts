@@ -1,4 +1,4 @@
-import { reverseGeocodeAsync } from 'expo-location';
+import { geocodeAsync, reverseGeocodeAsync } from 'expo-location';
 import { useEffect, useState } from 'react';
 
 import { placeName } from '@/lib/place';
@@ -37,6 +37,23 @@ async function ask(latitude: number, longitude: number): Promise<string | null> 
   } catch (e) {
     // Only the error's code: its message is free text and may carry the point.
     console.warn('place name skipped:', (e as { code?: unknown } | null)?.code ?? 'failed');
+    return null;
+  }
+}
+
+/**
+ * The other way round: the point the phone's geocoder finds for what somebody typed as a frame's
+ * «Место» — «Остафьево», «Тверская 13, Москва». `null` when it found nothing, or would not look;
+ * never a rejection.
+ */
+export async function findPlace(
+  words: string,
+): Promise<{ latitude: number; longitude: number } | null> {
+  try {
+    const [first] = await geocodeAsync(words);
+    return first ? { latitude: first.latitude, longitude: first.longitude } : null;
+  } catch (e) {
+    console.warn('place search skipped:', (e as { code?: unknown } | null)?.code ?? 'failed');
     return null;
   }
 }

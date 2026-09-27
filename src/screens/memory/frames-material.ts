@@ -29,11 +29,17 @@ export function useMaterial({
   memoryId,
   token,
   onLabels,
+  hidden = false,
 }: {
   memoryId: string;
   token: string | null;
-  /** The labels as they came back, for whoever holds a filter that may name one that has gone. */
-  onLabels: (all: Label[]) => void;
+  /**
+   * The labels as they came back, for whoever holds a filter that may name one that has gone. Left
+   * off, the labels are not read at all — «Мои кадры» files nothing.
+   */
+  onLabels?: (all: Label[]) => void;
+  /** One's own hidden frames too — «Мои кадры» shows them; the shared feed never does. */
+  hidden?: boolean;
 }): {
   items: MediaItem[] | null;
   roster: Member[] | null;
@@ -78,7 +84,7 @@ export function useMaterial({
       // what, and who brought the frame that is open or the strip that is grouped by them. The
       // roster answers all of it in one read.
       const startedAt = writes.current;
-      Promise.all([listMedia(token, memoryId), listMembers(token, memoryId)])
+      Promise.all([listMedia(token, memoryId, { hidden }), listMembers(token, memoryId)])
         .then(
           ([media, members]) => {
             // Stale by the time it landed — see `writes`. A read somebody asked for is never stale.
@@ -98,7 +104,7 @@ export function useMaterial({
           if (!quiet) setLoading(false);
         });
     },
-    [token, memoryId],
+    [token, memoryId, hidden],
   );
 
   /**
@@ -111,7 +117,7 @@ export function useMaterial({
    * or filled without the app being restarted).
    */
   const readLabels = useCallback(() => {
-    if (!token) return;
+    if (!token || !onLabels) return;
     listLabels(token, memoryId).then(
       (all) => {
         setLabels(all);

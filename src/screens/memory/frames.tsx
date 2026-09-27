@@ -118,7 +118,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
    * It is what a tap on a frame means, what the bottom layer is about, and nothing else.
    */
   const [picking, setPicking] = useState(false);
-  /** What is marked, by record id — the same set the «Ваши кадры» screen keeps. */
+  /** What is marked, by record id — the same set the «Добавить кадры» screen keeps. */
   const [picked, setPicked] = useState<ReadonlySet<string>>(() => new Set());
   /** Whether the sheet that asks about deleting what is marked is up. */
   const [dropping, setDropping] = useState(false);
@@ -213,7 +213,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
    * the next heading. What the headings are about is the sort's business (`@/lib/frames`); this only
    * flattens the groups into rows, because three to a row has to be cut by hand — `numColumns` lays
    * out the list underneath and cannot do it around the headings standing between the strips. The
-   * «Ваши кадры» screen cuts the phone's own roll the same way, for the same reason.
+   * «Добавить кадры» screen cuts the phone's own roll the same way, for the same reason.
    *
    * Held across renders: every tap on a frame is a render, and the whole feed is re-cut here.
    */
@@ -340,7 +340,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
     return { label: name, avatar: name, organizer: who?.role === 'organizer' };
   }
 
-  /** Tap to mark, tap again to unmark — the «Ваши кадры» screen's own gesture, same as sending. */
+  /** Tap to mark, tap again to unmark — the «Добавить кадры» screen's own gesture, same as sending. */
   const pick = (mediaId: string) =>
     setPicked((have) => {
       const next = new Set(have);
@@ -744,7 +744,12 @@ export function Frames({ id, head }: { id: string; head: Head }) {
                 // here yet (spec 9).
                 label={any ? s.gallery.addMore : s.gallery.add}
                 disabled={busy}
-                onPress={() => router.push({ pathname: '/memory/[id]/upload', params: { id } })}
+                // Straight to the picking, with «Мои кадры» laid under it: the plus promises to
+                // add, and what was given is one «Назад» away (spec 8, `Upload`; 10.9, q. 10).
+                onPress={() => {
+                  router.push({ pathname: '/memory/[id]/mine', params: { id } });
+                  router.push({ pathname: '/memory/[id]/upload', params: { id } });
+                }}
               />
             ) : (
               <View style={styles.grow} />

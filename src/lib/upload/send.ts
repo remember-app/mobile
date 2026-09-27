@@ -493,6 +493,7 @@ export function enqueue(memoryId: string, assets: readonly MediaLibrary.Asset[])
       assetId: asset.id,
       memoryId,
       filename: asset.filename,
+      uri: asset.uri,
       kind: asset.mediaType === 'video' ? 'video' : 'photo',
       // RFC 3339 as the api asks for it. A file with no capture date declares none rather than
       // borrowing today's — the montage orders by this, and a wrong date is worse than no date.

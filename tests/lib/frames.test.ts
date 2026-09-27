@@ -59,6 +59,7 @@ const record = (over: Partial<MediaItem>): MediaItem => ({
   kind: 'photo',
   status: 'processing',
   uploaded_by: 'u',
+  hidden: false,
   size_bytes: '1',
   captured_at: null,
   width: null,

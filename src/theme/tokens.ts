@@ -170,12 +170,10 @@ export const board = {
 } as const;
 
 /**
- * What «Ваши кадры» draws between its blocks off the rhythm of 4 (spec 8, `UploadQueue` and
- * `UploadLimited`) — measured off the layout, the way `wizardLead` is.
+ * What «Добавить кадры» draws between its blocks off the rhythm of 4 (spec 8, `UploadLimited`) —
+ * measured off the layout, the way `wizardLead` is.
  */
 export const uploadGaps = {
-  /** under «НЕ УШЛИ», over the block of parked files */
-  parked: 10,
   /** from the last strip of a day down to the plate saying the rest of it is unseen */
   unseen: 22,
 } as const;
@@ -446,6 +444,8 @@ export const type = StyleSheet.create({
   decision: { fontFamily: font.bold, fontSize: 11, lineHeight: 13, ...tabular },
   /** «ГОТОВ» and «СОБИРАЕТСЯ» on a card in the strip — spec 3, `badge малый`: 0.06em in caps */
   badgeSm: { fontFamily: font.bold, fontSize: 10, lineHeight: 12, letterSpacing: 0.6 },
+  /** «62%» on a frame of one's own on its way up (spec detail 63, `MyFrames`) */
+  percent: { fontFamily: font.bold, fontSize: 10, lineHeight: 12, ...tabular },
   /**
    * A video's running time in the corner of a journal's thumbnail, 34 or 62 — 9 / 700 and untracked
    * (spec detail 56, `MontageLive`, `MontageLiveStage`)
@@ -547,6 +547,19 @@ export const photo = {
   picked: 'rgba(11,11,18,0.30)',
   /** …and a shade less under the `accent` ring of the 117 grid (spec 2, 10.11) */
   pickedRing: 'rgba(11,11,18,0.28)',
+  /**
+   * A frame of one's own on `MyFrames` goes down by what has become of it (spec 2, detail 63) —
+   * three values and not a range: on its way up…
+   */
+  flying: 'rgba(11,11,18,0.62)',
+  /** …stuck on the way… */
+  stuck: 'rgba(11,11,18,0.50)',
+  /** …and taken out of the feed. */
+  hidden: 'rgba(11,11,18,0.68)',
+  /** The plate under its percent and under the «скрыт» sign. */
+  ownPlate: 'rgba(11,11,18,0.72)',
+  /** The track of the ring turning over a frame on its way up. */
+  flyingTrack: 'rgba(245,243,238,0.28)',
   /** the pick circle before anything is picked — a hole in the photograph, not a surface */
   pickOff: 'rgba(11,11,18,0.18)',
   /** its hairline */

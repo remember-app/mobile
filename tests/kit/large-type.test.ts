@@ -190,6 +190,7 @@ const EMPTY_TITLES: ((s: Strings) => string)[] = [
   (s) => s.gallery.emptyTitle,
   (s) => s.home.emptyTitle,
   (s) => s.upload.emptyTitle,
+  (s) => s.mine.emptyTitle,
   (s) => s.join.deadTitle,
 ];
 

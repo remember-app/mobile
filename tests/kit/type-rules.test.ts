@@ -86,6 +86,7 @@ const HELD: Record<string, string> = {
   'kit/daymark.tsx › spinePill': 'the date on the spine',
   'kit/member.tsx › inline': 'the «+N» circle of a stack',
   'kit/member.tsx › pill': '«смотрят сейчас»',
+  'kit/tile.tsx › ownSign': 'the 22 sign in the corner of one’s own frame, «!» alone',
 };
 
 type File = {
@@ -196,6 +197,11 @@ const CUT: Record<string, number> = {
   'kit/daymark.tsx': 1,
   // The reason on a frame the wizard dropped, in a pill across the tile.
   'kit/tile.tsx': 1,
+  // A file's name, which has no space to wrap at (spec 3): on its line in the block of failures
+  // (7.7, detail 51) and in the head of one's own frame's sheet (`SheetMyFrame`) — whole in what
+  // either is read out as.
+  'kit/upload.tsx': 1,
+  'screens/mine/frame-sheet.tsx': 1,
 };
 
 test('words that carry sense are never cut to a count of lines, but for the lines the spec cuts', () => {

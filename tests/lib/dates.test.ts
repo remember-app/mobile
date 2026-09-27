@@ -10,6 +10,8 @@ vi.mock('expo-secure-store', () => ({
 }));
 
 import {
+  atClock,
+  clockOf,
   daysBefore,
   endOfDay,
   formatDay,
@@ -270,4 +272,13 @@ test('a journal record carries the day and the minute, and never the year', () =
 test('an instant that will not parse writes nothing at all, the way a day does', () => {
   expect(formatTime('не дата')).toBe('');
   expect(formatDayShort('не дата')).toBe('');
+});
+
+test('«Снято» is typed back as a clock round the clock, and anything else is no time at all', () => {
+  const day = new Date(2026, 8, 13, 9, 5);
+  expect(clockOf(day)).toBe('09:05');
+  expect(atClock(day, '18:42')).toEqual(new Date(2026, 8, 13, 18, 42));
+  expect(atClock(day, ' 7.30 ')).toEqual(new Date(2026, 8, 13, 7, 30));
+  for (const typed of ['24:00', '18:60', '1842', '', 'утром'])
+    expect(atClock(day, typed)).toBeNull();
 });

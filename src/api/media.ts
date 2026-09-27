@@ -97,6 +97,11 @@ export type MediaItem = {
   kind: 'photo' | 'video';
   status: 'processing' | 'ready' | 'failed';
   uploaded_by: string;
+  /**
+   * Taken out of the shared feed and the montage by whoever brought it, and still theirs. Only its
+   * owner is ever sent one — to everybody else the api does not list it at all.
+   */
+  hidden: boolean;
   size_bytes: string;
   captured_at: string | null;
   width: number | null;
@@ -127,9 +132,40 @@ export type MediaItem = {
 /**
  * Everything in a memory, oldest shot first — the order the montage would play it in. Any member
  * reads it, a viewer included. 503 while the api has no bucket configured.
+ *
+ * The api hands the asker their own hidden frames too, marked, so that «Мои кадры» can show them;
+ * every other screen reads the shared feed, where a hidden frame is not — so they are left out
+ * unless `hidden` asks for them.
  */
-export function listMedia(token: string, memoryId: string): Promise<MediaItem[]> {
-  return request(`/memories/${memoryId}/media`, { token });
+export async function listMedia(
+  token: string,
+  memoryId: string,
+  { hidden = false }: { hidden?: boolean } = {},
+): Promise<MediaItem[]> {
+  const all = await request<MediaItem[]>(`/memories/${memoryId}/media`, { token });
+  return hidden ? all : all.filter((item) => !item.hidden);
+}
+
+/**
+ * What the person who brought a frame may change about it: whether it is hidden, when it was shot,
+ * and where. The two coordinates go together, both `null` takes the place off; the date cannot be
+ * taken off. 404 for a frame that is not the asker's own, as for one that is gone.
+ */
+export type MediaEdit = {
+  hidden?: boolean;
+  captured_at?: string;
+} & (
+  | { latitude?: undefined; longitude?: undefined }
+  | { latitude: number | null; longitude: number | null }
+);
+
+export function editMedia(
+  token: string,
+  memoryId: string,
+  mediaId: string,
+  edit: MediaEdit,
+): Promise<unknown> {
+  return request(`/memories/${memoryId}/media/${mediaId}`, { method: 'PATCH', body: edit, token });
 }
 
 /**

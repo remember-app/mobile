@@ -79,6 +79,7 @@ export const photo = (
   kind: 'photo',
   status: 'ready',
   uploaded_by: by,
+  hidden: false,
   size_bytes: '1000000',
   captured_at: at,
   width: null,

@@ -326,3 +326,47 @@ test('what stands on a frame’s dark plates is drawn the same in daylight as at
   expect(marks()).toEqual(night);
   await setTheme('dark');
 });
+
+test('one’s own frame says by itself what became of it: on its way with how much has gone, stuck, or hidden', () => {
+  // Spec detail 63, `MyFrames`: three darkenings (.62, .50, .68) and one sign to a tile — the ring
+  // turning and the percent, «!» on `dangerFill` with the red edge inside, the struck-out eye.
+  allDifferent({
+    plain: <Tile state="ready" uri={A} lane="feed" label="Фото" />,
+    flying: <Tile state="ready" uri={A} lane="feed" own="flying" percent="62%" label="Фото" />,
+    stuck: <Tile state="ready" uri={A} lane="feed" own="stuck" label="Фото" />,
+    hidden: <Tile state="ready" uri={A} lane="feed" own="hidden" label="Фото" />,
+  });
+  const layer = (own: 'flying' | 'stuck' | 'hidden') => {
+    let tree!: TestRenderer.ReactTestRenderer;
+    act(() => {
+      tree = mounted(
+        TestRenderer.create(
+          <Tile
+            state="ready"
+            uri={A}
+            lane="feed"
+            own={own}
+            percent="62%"
+            length="0:24"
+            label="Видео"
+          />,
+        ),
+      );
+    });
+    return tree;
+  };
+  const scrim = (own: 'flying' | 'stuck' | 'hidden') =>
+    StyleSheet.flatten(layer(own).root.findByProps({ testID: 'tile-own' }).props.style);
+  expect(
+    [scrim('flying'), scrim('stuck'), scrim('hidden')].map((one) => one.backgroundColor),
+  ).toEqual(['rgba(11,11,18,0.62)', 'rgba(11,11,18,0.50)', 'rgba(11,11,18,0.68)']);
+  expect(scrim('stuck')).toMatchObject({ borderWidth: 2 });
+  // The percent only on the one on its way, and the length of a video stays over any of them.
+  const words = (own: 'flying' | 'stuck' | 'hidden') =>
+    layer(own)
+      .root.findAllByType(RNText)
+      .map((one) => one.props.children);
+  expect(words('flying')).toEqual(['62%', '0:24']);
+  expect(words('stuck')).toEqual(['!', '0:24']);
+  expect(words('hidden')).toEqual(['0:24']);
+});

@@ -1,13 +1,16 @@
 import { count, form } from './plural';
 
 /**
- * The words of the screen that picks frames off the phone and sends them.
+ * The words of one's own frames: picking them off the phone, sending them, and what became of them.
  */
 export const en = {
   /** Picking material off the phone, and the queue that sends it (`@/lib/upload/send`). */
   upload: {
-    /** The screen's own name in the kit (screens, 7) — not the memory's, which it no longer wears. */
-    title: 'Your frames',
+    /**
+     * The screen's own name (spec 8, `Upload` and its states) — the same action as «Add more» on the
+     * memory's feed, said where nothing has been added yet (spec 9).
+     */
+    title: 'Add frames',
     /** Under it in the glass capsule: where all this is going, and the memory named inside it. */
     into: (memory: string) => `to «${memory}»`,
     /**
@@ -50,11 +53,20 @@ export const en = {
      * nought until the file is here: the phone reports no progress for that download (TASK-419).
      */
     fromCloud: 'The frame is coming down from iCloud',
-    /** The heading over the files the queue could not get out, «НЕ УШЛИ 12 ФАЙЛОВ». */
+    /** The head of the block of files the queue could not get out, «Не ушли 12 файлов». */
     notSent: (n: number) => `${n} ${n === 1 ? 'file' : 'files'} not sent`,
-    /** How many of them stopped for one reason — the line that reason is said on. */
-    files: (n: number) => `${n} ${n === 1 ? 'file' : 'files'}`,
-    dropFiles: (n: number) => `Drop ${n} ${n === 1 ? 'file' : 'files'} from the queue`,
+    /** Its button: every file of the block, again. */
+    again: 'Send again',
+    /** The cross on one file's line, read out with the file's own name. */
+    dropFile: (name: string) => `Drop ${name} from the queue`,
+    /** The line folding the rest of the block away, and the same line once it is open. */
+    folded: (n: number) => `${n} more`,
+    fold: 'Show less',
+    /** What is still to send, in the line over «My frames»: «осталось 9». */
+    left: (n: number) => `${n} left`,
+    /** The line of failures in it, and the way from it into the queue. */
+    notSentLine: (n: number) => `${n} ${n === 1 ? 'file' : 'files'} did not go`,
+    sortOut: 'Sort out',
     picked: (n: number) => `${n} selected`,
     pickedOf: (n: number, total: number) => `${n} selected of ${total}`,
     /** The one glowing button of the screen, carrying what it is about to take with it. */
@@ -82,11 +94,44 @@ export const en = {
     moreToCome: 'More to come',
     thatsAll: 'That’s all',
   },
+
+  /**
+   * `MyFrames` and `SheetMyFrame` (spec 8) — what somebody has given a memory, what became of each
+   * frame, and what they may still change about their own.
+   */
+  mine: {
+    title: 'My frames',
+    back: 'Back to the memory',
+    /** The capsule's second line: how many of one's own are in, and how many are on their way. */
+    inMemory: (n: number) => `${n} in the memory`,
+    flying: (n: number) => `${n} on the way`,
+    /** A tile read out with what became of it — the sign on it says nothing to a screen reader. */
+    sending: (percent: string) => `sending, ${percent}`,
+    stuck: 'not sent',
+    hidden: 'hidden',
+    emptyTitle: 'Nothing of yours yet',
+    emptyText:
+      'The photos and videos you add to this memory will stand here, and so will what became of each.',
+    /** The two properties of the sheet, and what either says with nothing in it. */
+    shot: 'Shot',
+    none: 'Not set',
+    hide: 'Hide from the feed',
+    hideNote: 'Stays with you, stays out of the movie',
+    deleteAll: 'Delete for everyone',
+    /** The clock of «Shot», typed back in, and how it is written. */
+    time: 'Time',
+    timeWrong: 'Write the time like 18:42',
+    /** «Place» typed back in, and what is said when the phone finds no such place. */
+    where: 'Where it was',
+    wherePlaceholder: 'A town, an address or a place',
+    whereMissing: 'No such place found — try writing it another way',
+    whereClear: 'Remove the place',
+  },
 };
 
 export const ru: typeof en = {
   upload: {
-    title: 'Ваши кадры',
+    title: 'Добавить кадры',
     into: (memory: string) => `в «${memory}»`,
     picking: 'Режим выбора',
     explain:
@@ -112,8 +157,14 @@ export const ru: typeof en = {
     fromCloud: 'Кадр подгружается из iCloud',
     notSent: (n: number) =>
       `Не ${form(n, 'ушёл', 'ушли', 'ушли')} ${count(n, 'файл', 'файла', 'файлов')}`,
-    files: (n: number) => count(n, 'файл', 'файла', 'файлов'),
-    dropFiles: (n: number) => `Убрать ${count(n, 'файл', 'файла', 'файлов')} из очереди`,
+    again: 'Ещё раз',
+    dropFile: (name: string) => `Убрать ${name} из очереди`,
+    folded: (n: number) => `Ещё ${count(n, 'файл', 'файла', 'файлов')}`,
+    fold: 'Свернуть',
+    left: (n: number) => `осталось ${n}`,
+    notSentLine: (n: number) =>
+      `${count(n, 'файл', 'файла', 'файлов')} не ${form(n, 'ушёл', 'ушли', 'ушли')}`,
+    sortOut: 'Разобрать',
     picked: (n: number) => `Выбрано ${n}`,
     pickedOf: (n: number, total: number) => `Выбрано ${n} из ${total}`,
     send: (n: number) => `Отправить ${count(n, 'файл', 'файла', 'файлов')}`,
@@ -134,5 +185,29 @@ export const ru: typeof en = {
       } в воспоминание`,
     moreToCome: 'Ещё будет',
     thatsAll: 'Больше ничего',
+  },
+
+  mine: {
+    title: 'Мои кадры',
+    back: 'Назад к воспоминанию',
+    inMemory: (n: number) => `${n} в воспоминании`,
+    flying: (n: number) => `${n} ${form(n, 'летит', 'летят', 'летят')}`,
+    sending: (percent: string) => `отправляется, ${percent}`,
+    stuck: 'не ушёл',
+    hidden: 'скрыт',
+    emptyTitle: 'Своих кадров пока нет',
+    emptyText:
+      'Здесь встанут фото и видео, которые вы добавите в воспоминание, — и будет видно, что с каждым стало.',
+    shot: 'Снято',
+    none: 'Не указано',
+    hide: 'Скрыть из ленты',
+    hideNote: 'Останется у вас, в ролик не попадёт',
+    deleteAll: 'Удалить у всех',
+    time: 'Время',
+    timeWrong: 'Время пишется так: 18:42',
+    where: 'Где это было',
+    wherePlaceholder: 'Город, адрес или место',
+    whereMissing: 'Такого места не нашли — попробуйте написать иначе',
+    whereClear: 'Убрать место',
   },
 };

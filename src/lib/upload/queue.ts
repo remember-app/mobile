@@ -48,11 +48,10 @@ export type UploadFailure =
   | { reason: 'api'; status: number; said?: string };
 
 /**
- * That reason in the language the app is speaking right now, said of however many files it stopped
- * — the parked files are counted under these words, one line to each (TASK-417). So a file name or
- * a part number is never in them: that is where it happened, not what happened. Nor is which of
- * storage's three ways of not taking a part it was — a refusal, links that kept running out, a
- * part taken with no receipt all leave the file in the same place, on storage's side.
+ * That reason in the language the app is speaking right now. A file name or a part number is never
+ * in it: the file is named on its own line, and the part is where it happened, not what happened.
+ * Nor is which of storage's three ways of not taking a part it was — a refusal, links that kept
+ * running out, a part taken with no receipt all leave the file in the same place, on storage's side.
  *
  * The two api fallbacks are the same two `errorMessage` picks in `@/api` — said here rather than
  * imported, because importing that module drags the whole native side in behind it.
@@ -94,30 +93,14 @@ function storageCode(failure: UploadFailure): number | undefined {
 export type ParkedFile = QueuedFile & { error: UploadFailure };
 
 /**
- * The parked files as a person reads them: one line to each thing that went wrong, however many
- * files it happened to — the most first. Storage's codes are said once on the line they belong to
- * (TASK-413 wants them seen) rather than splitting it: a 503 on one file and a 400 on another are
- * still storage saying no.
+ * Why one parked file did not go, as its line in the block of failures says it (spec detail 51):
+ * the reason, and storage's own code after it where storage answered with one — TASK-413 wants
+ * those seen.
  */
-export function parkedLines(
-  s: Strings,
-  files: readonly ParkedFile[],
-): { text: string; files: ParkedFile[] }[] {
-  const lines = new Map<string, { codes: Set<number>; files: ParkedFile[] }>();
-  for (const file of files) {
-    const words = failureText(s, file.error);
-    const line = lines.get(words) ?? { codes: new Set<number>(), files: [] };
-    lines.set(words, line);
-    line.files.push(file);
-    const code = storageCode(file.error);
-    if (code !== undefined) line.codes.add(code);
-  }
-  return [...lines]
-    .map(([words, { codes, files }]) => ({
-      text: codes.size > 0 ? `${words} (${[...codes].join(', ')})` : words,
-      files,
-    }))
-    .sort((a, b) => b.files.length - a.files.length);
+export function parkedReason(s: Strings, failure: UploadFailure): string {
+  const words = failureText(s, failure);
+  const code = storageCode(failure);
+  return code === undefined ? words : `${words} (${code})`;
 }
 
 /** One file waiting to go into a memory, and how far it got. This is what survives a restart. */
@@ -126,6 +109,11 @@ export type QueuedFile = {
   assetId: string;
   memoryId: string;
   filename: string;
+  /**
+   * The gallery's own picture of it, for «Мои кадры» to draw while the file is on its way. Absent
+   * on a queue left by a build older than that screen: the tile then stands without a picture.
+   */
+  uri?: string;
   kind: 'photo' | 'video';
   capturedAt: string | null;
   durationSeconds: number | null;

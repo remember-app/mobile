@@ -144,7 +144,11 @@ function RootNavigator() {
         {/* And the one way to change the name, the days and the cover: a screen because a calendar
             does not fit on a sheet (spec 10.8.3). */}
         <Stack.Screen name="memory/[id]/edit" options={{ title: 'Edit the memory' }} />
+        {/* One's own frames: what was given and what became of it, the picking off the phone, and
+            the sending with what did not go (spec 8, `MyFrames`, `Upload`, `UploadQueue`). */}
+        <Stack.Screen name="memory/[id]/mine" options={{ title: 'My frames' }} />
         <Stack.Screen name="memory/[id]/upload" options={{ title: 'Upload' }} />
+        <Stack.Screen name="memory/[id]/queue" options={{ title: 'Upload queue' }} />
         {/* Asking for a movie is four steps and a wizard of its own (TASK-162, split into a route
             per step in TASK-216); one name here whatever step is on top, and the movies of a
             memory stay a face of it and not a route. */}
