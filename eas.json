@@ -10,6 +10,8 @@
     "testflight": {
       "distribution": "store",
       "autoIncrement": true,
+      "channel": "dev",
+      "environment": "preview",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://dev-api-remember.noxlabs.xyz"
       }

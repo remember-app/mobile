@@ -7,6 +7,12 @@
     "icon": "./assets/images/icon.png",
     "scheme": "remember",
     "userInterfaceStyle": "automatic",
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/f6c9e0de-4a87-4fad-a234-51a1ee8b0dc4"
+    },
     "ios": {
       "icon": "./assets/expo.icon",
       "bundleIdentifier": "com.noxlabs.remember",
