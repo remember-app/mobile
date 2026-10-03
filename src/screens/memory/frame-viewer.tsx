@@ -15,7 +15,14 @@ import {
   VolumeX,
 } from 'lucide-react-native';
 import { useMemo, useRef, useState } from 'react';
-import { Modal, PanResponder, Platform, StyleSheet, View } from 'react-native';
+import {
+  Modal,
+  PanResponder,
+  Platform,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -39,6 +46,8 @@ import {
   ICO_S,
   IconButton,
   RowAction,
+  STRIP_STANDING,
+  STRIP_TURNED,
   VideoTrack,
   ViewerBar,
 } from '@/kit';
@@ -57,7 +66,15 @@ import {
 import { useStrings } from '@/lib/language';
 import { useTurnsWithPhone } from '@/lib/orientation';
 import { FrameInfoSheet } from '@/screens/memory/frames-sheets';
-import { board, height, photo, space, ThemePin, themed, viewerFoot } from '@/theme';
+import {
+  height,
+  photo,
+  space,
+  ThemePin,
+  themed,
+  viewerFoot,
+  viewerShade,
+} from '@/theme';
 
 /**
  * `Viewer` and `ViewerVideo` (spec 8, «Просмотр медиа») — one frame on the whole of the phone, laid
@@ -131,6 +148,22 @@ export function FrameViewer({
   useTurnsWithPhone(true);
 
   /**
+   * Which way up the phone is right now, and the four numbers that follow from it (spec 8, the four
+   * `Viewer*` layouts, TASK-475). The window is the one screen in the app that turns with the
+   * phone, so it has four shapes to be right in rather than one — and it reads which one off the
+   * screen itself rather than off the sensor, because a layout that lies about which way up the
+   * phone is held draws the standing one, and the screen is the thing being drawn.
+   *
+   * Landscape is a phone wider than it is tall, and nothing else: the viewer does not care whether
+   * it is held on its left side or its right, only that there is more width than height.
+   */
+  const { width, height: screen } = useWindowDimensions();
+  const turned = width > screen;
+  /** The strip's own sizes, and the darkening's own depth — one pair per way up. */
+  const stripSize = turned ? STRIP_TURNED : STRIP_STANDING;
+  const shade = turned ? viewerShade.turned : viewerShade.standing;
+
+  /**
    * The open record read for the whole of the phone and not for a tile: the big derivative, with the
    * grid's thumbnail behind it for one that has none (TASK-120 — the tile's 640px blown up over a
    * phone is mush).
@@ -138,6 +171,25 @@ export function FrameViewer({
   const shown = openFrameOf(item);
   /** A video is played where it lies; a record whose 720p was never made is a picture again. */
   const playable = item.kind === 'video' ? item.preview_url : null;
+
+  /**
+   * The box the frame is drawn in, which is the whole of the change (TASK-475, spec 8, the four
+   * `Viewer*` layouts). It used to be `contentFit="contain"` in a box the stage happened to have,
+   * and that is what left a horizontal frame small and centred on the screen: contained, a 3:2
+   * photograph is two thirds of the width of a phone held upright and half of one held sideways.
+   *
+   * What the layout draws instead is the frame in a box of its own proportions, which comes to the
+   * whole width of the screen upright and the whole of its height turned, and the picture `cover`ed
+   * into it. 390 × 520 upright for a 3:4 frame, 390 × 260 for a 3:2 one; 585 × 390 turned for that
+   * same 3:2, 293 × 390 for the 3:4 — the layout's own numbers, and every one of them is a frame's
+   * own shape as wide as it can go without leaving the screen.
+   *
+   * So: the frame's proportions, the screen's long side, and the frame laid along whichever of the
+   * two will hold it. A record the api has not measured yet — `width` and `height` are null until
+   * the worker has looked at it — has no proportions to lay out, and takes the whole screen: that
+   * is a frame shown as it is rather than a guessed shape, and it lasts until the numbers arrive.
+   */
+  const box = frameBox(item.width, item.height, width, screen);
 
   /**
    * One player for the window, made afresh whenever the file under it changes — which is what starts
@@ -386,27 +438,27 @@ export function FrameViewer({
           something inside the room, so it is drawn in the theme the app is actually in. */}
       <ThemePin value="dark">
         <View style={styles.viewer}>
-          {/* The frame itself, between the floating bar and the tools under it — the layout's own
-              116 above and 96 below (spec 8, `Viewer`). The finger that walks the gallery is taken
-              here, on the picture, and never on the strip or the scrubber. */}
-          <View
-            style={[styles.stage, { paddingTop: insets.top + STAGE_TOP }]}
-            {...swipe.panHandlers}
-          >
+          {/* The frame itself, centred in the whole of the phone — the layout draws it in a box of
+              its own proportions (spec 8, `Viewer*`), and the glass above and the strip under it lie
+              over it rather than taking room away from it. The finger that walks the gallery is
+              taken here, on the picture, and never on the strip or the scrubber. */}
+          <View style={styles.stage} {...swipe.panHandlers}>
             {playable !== null ? (
               // Streamed off the signed url, index first, so it plays before the whole file is down
               // (doc-02, «Видео в галерее»). Its transport is the row under the strip and the button
               // in the middle of the frame, so the platform's own is off.
               //
-              // The picture and its button share one box, and that box is what the stage leaves
-              // after its own padding. Hung on the stage instead, the button centres itself over
-              // the padding as well — which on a phone is the 116 of floating bar, and puts it
-              // visibly above the middle of the frame (reported off a device).
-              <View style={styles.big}>
+              // The picture and its button share one box, and that box is the frame's own — hung on
+              // the stage instead, the button would centre itself over whatever the stage has left
+              // over rather than over the frame (reported off a device, TASK-181).
+              <View style={[styles.big, box]}>
                 <VideoView
                   player={player}
                   nativeControls={false}
-                  contentFit="contain"
+                  // `cover` and not `contain`, like the photograph below and for the same reason:
+                  // the box already carries the frame's own proportions, so this fills it rather
+                  // than letterboxing inside a box that is already the right shape (TASK-475).
+                  contentFit="cover"
                   style={styles.fill}
                 />
 
@@ -425,8 +477,9 @@ export function FrameViewer({
                 </View>
               </View>
             ) : shown.uri !== null ? (
-              // Whole and not cropped: the frame is shown as it was shot even when that is not the
-              // shape of the phone, and what is left over at the sides is the room itself.
+              // In the frame's own box, covered rather than contained (TASK-475): a horizontal
+              // frame used to be `contain`ed into whatever room was left between the glass and the
+              // strip, which left it small and centred on the screen — the whole of this task.
               //
               // `expo-image` and not React Native's own, for the disk behind it: the same frame
               // opened twice should come off the phone rather than down the wire. What it is filed
@@ -440,8 +493,8 @@ export function FrameViewer({
                   uri: shown.uri,
                   cacheKey: `${item.id}:${shown.uri === item.preview_url ? 'preview' : 'thumb'}`,
                 }}
-                style={styles.big}
-                contentFit="contain"
+                style={[styles.big, box]}
+                contentFit="cover"
               />
             ) : (
               // Nothing was ever made for this one (spec 8, «кадр не загрузился»): the `image` sign
@@ -449,13 +502,31 @@ export function FrameViewer({
               // straight past it. Said here as well as on the tile, because this is the window the
               // delete is offered from, and a frame nobody can look at is the one somebody wants
               // rid of.
-              <View style={[styles.big, styles.blank]}>
+              <View style={[styles.big, box, styles.blank]}>
                 <Empty icon={ImageSign} text={s.viewer.notOpened} />
               </View>
             )}
 
             {notice ? <Banner text={notice} style={styles.notice} /> : null}
           </View>
+
+          {/* The two darkenings (spec 8, the four `Viewer*` layouts, TASK-475): 150 at the head and
+              160 at the foot with the phone standing, 110 and 120 with it turned. They lie over
+              the picture and take no finger — the picture takes every touch under them, and the
+              strip is under the foot one. */}
+          <View
+            style={[styles.shade, styles.shadeTop, { height: shade.top }]}
+            pointerEvents="none"
+          />
+          <View
+            style={[
+              styles.shade,
+              styles.shadeFoot,
+              turned ? styles.shadeFootTurned : null,
+              { height: shade.foot },
+            ]}
+            pointerEvents="none"
+          />
 
           {/* Spec 7.1, the fifth kind of header: three pieces of glass over the photograph and no
               darkening under them — the glass is what carries them now. All the window's controls
@@ -465,14 +536,16 @@ export function FrameViewer({
             meta={meta}
             label={`${s.viewer.details}: ${when}, ${meta}`}
             onPress={openInfo}
+            turned={turned}
             // Spec 7.1, detail 5: `top 52` — the glass starts where the status line ends, with
-            // nothing between; the 16 under it is the stage's (`STAGE_TOP`).
-            style={[styles.bar, { top: insets.top }]}
+            // nothing between. Turned, the phone is short and the layout puts the bar 18 down
+            // instead (`ViewerRotated*`), which is past any status line it has.
+            style={[styles.bar, { top: turned ? 18 : insets.top }]}
             left={
               <IconButton
                 icon={ChevronLeft}
                 label={s.action.close}
-                size={height.roundViewer}
+                size={turned ? height.roundBar : height.roundViewer}
                 tone="viewer"
                 tint={photo.on}
                 onPress={onClose}
@@ -482,7 +555,7 @@ export function FrameViewer({
               <IconButton
                 icon={Ellipsis}
                 label={s.viewer.more}
-                size={height.roundViewer}
+                size={turned ? height.roundBar : height.roundViewer}
                 tone="viewer"
                 tint={photo.on}
                 onPress={() => setMenu(true)}
@@ -495,12 +568,12 @@ export function FrameViewer({
             }
           />
 
+          {/* Over the picture now, not under it: the layout draws the strip 30 off the bottom edge
+              upright and 14 turned, over the frame, which is what `board.bottom` is standing and
+              what the turned strip's own `foot` is. A video's scrubber stands over the strip on its
+              own line, so the two never fight over a finger (spec 8, `ViewerVideo`). */}
           <View
-            style={[
-              styles.tools,
-              playable !== null ? styles.toolsVideo : null,
-              { paddingBottom: Math.max(insets.bottom, board.bottom) },
-            ]}
+            style={[styles.tools, { paddingBottom: Math.max(insets.bottom, stripSize.foot) }]}
           >
             {/* The scrubber stands on a line of its own above the strip so that two horizontal
                 gestures never fight over the same finger (spec 8, `ViewerVideo`). */}
@@ -544,6 +617,7 @@ export function FrameViewer({
             <Filmstrip
               frames={strip}
               index={index}
+              size={stripSize}
               style={styles.strip}
               labelAt={(to) => nameOf(frames[to], frameOf(frames[to]), to === index)}
               // A tap names the frame it wants, so this is the gate and not the stride: refusing
@@ -564,7 +638,7 @@ export function FrameViewer({
           <ActionMenu
             visible={menu}
             onCancel={() => setMenu(false)}
-            top={insets.top + height.roundViewer + space.s2}
+            top={(turned ? 18 : insets.top) + (turned ? height.roundBar : height.roundViewer) + space.s2}
             gapBefore={2}
           >
             <RowAction
@@ -651,21 +725,58 @@ const SIDEWAYS = 12;
 const WALK = 56;
 
 /**
- * What the floating bar takes off the top of the picture: the 48 button plus the 8 above and below
- * it. The layout's 116 is this measured from a 52 status line.
+ * The box a frame is drawn in (spec 8, the four `Viewer*` layouts, TASK-475), and the one place the
+ * window's four states are actually worked out — everything else in this file reads which way up the
+ * phone is and takes its numbers from there.
+ *
+ * The layout draws the frame in a box of its own proportions rather than fitted to the screen by
+ * `contain`: 390 × 520 upright for a 3:4 frame and 390 × 260 for a 3:2 one, 585 × 390 turned for
+ * that same 3:2 and 293 × 390 for the 3:4. Every one of those is the frame's own shape as large as
+ * it goes without leaving the screen — which is the whole of it, and no more than the ladder owes:
+ * take the screen's long side, lay the frame along whichever direction will hold it, and let it be
+ * covered rather than letterboxed.
+ *
+ * A record the api has not measured — `width` and `height` are null until the worker has looked —
+ * has no shape to lay out, and takes the whole screen. That is what is drawn while the numbers are
+ * missing, not a guess at a shape; it is replaced by the real one on the render they arrive.
  */
-const STAGE_TOP = height.roundViewer + space.s2 * 2;
+export function frameBox(
+  frameWidth: number | null,
+  frameHeight: number | null,
+  screenWidth: number,
+  screenHeight: number,
+): { width: number; height: number } {
+  if (!frameWidth || !frameHeight) return { width: screenWidth, height: screenHeight };
+  // The frame takes the screen whole across the way the phone is held — the width upright, the
+  // height turned — and its other side is whatever its own proportions make of that. All four of
+  // the layout's boxes fall out of that one sentence: a 3:2 is 390 × 260 upright and 585 × 390
+  // turned, a 3:4 is 390 × 520 and 293 × 390.
+  const turned = screenWidth > screenHeight;
+  const along = turned ? screenHeight : screenWidth;
+  // And the other side is that much of the frame's own proportion — its height over its width when
+  // it lies across a standing phone, the other way round when it lies up a turned one.
+  const across = turned ? (along * frameWidth) / frameHeight : (along * frameHeight) / frameWidth;
+  // Clamped to the screen, because a frame is its own shape whatever the phone is: a 1000 × 10000
+  // frame across a 390-wide phone is 390 tall and not 3900. `cover` crops what is left, which is
+  // what the layout draws — and a phone cannot show what is under its own edges.
+  return turned
+    ? { width: Math.min(across, screenWidth), height: along }
+    : { width: along, height: Math.min(across, screenHeight) };
+}
 
 const useStyles = themed(() =>
   StyleSheet.create({
     // A dark room in both themes, and darker than `ink` on purpose (spec 8, `Viewer`): anything
     // lighter around the photograph pulls the eye off it.
     viewer: { flex: 1, backgroundColor: photo.viewer },
-    // The picture takes what is left between the floating bar and the tools, and is centred in it.
-    stage: { flex: 1, justifyContent: 'center' },
-    big: { flex: 1, width: '100%' },
-    fill: { flex: 1 },
-    blank: { justifyContent: 'center' },
+    // The frame is centred in the whole of the phone rather than in what is left between the
+    // floating bar and the strip: the strip lies over the picture now, so there is no room above
+    // the frame for the picture to be pushed down into (TASK-475).
+    stage: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    // The frame's own box — `frameBox` above, one of the four the layout draws.
+    big: {},
+    fill: {},
+    blank: { alignItems: 'center', justifyContent: 'center' },
     // Over the picture's own box and not the stage's, which is what puts the button in the middle
     // of the frame rather than in the middle of what is left over above it.
     middleOfFrame: {
@@ -673,14 +784,20 @@ const useStyles = themed(() =>
       alignItems: 'center',
       justifyContent: 'center',
     },
+    // The two darkenings over the picture (spec 8, `Viewer*`): one at the head under the glass, one
+    // at the foot over the strip. They take no finger — the picture takes every touch under them.
+    shade: { position: 'absolute', left: 0, right: 0 },
+    shadeTop: { top: 0, experimental_backgroundImage: photo.viewerShadeTop },
+    shadeFoot: { bottom: 0, experimental_backgroundImage: photo.viewerShadeFoot },
+    shadeFootTurned: { experimental_backgroundImage: photo.viewerShadeFootTurned },
     bar: { position: 'absolute', left: 0, right: 0 },
     // Over the picture and at the foot of it: the strip below stays the only thing under it.
     notice: { position: 'absolute', left: space.s4, right: space.s4, bottom: space.s4 },
-    // The strip and, over a video, its scrubber — and nothing else: the picture above ends where
-    // this begins, which is what keeps a whole frame whole. The layout's own gaps put the foot of a
-    // photograph 96 above the bottom edge and the foot of a video 140.
-    tools: { gap: viewerFoot.track, paddingTop: viewerFoot.photo },
-    toolsVideo: { paddingTop: viewerFoot.video },
+    // The strip and, over a video, its scrubber, lying over the picture — not below it. The
+    // layout draws no gap between the picture and the tools any more, because there is no picture
+    // above them to have one: the strip sits `board.bottom` off the bottom edge and the picture is
+    // behind it, darkened by the foot shade.
+    tools: { position: 'absolute', left: 0, right: 0, bottom: 0, gap: viewerFoot.track },
     track: { paddingHorizontal: space.s4 },
     sound: { marginRight: -space.s2 },
     // A horizontal list in a column takes every pixel it is offered unless it is told its own size.

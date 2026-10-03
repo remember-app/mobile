@@ -292,6 +292,8 @@ const told = (over: Partial<FrameInfo> = {}): FrameInfo => ({
   longitude: null,
   uploaded_by: { id: 'u', username: 'mark', name: 'Марк Ковалёв', media_count: 96 },
   montages: [],
+  // A frame in no box at all: an empty array, which is how the api says it (TASK-479).
+  labels: [],
   ...over,
 });
 

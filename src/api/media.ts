@@ -1,5 +1,6 @@
 import { request } from './call';
 import type { Contact } from './contacts';
+import type { Label } from './labels';
 
 /** The material: declaring a file, sending it, reading it back, and taking it away. */
 /**
@@ -218,6 +219,16 @@ export type FrameInfo = {
    * One frame can legitimately appear twice in the same montage, so the id alone is not a key.
    */
   montages: { id: string; duration_seconds: number | null; start_seconds: number }[];
+  /**
+   * The boxes this frame lies in — the memory's shared ones and the asker's own private ones, whole
+   * rows and not ids, which is what the filter over the gallery reads (doc-13). An empty array and
+   * never `null`: a frame in no box at all is a frame in none, and the caller asks `labels.length`.
+   *
+   * The order is the api's — shared first, by title within each, and that is the order it arrives in
+   * here in too. The phone does not sort it again; a filter that reorders them reads a gallery the
+   * picker does not.
+   */
+  labels: Label[];
 };
 
 /**
