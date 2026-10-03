@@ -118,7 +118,25 @@ export const height = {
   sheetConfirmMember: 420,
   sheetConfirmMemory: 434,
   sheetFilter: 669,
+  /**
+   * The frame's own height on `FrameInfo` (spec 8): the screen of a frame's details is the frame at
+   * the top of the window and the panel under it, so 352 of a standing phone is what is left for
+   * the picture and everything below it scrolls. A cap and not a rule — a phone on its side has no
+   * 352 to give, and the frame gives up as much of it as the panel can do without (see
+   * `frameInfoRoom`).
+   */
+  frameInfo: 352,
 } as const;
+
+/**
+ * How much of the window the frame keeps while the panel of its details stands (`FrameInfo`). The
+ * layout's 352 on a phone held upright, and never more than a share of whatever the window is — a
+ * phone on its side has a fraction of that height to divide between a picture and a panel, and a
+ * frame left at 352 there would leave the panel a sliver.
+ */
+export function frameInfoRoom(screenHeight: number): number {
+  return Math.min(height.frameInfo, Math.round(screenHeight * 0.42));
+}
 
 /**
  * The spinner's ring, outer edge to outer edge (spec 7.9, detail 70). The spec's 38 and 34 are the
@@ -551,6 +569,17 @@ export const photo = {
   menuGap: 'rgba(0,0,0,0.28)',
   /** A glass button held open: the menu fell out of it and it stays lit (spec 7.1). */
   held: 'rgba(245,243,238,0.22)',
+  /**
+   * The viewer's pill while the frame's own screen stands under it (`FrameInfo`, spec 8): the whole
+   * `paper` of the night rather than the 22 a glass button is held at, because this one is not a
+   * button with a menu under it — it is the way back down, and it has to read as pressed from
+   * across the room.
+   */
+  pillHeld: 'rgba(245,243,238,0.92)',
+  /** …and the words on it, which are the night's own ink rather than its paper. */
+  pillHeldInk: '#0B0B12',
+  /** …with the second line quieter, at the 62 the layout draws it at. */
+  pillHeldMeta: 'rgba(11,11,18,0.62)',
   /** «СОБИРАЕТСЯ» on the poster of a montage being cut, and the words on it (spec 2, detail 24) */
   pending: 'rgba(75,91,255,0.28)',
   pendingInk: '#C9CDFF',

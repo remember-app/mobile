@@ -133,6 +133,11 @@ export const en = {
     more: 'More',
     /** The pill in the middle of that bar, which raises the frame's own sheet. */
     details: 'About this frame',
+    /**
+     * The same pill while the frame's own screen stands under it (spec 8, `FrameInfo`): the panel
+     * came up under this button and the same button takes it back down.
+     */
+    hideDetails: 'Hide the details',
     saveToPhone: 'Save to your phone',
     remove: 'Delete from the memory',
     /** The line while the file is coming down to be handed on; the failure under it. */
@@ -196,6 +201,14 @@ export const en = {
     /** The pair that replaces the circle while it is on, read out with the label's own name. */
     rename: (name: string) => `Rename “${name}”`,
     remove: (name: string) => `Delete “${name}”`,
+
+    /**
+     * `FrameInfo` (spec 10.8.2, detail 18) — the two ways into a box from the frame's own screen:
+     * the chip under a box the frame already lies in takes it back out, and `putInto` is the dashed
+     * one that opens this sheet for a box it does not lie in yet.
+     */
+    takeOut: (name: string) => `Take the frame out of “${name}”`,
+    putInto: 'Put it into a label',
 
     /** `SheetLabelNew`: the heading when the same sheet is editing one rather than making it. */
     editTitle: 'Label',
@@ -293,6 +306,7 @@ export const ru: typeof en = {
   viewer: {
     more: 'Ещё',
     details: 'Сведения о кадре',
+    hideDetails: 'Скрыть сведения',
     saveToPhone: 'Сохранить на телефон',
     remove: 'Удалить из воспоминания',
     sharing: 'Готовим к отправке…',
@@ -331,6 +345,8 @@ export const ru: typeof en = {
     edit: 'Править',
     rename: (name: string) => `Переименовать «${name}»`,
     remove: (name: string) => `Удалить «${name}»`,
+    takeOut: (name: string) => `Убрать кадр из «${name}»`,
+    putInto: 'Положить в лейбл',
 
     editTitle: 'Лейбл',
     name: 'Название',

@@ -31,8 +31,6 @@ import {
   deleteMedia,
   downloadMedia,
   errorMessage,
-  type FrameInfo,
-  fetchFrameInfo,
   type MediaItem,
   type Member,
   type Memory,
@@ -67,8 +65,17 @@ import {
 import { edgeBack, GO, SIDEWAYS, TOP, topDown } from '@/lib/gesture';
 import { useStrings } from '@/lib/language';
 import { useTurnsWithPhone } from '@/lib/orientation';
-import { FrameInfoSheet } from '@/screens/memory/frames-sheets';
-import { height, photo, space, ThemePin, themed, viewerFoot, viewerShade } from '@/theme';
+import { FrameInfoPanel } from '@/screens/memory/frame-info';
+import {
+  frameInfoRoom,
+  height,
+  photo,
+  space,
+  ThemePin,
+  themed,
+  viewerFoot,
+  viewerShade,
+} from '@/theme';
 
 /**
  * `Viewer` and `ViewerVideo` (spec 8, «Просмотр медиа») — one frame on the whole of the phone, laid
@@ -130,17 +137,21 @@ export function FrameViewer({
   const [bare, setBare] = useState(false);
   /** The one line this window says out loud: saving, sharing, and how either of them went. */
   const [notice, setNotice] = useState<string | null>(null);
-  /** The three surfaces over the window: the menu the «⋯» drops, the frame's sheet, the delete. */
+  /** The surfaces over the window: the menu the «⋯» drops, the delete, and the film on its way. */
   const [menu, setMenu] = useState(false);
-  const [details, setDetails] = useState(false);
   const [confirming, setConfirming] = useState(false);
-  /** The film the sheet asked for, held while this window shuts and raised once it is gone. */
+  /** The film the panel asked for, held while this window shuts and raised once it is gone. */
   const [film, setFilm] = useState<string | null>(null);
-  /** What the sheet shows, and the api's word when the one read behind it failed. */
-  const [info, setInfo] = useState<FrameInfo | null>(null);
-  const [infoFailed, setInfoFailed] = useState<string | null>(null);
-  /** Which opening of the sheet the read behind it belongs to — see `openInfo`. */
-  const opening = useRef(0);
+  /**
+   * Whether the frame's own screen stands under the picture (spec 8, `FrameInfo`, TASK-478). It is
+   * a screen and not a sheet: the frame keeps the top of the window, the panel takes the rest and
+   * scrolls, and the pill in the bar is held in while it stands — the same press that brought it
+   * up takes it back down.
+   *
+   * It also undoes the bare frame (TASK-476): the pill that brings the panel up is one of the
+   * things a tap on the picture puts away, and a panel with no way back out of it is a trap.
+   */
+  const [details, setDetails] = useState(false);
 
   // A frame shot sideways is worth turning the phone for, and the rest of the app is portrait-only.
   // This component exists for exactly as long as a frame is open, so the flag is simply `true`: the
@@ -190,13 +201,25 @@ export function FrameViewer({
    * no proportions to lay out, and takes the whole screen: that is a frame shown as it is rather
    * than a guessed shape, and it lasts until the numbers arrive.
    */
-  const box = frameBox(item.width, item.height, width, screen);
+  /**
+   * How much of the window the frame is drawn in (TASK-478, `FrameInfo`). The panel is not a sheet
+   * rising over the picture — the picture stays, and it gives up the bottom of the screen to the
+   * panel, which scrolls. So the same `frameBox`, given a shorter room, is all it takes: a 3:4
+   * frame that was 390 × 520 whole-screen becomes 390 × 352 with the panel under it, and `cover`
+   * crops what no longer fits rather than the frame shrinking out of its own proportions.
+   */
+  const room = details ? frameInfoRoom(screen) : screen;
+  const box = frameBox(item.width, item.height, width, room);
 
   /**
    * How tall the tools lying over the picture come out — the strip, its own distance from the bottom
    * edge, and over a video its scrubber above that (`ViewerVideo` puts the two on lines of their
    * own, and the sound button is what makes the scrubber row 36). The notice stands above this
    * rather than at the bottom of the stage, which is the whole of the picture now (TASK-475).
+   *
+   * The panel stands where the strip lies, so the strip goes while it is up (TASK-478): the layout
+   * draws `FrameInfo` with the frame, the bar and the panel and nothing else, and the panel has no
+   * room for a strip that walked to frames the panel knows nothing about.
    */
   const toolsTall =
     stripSize.tall + stripSize.foot + (playable !== null ? viewerFoot.track + height.roundRow : 0);
@@ -289,6 +312,11 @@ export function FrameViewer({
    * window away from — while a photograph gives the glass, the shades and the tools away and a
    * second tap brings them back.
    *
+   * With the panel of the frame's own screen standing (TASK-478), a photograph's tap takes that
+   * panel down rather than the glass: the bar holds the only other way back and the bar is what a
+   * tap here would be putting away, so tidying it would leave a panel with nothing to close it. The
+   * panel is the tidier thing to put away and it is the one that was just opened.
+   *
    * Read through the ref below like the step above it: the gesture is built once, and the player
    * under it is replaced as the strip is walked.
    */
@@ -299,6 +327,10 @@ export function FrameViewer({
     if (playable !== null) {
       if (isPlaying) player.pause();
       else player.play();
+      return;
+    }
+    if (details) {
+      setDetails(false);
       return;
     }
     setBare((was) => !was);
@@ -367,29 +399,22 @@ export function FrameViewer({
   );
 
   /**
-   * The frame's own sheet, and the one read behind it — asked for when the pill is pressed and not
-   * before: the window opens on a picture, and this is the half of a frame nobody has asked about
-   * yet. Read afresh on every opening, because the walk along the strip changes what it is about.
+   * The frame's own screen, asked for when the pill is pressed and not before: the window opens on
+   * a picture, and this is the half of a frame nobody has asked about yet.
+   *
+   * One button both ways (TASK-478, spec 8, `FrameInfo`): the layout draws the pill *pressed* while
+   * the panel stands, so the press that raised it is the press that puts it away — a second
+   * control for the same thing in the same place is a control nobody needs.
+   *
+   * The read is the panel's own (it asks on being mounted), which is why there is no bookkeeping
+   * here: the panel unmounts when this goes false and takes its read with it.
    */
-  function openInfo() {
+  function toggleDetails() {
     setMenu(false);
-    setDetails(true);
-    setInfo(null);
-    setInfoFailed(null);
-    if (!token) return;
-    // Only the latest opening may answer into the sheet. The strip cannot be walked while it is up,
-    // but it can be shut and raised again — on the next frame, or on this one — before an earlier
-    // read has answered, and that answer landing second would fill the open sheet with the frame
-    // before it, or lay a failure of the first read over the details the second one brought.
-    const mine = ++opening.current;
-    fetchFrameInfo(token, memoryId, item.id).then(
-      (read) => {
-        if (opening.current === mine) setInfo(read);
-      },
-      (e: unknown) => {
-        if (opening.current === mine) setInfoFailed(errorMessage(e));
-      },
-    );
+    // The panel needs the bar to be there to be put away from, and the bar is one of the things a
+    // tap on the picture hides (TASK-476).
+    setBare(false);
+    setDetails((was) => !was);
   }
 
   /**
@@ -669,8 +694,11 @@ export function FrameViewer({
               <ViewerBar
                 date={when}
                 meta={meta}
-                label={`${s.viewer.details}: ${when}, ${meta}`}
-                onPress={openInfo}
+                // One button both ways (TASK-478): what it will do, said under its own name — the
+                // panel is standing under it, or it is not, and that is the whole difference.
+                label={`${details ? s.viewer.hideDetails : s.viewer.details}: ${when}, ${meta}`}
+                onPress={toggleDetails}
+                on={details}
                 turned={turned}
                 // Spec 7.1, detail 5: `top 52` — the glass starts where the status line ends, with
                 // nothing between. Turned, the phone is short and the layout puts the bar 18 down
@@ -708,10 +736,15 @@ export function FrameViewer({
                   edge upright and 14 turned, over the frame, which is what `board.bottom` is
                   standing and what the turned strip's own `foot` is. A video's scrubber stands over
                   the strip on its own line, so the two never fight over a finger (spec 8,
-                  `ViewerVideo`). */}
-              <View
-                style={[styles.tools, { paddingBottom: Math.max(insets.bottom, stripSize.foot) }]}
-              >
+                  `ViewerVideo`).
+
+                  Neither of them stands while the panel of the frame's own screen does (TASK-478):
+                  the panel takes the whole of that foot of the window, and the strip walks to frames
+                  the panel says nothing about. */}
+              {details ? null : (
+                <View
+                  style={[styles.tools, { paddingBottom: Math.max(insets.bottom, stripSize.foot) }]}
+                >
                 {/* The scrubber stands on a line of its own above the strip so that two horizontal
                     gestures never fight over the same finger (spec 8, `ViewerVideo`). */}
                 {playable !== null ? (
@@ -764,7 +797,8 @@ export function FrameViewer({
                   onPick={walk}
                   onSettle={walk}
                 />
-              </View>
+                </View>
+              )}
             </>
           )}
 
@@ -817,21 +851,25 @@ export function FrameViewer({
               />
             ) : null}
           </ActionMenu>
+
+          {/* `FrameInfo` (spec 8, TASK-478) — the frame's own screen, standing *under* the picture
+              rather than over it. Inside the pinned room on purpose, unlike the two sheets below:
+              this is not a surface of its own over the window, it is the bottom of the window — and
+              the night it is drawn in is the one the photograph above it is in, not the one the app
+              happens to be in.
+
+              It takes whatever the frame gave up, which is `frameInfoRoom` — 352 on a phone held
+              upright, less on one lying on its side, and the whole screen when it is shut. */}
+          {details ? (
+            <FrameInfoPanel
+              memoryId={memoryId}
+              item={item}
+              onFilm={openFilm}
+              style={{ height: screen - room }}
+            />
+          ) : null}
         </View>
       </ThemePin>
-
-      {/* `SheetFrameInfo` — everything the picture does not say, and nothing to press on it but a
-          movie this frame ended up in. Read when it is opened; the head is known already. */}
-      <FrameInfoSheet
-        visible={details}
-        thumb={item.thumbnail_url ?? undefined}
-        title={`${when}, ${formatTime(stamp)}`}
-        meta={[formatWeekday(stamp), memory?.title].filter(Boolean).join(' · ')}
-        info={info}
-        error={infoFailed}
-        onFilm={openFilm}
-        onClose={() => setDetails(false)}
-      />
 
       {/* `SheetConfirmDelete`: irreversible, and the api takes the bytes with it — worth one
           question first, asked on a sheet that shows the frame it is about and names the price in
