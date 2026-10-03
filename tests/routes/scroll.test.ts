@@ -49,8 +49,17 @@ test('every screen stands on the board, directly or through the wizard’s step'
 test('no screen scrolls up and down by a scroll of its own', () => {
   // The board's body and the sheet's are the two vertical scrolls; a strip that runs sideways is a
   // strip (spec 1, rule 5 — the films over the feed, the filmstrip of the viewer).
+  //
+  // `frame-info.tsx` is the third, and it is a surface rather than a screen: the panel is the bottom
+  // of the viewer's window (TASK-478), not a route of its own, and it scrolls because it is handed
+  // the rest of that window — the same two reasons the sheet's body does.
   const own = sources
-    .filter(([path]) => path !== 'kit/bars.tsx' && path !== 'kit/sheet.tsx')
+    .filter(
+      ([path]) =>
+        path !== 'kit/bars.tsx' &&
+        path !== 'kit/sheet.tsx' &&
+        path !== 'screens/memory/frame-info.tsx',
+    )
     .filter(([, source]) =>
       [...flat(source).matchAll(/<(Animated\.)?ScrollView\b[^>]*>/g)].some(
         ([tag]) => !/\bhorizontal\b/.test(tag),

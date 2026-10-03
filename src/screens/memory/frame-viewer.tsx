@@ -51,7 +51,7 @@ import {
   ViewerBar,
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
-import { formatDayShort, formatRuntime, formatTime, formatWeekday } from '@/lib/dates';
+import { formatDayShort, formatRuntime, formatTime } from '@/lib/dates';
 import { maySaveToPhone, saveToPhone, shareFile } from '@/lib/downloads';
 import {
   type Frame,
@@ -745,58 +745,58 @@ export function FrameViewer({
                 <View
                   style={[styles.tools, { paddingBottom: Math.max(insets.bottom, stripSize.foot) }]}
                 >
-                {/* The scrubber stands on a line of its own above the strip so that two horizontal
+                  {/* The scrubber stands on a line of its own above the strip so that two horizontal
                     gestures never fight over the same finger (spec 8, `ViewerVideo`). */}
-                {playable !== null ? (
-                  // Spec 7.10: the row keeps 16 at the sides and the sound button hangs 8 into the
-                  // right one (`ViewerVideo`: «0:24» at 16, the button's edge at 382).
-                  <View style={styles.track}>
-                    <VideoTrack
-                      at={formatRuntime(at) ?? ZERO}
-                      of={formatRuntime(runs) ?? ZERO}
-                      value={runs > 0 ? at / runs : 0}
-                      label={s.viewer.played}
-                      // Dragged and pressed, not only read: a film nobody can wind is a film
-                      // watched from the start every time. Nothing to wind until the length is
-                      // known — the api's own, or the player's once the first `timeUpdate` has
-                      // been through.
-                      onSeek={
-                        runs > 0
-                          ? (to) => {
-                              player.currentTime = to * runs;
-                            }
-                          : undefined
-                      }
-                      sound={
-                        <IconButton
-                          icon={isMuted ? VolumeX : Volume2}
-                          label={isMuted ? s.viewer.unmute : s.viewer.mute}
-                          size={height.roundRow}
-                          tone="ghost"
-                          tint={photo.on}
-                          glyph={SOUND_GLYPH}
-                          style={styles.sound}
-                          onPress={() => {
-                            player.muted = !player.muted;
-                          }}
-                        />
-                      }
-                    />
-                  </View>
-                ) : null}
+                  {playable !== null ? (
+                    // Spec 7.10: the row keeps 16 at the sides and the sound button hangs 8 into the
+                    // right one (`ViewerVideo`: «0:24» at 16, the button's edge at 382).
+                    <View style={styles.track}>
+                      <VideoTrack
+                        at={formatRuntime(at) ?? ZERO}
+                        of={formatRuntime(runs) ?? ZERO}
+                        value={runs > 0 ? at / runs : 0}
+                        label={s.viewer.played}
+                        // Dragged and pressed, not only read: a film nobody can wind is a film
+                        // watched from the start every time. Nothing to wind until the length is
+                        // known — the api's own, or the player's once the first `timeUpdate` has
+                        // been through.
+                        onSeek={
+                          runs > 0
+                            ? (to) => {
+                                player.currentTime = to * runs;
+                              }
+                            : undefined
+                        }
+                        sound={
+                          <IconButton
+                            icon={isMuted ? VolumeX : Volume2}
+                            label={isMuted ? s.viewer.unmute : s.viewer.mute}
+                            size={height.roundRow}
+                            tone="ghost"
+                            tint={photo.on}
+                            glyph={SOUND_GLYPH}
+                            style={styles.sound}
+                            onPress={() => {
+                              player.muted = !player.muted;
+                            }}
+                          />
+                        }
+                      />
+                    </View>
+                  ) : null}
 
-                <Filmstrip
-                  frames={strip}
-                  index={index}
-                  size={stripSize}
-                  style={styles.strip}
-                  labelAt={(to) => nameOf(frames[to], frameOf(frames[to]), to === index)}
-                  // A tap names the frame it wants and a finger leaves the strip resting on one, so
-                  // both are the gate and not the stride: refusing is the honest answer to «open
-                  // this one», and the two agree on what may open.
-                  onPick={walk}
-                  onSettle={walk}
-                />
+                  <Filmstrip
+                    frames={strip}
+                    index={index}
+                    size={stripSize}
+                    style={styles.strip}
+                    labelAt={(to) => nameOf(frames[to], frameOf(frames[to]), to === index)}
+                    // A tap names the frame it wants and a finger leaves the strip resting on one, so
+                    // both are the gate and not the stride: refusing is the honest answer to «open
+                    // this one», and the two agree on what may open.
+                    onPick={walk}
+                    onSettle={walk}
+                  />
                 </View>
               )}
             </>

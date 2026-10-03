@@ -1,12 +1,9 @@
-import { Image } from 'expo-image';
 import { CalendarDays, Lock, X } from 'lucide-react-native';
 import { type ReactNode, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { type FrameInfo, type Label, memberName } from '@/api';
+import type { Label } from '@/api';
 import {
-  Avatar,
-  Banner,
   BlockHead,
   Button,
   Calendar,
@@ -14,19 +11,15 @@ import {
   DayTile,
   FaceRow,
   IconButton,
-  RowFilmAt,
-  RowSummary,
   Segment,
   Shares,
   Sheet,
-  Spinner,
   Text,
 } from '@/kit';
 import {
   formatDay,
   formatDayShort,
   formatMonth,
-  formatRuntime,
   formatWeekday,
   startOfDay,
   weekdayLetters,
@@ -37,15 +30,13 @@ import {
   type Filter,
   type FilterDay,
   filtering,
-  frameFacts,
   type GroupBy,
   type Order,
   type Sort,
 } from '@/lib/frames';
-import { usePlaceName } from '@/lib/geocoder';
 import { labelTint } from '@/lib/labels';
 import { useStrings } from '@/lib/language';
-import { height, radius, space, themed, useTheme } from '@/theme';
+import { height, space, themed, useTheme } from '@/theme';
 
 /**
  * The sheets the gallery raises (spec 8): the two it is tuned from — the left round button at the

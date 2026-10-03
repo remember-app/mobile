@@ -19,6 +19,7 @@ import home from '@/app/index.tsx?raw';
 import bars from '@/kit/bars.tsx?raw';
 import filmstrip from '@/kit/filmstrip.tsx?raw';
 import films from '@/screens/memory/films.tsx?raw';
+import info from '@/screens/memory/frame-info.tsx?raw';
 import viewer from '@/screens/memory/frame-viewer.tsx?raw';
 import frames from '@/screens/memory/frames.tsx?raw';
 import material from '@/screens/memory/frames-material.ts?raw';
@@ -65,34 +66,45 @@ test('the whole window is three buttons on glass, and under the picture only the
   const strip = viewer.indexOf('<Filmstrip');
   expect(viewer.indexOf('<VideoTrack')).toBeLessThan(strip);
   expect(strip).toBeLessThan(viewer.indexOf('<ActionMenu'));
+  // And since TASK-478 one more thing stands inside the window: the frame's own screen, under the
+  // picture and not over it. It is the last of the three, and it takes what the frame gave up.
+  expect(viewer.indexOf('<FrameInfoPanel')).toBeLessThan(viewer.indexOf('</ThemePin>'));
+  expect(viewer).toContain('style={{ height: screen - room }}');
   // The three of them, each in its own place: «Назад» on the left, the pill of when and who in the
   // middle, «⋯» on the right — and no fourth.
   const bar = viewer.slice(viewer.indexOf('<ViewerBar'), viewer.indexOf('styles.tools,'));
   expect(bar.slice(bar.indexOf('left={'))).toContain('label={s.action.close}');
   expect(bar.slice(bar.indexOf('right={'))).toContain('label={s.viewer.more}');
-  expect(bar).toContain('label={`${s.viewer.details}');
+  expect(bar).toContain('s.viewer.details');
+  // …and while the panel stands the same pill says the other thing, and the window hands it the
+  // held-in state the layout draws it in.
+  expect(bar).toContain('s.viewer.hideDetails');
+  expect(bar).toContain('on={details}');
   expect(bar.match(/<IconButton/g)).toHaveLength(2);
 });
 
-test('the pill of when and who is the road to the frame’s own sheet', () => {
-  // Spec 8: «капсула с датой и „время · автор“», and it leads to `SheetFrameInfo`. The stamp is the
-  // gallery's own reading of when a frame happened — the same one its heading in the feed is under
-  // — and never the memory's span, which is what the pill used to carry.
+test('the pill of when and who is the road to the frame’s own screen, and the same pill closes it', () => {
+  // Spec 8: «капсула с датой и „время · автор“», and it leads to `FrameInfo` — which since TASK-478
+  // is a screen standing under the picture and not a sheet over it, so it is mounted by being
+  // opened and there is one button both ways. The stamp is the gallery's own reading of when a
+  // frame happened — the same one its heading in the feed is under — and never the memory's span,
+  // which is what the pill used to carry.
   expect(viewer).toContain('const stamp = new Date(shotAt(item));');
   expect(viewer).toContain('const when = formatDayShort(stamp);');
   expect(viewer).toContain("const meta = [formatTime(stamp), who].filter(Boolean).join(' · ');");
-  expect(viewer).toContain('onPress={openInfo}');
-  // One piece of state behind the sheet, and one read behind that — asked for by the pill and by
-  // nothing else, because the window opens on a picture and this is the half nobody asked about.
-  expect(viewer.match(/setDetails\(true\)/g)).toHaveLength(1);
-  expect(viewer).toContain('fetchFrameInfo(token, memoryId, item.id)');
-  // And only the latest opening may answer into it: a read that lands after the sheet was shut and
-  // raised again — on another frame, or on this one — would fill the open sheet with the frame
-  // before it, or lay the failure of the first read over the details the second one brought.
-  expect(viewer).toContain('const mine = ++opening.current;');
-  expect(viewer).toContain('if (opening.current === mine) setInfo(read);');
-  expect(viewer).toContain('if (opening.current === mine) setInfoFailed(errorMessage(e));');
+  expect(viewer).toContain('onPress={toggleDetails}');
+  // One piece of state behind it, and the read behind that belongs to the panel: it asks on being
+  // mounted, so the window carries no read of its own and an answer that lands after the panel was
+  // shut has nothing to land in.
+  expect(viewer).toContain('setDetails((was) => !was)');
+  expect(viewer).not.toContain('fetchFrameInfo');
+  expect(viewer).toContain('{details ? (');
+  // The frame gives up the top of the window for it — the layout's 352 upright, and less on a phone
+  // lying on its side, which has a fraction of that height to divide (`frameInfoRoom`).
+  expect(viewer).toContain('const room = details ? frameInfoRoom(screen) : screen;');
+  expect(viewer).toContain('const box = frameBox(item.width, item.height, width, room);');
   expect(ru.viewer.details).toBe('Сведения о кадре');
+  expect(ru.viewer.hideDetails).toBe('Скрыть сведения');
 });
 
 test('the «⋯» drops the glass menu of the three errands, and stays lit under it', () => {
@@ -127,44 +139,73 @@ test('nobody who may not delete is shown a delete, greyed or otherwise', () => {
   expect(menu).toContain('  ) : null}');
 });
 
-test('the frame’s own sheet is who, when, what and where — and draws nothing it was not told', () => {
-  // Spec 8, `SheetFrameInfo`: the head is known off the frame already (thumbnail, «13 сентября,
-  // 21:47», «суббота · Свадьба Лизы и Марка»), the rest arrives with one read.
-  const raised = viewer.slice(viewer.indexOf('<FrameInfoSheet'));
-  expect(raised).toContain('thumb={item.thumbnail_url ?? undefined}');
-  expect(raised).toContain('title={`${when}, ${formatTime(stamp)}`}');
-  expect(raised).toContain(
-    "meta={[formatWeekday(stamp), memory?.title].filter(Boolean).join(' · ')}",
+test('the frame’s own screen is who, when, what and where — and draws nothing it was not told', () => {
+  // Spec 8, `FrameInfo` since TASK-478. It carries no head of its own: the frame it is about is
+  // still on the screen above it, and the bar over that says when it was shot and who brought it.
+  // Everything else arrives with one read, which the panel asks for itself on being mounted.
+  // The panel is handed the record and nothing else: no thumbnail and no head of its own (the
+  // delete confirmation further down is a sheet, and a sheet may show the frame it is about).
+  const raised = viewer.slice(
+    viewer.indexOf('<FrameInfoPanel'),
+    viewer.indexOf('/>', viewer.indexOf('<FrameInfoPanel')),
   );
-  const sheet = sheets.slice(sheets.indexOf('export function FrameInfoSheet'));
+  expect(raised).toContain('item={item}');
+  expect(raised).not.toContain('thumb=');
+  expect(raised).not.toContain('meta={[formatWeekday(stamp)');
+  expect(viewer).toContain('<FrameInfoPanel');
+  expect(viewer).toContain('memoryId={memoryId}');
+  expect(viewer).toContain('item={item}');
+  expect(viewer).toContain('onFilm={openFilm}');
+  const panel = info.slice(info.indexOf('export function FrameInfoPanel'));
+  expect(panel).toContain('fetchFrameInfo(token, memoryId, item.id)');
   // Who brought it and how much they brought in all, then the summary rows, then the movies.
-  expect(sheet).toContain(
+  expect(panel).toContain(
     's.viewer.brought(formatDayShort(info.created_at), info.uploaded_by.media_count)',
   );
-  expect(sheet.indexOf('frameFacts(info, s, undefined, place)')).toBeLessThan(
-    sheet.indexOf('s.viewer.inFilms'),
+  expect(panel.indexOf('frameFacts(info, s, undefined, place)')).toBeLessThan(
+    panel.indexOf('s.viewer.inFilms'),
   );
-  // The place is the name the phone's geocoder gives the frame's point, asked for by the sheet
+  // The place is the name the phone's geocoder gives the frame's point, asked for by the panel
   // itself (`@/lib/geocoder`) — the api sends coordinates only.
-  expect(sheet).toContain('usePlaceName(info?.latitude, info?.longitude)');
-  // «Только смотреть»: not one control on it, and no way out but the ways every sheet has.
-  expect(sheet).not.toContain('<Button');
-  expect(sheet).not.toContain('<RowAction');
+  expect(panel).toContain('usePlaceName(info?.latitude, info?.longitude)');
   // A frame in no movie at all loses the block, not just its rows.
-  expect(sheet).toContain('{info.montages.length === 0 ? null : (');
+  expect(panel).toContain('{info.montages.length === 0 ? null : (');
   expect(ru.viewer.brought('15 сентября', 96)).toBe('принёс 15 сентября · всего 96 кадров');
 });
 
+test('the boxes this frame lies in are chips, and the rules on them are the server’s own', () => {
+  // Spec 10.8.2, detail 18 — the labels are shown and filed from the frame's own screen. The order
+  // is the api's (shared first, by title) and is not sorted again here: the filter over the gallery
+  // reads the same order, and a second sort would show the picker a different one.
+  const panel = info.slice(info.indexOf('export function FrameInfoPanel'));
+  expect(panel).toContain('info.labels.map((label)');
+  expect(panel).not.toContain('.sort(');
+  // An empty array is a frame in no box: the block is gone rather than empty, and it is
+  // `labels.length` that asks — the api never sends a null here (TASK-479).
+  expect(panel).toContain('{info.labels.length === 0 ? null : (');
+  // Shared wears the box's own colour and a private one a lock, the two marks the sheet uses.
+  expect(panel).toContain('swatch={labelTint(label.color, theme)}');
+  expect(panel).toContain('icon={label.shared ? undefined : Lock}');
+  // Who may file is the api's own answer about the asker, never worked out on the phone: a chip
+  // the server will not let this person file into has no press at all.
+  expect(panel).toContain('onPress={label.can_add_media ? () => void takeOut(label) : undefined}');
+  // And the dashed one opens the sheet that already exists, over this one frame.
+  expect(panel).toContain('<LabelSheets');
+  expect(panel).toContain('frames={marked}');
+  expect(ru.labels.putInto).toBe('Положить в лейбл');
+  expect(ru.labels.takeOut('Лучшее')).toBe('Убрать кадр из «Лучшее»');
+});
+
 test('a movie the frame stands in is named by its length and opens the one player there is', () => {
-  const sheet = sheets.slice(sheets.indexOf('export function FrameInfoSheet'));
+  const panel = info.slice(info.indexOf('export function FrameInfoPanel'));
   // «Ролик на 1:00» out of the length, because a montage has no name until templates arrive; the
   // second it stands at is the right-hand half of the same row (spec 7.7, detail 62).
-  expect(sheet).toContain('title={runtime ? s.montage.ofLength(runtime) : s.montage.count(1)}');
-  expect(sheet).toContain("at={s.viewer.at(formatRuntime(film.start_seconds) ?? '')}");
+  expect(panel).toContain('title={runtime ? s.montage.ofLength(runtime) : s.montage.count(1)}');
+  expect(panel).toContain("at={s.viewer.at(formatRuntime(film.start_seconds) ?? '')}");
   expect(ru.viewer.at('1:12')).toBe('на 1:12');
   expect(ru.montage.ofLength('1:00')).toBe('Ролик на 1:00');
   // One frame may stand in one montage twice — the api's own key is the pair, and so is this one.
-  expect(sheet).toContain('key={`${film.id}:${film.start_seconds}`}');
+  expect(panel).toContain('key={`${film.id}:${film.start_seconds}`}');
   // And the row opens the player the movies face already has: no second player is drawn for a
   // frame (chief, 21.09.2026). The ask is set on the screen this window is a part of — a push to
   // the same route would stack a second feed of the memory under the film — and only once the
@@ -202,20 +243,23 @@ test('a frame that would not open says so, and the strip stays where it is', () 
   expect(ru.viewer.notOpened).toBe('Кадр не открылся');
 });
 
-test('the window is a dark room, and the sheets over it are in the theme the app is in', () => {
+test('the window is a dark room, and only the sheet over it is in the theme the app is in', () => {
   // The window itself is pinned dark in both themes — the layout gives it a background darker than
-  // `ink` on purpose. The menu is inside the pin, because it stands on the photograph; both sheets
-  // are outside it, because a sheet is its own surface and daylight has to reach it (спека 2, «день
-  // подстановкой»). Nothing here names a colour of its own: every one of them is a token.
+  // `ink` on purpose. Inside that pin stand the menu and the frame's own screen: both are the
+  // window itself, one glass over the photograph and one the bottom of it, so neither answers to
+  // the app's theme. The delete sheet is outside it, because a sheet is its own surface and daylight
+  // has to reach it (спека 2, «день подстановкой»). Nothing names a colour of its own: every one of
+  // them is a token.
   expect(viewer).toContain('<ThemePin value="dark">');
   // Spec 8, `Viewer`: «фон #08080C», deeper than `ink` — the frame hangs in black.
   expect(viewer).toContain('viewer: { flex: 1, backgroundColor: photo.viewer }');
   expect(photo.viewer).toBe('#08080C');
   const pinned = viewer.indexOf('</ThemePin>');
   expect(viewer.indexOf('<ActionMenu')).toBeLessThan(pinned);
-  expect(pinned).toBeLessThan(viewer.indexOf('<FrameInfoSheet'));
+  expect(viewer.indexOf('<FrameInfoPanel')).toBeLessThan(pinned);
   expect(pinned).toBeLessThan(viewer.indexOf('<ConfirmSheet'));
-  for (const file of [viewer, sheets]) expect(file).not.toMatch(/#[0-9a-fA-F]{3,8}\b|rgba?\(/);
+  for (const file of [viewer, sheets, info])
+    expect(file).not.toMatch(/#[0-9a-fA-F]{3,8}\b|rgba?\(/);
 });
 
 test('a video carries a transport and a photo carries none of it', () => {
@@ -255,7 +299,7 @@ test('the 72 stands in the middle of the picture, on the dark the layout puts un
   expect(stage).toContain('<View style={[styles.big, box]}>');
   expect(stage.indexOf('<VideoView')).toBeLessThan(stage.indexOf('styles.middleOfFrame'));
   // The box is the frame's own proportions and the video is covered into it, like a photograph.
-  expect(viewer).toContain('const box = frameBox(item.width, item.height, width, screen);');
+  expect(viewer).toContain('const box = frameBox(item.width, item.height, width, room);');
   expect(stage).toContain('contentFit="cover"');
   expect(viewer).toContain('...StyleSheet.absoluteFill,');
   // 72 on the kit's «над видео» (spec 7.2, 10.10): `rgba(6,6,10,.5)`, no hairline, the glyph filled

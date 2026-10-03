@@ -78,12 +78,13 @@ import {
   RowAction,
   RowFilmAt,
   RowSummary,
+  Spinner,
   VideoTrack,
   ViewerBar,
 } from '@/kit';
 import { setLanguage } from '@/lib/language';
+import { FrameInfoPanel } from '@/screens/memory/frame-info';
 import { FrameViewer, frameBox } from '@/screens/memory/frame-viewer';
-import { FrameInfoSheet } from '@/screens/memory/frames-sheets';
 import { ru, strings } from '@/strings';
 
 /**
@@ -199,13 +200,19 @@ async function open(over: Props = {}) {
     row: (label: string) =>
       root.findAllByType(RowAction).filter((one) => one.props.label === label),
     menu: () => press(screen.icon(ru.viewer.more)),
-    info: () => root.findByType(FrameInfoSheet),
+    /**
+     * `FrameInfo` (TASK-478) is a screen standing under the picture and not a sheet over it, so it is
+     * mounted by being opened and unmounted by being shut — there is no `visible` prop to read, only
+     * the panel itself or its absence. What it holds is asked of its own tree.
+     */
+    panels: () => root.findAllByType(FrameInfoPanel),
+    info: () => root.findByType(FrameInfoPanel),
     confirm: () => root.findByType(ConfirmSheet),
     notices: () => root.findAllByType(Banner).map((one) => one.props.text as string),
     facts: () =>
       root
-        .findByType(FrameInfoSheet)
-        .findAllByType(RowSummary)
+        .findAllByType(FrameInfoPanel)
+        .flatMap((panel) => panel.findAllByType(RowSummary))
         .map((one) => [one.props.label, one.props.value]),
   };
   return screen;
@@ -392,19 +399,17 @@ test('a share that fell over is the api’s word when it was the api, and the wi
   expect(screen.notices()).toEqual([ru.viewer.shareFailed]);
 });
 
-test('the pill raises the frame’s sheet, and the read behind it fills the four lines the server knows', async () => {
+test('the pill raises the frame’s own screen, and the read behind it fills the four lines the server knows', async () => {
   const log = serve((asked) =>
     asked.path === '/memories/m1/media/a' ? told({ latitude: 1.234, longitude: 5.678 }) : undefined,
   );
   const screen = await open();
-  expect(screen.info().props.visible).toBe(false);
+  expect(screen.panels()).toHaveLength(0);
   expect(log).toEqual([]);
   await screen.press(screen.pill);
-  expect(screen.info().props.visible).toBe(true);
-  expect(screen.info().props.title).toBe(
-    `13 сентября, ${new Date(at(13, 21)).toLocaleTimeString('ru', { hour: 'numeric', minute: '2-digit' })}`,
-  );
-  expect(screen.info().props.meta).toBe('воскресенье · Свадьба Лизы и Марка');
+  expect(screen.panels()).toHaveLength(1);
+  // The panel carries no head of its own: the frame it is about is still on the screen above it,
+  // and the bar over that says when it was shot and who brought it.
   expect(screen.facts()).toEqual([
     [ru.viewer.file, 'IMG_4471.HEIC · 4,2 МБ'],
     [ru.viewer.pixels, '4032 × 3024'],
@@ -435,7 +440,7 @@ test('a frame with no point has no place line, whatever the geocoder would say',
   expect(geocode).not.toHaveBeenCalled();
 });
 
-test('a frame the worker never read has none of its lines, and the sheet is the head and the person', async () => {
+test('a frame the worker never read has none of its lines, and only the person is left', async () => {
   serve(() =>
     told({
       file_name: undefined,
@@ -471,16 +476,18 @@ test('a film the frame stands in is a row, and pressing it shuts the window and 
   expect(router.setParams).toHaveBeenCalledWith({ montage: 'f1' });
 });
 
-test('a read that fails is the api’s word in the sheet, and the head is still there', async () => {
+test('a read that fails is the api’s word in a banner, and the frame it is about is still on screen', async () => {
   serve(() => refused(500, 'boom'));
   const screen = await open();
   await screen.press(screen.pill);
-  expect(screen.info().props.error).toBe('boom');
-  expect(screen.info().props.info).toBeNull();
-  expect(screen.info().props.title).toContain('13 сентября');
+  expect(screen.notices()).toEqual(['boom']);
+  // Nothing is said of the frame, and nothing is drawn for it: the picture under the panel is the
+  // frame, and there is no picture of it to be wrong about.
+  expect(screen.facts()).toEqual([]);
+  expect(screen.root.findAllByType(Spinner)).toHaveLength(0);
 });
 
-test('an answer to an earlier opening never lands in the sheet of a later one — the frame before, or its failure', async () => {
+test('an answer to an earlier opening never lands in the panel of a later one — the frame before, or its failure', async () => {
   const first = later<unknown>();
   const second = later<unknown>();
   const queue = [first, second];
@@ -488,7 +495,7 @@ test('an answer to an earlier opening never lands in the sheet of a later one �
   const screen = await open();
   // Opened on frame «a», shut before it answers, then the strip is walked and «b» is opened.
   await screen.press(screen.pill);
-  await act(async () => screen.info().props.onClose());
+  await screen.press(screen.pill);
   await screen.show({ item: shots()[1] });
   await screen.press(screen.pill);
 
@@ -496,10 +503,11 @@ test('an answer to an earlier opening never lands in the sheet of a later one �
     second.settle(told({ id: 'b', file_name: 'B.JPG', size_bytes: '1000000' })),
   );
   expect(screen.facts()[0]).toEqual([ru.viewer.file, 'B.JPG · 1 МБ']);
-  // The first read comes in late with the frame before it, and is not let in.
+  // The first read comes in late with the frame before it, and is not let in: the panel it was
+  // asked for unmounted with the panel it belonged to.
   await act(async () => first.settle(told({ id: 'a', file_name: 'A.JPG' })));
   expect(screen.facts()[0]).toEqual([ru.viewer.file, 'B.JPG · 1 МБ']);
-  expect(screen.info().props.error).toBeNull();
+  expect(screen.notices()).toEqual([]);
 });
 
 test('nor does the failure of the first read lay itself over the details the second one brought', async () => {
@@ -509,15 +517,15 @@ test('nor does the failure of the first read lay itself over the details the sec
   serve(() => queue.shift()!.promise);
   const screen = await open();
   await screen.press(screen.pill);
-  await act(async () => screen.info().props.onClose());
+  await screen.press(screen.pill);
   await screen.press(screen.pill);
   await act(async () => second.settle(told({ file_name: 'B.JPG', size_bytes: '1000000' })));
   await act(async () => first.settle(refused(500, 'late failure')));
-  expect(screen.info().props.error).toBeNull();
+  expect(screen.notices()).toEqual([]);
   expect(screen.facts()[0]).toEqual([ru.viewer.file, 'B.JPG · 1 МБ']);
 });
 
-test('a place found for the frame before is not written into the sheet of the next one', async () => {
+test('a place found for the frame before is not written into the panel of the next one', async () => {
   const slow = later<unknown>();
   geocode.mockImplementation(((where: { latitude: number }) =>
     where.latitude === 40.5 ? slow.promise : Promise.resolve([{ city: 'Казань' }])) as never);
@@ -528,7 +536,7 @@ test('a place found for the frame before is not written into the sheet of the ne
   serve(() => infos.shift());
   const screen = await open();
   await screen.press(screen.pill);
-  await act(async () => screen.info().props.onClose());
+  await screen.press(screen.pill);
   await screen.show({ item: shots()[1] });
   await screen.press(screen.pill);
   expect(screen.facts().at(-1)).toEqual([ru.viewer.place, 'Казань']);
@@ -901,7 +909,7 @@ test('the window opens quiet: nothing busy, no sheet up, and the phone is allowe
   const screen = await open();
   expect(screen.icon(ru.viewer.more)().props.disabled).toBeFalsy();
   expect(screen.confirm().props.visible).toBe(false);
-  expect(screen.info().props.visible).toBe(false);
+  expect(screen.panels()).toHaveLength(0);
   expect(screen.root.findByType(ActionMenu).props.visible).toBe(false);
   expect(turns).toHaveBeenCalledWith(true);
   expect(turns).not.toHaveBeenCalledWith(false);
@@ -930,11 +938,10 @@ test('every errand shuts the «⋯» while it runs and opens it again after — 
   }
 });
 
-test('the delete sheet puts itself away when it is answered, and both sheets show the frame they are about', async () => {
+test('the delete sheet puts itself away when it is answered, and it shows the frame it is about', async () => {
   serve(() => ({ ok: true }));
   const screen = await open();
   expect(screen.confirm().props.thumb).toBe('https://r2.example/a');
-  expect(screen.info().props.thumb).toBe('https://r2.example/a');
   await screen.menu();
   await screen.press(() => screen.row(ru.viewer.remove)[0]);
   expect(screen.confirm().props.visible).toBe(true);
@@ -944,20 +951,19 @@ test('the delete sheet puts itself away when it is answered, and both sheets sho
   const bare = { ...shots()[1], thumbnail_url: null };
   const other = await open({ item: bare, frames: [bare] });
   expect(other.confirm().props.thumb).toBeUndefined();
-  expect(other.info().props.thumb).toBeUndefined();
 });
 
-test('opening the frame’s sheet puts the menu away, and the sheet’s own close puts it away', async () => {
+test('opening the frame’s screen puts the menu away, and the same pill closes it again', async () => {
   serve(() => told({ montages: [{ id: 'f1', duration_seconds: 60, start_seconds: 72 }] }));
   const screen = await open();
   await screen.menu();
   expect(screen.root.findByType(ActionMenu).props.visible).toBe(true);
   await screen.press(screen.pill);
   expect(screen.root.findByType(ActionMenu).props.visible).toBe(false);
-  expect(screen.info().props.visible).toBe(true);
-  await act(async () => screen.info().props.onClose());
-  expect(screen.info().props.visible).toBe(false);
-  // Raised again, the sheet is a fresh one: what a film was chosen on it is the window’s to carry out.
+  expect(screen.panels()).toHaveLength(1);
+  await screen.press(screen.pill);
+  expect(screen.panels()).toHaveLength(0);
+  // Raised again, the panel is a fresh one: what a film was chosen on it is the window’s to carry out.
   await screen.press(screen.pill);
   await act(async () => screen.info().findAllByType(RowFilmAt)[0].props.onPress());
   expect(screen.shown.onClose).toHaveBeenCalledTimes(1);
@@ -983,7 +989,7 @@ test('on iOS the film is asked for only once the window has gone, because a moda
   expect(router.setParams).toHaveBeenCalledExactlyOnceWith({ montage: 'f1' });
 });
 
-test('the lines of the frame’s sheet stand in one card, and a film with no known length is called by its count', async () => {
+test('the lines of the frame’s own screen stand in one card, and a film with no known length is called by its count', async () => {
   serve(() => told({ montages: [{ id: 'f9', duration_seconds: null, start_seconds: 5 }] }));
   const screen = await open();
   await screen.press(screen.pill);
@@ -1173,7 +1179,7 @@ test.each([
     expect(box.paddingRight).toBeUndefined();
 
     await act(async () => pill.props.onPress());
-    expect(screen.info().props.visible).toBe(true);
+    expect(screen.panels()).toHaveLength(1);
     expect(log.map((one) => one.path)).toEqual(['/memories/m1/media/a']);
   },
 );

@@ -1,6 +1,6 @@
 import { Lock, Plus } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { ScrollView, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -12,16 +12,7 @@ import {
   memberName,
   removeLabelMedia,
 } from '@/api';
-import {
-  Avatar,
-  Banner,
-  Chip,
-  IconButton,
-  RowFilmAt,
-  RowSummary,
-  Spinner,
-  Text,
-} from '@/kit';
+import { Avatar, Banner, Chip, IconButton, RowFilmAt, RowSummary, Spinner, Text } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { formatDayShort, formatRuntime } from '@/lib/dates';
 import { frameFacts } from '@/lib/frames';
@@ -147,7 +138,10 @@ export function FrameInfoPanel({
     <View style={[styles.panel, style]}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.body, { paddingBottom: Math.max(insets.bottom, board.bottom) }]}
+        contentContainerStyle={[
+          styles.body,
+          { paddingBottom: Math.max(insets.bottom, board.bottom) },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {failed === null ? null : <Banner tone="error" text={failed} />}
@@ -216,7 +210,12 @@ export function FrameInfoPanel({
 
             <View style={styles.facts}>
               {frameFacts(info, s, undefined, place).map((fact, at) => (
-                <RowSummary key={fact.label} label={fact.label} value={fact.value} divider={at > 0} />
+                <RowSummary
+                  key={fact.label}
+                  label={fact.label}
+                  value={fact.value}
+                  divider={at > 0}
+                />
               ))}
             </View>
 
