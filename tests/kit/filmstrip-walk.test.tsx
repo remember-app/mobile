@@ -181,8 +181,15 @@ test('a press on a frame of the strip names that frame, and a strip with nobody 
  * narrower than the ten frames it holds and so leaves room to scroll it — a strip that fits cannot
  * be walked, and the numbers below mean nothing against a strip that never moves.
  *
- * `flick` runs the whole touch, both of its ends: the lift and the glide that may follow it. A
- * strip that answers both is a strip that opens two frames for one swipe.
+ * `flick` runs the whole touch in the order the platforms run it in, and it is that order the strip
+ * has to survive: the lift comes first and the glide's beginning right behind it — React Native's
+ * own note on `onMomentumScrollBegin` is «when animation begins after letting up» — with the
+ * glide's end wherever it coasted to. `glided` is where the glide rests, and it is not the number
+ * the finger left on by construction: the whole of a flick is that the two are different places,
+ * and a helper that gave both the same one would ask the right frame with any code at all.
+ *
+ * No glide and no lift answer either: a slow touch is the lift and nothing more, and nothing the
+ * lift hands over arrives afterwards.
  */
 async function drawSettled(
   index: number,
@@ -202,15 +209,25 @@ async function drawSettled(
     tree.root.findByType(FlatList).props.onLayout({ nativeEvent: { layout: { width } } }),
   );
   scrollToIndex.mockClear();
+  const at = (x: number) => ({ nativeEvent: { contentOffset: { x } } });
+  /** One turn of the event loop, which is when a lift nobody took back answers. */
+  const aTurn = () =>
+    act(async () => {
+      await new Promise((done) => setTimeout(done, 0));
+    });
   return {
     scrollToIndex,
-    /** A finger that begins on the strip, walks it to `x` and lets go — `flicked` with a glide. */
-    flick: async (x: number, flicked = false) => {
-      const at = { nativeEvent: { contentOffset: { x } } };
+    /** A finger that begins on the strip, walks it to `lifted` and lets go, gliding on to `glided`. */
+    flick: async (lifted: number, glided: number | null = null) => {
       await act(async () => list().onScrollBeginDrag());
-      if (flicked) await act(async () => list().onMomentumScrollBegin());
-      await act(async () => list().onScrollEndDrag(at));
-      await act(async () => list().onMomentumScrollEnd(at));
+      await act(async () => list().onScrollEndDrag(at(lifted)));
+      if (glided === null) {
+        await aTurn();
+        return;
+      }
+      await act(async () => list().onMomentumScrollBegin());
+      await aTurn();
+      await act(async () => list().onMomentumScrollEnd(at(glided)));
     },
   };
 }
@@ -236,12 +253,17 @@ test('a finger that leaves the strip resting on a frame asks for that frame, and
 test('the frame a flick lands on is the one the glide came to rest on, not the one under the finger', async () => {
   // A lift mid-flick is where the strip is that moment; the frame is whatever it coasts to. Asking on
   // the lift alone opens the frame the finger passed over and stops the glide dead on it.
+  //
+  // The lift is at 104 and the glide rests at 118, and those are two different frames: the middle of
+  // the strip stands the fifth at 104 and the sixth at 118, both inside the 132 the strip can reach.
+  // So this fails for any code that answers before it has seen where the strip stopped, and equally
+  // for one that gives both ends the same place.
   const asked: number[] = [];
   const strip = await drawSettled(4, (at) => {
     asked.push(at);
     return true;
   });
-  await strip.flick(118, true);
+  await strip.flick(104, 118);
   expect(asked).toEqual([6]);
 });
 

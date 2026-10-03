@@ -540,7 +540,12 @@ test('the open frame is kept on the phone, filed under the record and not under 
   // `Image` has no disk behind it at all, and `expo-image` — already what every tile is drawn with —
   // has one by default. Both are spelled `<Image`, so what is pinned is where the name comes from.
   expect(viewer).toContain("import { Image } from 'expo-image';");
-  expect(viewer).toContain('contentFit="contain"');
+  // `cover`, and not `contain` — TASK-484. The picture goes in a box of the frame's own proportions
+  // (TASK-475), so it fills that box rather than being letterboxed inside one that is already the
+  // right shape. This used to read `contentFit="contain"`, and the only line in the file carrying
+  // that string was a comment remembering when it was so: a check that could not fail, naming the
+  // wrong fit for anyone who read it.
+  expect(viewer).toContain('contentFit="cover"');
   expect(viewer).not.toContain('resizeMode="contain"');
 
   // What it is filed under has to be said outright. The api signs every link afresh on every read of
