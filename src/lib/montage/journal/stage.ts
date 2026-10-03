@@ -101,7 +101,7 @@ export function prepared(
  * Bytes are the api's own integer; this only says how many of what unit to call it, and the
  * rounding is the reader's: two decimals below ten, one above, and megabytes below a gigabyte.
  */
-export function weighed(bytes: number | undefined): { figure: string; unit: string } | null {
+export function weighed(bytes: number | undefined): { figure: string; unit: 'mb' | 'gb' } | null {
   if (bytes === undefined || bytes < 1) return null;
   const mb = bytes / 1024 / 1024;
   if (mb < 1024) {

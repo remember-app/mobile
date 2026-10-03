@@ -16,7 +16,7 @@ import { height, radius, space, themed, useTheme } from '@/theme';
 
 import { Divider, LiveDot, Progress, Shares, SparkMark } from './bits';
 import { BlockHead } from './block-head';
-import { Button, IconButton } from './button';
+import { BackButton, Button, IconButton } from './button';
 import { Spinner } from './empty';
 import { Icon } from './icon';
 import { PRESS, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
@@ -234,6 +234,7 @@ export function ThoughtJournal({
  */
 export function PartJournal({
   label,
+  building,
   title,
   line,
   more,
@@ -241,6 +242,8 @@ export function PartJournal({
   children,
 }: {
   label: string;
+  /** The word after the label of the part being cut right now — «· СОБИРАЕТСЯ». */
+  building?: string;
   title: string;
   /** «19 кадров · 0:24–0:58», or «ещё не собрана». */
   line: string;
@@ -251,7 +254,9 @@ export function PartJournal({
   const styles = useStyles();
   const body = (
     <BlockJournal>
-      <BlockHead label={label} />
+      <BlockHead label={label}>
+        {building ? <Text role="eyebrow">{` · ${building}`}</Text> : null}
+      </BlockHead>
       <View style={styles.say}>
         <Text role="rowSm" style={styles.grow}>
           {title}
@@ -730,6 +735,9 @@ const useStyles = themed(({ color }) =>
       padding: 14,
       gap: space.s3,
     },
+    head: { flexDirection: 'row', alignItems: 'center', gap: space.s2 },
+    headWords: { flexDirection: 'row', alignItems: 'baseline', gap: 10, flex: 1, minWidth: 0 },
+    headStage: { flexShrink: 0 },
     say: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     what: { flexShrink: 1 },
     time: { flexShrink: 0 },
@@ -827,3 +835,39 @@ const useStyles = themed(({ color }) =>
     pagerEnd: { justifyContent: 'flex-end' },
   }),
 );
+
+/**
+ * The bar of the journal (spec 8, «Общее для `Journal*`»): «К ролику» at 44, and on the baseline
+ * beside it the name of the stage and its place among the five.
+ *
+ * The two stand on one baseline rather than over one another because they are one sentence — «the
+ * music, stage four of five» — and a bar that stacked them would spend two lines saying what one
+ * says. It is drawn here rather than by an `AppBar` because every other bar of the product puts the
+ * meta under the name, and this is the one place the spec draws it beside.
+ */
+export function StageHead({
+  name,
+  stageOf,
+  onFilm,
+  label,
+}: {
+  name: string;
+  /** «Этап 4 из 5» — its place among the five, counted from one. */
+  stageOf: string;
+  onFilm: () => void;
+  /** «К ролику» — what the way back says, and where it leads. */
+  label: string;
+}) {
+  const styles = useStyles();
+  return (
+    <View style={styles.head}>
+      <BackButton label={label} onPress={onFilm} />
+      <View style={styles.headWords}>
+        <Text role="stageName">{name}</Text>
+        <Text role="metaSm" tone="muted" style={styles.headStage}>
+          {stageOf}
+        </Text>
+      </View>
+    </View>
+  );
+}

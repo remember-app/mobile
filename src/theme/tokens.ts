@@ -291,6 +291,13 @@ export const type = StyleSheet.create({
   filmName: { fontFamily: font.headline, fontSize: 33, lineHeight: 40, letterSpacing: -1.32 },
   /** «Воспоминания» on the main screen */
   displaySm: { fontFamily: font.headline, fontSize: 25, lineHeight: 28, letterSpacing: -0.75 },
+  /**
+   * The name of a stage over the journal of that stage (spec 8, `Journal*`) — Unbounded 700 at 21,
+   * the one heading of the product set in the bold face: a bar says where you are, and the name of
+   * the stage is the whole of it. It does not grow with the system's type, the way the other names
+   * in a bar do not — a name that grew would push «Этап N из 5» off the baseline it shares.
+   */
+  stageName: { fontFamily: font.headline, fontSize: 21, lineHeight: 25, letterSpacing: -0.735 },
   /** the heading of an empty state */
   emptyTitle: { fontFamily: font.headline, fontSize: 24, lineHeight: 28, letterSpacing: -0.84 },
   /** the heading of a sheet */

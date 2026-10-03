@@ -664,7 +664,16 @@ export const en = {
 
       /** The directing block: the thought, the parts of the story, and what was not taken. */
       directorThought: "The director's thought",
+      /** The eyebrow of a part of the story — «ЧАСТЬ 2», and «· СОБИРАЕТСЯ» while it is cut. */
+      partLabel: (n: number) => `PART ${n}`,
+      /** The button that opens the frames that were not taken. */
+      seeAll: 'See them',
+      /** The word after the number of the part being cut right now. */
       building: 'BUILDING',
+      /** What the cross over an open card says. */
+      collapse: 'Fold',
+      /** A file the phone never named: the card then says what it is and who brought it. */
+      noName: 'The frame',
       /** The part's own line, and the one planned but with nothing in it yet. */
       partNotYet: 'not put together yet',
       /** «+15» — the frames of a part behind the stack, folded into one number. */
@@ -712,6 +721,8 @@ export const en = {
         `It will open by itself once the making gets to it. Right now it is “${now}”.`,
       /** The row button under it, leading to the stage in hand. */
       watchStage: (name: string) => `Watch “${name}”`,
+      /** Where no stage is running at all yet — the worker has not opened the first one. */
+      notStartedQuiet: 'It will open by itself once the making gets to it.',
 
       /** The one screen a stage that stopped wears, whatever the stage is. */
       stoppedTitle: 'This stage stopped',
@@ -1118,7 +1129,11 @@ export const ru: typeof en = {
       animalLabel: (n: number) => `Животное ${n}`,
 
       directorThought: 'Мысль режиссёра',
+      partLabel: (n: number) => `ЧАСТЬ ${n}`,
+      seeAll: 'Все',
       building: 'СОБИРАЕТСЯ',
+      collapse: 'Свернуть',
+      noName: 'Кадр',
       partNotYet: 'ещё не собрана',
       moreIn: (n: number) => `+${n}`,
       notTaken: 'Не взял в историю',
@@ -1154,6 +1169,7 @@ export const ru: typeof en = {
       notStartedText: (now: string) =>
         `Откроется сам, когда сборка до него дойдёт. Сейчас идёт «${now}».`,
       watchStage: (name: string) => `Смотреть «${name}»`,
+      notStartedQuiet: 'Откроется сам, когда сборка до него дойдёт.',
 
       stoppedTitle: 'Этап остановился',
       stoppedNote: 'Пройденные этапы и заказ на месте.',
