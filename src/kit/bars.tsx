@@ -544,6 +544,7 @@ export function ViewerBar({
   meta,
   label,
   onPress,
+  on = false,
   turned = false,
   left,
   right,
@@ -558,6 +559,13 @@ export function ViewerBar({
    */
   label?: string;
   onPress?: () => void;
+  /**
+   * Held in — the frame's own screen is standing under the bar (spec 8, `FrameInfo`). The whole
+   * paper of the night rather than the glass the pill wears the rest of the time, and the words on
+   * it turn to the night's ink: a glass pill over a photograph that has a panel under it reads as
+   * part of the picture, and this one is the way back down out of it.
+   */
+  on?: boolean;
   /** Whether the phone is lying on its side, which is the layout's other pair of `Viewer*`. */
   turned?: boolean;
   left?: ReactNode;
@@ -573,20 +581,35 @@ export function ViewerBar({
       <View style={[styles.viewerBar, turned ? styles.viewerBarTurned : null, style]}>
         {left}
         <View style={styles.viewerMiddle}>
-          {/* Spec 7.1, detail 5: the pill is a button — the road to the frame's own sheet — and says
+          {/* Spec 7.1, detail 5: the pill is a button — the road to the frame's own screen — and says
               so by being the pill, with no chevron (spec 1, rule 9). A `Pressable` with nothing to
               press stays a plain block of glass. */}
           <Pressable
-            accessibilityRole={onPress ? 'button' : undefined}
-            accessibilityLabel={onPress ? label : undefined}
+            accessibilityRole="button"
+            accessibilityLabel={label}
+            // `selected` and not `checked`: the pill is the same button it was, held in — it is not
+            // standing for a value it toggles between, which is what `checked` says (RN's own
+            // `AccessibilityState` has no `pressed`, and the layout's `aria-pressed` lands here).
+            accessibilityState={{ selected: on }}
             onPress={onPress}
             disabled={!onPress}
-            style={[styles.viewerPill, turned ? styles.viewerPillTurned : null]}
+            style={[
+              styles.viewerPill,
+              turned ? styles.viewerPillTurned : null,
+              on ? styles.viewerPillOn : null,
+            ]}
           >
             {/* The date in the pinned night's `paper`, #F5F3EE — not the photograph's white. Both
                 wrap on large type and the pill grows down: the author is who brought the frame,
                 and the date is the one place the viewer says when (TASK-400). */}
-            <Text role="row" style={[styles.centred, turned ? styles.unwrapped : null]}>
+            <Text
+              role="row"
+              style={[
+                styles.centred,
+                turned ? styles.unwrapped : null,
+                on ? styles.viewerPillOnInk : null,
+              ]}
+            >
               {date}
             </Text>
             {/* Turned, the two lie on one line with a dot between them (`ViewerRotated*`), which is
@@ -600,6 +623,7 @@ export function ViewerBar({
                 styles.centred,
                 turned ? styles.viewerMetaTurned : null,
                 turned ? styles.unwrapped : null,
+                on ? styles.viewerPillOnMeta : null,
               ]}
             >
               {meta}
@@ -830,6 +854,14 @@ const useStyles = themed(({ color }) =>
     // line has no room for a second, and a broken date is worse than a tight one.
     unwrapped: { flexShrink: 0 },
     viewerMeta: { color: photo.viewerMeta },
+    // The pill held in (`FrameInfo`, spec 8): the night’s paper whole under it, a hair brighter at
+    // the edge than the glass wears, and the two floors of words in the ink it is printed over.
+    viewerPillOn: {
+      backgroundColor: photo.pillHeld,
+      borderColor: 'rgba(255,255,255,0.14)',
+    },
+    viewerPillOnInk: { color: photo.pillHeldInk },
+    viewerPillOnMeta: { color: photo.pillHeldMeta },
     centred: { textAlign: 'center' },
     layer: { paddingHorizontal: space.s4, paddingTop: space.s3, gap: space.s3 },
     // «Выбрано 12 из 61» and a quiet «Снять»: the button moves under the words when the type is too

@@ -1,12 +1,9 @@
-import { Image } from 'expo-image';
 import { CalendarDays, Lock, X } from 'lucide-react-native';
 import { type ReactNode, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { type FrameInfo, type Label, memberName } from '@/api';
+import type { Label } from '@/api';
 import {
-  Avatar,
-  Banner,
   BlockHead,
   Button,
   Calendar,
@@ -14,19 +11,15 @@ import {
   DayTile,
   FaceRow,
   IconButton,
-  RowFilmAt,
-  RowSummary,
   Segment,
   Shares,
   Sheet,
-  Spinner,
   Text,
 } from '@/kit';
 import {
   formatDay,
   formatDayShort,
   formatMonth,
-  formatRuntime,
   formatWeekday,
   startOfDay,
   weekdayLetters,
@@ -37,15 +30,13 @@ import {
   type Filter,
   type FilterDay,
   filtering,
-  frameFacts,
   type GroupBy,
   type Order,
   type Sort,
 } from '@/lib/frames';
-import { usePlaceName } from '@/lib/geocoder';
 import { labelTint } from '@/lib/labels';
 import { useStrings } from '@/lib/language';
-import { height, radius, space, themed, useTheme } from '@/theme';
+import { height, space, themed, useTheme } from '@/theme';
 
 /**
  * The sheets the gallery raises (spec 8): the two it is tuned from — the left round button at the
@@ -426,123 +417,8 @@ export function SortSheet({
   );
 }
 
-/**
- * `SheetFrameInfo` — everything about the open frame that the picture itself does not say (spec 8).
- * Only to look at: not one line of it is a control, and the one thing on it that leads anywhere is a
- * movie this frame ended up in.
- *
- * What to *do* with a frame is no longer a sheet at all — that is the glass menu the «⋯» drops
- * (spec 7.1, detail 9), and it lives on the window itself.
- *
- * The rule the whole sheet is built on: **a line the server knows nothing about is not drawn**. The
- * camera, the place and the movies are written by the montage worker, so an older frame legitimately
- * has none of them; `frameFacts` is where that is decided, and «В роликах» disappears with its own
- * rows the same way.
- */
-export function FrameInfoSheet({
-  visible,
-  thumb,
-  title,
-  meta,
-  info,
-  error,
-  onFilm,
-  onClose,
-}: {
-  visible: boolean;
-  thumb?: string;
-  /** «13 сентября, 21:47» — when this frame happened, as the gallery reads it. */
-  title: string;
-  /** «суббота · Свадьба Лизы и Марка» — the day named, and what it was. */
-  meta: string;
-  /** null until the read comes back: the head is known from the frame, the rest is not. */
-  info: FrameInfo | null;
-  /** The api's own wording when that read failed. */
-  error: string | null;
-  onFilm: (montageId: string) => void;
-  onClose: () => void;
-}) {
-  const s = useStrings();
-  const styles = useStyles();
-  const place = usePlaceName(info?.latitude, info?.longitude);
-
-  return (
-    <Sheet
-      visible={visible}
-      onCancel={onClose}
-      head={
-        <View style={styles.head}>
-          {thumb ? <Image source={{ uri: thumb }} contentFit="cover" style={styles.thumb} /> : null}
-          <View style={styles.headWords}>
-            <Text role="section" accessibilityRole="header">
-              {title}
-            </Text>
-            <Text role="meta">{meta}</Text>
-          </View>
-        </View>
-      }
-      // No footer: the sheet is closed by the darkness, the handle and the back key, like every
-      // other one. A button saying «Закрыть» under a sheet that only shows things is furniture.
-      rhythm="list"
-    >
-      {error !== null ? <Banner tone="error" text={error} /> : null}
-      {info === null ? (
-        error === null ? (
-          // Wordless on purpose (spec 9): «никаких объяснений на экране, по которому ходят каждый
-          // день». The head is already up, and what is missing is one short read.
-          <View style={styles.waiting}>
-            <Spinner />
-          </View>
-        ) : null
-      ) : (
-        <>
-          {/* The person, on `ink` inside the sheet's own surface — the one block here that is
-              about somebody rather than about a file. */}
-          <View style={styles.author}>
-            <Avatar name={memberName(info.uploaded_by)} size={32} />
-            <View style={styles.authorWords}>
-              <Text role="rowSm">{memberName(info.uploaded_by)}</Text>
-              <Text role="meta">
-                {s.viewer.brought(formatDayShort(info.created_at), info.uploaded_by.media_count)}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.facts}>
-            {frameFacts(info, s, undefined, place).map((fact, at) => (
-              <RowSummary key={fact.label} label={fact.label} value={fact.value} divider={at > 0} />
-            ))}
-          </View>
-
-          {info.montages.length === 0 ? null : (
-            <View style={styles.group}>
-              <Text role="meta" accessibilityRole="header">
-                {s.viewer.inFilms}
-              </Text>
-              {info.montages.map((film) => {
-                const runtime = formatRuntime(film.duration_seconds);
-                return (
-                  <RowFilmAt
-                    // One frame may stand in the same movie twice — the second is part of the key.
-                    key={`${film.id}:${film.start_seconds}`}
-                    title={runtime ? s.montage.ofLength(runtime) : s.montage.count(1)}
-                    at={s.viewer.at(formatRuntime(film.start_seconds) ?? '')}
-                    onPress={() => onFilm(film.id)}
-                  />
-                );
-              })}
-            </View>
-          )}
-        </>
-      )}
-    </Sheet>
-  );
-}
-
-const useStyles = themed(({ color }) =>
+const useStyles = themed(() =>
   StyleSheet.create({
-    // Spec 8, `SheetFrameInfo`: «В роликах» and the movies under it, 8 apart.
-    group: { gap: space.s2 },
     // Spec 8 — the heading of `SheetFilter` and the small «Сбросить» share one row. On the largest
     // system type «Сбросить» moves under the heading rather than squeeze it to a letter a line.
     titleRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s3 },
@@ -553,26 +429,5 @@ const useStyles = themed(({ color }) =>
     // other heading and the row it introduces.
     faces: { gap: space.s3 },
     block: { gap: 10 },
-    // Spec 8: the header row of `SheetFrameInfo` is a 56 thumbnail and two lines beside it.
-    head: { flexDirection: 'row', alignItems: 'center', gap: space.s3 },
-    headWords: { flex: 1, minWidth: 0, gap: 3 },
-    authorWords: { flex: 1, minWidth: 0, gap: 1 },
-    thumb: { width: 56, height: 56, borderRadius: radius.strip, backgroundColor: color.raise },
-    waiting: { alignItems: 'center', paddingVertical: space.s5 },
-    // Spec 8: the person stands on `ink` inside the sheet's own surface, ringed like a field —
-    // `SheetFrameInfo.json`: the face 32, the name 14 / 600 10 after it and the line right under.
-    author: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-      paddingVertical: 10,
-      paddingHorizontal: space.s3,
-      borderRadius: radius.cell,
-      backgroundColor: color.ink,
-      borderWidth: 1,
-      borderColor: color.line,
-    },
-    // The summary rows carry the screen's own 16 inside them, and the sheet has already spent it.
-    facts: { marginHorizontal: -space.s4 },
   }),
 );

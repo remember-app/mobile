@@ -4,118 +4,26 @@ import { beforeAll, expect, test, vi } from 'vitest';
 // The words come from the dictionary, and the dictionary asks the phone which language it is in.
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
 
-import type { FrameInfo, Label } from '@/api';
+import type { Label } from '@/api';
 import { allDifferent, story } from '@/kit/story';
 import { FILTER_NONE, type Filter, type FilterDay, SORT_DEFAULT, type Sort } from '@/lib/frames';
-import { FilterSheet, FrameInfoSheet, SortSheet } from '@/screens/memory/frames-sheets';
+import { FilterSheet, SortSheet } from '@/screens/memory/frames-sheets';
 import { setTheme, ThemePin } from '@/theme';
 
 /**
- * The sheets of a memory's feed (spec 8): `SheetFrameInfo`, which draws material rather than
- * controls, and the two the feed is tuned from — `SheetFilter` and `SheetSort`. All three are
- * surfaces that hold nothing of their own but the draft, so all three can be rendered here as the
- * states they have.
+ * The two sheets a memory's feed is tuned from (spec 8): `SheetFilter`, which decides **what** is
+ * shown, and `SheetSort`, which decides **in what order**. Both hold nothing of their own but the
+ * draft, so both can be rendered here as the states they have.
  *
- * The rows of the first are `tests/lib/frames.test.ts`'s (`frameFacts`) and so is everything the other two
- * decide (`framesMatching`, `groupFrames`); what is read here is the sheets — what stands on them,
- * what the buttons say in each state, and that every one of them is drawn in the theme the app is
- * in.
+ * What they decide is `tests/lib/frames.test.ts`'s (`framesMatching`, `groupFrames`); what is read
+ * here is the sheets — what stands on them, what the buttons say in each state, and that every one
+ * of them is drawn in the theme the app is in. The third surface this file used to hold,
+ * `SheetFrameInfo`, is not a sheet any more: since TASK-478 the frame's own screen is
+ * `tests/screens/memory/frame-info.test.tsx`.
  */
 
 beforeAll(async () => {
   await setTheme('dark');
-});
-
-const told = (over: Partial<FrameInfo> = {}): FrameInfo => ({
-  id: 'a',
-  file_name: 'IMG_4471.HEIC',
-  size_bytes: '4200000',
-  // Local days, because the sheet writes local ones: an instant spelled in UTC is the day before, for
-  // anybody west of it, and the line «принёс 15 сентября» would read 14.
-  captured_at: new Date(2026, 8, 13, 21, 47).toISOString(),
-  created_at: new Date(2026, 8, 15, 9, 12).toISOString(),
-  width: 4032,
-  height: 3024,
-  camera_model: 'iPhone 15 Pro',
-  focal_length_mm: 24,
-  aperture: 1.8,
-  latitude: 55.518,
-  longitude: 37.53,
-  uploaded_by: { id: 'u', username: 'mark', name: 'Марк Ковалёв', media_count: 96 },
-  montages: [{ id: 'f', duration_seconds: 60, start_seconds: 72 }],
-  // A frame in no box at all: an empty array, which is how the api says it (TASK-479).
-  labels: [],
-  ...over,
-});
-
-const sheet = (over: Partial<FrameInfo> | null = {}, error: string | null = null) => (
-  <FrameInfoSheet
-    visible
-    thumb="https://example.test/f10.jpg"
-    title="13 сентября, 21:47"
-    meta="суббота · Свадьба Лизы и Марка"
-    info={over === null ? null : told(over)}
-    error={error}
-    onFilm={() => {}}
-    onClose={() => {}}
-  />
-);
-
-test('the whole sheet: when it was, who brought it, the file, the camera, the place, the movie', () => {
-  const whole = story(sheet());
-  for (const line of [
-    '13 сентября, 21:47',
-    'суббота · Свадьба Лизы и Марка',
-    'Марк Ковалёв',
-    'принёс 15 сентября · всего 96 кадров',
-    'IMG_4471.HEIC · 4,2 МБ',
-    '4032 × 3024',
-    'iPhone 15 Pro · 24 мм · f/1.8',
-    '55.518, 37.53',
-    'В роликах',
-    // A montage has no name until templates arrive: its length is what it is called, and the row
-    // says where in it this frame stands.
-    'Ролик на 1:00',
-    'на 1:12',
-  ]) {
-    expect(whole).toContain(line);
-  }
-});
-
-test('a frame in no movie loses the block, and one the worker never read loses the rows', () => {
-  expect(story(sheet({ montages: [] }))).not.toContain('В роликах');
-  // Nothing the worker writes, and no name on the file: the head and the person stay, and «Файл»
-  // is left holding the one thing that is known.
-  const bare = story(
-    sheet({
-      file_name: undefined,
-      width: null,
-      height: null,
-      camera_model: null,
-      focal_length_mm: null,
-      aperture: null,
-      latitude: null,
-      longitude: null,
-      montages: [],
-      labels: [],
-    }),
-  );
-  expect(bare).toContain('Марк Ковалёв');
-  expect(bare).toContain('4,2 МБ');
-  for (const label of ['Размер', 'Камера', 'Место', 'В роликах']) expect(bare).not.toContain(label);
-  // And not a dash anywhere: an empty line is not drawn at all (spec 8).
-  expect(bare).not.toContain('—');
-});
-
-test('the three states of the sheet are three sheets', () => {
-  allDifferent({
-    // The head is up while the one read behind it is in the air — wordless, because the head
-    // already says which frame this is about.
-    reading: sheet(null),
-    failed: sheet(null, 'Нет связи с сервером'),
-    whole: sheet(),
-  });
-  expect(story(sheet(null, 'Нет связи с сервером'))).toContain('Нет связи с сервером');
 });
 
 /**
@@ -371,6 +279,7 @@ test('the sort sheet is the order and the three cuts, and nothing about dates', 
 
 /** The sheet's own style: its rhythm, and its floor when it has one. */
 const sheetStyle = (markup: string) => /style="(gap:[^"]*padding-bottom:[^"]*)"/.exec(markup)?.[1];
+
 /** The classes of the block a group's heading opens: the heading and the row it introduces. */
 const groupOf = (markup: string, heading: string) =>
   new RegExp(`<div class="([^"]+)"><h1[^>]*>${heading}</h1>`).exec(markup)?.[1];
@@ -398,37 +307,6 @@ test('the two tuning sheets stand as drawn: 20 between blocks, 10 under a headin
   for (const heading of ['ТИП', 'ОРИЕНТАЦИЯ', 'ЛЕЙБЛЫ', 'ДЕНЬ'])
     expect(sectionOf(filters, heading), heading).toContain(rule('gap:10px'));
   expect(sectionOf(filters, 'КТО ПРИНЁС')).toContain(rule('gap:12px'));
-});
-
-test('the sheet of a frame sets its facts out 14 apart, as `SheetFrameInfo` draws them', () => {
-  expect(sheetStyle(story(sheet()))).toMatch(/^gap:14px;/);
-  // «В роликах» and the movie under it stand 8 apart.
-  expect(groupOf(story(sheet()), 'В роликах')).toContain(rule('gap:8px'));
-});
-
-test('the person who brought it: the face 32, the name 14 / 600 10 after it, the line right under', () => {
-  // `SheetFrameInfo.json` e5–e8 (TASK-390): the plate 101…158, the face at x 29, «Марк Ковалёв»
-  // 14 / 600 at x 71 on its 18, «принёс 15 сентября…» at 131 — 1 under it. The name stood at the
-  // 15 / 600 of a list row, 8 from the face and 3 over its line: the plate came out 58.7 against 56.
-  const whole = story(sheet());
-  const words = /<div class="([^"]*)"><div[^>]*>Марк Ковалёв</.exec(whole)?.[1] ?? '';
-  expect(words).toContain(rule('gap:1px'));
-  const plate = /<div class="([^"]*)"><div[^>]*style="width:32px;height:32px;/.exec(whole)?.[1];
-  expect(plate).toContain(rule('gap:10px'));
-  const name = /class="([^"]*)"[^>]*>Марк Ковалёв</.exec(whole)?.[1] ?? '';
-  expect(name).toContain(rule('font-size:14px'));
-  expect(name).toContain(rule('line-height:18px'));
-});
-
-test('the sheet is drawn in the theme the app is in, because daylight reaches it', () => {
-  // The window under it is pinned dark in both themes (`frame-viewer.tsx`), and the sheet is
-  // deliberately outside that pin: it is its own surface over the screen, and in daylight it is a
-  // daylight surface. Every colour on it is a token, so the two come out as two different sheets.
-  const night = story(<ThemePin value="dark">{sheet()}</ThemePin>);
-  const day = story(<ThemePin value="light">{sheet()}</ThemePin>);
-  expect(day).not.toBe(night);
-  // And the same words either way: a theme is a colour and nothing else (spec 2).
-  for (const drawn of [night, day]) expect(drawn).toContain('iPhone 15 Pro · 24 мм · f/1.8');
 });
 
 test('and so are the two the feed is tuned from — nothing on them is a colour of its own', () => {
