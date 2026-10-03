@@ -643,10 +643,7 @@ test('the glass starts where the status line ends, and the scrubber keeps 16 at 
  * whole gallery, past whatever is still being developed.
  */
 async function swipe(screen: Awaited<ReturnType<typeof open>>, dx: number, dy = 0) {
-  const stage = () =>
-    screen.root.findAll(
-      (one) => typeof one.props.onMoveShouldSetResponderCapture === 'function',
-    )[0];
+  const stage = () => stageOf(screen);
   let taken = false;
   await act(async () => {
     taken = stage().props.onMoveShouldSetResponderCapture(
@@ -660,6 +657,29 @@ async function swipe(screen: Awaited<ReturnType<typeof open>>, dx: number, dy = 
 
 const opened = (screen: Awaited<ReturnType<typeof open>>) =>
   (screen.shown.onOpen as ReturnType<typeof vi.fn>).mock.calls.map((call) => call[0]);
+
+/** The stage: the view the finger walks the gallery with, and the one a tap lands on (TASK-476). */
+const stageOf = (screen: Awaited<ReturnType<typeof open>>) =>
+  screen.root.findAll((one) => typeof one.props.onMoveShouldSetResponderCapture === 'function')[0];
+
+/**
+ * A tap on the picture, as the responder system hands it over: the stage takes the finger down, the
+ * finger does not go anywhere, and it lifts. The dx and dy say how far it came, so a tap that
+ * drifted is a tap that drifted.
+ */
+async function tap(screen: Awaited<ReturnType<typeof open>>, dx = 0, dy = 0) {
+  await act(async () => stageOf(screen).props.onStartShouldSetResponder(touch({ x: 200, y: 300 })));
+  await act(async () =>
+    stageOf(screen).props.onResponderRelease(touch({ x: 200 + dx, y: 300 + dy })),
+  );
+}
+
+/** What the window draws over the frame — the glass, the shades and the tools (TASK-476). */
+const tools = (screen: Awaited<ReturnType<typeof open>>) => ({
+  bar: screen.root.findAllByType(ViewerBar).length,
+  strip: screen.root.findAllByType(Filmstrip).length,
+  scrubber: screen.root.findAllByType(VideoTrack).length,
+});
 
 test('a swipe to the left opens the next frame and a swipe to the right the one before, and neither goes past the ends', async () => {
   serve(() => undefined);
@@ -728,6 +748,136 @@ test('a lift of exactly 56 walks and a movement of exactly 12 is not yet a swipe
   // Just enough is enough: 56 is the step, and a step to the right from the second is the first.
   expect(await swipe(screen, 56)).toBe(true);
   expect(opened(screen)).toEqual(['a']);
+});
+
+/**
+ * A tap on the picture (TASK-476): the whole of the window over the frame goes away and comes back,
+ * and nothing of the frame itself goes with it.
+ */
+test('a tap on the picture puts the glass, the strip and the shades away, and a second tap brings them back', async () => {
+  serve(() => undefined);
+  const screen = await open({ item: shots()[0] });
+  expect(tools(screen)).toEqual({ bar: 1, strip: 1, scrubber: 0 });
+  await tap(screen);
+  expect(tools(screen)).toEqual({ bar: 0, strip: 0, scrubber: 0 });
+  // The picture is what is left — the frame itself is never taken away with the tools.
+  expect(screen.root.findAllByType(Image).some((one) => one.props.contentFit === 'cover')).toBe(
+    true,
+  );
+  await tap(screen);
+  expect(tools(screen)).toEqual({ bar: 1, strip: 1, scrubber: 0 });
+});
+
+test('the shades go with the tools: what stands without them is the frame and nothing drawn over it', async () => {
+  serve(() => undefined);
+  const screen = await open({ item: shots()[0] });
+  // The two darkenings, read off the tree as the views that take no finger and carry a gradient.
+  const shades = () =>
+    screen.root
+      .findAllByType(View)
+      .filter(
+        (one) =>
+          one.props.pointerEvents === 'none' &&
+          StyleSheet.flatten(one.props.style)?.experimental_backgroundImage !== undefined,
+      );
+  expect(shades()).toHaveLength(2);
+  await tap(screen);
+  expect(shades()).toHaveLength(0);
+});
+
+test('a tap that drifted is still a tap, and one that went sideways is a swipe that walks instead', async () => {
+  serve(() => undefined);
+  const screen = await open({ item: shots()[0] });
+  // A finger that wobbled under the 12 points at which the picture takes a swipe is still a tap.
+  await tap(screen, 8, -9);
+  expect(tools(screen)).toEqual({ bar: 0, strip: 0, scrubber: 0 });
+  await tap(screen);
+  expect(tools(screen)).toEqual({ bar: 1, strip: 1, scrubber: 0 });
+  // Past it the gesture is the gallery's, and a gesture never hides anything — it walks (AC #4).
+  expect(await swipe(screen, -100)).toBe(true);
+  expect(opened(screen)).toEqual(['b']);
+  expect(tools(screen)).toEqual({ bar: 1, strip: 1, scrubber: 0 });
+});
+
+test('tools that were put away come back on a swipe and on a step along the strip, whatever it walked to', async () => {
+  serve(() => undefined);
+  // A swipe past the last frame has nowhere to go and still brings the tools back (AC #3): nobody
+  // who put them away is left with a picture and no way out of it but another tap.
+  const last = await open({ item: shots()[3] });
+  await tap(last);
+  expect(tools(last).bar).toBe(0);
+  expect(await swipe(last, -100)).toBe(true);
+  expect(opened(last)).toEqual([]);
+  expect(tools(last).bar).toBe(1);
+
+  // And the strip's own answer, when a finger has already flung it and the tools go away mid-fling:
+  // the frame it comes to rest on is named after the fact, and it brings the tools back with it.
+  const strip = await open({ item: shots()[0] });
+  const flung = strip.root.findByType(Filmstrip).props as {
+    onSettle: (at: number) => boolean;
+  };
+  await tap(strip);
+  await act(async () => void flung.onSettle(3));
+  expect(opened(strip)).toEqual(['d']);
+  expect(tools(strip).bar).toBe(1);
+});
+
+test('a video taps to play and to stand still, and its 72 stays where it is in both states', async () => {
+  serve(() => undefined);
+  const clip = { ...shots()[0], kind: 'video' as const, preview_url: 'https://r2.example/v.mp4' };
+  player.playing = false;
+  const screen = await open({ item: clip, frames: [clip] });
+  expect(tools(screen)).toEqual({ bar: 1, strip: 1, scrubber: 1 });
+  await tap(screen);
+  expect(player.play).toHaveBeenCalled();
+  // A video's tap never hides anything — the transport is the frame's own business (AC #5).
+  expect(tools(screen)).toEqual({ bar: 1, strip: 1, scrubber: 1 });
+
+  player.playing = true;
+  await act(async () => screen.show({ item: clip, frames: [clip] }));
+  expect(screen.icon(ru.viewer.pause)().props.size).toBe(72);
+  await tap(screen);
+  expect(player.pause).toHaveBeenCalled();
+  expect(tools(screen)).toEqual({ bar: 1, strip: 1, scrubber: 1 });
+  // And the button itself is still there and still its own — not taken by the tap, and not hidden.
+  expect(screen.root.findAllByType(IconButton).filter((one) => one.props.size === 72)).toHaveLength(
+    1,
+  );
+});
+
+test('the picture is one control to a screen reader, named by what its tap will do', async () => {
+  serve(() => undefined);
+  const screen = await open({ item: shots()[0] });
+  const said = () => stageOf(screen).props as Record<string, unknown>;
+  expect(said().accessible).toBe(true);
+  expect(said().accessibilityRole).toBe('button');
+  expect(said().accessibilityLabel).toBe(ru.viewer.hideTools);
+  // The action is `activate` — the one name iOS and Android both answer to.
+  expect(said().accessibilityActions).toEqual([{ name: 'activate' }]);
+  await act(async () =>
+    (said().onAccessibilityAction as (e: unknown) => void)({
+      nativeEvent: { actionName: 'activate' },
+    }),
+  );
+  expect(tools(screen).bar).toBe(0);
+  // Named by what it will do now, which is the other way round.
+  expect(stageOf(screen).props.accessibilityLabel).toBe(ru.viewer.showTools);
+  await act(async () =>
+    (stageOf(screen).props.onAccessibilityAction as (e: unknown) => void)({
+      nativeEvent: { actionName: 'activate' },
+    }),
+  );
+  expect(tools(screen).bar).toBe(1);
+});
+
+test('a video is not marked as a control: the play and pause a reader reaches is the 72, under its own name', async () => {
+  serve(() => undefined);
+  const clip = { ...shots()[0], kind: 'video' as const, preview_url: 'https://r2.example/v.mp4' };
+  const screen = await open({ item: clip, frames: [clip] });
+  // Marking the stage would be marking it on top of that button, and on iOS a container marked
+  // accessible is read instead of its children — the play and pause would go missing.
+  expect(stageOf(screen).props.accessible).toBeUndefined();
+  expect(screen.icon(ru.viewer.play)().props.label).toBe(ru.viewer.play);
 });
 
 test('the window opens quiet: nothing busy, no sheet up, and the phone is allowed to turn while it is open', async () => {

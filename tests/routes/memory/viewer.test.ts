@@ -350,6 +350,10 @@ test('the picture is walked with a finger, and the finger is taken on the pictur
   // A tap belongs to whatever is under it; the walk asks for the finger only once it has plainly
   // gone sideways, and by capture — so a swipe begun on the pause button is still a swipe.
   expect(swipe).toContain('onStartShouldSetPanResponderCapture: () => false');
+  // The picture takes a plain tap (TASK-476) without capture, where the responder system asks the
+  // deeper view first: the pause button in the middle of a video keeps its own press, and a tap
+  // anywhere else on the picture is the picture's. By capture it would be the other way about.
+  expect(swipe).toContain('onStartShouldSetPanResponder: () => true');
   expect(swipe).toContain('Math.abs(g.dx) > SIDEWAYS && Math.abs(g.dx) > Math.abs(g.dy)');
   // Left is the next frame of the sheet, right the one before it.
   expect(swipe).toContain('step.current(g.dx < 0 ? 1 : -1);');
@@ -374,9 +378,9 @@ test('the picture is walked with a finger, and the finger is taken on the pictur
   expect(viewer).toContain('onPick={walk}');
   expect(viewer).toContain('onSettle={walk}');
   expect(viewer.match(/if \(!next \|\| !mayOpen\(next\)\) return false;/g)).toHaveLength(1);
-  expect(viewer.replace(/\s+/g, ' ')).toContain(
-    'if (!next || !mayOpen(next)) return false; onOpen(next.id); return true;',
-  );
+  // And the frame is opened under that gate, never before it — what else stands between the two is
+  // not the gate being moved (a step also puts the tools back, TASK-476).
+  expect(viewer.replace(/\s+/g, ' ')).toContain('onOpen(next.id); return true;');
   expect(viewer.replace(/\s+/g, ' ')).toContain(
     'for (let to = index + by; to >= 0 && to < frames.length; to += by) ' +
       '{ if (mayOpen(frames[to])) return onOpen(frames[to].id); }',
@@ -460,9 +464,10 @@ test('neither the sheet nor the strip opens a frame that is still developing', (
   // strip on a frame goes through that very gate as well (TASK-474): it is asked by name, so the
   // strip can be told no and put itself back where it was.
   expect(viewer).toContain('onSettle={walk}');
-  expect(viewer.replace(/\s+/g, ' ')).toContain(
-    'if (!next || !mayOpen(next)) return false; onOpen(next.id); return true;',
-  );
+  // The refusal comes first and `onOpen` after it, whatever stands between the two — a step also
+  // puts the tools back (TASK-476), and that is not the gate being moved past the frame it refuses.
+  expect(viewer.replace(/\s+/g, ' ')).toContain('if (!next || !mayOpen(next)) return false;');
+  expect(viewer.replace(/\s+/g, ' ')).toContain('onOpen(next.id); return true;');
 });
 
 test('the frame shown full screen is read for the phone, the tiles for a tile', () => {

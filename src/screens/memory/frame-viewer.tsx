@@ -15,7 +15,15 @@ import {
   VolumeX,
 } from 'lucide-react-native';
 import { useMemo, useRef, useState } from 'react';
-import { Modal, PanResponder, Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
+import {
+  Modal,
+  PanResponder,
+  Platform,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+  type ViewProps,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -113,6 +121,12 @@ export function FrameViewer({
   const insets = useSafeAreaInsets();
   /** Whether an errand is running on this frame — every button on the window waits for it. */
   const [busy, setBusy] = useState(false);
+  /**
+   * Whether the window is down to the frame alone (TASK-476) — a tap on the picture put the glass,
+   * the shades and the tools away, and another tap brings them back. The layout draws no such state
+   * and none is invented here: what stands without them is the same window with them not drawn.
+   */
+  const [bare, setBare] = useState(false);
   /** The one line this window says out loud: saving, sharing, and how either of them went. */
   const [notice, setNotice] = useState<string | null>(null);
   /** The three surfaces over the window: the menu the «⋯» drops, the frame's sheet, the delete. */
@@ -231,6 +245,10 @@ export function FrameViewer({
   function walk(to: number): boolean {
     const next = frames[to];
     if (!next || !mayOpen(next)) return false;
+    // A frame picked by name is a deliberate step, and it brings the tools back with it (TASK-476) —
+    // the same answer a swipe gives, so that whichever way a person moves on, they land on a frame
+    // they can still get out of.
+    setBare(false);
     onOpen(next.id);
     return true;
   }
@@ -253,6 +271,27 @@ export function FrameViewer({
   step.current = stride;
 
   /**
+   * And what a tap on the picture means (TASK-476): a video plays and stands still — its own
+   * transport is the button in the middle of the frame and the picture is not a place to tidy the
+   * window away from — while a photograph gives the glass, the shades and the tools away and a
+   * second tap brings them back.
+   *
+   * Read through the ref below like the step above it: the gesture is built once, and the player
+   * under it is replaced as the strip is walked.
+   */
+  const tapped = useRef(tapPicture);
+  tapped.current = tapPicture;
+
+  function tapPicture() {
+    if (playable !== null) {
+      if (isPlaying) player.pause();
+      else player.play();
+      return;
+    }
+    setBare((was) => !was);
+  }
+
+  /**
    * The picture is walked with a finger, photographs and videos alike, across the whole gallery
    * (TASK-182) — the gesture the window never had, which is what two reports about «не листается»
    * were really asking for (TASK-123).
@@ -271,13 +310,21 @@ export function FrameViewer({
   const swipe = useMemo(
     () =>
       PanResponder.create({
-        // A tap belongs to whatever is under it — the pause button in the middle of a video. The
-        // walk asks for the finger only once it has plainly gone sideways, and it asks by capture
-        // so that a swipe begun on that button is still a swipe.
+        // A tap belongs to whatever is under it — the pause button in the middle of a video, and a
+        // screen reader's own way in. So the stage takes the finger down without capture, where the
+        // responder system asks the deeper view first: a tap on that button is the button's, and a
+        // tap anywhere else on the picture is this window's (TASK-476).
         onStartShouldSetPanResponderCapture: () => false,
+        onStartShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponderCapture: (_, g) =>
           Math.abs(g.dx) > SIDEWAYS && Math.abs(g.dx) > Math.abs(g.dy),
         onPanResponderRelease: (_, g) => {
+          // A finger that stayed where it was put down is a tap: a video plays and stands still, a
+          // photograph puts the tools away or brings them back. Anything else is a gesture across
+          // the picture — a swipe walks the gallery (TASK-182), and it brings the tools back
+          // whatever it walked to, so that nobody who put them away is left with only a tap.
+          if (Math.abs(g.dx) <= SIDEWAYS && Math.abs(g.dy) <= SIDEWAYS) return tapped.current();
+          setBare(false);
           // ponytail: the frame is swapped when the finger lifts, and does not travel under it. A
           // carousel that follows the finger is a second horizontal scroll inside a modal over a
           // player — the exact ground TASK-106 and TASK-123 were lost on. Worth building the day
@@ -419,6 +466,26 @@ export function FrameViewer({
   const who = memberName(roster?.find((member) => member.id === item.uploaded_by) ?? null);
   const meta = [formatTime(stamp), who].filter(Boolean).join(' · ');
 
+  /**
+   * What the picture says to a screen reader, and nothing at all over a video — see the stage
+   * below. `activate` rather than `onAccessibilityTap`, because it is the one name both platforms
+   * answer to: iOS reads it in `accessibilityActivate`, Android maps it to `ACTION_CLICK`, and the
+   * latter is what the scrubber's own `increment`/`decrement` already ride on (`VideoTrack`).
+   *
+   * Its name says what the tap will do and not what the picture is, because that is what a reader
+   * is answered by — «Спрятать панели» and «Показать панели» rather than «фотография» either way.
+   */
+  const said: ViewProps | null =
+    playable === null
+      ? {
+          accessible: true,
+          accessibilityRole: 'button',
+          accessibilityLabel: bare ? s.viewer.showTools : s.viewer.hideTools,
+          accessibilityActions: TOGGLE,
+          onAccessibilityAction: () => tapped.current(),
+        }
+      : null;
+
   return (
     <Modal
       // Shut, and not unmounted, when a film is asked for: the event that says the window is gone
@@ -443,8 +510,21 @@ export function FrameViewer({
           {/* The frame itself, centred in the whole of the phone — the layout draws it in a box of
               its own proportions (spec 8, `Viewer*`), and the glass above and the strip under it lie
               over it rather than taking room away from it. The finger that walks the gallery is
-              taken here, on the picture, and never on the strip or the scrubber. */}
-          <View style={styles.stage} {...swipe.panHandlers}>
+              taken here, on the picture, and never on the strip or the scrubber.
+
+              A photograph is also one control to a screen reader (TASK-476): the tap that puts the
+              tools away and brings them back is offered under the name of what it will do, since a
+              reader is answered by what is about to happen rather than by «the picture». It is the
+              picture alone that carries this, and it carries it whenever the tools are away — the
+              one moment the reader most needs a way back in.
+
+              A video is not given one, and the reason is the button, not an omission: a tap on a
+              video plays and stands still rather than hiding anything (AC #5), and that is exactly
+              what the 72 in the middle of the frame already says it does, so the reader already
+              holds this control under its own name. Marking this view would be marking it on top of
+              that button, and on iOS a container marked accessible is read instead of its children
+              — the play and pause would go missing to buy a duplicate of itself. */}
+          <View style={styles.stage} {...swipe.panHandlers} {...said}>
             {playable !== null ? (
               // Streamed off the signed url, index first, so it plays before the whole file is down
               // (doc-02, «Видео в галерее»). Its transport is the row under the strip and the button
@@ -516,121 +596,139 @@ export function FrameViewer({
             ) : null}
           </View>
 
-          {/* The two darkenings (spec 8, the four `Viewer*` layouts, TASK-475): 150 at the head and
-              160 at the foot with the phone standing, 110 and 120 with it turned. They lie over
-              the picture and take no finger — the picture takes every touch under them, and the
-              strip is under the foot one. */}
-          <View
-            style={[styles.shade, styles.shadeTop, { height: shade.top }]}
-            pointerEvents="none"
-          />
-          <View
-            style={[
-              styles.shade,
-              styles.shadeFoot,
-              turned ? styles.shadeFootTurned : null,
-              { height: shade.foot },
-            ]}
-            pointerEvents="none"
-          />
+          {/* Everything the window draws over the frame, and nothing of the frame itself (TASK-476):
+              the two darkenings, the glass bar and the tools. A tap on the picture takes all three
+              away and brings them back, and a swipe or a step along the strip brings them back
+              whatever they were doing — so this block is the whole of what «the frame alone» means,
+              and the pause button over a video stays because it is inside the frame and not here.
 
-          {/* Spec 7.1, the fifth kind of header: three pieces of glass over the photograph and no
-              darkening under them — the glass is what carries them now. All the window's controls
-              are these three; the pill in the middle is a button like the two round ones. */}
-          <ViewerBar
-            date={when}
-            meta={meta}
-            label={`${s.viewer.details}: ${when}, ${meta}`}
-            onPress={openInfo}
-            turned={turned}
-            // Spec 7.1, detail 5: `top 52` — the glass starts where the status line ends, with
-            // nothing between. Turned, the phone is short and the layout puts the bar 18 down
-            // instead (`ViewerRotated*`), which is past any status line it has.
-            style={[styles.bar, { top: turned ? 18 : insets.top }]}
-            left={
-              <IconButton
-                icon={ChevronLeft}
-                label={s.action.close}
-                size={turned ? height.roundBar : height.roundViewer}
-                tone="viewer"
-                tint={photo.on}
-                onPress={onClose}
+              The layout draws no state without them and none is invented for this: what stands
+              without them is the same window with these not drawn. */}
+          {bare ? null : (
+            <>
+              {/* The two darkenings (spec 8, the four `Viewer*` layouts, TASK-475): 150 at the head
+                  and 160 at the foot with the phone standing, 110 and 120 with it turned. They lie
+                  over the picture and take no finger — the picture takes every touch under them,
+                  and the strip is under the foot one. */}
+              <View
+                style={[styles.shade, styles.shadeTop, { height: shade.top }]}
+                pointerEvents="none"
               />
-            }
-            right={
-              <IconButton
-                icon={Ellipsis}
-                label={s.viewer.more}
-                size={turned ? height.roundBar : height.roundViewer}
-                tone="viewer"
-                tint={photo.on}
-                onPress={() => setMenu(true)}
-                disabled={busy}
-                // Spec 7.1, detail 9: the button the menu fell out of stays visible and lit under
-                // it, so the menu reads as having come from there and not from the top of the
-                // screen. `photo.held` is that light, and it is the only state this button has.
-                style={menu ? styles.held : null}
+              <View
+                style={[
+                  styles.shade,
+                  styles.shadeFoot,
+                  turned ? styles.shadeFootTurned : null,
+                  { height: shade.foot },
+                ]}
+                pointerEvents="none"
               />
-            }
-          />
 
-          {/* Over the picture now, not under it: the layout draws the strip 30 off the bottom edge
-              upright and 14 turned, over the frame, which is what `board.bottom` is standing and
-              what the turned strip's own `foot` is. A video's scrubber stands over the strip on its
-              own line, so the two never fight over a finger (spec 8, `ViewerVideo`). */}
-          <View style={[styles.tools, { paddingBottom: Math.max(insets.bottom, stripSize.foot) }]}>
-            {/* The scrubber stands on a line of its own above the strip so that two horizontal
-                gestures never fight over the same finger (spec 8, `ViewerVideo`). */}
-            {playable !== null ? (
-              // Spec 7.10: the row keeps 16 at the sides and the sound button hangs 8 into the
-              // right one (`ViewerVideo`: «0:24» at 16, the button's edge at 382).
-              <View style={styles.track}>
-                <VideoTrack
-                  at={formatRuntime(at) ?? ZERO}
-                  of={formatRuntime(runs) ?? ZERO}
-                  value={runs > 0 ? at / runs : 0}
-                  label={s.viewer.played}
-                  // Dragged and pressed, not only read: a film nobody can wind is a film watched
-                  // from the start every time. Nothing to wind until the length is known — the
-                  // api's own, or the player's once the first `timeUpdate` has been through.
-                  onSeek={
-                    runs > 0
-                      ? (to) => {
-                          player.currentTime = to * runs;
-                        }
-                      : undefined
-                  }
-                  sound={
-                    <IconButton
-                      icon={isMuted ? VolumeX : Volume2}
-                      label={isMuted ? s.viewer.unmute : s.viewer.mute}
-                      size={height.roundRow}
-                      tone="ghost"
-                      tint={photo.on}
-                      glyph={SOUND_GLYPH}
-                      style={styles.sound}
-                      onPress={() => {
-                        player.muted = !player.muted;
-                      }}
+              {/* Spec 7.1, the fifth kind of header: three pieces of glass over the photograph
+                  and no darkening under them — the glass is what carries them now. All the window's
+                  controls are these three; the pill in the middle is a button like the two round
+                  ones. */}
+              <ViewerBar
+                date={when}
+                meta={meta}
+                label={`${s.viewer.details}: ${when}, ${meta}`}
+                onPress={openInfo}
+                turned={turned}
+                // Spec 7.1, detail 5: `top 52` — the glass starts where the status line ends, with
+                // nothing between. Turned, the phone is short and the layout puts the bar 18 down
+                // instead (`ViewerRotated*`), which is past any status line it has.
+                style={[styles.bar, { top: turned ? 18 : insets.top }]}
+                left={
+                  <IconButton
+                    icon={ChevronLeft}
+                    label={s.action.close}
+                    size={turned ? height.roundBar : height.roundViewer}
+                    tone="viewer"
+                    tint={photo.on}
+                    onPress={onClose}
+                  />
+                }
+                right={
+                  <IconButton
+                    icon={Ellipsis}
+                    label={s.viewer.more}
+                    size={turned ? height.roundBar : height.roundViewer}
+                    tone="viewer"
+                    tint={photo.on}
+                    onPress={() => setMenu(true)}
+                    disabled={busy}
+                    // Spec 7.1, detail 9: the button the menu fell out of stays visible and lit
+                    // under it, so the menu reads as having come from there and not from the top of
+                    // the screen. `photo.held` is that light, and it is the only state this button
+                    // has.
+                    style={menu ? styles.held : null}
+                  />
+                }
+              />
+
+              {/* Over the picture now, not under it: the layout draws the strip 30 off the bottom
+                  edge upright and 14 turned, over the frame, which is what `board.bottom` is
+                  standing and what the turned strip's own `foot` is. A video's scrubber stands over
+                  the strip on its own line, so the two never fight over a finger (spec 8,
+                  `ViewerVideo`). */}
+              <View
+                style={[styles.tools, { paddingBottom: Math.max(insets.bottom, stripSize.foot) }]}
+              >
+                {/* The scrubber stands on a line of its own above the strip so that two horizontal
+                    gestures never fight over the same finger (spec 8, `ViewerVideo`). */}
+                {playable !== null ? (
+                  // Spec 7.10: the row keeps 16 at the sides and the sound button hangs 8 into the
+                  // right one (`ViewerVideo`: «0:24» at 16, the button's edge at 382).
+                  <View style={styles.track}>
+                    <VideoTrack
+                      at={formatRuntime(at) ?? ZERO}
+                      of={formatRuntime(runs) ?? ZERO}
+                      value={runs > 0 ? at / runs : 0}
+                      label={s.viewer.played}
+                      // Dragged and pressed, not only read: a film nobody can wind is a film
+                      // watched from the start every time. Nothing to wind until the length is
+                      // known — the api's own, or the player's once the first `timeUpdate` has
+                      // been through.
+                      onSeek={
+                        runs > 0
+                          ? (to) => {
+                              player.currentTime = to * runs;
+                            }
+                          : undefined
+                      }
+                      sound={
+                        <IconButton
+                          icon={isMuted ? VolumeX : Volume2}
+                          label={isMuted ? s.viewer.unmute : s.viewer.mute}
+                          size={height.roundRow}
+                          tone="ghost"
+                          tint={photo.on}
+                          glyph={SOUND_GLYPH}
+                          style={styles.sound}
+                          onPress={() => {
+                            player.muted = !player.muted;
+                          }}
+                        />
+                      }
                     />
-                  }
+                  </View>
+                ) : null}
+
+                <Filmstrip
+                  frames={strip}
+                  index={index}
+                  size={stripSize}
+                  style={styles.strip}
+                  labelAt={(to) => nameOf(frames[to], frameOf(frames[to]), to === index)}
+                  // A tap names the frame it wants and a finger leaves the strip resting on one, so
+                  // both are the gate and not the stride: refusing is the honest answer to «open
+                  // this one», and the two agree on what may open.
+                  onPick={walk}
+                  onSettle={walk}
                 />
               </View>
-            ) : null}
-
-            <Filmstrip
-              frames={strip}
-              index={index}
-              size={stripSize}
-              style={styles.strip}
-              labelAt={(to) => nameOf(frames[to], frameOf(frames[to]), to === index)}
-              // A tap names the frame it wants and a finger leaves the strip resting on one, so both
-              // are the gate and not the stride: refusing is the honest answer to «open this one»,
-              // and the two agree on what may open.
-              onPick={walk}
-              onSettle={walk}
-            />
-          </View>
+            </>
+          )}
 
           {/* `SheetFrame` (spec 8) — the three errands, on glass that falls out of the «⋯» rather
               than rising from the bottom of the screen: what is under the finger is the frame, and
@@ -727,6 +825,14 @@ const SOUND_GLYPH = { size: ICO_S } as const;
 
 /** What a timecode says before there is anything to count — «0:00» in every language. */
 const ZERO = '0:00';
+
+/**
+ * The one thing a screen reader may do to the picture, since it has no finger to tap it with
+ * (TASK-476). `activate` is the name both platforms answer to — iOS reads it in
+ * `accessibilityActivate`, Android maps it to `ACTION_CLICK` — so one list serves iOS and Android,
+ * as the scrubber's `increment`/`decrement` do (`VideoTrack`).
+ */
+const TOGGLE = [{ name: 'activate' }];
 
 /** How far sideways a finger has to go before the picture takes it from whatever is under it. */
 const SIDEWAYS = 12;
