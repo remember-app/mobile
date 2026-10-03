@@ -33,6 +33,7 @@ const entry = (over: Partial<JournalEntry> = {}): JournalEntry => ({
   source_to_seconds: null,
   labels: ['смех', 'закат', 'семья'],
   focus: { x: 0.2, y: 0.3, w: 0.4, h: 0.4 },
+  details: null,
   created_at: new Date(2026, 8, 20, 12).toISOString(),
   ...over,
 });
@@ -40,6 +41,7 @@ const file: JournalFile = {
   id: 'f1',
   kind: 'photo',
   uploaded_by: 'u',
+  file_name: 'IMG_2041.JPG',
   captured_at: new Date(2026, 8, 13, 21, 47).toISOString(),
   duration_seconds: null,
   thumbnail_url: 'https://example.test/f1.jpg',
