@@ -149,9 +149,12 @@ export function stageLine(
   if (stage.state === 'failed') {
     return filmScreen.stoppedBecause(stoppedWord(stage, s));
   }
-  const parts = [cameOf(stage, s) ?? soFar(stage, s), spent].filter(
-    (part): part is string => part !== undefined,
-  );
+  // A stage that is still at it says how far it has got, not what it came to: its outcome is the
+  // plan it has, and reading it as a result would report the work before it happened.
+  const parts = [
+    stage.state === 'running' ? (soFar(stage, s) ?? cameOf(stage, s)) : (cameOf(stage, s) ?? soFar(stage, s)),
+    spent,
+  ].filter((part): part is string => part !== undefined);
   return parts.length === 0 ? undefined : parts.join(' · ');
 }
 
