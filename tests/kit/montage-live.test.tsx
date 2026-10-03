@@ -1,4 +1,3 @@
-import { rule } from '@tests/helpers/css';
 import { mountsTrees } from '@tests/helpers/renderer';
 import {
   Pressable,
@@ -13,8 +12,6 @@ import { beforeAll, expect, test } from 'vitest';
 import { BadgeDecision } from '@/kit/badge';
 import { Icon } from '@/kit/icon';
 import {
-  CardNow,
-  GAZE,
   GAZE_SHEET,
   Journal,
   JournalLine,
@@ -25,7 +22,7 @@ import {
   TileNumber,
 } from '@/kit/montage-live';
 import { allDifferent, story } from '@/kit/story';
-import { photo, setTheme, themes } from '@/theme';
+import { setTheme, themes } from '@/theme';
 
 /** Spec 7.6 and 7.7 — the surface of a montage being made: what is happening now, and every why. */
 
@@ -36,96 +33,6 @@ mountsTrees();
 
 beforeAll(async () => {
   await setTheme('dark');
-});
-
-test('«Сейчас» has three states and they are three cards', () => {
-  allDifferent({
-    thinking: (
-      <CardNow
-        uri={SHOT}
-        author="Аня Петрова"
-        authorLine="Аня · 13 сент, 16:42"
-        now="Сейчас"
-        gaze={{ left: 118, top: 44 }}
-        who="Режиссёр"
-        standing="думает…"
-        thought="Бабушка смеётся, Лиза обнимает её"
-        unsaid=" — лица в фокусе, свет тёплый"
-      />
-    ),
-    decided: (
-      <CardNow
-        uri={SHOT}
-        author="Аня Петрова"
-        authorLine="Аня · 13 сент, 16:42"
-        now="Сейчас"
-        who="Режиссёр"
-        standing="решил"
-        thought="Бабушка смеётся, Лиза обнимает её"
-        decision={<BadgeDecision kind="take" label="Беру" />}
-      />
-    ),
-    waiting: <CardNow who="Режиссёр" waiting="Ждём очереди" />,
-  });
-});
-
-test('the author and «СЕЙЧАС» over the frame stand on the fuller of the two plates', () => {
-  // Spec 2 and 10.10: `.60` on the card «Сейчас» — the quieter `.55` belongs to a template's tile and
-  // to the date spine.
-  const card = story(
-    <CardNow
-      uri={SHOT}
-      author="Аня Петрова"
-      authorLine="Аня · 13 сент, 16:42"
-      now="Сейчас"
-      who="Режиссёр"
-    />,
-  );
-  expect(card.split(rule('background-color:rgba(11,11,18,0.60)'))).toHaveLength(3);
-});
-
-test('a card waiting its turn holds no frame and no thought — there is nothing in hand', () => {
-  const waiting = story(<CardNow who="Режиссёр" waiting="Ждём очереди" />);
-  expect(waiting).toContain('Ждём очереди');
-  expect(waiting).not.toContain('Режиссёр');
-});
-
-test('the gaze square stands where it is told to and dims everything outside itself', () => {
-  const left = story(<CardNow uri={SHOT} who="Режиссёр" gaze={{ left: 20, top: 10 }} />);
-  const right = story(<CardNow uri={SHOT} who="Режиссёр" gaze={{ left: 118, top: 44 }} />);
-  expect(left).not.toBe(right);
-  // One view with a hole in it — a single outward shadow — and not four dimming panels around a
-  // square. Without a gaze nothing on the frame carries a shadow at all.
-  expect(right).toMatch(/r-boxShadow-\w+/);
-  expect(story(<CardNow uri={SHOT} who="Режиссёр" />)).not.toMatch(/r-boxShadow-\w+/);
-});
-
-test('the thought is the one thing on the card a screen reader is told as it arrives', () => {
-  // Spec 10.4: the square on the frame cannot be read out — what it is pointing at is the sentence
-  // being said about it, so that sentence is the live area and the square stays silent.
-  const card = story(<CardNow uri={SHOT} who="Режиссёр" thought="Бабушка" unsaid=" смеётся" />);
-  expect(card).toContain('aria-live="polite"');
-});
-
-test('a thought still arriving already stands at its full height — the rest is laid out, not drawn', () => {
-  // Spec 7.6, «экран не прыгает»: the sentence takes its final room from the first letter, so the
-  // five stages under the card do not slide down a line at a time — nor jump back up the moment
-  // the next sentence starts from nothing.
-  const said = /Бабушка<[\s\S]*?color:rgba\(0,0,0,0\.00\)"> смеётся</;
-  expect(story(<CardNow uri={SHOT} who="Режиссёр" thought="Бабушка" unsaid=" смеётся" />)).toMatch(
-    said,
-  );
-  expect(story(<CardNow uri={SHOT} who="Режиссёр" unsaid="Бабушка смеётся" />)).toContain(
-    'Бабушка смеётся',
-  );
-  expect(story(<LogEntry time="сейчас" uri={SHOT} text="Бабушка" unsaid=" смеётся" />)).toMatch(
-    said,
-  );
-  expect(story(<NoteThought text="Бабушка" unsaid=" смеётся" />)).toMatch(said);
-  // Said in full, nothing is hidden and nothing blinks at the end of it.
-  expect(story(<CardNow uri={SHOT} who="Режиссёр" thought="Бабушка смеётся" />)).not.toContain(
-    'color:rgba(0,0,0,0.00)',
-  );
 });
 
 test('the sheet draws the same frame bigger, with the same eye on it', () => {
@@ -286,46 +193,16 @@ function drawn(element: React.ReactElement) {
   return { boxes, text, words, done: () => act(() => tree.unmount()) };
 }
 
-test('the eye is the square the layout draws: 100 on the card, 114 on the sheet, hairline in', () => {
-  // `MontageLive`: the square stands 100 × 100 at 135, 153 — 118, 44 into the frame; `SheetLiveFile`:
-  // 114 × 114 at 134, 87 — 118, 56 into its frame. The spec's 96 and 110 are the CSS boxes inside
-  // the 2px border; the app drew those as the whole square, 4 short each way.
+test('the eye is the square the layout draws: 114 on the sheet, hairline in', () => {
+  // `SheetLiveFile`: 114 × 114 at 134, 87 — 118, 56 into its frame. The spec's 110 is the CSS box
+  // inside the 2px border; the app drew that as the whole square, 4 short each way.
   const { spark } = themes.dark.color;
-  const square = (boxes: ViewStyle[]) =>
-    boxes.find((box) => box.borderColor === spark && box.borderWidth === 2);
-
-  const card = drawn(<CardNow uri={SHOT} who="Режиссёр" gaze={{ left: 118, top: 44 }} />);
-  expect(square(card.boxes)).toMatchObject({ width: 100, height: 100, borderRadius: 14 });
-  card.done();
   const sheet = drawn(<ShotGaze uri={SHOT} gaze={{ left: 118, top: 56 }} />);
-  expect(square(sheet.boxes)).toMatchObject({ width: 114, height: 114, borderRadius: 16 });
+  expect(
+    sheet.boxes.find((box) => box.borderColor === spark && box.borderWidth === 2),
+  ).toMatchObject({ width: 114, height: 114, borderRadius: 16 });
   sheet.done();
-  expect([GAZE, GAZE_SHEET]).toEqual([100, 114]);
-});
-
-test('the card’s thought is 14 / 20 and the author’s plate 11 / 600, as `MontageLive` draws them', () => {
-  // Spec detail 49 and `MontageLive`: «Бабушка смеётся…» Onest 14 / 400 on a 20 line, «Аня · 13
-  // сент, 16:42» Onest 11 / 600. The app drew the journal's 13 / 500 and the meta's 12 / 500.
-  const card = drawn(
-    <CardNow
-      uri={SHOT}
-      author="Аня Петрова"
-      authorLine="Аня · 13 сент, 16:42"
-      who="Режиссёр"
-      thought="Бабушка смеётся, Лиза обнимает её"
-    />,
-  );
-  // The thought is the card's live area — the one text on it that is.
-  expect(card.text((props) => props.accessibilityLiveRegion === 'polite')).toMatchObject({
-    fontSize: 14,
-    lineHeight: 20,
-    fontFamily: 'Onest_400Regular',
-  });
-  expect(card.words('Аня · 13 сент, 16:42')).toMatchObject({
-    fontSize: 11,
-    fontFamily: 'Onest_600SemiBold',
-  });
-  card.done();
+  expect(GAZE_SHEET).toBe(114);
 });
 
 /** The words a thought is said in: the `Text` holding the sentence that is (partly) said. */
@@ -419,17 +296,6 @@ test('a video’s time on a journal thumbnail is 9 / 700 and untracked, 3 in and
   });
   expect(time.letterSpacing).toBeUndefined();
   entry.done();
-});
-
-test('the frame in hand is darkened at the top only, by the spec’s own gradient', () => {
-  // Spec 2 and 10.11, «верх кадра в карточке „Сейчас“»: `rgba(9,9,14,.55) → transparent 40%`, the
-  // plates stand in it — now `photo.now` and not a string written on the card.
-  const card = drawn(<CardNow uri={SHOT} who="Режиссёр" />);
-  expect(card.boxes.map((box) => box.experimental_backgroundImage).filter(Boolean)).toEqual([
-    photo.now,
-  ]);
-  expect(photo.now).toBe('linear-gradient(to bottom, rgba(9,9,14,.55) 0%, rgba(9,9,14,0) 40%)');
-  card.done();
 });
 
 test('a film a frame lies in is a row of 42 — a floor, the words grow it', () => {

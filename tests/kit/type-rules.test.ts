@@ -75,10 +75,7 @@ const HELD: Record<string, string> = {
   'kit/calendar.tsx › inline': 'fitCell',
   'kit/slider.tsx › inline': 'fitCell',
   // A picture's own box, the words laid over the photograph: the height is the picture's.
-  'kit/montage-live.tsx › shot': 'the frame on air',
   'kit/montage-live.tsx › shotSmall': 'a 62 frame',
-  'kit/montage-live.tsx › wait': 'the frame on air, waiting',
-  'kit/rows.tsx › noteShot': 'a 34 frame',
   // A plate or a pill the layout draws to a height, not yet measured at the largest type.
   'kit/daymark.tsx › band': 'the day gap in the feed, felt at 44 — its words through a variable',
   'kit/daymark.tsx › mark': 'the day gap in the feed, 20',
@@ -87,6 +84,14 @@ const HELD: Record<string, string> = {
   'kit/member.tsx › inline': 'the «+N» circle of a stack',
   'kit/member.tsx › pill': '«смотрят сейчас»',
   'kit/tile.tsx › ownSign': 'the 22 sign in the corner of one’s own frame, «!» alone',
+  // The 28 pill the stage line carries under the bar — «ждёт» beside it, and the same pill saying
+  // «остановился» in the block of a film that fell.
+  'app/memory/[id]/montage/[montageId]/index.tsx › pill': 'the pill of the stage line',
+  'app/memory/[id]/montage/[montageId]/index.tsx › stoppedPill': 'the same pill, stopped',
+  // The 28 «готов» over the poster's scrub bar, which is itself a height the layout draws.
+  'kit/card-montage.tsx › scrubPill': '«готов» on the poster',
+  // The 26 ring at the head of a stage row — the one that holds the number while the stage waits.
+  'kit/film.tsx › stageMark': 'the ring of a stage row',
 };
 
 type File = {
@@ -182,12 +187,14 @@ const CUT: Record<string, number> = {
   // Cut by the spec, whole elsewhere. The story quoted back on the total, four lines (7.6, detail
   // 43; 10.6) — whole on the step it was written on.
   'app/memory/[id]/order/summary.tsx': 1,
+  // …and the same story in its block on the screen of the film in the queue, two lines (spec 8,
+  // `FilmQueued`) — whole on the step it was written on, and nowhere else.
+  'app/memory/[id]/montage/[montageId]/index.tsx': 1,
   // The capsule's name and meta over the feed (7.1, detail 4; 10.6) — whole in the settings it
   // opens, and in what it is read out as.
   'kit/bars.tsx': 2,
-  // A track's wish (7.7, detail 54; `MontageMusic`) — whole in the field its pencil unfolds; a
-  // record under an opened stage, two lines (7.7, detail 56) — whole in the stage's journal.
-  'kit/rows.tsx': 2,
+  // A track's wish (7.7, detail 54; `MontageMusic`) — whole in the field its pencil unfolds.
+  'kit/rows.tsx': 1,
   // A label's name in its row (7.7, detail 60) — whole in what the row is read out as.
   'kit/label.tsx': 1,
   // A film's name heading the order's total, past its smallest size (7.2, detail 79; the seventh
@@ -205,6 +212,9 @@ const CUT: Record<string, number> = {
   // either is read out as.
   'kit/upload.tsx': 1,
   'screens/mine/frame-sheet.tsx': 1,
+  // What a stage came to, two lines under its name in the row (spec 8, `RowFilmStage`) — whole in
+  // the journal of that stage, which is the one press further.
+  'kit/film.tsx': 1,
 };
 
 test('words that carry sense are never cut to a count of lines, but for the lines the spec cuts', () => {
@@ -233,6 +243,9 @@ test('words that carry sense are never cut to a count of lines, but for the line
 const FAINT: Record<string, number> = {
   'kit/member.tsx': 4,
   'kit/field.tsx': 1,
+  // The number of a stage nobody has come to, in the ring its row waits in: a number in a circle is
+  // what «ждёт» looks like, and the five waiting rows must not be five identical grey rings.
+  'kit/film.tsx': 1,
 };
 
 test('words that are read are never `faint`', () => {

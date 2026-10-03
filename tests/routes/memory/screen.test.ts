@@ -18,7 +18,7 @@ import layout from '@/app/_layout.tsx?raw';
 import home from '@/app/index.tsx?raw';
 import invite from '@/app/invite.tsx?raw';
 import edit from '@/app/memory/[id]/edit.tsx?raw';
-import done from '@/app/memory/[id]/montage/[montageId]/done.tsx?raw';
+import film from '@/app/memory/[id]/montage/[montageId]/film.tsx?raw';
 import live from '@/app/memory/[id]/montage/[montageId]/index.tsx?raw';
 import settings from '@/app/memory/[id]/settings.tsx?raw';
 import upload from '@/app/memory/[id]/upload.tsx?raw';
@@ -529,7 +529,7 @@ test('every face shuts its own windows when it loses focus', () => {
   // key goes through the `onClose` it is handed, and both screens that raise it shut it on blur.
   expect(player).toContain('onRequestClose={onClose}');
   expect(films).toContain('onClose={() => setPlaying(null)}');
-  expect(done).toMatch(
+  expect(film).toMatch(
     /useFocusEffect\(\s*useCallback\(\(\) => \{\s*read\(\);\s*return \(\) => setPlaying\(false\);\s*\}, \[read\]\),\s*\);/,
   );
 });
@@ -560,9 +560,9 @@ test('the ember on a face is the one action that face is for', () => {
   // (TASK-222), which is a surface of its own and carries exactly one.
   expect(films.match(/variant="primary"/g)).toBeNull();
   expect(player.match(/variant="primary"/g)).toHaveLength(1);
-  // And one on the film's own page: «Сохранить» beside «Поделиться» in the outline, as the layout
-  // draws them (`MontageLiveDone`).
-  expect(done.match(/variant="primary"/g)).toHaveLength(1);
+  // And one on the film's own screen: «Поделиться» beside «Скачать» in the outline under the poster,
+  // as the layout draws them (spec 8, `FilmReady`).
+  expect(film.match(/variant="primary"/g)).toHaveLength(1);
   // The wizard of the order is four screens now and counts its own embers, a surface at a time
   // (`order-screens.test.ts`).
   // One on the settings and one on the sheet it raises: «Пригласить» in the footer, «Позвать» at

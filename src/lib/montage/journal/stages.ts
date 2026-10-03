@@ -6,7 +6,7 @@ import {
   type MontageStageCode,
   type MontageStep,
 } from '@/api';
-import { GAZE, type StepState } from '@/kit';
+import type { FilmStageState } from '@/kit';
 import { formatRuntime } from '@/lib/dates';
 import type { Strings } from '@/strings';
 
@@ -94,7 +94,7 @@ export function minutesLeft(stages: readonly MontageStage[]): number | null {
 export function gazeAt(
   focus: JournalEntry['focus'],
   frame: { width: number; height: number },
-  size: number = GAZE,
+  size: number,
 ): { left: number; top: number } | undefined {
   if (!focus) return undefined;
   const inside = (middle: number, along: number) =>
@@ -132,7 +132,11 @@ export function stageLine(
   s: Strings,
   now: number = Date.now(),
 ): string | undefined {
-  const { live } = s.montage;
+  const { filmScreen, live } = s.montage;
+  // A stage nobody has come to says nothing about the making — and on the screen of a film that
+  // stopped, the one behind the stopped stage says so in its own words rather than «неизвестно».
+  if (stage.state === 'pending') return filmScreen.notStarted;
+
   const minutes = stageMinutes(stage, now);
   const spent =
     minutes === null
@@ -140,10 +144,34 @@ export function stageLine(
       : stage.state === 'running'
         ? live.running(minutes)
         : live.minutes(minutes);
-  const parts = [cameOf(stage, s) ?? soFar(stage, s), spent].filter(
-    (part): part is string => part !== undefined,
-  );
+  // The stage that stopped says why, and says it in danger; its own time is not what anybody wants
+  // to read here — the reason is.
+  if (stage.state === 'failed') {
+    return filmScreen.stoppedBecause(stoppedWord(stage, s));
+  }
+  // A stage that is still at it says how far it has got, not what it came to: its outcome is the
+  // plan it has, and reading it as a result would report the work before it happened.
+  const parts = [
+    stage.state === 'running'
+      ? (soFar(stage, s) ?? cameOf(stage, s))
+      : (cameOf(stage, s) ?? soFar(stage, s)),
+    spent,
+  ].filter((part): part is string => part !== undefined);
   return parts.length === 0 ? undefined : parts.join(' · ');
+}
+
+/**
+ * Why the making stopped, in the app's own words (api `docs/journal.md`, «Остановка»). A code out of
+ * the dictionary is the general «сборка остановилась» rather than a code shown raw: the api says so
+ * itself of a reason it cannot name, and a film cut before the codes were fixed lands here too.
+ *
+ * Own keys only: the code comes off the wire, and `in` would hand `__proto__` back as an object for
+ * the screen to render.
+ */
+export function stoppedWord(stage: MontageStage | undefined, s: Strings): string {
+  const words = s.montage.live.stopped;
+  const code = stage?.outcome.stopped;
+  return code !== undefined && Object.hasOwn(words, code) ? words[code] : words.other;
 }
 
 /** What the stage says it came to, in the one clause its own keys can fill. */
@@ -151,21 +179,42 @@ function cameOf(stage: MontageStage, s: Strings): string | undefined {
   const { live } = s.montage;
   const came = stage.outcome;
   switch (stage.stage) {
-    case 'screening':
-      return came.kept !== undefined && came.of !== undefined
-        ? live.kept(came.kept, came.of)
-        : undefined;
-    case 'understanding':
-      return came.faces === undefined ? undefined : live.faces(came.faces);
-    case 'directing':
-      return came.parts === undefined ? undefined : live.parts(came.parts);
-    case 'rhythm':
+    case 'prep': {
+      // «214 кадров: 168 фото, 46 видео на 23:40» — what the order brought, and the stage's own
+      // total against what the counter says. A stage with nothing in its outcome says nothing.
+      const frames = stage.total_count;
+      if (frames === null || came.photos === undefined || came.videos === undefined) {
+        return undefined;
+      }
+      return live.prepCame(
+        frames,
+        came.photos,
+        came.videos,
+        formatRuntime(came.video_seconds ?? null) ?? '',
+      );
+    }
+    case 'analysis':
+      return came.described === undefined
+        ? undefined
+        : live.analysisCame(came.described, came.earlier ?? 0);
+    case 'directing': {
+      const parts = came.parts?.length;
+      return parts === undefined
+        ? undefined
+        : live.directingCame(parts, came.frames ?? stage.taken_count);
+    }
+    case 'music': {
       // A film with no music has nothing to lay out to: the stage still runs, and «0 склеек» would
       // be a count of what never could have happened.
-      if (came.track?.length === 0) return live.noTrack;
-      return came.cuts === undefined ? undefined : live.cuts(came.cuts);
+      const tracks = came.tracks ?? came.track;
+      if (tracks?.length === 0) return live.noTrack;
+      const name = tracks?.[0];
+      return name === undefined
+        ? undefined
+        : live.musicCame(name, came.bpm ?? null, stage.total_count);
+    }
     case 'assembly':
-      return formatRuntime(came.seconds ?? null);
+      return came.seconds === undefined ? undefined : formatRuntime(came.seconds);
   }
 }
 
@@ -204,20 +253,20 @@ export function stageHeadLine(
 }
 
 /**
- * Where one of the five stands, in the kit's own words for a step. A stage the worker has not
- * reached has no row at all in the answer, which is the same thing as `pending`: it is ahead.
+ * Where one of the five stands, in the row's own words. A stage the worker has not reached has no
+ * row of its own in the answer, which is the same thing as `pending`: it is ahead.
  *
- * Both screens of the making ask it — the live one about a stage being worked on, the finished one
- * about five that are behind — so the answer is worked out here rather than twice on two screens.
+ * Both screens of the film ask it — the one that is being made and the finished one — so it is
+ * worked out here rather than written out twice as a chain of ternaries.
  */
-export function stageStanding(stage: MontageStage | undefined): StepState {
+export function stageStanding(stage: MontageStage | undefined): FilmStageState {
   if (stage === undefined || stage.state === 'pending') return 'waiting';
   return stage.state;
 }
 
 /**
  * «собран за 14 мин» — the whole making, added up out of the stages that have both ends (spec 7.6,
- * `MontageLiveDone`). Their own times and not the span from the first to the last: what is worth
+ * `FilmReady`). Their own times and not the span from the first to the last: what is worth
  * saying is how long the work took, and a montage that stood in a queue between two stages did not
  * spend that wait being made.
  *
@@ -251,12 +300,17 @@ export function howMade(
   s: Strings,
 ): { figure: number; label: string }[] {
   const { live } = s.montage;
-  const outcomeOf = (code: MontageStageCode) => stages.find((one) => one.stage === code)?.outcome;
-  const cuts = outcomeOf('assembly')?.cuts;
+  const of = (code: MontageStageCode) => stages.find((one) => one.stage === code);
   const three = [
-    { figure: outcomeOf('screening')?.of, label: live.watched },
-    { figure: outcomeOf('directing')?.frames, label: live.tookIn },
-    { figure: cuts, label: live.glued(cuts ?? 0) },
+    { figure: of('prep')?.total_count ?? undefined, label: live.watched },
+    { figure: of('directing')?.taken_count ?? undefined, label: live.tookIn },
+    {
+      // The api counts the glued pieces on the assembly stage itself and writes no `cuts` key into
+      // its outcome (`docs/journal.md`, «assembly»), so the third figure is that `total_count` —
+      // «92 из 138 склеек» — and never a number worked out here.
+      figure: of('assembly')?.total_count ?? undefined,
+      label: live.glued(of('assembly')?.total_count ?? 0),
+    },
   ];
   return three.filter(
     (tile): tile is { figure: number; label: string } => tile.figure !== undefined,

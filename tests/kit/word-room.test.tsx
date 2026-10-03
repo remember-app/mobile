@@ -30,7 +30,6 @@ import {
   ActionBar,
   Avatar,
   AvatarStack,
-  BadgeDecision,
   BadgeFilms,
   BadgeMontage,
   BlockPicked,
@@ -38,14 +37,12 @@ import {
   brokeWord,
   CardMemory,
   CardMontage,
-  CardNow,
   EmptyMontages,
   IconButton,
   PosterOrder,
   RowContact,
   RowTrack,
   Shares,
-  StepNote,
   Text,
   Tile,
   TileNumber,
@@ -306,45 +303,6 @@ test('the empty films block stands its frames over its words once «Смонти
   expect(block().height).toBeUndefined();
   await layOut(tree, [{ text: 'Смонтироват' }, { text: 'ь' }]);
   expect(block().flexDirection).toBe('column');
-});
-
-test('a record under a stage puts its mark under the thought once the thought breaks a word beside it', async () => {
-  const tree = await draw(
-    <StepNote
-      text="Вносят торт — главный момент вечера"
-      mark={<BadgeDecision kind="take" label="Беру 0:02–0:06" />}
-    />,
-  );
-  const thought = () =>
-    box(
-      tree.root.find(
-        (one) => one.type === Text && one.props.children === 'Вносят торт — главный момент вечера',
-      ),
-    );
-  expect(thought().findAllByType(BadgeDecision)).toHaveLength(0);
-  await layOut(tree, [{ text: 'Вносят торт — гла' }, { text: 'вный' }]);
-  expect(thought().findAllByType(BadgeDecision)).toHaveLength(1);
-});
-
-test('the plates on the frame on air share a line that wraps, and none of them floats over another', async () => {
-  const tree = await draw(
-    <CardNow
-      uri="a.jpg"
-      author="Лиза Морозова"
-      authorLine="Лиза Морозова · 12 сентября, 10:35"
-      now="СЕЙЧАС"
-      who="Режиссёр"
-      standing="решил"
-      decision={<BadgeDecision kind="take" label="Взял 1 из 2" />}
-      thought="Вносят торт."
-    />,
-  );
-  const now = tree.root.find((one) => one.type === Text && one.props.children === 'СЕЙЧАС');
-  const row = box(box(now));
-  expect(flat(row).flexWrap).toBe('wrap');
-  const plates = row.findAll((one) => one.type === View && box(one) === row);
-  expect(plates).toHaveLength(2);
-  for (const plate of plates) expect(flat(plate).position).toBeUndefined();
 });
 
 test('the length on the summary poster is never squeezed by the shape beside it', async () => {

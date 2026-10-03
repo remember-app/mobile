@@ -65,7 +65,7 @@ export const BROKE = 'Режиссёр не ответил';
 
 /**
  * NOT WORDS OF THE API — the recording has no montage that fell over, so these two answers about one
- * are cut out of recorded ones: the list taken while `understanding` was at work, with that stage
+ * are cut out of recorded ones: the list taken while `analysis` was at work, with that stage
  * fallen over and `why` beside it — the worker's line, or none at all — and the ready montage's own
  * journal cut back to the same moment: the two stages it reached, their records, and the files those
  * name without a layout. The three stages after the one that fell are as the worker opened the job
@@ -76,7 +76,7 @@ export function fellOver(steps: readonly Step[], as: Role, why: string | null = 
   const list = step(steps, 'montage_list_while_building');
   const journal = step(steps, 'journal_of_ready_montage');
   const whole = journal.response.body as MontageJournal;
-  const at = MONTAGE_STAGES.indexOf('understanding');
+  const at = MONTAGE_STAGES.indexOf('analysis');
   const fell = <Row extends MontageStep>(row: Row, i: number) => ({
     ...row,
     state: i < at ? 'done' : i === at ? 'failed' : 'pending',

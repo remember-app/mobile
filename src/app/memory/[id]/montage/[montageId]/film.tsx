@@ -1,6 +1,6 @@
 import { useFocusEffect, useIsFocused, useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, Download, Share } from 'lucide-react-native';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import {
@@ -16,25 +16,34 @@ import {
   renameMontage,
 } from '@/api';
 import {
-  ActionBar,
   Banner,
   Board,
   Button,
   ConfirmSheet,
+  FilmStageDivider,
+  FilmStageList,
   GlassBar,
   IconButton,
   PosterFilm,
+  RowFilmStage,
   Shares,
   Text,
   TileNumber,
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { useStrings } from '@/lib/language';
-import { howMade, madeInMinutes, useMontageJournal, WHILE_LIVE_MS } from '@/lib/montage/journal';
+import {
+  howMade,
+  madeInMinutes,
+  stageLine,
+  stageNumber,
+  stageStanding,
+  useMontageJournal,
+  WHILE_LIVE_MS,
+} from '@/lib/montage/journal';
 import { cutAs, FilmInfoSheet, FilmNameSheet } from '@/screens/memory/film-info';
 import { FilmPlayer, useFilmActions } from '@/screens/memory/film-player';
 import { MontageGone } from '@/screens/memory/montage-gone';
-import { StageRows } from '@/screens/memory/stage-rows';
 import { height, space } from '@/theme';
 
 /** Which sheet is up over the film — one at a time, so one never has to close under another. */
@@ -169,29 +178,39 @@ export default function FilmScreen() {
         // The poster runs under the status line: the glass bar floats over it and stays.
         style={styles.bleed}
         body={styles.body}
-        footer={
-          <>
-            {said ? <Banner text={said} style={styles.said} /> : null}
-            <ActionBar>
-              <Button
-                variant="primary"
-                wide
-                icon={Download}
-                label={s.viewer.saveToPhone}
-                busy={keeping}
-                disabled={film === null}
-                onPress={() => film && void run(film, 'save')}
-              />
-            </ActionBar>
-          </>
-        }
+        footer={said ? <Banner text={said} style={styles.said} /> : undefined}
       >
         <PosterFilm
           poster={montage?.poster_url}
           meta={montage === null ? undefined : cutAs(montage)}
+          ready={ready ? s.montage.filmScreen.readyPill : undefined}
           label={s.montage.watch(name)}
           onPress={film === null ? undefined : () => setPlaying(true)}
         />
+
+        {/* Spec 8, `FilmReady`: two buttons 48 in a row under the poster — «Поделиться» in `accent`
+            and «Скачать» outlined. Neither touches the api: the video goes down the link the list
+            carried, into the phone's own gallery or out through its own share sheet, and either of
+            them is anybody's — whoever brought material gets the film back, a viewer included. */}
+        <Shares>
+          <Button
+            variant="primary"
+            size="sm"
+            wide
+            icon={Share}
+            label={s.action.share}
+            disabled={keeping || film === null}
+            onPress={() => film && void run(film, 'share')}
+          />
+          <Button
+            size="sm"
+            wide
+            icon={Download}
+            label={s.action.download}
+            disabled={keeping || film === null}
+            onPress={() => film && void run(film, 'save')}
+          />
+        </Shares>
 
         {journal.standing === 'offline' || listed === 'lost' ? (
           <Banner text={s.montage.live.lost} style={styles.aside} />
@@ -206,7 +225,10 @@ export default function FilmScreen() {
                 {s.montage.live.howMade}
               </Text>
               <Text role="meta">
-                {s.montage.film.took(journal.stages.length, madeInMinutes(journal.stages))}
+                {s.montage.filmScreen.howMadeTook(
+                  journal.stages.length,
+                  madeInMinutes(journal.stages),
+                )}
               </Text>
             </View>
             {tiles.length === 0 ? null : (
@@ -216,7 +238,25 @@ export default function FilmScreen() {
                 ))}
               </Shares>
             )}
-            <StageRows large memoryId={id} montageId={montageId} journal={journal} />
+            <FilmStageList>
+              {journal.stages.map((stage, i) => (
+                <Fragment key={stage.stage}>
+                  {i > 0 ? <FilmStageDivider /> : null}
+                  <RowFilmStage
+                    at={stageNumber(stage.stage)}
+                    title={s.montage.stage[stage.stage]}
+                    meta={stageLine(stage, s)}
+                    state={stageStanding(stage)}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/memory/[id]/montage/[montageId]/stage/[stage]',
+                        params: { id, montageId, stage: stage.stage },
+                      })
+                    }
+                  />
+                </Fragment>
+              ))}
+            </FilmStageList>
           </View>
         )}
       </Board>
@@ -231,7 +271,9 @@ export default function FilmScreen() {
         left={
           <IconButton
             icon={ChevronLeft}
-            label={s.mine.back}
+            // Spec 8, `FilmReady`: on a finished film «Назад» leads to the memory, not back to
+            // where it was opened from — the making is over and there is nothing behind this to go back to.
+            label={s.montage.filmScreen.backToMemory}
             tone="glass"
             size={height.roundViewer}
             onPress={back}

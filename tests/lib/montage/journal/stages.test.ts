@@ -31,6 +31,7 @@ import {
   stageMinutes,
   stageNumber,
   stageStanding,
+  stoppedWord,
   takenBefore,
 } from '@/lib/montage/journal';
 import { en, ru } from '@/strings';
@@ -41,21 +42,21 @@ import { en, ru } from '@/strings';
  */
 
 test('«этап 3 из 5» is a place in the pipeline and not the order the worker got to them', () => {
-  expect(stageNumber('screening')).toBe(1);
+  expect(stageNumber('prep')).toBe(1);
   expect(stageNumber('directing')).toBe(3);
   expect(stageNumber('assembly')).toBe(5);
 });
 
 describe('currentStage', () => {
-  const done = stage('screening', 'done');
+  const done = stage('prep', 'done');
   const running = stage('directing', 'running');
 
   test('is the one being worked on', () => {
-    expect(currentStage([done, running, stage('rhythm', 'pending')])?.stage).toBe('directing');
+    expect(currentStage([done, running, stage('music', 'pending')])?.stage).toBe('directing');
   });
 
   test('is the one that fell over, when none is running', () => {
-    expect(currentStage([done, stage('rhythm', 'failed')])?.stage).toBe('rhythm');
+    expect(currentStage([done, stage('music', 'failed')])?.stage).toBe('music');
   });
 
   test('is the last one reached once everything is behind', () => {
@@ -69,18 +70,18 @@ describe('currentStage', () => {
   // The worker writes all five rows `pending` as it opens the job (`journal.begin`), so the last
   // row is always «assembly» — «этап 5 из 5» before the first frame and between every two stages.
   test('a row still pending is not a stage reached', () => {
-    const ahead = (['understanding', 'directing', 'rhythm', 'assembly'] as const).map((code) =>
+    const ahead = (['analysis', 'directing', 'music', 'assembly'] as const).map((code) =>
       stage(code, 'pending'),
     );
-    expect(currentStage([stage('screening', 'pending'), ...ahead])).toBe(null);
-    expect(currentStage([done, ...ahead])?.stage).toBe('screening');
+    expect(currentStage([stage('prep', 'pending'), ...ahead])).toBe(null);
+    expect(currentStage([done, ...ahead])?.stage).toBe('prep');
   });
 
   // The recorded answers carry the five in the pipeline's order, so they cannot show whether the count
   // leans on it: the card and the screen must still agree if the rows come in another one.
   test('is the furthest one reached, wherever it stands among the rows', () => {
-    const rows = [done, stage('understanding', 'done'), stage('directing', 'pending')];
-    expect(currentStage([...rows].reverse())?.stage).toBe('understanding');
+    const rows = [done, stage('analysis', 'done'), stage('directing', 'pending')];
+    expect(currentStage([...rows].reverse())?.stage).toBe('analysis');
   });
 
   // The list of montages carries the same five with nothing but a state each, and the card in the
@@ -89,9 +90,9 @@ describe('currentStage', () => {
     const bare = (rows: MontageStage[]) =>
       rows.map(({ stage: code, state }) => ({ stage: code, state }));
     for (const rows of [
-      [done, running, stage('rhythm', 'pending')],
-      [done, stage('understanding', 'failed'), stage('directing', 'pending')],
-      [done, stage('understanding', 'pending')],
+      [done, running, stage('music', 'pending')],
+      [done, stage('analysis', 'failed'), stage('directing', 'pending')],
+      [done, stage('analysis', 'pending')],
     ]) {
       expect(currentStage(bare(rows))?.stage).toBe(currentStage(rows)?.stage);
     }
@@ -103,7 +104,7 @@ describe('minutesLeft', () => {
     // 90 + 130 = 220 seconds, which is «≈ 4 мин» and never «3»: an estimate that runs out while
     // somebody is still waiting is worse than one that is generous.
     const stages = [
-      stage('screening', 'done', 30),
+      stage('prep', 'done', 30),
       stage('directing', 'running', 90),
       stage('assembly', 'pending', 130),
     ];
@@ -125,7 +126,7 @@ describe('minutesLeft', () => {
     expect(
       minutesLeft([
         stage('directing', 'failed'),
-        stage('rhythm', 'pending', 120),
+        stage('music', 'pending', 120),
         stage('assembly', 'pending', 60),
       ]),
     ).toBe(null);
@@ -138,7 +139,7 @@ describe('what is in the director’s hands', () => {
   const entries = [
     entry(4, { thought: 'План: три части' }),
     entry(3, { media_id: 'f3' }),
-    entry(2, { media_id: 'f2', stage: 'rhythm' }),
+    entry(2, { media_id: 'f2', stage: 'music' }),
     entry(1, { media_id: 'f1' }),
   ];
 
@@ -152,45 +153,39 @@ describe('what is in the director’s hands', () => {
 
   test('the two last records of a stage are that stage’s own, freshest first', () => {
     expect(lastOfStage(entries, 'directing').map((one) => one.id)).toEqual([4, 3]);
-    expect(lastOfStage(entries, 'rhythm').map((one) => one.id)).toEqual([2]);
+    expect(lastOfStage(entries, 'music').map((one) => one.id)).toEqual([2]);
     expect(lastOfStage(entries, 'assembly')).toEqual([]);
   });
 });
 
 describe('gazeAt', () => {
-  const frame = { width: 300, height: 150 };
+  // `SheetLiveFile` shows the frame at 220 with a 114 square on it (hairline included; the spec's
+  // 110 is the CSS box inside it), and the sheet's own width inside its margins — the ruler the
+  // screen hands over, and the only one there is now.
+  const sheet = { width: 358, height: 220 };
+  const on = (focus: Parameters<typeof gazeAt>[0]) => gazeAt(focus, sheet, GAZE_SHEET);
 
-  test('puts the middle of the 100 square where the director is looking', () => {
-    // `MontageLive` draws the square 100 × 100, hairline included (the spec's 96 is the CSS box
-    // inside a 2px border). The middle of the fractions is 0.4 of 300 = 120 across, 0.5 of 150 = 75
-    // down; the square is hung by its own middle, so 50 comes off each — 48 when it was drawn 96.
-    expect(gazeAt({ x: 0.3, y: 0.25, w: 0.2, h: 0.5 }, frame)).toEqual({ left: 70, top: 25 });
-  });
-
-  test('holds the square inside the frame at either edge', () => {
-    expect(gazeAt({ x: 0, y: 0, w: 0.05, h: 0.05 }, frame)).toEqual({ left: 0, top: 0 });
-    expect(gazeAt({ x: 0.95, y: 0.95, w: 0.05, h: 0.05 }, frame)).toEqual({ left: 200, top: 50 });
-  });
-
-  test('is nothing where the record carries no frame at all', () => {
-    expect(gazeAt(null, frame)).toBe(undefined);
-  });
-
-  test('draws the same eye at the size the sheet gives the picture', () => {
-    // `SheetLiveFile` shows the frame at 220 with a 114 square on it (hairline included; the spec's
-    // 110 is the CSS box inside it) — the same fractions, another ruler. The middle stays where it
-    // was; only how much is taken off it changes.
+  test('puts the middle of the square where the director is looking', () => {
+    // The middle of the fractions is 0.4 across and 0.5 down; the square is hung by its own middle,
+    // so half of it comes off each — 57 of 114.
     expect(GAZE_SHEET).toBe(114);
-    const sheet = { width: 358, height: 220 };
-    expect(gazeAt({ x: 0.3, y: 0.25, w: 0.2, h: 0.5 }, sheet, GAZE_SHEET)).toEqual({
+    expect(on({ x: 0.3, y: 0.25, w: 0.2, h: 0.5 })).toEqual({
       left: 0.4 * 358 - 57,
       top: 0.5 * 220 - 57,
     });
-    // And it is still held inside the picture at the edge, whatever the square's size.
-    expect(gazeAt({ x: 0.99, y: 0.99, w: 0.01, h: 0.01 }, sheet, GAZE_SHEET)).toEqual({
+  });
+
+  test('holds the square inside the picture at either edge', () => {
+    // An eye on the very edge of a photograph must not hang half of the marker over nothing.
+    expect(on({ x: 0, y: 0, w: 0.05, h: 0.05 })).toEqual({ left: 0, top: 0 });
+    expect(on({ x: 0.99, y: 0.99, w: 0.01, h: 0.01 })).toEqual({
       left: 358 - 114,
       top: 220 - 114,
     });
+  });
+
+  test('is nothing where the record carries no frame at all', () => {
+    expect(on(null)).toBe(undefined);
   });
 });
 
@@ -200,14 +195,17 @@ describe('the line under a stage', () => {
   const now = Date.parse('2026-09-21T16:42:00Z');
 
   test('says what came of the stage and how long it has been at it', () => {
-    const screening: MontageStage = {
-      ...stage('screening', 'done'),
+    // «214 кадров: 168 фото, 46 видео на 23:40» — what the order brought, and the stage's own time
+    // after it. The figure is the stage's own total, not a key of the outcome's.
+    const prep: MontageStage = {
+      ...stage('prep', 'done'),
       started_at: began,
       finished_at: '2026-09-21T16:39:00Z',
-      outcome: { kept: 212, of: 214 },
+      total_count: 214,
+      outcome: { photos: 168, videos: 46, video_seconds: 1420 },
     };
-    expect(stageLine(screening, ru, now)).toBe('212 из 214 годятся · 1 мин');
-    expect(stageLine(screening, en, now)).toBe('212 of 214 are usable · 1 min');
+    expect(stageLine(prep, ru, now)).toBe('214 кадров: 168 фото, 46 видео на 23:40 · 1 мин');
+    expect(stageLine(prep, en, now)).toBe('214 frames: 168 photos, 46 videos in 23:40 · 1 min');
   });
 
   test('a stage still running is counted rather than concluded, in the word of what it does', () => {
@@ -218,31 +216,28 @@ describe('the line under a stage', () => {
       total_count: 212,
     };
     // «идёт» and not «за»: it is still happening, and the number is what has gone by so far. Spec
-    // detail 56 and `MontageLive.json` e47: «61 из 212 разложено · идёт 4 мин» — the stage's own
-    // word of progress after the count.
+    // detail 56: «61 из 212 разложено · идёт 4 мин» — the stage's own word of progress after the
+    // count, and the same word in each language's own dictionary (`progress`).
     expect(stageLine(directing, ru, now)).toBe('61 из 212 разложено · идёт 4 мин');
-    expect(stageLine(directing, en, now)).toBe('61 of 212 placed · 4 min so far');
+    expect(stageLine(directing, en, now)).toBe(
+      `61 of 212 ${en.montage.progress.directing} · 4 min so far`,
+    );
   });
 
   test('every stage counts in its own word, and a count that has not moved says neither', () => {
-    // Spec detail 56, the table: проверено · разобрано · разложено · подогнано · склеено /
-    // checked · read · placed · fitted · joined.
-    const words = {
-      screening: ['проверено', 'checked'],
-      understanding: ['разобрано', 'read'],
-      directing: ['разложено', 'placed'],
-      rhythm: ['подогнано', 'fitted'],
-      assembly: ['склеено', 'joined'],
-    } as const;
-    for (const [code, [said, word]] of Object.entries(words)) {
-      const running = {
-        ...stage(code as MontageStage['stage'], 'running'),
-        done_count: 5,
-        total_count: 9,
-      };
-      expect(stageLine(running, ru)).toBe(`5 из 9 ${said}`);
-      expect(stageLine(running, en)).toBe(`5 of 9 ${word}`);
-      expect(stageHeadLine(running, ru)).toBe(`5 ${said}`);
+    // Spec detail 56, the table, one word per stage — what each of the five has done to a frame.
+    for (const [code, word] of [
+      ['prep', 'скачано'],
+      ['analysis', 'описано'],
+      ['directing', 'разложено'],
+      ['music', 'подогнано'],
+      ['assembly', 'склеено'],
+    ] as const) {
+      expect(ru.montage.progress[code]).toBe(word);
+      const running = { ...stage(code, 'running'), done_count: 5, total_count: 9 };
+      expect(stageLine(running, ru)).toBe(`5 из 9 ${word}`);
+      expect(stageLine(running, en)).toBe(`5 of 9 ${en.montage.progress[code]}`);
+      expect(stageHeadLine(running, ru)).toBe(`5 ${word}`);
     }
     const still = { ...stage('directing', 'running'), done_count: 0, total_count: 212 };
     expect(stageLine(still, ru)).toBe(undefined);
@@ -250,8 +245,8 @@ describe('the line under a stage', () => {
   });
 
   test('over its own journal a stage says its time, then how far — or what it came to', () => {
-    // `MontageLiveStage.json` e4: «Этап 3 из 5 · 4 мин · 61 разложено» (en «Stage 3 of 5 · 4 min ·
-    // 61 placed», spec detail 56). Done, the count gives way to the outcome, as in the row.
+    // «Этап 3 из 5 · 4 мин · 61 разложено» (spec detail 56). Done, the count gives way to the
+    // outcome, as in the row.
     const directing: MontageStage = {
       ...stage('directing', 'running'),
       started_at: began,
@@ -259,68 +254,114 @@ describe('the line under a stage', () => {
       total_count: 212,
     };
     expect(stageHeadLine(directing, ru, now)).toBe('4 мин · 61 разложено');
-    expect(stageHeadLine(directing, en, now)).toBe('4 min · 61 placed');
-    const screening: MontageStage = {
-      ...stage('screening', 'done'),
+    expect(stageHeadLine(directing, en, now)).toBe(`4 min · 61 ${en.montage.progress.directing}`);
+    const prep: MontageStage = {
+      ...stage('prep', 'done'),
       started_at: began,
       finished_at: '2026-09-21T16:39:00Z',
       done_count: 214,
       total_count: 214,
-      outcome: { kept: 212, of: 214 },
+      outcome: { photos: 168, videos: 46, video_seconds: 1420 },
     };
-    expect(stageHeadLine(screening, ru, now)).toBe('1 мин · 212 из 214 годятся');
+    expect(stageHeadLine(prep, ru, now)).toBe('1 мин · 214 кадров: 168 фото, 46 видео на 23:40');
   });
 
-  test('what the worker has said wins over how far through it is', () => {
+  test('a stage still at it says how far it has got, and a finished one says what it came to', () => {
+    // The plan is written as soon as it is ready, before the last of the 212 frames is laid out —
+    // reading it as a result would report the work before it happened.
     const directing: MontageStage = {
       ...stage('directing', 'running'),
       done_count: 61,
       total_count: 212,
-      outcome: { parts: 3, frames: 61 },
+      taken_count: 61,
+      outcome: {
+        parts: [
+          { title: 'Сборы', from_seconds: 0, to_seconds: 24 },
+          { title: 'Торт', from_seconds: 24, to_seconds: 90 },
+          { title: 'Тосты', from_seconds: 90, to_seconds: 150 },
+        ],
+        frames: 61,
+      },
     };
-    expect(stageLine(directing, ru)).toBe('3 части');
+    expect(stageLine(directing, ru)).toBe('61 из 212 разложено');
+    // Done, the count gives way to the outcome: three parts of the story and what the director took.
+    const done = { ...directing, state: 'done' as const };
+    expect(stageLine(done, ru)).toBe('3 части истории, взял 61 кадр');
+    // Where the worker wrote no figure of its own, the api's own tally over the records stands in.
+    expect(stageLine({ ...done, outcome: { parts: directing.outcome.parts } }, ru)).toBe(
+      '3 части истории, взял 61 кадр',
+    );
   });
 
-  test('the rhythm of a film with no music says there was nothing to fit to, not «0 склеек»', () => {
-    // What the worker writes for it (montage README, «Ритм ролика без музыки»).
-    const silent: MontageStage = { ...stage('rhythm', 'done'), outcome: { cuts: 0, track: [] } };
+  test('the music of a film with no music says there was nothing to fit to, not «0 склеек»', () => {
+    // What the worker writes for it (api `docs/journal.md`, «music»): an empty list of tracks.
+    const silent: MontageStage = { ...stage('music', 'done'), outcome: { tracks: [] } };
     expect(stageLine(silent, ru)).toBe('без музыки, подгонять не подо что');
     expect(stageLine(silent, en)).toBe('no music, nothing to fit to');
-    // With music it counts what moved to it, as before — and an outcome without the key is read
-    // the way it always was.
+    // With music it names the track, its tempo when known, and the cuts fitted to it — the stage's
+    // own total, which is where the api counts them.
     const scored: MontageStage = {
-      ...stage('rhythm', 'done'),
-      outcome: { bpm: 81, cuts: 3, track: ['warm'] },
+      ...stage('music', 'done'),
+      total_count: 38,
+      outcome: { bpm: 81, tracks: ['warm'] },
     };
-    expect(stageLine(scored, ru)).toBe('3 склейки');
-    expect(stageLine({ ...stage('rhythm', 'done'), outcome: { cuts: 0 } }, ru)).toBe('0 склеек');
+    expect(stageLine(scored, ru)).toBe('«warm», 81 ударов, 38 склеек');
+    // A tempo the worker never learned is left out, not shown as zero.
+    expect(stageLine({ ...scored, outcome: { tracks: ['warm'] } }, ru)).toBe('«warm», 38 склеек');
   });
 
-  test('a stage nobody has reached has no line at all rather than a line of nothing', () => {
-    expect(stageLine(stage('assembly', 'pending'), ru, now)).toBe(undefined);
+  test('a stage nobody has reached says so in the film screen’s own words', () => {
+    expect(stageLine(stage('assembly', 'pending'), ru, now)).toBe(ru.montage.filmScreen.notStarted);
+    expect(stageLine(stage('assembly', 'pending'), en, now)).toBe(en.montage.filmScreen.notStarted);
+  });
+
+  test('the stage that stopped says why, and not how long it was at it', () => {
+    // The reason is the news; the stopped stage's own time is not what anybody wants to read here.
+    const music: MontageStage = {
+      ...stage('music', 'failed'),
+      started_at: began,
+      finished_at: '2026-09-21T16:39:00Z',
+      outcome: { tracks: ['warm'], stopped: 'track_unreadable' },
+    };
+    expect(stageLine(music, ru, now)).toBe('остановился: трек не открылся');
+    expect(stageLine(music, en, now)).toBe('stopped: the track would not open');
+    // A reason the app has no word for reads as the general one and never as a code off the wire:
+    // the type is the api's, and the api puts no check on what it sends.
+    const stray = music as MontageStage;
+    stray.outcome = { stopped: 'teapot' as MontageStage['outcome']['stopped'] };
+    expect(stageLine(stray, ru)).toBe('остановился: сборка остановилась');
+    // …and the dictionary is asked with `hasOwn`, so a code of `__proto__` is not an object.
+    const proto = music as MontageStage;
+    proto.outcome = { stopped: '__proto__' as MontageStage['outcome']['stopped'] };
+    expect(stoppedWord(proto, ru)).toBe(ru.montage.live.stopped.other);
+    expect(stoppedWord(stage('prep', 'done'), ru)).toBe(ru.montage.live.stopped.other);
   });
 
   test('under a minute is not a length worth printing', () => {
-    const rhythm: MontageStage = {
-      ...stage('rhythm', 'running'),
+    const music: MontageStage = {
+      ...stage('music', 'running'),
       started_at: '2026-09-21T16:41:50Z',
     };
-    expect(stageMinutes(rhythm, now)).toBe(null);
-    expect(stageLine(rhythm, ru, now)).toBe(undefined);
+    expect(stageMinutes(music, now)).toBe(null);
+    expect(stageLine(music, ru, now)).toBe(undefined);
   });
 
   test('every one of the five has something to say out of its own keys', () => {
     const came: Record<string, MontageStage['outcome']> = {
-      screening: { kept: 1, of: 2 },
-      understanding: { faces: 37 },
-      directing: { parts: 3 },
-      rhythm: { cuts: 38 },
+      prep: { photos: 1, videos: 1 },
+      analysis: { described: 37 },
+      directing: { parts: [{ title: 'Торт', from_seconds: 0, to_seconds: 150 }] },
+      music: { tracks: ['warm'] },
       assembly: { seconds: 150 },
     };
     for (const [code, outcome] of Object.entries(came)) {
-      const row = { ...stage(code as MontageStage['stage'], 'done'), outcome };
-      expect(stageLine(row, ru)).toBeTruthy();
-      expect(stageLine(row, en)).toBeTruthy();
+      const row = {
+        ...stage(code as MontageStage['stage'], 'done'),
+        total_count: 214,
+        outcome,
+      };
+      expect(stageLine(row, ru), code).toBeTruthy();
+      expect(stageLine(row, en), code).toBeTruthy();
     }
     expect(stageLine({ ...stage('assembly', 'done'), outcome: { seconds: 150 } }, ru)).toBe('2:30');
   });
@@ -341,15 +382,14 @@ describe('the line under a stage', () => {
     expect(stageStanding(undefined)).toBe('waiting');
     expect(stageStanding(stage('assembly', 'pending'))).toBe('waiting');
     expect(stageStanding(stage('directing', 'running'))).toBe('running');
-    expect(stageStanding(stage('screening', 'done'))).toBe('done');
-    expect(stageStanding(stage('rhythm', 'failed'))).toBe('failed');
+    expect(stageStanding(stage('prep', 'done'))).toBe('done');
+    expect(stageStanding(stage('music', 'failed'))).toBe('failed');
   });
 });
 
 /**
- * `MontageLiveDone` (TASK-222) — what the finished film's own page says about how it was made. Both
- * of these are read off the journal a montage keeps for ever, and both are worked out here rather
- * than on the screen.
+ * What the finished film's own screen says about how it was made. Both of these are read off the
+ * journal a film keeps for ever, and both are worked out here rather than on the screen.
  */
 describe('how the film was made', () => {
   const ran = (
@@ -366,11 +406,11 @@ describe('how the film was made', () => {
 
   test('«собран за 14 мин» is every stage’s own time added up', () => {
     const stages = [
-      ran('screening', '2026-09-21T16:00:00Z', '2026-09-21T16:01:00Z'),
-      ran('understanding', '2026-09-21T16:01:00Z', '2026-09-21T16:04:00Z'),
+      ran('prep', '2026-09-21T16:00:00Z', '2026-09-21T16:01:00Z'),
+      ran('analysis', '2026-09-21T16:01:00Z', '2026-09-21T16:04:00Z'),
       // The worker stood in a queue between these two: that wait is not what the making took.
       ran('directing', '2026-09-21T16:20:00Z', '2026-09-21T16:26:00Z'),
-      ran('rhythm', '2026-09-21T16:26:00Z', '2026-09-21T16:28:00Z'),
+      ran('music', '2026-09-21T16:26:00Z', '2026-09-21T16:28:00Z'),
       ran('assembly', '2026-09-21T16:28:00Z', '2026-09-21T16:30:00Z'),
     ];
     expect(madeInMinutes(stages)).toBe(14);
@@ -388,12 +428,17 @@ describe('how the film was made', () => {
     expect(madeInMinutes([])).toBe(null);
   });
 
-  test('the three numbers are three stages’ own outcomes', () => {
+  // The api counts the frames in `prep`'s own total, the takes in `directing`'s tally over its
+  // records and the glued pieces in `assembly`'s own total — three different places, which is what
+  // `howMade` is: which number answers which of the three words. The assembly stage counts the cuts
+  // on its own row and writes no `cuts` key into its outcome (`docs/journal.md`, «assembly»), so
+  // that third figure is its `total_count` and never anything worked out here.
+  test('the three numbers are three stages’ own counts', () => {
     const stages = [
-      { ...stage('screening', 'done'), outcome: { kept: 212, of: 214 } },
-      { ...stage('understanding', 'done'), outcome: { faces: 37 } },
-      { ...stage('directing', 'done'), outcome: { parts: 3, frames: 61 } },
-      { ...stage('assembly', 'done'), outcome: { cuts: 138, seconds: 150 } },
+      { ...stage('prep', 'done'), total_count: 214 },
+      { ...stage('analysis', 'done'), total_count: 214 },
+      { ...stage('directing', 'done'), taken_count: 61, outcome: { frames: 61 } },
+      { ...stage('assembly', 'done'), total_count: 138, outcome: { seconds: 150 } },
     ];
     expect(howMade(stages, ru)).toEqual([
       { figure: 214, label: 'просмотрел' },
@@ -405,10 +450,12 @@ describe('how the film was made', () => {
       'taken in',
       'cuts',
     ]);
+    // The analysis stage holds no tile of its own: it looked at nothing and took nothing.
+    expect(howMade(stages.slice(0, 2), ru)).toEqual([{ figure: 214, label: 'просмотрел' }]);
   });
 
   test('«склеек» agrees with its number, the way every counted word does', () => {
-    const cut = (cuts: number) => [{ ...stage('assembly', 'done'), outcome: { cuts } }];
+    const cut = (cuts: number) => [{ ...stage('assembly', 'done'), total_count: cuts }];
     expect(howMade(cut(21), ru)).toEqual([{ figure: 21, label: 'склейка' }]);
     expect(howMade(cut(22), ru)).toEqual([{ figure: 22, label: 'склейки' }]);
     expect(howMade(cut(12), ru)).toEqual([{ figure: 12, label: 'склеек' }]);
@@ -416,7 +463,7 @@ describe('how the film was made', () => {
   });
 
   test('a number the worker never wrote leaves its tile out rather than standing a dash in it', () => {
-    expect(howMade([{ ...stage('assembly', 'done'), outcome: { cuts: 138 } }], ru)).toEqual([
+    expect(howMade([{ ...stage('assembly', 'done'), total_count: 138 }], ru)).toEqual([
       { figure: 138, label: 'склеек' },
     ]);
     // A film cut before the journal existed has no stages at all — and then there is no block.
@@ -476,7 +523,7 @@ describe('where a frame ended up', () => {
       placeLine(entry(1, { decision: 'take', thought: null, story_part: 2 }), file, 0, ru),
     ).toBe('Часть 2 · 1:12–1:16');
     // A record that settled nothing — what was seen on the frame — is about a frame laid out all the same.
-    expect(placeLine(entry(1, { stage: 'understanding', media_id: 'f1' }), file, 0, ru)).toBe(
+    expect(placeLine(entry(1, { stage: 'analysis', media_id: 'f1' }), file, 0, ru)).toBe(
       '1:12–1:16',
     );
   });
