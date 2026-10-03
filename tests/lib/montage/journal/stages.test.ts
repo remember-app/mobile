@@ -14,10 +14,8 @@ vi.mock('expo-router', () => ({ useFocusEffect: () => {}, useIsFocused: () => tr
 
 import { entry, stage } from '@tests/helpers/journal';
 import type { MontageStage } from '@/api';
-import { GAZE_SHEET } from '@/kit';
 import {
   currentStage,
-  gazeAt,
   howMade,
   inHand,
   lastOfStage,
@@ -155,37 +153,6 @@ describe('what is in the director’s hands', () => {
     expect(lastOfStage(entries, 'directing').map((one) => one.id)).toEqual([4, 3]);
     expect(lastOfStage(entries, 'music').map((one) => one.id)).toEqual([2]);
     expect(lastOfStage(entries, 'assembly')).toEqual([]);
-  });
-});
-
-describe('gazeAt', () => {
-  // `SheetLiveFile` shows the frame at 220 with a 114 square on it (hairline included; the spec's
-  // 110 is the CSS box inside it), and the sheet's own width inside its margins — the ruler the
-  // screen hands over, and the only one there is now.
-  const sheet = { width: 358, height: 220 };
-  const on = (focus: Parameters<typeof gazeAt>[0]) => gazeAt(focus, sheet, GAZE_SHEET);
-
-  test('puts the middle of the square where the director is looking', () => {
-    // The middle of the fractions is 0.4 across and 0.5 down; the square is hung by its own middle,
-    // so half of it comes off each — 57 of 114.
-    expect(GAZE_SHEET).toBe(114);
-    expect(on({ x: 0.3, y: 0.25, w: 0.2, h: 0.5 })).toEqual({
-      left: 0.4 * 358 - 57,
-      top: 0.5 * 220 - 57,
-    });
-  });
-
-  test('holds the square inside the picture at either edge', () => {
-    // An eye on the very edge of a photograph must not hang half of the marker over nothing.
-    expect(on({ x: 0, y: 0, w: 0.05, h: 0.05 })).toEqual({ left: 0, top: 0 });
-    expect(on({ x: 0.99, y: 0.99, w: 0.01, h: 0.01 })).toEqual({
-      left: 358 - 114,
-      top: 220 - 114,
-    });
-  });
-
-  test('is nothing where the record carries no frame at all', () => {
-    expect(on(null)).toBe(undefined);
   });
 });
 

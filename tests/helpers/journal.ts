@@ -19,7 +19,6 @@ export const entry = (id: number, over: Partial<JournalEntry> = {}): JournalEntr
   source_from_seconds: null,
   source_to_seconds: null,
   labels: null,
-  focus: null,
   details: null,
   created_at: '2026-09-21T16:42:00Z',
   ...over,

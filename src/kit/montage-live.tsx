@@ -29,51 +29,6 @@ import { Text } from './text';
 const BLINK = 1000;
 
 /**
- * How tall the frame in hand is drawn (detail 49) and the square over it, and the same two given the
- * room of a sheet (`SheetLiveFile`). Exported because the gaze arrives as fractions of the picture
- * and the screen is what turns those into points — `gazeAt` in `@/lib/montage/journal`.
- *
- * The squares are the ones the layout draws, hairline included: the spec's 96 and 110 are CSS boxes
- * inside a 2px border, and a box here counts its border in — `MontageLive` measures 100, and
- * `SheetLiveFile` 114.
- */
-export const SHOT_SHEET = 220;
-export const GAZE_SHEET = 114;
-
-/**
- * Spec 7.6 — `SheetLiveFile`'s own frame: the picture the director was looking at, at the size a
- * sheet has room for, and the square where the eye was. The square here neither walks nor dims what
- * is around it — the record it belongs to was decided long before the sheet was opened, and what
- * somebody came to this sheet for is the photograph itself.
- */
-export function ShotGaze({
-  uri,
-  gaze,
-  style,
-}: {
-  uri?: string;
-  /** Where the square goes, in points from the frame's top left — `gazeAt` at {@link GAZE_SHEET}. */
-  gaze?: { left: number; top: number };
-  style?: StyleProp<ViewStyle>;
-}) {
-  const styles = useStyles();
-
-  return (
-    <View style={[styles.shotSheet, style]}>
-      {uri ? <Image source={{ uri }} contentFit="cover" style={StyleSheet.absoluteFill} /> : null}
-      {gaze ? (
-        <View
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          pointerEvents="none"
-          style={[styles.gazeSheet, { left: gaze.left, top: gaze.top }]}
-        />
-      ) : null}
-    </View>
-  );
-}
-
-/**
  * A thought still arriving, inside the `Text` that holds it: what is said so far, the cursor, and
  * the rest of the sentence laid out but not drawn. The words take their final room from the first
  * letter, so nothing under them moves while they arrive (spec 7.6, «экран не прыгает»). The hidden
@@ -375,20 +330,6 @@ const useStyles = themed(({ color }) =>
       borderColor: color.line,
       backgroundColor: color.surface,
       overflow: 'hidden',
-    },
-    shotSheet: {
-      height: SHOT_SHEET,
-      borderRadius: radius.field,
-      overflow: 'hidden',
-      backgroundColor: color.raise,
-    },
-    gazeSheet: {
-      position: 'absolute',
-      width: GAZE_SHEET,
-      height: GAZE_SHEET,
-      borderWidth: 2,
-      borderColor: color.spark,
-      borderRadius: radius.cell,
     },
     // Only the top is darkened: the plates live up there and the frame itself is the point.
     // 10 in from the frame's top corners (detail 49). No gap across: the two stand at the two ends,
