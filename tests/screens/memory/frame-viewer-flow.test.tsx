@@ -969,6 +969,49 @@ test('opening the frame’s screen puts the menu away, and the same pill closes 
   expect(screen.shown.onClose).toHaveBeenCalledTimes(1);
 });
 
+test('the frame gives up the top of the window for the panel, and takes it back when it goes', async () => {
+  serve(() => told());
+  const screen = await open();
+  // Whole screen: the frame's own box for a 3:4, which is the layout's 390 × 520.
+  expect(frameBox(3024, 4032, phone.width, phone.height)).toEqual({ width: 390, height: 520 });
+  expect(screen.panels()).toHaveLength(0);
+  await screen.press(screen.pill);
+  // 352 upright — the layout's own number — and the panel takes everything below it.
+  const panel = screen.info();
+  expect(panel.props.style).toEqual({ height: phone.height - 352 });
+  // The frame is drawn in the room the panel left rather than in the one it took: the same box, a
+  // shorter room, so a 3:4 frame that was 520 tall is 352 and is cropped rather than squashed.
+  expect(frameBox(3024, 4032, phone.width, phone.height, 352)).toEqual({ width: 390, height: 352 });
+  await screen.press(screen.pill);
+  expect(screen.panels()).toHaveLength(0);
+});
+
+test('the strip and the scrubber go while the panel stands — it is what they lay on', async () => {
+  serve(() => told());
+  const screen = await open({ item: { ...shots()[0], kind: 'video' } });
+  expect(screen.root.findAllByType(Filmstrip)).toHaveLength(1);
+  expect(screen.root.findAllByType(VideoTrack)).toHaveLength(1);
+  await screen.press(screen.pill);
+  expect(screen.root.findAllByType(Filmstrip)).toHaveLength(0);
+  expect(screen.root.findAllByType(VideoTrack)).toHaveLength(0);
+});
+
+test('a tap on the picture puts the panel away rather than the glass, which is how it is closed', async () => {
+  serve(() => told());
+  const screen = await open();
+  await screen.press(screen.pill);
+  expect(screen.panels()).toHaveLength(1);
+  // The glass is what a tap puts away (TASK-476), and the bar holds the only button that closes the
+  // panel — so with the panel up a tap takes the panel down and the glass stays exactly where it
+  // was. Tidying the bar here would leave a panel with nothing to close it.
+  await tap(screen);
+  expect(screen.panels()).toHaveLength(0);
+  expect(tools(screen)).toEqual({ bar: 1, strip: 1, scrubber: 0 });
+  // And the bare frame is still a tap away, as it was before the panel ever existed.
+  await tap(screen);
+  expect(tools(screen)).toEqual({ bar: 0, strip: 0, scrubber: 0 });
+});
+
 test('on iOS the film is asked for only once the window has gone, because a modal raised over another is lost there', async () => {
   platform.os = 'ios';
   serve(() => told({ montages: [{ id: 'f1', duration_seconds: 60, start_seconds: 72 }] }));
@@ -1260,6 +1303,12 @@ test('a frame is drawn in a box of its own proportions, not fitted to the screen
   expect(panorama.width).toBe(390);
   expect(panorama.height).toBeCloseTo(19.5);
   expect(frameBox(1000, 10000, 390, 844)).toEqual({ width: 390, height: 844 });
+  // A shorter room (TASK-478, the panel under the picture) clamps the frame and nothing else: the
+  // phone is still held upright, so a 3:4 frame is cropped to the room and not turned on its side.
+  expect(frameBox(3024, 4032, 390, 844, 352)).toEqual({ width: 390, height: 352 });
+  // Turned, the room runs across the other way: the frame takes the height and is clamped by the
+  // width, so the panel standing under a picture on its side shortens nothing.
+  expect(frameBox(3024, 4032, 844, 390, 164)).toEqual({ width: 292.5, height: 390 });
 });
 
 test('«Пауза» in the middle of a video is 72, dark, with no colour of the glass or of the viewer’s own on it', async () => {

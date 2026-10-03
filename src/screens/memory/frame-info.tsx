@@ -1,5 +1,5 @@
 import { Lock, Plus } from 'lucide-react-native';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -74,7 +74,13 @@ export function FrameInfoPanel({
    * `clear` says whether the panel empties itself first: opening does, re-reading after the sheet
    * does not, because everything already standing is still true and a spinner over it would be the
    * panel saying «I know nothing» about a frame it was saying everything about a moment ago.
+   *
+   * Only the latest read may answer in. Two of them can be in the air at once — the sheet files
+   * something and is then shut, and each says so — and the first to land would put the frame as it
+   * was before the press under the finger that has already moved on.
    */
+  const asking = useRef(0);
+
   const read = useCallback(
     (clear: boolean) => {
       if (clear) {
@@ -82,19 +88,27 @@ export function FrameInfoPanel({
         setFailed(null);
       }
       if (!token) return;
-      let live = true;
+      const mine = ++asking.current;
       fetchFrameInfo(token, memoryId, item.id).then(
-        (got) => live && setInfo(got),
-        (e: unknown) => live && setFailed(errorMessage(e)),
+        (got) => {
+          if (asking.current === mine) setInfo(got);
+        },
+        (e: unknown) => {
+          if (asking.current === mine) setFailed(errorMessage(e));
+        },
       );
-      return () => {
-        live = false;
-      };
     },
     [token, memoryId, item.id],
   );
 
-  useEffect(() => read(true), [read]);
+  // The read belongs to the mounting: a panel that is shut mid-air has nothing to answer into, and
+  // neither has the next one — it asks again for itself on being opened.
+  useEffect(() => {
+    read(true);
+    return () => {
+      asking.current++;
+    };
+  }, [read]);
 
   /**
    * A chip is where this frame lies, and pressing it takes the frame back out of that box

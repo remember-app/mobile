@@ -5,8 +5,17 @@ import { afterEach, beforeAll, expect, test, vi } from 'vitest';
 // The words come from the dictionary, and the dictionary asks the phone which language it is in.
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
 vi.mock('@/lib/auth', () => ({ useAuth: () => ({ token: 'session', user: { id: 'me' } }) }));
-// The labels sheet is raised over the panel and is its own surface; nothing here is about it.
-vi.mock('@/screens/memory/label-sheets', () => ({ LabelSheets: () => null }));
+// The labels sheet is raised over the panel and is its own surface; nothing here is about it. It is
+// stood in for by a button that reports back, so that the two answers the panel reads on after it
+// (something was filed, and it was then shut) can be given by hand.
+const filed: { onFiled?: () => void; onClose?: () => void } = {};
+vi.mock('@/screens/memory/label-sheets', () => ({
+  LabelSheets: (props: { onFiled: () => void; onClose: () => void }) => {
+    filed.onFiled = props.onFiled;
+    filed.onClose = props.onClose;
+    return null;
+  },
+}));
 
 import TestRenderer, { act } from 'react-test-renderer';
 import type { FrameInfo, Label } from '@/api';
@@ -256,4 +265,56 @@ test('the panel is drawn in the night in both app themes — it stands inside th
     return tree.root.findAllByType(RowSummary).map((one) => [one.props.label, one.props.value]);
   };
   expect(await drawn_in('light')).toEqual(await drawn_in('dark'));
+});
+
+test('an answer to an earlier read never lands over a later one', async () => {
+  // Two reads can be in the air at once: the labels sheet files something into the frame and is then
+  // shut, and each of those says so and asks again. The first to land must not put the frame as it
+  // was before the press under the finger that has already moved on.
+  const first = later<unknown>();
+  const second = later<unknown>();
+  const queue: unknown[] = [told({ labels: [box()] }), first.promise, second.promise];
+  serve(() => queue.shift());
+  let tree!: TestRenderer.ReactTestRenderer;
+  await act(async () => {
+    tree = mounted(
+      TestRenderer.create(<FrameInfoPanel memoryId="m1" item={frame} onFilm={() => {}} />),
+    );
+  });
+  const root = tree.root;
+  const file = () => root.findAllByType(RowSummary).map((one) => one.props.value)[0];
+  // The sheet is raised by the dashed one — which needs a frame in a box, since a frame in none has
+  // no labels block and so no way in.
+  const plus = root.findAllByType(IconButton).find((one) => one.props.label === ru.labels.putInto)!;
+  await act(async () => plus.props.onPress?.());
+  // The sheet's two answers in a row, each re-reading and each in the air at once with the other.
+  await act(async () => filed.onClose?.());
+  await act(async () => filed.onFiled?.());
+  await act(async () => second.settle(told({ file_name: 'B.JPG', size_bytes: '1000000' })));
+  expect(file()).toBe('B.JPG · 1 МБ');
+  // The first read comes in late, with the frame before it, and is not let in.
+  await act(async () => first.settle(told({ file_name: 'A.JPG', size_bytes: '2000000' })));
+  expect(file()).toBe('B.JPG · 1 МБ');
+});
+
+test('a panel that is shut mid-read takes the answer with it, and the next one asks afresh', async () => {
+  const first = later<unknown>();
+  const second = later<unknown>();
+  const queue = [first, second];
+  serve(() => queue.shift()!.promise);
+  let tree!: TestRenderer.ReactTestRenderer;
+  const panel = <FrameInfoPanel memoryId="m1" item={frame} onFilm={() => {}} />;
+  await act(async () => {
+    tree = mounted(TestRenderer.create(panel));
+  });
+  // Shut before it answers, and raised again on another frame.
+  await act(async () =>
+    tree.update(<FrameInfoPanel memoryId="m1" item={frame} onFilm={() => {}} />),
+  );
+  await act(async () => tree.update(null as never));
+  await act(async () => tree.update(panel));
+  await act(async () => second.settle(told({ file_name: 'B.JPG', size_bytes: '1000000' })));
+  expect(tree.root.findAllByType(RowSummary).map((one) => one.props.value)[0]).toBe('B.JPG · 1 МБ');
+  await act(async () => first.settle(told({ file_name: 'A.JPG' })));
+  expect(tree.root.findAllByType(RowSummary).map((one) => one.props.value)[0]).toBe('B.JPG · 1 МБ');
 });

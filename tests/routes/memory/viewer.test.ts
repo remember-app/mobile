@@ -102,7 +102,9 @@ test('the pill of when and who is the road to the frame’s own screen, and the 
   // The frame gives up the top of the window for it — the layout's 352 upright, and less on a phone
   // lying on its side, which has a fraction of that height to divide (`frameInfoRoom`).
   expect(viewer).toContain('const room = details ? frameInfoRoom(screen) : screen;');
-  expect(viewer).toContain('const box = frameBox(item.width, item.height, width, room);');
+  // The screen's own two numbers and the room beside them: which way up the phone is held is read
+  // off the first pair, and a frame squeezed into 352 of a 390-wide phone must not read as a turn.
+  expect(viewer).toContain('const box = frameBox(item.width, item.height, width, screen, room);');
   expect(ru.viewer.details).toBe('Сведения о кадре');
   expect(ru.viewer.hideDetails).toBe('Скрыть сведения');
 });
@@ -299,7 +301,7 @@ test('the 72 stands in the middle of the picture, on the dark the layout puts un
   expect(stage).toContain('<View style={[styles.big, box]}>');
   expect(stage.indexOf('<VideoView')).toBeLessThan(stage.indexOf('styles.middleOfFrame'));
   // The box is the frame's own proportions and the video is covered into it, like a photograph.
-  expect(viewer).toContain('const box = frameBox(item.width, item.height, width, room);');
+  expect(viewer).toContain('const box = frameBox(item.width, item.height, width, screen, room);');
   expect(stage).toContain('contentFit="cover"');
   expect(viewer).toContain('...StyleSheet.absoluteFill,');
   // 72 on the kit's «над видео» (spec 7.2, 10.10): `rgba(6,6,10,.5)`, no hairline, the glyph filled
@@ -352,10 +354,16 @@ test('the notice says itself above the tools, not behind them', () => {
   // strip — the one thing lying over the picture's foot (TASK-475).
   expect(viewer).toContain('const toolsTall =');
   expect(viewer).toContain('stripSize.tall +');
-  expect(viewer).toContain('style={[styles.notice, { bottom: toolsTall + space.s4 }]}');
+  expect(viewer).toContain('{ bottom: details ? space.s4 : toolsTall + space.s4 }');
   // Over a video the scrubber is above the strip, so it counts too — the 14 of the gap and the 36
   // the sound button makes its row.
   expect(viewer).toContain('(playable !== null ? viewerFoot.track + height.roundRow : 0)');
+  // And while the frame's own screen is standing under the picture (TASK-478) the strip is gone and
+  // the panel is what lies over the foot — so there is nothing left to clear but the foot itself.
+  expect(viewer).toContain('{details ? null : (');
+  // The notice is inside the stage and the tools are its next sibling, so the tools are drawn after
+  // it either way — what the branch changes is how far up the notice stands.
+  expect(viewer).toContain('const toolsTall =');
 });
 
 test('the header and the pill answer to which way up the phone is', () => {

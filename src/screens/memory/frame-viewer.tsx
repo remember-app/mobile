@@ -198,18 +198,17 @@ export function FrameViewer({
    * So: the frame takes the screen whole across the way the phone is held — the width upright, the
    * height turned — and its other side is whatever its own proportions make of that. A record the
    * api has not measured yet — `width` and `height` are null until the worker has looked at it — has
-   * no proportions to lay out, and takes the whole screen: that is a frame shown as it is rather
+   * no proportions to lay out, and takes the whole room: that is a frame shown as it is rather
    * than a guessed shape, and it lasts until the numbers arrive.
-   */
-  /**
-   * How much of the window the frame is drawn in (TASK-478, `FrameInfo`). The panel is not a sheet
-   * rising over the picture — the picture stays, and it gives up the bottom of the screen to the
-   * panel, which scrolls. So the same `frameBox`, given a shorter room, is all it takes: a 3:4
-   * frame that was 390 × 520 whole-screen becomes 390 × 352 with the panel under it, and `cover`
-   * crops what no longer fits rather than the frame shrinking out of its own proportions.
+   *
+   * The room is the whole of the window except while the frame's own screen is standing under the
+   * picture (TASK-478): the panel is not a sheet rising over the frame, the frame stays and gives up
+   * the bottom of the screen to it. So the same `frameBox` in a shorter room is all that takes — a
+   * 3:4 frame that was 390 × 520 becomes 390 × 352, and `cover` crops what no longer fits rather
+   * than the frame shrinking out of its own proportions.
    */
   const room = details ? frameInfoRoom(screen) : screen;
-  const box = frameBox(item.width, item.height, width, room);
+  const box = frameBox(item.width, item.height, width, screen, room);
 
   /**
    * How tall the tools lying over the picture come out — the strip, its own distance from the bottom
@@ -654,8 +653,13 @@ export function FrameViewer({
 
             {notice ? (
               // Above the strip rather than under it: the tools lie over the picture now, so a
-              // notice pinned to the bottom of the stage would stand behind them.
-              <Banner text={notice} style={[styles.notice, { bottom: toolsTall + space.s4 }]} />
+              // notice pinned to the bottom of the stage would stand behind them. The panel has
+              // taken the strip's place (TASK-478), so there is nothing left to clear but the
+              // foot of the stage — which is the panel's own top edge.
+              <Banner
+                text={notice}
+                style={[styles.notice, { bottom: details ? space.s4 : toolsTall + space.s4 }]}
+              />
             ) : null}
           </View>
 
@@ -922,8 +926,14 @@ const TOGGLE = [{ name: 'activate' }];
  * take the screen's long side, lay the frame along whichever direction will hold it, and let it be
  * covered rather than letterboxed.
  *
+ * `room` is how much of the screen's long side the frame may take, and it is the screen itself
+ * except while the frame's own screen is standing under the picture (TASK-478) — which shortens the
+ * standing room and nothing else. It is a separate argument and not a smaller `screenHeight`
+ * because which way up the phone is held is read off the two numbers together, and a frame squeezed
+ * into 352 of a 390-wide phone would otherwise turn itself on its side.
+ *
  * A record the api has not measured — `width` and `height` are null until the worker has looked —
- * has no shape to lay out, and takes the whole screen. That is what is drawn while the numbers are
+ * has no shape to lay out, and takes the whole room. That is what is drawn while the numbers are
  * missing, not a guess at a shape; it is replaced by the real one on the render they arrive.
  */
 export function frameBox(
@@ -931,23 +941,29 @@ export function frameBox(
   frameHeight: number | null,
   screenWidth: number,
   screenHeight: number,
+  room?: number,
 ): { width: number; height: number } {
-  if (!frameWidth || !frameHeight) return { width: screenWidth, height: screenHeight };
+  const turned = screenWidth > screenHeight;
+  const along = turned ? screenHeight : screenWidth;
+  // The clamp is the room rather than the screen, and it runs across the way the phone is held —
+  // so the panel standing under the picture shortens the standing room and leaves a turned one be.
+  const limit = turned ? screenWidth : (room ?? screenHeight);
+  if (!frameWidth || !frameHeight) {
+    return turned ? { width: limit, height: along } : { width: along, height: limit };
+  }
   // The frame takes the screen whole across the way the phone is held — the width upright, the
   // height turned — and its other side is whatever its own proportions make of that. All four of
   // the layout's boxes fall out of that one sentence: a 3:2 is 390 × 260 upright and 585 × 390
   // turned, a 3:4 is 390 × 520 and 293 × 390.
-  const turned = screenWidth > screenHeight;
-  const along = turned ? screenHeight : screenWidth;
   // And the other side is that much of the frame's own proportion — its height over its width when
   // it lies across a standing phone, the other way round when it lies up a turned one.
   const across = turned ? (along * frameWidth) / frameHeight : (along * frameHeight) / frameWidth;
-  // Clamped to the screen, because a frame is its own shape whatever the phone is: a 1000 × 10000
+  // Clamped to the room, because a frame is its own shape whatever the phone is: a 1000 × 10000
   // frame across a 390-wide phone is 390 tall and not 3900. `cover` crops what is left, which is
   // what the layout draws — and a phone cannot show what is under its own edges.
   return turned
-    ? { width: Math.min(across, screenWidth), height: along }
-    : { width: along, height: Math.min(across, screenHeight) };
+    ? { width: Math.min(across, limit), height: along }
+    : { width: along, height: Math.min(across, limit) };
 }
 
 const useStyles = themed(() =>
