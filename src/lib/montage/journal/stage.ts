@@ -155,8 +155,8 @@ export function parts(stage: MontageStage | undefined): {
   return list.map((part, i) => {
     const from = formatRuntime(part.from_seconds) ?? '0:00';
     const to = formatRuntime(part.to_seconds) ?? from;
-    const taken = byPart[String(i + 1)];
-    return { at: i + 1, title: part.title, from, to, taken, empty: taken === undefined };
+    const taken = byPart[String(i + 1)] ?? null;
+    return { at: i + 1, title: part.title, from, to, taken, empty: taken === null };
   });
 }
 

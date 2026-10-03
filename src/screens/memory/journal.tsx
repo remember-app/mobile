@@ -424,7 +424,9 @@ function Music({ stage, how, entries, montage, stages }: StageBody) {
     montage?.params.target_seconds,
   );
   const tape = tapeOf(stage, length);
-  const plan = parts(stage);
+  // The parts of the story are the directing stage's, not this one's: the director planned them and
+  // the music stage only filled them in, so its own `outcome` carries no list of its own.
+  const plan = parts(stages.find((one) => one.stage === 'directing'));
   const tempo = stage?.outcome.bpm;
 
   return (
