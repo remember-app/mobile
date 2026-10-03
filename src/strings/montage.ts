@@ -1,3 +1,5 @@
+import type { MontageOrientation } from '@/api';
+
 import { count, form } from './plural';
 
 /**
@@ -270,11 +272,11 @@ export const en = {
      * them where it is.
      */
     stage: {
-      screening: 'Dropping the spoiled frames',
-      understanding: 'Working out what is in them',
-      directing: 'The director builds the story',
-      rhythm: 'Laying them out to the beat',
-      assembly: 'Cutting it together',
+      prep: 'Preparation',
+      analysis: 'Analysis',
+      directing: 'Directing',
+      music: 'Music',
+      assembly: 'Assembly',
     },
     /**
      * The same five over the journal of one stage (`MontageLiveStage`), short: the bar also carries
@@ -282,30 +284,30 @@ export const en = {
      * at ×1 (spec detail 56).
      */
     stageHead: {
-      screening: 'Screening frames',
-      understanding: 'Reading frames',
-      directing: 'Builds the story',
-      rhythm: 'Fitting the beat',
-      assembly: 'Cutting together',
+      prep: 'Preparation',
+      analysis: 'Analysis',
+      directing: 'Directing',
+      music: 'Music',
+      assembly: 'Assembly',
     },
     /**
      * And as a word each, for the one quiet line that names the stages still ahead. The line breaks
      * between stages and never inside one, so a stage of two words is held by a no-break space.
      */
     stageAhead: {
-      screening: 'screening',
-      understanding: 'reading',
-      directing: 'the\u00a0story',
-      rhythm: 'the\u00a0beat',
-      assembly: 'the\u00a0cut',
+      prep: 'подготовка',
+      analysis: 'анализ',
+      directing: 'режиссура',
+      music: 'музыка',
+      assembly: 'сборка',
     },
     /** What each stage has done to a frame, beside how many — «61 placed» (spec detail 56). */
     progress: {
-      screening: 'checked',
-      understanding: 'read',
-      directing: 'placed',
-      rhythm: 'fitted',
-      assembly: 'joined',
+      prep: 'скачано',
+      analysis: 'описано',
+      directing: 'разложено',
+      music: 'подогнано',
+      assembly: 'склеено',
     },
 
     /**
@@ -358,13 +360,26 @@ export const en = {
        * What came of a stage, one clause each, out of the keys the api names as countable
        * («Журнал монтажа»). A stage that has nothing to report yet says how far it has got instead.
        */
-      kept: (n: number, of: number) => `${n} of ${of} are usable`,
-      faces: (n: number) => `${n} ${n === 1 ? 'face' : 'faces'}`,
+      /** What each stage came to, one clause each, out of the keys of its own `outcome`. */
+      prepCame: (frames: number, photos: number, videos: number, seconds: string) =>
+        `${frames} ${frames === 1 ? 'frame' : 'frames'}: ${photos} ${photos === 1 ? 'photo' : 'photos'}, ${videos} ${videos === 1 ? 'video' : 'videos'} in ${seconds}`,
+      analysisCame: (described: number, earlier: number) =>
+        `described now ${described}, from past films ${earlier}`,
+      directingCame: (parts: number, taken: number) =>
+        `${parts} ${parts === 1 ? 'part' : 'parts'} of the story, took ${taken} ${taken === 1 ? 'frame' : 'frames'}`,
+      /** What a film with no music came to on the music stage — in place of «0 cuts», which is no answer. */
+      noTrack: 'no music, nothing to fit to',
       parts: (n: number) => `${n} ${n === 1 ? 'part' : 'parts'}`,
       cuts: (n: number) => `${n} ${n === 1 ? 'cut' : 'cuts'}`,
-      /** What the rhythm of a film with no music came to — in place of «0 cuts», which is no answer. */
-      noTrack: 'no music, nothing to fit to',
       doneOf: (n: number, of: number) => `${n} of ${of}`,
+      /** Why the making stopped, by the worker's own code. A code out of the dictionary reads as the
+          general «сборка остановилась» — and that is what the api says of one it cannot name. */
+      stopped: {
+        no_material: 'there were fewer than three usable frames',
+        track_unreadable: 'the track would not open',
+        internal: 'something broke on our side',
+        other: 'the making stopped',
+      },
       /**
        * How far a stage that has not come to anything yet has got, in the word of what it does —
        * `progress` — out of all of it under its row («61 of 212 placed»), and on its own over its
@@ -418,6 +433,103 @@ export const en = {
         included: 'Taken at the organizer’s word',
         other: 'Not suitable',
       },
+    },
+
+    /**
+     * The one screen of a movie in each of its states (spec 8, `Film*`): queued, being made, ready,
+     * stopped and out of contact. What all five share is the stage line under the bar and the list
+     * of the five stages under it; what differs is what else stands between them.
+     */
+    filmScreen: {
+      /**
+       * `FilmQueued` — the order is in, the making is not. The screen's whole job is what was
+       * ordered and when it will start, both out of the `queue` block the list hands out.
+       */
+      /** The pill on the stage line of a film nobody has started yet. */
+      queuedPill: 'waiting',
+      /** «order accepted at 16:40» — where the queue line says the waiting began. */
+      acceptedAt: (time: string) => `order accepted at ${time}`,
+      /** The heading, and the paragraph under it, both about the queue rather than about the film. */
+      queuedTitle: 'In the queue',
+      queuedAhead: (n: number) =>
+        n === 1 ? 'There is one more movie ahead of us.' : `There are ${n} more movies ahead of us.`,
+      /** With nobody ahead the first clause simply goes and the rest stands on its own. */
+      queuedStarts: (minutes: number) =>
+        `The making starts in about ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`,
+      queuedTakes: (minutes: number) => `and takes about ${minutes}`,
+      /** The four tiles of what was ordered, and the line under each. */
+      frames: 'Frames',
+      framesNote: (photos: number, videos: number) =>
+        `${photos} ${photos === 1 ? 'photo' : 'photos'} · ${videos} ${videos === 1 ? 'video' : 'videos'}`,
+      length: 'Length',
+      /** Under «2:30» in the length tile — the same word the figure itself is said in. */
+      minutes: 'minutes',
+      orientation: 'Orientation',
+      /** Under the shape: «horizontal» / «vertical». */
+      orientationWord: {
+        landscape: 'horizontal',
+        portrait: 'vertical',
+      } as Record<MontageOrientation, string>,
+      music: 'Music',
+      /** Under a track: its tempo, when it is known — and never «0». */
+      bpm: (n: number) => `${n} beats per minute`,
+      /** The block of the story, when the order said one. */
+      story: 'Story',
+      /** Under the tiles and the story, on the queued and building screens alike. */
+      closeNote: 'You can close the screen — we will send a notice when the movie is ready',
+
+      /**
+       * `FilmBuilding` — what the stage in hand is doing at this moment, under the stage line.
+       */
+      /** Who is working and on what, one clause per stage, in the voice of the director. */
+      at: {
+        prep: 'downloading the frames',
+        analysis: 'reading the frames',
+        directing: 'thinking about the frame',
+        music: 'laying the cuts to the beat',
+        assembly: 'gluing it together',
+      },
+      /** Where the connection banner says what stays true without it. */
+      offlineTitle: 'No connection',
+      offlineText: 'The making is going on on the server. We will show what is new when it comes back',
+      /** Over the card «Сейчас» while the screen holds what it last read. */
+      updatedAgo: (minutes: number) => `updated ${minutes} ${minutes === 1 ? 'min' : 'mins'} ago`,
+      /** The same figure as it was when the connection went — «было ≈ 8 мин». */
+      leftWas: (minutes: number) => `was ≈ ${minutes} min`,
+
+      /**
+       * `FilmFailed*` — the making stopped, and what happens next depends on who is looking.
+       */
+      /** The pill on the stage line and on the stopped stage's own row. */
+      stoppedPill: 'stopped',
+      stoppedTitle: 'The movie did not come out',
+      /** Under the heading, naming the stage it stopped on by its own name. */
+      stoppedOn: (stage: string) =>
+        `The making stopped on «${stage}». Nothing is lost — the frames and the order are where they were.`,
+      /** The organizer's one button, and the line under it. */
+      retry: 'Try again',
+      retryNote: (minutes: number) =>
+        `We will put the same order together again, about ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`,
+      /** Where the button is not: the member is told who can, and under what name. */
+      organizerCan: 'The organizer can start it again',
+      /** «Лиза Миронова. When the movie is ready, a notice will come.» — the name, then the promise. */
+      organizerCanNote: (name: string) => `${name}. When the movie comes out, a notice will come.`,
+      /** Under a stage nobody came to after the one that stopped. */
+      notStarted: 'never started',
+      /** Under the stage that stopped, why it stopped. */
+      stoppedBecause: (why: string) => `stopped: ${why}`,
+
+      /** `FilmReady` — the pill on the poster, and the bar's own way back. */
+      readyPill: 'ready',
+      backToMemory: 'Back to the memory',
+      /** The whole making, said over the list of the five. */
+      howMadeTook: (stages: number, minutes: number | null) =>
+        [
+          `${stages} ${stages === 1 ? 'stage' : 'stages'}`,
+          minutes === null ? null : `${minutes} min`,
+        ]
+          .filter(Boolean)
+          .join(' · '),
     },
 
     /**
@@ -603,31 +715,31 @@ export const ru: typeof en = {
     stay: 'Остаться',
 
     stage: {
-      screening: 'Отсев брака',
-      understanding: 'Разбираем, что на кадрах',
-      directing: 'Режиссёр строит историю',
-      rhythm: 'Раскладываем в ритм трека',
-      assembly: 'Склеиваем',
+      prep: 'Подготовка',
+      analysis: 'Анализ',
+      directing: 'Режиссура',
+      music: 'Музыка',
+      assembly: 'Сборка',
     },
     stageHead: {
-      screening: 'Отсев брака',
-      understanding: 'Разбираем кадры',
-      directing: 'Строит историю',
-      rhythm: 'Кладём в ритм',
-      assembly: 'Склеиваем',
+      prep: 'Подготовка',
+      analysis: 'Анализ',
+      directing: 'Режиссура',
+      music: 'Музыка',
+      assembly: 'Сборка',
     },
     stageAhead: {
-      screening: 'отсев\u00a0брака',
-      understanding: 'разбор\u00a0кадров',
-      directing: 'история',
-      rhythm: 'ритм\u00a0трека',
-      assembly: 'склейка',
+      prep: 'подготовка',
+      analysis: 'анализ',
+      directing: 'режиссура',
+      music: 'музыка',
+      assembly: 'сборка',
     },
     progress: {
-      screening: 'проверено',
-      understanding: 'разобрано',
+      prep: 'скачано',
+      analysis: 'описано',
       directing: 'разложено',
-      rhythm: 'подогнано',
+      music: 'подогнано',
       assembly: 'склеено',
     },
 
@@ -651,12 +763,22 @@ export const ru: typeof en = {
       leftAbout: (minutes: number) => `осталось ≈ ${minutes} мин`,
       minutes: (minutes: number) => `${minutes} мин`,
       running: (minutes: number) => `идёт ${minutes} мин`,
-      kept: (n: number, of: number) => `${n} из ${of} годятся`,
-      faces: (n: number) => count(n, 'лицо', 'лица', 'лиц'),
+      prepCame: (frames: number, photos: number, videos: number, seconds: string) =>
+        `${count(frames, 'кадр', 'кадра', 'кадров')}: ${photos} фото, ${videos} видео на ${seconds}`,
+      analysisCame: (described: number, earlier: number) =>
+        `описано сейчас ${described}, из прошлых ${earlier}`,
+      directingCame: (parts: number, taken: number) =>
+        `${count(parts, 'часть', 'части', 'частей')} истории, взял ${count(taken, 'кадр', 'кадра', 'кадров')}`,
+      noTrack: 'без музыки, подгонять не подо что',
       parts: (n: number) => count(n, 'часть', 'части', 'частей'),
       cuts: (n: number) => count(n, 'склейка', 'склейки', 'склеек'),
-      noTrack: 'без музыки, подгонять не подо что',
       doneOf: (n: number, of: number) => `${n} из ${of}`,
+      stopped: {
+        no_material: 'годных кадров меньше трёх',
+        track_unreadable: 'трек не открылся',
+        internal: 'у нас что-то сломалось',
+        other: 'сборка остановилась',
+      },
       soFar: (n: number, of: number, done: string) => `${n} из ${of} ${done}`,
       counted: (n: number, done: string) => `${n} ${done}`,
       wholeStage: (n: number) => `Весь журнал этапа · ${count(n, 'запись', 'записи', 'записей')}`,
@@ -684,6 +806,67 @@ export const ru: typeof en = {
         included: 'Взят по слову организатора',
         other: 'Не подошёл',
       },
+    },
+
+    /**
+     * Один экран ролика в каждом из его состояний (spec 8, `Film*`): в очереди, собирается, готов,
+     * не собрался и без связи. Общее у всех — строка этапа под шапкой и список пяти этапов под ней,
+     * а разное — что стоит между ними.
+     */
+    filmScreen: {
+      queuedPill: 'ждёт',
+      acceptedAt: (time: string) => `заказ принят в ${time}`,
+      queuedTitle: 'В очереди',
+      queuedAhead: (n: number) =>
+        n === 1 ? 'Перед нами ещё один ролик.' : `Перед нами ещё ${count(n, 'ролик', 'ролика', 'роликов')}.`,
+      queuedStarts: (minutes: number) =>
+        `Сборка начнётся примерно через ${count(minutes, 'минуту', 'минуты', 'минут')}`,
+      queuedTakes: (minutes: number) => `и займёт около ${minutes}`,
+      frames: 'Кадров',
+      framesNote: (photos: number, videos: number) => `${photos} фото · ${videos} видео`,
+      length: 'Длина',
+      minutes: 'минуты',
+      orientation: 'Ориентация',
+      orientationWord: {
+        landscape: 'горизонтально',
+        portrait: 'вертикально',
+      } as Record<MontageOrientation, string>,
+      music: 'Музыка',
+      bpm: (n: number) => `${n} ударов в минуту`,
+      story: 'История',
+      closeNote: 'Можно закрыть экран — пришлём пуш, когда ролик будет готов',
+
+      at: {
+        prep: 'скачиваем кадры',
+        analysis: 'разбираем кадры',
+        directing: 'думает над кадром',
+        music: 'кладём склейки в ритм',
+        assembly: 'склеиваем ролик',
+      },
+      offlineTitle: 'Нет соединения',
+      offlineText: 'Сборка на сервере идёт дальше. Покажем новое, когда связь вернётся',
+      updatedAgo: (minutes: number) =>
+        `обновлено ${count(minutes, 'минуту', 'минуты', 'минут')} назад`,
+      leftWas: (minutes: number) => `было ≈ ${minutes} мин`,
+
+      stoppedPill: 'остановился',
+      stoppedTitle: 'Ролик не собрался',
+      stoppedOn: (stage: string) =>
+        `Сборка остановилась на этапе «${stage}». Ничего не потерялось — кадры и заказ на месте.`,
+      retry: 'Повторить',
+      retryNote: (minutes: number) =>
+        `Соберём заново по тому же заказу, около ${count(minutes, 'минуту', 'минуты', 'минут')}`,
+      organizerCan: 'Организатор может запустить заново',
+      organizerCanNote: (name: string) => `${name}. Когда ролик соберётся, придёт пуш.`,
+      notStarted: 'не начался',
+      stoppedBecause: (why: string) => `остановился: ${why}`,
+
+      readyPill: 'готов',
+      backToMemory: 'Назад к воспоминанию',
+      howMadeTook: (stages: number, minutes: number | null) =>
+        [count(stages, 'этап', 'этапа', 'этапов'), minutes === null ? null : `${minutes} мин`]
+          .filter(Boolean)
+          .join(' · '),
     },
 
     film: {

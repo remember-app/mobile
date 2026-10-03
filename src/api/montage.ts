@@ -107,10 +107,34 @@ export type Montage = {
    */
   stages?: MontageStep[] | null;
   /**
+   * What was ordered, as the order counted it: so many photos and so many videos. Written by the
+   * order when it queues the film and by nobody after; null on a film ordered before the columns
+   * existed, which is then a film this screen has nothing to say the shape of.
+   */
+  photos?: number | null;
+  videos?: number | null;
+  /**
+   * Where this film stands in the queue, while it is in it — how many are ahead of it (in the
+   * worker's whole queue, not only this memory's), when it will start, and how long the making
+   * itself will take. Null on anything the worker has already taken, and on a film that has left
+   * the queue. Only the list carries it; `retry` answers without it.
+   */
+  queue?: MontageQueue | null;
+  /**
    * Who of the memory's people has opened the finished film, in the order they first did — a fact
    * and not a count of plays (`markWatched`). Only the list carries it, empty on anything not ready.
    */
   watched_by?: Contact[];
+};
+
+/** The place of a queued film in the queue, and the two figures the screen says it in. */
+export type MontageQueue = {
+  /** How many films stand in front of this one, in the worker's whole queue. */
+  ahead: number;
+  /** Roughly how many minutes until this one starts — `ceil` of the waits ahead of it. */
+  starts_in_minutes: number;
+  /** How long the making will take — the same estimate as the order's summary; null when uncounted. */
+  estimate_minutes: number | null;
 };
 
 /** One of the five as the list reports it: where it stands, and not a word more. */
@@ -274,13 +298,7 @@ export function retryMontage(token: string, memoryId: string, montageId: string)
  * монтажа»). The order is itself the contract: «этап 3 из 5» on screen is a position in this list,
  * and the api sorts its own answer by it rather than by when the worker got round to each one.
  */
-export const MONTAGE_STAGES = [
-  'screening',
-  'understanding',
-  'directing',
-  'rhythm',
-  'assembly',
-] as const;
+export const MONTAGE_STAGES = ['prep', 'analysis', 'directing', 'music', 'assembly'] as const;
 
 export type MontageStageCode = (typeof MONTAGE_STAGES)[number];
 
@@ -290,28 +308,61 @@ export type MontageStageCode = (typeof MONTAGE_STAGES)[number];
  * drawn, and the phrase itself is built on this side.
  */
 export type MontageStageOutcome = {
-  /** `screening` — «212 из 214 годятся», and why the rest went, by reason code. */
-  kept?: number;
-  of?: number;
-  reasons?: Record<string, number>;
-  /** `understanding` — «37 лиц, 5 людей в главных». */
-  faces?: number;
-  people?: number;
-  animals?: number;
-  /** `directing` — «3 части, 61 кадр». */
-  parts?: number;
-  frames?: number;
-  part_titles?: string[];
   /**
-   * `rhythm` — the tracks it was laid out to, in the order of the order, and how many cuts moved
-   * to them. A film with no music is `track: []` and `cuts: 0`.
+   * `prep` — «168 фото · 46 видео», how many of each are ready as it goes, how long the videos run
+   * together, what the whole order weighs, and who brought how much (`senders` is by member id —
+   * the names are the app's, off the memory's roster).
    */
+  photos?: number;
+  videos?: number;
+  photos_done?: number;
+  videos_done?: number;
+  video_seconds?: number;
+  bytes?: number;
+  senders?: Record<string, number>;
+
+  /**
+   * `analysis` — how many frames are described so far, how many were taken ready-made out of past
+   * films, and how many different people turned up in all the material.
+   */
+  described?: number;
+  earlier?: number;
+  people?: number;
+
+  /**
+   * `directing` — the parts of the story in the order they play, each with the seconds it stands
+   * at. The number of a part is its place in this list, from one — the same number as `story_part`
+   * on the records. A film cut without the director has no parts and no key.
+   */
+  parts?: { title: string; from_seconds: number; to_seconds: number }[];
+  part_titles?: string[];
+  /** How many frames the director took, when it says so itself. */
+  frames?: number;
+
+  /** `music` — the tracks in the order of the order, and the tempo when it is known. */
   track?: string[];
+  tracks?: string[];
   bpm?: number;
-  /** `assembly` — the cuts and the running time of what came out. */
+  /**
+   * `assembly` — the cuts and the running time of what came out, plus the substeps the worker
+   * walks and how far through the whole assembly it is.
+   */
   cuts?: number;
   seconds?: number;
+  steps?: { step: AssemblyStepCode; state: 'pending' | 'running' | 'done' }[];
+  percent?: number;
+
+  /**
+   * On the stage that fell over — why the making stopped, by code. A code out of this dictionary is
+   * shown as the general «сборка остановилась».
+   */
+  stopped?: 'no_material' | 'track_unreadable' | 'internal';
 };
+
+/** The substeps of `assembly`, in the order the worker walks them. */
+export const ASSEMBLY_STEPS = ['clips', 'sound', 'cover', 'file'] as const;
+
+export type AssemblyStepCode = (typeof ASSEMBLY_STEPS)[number];
 
 /**
  * One of the five stages as the journal reports it. `done_count` moves only on the two stages the
@@ -325,13 +376,28 @@ export type MontageStage = {
   state: 'pending' | 'running' | 'done' | 'failed';
   started_at: string | null;
   finished_at: string | null;
+  /** How long the whole stage will take, and — while it runs — how much of it is left. */
   eta_seconds: number | null;
+  /** «61 из 214» — what is counted is the stage's own business; `total_count` is null until counted. */
   done_count: number;
   /** Null until there is something to count against — «61 из ?» is not drawn. */
   total_count: number | null;
   outcome: MontageStageOutcome;
   updated_at: string;
+  /**
+   * The api's own tally over the records of this stage — the worker never writes these, so they
+   * cannot disagree with the journal the api reads them out of. All three count every record of the
+   * stage, not only the page just handed over.
+   */
   taken_count: number;
   skipped_count: number;
+  /** Records with no decision at all — a thought about the plan or about a part of the story. */
   thought_count: number;
+  /**
+   * «Мимо» by reason code, and «взял» by part of the story — the part keyed by its number as a
+   * string, since that is what json keys are. Both empty on a stage with no such records, and a
+   * «мимо» carrying no reason is in neither.
+   */
+  skipped_by_reason?: Record<string, number>;
+  taken_by_part?: Record<string, number>;
 };
