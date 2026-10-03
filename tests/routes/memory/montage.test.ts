@@ -32,7 +32,6 @@ import frames from '@/screens/memory/frames.tsx?raw';
 import errands from '@/screens/memory/frames-errands.ts?raw';
 import material from '@/screens/memory/frames-material.ts?raw';
 // The card one record of the journal opens.
-import liveFile from '@/screens/memory/live-file.tsx?raw';
 import { en, ru } from '@/strings';
 
 // Everything both screens of the making work out of one answer — where a stage stands, how long the
@@ -331,32 +330,6 @@ test('«Как собирался» is the journal the film keeps, and a film wi
   // whole block is simply not drawn — no heading, no empty tiles, and nothing that reads as broken.
   expect(film).toContain('{journal.stages.length === 0 ? null : (');
   expect(film).toContain('{tiles.length === 0 ? null : (');
-});
-
-test('a record about a file opens that file’s card, and a deleted file is still a record', () => {
-  expect(liveFile).toContain('uri={file?.thumbnail_url ?? undefined}');
-  expect(liveFile).toContain('{file === undefined ? author : s.media[file.kind]}');
-  // Its own component, handed a record and a file, and reading nothing for itself.
-  expect(liveFile).toContain('export function SheetLiveFile');
-  expect(liveFile).toContain('entry: JournalEntry;');
-  expect(liveFile).toContain('file?: JournalFile;');
-  for (const reading of ['listMembers', 'listMontages', 'useMontageJournal']) {
-    expect(liveFile).not.toContain(reading);
-  }
-  // The thought is drawn whatever was decided — a frame the director left out («мимо», `left_out`)
-  // carries its words about why in it — on the sheet.
-  expect(liveFile).toContain('<NoteThought text={entry.thought} />');
-  // «Что увидел» in tags.
-  expect(liveFile).toContain('s.montage.live.saw.toUpperCase()');
-  // Keyed by place: the words are the model's, and the same one twice is two tags, not one key.
-  expect(liveFile).toContain('<Tag key={at} label={label} />');
-  // Where the frame lay is the layout's and not the thought's: a line of its own, not a part of the
-  // plate — so a record with no thought still has it.
-  expect(liveFile).toContain('const place = placeLine(entry, file, nth, s);');
-  // …and the place is the record's own: a clip taken twice is two «беру» and two places, and the
-  // second «беру» is the second place (TASK-456), counted over the journal the screen holds.
-  expect(liveFile).toContain('gazeAt(');
-  expect(liveFile).not.toContain('outcome=');
 });
 
 test('a card still being cut says which of the five stages it is on', () => {

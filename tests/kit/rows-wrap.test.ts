@@ -264,12 +264,12 @@ test('the sweep sees the rows it is about, slots included', () => {
     // Handed in through a slot: «Повторить» in a banner, «Снять» over the bottom layer.
     'kit/card.tsx › banner',
     'kit/bars.tsx › layerAbove',
-    // A badge handed in (TASK-375): the films on both cards of a memory, the decision on the card
-    // «Сейчас» and on the frame's own sheet.
+    // A badge handed in (TASK-375): the films on both cards of a memory, and the decision on the
+    // card «Сейчас». The journal of a stage hands the same badges to its frame rows as a slot of
+    // `RowFrame`, so they are the kit's row and not the screen's.
     'kit/card-memory.tsx › largeTop',
     'kit/card-memory.tsx › foot',
     'kit/film.tsx › nowMarks',
-    'screens/memory/live-file.tsx › who',
   ])
     expect(seen('words'), row).toContain(row);
 });
