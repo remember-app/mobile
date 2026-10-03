@@ -12,13 +12,11 @@ import { beforeAll, expect, test } from 'vitest';
 import { BadgeDecision } from '@/kit/badge';
 import { Icon } from '@/kit/icon';
 import {
-  GAZE_SHEET,
   Journal,
   JournalLine,
   LogEntry,
   NoteThought,
   RowFilmAt,
-  ShotGaze,
   TileNumber,
 } from '@/kit/montage-live';
 import { allDifferent, story } from '@/kit/story';
@@ -33,20 +31,6 @@ mountsTrees();
 
 beforeAll(async () => {
   await setTheme('dark');
-});
-
-test('the sheet draws the same frame bigger, with the same eye on it', () => {
-  allDifferent({
-    plain: <ShotGaze uri={SHOT} />,
-    looking: <ShotGaze uri={SHOT} gaze={{ left: 118, top: 56 }} />,
-    elsewhere: <ShotGaze uri={SHOT} gaze={{ left: 20, top: 10 }} />,
-    // A frame that has been deleted since: the sheet is still the record, without a picture.
-    gone: <ShotGaze gaze={{ left: 118, top: 56 }} />,
-  });
-  // Nothing is dimmed around this one — unlike the card, where the shadow is the dimming.
-  expect(story(<ShotGaze uri={SHOT} gaze={{ left: 10, top: 10 }} />)).not.toMatch(
-    /r-boxShadow-\w+/,
-  );
 });
 
 test('the journal’s line is one line, whether the records are a block or a list', () => {
@@ -192,18 +176,6 @@ function drawn(element: React.ReactElement) {
   const words = (said: string) => text((props) => [props.children].flat().join('') === said);
   return { boxes, text, words, done: () => act(() => tree.unmount()) };
 }
-
-test('the eye is the square the layout draws: 114 on the sheet, hairline in', () => {
-  // `SheetLiveFile`: 114 × 114 at 134, 87 — 118, 56 into its frame. The spec's 110 is the CSS box
-  // inside the 2px border; the app drew that as the whole square, 4 short each way.
-  const { spark } = themes.dark.color;
-  const sheet = drawn(<ShotGaze uri={SHOT} gaze={{ left: 118, top: 56 }} />);
-  expect(
-    sheet.boxes.find((box) => box.borderColor === spark && box.borderWidth === 2),
-  ).toMatchObject({ width: 114, height: 114, borderRadius: 16 });
-  sheet.done();
-  expect(GAZE_SHEET).toBe(114);
-});
 
 /** The words a thought is said in: the `Text` holding the sentence that is (partly) said. */
 const thoughtOf = (said: string) => (props: Record<string, unknown>) =>

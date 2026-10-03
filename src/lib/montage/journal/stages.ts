@@ -83,29 +83,6 @@ export function minutesLeft(stages: readonly MontageStage[]): number | null {
 }
 
 /**
- * Where the kit's square goes, for a gaze that arrives as fractions of the frame. The middle of
- * what the director is looking at becomes the middle of the square, and the square is then held
- * inside the frame — an eye on the very edge of a photograph must not hang half of the marker over
- * nothing. A frame smaller than the square itself simply gets it at the corner.
- *
- * `size` is `GAZE` on the card and `GAZE_SHEET` on the sheet's taller frame (`SheetLiveFile`): the
- * same eye, drawn at the size the picture under it is drawn at.
- */
-export function gazeAt(
-  focus: JournalEntry['focus'],
-  frame: { width: number; height: number },
-  size: number,
-): { left: number; top: number } | undefined {
-  if (!focus) return undefined;
-  const inside = (middle: number, along: number) =>
-    Math.max(0, Math.min(along - size, middle * along - size / 2));
-  return {
-    left: inside(focus.x + focus.w / 2, frame.width),
-    top: inside(focus.y + focus.h / 2, frame.height),
-  };
-}
-
-/**
  * How long a stage has been at it — what it has taken so far while it runs, and what it took once it
  * is behind. Whole minutes and nothing under one: a stage that started eight seconds ago is not
  * «0 мин», it is a stage with nothing to say about its own length yet.

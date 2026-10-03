@@ -10,7 +10,6 @@ import type { Montage, MontageStage, MontageStageCode } from './montage';
  * and one with no `decision` is a thought with nothing settled in it.
  *
  * `id` is a number and it is the cursor — the largest one held is what the next poll asks after.
- * The four fractions of the gaze arrive as one `focus`, or as nothing at all.
  */
 export type JournalEntry = {
   id: number;
@@ -26,8 +25,6 @@ export type JournalEntry = {
   source_from_seconds: number | null;
   source_to_seconds: number | null;
   labels: string[] | null;
-  /** Where on the frame the director is looking, in fractions of it — never in pixels. */
-  focus: { x: number; y: number; w: number; h: number } | null;
   /**
    * What the record says beyond its own columns, and its shape is the stage's own (api
    * `docs/journal.md`, «Запись журнала»): the fields a frame was described in at `analysis`, the two
