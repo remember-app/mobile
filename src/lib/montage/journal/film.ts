@@ -100,6 +100,26 @@ export function orderedTo(
   };
 }
 
+/**
+ * How many minutes ago the freshest record on the card landed — «обновлено 2 мин назад» over the
+ * card «Сейчас» while the connection is gone.
+ *
+ * The age of what is actually shown, not the age of the last read: a screen that said «just now»
+ * over a record that landed an hour ago would be the one thing a person watching in a lift cannot
+ * forgive. Null where there is nothing on the card to be old, and never under one — a record that
+ * landed forty seconds ago is a minute old as far as the words are concerned.
+ */
+export function minutesSince(
+  entries: readonly { created_at: string }[],
+  now: number = Date.now(),
+): number | null {
+  const freshest = entries[0]?.created_at;
+  if (freshest === undefined) return null;
+  const then = new Date(freshest).getTime();
+  if (Number.isNaN(then)) return null;
+  return Math.max(1, Math.floor((now - then) / 60000));
+}
+
 /** When the film was put in the queue, in the reader's own clock. */
 export const acceptedAt = (montage: Montage, s: Strings): string =>
   s.montage.filmScreen.acceptedAt(formatTime(montage.created_at));

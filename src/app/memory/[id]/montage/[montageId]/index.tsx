@@ -48,6 +48,7 @@ import {
   inHand,
   isFresh,
   marksOf,
+  minutesSince,
   orderedTo,
   STAGE_COUNT,
   stageInHand,
@@ -409,12 +410,16 @@ function Building({
   const thought = useTypedThought(held?.thought, held !== null && isFresh(journal, held));
   const [decision] = held ? marksOf(held, s) : [];
   const stage = currentStage(journal.stages);
+  // Offline the card says how old what it is showing is, rather than pretending it is still moving.
+  const ago = minutesSince(journal.entries);
 
   return (
     <CardFilmNow
       who={s.montage.live.director}
       what={stage ? s.montage.filmScreen.at[stage.stage] : s.montage.live.inQueue}
-      now={journal.offline ? s.montage.filmScreen.updatedAgo(1) : s.montage.live.now}
+      now={
+        journal.offline && ago !== null ? s.montage.filmScreen.updatedAgo(ago) : s.montage.live.now
+      }
       uri={file?.thumbnail_url ?? undefined}
       thought={thought.said}
       marks={

@@ -26,7 +26,7 @@ import TestRenderer, { act } from 'react-test-renderer';
 import type { Member, Montage, MontageJournal, MontageStage } from '@/api';
 import FilmScreen from '@/app/memory/[id]/montage/[montageId]/index';
 import { Banner, Button, FilmStageList } from '@/kit';
-import { WHILE_LIVE_MS } from '@/lib/montage/journal';
+import { minutesSince, WHILE_LIVE_MS } from '@/lib/montage/journal';
 import { ru } from '@/strings';
 
 /**
@@ -348,6 +348,10 @@ test('нет связи: баннер сверху, а всё, что было �
   // would be throwing away the only account of the making anybody has.
   expect(page).toContain('беру кольцо');
   expect(page).toContain('Режиссура');
+  // The card says how old what it is showing is — never «сейчас» over a connection that is gone,
+  // and never a figure that was made up for the occasion.
+  expect(page).not.toContain('СЕЙЧАС');
+  expect(page).toMatch(/обновлено \d+ (мин|минуту|минуты|минут) назад/);
 
   vi.useRealTimers();
 });
@@ -392,6 +396,19 @@ test('вас нет в воспоминании: одно объявление, 
   // Nothing of the film is drawn — no stages, no card, no button that could only be refused.
   expect(page).not.toContain('Режиссура');
   expect(tree.root.findAllByType(Button)).toHaveLength(0);
+});
+
+test('«обновлено N мин назад» — возраст того, что на карточке, а не выдуманное число', () => {
+  const at = (minutesAgo: number) => new Date(Date.now() - minutesAgo * 60000).toISOString();
+
+  // The freshest record is first — that is the order the api hands them in.
+  expect(minutesSince([{ created_at: at(7) }])).toBe(7);
+  expect(minutesSince([{ created_at: at(1) }, { created_at: at(9) }])).toBe(1);
+  // Forty seconds ago is a minute old as far as the words are concerned, and «сейчас» would be a lie.
+  expect(minutesSince([{ created_at: at(0) }])).toBe(1);
+  // Nothing on the card to be old — and a date the api never sent is not «сейчас».
+  expect(minutesSince([])).toBeNull();
+  expect(minutesSince([{ created_at: 'не дата' }])).toBeNull();
 });
 
 test('повтор организатора: та же строка встаёт в очередь заново, и журнал начинается с нуля', async () => {
