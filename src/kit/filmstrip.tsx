@@ -114,8 +114,8 @@ export function Filmstrip({
   const walked = useRef(false);
   /** Whether this touch has already said where it came to rest — see `rest`. */
   const settled = useRef(false);
-  /** Whether the finger let go with the strip still carrying its own way. */
-  const flung = useRef(false);
+  /** What a lift is holding as its answer, waiting to see whether a glide takes it away. */
+  const lifted = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const to = (at: number, animated: boolean) =>
     strip.current?.scrollToIndex({ index: at, viewPosition: 0.5, animated });
@@ -135,7 +135,7 @@ export function Filmstrip({
    * Both ends of the touch answer, because neither covers the other: a flick is still running when
    * the finger lifts, and it is the flick that decides which frame it landed on — asking on the lift
    * alone would open the frame the finger passed over. A touch that neither flicks nor moves asks
-   * on the lift, and on a flick the lift asks nothing ({@link flung}).
+   * on the lift, and on a flick the lift's answer is taken back before it stands ({@link lifted}).
    *
    * `settled` is what keeps one touch from answering twice over, and it is also the strip's own
    * walk out of the way: the walk the window answers with reports its own settling, which must not
@@ -153,6 +153,15 @@ export function Filmstrip({
 
   const scrollTo = (e: NativeSyntheticEvent<NativeScrollEvent>) => e.nativeEvent.contentOffset.x;
 
+  const dropLift = () => {
+    if (lifted.current !== null) clearTimeout(lifted.current);
+    lifted.current = null;
+  };
+
+  // The lift's answer outlives the screen otherwise, and a screen gone before it stood would be
+  // asked a frame nobody is holding any more.
+  useEffect(() => dropLift, []);
+
   return (
     <FlatList
       ref={strip}
@@ -165,14 +174,23 @@ export function Filmstrip({
       onLayout={(e) => setViewport(e.nativeEvent.layout.width)}
       onScrollBeginDrag={() => {
         settled.current = false;
-        flung.current = false;
+        dropLift();
       }}
-      onMomentumScrollBegin={() => {
-        flung.current = true;
-      }}
+      /**
+       * The lift comes before the glide it may start, and nothing at the lift says whether there
+       * will be one — RN's own note on this event is «when animation begins after letting up».
+       * So the lift's answer waits a tick to see whether a glide takes it away, rather than reading
+       * a flag the lift itself would have written: that flag is not false, it is not yet written.
+       */
       onScrollEndDrag={(e) => {
-        if (!flung.current) rest(scrollTo(e));
+        const where = scrollTo(e);
+        dropLift();
+        lifted.current = setTimeout(() => {
+          lifted.current = null;
+          rest(where);
+        });
       }}
+      onMomentumScrollBegin={dropLift}
       onMomentumScrollEnd={(e) => rest(scrollTo(e))}
       // The sizes are fixed, so the strip can be walked to any frame without measuring one — and the
       // same arithmetic reads back where a finger has left it.
