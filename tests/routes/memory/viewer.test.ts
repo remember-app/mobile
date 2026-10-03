@@ -494,10 +494,13 @@ test('the strip is walked to the frame in hand, and the walk hangs on its own wi
   expect(filmstrip).not.toContain('<ScrollView');
   // And it answers a finger rather than only being walked (TASK-474): the frame the strip comes to
   // rest on is asked for at both ends of a touch, because a lift mid-flick is not where the strip
-  // lands. `onScroll` is not among them — the frame in hand would change under the finger.
+  // lands — and the glide's end arrives second and overrules the lift's, which is what TASK-482 is
+  // about: a flag could not do that (the lift is read before the glide begins) and neither could a
+  // delay (on a phone the timer is heard first, always). `onScroll` is not among them — the frame
+  // in hand would change under the finger.
   expect(filmstrip).toContain('onScrollBeginDrag={() => {');
   expect(filmstrip).toContain('onScrollEndDrag={(e) => {');
-  expect(filmstrip).toContain('onMomentumScrollEnd={(e) => rest(scrollTo(e))}');
+  expect(filmstrip).toContain('onMomentumScrollEnd={(e) => rest(scrollTo(e), true)}');
   expect(filmstrip).not.toMatch(/\n\s*onScroll=\{/);
 });
 
