@@ -3,6 +3,8 @@ import { Play } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import {
   FlatList,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   Pressable,
   type StyleProp,
   StyleSheet,
@@ -65,8 +67,11 @@ export const STRIP_TURNED: StripSize = {
  * the current frame 44 × 48 at full strength with a play circle on it if it is a video.
  *
  * The one place in the product with a horizontal scroll (spec 1.5), and it turns with the frame
- * above it rather than on its own: the frame in hand is walked to the middle of the strip whenever
- * it changes, so the strip is never standing somewhere else than the picture over it.
+ * above it both ways: the frame in hand is walked to the middle of the strip whenever it changes,
+ * and a finger that leaves the strip resting on another frame asks for that frame to be opened.
+ * One is not the other — a strip that walks and never listens is the «не меняет элементы при
+ * листании» a real phone reported (doc-12), and a strip that listens and never walks is a frame
+ * in hand standing somewhere other than the picture over it.
  *
  * A `FlatList` and not a plain row of everything: a memory holds up to a thousand records, and a
  * strip that mounts a thousand thumbnails fetches a thousand pictures to show eleven of them.
@@ -76,6 +81,7 @@ export function Filmstrip({
   index,
   size = STRIP_STANDING,
   onPick,
+  onSettle,
   labelAt,
   style,
 }: {
@@ -84,6 +90,12 @@ export function Filmstrip({
   /** How big it is drawn — the window's own, one per way up the phone is held (`Viewer*`, TASK-475). */
   size?: StripSize;
   onPick?: (at: number) => void;
+  /**
+   * The frame the finger left the strip resting on, and whether the window took it in hand. The
+   * answer is not a maybe: a frame still being developed is refused, and the strip has to go back
+   * to the frame in hand rather than stand centred over one nobody opened.
+   */
+  onSettle?: (at: number) => boolean;
   /** What each frame is called out as — «Кадр 4 из 486», written by the screen. */
   labelAt?: (at: number) => string;
   style?: StyleProp<ViewStyle>;
@@ -100,15 +112,46 @@ export function Filmstrip({
   const [viewport, setViewport] = useState(0);
   /** Whether the strip has been walked at all: the first walk is a jump, every one after it moves. */
   const walked = useRef(false);
+  /** Whether this touch has already said where it came to rest — see `rest`. */
+  const settled = useRef(false);
+  /** Whether the finger let go with the strip still carrying its own way. */
+  const flung = useRef(false);
+
+  const to = (at: number, animated: boolean) =>
+    strip.current?.scrollToIndex({ index: at, viewPosition: 0.5, animated });
 
   useEffect(() => {
     if (viewport === 0 || index < 0 || index >= frames.length) return;
-    strip.current?.scrollToIndex({ index, viewPosition: 0.5, animated: walked.current });
+    to(index, walked.current);
     walked.current = true;
     // `frames` is deliberately not in here: what the strip holds changes every few seconds while a
     // memory is still being developed, and re-centring on each of those is a strip that will not
     // stay where it was left — which is the bug a real phone reported twice over (TASK-106).
   }, [index, viewport]);
+
+  /**
+   * Where the finger left the strip ({@link restedAt}), asked once and once only per touch.
+   *
+   * Both ends of the touch answer, because neither covers the other: a flick is still running when
+   * the finger lifts, and it is the flick that decides which frame it landed on — asking on the lift
+   * alone would open the frame the finger passed over. A touch that neither flicks nor moves asks
+   * on the lift, and on a flick the lift asks nothing ({@link flung}).
+   *
+   * `settled` is what keeps one touch from answering twice over, and it is also the strip's own
+   * walk out of the way: the walk the window answers with reports its own settling, which must not
+   * be taken for a finger choosing the frame the strip was already standing on.
+   */
+  function rest(x: number) {
+    if (settled.current || viewport === 0) return;
+    settled.current = true;
+    const at = restedAt(x, viewport, frames.length, index, size);
+    // Nothing chosen — a touch that did not move the strip, or the frame in hand itself — and a
+    // frame the window took stands for itself: it walks the strip on the very next render.
+    if (at < 0 || at === index || onSettle?.(at)) return;
+    to(index, true);
+  }
+
+  const scrollTo = (e: NativeSyntheticEvent<NativeScrollEvent>) => e.nativeEvent.contentOffset.x;
 
   return (
     <FlatList
@@ -120,13 +163,20 @@ export function Filmstrip({
       contentContainerStyle={[styles.strip, { height: size.tall }]}
       style={style}
       onLayout={(e) => setViewport(e.nativeEvent.layout.width)}
-      // Fixed sizes, so the strip can be walked to any frame without measuring one: the frame in
-      // hand is the wide one, and everything past it is pushed along by the difference.
-      getItemLayout={(_, at) => ({
-        length: at === index ? size.current : size.shot,
-        offset: at * (size.shot + GAP) + (at > index ? size.current - size.shot : 0),
-        index: at,
-      })}
+      onScrollBeginDrag={() => {
+        settled.current = false;
+        flung.current = false;
+      }}
+      onMomentumScrollBegin={() => {
+        flung.current = true;
+      }}
+      onScrollEndDrag={(e) => {
+        if (!flung.current) rest(scrollTo(e));
+      }}
+      onMomentumScrollEnd={(e) => rest(scrollTo(e))}
+      // The sizes are fixed, so the strip can be walked to any frame without measuring one — and the
+      // same arithmetic reads back where a finger has left it.
+      getItemLayout={(_, at) => ({ ...shotAt(at, index, size), index: at })}
       renderItem={({ item, index: at }) => (
         <Shot
           frame={item}
@@ -188,6 +238,62 @@ function Shot({
       {current && frame.video ? <PlayDot /> : null}
     </Pressable>
   );
+}
+
+/**
+ * Where one frame of the strip stands — its own length and the distance from the head of the strip
+ * to it. The frame in hand is the wide one, and everything past it is pushed along by the difference.
+ *
+ * One place for it, because two places must agree on it exactly: the list is told this is where
+ * each frame lies ({@link FlatList.getItemLayout}), and the same arithmetic reads back where a
+ * resting finger has left the strip. The strip's sizes are fixed, so both are plain numbers.
+ */
+function shotAt(at: number, index: number, size: StripSize) {
+  return {
+    length: at === index ? size.current : size.shot,
+    offset: at * (size.shot + GAP) + (at > index ? size.current - size.shot : 0),
+  };
+}
+
+/**
+ * The frame a finger has left the strip resting on, or -1 when it has chosen nothing.
+ *
+ * The nearest frame to the middle of the strip, the way a phone's own gallery reads the row of
+ * photographs under an open one. It is arithmetic over {@link shotAt} and no measuring: nothing has
+ * to be mounted to be found, and the sizes are the window's, so it reads the same standing or turned.
+ *
+ * **A finger that did not move the strip has chosen nothing.** That is what `-1` says, and it is
+ * what keeps the two ends honest: at the first frame the strip cannot scroll any further back, and
+ * the middle of the strip then stands over a neighbour a few frames away. Left to the nearest alone,
+ * a flick past the last frame would open the frame before it — the one thing AC #3 of TASK-474
+ * refuses. A strip shorter than the viewport never moves at all, and is short for every frame in it.
+ *
+ * So it is measured against where the frame in hand stands the strip: the same arithmetic the walk
+ * uses, clamped to the ends the way the list clamps them.
+ */
+function restedAt(x: number, viewport: number, count: number, index: number, size: StripSize) {
+  if (count === 0 || viewport === 0) return -1;
+  const held = shotAt(index, index, size);
+  const last = shotAt(count - 1, index, size);
+  // Where the frame in hand stands the strip, clamped to the ends the way the list clamps them.
+  const standing = Math.max(
+    0,
+    Math.min(held.offset + held.length / 2 - viewport / 2, last.offset + last.length - viewport),
+  );
+  if (Math.abs(x - standing) < 1) return -1;
+
+  const middle = x + viewport / 2;
+  let on = 0;
+  let nearest = Infinity;
+  for (let at = 0; at < count; at += 1) {
+    const { length, offset } = shotAt(at, index, size);
+    const away = Math.abs(offset + length / 2 - middle);
+    if (away < nearest) {
+      nearest = away;
+      on = at;
+    }
+  }
+  return on;
 }
 
 /**

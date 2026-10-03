@@ -556,6 +556,30 @@ test('the strip is the feed’s own row of frames, and a tap on one opens it —
   expect(screen.root.findByType(Filmstrip).props.index).toBe(3);
 });
 
+test('a finger that leaves the strip resting on a frame opens it — and one still developing is told no', async () => {
+  // TASK-474: the strip is the one horizontal scroll in the product, and it was asked by name only.
+  // Scrolling it moved the strip and left the picture standing — «не меняет элементы при листании».
+  //
+  // It is asked through the very same `walk` a tap goes through, which is what the equality below
+  // says: one rule about what opens, asked twice. And the answer goes back to the strip, because a
+  // frame it will not open has to put the strip back on the frame in hand rather than leave it
+  // standing centred over one this window never opened.
+  serve(() => undefined);
+  const screen = await open();
+  const strip = () => screen.root.findByType(Filmstrip).props;
+  expect(strip().onSettle).toBe(strip().onPick);
+
+  expect(strip().onSettle(1)).toBe(true);
+  expect(screen.shown.onOpen).toHaveBeenLastCalledWith('b');
+  (screen.shown.onOpen as ReturnType<typeof vi.fn>).mockClear();
+  // «c» is still being made: it stays in the strip, and the answer is «no» rather than a frame the
+  // window has nothing to put behind.
+  expect(strip().onSettle(2)).toBe(false);
+  expect(screen.shown.onOpen).not.toHaveBeenCalled();
+  expect(strip().onSettle(3)).toBe(true);
+  expect(screen.shown.onOpen).toHaveBeenLastCalledWith('d');
+});
+
 test('a frame with nothing behind it is «кадр не открылся», with the strip and the delete still there', async () => {
   serve(() => undefined);
   const bare = { ...shots()[1], thumbnail_url: null, preview_url: null };
@@ -1115,14 +1139,24 @@ test('turned, the window keeps every name, role and 44 that it has standing', as
   serve(() => undefined);
   const standing = { width: 390, height: 844 };
   // The strip's own shots are told by what they are drawn at: a control on the window is 44 or more
-  // across, and nothing in the strip is.
-  const inStrip = (one: { width: number | undefined }) => (one.width ?? 0) < 44;
+  // across, and nothing in the strip is. A control whose width the layout decides — the pill, which
+  // is as long as the day and the name in it — is not one of them and is not short of anything: it
+  // has no width to be short in, and reading `undefined` as 0 filed the window's own glass in the
+  // strip.
+  const inStrip = (one: { width: number | undefined }) => one.width !== undefined && one.width < 44;
+  // The strip has to have neighbours in it for any of this to mean anything. It was opened on a
+  // strip of one frame and the neighbour checks ran over an empty list — a check that can only pass
+  // is not a check, and the 44 it waved through was the 44 of a strip that was not there.
+  const beside = (item: MediaItem): MediaItem[] => {
+    const others = shots().filter((one) => one.id !== item.id);
+    return [others[0], video({ id: 'w' }), item, others[1], others[2]];
+  };
   try {
     for (const item of [shots()[0], video()]) {
       Object.assign(phone, standing);
-      const upright = targets((await open({ item, frames: [item] })).root);
+      const upright = targets((await open({ item, frames: beside(item) })).root);
       Object.assign(phone, { width: 844, height: 390 });
-      const sideways = targets((await open({ item, frames: [item] })).root);
+      const sideways = targets((await open({ item, frames: beside(item) })).root);
 
       // The same controls, in the same words, on the same job — only the geometry moved.
       expect(sideways.map((one) => one.name).sort()).toEqual(upright.map((one) => one.name).sort());
@@ -1138,14 +1172,31 @@ test('turned, the window keeps every name, role and 44 that it has standing', as
         if (one.height !== undefined)
           expect(one.height, `«${one.name}» is ${one.height} high`).toBeGreaterThanOrEqual(44);
       }
-      // And the strip's own frames keep the names and roles they had, at the sizes the layout draws:
-      // 26 wide turned against the standing 30, and none of them lost its role or its name.
-      const shots = sideways.filter(inStrip);
-      expect(shots.length).toBeGreaterThan(0);
-      for (const one of shots) {
+      // And the strip's own frames keep the names and roles they had, at the sizes the layout draws.
+      // Standing, a neighbour is 30 across and the frame in hand 44, so the strip is four neighbours
+      // and no current one; turned, the frame in hand is 38 and counts as one of the strip's five —
+      // the same layout gap said the other way round, and the reason the counts are pinned.
+      const stripUpright = upright.filter(inStrip);
+      const stripTurned = sideways.filter(inStrip);
+      expect(stripUpright).toHaveLength(4);
+      expect(stripTurned).toHaveLength(5);
+      for (const one of stripUpright) {
+        expect(one.role, one.name).toBe('button');
+        expect(one.name, 'a strip frame with no name').not.toBe('');
+        // 30 wide with the half of the gap either side of it — never less than the layout's own.
+        expect(one.width, one.name).toBeGreaterThanOrEqual(30);
+      }
+      for (const one of stripTurned) {
         expect(one.role, one.name).toBe('button');
         expect(one.name, 'a strip frame with no name').not.toBe('');
         if (one.width !== undefined) expect(one.width, one.name).toBeGreaterThanOrEqual(26);
+        // And here it is said rather than hidden: turned, the strip is short of 44 across, the
+        // neighbours at 28 and the frame in hand at 40. Those are `ViewerRotated*`'s own numbers
+        // and they are still the numbers — this is here so that a change to them cannot pass as
+        // «the 44 held anyway», which is what an empty neighbour list would have let it do.
+        expect(one.width, `«${one.name}» is ${one.width} wide`).toBeLessThan(44);
+        // It is still 44 tall, so it is only the distance across that a finger comes up short on.
+        expect(one.height, `«${one.name}» is ${one.height} high`).toBeGreaterThanOrEqual(44);
       }
     }
   } finally {

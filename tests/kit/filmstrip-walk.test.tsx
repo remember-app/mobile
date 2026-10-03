@@ -5,13 +5,15 @@ vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' 
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { FlatList, Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
-import { Filmstrip, type Frame } from '@/kit/filmstrip';
+import { Filmstrip, type Frame, STRIP_TURNED, type StripSize } from '@/kit/filmstrip';
 
 /**
- * Spec 7.7 — the strip under an open frame, as it walks. `filmstrip.test.tsx` draws its states; what
- * a story cannot say is when the strip moves: not before it has been laid out, once as a jump and
- * afterwards as a slide, and not at all because the frames it holds changed — which is the bug a
- * phone reported twice (TASK-106), and the reason it is pinned here as behaviour.
+ * Spec 7.7 — the strip under an open frame, as it walks and as it is walked. `filmstrip.test.tsx`
+ * draws its states; what a story cannot say is when the strip moves: not before it has been laid
+ * out, once as a jump and afterwards as a slide, and not at all because the frames it holds changed
+ * — which is the bug a phone reported twice (TASK-106), and the reason it is pinned here as
+ * behaviour. And what a finger does to it (TASK-474): the strip is the one horizontal scroll in the
+ * product, and a scroll that does not open anything is a row of thumbnails and nothing else.
  */
 
 mountsTrees();
@@ -172,4 +174,152 @@ test('a press on a frame of the strip names that frame, and a strip with nobody 
     tree.update(<Filmstrip frames={frames(3)} index={0} />);
   });
   expect(tree.root.findAllByType(Pressable).every((one) => one.props.disabled === true)).toBe(true);
+});
+
+/**
+ * A strip with somebody listening, and a finger on it. The strip is laid out 200 wide, which is
+ * narrower than the ten frames it holds and so leaves room to scroll it — a strip that fits cannot
+ * be walked, and the numbers below mean nothing against a strip that never moves.
+ *
+ * `flick` runs the whole touch, both of its ends: the lift and the glide that may follow it. A
+ * strip that answers both is a strip that opens two frames for one swipe.
+ */
+async function drawSettled(
+  index: number,
+  settle: ((at: number) => boolean) | undefined,
+  { size, count = 10, width = 200 }: { size?: StripSize; count?: number; width?: number } = {},
+) {
+  let tree!: TestRenderer.ReactTestRenderer;
+  await act(async () => {
+    tree = mounted(
+      TestRenderer.create(
+        <Filmstrip frames={frames(count)} index={index} onSettle={settle} size={size} />,
+      ),
+    );
+  });
+  const list = () => tree.root.findByType(FlatList).props as Record<string, (e?: unknown) => void>;
+  await act(async () =>
+    tree.root.findByType(FlatList).props.onLayout({ nativeEvent: { layout: { width } } }),
+  );
+  scrollToIndex.mockClear();
+  return {
+    scrollToIndex,
+    /** A finger that begins on the strip, walks it to `x` and lets go — `flicked` with a glide. */
+    flick: async (x: number, flicked = false) => {
+      const at = { nativeEvent: { contentOffset: { x } } };
+      await act(async () => list().onScrollBeginDrag());
+      if (flicked) await act(async () => list().onMomentumScrollBegin());
+      await act(async () => list().onScrollEndDrag(at));
+      await act(async () => list().onMomentumScrollEnd(at));
+    },
+  };
+}
+
+test('a finger that leaves the strip resting on a frame asks for that frame, and a flick asks once', async () => {
+  // TASK-474: the strip is the one horizontal scroll in the product, and a scroll that opens nothing
+  // is a row of thumbnails. Ten frames at 30 wide with a pitch of 32, the frame in hand 44: the
+  // fourth is 128 from the head and its middle 150, so 118 from the head stands the sixth in the
+  // middle of a strip 200 wide.
+  const asked: number[] = [];
+  const took = (at: number) => {
+    asked.push(at);
+    return true;
+  };
+  const strip = await drawSettled(4, took);
+  await strip.flick(118);
+  expect(asked).toEqual([6]);
+  // A frame the window took stands for itself — the strip is walked by the frame change itself, and
+  // the strip must not walk back over what it just asked for.
+  expect(strip.scrollToIndex).not.toHaveBeenCalled();
+});
+
+test('the frame a flick lands on is the one the glide came to rest on, not the one under the finger', async () => {
+  // A lift mid-flick is where the strip is that moment; the frame is whatever it coasts to. Asking on
+  // the lift alone opens the frame the finger passed over and stops the glide dead on it.
+  const asked: number[] = [];
+  const strip = await drawSettled(4, (at) => {
+    asked.push(at);
+    return true;
+  });
+  await strip.flick(118, true);
+  expect(asked).toEqual([6]);
+});
+
+test('a frame the window did not take puts the strip back on the frame in hand', async () => {
+  // A frame still being developed is refused — the strip must not stand centred over one nobody
+  // opened, and must not stay where the finger left it either.
+  const refused = await drawSettled(4, () => false);
+  await refused.flick(118);
+  expect(refused.scrollToIndex).toHaveBeenCalledWith({
+    index: 4,
+    viewPosition: 0.5,
+    animated: true,
+  });
+  // Nobody to tell at all is the same answer: the strip keeps its own frame.
+  const unheard = await drawSettled(4, undefined);
+  await unheard.flick(118);
+  expect(unheard.scrollToIndex).toHaveBeenCalledWith({
+    index: 4,
+    viewPosition: 0.5,
+    animated: true,
+  });
+});
+
+test('swiping past the first and the last frame does nothing, and the strip does not go into the empty', async () => {
+  // AC #3 of TASK-474. At either end the strip cannot scroll further, so the middle of it stands over
+  // a neighbour a few frames away — and read on its own that neighbour would be opened by a finger
+  // that only ever tried to go backwards. A touch that does not move the strip has chosen nothing.
+  for (const index of [0, 9]) {
+    const asked: number[] = [];
+    const strip = await drawSettled(index, (at) => {
+      asked.push(at);
+      return true;
+    });
+    // 200 wide against 332 of frames: 0 at the head, 132 at the tail — the only two places it rests
+    // on either of them.
+    await strip.flick(index === 0 ? 0 : 132);
+    expect(asked, String(index)).toEqual([]);
+    expect(strip.scrollToIndex, String(index)).not.toHaveBeenCalled();
+  }
+});
+
+test('a strip that fits is never walked by a finger, and a strip of one frame is not an error', async () => {
+  // Three frames of 30 stand in a strip 200 wide: there is nowhere to scroll to, so a finger on it
+  // has chosen nothing and must not ask for the frame its middle happens to fall on.
+  const asked: number[] = [];
+  const fits = await drawSettled(
+    0,
+    (at) => {
+      asked.push(at);
+      return true;
+    },
+    { count: 3 },
+  );
+  await fits.flick(0);
+  expect(asked).toEqual([]);
+  // One frame is a strip of one frame: the edge of both ends at once, and still nothing to ask.
+  const one = await drawSettled(0, () => true, { count: 1 });
+  await one.flick(0);
+  expect(one.scrollToIndex).not.toHaveBeenCalled();
+});
+
+test('a frame is read off the sizes the window handed the strip, standing or turned', async () => {
+  // TASK-475: the turned strip is 26 wide with a pitch of 28 and the frame in hand 38 — every
+  // distance in it is smaller, so a finger's resting place means a different point in the row.
+  const took = (asked: number[]) => (at: number) => {
+    asked.push(at);
+    return true;
+  };
+  const standing: number[] = [];
+  await (await drawSettled(4, took(standing))).flick(118);
+  const turned: number[] = [];
+  await (await drawSettled(4, took(turned), { size: STRIP_TURNED })).flick(93);
+  expect(standing).toEqual([6]);
+  // 93 of the turned strip, not 118: the same finger, the same frame, a narrower row.
+  expect(turned).toEqual([6]);
+  // And the frame in hand turned stands at 31, where the standing one stands at 50 — the strip
+  // rests where it put it either way, and a touch that did not move it asks nothing.
+  const held: number[] = [];
+  await (await drawSettled(4, took(held), { size: STRIP_TURNED })).flick(31);
+  expect(held).toEqual([]);
 });
