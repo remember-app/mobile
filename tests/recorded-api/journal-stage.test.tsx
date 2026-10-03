@@ -377,6 +377,14 @@ describe.each(SCENARIOS)('the body of a stage (%s)', (scenario) => {
     expect(text).toContain(`${row.outcome.percent}%`);
     expect(text).toContain(formatRuntime(row.outcome.seconds ?? null));
     expect(text).toContain(ru.montage.journal.length);
+    // A film that is put together says so over its own figure, and the notice and the way to watch
+    // it stand under the substeps.
+    expect(text).toContain(ru.montage.journal.ready);
+    expect(text).toContain(ru.montage.journal.noticeSent);
+    expect(
+      root.findAllByType(Button).find((one) => one.props.label === ru.montage.journal.watchMovie),
+    ).toBeDefined();
+
     // The substeps, in the order the worker walks them, each under its own word.
     const steps = root.findAllByType(RowStep).map((one) => one.props);
     expect(steps).toHaveLength(row.outcome.steps?.length ?? 0);

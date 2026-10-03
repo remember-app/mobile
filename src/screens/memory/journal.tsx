@@ -86,6 +86,8 @@ export type StageBody = {
   /** The reasons under «Не взял», folded away until they are asked for. */
   openPasses: boolean;
   onOpenPasses: () => void;
+  /** The way from a finished assembly to the film itself. */
+  onWatch: () => void;
 };
 
 /**
@@ -498,7 +500,7 @@ function Music({ stage, how, entries, montage, stages }: StageBody) {
  * it is on, the figures of what came out, the card «Сейчас», and the substeps that are already
  * done. A finished assembly adds the notice that went out and the way to watch the film.
  */
-function Assembly({ stage, how, entries, montage }: StageBody) {
+function Assembly({ stage, how, entries, montage, onWatch }: StageBody) {
   const s = useStrings();
   const j = s.montage.journal;
   const progress = assemblyProgress(stage, s);
@@ -514,8 +516,10 @@ function Assembly({ stage, how, entries, montage }: StageBody) {
         {progress ? (
           <>
             <Text role="figure">{`${progress.percent}%`}</Text>
+            {/* What the figure is: the substep under it while the work goes on, and the one word
+                that says there is nothing left to do once it does. */}
             <Text role="metaSm" tone="muted">
-              {progress.step ?? j.gluing}
+              {how === 'done' ? j.ready : (progress.step ?? j.gluing)}
             </Text>
           </>
         ) : null}
@@ -549,6 +553,17 @@ function Assembly({ stage, how, entries, montage }: StageBody) {
           ))}
         </BlockJournal>
       )}
+
+      {/* A film that is put together: the notice has gone out and the film itself is one press away.
+          Whom it went to is not the screen's business — the api sends it, not the app. */}
+      {how === 'done' ? (
+        <BlockJournal>
+          <Text role="metaSm" tone="muted">
+            {j.noticeSent}
+          </Text>
+          <Button wide label={j.watchMovie} onPress={onWatch} />
+        </BlockJournal>
+      ) : null}
     </>
   );
 }

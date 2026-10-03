@@ -185,6 +185,7 @@ export default function JournalStageScreen() {
       onOpenEntry={setOpenEntry}
       openPasses={openPasses}
       onOpenPasses={() => setOpenPasses((was) => !was)}
+      onWatch={film}
     />
   );
 
