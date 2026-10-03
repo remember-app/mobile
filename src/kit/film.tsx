@@ -63,9 +63,11 @@ export function FilmStageLine({
         <Text role="section" style={styles.name}>
           {name}
         </Text>
-        <Text role="timecode" tone="muted">
-          {stageOf}
-        </Text>
+        {stageOf ? (
+          <Text role="timecode" tone="muted">
+            {stageOf}
+          </Text>
+        ) : null}
         <View style={styles.grow} />
         {right ? (
           <Text role="meta" style={stopped ? styles.stopped : null}>
@@ -73,7 +75,9 @@ export function FilmStageLine({
           </Text>
         ) : null}
       </View>
-      <FilmStageScale of={of} done={done} share={share} stopped={stopped} label={stageOf} />
+      {stageOf ? (
+        <FilmStageScale of={of} done={done} share={share} stopped={stopped} label={stageOf} />
+      ) : null}
     </View>
   );
 }

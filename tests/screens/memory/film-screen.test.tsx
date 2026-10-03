@@ -25,7 +25,7 @@ import { AppState } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import type { Member, Montage, MontageJournal, MontageStage } from '@/api';
 import FilmScreen from '@/app/memory/[id]/montage/[montageId]/index';
-import { Banner, Button } from '@/kit';
+import { Banner, Button, FilmStageList } from '@/kit';
 import { WHILE_LIVE_MS } from '@/lib/montage/journal';
 import { ru } from '@/strings';
 
@@ -199,8 +199,11 @@ test('в очереди: место в очереди и что заказано
   // The story the organizer typed, and the promise that watching is not required.
   expect(page).toContain('Для бабушек и дедушек');
   expect(page).toContain('Можно закрыть экран');
-  // Nobody has started yet: no stage at all, and the list says so rather than showing five zeroes.
+  // Nobody has started yet: no stage at all. Not five rows of «не начался», and not an outlined
+  // card with nothing in it either — a thing on the screen that stands for nothing is not a thing.
   expect(page).not.toContain('Этап 1 из 5');
+  expect(page).not.toContain('не начался');
+  expect(tree.root.findAllByType(FilmStageList)).toHaveLength(0);
   expect(log.some((one) => one.path.includes('/journal'))).toBe(true);
 });
 

@@ -275,29 +275,32 @@ export default function FilmScreen() {
       ) : null}
 
       {/* The five, as they stand. A film the worker has not taken yet has none of them, and the list
-          says nothing at all rather than five rows of nothing. */}
-      <FilmStageList>
-        {journal.stages.map((stage, i) => (
-          <Fragment key={stage.stage}>
-            {i > 0 ? <FilmStageDivider /> : null}
-            <RowFilmStage
-              at={stageNumber(stage.stage)}
-              title={s.montage.stage[stage.stage]}
-              meta={stageLine(stage, s)}
-              state={
-                stage.state === 'failed'
-                  ? 'failed'
-                  : stage.state === 'running'
-                    ? 'running'
-                    : stage.state === 'done'
-                      ? 'done'
-                      : 'waiting'
-              }
-              onPress={() => toStage(stage.stage)}
-            />
-          </Fragment>
-        ))}
-      </FilmStageList>
+          is not drawn at all rather than drawn empty — an outlined card with nothing in it is a
+          thing on the screen that stands for nothing. */}
+      {journal.stages.length === 0 ? null : (
+        <FilmStageList>
+          {journal.stages.map((stage, i) => (
+            <Fragment key={stage.stage}>
+              {i > 0 ? <FilmStageDivider /> : null}
+              <RowFilmStage
+                at={stageNumber(stage.stage)}
+                title={s.montage.stage[stage.stage]}
+                meta={stageLine(stage, s)}
+                state={
+                  stage.state === 'failed'
+                    ? 'failed'
+                    : stage.state === 'running'
+                      ? 'running'
+                      : stage.state === 'done'
+                        ? 'done'
+                        : 'waiting'
+                }
+                onPress={() => toStage(stage.stage)}
+              />
+            </Fragment>
+          ))}
+        </FilmStageList>
+      )}
 
       {state === 'queued' || state === 'building' || state === 'offline' ? (
         <FilmCloseNote text={s.montage.filmScreen.closeNote} />
