@@ -180,7 +180,6 @@ export default function FilmScreen() {
   const held = stageInHand(journal.stages, s);
   const stopped = journal.stages.find((stage) => stage.state === 'failed') ?? null;
   const reached = behind(journal.stages);
-  const organizer = memory?.role === 'organizer';
 
   const toStage = (code: MontageStage['stage']) =>
     router.push({
