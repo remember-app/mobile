@@ -136,6 +136,7 @@ describe('pull — reading it live', () => {
       id: 'f1',
       kind: 'video' as const,
       uploaded_by: 'u1',
+      file_name: 'VID_0412.MOV',
       captured_at: null,
       duration_seconds: 12.5,
       thumbnail_url: null,

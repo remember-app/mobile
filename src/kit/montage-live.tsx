@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { Play, Sparkles } from 'lucide-react-native';
+import { Play } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import {
   Animated,
@@ -13,6 +13,7 @@ import {
 
 import { photo, radius, space, themed, useTheme } from '@/theme';
 
+import { SparkMark } from './bits';
 import { Icon } from './icon';
 import { PRESS, useFocusRing, useHoverFocus, useLoop, useReducedMotion } from './interaction';
 import { Text } from './text';
@@ -110,21 +111,6 @@ function Cursor() {
         { opacity: beat.interpolate({ inputRange: [0, 0.49, 0.5, 1], outputRange: [1, 1, 0, 0] }) },
       ]}
     />
-  );
-}
-
-/**
- * The `spark` 22 with the sparkle in it — the director, wherever they speak: on the card «Сейчас»
- * and in the plate of a thought alike (spec detail 50: one plate, the 22 with a 12 at 2.4).
- */
-function SparkMark() {
-  const { color } = useTheme();
-  const styles = useStyles();
-
-  return (
-    <View style={styles.sparkMark}>
-      <Icon icon={Sparkles} size={12} stroke={2.4} color={color.sparkInk} />
-    </View>
   );
 }
 
@@ -408,16 +394,8 @@ const useStyles = themed(({ color }) =>
     // 10 in from the frame's top corners (detail 49). No gap across: the two stand at the two ends,
     // and «СЕЙЧАС» goes under the author's only where the two would otherwise run into each other.
     onPhoto: { color: photo.on },
-    // The cursor at the end of a thought still arriving, and the plate's own `spark` circle — both
-    // belong to every plate that says a thought, on the journal screen as much as anywhere.
-    sparkMark: {
-      width: 22,
-      height: 22,
-      borderRadius: radius.pill,
-      backgroundColor: color.spark,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
+    // The cursor at the end of a thought still arriving — the `spark` circle it sits inside is
+    // `SparkMark` in `bits.tsx`, which every plate that says a thought shares.
     cursor: { width: 2, height: 15, marginLeft: 2, backgroundColor: color.spark },
     plateNote: {
       flexDirection: 'row',

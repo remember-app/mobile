@@ -566,6 +566,176 @@ export const en = {
     tooLittleText: (n: number) =>
       `This memory has ${n} ${n === 1 ? 'frame' : 'frames'} — there is no story in that. Add a few more photos or videos and the order goes through.`,
     later: 'Later',
+
+    /**
+     * The journal of one stage of the making (spec 8, `Journal*`) — one screen in four states,
+     * saying what the stage did and why. The names of the five are `stage` above and what the
+     * worker is doing on each is `filmScreen.at`; these are the words that only the journal says.
+     */
+    journal: {
+      /** The bar's way back: the screen of the film, in whatever state it is in now. */
+      toFilm: 'To the movie',
+
+      /**
+       * The summary block's first line — what the stage is doing while it runs, and what it came to
+       * once it is behind. One clause each, out of the table of the five in the spec.
+       */
+      does: {
+        prep: 'Downloading the frames of the order',
+        analysis: 'Describing new frames',
+        directing: 'Building the story',
+        music: 'Fitting the cuts to the beat',
+        assembly: 'Putting the movie together',
+      },
+      came: {
+        prep: 'Every frame is ready for the analysis',
+        analysis: 'Every frame is described',
+        directing: 'The story is ready',
+        music: 'Fitting the cuts to the beat',
+        assembly: 'The movie is put together',
+      },
+      /**
+       * What each stage counts, under its own figure: «120 из 214 кадров», «64 из 120 описано».
+       * Each says what that stage does to a frame and no two say the same.
+       */
+      counts: {
+        prep: 'frames',
+        analysis: 'described',
+        directing: 'sorted',
+        music: 'cuts',
+        assembly: 'cuts',
+      },
+      /** The estimate over a stage that is still at it. */
+      leftAbout: (minutes: number) => `≈ ${minutes} min left`,
+      /** «61 из 214» on its own, where a stage has one figure and not a tile of them. */
+      of: (done: number, of: number) => `${done}/${of}`,
+
+      /** The preparation's two counters, and the order's own shape under them. */
+      frames: (n: number) => `${n} ${n === 1 ? 'frame' : 'frames'}`,
+      photos: 'Photos',
+      videos: 'Videos',
+      inOrder: 'In the order',
+      totalVideo: 'all the video',
+      size: 'Size',
+      mb: 'MB',
+      gb: 'GB',
+      /** «Кто прислал» — and how many of them there are. */
+      whoBrought: 'Who brought them',
+      bringers: (n: number) => `${n} ${n === 1 ? 'participant' : 'participants'}`,
+      /** Under preparation: frames uploaded after the order are not in this film. */
+      lateNote:
+        'Frames uploaded after the order will not go into this movie — the next one will take them',
+
+      /** The analysis's line about what was taken ready-made out of past films. */
+      earlierNote: (n: number) =>
+        `${n} more ${n === 1 ? 'frame is' : 'frames are'} described in past movies — taking those`,
+      /** The three tiles over a finished analysis, and what each of them counts. */
+      describedNow: 'described now',
+      ofEarlier: 'from past ones',
+      peopleFound: 'people found',
+      /** The block of the descriptions, and the line over the ones already said. */
+      described: 'Descriptions',
+      /** The same block while the stage is still running: these are the ones just written. */
+      describedLast: 'The latest',
+      describedQuieter: 'quieter — described earlier',
+      describedEarlier: 'described earlier',
+      /** The card of one frame, and the fields it was described in. */
+      whatHappens: 'What happens',
+      whoInFrame: 'Who is in the frame',
+      place: 'Place',
+      light: 'Time and light',
+      mood: 'Mood',
+      shot: 'Shot',
+      camera: 'Camera',
+      speech: 'Speech',
+      moments: 'Best moments',
+      comments: 'Comments',
+      /** Comments are a feature the product has not built yet, so the block is always this. */
+      noCommentsYet: 'nobody has written yet',
+      inFull: 'The full description',
+      /** «всего 14 человек» in the head of «Кто в кадре». */
+      peopleTotal: (n: number) => `${n} ${n === 1 ? 'person' : 'people'} in all`,
+      nobody: 'nobody',
+      /**
+       * What the worker's marks on a frame are called once they are words — «человек-1» and
+       * «животное-1» arrive off the wire as codes (`@/lib/montage/journal`, «Кто в кадре») and are
+       * the app's to say from here on.
+       */
+      personLabel: (n: number) => `Person ${n}`,
+      animalLabel: (n: number) => `Animal ${n}`,
+
+      /** The directing block: the thought, the parts of the story, and what was not taken. */
+      directorThought: "The director's thought",
+      /** The eyebrow of a part of the story — «ЧАСТЬ 2», and «· СОБИРАЕТСЯ» while it is cut. */
+      partLabel: (n: number) => `PART ${n}`,
+      /** The button that opens the frames that were not taken. */
+      seeAll: 'See them',
+      /** The word after the number of the part being cut right now. */
+      building: 'BUILDING',
+      /** What the cross over an open card says. */
+      collapse: 'Fold',
+      /** A file the phone never named: the card then says what it is and who brought it. */
+      noName: 'The frame',
+      /** The part's own line, and the one planned but with nothing in it yet. */
+      partNotYet: 'not put together yet',
+      /** «+15» — the frames of a part behind the stack, folded into one number. */
+      moreIn: (n: number) => `+${n}`,
+      notTaken: 'Not taken into the story',
+      notTakenNote: (n: number) => `${n} ${n === 1 ? 'frame stays' : 'frames stay'} in the memory`,
+      /** The chip over the reasons: all of them, then one per reason the worker gave. */
+      allTaken: 'All',
+
+      /** The music block: the track, the tape of cuts, and the two shares of sound. */
+      cutsToBeat: 'Fitting the cuts to the beat',
+      cutsBySense: 'Fitting the cuts by sense',
+      /** The line over the tape, saying what the white ticks on it are. */
+      ticksAreCuts: 'The white ticks are the cuts',
+      noMusicTitle: 'No music',
+      noMusicNote: 'The live sound of the frames',
+      noMusicText:
+        'This is how it was chosen at the order. The cuts go by sense and by the pauses in the speech, and the sound carries over from one frame to the next.',
+      musicShare: 'music',
+      liveShare: 'live sound',
+      /** Under a part that is still ahead: it is not mixed yet. */
+      yetAhead: 'yet to come',
+      /** The assembly block. */
+      gluing: 'gluing',
+      ready: 'ready',
+      length: 'length',
+      frame: 'frame',
+      cutsDone: 'cuts',
+      doneAlready: 'What is already done',
+      /** Under a finished assembly: the notice has gone out, and the way to watch. */
+      noticeSent: 'The notice has been sent',
+      watchMovie: 'Watch the movie',
+      /** The substeps of the assembly, by the codes the worker writes them under. */
+      steps: {
+        clips: 'gluing the pieces',
+        sound: 'mixing the sound by part',
+        cover: 'choosing the cover',
+        file: 'the file of the movie',
+      },
+
+      /** The one screen a stage that has not begun wears, whatever the stage is. */
+      notStartedTitle: 'This stage has not begun',
+      /** Under it — the stage running now, so the road is not a dead end. */
+      notStartedText: (now: string) =>
+        `It will open by itself once the making gets to it. Right now it is “${now}”.`,
+      /** The row button under it, leading to the stage in hand. */
+      watchStage: (name: string) => `Watch “${name}”`,
+      /** Where no stage is running at all yet — the worker has not opened the first one. */
+      notStartedQuiet: 'It will open by itself once the making gets to it.',
+
+      /** The one screen a stage that stopped wears, whatever the stage is. */
+      stoppedTitle: 'This stage stopped',
+      /** Under the reason: nothing is lost. */
+      stoppedNote: 'The stages it got through and the order are where they were.',
+      /** A reason the dictionary has no word for — the app's own general phrase. */
+      stoppedOther: 'Something went wrong on our side.',
+
+      /** «Вас больше нет в этом воспоминании» — the api's 404, said by the journal too. */
+      gone: 'You are no longer in this memory',
+    },
   },
 };
 
@@ -891,5 +1061,124 @@ export const ru: typeof en = {
     tooLittleText: (n: number) =>
       `В воспоминании ${count(n, 'кадр', 'кадра', 'кадров')} — из них истории не выйдет. Добавьте ещё несколько фото или видео, и заказ пройдёт.`,
     later: 'Позже',
+
+    journal: {
+      toFilm: 'К ролику',
+
+      does: {
+        prep: 'Скачиваем кадры заказа',
+        analysis: 'Описываем новые кадры',
+        directing: 'Строим историю',
+        music: 'Склейки под ритм',
+        assembly: 'Собираем ролик',
+      },
+      came: {
+        prep: 'Все кадры готовы к анализу',
+        analysis: 'Все кадры описаны',
+        directing: 'История готова',
+        music: 'Склейки под ритм',
+        assembly: 'Ролик собран',
+      },
+      counts: {
+        prep: 'кадров',
+        analysis: 'описано',
+        directing: 'разобрано',
+        music: 'склеек',
+        assembly: 'склеек',
+      },
+      leftAbout: (minutes: number) => `≈ ${minutes} мин осталось`,
+      of: (done: number, of: number) => `${done}/${of}`,
+
+      frames: (n: number) => count(n, 'кадр', 'кадра', 'кадров'),
+      photos: 'Фото',
+      videos: 'Видео',
+      inOrder: 'Что в заказе',
+      totalVideo: 'всего видео',
+      size: 'объём',
+      mb: 'МБ',
+      gb: 'ГБ',
+      whoBrought: 'Кто прислал',
+      bringers: (n: number) => `${count(n, 'участник', 'участника', 'участников')}`,
+      lateNote: 'Кадры, загруженные после заказа, в этот ролик не войдут — их возьмёт следующий',
+
+      earlierNote: (n: number) =>
+        `Ещё ${count(n, 'кадр', 'кадра', 'кадров')} описаны в прошлых роликах — берём готовое`,
+      describedNow: 'описано сейчас',
+      ofEarlier: 'из прошлых',
+      peopleFound: 'найдено людей',
+      described: 'Описания',
+      describedLast: 'Последние',
+      describedQuieter: 'тише — описаны раньше',
+      describedEarlier: 'описан ранее',
+      whatHappens: 'Что происходит',
+      whoInFrame: 'Кто в кадре',
+      place: 'Место',
+      light: 'Время и свет',
+      mood: 'Настроение',
+      shot: 'План',
+      camera: 'Камера',
+      speech: 'Речь',
+      moments: 'Лучшие моменты',
+      comments: 'Комментарии',
+      noCommentsYet: 'пока никто не написал',
+      inFull: 'Подробное описание',
+      peopleTotal: (n: number) => `всего ${count(n, 'человек', 'человека', 'человек')}`,
+      nobody: 'никого',
+      /**
+       * Метки воркера приходят кодами («человек-1», «животное-1») — как их называть у нас,
+       * решено здесь, а не на стороне воркера.
+       */
+      personLabel: (n: number) => `Человек ${n}`,
+      animalLabel: (n: number) => `Животное ${n}`,
+
+      directorThought: 'Мысль режиссёра',
+      partLabel: (n: number) => `ЧАСТЬ ${n}`,
+      seeAll: 'Все',
+      building: 'СОБИРАЕТСЯ',
+      collapse: 'Свернуть',
+      noName: 'Кадр',
+      partNotYet: 'ещё не собрана',
+      moreIn: (n: number) => `+${n}`,
+      notTaken: 'Не взял в историю',
+      notTakenNote: (n: number) => `${count(n, 'кадр', 'кадра', 'кадров')} остаются в воспоминании`,
+      allTaken: 'Все',
+
+      cutsToBeat: 'Склейки под ритм',
+      cutsBySense: 'Склейки по смыслу',
+      ticksAreCuts: 'Белые штрихи — склейки',
+      noMusicTitle: 'Без музыки',
+      noMusicNote: 'Звучит живой звук кадров',
+      noMusicText:
+        'Так выбрали в заказе. Склейки идут по смыслу и паузам в речи, звук между кадрами перетекает плавно.',
+      musicShare: 'музыка',
+      liveShare: 'живой звук',
+      yetAhead: 'ещё впереди',
+      gluing: 'склеиваем',
+      ready: 'готово',
+      length: 'длина',
+      frame: 'кадр',
+      cutsDone: 'склеек',
+      doneAlready: 'Что уже сделано',
+      noticeSent: 'Уведомление отправлено',
+      watchMovie: 'Смотреть ролик',
+      steps: {
+        clips: 'Склеиваем куски',
+        sound: 'Звук сведён по частям',
+        cover: 'Обложка выбрана',
+        file: 'Финальный файл ролика',
+      },
+
+      notStartedTitle: 'Этап ещё не начался',
+      notStartedText: (now: string) =>
+        `Откроется сам, когда сборка до него дойдёт. Сейчас идёт «${now}».`,
+      watchStage: (name: string) => `Смотреть «${name}»`,
+      notStartedQuiet: 'Откроется сам, когда сборка до него дойдёт.',
+
+      stoppedTitle: 'Этап остановился',
+      stoppedNote: 'Пройденные этапы и заказ на месте.',
+      stoppedOther: 'Что-то пошло не так на нашей стороне.',
+
+      gone: 'Вас больше нет в этом воспоминании',
+    },
   },
 };

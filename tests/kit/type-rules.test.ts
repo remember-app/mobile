@@ -92,6 +92,9 @@ const HELD: Record<string, string> = {
   'kit/card-montage.tsx › scrubPill': '«готов» on the poster',
   // The 26 ring at the head of a stage row — the one that holds the number while the stage waits.
   'kit/film.tsx › stageMark': 'the ring of a stage row',
+  // The 44 picture of a frame in the journal, and the 22 ring the assembly's substeps stand in.
+  'kit/journal.tsx › shot': 'a 44 frame',
+  'kit/journal.tsx › stepMark': 'the ring of a substep, the number while it waits',
 };
 
 type File = {
@@ -215,6 +218,9 @@ const CUT: Record<string, number> = {
   // What a stage came to, two lines under its name in the row (spec 8, `RowFilmStage`) — whole in
   // the journal of that stage, which is the one press further.
   'kit/film.tsx': 1,
+  // The name of a stage in the pair of buttons at the foot of its own journal: the two are a pair of
+  // shares of one row, and a name that wrapped would make one of them taller than the other.
+  'kit/journal.tsx': 1,
 };
 
 test('words that carry sense are never cut to a count of lines, but for the lines the spec cuts', () => {
@@ -244,8 +250,10 @@ const FAINT: Record<string, number> = {
   'kit/member.tsx': 4,
   'kit/field.tsx': 1,
   // The number of a stage nobody has come to, in the ring its row waits in: a number in a circle is
-  // what «ждёт» looks like, and the five waiting rows must not be five identical grey rings.
+  // what «ждёт» looks like, and the five waiting rows must not be five identical grey rings. The
+  // substeps of an assembly wait the same way, in the same ring.
   'kit/film.tsx': 1,
+  'kit/journal.tsx': 1,
 };
 
 test('words that are read are never `faint`', () => {

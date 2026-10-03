@@ -344,6 +344,12 @@ export type MontageStageOutcome = {
   tracks?: string[];
   bpm?: number;
   /**
+   * `music` — where the cuts stand in the film, in seconds and in order. The white ticks on the
+   * tape of the music journal, so it is the places and not the count; the count is the stage's own
+   * `total_count`.
+   */
+  cut_seconds?: number[];
+  /**
    * `assembly` — the cuts and the running time of what came out, plus the substeps the worker
    * walks and how far through the whole assembly it is.
    */

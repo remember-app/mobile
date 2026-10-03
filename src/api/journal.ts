@@ -28,7 +28,45 @@ export type JournalEntry = {
   labels: string[] | null;
   /** Where on the frame the director is looking, in fractions of it — never in pixels. */
   focus: { x: number; y: number; w: number; h: number } | null;
+  /**
+   * What the record says beyond its own columns, and its shape is the stage's own (api
+   * `docs/journal.md`, «Запись журнала»): the fields a frame was described in at `analysis`, the two
+   * shares of sound in a part of the story at `music`, and nothing anywhere else.
+   *
+   * Free-form on the wire and free-form here, for the reason the api's own column is: each stage
+   * writes its own keys and the app reads the ones it has words for. {@link JournalDetails} names
+   * the keys the api documents; a key that is not in it simply is not drawn.
+   */
+  details: JournalDetails | null;
   created_at: string;
+};
+
+/**
+ * The `details` of a record, as the api documents it. Every key may be absent — the worker is not
+ * obliged to say everything about every frame — so nothing here is required and a missing key is a
+ * field the screen does not draw, never a zero.
+ */
+export type JournalDetails = {
+  /** `analysis` — the description was taken ready-made out of a past film. */
+  earlier?: boolean;
+  /** `analysis` — how many people are in the frame. */
+  people?: number;
+  /** `analysis` — the place, the light and the time, the mood, the shot the camera took. */
+  place?: string;
+  light?: string;
+  mood?: string;
+  shot?: string;
+  /** `analysis`, a clip only — how the camera moves, and what is said over it. */
+  camera?: string;
+  speech?: string;
+  /** `analysis`, a clip only — where in it the good moments are and what happens at each. */
+  moments?: { seconds: number; text: string }[];
+  /** `analysis` — the long description, in free text. */
+  text?: string;
+  /** `music` — how much of the music is heard in this part of the story, 0…1. */
+  music?: number;
+  /** `music` — how much of the frames' own sound, 0…1. The two never add up to one. */
+  live?: number;
 };
 
 /**
@@ -41,6 +79,8 @@ export type JournalFile = {
   id: string;
   kind: MediaItem['kind'];
   uploaded_by: string;
+  /** The name off the phone — «IMG_2041.MOV», and empty where the upload never brought one. */
+  file_name: string | null;
   captured_at: string | null;
   /** How long the file itself runs — not to be read as the length of a place below. */
   duration_seconds: number | null;

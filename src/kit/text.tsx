@@ -73,6 +73,7 @@ export const HEADING_MOST: Partial<Record<TypeRole, number>> = {
   barTitle: 1,
   barTitleLive: 1,
   pillTitle: 1,
+  stageName: 1,
 };
 
 /**
