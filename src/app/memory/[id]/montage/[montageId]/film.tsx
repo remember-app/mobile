@@ -278,7 +278,9 @@ export default function FilmScreen() {
         left={
           <IconButton
             icon={ChevronLeft}
-            label={s.mine.back}
+            // Spec 8, `FilmReady`: on a finished film «Назад» leads to the memory, not back to
+            // where it was opened from — the making is over and there is nothing behind this to go back to.
+            label={s.montage.filmScreen.backToMemory}
             tone="glass"
             size={height.roundViewer}
             onPress={back}
