@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import { Sparkles } from 'lucide-react-native';
 import { Children, type ReactNode, useRef, useState } from 'react';
 import {
   Animated,
@@ -12,6 +13,7 @@ import {
 
 import { night, photo, radius, space, themed, useTheme } from '@/theme';
 
+import { Icon } from './icon';
 import { useReach } from './interaction';
 import { Text, useWordRoom, WordRoom } from './text';
 
@@ -117,22 +119,46 @@ export function LiveDot({ style }: { style?: StyleProp<ViewStyle> }) {
 }
 
 /**
+ * The `spark` 22 with the sparkle in it — the director, wherever they speak: on the card «Сейчас»
+ * and over the thought of the journal of a stage alike (spec detail 50: one mark, the 22 with a 12
+ * at 2.4).
+ */
+export function SparkMark({ style }: { style?: StyleProp<ViewStyle> }) {
+  const { color } = useTheme();
+  const styles = useStyles();
+  return (
+    <View
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={[styles.sparkMark, style]}
+    >
+      <Icon icon={Sparkles} size={12} stroke={2.4} color={color.sparkInk} />
+    </View>
+  );
+}
+
+/**
  * The wizard's step scale: equal 3px segments with 6 between them. The passed ones and the current
  * one are `accent`; the future ones are `line`.
  *
  * `tone="spark"` is the five-segment variant on the card of a montage being built, where what is
  * done is done rather than in hand — `spark` behind, `accent` on the one running now.
  *
- * `tone="paper"` is the onboarding's one progress (spec 7.1, detail 75): 4px, what is walked and
- * where the person stands in `paper` — «where I am», neither work nor the main action. It is the one
- * scale that stays on the screen while the steps change under it, so its fill moves (spec 6): the
- * next segment fills left to right, a jump fills every segment it passes in one movement, and a step
- * back empties the one it left the same way back.
+ * `tone="paper"` is the one progress that says where a person stands rather than what work is done
+ * (spec 7.1, detail 75): 4px, what is walked in `paper`, what is ahead in `line`. It stands on the
+ * way in and over the journal of a stage — the two places where the answer is «где я», and never
+ * `accent` or `spark`, which are work and the main action. It is the one scale that stays while the
+ * steps change under it, so its fill moves (spec 6): the next segment fills left to right, a jump
+ * fills every segment it passes in one movement, and a step back empties the one it left the same
+ * way back.
+ *
+ * `stopped` puts the segment in `dangerText` — the one state with no more of the making behind it.
  */
 export function StepScale({
   steps,
   done,
   tone = 'accent',
+  stopped,
   label,
   style,
 }: {
@@ -140,6 +166,8 @@ export function StepScale({
   /** How many are behind, the current one included. */
   done: number;
   tone?: 'accent' | 'spark' | 'paper';
+  /** The segment in hand is the one that stopped; it goes in `dangerText` rather than in `paper`. */
+  stopped?: boolean;
   /** For a screen reader: «Шаг 3 из 5». The segments are not read one by one. */
   label?: string;
   style?: StyleProp<ViewStyle>;
@@ -161,6 +189,7 @@ export function StepScale({
             <Animated.View
               style={[
                 styles.scaleFill,
+                i === done - 1 && stopped ? styles.scaleStopped : null,
                 {
                   width: reach.interpolate({
                     inputRange: [i, i + 1],
@@ -406,10 +435,20 @@ const useStyles = themed(({ color }) =>
     dot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: color.lineStrong },
     dotOnPhoto: { backgroundColor: photo.dot },
     live: { width: 6, height: 6, borderRadius: 3, backgroundColor: color.danger },
+    sparkMark: {
+      width: 22,
+      height: 22,
+      borderRadius: radius.pill,
+      backgroundColor: color.spark,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     scale: { flexDirection: 'row', gap: 6 },
     scaleStep: { flex: 1, height: 3, borderRadius: radius.pill, backgroundColor: color.line },
-    scaleStepPaper: { height: 4, overflow: 'hidden' },
+    // Detail 75: 4px, and the segment ahead is `line` — the track the paper fill is drawn over.
+    scaleStepPaper: { height: 4, backgroundColor: color.line, overflow: 'hidden' },
     scaleFill: { height: '100%', borderRadius: radius.pill, backgroundColor: color.paper },
+    scaleStopped: { backgroundColor: color.dangerText },
     scaleAccent: { backgroundColor: color.accent },
     scaleSpark: { backgroundColor: color.spark },
     track: {

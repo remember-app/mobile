@@ -35,6 +35,7 @@ export * from './film';
 export * from './filmstrip';
 export * from './icon';
 export * from './interaction';
+export * from './journal';
 export * from './label';
 export * from './member';
 export * from './menu';

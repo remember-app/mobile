@@ -59,6 +59,8 @@ export type Color = {
   danger: string;
   /** dangerous text and a dangerous glyph */
   dangerText: string;
+  /** `dangerText` laid on thin — the circle the sign of a stopped stage stands in (`Journal*`). */
+  dangerTextSoft: string;
   /** the fill of an irreversible button */
   dangerFill: string;
   /** read on `accent` and on `dangerFill` */
@@ -120,6 +122,7 @@ const dark: Color = {
   sparkInk: '#14160A',
   danger: '#FF5A5A',
   dangerText: '#FF8D8D',
+  dangerTextSoft: 'rgba(255,141,141,0.12)',
   dangerFill: '#CE3028',
   onFill: '#FFFFFF',
   dashed: '#35333F',
@@ -184,6 +187,7 @@ const light: Color = {
   danger: '#D93A3A',
   // The spec's `dangerTextOnLight` — the day's danger is too bright to be read at 13px.
   dangerText: '#A82C2C',
+  dangerTextSoft: 'rgba(168,44,44,0.12)',
   dangerFill: '#CE3028',
   onFill: '#FFFFFF',
   dashed: '#D3CCBB',
