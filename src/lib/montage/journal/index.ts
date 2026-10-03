@@ -7,6 +7,7 @@
 // all of the arithmetic here runs without a phone, and the two screens of the milestone (the live
 // one and the finished one) read the same journal through the same hook.
 
+export * from './film';
 export * from './live';
 export * from './reading';
 export * from './stages';

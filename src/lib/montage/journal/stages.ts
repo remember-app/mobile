@@ -132,7 +132,11 @@ export function stageLine(
   s: Strings,
   now: number = Date.now(),
 ): string | undefined {
-  const { live } = s.montage;
+  const { filmScreen, live } = s.montage;
+  // A stage nobody has come to says nothing about the making — and on the screen of a film that
+  // stopped, the one behind the stopped stage says so in its own words rather than «неизвестно».
+  if (stage.state === 'pending') return filmScreen.notStarted;
+
   const minutes = stageMinutes(stage, now);
   const spent =
     minutes === null
@@ -140,10 +144,29 @@ export function stageLine(
       : stage.state === 'running'
         ? live.running(minutes)
         : live.minutes(minutes);
+  // The stage that stopped says why, and says it in danger; its own time is not what anybody wants
+  // to read here — the reason is.
+  if (stage.state === 'failed') {
+    return filmScreen.stoppedBecause(stoppedWord(stage, s));
+  }
   const parts = [cameOf(stage, s) ?? soFar(stage, s), spent].filter(
     (part): part is string => part !== undefined,
   );
   return parts.length === 0 ? undefined : parts.join(' · ');
+}
+
+/**
+ * Why the making stopped, in the app's own words (api `docs/journal.md`, «Остановка»). A code out of
+ * the dictionary is the general «сборка остановилась» rather than a code shown raw: the api says so
+ * itself of a reason it cannot name, and a film cut before the codes were fixed lands here too.
+ *
+ * Own keys only: the code comes off the wire, and `in` would hand `__proto__` back as an object for
+ * the screen to render.
+ */
+export function stoppedWord(stage: MontageStage | undefined, s: Strings): string {
+  const words = s.montage.live.stopped;
+  const code = stage?.outcome.stopped;
+  return code !== undefined && Object.hasOwn(words, code) ? words[code] : words.other;
 }
 
 /** What the stage says it came to, in the one clause its own keys can fill. */
@@ -158,13 +181,22 @@ function cameOf(stage: MontageStage, s: Strings): string | undefined {
       if (frames === null || came.photos === undefined || came.videos === undefined) {
         return undefined;
       }
-      return live.prepCame(frames, came.photos, came.videos, formatRuntime(came.video_seconds ?? null) ?? '');
+      return live.prepCame(
+        frames,
+        came.photos,
+        came.videos,
+        formatRuntime(came.video_seconds ?? null) ?? '',
+      );
     }
     case 'analysis':
-      return came.described === undefined ? undefined : live.analysisCame(came.described, came.earlier ?? 0);
+      return came.described === undefined
+        ? undefined
+        : live.analysisCame(came.described, came.earlier ?? 0);
     case 'directing': {
       const parts = came.parts?.length;
-      return parts === undefined ? undefined : live.directingCame(parts, came.frames ?? stage.taken_count);
+      return parts === undefined
+        ? undefined
+        : live.directingCame(parts, came.frames ?? stage.taken_count);
     }
     case 'music': {
       // A film with no music has nothing to lay out to: the stage still runs, and «0 склеек» would
@@ -172,7 +204,9 @@ function cameOf(stage: MontageStage, s: Strings): string | undefined {
       const tracks = came.tracks ?? came.track;
       if (tracks?.length === 0) return live.noTrack;
       const name = tracks?.[0];
-      return name === undefined ? undefined : live.musicCame(name, came.bpm ?? null, stage.total_count);
+      return name === undefined
+        ? undefined
+        : live.musicCame(name, came.bpm ?? null, stage.total_count);
     }
     case 'assembly':
       return came.seconds === undefined ? undefined : formatRuntime(came.seconds);
@@ -265,7 +299,10 @@ export function howMade(
   const three = [
     { figure: of('prep')?.total_count ?? undefined, label: live.watched },
     { figure: of('directing')?.taken_count ?? undefined, label: live.tookIn },
-    { figure: of('assembly')?.outcome.cuts ?? undefined, label: live.glued(of('assembly')?.outcome.cuts ?? 0) },
+    {
+      figure: of('assembly')?.outcome.cuts ?? undefined,
+      label: live.glued(of('assembly')?.outcome.cuts ?? 0),
+    },
   ];
   return three.filter(
     (tile): tile is { figure: number; label: string } => tile.figure !== undefined,

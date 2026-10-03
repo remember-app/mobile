@@ -1,6 +1,7 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Clock, Pause, RotateCcw } from 'lucide-react-native';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 
 import {
   ApiError,
@@ -11,73 +12,80 @@ import {
   type Member,
   type Memory,
   type Montage,
+  type MontageStage,
   memberName,
   retryMontage,
 } from '@/api';
 import {
   ActionBar,
   AppBar,
+  Avatar,
   BackButton,
   BadgeDecision,
   Banner,
   Board,
   Button,
-  CardNow,
-  SHOT,
-  Spinner,
+  CardFilmNow,
+  FilmBlock,
+  FilmCloseNote,
+  FilmStageDivider,
+  FilmStageLine,
+  FilmStageList,
+  Icon,
+  RowFilmStage,
+  stageShare,
   Text,
+  TileOrder,
+  TileOrderRow,
   WatchingPill,
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
-import { formatDayShort, formatRuntime, formatTime } from '@/lib/dates';
+import { formatTime } from '@/lib/dates';
 import { useStrings } from '@/lib/language';
 import {
   currentStage,
-  gazeAt,
+  filmState,
   inHand,
   isFresh,
   marksOf,
-  minutesLeft,
+  orderedTo,
   STAGE_COUNT,
+  stageInHand,
+  stageLine,
   stageNumber,
   useMontageJournal,
   useTypedThought,
 } from '@/lib/montage/journal';
-import { RATIO } from '@/lib/montage/order';
+import { RATIO, trackWords } from '@/lib/montage/order';
 import { MontageGone } from '@/screens/memory/montage-gone';
-import { StageRows } from '@/screens/memory/stage-rows';
-import { space } from '@/theme';
+import { radius, space, themed, useTheme } from '@/theme';
 
 /**
- * `MontageLive` (spec 7.6) — the montage as a spectacle. It replaced the waiting screen an order used
- * to land on (TASK-163/169): that one had one word about the whole job to go on and said it in five
- * stages guessed from it, and since TASK-200 the worker tells the whole story — what frame is in the
- * director's hands, where on it they are looking, what they are thinking about it, and how every
- * stage before this one went.
+ * `Film` (spec 8) — one screen of a movie in each of its five states. A film is `queued` on one road
+ * and `processing` on another, `ready` on a third and `failed` on a fourth, and the connection can
+ * go on any of them: five dresses of one body, drawn here rather than as five screens that could
+ * drift apart in a year.
  *
- * Nothing on this screen is a percentage. The card at the top is a window onto something happening;
- * the five rows under it are where that has got to; and every one of them opens the journal of its
- * own stage. Leaving is free — the worker owes this montage either way, and whoever comes back an
- * hour later reads the journal from wherever it has got to.
+ * What all five share is the bar, the line of the stage in hand, and the list of the five stages
+ * under it — the api's own `stages`, read through `useMontageJournal` and never re-counted on the
+ * phone: «взял N / мимо N / мысли N» и «мимо» по причинам считает api по записям журнала и
+ * отдаёт готовыми. What differs is what stands between them: what was ordered and when it starts
+ * (queued), what is happening at this moment (building), the poster and two buttons (ready), one
+ * button or the organizer's name (failed), and a banner over everything when the reads stop coming.
  *
- * Two roads in, and the memory is under it both ways: `replace` from the last step of the order, so
- * the way back is never the four steps of an order already placed, and a `push` off a card in the
- * memory's own strip of films — «Собирается», for whoever walked out and came back, or «Не собрался»,
- * opened cold: the journal of the attempt that broke, read once and not polled, and nothing here
- * leaves it but «Назад».
+ * Leaving is free while the worker still owes this film, and then it leads to the finished one
+ * rather than back — the making is over and nothing should lead back into watching it. A `replace`
+ * and not a push, so that arriving at a ready film and pressing back does not pop the memory out
+ * from under anybody as well.
  */
-export default function MontageLiveScreen() {
-  // The two ids and nothing else. The order wizard hands over more than that — it carries the count
-  // of frames it picked, which the waiting screen used to print — and whatever else it decides to
-  // carry is none of this screen's business: everything drawn here is read off the montage and its
-  // journal, so what is said does not depend on which road somebody arrived by.
+export default function FilmScreen() {
   const { id, montageId } = useLocalSearchParams<{ id: string; montageId: string }>();
   const router = useRouter();
   const { token } = useAuth();
   const s = useStrings();
-  const { width } = useWindowDimensions();
+  const styles = useStyles();
 
-  /** The whole journal of this montage, read and kept up to date — `@/lib/montage/journal` does it all. */
+  /** The whole journal of this film, read and kept up to date — `@/lib/montage/journal` does it all. */
   const journal = useMontageJournal(token, id, montageId);
 
   const [memory, setMemory] = useState<Memory | null>(null);
@@ -96,22 +104,18 @@ export default function MontageLiveScreen() {
   }, []);
 
   /**
-   * Out of here — and while the montage is still owed, that is back: what is under this screen is
-   * the memory itself, whose strip of films reads its list again as it comes forward, and the making
-   * carries on without anybody watching it.
+   * Out of here. While the worker still owes this film that is back, and the memory is under it both
+   * ways: its own strip of films reads its list again as it comes forward, and the making carries on
+   * without anybody watching it.
    *
-   * Once it is finished this is the one line that points at «Ролик готов» instead (TASK-222), and a
-   * `replace` rather than a push: the making is over, and nothing should lead back into watching it.
-   * The film's own page is where it is watched, saved and read about now.
-   *
-   * Never once this screen has gone — a `ready` landing after somebody pressed «Назад» would
-   * otherwise pop the memory out from under them as well (found in review, TASK-163).
+   * Never once this screen has gone: a ready landing after somebody pressed «Назад» would otherwise
+   * pop the memory out from under them as well.
    */
   const leave = useCallback(() => {
     if (gone.current) return;
     if (journal.status === 'ready') {
       router.replace({
-        pathname: '/memory/[id]/montage/[montageId]/done',
+        pathname: '/memory/[id]/montage/[montageId]/film',
         params: { id, montageId },
       });
     } else if (router.canGoBack()) router.back();
@@ -119,13 +123,13 @@ export default function MontageLiveScreen() {
   }, [journal.status, router, id, montageId]);
 
   /**
-   * The three things about this montage that the journal does not carry and that do not change while
-   * it is being cut: who is reading (only the organizer may start a fallen one again), what was
-   * ordered, and the names of everybody in the memory — the journal names an author by id.
+   * The three things the journal does not carry: who is reading (only the organizer may start a
+   * fallen film again), what this film is, and the names of everybody in the memory — the journal
+   * names an author by id, and the bar's film is named by the order.
    *
    * On focus and not on mount, like every other screen of a memory: the roster moves while somebody
-   * is invited, and the montage row is what `retry` has just rewritten. A failure here is left unsaid
-   * — the journal below is what this screen is about, and it speaks for itself.
+   * is invited, and the film row is what `retry` has just rewritten. A failure here is left unsaid —
+   * the journal is what this screen is about, and it speaks for itself.
    */
   const read = useCallback(() => {
     if (!token) return;
@@ -160,32 +164,31 @@ export default function MontageLiveScreen() {
           ? { 409: s.montage.movedOn, 403: s.montage.retryDenied }[e.status]
           : undefined) ?? errorMessage(e),
       );
-      // 409 is the montage having moved on without this press — somebody else's landed first.
+      // 409 is the film having moved on without this press — somebody else's landed first.
       if (!(e instanceof ApiError && e.status === 409)) return;
     } finally {
       setBusy(false);
     }
     // The api wiped the fallen attempt's journal with that, and the hook stopped polling at
-    // `failed` — so the journal starts over, and the row behind the subtitle is read again.
+    // `failed` — so the journal starts over, and the row behind the bar is read again.
     journal.restart();
     read();
   }
 
-  const failed = journal.standing === 'failed';
-  const held = inHand(journal.entries);
-  const file = held?.media_id ? journal.files[held.media_id] : undefined;
-  const author = memberName(roster?.find((one) => one.id === file?.uploaded_by) ?? null);
-  // «13 сентября, 16:42» — the same pair the open frame writes its own line with (`frame-viewer`).
-  const shotAt = file?.captured_at
-    ? `${formatDayShort(file.captured_at)}, ${formatTime(file.captured_at)}`
-    : '';
-  const thought = useTypedThought(held?.thought, held !== null && isFresh(journal, held));
-  const [decision] = held ? marksOf(held, s) : [];
-  const stage = currentStage(journal.stages);
-  const minutes = minutesLeft(journal.stages);
+  const state = filmState(montage, journal);
+  const held = stageInHand(journal.stages, s);
+  const stopped = journal.stages.find((stage) => stage.state === 'failed') ?? null;
+  const reached = behind(journal.stages);
+  const organizer = memory?.role === 'organizer';
 
-  if (journal.standing === 'refused') {
-    return <MontageGone title={s.montage.live.title} onBack={leave} />;
+  const toStage = (code: MontageStage['stage']) =>
+    router.push({
+      pathname: '/memory/[id]/montage/[montageId]/stage/[stage]',
+      params: { id, montageId, stage: code },
+    });
+
+  if (state === 'gone') {
+    return <MontageGone title={s.montage.live.doneTitle} onBack={leave} />;
   }
 
   return (
@@ -193,12 +196,12 @@ export default function MontageLiveScreen() {
       bar={
         <AppBar
           variant="live"
-          title={failed ? s.montage.status.failed : s.montage.live.title}
-          subtitle={montage === null ? undefined : orderedTo(montage)}
+          title={montage?.name ?? ''}
+          subtitle={memory?.title ?? undefined}
           left={<BackButton label={s.action.back} onPress={leave} />}
           // Nobody watching is not a pill saying zero: it is a fact about people, and the pill is
-          // only drawn when there are some (spec 7.5). The api hands out a username and no more,
-          // and initials of one are enough for a 24 circle.
+          // only drawn when there are some. The api hands out a username and no more, and the
+          // initials of one are enough for a 24 circle.
           right={
             journal.viewers.length > 0 ? (
               <WatchingPill
@@ -211,15 +214,22 @@ export default function MontageLiveScreen() {
         />
       }
       footer={
-        notice || (failed && memory?.role === 'organizer') ? (
+        notice || (state === 'stopped' && organizer) ? (
           <>
             {notice ? <Banner tone="error" text={notice} style={styles.banner} /> : null}
-            {/* The bottom layer carries one thing or nothing at all: a fallen montage is started
-                again by the organizer, and everybody else is told by the stage that wears the
-                cross. */}
-            {failed && memory?.role === 'organizer' ? (
+            {/* The bottom layer carries one thing or nothing at all: a fallen film is started again
+                by the organizer, and everybody else is told by the block that stands where the
+                button would have been. */}
+            {state === 'stopped' && organizer ? (
               <ActionBar>
-                <Button label={s.montage.live.retry} disabled={busy} onPress={() => void again()} />
+                <Button
+                  variant="primary"
+                  size="lg"
+                  icon={RotateCcw}
+                  label={s.montage.filmScreen.retry}
+                  disabled={busy}
+                  onPress={() => void again()}
+                />
               </ActionBar>
             ) : null}
           </>
@@ -227,108 +237,313 @@ export default function MontageLiveScreen() {
       }
       body={styles.body}
     >
-      {/* «Сейчас» — the frame in the director's hands. A montage that fell over has no card at
-          all: nobody's hands are on it any more, and a live window over an attempt that broke a
-          week ago says the director is still at work. Where it broke is the stage wearing the
-          cross below, opened out on its last records — the frame it held among them. */}
-      {failed ? null : (
-        <CardNow
-          uri={file?.thumbnail_url ?? undefined}
-          author={file ? author : undefined}
-          authorLine={file?.captured_at ? `${author} · ${shotAt}` : undefined}
-          now={held === null ? undefined : s.montage.live.now}
-          gaze={gazeAt(held?.focus ?? null, { width: width - space.s4 * 2, height: SHOT })}
-          who={s.montage.live.director}
-          standing={
-            held === null
-              ? undefined
-              : held.decision === null
-                ? s.montage.live.thinking
-                : s.montage.live.decided
-          }
-          thought={thought.said}
-          unsaid={thought.unsaid}
-          decision={
-            decision ? (
-              <BadgeDecision kind={held?.decision === 'take' ? 'take' : 'pass'} label={decision} />
-            ) : undefined
-          }
-          // Nothing in hand, and three different waits: no answer yet (the connection may have
-          // gone before the first one), the queue, or a worker still fetching the material before
-          // the first frame — which is being made, not waiting its turn.
-          waiting={
-            held !== null
-              ? undefined
-              : journal.status === null
-                ? s.state.loading
-                : journal.status === 'queued'
-                  ? s.montage.live.inQueue
-                  : s.montage.status.processing
-          }
+      {/* The reads stopped coming back. Everything under this line is the truth as of the last
+          answer and stays exactly as it was — that is the whole of what this banner is for. */}
+      {state === 'offline' ? (
+        <Banner
+          tone="error"
+          text={`${s.montage.filmScreen.offlineTitle}. ${s.montage.filmScreen.offlineText}`}
         />
-      )}
-
-      {/* The read never came back. What is above stays exactly as it was — that is the whole of
-          what this line is for (spec 7.6). */}
-      {journal.standing === 'offline' ? (
-        <View style={styles.lost}>
-          <Spinner size={16} />
-          <Text role="note">{s.montage.live.lost}</Text>
-        </View>
       ) : null}
 
-      {stage === null ? null : (
-        <View style={styles.where}>
-          <Text role="timecode" style={styles.grow}>
-            {s.montage.live.stageOf(stageNumber(stage.stage), STAGE_COUNT)}
-          </Text>
-          {minutes === null ? null : <Text role="meta">{s.montage.live.leftAbout(minutes)}</Text>}
-        </View>
-      )}
-
-      <StageRows
-        memoryId={id}
-        montageId={montageId}
-        journal={journal}
-        opens={(code) => code === stage?.stage}
+      <FilmStageLine
+        name={held?.name ?? s.montage.filmScreen.queuedPill}
+        of={STAGE_COUNT}
+        stageOf={held?.stageOf ?? ''}
+        right={
+          state === 'stopped'
+            ? s.montage.filmScreen.stoppedPill
+            : held?.minutes === null || held?.minutes === undefined
+              ? undefined
+              : state === 'offline'
+                ? s.montage.filmScreen.leftWas(held.minutes)
+                : s.montage.live.leftAbout(held.minutes)
+        }
+        done={reached}
+        share={stageShare(held?.stage)}
+        stopped={state === 'stopped'}
       />
 
-      {/* The worker's own line about what went wrong, where there is room for it — the kit's rule
-          is that a screen names the failure and the worker explains it, never a code. */}
-      {failed && montage?.error_text ? (
-        <Text role="body" tone="muted">
-          {montage.error_text}
-        </Text>
+      {state === 'queued' && montage !== null ? <Queued montage={montage} /> : null}
+
+      {state === 'building' || state === 'offline' ? (
+        <Building journal={journal} onStage={toStage} />
+      ) : null}
+
+      {state === 'stopped' ? (
+        <Stopped montage={montage} stopped={stopped} memory={memory} roster={roster} />
+      ) : null}
+
+      {/* The five, as they stand. A film the worker has not taken yet has none of them, and the list
+          says nothing at all rather than five rows of nothing. */}
+      <FilmStageList>
+        {journal.stages.map((stage, i) => (
+          <Fragment key={stage.stage}>
+            {i > 0 ? <FilmStageDivider /> : null}
+            <RowFilmStage
+              at={stageNumber(stage.stage)}
+              title={s.montage.stage[stage.stage]}
+              meta={stageLine(stage, s)}
+              state={
+                stage.state === 'failed'
+                  ? 'failed'
+                  : stage.state === 'running'
+                    ? 'running'
+                    : stage.state === 'done'
+                      ? 'done'
+                      : 'waiting'
+              }
+              onPress={() => toStage(stage.stage)}
+            />
+          </Fragment>
+        ))}
+      </FilmStageList>
+
+      {state === 'queued' || state === 'building' || state === 'offline' ? (
+        <FilmCloseNote text={s.montage.filmScreen.closeNote} />
       ) : null}
     </Board>
   );
 }
 
 /**
- * «2:30 · 16:9» — what was ordered, under the name of the screen, in the figures the finished poster
- * says it in (`MontageLive`, `MontageLiveDone`). A length the api was left to pick is not named; a
- * montage with no shape on it is horizontal, which is how the api reads one.
+ * `FilmQueued` — what was ordered, and when the making will start. Both come out of the list's own
+ * `queue` block and out of what the order counted at the time; neither is worked out here, and a
+ * film ordered before the api had those columns has nothing to draw rather than a zero to show.
  */
-function orderedTo(montage: Montage): string {
-  return [
-    formatRuntime(montage.params.target_seconds ?? null),
-    RATIO[montage.params.orientation ?? 'landscape'],
-  ]
-    .filter(Boolean)
-    .join(' · ');
+function Queued({ montage }: { montage: Montage }) {
+  const s = useStrings();
+  const { color } = useTheme();
+  const styles = useStyles();
+  const { filmScreen } = s.montage;
+  const queue = montage.queue ?? null;
+  const tiles = orderedTo(montage, trackWords(montage.params, s)[0], null, s);
+  const story = montage.params.story_text;
+  const shape = montage.params.orientation ?? 'landscape';
+
+  return (
+    <>
+      <View style={styles.queue}>
+        <View style={styles.pillRow}>
+          <View style={styles.pill}>
+            <Icon icon={Clock} size={13} color={color.muted} />
+            <Text role="badgeSm" tone="muted">
+              {filmScreen.queuedPill}
+            </Text>
+          </View>
+          <Text role="meta">{filmScreen.acceptedAt(formatTime(montage.created_at))}</Text>
+        </View>
+        <Text role="displaySm" accessibilityRole="header">
+          {filmScreen.queuedTitle}
+        </Text>
+        <Text role="note" tone="muted">
+          {[
+            queue && queue.ahead > 0 ? filmScreen.queuedAhead(queue.ahead) : null,
+            queue ? filmScreen.queuedStarts(queue.starts_in_minutes) : null,
+            queue?.estimate_minutes != null ? filmScreen.queuedTakes(queue.estimate_minutes) : null,
+          ]
+            .filter(Boolean)
+            .join('. ')}
+        </Text>
+      </View>
+
+      <TileOrderRow>
+        {tiles.frames ? (
+          <TileOrder
+            label={filmScreen.frames}
+            figure={tiles.frames.figure}
+            note={tiles.frames.note}
+          />
+        ) : null}
+        {tiles.length ? (
+          <TileOrder label={filmScreen.length} figure={tiles.length} note={filmScreen.minutes} />
+        ) : null}
+        <TileOrder
+          label={filmScreen.orientation}
+          figure={RATIO[shape]}
+          note={filmScreen.orientationWord[shape]}
+        />
+        {tiles.music ? (
+          <TileOrder
+            label={filmScreen.music}
+            figure={tiles.music.figure}
+            note={tiles.music.note ?? undefined}
+          />
+        ) : (
+          <TileOrder label={filmScreen.music} figure={s.montage.film.noMusic} />
+        )}
+      </TileOrderRow>
+
+      {story ? (
+        <FilmBlock label={filmScreen.story}>
+          <Text role="bodyXs" numberOfLines={2}>
+            {story}
+          </Text>
+        </FilmBlock>
+      ) : null}
+    </>
+  );
 }
 
-// Nothing here carries a colour of its own — every piece on this screen brings the kit's with it.
-const styles = StyleSheet.create({
-  body: {
-    flexGrow: 1,
-    paddingHorizontal: space.s4,
-    paddingTop: space.s3,
-    paddingBottom: space.s6,
-    gap: space.s3,
-  },
-  lost: { flexDirection: 'row', alignItems: 'center', gap: space.s2, paddingHorizontal: 2 },
-  where: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 2 },
-  grow: { flex: 1, minWidth: 0 },
-  banner: { marginHorizontal: space.s4, marginBottom: space.s3 },
-});
+/**
+ * `FilmBuilding` — the card «Сейчас»: the frame the director is holding and the sentence they are in
+ * the middle of. The whole card leads into the journal of the stage in hand, which is the one thing
+ * this screen is a window onto.
+ *
+ * Offline it keeps what was last read and says how old that is, with no cursor: a card that went on
+ * typing over a connection that is not there would be the screen lying about a worker it cannot see.
+ */
+function Building({
+  journal,
+  onStage,
+}: {
+  journal: ReturnType<typeof useMontageJournal>;
+  onStage: (code: MontageStage['stage']) => void;
+}) {
+  const s = useStrings();
+  const held = inHand(journal.entries);
+  const file = held?.media_id ? journal.files[held.media_id] : undefined;
+  const thought = useTypedThought(held?.thought, held !== null && isFresh(journal, held));
+  const [decision] = held ? marksOf(held, s) : [];
+  const stage = currentStage(journal.stages);
+
+  return (
+    <CardFilmNow
+      who={s.montage.live.director}
+      what={stage ? s.montage.filmScreen.at[stage.stage] : s.montage.live.inQueue}
+      now={journal.offline ? s.montage.filmScreen.updatedAgo(1) : s.montage.live.now}
+      uri={file?.thumbnail_url ?? undefined}
+      thought={thought.said}
+      marks={
+        decision && held ? (
+          <BadgeDecision kind={held.decision === 'take' ? 'take' : 'pass'} label={decision} />
+        ) : null
+      }
+      onPress={stage ? () => onStage(stage.stage) : undefined}
+    />
+  );
+}
+
+/**
+ * `FilmFailed*` — what happened, and what happens next. The organizer's button stands in the bottom
+ * layer; where it is not, a member is told who can do it and under what name, which is a fact rather
+ * than a door they cannot open.
+ */
+function Stopped({
+  montage,
+  stopped,
+  memory,
+  roster,
+}: {
+  montage: Montage | null;
+  stopped: MontageStage | null;
+  memory: Memory | null;
+  roster: Member[] | null;
+}) {
+  const s = useStrings();
+  const { color } = useTheme();
+  const styles = useStyles();
+  const { filmScreen } = s.montage;
+  const organizer = memory?.role === 'organizer';
+  // The organizer by the roster, and under their own name where the roster has not answered — the
+  // member row is what the promise «придёт пуш» is signed with, and a blank name signs nothing.
+  const who = memberName(roster?.find((one) => one.role === 'organizer') ?? null);
+
+  return (
+    <>
+      <View style={styles.queue}>
+        <View style={styles.stoppedPill}>
+          <Icon icon={Pause} size={13} color={color.dangerText} />
+          <Text role="badgeSm" tone="danger">
+            {filmScreen.stoppedPill}
+          </Text>
+        </View>
+        <Text role="displaySm" accessibilityRole="header">
+          {filmScreen.stoppedTitle}
+        </Text>
+        <Text role="note" tone="muted">
+          {filmScreen.stoppedOn(stopped ? s.montage.stage[stopped.stage] : '')}
+        </Text>
+        {organizer && montage?.queue?.estimate_minutes != null ? (
+          <Text role="metaSm">{filmScreen.retryNote(montage.queue.estimate_minutes)}</Text>
+        ) : null}
+      </View>
+
+      {/* The stopped stage's own row under this block says why it stopped, in danger. What the
+          worker wrote about it in prose is left unsaid here — the api hands it over as its own
+          words, and a sentence this screen cannot vouch for does not go under a heading it owns. */}
+      {montage?.error_text ? (
+        <Text role="bodyXs" tone="muted">
+          {montage.error_text}
+        </Text>
+      ) : null}
+
+      {organizer ? null : (
+        <View style={styles.organizer}>
+          <Avatar name={who} size={34} />
+          <View style={styles.grow}>
+            <Text role="rowSm">{filmScreen.organizerCan}</Text>
+            <Text role="metaSm">{filmScreen.organizerCanNote(who)}</Text>
+          </View>
+        </View>
+      )}
+    </>
+  );
+}
+
+/**
+ * How many stages are behind, the one in hand included — what the scale under the bar has lit. The
+ * stage in hand is lit like the ones behind it, so this is the count up to and including it.
+ */
+function behind(stages: readonly MontageStage[]): number {
+  const ahead = stages.findIndex((stage) => stage.state === 'pending');
+  return ahead === -1 ? stages.length : ahead;
+}
+
+const useStyles = themed(({ color }) =>
+  StyleSheet.create({
+    body: {
+      flexGrow: 1,
+      paddingHorizontal: space.s4,
+      paddingTop: space.s3,
+      paddingBottom: space.s6,
+      gap: space.s3,
+    },
+    banner: { marginBottom: space.s3 },
+    queue: { gap: space.s2, paddingVertical: space.s1 },
+    pillRow: { flexDirection: 'row', alignItems: 'center', gap: space.s2, flexWrap: 'wrap' },
+    pill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      height: 28,
+      paddingHorizontal: 11,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      borderColor: color.line,
+    },
+    stoppedPill: {
+      alignSelf: 'flex-start',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      height: 28,
+      paddingHorizontal: 11,
+      borderRadius: radius.pill,
+      backgroundColor: color.dangerSoft,
+      borderWidth: 1,
+      borderColor: color.dangerSoft,
+    },
+    organizer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: space.s3,
+      padding: space.s3,
+      borderRadius: radius.section,
+      borderWidth: 1,
+      borderColor: color.line,
+      backgroundColor: color.surface,
+    },
+    grow: { flex: 1, minWidth: 0 },
+  }),
+);

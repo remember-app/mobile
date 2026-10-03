@@ -1,0 +1,105 @@
+import type { Montage, MontageStage, MontageStageCode } from '@/api';
+import { formatRuntime, formatTime } from '@/lib/dates';
+import type { Strings } from '@/strings';
+
+import { currentStage, minutesLeft, STAGE_COUNT, stageLine, stageNumber } from './stages';
+
+/**
+ * What the screen of a movie works out of an answer before it draws any of it: where the making
+ * stands, what to say about the stage in hand, and what the film is called and what it was made of.
+ *
+ * All of it arithmetic over what the api sent — never a second count of the worker's own. The
+ * counters the worker does not write (`taken_count`, `skipped_count`, `thought_count`,
+ * `skipped_by_reason`, `taken_by_part`) are the api's and arrive ready; nothing here re-counts them.
+ */
+
+/** Which of a film's five states the screen is drawing. */
+export type FilmState = 'queued' | 'building' | 'ready' | 'stopped' | 'offline' | 'gone';
+
+/**
+ * Which state this is, from what the list said and what the journal says. The list is the authority
+ * on the status — it is what the api last answered — and the journal only decides between the two
+ * that are the same row: a film being cut with the connection gone is still being cut, only offline.
+ *
+ * `refused` is the one that is not a state of a film at all: the api is saying this reader is not in
+ * the memory, and there is nothing of the film left to draw.
+ */
+export function filmState(
+  montage: Montage | null,
+  journal: { status: Montage['status'] | null; refused: boolean; offline: boolean },
+): FilmState {
+  if (journal.refused) return 'gone';
+  const status = journal.status ?? montage?.status ?? null;
+  if (status === 'failed') return 'stopped';
+  if (status === 'ready') return 'ready';
+  if (status === 'queued') return 'queued';
+  return journal.offline ? 'offline' : 'building';
+}
+
+/**
+ * The stage the screen's own line stands on, and everything that line says — the stage's name, its
+ * place among the five, and what is left of it.
+ *
+ * Null where there is no stage to name: a film nobody has started yet has none, and that is not a
+ * gap to fill in. It is also null once a stage has fallen over, because nobody is waiting for the
+ * stages behind it any more — their estimates are the worker's guesses from the start of the job.
+ */
+export function stageInHand(
+  stages: readonly MontageStage[],
+  s: Strings,
+): {
+  stage: MontageStage;
+  code: MontageStageCode;
+  name: string;
+  stageOf: string;
+  minutes: number | null;
+} | null {
+  const held = currentStage(stages);
+  if (held === null || held.state === 'failed') return null;
+  return {
+    stage: held,
+    code: held.stage,
+    name: s.montage.stage[held.stage],
+    stageOf: s.montage.live.stageOf(stageNumber(held.stage), STAGE_COUNT),
+    minutes: minutesLeft(stages),
+  };
+}
+
+/**
+ * The four tiles of what was ordered (`FilmQueued`), as the facts the list handed over and no more.
+ *
+ * The api counts the frames once, at the order, and never again — so a film ordered before those
+ * columns existed has nothing to say its shape in, and its tiles are simply not drawn rather than
+ * standing a zero in the middle of the queue. Same for the tempo: a track of the organizer's own may
+ * have none, and that is a missing second line rather than «0 ударов».
+ */
+export function orderedTo(
+  montage: Montage,
+  track: string | undefined,
+  bpm: number | null,
+  s: Strings,
+): {
+  frames: { figure: string; note: string } | null;
+  length: string | null;
+  music: { figure: string; note: string | null } | null;
+} {
+  const { filmScreen } = s.montage;
+  const photos = montage.photos ?? null;
+  const videos = montage.videos ?? null;
+
+  return {
+    frames:
+      photos === null || videos === null
+        ? null
+        : { figure: String(photos + videos), note: filmScreen.framesNote(photos, videos) },
+    length: formatRuntime(montage.params.target_seconds ?? null) ?? null,
+    music:
+      track === undefined
+        ? null
+        : { figure: track, note: bpm === null ? null : filmScreen.bpm(bpm) },
+  };
+}
+
+/** When the film was put in the queue, in the reader's own clock. */
+export const acceptedAt = (montage: Montage, s: Strings): string =>
+  s.montage.filmScreen.acceptedAt(formatTime(montage.created_at));
