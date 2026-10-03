@@ -13,6 +13,7 @@ import {
   themes,
   type,
   viewerFoot,
+  viewerShade,
 } from '@/theme';
 
 /**
@@ -185,14 +186,17 @@ test('a video’s timecodes are the meta’s size a weight up', () => {
   expect(type.timecode.fontVariant).toEqual(['tabular-nums']);
 });
 
-test('the foot of the frame window puts a photograph 96 above the bottom and a video 140', () => {
-  // Spec 8, `Viewer` and `ViewerVideo`: the strip 48 stands `board.bottom` off the edge; a video's
-  // scrubber is a 36 row 14 over it. 704 of 844 is where the video ends, 716–752 the scrubber.
-  const strip = 48;
-  const track = 36;
-  expect(viewerFoot.photo + strip + board.bottom).toBe(96);
-  expect(viewerFoot.video + track + viewerFoot.track + strip + board.bottom).toBe(140);
+test('the frame window darkens 150 and 160 standing, 110 and 120 turned', () => {
+  // Spec 8, the four `Viewer*` layouts (TASK-475): a fade at the head under the glass and one at
+  // the foot over the strip. A turned phone is 390 tall where a standing one is 844, and a fade a
+  // third of it is a wall rather than a shade — so both are shorter, and read off the layout
+  // rather than scaled from the other.
+  expect(viewerShade.standing).toEqual({ top: 150, foot: 160 });
+  expect(viewerShade.turned).toEqual({ top: 110, foot: 120 });
+  // What is left of the foot is the gap from a video's scrubber down to the strip (spec 7.10) — the
+  // gaps from the picture itself went with the picture no longer being laid out above the tools.
   expect(viewerFoot.track).toBe(14);
+  expect(Object.keys(viewerFoot)).toEqual(['track']);
 });
 
 test('the dangerous reds are exact by place, not a range (spec 2, 10.11)', () => {

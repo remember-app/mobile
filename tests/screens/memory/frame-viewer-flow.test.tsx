@@ -3,7 +3,7 @@ import { reverseGeocodeAsync } from 'expo-location';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
-const { router, downloads, ask, player, turns, platform } = vi.hoisted(() => ({
+const { router, downloads, ask, player, turns, platform, phone } = vi.hoisted(() => ({
   router: { push: vi.fn(), back: vi.fn(), setParams: vi.fn() },
   downloads: { maySaveToPhone: vi.fn(), saveToPhone: vi.fn(), shareFile: vi.fn() },
   ask: { id: 'me' },
@@ -20,6 +20,9 @@ const { router, downloads, ask, player, turns, platform } = vi.hoisted(() => ({
   // What the window asks of the orientation lock, and which platform it thinks it is on.
   turns: vi.fn(),
   platform: { os: 'android' as 'android' | 'ios' },
+  // The phone's own screen, standing at first — a test that wants the other three turns it
+  // (TASK-475). Not `screen`: that name is this file's own word for the open window.
+  phone: { width: 390, height: 844, scale: 3, fontScale: 1 },
 }));
 
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
@@ -40,6 +43,8 @@ vi.mock('expo-video', () => ({
 }));
 vi.mock('@/lib/orientation', () => ({ useTurnsWithPhone: turns }));
 // The window raises a film differently on iOS, where a modal raised over another one is swallowed.
+// And the screen's own size, which is how the window knows which way up the phone is (TASK-475) —
+// the four `Viewer*` layouts are told apart by nothing else.
 vi.mock('react-native', async (importOriginal) => {
   const rn = await importOriginal<typeof import('react-native')>();
   return {
@@ -49,11 +54,12 @@ vi.mock('react-native', async (importOriginal) => {
     }),
     Modal: ({ visible, children }: { visible?: boolean; children?: unknown }) =>
       visible === false ? null : (children as never),
+    useWindowDimensions: () => phone,
   };
 });
 vi.mock('@/lib/downloads', () => downloads);
 
-import { expectReachable } from '@tests/helpers/access';
+import { expectReachable, targets } from '@tests/helpers/access';
 import { type Asked, later, member, memory, photo, refused, serve } from '@tests/helpers/api';
 import { touch } from '@tests/helpers/gesture';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
@@ -76,7 +82,7 @@ import {
   ViewerBar,
 } from '@/kit';
 import { setLanguage } from '@/lib/language';
-import { FrameViewer } from '@/screens/memory/frame-viewer';
+import { FrameViewer, frameBox } from '@/screens/memory/frame-viewer';
 import { FrameInfoSheet } from '@/screens/memory/frames-sheets';
 import { ru, strings } from '@/strings';
 
@@ -150,6 +156,7 @@ const told = (over: Partial<FrameInfo> = {}): FrameInfo => ({
   longitude: null,
   uploaded_by: { id: 'liza', username: 'liza', name: 'Марк Ковалёв', media_count: 96 },
   montages: [],
+  labels: [],
   ...over,
 });
 
@@ -441,6 +448,7 @@ test('a frame the worker never read has none of its lines, and the sheet is the 
       latitude: null,
       longitude: null,
       montages: [],
+      labels: [],
     }),
   );
   const screen = await open();
@@ -824,9 +832,13 @@ test('a video is streamed off its own file by one player, set up to report four 
   const view = screen.root.findByType(VideoView);
   expect(view.props.nativeControls).toBe(false);
   expect(view.props.player).toBe(player);
-  expect(
-    screen.root.findAllByType(Image).filter((one) => one.props.contentFit === 'contain'),
-  ).toHaveLength(0);
+  // A playing video draws no picture under it — the frame in hand is the player, and the strip's
+  // own thumbnails are the only other `Image` on the window (they carry no `cacheKey`).
+  expect(screen.root.findAllByType(Image).filter((one) => one.props.source?.cacheKey)).toHaveLength(
+    0,
+  );
+  // Covered into the frame's own box, exactly like the photograph under it — one rule for the two.
+  expect(view.props.contentFit).toBe('cover');
 });
 
 test('a photograph is a player with no source, and a video whose file was never made is a picture again, off its poster', async () => {
@@ -834,14 +846,14 @@ test('a photograph is a player with no source, and a video whose file was never 
   const still = await open();
   expect(vi.mocked(useVideoPlayer)).toHaveBeenLastCalledWith(null, expect.any(Function));
   expect(still.root.findAllByType(VideoView)).toHaveLength(0);
-  const big = still.root.findAllByType(Image).find((one) => one.props.contentFit === 'contain')!;
+  const big = still.root.findAllByType(Image).find((one) => one.props.contentFit === 'cover')!;
   // Filed under the record and by which of its two derivatives it is, and not by its signed link.
   expect(big.props.source).toEqual({ uri: 'https://r2.example/a-big', cacheKey: 'a:preview' });
 
   const small = shots()[1];
   const thumb = await open({ item: small, frames: [small] });
   expect(
-    thumb.root.findAllByType(Image).find((one) => one.props.contentFit === 'contain')!.props.source,
+    thumb.root.findAllByType(Image).find((one) => one.props.contentFit === 'cover')!.props.source,
   ).toEqual({
     uri: 'https://r2.example/b',
     cacheKey: 'b:thumb',
@@ -852,7 +864,7 @@ test('a photograph is a player with no source, and a video whose file was never 
   expect(poster.root.findAllByType(VideoView)).toHaveLength(0);
   expect(poster.root.findAllByType(VideoTrack)).toHaveLength(0);
   expect(
-    poster.root.findAllByType(Image).find((one) => one.props.contentFit === 'contain')!.props.source
+    poster.root.findAllByType(Image).find((one) => one.props.contentFit === 'cover')!.props.source
       .cacheKey,
   ).toBe('v:thumb');
 });
@@ -996,32 +1008,63 @@ const heightsIn = (node: ReactTestInstance) =>
     .filter((one): one is number => typeof one === 'number');
 
 test.each([
-  ['a photograph', () => shots()[0], 96],
-  ['a video', () => video(), 140],
+  ['a photograph', () => shots()[0], false],
+  ['a video', () => video(), true],
 ])(
-  'the foot of the window, added up off what is drawn: %s ends %i above the bottom of the phone',
-  async (_, item, foot) => {
-    // Spec 8, `Viewer` / `ViewerVideo`, and 10.10: the photograph ends 96 above the bottom edge and
-    // the video 140 — 704 of 844, its scrubber 716–752, and 14 (not 12) down to the strip.
+  'the foot of the window is the strip over the picture: %s is 48 tall, %i',
+  async (_, item, isVideo) => {
+    // Spec 8, `Viewer*` (TASK-475): the picture is drawn in a box of its own proportions in the
+    // middle of the phone, and the strip lies over it — so the window has no foot in the old sense,
+    // no 96 or 140 of space reserved under the picture. What it does have is the strip itself,
+    // standing `board.bottom` off the bottom edge, and over a video its scrubber 14 above that.
     serve(() => undefined);
     const shown = item();
     const screen = await open({ item: shown, frames: [shown] });
     const strip = screen.root.findByType(Filmstrip);
     const tools = boxAround(strip, 'paddingBottom');
+    expect(tools.paddingBottom).toBe(30);
     expect(heightsIn(strip)).toContain(48);
-    const isVideo = shown.kind === 'video';
-    let total = tools.paddingBottom + 48 + tools.paddingTop;
+    expect(tools.gap).toBe(14);
     if (isVideo) {
       // The scrubber row is as tall as the sound button beside it, and the strip stands 14 under it.
       expect(screen.icon(ru.viewer.mute)().props.size).toBe(36);
-      expect(tools.gap).toBe(14);
-      total += tools.gap + 36;
     }
-    expect(total).toBe(foot);
     // The scrubber is inside the same box as the strip, above it, on a video alone.
     expect(screen.root.findAllByType(VideoTrack)).toHaveLength(isVideo ? 1 : 0);
   },
 );
+
+test('a frame is drawn in a box of its own proportions, not fitted to the screen by contain', () => {
+  // TASK-475, the whole of it: `contentFit="contain"` in whatever room the stage had left is what
+  // left a horizontal frame small and centred on the screen. The layout draws 390 × 520 upright for
+  // a 3:4 frame, 390 × 260 for a 3:2 one, 585 × 390 turned for that 3:2 and 293 × 390 for the 3:4
+  // — every one of them the frame's own shape as large as it goes without leaving the screen.
+  const standing = frameBox(3024, 2016, 390, 844);
+  expect(Math.round(standing.width)).toBe(390);
+  expect(Math.round(standing.height)).toBe(260);
+  // Turned, the same frame lies along the other axis: the height of the screen and the width the
+  // frame's own proportions give it.
+  const turned = frameBox(3024, 2016, 844, 390);
+  expect(Math.round(turned.width)).toBe(585);
+  expect(Math.round(turned.height)).toBe(390);
+  // And a vertical frame the other way round: 390 wide and 520 tall upright, 293 × 390 turned.
+  const tall = frameBox(3024, 4032, 390, 844);
+  expect(Math.round(tall.width)).toBe(390);
+  expect(Math.round(tall.height)).toBe(520);
+  expect(Math.round(frameBox(3024, 4032, 844, 390).width)).toBe(293);
+  expect(frameBox(3024, 4032, 844, 390).height).toBe(390);
+  // A record the worker has not measured has no proportions to lay out, and takes the whole screen
+  // rather than a guessed shape. That is the honest answer until the numbers arrive, not a zero.
+  expect(frameBox(null, null, 390, 844)).toEqual({ width: 390, height: 844 });
+  expect(frameBox(4032, null, 390, 844)).toEqual({ width: 390, height: 844 });
+  // A frame is its own shape whatever the phone is: a 10000 × 500 panorama across a standing phone is
+  // 390 wide and 19.5 tall, and a 1000 × 10000 one upright is clamped to the 844 of the screen
+  // rather than running off the top and bottom of it.
+  const panorama = frameBox(10000, 500, 390, 844);
+  expect(panorama.width).toBe(390);
+  expect(panorama.height).toBeCloseTo(19.5);
+  expect(frameBox(1000, 10000, 390, 844)).toEqual({ width: 390, height: 844 });
+});
 
 test('«Пауза» in the middle of a video is 72, dark, with no colour of the glass or of the viewer’s own on it', async () => {
   serve(() => undefined);
@@ -1060,3 +1103,52 @@ test.each(['ru', 'en'] as const)(
     }
   },
 );
+
+test('turned, the window keeps every name, role and 44 that it has standing', async () => {
+  // TASK-475: the phone lying on its side is the same window with the same controls on glass, and a
+  // screen reader must not lose one of them because the picture is drawn the other way round. The
+  // bar's own round buttons drop from 48 to 44 — the layout's — and a 44 with its slop is still the
+  // floor, so they keep meeting it. The strip's shots are the layout's 26 × 36 and 38 × 40, which do
+  // not: they grow as far as the 2 gap between two shots allows and no further, because reaching
+  // past that puts a tap on the frame the person did not touch. That is `ViewerRotated*`'s own
+  // numbers, and it is said here rather than hidden by not asking.
+  serve(() => undefined);
+  const standing = { width: 390, height: 844 };
+  // The strip's own shots are told by what they are drawn at: a control on the window is 44 or more
+  // across, and nothing in the strip is.
+  const inStrip = (one: { width: number | undefined }) => (one.width ?? 0) < 44;
+  try {
+    for (const item of [shots()[0], video()]) {
+      Object.assign(phone, standing);
+      const upright = targets((await open({ item, frames: [item] })).root);
+      Object.assign(phone, { width: 844, height: 390 });
+      const sideways = targets((await open({ item, frames: [item] })).root);
+
+      // The same controls, in the same words, on the same job — only the geometry moved.
+      expect(sideways.map((one) => one.name).sort()).toEqual(upright.map((one) => one.name).sort());
+      for (const one of upright) {
+        expect(sideways.find((two) => two.name === one.name)?.role, one.name).toBe(one.role);
+      }
+      // Every control a finger reaches for on its own is still 44 by 44, standing or turned.
+      for (const one of sideways.filter((two) => !inStrip(two))) {
+        expect(one.role, one.name).toBeTruthy();
+        expect(one.name, 'a control with no name').not.toBe('');
+        if (one.width !== undefined)
+          expect(one.width, `«${one.name}» is ${one.width} wide`).toBeGreaterThanOrEqual(44);
+        if (one.height !== undefined)
+          expect(one.height, `«${one.name}» is ${one.height} high`).toBeGreaterThanOrEqual(44);
+      }
+      // And the strip's own frames keep the names and roles they had, at the sizes the layout draws:
+      // 26 wide turned against the standing 30, and none of them lost its role or its name.
+      const shots = sideways.filter(inStrip);
+      expect(shots.length).toBeGreaterThan(0);
+      for (const one of shots) {
+        expect(one.role, one.name).toBe('button');
+        expect(one.name, 'a strip frame with no name').not.toBe('');
+        if (one.width !== undefined) expect(one.width, one.name).toBeGreaterThanOrEqual(26);
+      }
+    }
+  } finally {
+    Object.assign(phone, standing);
+  }
+});

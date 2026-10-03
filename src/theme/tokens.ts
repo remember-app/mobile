@@ -197,17 +197,25 @@ export const wizardLead = {
 } as const;
 
 /**
- * The foot of the frame window (spec 8, `Viewer` / `ViewerVideo`; spec 7.10): the gaps between the
- * picture, the scrubber a video carries and the 48 strip, which stands `board.bottom` off the edge.
- * Measured off the layout — a photograph ends 96 above the bottom, a video 140 (704 of 844).
+ * The foot of the frame window (spec 8, `ViewerVideo`; spec 7.10): the gap from a video's scrubber
+ * down to the strip. The gaps that used to sit here as well — between the picture and the tools
+ * under it — are gone with the picture no longer being laid out above them (TASK-475): the frame is
+ * drawn in a box of its own proportions in the middle of the phone, and the strip lies over it.
  */
 export const viewerFoot = {
-  /** from the foot of a photograph down to the strip */
-  photo: 18,
-  /** from the foot of a video down to its scrubber */
-  video: 12,
   /** from the scrubber down to the strip */
   track: 14,
+} as const;
+
+/**
+ * The darkening over the picture in the frame window — a fade at the top under the glass and one at
+ * the foot over the strip (spec 8, the four `Viewer*` layouts, TASK-475). The standing phone runs
+ * 150 and 160; the turned one 110 and 120, because a turned phone is short and a fade a third of
+ * its height is a wall rather than a shade.
+ */
+export const viewerShade = {
+  standing: { top: 150, foot: 160 },
+  turned: { top: 110, foot: 120 },
 } as const;
 
 /**
@@ -591,6 +599,18 @@ export const photo = {
   pickHand: 'rgba(9,9,14,0.86)',
   /** the viewer's glass: a button over a photograph has no surface under it */
   glass: 'rgba(245,243,238,0.10)',
+  /**
+   * The darkening over the head of the frame in the viewer's window (spec 8, the four `Viewer*`
+   * layouts): the glass carries its three buttons, but a pill on the brightest part of a picture
+   * still needs the fade under it. The same in both ways up the phone is held.
+   */
+  viewerShadeTop: 'linear-gradient(to bottom, rgba(8,8,12,0.72) 0%, rgba(8,8,12,0) 100%)',
+  /**
+   * …and the one at its foot, over the strip. Deeper with the phone standing than with it turned,
+   * where the strip stands higher on the screen and the fade has less room to be a shade.
+   */
+  viewerShadeFoot: 'linear-gradient(to top, rgba(8,8,12,0.82) 0%, rgba(8,8,12,0) 100%)',
+  viewerShadeFootTurned: 'linear-gradient(to top, rgba(8,8,12,0.80) 0%, rgba(8,8,12,0) 100%)',
   /** the track of a video's scrubber, what is still to play (spec 7.10) */
   videoTrack: 'rgba(245,243,238,0.24)',
   /**
@@ -616,6 +636,12 @@ export const photo = {
    * detail 5) — and a video's whole length beside the scrubber (spec 7.10)
    */
   viewerMeta: 'rgba(245,243,238,0.66)',
+  /**
+   * The dot between the two halves of a turned viewer's pill — the night's own paper at 40%, the
+   * layout's `rgba(245,243,238,.4)` (`ViewerRotated*`). Not `dot`, which is the white 45% the same
+   * mark is drawn in elsewhere.
+   */
+  viewerDot: 'rgba(245,243,238,0.40)',
   /** the meta dot when it stands on a photograph */
   dot: 'rgba(255,255,255,.45)',
   /** the track of a contribution bar drawn over a cover */

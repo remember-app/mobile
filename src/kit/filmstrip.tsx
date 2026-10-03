@@ -14,14 +14,51 @@ import { photo, radius, themed } from '@/theme';
 
 import { Icon } from './icon';
 import { useFocusRing, useHoverFocus } from './interaction';
+import { TAP } from './tap';
 
 /** One frame as the strip and the mosaic know it: a picture, and whether it moves. */
 export type Frame = { uri: string; video?: boolean };
 
-/** Spec 7.8, detail 67 — a neighbour is 30 wide, the frame in hand 44, and they lie 2 apart. */
-const SHOT = 30;
-const CURRENT = 44;
+/** Spec 7.8, detail 67 — a neighbour and the frame in hand lie 2 apart, whichever way up the phone. */
 const GAP = 2;
+
+/**
+ * The sizes the strip is drawn at, measured off the layout (spec 7.8, detail 67 for the standing
+ * phone; TASK-475 for the turned one). Held here and not in the strip, because the strip does not
+ * decide how big it is drawn — the window it stands under does, and there are two of those.
+ *
+ * Standing: neighbours 30 × 44, the frame in hand 44 × 48, the strip 48. Turned: 26 × 36, 38 × 40,
+ * the strip 40 — everything two thirds of what it is upright, because a turned phone has 390 of
+ * height where a standing one has 844 and the strip cannot afford the same share of it.
+ */
+export type StripSize = {
+  /** a neighbour's width */
+  shot: number;
+  /** a neighbour's height — under the strip's own, as it is standing and as it is turned */
+  shotTall: number;
+  /** the frame in hand, in both directions */
+  current: number;
+  /** the strip's own height, which the frame in hand fills */
+  tall: number;
+  /** how far the strip stands off the bottom edge of the screen */
+  foot: number;
+};
+
+export const STRIP_STANDING: StripSize = {
+  shot: 30,
+  shotTall: 44,
+  current: 44,
+  tall: 48,
+  foot: 30,
+};
+
+export const STRIP_TURNED: StripSize = {
+  shot: 26,
+  shotTall: 36,
+  current: 38,
+  tall: 40,
+  foot: 14,
+};
 
 /**
  * Spec 7.7 — the viewer's filmstrip: 48 tall, the neighbours 30 × 44 fading out towards the edges,
@@ -37,12 +74,15 @@ const GAP = 2;
 export function Filmstrip({
   frames,
   index,
+  size = STRIP_STANDING,
   onPick,
   labelAt,
   style,
 }: {
   frames: readonly Frame[];
   index: number;
+  /** How big it is drawn — the window's own, one per way up the phone is held (`Viewer*`, TASK-475). */
+  size?: StripSize;
   onPick?: (at: number) => void;
   /** What each frame is called out as — «Кадр 4 из 486», written by the screen. */
   labelAt?: (at: number) => string;
@@ -77,19 +117,20 @@ export function Filmstrip({
       data={frames}
       keyExtractor={(frame, at) => frame.uri || String(at)}
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.strip}
+      contentContainerStyle={[styles.strip, { height: size.tall }]}
       style={style}
       onLayout={(e) => setViewport(e.nativeEvent.layout.width)}
       // Fixed sizes, so the strip can be walked to any frame without measuring one: the frame in
       // hand is the wide one, and everything past it is pushed along by the difference.
       getItemLayout={(_, at) => ({
-        length: at === index ? CURRENT : SHOT,
-        offset: at * (SHOT + GAP) + (at > index ? CURRENT - SHOT : 0),
+        length: at === index ? size.current : size.shot,
+        offset: at * (size.shot + GAP) + (at > index ? size.current - size.shot : 0),
         index: at,
       })}
       renderItem={({ item, index: at }) => (
         <Shot
           frame={item}
+          size={size}
           current={at === index}
           // The fade is by distance from the frame in hand: 0.75, 0.6, then 0.45 for everything past.
           dim={[0.75, 0.6][Math.abs(at - index) - 1] ?? 0.45}
@@ -103,12 +144,14 @@ export function Filmstrip({
 
 function Shot({
   frame,
+  size,
   current,
   dim,
   label,
   onPress,
 }: {
   frame: Frame;
+  size: StripSize;
   current: boolean;
   dim: number;
   label?: string;
@@ -117,6 +160,8 @@ function Shot({
   const { focused, props } = useHoverFocus();
   const styles = useStyles();
   const focusRing = useFocusRing();
+  const width = current ? size.current : size.shot;
+  const height = current ? size.tall : size.shotTall;
 
   return (
     <Pressable
@@ -125,8 +170,15 @@ function Shot({
       accessibilityState={{ selected: current }}
       disabled={!onPress}
       onPress={onPress}
+      // Spec 1.6 and 10.2: a shot is drawn at the layout's size — 26 × 36 turned, 30 × 44 standing —
+      // and neither is 44 across, so the target grows out to it in transparent space. It grows as
+      // far as the frame beside it allows ({@link slopFor}): reaching past the half of the gap
+      // between two shots would put a tap on the frame the person did not touch, which is worse
+      // than a small one.
+      hitSlop={slopFor(height)}
       {...props}
       style={[
+        { width, height },
         styles.shot,
         current ? styles.shotCurrent : { opacity: dim },
         focused ? focusRing : null,
@@ -136,6 +188,24 @@ function Shot({
       {current && frame.video ? <PlayDot /> : null}
     </Pressable>
   );
+}
+
+/**
+ * How far a shot's touch reaches past what it is drawn at (spec 10.2), never past the frame beside
+ * it: the two stand {@link GAP} apart, so half that is all a tap can take without landing on the
+ * wrong photograph.
+ *
+ * That leaves the strip short of the 44 in both directions at the layout's own turned sizes — 38 and
+ * 40, with a 2 gap between frames that are themselves only 26 wide. Those are the numbers
+ * `ViewerRotated*` draws and the window cannot change them; a shot is walked by its neighbours and
+ * by the finger, not aimed at, and the frames either side of it are what a person hits instead.
+ * ponytail: a strip whose shots were 44 wide would need the gap to grow with them and the pictures
+ * to stop being a strip. Raise it when the layout moves off 38 × 40.
+ */
+function slopFor(height: number) {
+  const across = GAP / 2;
+  const down = Math.max(0, (TAP - height) / 2);
+  return { left: across, right: across, top: down, bottom: down };
 }
 
 function PlayDot() {
@@ -202,15 +272,15 @@ export function Mosaic({
 
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
-    strip: { flexDirection: 'row', alignItems: 'center', gap: GAP, height: 48 },
+    strip: { flexDirection: 'row', alignItems: 'center', gap: GAP },
+    // Widths and heights come from the `size` the window handed in — the strip does not decide how
+    // big it is drawn — and only the corners and the surface are here.
     shot: {
-      width: SHOT,
-      height: 44,
       borderRadius: 3,
       overflow: 'hidden',
       backgroundColor: color.raise,
     },
-    shotCurrent: { width: CURRENT, height: 48, borderRadius: 5, opacity: 1 },
+    shotCurrent: { borderRadius: 5, opacity: 1 },
     // In the corner of the frame in hand, 4 in from its left and its foot (`ViewerVideo`).
     playDot: {
       position: 'absolute',

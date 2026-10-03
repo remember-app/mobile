@@ -532,12 +532,19 @@ export function GlassBar({
  * on the left, a pill carrying when and who in the middle, «ещё» on the right. It floats because
  * there is no surface under it; the frame is the surface. It keeps 12 at the sides and 10 between
  * the pieces, the same margin the glass bar over the feed keeps and not the screen's 16.
+ *
+ * `turned` is the same three pieces with the phone lying on its side (spec 8, `ViewerRotated*`,
+ * TASK-475): the buttons drop from 48 to 44 and the pill from 48 to 44, the sides open from 12 to
+ * 44 — a phone on its side has 844 of width and 12 of margin would pin the buttons into the corners
+ * of a very wide bar — and the two floors of the pill lie on one line through a 3 dot instead of
+ * standing on each other. The screen says which, and hands the round buttons in at its own size.
  */
 export function ViewerBar({
   date,
   meta,
   label,
   onPress,
+  turned = false,
   left,
   right,
   style,
@@ -551,6 +558,8 @@ export function ViewerBar({
    */
   label?: string;
   onPress?: () => void;
+  /** Whether the phone is lying on its side, which is the layout's other pair of `Viewer*`. */
+  turned?: boolean;
   left?: ReactNode;
   right?: ReactNode;
   style?: StyleProp<ViewStyle>;
@@ -561,7 +570,7 @@ export function ViewerBar({
     // Over a photograph in both themes, like the glass bar: the round buttons a screen hands in are
     // read in the night's ink whatever the app is in.
     <ThemePin value="dark">
-      <View style={[styles.viewerBar, style]}>
+      <View style={[styles.viewerBar, turned ? styles.viewerBarTurned : null, style]}>
         {left}
         <View style={styles.viewerMiddle}>
           {/* Spec 7.1, detail 5: the pill is a button — the road to the frame's own sheet — and says
@@ -572,15 +581,27 @@ export function ViewerBar({
             accessibilityLabel={onPress ? label : undefined}
             onPress={onPress}
             disabled={!onPress}
-            style={styles.viewerPill}
+            style={[styles.viewerPill, turned ? styles.viewerPillTurned : null]}
           >
             {/* The date in the pinned night's `paper`, #F5F3EE — not the photograph's white. Both
                 wrap on large type and the pill grows down: the author is who brought the frame,
                 and the date is the one place the viewer says when (TASK-400). */}
-            <Text role="row" style={styles.centred}>
+            <Text role="row" style={[styles.centred, turned ? styles.unwrapped : null]}>
               {date}
             </Text>
-            <Text role="meta" style={[styles.viewerMeta, styles.centred]}>
+            {/* Turned, the two lie on one line with a dot between them (`ViewerRotated*`), which is
+                the same two facts in the same order as two floors — the dot carries no words of its
+                own, and the pill is still one button read out in one sentence. */}
+            {turned ? <View style={styles.viewerDot} /> : null}
+            <Text
+              role="meta"
+              style={[
+                styles.viewerMeta,
+                styles.centred,
+                turned ? styles.viewerMetaTurned : null,
+                turned ? styles.unwrapped : null,
+              ]}
+            >
               {meta}
             </Text>
           </Pressable>
@@ -767,6 +788,13 @@ const useStyles = themed(({ color }) =>
       gap: 10,
       paddingHorizontal: space.s3,
     },
+    // The same row with the phone on its side (`ViewerRotated*`): 44 in from the ends rather than
+    // 12, which on a 844-wide bar would pin the buttons against the corners, and the round 44 of a
+    // bar rather than the round 48 of the standing one.
+    viewerBarTurned: {
+      minHeight: height.roundBar,
+      paddingHorizontal: 44,
+    },
     // The pill is as wide as its words and stands in the middle of what the two buttons leave —
     // it is not a strip laid across the bar. The hairline is the layout's, and only the pill has it.
     viewerMiddle: { flex: 1, minWidth: 0, alignItems: 'center' },
@@ -785,6 +813,22 @@ const useStyles = themed(({ color }) =>
       borderWidth: 1,
       borderColor: photo.barEdge,
     },
+    // Turned (`ViewerRotated*`): the two facts on one line, 9 apart, in a 44 pill. The vertical
+    // padding goes — the row is centred by `justifyContent`, and on a 44 there is no room to spare
+    // above and below a single line of words.
+    viewerPillTurned: {
+      minHeight: height.roundBar,
+      flexDirection: 'row',
+      gap: 9,
+      paddingVertical: 0,
+    },
+    // The dot between them: the layout's own 3, in its own 40% paper.
+    viewerDot: { width: 3, height: 3, borderRadius: radius.pill, backgroundColor: photo.viewerDot },
+    // 13 in a turned bar against the standing 12 (`ViewerRotated*`), the same line the meta is.
+    viewerMetaTurned: { fontSize: 13 },
+    // Neither half of the turned pill wraps: a 44 bar with the date and «время · автор» on one
+    // line has no room for a second, and a broken date is worse than a tight one.
+    unwrapped: { flexShrink: 0 },
     viewerMeta: { color: photo.viewerMeta },
     centred: { textAlign: 'center' },
     layer: { paddingHorizontal: space.s4, paddingTop: space.s3, gap: space.s3 },

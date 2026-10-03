@@ -455,6 +455,7 @@ test('the sheet is a wait while its read is in the air, the reason when the read
         longitude: null,
         uploaded_by: { id: 'u', username: 'mark', name: 'Марк', media_count: 96 },
         montages: [],
+        labels: [],
       },
     }),
   );

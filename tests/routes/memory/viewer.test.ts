@@ -16,6 +16,7 @@ import layout from '@/app/_layout.tsx?raw';
 import home from '@/app/index.tsx?raw';
 // The viewer's strip is the library's own part, and what it does with a finger was learned three
 // times over on a real phone — so it is read here, beside the window that mounts it.
+import bars from '@/kit/bars.tsx?raw';
 import filmstrip from '@/kit/filmstrip.tsx?raw';
 import films from '@/screens/memory/films.tsx?raw';
 import viewer from '@/screens/memory/frame-viewer.tsx?raw';
@@ -53,9 +54,12 @@ test('the whole window is three buttons on glass, and under the picture only the
   expect(viewer).toContain('<ViewerBar');
   expect(viewer).not.toContain('<ActionBar');
   expect(viewer).not.toContain('styles.actions');
-  // TASK-109's darkening went with the bar it was under: the glass carries these now, and a
-  // gradient measured off the safe area has nothing left to darken.
+  // TASK-109's darkening under the bar went with the bar it was under — the glass carries the three
+  // buttons now. The two darkenings over the picture that the four `Viewer*` layouts draw are a
+  // different thing and are pinned on their own below: they are gradients off `photo`, and the
+  // window writes no gradient string of its own.
   expect(viewer).not.toContain('linear-gradient');
+  expect(viewer).toContain('experimental_backgroundImage: photo.viewerShadeTop');
   // The order down the window, spec 8: the scrubber on a line of its own, then the strip, and the
   // strip is the last thing in the window.
   const strip = viewer.indexOf('<Filmstrip');
@@ -191,8 +195,8 @@ test('a movie the frame stands in is named by its length and opens the one playe
 
 test('a frame that would not open says so, and the strip stays where it is', () => {
   // Spec 8, the edge of `Viewer`: «знак image и „Кадр не открылся“, плёнка остаётся». The sign is
-  // inside the stage, so everything under it — the scrubber, the strip — is untouched.
-  const stage = viewer.slice(viewer.indexOf('<View style={[styles.big, styles.blank]}>'));
+  // inside the frame's own box, so everything under it — the scrubber, the strip — is untouched.
+  const stage = viewer.slice(viewer.indexOf('<View style={[styles.big, box, styles.blank]}>'));
   expect(stage).toContain('<Empty icon={ImageSign} text={s.viewer.notOpened} />');
   expect(viewer.indexOf('styles.blank')).toBeLessThan(viewer.indexOf('<Filmstrip'));
   expect(ru.viewer.notOpened).toBe('Кадр не открылся');
@@ -245,10 +249,14 @@ test('the 72 stands in the middle of the picture, on the dark the layout puts un
   // Reported off a device (TASK-181): the button hung visibly above the middle of the frame, because
   // it was centred over the whole stage, whose top padding is the floating bar's own 116.
   const stage = viewer.slice(viewer.indexOf('{playable !== null ? ('), viewer.indexOf('{notice ?'));
-  // One box holds the picture and the button, and it is the box the stage's padding is already out
-  // of — so the middle of the one is the middle of the other.
-  expect(stage).toContain('<View style={styles.big}>');
+  // One box holds the picture and the button, and it is the frame's own box — hung on the stage
+  // instead, the button would centre itself over whatever the stage has left over rather than over
+  // the frame. That is what the middle of the one being the middle of the other means (TASK-475).
+  expect(stage).toContain('<View style={[styles.big, box]}>');
   expect(stage.indexOf('<VideoView')).toBeLessThan(stage.indexOf('styles.middleOfFrame'));
+  // The box is the frame's own proportions and the video is covered into it, like a photograph.
+  expect(viewer).toContain('const box = frameBox(item.width, item.height, width, screen);');
+  expect(stage).toContain('contentFit="cover"');
   expect(viewer).toContain('...StyleSheet.absoluteFill,');
   // 72 on the kit's «над видео» (spec 7.2, 10.10): `rgba(6,6,10,.5)`, no hairline, the glyph filled
   // in `paper` — not the viewer's glass, which vanishes over a bright frame, and not the tile's 72 %
@@ -261,15 +269,67 @@ test('the 72 stands in the middle of the picture, on the dark the layout puts un
   expect(viewer).not.toContain('photo.mark');
 });
 
-test('the foot of the window is the layout’s: a photograph ends 96 up, a video 140', () => {
-  // Spec 8, `ViewerVideo`, and 10.10: the video ends at 704 and not 700, its scrubber 716–752, and
-  // 14 — not 12 — down to the strip. The gaps are tokens (`viewerFoot`), held to 96 and 140 in
-  // `tests/theme/tokens.test.ts`; what this pins is that the window takes them, and takes the
-  // video's only where there is a video.
-  expect(viewer).toContain('tools: { gap: viewerFoot.track, paddingTop: viewerFoot.photo },');
-  expect(viewer).toContain('toolsVideo: { paddingTop: viewerFoot.video },');
-  const tools = viewer.slice(viewer.indexOf('styles.tools,'), viewer.indexOf('<VideoTrack'));
-  expect(tools).toContain('playable !== null ? styles.toolsVideo : null');
+test('the strip lies over the picture, and a video’s scrubber 14 above it', () => {
+  // Spec 8, `ViewerVideo`, and 10.10: 14 — not 12 — from the scrubber down to the strip. What that
+  // 14 was measured against is gone (TASK-475): the picture used to be laid out above the tools and
+  // had room reserved under it (a photograph 96, a video 140). It is now drawn in a box of its own
+  // proportions in the middle of the phone, and the tools lie over it — so the only gap left is the
+  // one between a video's own two rows, and the window takes it.
+  expect(viewer).toContain("tools: { position: 'absolute', left: 0, right: 0, bottom: 0,");
+  expect(viewer).toContain('gap: viewerFoot.track');
+  expect(viewer).not.toContain('viewerFoot.photo');
+  expect(viewer).not.toContain('viewerFoot.video');
+  // The strip's own distance from the bottom edge comes from the strip's size, which is a pair —
+  // 30 upright and 14 turned (`ViewerRotated*`) — and not from a gap that no longer has a picture
+  // above it to be a gap from.
+  expect(viewer).toContain('paddingBottom: Math.max(insets.bottom, stripSize.foot)');
+  expect(viewer).toContain('<Filmstrip');
+  expect(viewer.indexOf('size={stripSize}')).toBeGreaterThan(0);
+});
+
+test('the two darkenings are the layout’s own, one pair per way up the phone is held', () => {
+  // Spec 8, the four `Viewer*` layouts (TASK-475): 150 at the head and 160 at the foot upright,
+  // 110 and 120 turned. They are gradients off `photo` like every other darkening over a picture,
+  // and they take no finger — the picture takes every touch under them.
+  expect(viewer).toContain('const shade = turned ? viewerShade.turned : viewerShade.standing;');
+  expect(viewer).toContain('height: shade.top');
+  expect(viewer).toContain('height: shade.foot');
+  expect(viewer.match(/pointerEvents="none"/g)).toHaveLength(2);
+  // The foot's own gradient differs between the two — deeper upright than turned — and only the
+  // turned one is the variant.
+  expect(viewer).toContain('turned ? styles.shadeFootTurned : null');
+  // Named tokens only: the window writes no colour of its own (the room it stands in, TASK-211).
+  expect(viewer).not.toMatch(/#[0-9a-fA-F]{3,8}\b|rgba?\(/);
+});
+
+test('the notice says itself above the tools, not behind them', () => {
+  // Saving, sharing and the delete all say what they are doing in a banner over the picture. The
+  // stage is the whole of the phone now, so a notice pinned to its bottom would stand under the
+  // strip — the one thing lying over the picture's foot (TASK-475).
+  expect(viewer).toContain('const toolsTall =');
+  expect(viewer).toContain('stripSize.tall +');
+  expect(viewer).toContain('style={[styles.notice, { bottom: toolsTall + space.s4 }]}');
+  // Over a video the scrubber is above the strip, so it counts too — the 14 of the gap and the 36
+  // the sound button makes its row.
+  expect(viewer).toContain('(playable !== null ? viewerFoot.track + height.roundRow : 0)');
+});
+
+test('the header and the pill answer to which way up the phone is', () => {
+  // Spec 8, `ViewerRotated*`: the bar's buttons drop from 48 to 44, its sides open from 12 to 44,
+  // and the date and «время · автор» lie on one line through a 3 dot rather than on two floors.
+  // `ViewerBar` draws the row and the pill; the screen hands it the buttons at their own size.
+  expect(viewer).toContain('turned={turned}');
+  expect(viewer.match(/size=\{turned \? height\.roundBar : height\.roundViewer\}/g)).toHaveLength(
+    2,
+  );
+  expect(viewer).toContain('style={[styles.bar, { top: turned ? 18 : insets.top }]}');
+  // And the bar is what decides whether it is turned — the screen's own width against its own
+  // height, which is also what `frameBox` is handed.
+  expect(viewer).toContain('const turned = width > screen;');
+  expect(bars).toContain('turned = false');
+  expect(bars).toContain('viewerBarTurned');
+  expect(bars).toContain('viewerPillTurned');
+  expect(bars).toContain('viewerDot');
 });
 
 test('the film can be wound, and only while there is a length to wind it against', () => {

@@ -1,7 +1,7 @@
 import { StyleSheet } from 'react-native';
 import { beforeAll, expect, test } from 'vitest';
 
-import { Filmstrip, type Frame, Mosaic } from '@/kit/filmstrip';
+import { Filmstrip, type Frame, Mosaic, STRIP_STANDING, STRIP_TURNED } from '@/kit/filmstrip';
 import { allDifferent, story } from '@/kit/story';
 import { setTheme } from '@/theme';
 
@@ -80,6 +80,41 @@ test('a mosaic with too few frames leaves the empty cells plain rather than repe
     expect(cells, layout).toHaveLength(layout === 'cover' ? 3 : 4);
     for (const cell of cells) expect(cell['background-color'], layout).toBe('rgba(34,34,46,1.00)');
   }
+});
+
+test('the strip is drawn at the size it is handed, and the window hands it one per way up', () => {
+  // Spec 7.8, detail 67 upright (30 × 44, the frame in hand 44 × 48, the strip 48) and spec 8,
+  // `ViewerRotated*` turned (26 × 36, 38 × 40, the strip 40 — TASK-475). The strip does not decide
+  // how big it is: it is drawn at the `size` the window gives it, because there are two windows'
+  // worth of sizes now and the strip belongs to neither.
+  expect(STRIP_STANDING).toEqual({ shot: 30, shotTall: 44, current: 44, tall: 48, foot: 30 });
+  expect(STRIP_TURNED).toEqual({ shot: 26, shotTall: 36, current: 38, tall: 40, foot: 14 });
+
+  const standing = story(<Filmstrip frames={FRAMES} index={0} />);
+  const turned = story(<Filmstrip frames={FRAMES} index={0} size={STRIP_TURNED} />);
+  expect(turned).not.toBe(standing);
+  // The frame in hand and a neighbour, at both sizes: 30 × 44 and 44 × 48 standing against 26 × 36
+  // and 38 × 40 turned, and the strip's own height to match the frame in hand.
+  for (const [markup, size] of [
+    [standing, STRIP_STANDING],
+    [turned, STRIP_TURNED],
+  ] as const) {
+    expect(markup, 'the frame in hand').toContain(`width:${size.current}px;height:${size.tall}px`);
+    expect(markup, 'a neighbour').toContain(`width:${size.shot}px;height:${size.shotTall}px`);
+    expect(markup, 'the strip').toContain(`height:${size.tall}px`);
+  }
+  // A strip left alone is the standing one — the size the spec's own detail 67 measures.
+  expect(standing).toContain('width:30px;height:44px');
+});
+
+test('the strip’s fade is the same at either size', () => {
+  // The layout fades by distance in both `Viewer*` — 0.75, then 0.6, then 0.45 — so turning the
+  // phone changes how big the strip is and nothing else about what it says.
+  const many = [...FRAMES, { uri: 'https://b/4.jpg' }, { uri: 'https://b/5.jpg' }];
+  const turned = story(<Filmstrip frames={many} index={0} size={STRIP_TURNED} />);
+  expect(turned).toContain('opacity:0.75');
+  expect(turned).toContain('opacity:0.6');
+  expect(turned).toContain('opacity:0.45');
 });
 
 test('the play circle on a video in hand is the layout’s own dark, not a tile’s mark', () => {

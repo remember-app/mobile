@@ -43,6 +43,8 @@ const told = (over: Partial<FrameInfo> = {}): FrameInfo => ({
   longitude: 37.53,
   uploaded_by: { id: 'u', username: 'mark', name: 'Марк Ковалёв', media_count: 96 },
   montages: [{ id: 'f', duration_seconds: 60, start_seconds: 72 }],
+  // A frame in no box at all: an empty array, which is how the api says it (TASK-479).
+  labels: [],
   ...over,
 });
 
@@ -95,6 +97,7 @@ test('a frame in no movie loses the block, and one the worker never read loses t
       latitude: null,
       longitude: null,
       montages: [],
+      labels: [],
     }),
   );
   expect(bare).toContain('Марк Ковалёв');
