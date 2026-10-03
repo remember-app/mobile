@@ -341,13 +341,20 @@ function Queued({ montage }: { montage: Montage }) {
           {filmScreen.queuedTitle}
         </Text>
         <Text role="note" tone="muted">
+          {/* Two sentences, then the tail of the second: «Перед нами ещё один ролик. Сборка начнётся
+              примерно через 2 минуты и займёт около 14.» — the last clause is its own continuation,
+              so it is joined with a space and never starts a sentence with a conjunction. */}
           {[
-            queue && queue.ahead > 0 ? filmScreen.queuedAhead(queue.ahead) : null,
-            queue ? filmScreen.queuedStarts(queue.starts_in_minutes) : null,
+            [
+              queue && queue.ahead > 0 ? filmScreen.queuedAhead(queue.ahead) : null,
+              queue ? filmScreen.queuedStarts(queue.starts_in_minutes) : null,
+            ]
+              .filter(Boolean)
+              .join('. '),
             queue?.estimate_minutes != null ? filmScreen.queuedTakes(queue.estimate_minutes) : null,
           ]
             .filter(Boolean)
-            .join('. ')}
+            .join(' ')}
         </Text>
       </View>
 

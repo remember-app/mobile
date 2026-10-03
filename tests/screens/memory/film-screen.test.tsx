@@ -93,8 +93,8 @@ const row = (
 ): MontageStage => ({
   ...stage(code, state),
   // 4 + 2 + 2 minutes of what is left — the estimate the stage line adds up.
+  // 4 + 2 + 2 minutes of what is left — the estimate the stage line adds up.
   eta_seconds: state === 'done' ? null : code === 'directing' ? 240 : 120,
-  total_count: code === 'directing' ? 214 : null,
   taken_count: code === 'directing' ? 23 : 0,
   skipped_count: code === 'directing' ? 38 : 0,
   thought_count: code === 'directing' ? 2 : 0,
@@ -162,6 +162,27 @@ function shown(tree: TestRenderer.ReactTestRenderer): string {
   return words.join(' ');
 }
 
+/**
+ * One block of words as it stands on the page — the text of a single node, its own words joined with
+ * nothing between them. `shown` joins every node with a space, which is right for looking for a word
+ * somewhere and wrong for reading a sentence: a paragraph broken across nodes would come back with a
+ * space where its own punctuation was.
+ */
+function paragraph(tree: TestRenderer.ReactTestRenderer, beginsWith: string): string {
+  const found: string[] = [];
+  const walk = (node: unknown) => {
+    if (typeof node === 'string') {
+      if (node.startsWith(beginsWith)) found.push(node);
+      return;
+    }
+    if (node && typeof node === 'object') {
+      for (const child of (node as { children?: unknown[] }).children ?? []) walk(child);
+    }
+  };
+  walk(tree.toJSON());
+  return found.join('');
+}
+
 /** A screen mounted and left standing, the way every flow test here opens one. */
 const open = async () => {
   let tree!: TestRenderer.ReactTestRenderer;
@@ -186,9 +207,11 @@ test('в очереди: место в очереди и что заказано
 
   const page = shown(tree);
   expect(page).toContain('В очереди');
-  expect(page).toContain('Перед нами ещё один ролик');
-  expect(page).toContain('примерно через 2 минуты');
-  expect(page).toContain('около 14');
+  // One sentence, joined the way the layout joins it: the last clause is the tail of the second
+  // sentence and never a third one opening with a conjunction.
+  expect(paragraph(tree, 'Перед нами')).toBe(
+    'Перед нами ещё один ролик. Сборка начнётся примерно через 2 минуты и займёт около 14',
+  );
   // What was ordered, out of what the order counted — never recounted here.
   expect(page).toContain('214');
   expect(page).toContain('168 фото · 46 видео');
