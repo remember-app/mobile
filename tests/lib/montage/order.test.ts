@@ -40,10 +40,12 @@ vi.mock('expo-file-system', () => ({
 type FakePlayer = {
   uri: string;
   played: boolean;
+  paused: boolean;
   removed: boolean;
   currentTime: number;
   duration: number;
   play(): void;
+  pause(): void;
   remove(): void;
 };
 
@@ -60,12 +62,19 @@ vi.mock('expo-audio', () => ({
     const player: FakePlayer = {
       uri: source.uri,
       played: false,
+      paused: false,
       removed: false,
       currentTime: 0,
       duration: 100,
       play() {
         player.played = true;
+        player.paused = false;
       },
+      pause() {
+        player.paused = true;
+      },
+      // As the phone has it: releasing takes the player out of the module's registry and says
+      // nothing about the sound, which is the whole of the defect this mock is here to hold.
       remove() {
         player.removed = true;
       },
@@ -640,9 +649,11 @@ test('one speaker for the shelf: another row switches it, the same row stops it'
   expect(heard.at(-1)).toEqual({ track: 'bright', at: 0 });
 
   // Another row: the one that was sounding is released before the next is built, so two tracks can
-  // never be heard over each other.
+  // never be heard over each other. Released *and paused* — on the phone `remove` alone left the
+  // first track sounding under the second, the icon saying «Стоп» over music still playing.
   await preview.toggle('night');
   expect(players[0]?.removed).toBe(true);
+  expect(players[0]?.paused).toBe(true);
   expect(players[1]?.uri).toContain('night');
   expect(heard.at(-1)).toEqual({ track: 'night', at: 0 });
 
@@ -650,10 +661,12 @@ test('one speaker for the shelf: another row switches it, the same row stops it'
   const signed = asked.length;
   await preview.toggle('night');
   expect(players[1]?.removed).toBe(true);
+  expect(players[1]?.paused).toBe(true);
   expect(heard.at(-1)).toBeNull();
   expect(asked).toHaveLength(signed);
   // Which leaves the shelf where it started: the next press plays again rather than stopping.
   await preview.toggle('night');
+  expect(players[2]?.paused).toBe(false);
   expect(heard.at(-1)).toEqual({ track: 'night', at: 0 });
 
   preview.stop();
@@ -682,6 +695,7 @@ test('the waveform follows the track, and running out is a stop nobody pressed',
   vi.advanceTimersByTime(500);
   expect(heard.at(-1)).toBeNull();
   expect(player.removed).toBe(true);
+  expect(player.paused).toBe(true);
   // And the clock goes with it — a ticker left running would report on a released player forever.
   vi.advanceTimersByTime(5_000);
   expect(heard.at(-1)).toBeNull();

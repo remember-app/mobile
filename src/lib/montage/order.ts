@@ -86,8 +86,12 @@ export const TRACK_LIMIT = 50;
  */
 export const MIN_FRAMES = 3;
 
-/** How much of a story the layout takes. Well inside the api's own 2000 — it counts up, not down. */
-export const STORY_LIMIT = 600;
+/**
+ * How much of a story the layout takes — tripled from 600 on the owner's word (a story told in
+ * words needs three times the room a field for a name does). Still inside the api's own 2000, which
+ * is what answers 400 over it; it counts up, not down.
+ */
+export const STORY_LIMIT = 1800;
 
 /**
  * One track of the order, as the api takes it: `key` is either an id off the shelf (`calm`) or the

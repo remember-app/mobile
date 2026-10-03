@@ -300,6 +300,18 @@ test('step 1 rules the automatic pass, and cannot leave the order below the floo
   expect(frames).toContain('label={s.montage.nextWith(inMovie.length)}');
 });
 
+test('the story has one limit, and it is the same one the box and its red border both read', () => {
+  // Tripled from 600 on the owner's word, and still inside the api's own 2000 — the number is the
+  // model's alone, so a second copy somewhere else could only ever disagree with it.
+  expect(model).toContain('export const STORY_LIMIT = 1800;');
+  expect(story).not.toMatch(/STORY_LIMIT\s*=\s*\d/);
+  expect(story).not.toMatch(/limit=\{\d/);
+  // The box holds to it, and says it has had enough in the field's own red by asking the same
+  // number — nothing counts down to the limit, so this border is where the answer is.
+  expect(story).toContain('limit={STORY_LIMIT}');
+  expect(story).toContain("state={order.story.length >= STORY_LIMIT ? 'error' : undefined}");
+});
+
 test('step 2 is skippable, and the plate says whose words are in the box', () => {
   // Nothing here is required: the button says «Дальше» whatever is in the box, and an empty box is
   // the director deciding.
