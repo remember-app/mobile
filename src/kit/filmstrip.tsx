@@ -14,6 +14,7 @@ import { photo, radius, themed } from '@/theme';
 
 import { Icon } from './icon';
 import { useFocusRing, useHoverFocus } from './interaction';
+import { TAP } from './tap';
 
 /** One frame as the strip and the mosaic know it: a picture, and whether it moves. */
 export type Frame = { uri: string; video?: boolean };
@@ -159,6 +160,8 @@ function Shot({
   const { focused, props } = useHoverFocus();
   const styles = useStyles();
   const focusRing = useFocusRing();
+  const width = current ? size.current : size.shot;
+  const height = current ? size.tall : size.shotTall;
 
   return (
     <Pressable
@@ -167,9 +170,15 @@ function Shot({
       accessibilityState={{ selected: current }}
       disabled={!onPress}
       onPress={onPress}
+      // Spec 1.6 and 10.2: a shot is drawn at the layout's size — 26 × 36 turned, 30 × 44 standing —
+      // and neither is 44 across, so the target grows out to it in transparent space. It grows as
+      // far as the frame beside it allows ({@link slopFor}): reaching past the half of the gap
+      // between two shots would put a tap on the frame the person did not touch, which is worse
+      // than a small one.
+      hitSlop={slopFor(height)}
       {...props}
       style={[
-        { width: current ? size.current : size.shot, height: current ? size.tall : size.shotTall },
+        { width, height },
         styles.shot,
         current ? styles.shotCurrent : { opacity: dim },
         focused ? focusRing : null,
@@ -179,6 +188,24 @@ function Shot({
       {current && frame.video ? <PlayDot /> : null}
     </Pressable>
   );
+}
+
+/**
+ * How far a shot's touch reaches past what it is drawn at (spec 10.2), never past the frame beside
+ * it: the two stand {@link GAP} apart, so half that is all a tap can take without landing on the
+ * wrong photograph.
+ *
+ * That leaves the strip short of the 44 in both directions at the layout's own turned sizes — 38 and
+ * 40, with a 2 gap between frames that are themselves only 26 wide. Those are the numbers
+ * `ViewerRotated*` draws and the window cannot change them; a shot is walked by its neighbours and
+ * by the finger, not aimed at, and the frames either side of it are what a person hits instead.
+ * ponytail: a strip whose shots were 44 wide would need the gap to grow with them and the pictures
+ * to stop being a strip. Raise it when the layout moves off 38 × 40.
+ */
+function slopFor(height: number) {
+  const across = GAP / 2;
+  const down = Math.max(0, (TAP - height) / 2);
+  return { left: across, right: across, top: down, bottom: down };
 }
 
 function PlayDot() {

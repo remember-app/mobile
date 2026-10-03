@@ -169,10 +169,11 @@ export function FrameViewer({
    * same 3:2, 293 × 390 for the 3:4 — the layout's own numbers, and every one of them is a frame's
    * own shape as wide as it can go without leaving the screen.
    *
-   * So: the frame's proportions, the screen's long side, and the frame laid along whichever of the
-   * two will hold it. A record the api has not measured yet — `width` and `height` are null until
-   * the worker has looked at it — has no proportions to lay out, and takes the whole screen: that
-   * is a frame shown as it is rather than a guessed shape, and it lasts until the numbers arrive.
+   * So: the frame takes the screen whole across the way the phone is held — the width upright, the
+   * height turned — and its other side is whatever its own proportions make of that. A record the
+   * api has not measured yet — `width` and `height` are null until the worker has looked at it — has
+   * no proportions to lay out, and takes the whole screen: that is a frame shown as it is rather
+   * than a guessed shape, and it lasts until the numbers arrive.
    */
   const box = frameBox(item.width, item.height, width, screen);
 

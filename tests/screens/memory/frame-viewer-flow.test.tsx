@@ -3,7 +3,7 @@ import { reverseGeocodeAsync } from 'expo-location';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
-const { router, downloads, ask, player, turns, platform } = vi.hoisted(() => ({
+const { router, downloads, ask, player, turns, platform, phone } = vi.hoisted(() => ({
   router: { push: vi.fn(), back: vi.fn(), setParams: vi.fn() },
   downloads: { maySaveToPhone: vi.fn(), saveToPhone: vi.fn(), shareFile: vi.fn() },
   ask: { id: 'me' },
@@ -20,6 +20,9 @@ const { router, downloads, ask, player, turns, platform } = vi.hoisted(() => ({
   // What the window asks of the orientation lock, and which platform it thinks it is on.
   turns: vi.fn(),
   platform: { os: 'android' as 'android' | 'ios' },
+  // The phone's own screen, standing at first — a test that wants the other three turns it
+  // (TASK-475). Not `screen`: that name is this file's own word for the open window.
+  phone: { width: 390, height: 844, scale: 3, fontScale: 1 },
 }));
 
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
@@ -40,6 +43,8 @@ vi.mock('expo-video', () => ({
 }));
 vi.mock('@/lib/orientation', () => ({ useTurnsWithPhone: turns }));
 // The window raises a film differently on iOS, where a modal raised over another one is swallowed.
+// And the screen's own size, which is how the window knows which way up the phone is (TASK-475) —
+// the four `Viewer*` layouts are told apart by nothing else.
 vi.mock('react-native', async (importOriginal) => {
   const rn = await importOriginal<typeof import('react-native')>();
   return {
@@ -49,11 +54,12 @@ vi.mock('react-native', async (importOriginal) => {
     }),
     Modal: ({ visible, children }: { visible?: boolean; children?: unknown }) =>
       visible === false ? null : (children as never),
+    useWindowDimensions: () => phone,
   };
 });
 vi.mock('@/lib/downloads', () => downloads);
 
-import { expectReachable } from '@tests/helpers/access';
+import { expectReachable, targets } from '@tests/helpers/access';
 import { type Asked, later, member, memory, photo, refused, serve } from '@tests/helpers/api';
 import { touch } from '@tests/helpers/gesture';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
@@ -1097,3 +1103,52 @@ test.each(['ru', 'en'] as const)(
     }
   },
 );
+
+test('turned, the window keeps every name, role and 44 that it has standing', async () => {
+  // TASK-475: the phone lying on its side is the same window with the same controls on glass, and a
+  // screen reader must not lose one of them because the picture is drawn the other way round. The
+  // bar's own round buttons drop from 48 to 44 — the layout's — and a 44 with its slop is still the
+  // floor, so they keep meeting it. The strip's shots are the layout's 26 × 36 and 38 × 40, which do
+  // not: they grow as far as the 2 gap between two shots allows and no further, because reaching
+  // past that puts a tap on the frame the person did not touch. That is `ViewerRotated*`'s own
+  // numbers, and it is said here rather than hidden by not asking.
+  serve(() => undefined);
+  const standing = { width: 390, height: 844 };
+  // The strip's own shots are told by what they are drawn at: a control on the window is 44 or more
+  // across, and nothing in the strip is.
+  const inStrip = (one: { width: number | undefined }) => (one.width ?? 0) < 44;
+  try {
+    for (const item of [shots()[0], video()]) {
+      Object.assign(phone, standing);
+      const upright = targets((await open({ item, frames: [item] })).root);
+      Object.assign(phone, { width: 844, height: 390 });
+      const sideways = targets((await open({ item, frames: [item] })).root);
+
+      // The same controls, in the same words, on the same job — only the geometry moved.
+      expect(sideways.map((one) => one.name).sort()).toEqual(upright.map((one) => one.name).sort());
+      for (const one of upright) {
+        expect(sideways.find((two) => two.name === one.name)?.role, one.name).toBe(one.role);
+      }
+      // Every control a finger reaches for on its own is still 44 by 44, standing or turned.
+      for (const one of sideways.filter((two) => !inStrip(two))) {
+        expect(one.role, one.name).toBeTruthy();
+        expect(one.name, 'a control with no name').not.toBe('');
+        if (one.width !== undefined)
+          expect(one.width, `«${one.name}» is ${one.width} wide`).toBeGreaterThanOrEqual(44);
+        if (one.height !== undefined)
+          expect(one.height, `«${one.name}» is ${one.height} high`).toBeGreaterThanOrEqual(44);
+      }
+      // And the strip's own frames keep the names and roles they had, at the sizes the layout draws:
+      // 26 wide turned against the standing 30, and none of them lost its role or its name.
+      const shots = sideways.filter(inStrip);
+      expect(shots.length).toBeGreaterThan(0);
+      for (const one of shots) {
+        expect(one.role, one.name).toBe('button');
+        expect(one.name, 'a strip frame with no name').not.toBe('');
+        if (one.width !== undefined) expect(one.width, one.name).toBeGreaterThanOrEqual(26);
+      }
+    }
+  } finally {
+    Object.assign(phone, standing);
+  }
+});
