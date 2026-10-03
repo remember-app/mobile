@@ -13,6 +13,16 @@ import { vi } from 'vitest';
  * Lucide glyph looks like as SVG, are outside anything node can see and belong to the pilot.
  */
 
+/**
+ * The one door out to the network, shut for the whole run. A test that wants the api asks `serve()`
+ * for a stand-in (`tests/helpers/api.ts`); a `fetch` that arrives without one belongs to a tree or
+ * a timer a finished test left standing, and it has no business reaching a real server — it would
+ * be answered by whatever runs on that address, at whatever moment it happens to be asked. Here it
+ * is refused the way an unreachable api is refused, so the code under test takes the same road it
+ * takes on a phone with no connection, and the test that asked decides what that road means.
+ */
+globalThis.fetch = () => Promise.reject(new TypeError('Network request failed'));
+
 // The theme reads the stored pick at import; the keychain only has to answer.
 vi.mock('expo-secure-store', () => ({
   getItemAsync: async () => null,
