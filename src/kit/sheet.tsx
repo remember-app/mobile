@@ -1,10 +1,11 @@
 import { useFocusEffect } from 'expo-router';
-import { type ReactNode, useCallback, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   KeyboardAvoidingView,
   type LayoutChangeEvent,
   Modal,
+  PanResponder,
   Platform,
   Pressable,
   ScrollView,
@@ -14,10 +15,17 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { letGo, SIDEWAYS } from '@/lib/gesture';
 import { backdrop, board, duration as motion, radius, space, themed, type } from '@/theme';
 
 import { SheetFoot } from './button';
-import { DISMISS_KEYBOARD, KEYBOARD_SCROLL, useFadeIn } from './interaction';
+import {
+  DISMISS_KEYBOARD,
+  EASE,
+  KEYBOARD_SCROLL,
+  useFadeIn,
+  useReducedMotion,
+} from './interaction';
 import { Text, TYPE_MOST } from './text';
 
 export type SheetProps = {
@@ -205,6 +213,13 @@ function Rise({
   const { fontScale } = useWindowDimensions();
   const [risen, setRisen] = useState(false);
   const rise = useFadeIn(motion.sheet, () => setRisen(true));
+  const reduced = useReducedMotion();
+  /**
+   * How far the finger has pulled the sheet down, and the one thing it is read for: the sheet
+   * travels under the finger rather than jumping when it lets go (TASK-477). Zero until it is
+   * dragged, and returned to zero whenever the finger did not mean it.
+   */
+  const drag = useRef(new Animated.Value(0)).current;
   const styles = useStyles();
   const onScrimTap = useScrimTap(onCancel);
   const gap = { gap: RHYTHM[rhythm] };
@@ -227,6 +242,67 @@ function Rise({
       top: heading ? top : null,
       foot: footer ? foot : null,
     });
+
+  /**
+   * The sheet is let go of by a downward drag on its handle and its head (TASK-477) — and by
+   * nothing else, which is the whole of the difficulty and the reason it is done by which view the
+   * responder is hung on rather than by what the gesture looks like.
+   *
+   * A sheet is the one place in the product with a scroll *of its own* inside it, and a drag down
+   * over that scroll has to stay a scroll: «листать» and «закрыть» are the same movement, and only
+   * where the finger went down tells them apart. So the responder is hung on the handle and the
+   * heading — the parts that never scroll — rather than on the sheet, and the body is left as a
+   * sibling of that view instead of a child. The scroll underneath is not something this gesture has
+   * to win an argument with; it is simply never asked.
+   *
+   * That is also why the handle is here at all and not merely decorative: a sheet with no heading
+   * has nothing but the 40×4 handle to be caught by, so the grab zone below gives it the height of
+   * a finger's target either way.
+   *
+   * Built once, with `onCancel` read through a ref — the sheet re-renders while it is laid out and
+   * while the keyboard comes and goes, and a responder rebuilt mid-drag forgets how far the finger
+   * has come.
+   */
+  const cancel = useRef(onCancel);
+  cancel.current = onCancel;
+  // Read at the moment it is needed rather than closed over: the responder below is built once and
+  // would otherwise answer to whether motion was reduced when the sheet rose, not to whether it is
+  // reduced now — a person turning that setting on while the sheet is open would still get the
+  // animation.
+  const still = useRef(reduced);
+  still.current = reduced;
+
+  const catchUp = () => {
+    if (still.current) return drag.setValue(0);
+    Animated.timing(drag, {
+      toValue: 0,
+      duration: motion.sheet,
+      easing: EASE,
+      // The sheet's own opacity rides the native driver (`useFadeIn`), and a value that is on it
+      // cannot be driven from javascript as well — hence `false`, for a movement of a few hundred
+      // milliseconds on a view that is being redrawn anyway.
+      useNativeDriver: false,
+    }).start();
+  };
+
+  const pull = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponderCapture: (_, g) => g.dy >= SIDEWAYS && g.dy > Math.abs(g.dx),
+        onPanResponderTerminationRequest: () => false,
+        onPanResponderMove: (_, g) => drag.setValue(Math.max(0, g.dy)),
+        onPanResponderRelease: (_, g) => {
+          if (letGo(g)) return cancel.current();
+          catchUp();
+        },
+        // The phone took the gesture — a call, a system sheet — rather than the sheet letting go.
+        // Either way the sheet is back where it was drawn.
+        onPanResponderTerminate: catchUp,
+      }).panHandlers,
+    // Built once and never rebuilt: `drag` and the two refs never change identity, and a responder
+    // made afresh mid-drag forgets how far the finger has come.
+    [],
+  );
 
   // Measured wherever they stand — the same width in the column and in the scroll — so moving them
   // from one to the other never changes the answer that moved them.
@@ -285,6 +361,12 @@ function Rise({
           (TASK-377); a tap on the darkness still declines the whole sheet. */}
       <Animated.View
         accessibilityViewIsModal
+        // The drag down closes a sheet to a finger, and this is the same gesture to a screen reader
+        // (TASK-477): the platform's own escape, which is how a reader backs out of something that
+        // appeared over what it was on. The sheet's buttons are its other way out — this is not
+        // their replacement, and `onRequestClose` above is the android hardware back answering to
+        // the same thing.
+        onAccessibilityEscape={onCancel}
         {...DISMISS_KEYBOARD}
         onLayout={onSheet}
         style={[
@@ -296,12 +378,23 @@ function Rise({
             opacity: rise,
             transform: [
               { translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) },
+              // Added to the rise rather than replacing it: the sheet comes up 24 and the finger
+              // takes it further down from wherever the rise had got to, so the two read as one
+              // movement rather than a sheet that jumped when the finger caught up with it.
+              { translateY: drag },
             ],
           },
         ]}
       >
-        <View testID="sheet-handle" style={styles.handle} />
-        {pinned ? heads : null}
+        {/* The handle and the heading in one view, and that view is what the drag is hung on
+            (TASK-477) — the body below is its sibling, so a finger that went down in the sheet's
+            scroll stays in the scroll and never becomes a way to close it. The empty air of the
+            head is part of the grab zone on purpose: it is the place a thumb naturally lands on a
+            sheet whose handle is 4 points tall. */}
+        <View {...pull} style={gap}>
+          <View testID="sheet-handle" style={styles.handle} />
+          {pinned ? heads : null}
+        </View>
         {/* A body that fits neither scrolls nor bounces. The paragraph under the heading is its
             first words: pinned, the scroll itself comes up to 8 under the heading. */}
         <ScrollView
