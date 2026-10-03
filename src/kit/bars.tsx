@@ -822,8 +822,8 @@ const useStyles = themed(({ color }) =>
       gap: 9,
       paddingVertical: 0,
     },
-    // The dot between them: the layout's own 3, at the meta's own strength.
-    viewerDot: { width: 3, height: 3, borderRadius: radius.pill, backgroundColor: photo.dot },
+    // The dot between them: the layout's own 3, in its own 40% paper.
+    viewerDot: { width: 3, height: 3, borderRadius: radius.pill, backgroundColor: photo.viewerDot },
     // 13 in a turned bar against the standing 12 (`ViewerRotated*`), the same line the meta is.
     viewerMetaTurned: { fontSize: 13 },
     // Neither half of the turned pill wraps: a 44 bar with the date and «время · автор» on one

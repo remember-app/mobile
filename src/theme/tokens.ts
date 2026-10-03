@@ -610,8 +610,7 @@ export const photo = {
    * where the strip stands higher on the screen and the fade has less room to be a shade.
    */
   viewerShadeFoot: 'linear-gradient(to top, rgba(8,8,12,0.82) 0%, rgba(8,8,12,0) 100%)',
-  viewerShadeFootTurned:
-    'linear-gradient(to top, rgba(8,8,12,0.80) 0%, rgba(8,8,12,0) 100%)',
+  viewerShadeFootTurned: 'linear-gradient(to top, rgba(8,8,12,0.80) 0%, rgba(8,8,12,0) 100%)',
   /** the track of a video's scrubber, what is still to play (spec 7.10) */
   videoTrack: 'rgba(245,243,238,0.24)',
   /**
@@ -637,6 +636,12 @@ export const photo = {
    * detail 5) — and a video's whole length beside the scrubber (spec 7.10)
    */
   viewerMeta: 'rgba(245,243,238,0.66)',
+  /**
+   * The dot between the two halves of a turned viewer's pill — the night's own paper at 40%, the
+   * layout's `rgba(245,243,238,.4)` (`ViewerRotated*`). Not `dot`, which is the white 45% the same
+   * mark is drawn in elsewhere.
+   */
+  viewerDot: 'rgba(245,243,238,0.40)',
   /** the meta dot when it stands on a photograph */
   dot: 'rgba(255,255,255,.45)',
   /** the track of a contribution bar drawn over a cover */

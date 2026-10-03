@@ -15,14 +15,7 @@ import {
   VolumeX,
 } from 'lucide-react-native';
 import { useMemo, useRef, useState } from 'react';
-import {
-  Modal,
-  PanResponder,
-  Platform,
-  StyleSheet,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { Modal, PanResponder, Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -66,15 +59,7 @@ import {
 import { useStrings } from '@/lib/language';
 import { useTurnsWithPhone } from '@/lib/orientation';
 import { FrameInfoSheet } from '@/screens/memory/frames-sheets';
-import {
-  height,
-  photo,
-  space,
-  ThemePin,
-  themed,
-  viewerFoot,
-  viewerShade,
-} from '@/theme';
+import { height, photo, space, ThemePin, themed, viewerFoot, viewerShade } from '@/theme';
 
 /**
  * `Viewer` and `ViewerVideo` (spec 8, «Просмотр медиа») — one frame on the whole of the phone, laid
@@ -190,6 +175,15 @@ export function FrameViewer({
    * is a frame shown as it is rather than a guessed shape, and it lasts until the numbers arrive.
    */
   const box = frameBox(item.width, item.height, width, screen);
+
+  /**
+   * How tall the tools lying over the picture come out — the strip, its own distance from the bottom
+   * edge, and over a video its scrubber above that (`ViewerVideo` puts the two on lines of their
+   * own, and the sound button is what makes the scrubber row 36). The notice stands above this
+   * rather than at the bottom of the stage, which is the whole of the picture now (TASK-475).
+   */
+  const toolsTall =
+    stripSize.tall + stripSize.foot + (playable !== null ? viewerFoot.track + height.roundRow : 0);
 
   /**
    * One player for the window, made afresh whenever the file under it changes — which is what starts
@@ -507,7 +501,11 @@ export function FrameViewer({
               </View>
             )}
 
-            {notice ? <Banner text={notice} style={styles.notice} /> : null}
+            {notice ? (
+              // Above the strip rather than under it: the tools lie over the picture now, so a
+              // notice pinned to the bottom of the stage would stand behind them.
+              <Banner text={notice} style={[styles.notice, { bottom: toolsTall + space.s4 }]} />
+            ) : null}
           </View>
 
           {/* The two darkenings (spec 8, the four `Viewer*` layouts, TASK-475): 150 at the head and
@@ -572,9 +570,7 @@ export function FrameViewer({
               upright and 14 turned, over the frame, which is what `board.bottom` is standing and
               what the turned strip's own `foot` is. A video's scrubber stands over the strip on its
               own line, so the two never fight over a finger (spec 8, `ViewerVideo`). */}
-          <View
-            style={[styles.tools, { paddingBottom: Math.max(insets.bottom, stripSize.foot) }]}
-          >
+          <View style={[styles.tools, { paddingBottom: Math.max(insets.bottom, stripSize.foot) }]}>
             {/* The scrubber stands on a line of its own above the strip so that two horizontal
                 gestures never fight over the same finger (spec 8, `ViewerVideo`). */}
             {playable !== null ? (
@@ -638,7 +634,11 @@ export function FrameViewer({
           <ActionMenu
             visible={menu}
             onCancel={() => setMenu(false)}
-            top={(turned ? 18 : insets.top) + (turned ? height.roundBar : height.roundViewer) + space.s2}
+            top={
+              (turned ? 18 : insets.top) +
+              (turned ? height.roundBar : height.roundViewer) +
+              space.s2
+            }
             gapBefore={2}
           >
             <RowAction

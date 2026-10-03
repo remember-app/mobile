@@ -11,7 +11,7 @@ vi.mock('react-native', async (importOriginal) => {
   };
 });
 
-import { rule } from '@tests/helpers/css';
+import { rule, shorthand } from '@tests/helpers/css';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { ChevronLeft, SquareCheckBig, Trash2, User, X } from 'lucide-react-native';
 import { Text as RNText, StyleSheet, View, type ViewStyle } from 'react-native';
@@ -563,6 +563,48 @@ test('the date in the viewer’s pill is the night’s paper and not the photogr
   await setTheme('light');
   expect(dateOf(story(bar))).toContain(paper);
   await setTheme('dark');
+});
+
+test('turned, the viewer’s bar and its pill are the layout’s other pair', () => {
+  // Spec 8, `ViewerRotated*` (TASK-475): with the phone on its side the bar opens from 12 at the
+  // ends to 44 — on an 844-wide bar, 12 would pin the buttons into its corners — and the two floors
+  // of the pill lie on one line through a 3 dot rather than standing on each other. The round
+  // buttons are the screen's to hand in at their own size; the row and the pill are the kit's.
+  const standing = story(<ViewerBar date="13 сентября" meta="21:47 · Марк Ковалёв" />);
+  const turned = story(<ViewerBar turned date="13 сентября" meta="21:47 · Марк Ковалёв" />);
+  expect(turned).not.toBe(standing);
+  expect(turned).toContain(shorthand('paddingInline', 'padding-left:44px'));
+  expect(standing).toContain(shorthand('paddingInline', 'padding-left:12px'));
+  // Both the same two facts and the same words: the dot carries nothing of its own, and the pill is
+  // still one button, whatever side the phone is on.
+  for (const markup of [standing, turned]) {
+    expect(markup).toContain('13 сентября');
+    expect(markup).toContain('21:47 · Марк Ковалёв');
+  }
+  // The dot, at the layout's own 3 — and only where the phone is turned, because a standing one
+  // has the two facts on two floors and no room between them.
+  expect(turned).toContain(rule('width:3px'));
+  expect(turned).toContain(rule('height:3px'));
+  expect(standing).not.toContain(rule('width:3px'));
+  // The turned pill is a row 9 between the halves; the standing one a column 1 between the floors.
+  expect(turned).toContain(shorthand('gap', 'gap:9px'));
+  expect(standing).toContain(shorthand('gap', 'gap:1px'));
+});
+
+test('the turned viewer’s pill is still one button, read out in one sentence', () => {
+  // The layout puts the date and «время · автор» on one line there, which must not cost the screen
+  // reader the sentence the standing pill reads — the dot between them is a view, not a word.
+  const pill = story(
+    <ViewerBar
+      turned
+      date="13 сентября"
+      meta="21:47 · Марк Ковалёв"
+      label="Сведения о кадре: 13 сентября, 21:47 · Марк Ковалёв"
+      onPress={() => {}}
+    />,
+  );
+  expect(pill).toContain('aria-label="Сведения о кадре: 13 сентября, 21:47 · Марк Ковалёв"');
+  expect(pill).toContain('role="button"');
 });
 
 test('the pill in the middle of it is a button where it leads somewhere, and wears no chevron either way', () => {
