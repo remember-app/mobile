@@ -214,14 +214,26 @@ test('the code is one value behind six boxes, not six values', () => {
 
 test('the long-text box holds the limit silently and counts nothing out loud', () => {
   const room = story(
-    <TextArea label="История" limit={600} value={'а'.repeat(100)} onChangeText={() => {}} />,
+    <TextArea label="История" limit={1800} value={'а'.repeat(100)} onChangeText={() => {}} />,
   );
   // Spec 7.3: no counter under it. A story told to a director is not a form with a quota, and the
   // limit is the api's business — `maxLength` still holds it.
   expect(room).not.toContain('>100<');
-  expect(room).toContain('maxLength="600"');
+  expect(room).toContain('maxLength="1800"');
   // And the box wears the accent border at rest, not only under the caret.
   expect(room).toContain('rgba(75,91,255,1.00)');
+});
+
+test('the long-text box says it is full in the same red every other field does', () => {
+  // Nothing counts down to the limit, so the border is the one place the story can answer that it
+  // has had enough — #FF8D8D on the border, exactly as a field in error wears it.
+  expect(
+    story(<TextArea label="История" state="error" value="" onChangeText={() => {}} />),
+  ).toContain('rgba(255,141,141,1.00)');
+  // And a story with room left keeps the accent, so the red means one thing only.
+  expect(story(<TextArea label="История" value="" onChangeText={() => {}} />)).not.toContain(
+    'rgba(255,141,141,1.00)',
+  );
 });
 
 test('the long-text box carries a line saying what it is for, never how full it is', () => {

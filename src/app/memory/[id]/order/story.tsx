@@ -58,6 +58,9 @@ export default function StoryStep() {
         label={s.montage.storyLabel}
         labelHidden
         limit={STORY_LIMIT}
+        // Nothing counts down to the limit, so the border is the one place the story can say it
+        // has had enough room — and it wears the same red every other field does.
+        state={order.story.length >= STORY_LIMIT ? 'error' : undefined}
         placeholder={s.montage.storyPlaceholder}
         value={order.story}
         // Typing into the box while the template types is taking the wheel: the walk stops

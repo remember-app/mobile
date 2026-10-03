@@ -424,6 +424,7 @@ export function TextArea({
   labelHidden,
   hint,
   limit,
+  state,
   value,
   onChangeText,
   ...input
@@ -434,6 +435,8 @@ export function TextArea({
   hint?: string;
   /** How much the api will take. Held silently: nothing types past it, and nothing counts down to it. */
   limit?: number;
+  /** `error` wears the same red border every other field does — here it says the story is full. */
+  state?: FieldState;
   value: string;
   onChangeText: (next: string) => void;
 }) {
@@ -468,7 +471,7 @@ export function TextArea({
             height: room === null ? AREA : Math.min(AREA, room),
             color: theme.color.paper,
             backgroundColor: theme.color.surface,
-            borderColor: theme.color.accent,
+            borderColor: state === 'error' ? theme.color.dangerText : theme.color.accent,
           },
         ]}
       />
