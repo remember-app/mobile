@@ -1306,9 +1306,23 @@ test('a frame is drawn in a box of its own proportions, not fitted to the screen
   // A shorter room (TASK-478, the panel under the picture) clamps the frame and nothing else: the
   // phone is still held upright, so a 3:4 frame is cropped to the room and not turned on its side.
   expect(frameBox(3024, 4032, 390, 844, 352)).toEqual({ width: 390, height: 352 });
-  // Turned, the room runs across the other way: the frame takes the height and is clamped by the
-  // width, so the panel standing under a picture on its side shortens nothing.
-  expect(frameBox(3024, 4032, 844, 390, 164)).toEqual({ width: 292.5, height: 390 });
+  // Turned, the room runs across the other way — it bounds whichever side is standing up-and-down,
+  // and with the phone on its side that is the one the frame takes the screen along. Same rule,
+  // same room, and the frame fits inside the panel's reach instead of under it (TASK-485): the 3:4
+  // is 164 tall in the 164 of the room and 123 wide by its own proportions, out of the 390 the
+  // screen gives and the 226 the panel takes below.
+  expect(frameBox(3024, 4032, 844, 390, 164)).toEqual({ width: 123, height: 164 });
+  // A frame that fits the room along its own width is not cropped either — a 3:2 turned comes to
+  // 246 of the 164-tall room at its own proportions, and the width it wants is inside the 844.
+  expect(frameBox(3024, 2016, 844, 390, 164)).toEqual({ width: 246, height: 164 });
+  // And a record the worker has not measured is held to the room too, or the panel would come up
+  // over a frame drawn at the whole height of a phone lying on its side.
+  expect(frameBox(null, null, 844, 390, 164)).toEqual({ width: 844, height: 164 });
+  // The room bounds the side that is up-and-down and never the other: a standing frame is 390 wide
+  // whatever the room, and a turned one is held to the 844 the phone is across rather than the 3280
+  // a 10000 × 500 panorama would want out of the room's 164.
+  expect(frameBox(3024, 4032, 390, 844, 352).width).toBe(390);
+  expect(frameBox(10000, 500, 844, 390, 164)).toEqual({ width: 844, height: 164 });
 });
 
 test('«Пауза» in the middle of a video is 72, dark, with no colour of the glass or of the viewer’s own on it', async () => {

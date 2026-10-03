@@ -133,9 +133,17 @@ export const height = {
  * layout's 352 on a phone held upright, and never more than a share of whatever the window is — a
  * phone on its side has a fraction of that height to divide between a picture and a panel, and a
  * frame left at 352 there would leave the panel a sliver.
+ *
+ * The share is the layout's own 352 said as a fraction of the window it was drawn on: 352 of 844 is
+ * 0.417, so the frame keeps that share whatever the window measures and the cap above holds it to
+ * the drawn number on a standing phone. It is the rule «та же логика на всех ориентациях» turned
+ * into one number, not a coefficient picked to make a case come out: on a phone lying on its side
+ * the frame takes 164 of 390 and the panel the 226 below it.
  */
+const FRAME_INFO_SHARE = 0.42;
+
 export function frameInfoRoom(screenHeight: number): number {
-  return Math.min(height.frameInfo, Math.round(screenHeight * 0.42));
+  return Math.min(height.frameInfo, Math.round(screenHeight * FRAME_INFO_SHARE));
 }
 
 /**

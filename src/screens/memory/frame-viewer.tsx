@@ -926,11 +926,11 @@ const TOGGLE = [{ name: 'activate' }];
  * take the screen's long side, lay the frame along whichever direction will hold it, and let it be
  * covered rather than letterboxed.
  *
- * `room` is how much of the screen's long side the frame may take, and it is the screen itself
- * except while the frame's own screen is standing under the picture (TASK-478) — which shortens the
- * standing room and nothing else. It is a separate argument and not a smaller `screenHeight`
- * because which way up the phone is held is read off the two numbers together, and a frame squeezed
- * into 352 of a 390-wide phone would otherwise turn itself on its side.
+ * `room` is how far down the frame may reach, and it is the whole screen except while the frame's
+ * own screen is standing under the picture (TASK-478) — which is a shorter window either way up the
+ * phone is held. It is a separate argument and not a smaller `screenHeight` because which way up the
+ * phone is held is read off the two numbers together, and a frame squeezed into 352 of a 390-wide
+ * phone would otherwise turn itself on its side.
  *
  * A record the api has not measured — `width` and `height` are null until the worker has looked —
  * has no shape to lay out, and takes the whole room. That is what is drawn while the numbers are
@@ -944,10 +944,16 @@ export function frameBox(
   room?: number,
 ): { width: number; height: number } {
   const turned = screenWidth > screenHeight;
-  const along = turned ? screenHeight : screenWidth;
-  // The clamp is the room rather than the screen, and it runs across the way the phone is held —
-  // so the panel standing under the picture shortens the standing room and leaves a turned one be.
-  const limit = turned ? screenWidth : (room ?? screenHeight);
+  const down = room ?? screenHeight;
+  // The side that runs across the way the phone is held, and the room bounds whichever of the two
+  // that is standing up-and-down: `across` with the phone upright, `along` with it turned, where
+  // it is the screen's own height that the frame is measured against. One rule both ways up, which
+  // is what the layout says and what the four `Viewer*` boxes are — 352 of a standing phone, and
+  // as much of a turned one as its shorter window can spare the panel (`frameInfoRoom`).
+  const along = turned ? Math.min(screenHeight, down) : screenWidth;
+  // The other side is bounded by the screen itself, for the same reason the room is not passed for
+  // it: the room is what the panel took, and a frame cannot be wider than the phone.
+  const limit = turned ? screenWidth : down;
   if (!frameWidth || !frameHeight) {
     return turned ? { width: limit, height: along } : { width: along, height: limit };
   }
