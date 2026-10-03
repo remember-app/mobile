@@ -9,12 +9,13 @@ import {
 } from '@expo-google-fonts/onest';
 import { Unbounded_600SemiBold, Unbounded_700Bold, useFonts } from '@expo-google-fonts/unbounded';
 import { Image } from 'expo-image';
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, router, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
 import { AuthProvider, useAuth } from '@/lib/auth';
+import { useEdgeBack } from '@/lib/gesture';
 import { lockPortrait } from '@/lib/orientation';
 import { usePush } from '@/lib/push';
 import { useLaunchUpdate } from '@/lib/updates';
@@ -82,6 +83,20 @@ export default function RootLayout() {
 function Startup() {
   const { status } = useAuth();
 
+  /**
+   * A finger in from the left edge goes back, on every screen (TASK-477). Hung here rather than on
+   * a screen because it is one rule about the whole app and every screen draws its own bar above
+   * it — hung on one, it would have to be written onto each, and would be forgotten on the next.
+   *
+   * The imperative `router` and not `useRouter()`: this stands above the navigator, where there is
+   * no route of its own to read a router from, and the imperative one reads the store the navigator
+   * writes to. `canGoBack` is asked of it rather than left to `back()` — the edge belongs to the
+   * first screen too, and a swipe there is nothing rather than a route change off the app.
+   */
+  const back = useEdgeBack(() => {
+    if (router.canGoBack()) router.back();
+  });
+
   // Every word in the product is in one of these six faces — Unbounded for headings, Onest for
   // everything else, both with Cyrillic. `error` counts as settled: a missing font is not a reason
   // to sit on the splash forever, and the app opens in the system's.
@@ -115,7 +130,7 @@ function Startup() {
   // The one progress of the way in lies over the navigator and under none of its screens: it stays
   // put while the steps change beneath it.
   return fontsSettled ? (
-    <View style={styles.root}>
+    <View style={styles.root} {...back}>
       <RootNavigator />
       <OnboardingProgress />
     </View>

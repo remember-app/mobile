@@ -40,7 +40,14 @@ vi.mock('expo-secure-store', () => ({
   deleteItemAsync: async () => {},
 }));
 
-const seen = vi.hoisted(() => ({ splashHeld: false, splashHidden: 0, push: 0, uploads: 0 }));
+const seen = vi.hoisted(() => ({
+  splashHeld: false,
+  splashHidden: 0,
+  push: 0,
+  uploads: 0,
+  backs: 0,
+  mayGoBack: true,
+}));
 vi.mock('expo-splash-screen', () => ({
   preventAutoHideAsync: async () => {
     seen.splashHeld = true;
@@ -65,11 +72,19 @@ vi.mock('expo-router', () => ({
   Stack: Object.assign(() => null, { Screen: () => null, Protected: () => null }),
   // Where the navigator stands — off the way in, so its progress is not drawn.
   usePathname: () => '/',
+  // The way back, read off the store the navigator writes to (TASK-477).
+  router: {
+    back: () => {
+      seen.backs += 1;
+    },
+    canGoBack: () => seen.mayGoBack,
+  },
   ThemeProvider: ({ children }: { children: unknown }) => children,
   DarkTheme: { dark: true, colors: {} },
   DefaultTheme: { dark: false, colors: {} },
 }));
 
+import { touch } from '@tests/helpers/gesture';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { Stack } from 'expo-router';
 import TestRenderer, { act } from 'react-test-renderer';
@@ -88,6 +103,8 @@ beforeEach(() => {
   seen.splashHidden = 0;
   seen.push = 0;
   seen.uploads = 0;
+  seen.backs = 0;
+  seen.mayGoBack = true;
 });
 
 async function launch() {
@@ -145,4 +162,55 @@ test('faces that fail to load still open the app, in the system face, and say so
   expect(drawn()).toBe(true);
   expect(seen.splashHidden).toBe(1);
   expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('system font'), failure);
+});
+
+/**
+ * The way back (TASK-477): a finger in from the left edge, on every screen, hung once on the view
+ * the navigator stands in. What a test cannot see here is the strip being narrow enough — that is
+ * `tests/lib/gesture.test.ts`, and this file says only that the answer reaches the router and that
+ * the edge belongs to the whole app rather than to one screen.
+ */
+
+/** The view the whole app stands in: the one the responder is hung on. */
+async function theEdge() {
+  let tree!: TestRenderer.ReactTestRenderer;
+  await act(async () => {
+    tree = mounted(TestRenderer.create(<RootLayout />));
+  });
+  await fontsSettle([true, null]);
+  const app = () =>
+    tree.root.find((one) => typeof one.props.onMoveShouldSetResponderCapture === 'function');
+  /** A finger that went down at one place and has come to another, as the responder system has it. */
+  const swipe = async (x0: number, x: number, y = 400) => {
+    const edge = app();
+    await act(async () => edge.props.onStartShouldSetResponderCapture(touch({ x: x0, y })));
+    const taken = await act(async () =>
+      edge.props.onMoveShouldSetResponderCapture(touch({ x, y, fromX: x0, fromY: y })),
+    );
+    if (taken) await act(async () => edge.props.onResponderRelease(touch({ x, y })));
+    return taken;
+  };
+  return { swipe };
+}
+
+test('a swipe in from the left edge goes back, and one from the middle of the screen is left alone', async () => {
+  const edge = await theEdge();
+  expect(await edge.swipe(4, 200)).toBe(true);
+  expect(seen.backs).toBe(1);
+  // Not the edge: whatever is under the finger keeps it, which is every horizontal gesture in the app.
+  expect(await edge.swipe(200, 380)).toBe(false);
+  expect(seen.backs).toBe(1);
+});
+
+test('a swipe off the edge that did not come far enough changes nothing, and one with nowhere to go back to does not either', async () => {
+  const edge = await theEdge();
+  // Taken off whatever was under it, but too short to mean anything — a finger that changed its mind.
+  expect(await edge.swipe(0, 20)).toBe(true);
+  expect(seen.backs).toBe(0);
+
+  // The first screen has nowhere to go back to, and the edge is still there: a swipe is nothing,
+  // not a route change off the app.
+  seen.mayGoBack = false;
+  expect(await edge.swipe(0, 200)).toBe(true);
+  expect(seen.backs).toBe(0);
 });

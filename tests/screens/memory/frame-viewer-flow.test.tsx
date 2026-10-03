@@ -641,17 +641,33 @@ test('the glass starts where the status line ends, and the scrubber keeps 16 at 
  * The picture is walked with a finger (TASK-182). The gesture is taken by the picture alone, once it
  * has plainly gone sideways, and lets go of a lift as «the next one» or «the one before» — over the
  * whole gallery, past whatever is still being developed.
+ *
+ * The finger goes down at `from` — the middle of the picture unless a test says otherwise, since
+ * where it began is what tells the window's way out from the way along the gallery (TASK-477).
+ *
+ * The whole gesture is driven, down and grant included, because `PanResponder` writes `x0` and `y0`
+ * when the view is granted the touch — and the window takes the finger as it lands, so a helper that
+ * began at the first move would report every gesture as though it had begun at the top-left corner.
  */
-async function swipe(screen: Awaited<ReturnType<typeof open>>, dx: number, dy = 0) {
+async function swipe(
+  screen: Awaited<ReturnType<typeof open>>,
+  dx: number,
+  dy = 0,
+  from = { x: 200, y: 300 },
+) {
   const stage = () => stageOf(screen);
+  await act(async () => stage().props.onStartShouldSetResponder(touch({ x: from.x, y: from.y })));
+  await act(async () => stage().props.onResponderGrant(touch({ x: from.x, y: from.y })));
   let taken = false;
   await act(async () => {
     taken = stage().props.onMoveShouldSetResponderCapture(
-      touch({ x: 200 + dx, y: 300 + dy, fromX: 200, fromY: 300 }),
+      touch({ x: from.x + dx, y: from.y + dy, fromX: from.x, fromY: from.y }),
     );
   });
   if (taken)
-    await act(async () => stage().props.onResponderRelease(touch({ x: 200 + dx, y: 300 + dy })));
+    await act(async () =>
+      stage().props.onResponderRelease(touch({ x: from.x + dx, y: from.y + dy })),
+    );
   return taken;
 }
 
@@ -1352,4 +1368,105 @@ test('turned, the window keeps every name, role and 44 that it has standing', as
   } finally {
     Object.assign(phone, standing);
   }
+});
+
+/**
+ * The window's own ways out (TASK-477): a swipe down over the picture, and a swipe in from its left
+ * edge — the same two the platform offers on a screen, and asked here because the window is a
+ * `Modal` standing over the navigator where the app-wide edge swipe cannot reach it.
+ *
+ * Every case below is about the gesture not taking what belongs to something else: the gallery
+ * sideways, the tap, the tools along the foot. And the last one is about the tools being away — the
+ * state TASK-476 put the window into, and the one a person is in when they most want a way out.
+ */
+const closed = (screen: Awaited<ReturnType<typeof open>>) =>
+  (screen.shown.onClose as ReturnType<typeof vi.fn>).mock.calls.length;
+
+test('a swipe down over the picture closes the window, and one from the middle does not', async () => {
+  serve(() => undefined);
+  const screen = await open();
+  // The phone stands at 390 × 844, so the upper third the gesture is asked for ends at 295.
+  expect(await swipe(screen, 0, 300, { x: 200, y: 60 })).toBe(true);
+  expect(closed(screen)).toBe(1);
+  // Begun below that band it is not the way out: that is where the strip and the scrubber live, and
+  // a downward drag over them belongs to them.
+  expect(await swipe(screen, 0, 300, { x: 200, y: 400 })).toBe(false);
+  expect(closed(screen)).toBe(1);
+});
+
+test('a swipe in from the left edge closes the window, exactly as it does on a screen', async () => {
+  serve(() => undefined);
+  const screen = await open();
+  expect(await swipe(screen, 200, 0, { x: 4, y: 300 })).toBe(true);
+  expect(closed(screen)).toBe(1);
+  // A point outside the 24-wide strip: the gesture is still taken — it is a swipe across the
+  // picture — but it is the gallery's and not the window's. AC #4, in the case the strip exists for.
+  const elsewhere = await open();
+  expect(await swipe(elsewhere, 200, 0, { x: 25, y: 300 })).toBe(true);
+  expect(closed(elsewhere)).toBe(0);
+});
+
+test('a swipe that came back, and one that is a diagonal rather than a way, do not close', async () => {
+  serve(() => undefined);
+  const screen = await open();
+  // Enough to be a gesture and not enough to mean it: 55 of the 56 a way out costs. The tools come
+  // back — that is what any other gesture here does (TASK-476) — and the window stays.
+  expect(await swipe(screen, 0, 55, { x: 200, y: 60 })).toBe(true);
+  expect(closed(screen)).toBe(0);
+  expect(tools(screen)).toEqual({ bar: 1, strip: 1, scrubber: 0 });
+  // Exactly level out of the corner: neither rule owns it, so it is not even taken. Both ask «is
+  // this more one way than the other», and a finger that went as much right as down asked for
+  // neither — the window answers only what it can name.
+  expect(await swipe(screen, 200, 200, { x: 4, y: 60 })).toBe(false);
+  expect(closed(screen)).toBe(0);
+  // And a finger that went up the screen out of the corner is not on its way out of anything.
+  expect(await swipe(screen, 0, -300, { x: 4, y: 400 })).toBe(false);
+  expect(closed(screen)).toBe(0);
+});
+
+test('the gallery still wins sideways, whatever a person meant the window by', async () => {
+  serve(() => undefined);
+  const screen = await open({ item: shots()[0] });
+  // Down the middle of the picture, across: the next frame, not the way out.
+  expect(await swipe(screen, -100)).toBe(true);
+  expect(opened(screen)).toEqual(['b']);
+  expect(closed(screen)).toBe(0);
+  // And a tap is still a tap — it neither walks nor closes (TASK-476).
+  const still = await open({ item: shots()[0] });
+  await tap(still);
+  expect(opened(still)).toEqual([]);
+  expect(closed(still)).toBe(0);
+});
+
+test('with the tools put away the same two gestures are still the way out', async () => {
+  serve(() => undefined);
+  // The one state TASK-476 added and this task has to answer for: a person who has hidden the
+  // interface is left with a photograph and, without these, no way off it but a second tap.
+  const screen = await open();
+  await tap(screen);
+  expect(tools(screen)).toEqual({ bar: 0, strip: 0, scrubber: 0 });
+  expect(await swipe(screen, 0, 300, { x: 200, y: 60 })).toBe(true);
+  expect(closed(screen)).toBe(1);
+
+  const bare = await open();
+  await tap(bare);
+  expect(await swipe(bare, 200, 0, { x: 4, y: 300 })).toBe(true);
+  expect(closed(bare)).toBe(1);
+});
+
+test('to a screen reader the way out is the escape the platform gives it, over a photo and over a film', async () => {
+  serve(() => undefined);
+  const screen = await open();
+  // It stands on the room and not on the picture, so a film is answered too — the picture over a
+  // video is not a control at all (TASK-476), and the escape cannot live only where it is.
+  const film = { ...shots()[0], kind: 'video' as const, preview_url: 'https://r2.example/v.mp4' };
+  for (const item of [shots()[0], film]) {
+    const shot = await open({ item, frames: [item] });
+    const room = shot.root.findAll((one) => typeof one.props.onAccessibilityEscape === 'function');
+    expect(room).toHaveLength(1);
+    await act(async () => void room[0].props.onAccessibilityEscape());
+    expect(closed(shot)).toBe(1);
+  }
+  // And it is the room, so nothing of the picture's own reading was replaced to add it.
+  expect(screen.root.findAllByProps({ accessibilityLabel: ru.viewer.hideTools })).toHaveLength(1);
 });
