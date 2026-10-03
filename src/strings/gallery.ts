@@ -124,14 +124,14 @@ export const en = {
   },
 
   /**
-   * `Viewer`, `ViewerVideo`, `SheetFrame` and `SheetFrameInfo` — one frame on the whole of the
+   * `Viewer`, `ViewerVideo`, `SheetFrame` and `FrameInfo` — one frame on the whole of the
    * phone, the three things that can be done with it, everything the picture does not say about it,
    * and what a video carries on top of all that.
    */
   viewer: {
     /** The right-hand glass button of the floating bar. It drops the menu of what can be done. */
     more: 'More',
-    /** The pill in the middle of that bar, which raises the frame's own sheet. */
+    /** The pill in the middle of that bar, which brings up the frame's own screen under the picture. */
     details: 'About this frame',
     /**
      * The same pill while the frame's own screen stands under it (spec 8, `FrameInfo`): the panel
@@ -143,7 +143,7 @@ export const en = {
     /** The line while the file is coming down to be handed on; the failure under it. */
     sharing: 'Getting it ready…',
     shareFailed: 'Could not hand this one on.',
-    /** How big the file is, on the frame's own sheet — the number is the phone's own digits. */
+    /** How big the file is, on the frame's own screen — the number is the phone's own digits. */
     size: (mb: string) => `${mb} MB`,
     play: 'Play',
     pause: 'Pause',
@@ -153,7 +153,7 @@ export const en = {
     played: 'How much has played',
 
     /**
-     * `SheetFrameInfo` (spec 8) — the four summary lines, who brought it, and which movies it ended
+     * `FrameInfo` (spec 8) — the four summary lines, who brought it, and which movies it ended
      * up in. A line the server knows nothing about is not drawn at all, so none of these has a word
      * for «unknown»: the absence is the answer.
      */

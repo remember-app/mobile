@@ -84,7 +84,7 @@ import {
  * bottom.
  *
  * Three buttons and no row of actions under the strip: «Закрыть», the pill of when and who — which
- * raises the frame's own sheet (`SheetFrameInfo`) — and the «⋯» that drops the glass menu of what
+ * raises the frame's own screen (`FrameInfo`) — and the «⋯» that drops the glass menu of what
  * can be done with it (`SheetFrame`). What a frame *is* and what is *done* to it used to share one
  * sheet under two names; the layout separates them, and this window says each of them once.
  *

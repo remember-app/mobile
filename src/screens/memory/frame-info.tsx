@@ -287,7 +287,7 @@ const useStyles = themed(({ color }) =>
     scroll: { flexGrow: 0 },
     // 12 down, 16 in, and 14 between every block and the next.
     body: { gap: 14, paddingTop: space.s3, paddingHorizontal: space.s4 },
-    // Spec 8, `SheetFrameInfo`: «В роликах» and the movies under it, 8 apart.
+    // Spec 8, `FrameInfo`: «В роликах» and the movies under it, 8 apart.
     group: { gap: space.s2 },
     // The heading of the labels block and the row of chips it introduces.
     labels: { gap: 10 },
