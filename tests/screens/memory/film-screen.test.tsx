@@ -26,7 +26,7 @@ import TestRenderer, { act } from 'react-test-renderer';
 import type { Member, Montage, MontageJournal, MontageStage } from '@/api';
 import FilmScreen from '@/app/memory/[id]/montage/[montageId]/index';
 import { Banner, Button, FilmStageList } from '@/kit';
-import { minutesSince, WHILE_LIVE_MS } from '@/lib/montage/journal';
+import { makingTakes, minutesSince, WHILE_LIVE_MS } from '@/lib/montage/journal';
 import { ru } from '@/strings';
 
 /**
@@ -304,6 +304,9 @@ test('не собрался: организатору — «Повторить»
   expect(page).toContain('остановился: трек не открылся');
   expect(page).not.toContain('track_unreadable');
   expect(page).toContain('не начался');
+  // What a second attempt costs — the worker's own estimate of the five stages added up, since a
+  // film that has left the queue has no `queue` to read an estimate from any more.
+  expect(page).toContain('Соберём заново по тому же заказу');
 
   const retry = tree.root
     .findAllByType(Button)
@@ -419,6 +422,18 @@ test('вас нет в воспоминании: одно объявление, 
   // Nothing of the film is drawn — no stages, no card, no button that could only be refused.
   expect(page).not.toContain('Режиссура');
   expect(tree.root.findAllByType(Button)).toHaveLength(0);
+});
+
+test('сколько займёт повтор — сумма оценок пяти этапов, а не ничего', () => {
+  const eta = (seconds: number | null) => ({ ...stage('music', 'failed'), eta_seconds: seconds });
+  // The five stages' own opening estimates, added up: the stages do not get longer by having run.
+  expect(makingTakes([eta(60), eta(300), eta(240), eta(60), eta(180)])).toBe(14);
+  // Not one stage carries an estimate — a figure rounded up from nothing is worse than no figure.
+  expect(makingTakes([eta(null), eta(null)])).toBeNull();
+  expect(makingTakes([])).toBeNull();
+  // Seconds are rounded up the way «осталось ≈» is: a minute and a half left is «2 мин», never «1».
+  expect(makingTakes([eta(90)])).toBe(2);
+  expect(makingTakes([eta(1)])).toBe(1);
 });
 
 test('«обновлено N мин назад» — возраст того, что на карточке, а не выдуманное число', () => {

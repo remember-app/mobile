@@ -120,6 +120,21 @@ export function minutesSince(
   return Math.max(1, Math.floor((now - then) / 60000));
 }
 
+/**
+ * How long the whole making takes, in minutes — the worker's own estimate of each of the five stages
+ * added up. This is what a second attempt would cost: the stages do not get longer by having run
+ * once, and the api sends no separate figure for a re-run.
+ *
+ * Null when not one stage carries an estimate, so the screen says nothing rather than something
+ * rounded up from nothing. The stages of a film that failed still hold their opening estimates, so
+ * this is what stands under «Повторить».
+ */
+export function makingTakes(stages: readonly MontageStage[]): number | null {
+  if (!stages.some((stage) => stage.eta_seconds !== null)) return null;
+  const seconds = stages.reduce((sum, stage) => sum + (stage.eta_seconds ?? 0), 0);
+  return Math.max(1, Math.ceil(seconds / 60));
+}
+
 /** When the film was put in the queue, in the reader's own clock. */
 export const acceptedAt = (montage: Montage, s: Strings): string =>
   s.montage.filmScreen.acceptedAt(formatTime(montage.created_at));

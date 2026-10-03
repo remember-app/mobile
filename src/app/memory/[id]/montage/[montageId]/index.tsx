@@ -17,7 +17,6 @@ import {
   retryMontage,
 } from '@/api';
 import {
-  ActionBar,
   AppBar,
   Avatar,
   BackButton,
@@ -47,6 +46,7 @@ import {
   filmState,
   inHand,
   isFresh,
+  makingTakes,
   marksOf,
   minutesSince,
   orderedTo,
@@ -214,28 +214,7 @@ export default function FilmScreen() {
           }
         />
       }
-      footer={
-        notice || (state === 'stopped' && organizer) ? (
-          <>
-            {notice ? <Banner tone="error" text={notice} style={styles.banner} /> : null}
-            {/* The bottom layer carries one thing or nothing at all: a fallen film is started again
-                by the organizer, and everybody else is told by the block that stands where the
-                button would have been. */}
-            {state === 'stopped' && organizer ? (
-              <ActionBar>
-                <Button
-                  variant="primary"
-                  size="lg"
-                  icon={RotateCcw}
-                  label={s.montage.filmScreen.retry}
-                  disabled={busy}
-                  onPress={() => void again()}
-                />
-              </ActionBar>
-            ) : null}
-          </>
-        ) : undefined
-      }
+      footer={notice ? <Banner tone="error" text={notice} style={styles.banner} /> : undefined}
       body={styles.body}
     >
       {/* The reads stopped coming back. Everything under this line is the truth as of the last
@@ -272,7 +251,15 @@ export default function FilmScreen() {
       ) : null}
 
       {state === 'stopped' ? (
-        <Stopped montage={montage} stopped={stopped} memory={memory} roster={roster} />
+        <Stopped
+          montage={montage}
+          stages={journal.stages}
+          stopped={stopped}
+          memory={memory}
+          roster={roster}
+          busy={busy}
+          onRetry={() => void again()}
+        />
       ) : null}
 
       {/* The five, as they stand. A film the worker has not taken yet has none of them, and the list
@@ -446,14 +433,20 @@ function Building({
  */
 function Stopped({
   montage,
+  stages,
   stopped,
   memory,
   roster,
+  busy,
+  onRetry,
 }: {
   montage: Montage | null;
+  stages: readonly MontageStage[];
   stopped: MontageStage | null;
   memory: Memory | null;
   roster: Member[] | null;
+  busy: boolean;
+  onRetry: () => void;
 }) {
   const s = useStrings();
   const { color } = useTheme();
@@ -463,6 +456,7 @@ function Stopped({
   // The organizer out of the memory's own roster — the member row is what the promise «придёт пуш»
   // is signed with, and the order's `ordered_by` is not it: they may since have left the memory.
   const who = memberName(roster?.find((one) => one.role === 'organizer') ?? null);
+  const takes = makingTakes(stages);
 
   return (
     <>
@@ -479,10 +473,31 @@ function Stopped({
         <Text role="note" tone="muted">
           {filmScreen.stoppedOn(stopped ? s.montage.stage[stopped.stage] : '')}
         </Text>
-        {organizer && montage?.queue?.estimate_minutes != null ? (
-          <Text role="metaSm">{filmScreen.retryNote(montage.queue.estimate_minutes)}</Text>
-        ) : null}
       </View>
+
+      {/* The one button, where the layout puts it — under the paragraph and above the list, not
+          pinned to the foot of the screen: it belongs to what is written above it. The figure under
+          it is the worker's own estimate of the five stages added up, which is what a second attempt
+          costs — the api sends no separate figure for a re-run, and a film that has left the queue
+          has no `queue` to read one from. */}
+      {organizer ? (
+        <>
+          <Button
+            variant="primary"
+            size="lg"
+            wide
+            icon={RotateCcw}
+            label={filmScreen.retry}
+            disabled={busy}
+            onPress={onRetry}
+          />
+          {takes === null ? null : (
+            <Text role="metaSm" style={styles.retryNote}>
+              {filmScreen.retryNote(takes)}
+            </Text>
+          )}
+        </>
+      ) : null}
 
       {/* The stopped stage's own row under this block says why it stopped, in danger. What the
           worker wrote about it in prose is left unsaid here — the api hands it over as its own
@@ -549,6 +564,7 @@ const useStyles = themed(({ color }) =>
       borderWidth: 1,
       borderColor: color.dangerSoft,
     },
+    retryNote: { textAlign: 'center' },
     organizer: {
       flexDirection: 'row',
       alignItems: 'center',
