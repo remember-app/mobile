@@ -64,6 +64,7 @@ import {
   shotAt,
   shotBy,
 } from '@/lib/frames';
+import { edgeBack, GO, SIDEWAYS, TOP, topDown } from '@/lib/gesture';
 import { useStrings } from '@/lib/language';
 import { useTurnsWithPhone } from '@/lib/orientation';
 import { FrameInfoSheet } from '@/screens/memory/frames-sheets';
@@ -271,6 +272,18 @@ export function FrameViewer({
   step.current = stride;
 
   /**
+   * Where the way back is measured from, read the same way — the responder below is built once, and
+   * the window turns with the phone (TASK-475), so the band a downward swipe has to begin in is a
+   * number that moves. Held as a ref rather than closed over for the same reason the step is.
+   */
+  const backFrom = useRef(screen * TOP);
+  backFrom.current = screen * TOP;
+
+  /** The way out, read through a ref like the step: the responder is built once and outlives it. */
+  const closed = useRef(onClose);
+  closed.current = onClose;
+
+  /**
    * And what a tap on the picture means (TASK-476): a video plays and stands still — its own
    * transport is the button in the middle of the frame and the picture is not a place to tidy the
    * window away from — while a photograph gives the glass, the shades and the tools away and a
@@ -294,18 +307,28 @@ export function FrameViewer({
   /**
    * The picture is walked with a finger, photographs and videos alike, across the whole gallery
    * (TASK-182) — the gesture the window never had, which is what two reports about «не листается»
-   * were really asking for (TASK-123).
+   * were really asking for (TASK-123) — and, since TASK-477, the way out of the window is a swipe
+   * down over the picture or in from its left edge, on one and the same finger.
    *
    * It lives on the picture and nowhere else. The strip below is the one horizontal scroll in the
    * product, and the scrubber above it is the other sideways gesture — the layout puts each on a
    * line of its own precisely so that no two of them ever share a finger.
    *
-   * Built once and never rebuilt, with the step read through the ref above. `PanResponder` keeps
-   * how far the finger has come inside the object `create` hands back, so a responder made afresh
-   * mid-gesture starts counting from nothing — and this window re-renders four times a second for
-   * the whole of a playing video (`timeUpdate`). Rebuilt per render, both thresholds below were
-   * measured against whatever scrap of the swipe fell after the last of those renders: the walk
-   * worked on a photograph and failed on video, which is the same symptom a third time.
+   * Built once and never rebuilt, with the step and the way out read through the refs above.
+   * `PanResponder` keeps how far the finger has come inside the object `create` hands back, so a
+   * responder made afresh mid-gesture starts counting from nothing — and this window re-renders
+   * four times a second for the whole of a playing video (`timeUpdate`). Rebuilt per render, both
+   * thresholds below were measured against whatever scrap of the swipe fell after the last of those
+   * renders: the walk worked on a photograph and failed on video, which is the same symptom a third
+   * time. Three gestures on one responder rather than three responders stacked on one view: the
+   * stage takes the finger down once, and whichever way it went is decided once, from the same
+   * numbers — three responders would each be deciding from a tally of their own.
+   *
+   * The window is a `Modal`, so it stands over the navigator and the app-wide edge swipe
+   * (`useEdgeBack`) is nowhere near it: it is asked here too, on the same finger, and the left
+   * edge answers exactly as it does on a screen. That is also what makes the gesture work when the
+   * tools are away — this responder is on the stage, which is the whole of the window either way,
+   * and TASK-476 put nothing between them.
    */
   const swipe = useMemo(
     () =>
@@ -316,20 +339,27 @@ export function FrameViewer({
         // tap anywhere else on the picture is this window's (TASK-476).
         onStartShouldSetPanResponderCapture: () => false,
         onStartShouldSetPanResponder: () => true,
+        // Capture, so the window's own way out is decided before the strip below or the scrubber
+        // takes the finger — the strip is horizontal and answers a swipe of its own, and a finger
+        // that began up in the top third and is falling was never going to be its anyway.
         onMoveShouldSetPanResponderCapture: (_, g) =>
-          Math.abs(g.dx) > SIDEWAYS && Math.abs(g.dx) > Math.abs(g.dy),
+          (Math.abs(g.dx) > SIDEWAYS && Math.abs(g.dx) > Math.abs(g.dy)) ||
+          topDown(g, backFrom.current),
         onPanResponderRelease: (_, g) => {
           // A finger that stayed where it was put down is a tap: a video plays and stands still, a
-          // photograph puts the tools away or brings them back. Anything else is a gesture across
-          // the picture — a swipe walks the gallery (TASK-182), and it brings the tools back
-          // whatever it walked to, so that nobody who put them away is left with only a tap.
+          // photograph puts the tools away or brings them back. Anything else is a gesture, and
+          // which one is said by where it began and which way it went — not by how far.
           if (Math.abs(g.dx) <= SIDEWAYS && Math.abs(g.dy) <= SIDEWAYS) return tapped.current();
+          // The way out (TASK-477), asked at the same moment as the walk and on the same numbers:
+          // down over the picture, or in from the left edge. Neither brings the tools back first —
+          // there is nowhere to bring them back to, the window is gone.
+          if (topDown(g, backFrom.current, GO) || edgeBack(g, GO)) return closed.current();
           setBare(false);
           // ponytail: the frame is swapped when the finger lifts, and does not travel under it. A
           // carousel that follows the finger is a second horizontal scroll inside a modal over a
           // player — the exact ground TASK-106 and TASK-123 were lost on. Worth building the day
           // the movement itself is asked for, and not before.
-          if (Math.abs(g.dx) < WALK) return;
+          if (Math.abs(g.dx) < GO) return;
           step.current(g.dx < 0 ? 1 : -1);
         },
       }),
@@ -506,7 +536,15 @@ export function FrameViewer({
           below are outside the pin on purpose: a sheet is its own surface over the screen and not
           something inside the room, so it is drawn in the theme the app is actually in. */}
       <ThemePin value="dark">
-        <View style={styles.viewer}>
+        <View
+          style={styles.viewer}
+          // The swipe down and the swipe in from the edge are the window's way out to a finger, and
+          // this is the way out to a screen reader — the platform's own «escape», the gesture a reader
+          // reaches for when a screen appears over the one they were on. It stands on the room
+          // rather than on the picture, so it is answered over a video too and not only over a
+          // photograph (where `said` below carries the one other action the picture has).
+          onAccessibilityEscape={onClose}
+        >
           {/* The frame itself, centred in the whole of the phone — the layout draws it in a box of
               its own proportions (spec 8, `Viewer*`), and the glass above and the strip under it lie
               over it rather than taking room away from it. The finger that walks the gallery is
@@ -833,12 +871,6 @@ const ZERO = '0:00';
  * as the scrubber's `increment`/`decrement` do (`VideoTrack`).
  */
 const TOGGLE = [{ name: 'activate' }];
-
-/** How far sideways a finger has to go before the picture takes it from whatever is under it. */
-const SIDEWAYS = 12;
-
-/** And how far in all, for a lift to mean «the next one» rather than «I changed my mind». */
-const WALK = 56;
 
 /**
  * The box a frame is drawn in (spec 8, the four `Viewer*` layouts, TASK-475), and the one place the
