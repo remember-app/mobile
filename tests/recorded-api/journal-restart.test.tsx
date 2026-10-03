@@ -122,8 +122,22 @@ describe.each(SCENARIOS)('%s — the film begun again under an open journal', (s
   const sitting = [...liveSteps(steps), step(steps, 'journal_after_ready_nothing_new')];
   const names = (list: readonly Step[]) => list.map((one) => one.name);
 
-  /** The first attempt as far as the phone read it: up to `understanding` at work. */
-  const first = sitting.slice(0, sitting.indexOf(step(steps, 'live_poll_5')));
+  /**
+   * The first attempt as far as the phone read it: up to `analysis` at work and nothing promised
+   * behind it. The cut lands on an answer with records in it and `has_more: false` — a phone that
+   * chases the page after it would walk straight out of the first attempt and into the second.
+   */
+  const first = sitting.slice(
+    0,
+    sitting.findIndex((one) => {
+      const body = one.response.body as MontageJournal;
+      return (
+        body.entries.length > 0 &&
+        body.has_more === false &&
+        body.stages.find((row) => row.state === 'running')?.stage === 'analysis'
+      );
+    }) + 1,
+  );
   const reached = first.map((one) => one.response.body as MontageJournal);
   /** Where its cursor stands after that. */
   const cursor = Math.max(...reached.flatMap((one) => idsOf(one.entries)));

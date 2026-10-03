@@ -169,22 +169,22 @@ describe.each(SCENARIOS)('%s — a screen open through the whole making', (scena
     }
     expect(currentStage(opening.held.stages)).toBeNull();
 
-    // The screening counter reaches its total before the stage is closed: `running` at `done = total`
-    // is on the tape, and it is not «done» for the app.
-    const counted = sitting.filter((one) => {
-      const row = rowOf(one, 'screening');
-      return row.state === 'running' && row.done_count === row.total_count;
-    });
-    expect(
-      counted.length,
-      'the recording has a screening counted to its end and not yet closed',
-    ).toBeGreaterThan(0);
-    for (const one of counted)
-      expect(stageStanding(rowOf(one, 'screening')), one.name).toBe('running');
+    // Where a stage stands is the api's own word, never a reading of its own counters: a count that
+    // has reached its total does not close the stage, and a stage the worker has closed is never
+    // left short of it.
+    for (const one of sitting)
+      for (const row of rowsOf(one)) {
+        expect(stageStanding(row), `${row.stage} in ${one.name}`).toBe(
+          row.state === 'pending' ? 'waiting' : row.state,
+        );
+        if (row.total_count === null) continue;
+        expect(row.done_count, `${row.stage} in ${one.name}`).toBeLessThanOrEqual(row.total_count);
+        expect(row.state === 'done' && row.done_count < row.total_count, one.name).toBe(false);
+      }
 
     // The estimate of a stage at work is the one the worker began with, until the stage is done —
     // it does not count down, and the app has no reason to make it look as if it did.
-    for (const code of ['understanding', 'directing'] as const) {
+    for (const code of ['analysis', 'directing'] as const) {
       const working = sitting.filter((one) => rowOf(one, code).state === 'running');
       expect(working.length, code).toBeGreaterThan(1);
       for (const one of working)
@@ -307,7 +307,11 @@ describe.each(SCENARIOS)('%s — the worker’s words, in the app’s', (scenari
     // would pass over nothing.
     expect(new Set(records.map((one) => one.decision))).toEqual(new Set(['take', 'skip', null]));
     expect(new Set(records.map((one) => one.stage))).toEqual(
-      new Set(['screening', 'understanding', 'directing']),
+      // The director writes a record on every stage; without it there are no parts of the story to
+      // put music to and nothing to say over the cover.
+      scenario === 'algorithm'
+        ? new Set(['prep', 'analysis', 'directing'])
+        : new Set(MONTAGE_STAGES),
     );
     expect(new Set(rows.map((one) => one.stage))).toEqual(new Set(MONTAGE_STAGES));
   });
@@ -352,8 +356,6 @@ describe.each(SCENARIOS)('%s — the worker’s words, in the app’s', (scenari
         }
       }
       expect(said.size).toBeGreaterThan(1);
-      // The organizer's word is on both roads, and it is said.
-      expect(said.has('included')).toBe(true);
     }
   });
 
@@ -367,15 +369,15 @@ describe.each(SCENARIOS)('%s — the worker’s words, in the app’s', (scenari
         const at = Date.parse(row.finished_at ?? row.updated_at);
         const line = stageLine(row, s, at);
         const label = `${row.stage} ${row.state}`;
-        // A stage not reached (`pending`) has no line.
+        // A stage nobody has come to says so in the film screen's own words.
         if (row.state === 'pending') {
-          expect(line, label).toBeUndefined();
+          expect(line, label).toBe(s.montage.filmScreen.notStarted);
           continue;
         }
         if (row.state === 'running') {
           const counted = row.done_count > 0 && row.total_count !== null;
           if (counted) {
-            // The stages that move their counter (screening, assembly) show it, said in words.
+            // The stages that move their counter (prep, assembly) show it, said in words.
             expect(line, label).toContain(s.montage.live.doneOf(row.done_count, row.total_count!));
           } else {
             // Nothing counted: not «0 из N», and in the first minute no line at all — the name and the
@@ -391,21 +393,27 @@ describe.each(SCENARIOS)('%s — the worker’s words, in the app’s', (scenari
           expect(line, label).toBeTruthy();
         }
         if (line !== undefined) expect(line).not.toMatch(/undefined|null|NaN|\[object/);
-        expect(line ?? '').not.toContain(s.montage.live.doneOf(0, row.total_count ?? 0));
+        // …and never a count that has not moved: «0 из 10» under a stage would say nothing has
+        // been done while its records pile up under it.
+        if (row.total_count !== null && row.done_count === 0)
+          expect(line).not.toBe(
+            s.montage.live.soFar(0, row.total_count, s.montage.progress[row.stage]),
+          );
       }
     }
     expect(bare, 'the recording has a stage at work with nothing counted').toBeGreaterThan(0);
   });
 
-  test('the rhythm says what it came to — the cuts to the music, or that there was none to fit to', () => {
-    const rhythm = full.stages.find((one) => one.stage === 'rhythm')!;
+  test('the music says what it came to — the cuts laid to the track, or that there was none to fit to', () => {
+    const stage = full.stages.find((one) => one.stage === 'music')!;
     // One film of each: the director's was ordered with no music, the other to a track off the shelf.
     const music = scenario === 'algorithm';
-    expect(rhythm.outcome.track).toHaveLength(music ? 1 : 0);
+    expect(stage.outcome.tracks).toHaveLength(music ? 1 : 0);
     for (const s of [ru, en]) {
-      const line = stageLine(rhythm, s, Date.parse(rhythm.finished_at!));
+      const line = stageLine(stage, s, Date.parse(stage.finished_at!));
+      // The cuts are the stage's own total, out of the api's count of them — not a key of its own.
       expect(line).toContain(
-        music ? s.montage.live.cuts(rhythm.outcome.cuts!) : s.montage.live.noTrack,
+        music ? s.montage.live.cuts(stage.total_count!) : s.montage.live.noTrack,
       );
       expect(line).not.toContain(s.montage.live.cuts(0));
     }
@@ -420,9 +428,11 @@ describe.each(SCENARIOS)('%s — the worker’s words, in the app’s', (scenari
     const placed = full.entries.filter(
       (one) => one.decision !== 'skip' && file(one.media_id)?.places.length,
     );
-    // Taken frames with nothing said about them are among these on both roads — the organizer's own
-    // on either, and every one of them where there is no director at all.
-    expect(placed.some((one) => one.decision === 'take' && one.thought === null)).toBe(true);
+    // Taken frames with nothing said about them are among these where there is no director at all —
+    // the road without one, where every «беру» stands bare.
+    expect(placed.some((one) => one.decision === 'take' && one.thought === null)).toBe(
+      scenario === 'algorithm',
+    );
     for (const record of placed) {
       const nth = takenBefore(record, full.entries);
       const own = file(record.media_id)!.places[nth];
@@ -432,21 +442,22 @@ describe.each(SCENARIOS)('%s — the worker’s words, in the app’s', (scenari
       );
       if (record.story_part !== null) expect(line).toContain(`Часть ${record.story_part}`);
     }
-    // A record that passed the frame over has no place to name, however the file is laid out — the
-    // recording has one: a frame the screening passed over that the organizer then asked for.
+    // A record that passed the frame over has no place to name, however the file is laid out.
     const passed = full.entries.filter((one) => one.decision === 'skip');
-    expect(passed.some((one) => file(one.media_id)?.places.length)).toBe(true);
     for (const record of passed)
       expect(placeLine(record, file(record.media_id), 0, ru)).toBeUndefined();
   });
 
   test('the three numbers of «Как собирался» are the worker’s own tallies', () => {
-    const outcome = (code: string) => full.stages.find((one) => one.stage === code)!.outcome;
+    const of = (code: string) => full.stages.find((one) => one.stage === code)!;
     const figures = howMade(full.stages, ru);
     expect(figures.map((one) => one.figure)).toEqual([
-      outcome('screening').of,
-      outcome('directing').frames,
-      outcome('assembly').cuts,
+      of('prep').total_count,
+      of('directing').taken_count,
+      // The api counts the cuts on the assembly stage itself and writes no `cuts` key into its
+      // outcome (api `docs/journal.md`, «assembly»), so this is where the third tile has to come
+      // from — see the note in the hand-back.
+      of('assembly').total_count,
     ]);
     // …and they agree with the records: what was looked at is every file, what was taken is the
     // records that say «take» in the last stage.

@@ -222,7 +222,6 @@ test('every word of the film screen is in the dictionary, in both languages', ()
       expect(f.at[stage]).toBeTruthy();
       expect(s.montage.stage[stage]).toBeTruthy();
       expect(s.montage.stageHead[stage]).toBeTruthy();
-      expect(s.montage.stageAhead[stage]).toBeTruthy();
       expect(s.montage.progress[stage]).toBeTruthy();
     }
   }

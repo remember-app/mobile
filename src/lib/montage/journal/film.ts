@@ -40,9 +40,15 @@ export function filmState(
  * The stage the screen's own line stands on, and everything that line says — the stage's name, its
  * place among the five, and what is left of it.
  *
- * Null where there is no stage to name: a film nobody has started yet has none, and that is not a
- * gap to fill in. It is also null once a stage has fallen over, because nobody is waiting for the
- * stages behind it any more — their estimates are the worker's guesses from the start of the job.
+ * The stage that fell over is named here too, though nothing is left to wait for: the line under the
+ * bar is the one place that says «where it stopped», and a screen that fell back to «ждёт» beside a
+ * «остановился» pill would name a stage as waiting that has in fact stopped.
+ *
+ * What it does not carry is the time: once a stage has fallen over nobody is waiting for the stages
+ * behind it, and their estimates are still the worker's guesses from the start of the job.
+ *
+ * Null where there is no stage to name at all: a film nobody has started yet has none, and that is
+ * not a gap to fill in.
  */
 export function stageInHand(
   stages: readonly MontageStage[],
@@ -55,13 +61,14 @@ export function stageInHand(
   minutes: number | null;
 } | null {
   const held = currentStage(stages);
-  if (held === null || held.state === 'failed') return null;
+  if (held === null) return null;
+  const fell = held.state === 'failed';
   return {
     stage: held,
     code: held.stage,
     name: s.montage.stage[held.stage],
     stageOf: s.montage.live.stageOf(stageNumber(held.stage), STAGE_COUNT),
-    minutes: minutesLeft(stages),
+    minutes: fell ? null : minutesLeft(stages),
   };
 }
 

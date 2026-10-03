@@ -38,7 +38,6 @@ import {
   brokeWord,
   CardMemory,
   CardMontage,
-  CardNow,
   EmptyMontages,
   IconButton,
   PosterOrder,
@@ -324,27 +323,6 @@ test('a record under a stage puts its mark under the thought once the thought br
   expect(thought().findAllByType(BadgeDecision)).toHaveLength(0);
   await layOut(tree, [{ text: 'Вносят торт — гла' }, { text: 'вный' }]);
   expect(thought().findAllByType(BadgeDecision)).toHaveLength(1);
-});
-
-test('the plates on the frame on air share a line that wraps, and none of them floats over another', async () => {
-  const tree = await draw(
-    <CardNow
-      uri="a.jpg"
-      author="Лиза Морозова"
-      authorLine="Лиза Морозова · 12 сентября, 10:35"
-      now="СЕЙЧАС"
-      who="Режиссёр"
-      standing="решил"
-      decision={<BadgeDecision kind="take" label="Взял 1 из 2" />}
-      thought="Вносят торт."
-    />,
-  );
-  const now = tree.root.find((one) => one.type === Text && one.props.children === 'СЕЙЧАС');
-  const row = box(box(now));
-  expect(flat(row).flexWrap).toBe('wrap');
-  const plates = row.findAll((one) => one.type === View && box(one) === row);
-  expect(plates).toHaveLength(2);
-  for (const plate of plates) expect(flat(plate).position).toBeUndefined();
 });
 
 test('the length on the summary poster is never squeezed by the shape beside it', async () => {

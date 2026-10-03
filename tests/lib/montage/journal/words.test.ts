@@ -13,7 +13,8 @@ vi.mock('expo-secure-store', () => ({
 vi.mock('expo-router', () => ({ useFocusEffect: () => {}, useIsFocused: () => true }));
 
 import { entry } from '@tests/helpers/journal';
-import { marksOf, reasonWord, whyTaken } from '@/lib/montage/journal';
+import { MONTAGE_STAGES } from '@/api';
+import { marksOf, reasonWord, stoppedWord, whyTaken } from '@/lib/montage/journal';
 import { en, ru } from '@/strings';
 
 /**
@@ -131,12 +132,20 @@ describe('the record in words', () => {
   });
 
   test('the five stages of the journal are named in both languages', () => {
-    for (const code of ['screening', 'understanding', 'directing', 'rhythm', 'assembly'] as const) {
-      expect(ru.montage.stage[code]).toBeTruthy();
-      expect(en.montage.stage[code]).toBeTruthy();
+    for (const code of MONTAGE_STAGES) {
+      expect(ru.montage.stage[code], `ru ${code}`).toBeTruthy();
+      expect(en.montage.stage[code], `en ${code}`).toBeTruthy();
+      expect(ru.montage.stageHead[code], `ru head ${code}`).toBeTruthy();
+      expect(en.montage.stageHead[code], `en head ${code}`).toBeTruthy();
+      expect(ru.montage.progress[code], `ru progress ${code}`).toBeTruthy();
+      expect(en.montage.progress[code], `en progress ${code}`).toBeTruthy();
     }
     expect(ru.montage.live.stageOf(3, 5)).toBe('Этап 3 из 5');
     expect(ru.montage.live.leftAbout(8)).toBe('осталось ≈ 8 мин');
     expect(ru.montage.live.minutes(4)).toBe('4 мин');
+    // Why a making stopped is said by the worker's own code, and a code outside the dictionary
+    // reads as the general one rather than as itself.
+    expect(ru.montage.live.stopped.no_material).toBeTruthy();
+    expect(stoppedWord(undefined, en)).toBe(en.montage.live.stopped.other);
   });
 });

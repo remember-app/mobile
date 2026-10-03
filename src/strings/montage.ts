@@ -291,23 +291,16 @@ export const en = {
       assembly: 'Assembly',
     },
     /**
-     * And as a word each, for the one quiet line that names the stages still ahead. The line breaks
-     * between stages and never inside one, so a stage of two words is held by a no-break space.
+     * What each stage counts, in its own word — «61 из 214 скачано». Each says what that stage does
+     * to a frame, and no two say the same: preparation downloads files, analysis reads them,
+     * directing places them, music fits them to the beat, assembly glues them.
      */
-    stageAhead: {
-      prep: 'подготовка',
-      analysis: 'анализ',
-      directing: 'режиссура',
-      music: 'музыка',
-      assembly: 'сборка',
-    },
-    /** What each stage has done to a frame, beside how many — «61 placed» (spec detail 56). */
     progress: {
-      prep: 'скачано',
-      analysis: 'описано',
-      directing: 'разложено',
-      music: 'подогнано',
-      assembly: 'склеено',
+      prep: 'downloaded',
+      analysis: 'described',
+      directing: 'placed',
+      music: 'fitted',
+      assembly: 'joined',
     },
 
     /**
@@ -398,11 +391,6 @@ export const en = {
       counted: (n: number, done: string) => `${n} ${done}`,
       /** Under the stage in hand: the way into everything it has said. */
       wholeStage: (n: number) => `The whole stage journal · ${n} ${n === 1 ? 'record' : 'records'}`,
-      /**
-       * The stages not reached yet, as one line under the rest — `stageAhead` each. The dot keeps to
-       * the stage before it, so a line that wraps starts on a stage and not on a «·».
-       */
-      ahead: (stages: readonly string[]) => `Next: ${stages.join('\u00a0· ')}`,
       /** The time over a record that landed while somebody was watching. */
       justNow: 'just now',
       /** The four chips over the journal. Two of them carry the api's own count beside the word. */
@@ -738,13 +726,6 @@ export const ru: typeof en = {
       music: 'Музыка',
       assembly: 'Сборка',
     },
-    stageAhead: {
-      prep: 'подготовка',
-      analysis: 'анализ',
-      directing: 'режиссура',
-      music: 'музыка',
-      assembly: 'сборка',
-    },
     progress: {
       prep: 'скачано',
       analysis: 'описано',
@@ -799,7 +780,6 @@ export const ru: typeof en = {
       soFar: (n: number, of: number, done: string) => `${n} из ${of} ${done}`,
       counted: (n: number, done: string) => `${n} ${done}`,
       wholeStage: (n: number) => `Весь журнал этапа · ${count(n, 'запись', 'записи', 'записей')}`,
-      ahead: (stages: readonly string[]) => `Дальше: ${stages.join('\u00a0· ')}`,
       justNow: 'сейчас',
       all: 'Всё',
       thoughts: 'Мысли',

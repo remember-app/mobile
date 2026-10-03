@@ -192,7 +192,6 @@ test('a vertical list stands only in the board’s `list`, never inside the scro
   expect(lists.map(([path]) => path).sort()).toEqual([
     'app/index.tsx',
     'app/memory/[id]/mine.tsx',
-    'app/memory/[id]/montage/[montageId]/stage/[stage].tsx',
     'app/memory/[id]/order/frames.tsx',
     'app/memory/[id]/upload.tsx',
   ]);

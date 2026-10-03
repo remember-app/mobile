@@ -37,7 +37,8 @@ import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { AppState } from 'react-native';
 import TestRenderer, { type ReactTestInstance } from 'react-test-renderer';
 import MontageLiveScreen from '@/app/memory/[id]/montage/[montageId]/index';
-import { CardMontage, CardNow, LiveDot, RowStep, StepNote, Text } from '@/kit';
+import { CardFilmNow, CardMontage, LiveDot, RowFilmStage, Text } from '@/kit';
+import { stoppedWord } from '@/lib/montage/journal';
 import { Films } from '@/screens/memory/films';
 import { ru } from '@/strings';
 
@@ -118,33 +119,48 @@ describe.each(SCENARIOS)('%s — a montage that fell over', (scenario) => {
       const screen = await mount(<MontageLiveScreen />, api, role);
       const text = words(screen);
 
-      expect(screen.findAllByType(CardNow)).toEqual([]);
+      expect(screen.findAllByType(CardFilmNow)).toEqual([]);
       expect(screen.findAllByType(LiveDot)).toEqual([]);
       for (const live of [ru.montage.live.now, ru.montage.live.thinking, ru.montage.live.decided]) {
         expect(text).not.toContain(live);
       }
 
-      // The journal is still read: the stage that broke wears the cross and is opened out on its last
-      // records, each with the frame it was about — where it broke, told calmly. The three it never
-      // reached are the one faint line under it.
-      const rows = screen.findAllByType(RowStep);
-      expect(rows.map((one) => one.props.state)).toEqual(['done', 'failed', 'waiting']);
-      expect(rows[2].props.title).toBe(
-        ru.montage.live.ahead([
-          ru.montage.stageAhead.directing,
-          ru.montage.stageAhead.rhythm,
-          ru.montage.stageAhead.assembly,
-        ]),
-      );
-      expect(rows.filter((one) => one.props.open)).toEqual([rows[1]]);
+      // All five rows are still drawn — the journal is read, whatever it says — and the stage that
+      // broke is the one that says why, in danger. The three behind it never came to and say so.
+      const rows = screen.findAllByType(RowFilmStage);
+      expect(rows.map((one) => one.props.state)).toEqual([
+        'done',
+        'failed',
+        'waiting',
+        'waiting',
+        'waiting',
+      ]);
+      expect(rows.map((one) => one.props.title)).toEqual([
+        ru.montage.stage.prep,
+        ru.montage.stage.analysis,
+        ru.montage.stage.directing,
+        ru.montage.stage.music,
+        ru.montage.stage.assembly,
+      ]);
       const whole = bodyOf(steps, 'journal_of_ready_montage');
-      const last = whole.entries.filter((one) => one.stage === 'understanding').slice(0, 2);
-      const shot = (id: string | null) =>
-        whole.files.find((one) => one.id === id)?.thumbnail_url ?? undefined;
-      expect(rows[1].findAllByType(StepNote).map((one) => one.props.uri)).toEqual(
-        last.map((one) => shot(one.media_id)),
+      const stopped = whole.stages.find((one) => one.stage === 'analysis')!;
+      // The cut carries no `stopped` code of its own, so the row says the general reason — and
+      // never a code the app has no word for.
+      expect(rows[1].props.meta).toBe(
+        ru.montage.filmScreen.stoppedBecause(stoppedWord(stopped, ru)),
       );
+      expect(rows[1].props.meta).toBe('остановился: сборка остановилась');
+      for (const row of rows.slice(2))
+        expect(row.props.meta).toBe(ru.montage.filmScreen.notStarted);
+
+      // The block over them names the stage it stopped on and the worker's own sentence.
+      expect(text).toContain(ru.montage.filmScreen.stoppedTitle);
+      expect(text).toContain(ru.montage.filmScreen.stoppedOn(ru.montage.stage.analysis));
       expect(text).toContain(BROKE);
+      // The organizer is met by a button; a member by the fact of who can press it.
+      const organizer = role === 'organizer';
+      expect(text.includes(ru.montage.filmScreen.retry)).toBe(organizer);
+      expect(text.includes(ru.montage.filmScreen.organizerCan)).toBe(!organizer);
       expect(api.unmatched).toEqual([]);
     },
   );

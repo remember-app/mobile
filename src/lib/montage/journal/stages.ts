@@ -305,8 +305,11 @@ export function howMade(
     { figure: of('prep')?.total_count ?? undefined, label: live.watched },
     { figure: of('directing')?.taken_count ?? undefined, label: live.tookIn },
     {
-      figure: of('assembly')?.outcome.cuts ?? undefined,
-      label: live.glued(of('assembly')?.outcome.cuts ?? 0),
+      // The api counts the glued pieces on the assembly stage itself and writes no `cuts` key into
+      // its outcome (`docs/journal.md`, «assembly»), so the third figure is that `total_count` —
+      // «92 из 138 склеек» — and never a number worked out here.
+      figure: of('assembly')?.total_count ?? undefined,
+      label: live.glued(of('assembly')?.total_count ?? 0),
     },
   ];
   return three.filter(
