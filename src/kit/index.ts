@@ -31,6 +31,7 @@ export * from './day-tile';
 export * from './daymark';
 export * from './empty';
 export * from './field';
+export * from './film';
 export * from './filmstrip';
 export * from './icon';
 export * from './interaction';

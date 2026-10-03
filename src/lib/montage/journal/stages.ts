@@ -151,21 +151,31 @@ function cameOf(stage: MontageStage, s: Strings): string | undefined {
   const { live } = s.montage;
   const came = stage.outcome;
   switch (stage.stage) {
-    case 'screening':
-      return came.kept !== undefined && came.of !== undefined
-        ? live.kept(came.kept, came.of)
-        : undefined;
-    case 'understanding':
-      return came.faces === undefined ? undefined : live.faces(came.faces);
-    case 'directing':
-      return came.parts === undefined ? undefined : live.parts(came.parts);
-    case 'rhythm':
+    case 'prep': {
+      // «214 кадров: 168 фото, 46 видео на 23:40» — what the order brought, and the stage's own
+      // total against what the counter says. A stage with nothing in its outcome says nothing.
+      const frames = stage.total_count;
+      if (frames === null || came.photos === undefined || came.videos === undefined) {
+        return undefined;
+      }
+      return live.prepCame(frames, came.photos, came.videos, formatRuntime(came.video_seconds ?? null) ?? '');
+    }
+    case 'analysis':
+      return came.described === undefined ? undefined : live.analysisCame(came.described, came.earlier ?? 0);
+    case 'directing': {
+      const parts = came.parts?.length;
+      return parts === undefined ? undefined : live.directingCame(parts, came.frames ?? stage.taken_count);
+    }
+    case 'music': {
       // A film with no music has nothing to lay out to: the stage still runs, and «0 склеек» would
       // be a count of what never could have happened.
-      if (came.track?.length === 0) return live.noTrack;
-      return came.cuts === undefined ? undefined : live.cuts(came.cuts);
+      const tracks = came.tracks ?? came.track;
+      if (tracks?.length === 0) return live.noTrack;
+      const name = tracks?.[0];
+      return name === undefined ? undefined : live.musicCame(name, came.bpm ?? null, stage.total_count);
+    }
     case 'assembly':
-      return formatRuntime(came.seconds ?? null);
+      return came.seconds === undefined ? undefined : formatRuntime(came.seconds);
   }
 }
 
@@ -251,12 +261,11 @@ export function howMade(
   s: Strings,
 ): { figure: number; label: string }[] {
   const { live } = s.montage;
-  const outcomeOf = (code: MontageStageCode) => stages.find((one) => one.stage === code)?.outcome;
-  const cuts = outcomeOf('assembly')?.cuts;
+  const of = (code: MontageStageCode) => stages.find((one) => one.stage === code);
   const three = [
-    { figure: outcomeOf('screening')?.of, label: live.watched },
-    { figure: outcomeOf('directing')?.frames, label: live.tookIn },
-    { figure: cuts, label: live.glued(cuts ?? 0) },
+    { figure: of('prep')?.total_count ?? undefined, label: live.watched },
+    { figure: of('directing')?.taken_count ?? undefined, label: live.tookIn },
+    { figure: of('assembly')?.outcome.cuts ?? undefined, label: live.glued(of('assembly')?.outcome.cuts ?? 0) },
   ];
   return three.filter(
     (tile): tile is { figure: number; label: string } => tile.figure !== undefined,

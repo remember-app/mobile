@@ -369,6 +369,15 @@ export const en = {
         `${parts} ${parts === 1 ? 'part' : 'parts'} of the story, took ${taken} ${taken === 1 ? 'frame' : 'frames'}`,
       /** What a film with no music came to on the music stage — in place of «0 cuts», which is no answer. */
       noTrack: 'no music, nothing to fit to',
+      /** The music stage's own line: the track it was laid out to, its tempo when known, and the
+          cuts fitted to it. A tempo the worker never learned is left out, not shown as zero. */
+      musicCame: (track: string, bpm: number | null, cuts: number | null) =>
+        [
+          bpm === null ? `“${track}”` : `“${track}”, ${bpm} bpm`,
+          cuts === null ? null : `${cuts} ${cuts === 1 ? 'cut' : 'cuts'}`,
+        ]
+          .filter((part): part is string => part !== null)
+          .join(', '),
       parts: (n: number) => `${n} ${n === 1 ? 'part' : 'parts'}`,
       cuts: (n: number) => `${n} ${n === 1 ? 'cut' : 'cuts'}`,
       doneOf: (n: number, of: number) => `${n} of ${of}`,
@@ -770,6 +779,13 @@ export const ru: typeof en = {
       directingCame: (parts: number, taken: number) =>
         `${count(parts, 'часть', 'части', 'частей')} истории, взял ${count(taken, 'кадр', 'кадра', 'кадров')}`,
       noTrack: 'без музыки, подгонять не подо что',
+      musicCame: (track: string, bpm: number | null, cuts: number | null) =>
+        [
+          bpm === null ? `«${track}»` : `«${track}», ${bpm} ударов`,
+          cuts === null ? null : count(cuts, 'склейка', 'склейки', 'склеек'),
+        ]
+          .filter((part): part is string => part !== null)
+          .join(', '),
       parts: (n: number) => count(n, 'часть', 'части', 'частей'),
       cuts: (n: number) => count(n, 'склейка', 'склейки', 'склеек'),
       doneOf: (n: number, of: number) => `${n} из ${of}`,
