@@ -205,7 +205,7 @@ export default function FilmScreen() {
             size="sm"
             wide
             icon={Download}
-            label={s.action.save}
+            label={s.action.download}
             disabled={keeping || film === null}
             onPress={() => film && void run(film, 'save')}
           />

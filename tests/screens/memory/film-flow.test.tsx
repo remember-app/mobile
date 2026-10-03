@@ -215,6 +215,20 @@ test('renaming the reel updates its name on the screen and in the capsule; a ref
   expect(other.banners()).not.toContain('not yours');
 });
 
+test('под постером — «Поделиться» и «Скачать», а не «Сохранить»', async () => {
+  // Spec 8, `FilmReady`: the pair is «Поделиться» and «Скачать». «Сохранить» belongs to the sheet
+  // that renames the film — two buttons on one screen saying the same thing is one too many, and
+  // the film is saved to the phone, not to the app.
+  const screen = await open();
+  const labels = screen.root
+    .findAllByType(Button)
+    .map((one) => one.props.label)
+    .filter(Boolean);
+  expect(labels).toContain(ru.action.share);
+  expect(labels).toContain(ru.action.download);
+  expect(labels).not.toContain(ru.action.save);
+});
+
 test('deleting the reel returns to the memory’s feed; a refusal keeps the reel and says so in a banner instead of closing quietly', async () => {
   const w = world(film());
   const screen = await open();
