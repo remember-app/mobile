@@ -16,7 +16,7 @@ import {
 import { IconButton } from '@/kit/button';
 import { allDifferent, story } from '@/kit/story';
 import { Text } from '@/kit/text';
-import { font, setTheme, type } from '@/theme';
+import { font, setTheme, themes, type } from '@/theme';
 
 /** Spec 7.9 — the small parts every other part is built from. */
 
@@ -49,6 +49,57 @@ test('the five-segment variant puts what is done behind it in spark and what is 
     wizard: <StepScale steps={5} done={3} />,
     building: <StepScale steps={5} done={3} tone="spark" />,
   });
+});
+
+/**
+ * A colour token as the sheet writes it — `line` on the phone, `rgba(44,44,58,1.00)` in a class.
+ * The tone comes from the theme the file draws in, so a colour moved there moves here with it and
+ * nothing is spelled out twice.
+ */
+const background = (token: string) =>
+  `background-color:rgba(${(token.slice(1).match(/../g) ?? [])
+    .map((pair) => parseInt(pair, 16))
+    .join(',')},1.00)`;
+
+test('the paper scale lays a `line` track under the fill, so the step ahead is a road and not a hole', () => {
+  // Spec 7.1, detail 75: 4px, what is walked in `paper`, what is ahead in `line`. Every rule is found
+  // by what it says and not by what it is called, so nothing here names a class of its own.
+  const track = rule(background(themes.dark.color.line));
+  const walked = rule(background(themes.dark.color.paper));
+  const stopped = rule(background(themes.dark.color.dangerText));
+  const clip = shorthand('overflow', 'overflow-x:hidden');
+  const drawn = story(<StepScale tone="paper" steps={5} done={2} stopped />);
+
+  // One track to a step, all five of them — the three the walk has not reached included — each
+  // painted in `line` and clipping what rides on it.
+  const segments = [...drawn.matchAll(/<div class="([^"]*)"><div class="([^"]*)"/g)];
+  expect(segments).toHaveLength(5);
+  for (const [, own] of segments) {
+    expect(own).toContain(track);
+    expect(own).toContain(clip);
+  }
+
+  // And the fill is over that track, in its own tone: `paper` on the four the walk has come
+  // through, `dangerText` on the one that stopped. No fill is drawn in the track's own colour —
+  // that is the scale gone blank, which is the whole thing the track is here to prevent.
+  const fills = segments.map(([, , own]) => own);
+  expect(fills.filter((fill) => fill.includes(stopped))).toHaveLength(1);
+  for (const fill of fills.filter((one) => !one.includes(stopped))) expect(fill).toContain(walked);
+  for (const fill of fills) expect(fill).not.toContain(track);
+});
+
+test('the wizard’s tone paints the segment itself: no track under it, and nothing that moves', () => {
+  // The other two tones are not a fill over a road — the segment is its own paint. So nothing here
+  // is clipped and nothing carries a width: `overflow:hidden` and a `style="width:…"` are the two
+  // things the paper tone has and these do not.
+  const wizard = story(<StepScale steps={5} done={3} />);
+  expect(wizard).toContain(rule(background(themes.dark.color.accent)));
+  expect(wizard).toContain(rule(background(themes.dark.color.line)));
+  expect(wizard).not.toContain(shorthand('overflow', 'overflow-x:hidden'));
+  expect(wizard).not.toMatch(/style="width:/);
+  expect(story(<StepScale tone="spark" steps={5} done={3} />)).toContain(
+    rule(background(themes.dark.color.spark)),
+  );
 });
 
 test('a progress bar reaches for its value and never past either end of it', () => {
