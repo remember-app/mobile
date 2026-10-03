@@ -37,6 +37,7 @@ import {
   madeInMinutes,
   stageLine,
   stageNumber,
+  stageStanding,
   useMontageJournal,
   WHILE_LIVE_MS,
 } from '@/lib/montage/journal';
@@ -245,15 +246,7 @@ export default function FilmScreen() {
                     at={stageNumber(stage.stage)}
                     title={s.montage.stage[stage.stage]}
                     meta={stageLine(stage, s)}
-                    state={
-                      stage.state === 'failed'
-                        ? 'failed'
-                        : stage.state === 'running'
-                          ? 'running'
-                          : stage.state === 'done'
-                            ? 'done'
-                            : 'waiting'
-                    }
+                    state={stageStanding(stage)}
                     onPress={() =>
                       router.push({
                         pathname: '/memory/[id]/montage/[montageId]/stage/[stage]',

@@ -76,7 +76,6 @@ const HELD: Record<string, string> = {
   'kit/slider.tsx › inline': 'fitCell',
   // A picture's own box, the words laid over the photograph: the height is the picture's.
   'kit/montage-live.tsx › shotSmall': 'a 62 frame',
-  'kit/rows.tsx › noteShot': 'a 34 frame',
   // A plate or a pill the layout draws to a height, not yet measured at the largest type.
   'kit/daymark.tsx › band': 'the day gap in the feed, felt at 44 — its words through a variable',
   'kit/daymark.tsx › mark': 'the day gap in the feed, 20',
@@ -194,9 +193,8 @@ const CUT: Record<string, number> = {
   // The capsule's name and meta over the feed (7.1, detail 4; 10.6) — whole in the settings it
   // opens, and in what it is read out as.
   'kit/bars.tsx': 2,
-  // A track's wish (7.7, detail 54; `MontageMusic`) — whole in the field its pencil unfolds; a
-  // record under an opened stage, two lines (7.7, detail 56) — whole in the stage's journal.
-  'kit/rows.tsx': 2,
+  // A track's wish (7.7, detail 54; `MontageMusic`) — whole in the field its pencil unfolds.
+  'kit/rows.tsx': 1,
   // A label's name in its row (7.7, detail 60) — whole in what the row is read out as.
   'kit/label.tsx': 1,
   // A film's name heading the order's total, past its smallest size (7.2, detail 79; the seventh

@@ -54,6 +54,7 @@ import {
   stageInHand,
   stageLine,
   stageNumber,
+  stageStanding,
   useMontageJournal,
   useTypedThought,
 } from '@/lib/montage/journal';
@@ -273,15 +274,7 @@ export default function FilmScreen() {
                 at={stageNumber(stage.stage)}
                 title={s.montage.stage[stage.stage]}
                 meta={stageLine(stage, s)}
-                state={
-                  stage.state === 'failed'
-                    ? 'failed'
-                    : stage.state === 'running'
-                      ? 'running'
-                      : stage.state === 'done'
-                        ? 'done'
-                        : 'waiting'
-                }
+                state={stageStanding(stage)}
                 onPress={() => toStage(stage.stage)}
               />
             </Fragment>

@@ -155,6 +155,9 @@ export function FilmStageScale({
  * in a circle is what «ждёт» looks like, and without it the five waiting rows are five identical
  * grey rings.
  */
+/** The four states a stage of the making stands in — spec 8, detail 56. */
+export type FilmStageState = 'done' | 'running' | 'waiting' | 'failed';
+
 export function RowFilmStage({
   at,
   title,
@@ -168,7 +171,7 @@ export function RowFilmStage({
   title: string;
   /** What the stage came to, or how far it has got — written by the screen. */
   meta?: string;
-  state: 'done' | 'running' | 'waiting' | 'failed';
+  state: FilmStageState;
   onPress?: () => void;
   /** The stage in hand opens out here: its journal is one press further, never inside the row. */
   children?: ReactNode;

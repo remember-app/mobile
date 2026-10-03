@@ -120,12 +120,11 @@ test('the five rows, the line over them and the card «Сейчас» are the ki
   // A film the worker has not opened the job for has no five rows at all — an outlined card with
   // nothing in it is a thing on the screen that stands for nothing.
   expect(live).toContain('{journal.stages.length === 0 ? null : (');
-  // And the state of a row is the api's own word, never a reading of its counters.
+  // And the state of a row is the api's own word, never a reading of its counters — and it is
+  // worked out once, beside the rest of the arithmetic over an answer, rather than written out as a
+  // chain of ternaries on each screen that shows the five.
   for (const screen of [live, film]) {
-    expect(screen).toContain("stage.state === 'failed'");
-    expect(screen).toContain("stage.state === 'running'");
-    expect(screen).toContain("stage.state === 'done'");
-    expect(screen).toContain("'waiting'");
+    expect(screen).toContain('state={stageStanding(stage)}');
   }
   expect(journalOf).toContain(
     "if (stage === undefined || stage.state === 'pending') return 'waiting';",

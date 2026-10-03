@@ -6,7 +6,7 @@ import {
   type MontageStageCode,
   type MontageStep,
 } from '@/api';
-import type { StepState } from '@/kit';
+import type { FilmStageState } from '@/kit';
 import { formatRuntime } from '@/lib/dates';
 import type { Strings } from '@/strings';
 
@@ -253,20 +253,20 @@ export function stageHeadLine(
 }
 
 /**
- * Where one of the five stands, in the kit's own words for a step. A stage the worker has not
- * reached has no row at all in the answer, which is the same thing as `pending`: it is ahead.
+ * Where one of the five stands, in the row's own words. A stage the worker has not reached has no
+ * row of its own in the answer, which is the same thing as `pending`: it is ahead.
  *
- * Both screens of the making ask it — the live one about a stage being worked on, the finished one
- * about five that are behind — so the answer is worked out here rather than twice on two screens.
+ * Both screens of the film ask it — the one that is being made and the finished one — so it is
+ * worked out here rather than written out twice as a chain of ternaries.
  */
-export function stageStanding(stage: MontageStage | undefined): StepState {
+export function stageStanding(stage: MontageStage | undefined): FilmStageState {
   if (stage === undefined || stage.state === 'pending') return 'waiting';
   return stage.state;
 }
 
 /**
  * «собран за 14 мин» — the whole making, added up out of the stages that have both ends (spec 7.6,
- * `MontageLiveDone`). Their own times and not the span from the first to the last: what is worth
+ * `FilmReady`). Their own times and not the span from the first to the last: what is worth
  * saying is how long the work took, and a montage that stood in a queue between two stages did not
  * spend that wait being made.
  *

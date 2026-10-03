@@ -1,5 +1,4 @@
-import { Image } from 'expo-image';
-import { Check, ChevronRight, Pause, Play, X } from 'lucide-react-native';
+import { ChevronRight, Pause, Play } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import {
   Pressable,
@@ -14,10 +13,9 @@ import { height, photo, radius, space, themed, useTheme } from '@/theme';
 
 import { Divider } from './bits';
 import { IconButton } from './button';
-import { Spinner } from './empty';
 import { Icon, type IconComponent, playFor } from './icon';
-import { hitSlop, PRESS, TAP, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
-import { Text, useWordRoom, WordRoom } from './text';
+import { type hitSlop, PRESS, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
+import { Text } from './text';
 
 /**
  * Spec 7.6 — the rows. Each of them is one line of a list somewhere in the product, and what they
@@ -242,179 +240,6 @@ export function RowRejected({
     </View>
   );
 }
-
-/** Where one stage of the build stands (spec 7.7). */
-export type StepState = 'done' | 'running' | 'waiting' | 'failed';
-
-/**
- * One stage of a montage being made (spec 7.7): a 24 circle saying where it is, the stage's own
- * name, a line of what came of it, and the chevron into its journal. The stage is named rather than
- * counted — «73 %» tells a person nothing, «Режиссёр строит историю» does.
- *
- * The one still running opens: it takes an `accentNote` wash and carries its last few records under
- * it, so the screen shows what the director is doing without anybody having to go looking. A stage
- * still ahead is not a road at all — no meta, no chevron, one quiet line naming what is coming, and
- * the layout draws that row 44 rather than 48 (`MontageLive`).
- *
- * Nothing on it is cut: a name, a meta or the line of what is ahead that outgrows the row on large
- * system type wraps, and the row grows down with it.
- *
- * `large` is the same row where «Как собирался» is the main block of the screen (`Film`, detail 56
- * «крупная свёрнутая»): 58 tall, a 26 circle with a heavier tick, the name 15 / 600 over its outcome
- * 12 / 500, and a 17 chevron.
- */
-export function RowStep({
-  title,
-  meta,
-  state,
-  open,
-  large,
-  onPress,
-  children,
-}: {
-  title: string;
-  /** «212 из 214 годятся · 1 мин» — written by the screen; a stage ahead has none. */
-  meta?: string;
-  state: StepState;
-  /** The stage in hand, opened out: its last records and the way into the whole journal. */
-  open?: boolean;
-  large?: boolean;
-  onPress?: () => void;
-  /** Those records — `StepNote` each, and the link under them. */
-  children?: ReactNode;
-}) {
-  const styles = useStyles();
-  const { color } = useTheme();
-  const ahead = state === 'waiting';
-  const mark = large ? { size: 14, stroke: 3 } : { size: 13 };
-  const chevron = large ? { size: 17, stroke: 2 } : { size: 16 };
-
-  return (
-    <View style={open ? styles.stepOpen : null}>
-      <Tappable
-        label={[title, meta].filter(Boolean).join('. ')}
-        onPress={ahead ? undefined : onPress}
-        style={[styles.step, large ? styles.stepLarge : null, ahead ? styles.stepAhead : null]}
-      >
-        {state === 'running' ? (
-          <Spinner size={24} ring={2} track={color.line} head={color.accent} />
-        ) : (
-          <View
-            style={[
-              styles.stepMark,
-              large ? styles.stepMarkLarge : null,
-              state === 'done' ? styles.stepDone : null,
-              state === 'failed' ? styles.stepFailed : null,
-              ahead ? styles.stepWaiting : null,
-            ]}
-          >
-            {state === 'done' ? <Icon icon={Check} {...mark} color={color.sparkInk} /> : null}
-            {state === 'failed' ? <Icon icon={X} {...mark} color={color.dangerText} /> : null}
-          </View>
-        )}
-        {ahead ? (
-          // Spec detail 56 and 10.11: 13 / 500 `muted` (the layout's `faint` is under the floor for
-          // words that are read), wrapping onto a second line of 18 rather than cut.
-          <Text role="note" style={[styles.grow, styles.aheadWords]}>
-            {title}
-          </Text>
-        ) : (
-          // Spec 7.7, detail 56: the name 14 / 600 and the line under it 11 / 500 `muted`.
-          <View style={[styles.grow, large ? styles.stepWordsLarge : null]}>
-            <Text role={large ? 'row' : 'rowSm'}>{title}</Text>
-            {meta ? <Text role={large ? 'meta' : 'metaSm'}>{meta}</Text> : null}
-          </View>
-        )}
-        {ahead ? null : <Icon icon={ChevronRight} {...chevron} color={color.faint} />}
-      </Tappable>
-      {open ? children : null}
-    </View>
-  );
-}
-
-/**
- * One record under an opened stage (spec 7.7): the frame at 34, two lines of what the director
- * thought about it, and the mark of what they decided. The journal's own full-size entry is
- * `LogEntry` — this is the glance at it that fits inside a row.
- *
- * The mark stands at the right of the thought while the thought keeps its words whole beside it; on
- * large type a long one — «Беру 0:02–0:06» — goes under the thought instead (`useWordRoom`,
- * TASK-375).
- */
-export function StepNote({
-  uri,
-  length,
-  text,
-  mark,
-}: {
-  uri?: string;
-  /** A video's running time in the corner of the thumbnail. */
-  length?: string;
-  text: string;
-  /** The decision pill — `BadgeDecision`, handed in so this row knows no words. */
-  mark?: ReactNode;
-}) {
-  const styles = useStyles();
-  const { roomy, room } = useWordRoom();
-
-  return (
-    // A glance and not a way anywhere: the frame's own card is one press further, on the stage's
-    // journal. Read out whole and with no label of its own: the thought is what a person means by
-    // the row, but the decision beside it — «Беру», «Мимо» — is the other half of what the record
-    // says, and a label of the thought alone would keep it from a screen reader.
-    <View accessible style={styles.note}>
-      <View style={styles.noteShot}>
-        {uri ? <Image source={{ uri }} contentFit="cover" style={StyleSheet.absoluteFill} /> : null}
-        {length ? (
-          <Text role="runtimeXs" style={styles.noteLength}>
-            {length}
-          </Text>
-        ) : null}
-      </View>
-      <View style={[styles.grow, styles.noteWords]}>
-        {/* Spec detail 56: 12 / 500 / 16 in the quoted-words ink, two lines at most — a glance at
-            a record the stage's journal, one press away, gives whole. */}
-        <WordRoom.Provider value={room}>
-          <Text role="meta" tone="quote" numberOfLines={2} style={styles.quoted}>
-            {text}
-          </Text>
-        </WordRoom.Provider>
-        {roomy ? mark : null}
-      </View>
-      {roomy ? null : mark}
-    </View>
-  );
-}
-
-/**
- * The last line of an opened stage (spec detail 56) — «Весь журнал этапа · 148 записей», the way out
- * of the two records the row shows and into everything the stage has said. It lines up with those
- * records rather than with the stage's own name, because it is the end of what they are part of.
- *
- * Its own row and not a `Button`: nothing here is an action on the montage, it is a road, and the
- * only thing it wears is the chevron that says so.
- */
-export function StepLink({ label, onPress }: { label: string; onPress?: () => void }) {
-  const styles = useStyles();
-  const { color } = useTheme();
-
-  return (
-    <Tappable
-      label={label}
-      onPress={onPress}
-      slop={hitSlop(TAP, STEP_LINK)}
-      style={styles.stepLink}
-    >
-      <Text role="timecode" tone="accent" style={styles.shrink}>
-        {label}
-      </Text>
-      <Icon icon={ChevronRight} size={14} color={color.accentText} />
-    </Tappable>
-  );
-}
-
-/** The layout's own height for the way into a stage's journal (`MontageLive`); felt at `TAP`. */
-const STEP_LINK = 40;
 
 /**
  * One action inside the glass menu that drops out of the «⋯» (spec 7.7): 50 tall, the words on the
@@ -678,18 +503,6 @@ const useStyles = themed(({ color }) =>
     },
     noteLength: { color: photo.on, paddingRight: 3, paddingBottom: 2 },
     quoted: { lineHeight: 16 },
-    // Drawn at the layout's 40 and felt at 44 through the slop: the four points spec 10.2 asks of
-    // anything a finger lands on are not four points of room under a stage. The chevron follows the
-    // words rather than standing at the far edge.
-    stepLink: {
-      minHeight: STEP_LINK,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      paddingLeft: 50,
-      paddingRight: 14,
-      paddingBottom: 4,
-    },
     action: {
       minHeight: 50,
       flexDirection: 'row',
