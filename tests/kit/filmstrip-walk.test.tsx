@@ -181,14 +181,19 @@ test('a press on a frame of the strip names that frame, and a strip with nobody 
  * narrower than the ten frames it holds and so leaves room to scroll it — a strip that fits cannot
  * be walked, and the numbers below mean nothing against a strip that never moves.
  *
- * `flick` runs the whole touch in the order the platforms run it in, and it is that order the strip
- * has to survive: the lift comes first and the glide's beginning right behind it — React Native's
- * own note on `onMomentumScrollBegin` is «when animation begins after letting up» — with the
- * glide's end wherever it coasted to. `glided` is where the glide rests, and it is not the number
- * the finger left on by construction: the whole of a flick is that the two are different places,
- * and a helper that gave both the same one would ask the right frame with any code at all.
+ * `flick` runs the whole touch and runs it in the *worst* order, not the likeliest: the lift
+ * answers, a whole turn of the event loop goes by, and only then does the glide say where it
+ * stopped. That gap is the device, not the test — the beginning of a glide comes out of the native
+ * scroll and cannot cross a frame boundary faster than a frame, while anything the lift armed
+ * itself with fires within the tick. A helper that ran them back to back would let the lift's own
+ * machinery never fire, which is how the last version of this check came to pass on a fix that does
+ * not work on a phone.
  *
- * No glide and no lift answer either: a slow touch is the lift and nothing more, and nothing the
+ * `glided` is where the glide rests, and it is never the number the finger left on: the whole of a
+ * flick is that the two are different places, and a helper that gave both the same one would ask
+ * the right frame with any code at all.
+ *
+ * No glide and no second answer either: a slow touch is the lift and nothing more, and nothing the
  * lift hands over arrives afterwards.
  */
 async function drawSettled(
@@ -210,8 +215,8 @@ async function drawSettled(
   );
   scrollToIndex.mockClear();
   const at = (x: number) => ({ nativeEvent: { contentOffset: { x } } });
-  /** One turn of the event loop, which is when a lift nobody took back answers. */
-  const aTurn = () =>
+  /** A whole turn of the event loop, which is the gap a real glide leaves before it is heard. */
+  const aGlideLater = () =>
     act(async () => {
       await new Promise((done) => setTimeout(done, 0));
     });
@@ -222,11 +227,10 @@ async function drawSettled(
       await act(async () => list().onScrollBeginDrag());
       await act(async () => list().onScrollEndDrag(at(lifted)));
       if (glided === null) {
-        await aTurn();
+        await aGlideLater();
         return;
       }
-      await act(async () => list().onMomentumScrollBegin());
-      await aTurn();
+      await aGlideLater();
       await act(async () => list().onMomentumScrollEnd(at(glided)));
     },
   };
@@ -256,14 +260,32 @@ test('the frame a flick lands on is the one the glide came to rest on, not the o
   //
   // The lift is at 104 and the glide rests at 118, and those are two different frames: the middle of
   // the strip stands the fifth at 104 and the sixth at 118, both inside the 132 the strip can reach.
-  // So this fails for any code that answers before it has seen where the strip stopped, and equally
-  // for one that gives both ends the same place.
+  // `flick` leaves a whole turn of the loop between them, which is the order a phone gives — the
+  // lift answers first and the glide overrules it a frame later.
+  //
+  // What is checked is the *last* answer, because a fix that lets the glide overrule the lift asks
+  // twice and that is the trade it makes: nothing in a lift can know a glide is coming, so the only
+  // race-free form lets the later answer win. A code that latches the lift's answer — the flag that
+  // was here, and the timer that came after it — leaves the fifth on screen and fails here.
   const asked: number[] = [];
   const strip = await drawSettled(4, (at) => {
     asked.push(at);
     return true;
   });
   await strip.flick(104, 118);
+  expect(asked.at(-1)).toBe(6);
+});
+
+test('a flick whose glide stops where the lift already asked is one ask, not two', async () => {
+  // AC #3. Overruling is for a glide that went somewhere else; a glide that came to rest on the
+  // frame the lift already named has nothing to add, and asking twice would open two frames for one
+  // swipe — the thing this check was first written to refuse, and the reason it exists at all.
+  const asked: number[] = [];
+  const strip = await drawSettled(4, (at) => {
+    asked.push(at);
+    return true;
+  });
+  await strip.flick(118, 118);
   expect(asked).toEqual([6]);
 });
 

@@ -114,8 +114,8 @@ export function Filmstrip({
   const walked = useRef(false);
   /** Whether this touch has already said where it came to rest — see `rest`. */
   const settled = useRef(false);
-  /** What a lift is holding as its answer, waiting to see whether a glide takes it away. */
-  const lifted = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** The frame a lift asked for, kept so a glide that ends elsewhere can overrule it. */
+  const lifted = useRef(-1);
 
   const to = (at: number, animated: boolean) =>
     strip.current?.scrollToIndex({ index: at, viewPosition: 0.5, animated });
@@ -132,19 +132,31 @@ export function Filmstrip({
   /**
    * Where the finger left the strip ({@link restedAt}), asked once and once only per touch.
    *
-   * Both ends of the touch answer, because neither covers the other: a flick is still running when
-   * the finger lifts, and it is the flick that decides which frame it landed on — asking on the lift
-   * alone would open the frame the finger passed over. A touch that neither flicks nor moves asks
-   * on the lift, and on a flick the lift's answer is taken back before it stands ({@link lifted}).
+   * The lift asks at once, because at that moment it is the only answer there is and a finger that
+   * neither flicks nor moves must not wait to be read. A glide that ends somewhere else then asks
+   * again and *overrules* the lift ({@link overrules}) — and that is the whole of the fix.
    *
-   * `settled` is what keeps one touch from answering twice over, and it is also the strip's own
-   * walk out of the way: the walk the window answers with reports its own settling, which must not
-   * be taken for a finger choosing the frame the strip was already standing on.
+   * Neither of the two shapes that were here before can work, and both were here. A flag set on the
+   * way into the glide is read on the way out of the lift, and the lift comes first (RN's own note
+   * on `onMomentumScrollBegin` is «when animation begins after letting up»), so the flag is not
+   * false — it is not written yet. And a delay that waits for the glide cannot promise to lose the
+   * race: whether the timer or the glide's beginning is heard first is the platform's to decide,
+   * and on a phone it is the timer, every time.
+   *
+   * What is left is to let the later answer win, which is true whatever order they arrive in.
+   *
+   * `settled` keeps one touch from answering twice over, and it is also the strip's own walk out of
+   * the way: the walk the window answers with reports its own settling, which must not be taken
+   * for a finger choosing the frame the strip was already standing on.
    */
-  function rest(x: number) {
-    if (settled.current || viewport === 0) return;
-    settled.current = true;
+  function rest(x: number, overrules = false) {
+    if (settled.current && !overrules) return;
+    if (viewport === 0) return;
     const at = restedAt(x, viewport, frames.length, index, size);
+    // The glide came to rest exactly where the lift already asked: there is nothing to overrule and
+    // no second ask to make — one finger, one frame, asked once (AC #3).
+    if (overrules && at === lifted.current) return;
+    settled.current = true;
     // Nothing chosen — a touch that did not move the strip, or the frame in hand itself — and a
     // frame the window took stands for itself: it walks the strip on the very next render.
     if (at < 0 || at === index || onSettle?.(at)) return;
@@ -152,15 +164,6 @@ export function Filmstrip({
   }
 
   const scrollTo = (e: NativeSyntheticEvent<NativeScrollEvent>) => e.nativeEvent.contentOffset.x;
-
-  const dropLift = () => {
-    if (lifted.current !== null) clearTimeout(lifted.current);
-    lifted.current = null;
-  };
-
-  // The lift's answer outlives the screen otherwise, and a screen gone before it stood would be
-  // asked a frame nobody is holding any more.
-  useEffect(() => dropLift, []);
 
   return (
     <FlatList
@@ -172,26 +175,22 @@ export function Filmstrip({
       contentContainerStyle={[styles.strip, { height: size.tall }]}
       style={style}
       onLayout={(e) => setViewport(e.nativeEvent.layout.width)}
+      // A new touch forgets the last one's answer, so a lift never inherits what it said before.
       onScrollBeginDrag={() => {
         settled.current = false;
-        dropLift();
+        lifted.current = -1;
       }}
-      /**
-       * The lift comes before the glide it may start, and nothing at the lift says whether there
-       * will be one — RN's own note on this event is «when animation begins after letting up».
-       * So the lift's answer waits a tick to see whether a glide takes it away, rather than reading
-       * a flag the lift itself would have written: that flag is not false, it is not yet written.
-       */
       onScrollEndDrag={(e) => {
         const where = scrollTo(e);
-        dropLift();
-        lifted.current = setTimeout(() => {
-          lifted.current = null;
-          rest(where);
-        });
+        // Kept beside the ask rather than instead of it: this is what a glide overrules. The lift
+        // asks right here — `settled` is still off, because the drag began this touch.
+        lifted.current = restedAt(where, viewport, frames.length, index, size);
+        rest(where);
       }}
-      onMomentumScrollBegin={dropLift}
-      onMomentumScrollEnd={(e) => rest(scrollTo(e))}
+      // A lift with no glide behind it answers and stands answered. A lift that started one is
+      // overruled by where the glide stopped: that frame is where the flick landed, and the lift's
+      // was only where the finger happened to be.
+      onMomentumScrollEnd={(e) => rest(scrollTo(e), true)}
       // The sizes are fixed, so the strip can be walked to any frame without measuring one — and the
       // same arithmetic reads back where a finger has left it.
       getItemLayout={(_, at) => ({ ...shotAt(at, index, size), index: at })}
