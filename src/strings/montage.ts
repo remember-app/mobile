@@ -635,6 +635,8 @@ export const en = {
       peopleFound: 'people found',
       /** The block of the descriptions, and the line over the ones already said. */
       described: 'Descriptions',
+      /** The same block while the stage is still running: these are the ones just written. */
+      describedLast: 'The latest',
       describedQuieter: 'quieter — described earlier',
       describedEarlier: 'described earlier',
       /** The card of one frame, and the fields it was described in. */
@@ -1105,6 +1107,7 @@ export const ru: typeof en = {
       ofEarlier: 'из прошлых',
       peopleFound: 'найдено людей',
       described: 'Описания',
+      describedLast: 'Последние',
       describedQuieter: 'тише — описаны раньше',
       describedEarlier: 'описан ранее',
       whatHappens: 'Что происходит',

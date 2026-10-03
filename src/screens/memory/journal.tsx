@@ -260,14 +260,16 @@ function Analysis(props: StageBody) {
         </BlockJournal>
       ) : null}
 
-      {!finished && came?.earlier === undefined ? null : (
+      {/* Under the count of an analysis still running: what was taken ready-made out of past films.
+          Once it is behind the same figure stands as a tile, and the sentence would say it twice. */}
+      {finished || came?.earlier === undefined ? null : (
         <Text role="note" tone="muted">
-          {came?.earlier === undefined ? '' : j.earlierNote(came.earlier)}
+          {j.earlierNote(came.earlier)}
         </Text>
       )}
 
       {shown.length === 0 ? null : (
-        <BlockJournal label={j.described}>
+        <BlockJournal label={finished ? j.described : j.describedLast}>
           <Text role="metaSm" tone="muted">
             {j.describedQuieter}
           </Text>

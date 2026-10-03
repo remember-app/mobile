@@ -30,6 +30,7 @@ import TestRenderer, { type ReactTestInstance } from 'react-test-renderer';
 import type { MontageJournal, MontageStageCode } from '@/api';
 import JournalStageScreen from '@/app/memory/[id]/montage/[montageId]/stage/[stage]';
 import {
+  BlockJournal,
   Button,
   CardFrame,
   CountPair,
@@ -267,12 +268,54 @@ describe.each(SCENARIOS)('the body of a stage (%s)', (scenario) => {
     expect(text).toContain(ru.montage.journal.ofEarlier);
     expect(text).toContain(ru.montage.journal.peopleFound);
     expect(text).toContain(String(row.outcome.people));
-    expect(text).toContain(ru.montage.journal.earlierNote(row.outcome.earlier!));
+    // Finished, the figure taken from past films is a tile of its own, and the sentence under the
+    // count would say it twice.
+    expect(text).not.toContain(ru.montage.journal.earlierNote(row.outcome.earlier!));
     // A frame the worker took ready-made out of a past film stands at half the others, and says so.
     const frames = root.findAllByType(RowFrame);
     expect(frames.length).toBeGreaterThan(0);
     expect(frames.some((one) => one.props.dim === true)).toBe(
       text.includes(ru.montage.journal.describedEarlier),
+    );
+  });
+
+  test('an analysis still running says what it takes ready-made under its count', async () => {
+    const steps = load(scenario);
+    const ready = steps.find((one) => one.name === READY)!;
+    const body = ready.response.body as MontageJournal;
+
+    /** NOT WORDS OF THE API — the same film with the analysis back at `running`. */
+    const live = steps.map((one) =>
+      one.name === READY
+        ? {
+            ...one,
+            response: {
+              ...one.response,
+              body: {
+                ...body,
+                montage: { ...body.montage, status: 'processing' },
+                stages: body.stages.map((stage) =>
+                  stage.stage === 'analysis'
+                    ? { ...stage, state: 'running' as const, finished_at: null }
+                    : stage,
+                ),
+              },
+            },
+          }
+        : one,
+    );
+    route.params = { id: MEMORY, montageId: MONTAGE, stage: 'analysis' };
+    const root = await mount(<JournalStageScreen />, replay(live, { cutFrom: READY, extra }));
+    const row = body.stages.find((one) => one.stage === 'analysis')!;
+    const said = words(root);
+    expect(summary(root)?.what).toBe(ru.montage.journal.does.analysis);
+    expect(said).toContain(ru.montage.journal.earlierNote(row.outcome.earlier!));
+    // The three figures belong to a finished stage: a person watching one run wants the count and
+    // the note, not the tally of what it has not finished counting.
+    expect(said).not.toContain(ru.montage.journal.peopleFound);
+    // The descriptions under the running block are the ones just written.
+    expect(root.findAllByType(BlockJournal).map((one) => one.props.label)).toContain(
+      ru.montage.journal.describedLast,
     );
   });
 
