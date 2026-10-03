@@ -109,8 +109,14 @@ export function createPreview(token: string, onChange: (playing: Playing) => voi
     wanted = null;
     if (ticker !== null) clearInterval(ticker);
     ticker = null;
-    // `remove` and not `pause`: a paused player still holds the audio session and its own memory,
-    // and there is nothing to resume here — the next press starts a track from its beginning.
+    // `pause` and then `remove`, not `remove` alone: on the phone `remove` only takes the player
+    // out of the module's registry, and what falls silent is the `pause` inside the release that
+    // follows it — and a release is ARC's business, not ours. So the shelf carried on sounding
+    // after both the switch and the pause had answered, and the icon said «Стоп» over a track still
+    // playing. The pause is the stop; `remove` is still wanted after it, because a player left
+    // paused holds the audio session and its own memory, and there is nothing to resume here — the
+    // next press starts a track from its beginning.
+    sounding?.pause();
     sounding?.remove();
     sounding = null;
     onChange(null);
