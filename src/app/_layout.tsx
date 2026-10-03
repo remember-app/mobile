@@ -168,19 +168,16 @@ function RootNavigator() {
           name="memory/[id]/montage/[montageId]/index"
           options={{ title: 'Making a movie' }}
         />
+        {/* The film once the worker is done (TASK-469): one screen in five states, and this is the
+            fifth — the poster it is watched and saved from, and the journal of how it was cut, which
+            stays with it for ever and is opened by any member, a viewer included. */}
+        <Stack.Screen name="memory/[id]/montage/[montageId]/film" options={{ title: 'Movie' }} />
+        {/* The journal of one stage of the making (spec 8, `Journal*`, TASK-470) — where the «Сейчас»
+            card and every row of the five lead. */}
         <Stack.Screen
           name="memory/[id]/montage/[montageId]/stage/[stage]"
           options={{ title: 'The stage journal' }}
         />
-        {/* And what that one becomes once the worker is done (TASK-222): the film's own page — the
-            poster it is watched and saved from, and the journal of how it was cut, which stays with
-            it for ever and is opened by any member, a viewer included. */}
-        <Stack.Screen
-          name="memory/[id]/montage/[montageId]/done"
-          options={{ title: 'The movie is ready' }}
-        />
-        {/* And the film's own screen, where a finished card in the strip leads (spec 8, `Film`). */}
-        <Stack.Screen name="memory/[id]/montage/[montageId]/film" options={{ title: 'Movie' }} />
         <Stack.Screen name="contacts" options={{ title: 'Contacts' }} />
         <Stack.Screen name="profile" options={{ title: 'Profile' }} />
         <Stack.Screen name="about" options={{ title: 'About' }} />

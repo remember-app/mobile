@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { Play, Plus } from 'lucide-react-native';
+import { Check, Play, Plus } from 'lucide-react-native';
 import { type ReactNode, useState } from 'react';
 import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
@@ -239,12 +239,19 @@ const FILM_POSTER = 300;
 export function PosterFilm({
   poster,
   meta,
+  ready,
   label,
   onPress,
 }: {
   poster?: string | null;
   /** «1:00 · 16:9» — written by the screen. */
   meta?: string;
+  /**
+   * «готов» — the pill the scrubber line carries on the right (spec 8, detail 24). A finished film
+   * and nothing else has one, so the line under the poster is the same on every poster and the word
+   * on it says which.
+   */
+  ready?: string;
   /** «Смотреть ролик» — what the poster is read out as. */
   label: string;
   onPress?: () => void;
@@ -277,11 +284,32 @@ export function PosterFilm({
       <View style={styles.filmPlay}>
         <PlayCircle size={68} />
       </View>
-      {meta ? (
-        <Text role="label" style={[styles.onPhoto, styles.figures, styles.filmMeta]}>
-          {meta}
+      {/* The bar under the poster: 4 tall in white at low opacity with the 14 handle at its head, and
+          the figures at its two ends. It does not move — the player is not drawn here (spec 10.7) —
+          and says so by standing still at the start. */}
+      <View pointerEvents="none" style={styles.scrub}>
+        <Text role="runtimeXs" style={styles.onPhoto}>
+          {'0:00'}
         </Text>
-      ) : null}
+        <View style={styles.scrubLine}>
+          <View style={styles.scrubKnob} />
+        </View>
+        <View style={styles.scrubEnd}>
+          {ready ? (
+            <View style={styles.scrubPill}>
+              <Icon icon={Check} size={13} color={night.sparkInk} />
+              <Text role="badgeSm" style={styles.scrubReady}>
+                {ready}
+              </Text>
+            </View>
+          ) : null}
+          {meta ? (
+            <Text role="label" style={[styles.onPhoto, styles.figures, styles.scrubMeta]}>
+              {meta}
+            </Text>
+          ) : null}
+        </View>
+      </View>
     </Pressable>
   );
 }
@@ -454,12 +482,42 @@ const useStyles = themed(({ color }) =>
     },
     filmFoot: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 140 },
     filmPlay: { position: 'absolute', top: 152, left: 0, right: 0, alignItems: 'center' },
-    filmMeta: {
+    // Spec 8, `FilmReady`: the bar under the picture, 20 in from the poster's own edges.
+    scrub: {
       position: 'absolute',
-      top: 232,
-      left: space.s4,
-      right: space.s4,
-      textAlign: 'center',
+      left: space.s5,
+      right: space.s5,
+      bottom: 20,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    scrubLine: {
+      flex: 1,
+      height: 4,
+      borderRadius: radius.pill,
+      backgroundColor: photo.videoTrack,
+    },
+    scrubKnob: {
+      width: 14,
+      height: 14,
+      borderRadius: radius.pill,
+      backgroundColor: night.paper,
+    },
+    scrubEnd: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    // Detail 24: «готов» in lowercase on the poster, where the badge on a card in the strip is caps.
+    scrubPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      height: 28,
+      paddingHorizontal: 11,
+      paddingVertical: 8,
+      borderRadius: radius.pill,
+      backgroundColor: color.spark,
+    },
+    scrubReady: { color: color.sparkInk },
+    scrubMeta: {
       textShadowColor: photo.figureShadow,
       textShadowOffset: { width: 0, height: 1 },
       textShadowRadius: 6,
