@@ -2,7 +2,7 @@ import type { Montage, MontageStage, MontageStageCode } from '@/api';
 import { formatRuntime, formatTime } from '@/lib/dates';
 import type { Strings } from '@/strings';
 
-import { currentStage, minutesLeft, STAGE_COUNT, stageLine, stageNumber } from './stages';
+import { currentStage, minutesLeft, STAGE_COUNT, stageNumber } from './stages';
 
 /**
  * What the screen of a movie works out of an answer before it draws any of it: where the making

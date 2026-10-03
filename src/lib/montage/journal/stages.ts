@@ -6,7 +6,7 @@ import {
   type MontageStageCode,
   type MontageStep,
 } from '@/api';
-import { GAZE, type StepState } from '@/kit';
+import type { StepState } from '@/kit';
 import { formatRuntime } from '@/lib/dates';
 import type { Strings } from '@/strings';
 
@@ -94,7 +94,7 @@ export function minutesLeft(stages: readonly MontageStage[]): number | null {
 export function gazeAt(
   focus: JournalEntry['focus'],
   frame: { width: number; height: number },
-  size: number = GAZE,
+  size: number,
 ): { left: number; top: number } | undefined {
   if (!focus) return undefined;
   const inside = (middle: number, along: number) =>

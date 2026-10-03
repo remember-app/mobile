@@ -461,7 +461,9 @@ export const en = {
       /** The heading, and the paragraph under it, both about the queue rather than about the film. */
       queuedTitle: 'In the queue',
       queuedAhead: (n: number) =>
-        n === 1 ? 'There is one more movie ahead of us.' : `There are ${n} more movies ahead of us.`,
+        n === 1
+          ? 'There is one more movie ahead of us.'
+          : `There are ${n} more movies ahead of us.`,
       /** With nobody ahead the first clause simply goes and the rest stands on its own. */
       queuedStarts: (minutes: number) =>
         `The making starts in about ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`,
@@ -500,7 +502,8 @@ export const en = {
       },
       /** Where the connection banner says what stays true without it. */
       offlineTitle: 'No connection',
-      offlineText: 'The making is going on on the server. We will show what is new when it comes back',
+      offlineText:
+        'The making is going on on the server. We will show what is new when it comes back',
       /** Over the card «Сейчас» while the screen holds what it last read. */
       updatedAgo: (minutes: number) => `updated ${minutes} ${minutes === 1 ? 'min' : 'mins'} ago`,
       /** The same figure as it was when the connection went — «было ≈ 8 мин». */
@@ -834,7 +837,9 @@ export const ru: typeof en = {
       acceptedAt: (time: string) => `заказ принят в ${time}`,
       queuedTitle: 'В очереди',
       queuedAhead: (n: number) =>
-        n === 1 ? 'Перед нами ещё один ролик.' : `Перед нами ещё ${count(n, 'ролик', 'ролика', 'роликов')}.`,
+        n === 1
+          ? 'Перед нами ещё один ролик.'
+          : `Перед нами ещё ${count(n, 'ролик', 'ролика', 'роликов')}.`,
       queuedStarts: (minutes: number) =>
         `Сборка начнётся примерно через ${count(minutes, 'минуту', 'минуты', 'минут')}`,
       queuedTakes: (minutes: number) => `и займёт около ${minutes}`,

@@ -13,18 +13,8 @@ import {
 
 import { photo, radius, space, themed, useTheme } from '@/theme';
 
-import { LiveDot } from './bits';
-import { Spinner } from './empty';
 import { Icon } from './icon';
-import {
-  PRESS,
-  useFocusRing,
-  useHoverFocus,
-  useLoop,
-  useReach,
-  useReducedMotion,
-} from './interaction';
-import { Avatar } from './member';
+import { PRESS, useFocusRing, useHoverFocus, useLoop, useReducedMotion } from './interaction';
 import { Text } from './text';
 
 /**
@@ -46,126 +36,8 @@ const BLINK = 1000;
  * inside a 2px border, and a box here counts its border in — `MontageLive` measures 100, and
  * `SheetLiveFile` 114.
  */
-export const SHOT = 150;
-export const GAZE = 100;
 export const SHOT_SHEET = 220;
 export const GAZE_SHEET = 114;
-
-/**
- * Spec 7.6 — «Сейчас»: the frame the director is holding, where on it they are looking, and the
- * thought they are in the middle of saying. The one card in the product that is a window onto
- * something happening rather than a record of something that happened.
- *
- * Three states: thinking (the thought carries a cursor), decided (no cursor, and the decision stands
- * beside the name), and waiting — no frame at all, a spinner and a line saying the queue is what is
- * being waited on.
- */
-export function CardNow({
-  uri,
-  author,
-  authorLine,
-  now,
-  gaze,
-  who,
-  standing,
-  thought,
-  unsaid,
-  decision,
-  waiting,
-  style,
-}: {
-  uri?: string;
-  /** Whose frame it is — the name inside the 18 circle on the plate. */
-  author?: string;
-  /** «Аня · 13 сент, 16:42» — the plate's own line, written by the screen. */
-  authorLine?: string;
-  /** «СЕЙЧАС» — the word beside the live dot. Left off, the plate is not drawn. */
-  now?: string;
-  /**
-   * Where on the frame the director is looking, in points from its top left corner. The square is
-   * `GAZE` and everything outside it goes down 18%; it walks to a new place over 300ms rather than
-   * jumping, unless the phone asks for less movement.
-   */
-  gaze?: { left: number; top: number };
-  /** «Режиссёр» — who is speaking. */
-  who: string;
-  /** «думает…» / «решил» — the same voice in two tenses. */
-  standing?: string;
-  /** What they have said about this frame so far. */
-  thought?: string;
-  /** The rest of that sentence, still arriving — see {@link Said}. */
-  unsaid?: string;
-  /** The decision pill once there is one — `BadgeDecision`, handed in. */
-  decision?: ReactNode;
-  /** «Ждём очереди» — nothing is in hand, so there is no frame and no thought. */
-  waiting?: string;
-  style?: StyleProp<ViewStyle>;
-}) {
-  const styles = useStyles();
-
-  return (
-    <View style={[styles.card, style]}>
-      {waiting ? (
-        <View style={styles.wait}>
-          <Spinner size={26} />
-          <Text role="note" tone="muted">
-            {waiting}
-          </Text>
-        </View>
-      ) : (
-        <View style={styles.shot}>
-          {uri ? (
-            <Image source={{ uri }} contentFit="cover" style={StyleSheet.absoluteFill} />
-          ) : null}
-          <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.shotTop]} />
-          {/* The two plates share the top of the frame while both fit; on large type «СЕЙЧАС» goes
-              under the author's, still at the right, and neither runs over the other. */}
-          <View style={styles.plates}>
-            {author || authorLine ? (
-              <View style={[styles.plate, styles.plateLeft]}>
-                {author ? <Avatar name={author} size={18} /> : null}
-                <Text role="metaTile" style={[styles.onPhoto, styles.shrink]}>
-                  {authorLine}
-                </Text>
-              </View>
-            ) : null}
-            {now ? (
-              <View style={[styles.plate, styles.end]}>
-                <LiveDot />
-                <Text role="badge" style={[styles.onPhoto, styles.shrink]}>
-                  {now}
-                </Text>
-              </View>
-            ) : null}
-          </View>
-          {gaze ? <Gaze left={gaze.left} top={gaze.top} /> : null}
-        </View>
-      )}
-
-      {waiting ? null : (
-        <View style={styles.say}>
-          {/* The decision stands at the right of who is speaking, or under them once it does not fit. */}
-          <View style={styles.sayWho}>
-            <SparkMark />
-            <Text role="label">{who}</Text>
-            {standing ? <Text role="meta">{standing}</Text> : null}
-            <View style={styles.grow} />
-            {decision}
-          </View>
-          {thought || unsaid ? (
-            // Spec 10.4: the square on the frame says nothing out loud, and what it is pointing at
-            // is exactly what the thought is about — so the thought is the live area, and a screen
-            // reader is told the director's sentence as it arrives rather than told about a square.
-            // 14 / 20 (detail 49): the card's thought is read a size up from the journal's.
-            <Text accessibilityLiveRegion="polite" role="bodyXs" tone="paper">
-              <Said said={thought} unsaid={unsaid} />
-            </Text>
-          ) : null}
-        </View>
-      )}
-    </View>
-  );
-}
 
 /**
  * Spec 7.6 — `SheetLiveFile`'s own frame: the picture the director was looking at, at the size a
@@ -197,28 +69,6 @@ export function ShotGaze({
         />
       ) : null}
     </View>
-  );
-}
-
-/**
- * The `GAZE` square of `spark` over the frame, with everything outside it put out. Drawn as a huge
- * outward shadow rather than four dimming panels: one view, and the hole in it is the square itself.
- */
-function Gaze({ left, top }: { left: number; top: number }) {
-  const styles = useStyles();
-  // 300ms and never a jump, which is the whole point: the eye is meant to be followed to the new
-  // place, not found there. `useReach` is the product's one «go to this number» value, and under
-  // reduced motion it sets instead of running.
-  const x = useReach(left);
-  const y = useReach(top);
-
-  return (
-    <Animated.View
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
-      pointerEvents="none"
-      style={[styles.gaze, { left: x, top: y }]}
-    />
   );
 }
 
@@ -540,8 +390,6 @@ const useStyles = themed(({ color }) =>
       backgroundColor: color.surface,
       overflow: 'hidden',
     },
-    wait: { height: SHOT, alignItems: 'center', justifyContent: 'center', gap: space.s3 },
-    shot: { height: SHOT, backgroundColor: color.raise },
     shotSheet: {
       height: SHOT_SHEET,
       borderRadius: radius.field,
@@ -557,42 +405,11 @@ const useStyles = themed(({ color }) =>
       borderRadius: radius.cell,
     },
     // Only the top is darkened: the plates live up there and the frame itself is the point.
-    shotTop: { experimental_backgroundImage: photo.now },
     // 10 in from the frame's top corners (detail 49). No gap across: the two stand at the two ends,
     // and «СЕЙЧАС» goes under the author's only where the two would otherwise run into each other.
-    plates: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      alignItems: 'flex-start',
-      rowGap: 6,
-      padding: 10,
-    },
-    plate: {
-      flexShrink: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 5,
-      paddingVertical: 4,
-      paddingHorizontal: 9,
-      borderRadius: radius.pill,
-      backgroundColor: photo.plate,
-    },
-    plateLeft: { paddingLeft: 5 },
-    end: { marginLeft: 'auto' },
-    shrink: { flexShrink: 1 },
     onPhoto: { color: photo.on },
-    gaze: {
-      position: 'absolute',
-      width: GAZE,
-      height: GAZE,
-      borderWidth: 2,
-      borderColor: color.spark,
-      borderRadius: radius.strip,
-      // The frame is a hole: everything outside the square goes down by 18%, in one view.
-      boxShadow: '0 0 0 9999px rgba(9,9,14,0.18)',
-    },
-    say: { paddingTop: 12, paddingHorizontal: 14, paddingBottom: 14, gap: space.s2 },
-    sayWho: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s2 },
+    // The cursor at the end of a thought still arriving, and the plate's own `spark` circle — both
+    // belong to every plate that says a thought, on the journal screen as much as anywhere.
     sparkMark: {
       width: 22,
       height: 22,
