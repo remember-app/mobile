@@ -168,6 +168,9 @@ export const en = {
     at: (runtime: string) => `at ${runtime}`,
     /** Spec 8: a frame whose picture never arrived says so, and the strip stays where it is. */
     notOpened: 'This frame would not open',
+    /** The tap on the picture itself (TASK-476) — the two words a reader is given, one per state. */
+    hideTools: 'Hide the tools',
+    showTools: 'Show the tools',
   },
 
   /**
@@ -313,6 +316,8 @@ export const ru: typeof en = {
     inFilms: 'В роликах',
     at: (runtime: string) => `на ${runtime}`,
     notOpened: 'Кадр не открылся',
+    hideTools: 'Спрятать панели',
+    showTools: 'Показать панели',
   },
 
   labels: {
