@@ -556,6 +556,30 @@ test('the strip is the feed’s own row of frames, and a tap on one opens it —
   expect(screen.root.findByType(Filmstrip).props.index).toBe(3);
 });
 
+test('a finger that leaves the strip resting on a frame opens it — and one still developing is told no', async () => {
+  // TASK-474: the strip is the one horizontal scroll in the product, and it was asked by name only.
+  // Scrolling it moved the strip and left the picture standing — «не меняет элементы при листании».
+  //
+  // It is asked through the very same `walk` a tap goes through, which is what the equality below
+  // says: one rule about what opens, asked twice. And the answer goes back to the strip, because a
+  // frame it will not open has to put the strip back on the frame in hand rather than leave it
+  // standing centred over one this window never opened.
+  serve(() => undefined);
+  const screen = await open();
+  const strip = () => screen.root.findByType(Filmstrip).props;
+  expect(strip().onSettle).toBe(strip().onPick);
+
+  expect(strip().onSettle(1)).toBe(true);
+  expect(screen.shown.onOpen).toHaveBeenLastCalledWith('b');
+  (screen.shown.onOpen as ReturnType<typeof vi.fn>).mockClear();
+  // «c» is still being made: it stays in the strip, and the answer is «no» rather than a frame the
+  // window has nothing to put behind.
+  expect(strip().onSettle(2)).toBe(false);
+  expect(screen.shown.onOpen).not.toHaveBeenCalled();
+  expect(strip().onSettle(3)).toBe(true);
+  expect(screen.shown.onOpen).toHaveBeenLastCalledWith('d');
+});
+
 test('a frame with nothing behind it is «кадр не открылся», with the strip and the delete still there', async () => {
   serve(() => undefined);
   const bare = { ...shots()[1], thumbnail_url: null, preview_url: null };

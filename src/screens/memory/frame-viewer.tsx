@@ -219,13 +219,20 @@ export function FrameViewer({
   );
 
   /**
-   * One step along the sheet, asked for by name — a tap on the strip. A frame still being
-   * developed stays shut: there is nothing behind it to open yet, and it is the same gate the
-   * contact sheet puts on the same record.
+   * One step along the sheet, asked for by name — a tap on the strip, and the frame a finger has
+   * left the strip resting on. A frame still being developed stays shut: there is nothing behind it
+   * to open yet, and it is the same gate the contact sheet puts on the same record.
+   *
+   * It is `walk` and not `stride` that a resting finger gets, unlike a swipe across the picture:
+   * the strip has landed on one frame, and carrying on past it to the next would open something
+   * nobody pointed at. So the answer is said back to the strip — a false one and it puts itself
+   * back on the frame in hand rather than standing over one this window never opened.
    */
-  function walk(to: number) {
+  function walk(to: number): boolean {
     const next = frames[to];
-    if (next && mayOpen(next)) onOpen(next.id);
+    if (!next || !mayOpen(next)) return false;
+    onOpen(next.id);
+    return true;
   }
 
   /**
@@ -617,9 +624,11 @@ export function FrameViewer({
               size={stripSize}
               style={styles.strip}
               labelAt={(to) => nameOf(frames[to], frameOf(frames[to]), to === index)}
-              // A tap names the frame it wants, so this is the gate and not the stride: refusing
-              // is the honest answer to «open this one», and the two agree on what may open.
+              // A tap names the frame it wants and a finger leaves the strip resting on one, so both
+              // are the gate and not the stride: refusing is the honest answer to «open this one»,
+              // and the two agree on what may open.
               onPick={walk}
+              onSettle={walk}
             />
           </View>
 

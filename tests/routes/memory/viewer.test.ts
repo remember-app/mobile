@@ -366,8 +366,17 @@ test('the picture is walked with a finger, and the finger is taken on the pictur
   // walk the same way whichever of the two asked, and the strip follows the frame in hand. The two
   // differ on one thing only: a tap names a frame and is refused when that frame cannot open,
   // while a finger names a direction and carries on past it rather than hitting a wall.
+  //
+  // The strip asks twice over (TASK-474) and both are that same `walk`: once by name, and once by
+  // the frame a finger left the strip resting on. The answer is said back to the strip, so a frame
+  // it will not open puts the strip back on the frame in hand rather than leaving it centred over
+  // one this window never opened.
   expect(viewer).toContain('onPick={walk}');
-  expect(viewer.match(/if \(next && mayOpen\(next\)\) onOpen\(next\.id\);/g)).toHaveLength(1);
+  expect(viewer).toContain('onSettle={walk}');
+  expect(viewer.match(/if \(!next \|\| !mayOpen\(next\)\) return false;/g)).toHaveLength(1);
+  expect(viewer.replace(/\s+/g, ' ')).toContain(
+    'if (!next || !mayOpen(next)) return false; onOpen(next.id); return true;',
+  );
   expect(viewer.replace(/\s+/g, ' ')).toContain(
     'for (let to = index + by; to >= 0 && to < frames.length; to += by) ' +
       '{ if (mayOpen(frames[to])) return onOpen(frames[to].id); }',
@@ -410,11 +419,15 @@ test('the strip is walked to the frame in hand, and the walk hangs on its own wi
   // (TASK-123).
   //
   // So neither: the walk hangs on the strip's own viewport, keyed on the width it was computed for.
+  // `frames` is still not among its keys, so a frame landing cannot haul the strip from under a
+  // finger — which is the same bug seen from the other side now that a finger can walk it too.
   expect(filmstrip).not.toContain('initialScrollIndex={');
   expect(filmstrip).not.toContain('onContentSizeChange={');
   expect(filmstrip).toContain('onLayout={(e) => setViewport(e.nativeEvent.layout.width)}');
+  expect(filmstrip).toContain('}, [index, viewport]);');
+  expect(filmstrip).toContain('to(index, walked.current);');
   expect(filmstrip).toContain(
-    'strip.current?.scrollToIndex({ index, viewPosition: 0.5, animated: walked.current });',
+    'strip.current?.scrollToIndex({ index: at, viewPosition: 0.5, animated });',
   );
   // Centred, so the frame in hand lands where the eye already is; and `scrollToIndex` on a strip
   // this long is only safe because every tile is a known size.
@@ -423,6 +436,13 @@ test('the strip is walked to the frame in hand, and the walk hangs on its own wi
   // virtualised list and not a row holding every thumbnail the gallery has.
   expect(filmstrip).toContain('<FlatList');
   expect(filmstrip).not.toContain('<ScrollView');
+  // And it answers a finger rather than only being walked (TASK-474): the frame the strip comes to
+  // rest on is asked for at both ends of a touch, because a lift mid-flick is not where the strip
+  // lands. `onScroll` is not among them — the frame in hand would change under the finger.
+  expect(filmstrip).toContain('onScrollBeginDrag={() => {');
+  expect(filmstrip).toContain('onScrollEndDrag={(e) => {');
+  expect(filmstrip).toContain('onMomentumScrollEnd={(e) => rest(scrollTo(e))}');
+  expect(filmstrip).not.toMatch(/\n\s*onScroll=\{/);
 });
 
 test('neither the sheet nor the strip opens a frame that is still developing', () => {
@@ -436,8 +456,13 @@ test('neither the sheet nor the strip opens a frame that is still developing', (
   // the column it happened to be formatted in fails on a reindentation that changed nothing.
   expect(frames.replace(/\s+/g, ' ')).toContain('mayOpen(item) ? () => setOpen(item.id)');
   // The strip hands back which frame was touched rather than a record, so the window is where the
-  // same gate stands for it — the same question, asked of the same helper.
-  expect(viewer.replace(/\s+/g, ' ')).toContain('if (next && mayOpen(next)) onOpen(next.id);');
+  // same gate stands for it — the same question, asked of the same helper. A finger that leaves the
+  // strip on a frame goes through that very gate as well (TASK-474): it is asked by name, so the
+  // strip can be told no and put itself back where it was.
+  expect(viewer).toContain('onSettle={walk}');
+  expect(viewer.replace(/\s+/g, ' ')).toContain(
+    'if (!next || !mayOpen(next)) return false; onOpen(next.id); return true;',
+  );
 });
 
 test('the frame shown full screen is read for the phone, the tiles for a tile', () => {
