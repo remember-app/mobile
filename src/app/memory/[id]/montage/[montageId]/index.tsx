@@ -453,8 +453,8 @@ function Stopped({
   const styles = useStyles();
   const { filmScreen } = s.montage;
   const organizer = memory?.role === 'organizer';
-  // The organizer by the roster, and under their own name where the roster has not answered — the
-  // member row is what the promise «придёт пуш» is signed with, and a blank name signs nothing.
+  // The organizer out of the memory's own roster — the member row is what the promise «придёт пуш»
+  // is signed with, and the order's `ordered_by` is not it: they may since have left the memory.
   const who = memberName(roster?.find((one) => one.role === 'organizer') ?? null);
 
   return (
