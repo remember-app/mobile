@@ -130,7 +130,8 @@ async function drawn(answer: unknown, item = frame, onWrite: (asked: Asked) => u
     const head = root
       .findAllByType(Text)
       .find(
-        (one) => one.props.accessibilityRole === 'header' && one.props.children === ru.viewer.comments,
+        (one) =>
+          one.props.accessibilityRole === 'header' && one.props.children === ru.viewer.comments,
       );
     const rows = head?.parent?.props.children;
     return (Array.isArray(rows) ? rows[1] : undefined)?.props?.children;
