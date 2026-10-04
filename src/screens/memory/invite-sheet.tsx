@@ -3,9 +3,7 @@ import { useEffect, useState } from 'react';
 import { Share, StyleSheet, View } from 'react-native';
 
 import {
-  ApiError,
   type Contact,
-  errorMessage,
   fetchInvite,
   type Invite,
   inviteByUsername,
@@ -17,6 +15,7 @@ import {
 import { Banner, Button, Chip, Divider, Field, Sheet, Text, Toggle } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { matches, useFindUser } from '@/lib/find-user';
+import { failure, type Failure, type Refusals } from '@/lib/failure';
 import { useStrings } from '@/lib/language';
 import { space, themed } from '@/theme';
 
@@ -55,7 +54,7 @@ export function InviteSheet({
   // a rotated link will grant, so there is one answer to «what does joining give».
   const [mayAdd, setMayAdd] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<Failure | null>(null);
   // The names this person invites from (doc-10), read when the sheet opens and not with the screen:
   // whoever is not inviting has no use for the list, and every open catches whatever was saved on
   // the contacts screen since. null is «не спросили или не отдались» — either way, no block.
@@ -123,15 +122,18 @@ export function InviteSheet({
    */
   async function act(
     what: (session: string) => Promise<string | null>,
-    said: Partial<Record<number, string>> = {},
+    said: Refusals = {},
   ) {
     if (!token) return;
     setBusy(true);
     setNotice(null);
     try {
-      setNotice(await what(token));
+      const saidIt = await what(token);
+      // A line that says the invite went through is no refusal, so it wears no warning — the
+      // banner is the same one either way and the two must not look like the same thing.
+      if (saidIt !== null) setNotice({ text: saidIt });
     } catch (e) {
-      setNotice((e instanceof ApiError ? said[e.status] : undefined) ?? errorMessage(e));
+      setNotice(failure(e, said));
     } finally {
       setBusy(false);
     }
@@ -161,7 +163,7 @@ export function InviteSheet({
           ? s.members.already(memberName(added), s.role[added.role])
           : s.members.added(memberName(added), s.role[added.role]);
       },
-      { 403: s.members.inviteDenied },
+      { 403: { text: s.members.inviteDenied } },
     );
   };
 
@@ -307,7 +309,7 @@ export function InviteSheet({
         />
       )}
 
-      {notice ? <Banner text={notice} /> : null}
+      {notice ? <Banner text={notice.text} icon={notice.icon} /> : null}
     </Sheet>
   );
 }
