@@ -206,7 +206,6 @@ export function DateSpine({
       <View style={styles.spineLine} />
       {marks.map((mark) => (
         <View key={`${mark.label}-${mark.top}`} style={[styles.spineMark, { top: mark.top }]}>
-          {/* Off the line and away from it: the dot on the hairline, then the tick, then the words. */}
           <View style={styles.spineDot} />
           <View style={styles.spineDash} />
           <View style={styles.spinePill}>
