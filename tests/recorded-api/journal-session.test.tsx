@@ -7,6 +7,7 @@ vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' 
  */
 const keychain = vi.hoisted(() => ({ token: null as string | null, deleted: 0 }));
 vi.mock('expo-secure-store', () => ({
+  WHEN_UNLOCKED_THIS_DEVICE_ONLY: 0,
   getItemAsync: async (key: string) => (key === 'session-token' ? keychain.token : null),
   setItemAsync: async () => {},
   deleteItemAsync: async (key: string) => {
