@@ -130,6 +130,51 @@ export function RowEdit({
 }
 
 /**
+ * The shooting settings strip at the foot of the technique card (spec 8, `FrameInfo.html` e76–82):
+ * five equal columns under a `raise` hairline — ISO · мм · ev · ƒ · выдержка — 11 over and under a
+ * centred figure, and a hairline at the left of every cell but the first.
+ *
+ * **A cell with nothing in it is not drawn at all.** Not a zero, not a dash, not an empty column
+ * keeping its place in the row: the strip is as wide as what the camera wrote, and the hairline
+ * goes with the cell rather than staying behind as the mark of one that is gone. A `null` is that
+ * answer — a frame the worker never read, or a tag the camera never stamped — and a `0` is not:
+ * an exposure compensation of zero is a camera metering without correction, and is said as `0 ev`.
+ *
+ * The words are the screen's: this is the shape, and `cells` is what it was told to draw. Read out
+ * as one line, since five separate figures a reader has to reassemble are not what the strip says.
+ */
+export function ShotCells({
+  cells,
+  style,
+}: {
+  /** What each cell says, in order, `null` where there is nothing to say. */
+  cells: readonly (string | null)[];
+  style?: StyleProp<ViewStyle>;
+}) {
+  const styles = useStyles();
+  const said = cells.filter((one): one is string => one !== null);
+
+  // Nothing said at all is no strip: a band with a rule over it and no figures in it says the
+  // camera wrote something here, which is the one thing this strip never lies about.
+  if (said.length === 0) return null;
+
+  return (
+    <View accessible accessibilityLabel={said.join(' · ')} style={[styles.shotCells, style]}>
+      {said.map((cell, at) => (
+        // The hairline marks a cell off from the one before it in the drawn row, so the first cell
+        // drawn has none whichever of the five it is: a missing ISO does not leave the mm one
+        // wearing a rule that separates it from nothing.
+        <View key={at} style={[styles.shotCell, at === 0 ? null : styles.shotCellAfter]}>
+          <Text role="timecode" tone="muted" style={styles.shotFigures}>
+            {cell}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/**
  * How tall one track row stands (spec 7.7) — on the shelf, and among the chosen while nothing is
  * written under its name. A list of them that is dragged measures its rows, because a chosen one
  * with a wish stands taller; this is what a row counts as until it has been measured.
@@ -489,6 +534,20 @@ const useStyles = themed(({ color }) =>
     // A row that leads somewhere is a button, and a button is never under a finger's 44.
     summaryTap: { minHeight: height.small },
     summaryLabel: { width: 96 },
+    // Spec 8, `FrameInfo.html` e76: the strip is a band of its own under a `raise` rule — the
+    // layout paints it on `surface` against the card's `ink`, which is what the rule above it is for.
+    shotCells: {
+      flexDirection: 'row',
+      borderTopWidth: 1,
+      borderTopColor: color.raise,
+      backgroundColor: color.surface,
+    },
+    // `minmax(0, 1fr)` of the layout's grid: five shares of the row, each no wider than its share,
+    // so a long figure is cut rather than pushing its neighbours off the card.
+    shotCell: { flex: 1, minWidth: 0, alignItems: 'center', paddingVertical: 11 },
+    // A `raise` hairline at the left of every cell but the first (e78–e81).
+    shotCellAfter: { borderLeftWidth: 1, borderLeftColor: color.raise },
+    shotFigures: { textAlign: 'center' },
     track: {
       minHeight: TRACK_ROW,
       flexDirection: 'row',

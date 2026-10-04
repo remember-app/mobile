@@ -168,6 +168,15 @@ export const en = {
     /** The units are words and the api hands over bare numbers, so they are put on here. */
     focal: (mm: number) => `${mm} mm`,
     aperture: (f: number) => `f/${f}`,
+    /** The first cell of the shooting settings strip: a number and a word the camera also uses. */
+    iso: (n: number) => `ISO ${n}`,
+    /** The middle one. Signed, and a bare `0` stands — a camera that metered without compensation. */
+    ev: (n: number) => `${n} ev`,
+    /**
+     * The last one: the fraction the EXIF holds with the unit a reader's language spells it in —
+     * `1/60 s`. The denominator is the answer, so the api sends the fraction and never seconds.
+     */
+    shutter: (fraction: string) => `${fraction} s`,
     /** The place as numbers: what stands until the phone's geocoder names it, and when it cannot. */
     coords: (lat: number, lon: number) => `${lat}, ${lon}`,
     inFilms: 'In movies',
@@ -361,6 +370,15 @@ export const ru: typeof en = {
     place: 'Место',
     focal: (mm: number) => `${mm} мм`,
     aperture: (f: number) => `f/${f}`,
+    /** Первая ячейка полосы настроек съёмки: число и слово, каким оно и в камере. */
+    iso: (n: number) => `ISO ${n}`,
+    /** Средняя. Знаковая, и голый `0` стоит — камера, мерившая без коррекции. */
+    ev: (n: number) => `${n} ev`,
+    /**
+     * Последняя: дробь, какой её держит EXIF, и единица, которой её пишет язык читающего —
+     * «1/60 с». Знаменатель и есть ответ, поэтому api шлёт дробь, а не секунды.
+     */
+    shutter: (fraction: string) => `${fraction} с`,
     coords: (lat: number, lon: number) => `${lat}, ${lon}`,
     inFilms: 'В роликах',
     at: (runtime: string) => `на ${runtime}`,

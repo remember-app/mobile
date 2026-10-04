@@ -32,7 +32,7 @@ vi.mock('@/kit', async (original) => ({
 import { Pressable } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import type { FrameInfo, Label, MediaItem } from '@/api';
-import { Banner, Chip, IconButton, RowEdit, RowSummary, Spinner, Text } from '@/kit';
+import { Banner, Chip, IconButton, RowEdit, RowSummary, ShotCells, Spinner, Text } from '@/kit';
 import { FrameInfoPanel } from '@/screens/memory/frame-info';
 import { ShotEditor } from '@/screens/mine/shot-editor';
 import { ru } from '@/strings';
@@ -68,6 +68,10 @@ const told = (over: Partial<FrameInfo> = {}): FrameInfo => ({
   camera_model: 'iPhone 15 Pro',
   focal_length_mm: 24,
   aperture: 1.8,
+  iso: 400,
+  // A metered zero, not an absence: the camera compensated for nothing and said so (TASK-532).
+  exposure_ev: 0,
+  shutter: '1/60',
   latitude: 55.518,
   longitude: 37.53,
   uploaded_by: { id: 'u', username: 'mark', name: 'Марк Ковалёв', media_count: 96 },
@@ -123,6 +127,17 @@ async function drawn(answer: unknown) {
         .findAllByType(Text)
         .map((one) => one.props.children)
         .join(' \u00b7 '),
+    /**
+     * What the shooting settings strip says, cell by cell in the order the panel drew them, and
+     * nothing for a cell the server sent no value for. Read off the drawn tree rather than off
+     * `said`: a strip that was never mounted and a strip whose cells came out empty read the same
+     * in a string of words, and both are the failure this file is about.
+     */
+    shot: () =>
+      root
+        .findAllByType(ShotCells)
+        .flatMap((one) => one.props.cells)
+        .filter((cell: string | null) => cell !== null),
   };
 }
 
@@ -140,6 +155,74 @@ test('the whole panel: who brought it, the file, the camera, the place, the movi
   }
 });
 
+/**
+ * TASK-533 — the shooting settings strip at the foot of the technique card, as the panel draws it.
+ *
+ * The rule this file exists for is the panel's own, one cell deep: **a value the server did not send
+ * is not a cell.** Not a zero, not a dash, not an empty column holding its place in the row. The
+ * api sends `exposure_ev` as a signed number and `null` alike, and the two are not the same thing —
+ * `0` is a camera that metered without compensating, and it is said as `0 ev` like any other
+ * reading. A strip that cannot tell them apart shows a reader five numbers the camera never wrote.
+ *
+ * So the failure this file is built to catch is drawn in both directions: the strip gone entirely
+ * (a panel with no settings at all), and the strip present with a zero standing where a value was
+ * never sent. Both are asked of the drawn tree, not of a string of words, because a strip that was
+ * never mounted and a strip whose cells came out empty read the same in one.
+ */
+test('the shooting settings stand at the foot of the card, all five, in the layout’s order', async () => {
+  const screen = await drawn(told());
+  expect(screen.shot()).toEqual(['ISO 400', '24 мм', '0 ev', 'f/1.8', '1/60 с']);
+  // Read out as the one line the strip is, rather than five figures a reader has to reassemble.
+  expect(
+    screen.root.findAll((one) => one.props.accessibilityLabel?.includes?.('ISO 400'))[0].props
+      .accessibilityLabel,
+  ).toBe('ISO 400 · 24 мм · 0 ev · f/1.8 · 1/60 с');
+});
+
+test('a frame the worker never read has no shooting settings at all, and no zeroes in their place', async () => {
+  // Everything the worker writes is empty — the strip has nothing to say and so is not drawn: a
+  // band with a rule over it and no figures in it would claim the camera wrote something here.
+  const screen = await drawn(
+    told({ iso: null, focal_length_mm: null, exposure_ev: null, aperture: null, shutter: null }),
+  );
+  expect(screen.shot()).toEqual([]);
+  // And not one of the five figures stands in for the one that is missing.
+  expect(screen.shot().some((cell: string) => /\d/.test(cell))).toBe(false);
+});
+
+test('a setting the camera never stamped takes its cell with it, and a metered zero keeps its own', async () => {
+  // The shutter was never written: its cell goes, and no «0 с» stands in its place.
+  const withoutShutter = await drawn(
+    told({ iso: 400, focal_length_mm: 24, exposure_ev: 0, aperture: 1.8, shutter: null }),
+  );
+  expect(withoutShutter.shot()).toEqual(['ISO 400', '24 мм', '0 ev', 'f/1.8']);
+
+  // The exposure was never written either, and the four that were keep their four cells.
+  const withoutEv = await drawn(
+    told({ iso: 400, focal_length_mm: 24, exposure_ev: null, aperture: 1.8, shutter: '1/60' }),
+  );
+  expect(withoutEv.shot()).toEqual(['ISO 400', '24 мм', 'f/1.8', '1/60 с']);
+  // Half a strip is not a shorter row with a gap in it: the four cells share what the five had.
+  expect(withoutEv.shot()).toHaveLength(4);
+
+  // And the zero that is a reading stays: it is a camera metering without compensation, and a
+  // signed one reads with its sign so «0 ev» cannot pass for a value the phone invented.
+  expect((await drawn(told({ exposure_ev: 0 }))).shot()).toEqual([
+    'ISO 400',
+    '24 мм',
+    '0 ev',
+    'f/1.8',
+    '1/60 с',
+  ]);
+  expect((await drawn(told({ exposure_ev: -1.3 }))).shot()).toEqual([
+    'ISO 400',
+    '24 мм',
+    '-1.3 ev',
+    'f/1.8',
+    '1/60 с',
+  ]);
+});
+
 test('a frame the worker never read has none of its lines, and only the person is left', async () => {
   const screen = await drawn(
     told({
@@ -152,6 +235,9 @@ test('a frame the worker never read has none of its lines, and only the person i
       camera_model: null,
       focal_length_mm: null,
       aperture: null,
+      iso: null,
+      exposure_ev: null,
+      shutter: null,
       latitude: null,
       longitude: null,
       montages: [],
