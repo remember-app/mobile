@@ -80,7 +80,7 @@ test('the connection is a line over the list and never a replacement for it', ()
   // And the one that says it is back has no button on it at all, in either language: it leaves by
   // itself, and a button on something already going is a button nobody reaches.
   expect(index).toContain('<Banner tone="done" text={s.state.online} />');
-  expect(index).toContain('setTimeout(() => setLink(\'ok\'), duration.hold)');
+  expect(index).toContain("setTimeout(() => setLink('ok'), duration.hold)");
   expect(index).toContain('return () => clearTimeout(leaves);');
 });
 
@@ -98,7 +98,7 @@ test('a refused read is the api answering, and never a lost connection', () => {
   // Pinned on the *guard*, not on the words around it: what the failure says is `failed`'s job and
   // `failed` is its own state now, so the two cannot be told apart by looking at either alone.
   expect(index).toContain("import { answered } from '@/lib/failure';");
-  expect(index).toContain('if (!answered(e)) setLink(\'gone\');');
+  expect(index).toContain("if (!answered(e)) setLink('gone');");
   // The whole state: a read that failed writes the reason and nothing else, and where the connection
   // stands is never derived from a failure — that derivation is what made a 403 look like an outage.
   expect(index).toContain('const [failed, setFailed] = useState<string | null>(null);');
