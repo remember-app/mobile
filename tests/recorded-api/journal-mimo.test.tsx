@@ -56,10 +56,7 @@ const LANGUAGES: Language[] = ['ru', 'en'];
  */
 const CODES: [string, string, string][] = [
   ['unreadable', 'Не открылся', 'Would not open'],
-  ['blur', 'Смазан', 'Blurred'],
-  ['exposure', 'Свет не тот', 'The light is off'],
   ['duplicate', 'Дубль', 'A double'],
-  ['excluded', 'Убрали при заказе', 'Left out at the order'],
   ['left_out', 'Не в истории', 'Not in the story'],
 ];
 

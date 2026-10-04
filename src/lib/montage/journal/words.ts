@@ -54,8 +54,7 @@ export function marksOf(entry: JournalEntry, s: Strings): string[] {
       : entry.series_size !== null && entry.series_size > 1
         ? live.tookOneOf(entry.series_size)
         : live.take;
-  return [
-    took,
-    entry.story_part === null ? undefined : live.part(entry.story_part),
-  ].filter((mark): mark is string => mark !== undefined);
+  return [took, entry.story_part === null ? undefined : live.part(entry.story_part)].filter(
+    (mark): mark is string => mark !== undefined,
+  );
 }
