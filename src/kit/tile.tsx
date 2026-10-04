@@ -68,6 +68,7 @@ export const FEED_GAP = 2;
 export function Tile({
   state,
   uri,
+  cacheKey,
   lane = 'pick',
   pick,
   ring,
@@ -82,6 +83,12 @@ export function Tile({
 }: {
   state: TileState;
   uri?: string;
+  /**
+   * What the picture is filed under on the phone, off `@/lib/frames` — the tile and the frame opened
+   * from it read the same key, so a record is one download rather than one per screen. Named for
+   * `expo-image`'s own prop rather than `key`, which React takes for itself and never hands over.
+   */
+  cacheKey?: string;
   /** What has become of a frame of one's own — `MyFrames` and nowhere else. */
   own?: OwnState;
   /** How much of a `flying` one has gone, «62%». */
@@ -123,7 +130,7 @@ export function Tile({
         // rose to 1 in JS while the picture sat at 0 until an unrelated re-render pushed it — which
         // is why a tile only showed itself once it was tapped.
         <Image
-          source={{ uri }}
+          source={cacheKey ? { uri, cacheKey } : { uri }}
           contentFit="cover"
           transition={reduced ? 0 : motion.sheet}
           style={[styles.image, dropped ? styles.down : null]}

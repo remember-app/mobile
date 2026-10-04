@@ -551,6 +551,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
                     style={cell}
                     state={frame.state}
                     uri={frame.uri ?? undefined}
+                    cacheKey={frame.key}
                     caption={s.gallery.waiting[item.status]}
                     // The layout marks a video by its length in the corner; a record that came
                     // without one still says what it is, in the same place.

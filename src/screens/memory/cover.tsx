@@ -68,6 +68,7 @@ export function CoverSheet({
               <Tile
                 state={frame.state}
                 uri={frame.uri ?? undefined}
+                cacheKey={frame.key}
                 caption={frame.state === 'ready' ? undefined : s.gallery.waiting[frame.state]}
                 // One pick and only one, so this is a radio and not a row of checkboxes: the circle
                 // is the send queue's own (spec 7.4) and the ring goes with it.

@@ -73,6 +73,14 @@ test('the grid is the memory’s frames newest first, three across, with the pic
   expect(tiles[0].props.onPress).toBeUndefined();
   expect(tiles[0].props.caption).toBe(ru.gallery.waiting.processing);
   expect(tiles[1].props.caption).toBeUndefined();
+  // Every frame here is filed under its record rather than under the link it was handed, so the same
+  // three seconds' re-read that signs the links afresh does not pull these three down again (TASK-512).
+  expect(tiles.map((one) => one.props.cacheKey)).toEqual([
+    'busy:thumb',
+    'new:thumb',
+    'mid:thumb',
+    'old:thumb',
+  ]);
 });
 
 test('the cell is a third of what the sheet leaves of the phone’s width, and the sheet never grows past 420', async () => {

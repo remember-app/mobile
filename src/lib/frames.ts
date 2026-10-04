@@ -18,8 +18,15 @@ import type { Strings } from '@/strings';
  * in it rather than inline in a screen no test can render.
  */
 
-/** The frame a record hands the tile: what has become of it, and the picture to draw if there is one. */
-export type Frame = { state: TileState; uri: string | null };
+/**
+ * The frame a record hands the tile: what has become of it, the picture to draw if there is one, and
+ * what `expo-image` files that picture under.
+ *
+ * The key is here rather than at each `<Image>` because both faces that draw a record go through
+ * this reading — the tile and the frame opened from it — and a key written out twice is two keys a
+ * month from now.
+ */
+export type Frame = { state: TileState; uri: string | null; key: string };
 
 /**
  * One record read as a frame. The status is the state, with one correction: a `ready` record that
@@ -27,7 +34,7 @@ export type Frame = { state: TileState; uri: string | null };
  * sitting in the sheet as an empty square.
  */
 export function frameOf(item: MediaItem): Frame {
-  return frameWith(item, item.thumbnail_url);
+  return frameWith(item, item.thumbnail_url, 'thumb');
 }
 
 /**
@@ -45,12 +52,30 @@ export function frameOf(item: MediaItem): Frame {
  * stop being it the moment the worker finishes.
  */
 export function openFrameOf(item: MediaItem): Frame {
-  return frameWith(item, item.preview_url ?? item.thumbnail_url);
+  return frameWith(
+    item,
+    item.preview_url ?? item.thumbnail_url,
+    item.preview_url === null ? 'thumb' : 'preview',
+  );
 }
 
-/** The correction both readings share, so the two cannot drift on what a frame with nothing is. */
-function frameWith(item: MediaItem, uri: string | null): Frame {
-  return { state: item.status === 'ready' && uri === null ? 'failed' : item.status, uri };
+/**
+ * The correction both readings share, so the two cannot drift on what a frame with nothing is — and
+ * with it the key, so they cannot drift on that either.
+ *
+ * What the picture is filed under has to be said outright: the api signs a fresh url for the same
+ * bytes on every read of the gallery (a quarter of an hour each), and `expo-image`'s own default key
+ * is the url. Left to itself the disk fills with one frame under a dozen names and every look is a
+ * fresh download — the quiet three-second re-read used to pull the whole visible sheet again. The
+ * record's id is what does not move, and which derivative it is rides along: a photo whose big copy
+ * the worker has since made must not go on being served the thumbnail filed under the same id.
+ */
+function frameWith(item: MediaItem, uri: string | null, kind: 'thumb' | 'preview'): Frame {
+  return {
+    state: item.status === 'ready' && uri === null ? 'failed' : item.status,
+    uri,
+    key: `${item.id}:${kind}`,
+  };
 }
 
 /**

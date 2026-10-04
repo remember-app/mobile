@@ -15,10 +15,14 @@ import { api } from '@tests/helpers/source';
 import { expect, test } from 'vitest';
 import layout from '@/app/_layout.tsx?raw';
 import home from '@/app/index.tsx?raw';
+import mine from '@/app/memory/[id]/mine.tsx?raw';
 // The viewer's strip is the library's own part, and what it does with a finger was learned three
 // times over on a real phone — so it is read here, beside the window that mounts it.
 import bars from '@/kit/bars.tsx?raw';
 import filmstrip from '@/kit/filmstrip.tsx?raw';
+import tile from '@/kit/tile.tsx?raw';
+import framesLib from '@/lib/frames.ts?raw';
+import cover from '@/screens/memory/cover.tsx?raw';
 import films from '@/screens/memory/films.tsx?raw';
 import comments from '@/screens/memory/frame-comments.tsx?raw';
 import info from '@/screens/memory/frame-info.tsx?raw';
@@ -557,9 +561,42 @@ test('the open frame is kept on the phone, filed under the record and not under 
   // the gallery and each one lasts a quarter of an hour (`R2_DOWNLOAD_TTL_SECONDS`), so the same
   // bytes arrive under a new url every time — and `expo-image`'s own default key is the url. Left
   // alone, the disk would be full of one frame under a dozen names and every look a fresh download.
-  expect(viewer).toContain('cacheKey: `${item.id}:');
-  const key = viewer.slice(viewer.indexOf('cacheKey:'));
-  expect(key.slice(0, key.indexOf('\n'))).not.toContain('${shown.uri}');
+  //
+  // The key is not written out here but read off `shown` — it is built in `@/lib/frames`, which is
+  // also where the tile's comes from, so the two faces of one record cannot drift onto two keys. The
+  // window asking for the reading rather than composing the key is what is pinned: a key assembled
+  // in this file is a second one to keep in step, which is what TASK-512 exists to stop.
+  expect(viewer).toContain('cacheKey: shown.key');
+  expect(viewer).not.toContain('cacheKey: `${');
+  expect(framesLib).toContain('key: `${item.id}:${kind}`');
+  // Never the url: a signature moves on every read, and a key built of one is a fresh download of
+  // the same bytes each time the list is re-read.
+  const built = framesLib.slice(framesLib.indexOf('key: `${item.id}'));
+  expect(built.slice(0, built.indexOf('\n'))).not.toContain('${item.thumbnail_url}');
+  expect(built.slice(0, built.indexOf('\n'))).not.toContain('uri');
+});
+
+test('every screen that draws a record off the server hands the tile that record’s key', () => {
+  // The three faces of one gallery record — the memory's feed, «Мои кадры» and the cover sheet. All
+  // three read the key off the same `@/lib/frames` reading, so the bytes are one file on the phone
+  // rather than one per screen, and a photo the worker has since made a big copy of is served that
+  // copy rather than the miniature filed under the same id.
+  //
+  // Read as text, and each of the three named rather than swept up: «Мои кадры» has no rendered test
+  // of its own. Where a tree is drawn the props are checked for real (`frames-feed-flow` for the feed,
+  // `cover.test.tsx` for the sheet); this is the one place all three are pinned together, which is
+  // what catches a fourth screen opening a tile and forgetting the key.
+  for (const [name, screen] of [
+    ['the feed', frames],
+    ['«Мои кадры»', mine],
+    ['the cover sheet', cover],
+  ] as const) {
+    // The prop as it is written, not the word `cacheKey` somewhere in the file — a comment saying
+    // «the cacheKey» must not be able to pass for a screen that hands one over.
+    expect(screen, name).toContain('cacheKey={frame.key}');
+  }
+  // And the tile is what puts it into the source, or none of the three passing it would matter.
+  expect(tile).toContain('source={cacheKey ? { uri, cacheKey } : { uri }}');
 });
 
 test('the ceiling on a comment is the api’s alone, and this repository writes no copy of it', () => {
