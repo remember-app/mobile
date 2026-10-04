@@ -107,6 +107,74 @@ vi.mock(
     ),
 );
 
+// The phone's own disk. A working one and not a stub that only refuses: what is kept on the phone
+// between two launches is a real subject here (TASK-512 — the feed a memory opens on with no
+// network), and a disk that answers to nothing would make every such claim true on paper and blind
+// in fact. A map keyed by path, so a write is read back by the next line that opens the same file —
+// which is what a real disk does and what the app's own cache relies on.
+vi.mock('expo-file-system', () => {
+  const disk = new Map<string, string>();
+  const folders = new Set<string>();
+  /**
+   * The path a `File` or a `Directory` names, as the real library builds it: each part after the
+   * first is appended to the one before it, and a `Directory` handed in as a part carries its own
+   * path rather than being turned into a string. `new File(dir, name)` is how every caller in this
+   * repo writes, so a stand-in that read the directory as `[object Object]` would put every write
+   * under a folder nothing could delete.
+   */
+  const at = (parts: unknown[]) =>
+    parts
+      .map((one) => {
+        if (typeof one !== 'object' || one === null) return String(one);
+        const uri = (one as { uri?: unknown }).uri;
+        return typeof uri === 'string' ? uri : String(one);
+      })
+      .join('/');
+  class Directory {
+    readonly uri: string;
+    constructor(...parts: unknown[]) {
+      this.uri = at(parts);
+    }
+    get exists() {
+      return folders.has(this.uri);
+    }
+    create() {
+      folders.add(this.uri);
+    }
+    delete() {
+      // A real directory delete takes what is under it, and the app's `forgetKept` relies on that:
+      // a stand-in that dropped the folder and left the files would say a session had forgotten
+      // everything while every photograph stayed exactly where it was.
+      for (const key of [...disk.keys()]) if (key.startsWith(`${this.uri}/`)) disk.delete(key);
+      folders.delete(this.uri);
+    }
+  }
+  class File {
+    readonly uri: string;
+    constructor(...parts: unknown[]) {
+      this.uri = at(parts);
+    }
+    get exists() {
+      return disk.has(this.uri);
+    }
+    create() {
+      disk.set(this.uri, '');
+    }
+    textSync() {
+      const held = disk.get(this.uri);
+      if (held === undefined) throw new Error(`File '${this.uri}' could not be read.`);
+      return held;
+    }
+    write(content: string) {
+      disk.set(this.uri, content);
+    }
+    delete() {
+      disk.delete(this.uri);
+    }
+  }
+  return { Directory, File, Paths: { document: 'documents', cache: 'cache' } };
+});
+
 // The sheet shuts itself when the screen under it loses focus; nothing here mounts a router.
 vi.mock('expo-router', () => ({ useFocusEffect: () => {} }));
 

@@ -76,7 +76,7 @@ export default function MyFramesScreen() {
   // A file leaving the queue has been taken in — or let go of — and the listing is what says which.
   const inQueue = useRef(queued.length);
   useEffect(() => {
-    if (queued.length < inQueue.current) read(true);
+    if (queued.length < inQueue.current) read('under still');
     inQueue.current = queued.length;
   }, [queued.length, read]);
 

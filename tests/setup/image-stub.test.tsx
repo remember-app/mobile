@@ -51,9 +51,8 @@ test('a picture drawn through the stand-in still carries what it was pointed at'
 // file that had not stood over the module. Green there, and every claim about the key in the repo
 // with it.
 test('a tile whose key was lost cannot be told from one that never had it', () => {
-  const keyed = drawn(
-    <Tile state="ready" uri={URI} cacheKey="frame-1:thumb" label="Фото" />,
-  )[0].source;
+  const keyed = drawn(<Tile state="ready" uri={URI} cacheKey="frame-1:thumb" label="Фото" />)[0]
+    .source;
   const bare = drawn(<Tile state="ready" uri={URI} label="Фото" />)[0].source;
 
   // What `expo-image` files each under: different, so a test has to be able to tell them apart.
@@ -85,9 +84,10 @@ test('the source survives whichever part drew the picture', () => {
 
   // And the picture's own props are carried too — the stub passes them through rather than keeping
   // only the one this file is about, which is what lets `contentFit` be read off the markup.
-  expect(drawn(<Tile state="ready" uri={URI} cacheKey="a:thumb" label="Фото" />)[0]).not.toHaveProperty(
-    'source.uri',
-    undefined,
-  );
-  expect(drawn(<Tile state="ready" uri={URI} cacheKey="a:thumb" label="Фото" />)[0].style).toBeDefined();
+  expect(
+    drawn(<Tile state="ready" uri={URI} cacheKey="a:thumb" label="Фото" />)[0],
+  ).not.toHaveProperty('source.uri', undefined);
+  expect(
+    drawn(<Tile state="ready" uri={URI} cacheKey="a:thumb" label="Фото" />)[0].style,
+  ).toBeDefined();
 });

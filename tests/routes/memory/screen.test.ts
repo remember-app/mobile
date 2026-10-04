@@ -504,9 +504,13 @@ test('every face shuts its own windows when it loses focus', () => {
   for (const face of [frames, films]) expect(face).not.toContain('useFocusEffect(load)');
   expect(settings).toContain('useFocusEffect(load);');
   // The feed reads through `useMaterial`, which keeps the focus effect that re-reads; the frame it
-  // has open is its own and is shut by a focus effect of its own.
-  expect(material).toMatch(
-    /useFocusEffect\(\s*useCallback\(\(\) => \{\s*read\(\);\s*readLabels\(\);\s*\}, \[read, readLabels\]\),\s*\);/,
+  // has open is its own and is shut by a focus effect of its own. Which read that effect makes is
+  // its own question (TASK-512: underneath a feed this phone already had, asked for over an empty
+  // one), pinned in `tests/lib/frames-kept.test.ts`.
+  // Read off the flattened source (`tests/helpers/source`): the effect carries a comment above the
+  // read, and a pattern written to the line breaks would say nothing about the effect.
+  expect(flat(material)).toMatch(
+    /useFocusEffect\( useCallback\(\(\) => \{.*?read\(.*?\); readLabels\(\); \}, \[read, readLabels\]\), \);/,
   );
   expect(frames).toContain('useFocusEffect(useCallback(() => () => setOpen(null), []));');
   expect(films).toMatch(

@@ -460,7 +460,7 @@ test('a quiet read in flight never puts an older feed back over one this screen 
   // loop that re-reads stopped, so the ghost stood there until somebody pulled. The films strip has
   // had this guard since TASK-125.
   expect(material).toContain('const startedAt = writes.current;');
-  expect(material).toContain('if (quiet && writes.current !== startedAt) return;');
+  expect(material).toContain("if (how === 'under still' && writes.current !== startedAt) return;");
   // One place bumps it, and every write the screen makes goes through that one.
   expect(material.match(/writes\.current \+= 1;/g)).toHaveLength(1);
   // Three writes, three calls: the run of deletes, the one frame the window deletes, a label filed.
