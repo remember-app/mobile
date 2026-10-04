@@ -20,6 +20,7 @@ import {
   putUsername,
   type User,
 } from '@/api';
+import { forgetKept } from '@/lib/frames-kept';
 import { useLanguage } from '@/lib/language';
 
 // Keychain (iOS) / EncryptedSharedPreferences (Android). Never AsyncStorage: that is plain text.
@@ -112,6 +113,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * before out of the keychain: a poll that answered 401 is still on its way to its screen, and the
    * screen has to be gone by the time it would say «no connection». The account goes with the token
    * and nowhere else: a copy that outlived its token would open the app as somebody else.
+   *
+   * And the feeds this phone kept go with both (TASK-512, decision-23): the same argument one step
+   * further, and the reason any code that ends a session asks `forget()` rather than reaching for
+   * the token itself — a feed left behind would draw somebody else's photographs to whoever signs
+   * in next.
    */
   const forget = useCallback(async () => {
     setToken(null);
@@ -119,6 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setDatesAsked(null);
     await SecureStore.deleteItemAsync(TOKEN_KEY);
     await SecureStore.deleteItemAsync(ACCOUNT_KEY);
+    forgetKept();
   }, []);
 
   // Restore the stored session once at startup.

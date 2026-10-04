@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { type Label, listLabels, listMedia, listMembers, type MediaItem, type Member } from '@/api';
 import { type Failure, failure } from '@/lib/failure';
 import { keepReady, stillPreparing } from '@/lib/frames';
+import { keepKept, readKept } from '@/lib/frames-kept';
 
 /**
  * What a memory holds, read and kept fresh: the material, the roster over it and the labels it is
@@ -17,6 +18,21 @@ import { keepReady, stillPreparing } from '@/lib/frames';
  * finished yet.
  */
 const WHILE_PREPARING_MS = 3000;
+
+/**
+ * How a read may touch what is already on screen. Three and not one, because a read that somebody
+ * asked for, a read the screen makes underneath itself, and the poll while the worker finishes
+ * something are three different promises to the person looking at it.
+ *
+ * `asked` — the pull and «Повторить». The spinner and the banner are theirs, and the answer takes
+ * every record's own links.
+ * `under` — the read the screen makes on top of a feed it has already drawn: it lights nothing and
+ * reports nothing over frames that are on screen, and it takes every link the api signed afresh —
+ * what is on screen may have come off this phone, where those links have expired.
+ * `under still` — the same, plus the finished records keep the objects they had, so the poll cannot
+ * move a link behind a photograph that is already there (`keepReady`).
+ */
+export type Reading = 'asked' | 'under' | 'under still';
 
 export function useMaterial({
   memoryId,
@@ -39,19 +55,38 @@ export function useMaterial({
   labels: Label[];
   error: Failure | null;
   loading: boolean;
-  /** Read it again — loudly for a pull, quietly for the loop while the worker is finishing. */
-  read: (quiet?: boolean) => void;
+  /** Read it again — asked, for a pull; under, for anything the screen does to itself. */
+  read: (how?: Reading) => void;
   readLabels: () => void;
   /** The feed written by this screen itself: a frame deleted, a box filed. */
   wrote: (change: (have: MediaItem[] | null) => MediaItem[] | null) => void;
 } {
+  /**
+   * What this phone kept of this memory, read once as the screen mounts rather than in an answer
+   * that may never come (TASK-512, doc-12: the screen draws what is on the device first and asks
+   * underneath). Off for «Мои кадры», which is a different list — it carries the frames their owner
+   * hid, and none of those are on the phone to open from.
+   *
+   * `useState`'s own initialiser rather than an effect on purpose: the cached frames have to be on
+   * screen on the first render, and an effect gets there one draw later, which is the blank this
+   * whole card exists to take away.
+   */
+  const [kept] = useState(() => (hidden ? null : readKept(memoryId)));
+
+  /**
+   * Whether anything at all is on screen — the cache's answer or the api's — and what the read on
+   * focus is: asked for over an empty screen, run underneath one that is not empty.
+   */
+  const drew = useRef(kept !== null);
+
   // null means «not loaded yet», the distinction the montage block draws too: a reload after a
   // delete keeps the feed on screen instead of flashing the spinner over it.
-  const [items, setItems] = useState<MediaItem[] | null>(null);
-  const [roster, setRoster] = useState<Member[] | null>(null);
+  const [items, setItems] = useState<MediaItem[] | null>(kept?.items ?? null);
+  const [roster, setRoster] = useState<Member[] | null>(kept?.roster ?? null);
   const [labels, setLabels] = useState<Label[]>([]);
   const [error, setError] = useState<Failure | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Nothing to wait for over a feed this phone already had: the pull reads underneath it.
+  const [loading, setLoading] = useState(kept === null);
 
   /**
    * How many times this screen has written the feed itself — a frame deleted, a label filed. That
@@ -64,11 +99,9 @@ export function useMaterial({
   const writes = useRef(0);
 
   const read = useCallback(
-    // `quiet` belongs to the re-read below: that one happens on its own every few seconds, and it
-    // must not light the pull-to-refresh spinner over a feed somebody is looking at, nor blank it
-    // back to «Loading…» on the one read that fails.
-    (quiet = false) => {
+    (how: Reading = 'asked') => {
       if (!token) return;
+      const quiet = how !== 'asked';
       if (!quiet) {
         setError(null);
         setLoading(true);
@@ -81,13 +114,19 @@ export function useMaterial({
         .then(
           ([media, members]) => {
             // Stale by the time it landed — see `writes`. A read somebody asked for is never stale.
-            if (quiet && writes.current !== startedAt) return;
-            // A quiet read is looking for what the worker has finished, and it must not disturb
-            // what was already finished: `keepReady` holds every `ready` record's own object, so
-            // the urls behind the frames on screen do not move and nothing is fetched twice.
-            setItems((have) => (quiet ? keepReady(have, media) : media));
+            if (how === 'under still' && writes.current !== startedAt) return;
+            // The poll is looking for what the worker has finished, and it must not disturb what was
+            // already finished: `keepReady` holds every `ready` record's own object, so the urls
+            // behind the frames on screen do not move and nothing is fetched twice. A catch-up read
+            // is not that one — the links it drew from came off this phone and have expired — so it
+            // takes every link the api signed afresh.
+            setItems((have) => (how === 'under still' ? keepReady(have, media) : media));
             setRoster(members);
             setError(null);
+            drew.current = true;
+            // What came back is what the next launch opens on. A read that failed writes nothing,
+            // so a phone that cannot reach the api keeps what it had rather than emptying it.
+            if (!hidden) keepKept(memoryId, media, members);
           },
           (e: unknown) => {
             if (!quiet) setError(failure(e));
@@ -123,9 +162,17 @@ export function useMaterial({
   // On focus rather than on mount, the way the home screen does it: what is drawn here changes on
   // the worker's side, and the signed urls die in a quarter hour, so a screen that read once when it
   // was first opened is showing whatever was true then.
+  //
+  // `under` where this phone already had the feed: the read runs underneath frames that are on
+  // screen, lights nothing over them, and a failure over them is the absence of an answer rather
+  // than a refusal to draw. `asked` where it had nothing — there is a spinner and a banner, and
+  // both are the truth about a screen with nothing to show yet.
   useFocusEffect(
     useCallback(() => {
-      read();
+      // Off `items` itself and not as a dependency: what decides this is whether the screen opened
+      // on something, and that is settled by the time the first effect runs. Reading it off the
+      // state would re-enter this effect on every answer and ask again on the back of each one.
+      read(drew.current ? 'under' : 'asked');
       readLabels();
     }, [read, readLabels]),
   );
@@ -143,7 +190,7 @@ export function useMaterial({
     // connection would end the chain, and it would end it silently — the quiet read is quiet about
     // failing too. This one keeps its own time and is cleared the moment there is nothing left
     // being made, the screen goes behind another, or it unmounts.
-    const timer = setInterval(() => read(true), WHILE_PREPARING_MS);
+    const timer = setInterval(() => read('under still'), WHILE_PREPARING_MS);
     return () => clearInterval(timer);
   }, [preparing, focused, read]);
 

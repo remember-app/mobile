@@ -1,21 +1,15 @@
 import { rule } from '@tests/helpers/css';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
+// What the picture is filed under is the whole of what this file's last test is about. The stand-in
+// `vitest.setup.ts` puts in for `expo-image` carries `source` through for every test in the repo, so
+// there is nothing to stand over here — a private mock of the module here is how that got missed
+// once: a stub that dropped `source` made every claim about the key it holds green.
+import { Image } from 'expo-image';
 import { Copy } from 'lucide-react-native';
 import type { ReactElement } from 'react';
-import { createElement } from 'react';
 import { Text as RNText, StyleSheet, View, type ViewStyle } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
-import { beforeAll, expect, test, vi } from 'vitest';
-
-// What the picture is filed under is the whole of what this file's last test is about, and the
-// stand-in `vitest.setup.ts` puts in for `expo-image` wears only a style — so `source` is carried
-// through here instead, which is the one thing about a picture a test in node can actually see.
-vi.mock('expo-image', () => ({
-  Image: ({ style, source }: { style?: unknown; source?: unknown }) =>
-    createElement(View, { style, source, testID: 'image' } as never),
-}));
-
-import { Image } from 'expo-image';
+import { beforeAll, expect, test } from 'vitest';
 import { Icon } from '@/kit/icon';
 import { allDifferent, story } from '@/kit/story';
 import { FEED_GAP, FrameMark, GRID_GAP, PickCircle, type PickKind, Tile } from '@/kit/tile';
