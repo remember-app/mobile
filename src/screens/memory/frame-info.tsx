@@ -4,6 +4,7 @@ import { ScrollView, type StyleProp, StyleSheet, View, type ViewStyle } from 're
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
+  editMedia,
   type FrameInfo,
   fetchFrameInfo,
   type Label,
@@ -11,9 +12,19 @@ import {
   memberName,
   removeLabelMedia,
 } from '@/api';
-import { Avatar, Banner, Chip, IconButton, RowFilmAt, RowSummary, Spinner, Text } from '@/kit';
+import {
+  Avatar,
+  Banner,
+  Chip,
+  IconButton,
+  RowEdit,
+  RowFilmAt,
+  RowSummary,
+  Spinner,
+  Text,
+} from '@/kit';
 import { useAuth } from '@/lib/auth';
-import { formatDayShort, formatRuntime } from '@/lib/dates';
+import { formatDay, formatDayShort, formatRuntime, formatTime } from '@/lib/dates';
 import { type Failure, failure } from '@/lib/failure';
 import { frameFacts } from '@/lib/frames';
 import { usePlaceName } from '@/lib/geocoder';
@@ -21,6 +32,7 @@ import { labelTint } from '@/lib/labels';
 import { useStrings } from '@/lib/language';
 import { FrameComments } from '@/screens/memory/frame-comments';
 import { LabelSheets } from '@/screens/memory/label-sheets';
+import { ShotEditor } from '@/screens/mine/shot-editor';
 import { board, height, radius, space, themed, useTheme } from '@/theme';
 
 /**
@@ -46,6 +58,7 @@ export function FrameInfoPanel({
   memoryId,
   item,
   onFilm,
+  onEdited,
   style,
 }: {
   memoryId: string;
@@ -53,10 +66,12 @@ export function FrameInfoPanel({
   item: MediaItem;
   /** «В роликах» — the one row here that leads anywhere, and to the film's own screen. */
   onFilm: (montageId: string) => void;
+  /** The record as it now stands, once the panel has changed the date on it. */
+  onEdited: (item: MediaItem) => void;
   /** How much of the window the panel takes — what the frame above it gave up. */
   style?: StyleProp<ViewStyle>;
 }) {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const s = useStrings();
   const styles = useStyles();
   const insets = useSafeAreaInsets();
@@ -65,6 +80,9 @@ export function FrameInfoPanel({
   /** Whether an errand is in the air — the chips stop taking presses while one is. */
   const [busy, setBusy] = useState(false);
   const [filing, setFiling] = useState(false);
+  /** The date row, opened: the editor stands under it until the shot is saved or left. */
+  const [editingShot, setEditingShot] = useState(false);
+  const [savingShot, setSavingShot] = useState(false);
   const place = usePlaceName(info?.latitude, info?.longitude);
 
   /**
@@ -133,6 +151,30 @@ export function FrameInfoPanel({
       setFailed(failure(e));
     } finally {
       setBusy(false);
+    }
+  }
+
+  /**
+   * A new date for when this frame was shot, and the record told about it — the panel's own read
+   * (so the row under the editor says the new day) and the list above it (so the pill over the
+   * picture and the day the frame is filed under stop saying the old one). The editor itself is
+   * `ShotEditor`, the one «Мои кадрах» opens: two editors of the same field would be two rules for
+   * it, and they would part ways.
+   */
+  async function changeShot(at: Date): Promise<void> {
+    if (!token) return;
+    const captured_at = at.toISOString();
+    setSavingShot(true);
+    setFailed(null);
+    try {
+      await editMedia(token, memoryId, item.id, { captured_at });
+      setInfo((was) => (was === null ? was : { ...was, captured_at }));
+      onEdited({ ...item, captured_at });
+      setEditingShot(false);
+    } catch (e) {
+      setFailed(failure(e));
+    } finally {
+      setSavingShot(false);
     }
   }
 
@@ -256,14 +298,33 @@ export function FrameInfoPanel({
               </View>
             </View>
 
+            {/* Spec 8, `FrameInfo`: the card of what the file is starts with when it was shot, and
+                it is the one line of the card a person can change — the api gives 404 on a frame
+                that is not the asker's own, so the words are drawn for the one they brought and
+                for nobody else's (doc-13: the app never repeats the api's own rule).
+
+                The date is not one of `frameFacts`' lines and is drawn apart from them because the
+                server always knows it — it is in every frame's record, `null` for a file that
+                never said — while the lines below it are the worker's to have written or not. */}
             <View style={styles.facts}>
-              {frameFacts(info, s, undefined, place).map((fact, at) => (
-                <RowSummary
-                  key={fact.label}
-                  label={fact.label}
-                  value={fact.value}
-                  divider={at > 0}
+              <RowEdit
+                value={
+                  info.captured_at
+                    ? `${formatDay(info.captured_at)}, ${formatTime(info.captured_at)}`
+                    : s.mine.none
+                }
+                edit={s.viewer.editShot}
+                onEdit={info.uploaded_by.id === user?.id ? () => setEditingShot(true) : undefined}
+              />
+              {editingShot ? (
+                <ShotEditor
+                  from={info.captured_at}
+                  busy={savingShot}
+                  onSave={(at) => void changeShot(at)}
                 />
+              ) : null}
+              {frameFacts(info, s, undefined, place).map((fact) => (
+                <RowSummary key={fact.label} label={fact.label} value={fact.value} divider />
               ))}
             </View>
 

@@ -454,17 +454,20 @@ test('the films face reads again by itself while a film is being cut', () => {
 });
 
 test('a quiet read in flight never puts an older feed back over one this screen has just written', () => {
-  // The frames face writes its own list three ways — a run of deletes, the one frame the window
-  // deletes, a label filed — and every one of them is newer than a read that started before it. Left
-  // alone, that read brought a deleted frame back, and with nothing developing in its snapshot the
-  // loop that re-reads stopped, so the ghost stood there until somebody pulled. The films strip has
-  // had this guard since TASK-125.
+  // The frames face writes its own list four ways — a run of deletes, the one frame the window
+  // deletes, a label filed, the shot date the frame's own screen moved — and every one of them is
+  // newer than a read that started before it. Left alone, that read brought a deleted frame back,
+  // and with nothing developing in its snapshot the loop that re-reads stopped, so the ghost stood
+  // there until somebody pulled. The films strip has had this guard since TASK-125.
   expect(material).toContain('const startedAt = writes.current;');
   expect(material).toContain("if (how === 'under still' && writes.current !== startedAt) return;");
   // One place bumps it, and every write the screen makes goes through that one.
   expect(material.match(/writes\.current \+= 1;/g)).toHaveLength(1);
-  // Three writes, three calls: the run of deletes, the one frame the window deletes, a label filed.
-  expect(frames.match(/\bwrote\(/g)).toHaveLength(3);
+  // Four writes, four calls: the run of deletes, the one frame the window deletes, a label filed,
+  // and the record the panel hands back after the date on it is changed (TASK-531). A date moved
+  // and not written here would be read back over by the very guard above, and the frame would go
+  // back to standing under the day it was filed under.
+  expect(frames.match(/\bwrote\(/g)).toHaveLength(4);
   expect(errands).toContain('onGone(gone)');
 });
 

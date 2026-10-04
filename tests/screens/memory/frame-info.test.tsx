@@ -20,11 +20,21 @@ vi.mock('@/screens/memory/label-sheets', () => ({
 // that is what this file is about — it is what `frame-comments.test.tsx` is about, mounted through
 // this same panel. Stood in for here so that the panel's own blocks are what stands in this tree.
 vi.mock('@/screens/memory/frame-comments', () => ({ FrameComments: () => null }));
+// The editor's clock field is a real `TextInput`, and one under `react-test-renderer` reaches for a
+// `document` node has not got — `profile-flow`, `invite-sheet-flow` and `film-flow` stand it out the
+// same way. What the editor hands over is asked of `onSave`, so the input inside it is not what this
+// file is about; the day and clock it was given are.
+vi.mock('@/kit', async (original) => ({
+  ...(await original<typeof import('@/kit')>()),
+  Field: () => null,
+}));
 
+import { Pressable } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
-import type { FrameInfo, Label } from '@/api';
-import { Banner, Chip, IconButton, RowSummary, Spinner, Text } from '@/kit';
+import type { FrameInfo, Label, MediaItem } from '@/api';
+import { Banner, Chip, IconButton, RowEdit, RowSummary, Spinner, Text } from '@/kit';
 import { FrameInfoPanel } from '@/screens/memory/frame-info';
+import { ShotEditor } from '@/screens/mine/shot-editor';
 import { ru } from '@/strings';
 import { setTheme, ThemePin } from '@/theme';
 
@@ -89,7 +99,9 @@ async function drawn(answer: unknown) {
   let tree!: TestRenderer.ReactTestRenderer;
   await act(async () => {
     tree = mounted(
-      TestRenderer.create(<FrameInfoPanel memoryId="m1" item={frame} onFilm={() => {}} />),
+      TestRenderer.create(
+        <FrameInfoPanel memoryId="m1" item={frame} onFilm={() => {}} onEdited={() => {}} />,
+      ),
     );
   });
   const root = tree.root;
@@ -159,7 +171,9 @@ test('a read that has not answered yet is a wait with no words under it', async 
   let tree!: TestRenderer.ReactTestRenderer;
   await act(async () => {
     tree = mounted(
-      TestRenderer.create(<FrameInfoPanel memoryId="m1" item={frame} onFilm={() => {}} />),
+      TestRenderer.create(
+        <FrameInfoPanel memoryId="m1" item={frame} onFilm={() => {}} onEdited={() => {}} />,
+      ),
     );
   });
   expect(tree.root.findAllByType(Spinner)).toHaveLength(1);
@@ -240,7 +254,9 @@ test('a refusal from the server leaves the chip standing and says why', async ()
   let tree!: TestRenderer.ReactTestRenderer;
   await act(async () => {
     tree = mounted(
-      TestRenderer.create(<FrameInfoPanel memoryId="m1" item={frame} onFilm={() => {}} />),
+      TestRenderer.create(
+        <FrameInfoPanel memoryId="m1" item={frame} onFilm={() => {}} onEdited={() => {}} />,
+      ),
     );
   });
   const root = tree.root;
@@ -263,7 +279,7 @@ test('the panel is drawn in the night in both app themes — it stands inside th
       tree = mounted(
         TestRenderer.create(
           <ThemePin value={pin}>
-            <FrameInfoPanel memoryId="m1" item={frame} onFilm={() => {}} />
+            <FrameInfoPanel memoryId="m1" item={frame} onFilm={() => {}} onEdited={() => {}} />
           </ThemePin>,
         ),
       );
@@ -284,7 +300,9 @@ test('an answer to an earlier read never lands over a later one', async () => {
   let tree!: TestRenderer.ReactTestRenderer;
   await act(async () => {
     tree = mounted(
-      TestRenderer.create(<FrameInfoPanel memoryId="m1" item={frame} onFilm={() => {}} />),
+      TestRenderer.create(
+        <FrameInfoPanel memoryId="m1" item={frame} onFilm={() => {}} onEdited={() => {}} />,
+      ),
     );
   });
   const root = tree.root;
@@ -309,13 +327,15 @@ test('a panel that is shut mid-read takes the answer with it, and the next one a
   const queue = [first, second];
   serve(() => queue.shift()!.promise);
   let tree!: TestRenderer.ReactTestRenderer;
-  const panel = <FrameInfoPanel memoryId="m1" item={frame} onFilm={() => {}} />;
+  const panel = <FrameInfoPanel memoryId="m1" item={frame} onFilm={() => {}} onEdited={() => {}} />;
   await act(async () => {
     tree = mounted(TestRenderer.create(panel));
   });
   // Shut before it answers, and raised again on another frame.
   await act(async () =>
-    tree.update(<FrameInfoPanel memoryId="m1" item={frame} onFilm={() => {}} />),
+    tree.update(
+      <FrameInfoPanel memoryId="m1" item={frame} onFilm={() => {}} onEdited={() => {}} />,
+    ),
   );
   await act(async () => tree.update(null as never));
   await act(async () => tree.update(panel));
@@ -323,4 +343,81 @@ test('a panel that is shut mid-read takes the answer with it, and the next one a
   expect(tree.root.findAllByType(RowSummary).map((one) => one.props.value)[0]).toBe('B.JPG · 1 МБ');
   await act(async () => first.settle(told({ file_name: 'A.JPG' })));
   expect(tree.root.findAllByType(RowSummary).map((one) => one.props.value)[0]).toBe('B.JPG · 1 МБ');
+});
+
+/**
+ * TASK-531 — the shot date at the head of the card, and the words that change it.
+ *
+ * What this file is about is not that «Изменить» stands in the row — that a story could draw and a
+ * person would not learn anything from. It is the two things that row promises: **the press saves
+ * the date**, and **the editor it opens is the one that already exists**. A row whose words are
+ * drawn but whose editor saves nothing reads as done and leaves the date wrong; a second editor
+ * written into this screen is two rules for one field, and they part ways at once.
+ *
+ * So both are asked of the tree after the press, not of the drawing: `editMedia` is called with the
+ * day and clock that were typed, and the editor found under the row is `ShotEditor` — the same
+ * module «Мои кадрах» opens, asserted by identity so a copy standing in its place would be a
+ * different type and would fail here.
+ */
+test('«Изменить» saves the date to the api, and opens the editor that already exists', async () => {
+  const edited: MediaItem[] = [];
+  const log = serve(() => told({ uploaded_by: { ...told().uploaded_by, id: 'me' } }));
+  let tree!: TestRenderer.ReactTestRenderer;
+  await act(async () => {
+    tree = mounted(
+      TestRenderer.create(
+        <FrameInfoPanel
+          memoryId="m1"
+          item={frame}
+          onFilm={() => {}}
+          onEdited={(one) => edited.push(one)}
+        />,
+      ),
+    );
+  });
+  const root = tree.root;
+  // The date the api sent, as the row writes it — what the press starts from.
+  const row = () => root.findAllByType(RowEdit)[0];
+  expect(row().props.value).toBe('13 сентября, 21:47');
+  // No editor before the press: the row is a date and a pair of words.
+  expect(root.findAllByType(ShotEditor)).toHaveLength(0);
+
+  // The words at the row's tail, pressed the way a finger presses them — the button itself, and
+  // not some handler of the panel's that only the test knows the name of.
+  const tail = root
+    .findAllByType(Pressable)
+    .find((one) => one.props.accessibilityLabel === `${ru.viewer.editShot}: 13 сентября, 21:47`);
+  expect(tail, "the row's own «Изменить» is pressable").toBeDefined();
+  await act(async () => tail!.props.onPress());
+
+  // The editor under it is the one the mine sheet opens — the same component, not a second one.
+  const editors = root.findAllByType(ShotEditor);
+  expect(editors).toHaveLength(1);
+
+  // A day and a clock typed into it, and saved. 14 September, 10:15 — nothing of the date the
+  // press started from survives, so a save that quietly kept the old stamp cannot pass as one.
+  const editor = editors[0];
+  await act(async () => editor.props.onSave(new Date(2026, 8, 14, 10, 15)));
+
+  const asked = log.filter((one: Asked) => one.method === 'PATCH');
+  expect(asked).toHaveLength(1);
+  expect(asked[0].path).toBe('/memories/m1/media/a');
+  expect(asked[0].body).toEqual({ captured_at: new Date(2026, 8, 14, 10, 15).toISOString() });
+
+  // And the record is told about it, both in the panel's own read and out to the list above it —
+  // so the day the frame is filed under and the pill over the picture stop saying the old one.
+  expect(row().props.value).toBe('14 сентября, 10:15');
+  expect(edited).toEqual([{ ...frame, captured_at: new Date(2026, 8, 14, 10, 15).toISOString() }]);
+  // Saved and shut: the editor is not left standing over a row that has already taken the change.
+  expect(root.findAllByType(ShotEditor)).toHaveLength(0);
+});
+
+test('a frame this person did not bring carries its date and no words to change it', async () => {
+  // `editMedia` answers 404 for a frame that is not the asker's own, so the words are not drawn
+  // rather than drawn as a press that refuses (doc-13). The date is a fact about the frame and
+  // stands for everybody — the row the asker can act on is the only thing that differs.
+  const screen = await drawn(told());
+  const row = screen.root.findAllByType(RowEdit)[0];
+  expect(row.props.value).toBe('13 сентября, 21:47');
+  expect(row.props.onEdit).toBeUndefined();
 });

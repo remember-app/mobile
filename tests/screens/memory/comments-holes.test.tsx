@@ -131,7 +131,9 @@ async function drawn(answer: unknown, onWrite: (asked: Asked) => unknown = () =>
   let tree!: TestRenderer.ReactTestRenderer;
   await act(async () => {
     tree = mounted(
-      TestRenderer.create(<FrameInfoPanel memoryId="m1" item={frame} onFilm={() => {}} />),
+      TestRenderer.create(
+        <FrameInfoPanel memoryId="m1" item={frame} onFilm={() => {}} onEdited={() => {}} />,
+      ),
     );
   });
   const root = tree.root;

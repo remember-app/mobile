@@ -887,6 +887,9 @@ export function Frames({ id, head }: { id: string; head: Head }) {
             wrote((have) => have?.filter((one) => one.id !== gone) ?? null);
             setOpen(null);
           }}
+          onEdited={(edited) =>
+            wrote((have) => have?.map((one) => (one.id === edited.id ? edited : one)) ?? null)
+          }
         />
       )}
     </>
