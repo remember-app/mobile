@@ -1,8 +1,8 @@
 import { rule } from '@tests/helpers/css';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { Copy } from 'lucide-react-native';
-import { createElement } from 'react';
 import type { ReactElement } from 'react';
+import { createElement } from 'react';
 import { Text as RNText, StyleSheet, View, type ViewStyle } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import { beforeAll, expect, test, vi } from 'vitest';
