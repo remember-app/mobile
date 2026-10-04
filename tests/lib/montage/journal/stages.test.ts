@@ -543,9 +543,13 @@ describe('where a frame ended up', () => {
   });
 
   test('a record that passed the frame over has no place, however the file is laid out', () => {
-    expect(placeLine(entry(1, { decision: 'skip', reason: 'blur' }), file, 0, ru)).toBe(undefined);
+    // The reason is beside the point here — a pass has no place whatever the worker wrote. Both codes
+    // are ones it still writes; a stub nobody writes would let this pass for the wrong reason.
+    expect(placeLine(entry(1, { decision: 'skip', reason: 'duplicate' }), file, 0, ru)).toBe(
+      undefined,
+    );
     expect(
-      placeLine(entry(1, { decision: 'skip', reason: 'exposure', thought: null }), file, 0, ru),
+      placeLine(entry(1, { decision: 'skip', reason: 'left_out', thought: null }), file, 0, ru),
     ).toBe(undefined);
   });
 

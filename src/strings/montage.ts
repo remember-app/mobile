@@ -411,21 +411,16 @@ export const en = {
       part: (n: number) => `part ${n}`,
       /**
        * Why the director decided as it did, by the worker's own codes — every one of them about a
-       * frame passed over but `included`. The list is the worker's vocabulary and not a closed set —
-       * the api puts no check on it — so anything this side has no word for is `other`, which is
-       * still an honest answer about a frame nobody took.
+       * frame passed over. This is the api's closed list (`docs/journal.md`, «Причины мимо»), not
+       * the worker's whole vocabulary: it writes no other code, and a word here for a code it does
+       * not write is a phrase on a screen for a thing that is not there. `other` is what a code
+       * outside the list reads as — still an honest answer about a frame nobody took.
        */
       reason: {
-        blur: 'Blurred',
-        exposure: 'The light is off',
         unreadable: 'Would not open',
         duplicate: 'A double',
-        /** Struck off by hand at the order — the director had no say in this one. */
-        excluded: 'Left out at the order',
         /** The director's own choice to leave it out — its words about why are the record's thought. */
         left_out: 'Not in the story',
-        /** The one reason on a frame that was taken: the organizer asked for it at the order. */
-        included: 'Taken at the organizer’s word',
         other: 'Not suitable',
       },
     },
@@ -961,13 +956,9 @@ export const ru: typeof en = {
       tookFrom: (from: string, to: string) => `Беру ${from}–${to}`,
       part: (n: number) => `часть ${n}`,
       reason: {
-        blur: 'Смазан',
-        exposure: 'Свет не тот',
         unreadable: 'Не открылся',
         duplicate: 'Дубль',
-        excluded: 'Убрали при заказе',
         left_out: 'Не в истории',
-        included: 'Взят по слову организатора',
         other: 'Не подошёл',
       },
     },

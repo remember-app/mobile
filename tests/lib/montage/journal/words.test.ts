@@ -14,7 +14,7 @@ vi.mock('expo-router', () => ({ useFocusEffect: () => {}, useIsFocused: () => tr
 
 import { entry } from '@tests/helpers/journal';
 import { MONTAGE_STAGES } from '@/api';
-import { marksOf, reasonWord, stoppedWord, whyTaken } from '@/lib/montage/journal';
+import { marksOf, reasonWord, stoppedWord } from '@/lib/montage/journal';
 import { en, ru } from '@/strings';
 
 /**
@@ -62,28 +62,15 @@ describe('the record in words', () => {
     expect(marksOf(left, en)).toEqual(['Passing', 'Not in the story']);
   });
 
-  test('a frame the organizer asked for says so beside «Беру», not instead of it', () => {
-    const asked = entry(1, { decision: 'take', reason: 'included' });
-    expect(marksOf(asked, ru)).toEqual(['Беру', 'Взят по слову организатора']);
-    expect(marksOf(asked, en)).toEqual(['Taking', 'Taken at the organizer’s word']);
-    expect(whyTaken(asked, ru)).toBe('Взят по слову организатора');
-    expect(marksOf({ ...asked, story_part: 2 }, ru)).toEqual([
-      'Беру',
-      'Взят по слову организатора',
-      'часть 2',
-    ]);
-  });
-
-  test('a take with no reason, or one this app does not know, wears no reason at all', () => {
-    // «Не подошёл» beside «Беру» would be the record arguing with itself.
-    for (const reason of [null, 'shaky_pan', 'blur']) {
-      const took = entry(1, { decision: 'take', reason });
-      expect(marksOf(took, ru), `${reason}`).toEqual(['Беру']);
-      expect(whyTaken(took, ru)).toBe(undefined);
+  test('a frame taken wears no reason — the worker writes none, so there is none to say', () => {
+    // `included` is gone from the api's list: «включить» больше ничего не закрепляет, кадры равны
+    // (`docs/journal.md`, «Причины мимо»). A take carries no reason in either language.
+    for (const reason of [null, 'shaky_pan', 'included']) {
+      expect(marksOf(entry(1, { decision: 'take', reason }), ru), `${reason}`).toEqual(['Беру']);
+      expect(marksOf(entry(1, { decision: 'take', reason }), en), `${reason}`).toEqual(['Taking']);
     }
-    // And the organizer's word is about a take: a thought or a pass does not wear it.
-    expect(whyTaken(entry(1, { reason: 'included' }), ru)).toBe(undefined);
-    expect(whyTaken(entry(1, { decision: 'skip', reason: 'included' }), ru)).toBe(undefined);
+    // The part of the story still rides beside it — only the reason went.
+    expect(marksOf(entry(1, { decision: 'take', story_part: 2 }), ru)).toEqual(['Беру', 'часть 2']);
   });
 
   test('a thought with nothing settled in it wears no pill', () => {
@@ -91,13 +78,18 @@ describe('the record in words', () => {
   });
 
   /**
-   * The worker's vocabulary is open — the api puts no check on that column — so the day it learns a
-   * new word for «this one is no good», the app has to keep drawing the record rather than a blank
-   * or a raw code.
+   * The api's table is closed but the column carries no check, so a code can still turn up that the
+   * app has no word for — and the app has to keep drawing the record rather than a blank or a raw
+   * code. The four the worker no longer writes are exactly such codes now: they read as the general
+   * word, the same as any code invented tomorrow (TASK-501).
    */
   test('a reason this app has never heard of is still said in words', () => {
     expect(reasonWord('shaky_pan', ru)).toBe(ru.montage.live.reason.other);
     expect(reasonWord('shaky_pan', en)).toBe(en.montage.live.reason.other);
+    for (const gone of ['blur', 'exposure', 'excluded', 'included']) {
+      expect(reasonWord(gone, ru), gone).toBe(ru.montage.live.reason.other);
+      expect(reasonWord(gone, en), gone).toBe(en.montage.live.reason.other);
+    }
     expect(reasonWord(null, ru)).toBe(undefined);
     // The code is the model's own words: a name off the object's prototype is just another unknown
     // word, not an object or a function handed to a `<Text>`.
@@ -115,16 +107,14 @@ describe('the record in words', () => {
    * `no_room` «это `left_out`»).
    *
    * So the words are pinned, and this list is the whole of them: a wrong word, a missing key, or a
-   * key added for a code nobody writes each fail here rather than reaching somebody's screen.
+   * key added for a code nobody writes each fail here rather than reaching somebody's screen. The
+   * three codes left are the three the worker writes (`selection.py`) and the three the api's closed
+   * table lists; `blur`, `exposure`, `excluded` and `included` are written off there (TASK-501).
    */
   const WORDS: [string, string, string][] = [
-    ['blur', 'Смазан', 'Blurred'],
-    ['exposure', 'Свет не тот', 'The light is off'],
     ['unreadable', 'Не открылся', 'Would not open'],
     ['duplicate', 'Дубль', 'A double'],
-    ['excluded', 'Убрали при заказе', 'Left out at the order'],
     ['left_out', 'Не в истории', 'Not in the story'],
-    ['included', 'Взят по слову организатора', 'Taken at the organizer’s word'],
   ];
 
   test('every reason in the dictionary is said in its own word, in both languages', () => {

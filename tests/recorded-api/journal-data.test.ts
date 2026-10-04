@@ -345,14 +345,11 @@ describe.each(SCENARIOS)('%s — the worker’s words, in the app’s', (scenari
           expect(marks[1], `${lang} ${record.reason}`).not.toBe(s.montage.live.reason.other);
           said.add(`${record.reason}`);
         } else {
-          // A take wears a reason only where the organizer asked for the frame (`included`) — beside
-          // «Беру», in words — and never the catch-all.
-          expect(marks).not.toContain(s.montage.live.reason.other);
-          expect(
-            marks.includes(s.montage.live.reason.included),
-            `${lang} record ${record.id}`,
-          ).toBe(record.reason === 'included');
-          if (record.reason === 'included') said.add(record.reason);
+          // A take wears no reason: the worker writes none on one, so there is nothing to say beside
+          // «Беру» — and never the catch-all, which would be the record arguing with itself. The
+          // recording agrees: not one of its takes carries a reason at all.
+          expect(marks, `${lang} record ${record.id}`).not.toContain(s.montage.live.reason.other);
+          expect(record.reason, `${lang} record ${record.id}`).toBeFalsy();
         }
       }
       expect(said.size).toBeGreaterThan(1);
