@@ -45,9 +45,9 @@ describe('the record in words', () => {
       'Мимо',
       'Дубль',
     ]);
-    expect(marksOf(entry(1, { decision: 'skip', reason: 'no_room' }), en)).toEqual([
+    expect(marksOf(entry(1, { decision: 'skip', reason: 'unreadable' }), en)).toEqual([
       'Passing',
-      'No room left',
+      'Would not open',
     ]);
   });
 
@@ -106,29 +106,51 @@ describe('the record in words', () => {
     }
   });
 
-  test('every reason the api names has a word in both languages', () => {
-    // The worker's whole vocabulary (its README, «Журнал»): for «мимо» three from the screening and
-    // four from the director, and for «беру» the organizer's word.
-    const codes = [
-      'blur',
-      'exposure',
-      'unreadable',
-      'duplicate',
-      'excluded',
-      'no_room',
-      'left_out',
-      'included',
-    ];
-    for (const code of codes) {
-      for (const s of [ru, en]) {
-        expect(reasonWord(code, s), code).toBeTruthy();
-        expect(reasonWord(code, s), code).not.toBe(s.montage.live.reason.other);
-      }
+  /**
+   * Every code the dictionary holds, each against the word it must be said in — the words written
+   * out here rather than read back out of the dictionary. A test that asks the dictionary whether it
+   * agrees with itself passes whatever the words are, and that is how `no_room` sat here drawing a
+   * phrase nobody writes: a code in this list, a phrase in both halves of the dictionary, and no
+   * screen anywhere to prove the worker still writes it (api `docs/journal.md`, «Причины мимо» —
+   * `no_room` «это `left_out`»).
+   *
+   * So the words are pinned, and this list is the whole of them: a wrong word, a missing key, or a
+   * key added for a code nobody writes each fail here rather than reaching somebody's screen.
+   */
+  const WORDS: [string, string, string][] = [
+    ['blur', 'Смазан', 'Blurred'],
+    ['exposure', 'Свет не тот', 'The light is off'],
+    ['unreadable', 'Не открылся', 'Would not open'],
+    ['duplicate', 'Дубль', 'A double'],
+    ['excluded', 'Убрали при заказе', 'Left out at the order'],
+    ['left_out', 'Не в истории', 'Not in the story'],
+    ['included', 'Взят по слову организатора', 'Taken at the organizer’s word'],
+  ];
+
+  test('every reason in the dictionary is said in its own word, in both languages', () => {
+    for (const [code, russian, english] of WORDS) {
+      expect(reasonWord(code, ru), code).toBe(russian);
+      expect(reasonWord(code, en), code).toBe(english);
+      // And none of them is the catch-all dressed up as a word: that word is for a code nobody knows.
+      expect(reasonWord(code, ru), code).not.toBe(ru.montage.live.reason.other);
+      expect(reasonWord(code, en), code).not.toBe(en.montage.live.reason.other);
     }
     // Every one of them its own word, in each language.
-    expect(new Set(codes.map((code) => reasonWord(code, ru))).size).toBe(codes.length);
-    expect(new Set(codes.map((code) => reasonWord(code, en))).size).toBe(codes.length);
-    expect(reasonWord('included', ru)).toBe('Взят по слову организатора');
+    expect(new Set(WORDS.map(([, russian]) => russian)).size).toBe(WORDS.length);
+    expect(new Set(WORDS.map(([, , english]) => english)).size).toBe(WORDS.length);
+  });
+
+  test('the dictionary holds these codes and nothing else', () => {
+    // The other side of the same promise: a key nobody writes is a phrase in the code for a thing
+    // that is not there. `other` is the one extra — the word for a code this app has not heard of.
+    for (const [name, s] of [
+      ['ru', ru],
+      ['en', en],
+    ] as const) {
+      expect(Object.keys(s.montage.live.reason).sort(), name).toEqual(
+        [...WORDS.map(([code]) => code), 'other'].sort(),
+      );
+    }
   });
 
   test('the five stages of the journal are named in both languages', () => {
