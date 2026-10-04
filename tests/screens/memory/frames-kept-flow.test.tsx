@@ -98,6 +98,13 @@ function world(over: { media?: unknown; members?: unknown; read?: (nth: number) 
 /** The phone as a previous launch left it: this memory's feed, kept, with nothing else on it. */
 const keptOnPhone = () => keepKept(ID, frames(), people());
 
+/**
+ * What the phone is actually holding for this memory, frame by frame. Not a count and not a null:
+ * an emptied cache is still a file and `toBeNull` is green over it, which is the shape of the very
+ * failure this card is about — a list that came back from a read the api never answered.
+ */
+const keptIds = () => readKept(ID)?.items.map((one) => one.id) ?? [];
+
 async function open() {
   let tree!: TestRenderer.ReactTestRenderer;
   await act(async () => {
@@ -187,6 +194,14 @@ test('the read still goes out underneath, and what comes back does not blink the
   expect(w.reads).toBe(1);
   expect(screen.feed()).toEqual(['a', 'b']);
 
+  // And while it is in the air — a slow connection over a good signal, the ordinary case. Nothing
+  // lights up over a feed somebody is already looking at: no spinner, no banner. This is the check
+  // that a catch-up cannot be a read somebody asked for, which is what `SIGNS` here is about; read
+  // after the answer lands it would be green either way.
+  await act(async () => {});
+  expect(screen.state()).toEqual(SIGNS);
+  expect(screen.feed()).toEqual(['a', 'b']);
+
   // The answer lands. Same two frames and the same links, so nothing on screen goes away and comes
   // back — the catch-up updates in place rather than clearing and redrawing.
   const before = screen.links();
@@ -251,7 +266,7 @@ test('a cache that was read but never shown is not a cache that works', async ()
 
   // Read: the file was opened and it had this in it. Without this the two assertions below would
   // pass on a phone that had simply never cached anything.
-  expect(readKept(ID)).not.toBeNull();
+  expect(keptIds()).toEqual(['a', 'b']);
   // Shown: and `Waiting` is gone. Standing there is the screen that read the file and threw the
   // answer away — the failure a cache-shaped check cannot see.
   expect(screen.state().waiting).toBe(0);
@@ -287,8 +302,9 @@ test('leaving the memory leaves the list on the phone', async () => {
   const screen = await open();
   await screen.unmount();
 
-  // Read: the list is still where the last session left it — the screen going did not take it.
-  expect(readKept(ID)).not.toBeNull();
+  // Read: the list is still where the last session left it, with its frames in it — the screen
+  // going did not take it, and an empty file left behind would be the same as none.
+  expect(keptIds()).toEqual(['a', 'b']);
   // And shown: reopened with no network, the same feed is on screen.
   serve(() => 'offline');
   const again = await open();
@@ -304,8 +320,10 @@ test('a read that fails does not empty what the phone already had', async () => 
 
   expect(screen.feed()).toEqual(['a', 'b']);
   expect(screen.state()).toEqual(SIGNS);
-  // Read: and the failed answer left the file alone rather than writing an empty list over it.
-  expect(readKept(ID)).not.toBeNull();
+  // Read: and the failed answer left the file alone rather than writing an empty list over it. The
+  // frames are named rather than counted — an emptied cache is still a file, and `not.toBeNull()`
+  // is green over both.
+  expect(keptIds()).toEqual(['a', 'b']);
   expect(w.reads).toBe(1);
 });
 
