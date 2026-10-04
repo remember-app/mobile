@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { listMemories, type Memory } from '@/api';
 import { useAuth } from '@/lib/auth';
-import { failure, type Failure } from '@/lib/failure';
+import { type Failure, failure } from '@/lib/failure';
 import { Frames } from '@/screens/memory/frames';
 import { themed } from '@/theme';
 

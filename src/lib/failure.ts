@@ -1,7 +1,8 @@
-import { Lock, TriangleAlert } from 'lucide-react-native';
+import { Lock, TriangleAlert, Unlink } from 'lucide-react-native';
 
 import { ApiError, errorMessage } from '@/api';
 import type { IconComponent } from '@/kit';
+import type { Strings } from '@/strings';
 
 /**
  * A failure as a banner says it: the words, and the glyph beside them. No glyph is the banner's own
@@ -11,6 +12,12 @@ export type Failure = { text: string; icon?: IconComponent };
 
 /** The statuses a route words itself, because the api's bare «forbidden» or «not found» says nothing. */
 export type Refusals = Partial<Record<number, Failure>>;
+
+/**
+ * The api's one answer to somebody not in the memory: about the person, so a tie that is cut.
+ * Several routes mean it the same way — the api says only «not found» — so it is said once here.
+ */
+export const notMember = (s: Strings): Refusals => ({ 404: { text: s.memory.gone, icon: Unlink } });
 
 /** A 403 is about rights; anything else the api refused wears the plain warning. */
 function glyph(status: number): IconComponent {

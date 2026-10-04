@@ -40,7 +40,7 @@ import {
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { formatEventDates } from '@/lib/dates';
-import { failure, type Failure, type Refusals } from '@/lib/failure';
+import { type Failure, failure, type Refusals } from '@/lib/failure';
 import { useStrings } from '@/lib/language';
 import { InviteSheet } from '@/screens/memory/invite-sheet';
 import { board, height, radius, space, themed } from '@/theme';
@@ -131,10 +131,7 @@ export default function MemorySettingsScreen() {
    * line about it. `said` maps the statuses this particular call can come back with; anything else
    * falls through to the api's own wording.
    */
-  async function act(
-    what: (session: string) => Promise<string | null>,
-    said: Refusals = {},
-  ) {
+  async function act(what: (session: string) => Promise<string | null>, said: Refusals = {}) {
     if (!token) return;
     setBusy(true);
     setNotice(null);

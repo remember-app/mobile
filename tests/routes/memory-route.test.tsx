@@ -14,8 +14,10 @@ vi.mock('@/screens/memory/frames', () => ({ Frames: () => null }));
 
 import { memory, serve } from '@tests/helpers/api';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
+import { TriangleAlert, WifiOff } from 'lucide-react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import MemoryScreen from '@/app/memory/[id]';
+import type { Failure } from '@/lib/failure';
 import { Frames } from '@/screens/memory/frames';
 import { ru } from '@/strings';
 
@@ -37,7 +39,7 @@ async function open(answer: () => unknown) {
   const head = () =>
     tree.root.findByType(Frames).props.head as {
       memory: { id: string } | null;
-      error: string | null;
+      error: Failure | null;
       reload: () => void;
     };
   return { log, head, id: () => tree.root.findByType(Frames).props.id };
@@ -62,9 +64,27 @@ test('a listing that would not come is the reason handed over, and reading it ag
   let up = false;
   const route = await open(() => (up ? [memory({ id: 'm1' })] : 'offline'));
   expect(route.head().memory).toBeNull();
-  expect(route.head().error).toBe(ru.error.offline);
+  expect(route.head().error).toEqual({ text: ru.error.offline });
   up = true;
   await act(async () => route.head().reload());
   expect(route.head().error).toBeNull();
   expect(route.head().memory).toMatchObject({ id: 'm1' });
+});
+
+/**
+ * Only a request that never got an answer wears «no signal» (TASK-275): anything the api answered
+ * is about something else, and the banner's sign has to say what. The words are the api's own here
+ * — this task moves the sign, not the wording (TASK-273).
+ */
+test('a refused listing is the api’s words beside a warning, not «no signal»', async () => {
+  const route = await open(() => new Response(JSON.stringify({ error: 'nope' }), { status: 409 }));
+  expect(route.head().memory).toBeNull();
+  expect(route.head().error).toEqual({ text: 'nope', icon: TriangleAlert });
+});
+
+test('a listing refused over rights wears the lock', async () => {
+  const route = await open(
+    () => new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 }),
+  );
+  expect(route.head().error?.icon).not.toBe(WifiOff);
 });

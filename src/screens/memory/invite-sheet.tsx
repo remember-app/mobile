@@ -14,8 +14,8 @@ import {
 } from '@/api';
 import { Banner, Button, Chip, Divider, Field, Sheet, Text, Toggle } from '@/kit';
 import { useAuth } from '@/lib/auth';
+import { type Failure, failure, type Refusals } from '@/lib/failure';
 import { matches, useFindUser } from '@/lib/find-user';
-import { failure, type Failure, type Refusals } from '@/lib/failure';
 import { useStrings } from '@/lib/language';
 import { space, themed } from '@/theme';
 
@@ -120,10 +120,7 @@ export function InviteSheet({
    * about it. `said` maps the statuses this particular call can come back with; anything else falls
    * through to the api's own wording.
    */
-  async function act(
-    what: (session: string) => Promise<string | null>,
-    said: Refusals = {},
-  ) {
+  async function act(what: (session: string) => Promise<string | null>, said: Refusals = {}) {
     if (!token) return;
     setBusy(true);
     setNotice(null);

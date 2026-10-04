@@ -22,8 +22,8 @@ import {
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { formatDay, formatRuntime, formatWeekday } from '@/lib/dates';
+import { type Failure, failure } from '@/lib/failure';
 import { byDay, COLUMNS, frameOf, removeFrames, shotAt } from '@/lib/frames';
-import { failure, type Failure } from '@/lib/failure';
 import { useStrings } from '@/lib/language';
 import { type ParkedFile, progress } from '@/lib/upload/queue';
 import { useUploads } from '@/lib/upload/send';

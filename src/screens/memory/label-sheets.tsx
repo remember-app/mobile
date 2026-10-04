@@ -1,4 +1,4 @@
-import { Lock, Pencil, Plus, Tag as TagIcon, Trash2, Unlink, Users } from 'lucide-react-native';
+import { Lock, Pencil, Plus, Tag as TagIcon, Trash2, Users } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -28,7 +28,7 @@ import {
   Waiting,
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
-import { failure, type Failure, type Refusals } from '@/lib/failure';
+import { type Failure, failure, notMember, type Refusals } from '@/lib/failure';
 import {
   filing,
   LABEL_NAME_MAX,
@@ -38,7 +38,6 @@ import {
   withLabel,
 } from '@/lib/labels';
 import { useStrings } from '@/lib/language';
-import type { Strings } from '@/strings';
 import { height, labelColors, radius, space, themed, useTheme } from '@/theme';
 
 /**
@@ -60,9 +59,6 @@ import { height, labelColors, radius, space, themed, useTheme } from '@/theme';
 
 /** `SheetLabelNew`: shut, making one (`label: null`), or editing the one it holds. */
 type Writing = { label: Label | null } | null;
-
-/** The api's one answer to somebody not in the memory: about the person, so a tie that is cut. */
-const notMember = (s: Strings): Failure => ({ text: s.memory.gone, icon: Unlink });
 
 export function LabelSheets({
   memoryId,
@@ -95,9 +91,7 @@ export function LabelSheets({
   const load = useCallback(() => {
     if (!token) return;
     setError(null);
-    listLabels(token, memoryId).then(setLabels, (e: unknown) =>
-      setError(failure(e, { 404: notMember(s) })),
-    );
+    listLabels(token, memoryId).then(setLabels, (e: unknown) => setError(failure(e, notMember(s))));
   }, [token, memoryId, s]);
 
   useEffect(load, [load]);
@@ -166,7 +160,7 @@ export function LabelSheets({
         }),
       // No label in the path, so a 404 is the membership check; a 403 is a viewer asking for «Общий»,
       // and the lock is the private label the words offer instead.
-      { 403: { text: s.labels.sharedDenied, icon: Lock }, 404: notMember(s) },
+      { 403: { text: s.labels.sharedDenied, icon: Lock }, ...notMember(s) },
     );
     if (made === null) return;
     setLabels((have) => withLabel(have ?? [], made));
