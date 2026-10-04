@@ -1402,6 +1402,12 @@ test('dragging the spine throws the feed to where the finger stands on it, held 
     // The strip is the left edge between the two glasses: from under the bar to above the bottom layer.
     const top = height.roundViewer;
     const span = 844 - board.footerGallery - top;
+    // Hanging on the left, and only there — the strip has to be under the line the spine draws on
+    // the same edge. A strip that drifted back to the right would go on answering a finger while
+    // the dates it drags the feed by stood across the screen, and nothing else here would say so.
+    const strip = StyleSheet.flatten(grabber(screen).props.style);
+    expect(strip).toMatchObject({ position: 'absolute', left: 0, width: 32 });
+    expect(strip.right).toBeUndefined();
     const finger = (pageY: number) =>
       act(async () => grabber(screen).props.onResponderGrant(touch({ y: pageY })));
     await finger(top + span / 2);
