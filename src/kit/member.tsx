@@ -18,9 +18,10 @@ import { Text } from './text';
 
 /**
  * The sizes the layout draws an avatar at, each with the type size that goes inside it (spec 7.5,
- * detail 31): 16 in a day gap, 18 on a frame on air, 24 and 36 alone, 30 in a chip, 32 in a sheet,
- * 38 in a member row, 42 in a contact row, 48 as a face in the filter, 64 on a confirmation and on
- * the account. A stack, at 24 and 36, sets its letters itself (`STACK`).
+ * detail 31): 16 in a day gap, 18 on a frame on air, 24 and 36 alone, 26 and 30 in a chip, 28 at the
+ * head of a comment under a frame (`FrameInfo.html` line 40), 32 in a sheet, 38 in a member row, 42
+ * in a contact row, 48 as a face in the filter, 64 on a confirmation and on the account. A stack, at
+ * 24 and 36, sets its letters itself (`STACK`).
  * Roughly a third of the circle, rounded the way the layout rounded it.
  */
 const LETTERS: Record<number, number> = {
@@ -28,6 +29,7 @@ const LETTERS: Record<number, number> = {
   18: 7,
   24: 9,
   26: 10,
+  28: 10,
   30: 11,
   32: 11,
   36: 12,
@@ -38,7 +40,7 @@ const LETTERS: Record<number, number> = {
 };
 
 /** The sizes whose initials are 700 (spec 7.5, detail 31); the rest — 32, 42, 64 — are 600. */
-const BOLD = new Set([16, 18, 24, 36, 38, 48]);
+const BOLD = new Set([16, 18, 24, 28, 36, 38, 48]);
 
 /**
  * Initials in a circle, or the person's own photograph if there is one — the initials stay the

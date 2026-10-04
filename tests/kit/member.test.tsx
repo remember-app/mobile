@@ -19,7 +19,7 @@ import {
   WatchingPill,
 } from '@/kit/member';
 import { allDifferent, story } from '@/kit/story';
-import { setTheme, ThemePin, themes } from '@/theme';
+import { font, setTheme, ThemePin, themes } from '@/theme';
 
 /**
  * Spec 7.5 — people: the circle, the face that is a switch in the filter, the row inside a memory,
@@ -88,13 +88,20 @@ test('every circle that draws initials draws them whole', () => {
 test('the circle is drawn at every size the layout uses', () => {
   allDifferent(
     Object.fromEntries(
-      [26, 32, 34, 36, 42, 64].map((size) => [
+      [26, 28, 32, 34, 36, 42, 64].map((size) => [
         String(size),
         <Avatar name="Марк Ковалёв" size={size} />,
       ]),
     ),
   );
   expect(story(<Avatar name="Марк Ковалёв" size={42} />)).toContain('width:42px');
+  // The face at the head of a comment (`FrameInfo.html` line 40): a 28 with its letters at 10 in
+  // 700, and not whatever a third of 28 happens to round to — the table above is where the layout's
+  // own sizes are written down, and this one was missing.
+  const at28 = story(<Avatar name="Марк Ковалёв" size={28} />);
+  expect(at28).toContain('width:28px');
+  expect(at28).toContain('font-size:10px');
+  expect(at28).toContain(`font-family:${font.bold}`);
 });
 
 test('a removed contact’s circle is still a circle on the screen’s ink', () => {
