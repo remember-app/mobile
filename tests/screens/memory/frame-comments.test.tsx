@@ -677,6 +677,56 @@ test('the refusal goes with the sheet, and the next one opens saying nothing abo
   expect(screen.saidBySheet()).toBeUndefined();
 });
 
+/**
+ * A refusal belongs to the comment it happened over, and **the check above does not hold that**,
+ * though it reads as though it might: it closes the sheet through `onCancel`, and `onCancel` takes
+ * the line with it. Green on a block whose `onDrop` cleared nothing at all — which is the way this
+ * road was found, by asking what the line in `onDrop` is for and being answered by nothing
+ * (TASK-515).
+ *
+ * So nothing goes down here between the two comments. The second sign is pressed with the refusal
+ * still standing, the question rises over the other row, and the line has to be gone by then —
+ * otherwise a person reads «удалить этот?» over the reason a *different* comment was refused, with
+ * nothing on the screen saying which of the two the line is about.
+ *
+ * Which comment the question standing is about is asked outright rather than inferred: the sheet
+ * says the same words over either row, so a check that only watched the line go would be green on a
+ * sheet that never changed its mind and went on asking about the first comment.
+ *
+ * The road is the one the `Modal` keeps out of a finger's reach today — the sheet covers the list,
+ * so nothing behind it can be pressed. What is held is the sheet's own invariant, that the question
+ * it raises carries nothing of the last, and that holds whatever the `Modal` is doing: it is what
+ * stops being true the day a sheet ever stands over a list it does not cover.
+ */
+test('a refusal is about the comment it happened over — the next question carries none of it', async () => {
+  const screen = await drawn(
+    told({ comments: [said({ id: 'c1', mine: true }), said({ id: 'c2', mine: true })] }),
+    frame,
+    (asked) => (asked.method === 'DELETE' ? refused(404, 'not found') : ok()),
+  );
+
+  // The refusal over the first comment, and the line it puts under the question. Named before it
+  // goes, so that a line missing later cannot be one that never stood.
+  await screen.press(screen.button(ru.viewer.commentRemove)!);
+  await act(async () => screen.sheet()?.props.onConfirm());
+  expect(screen.saidBySheet()).toBe('not found');
+
+  // The other comment's sign, pressed with the refusal still standing — the sheet never goes down,
+  // and there is no `onCancel` anywhere on this road to quietly take the line with it.
+  const signs = screen.root
+    .findAllByType(IconButton)
+    .filter((one) => one.props.label === ru.viewer.commentRemove);
+  await screen.press(signs[1]);
+  // The sheet is up, so an absent line is a cleared one and not a closed sheet reading as empty.
+  expect(screen.sheet()?.props.visible).toBe(true);
+  expect(screen.saidBySheet(), 'the line under a question about the other comment').toBeUndefined();
+
+  // And the question standing is over the other comment — which is the whole of what the line
+  // above was about nothing of, and the only thing that says so: the api is asked about c2.
+  await act(async () => screen.sheet()?.props.onConfirm());
+  expect(screen.log.at(-1)?.path).toBe('/memories/m1/media/a/comments/c2');
+});
+
 test('somebody else’s comment has no sign at all — the api owns that rule, not the phone', async () => {
   // The row comes down with `mine: false` and nothing is drawn to change it: an organizer takes
   // frames down, not words, and the app never repeats a rule the server enforces.
