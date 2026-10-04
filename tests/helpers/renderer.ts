@@ -2,6 +2,7 @@ import type { ReactTestInstance, ReactTestRenderer } from 'react-test-renderer';
 import { act } from 'react-test-renderer';
 import { afterEach, beforeAll, vi } from 'vitest';
 
+import { Banner, type Failure, Icon, read } from '@/kit';
 import { setTheme, themes } from '@/theme';
 
 /**
@@ -76,4 +77,24 @@ export function themesShown(root: ReactTestInstance): { night: string[]; day: st
   const found = (only: Set<string>, other: Set<string>) =>
     [...only].filter((value) => !other.has(value) && styles.includes(value.toLowerCase()));
   return { night: found(dark, light), day: found(light, dark) };
+}
+
+/**
+ * What a banner says and what it wears, read off the drawn tree rather than off the props a screen
+ * passed: a refusal comes in one value (`failure`) and the words are read back out of it, so a test
+ * does not have to know which of the two ways a screen said it this week.
+ *
+ * The sign is the glyph the tree actually drew — the `Icon` inside the banner, not the prop — so a
+ * banner that was handed no sign at all reads as `WifiOff`, which is the lying case (TASK-275) and
+ * the one a test has to be able to see.
+ */
+export function bannerSaid(one: ReactTestInstance): [string, unknown] {
+  const { failure, text } = one.props as { failure?: Failure; text?: string };
+  const glyph = one.findAllByType(Icon)[0]?.props.icon;
+  return [failure ? read(failure.text) : (text ?? ''), glyph];
+}
+
+/** The same, for every banner under a root. */
+export function bannersSaid(root: ReactTestInstance): [string, unknown][] {
+  return root.findAllByType(Banner).map(bannerSaid);
 }

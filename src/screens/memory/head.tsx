@@ -108,7 +108,7 @@ export function HeadTrouble({
 
   return (
     <View style={styles.banner} onLayout={onLayout}>
-      <Banner tone="error" text={error.text} icon={error.icon}>
+      <Banner tone="error" failure={error}>
         <Button size="xs" variant="quiet" label={s.action.retry} onPress={reload} />
       </Banner>
     </View>

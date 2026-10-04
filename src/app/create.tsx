@@ -63,9 +63,7 @@ export default function CreateMemoryScreen() {
       footer={
         <>
           {/* In the flow of the screen and right above the action that raised it, never over it. */}
-          {error ? (
-            <Banner tone="error" text={error.text} icon={error.icon} style={styles.error} />
-          ) : null}
+          {error ? <Banner tone="error" failure={error} style={styles.error} /> : null}
           <ActionBar>
             <Button
               label={s.create.submit}

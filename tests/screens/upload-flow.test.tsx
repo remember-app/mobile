@@ -67,7 +67,7 @@ vi.mock('react-native', async (importOriginal) => {
 });
 
 import { later, memory, serve } from '@tests/helpers/api';
-import { mounted, mountsTrees } from '@tests/helpers/renderer';
+import { bannersSaid, mounted, mountsTrees } from '@tests/helpers/renderer';
 import { Image } from 'expo-image';
 import { FlatList, Linking, StyleSheet, View } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
@@ -76,7 +76,6 @@ import UploadScreen from '@/app/memory/[id]/upload';
 import {
   ActionBar,
   AppBar,
-  Banner,
   BlockStuck,
   Button,
   CardMessage,
@@ -203,7 +202,7 @@ async function open({ queue = false }: { queue?: boolean } = {}) {
       root.findAllByType(IconButton).filter((one) => one.props.label === label),
     send: () => root.findAllByType(Button).find((one) => one.props.wide)!,
     text: () => JSON.stringify(tree.toJSON()),
-    banners: () => root.findAllByType(Banner).map((one) => one.props.text as string),
+    banners: () => bannersSaid(root).map(([words]) => words),
     // Found by the question it asks, drawn or not: it is the sheet's heading.
     asking: () => root.findAllByType(Sheet).find((one) => one.props.title === ru.upload.askAll)!,
   };

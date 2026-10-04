@@ -37,12 +37,12 @@ vi.mock('@/kit', async (original) => ({
 
 import type { Asked } from '@tests/helpers/api';
 import { member, memory, refused, serve } from '@tests/helpers/api';
-import { mounted, mountsTrees } from '@tests/helpers/renderer';
+import { bannersSaid, mounted, mountsTrees } from '@tests/helpers/renderer';
 import { AppState } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import type { Member, Montage } from '@/api';
 import FilmScreen from '@/app/memory/[id]/montage/[montageId]/film';
-import { Banner, Button, ConfirmSheet, Field, GlassBar } from '@/kit';
+import { Button, ConfirmSheet, Field, GlassBar } from '@/kit';
 import { FilmInfoSheet, FilmNameSheet } from '@/screens/memory/film-info';
 import { ru } from '@/strings';
 
@@ -154,7 +154,7 @@ async function open() {
     infos: () => root.findAllByType(FilmInfoSheet),
     names: () => root.findAllByType(FilmNameSheet),
     confirm: () => root.findByType(ConfirmSheet),
-    banners: () => root.findAllByType(Banner).map((one) => one.props.text as string),
+    banners: () => bannersSaid(root).map(([words]) => words),
     openInfo: () => act(async () => root.findByType(GlassBar).props.onCapsule?.()),
   };
 }

@@ -119,7 +119,7 @@ test('a way in this build cannot walk is not drawn at all', () => {
   // refusals (TASK-275) — the wording is the same, and it now wears a sign that says «the server
   // cannot do this» rather than «no signal».
   expect(login).toContain(
-    'return failure(error, { 501: { text: s.login.providerUnavailable(provider) } });',
+    'return failure(error, { 501: { text: saying(s.login.providerUnavailable(provider)) } });',
   );
 });
 

@@ -308,7 +308,7 @@ export default function UploadScreen({ queue = false }: { queue?: boolean }) {
             is cut into its days all the same but none of them is lifted to the top as the
             event's. Picking — by hand or by the day — and queueing both still work. */}
         {apiError !== null ? (
-          <Banner tone="error" text={apiError.text} icon={apiError.icon}>
+          <Banner tone="error" failure={apiError}>
             <Button size="xs" variant="quiet" label={s.action.retry} onPress={load} />
           </Banner>
         ) : null}

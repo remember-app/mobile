@@ -14,11 +14,11 @@ vi.mock('@/kit', async (original) => ({
 }));
 
 import { type Asked, later, memory, refused, serve } from '@tests/helpers/api';
-import { mounted, mountsTrees, themesShown } from '@tests/helpers/renderer';
+import { bannersSaid, mounted, mountsTrees, themesShown } from '@tests/helpers/renderer';
 import { Pressable } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import CreateMemoryScreen from '@/app/create';
-import { Banner, Button, Calendar, Chip, Field, IconButton } from '@/kit';
+import { Button, Calendar, Chip, Field, IconButton } from '@/kit';
 import { endOfDay, startOfDay } from '@/lib/dates';
 import { EventWhen } from '@/screens/memory/when';
 import { ru } from '@/strings';
@@ -81,7 +81,7 @@ async function open() {
       root.findAllByType(Chip).find((one) => one.props.label === label)!,
     pickDays: (from: Date, to: Date | null) =>
       act(async () => root.findByType(EventWhen).props.onChange({ from, to })),
-    banners: () => root.findAllByType(Banner).map((one) => one.props.text as string),
+    banners: () => bannersSaid(root).map(([words]) => words),
     text: () => JSON.stringify(tree.toJSON()),
   };
   return screen;

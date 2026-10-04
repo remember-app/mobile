@@ -102,7 +102,7 @@ test('waiting, failing and empty each hold the place of the list', () => {
   // Kit «Ждём», «Сбой», «Пусто». Three separate silences, and the one that goes missing first is
   // the failure — a list that never arrives otherwise reads as a list with nobody in it.
   expect(contacts).toContain('<Empty busy text={s.state.loading} />');
-  expect(contacts).toContain('<Banner tone="error" text={error.text} icon={error.icon}>');
+  expect(contacts).toContain('<Banner tone="error" failure={error}>');
   // Spec 7.8's rule of words, and `ContactsEmpty` draws it in two parts: the heading names what is
   // missing, the paragraph sends them to the field over it.
   expect(contacts).toContain(

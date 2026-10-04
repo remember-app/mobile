@@ -229,14 +229,14 @@ export default function ContactsScreen() {
     >
       {error !== null ? (
         // The list did not come: the strip holds its place and offers the one thing left to do.
-        <Banner tone="error" text={error.text} icon={error.icon}>
+        <Banner tone="error" failure={error}>
           <Button size="xs" variant="quiet" label={s.action.retry} onPress={load} />
         </Banner>
       ) : contacts === null ? (
         <Empty busy text={s.state.loading} />
       ) : (
         <>
-          {notice !== null ? <Banner tone="error" text={notice.text} icon={notice.icon} /> : null}
+          {notice !== null ? <Banner tone="error" failure={notice} /> : null}
 
           {/* Found in Remember and not saved yet: its own rule, one row, one action — and it
               stands above the saved list, where the eye already is after typing. */}

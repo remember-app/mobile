@@ -10,18 +10,10 @@ vi.mock('@/kit', async (original) => ({
 }));
 
 import { frame, label } from '@tests/helpers/labels';
-import { mounted, mountsTrees } from '@tests/helpers/renderer';
+import { bannersSaid, mounted, mountsTrees } from '@tests/helpers/renderer';
 import { Lock, Tag as TagIcon, TriangleAlert, Unlink, WifiOff } from 'lucide-react-native';
 import TestRenderer, { act } from 'react-test-renderer';
-import {
-  Banner,
-  Button,
-  ConfirmSheet,
-  Icon,
-  IconButton,
-  type IconComponent,
-  RowLabel,
-} from '@/kit';
+import { Button, ConfirmSheet, IconButton, type IconComponent, RowLabel } from '@/kit';
 import { currentLanguage, setLanguage } from '@/lib/language';
 import { LabelNewSheet, LabelSheets } from '@/screens/memory/label-sheets';
 import { en, ru, strings } from '@/strings';
@@ -142,9 +134,9 @@ async function refused(errand: Errand, answer: () => Response | 'offline') {
     );
   });
   await errand.go(tree);
-  return tree.root
-    .findAllByType(Banner)
-    .map((one) => [one.findByType(Icon).props.icon, one.props.text]);
+  // The glyph the banner actually drew, not the prop: a banner handed no sign at all draws the
+  // banner's own «no signal», and a test that read the prop would never see that it happened.
+  return bannersSaid(tree.root).map(([words, glyph]) => [glyph, words] as const);
 }
 
 test.each(ERRANDS)('$name: only a broken connection is «no signal»', async (errand) => {

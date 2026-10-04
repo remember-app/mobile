@@ -171,7 +171,7 @@ export default function MemoryEditScreen() {
       {failed !== null ? <Banner tone="error" text={failed} /> : null}
 
       {error !== null ? (
-        <Banner tone="error" text={error.text} icon={error.icon} />
+        <Banner tone="error" failure={error} />
       ) : !ready ? (
         <View style={styles.middle}>
           <Waiting text={s.state.loading} />

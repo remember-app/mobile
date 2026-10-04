@@ -51,7 +51,7 @@ vi.mock('@/lib/auth', async (original) => {
 import { expectReachable } from '@tests/helpers/access';
 import { type Asked, contact, later, refused, serve } from '@tests/helpers/api';
 import { account, datesRefusal, languageRefusal } from '@tests/helpers/contract';
-import { mounted, mountsTrees, themesShown } from '@tests/helpers/renderer';
+import { bannersSaid, mounted, mountsTrees, themesShown } from '@tests/helpers/renderer';
 import type { ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
@@ -60,7 +60,6 @@ import ProfileScreen from '@/app/profile';
 import {
   Avatar,
   AvatarStack,
-  Banner,
   Button,
   ConfirmSheet,
   DRAWN,
@@ -204,7 +203,7 @@ async function open() {
       root()
         .findAllByType(Sheet)
         .find((one) => one.props.title === ru.profile.edit)!,
-    banner: () => root().findAllByType(Banner)[0]?.props.text as string | undefined,
+    banner: () => bannersSaid(root())[0]?.[0],
   };
 }
 

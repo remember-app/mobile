@@ -28,7 +28,7 @@ import {
   Waiting,
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
-import { type Failure, failure, notMember, type Refusals } from '@/lib/failure';
+import { type Failure, failure, notMember, type Refusals, saying } from '@/lib/failure';
 import {
   filing,
   LABEL_NAME_MAX,
@@ -114,7 +114,7 @@ export function LabelSheets({
    */
   async function errand<T>(
     run: (session: string) => Promise<T>,
-    refused: Refusals = { 404: { text: s.labels.gone, icon: TagIcon } },
+    refused: Refusals = { 404: { text: saying(s.labels.gone), icon: TagIcon } },
   ): Promise<T | null> {
     if (!token) return null;
     setBusy(true);
@@ -160,7 +160,7 @@ export function LabelSheets({
         }),
       // No label in the path, so a 404 is the membership check; a 403 is a viewer asking for «Общий»,
       // and the lock is the private label the words offer instead.
-      { 403: { text: s.labels.sharedDenied, icon: Lock }, ...notMember(s) },
+      { 403: { text: saying(s.labels.sharedDenied), icon: Lock }, ...notMember(s) },
     );
     if (made === null) return;
     setLabels((have) => withLabel(have ?? [], made));
@@ -371,7 +371,7 @@ export function LabelsSheet({
         />
       }
     >
-      {error === null ? null : <Banner tone="error" text={error.text} icon={error.icon} />}
+      {error === null ? null : <Banner tone="error" failure={error} />}
       {labels === null ? (
         error === null ? (
           <Waiting text={s.state.loading} />
@@ -442,7 +442,7 @@ export function LabelNewSheet({
         />
       }
     >
-      {error === null ? null : <Banner tone="error" text={error.text} icon={error.icon} />}
+      {error === null ? null : <Banner tone="error" failure={error} />}
 
       <Field
         label={s.labels.name}

@@ -482,7 +482,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
             style={{ marginTop: lift }}
           >
             {error !== null && items === null ? (
-              <Banner tone="error" text={error.text} icon={error.icon}>
+              <Banner tone="error" failure={error}>
                 {/* Wrapped rather than handed `load` itself: a press hands its own argument along,
                     and the first one here is «read quietly». */}
                 <Button variant="quiet" size="xs" label={s.action.retry} onPress={() => read()} />
@@ -649,7 +649,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
       >
         {/* Where «X of N» is read while the lot comes down, and the summary after it. The open file
             has its own copy of this line — only one of the two is ever on screen. */}
-        {notice ? <Banner text={notice.text} icon={notice.icon} style={styles.notice} /> : null}
+        {notice ? <Banner failure={notice} style={styles.notice} /> : null}
 
         {/* The layer in the two shapes this screen wears, and both are the layout's second kind: a
             round 56 at either end with the one action between them. Picking, they are «Поделиться»,

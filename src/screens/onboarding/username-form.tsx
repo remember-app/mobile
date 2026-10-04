@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ApiError, checkUsername, isValidUsername } from '@/api';
-import { Button, Field, type FieldState } from '@/kit';
+import { Button, Field, type FieldState, read } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { type Failure, failure } from '@/lib/failure';
 import { useStrings } from '@/lib/language';
@@ -155,7 +155,7 @@ export function useUsername({
     failed,
     // What the field says about itself, which is the failure's own words and no sign: a hint under
     // a box is not a banner (TASK-275).
-    hint: failed?.text,
+    hint: failed && read(failed.text),
     state,
     submit,
   };
@@ -193,7 +193,7 @@ export function UsernameField({ name, wayIn }: { name: Username; wayIn?: boolean
       // under a green «Username is free.». With nothing wrong and nothing to report — an empty
       // field, a check that could not be made — the line says what the name is *for* (spec 8,
       // `Username`): the rule about letters and length is what a broken name is answered with.
-      (failed?.text ??
+      (name.hint ??
       (format
         ? s.error.usernameFormat
         : taken

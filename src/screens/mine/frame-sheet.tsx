@@ -134,7 +134,7 @@ export function FrameSheet({
         </View>
       }
     >
-      {notice !== null ? <Banner tone="error" text={notice.text} icon={notice.icon} /> : null}
+      {notice !== null ? <Banner tone="error" failure={notice} /> : null}
       {item ? (
         <>
           <RowCard>

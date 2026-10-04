@@ -118,9 +118,7 @@ export default function ConsentScreen() {
     >
       <OnboardingHead step={4} back={() => signOut().catch((e: unknown) => setError(failure(e)))} />
 
-      <View style={styles.room}>
-        {error ? <Banner tone="error" text={error.text} icon={error.icon} /> : null}
-      </View>
+      <View style={styles.room}>{error ? <Banner tone="error" failure={error} /> : null}</View>
 
       <Sheet
         visible={open}

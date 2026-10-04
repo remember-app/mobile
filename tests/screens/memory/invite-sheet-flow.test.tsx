@@ -10,11 +10,11 @@ vi.mock('@/kit', async (original) => ({
 
 import { type Asked, contact, later, member, refused, serve } from '@tests/helpers/api';
 import { fontFile, wordWidth } from '@tests/helpers/font';
-import { mounted, mountsTrees } from '@tests/helpers/renderer';
+import { bannersSaid, mounted, mountsTrees } from '@tests/helpers/renderer';
 import { Text as RNText, StyleSheet, View } from 'react-native';
 import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
 import type { Contact, Member } from '@/api';
-import { Banner, Button, Chip, Divider, Field, Text, Toggle } from '@/kit';
+import { Button, Chip, Divider, Field, Text, Toggle } from '@/kit';
 import { InviteSheet } from '@/screens/memory/invite-sheet';
 import { ru } from '@/strings';
 import { currentTheme, themes } from '@/theme';
@@ -114,7 +114,7 @@ async function open(members: Member[] | null = onRoster) {
     call: () => root.findAllByType(Button).find((one) => one.props.label === ru.members.inviteDo)!,
     button: (label: string) => root.findAllByType(Button).find((one) => one.props.label === label),
     mayAdd: () => root.findByType(Toggle),
-    notice: () => root.findAllByType(Banner).map((one) => one.props.text as string),
+    notice: () => bannersSaid(root).map(([words]) => words),
     press: (find: () => { props: { onPress?: () => void } }) =>
       act(async () => find().props.onPress?.()),
     text: () => JSON.stringify(tree.toJSON()),

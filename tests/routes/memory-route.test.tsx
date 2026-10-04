@@ -17,6 +17,7 @@ import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { TriangleAlert, WifiOff } from 'lucide-react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import MemoryScreen from '@/app/memory/[id]';
+import { read } from '@/kit';
 import type { Failure } from '@/lib/failure';
 import { Frames } from '@/screens/memory/frames';
 import { ru } from '@/strings';
@@ -64,7 +65,7 @@ test('a listing that would not come is the reason handed over, and reading it ag
   let up = false;
   const route = await open(() => (up ? [memory({ id: 'm1' })] : 'offline'));
   expect(route.head().memory).toBeNull();
-  expect(route.head().error).toEqual({ text: ru.error.offline });
+  expect(read(route.head().error!.text)).toBe(ru.error.offline);
   up = true;
   await act(async () => route.head().reload());
   expect(route.head().error).toBeNull();
@@ -79,7 +80,10 @@ test('a listing that would not come is the reason handed over, and reading it ag
 test('a refused listing is the api’s words beside a warning, not «no signal»', async () => {
   const route = await open(() => new Response(JSON.stringify({ error: 'nope' }), { status: 409 }));
   expect(route.head().memory).toBeNull();
-  expect(route.head().error).toEqual({ text: 'nope', icon: TriangleAlert });
+  expect([read(route.head().error!.text), route.head().error!.icon]).toEqual([
+    'nope',
+    TriangleAlert,
+  ]);
 });
 
 test('a listing refused over rights wears the lock', async () => {

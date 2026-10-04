@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { ApiError, startEmailSignIn } from '@/api';
 import { ActionBar, Banner, Board, Button, Field } from '@/kit';
-import { type Failure, failure } from '@/lib/failure';
+import { type Failure, failure, saying } from '@/lib/failure';
 import { useStrings } from '@/lib/language';
 import { OnboardingHead } from '@/screens/onboarding/head';
 import { space } from '@/theme';
@@ -47,7 +47,7 @@ export default function LoginEmailScreen() {
       // 503 is the api saying it has no mail keys, and its own wording for that is written for
       // whoever runs the server; 429 already comes back in the dictionary's words.
       if (e instanceof ApiError && e.status === 400) setBad(true);
-      else setError(failure(e, { 503: { text: s.login.mailDown } }));
+      else setError(failure(e, { 503: { text: saying(s.login.mailDown) } }));
     } finally {
       setBusy(false);
     }
@@ -58,7 +58,7 @@ export default function LoginEmailScreen() {
       footer={
         <ActionBar keyboardGap={space.s4}>
           <View style={styles.column}>
-            {error ? <Banner tone="error" text={error.text} icon={error.icon} /> : null}
+            {error ? <Banner tone="error" failure={error} /> : null}
             {/* `busy` already blocks the press, so the button only goes out when there is nothing
                 to send. */}
             <Button

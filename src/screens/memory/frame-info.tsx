@@ -159,7 +159,7 @@ export function FrameInfoPanel({
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {failed === null ? null : <Banner tone="error" text={failed.text} icon={failed.icon} />}
+        {failed === null ? null : <Banner tone="error" failure={failed} />}
 
         {info === null ? (
           // Wordless on purpose (spec 9): what is missing is one short read, and the frame it is

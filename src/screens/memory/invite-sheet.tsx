@@ -14,7 +14,7 @@ import {
 } from '@/api';
 import { Banner, Button, Chip, Divider, Field, Sheet, Text, Toggle } from '@/kit';
 import { useAuth } from '@/lib/auth';
-import { type Failure, failure, type Refusals } from '@/lib/failure';
+import { type Failure, failure, type Refusals, said, saying } from '@/lib/failure';
 import { matches, useFindUser } from '@/lib/find-user';
 import { useStrings } from '@/lib/language';
 import { space, themed } from '@/theme';
@@ -120,7 +120,7 @@ export function InviteSheet({
    * about it. `said` maps the statuses this particular call can come back with; anything else falls
    * through to the api's own wording.
    */
-  async function act(what: (session: string) => Promise<string | null>, said: Refusals = {}) {
+  async function act(what: (session: string) => Promise<string | null>, refused: Refusals = {}) {
     if (!token) return;
     setBusy(true);
     setNotice(null);
@@ -128,9 +128,9 @@ export function InviteSheet({
       const saidIt = await what(token);
       // A line that says the invite went through is no refusal, so it wears no warning — the
       // banner is the same one either way and the two must not look like the same thing.
-      if (saidIt !== null) setNotice({ text: saidIt });
+      if (saidIt !== null) setNotice(said(saidIt));
     } catch (e) {
-      setNotice(failure(e, said));
+      setNotice(failure(e, refused));
     } finally {
       setBusy(false);
     }
@@ -160,7 +160,7 @@ export function InviteSheet({
           ? s.members.already(memberName(added), s.role[added.role])
           : s.members.added(memberName(added), s.role[added.role]);
       },
-      { 403: { text: s.members.inviteDenied } },
+      { 403: { text: saying(s.members.inviteDenied) } },
     );
   };
 
@@ -306,7 +306,7 @@ export function InviteSheet({
         />
       )}
 
-      {notice ? <Banner text={notice.text} icon={notice.icon} /> : null}
+      {notice ? <Banner failure={notice} /> : null}
     </Sheet>
   );
 }

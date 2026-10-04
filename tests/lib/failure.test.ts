@@ -7,7 +7,8 @@ vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' 
 
 import { Lock, TriangleAlert, Unlink, WifiOff } from 'lucide-react-native';
 import { ApiError } from '@/api';
-import { failure, notMember } from '@/lib/failure';
+import { read } from '@/kit';
+import { failure, notMember, saying } from '@/lib/failure';
 import { setLanguage } from '@/lib/language';
 import { en, ru } from '@/strings';
 
@@ -31,7 +32,7 @@ const drawn = (e: unknown, refused?: Parameters<typeof failure>[1]) =>
 
 test('only a request that never got an answer wears «no signal»', () => {
   expect(drawn(new TypeError('Network request failed'))).toBe(WifiOff);
-  expect(failure(new TypeError('Network request failed')).text).toBe(ru.error.offline);
+  expect(read(failure(new TypeError('Network request failed')).text)).toBe(ru.error.offline);
 });
 
 test('a 403 is about rights and wears the lock', () => {
@@ -57,29 +58,31 @@ test('a 404 names what that route has lost, so it is the route that says it', ()
  * refusal in the first place.
  */
 test('a route that words a status does not take the sign with it', () => {
-  const said = failure(new ApiError(403, { error: 'forbidden' }), { 403: { text: 'only you' } });
-  expect(said).toEqual({ text: 'only you', icon: Lock });
+  const said = failure(new ApiError(403, { error: 'forbidden' }), {
+    403: { text: saying('only you') },
+  });
+  expect([read(said.text), said.icon]).toEqual(['only you', Lock]);
   // And one that names a sign too keeps that sign — the tie that is cut is not about the status.
-  const named = failure(new ApiError(404, null), { 404: { text: 'gone', icon: Unlink } });
-  expect(named).toEqual({ text: 'gone', icon: Unlink });
+  const named = failure(new ApiError(404, null), { 404: { text: saying('gone'), icon: Unlink } });
+  expect([read(named.text), named.icon]).toEqual(['gone', Unlink]);
 });
 
 test('a route that words one status says it for that status only', () => {
-  const refused = { 403: { text: 'only you' } };
-  expect(failure(new ApiError(403, { error: 'forbidden' }), refused).text).toBe('only you');
+  const refused = { 403: { text: saying('only you') } };
+  expect(read(failure(new ApiError(403, { error: 'forbidden' }), refused).text)).toBe('only you');
   // Another refusal keeps the api's own words: the route spoke for itself, not for the api.
-  expect(failure(new ApiError(500, { error: 'boom' }), refused).text).toBe('boom');
+  expect(read(failure(new ApiError(500, { error: 'boom' }), refused).text)).toBe('boom');
 });
 
 test('the glyph follows the status and not the words: in another language the same refusals keep theirs', async () => {
   await setLanguage('en');
   expect(drawn(new TypeError('Network request failed'))).toBe(WifiOff);
-  expect(failure(new TypeError('Network request failed')).text).toBe(en.error.offline);
+  expect(read(failure(new TypeError('Network request failed')).text)).toBe(en.error.offline);
   expect(drawn(new ApiError(403, null))).toBe(Lock);
   expect(drawn(new ApiError(409, { error: 'taken' }))).toBe(TriangleAlert);
-  expect(failure(new ApiError(409, { error: 'taken' })).text).toBe('taken');
+  expect(read(failure(new ApiError(409, { error: 'taken' })).text)).toBe('taken');
   expect(drawn(new ApiError(404, null), notMember(en))).toBe(Unlink);
-  expect(failure(new ApiError(404, null), notMember(en)).text).toBe(en.memory.gone);
+  expect(read(failure(new ApiError(404, null), notMember(en)).text)).toBe(en.memory.gone);
 });
 
 /**
@@ -87,8 +90,8 @@ test('the glyph follows the status and not the words: in another language the sa
  * does not falls back to the status. This task moves the sign, not the words.
  */
 test('the words are still the api’s own, and a 429 the api has no line for is the app’s', () => {
-  expect(failure(new ApiError(409, { error: 'no such media' })).text).toBe('no such media');
-  expect(failure(new ApiError(409, null)).text).toBe(ru.error.status(409));
-  expect(failure(new ApiError(429, null)).text).toBe(ru.error.tooMany);
+  expect(read(failure(new ApiError(409, { error: 'no such media' })).text)).toBe('no such media');
+  expect(read(failure(new ApiError(409, null)).text)).toBe(ru.error.status(409));
+  expect(read(failure(new ApiError(429, null)).text)).toBe(ru.error.tooMany);
   expect(drawn(new ApiError(429, null))).toBe(TriangleAlert);
 });

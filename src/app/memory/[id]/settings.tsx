@@ -40,7 +40,7 @@ import {
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { formatEventDates } from '@/lib/dates';
-import { type Failure, failure, type Refusals } from '@/lib/failure';
+import { type Failure, failure, type Refusals, said, saying } from '@/lib/failure';
 import { useStrings } from '@/lib/language';
 import { InviteSheet } from '@/screens/memory/invite-sheet';
 import { board, height, radius, space, themed } from '@/theme';
@@ -128,10 +128,10 @@ export default function MemorySettingsScreen() {
 
   /**
    * Every api call this screen makes is the same shape: lock the controls, run one call, say one
-   * line about it. `said` maps the statuses this particular call can come back with; anything else
+   * line about it. `refused` maps the statuses this particular call can come back with; anything else
    * falls through to the api's own wording.
    */
-  async function act(what: (session: string) => Promise<string | null>, said: Refusals = {}) {
+  async function act(what: (session: string) => Promise<string | null>, refused: Refusals = {}) {
     if (!token) return;
     setBusy(true);
     setNotice(null);
@@ -139,9 +139,9 @@ export default function MemorySettingsScreen() {
       const saidIt = await what(token);
       // A line that says the errand went through is no refusal, so it wears no warning — the
       // banner is the same one either way and the two must not look like the same thing.
-      if (saidIt !== null) setNotice({ text: saidIt });
+      if (saidIt !== null) setNotice(said(saidIt));
     } catch (e) {
-      setNotice(failure(e, said));
+      setNotice(failure(e, refused));
     } finally {
       setBusy(false);
     }
@@ -170,7 +170,7 @@ export default function MemorySettingsScreen() {
         load();
         return null;
       },
-      { 404: { text: s.members.gone } },
+      { 404: { text: saying(s.members.gone) } },
     );
 
   /**
@@ -323,7 +323,7 @@ export default function MemorySettingsScreen() {
       body={styles.body}
     >
       {error !== null ? (
-        <Banner tone="error" text={error.text} icon={error.icon}>
+        <Banner tone="error" failure={error}>
           <Button size="xs" variant="quiet" label={s.action.retry} onPress={load} />
         </Banner>
       ) : memory === null || members === null ? (
@@ -411,7 +411,7 @@ export default function MemorySettingsScreen() {
         </>
       )}
 
-      {notice ? <Banner text={notice.text} icon={notice.icon} /> : null}
+      {notice ? <Banner failure={notice} /> : null}
 
       <InviteSheet
         visible={inviting}

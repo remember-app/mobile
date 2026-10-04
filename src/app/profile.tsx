@@ -141,7 +141,7 @@ export default function ProfileScreen() {
 
       {/* Over the settings and not at the foot of the screen: it answers a pick that was just
           made, or the way out that was just tried. */}
-      {error ? <Banner tone="error" text={error.text} icon={error.icon} /> : null}
+      {error ? <Banner tone="error" failure={error} /> : null}
 
       {/* The one door to the contact list. The count and the faces are what it is worth opening
           for; with nobody saved yet — or the list not read — there is neither, the card says what

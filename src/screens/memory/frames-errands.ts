@@ -3,7 +3,7 @@ import { useState } from 'react';
 
 import { ApiError, deleteMedia, downloadAllMedia, type MediaItem } from '@/api';
 import { maySaveToPhone, saveToPhone, shareFiles } from '@/lib/downloads';
-import { type Failure, failure } from '@/lib/failure';
+import { type Failure, failure, said, saying } from '@/lib/failure';
 import { removeFrames } from '@/lib/frames';
 import { useStrings } from '@/lib/language';
 
@@ -49,7 +49,7 @@ export function useMarkedErrands({
   /** The grant, asked for at the moment it is needed, with this screen's place to say «no». */
   async function maySave(): Promise<boolean> {
     const granted = await maySaveToPhone();
-    if (!granted) setNotice({ text: s.error.galleryRefused });
+    if (!granted) setNotice(said(s.error.galleryRefused));
     return granted;
   }
 
@@ -82,7 +82,7 @@ export function useMarkedErrands({
         // rest of it, and the one already coming down may as well land. What must not happen is
         // this going on unattended — see `onScreen`.
         if (!onScreen.current) return;
-        setNotice({ text: s.save.nth(index + 1, files.length) });
+        setNotice(said(s.save.nth(index + 1, files.length)));
         try {
           await saveToPhone(file);
         } catch {
@@ -92,14 +92,15 @@ export function useMarkedErrands({
           failed += 1;
         }
       }
-      setNotice({
-        text:
+      setNotice(
+        said(
           failed === 0
             ? s.save.all(files.length)
             : s.save.some(files.length - failed, files.length),
-      });
+        ),
+      );
     } catch (e) {
-      setNotice(e instanceof ApiError ? { text: e.message } : { text: s.save.failedAll });
+      setNotice(e instanceof ApiError ? said(e.message) : said(s.save.failedAll));
     } finally {
       setBusy(false);
     }
@@ -118,12 +119,12 @@ export function useMarkedErrands({
   async function share() {
     if (!token) return;
     setBusy(true);
-    setNotice({ text: s.viewer.sharing });
+    setNotice(said(s.viewer.sharing));
     try {
       await shareFiles(await markedFiles(token), () => onScreen.current);
       setNotice(null);
     } catch (e) {
-      setNotice(e instanceof ApiError ? { text: e.message } : { text: s.viewer.shareFailed });
+      setNotice(e instanceof ApiError ? said(e.message) : said(s.viewer.shareFailed));
     } finally {
       setBusy(false);
     }
@@ -150,7 +151,7 @@ export function useMarkedErrands({
     if (gone.size > 0) onGone(gone);
     // A 403 is the api saying this person may not take these out — its own words, beside the lock.
     if (refused !== undefined)
-      setNotice(failure(refused, { 403: { text: s.gallery.deleteDenied } }));
+      setNotice(failure(refused, { 403: { text: saying(s.gallery.deleteDenied) } }));
     setBusy(false);
   }
 

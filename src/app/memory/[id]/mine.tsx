@@ -232,7 +232,7 @@ export default function MyFramesScreen() {
             line || failed !== null ? (
               <View style={styles.head}>
                 {failed !== null ? (
-                  <Banner tone="error" text={failed.text} icon={failed.icon}>
+                  <Banner tone="error" failure={failed}>
                     <Button
                       variant="quiet"
                       size="xs"

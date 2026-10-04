@@ -9,7 +9,7 @@ import { StyleSheet, View } from 'react-native';
 import { type AuthMethods, fetchAuthMethods, signInWithApple, signInWithGoogle } from '@/api';
 import { ActionBar, Banner, Board, Button } from '@/kit';
 import { useAuth } from '@/lib/auth';
-import { type Failure, failure } from '@/lib/failure';
+import { type Failure, failure, said, saying } from '@/lib/failure';
 import { useStrings } from '@/lib/language';
 import { OnboardingHead } from '@/screens/onboarding/head';
 import type { Strings } from '@/strings';
@@ -25,7 +25,7 @@ const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
 
 /** «Apple» and «Google» are names and stay themselves; only the sentence around them turns. */
 function providerError(s: Strings, provider: string, error: unknown): Failure {
-  return failure(error, { 501: { text: s.login.providerUnavailable(provider) } });
+  return failure(error, { 501: { text: saying(s.login.providerUnavailable(provider)) } });
 }
 
 /**
@@ -70,7 +70,7 @@ export default function LoginScreen() {
     if (googleResponse?.type !== 'success') return;
     const idToken = googleResponse.params.id_token;
     if (!idToken) {
-      setError({ text: s.login.noIdentityToken('Google') });
+      setError(said(s.login.noIdentityToken('Google')));
       return;
     }
     signInWithGoogle(idToken)
@@ -88,7 +88,7 @@ export default function LoginScreen() {
         ],
       });
       if (!credential.identityToken) {
-        setError({ text: s.login.noIdentityToken('Apple') });
+        setError(said(s.login.noIdentityToken('Apple')));
         return;
       }
       const session = await signInWithApple(credential.identityToken);
@@ -103,7 +103,7 @@ export default function LoginScreen() {
   async function withGoogle() {
     setError(null);
     if (!GOOGLE_CLIENT_ID) {
-      setError({ text: s.login.providerUnavailable('Google') });
+      setError(said(s.login.providerUnavailable('Google')));
       return;
     }
     await promptGoogle();
@@ -152,9 +152,7 @@ export default function LoginScreen() {
 
       {/* The room between the head and the doors. Anything that has to be said stands at the foot
           of it — over the buttons it is about, never over the name. */}
-      <View style={styles.room}>
-        {error ? <Banner tone="error" text={error.text} icon={error.icon} /> : null}
-      </View>
+      <View style={styles.room}>{error ? <Banner tone="error" failure={error} /> : null}</View>
     </Board>
   );
 }

@@ -6,7 +6,7 @@ import { ApiError, startEmailSignIn, verifyEmailCode } from '@/api';
 import { ActionBar, Banner, Board, Button, CodeField } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { formatRuntime } from '@/lib/dates';
-import { type Failure, failure } from '@/lib/failure';
+import { type Failure, failure, saying } from '@/lib/failure';
 import { useStrings } from '@/lib/language';
 import { OnboardingHead } from '@/screens/onboarding/head';
 import { space } from '@/theme';
@@ -112,7 +112,7 @@ export default function LoginCodeScreen() {
       if (handed) setNote(s.login.devCode);
       setRested(Date.now() + AGAIN_AFTER_MS);
     } catch (e) {
-      setError(failure(e, { 503: { text: s.login.mailDown } }));
+      setError(failure(e, { 503: { text: saying(s.login.mailDown) } }));
     } finally {
       setSending(false);
     }
@@ -124,7 +124,7 @@ export default function LoginCodeScreen() {
         <ActionBar keyboardGap={space.s4}>
           <View style={styles.column}>
             {note ? <Banner tone="done" text={note} /> : null}
-            {error ? <Banner tone="error" text={error.text} icon={error.icon} /> : null}
+            {error ? <Banner tone="error" failure={error} /> : null}
             <Button
               variant="primary"
               wide
