@@ -20,13 +20,14 @@ import {
   RowEdit,
   RowFilmAt,
   RowSummary,
+  ShotCells,
   Spinner,
   Text,
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { formatDay, formatDayShort, formatRuntime, formatTime } from '@/lib/dates';
 import { type Failure, failure } from '@/lib/failure';
-import { frameFacts } from '@/lib/frames';
+import { frameFacts, shotCells } from '@/lib/frames';
 import { usePlaceName } from '@/lib/geocoder';
 import { labelTint } from '@/lib/labels';
 import { useStrings } from '@/lib/language';
@@ -326,6 +327,11 @@ export function FrameInfoPanel({
               {frameFacts(info, s, undefined, place).map((fact) => (
                 <RowSummary key={fact.label} label={fact.label} value={fact.value} divider />
               ))}
+              {/* The shooting settings, at the foot of the card and under the last of its lines
+                  (`FrameInfo.html` e76–82): ISO · мм · ev · ƒ · выдержка, five equal cells split by
+                  hairlines. `shotCells` is what says which of them there is — a value the worker
+                  never read is no cell at all, and an exposure of `0` is a cell like any other. */}
+              <ShotCells cells={shotCells(info, s)} />
             </View>
 
             {info.montages.length === 0 ? null : (

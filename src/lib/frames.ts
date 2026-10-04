@@ -667,5 +667,28 @@ export function frameFacts(
   return facts;
 }
 
+/**
+ * The shooting settings strip of the technique card (spec 8, `FrameInfo.html` e76–82), in the order
+ * the layout draws it: ISO · фокусное · экспозиция · диафрагма · выдержка.
+ *
+ * The same rule `frameFacts` is built on, one cell deep: **a value the server did not send is not a
+ * cell**, so a frame the worker never read carries the two settings it has and no three blanks
+ * keeping their places in the row. `null` is that answer, and it is never confused with `0` — an
+ * exposure compensation of zero is a camera metering without correction, and is said as `0 ev`
+ * like any other reading.
+ *
+ * The words come from the dictionary (`s.viewer`), which puts the units on the bare numbers the api
+ * hands over and the second's own word on the fraction; the shape of the strip is `ShotCells`'s.
+ */
+export function shotCells(info: FrameInfo, s: Strings): (string | null)[] {
+  return [
+    info.iso === null ? null : s.viewer.iso(info.iso),
+    info.focal_length_mm === null ? null : s.viewer.focal(info.focal_length_mm),
+    info.exposure_ev === null ? null : s.viewer.ev(info.exposure_ev),
+    info.aperture === null ? null : s.viewer.aperture(info.aperture),
+    info.shutter === null ? null : s.viewer.shutter(info.shutter),
+  ];
+}
+
 /** The product's one separator between two pieces of meta, over whatever is actually known. */
 const meta = (parts: readonly (string | null | undefined)[]) => parts.filter(Boolean).join(' · ');

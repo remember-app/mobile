@@ -41,13 +41,14 @@ import {
   SORT_DEFAULT,
   type Sort,
   shotBy,
+  shotCells,
   stillPreparing,
   toggleDay,
   toggleEvery,
 } from '@/lib/frames';
 // The words of the sheet, read from the dictionary rather than repeated here: what is pinned below
 // is which lines are drawn, and the wording is `strings.ts`'s own business.
-import { ru } from '@/strings';
+import { en, ru } from '@/strings';
 
 // The gallery sat in «Preparing…» for good because it read the list once and never again, and
 // nothing on screen ever asked whether there was a reason to look. These are the two questions the
@@ -307,6 +308,9 @@ const told = (over: Partial<FrameInfo> = {}): FrameInfo => ({
   camera_model: null,
   focal_length_mm: null,
   aperture: null,
+  iso: null,
+  exposure_ev: null,
+  shutter: null,
   latitude: null,
   longitude: null,
   uploaded_by: { id: 'u', username: 'mark', name: 'Марк Ковалёв', media_count: 96 },
@@ -380,6 +384,71 @@ test('the place is the name the phone gave it — the coordinates until then, an
       { label: 'Файл', value: '4,2 МБ' },
     ]);
   }
+});
+
+/**
+ * TASK-533 — the shooting settings strip, and the one distinction the whole task is about: **a
+ * value the camera never stamped is not a cell, and a `0` is a cell.**
+ *
+ * The exposure compensation is where the two meet. A camera that metered without compensating wrote
+ * `0` into the tag, and that is a reading a person can act on as much as any other; a camera whose
+ * tag is not there wrote nothing at all, and the api answers `null`. Both arrive as a number on the
+ * wire's type, so a check that treats them alike passes on a strip that fills every gap with a zero
+ * — a sheet of readings the camera never made.
+ */
+test('the strip says the five settings in the layout’s order, and a value that is not there is no cell', () => {
+  expect(
+    shotCells(
+      told({ iso: 400, focal_length_mm: 24, exposure_ev: 0, aperture: 1.8, shutter: '1/60' }),
+      ru,
+    ),
+  ).toEqual(['ISO 400', '24 мм', '0 ev', 'f/1.8', '1/60 с']);
+
+  // Nothing read at all: five absent cells, and not one of them a zero or a dash in its place.
+  const blank = shotCells(told(), ru);
+  expect(blank).toEqual([null, null, null, null, null]);
+  expect(blank.every((cell) => cell === null)).toBe(true);
+});
+
+test('a missing value takes its cell with it, and a zero keeps its own', () => {
+  // ISO never stamped: the aperture and the shutter keep their two cells, and no third stands
+  // between them holding a zero the camera never wrote.
+  const withoutIso = shotCells(told({ aperture: 1.8, shutter: '1/125' }), ru);
+  expect(withoutIso.filter((cell) => cell !== null)).toEqual(['f/1.8', '1/125 с']);
+  expect(withoutIso).not.toContain('ISO 0');
+
+  // The metered zero, which is a reading: it is said as «0 ev» and its cell is drawn.
+  expect(shotCells(told({ exposure_ev: 0 }), ru).filter((cell) => cell !== null)).toEqual(['0 ev']);
+  // And a signed one reads with its sign, so «0 ev» cannot pass for a value the phone invented.
+  expect(shotCells(told({ exposure_ev: -1.3 }), ru).filter((cell) => cell !== null)).toEqual([
+    '-1.3 ev',
+  ]);
+
+  // A negative ISO is not a reading either — but that is the worker's to refuse, not the phone's:
+  // what it sent is what the strip says, and it is not the screen's business to second-guess it.
+  expect(shotCells(told({ iso: 0 }), ru).filter((cell) => cell !== null)).toEqual(['ISO 0']);
+});
+
+test('the shutter is the fraction the camera wrote, and the second’s own word goes on it', () => {
+  // «1/60», never 0.0166: the denominator is the answer, and seconds would print «0.008 с» on a
+  // 1/125 (TASK-532). A whole second and a long one are fractions too, and are said as they came.
+  for (const [fraction, said] of [
+    ['1/60', '1/60 с'],
+    ['1/1', '1/1 с'],
+    ['0.5', '0.5 с'],
+    ['1/8000', '1/8000 с'],
+  ]) {
+    expect(shotCells(told({ shutter: fraction }), ru).filter((cell) => cell !== null)).toEqual([
+      said,
+    ]);
+  }
+  // And the other language spells the second its own way.
+  expect(shotCells(told({ shutter: '1/60' }), en).filter((cell) => cell !== null)).toEqual([
+    '1/60 s',
+  ]);
+  expect(
+    shotCells(told({ iso: 400, focal_length_mm: 24 }), en).filter((cell) => cell !== null),
+  ).toEqual(['ISO 400', '24 mm']);
 });
 
 /** The memory the gallery is open on, cut down to what the line over a frame reads off it. */

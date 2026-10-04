@@ -227,6 +227,19 @@ export type FrameInfo = {
   camera_model: string | null;
   focal_length_mm: number | null;
   aperture: number | null;
+  /** Sensitivity as the camera wrote it. The worker's, and null on a frame it never read. */
+  iso: number | null;
+  /**
+   * Exposure compensation in stops, signed. `0` is a camera that metered without compensation and
+   * means as much to a reader as any other reading, so it is told apart here from the null a camera
+   * that never wrote the tag leaves behind — and the strip draws the two differently.
+   */
+  exposure_ev: number | null;
+  /**
+   * The shutter as the fraction EXIF holds, `1/60` and not 0.0166 (TASK-532): the denominator is
+   * the answer, and seconds would print «0.008 с» on a 1/125. Null where the tag is not there.
+   */
+  shutter: string | null;
   /** The place as coordinates and nothing else: the name is the phone's geocoder's (`@/lib/geocoder`). */
   latitude: number | null;
   longitude: number | null;

@@ -24,6 +24,7 @@ import {
   RowSection,
   RowSummary,
   RowTrack,
+  ShotCells,
   Waveform,
 } from '@/kit/rows';
 import { allDifferent, story } from '@/kit/story';
@@ -331,6 +332,74 @@ test('the date row carries the words that change it, and no chevron promising a 
   expect(row).toContain(rule('padding-bottom:12px'));
   // Read out with the value, so «Изменить» is not the only thing a reader is answered with.
   expect(row).toContain('aria-label="Изменить: 13 сентября, 21:47"');
+});
+
+/**
+ * TASK-533 — the shooting settings strip (`FrameInfo.html` e76–82): five equal columns under a
+ * `raise` rule, a `raise` hairline at the left of every cell but the first, and a centred 12 / 600
+ * `muted` figure in each, 11 over and under.
+ *
+ * The shape is what is asked of here — the words are the screen's (`@/lib/frames` says which cells
+ * there are and what each says) — so the strip is drawn from all five and checked against the
+ * layout's own numbers rather than against a remembered look.
+ */
+test('the shooting settings are five equal cells under a rule, with a hairline between two', () => {
+  const strip = story(<ShotCells cells={['ISO 400', '24 мм', '0 ev', 'f/1.8', '1/60 с']} />);
+  for (const cell of ['ISO 400', '24 мм', '0 ev', 'f/1.8', '1/60 с']) expect(strip).toContain(cell);
+  // `repeat(5, minmax(0, 1fr))` — every cell a share of the row and no wider than its share.
+  expect(strip.match(new RegExp(rule('flex:1'), 'g'))).toHaveLength(5);
+  expect(strip).toContain(rule('min-width:0px'));
+  // The rule over the whole strip, and one at the left of the second through the fifth (e78–e81).
+  expect(strip).toContain(rule('border-top-width:1px'));
+  expect(strip.match(new RegExp(rule('border-left-width:1px'), 'g'))).toHaveLength(4);
+  // `padding: 11px 0` — the figure sits 11 over and under, centred, with no side padding at all.
+  // A themed sheet's rule is a class, so the numbers of a cell are read off the drawn node rather
+  // than off the compiled sheet: `paddingVertical` is one value standing for both edges.
+  let tree!: TestRenderer.ReactTestRenderer;
+  act(() => {
+    tree = TestRenderer.create(<ShotCells cells={['ISO 400']} />);
+  });
+  const cell = tree.root
+    .findAllByType(View)
+    .find((one) => StyleSheet.flatten(one.props.style)?.flex === 1)!;
+  expect(StyleSheet.flatten(cell.props.style)).toMatchObject({
+    paddingVertical: 11,
+    alignItems: 'center',
+  });
+  // `padding: 11px 0` — and nothing at the sides: the cells touch, split by the hairline.
+  expect(StyleSheet.flatten(cell.props.style)?.paddingHorizontal).toBeUndefined();
+  // The figure: 12 / 600 `muted`, tabular, the size the layout gives every figure that must not dance.
+  expect(strip).toContain(rule('font-size:12px'));
+  expect(strip).toContain(rule(`font-family:${font.semi}`));
+  expect(strip).toContain(rule('color:rgba(164,161,178,1.00)'));
+  expect(strip).toContain(rule('text-align:center'));
+});
+
+test('a cell with nothing in it is not drawn — and takes its hairline with it', () => {
+  // The shutter was never stamped. Four cells, three hairlines: no empty fifth column holding its
+  // place, and no rule left standing where the cell that wore it has gone.
+  const four = story(<ShotCells cells={['ISO 400', '24 мм', '0 ev', null, '1/60 с']} />);
+  expect(four.match(new RegExp(rule('flex:1'), 'g'))).toHaveLength(4);
+  expect(four.match(new RegExp(rule('border-left-width:1px'), 'g'))).toHaveLength(3);
+  // And the first cell drawn has no rule before it whichever of the five it is: here the ISO went.
+  const noIso = story(<ShotCells cells={[null, '24 мм', '0 ev', 'f/1.8', '1/60 с']} />);
+  expect(noIso.match(new RegExp(rule('border-left-width:1px'), 'g'))).toHaveLength(3);
+  expect(noIso).not.toContain('ISO');
+
+  // Nothing at all is no strip: a band with a rule over it and no figures in it claims the camera
+  // wrote something here, which is the one thing this strip must never do.
+  allDifferent({
+    four: <ShotCells cells={['ISO 400', '24 мм', '0 ev', null, '1/60 с']} />,
+    none: <ShotCells cells={[null, null, null, null, null]} />,
+  });
+  expect(story(<ShotCells cells={[null, null, null, null, null]} />)).toBe('');
+});
+
+test('the strip is read out as the one line it is, not as five figures', () => {
+  // Five separate figures leave a screen reader to reassemble what the layout says in one breath.
+  expect(story(<ShotCells cells={['ISO 400', null, '0 ev', null, '1/60 с']} />)).toContain(
+    'aria-label="ISO 400 · 0 ev · 1/60 с"',
+  );
 });
 
 test('the date row with nobody able to change it is the date and no words', () => {
