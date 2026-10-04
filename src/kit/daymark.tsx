@@ -175,9 +175,13 @@ export function DayHead({
 }
 
 /**
- * Spec 7.8 — the date spine: a hairline down the right edge of the feed with a pill on it at every
+ * Spec 7.8 — the date spine: a hairline down the left edge of the feed with a pill on it at every
  * seam where a day begins. It lies over the photographs rather than between them, so a feed of a
  * thousand frames can still be read by date without a single row being spent on saying so.
+ *
+ * The left edge and not the right: the spine stands where the thumb is while a finger is reading
+ * the date under it, and a mark a palm is resting on is a mark not read. Each mark runs off the
+ * line to the right — the dot on the hairline, then the tick, then the words.
  *
  * Where each mark stands is the screen's arithmetic — it is the one thing here that needs to know
  * how tall a row is — so a mark arrives with its own `top` already worked out.
@@ -202,21 +206,22 @@ export function DateSpine({
       <View style={styles.spineLine} />
       {marks.map((mark) => (
         <View key={`${mark.label}-${mark.top}`} style={[styles.spineMark, { top: mark.top }]}>
+          {/* Off the line and away from it: the dot on the hairline, then the tick, then the words. */}
+          <View style={styles.spineDot} />
+          <View style={styles.spineDash} />
           <View style={styles.spinePill}>
             <Text role="day" style={styles.spineText}>
               {mark.label}
             </Text>
           </View>
-          <View style={styles.spineDash} />
-          <View style={styles.spineDot} />
         </View>
       ))}
     </View>
   );
 }
 
-/** How far the spine's line stands in from the right edge of the feed (`MemoryScrub.json`: x 377). */
-const SPINE_RIGHT = 12;
+/** How far the spine's line stands in from the left edge of the feed (`MemoryScrub`). */
+const SPINE_LEFT = 12;
 
 /**
  * No `themed()` in this file: every colour the seam and the spine draw in belongs to the photograph
@@ -258,7 +263,7 @@ const styles = StyleSheet.create({
   },
   // The eyebrow's 16 and 9 over and under it — a floor, it grows with the type.
   headList: { minHeight: 34, paddingVertical: 9 },
-  // The layer is as wide as the feed and the line is drawn in it, 12 off the right edge — not a
+  // The layer is as wide as the feed and the line is drawn in it, 12 off the left edge — not a
   // layer 1 wide: an absolute child of a column is held to its parent's width on iOS, and a mark
   // hung in a 1-wide spine measured its words in 1 and drew «13» of «13 сент», its tick and dot
   // past the line (TASK-397, R'12).
@@ -267,13 +272,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     bottom: 0,
-    right: SPINE_RIGHT,
+    left: SPINE_LEFT,
     width: 1,
     backgroundColor: photo.spine,
   },
   spineMark: {
     position: 'absolute',
-    right: SPINE_RIGHT,
+    left: SPINE_LEFT,
     height: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -291,7 +296,7 @@ const styles = StyleSheet.create({
   spineDot: {
     width: 4,
     height: 4,
-    marginRight: -1.5,
+    marginLeft: -1.5,
     borderRadius: radius.pill,
     backgroundColor: photo.spineDot,
   },

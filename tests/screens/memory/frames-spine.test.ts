@@ -4,7 +4,7 @@ import frames from '@/screens/memory/frames.tsx?raw';
 import spine from '@/screens/memory/frames-spine.tsx?raw';
 
 /**
- * The days on the feed (TASK-208, spec 8): off by default and read off the spine at the right edge
+ * The days on the feed (TASK-208, spec 8): off by default and read off the spine at the left edge
  * while a finger is moving the feed (`MemoryScrub`), on by the account's «Даты между днями» and then
  * written into a 20px seam between the days (`MemoryDated`). Never both.
  *
@@ -55,7 +55,7 @@ test('the spine rides the scroll itself, and is grabbed only while it can be see
   expect(spine).toContain('const onScroll = useMemo(');
   expect(frames).toContain('onScroll={onScroll}');
   // Dragging it throws the feed (spec 7.8), and it answers only touches that begin on the strip —
-  // a flick along the right edge must not stop being a flick halfway through.
+  // a flick along the left edge must not stop being a flick halfway through.
   expect(spine).toContain('scrollTo(part * reach)');
   expect(frames).toContain('list.current?.scrollToOffset({ offset, animated: false })');
   expect(spine).toContain('onStartShouldSetPanResponder: () => true,');

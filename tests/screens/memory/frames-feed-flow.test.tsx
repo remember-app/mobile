@@ -1323,7 +1323,7 @@ const spineLayer = (screen: Screen) =>
   screen.root.findAll(
     (one) => one.props.pointerEvents !== undefined && one.findAllByType(DateSpine).length > 0,
   )[0];
-/** The strip at the right edge a finger takes hold of — a view with the responder handlers and its own width. */
+/** The strip at the left edge a finger takes hold of — a view with the responder handlers and its own width. */
 const grabber = (screen: Screen) =>
   screen.root.findAll(
     (one) =>
@@ -1371,7 +1371,7 @@ test('the spine proves over the photographs without standing in the way of a sec
     const screen = await open();
     await measure(screen);
     // Nothing of it answers while it is not there to be seen — the strip included, or a flick along
-    // the right edge would be half a grab and half a scroll.
+    // the left edge would be half a grab and half a scroll.
     expect(answering(screen)).toEqual([]);
     // Up: the strip is live, and the marks lying over the feed are not.
     await act(async () => grabber(screen).props.onResponderGrant(touch({ y: 300 })));
@@ -1399,7 +1399,7 @@ test('dragging the spine throws the feed to where the finger stands on it, held 
     const screen = await open();
     await measure(screen, { content: 2400, view: 844 });
     const reach = 2400 - 844;
-    // The strip is the right edge between the two glasses: from under the bar to above the bottom layer.
+    // The strip is the left edge between the two glasses: from under the bar to above the bottom layer.
     const top = height.roundViewer;
     const span = 844 - board.footerGallery - top;
     const finger = (pageY: number) =>

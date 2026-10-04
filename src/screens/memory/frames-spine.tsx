@@ -16,10 +16,13 @@ import { dateMarks } from '@/lib/frames';
 import { board, duration, height, space, themed } from '@/theme';
 
 /**
- * `MemoryScrub` — the spine at the right edge of the feed (spec 7.8): a hairline with a pill on
+ * `MemoryScrub` — the spine at the left edge of the feed (spec 7.8): a hairline with a pill on
  * every seam where a day begins, proving while the feed is moving and gone a second after it stops.
  * It lies over the photographs and takes no room from them, and a finger dragging it throws the
  * feed to where the finger stands.
+ *
+ * The left edge and not the right: the spine stands where the thumb is while a finger is reading
+ * the date under it, and a mark a palm is resting on is a mark not read.
  *
  * Kept apart from the feed because none of it is about the frames: it is measurement, a fade and a
  * pan, and the feed only has to say which records it is drawing and how tall a row of them is.
@@ -29,7 +32,7 @@ import { board, duration, height, space, themed } from '@/theme';
 const HOLD_MS = 1000;
 
 /**
- * How wide a strip of the right edge the spine answers a finger in. Wider than the hairline and the
+ * How wide a strip of the left edge the spine answers a finger in. Wider than the hairline and the
  * pills it carries, narrower than a tap target: it is live only while the spine itself is visible,
  * and a strip as wide as a thumb would be swallowing flicks meant for the feed underneath.
  */
@@ -159,7 +162,7 @@ export function useSpine({
   /**
    * Dragging the spine throws the feed (spec 7.8): where the finger stands on the strip is where the
    * feed stands in itself. It only answers touches that *begin* on the strip, and only while the
-   * spine is visible — otherwise a flick along the right edge would stop being a flick halfway
+   * spine is visible — otherwise a flick along the left edge would stop being a flick halfway
    * through it.
    */
   const pan = useMemo(() => {
@@ -262,7 +265,7 @@ const useStyles = themed(() =>
     // up by however much of it has been. The line and the marks live in here together, so both
     // stand still against the photographs instead of against the phone.
     feed: { position: 'absolute', top: 0, left: 0, right: 0 },
-    // Where a finger takes hold of it: the right edge between the two glasses, drawn by nothing.
-    grab: { position: 'absolute', right: 0, width: GRAB },
+    // Where a finger takes hold of it: the left edge between the two glasses, drawn by nothing.
+    grab: { position: 'absolute', left: 0, width: GRAB },
   }),
 );

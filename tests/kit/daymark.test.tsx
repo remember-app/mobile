@@ -261,16 +261,17 @@ test('the spine stands where the screen puts each mark, and says nothing out lou
 });
 
 test('on the spine the line is the quietest thing and each mark on it louder than the last', () => {
-  // Spec 7.8, detail 66 and 10.10: the line .22 and nothing else at it, the pill on the quieter
-  // plate .55, the tick .35, the dot .6 — and the date read in the pill at .72.
+  // Spec 7.8, detail 66 and 10.10: the line .22 and nothing else at it, the dot on it .6, the tick
+  // .35, the pill on the quieter plate .55 — and the date read in the pill at .72. In the order a
+  // mark is drawn: off the hairline and away from it, the line first.
   const spine = story(<DateSpine marks={[{ label: '13 сен', top: 195 }]} />);
   const fills = [...spine.matchAll(/r-backgroundColor-[a-z0-9]+/g)].map(([name]) => name);
   expect(fills).toEqual(
     [
       'background-color:rgba(245,243,238,0.22)',
-      'background-color:rgba(11,11,18,0.55)',
-      'background-color:rgba(245,243,238,0.35)',
       'background-color:rgba(245,243,238,0.60)',
+      'background-color:rgba(245,243,238,0.35)',
+      'background-color:rgba(11,11,18,0.55)',
     ].map(rule),
   );
   expect(spine).toContain(rule('color:rgba(245,243,238,0.72)'));
@@ -279,8 +280,8 @@ test('on the spine the line is the quietest thing and each mark on it louder tha
 test('a mark hangs from the line in a layer as wide as the feed, never in the 1 of the line itself', () => {
   // TASK-397 (R'12), measured on the phone: a mark hung inside a 1-wide spine was held to that 1
   // (an absolute child of a column is fitted to its parent's width on iOS) — the pill drew «13» of
-  // «13 сент», 22 wide, and its tick and dot past the line. `MemoryScrub.json` e29: the pill 45.4 ×
-  // 16 at x 322.1, the tick 8 and the dot on the line at 377 — 12 off the right edge.
+  // «13 сент», 22 wide, and its tick and dot past the line. `MemoryScrub`: the line 12 off the left
+  // edge, and a mark 45.4 × 16 running off it — the dot on the hairline, the tick 8, the words.
   let drawn!: TestRenderer.ReactTestRenderer;
   act(() => {
     drawn = mounted(TestRenderer.create(<DateSpine marks={[{ label: '13 сент', top: 195 }]} />));
@@ -291,10 +292,18 @@ test('a mark hangs from the line in a layer as wide as the feed, never in the 1 
   }));
   expect(views[0].style).toMatchObject({ position: 'absolute', left: 0, right: 0 });
   const line = views.find(({ style }) => style.width === 1)!;
-  expect(line.style).toMatchObject({ position: 'absolute', right: 390 - 377 - 1 });
+  expect(line.style).toMatchObject({ position: 'absolute', left: 12 });
+  expect(line.style.right).toBeUndefined();
   expect(line.one.findAllByType(View)).toHaveLength(1);
   const mark = views.find(({ style }) => style.top === 195)!;
-  expect(mark.style).toMatchObject({ position: 'absolute', right: line.style.right });
+  expect(mark.style).toMatchObject({ position: 'absolute', left: line.style.left });
+  expect(mark.style.right).toBeUndefined();
+  // And off the line it runs rightward: the dot on the hairline, then the tick, then the pill.
+  const parts = mark.one
+    .findAllByType(View)
+    .map((one) => StyleSheet.flatten(one.props.style))
+    .slice(1);
+  expect(parts.map((style) => style.width ?? style.height)).toEqual([4, 8, 16]);
   expect(line.one.findAllByType(View)).not.toContain(mark.one);
 });
 
