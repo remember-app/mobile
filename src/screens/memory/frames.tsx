@@ -649,7 +649,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
       >
         {/* Where «X of N» is read while the lot comes down, and the summary after it. The open file
             has its own copy of this line — only one of the two is ever on screen. */}
-        {notice ? <Banner text={notice} style={styles.notice} /> : null}
+        {notice ? <Banner text={notice.text} icon={notice.icon} style={styles.notice} /> : null}
 
         {/* The layer in the two shapes this screen wears, and both are the layout's second kind: a
             round 56 at either end with the one action between them. Picking, they are «Поделиться»,
