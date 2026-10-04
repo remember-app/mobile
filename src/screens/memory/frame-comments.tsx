@@ -122,8 +122,19 @@ export function FrameComments({
         <CommentList
           comments={comments}
           onDrop={(one) => {
-            // A refusal is about the comment it happened over; the next sheet asks about another one
-            // and must not open carrying the last one's words.
+            /**
+             * Unreachable today, and left in place. The sheet is a `Modal`: it covers the list and
+             * there is nothing behind it for a finger to press, so every way down — cancel, the
+             * darkness, the swipe, the back button, the blur — clears the refusal on its way out,
+             * as does a `drop()` that lands. A line no finger can reach reads as one somebody
+             * reached, and sends the next reader hunting a path that is not there (TASK-517).
+             *
+             * What it holds is the invariant rather than the path: a refusal is about the comment
+             * it happened over, so the next sheet asks about another one and must not open
+             * carrying the last one's words. That holds whatever the `Modal` is doing, and it is
+             * what stops holding the day a sheet ever stands over a list it does not cover — a
+             * change nobody will decide to make. The line is already right on that day.
+             */
             setUndropped(null);
             setDropping(one);
           }}
