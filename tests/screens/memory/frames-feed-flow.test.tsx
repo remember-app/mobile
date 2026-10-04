@@ -1333,20 +1333,27 @@ const grabber = (screen: Screen) =>
 
 /**
  * Everything inside the spine's layer a finger would land on (TASK-524). `pointerEvents` is read by
- * hit-testing, not inherited by React: a view answers unless something between it and the layer is
- * `none`, and the layer standing at `box-none` is precisely the rule that lets the strip below
- * through. The layer lies over the photographs the whole time it can be seen, so anything in it
- * that answers takes the flick away from the feed — which is how a second one came to wait a second.
+ * hit-testing rather than inherited by React, and it says two things at once: `box-none` is the view
+ * standing aside for its children, `box-only` is the view taking every touch and giving none to
+ * them. The layer lies over the photographs the whole time it can be seen, so anything in it that
+ * answers takes the flick away from the feed — which is how a second one came to wait a second.
+ *
+ * The host elements `react-native-web` wraps a view in are left out: in node they are one view drawn
+ * twice, and there is no such node on the phone.
  */
 function answering(screen: Screen) {
   const layer = spineLayer(screen);
-  const shut = (one: TestRenderer.ReactTestInstance) =>
+  /** A view that answers nothing itself: `none` takes its children with it, `box-only` does not answer. */
+  const keepsToItself = (one: TestRenderer.ReactTestInstance) =>
+    one.props.pointerEvents === 'none' || one.props.pointerEvents === 'box-none';
+  /** A view that answers nothing for its children: `none`, and `box-only` standing over them. */
+  const shutsOut = (one: TestRenderer.ReactTestInstance) =>
     one.props.pointerEvents === 'none' || one.props.pointerEvents === 'box-only';
   return layer
-    .findAll(() => true)
-    .filter((one) => one !== layer && !shut(one))
+    .findAll((one) => typeof one.type !== 'string')
+    .filter((one) => one !== layer && !keepsToItself(one))
     .filter((one) => {
-      for (let up = one.parent; up && up !== layer; up = up.parent) if (shut(up)) return false;
+      for (let up = one.parent; up; up = up.parent) if (shutsOut(up)) return false;
       return true;
     })
     .map((one) =>

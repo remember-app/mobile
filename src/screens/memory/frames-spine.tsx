@@ -234,6 +234,11 @@ export function SpineLayer({
       style={[styles.spine, { opacity: fade }]}
     >
       <Animated.View
+        // Dead to a finger: this view is the feed's own coordinates — the full width of the screen
+        // and as tall as everything there is to scroll — so left answering, it takes every flick
+        // aimed at the photographs underneath for as long as the spine stands. The strip below is
+        // the one thing here a finger is meant to find.
+        pointerEvents="none"
         style={[
           styles.feed,
           { height: content, transform: [{ translateY: Animated.multiply(scrolled, -1) }] },
