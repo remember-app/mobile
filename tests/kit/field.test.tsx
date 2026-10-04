@@ -252,7 +252,6 @@ const classOf = (markup: string, words: string) =>
 test('every label over a field reads in muted, as every eyebrow of the layout does', () => {
   // #A4A1B2 in the layout (TASK-378: `LoginEmail.json` e9, `LoginCode.json` e9, `Username.json` e8,
   // `Create.json`), never the paper of what is typed under it.
-  const muted = rule('color:rgba(164,161,178,1.00)');
   const labels: [string, string][] = [
     ['ПОЧТА', story(<Field label="Почта" value="" />)],
     ['НИК', story(<Field label="Ник" variant="username" prefix="@" value="" />)],
@@ -263,6 +262,10 @@ test('every label over a field reads in muted, as every eyebrow of the layout do
     ],
     ['ИСТОРИЯ', story(<TextArea label="История" value="" onChangeText={() => {}} />)],
   ];
+  // Asked after the fields above are drawn: a name comes out of the sheet the drawing fills, so a
+  // rule looked up before its own field is drawn is only there because another check drew one
+  // (TASK-526).
+  const muted = rule('color:rgba(164,161,178,1.00)');
   for (const [words, markup] of labels) expect(classOf(markup, words), words).toContain(muted);
 });
 
@@ -272,7 +275,6 @@ test('the fields of the way in stand in its column, their words 4 in from its ed
   // stands 4 before the name (x 35 and 58.7). With a line under the box — the name on the account's
   // sheet — label, box and line are 12 apart, the line 4 in as well. `Create` and the sheets keep the
   // form's own 8 and its edge.
-  const [twelve, eight, four] = ['gap:12px', 'gap:8px', 'padding-left:4px'].map(rule);
   /** The field's own column is the first thing drawn. */
   const column = (markup: string) => markup.split('class="')[1] ?? '';
   const wayIn: [string, string, string][] = [
@@ -283,6 +285,10 @@ test('the fields of the way in stand in its column, their words 4 in from its ed
       'Ник занят',
     ],
   ];
+  // Asked after the fields above are drawn: a name comes out of the sheet the drawing fills, so a
+  // rule looked up before its own field is drawn is only there because another check drew one
+  // (TASK-526).
+  const [twelve, eight, four] = ['gap:12px', 'gap:8px', 'padding-left:4px'].map(rule);
   for (const [markup, label, hint] of wayIn) {
     expect(column(markup), label).toContain(twelve);
     expect(classOf(markup, label), label).toContain(four);
@@ -341,14 +347,20 @@ test('the fields of the way in stand in its column, their words 4 in from its ed
 
 test('the @ in front of a name is faint, and muted only where it is the one hint of what to type', () => {
   // #6E6B7D in `Username` and `SheetInvite`, #A4A1B2 in the search of `Contacts` (TASK-378).
+  const at = (variant: FieldVariant) =>
+    classOf(story(<Field label="Ник" variant={variant} prefix="@" value="" />), '@');
+  const username = at('username');
+  const handle = at('handle');
+  const search = at('search');
+  // Asked after the fields above are drawn: a name comes out of the sheet the drawing fills, so a
+  // rule looked up before its own field is drawn is only there because another check drew one
+  // (TASK-526).
   const [faint, muted] = ['rgba(110,107,125,1.00)', 'rgba(164,161,178,1.00)'].map((c) =>
     rule(`color:${c}`),
   );
-  const at = (variant: FieldVariant) =>
-    classOf(story(<Field label="Ник" variant={variant} prefix="@" value="" />), '@');
-  expect(at('username')).toContain(faint);
-  expect(at('handle')).toContain(faint);
-  expect(at('search')).toContain(muted);
+  expect(username).toContain(faint);
+  expect(handle).toContain(faint);
+  expect(search).toContain(muted);
 });
 
 test('a username is typed in Unbounded 19 at −0.02em, a hair looser than a card’s name', () => {
