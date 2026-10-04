@@ -75,11 +75,11 @@ export default function HomeScreen() {
   const banner =
     link.at === 'gone' ? (
       <Banner
-        text={s.home.offline}
+        text={s.state.offline}
         hide={{ label: s.action.hide, onPress: () => setLink({ at: 'hushed', why: link.why }) }}
       />
     ) : link.at === 'back' ? (
-      <Banner tone="done" text={s.home.online} />
+      <Banner tone="done" text={s.state.online} />
     ) : null;
 
   return (

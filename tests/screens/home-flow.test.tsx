@@ -289,7 +289,7 @@ test('a list that never came is the failure in its place — not «no memories»
   expect(screen.cards()).toHaveLength(1);
   expect(screen.root.findAllByType(Empty)).toHaveLength(0);
   // Somebody who was shown the failure is told it has passed — that is `HomeOnline`.
-  expect(screen.banners()).toEqual([{ text: ru.home.online, tone: 'done' }]);
+  expect(screen.banners()).toEqual([{ text: ru.state.online, tone: 'done' }]);
 });
 
 test('a read that fails over a list that is there is a line above it that can be put away; the connection coming back is said once and leaves by itself', async () => {
@@ -299,7 +299,7 @@ test('a read that fails over a list that is there is a line above it that can be
   await screen.refocus();
   // The list stays: the connection is a line above it and never a replacement for it.
   expect(screen.cards()).toHaveLength(1);
-  expect(screen.banners()).toEqual([{ text: ru.home.offline, tone: undefined }]);
+  expect(screen.banners()).toEqual([{ text: ru.state.offline, tone: undefined }]);
   // Spec 4: «112 — … баннер связи на главном» — 16 under the bar's 96, not the list's 18 (the cards
   // then 12 under it, `HomeOffline.json` e4 → e9: 112 + 62 + 12 = 186). It stood at 114 (TASK-397).
   const lead = () =>
@@ -313,7 +313,7 @@ test('a read that fails over a list that is there is a line above it that can be
   expect(lead()).toBe(114 - 96);
   screen.state.list = [wedding()];
   await screen.refocus();
-  expect(screen.banners()).toEqual([{ text: ru.home.online, tone: 'done' }]);
+  expect(screen.banners()).toEqual([{ text: ru.state.online, tone: 'done' }]);
   expect(lead()).toBe(112 - 96);
   // It goes by itself after its time, and a read while it stands does not start the time over.
   await act(async () => void vi.advanceTimersByTime(duration.hold - 500));

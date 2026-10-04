@@ -41,6 +41,9 @@ export const en = {
     preparing: 'Preparing the frames…',
     signingIn: 'Signing you in…',
     joining: 'Joining…',
+    /** The connection plate, said the same on every screen that has one (spec 7.6, detail 47). */
+    offline: 'No connection to the server. Showing what is already loaded.',
+    online: 'Connected',
   },
 
   /** Trouble: what happened, and what to do about it. */
@@ -159,6 +162,9 @@ export const ru: typeof en = {
     preparing: 'Проявляем кадры…',
     signingIn: 'Впускаем…',
     joining: 'Присоединяем…',
+    /** Полоса связи, говорится одинаково на каждом экране, где она есть (спека 7.6, деталь 47). */
+    offline: 'Нет связи с сервером. Показываем то, что уже загружено.',
+    online: 'Соединение установлено',
   },
 
   error: {

@@ -143,7 +143,7 @@ async function open() {
       root
         .findAllByType(Banner)
         .map((one) => one.props)
-        .filter((one) => one.text === ru.home.offline || one.text === ru.home.online)
+        .filter((one) => one.text === ru.state.offline || one.text === ru.state.online)
         .map((one) => ({
           text: one.text as string,
           tone: one.tone as string | undefined,
@@ -211,7 +211,7 @@ test('a break puts a line above the feed and the feed is still there and still s
 
   // Said where it is about what is under it, and it can be put away (`HomeOffline`, detail 47).
   expect(screen.plate()).toEqual([
-    { text: ru.home.offline, tone: undefined, hide: ru.action.hide },
+    { text: ru.state.offline, tone: undefined, hide: ru.action.hide },
   ]);
   // The feed did not blink, did not thin out, and is still the same list a finger was on: the same
   // node with the same rows, not a rebuilt one that happens to look the same.
@@ -303,14 +303,14 @@ test('the news that the connection is back goes by itself after its own three se
   w.log = serve(() => 'offline');
   await screen.pull();
   expect(screen.plate()).toEqual([
-    { text: ru.home.offline, tone: undefined, hide: ru.action.hide },
+    { text: ru.state.offline, tone: undefined, hide: ru.action.hide },
   ]);
 
   w.log = world().log;
   await screen.pull();
   // `HomeOnline`: one line, and no cross on it — it is already going, and a button on something
   // already going is a button nobody reaches.
-  expect(screen.plate()).toEqual([{ text: ru.home.online, tone: 'done', hide: null }]);
+  expect(screen.plate()).toEqual([{ text: ru.state.online, tone: 'done', hide: null }]);
 
   await act(async () => void vi.advanceTimersByTime(duration.hold - 500));
   expect(screen.plate()).toHaveLength(1);
@@ -334,7 +334,7 @@ test('the cross puts the message away and the good news is still owed afterwards
   // The connection comes back to somebody who had put the message away.
   w.log = world().log;
   await screen.pull();
-  expect(screen.plate()).toEqual([{ text: ru.home.online, tone: 'done', hide: null }]);
+  expect(screen.plate()).toEqual([{ text: ru.state.online, tone: 'done', hide: null }]);
 });
 
 /**
@@ -408,5 +408,5 @@ test('a break mid-work leaves a screen still working, and the next answer clears
   w.log = world().log;
   await screen.pull();
   expect(screen.plate()).toHaveLength(1);
-  expect(screen.plate()[0].text).toBe(ru.home.online);
+  expect(screen.plate()[0].text).toBe(ru.state.online);
 });

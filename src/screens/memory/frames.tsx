@@ -314,14 +314,14 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   const plate =
     !any || link === 'ok' || link === 'hushed' ? null : link === 'gone' ? (
       <Banner
-        text={s.home.offline}
+        text={s.state.offline}
         hide={{ label: s.action.hide, onPress: hushed }}
         style={styles.plate}
       />
     ) : (
       // Spec 7.6: `HomeOnline` carries no button at all — it leaves by itself, and a button on
       // something already going is a button nobody reaches.
-      <Banner tone="done" text={s.home.online} style={styles.plate} />
+      <Banner tone="done" text={s.state.online} style={styles.plate} />
     );
 
   /** Everybody who actually brought something, for the faces the filter sheet offers. */

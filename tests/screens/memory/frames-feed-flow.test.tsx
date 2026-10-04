@@ -1632,7 +1632,7 @@ test('a read that fails is a banner in place of the feed with a way to try again
   // The failure in the feed's place is gone with the feed it stood in, and what replaces it is the
   // news that the connection is back — `HomeOnline`, said once to somebody who watched it go, the
   // same line the main screen gives the same press.
-  expect(notice(screen)).toEqual([ru.home.online]);
+  expect(notice(screen)).toEqual([ru.state.online]);
   expect(screen.feed()).toHaveLength(5);
 });
 
