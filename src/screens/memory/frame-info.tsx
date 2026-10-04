@@ -4,7 +4,6 @@ import { ScrollView, type StyleProp, StyleSheet, View, type ViewStyle } from 're
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
-  errorMessage,
   type FrameInfo,
   fetchFrameInfo,
   type Label,
@@ -15,6 +14,7 @@ import {
 import { Avatar, Banner, Chip, IconButton, RowFilmAt, RowSummary, Spinner, Text } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { formatDayShort, formatRuntime } from '@/lib/dates';
+import { type Failure, failure } from '@/lib/failure';
 import { frameFacts } from '@/lib/frames';
 import { usePlaceName } from '@/lib/geocoder';
 import { labelTint } from '@/lib/labels';
@@ -61,7 +61,7 @@ export function FrameInfoPanel({
   const styles = useStyles();
   const insets = useSafeAreaInsets();
   const [info, setInfo] = useState<FrameInfo | null>(null);
-  const [failed, setFailed] = useState<string | null>(null);
+  const [failed, setFailed] = useState<Failure | null>(null);
   /** Whether an errand is in the air — the chips stop taking presses while one is. */
   const [busy, setBusy] = useState(false);
   const [filing, setFiling] = useState(false);
@@ -95,7 +95,7 @@ export function FrameInfoPanel({
           if (asking.current === mine) setInfo(got);
         },
         (e: unknown) => {
-          if (asking.current === mine) setFailed(errorMessage(e));
+          if (asking.current === mine) setFailed(failure(e));
         },
       );
     },
@@ -130,7 +130,7 @@ export function FrameInfoPanel({
         was === null ? was : { ...was, labels: was.labels.filter((one) => one.id !== label.id) },
       );
     } catch (e) {
-      setFailed(errorMessage(e));
+      setFailed(failure(e));
     } finally {
       setBusy(false);
     }
@@ -159,7 +159,7 @@ export function FrameInfoPanel({
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {failed === null ? null : <Banner tone="error" text={failed} />}
+        {failed === null ? null : <Banner tone="error" failure={failed} />}
 
         {info === null ? (
           // Wordless on purpose (spec 9): what is missing is one short read, and the frame it is

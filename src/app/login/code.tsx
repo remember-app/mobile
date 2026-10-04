@@ -2,10 +2,11 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { ApiError, errorMessage, startEmailSignIn, verifyEmailCode } from '@/api';
+import { ApiError, startEmailSignIn, verifyEmailCode } from '@/api';
 import { ActionBar, Banner, Board, Button, CodeField } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { formatRuntime } from '@/lib/dates';
+import { type Failure, failure, saying } from '@/lib/failure';
 import { useStrings } from '@/lib/language';
 import { OnboardingHead } from '@/screens/onboarding/head';
 import { space } from '@/theme';
@@ -71,7 +72,7 @@ export default function LoginCodeScreen() {
   // over the cells they were typed into, and a failure that has nothing to do with the code — no
   // connection, no mail keys — over the button, where the keyboard leaves it in sight.
   const [bad, setBad] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Failure | null>(null);
   const [note, setNote] = useState<string | null>(one(params.code) === '' ? null : s.login.devCode);
   // A new letter just went out: «Ещё раз» counts the minute down instead of saying so in a line.
   const [rested, setRested] = useState(0);
@@ -92,7 +93,7 @@ export default function LoginCodeScreen() {
         setCode('');
         setBad(true);
       } else {
-        setError(errorMessage(e));
+        setError(failure(e));
       }
     } finally {
       setBusy(false);
@@ -111,7 +112,7 @@ export default function LoginCodeScreen() {
       if (handed) setNote(s.login.devCode);
       setRested(Date.now() + AGAIN_AFTER_MS);
     } catch (e) {
-      setError(e instanceof ApiError && e.status === 503 ? s.login.mailDown : errorMessage(e));
+      setError(failure(e, { 503: { text: saying(s.login.mailDown) } }));
     } finally {
       setSending(false);
     }
@@ -123,7 +124,7 @@ export default function LoginCodeScreen() {
         <ActionBar keyboardGap={space.s4}>
           <View style={styles.column}>
             {note ? <Banner tone="done" text={note} /> : null}
-            {error ? <Banner tone="error" text={error} /> : null}
+            {error ? <Banner tone="error" failure={error} /> : null}
             <Button
               variant="primary"
               wide

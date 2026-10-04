@@ -243,7 +243,7 @@ test('a memory that is not on the list is an error, not a spinner that never end
   // The listing answered and the memory is not in it — removed from it, or never there. That is a
   // failure to say out loud with the api's own «404» line; only a read still in flight is «Loading».
   expect(edit).toContain(
-    'if (one === null) return setError(errorMessage(new ApiError(404, null)));',
+    'if (one === null) return setError(failure(new ApiError(404, null), notMember(s)));',
   );
   expect(ru.error.status(404)).toBe('Сервер ответил 404.');
 });

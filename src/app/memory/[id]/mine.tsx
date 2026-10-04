@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { deleteMedia, errorMessage, type MediaItem, mayContribute } from '@/api';
+import { deleteMedia, type MediaItem, mayContribute } from '@/api';
 import {
   ActionBar,
   Banner,
@@ -22,6 +22,7 @@ import {
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { formatDay, formatRuntime, formatWeekday } from '@/lib/dates';
+import { type Failure, failure } from '@/lib/failure';
 import { byDay, COLUMNS, frameOf, removeFrames, shotAt } from '@/lib/frames';
 import { useStrings } from '@/lib/language';
 import { type ParkedFile, progress } from '@/lib/upload/queue';
@@ -63,7 +64,7 @@ export default function MyFramesScreen() {
   const [open, setOpen] = useState<string | null>(null);
   /** The frame «Удалить у всех» asked about, until the answer. */
   const [dropping, setDropping] = useState<MediaItem | null>(null);
-  const [dropFailed, setDropFailed] = useState<string | null>(null);
+  const [dropFailed, setDropFailed] = useState<Failure | null>(null);
 
   // Held, so the feed below is cut again only when the queue itself moves.
   const queued = useMemo(() => uploads.filter((file) => file.memoryId === id), [uploads, id]);
@@ -180,8 +181,10 @@ export default function MyFramesScreen() {
   async function remove(item: MediaItem) {
     if (!token) return;
     setDropFailed(null);
-    const { failure } = await removeFrames([item], (one) => deleteMedia(token, id, one.id));
-    if (failure !== undefined) return setDropFailed(errorMessage(failure));
+    const { failure: refused } = await removeFrames([item], (one) =>
+      deleteMedia(token, id, one.id),
+    );
+    if (refused !== undefined) return setDropFailed(failure(refused));
     wrote((have) => have?.filter((one) => one.id !== item.id) ?? null);
   }
 
@@ -229,7 +232,7 @@ export default function MyFramesScreen() {
             line || failed !== null ? (
               <View style={styles.head}>
                 {failed !== null ? (
-                  <Banner tone="error" text={failed}>
+                  <Banner tone="error" failure={failed}>
                     <Button
                       variant="quiet"
                       size="xs"

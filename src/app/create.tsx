@@ -2,10 +2,11 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet } from 'react-native';
 
-import { createMemory, errorMessage } from '@/api';
+import { createMemory } from '@/api';
 import { ActionBar, AppBar, BackButton, Banner, Board, Button, Field } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { endOfDay, startOfDay } from '@/lib/dates';
+import { type Failure, failure } from '@/lib/failure';
 import { useStrings } from '@/lib/language';
 import { EventWhen, type Span } from '@/screens/memory/when';
 import { board, height, space } from '@/theme';
@@ -21,7 +22,7 @@ export default function CreateMemoryScreen() {
   // api gets told by sending no end.
   const [span, setSpan] = useState<Span>(() => ({ from: startOfDay(new Date()), to: null }));
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Failure | null>(null);
 
   async function submit() {
     if (!token) return;
@@ -40,7 +41,7 @@ export default function CreateMemoryScreen() {
       else router.replace('/');
     } catch (e) {
       // Includes the api's own wording for a 400 — a blank title, or an end before the start.
-      setError(errorMessage(e));
+      setError(failure(e));
       setBusy(false);
     }
   }
@@ -62,7 +63,7 @@ export default function CreateMemoryScreen() {
       footer={
         <>
           {/* In the flow of the screen and right above the action that raised it, never over it. */}
-          {error ? <Banner tone="error" text={error} style={styles.error} /> : null}
+          {error ? <Banner tone="error" failure={error} style={styles.error} /> : null}
           <ActionBar>
             <Button
               label={s.create.submit}

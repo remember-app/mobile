@@ -4,7 +4,6 @@ import { StyleSheet, View } from 'react-native';
 
 import {
   ApiError,
-  errorMessage,
   listMedia,
   listMemories,
   type MediaItem,
@@ -27,6 +26,7 @@ import {
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { endOfDay, formatDay, startOfDay } from '@/lib/dates';
+import { type Failure, failure, notMember } from '@/lib/failure';
 import { mayPick, shotAt } from '@/lib/frames';
 import { useStrings } from '@/lib/language';
 import { CoverSheet } from '@/screens/memory/cover';
@@ -56,7 +56,7 @@ export default function MemoryEditScreen() {
   // shot on. Its failure is not this screen's failure: the name and the days are still editable, and
   // the cover block then simply has nothing to offer.
   const [media, setMedia] = useState<MediaItem[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Failure | null>(null);
   const [title, setTitle] = useState<string | null>(null);
   const [span, setSpan] = useState<Span | null>(null);
   const [cover, setCover] = useState<string | null>(null);
@@ -75,12 +75,12 @@ export default function MemoryEditScreen() {
         setMemory(one);
         // Not on the list is not «still loading»: the listing answered, and this person is not in the
         // memory any more (or never was). Left as it was, the screen waited on it for ever.
-        if (one === null) return setError(errorMessage(new ApiError(404, null)));
+        if (one === null) return setError(failure(new ApiError(404, null), notMember(s)));
         setTitle(one.title);
         setSpan(spanOf(one));
         setCover(one.cover_media_id);
       },
-      (e: unknown) => setError(errorMessage(e)),
+      (e: unknown) => setError(failure(e)),
     );
     listMedia(token, id).then(setMedia, () => {});
   }, [token, id]);
@@ -171,7 +171,7 @@ export default function MemoryEditScreen() {
       {failed !== null ? <Banner tone="error" text={failed} /> : null}
 
       {error !== null ? (
-        <Banner tone="error" text={error} />
+        <Banner tone="error" failure={error} />
       ) : !ready ? (
         <View style={styles.middle}>
           <Waiting text={s.state.loading} />

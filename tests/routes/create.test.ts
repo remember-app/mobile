@@ -93,7 +93,7 @@ test('tomorrow is not a day a memory can be of', () => {
 });
 
 test('a rejected order leaves the form standing, not stuck mid-submit', () => {
-  expect(create).toContain('setError(errorMessage(e));');
+  expect(create).toContain('setError(failure(e));');
   expect(create).toContain('setBusy(false);');
   // Both happen together in the catch, so a 400 from the api hands the form straight back
   // rather than leaving the button spinning over a request that already failed.
@@ -101,7 +101,7 @@ test('a rejected order leaves the form standing, not stuck mid-submit', () => {
     create.indexOf('} catch (e) {'),
     create.indexOf('};', create.indexOf('} catch (e) {')),
   );
-  expect(caught).toContain('setError(errorMessage(e));');
+  expect(caught).toContain('setError(failure(e));');
   expect(caught).toContain('setBusy(false);');
 });
 

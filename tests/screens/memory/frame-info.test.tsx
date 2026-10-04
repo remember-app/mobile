@@ -1,5 +1,5 @@
 import { type Asked, later, photo, refused, serve } from '@tests/helpers/api';
-import { mounted, mountsTrees } from '@tests/helpers/renderer';
+import { bannersSaid, mounted, mountsTrees } from '@tests/helpers/renderer';
 import { afterEach, beforeAll, expect, test, vi } from 'vitest';
 
 // The words come from the dictionary, and the dictionary asks the phone which language it is in.
@@ -172,7 +172,7 @@ test('a read that has not answered yet is a wait with no words under it', async 
 
 test('a read that fails is the api’s word in a banner, and nothing of the frame is drawn for it', async () => {
   const screen = await drawn(refused(500, 'boom'));
-  expect(screen.root.findAllByType(Banner).map((one) => one.props.text)).toEqual(['boom']);
+  expect(bannersSaid(screen.root).map(([words]) => words)).toEqual(['boom']);
   expect(screen.root.findAllByType(Spinner)).toHaveLength(0);
   expect(screen.facts()).toEqual([]);
 });
@@ -249,7 +249,7 @@ test('a refusal from the server leaves the chip standing and says why', async ()
   expect(log.at(-1)?.method).toBe('DELETE');
   // The api said no, so the chip is still a chip: an errand that did not happen changes nothing.
   expect(root.findAllByType(Chip).map((one) => one.props.label)).toEqual(['Лучшее']);
-  expect(root.findAllByType(Banner).map((one) => one.props.text)).toEqual(['нельзя']);
+  expect(bannersSaid(root).map(([words]) => words)).toEqual(['нельзя']);
 });
 
 test('the panel is drawn in the night in both app themes — it stands inside the room of the photograph', async () => {

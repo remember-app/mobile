@@ -62,14 +62,13 @@ vi.mock('@/lib/downloads', () => downloads);
 import { expectReachable, targets } from '@tests/helpers/access';
 import { type Asked, later, member, memory, photo, refused, serve } from '@tests/helpers/api';
 import { touch } from '@tests/helpers/gesture';
-import { mounted, mountsTrees } from '@tests/helpers/renderer';
+import { bannersSaid, mounted, mountsTrees } from '@tests/helpers/renderer';
 import { sheetBox } from '@tests/helpers/sheet';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
 import type { FrameInfo, MediaItem, Member } from '@/api';
 import {
   ActionMenu,
-  Banner,
   ConfirmSheet,
   Empty,
   Filmstrip,
@@ -208,7 +207,7 @@ async function open(over: Props = {}) {
     panels: () => root.findAllByType(FrameInfoPanel),
     info: () => root.findByType(FrameInfoPanel),
     confirm: () => root.findByType(ConfirmSheet),
-    notices: () => root.findAllByType(Banner).map((one) => one.props.text as string),
+    notices: () => bannersSaid(root).map(([words]) => words),
     facts: () =>
       root
         .findAllByType(FrameInfoPanel)

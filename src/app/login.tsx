@@ -6,16 +6,10 @@ import { Mail } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import {
-  ApiError,
-  type AuthMethods,
-  errorMessage,
-  fetchAuthMethods,
-  signInWithApple,
-  signInWithGoogle,
-} from '@/api';
+import { type AuthMethods, fetchAuthMethods, signInWithApple, signInWithGoogle } from '@/api';
 import { ActionBar, Banner, Board, Button } from '@/kit';
 import { useAuth } from '@/lib/auth';
+import { type Failure, failure, said, saying } from '@/lib/failure';
 import { useStrings } from '@/lib/language';
 import { OnboardingHead } from '@/screens/onboarding/head';
 import type { Strings } from '@/strings';
@@ -30,11 +24,8 @@ WebBrowser.maybeCompleteAuthSession();
 const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
 
 /** «Apple» and «Google» are names and stay themselves; only the sentence around them turns. */
-function providerError(s: Strings, provider: string, error: unknown): string {
-  if (error instanceof ApiError && error.status === 501) {
-    return s.login.providerUnavailable(provider);
-  }
-  return errorMessage(error);
+function providerError(s: Strings, provider: string, error: unknown): Failure {
+  return failure(error, { 501: { text: saying(s.login.providerUnavailable(provider)) } });
 }
 
 /**
@@ -50,7 +41,7 @@ export default function LoginScreen() {
   const { signIn } = useAuth();
   const router = useRouter();
   const s = useStrings();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Failure | null>(null);
   // `null` until the phone has answered — which is a third thing from «yes» and «no», and the
   // reason it is not seeded `false`. The answer is a native round trip, so a screen that assumed
   // «no» would draw the doors one way on the first paint and rearrange them a frame later.
@@ -79,7 +70,7 @@ export default function LoginScreen() {
     if (googleResponse?.type !== 'success') return;
     const idToken = googleResponse.params.id_token;
     if (!idToken) {
-      setError(s.login.noIdentityToken('Google'));
+      setError(said(s.login.noIdentityToken('Google')));
       return;
     }
     signInWithGoogle(idToken)
@@ -97,7 +88,7 @@ export default function LoginScreen() {
         ],
       });
       if (!credential.identityToken) {
-        setError(s.login.noIdentityToken('Apple'));
+        setError(said(s.login.noIdentityToken('Apple')));
         return;
       }
       const session = await signInWithApple(credential.identityToken);
@@ -112,7 +103,7 @@ export default function LoginScreen() {
   async function withGoogle() {
     setError(null);
     if (!GOOGLE_CLIENT_ID) {
-      setError(s.login.providerUnavailable('Google'));
+      setError(said(s.login.providerUnavailable('Google')));
       return;
     }
     await promptGoogle();
@@ -161,7 +152,7 @@ export default function LoginScreen() {
 
       {/* The room between the head and the doors. Anything that has to be said stands at the foot
           of it — over the buttons it is about, never over the name. */}
-      <View style={styles.room}>{error ? <Banner tone="error" text={error} /> : null}</View>
+      <View style={styles.room}>{error ? <Banner tone="error" failure={error} /> : null}</View>
     </Board>
   );
 }

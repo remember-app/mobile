@@ -30,7 +30,7 @@ vi.mock('@/kit', async (original) => ({
 
 import { expectReachable } from '@tests/helpers/access';
 import { type Asked, later, member, memory, refused, serve } from '@tests/helpers/api';
-import { mounted, mountsTrees, themesShown } from '@tests/helpers/renderer';
+import { bannersSaid, mounted, mountsTrees, themesShown } from '@tests/helpers/renderer';
 import { sheetBox } from '@tests/helpers/sheet';
 import { Pressable } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
@@ -39,7 +39,6 @@ import MemorySettingsScreen from '@/app/memory/[id]/settings';
 import {
   AppBar,
   BadgeContribution,
-  Banner,
   Button,
   ConfirmSheet,
   DRAWN,
@@ -165,7 +164,7 @@ async function open() {
           : 'button';
     },
     sheet: () => root.findAllByType(ConfirmSheet),
-    notice: () => root.findAllByType(Banner).map((one) => one.props.text as string),
+    notice: () => bannersSaid(root).map(([words]) => words),
     /** The screen's own heading of a block, as the layout writes it. */
     text: () => JSON.stringify(tree.toJSON()),
   };

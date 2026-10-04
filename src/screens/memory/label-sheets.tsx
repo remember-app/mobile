@@ -1,22 +1,11 @@
-import {
-  Lock,
-  Pencil,
-  Plus,
-  Tag as TagIcon,
-  Trash2,
-  TriangleAlert,
-  Unlink,
-  Users,
-} from 'lucide-react-native';
+import { Lock, Pencil, Plus, Tag as TagIcon, Trash2, Users } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import {
-  ApiError,
   addLabelMedia,
   createLabel,
   deleteLabel,
-  errorMessage,
   type Label,
   listLabels,
   type MediaItem,
@@ -32,7 +21,6 @@ import {
   Hint,
   hitSlop,
   IconButton,
-  type IconComponent,
   Palette,
   RowLabel,
   Sheet,
@@ -40,6 +28,7 @@ import {
   Waiting,
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
+import { type Failure, failure, notMember, type Refusals, saying } from '@/lib/failure';
 import {
   filing,
   LABEL_NAME_MAX,
@@ -49,7 +38,6 @@ import {
   withLabel,
 } from '@/lib/labels';
 import { useStrings } from '@/lib/language';
-import type { Strings } from '@/strings';
 import { height, labelColors, radius, space, themed, useTheme } from '@/theme';
 
 /**
@@ -71,29 +59,6 @@ import { height, labelColors, radius, space, themed, useTheme } from '@/theme';
 
 /** `SheetLabelNew`: shut, making one (`label: null`), or editing the one it holds. */
 type Writing = { label: Label | null } | null;
-
-/**
- * A failure as a sheet says it: the words, and the glyph beside them. No glyph is the banner's own
- * «no signal», which only a request that never got an answer has earned.
- */
-export type Failure = { text: string; icon?: IconComponent };
-
-/** The statuses a route words itself, because the api's bare «forbidden» or «not found» says nothing. */
-type Refusals = Partial<Record<number, Failure>>;
-
-/**
- * Told apart by what came back and never by the words: anything the api answered is not the
- * connection. A 403 is about rights; a 404 is something that is not there, and what that is depends
- * on the route, so every route names its own; anything else the api refused is said in its words
- * beside a plain warning.
- */
-function failure(e: unknown, refused: Refusals): Failure {
-  if (!(e instanceof ApiError)) return { text: errorMessage(e) };
-  return refused[e.status] ?? { text: e.message, icon: e.status === 403 ? Lock : TriangleAlert };
-}
-
-/** The api's one answer to somebody not in the memory: about the person, so a tie that is cut. */
-const notMember = (s: Strings): Failure => ({ text: s.memory.gone, icon: Unlink });
 
 export function LabelSheets({
   memoryId,
@@ -126,9 +91,7 @@ export function LabelSheets({
   const load = useCallback(() => {
     if (!token) return;
     setError(null);
-    listLabels(token, memoryId).then(setLabels, (e: unknown) =>
-      setError(failure(e, { 404: notMember(s) })),
-    );
+    listLabels(token, memoryId).then(setLabels, (e: unknown) => setError(failure(e, notMember(s))));
   }, [token, memoryId, s]);
 
   useEffect(load, [load]);
@@ -151,7 +114,7 @@ export function LabelSheets({
    */
   async function errand<T>(
     run: (session: string) => Promise<T>,
-    refused: Refusals = { 404: { text: s.labels.gone, icon: TagIcon } },
+    refused: Refusals = { 404: { text: saying(s.labels.gone), icon: TagIcon } },
   ): Promise<T | null> {
     if (!token) return null;
     setBusy(true);
@@ -197,7 +160,7 @@ export function LabelSheets({
         }),
       // No label in the path, so a 404 is the membership check; a 403 is a viewer asking for «Общий»,
       // and the lock is the private label the words offer instead.
-      { 403: { text: s.labels.sharedDenied, icon: Lock }, 404: notMember(s) },
+      { 403: { text: saying(s.labels.sharedDenied), icon: Lock }, ...notMember(s) },
     );
     if (made === null) return;
     setLabels((have) => withLabel(have ?? [], made));
@@ -408,7 +371,7 @@ export function LabelsSheet({
         />
       }
     >
-      {error === null ? null : <Banner tone="error" text={error.text} icon={error.icon} />}
+      {error === null ? null : <Banner tone="error" failure={error} />}
       {labels === null ? (
         error === null ? (
           <Waiting text={s.state.loading} />
@@ -479,7 +442,7 @@ export function LabelNewSheet({
         />
       }
     >
-      {error === null ? null : <Banner tone="error" text={error.text} icon={error.icon} />}
+      {error === null ? null : <Banner tone="error" failure={error} />}
 
       <Field
         label={s.labels.name}

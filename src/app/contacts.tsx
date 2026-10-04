@@ -8,7 +8,6 @@ import {
   ApiError,
   addContact,
   type Contact,
-  errorMessage,
   isValidUsername,
   listContacts,
   memberHandle,
@@ -29,6 +28,7 @@ import {
   Text,
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
+import { type Failure, failure } from '@/lib/failure';
 import { matches, useFindUser } from '@/lib/find-user';
 import { useStrings } from '@/lib/language';
 import { board, duration, space, themed } from '@/theme';
@@ -54,10 +54,10 @@ export default function ContactsScreen() {
   // null is «not loaded yet», the distinction the home screen draws: a refetch keeps the list on
   // screen instead of flashing the spinner over it.
   const [contacts, setContacts] = useState<Contact[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Failure | null>(null);
   // A failure of something pressed, which is not the same as the list failing to arrive: it goes as a
   // strip over the list and leaves the row that was pressed exactly where it was.
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<Failure | null>(null);
   const [typed, setTyped] = useState('');
   const [saving, setSaving] = useState(false);
   // Rows that have already been deleted server-side and are standing their five seconds. Ids and
@@ -68,7 +68,7 @@ export default function ContactsScreen() {
   const load = useCallback(() => {
     if (!token) return;
     setError(null);
-    listContacts(token).then(setContacts, (e: unknown) => setError(errorMessage(e)));
+    listContacts(token).then(setContacts, (e: unknown) => setError(failure(e)));
   }, [token]);
 
   useFocusEffect(load);
@@ -117,7 +117,7 @@ export default function ContactsScreen() {
       // did not happen, and a row that fades over a contact still on the server is a lie the next
       // focus would contradict.
       if (e instanceof ApiError && e.status === 404) return;
-      setNotice(errorMessage(e));
+      setNotice(failure(e));
       cancel(contact.id);
     });
     timers.current.set(
@@ -136,7 +136,7 @@ export default function ContactsScreen() {
     if (!token || !contact.username) return;
     setNotice(null);
     addContact(token, contact.username).catch((e: unknown) => {
-      setNotice(errorMessage(e));
+      setNotice(failure(e));
       // The delete went through; only the way back did not. A row left standing here would be a
       // live contact with a working cross over somebody the api no longer has — so it goes, and
       // the strip above says why.
@@ -164,7 +164,7 @@ export default function ContactsScreen() {
     } catch (e) {
       // The strip goes over the list and the row keeps its button: whoever pressed it is still
       // looking at the person they meant to save.
-      setNotice(errorMessage(e));
+      setNotice(failure(e));
     } finally {
       setSaving(false);
     }
@@ -229,14 +229,14 @@ export default function ContactsScreen() {
     >
       {error !== null ? (
         // The list did not come: the strip holds its place and offers the one thing left to do.
-        <Banner tone="error" text={error}>
+        <Banner tone="error" failure={error}>
           <Button size="xs" variant="quiet" label={s.action.retry} onPress={load} />
         </Banner>
       ) : contacts === null ? (
         <Empty busy text={s.state.loading} />
       ) : (
         <>
-          {notice !== null ? <Banner tone="error" text={notice} /> : null}
+          {notice !== null ? <Banner tone="error" failure={notice} /> : null}
 
           {/* Found in Remember and not saved yet: its own rule, one row, one action — and it
               stands above the saved list, where the eye already is after typing. */}

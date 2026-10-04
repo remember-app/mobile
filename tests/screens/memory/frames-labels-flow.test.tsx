@@ -27,11 +27,11 @@ vi.mock('@/kit', async (original) => ({
 }));
 
 import { label } from '@tests/helpers/labels';
-import { mountsTrees } from '@tests/helpers/renderer';
+import { bannersSaid, mountsTrees } from '@tests/helpers/renderer';
 import { Unlink, WifiOff } from 'lucide-react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import type { Label, MediaItem } from '@/api';
-import { Banner, Button, Chip, ConfirmSheet, Icon, IconButton, RowLabel, Tile } from '@/kit';
+import { Banner, Button, Chip, ConfirmSheet, IconButton, RowLabel, Tile } from '@/kit';
 import { Frames } from '@/screens/memory/frames';
 import { FilterSheet } from '@/screens/memory/frames-sheets';
 import { LabelNewSheet, LabelSheets } from '@/screens/memory/label-sheets';
@@ -215,17 +215,9 @@ async function open() {
         .find((one) => one.props.name === name)!,
     press,
     tap: (name: string) => press(screen.row(name)),
-    banner: () =>
-      tree.root
-        .findByType(LabelSheets)
-        .findAllByType(Banner)
-        .map((one) => one.props.text as string),
-    /** The glyph each banner on the labels sheet draws beside its words. */
-    glyph: () =>
-      tree.root
-        .findByType(LabelSheets)
-        .findAllByType(Banner)
-        .map((one) => one.findByType(Icon).props.icon),
+    /** What each banner on the labels sheet says, and the glyph it draws beside the words. */
+    banner: () => bannersSaid(tree.root.findByType(LabelSheets)).map(([words]) => words),
+    glyph: () => bannersSaid(tree.root.findByType(LabelSheets)).map(([, glyph]) => glyph),
     /** «Фильтры» → pick these label chips → «Показать». Returns the chips the sheet offered. */
     filterBy: async (...titles: string[]) => {
       await openFilter();

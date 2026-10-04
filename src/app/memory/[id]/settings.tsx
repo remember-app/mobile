@@ -7,7 +7,6 @@ import {
   ApiError,
   type ContributionStatus,
   deleteMemory,
-  errorMessage,
   hasShared,
   listMembers,
   listMemories,
@@ -41,6 +40,7 @@ import {
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { formatEventDates } from '@/lib/dates';
+import { type Failure, failure, type Refusals, said, saying } from '@/lib/failure';
 import { useStrings } from '@/lib/language';
 import { InviteSheet } from '@/screens/memory/invite-sheet';
 import { board, height, radius, space, themed } from '@/theme';
@@ -72,9 +72,9 @@ export default function MemorySettingsScreen() {
   // invite keeps the roster on screen instead of flashing the spinner over it.
   const [memory, setMemory] = useState<Memory | null>(null);
   const [members, setMembers] = useState<Member[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Failure | null>(null);
   const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<Failure | null>(null);
   const [inviting, setInviting] = useState(false);
   // Whether the roster is being edited. The crosses live in here and nowhere else, so an ordinary
   // look at who is here cannot take anybody out by a misplaced finger.
@@ -92,11 +92,11 @@ export default function MemorySettingsScreen() {
     // included. There is no route for one memory on its own.
     listMemories(token).then(
       (list) => setMemory(list.find((one) => one.id === id) ?? null),
-      (e: unknown) => setError(errorMessage(e)),
+      (e: unknown) => setError(failure(e)),
     );
     // And the roster beside it. How much each person brought rides along on the row now (TASK-190);
     // this screen used to read the whole gallery to count it itself.
-    listMembers(token, id).then(setMembers, (e: unknown) => setError(errorMessage(e)));
+    listMembers(token, id).then(setMembers, (e: unknown) => setError(failure(e)));
   }, [token, id]);
 
   // On focus rather than on mount, the way the home screen does it: everybody's standing changes
@@ -128,20 +128,20 @@ export default function MemorySettingsScreen() {
 
   /**
    * Every api call this screen makes is the same shape: lock the controls, run one call, say one
-   * line about it. `said` maps the statuses this particular call can come back with; anything else
+   * line about it. `refused` maps the statuses this particular call can come back with; anything else
    * falls through to the api's own wording.
    */
-  async function act(
-    what: (session: string) => Promise<string | null>,
-    said: Partial<Record<number, string>> = {},
-  ) {
+  async function act(what: (session: string) => Promise<string | null>, refused: Refusals = {}) {
     if (!token) return;
     setBusy(true);
     setNotice(null);
     try {
-      setNotice(await what(token));
+      const saidIt = await what(token);
+      // A line that says the errand went through is no refusal, so it wears no warning — the
+      // banner is the same one either way and the two must not look like the same thing.
+      if (saidIt !== null) setNotice(said(saidIt));
     } catch (e) {
-      setNotice((e instanceof ApiError ? said[e.status] : undefined) ?? errorMessage(e));
+      setNotice(failure(e, refused));
     } finally {
       setBusy(false);
     }
@@ -170,7 +170,7 @@ export default function MemorySettingsScreen() {
         load();
         return null;
       },
-      { 404: s.members.gone },
+      { 404: { text: saying(s.members.gone) } },
     );
 
   /**
@@ -323,7 +323,7 @@ export default function MemorySettingsScreen() {
       body={styles.body}
     >
       {error !== null ? (
-        <Banner tone="error" text={error}>
+        <Banner tone="error" failure={error}>
           <Button size="xs" variant="quiet" label={s.action.retry} onPress={load} />
         </Banner>
       ) : memory === null || members === null ? (
@@ -411,7 +411,7 @@ export default function MemorySettingsScreen() {
         </>
       )}
 
-      {notice ? <Banner text={notice} /> : null}
+      {notice ? <Banner failure={notice} /> : null}
 
       <InviteSheet
         visible={inviting}

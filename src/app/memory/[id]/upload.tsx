@@ -16,7 +16,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Modal, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { errorMessage, listMemories, type Memory } from '@/api';
+import { listMemories, type Memory } from '@/api';
 import {
   ActionBar,
   AppBar,
@@ -42,6 +42,7 @@ import {
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { formatDay, formatEventDates, formatRuntime, formatWeekday } from '@/lib/dates';
+import { type Failure, failure } from '@/lib/failure';
 import { useStrings } from '@/lib/language';
 import { assetsByDay, type ShootingDay } from '@/lib/media-window';
 import { type ParkedFile, parkedReason, progress } from '@/lib/upload/queue';
@@ -154,7 +155,7 @@ export default function UploadScreen({ queue = false }: { queue?: boolean }) {
   // Its own and not the roll's, because the two cost different things. A gallery that will not
   // open leaves nothing to put on the screen; an api that cannot be reached only costs the event
   // dates — picking and queueing carry on, which is the whole point of a queue that waits.
-  const [apiError, setApiError] = useState<string | null>(null);
+  const [apiError, setApiError] = useState<Failure | null>(null);
 
   /**
    * The roll as the kit lays it out: the day it was shot on, then that day's frames three to a row,
@@ -190,7 +191,7 @@ export default function UploadScreen({ queue = false }: { queue?: boolean }) {
     // a tapped push included, which arrives with nothing but an id.
     listMemories(token).then(
       (memories) => setMemory(memories.find((one) => one.id === id) ?? null),
-      (e: unknown) => setApiError(errorMessage(e)),
+      (e: unknown) => setApiError(failure(e)),
     );
   }, [token, id]);
 
@@ -307,7 +308,7 @@ export default function UploadScreen({ queue = false }: { queue?: boolean }) {
             is cut into its days all the same but none of them is lifted to the top as the
             event's. Picking — by hand or by the day — and queueing both still work. */}
         {apiError !== null ? (
-          <Banner tone="error" text={apiError}>
+          <Banner tone="error" failure={apiError}>
             <Button size="xs" variant="quiet" label={s.action.retry} onPress={load} />
           </Banner>
         ) : null}

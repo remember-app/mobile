@@ -11,6 +11,7 @@ import {
 
 import type { Memory } from '@/api';
 import { Banner, Button, GlassBar, IconButton, Text } from '@/kit';
+import type { Failure } from '@/lib/failure';
 import { useStrings } from '@/lib/language';
 import { height, space } from '@/theme';
 
@@ -22,7 +23,8 @@ import { height, space } from '@/theme';
 export type Head = {
   /** null until the listing answers — the capsule stands under one shared word until it does. */
   memory: Memory | null;
-  error: string | null;
+  /** Words and glyph together: the read is refused as often as it is broken, and the banner says which. */
+  error: Failure | null;
   reload: () => void;
 };
 
@@ -99,14 +101,14 @@ export function HeadTrouble({
   reload,
   onLayout,
 }: Omit<Head, 'memory' | 'error'> & {
-  error: string;
+  error: Failure;
   onLayout?: (event: LayoutChangeEvent) => void;
 }) {
   const s = useStrings();
 
   return (
     <View style={styles.banner} onLayout={onLayout}>
-      <Banner tone="error" text={error}>
+      <Banner tone="error" failure={error}>
         <Button size="xs" variant="quiet" label={s.action.retry} onPress={reload} />
       </Banner>
     </View>

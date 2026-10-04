@@ -69,11 +69,13 @@ import {
 import { thisYear2026 } from '@tests/helpers/clock';
 import { touch } from '@tests/helpers/gesture';
 import { label } from '@tests/helpers/labels';
-import { mounted, mountsTrees } from '@tests/helpers/renderer';
+import { bannersSaid, mounted, mountsTrees } from '@tests/helpers/renderer';
 import { sheetBox, wordsIn } from '@tests/helpers/sheet';
+import { Lock, TriangleAlert, Unlink, WifiOff } from 'lucide-react-native';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import type { Label, MediaItem, Member } from '@/api';
+import { ApiError } from '@/api';
 import {
   Banner,
   Button,
@@ -92,6 +94,7 @@ import {
   Waiting,
 } from '@/kit';
 import { startOfDay } from '@/lib/dates';
+import { failure, notMember, said as plainSaid } from '@/lib/failure';
 import { frameOf } from '@/lib/frames';
 import { FrameViewer } from '@/screens/memory/frame-viewer';
 import { Frames } from '@/screens/memory/frames';
@@ -405,8 +408,9 @@ const asked = (screen: Screen) => ({
 });
 const deletes = (log: Asked[]) =>
   log.filter((one) => one.method === 'DELETE').map((one) => one.path.split('/').pop());
-const notice = (screen: Screen) =>
-  screen.root.findAllByType(Banner).map((one) => one.props.text as string);
+const notice = (screen: Screen) => bannersSaid(screen.root).map(([words]) => words);
+/** What the feed's banners say and what each one wears — read off what the tree drew. */
+const saidSigns = (screen: Screen) => bannersSaid(screen.root);
 
 test('the organizer deletes an armful: the sheet counts it, the requests go one by one, the feed loses exactly those', async () => {
   const w = world();
@@ -1868,16 +1872,44 @@ test('a label the filter holds stays on it when the labels are read again, while
 test('a memory that would not read is a line under the bar with a way to read it again, and the feed under it goes on', async () => {
   world();
   const reload = vi.fn();
-  const screen = await open({ memory: null, error: 'Нет связи', reload });
+  const screen = await open({ memory: null, error: plainSaid('Нет связи'), reload });
   expect(notice(screen)).toEqual(['Нет связи']);
   expect(screen.feed()).toHaveLength(5);
   await screen.press(screen.button(ru.action.retry));
   expect(reload).toHaveBeenCalledTimes(1);
 });
 
+/**
+ * On the feed, a refused read and a broken connection must look different (TASK-275). Both are one
+ * line under the bar with a «Повторить» beside it, so the only thing that tells them apart is what
+ * the banner wears — and a banner handed its words without its sign wears «no signal» and lies.
+ *
+ * Read through the screen and off the drawn glyph, not through `failure()`: what matters is what a
+ * person sees, and a test that stopped at the helper would not see a screen that forgot the sign.
+ */
+test('a refused read and a broken connection are told apart by the sign on the feed', async () => {
+  world();
+  const reload = () => {};
+
+  const gone = await open({ memory: null, error: plainSaid('Нет связи'), reload });
+  expect(saidSigns(gone)).toEqual([['Нет связи', WifiOff]]);
+
+  for (const [refused, sign] of [
+    [failure(new ApiError(403, { error: 'forbidden' })), Lock],
+    [failure(new ApiError(409, { error: 'taken' })), TriangleAlert],
+    [failure(new ApiError(404, null), notMember(ru)), Unlink],
+  ] as const) {
+    const screen = await open({ memory: null, error: refused, reload });
+    // Same line, same button — and a sign that says what happened instead of «no signal».
+    expect(screen.feed()).toHaveLength(5);
+    expect(saidSigns(screen)[0][1]).toBe(sign);
+    expect(saidSigns(screen)[0][1]).not.toBe(WifiOff);
+  }
+});
+
 test('what floats over the feed is cleared as it came out, not as the layout draws it', async () => {
   world();
-  const screen = await open({ memory: null, error: 'Нет связи', reload: () => {} });
+  const screen = await open({ memory: null, error: plainSaid('Нет связи'), reload: () => {} });
   const feed = () => screen.root.findByType(FlatList);
   const bottom = () => StyleSheet.flatten(feed().props.contentContainerStyle).paddingBottom;
   const floating = () => screen.root.findByType(MemoryHead).findAllByType(HeadTrouble);
@@ -1915,7 +1947,7 @@ async function trouble(
 ) {
   world(empty === undefined ? {} : { media: [] });
   Object.assign(device, over);
-  const screen = await open({ memory: null, error: 'Нет связи', reload: () => {} });
+  const screen = await open({ memory: null, error: plainSaid('Нет связи'), reload: () => {} });
   const size = (height: number) => ({
     nativeEvent: { layout: { x: 0, y: 0, width: 390, height } },
   });

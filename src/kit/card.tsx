@@ -130,18 +130,51 @@ export function HintNote({
  */
 export type BannerTone = 'error' | 'done';
 
+/**
+ * The words of a refusal, held so they cannot be read off a failure and handed to `Banner` as its
+ * `text`. A branded `string` would not do: it is still a string, and a string is exactly what
+ * `text` takes — so the sign would stay droppable. This is opaque instead, and `Banner` is what
+ * unwraps it, which is what makes a refusal reachable only as a whole (TASK-275).
+ */
+const said: unique symbol = Symbol('said');
+export type Said = { readonly [said]: string };
+
+/**
+ * A refused call as a banner says it: the words, and the sign beside them — one value, so a screen
+ * cannot hand over half of it. No sign is the banner's own «no signal», which only a request that
+ * never got an answer has earned (see `@/lib/failure`).
+ */
+export type Failure = { text: Said; icon?: IconComponent };
+
+/** The words of a refusal, from wherever they were written. The one way to make a `Said`. */
+export const saying = (text: string): Said => ({ [said]: text });
+
+/** What a `Said` says. The banner and its tests; a screen has no reason to. */
+export const read = (these: Said): string => these[said];
+
 export function Banner({
   text,
   tone = 'error',
   icon,
+  failure,
   hide,
   children,
   style,
 }: {
-  text: string;
+  /**
+   * What the banner says where it is not a refused call: a link is back, a save went through, a
+   * counter. A refusal is not said here — it is said as a whole, in `failure`.
+   */
+  text?: string;
   tone?: BannerTone;
   /** An override where the banner is not about the connection at all. */
   icon?: IconComponent;
+  /**
+   * A refused call, whole — the words and the sign its reason chose, in one prop. The only way to
+   * say one: the words alone are not a string a screen may pass, so a banner about a refusal
+   * cannot be put together with the sign left off.
+   */
+  failure?: Failure;
   /**
    * «Скрыть сообщение» — the cross the banner draws itself, on the `error` tone alone (spec 7.6,
    * detail 47): a 32 with its sign at 15 / 2.2, 13 in from the right edge.
@@ -154,6 +187,8 @@ export function Banner({
   const { color } = useTheme();
   const styles = useStyles();
   const done = tone === 'done';
+  const words = failure ? read(failure.text) : (text ?? '');
+  const sign = failure ? failure.icon : icon;
 
   return (
     <View
@@ -166,11 +201,11 @@ export function Banner({
         </View>
       ) : (
         <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <Icon icon={icon ?? WifiOff} size={19} color={color.dangerText} />
+          <Icon icon={sign ?? WifiOff} size={19} color={color.dangerText} />
         </View>
       )}
       <Text role="banner" style={[styles.grow, done ? styles.firm : null]}>
-        {text}
+        {words}
       </Text>
       {done ? null : children}
       {done || !hide ? null : (

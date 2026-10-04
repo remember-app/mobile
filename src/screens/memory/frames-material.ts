@@ -1,15 +1,8 @@
 import { useFocusEffect, useIsFocused } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import {
-  errorMessage,
-  type Label,
-  listLabels,
-  listMedia,
-  listMembers,
-  type MediaItem,
-  type Member,
-} from '@/api';
+import { type Label, listLabels, listMedia, listMembers, type MediaItem, type Member } from '@/api';
+import { type Failure, failure } from '@/lib/failure';
 import { keepReady, stillPreparing } from '@/lib/frames';
 
 /**
@@ -44,7 +37,7 @@ export function useMaterial({
   items: MediaItem[] | null;
   roster: Member[] | null;
   labels: Label[];
-  error: string | null;
+  error: Failure | null;
   loading: boolean;
   /** Read it again — loudly for a pull, quietly for the loop while the worker is finishing. */
   read: (quiet?: boolean) => void;
@@ -57,7 +50,7 @@ export function useMaterial({
   const [items, setItems] = useState<MediaItem[] | null>(null);
   const [roster, setRoster] = useState<Member[] | null>(null);
   const [labels, setLabels] = useState<Label[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Failure | null>(null);
   const [loading, setLoading] = useState(true);
 
   /**
@@ -97,7 +90,7 @@ export function useMaterial({
             setError(null);
           },
           (e: unknown) => {
-            if (!quiet) setError(errorMessage(e));
+            if (!quiet) setError(failure(e));
           },
         )
         .finally(() => {

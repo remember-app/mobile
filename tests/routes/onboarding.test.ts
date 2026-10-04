@@ -115,8 +115,12 @@ test('a way in this build cannot walk is not drawn at all', () => {
   // thing from «no».
   expect(login).toContain('useState<boolean | null>(null)');
   // What a server that turns a live way in down still says is untouched: a stale signal is the
-  // case this screen cannot see, and it is answered in words.
-  expect(login).toContain('return s.login.providerUnavailable(provider);');
+  // case this screen cannot see, and it is answered in words. The 501 names them among the
+  // refusals (TASK-275) — the wording is the same, and it now wears a sign that says «the server
+  // cannot do this» rather than «no signal».
+  expect(login).toContain(
+    'return failure(error, { 501: { text: saying(s.login.providerUnavailable(provider)) } });',
+  );
 });
 
 test('none of the three doors is the main one — there is no accent on this screen', () => {

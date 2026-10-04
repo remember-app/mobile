@@ -12,7 +12,7 @@ vi.mock('@/kit', async (original) => ({
 }));
 
 import { frame, label } from '@tests/helpers/labels';
-import { mountsTrees } from '@tests/helpers/renderer';
+import { bannersSaid, mountsTrees } from '@tests/helpers/renderer';
 import { sheetBox, wordsIn } from '@tests/helpers/sheet';
 import { Unlink, WifiOff } from 'lucide-react-native';
 import TestRenderer, { act } from 'react-test-renderer';
@@ -126,7 +126,7 @@ async function open(frames: MediaItem[]) {
       tree.root.findAllByType(Button).find((one) => one.props.label === text)!,
     icon: (text: string) =>
       tree.root.findAllByType(IconButton).find((one) => one.props.label === text)!,
-    banner: () => tree.root.findAllByType(Banner).map((one) => one.props.text as string),
+    banner: () => bannersSaid(tree.root).map(([words]) => words),
     /** The glyph each banner draws beside its words. */
     glyph: () => tree.root.findAllByType(Banner).map((one) => one.findByType(Icon).props.icon),
     confirm: () => tree.root.findByType(ConfirmSheet),

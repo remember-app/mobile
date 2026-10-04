@@ -19,7 +19,7 @@ vi.mock('@/kit', async (original) => ({
 }));
 
 import { member, memory, refused, serve } from '@tests/helpers/api';
-import { mounted, mountsTrees } from '@tests/helpers/renderer';
+import { bannersSaid, mounted, mountsTrees } from '@tests/helpers/renderer';
 import {
   type CommonActions,
   type ParamListBase,
@@ -29,7 +29,7 @@ import {
 } from 'expo-router/build/react-navigation/routers';
 import TestRenderer, { act } from 'react-test-renderer';
 import MemorySettingsScreen from '@/app/memory/[id]/settings';
-import { Banner, ConfirmSheet, IconButton } from '@/kit';
+import { ConfirmSheet, IconButton } from '@/kit';
 import { ru } from '@/strings';
 
 /**
@@ -123,7 +123,7 @@ async function settings(names: string[], answer: () => unknown) {
       ),
     confirm: () => act(async () => tree.root.findByType(ConfirmSheet).props.onConfirm()),
     deletes: () => log.filter((one) => one.method === 'DELETE').length,
-    notices: () => tree.root.findAllByType(Banner).map((one) => one.props.text as string),
+    notices: () => bannersSaid(tree.root).map(([words]) => words),
     asking: () => tree.root.findAllByType(ConfirmSheet).length > 0,
   };
 }
