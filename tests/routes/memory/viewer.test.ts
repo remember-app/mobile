@@ -24,6 +24,7 @@ import comments from '@/screens/memory/frame-comments.tsx?raw';
 import info from '@/screens/memory/frame-info.tsx?raw';
 import viewer from '@/screens/memory/frame-viewer.tsx?raw';
 import frames from '@/screens/memory/frames.tsx?raw';
+import framesLib from '@/lib/frames.ts?raw';
 import material from '@/screens/memory/frames-material.ts?raw';
 import sheets from '@/screens/memory/frames-sheets.tsx?raw';
 import { en, ru } from '@/strings';
@@ -557,9 +558,19 @@ test('the open frame is kept on the phone, filed under the record and not under 
   // the gallery and each one lasts a quarter of an hour (`R2_DOWNLOAD_TTL_SECONDS`), so the same
   // bytes arrive under a new url every time — and `expo-image`'s own default key is the url. Left
   // alone, the disk would be full of one frame under a dozen names and every look a fresh download.
-  expect(viewer).toContain('cacheKey: `${item.id}:');
-  const key = viewer.slice(viewer.indexOf('cacheKey:'));
-  expect(key.slice(0, key.indexOf('\n'))).not.toContain('${shown.uri}');
+  //
+  // The key is not written out here but read off `shown` — it is built in `@/lib/frames`, which is
+  // also where the tile's comes from, so the two faces of one record cannot drift onto two keys. The
+  // window asking for the reading rather than composing the key is what is pinned: a key assembled
+  // in this file is a second one to keep in step, which is what TASK-512 exists to stop.
+  expect(viewer).toContain('cacheKey: shown.key');
+  expect(viewer).not.toContain('cacheKey: `${');
+  expect(framesLib).toContain('key: `${item.id}:${kind}`');
+  // Never the url: a signature moves on every read, and a key built of one is a fresh download of
+  // the same bytes each time the list is re-read.
+  const built = framesLib.slice(framesLib.indexOf('key: `${item.id}'));
+  expect(built.slice(0, built.indexOf('\n'))).not.toContain('${item.thumbnail_url}');
+  expect(built.slice(0, built.indexOf('\n'))).not.toContain('uri');
 });
 
 test('the ceiling on a comment is the api’s alone, and this repository writes no copy of it', () => {

@@ -99,15 +99,20 @@ test('the frame the second read serves is the thumbnail itself, ready to draw', 
   expect(frameOf(secondRead[0])).toEqual({
     state: 'ready',
     uri: 'https://r2.example/thumbnails/a.jpg?sig=1',
+    key: 'a:thumb',
   });
 });
 
 test('until then the frame is the waiting one, with no picture to draw', () => {
-  expect(frameOf(firstRead[0])).toEqual({ state: 'processing', uri: null });
+  expect(frameOf(firstRead[0])).toEqual({ state: 'processing', uri: null, key: 'a:thumb' });
 });
 
 test('a record that is ready with nothing on it is a fallen frame, not an empty square', () => {
-  expect(frameOf(record({ status: 'ready' }))).toEqual({ state: 'failed', uri: null });
+  expect(frameOf(record({ status: 'ready' }))).toEqual({
+    state: 'failed',
+    uri: null,
+    key: 'a:thumb',
+  });
 });
 
 // What the frame opened full screen is drawn from (TASK-120). It used to be the same 640px
@@ -123,9 +128,13 @@ test('the frame opened full screen is the big derivative and not the tile’s th
   expect(openFrameOf(big)).toEqual({
     state: 'ready',
     uri: 'https://r2.example/previews/a.mp4?sig=1',
+    key: 'a:preview',
   });
   // The grid is untouched by it: a tile is still handed the miniature it is a miniature for.
   expect(frameOf(big).uri).toBe('https://r2.example/thumbnails/a.jpg?sig=1');
+  // And the two are filed apart, which is the whole of why the key carries the derivative: they
+  // are two different files, and one id standing for both would serve the miniature over the window.
+  expect(frameOf(big).key).toBe('a:thumb');
 });
 
 test('a record with no big derivative opens on its thumbnail rather than on nothing', () => {
@@ -136,14 +145,22 @@ test('a record with no big derivative opens on its thumbnail rather than on noth
 });
 
 test('a record with neither is the fallen frame however it is opened', () => {
-  expect(openFrameOf(record({ status: 'ready' }))).toEqual({ state: 'failed', uri: null });
-  expect(openFrameOf(firstRead[0])).toEqual({ state: 'processing', uri: null });
+  expect(openFrameOf(record({ status: 'ready' }))).toEqual({
+    state: 'failed',
+    uri: null,
+    key: 'a:thumb',
+  });
+  expect(openFrameOf(firstRead[0])).toEqual({
+    state: 'processing',
+    uri: null,
+    key: 'a:thumb',
+  });
 });
 
 test('a record the worker gave up on stops the reading instead of being waited on forever', () => {
   const failed = [record({ status: 'failed' })];
   expect(stillPreparing(failed)).toBe(false);
-  expect(frameOf(failed[0])).toEqual({ state: 'failed', uri: null });
+  expect(frameOf(failed[0])).toEqual({ state: 'failed', uri: null, key: 'a:thumb' });
 });
 
 test('one record still coming keeps the reading going for the whole sheet', () => {
@@ -175,6 +192,7 @@ test('the frame that was still developing is taken as it came — that is what t
   expect(frameOf(now)).toEqual({
     state: 'ready',
     uri: 'https://r2.example/thumbnails/a.jpg?sig=1',
+    key: 'a:thumb',
   });
   // And with nothing left developing the reading stops, so the next link it draws is a fresh one.
   expect(stillPreparing(keepReady(firstRead, secondRead))).toBe(false);

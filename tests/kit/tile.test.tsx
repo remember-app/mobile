@@ -1,11 +1,21 @@
 import { rule } from '@tests/helpers/css';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { Copy } from 'lucide-react-native';
+import { createElement } from 'react';
 import type { ReactElement } from 'react';
 import { Text as RNText, StyleSheet, View, type ViewStyle } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
-import { beforeAll, expect, test } from 'vitest';
+import { beforeAll, expect, test, vi } from 'vitest';
 
+// What the picture is filed under is the whole of what this file's last test is about, and the
+// stand-in `vitest.setup.ts` puts in for `expo-image` wears only a style — so `source` is carried
+// through here instead, which is the one thing about a picture a test in node can actually see.
+vi.mock('expo-image', () => ({
+  Image: ({ style, source }: { style?: unknown; source?: unknown }) =>
+    createElement(View, { style, source, testID: 'image' } as never),
+}));
+
+import { Image } from 'expo-image';
 import { Icon } from '@/kit/icon';
 import { allDifferent, story } from '@/kit/story';
 import { FEED_GAP, FrameMark, GRID_GAP, PickCircle, type PickKind, Tile } from '@/kit/tile';
@@ -369,4 +379,48 @@ test('one’s own frame says by itself what became of it: on its way with how mu
   expect(words('flying')).toEqual(['62%', '0:24']);
   expect(words('stuck')).toEqual(['!', '0:24']);
   expect(words('hidden')).toEqual(['0:24']);
+});
+
+/** The source the tile handed `expo-image`, which is where the cache key has to arrive. */
+const sourceOf = (tree: ReactElement) => {
+  let drawn!: TestRenderer.ReactTestRenderer;
+  act(() => {
+    drawn = mounted(TestRenderer.create(tree));
+  });
+  // A tile drawing no picture at all is a real answer here, not a failure to find one — hence `?`
+  // rather than `findByType`, which throws on the frame that is still being made.
+  return drawn.root.findAllByType(Image)[0]?.props.source;
+};
+
+test('a tile is filed under the record it came from, not under the link it was handed', () => {
+  // The api signs a fresh url for the same bytes on every read of the gallery, each good for a
+  // quarter of an hour, and `expo-image`'s own default key is that url. A tile keyed by it therefore
+  // downloaded the whole visible sheet again on every quiet three-second re-read. The record's id is
+  // what does not move, so it is what the key is made of.
+  const signed = 'https://bucket.example/a.jpg?X-Amz-Signature=bbb';
+  expect(sourceOf(<Tile state="ready" uri={signed} cacheKey="a:thumb" label="Фото" />)).toEqual({
+    uri: signed,
+    cacheKey: 'a:thumb',
+  });
+
+  // The same record one read later, under a different signature and the same key — which is the
+  // whole of what is being bought: the bytes are already on the phone and the second look is free.
+  const resigned = 'https://bucket.example/a.jpg?X-Amz-Signature=ccc';
+  expect(sourceOf(<Tile state="ready" uri={resigned} cacheKey="a:thumb" label="Фото" />)).toEqual({
+    uri: resigned,
+    cacheKey: 'a:thumb',
+  });
+
+  // A frame the worker is still making has no picture and so nothing to file; the tile draws none,
+  // and there is nothing here for a key to name.
+  expect(
+    sourceOf(<Tile state="processing" caption="Проявляем…" cacheKey="a:thumb" label="Кадр" />),
+  ).toBeUndefined();
+});
+
+test('a tile handed no key caches by its link — and that is what every record must avoid', () => {
+  // Pinned so the way out is deliberate rather than silent: it is right for a frame picked out of
+  // the phone's own gallery, which `expo-image` reaches through `ph://` and which has no record to
+  // be filed under. It is wrong for a record off the server, and every screen drawing one passes it.
+  expect(sourceOf(<Tile state="ready" uri={A} label="Фото" />)).toEqual({ uri: A });
 });

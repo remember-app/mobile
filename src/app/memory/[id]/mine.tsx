@@ -158,6 +158,7 @@ export default function MyFramesScreen() {
         style={cell}
         state={frame.state}
         uri={frame.uri ?? undefined}
+        cacheKey={frame.key}
         caption={s.gallery.waiting[item.status]}
         own={item.hidden ? 'hidden' : undefined}
         length={

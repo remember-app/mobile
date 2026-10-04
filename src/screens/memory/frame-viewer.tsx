@@ -627,16 +627,10 @@ export function FrameViewer({
               //
               // `expo-image` and not React Native's own, for the disk behind it: the same frame
               // opened twice should come off the phone rather than down the wire. What it is filed
-              // under has to be said outright — the api signs a fresh url for the same bytes on
-              // every read of the gallery (a quarter hour each), so a key made of the url is a fresh
-              // download every time the list is re-read. The record's id is what does not move, and
-              // which derivative it is rides along: a photo whose big copy the worker has since made
-              // must not go on being served the thumbnail filed under the same id.
+              // under is `shown`'s own key — `@/lib/frames` says why, and the tile reads the same
+              // one, so a record is one file on the phone rather than one per screen.
               <Image
-                source={{
-                  uri: shown.uri,
-                  cacheKey: `${item.id}:${shown.uri === item.preview_url ? 'preview' : 'thumb'}`,
-                }}
+                source={{ uri: shown.uri, cacheKey: shown.key }}
                 style={[styles.big, box]}
                 contentFit="cover"
               />

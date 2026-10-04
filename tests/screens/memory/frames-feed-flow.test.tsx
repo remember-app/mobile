@@ -239,6 +239,10 @@ async function open(
     pull: () => act(async () => root.findByType(RefreshControl).props.onRefresh()),
     /** The frames on the feed, in the order drawn. */
     feed: () => root.findAllByType(Tile).map((one) => String(one.props.uri).split('/').pop()),
+    /** What each frame on the feed is filed under on the phone. */
+    keys: () => root.findAllByType(Tile).map((one) => one.props.cacheKey),
+    /** The signed link each frame was handed, which moves on every read. */
+    links: () => root.findAllByType(Tile).map((one) => one.props.uri),
     /** The two lines of the glass capsule. */
     capsule: () => ({
       title: root.findByType(GlassBar).props.title as string,
@@ -278,6 +282,32 @@ test('the feed reads newest first, and nothing is a mark until the mode is on', 
   for (const id of ['a', 'b', 'c', 'd', 'e']) expect(screen.mark(id)).toBeUndefined();
   expect(screen.capsule().title).toBe('Свадьба Лизы и Марка');
   expect(screen.capsule().meta).toContain('12–13 сентября');
+});
+
+test('every frame on the feed is filed under its record, so a re-read is not a re-download', async () => {
+  // The api signs a fresh link to the same bytes on every read of the gallery, and `expo-image`
+  // keys its disk by the url it is given. A tile without a key therefore pulled the whole visible
+  // sheet again on every quiet three-second re-read, which is what `keepReady` holds the finished
+  // rows still to stop. The key is the record's id and does not move when the signature does.
+  world();
+  const screen = await open();
+  expect(screen.keys()).toEqual(['a:thumb', 'b:thumb', 'c:thumb', 'd:thumb', 'e:thumb']);
+
+  // The same sheet read a moment later: every link is signed afresh and not one key has moved, so
+  // the second read is answered off the phone. The bytes are identical — only the link is new.
+  const resigned = frames().map((one) => ({
+    ...one,
+    thumbnail_url: `${one.thumbnail_url}?sig=second`,
+  }));
+  world({ media: resigned });
+  const again = await open();
+  expect(again.keys()).toEqual(screen.keys());
+  expect(again.links()).not.toEqual(screen.links());
+
+  // A frame the worker is still making has no picture and so nothing to file.
+  world({ media: [developing('a', 'me', at(13, 10))] });
+  const waiting = await open();
+  expect(waiting.keys()).toEqual(['a:thumb']);
 });
 
 /** The lines the capsule says while picking, worked out the way a person would count them. */
