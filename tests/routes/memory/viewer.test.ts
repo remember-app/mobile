@@ -15,10 +15,13 @@ import { api } from '@tests/helpers/source';
 import { expect, test } from 'vitest';
 import layout from '@/app/_layout.tsx?raw';
 import home from '@/app/index.tsx?raw';
+import mine from '@/app/memory/[id]/mine.tsx?raw';
 // The viewer's strip is the library's own part, and what it does with a finger was learned three
 // times over on a real phone — so it is read here, beside the window that mounts it.
 import bars from '@/kit/bars.tsx?raw';
 import filmstrip from '@/kit/filmstrip.tsx?raw';
+import tile from '@/kit/tile.tsx?raw';
+import cover from '@/screens/memory/cover.tsx?raw';
 import films from '@/screens/memory/films.tsx?raw';
 import comments from '@/screens/memory/frame-comments.tsx?raw';
 import info from '@/screens/memory/frame-info.tsx?raw';
@@ -571,6 +574,29 @@ test('the open frame is kept on the phone, filed under the record and not under 
   const built = framesLib.slice(framesLib.indexOf('key: `${item.id}'));
   expect(built.slice(0, built.indexOf('\n'))).not.toContain('${item.thumbnail_url}');
   expect(built.slice(0, built.indexOf('\n'))).not.toContain('uri');
+});
+
+test('every screen that draws a record off the server hands the tile that record’s key', () => {
+  // The three faces of one gallery record — the memory's feed, «Мои кадры» and the cover sheet. All
+  // three read the key off the same `@/lib/frames` reading, so the bytes are one file on the phone
+  // rather than one per screen, and a photo the worker has since made a big copy of is served that
+  // copy rather than the miniature filed under the same id.
+  //
+  // Read as text, and each of the three named rather than swept up: «Мои кадры» has no rendered test
+  // of its own. Where a tree is drawn the props are checked for real (`frames-feed-flow` for the feed,
+  // `cover.test.tsx` for the sheet); this is the one place all three are pinned together, which is
+  // what catches a fourth screen opening a tile and forgetting the key.
+  for (const [name, screen] of [
+    ['the feed', frames],
+    ['«Мои кадры»', mine],
+    ['the cover sheet', cover],
+  ] as const) {
+    // The prop as it is written, not the word `cacheKey` somewhere in the file — a comment saying
+    // «the cacheKey» must not be able to pass for a screen that hands one over.
+    expect(screen, name).toContain('cacheKey={frame.key}');
+  }
+  // And the tile is what puts it into the source, or none of the three passing it would matter.
+  expect(tile).toContain('source={cacheKey ? { uri, cacheKey } : { uri }}');
 });
 
 test('the ceiling on a comment is the api’s alone, and this repository writes no copy of it', () => {
