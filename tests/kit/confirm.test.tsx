@@ -205,7 +205,11 @@ test('the sheet can say the press did nothing, and says nothing when there is no
   // was pressed, and it is a quiet word and not a plate: the plate above is a price to read before
   // the press, this is what the press came back with.
   const refused = story(
-    <ConfirmSheet {...base} price="54 кадра исчезнут из воспоминания" error="Сервер ответил 404." />,
+    <ConfirmSheet
+      {...base}
+      price="54 кадра исчезнут из воспоминания"
+      error="Сервер ответил 404."
+    />,
   );
   expect(refused).toContain('Сервер ответил 404.');
   // Stand the three against each other, or a slot that drew nothing would pass the first half for
@@ -220,9 +224,12 @@ test('the sheet can say the press did nothing, and says nothing when there is no
   expect(story(<ConfirmSheet {...base} />)).not.toContain('Сервер ответил 404.');
 
   // It sits after the price, so it is the closest thing in the body to the buttons below.
-  const order = ['Оно уйдёт', '54 кадра исчезнут', 'Сервер ответил 404.', 'aria-label="Удалить"'].map(
-    (part) => refused.indexOf(part),
-  );
+  const order = [
+    'Оно уйдёт',
+    '54 кадра исчезнут',
+    'Сервер ответил 404.',
+    'aria-label="Удалить"',
+  ].map((part) => refused.indexOf(part));
   expect(order.every((at) => at >= 0)).toBe(true);
   expect([...order].sort((a, b) => a - b)).toEqual(order);
 });
