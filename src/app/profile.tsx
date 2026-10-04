@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { type Contact, errorMessage, listContacts, memberHandle, memberName } from '@/api';
+import { type Contact, listContacts, memberHandle, memberName } from '@/api';
 import {
   AppBar,
   Avatar,
@@ -22,6 +22,7 @@ import {
   Text,
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
+import { type Failure, failure } from '@/lib/failure';
 import { setLanguage, useLanguage, useStrings } from '@/lib/language';
 import { UsernameForm } from '@/screens/onboarding/username-form';
 import { board, height, radius, setTheme, space, themed, useThemeChoice } from '@/theme';
@@ -47,7 +48,7 @@ export default function ProfileScreen() {
   const language = useLanguage();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Failure | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [leaving, setLeaving] = useState(false);
 
@@ -75,7 +76,7 @@ export default function ProfileScreen() {
    */
   function remember(stored: Promise<void>) {
     setError(null);
-    stored.catch((e) => setError(errorMessage(e)));
+    stored.catch((e) => setError(failure(e)));
   }
 
   async function logOut() {
@@ -84,7 +85,7 @@ export default function ProfileScreen() {
     try {
       await signOut();
     } catch (e) {
-      setError(errorMessage(e));
+      setError(failure(e));
       setBusy(false);
     }
     // On success the gate swaps this screen out, so nothing to reset.
@@ -140,7 +141,7 @@ export default function ProfileScreen() {
 
       {/* Over the settings and not at the foot of the screen: it answers a pick that was just
           made, or the way out that was just tried. */}
-      {error ? <Banner tone="error" text={error} /> : null}
+      {error ? <Banner tone="error" text={error.text} icon={error.icon} /> : null}
 
       {/* The one door to the contact list. The count and the faces are what it is worth opening
           for; with nobody saved yet — or the list not read — there is neither, the card says what

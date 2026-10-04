@@ -28,7 +28,9 @@ export default function SetUsernameScreen() {
       footer={
         <ActionBar keyboardGap={space.s4}>
           <View style={styles.column}>
-            {name.failed ? <Banner tone="error" text={name.failed} /> : null}
+            {name.failed ? (
+              <Banner tone="error" text={name.failed.text} icon={name.failed.icon} />
+            ) : null}
             <UsernameButton name={name} label={s.username.continue} />
           </View>
         </ActionBar>

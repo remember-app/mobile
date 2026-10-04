@@ -102,7 +102,7 @@ test('waiting, failing and empty each hold the place of the list', () => {
   // Kit «Ждём», «Сбой», «Пусто». Three separate silences, and the one that goes missing first is
   // the failure — a list that never arrives otherwise reads as a list with nobody in it.
   expect(contacts).toContain('<Empty busy text={s.state.loading} />');
-  expect(contacts).toContain('<Banner tone="error" text={error}>');
+  expect(contacts).toContain('<Banner tone="error" text={error.text} icon={error.icon}>');
   // Spec 7.8's rule of words, and `ContactsEmpty` draws it in two parts: the heading names what is
   // missing, the paragraph sends them to the field over it.
   expect(contacts).toContain(
@@ -150,7 +150,7 @@ test('«Вернуть» that never reaches the api takes the row with it, not j
   );
   expect(undo).toContain('addContact(token, contact.username).catch((e: unknown) => {');
   const catchBlock = undo.slice(undo.indexOf('.catch('));
-  expect(catchBlock).toContain('setNotice(errorMessage(e));');
+  expect(catchBlock).toContain('setNotice(failure(e));');
   expect(catchBlock).toContain(
     'setContacts((held) => held?.filter((row) => row.id !== contact.id) ?? null);',
   );

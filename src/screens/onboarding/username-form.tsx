@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { ApiError, checkUsername, errorMessage, isValidUsername } from '@/api';
+import { ApiError, checkUsername, isValidUsername } from '@/api';
 import { Button, Field, type FieldState } from '@/kit';
 import { useAuth } from '@/lib/auth';
+import { type Failure, failure } from '@/lib/failure';
 import { useStrings } from '@/lib/language';
 import type { Strings } from '@/strings';
 import { space } from '@/theme';
@@ -60,7 +61,7 @@ export function useUsername({
   // What the api said about the name that was sent, and — apart from it — a failure that says
   // nothing about the name at all: no connection, a server that fell over.
   const [refused, setRefused] = useState<'taken' | 'format' | null>(null);
-  const [failed, setFailed] = useState<string | null>(null);
+  const [failed, setFailed] = useState<Failure | null>(null);
   const [availability, setAvailability] = useState<Availability | null>(null);
 
   const typed = value.trim();
@@ -136,7 +137,7 @@ export function useUsername({
       // between.
       if (e instanceof ApiError && e.status === 409) setRefused('taken');
       else if (e instanceof ApiError && e.status === 400) setRefused('format');
-      else setFailed(errorMessage(e));
+      else setFailed(failure(e));
     } finally {
       setBusy(false);
     }
@@ -152,6 +153,9 @@ export function useUsername({
     taken,
     format,
     failed,
+    // What the field says about itself, which is the failure's own words and no sign: a hint under
+    // a box is not a banner (TASK-275).
+    hint: failed?.text,
     state,
     submit,
   };
@@ -189,7 +193,7 @@ export function UsernameField({ name, wayIn }: { name: Username; wayIn?: boolean
       // under a green «Username is free.». With nothing wrong and nothing to report — an empty
       // field, a check that could not be made — the line says what the name is *for* (spec 8,
       // `Username`): the rule about letters and length is what a broken name is answered with.
-      (failed ??
+      (failed?.text ??
       (format
         ? s.error.usernameFormat
         : taken
