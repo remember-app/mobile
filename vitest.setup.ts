@@ -1,6 +1,6 @@
 import { createElement } from 'react';
 import { View } from 'react-native';
-import { vi } from 'vitest';
+import { beforeEach, vi } from 'vitest';
 
 /**
  * The native modules the library reaches for, stood in for once instead of at the top of twenty
@@ -112,9 +112,24 @@ vi.mock(
 // network), and a disk that answers to nothing would make every such claim true on paper and blind
 // in fact. A map keyed by path, so a write is read back by the next line that opens the same file —
 // which is what a real disk does and what the app's own cache relies on.
+//
+// **Wiped before every test, and that is the tool's business rather than each test's.** A shared
+// disk that keeps its memory between tests is a disk a test can pass on a neighbour's leftovers and
+// fail on its own depending on what ran before it: nothing here would say why, and a task written
+// next month would inherit both outcomes without knowing either was possible. So the reset is a
+// property of the stand-in, and it costs the one thing it has to cost — «survives a restart» is then
+// checked inside a single test, which is the only place it can honestly be checked anyway: the
+// restart it means is the app's, not the test file's.
+const disk = vi.hoisted(() => ({
+  files: new Map<string, string>(),
+  folders: new Set<string>(),
+  /** What a test wrote, under what name — the way to look at the disk without opening it. */
+  reads: (prefix = 'documents/') =>
+    [...disk.files.entries()]
+      .filter(([one]) => one.startsWith(prefix))
+      .map(([one, held]) => [one.slice(prefix.length), held]),
+}));
 vi.mock('expo-file-system', () => {
-  const disk = new Map<string, string>();
-  const folders = new Set<string>();
   /**
    * The path a `File` or a `Directory` names, as the real library builds it: each part after the
    * first is appended to the one before it, and a `Directory` handed in as a part carries its own
@@ -136,17 +151,18 @@ vi.mock('expo-file-system', () => {
       this.uri = at(parts);
     }
     get exists() {
-      return folders.has(this.uri);
+      return disk.folders.has(this.uri);
     }
     create() {
-      folders.add(this.uri);
+      disk.folders.add(this.uri);
     }
     delete() {
       // A real directory delete takes what is under it, and the app's `forgetKept` relies on that:
       // a stand-in that dropped the folder and left the files would say a session had forgotten
       // everything while every photograph stayed exactly where it was.
-      for (const key of [...disk.keys()]) if (key.startsWith(`${this.uri}/`)) disk.delete(key);
-      folders.delete(this.uri);
+      for (const key of [...disk.files.keys()])
+        if (key.startsWith(`${this.uri}/`)) disk.files.delete(key);
+      disk.folders.delete(this.uri);
     }
   }
   class File {
@@ -155,24 +171,32 @@ vi.mock('expo-file-system', () => {
       this.uri = at(parts);
     }
     get exists() {
-      return disk.has(this.uri);
+      return disk.files.has(this.uri);
     }
     create() {
-      disk.set(this.uri, '');
+      disk.files.set(this.uri, '');
     }
     textSync() {
-      const held = disk.get(this.uri);
+      const held = disk.files.get(this.uri);
       if (held === undefined) throw new Error(`File '${this.uri}' could not be read.`);
       return held;
     }
     write(content: string) {
-      disk.set(this.uri, content);
+      disk.files.set(this.uri, content);
     }
     delete() {
-      disk.delete(this.uri);
+      disk.files.delete(this.uri);
     }
   }
   return { Directory, File, Paths: { document: 'documents', cache: 'cache' } };
+});
+
+// A phone with nothing on it. Registered here rather than left to each test file to remember, so
+// that a test written next month cannot pass on a neighbour's leftovers without knowing that was on
+// the table — the whole of what this reset is for.
+beforeEach(() => {
+  disk.files.clear();
+  disk.folders.clear();
 });
 
 // The sheet shuts itself when the screen under it loses focus; nothing here mounts a router.
