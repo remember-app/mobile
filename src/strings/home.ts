@@ -25,9 +25,7 @@ export const en = {
      * `HomeOffline` — said over a list that is still there. The screen goes on working; what it
      * cannot promise is that this is the latest, and that is the whole sentence.
      */
-    offline: 'No connection to the server. Showing what is already loaded.',
     /** `HomeOnline` — one line with no way to dismiss it, because it leaves on its own. */
-    online: 'Connected',
     create: 'New memory',
   },
 
@@ -82,8 +80,6 @@ export const ru: typeof en = {
     // Про людей, а не про файлы: считаются те, кто ответил за свой материал, — и сказано это
     // так же, как на «Людях» воспоминания.
     brought: (done: number, all: number) => `${done} из ${all} уже скинули свои кадры`,
-    offline: 'Нет связи с сервером. Показываем то, что уже загружено.',
-    online: 'Соединение установлено',
     create: 'Новое воспоминание',
   },
 

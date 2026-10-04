@@ -155,16 +155,17 @@ export function Frames({ id, head }: { id: string; head: Head }) {
    * overwrite and what to do with one that comes back too late is a subject of its own, and none of
    * it is about drawing a wall of frames.
    */
-  const { items, roster, labels, error, loading, read, readLabels, wrote } = useMaterial({
-    memoryId: id,
-    token,
-    // A box somebody else deleted leaves the filter too, the way one deleted here does.
-    onLabels: useCallback(
-      (all: Label[]) =>
-        setFilter((have) => keepLabels(have, (one) => all.some((label) => label.id === one))),
-      [],
-    ),
-  });
+  const { items, roster, labels, error, loading, link, hushed, read, readLabels, wrote } =
+    useMaterial({
+      memoryId: id,
+      token,
+      // A box somebody else deleted leaves the filter too, the way one deleted here does.
+      onLabels: useCallback(
+        (all: Label[]) =>
+          setFilter((have) => keepLabels(have, (one) => all.some((label) => label.id === one))),
+        [],
+      ),
+    });
 
   // The open frame is shut on the way out of the screen (TASK-94, extended in review): leaving
   // without closing it — a tapped push, a deep link, anything that is not the cross, the delete or
@@ -288,6 +289,39 @@ export function Frames({ id, head }: { id: string; head: Head }) {
         reload={head.reload}
         onLayout={(e) => setTroubled(e.nativeEvent.layout.height)}
       />
+    );
+
+  /**
+   * `HomeOffline` here, and in its own words: the connection is a strip above the feed and never a
+   * replacement for it — the frames stay where they are and stay scrollable, and what the screen
+   * cannot promise while it stands is that this is the latest (spec 7.6, detail 47).
+   *
+   * Kept out of the way of an empty screen on purpose, and for the same reason `HomeOffline` keeps
+   * its list: with nothing held and nothing arrived the failure stands in the feed's place and
+   * carries «Повторить», and a second line above it would say the same thing twice. Only asked
+   * reads reach this at all (`useMaterial`), so the catch-up under a drawn feed never puts a banner
+   * over somebody's photographs — see `Link`.
+   *
+   * The gate is `any` and not `items !== null`, because the line's own sentence promises that what
+   * is on screen is what was already loaded. The last frame going is the one way for that to stop
+   * being true while the feed itself is still there, and a «Показываем то, что уже загружено» over
+   * an empty feed is a sentence about nothing.
+   *
+   * It is drawn in the head of the feed, which is what makes it a strip above the content rather
+   * than a layer over it: the header's height grows and the frames are pushed down, and the spine
+   * counts its marks from the first row of frames, which now stands below the plate.
+   */
+  const plate =
+    !any || link === 'ok' || link === 'hushed' ? null : link === 'gone' ? (
+      <Banner
+        text={s.state.offline}
+        hide={{ label: s.action.hide, onPress: hushed }}
+        style={styles.plate}
+      />
+    ) : (
+      // Spec 7.6: `HomeOnline` carries no button at all — it leaves by itself, and a button on
+      // something already going is a button nobody reaches.
+      <Banner tone="done" text={s.state.online} style={styles.plate} />
     );
 
   /** Everybody who actually brought something, for the faces the filter sheet offers. */
@@ -453,11 +487,12 @@ export function Frames({ id, head }: { id: string; head: Head }) {
         // filled up for — and under them the material itself, named and counted. Neither is drawn
         // over `FramesEmpty`: with nothing brought there is no film to cut and nothing to count.
         ListHeaderComponent={
-          any || !floats ? (
+          any || !floats || plate ? (
             // Measured rather than reckoned: the films are a block whose height is its own business
             // — a strip, an empty state, nothing at all while it reads — and the spine's marks are
             // counted from the first row of frames, which stands under it.
             <View onLayout={onHeaderLayout}>
+              {plate}
               {floats ? null : trouble}
               {any ? (
                 <>
@@ -875,6 +910,9 @@ const useStyles = themed(() =>
     seam: { marginVertical: -FEED_GAP },
     // Spec 8: 22 between the films and the heading over the material, 10 down to the first row.
     framesHead: { marginTop: 22, marginBottom: 10 },
+    // Spec 7.6, detail 47 — the feed runs to both edges, so the connection line takes the same 12
+    // at the sides the glass bar does (`HeadTrouble`) and sits 8 below whatever stands above it.
+    plate: { marginHorizontal: space.s3, marginBottom: space.s2 },
     // The bottom layer stands over the feed and takes no room from it: the gradient inside it is
     // what the last frames pass under.
     bottom: { position: 'absolute', left: 0, right: 0, bottom: 0 },

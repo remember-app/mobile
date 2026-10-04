@@ -75,11 +75,11 @@ test('the connection is a line over the list and never a replacement for it', ()
   // cleared the list — or stood an error in its place — would be the screen the design refuses.
   expect(index).not.toContain('setMemories(null)');
   expect(index).toContain('ListHeaderComponent');
-  expect(index).toContain('text={s.home.offline}');
+  expect(index).toContain('text={s.state.offline}');
   expect(index).toContain('hide={{ label: s.action.hide');
   // And the one that says it is back has no button on it at all, in either language: it leaves by
   // itself, and a button on something already going is a button nobody reaches.
-  expect(index).toContain('<Banner tone="done" text={s.home.online} />');
+  expect(index).toContain('<Banner tone="done" text={s.state.online} />');
   expect(index).toContain("setTimeout(() => setLink({ at: 'ok' }), duration.hold)");
   expect(index).toContain('return () => clearTimeout(leaves);');
 });
