@@ -18,9 +18,9 @@ import layout from '@/app/_layout.tsx?raw';
 import home from '@/app/index.tsx?raw';
 import invite from '@/app/invite.tsx?raw';
 import edit from '@/app/memory/[id]/edit.tsx?raw';
+import mine from '@/app/memory/[id]/mine.tsx?raw';
 import film from '@/app/memory/[id]/montage/[montageId]/film.tsx?raw';
 import live from '@/app/memory/[id]/montage/[montageId]/index.tsx?raw';
-import mine from '@/app/memory/[id]/mine.tsx?raw';
 import picker from '@/app/memory/[id]/order/frames.tsx?raw';
 import settings from '@/app/memory/[id]/settings.tsx?raw';
 import upload from '@/app/memory/[id]/upload.tsx?raw';
@@ -39,9 +39,9 @@ import viewer from '@/screens/memory/frame-viewer.tsx?raw';
 import frames from '@/screens/memory/frames.tsx?raw';
 import errands from '@/screens/memory/frames-errands.ts?raw';
 import material from '@/screens/memory/frames-material.ts?raw';
+import spine from '@/screens/memory/frames-spine.tsx?raw';
 import head from '@/screens/memory/head.tsx?raw';
 import inviteSheet from '@/screens/memory/invite-sheet.tsx?raw';
-import spine from '@/screens/memory/frames-spine.tsx?raw';
 import { en, ru } from '@/strings';
 
 /**
@@ -392,7 +392,9 @@ test('the sheet is one flat list of headings and strips, never a three-column gr
   // no event window to sort by, every frame in it is already the event's.
   expect(upload).toContain('{ key: `day-${day.at}`, day }');
   expect(frames).toContain('groupFrames(kept, sort, datesBetweenDays)');
-  expect(frames).toContain('rowsOf(group.frames, columns).map((frames) => ({ key: frames[0].id, frames }))');
+  expect(frames).toContain(
+    'rowsOf(group.frames, columns).map((frames) => ({ key: frames[0].id, frames }))',
+  );
   expect(frames).not.toContain('assetsByDay');
   // What is laid out is what the filter left, and both are asked of `@/lib/frames` so the sheet, the
   // strip under the open frame and the count on the filter's own button cannot come apart.

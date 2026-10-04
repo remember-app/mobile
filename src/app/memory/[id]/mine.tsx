@@ -22,9 +22,9 @@ import {
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { formatDay, formatRuntime, formatWeekday } from '@/lib/dates';
+import { useDensity } from '@/lib/density';
 import { type Failure, failure } from '@/lib/failure';
 import { byDay, frameOf, removeFrames, rowsOf, shotAt } from '@/lib/frames';
-import { useDensity } from '@/lib/density';
 import { useStrings } from '@/lib/language';
 import { type ParkedFile, progress } from '@/lib/upload/queue';
 import { useUploads } from '@/lib/upload/send';

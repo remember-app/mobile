@@ -30,6 +30,7 @@ import {
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { formatDayShort, formatEventDates, formatRuntime, formatWeekday } from '@/lib/dates';
+import { useDensity } from '@/lib/density';
 import {
   allTaken,
   arranged,
@@ -52,7 +53,6 @@ import {
   toggleDay,
   toggleEvery,
 } from '@/lib/frames';
-import { useDensity } from '@/lib/density';
 import { filed } from '@/lib/labels';
 import { useStrings } from '@/lib/language';
 import { Films } from '@/screens/memory/films';

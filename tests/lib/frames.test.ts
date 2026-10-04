@@ -692,11 +692,7 @@ test('a gallery is cut into rows of however many across, and the last row holds 
   // The one cut all four galleries go through (TASK-523). A last row is not padded out — a frame
   // that stood in two rows was drawn twice, and the count over a day would not match its strips.
   const seven = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
-  expect(rowsOf(seven, 3)).toEqual([
-    ['a', 'b', 'c'],
-    ['d', 'e', 'f'],
-    ['g'],
-  ]);
+  expect(rowsOf(seven, 3)).toEqual([['a', 'b', 'c'], ['d', 'e', 'f'], ['g']]);
   expect(rowsOf(seven, 5)).toEqual([
     ['a', 'b', 'c', 'd', 'e'],
     ['f', 'g'],
