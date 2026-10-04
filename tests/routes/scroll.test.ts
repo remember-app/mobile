@@ -54,19 +54,25 @@ test('no screen scrolls up and down by a scroll of its own', () => {
   // of the viewer's window (TASK-478), not a route of its own, and it scrolls because it is handed
   // the rest of that window — the same two reasons the sheet's body does.
   //
-  // `frame-comments.tsx` is a block of that same surface (TASK-499), and its list scrolls inside
-  // itself for the reason the decision of 2026-10-03 gives: three comments stand without a scroll
-  // and the ones past them are reached inside the block, so a frame with thirty under it has not
-  // pushed the panel's own blocks off the window. It has a floor rather than the window, which is
-  // what keeps it from being a scroll of a screen.
+  // Everything after the two older paths carries **its reason beside it** rather than here, because a
+  // list of bare paths is a list that grows without anyone saying why: a fourth entry would look as
+  // lawful as the first two, and a comment above would not stop it — nobody rereads a comment while
+  // adding a line. Carrying the reason in the entry means there is nothing to add without one. The
+  // two older paths keep their reasons above, where they were written before this shape.
+  const ALLOWED: { path: string; why: string }[] = [
+    {
+      path: 'screens/memory/frame-comments.tsx',
+      // A block of the frame-info panel, not a screen, so it has a floor rather than the window.
+      // Its list scrolls inside itself because the human decided so on 2026-10-03: three comments
+      // stand without a scroll and the rest are reached inside the block, so a frame with thirty
+      // under it has not pushed the panel's own blocks off the window.
+      why: 'a block of the frame-info panel, not a screen: its list scrolls inside a floor of three rows, by the human’s decision of 2026-10-03 (TASK-499)',
+    },
+  ];
   const own = sources
-    .filter(
-      ([path]) =>
-        path !== 'kit/bars.tsx' &&
-        path !== 'kit/sheet.tsx' &&
-        path !== 'screens/memory/frame-info.tsx' &&
-        path !== 'screens/memory/frame-comments.tsx',
-    )
+    .filter(([path]) => !ALLOWED.some((one) => one.path === path))
+    .filter(([path]) => path !== 'kit/bars.tsx' && path !== 'kit/sheet.tsx')
+    .filter(([path]) => path !== 'screens/memory/frame-info.tsx')
     .filter(([, source]) =>
       [...flat(source).matchAll(/<(Animated\.)?ScrollView\b[^>]*>/g)].some(
         ([tag]) => !/\bhorizontal\b/.test(tag),
@@ -74,6 +80,19 @@ test('no screen scrolls up and down by a scroll of its own', () => {
     )
     .map(([path]) => path);
   expect(own).toEqual([]);
+
+  // And every entry in that list is a path that exists and a reason that was written down. The
+  // point of the shape is that a fourth entry cannot be added by naming a file: there is nothing
+  // to add without saying why, and a path that no longer scrolls is not an exemption any more.
+  const names = new Set(sources.map(([path]) => path));
+  for (const one of ALLOWED) {
+    expect(names.has(one.path), `${one.path} scrolls and is listed`).toBe(true);
+    expect(
+      sources.find(([path]) => path === one.path)?.[1],
+      `${one.path} is a vertical scroll`,
+    ).toMatch(/<(Animated\.)?ScrollView\b/);
+    expect(one.why.trim().length, `${one.path} says why`).toBeGreaterThan(20);
+  }
 });
 
 test('a list is handed the bar and the bottom layer by the board, or is the feed', () => {
