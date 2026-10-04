@@ -80,15 +80,29 @@ test('the connection is a line over the list and never a replacement for it', ()
   // And the one that says it is back has no button on it at all, in either language: it leaves by
   // itself, and a button on something already going is a button nobody reaches.
   expect(index).toContain('<Banner tone="done" text={s.state.online} />');
-  expect(index).toContain("setTimeout(() => setLink({ at: 'ok' }), duration.hold)");
+  expect(index).toContain("setTimeout(() => setLink('ok'), duration.hold)");
   expect(index).toContain('return () => clearTimeout(leaves);');
 });
 
 test('hiding the offline line does not count as the connection coming back', () => {
   // The cross puts the message away; it says nothing about the network. Folding `hushed` into `ok`
   // would leave somebody who dismissed it never told when it returns — the quiet half of the pair.
-  expect(index).toContain("setLink({ at: 'hushed', why: link.why })");
-  expect(index).toContain("was.at === 'gone' || was.at === 'hushed' ? { at: 'back' } : was");
+  expect(index).toContain("onPress: () => setLink('hushed')");
+  expect(index).toContain("was === 'gone' || was === 'hushed' ? 'back' : was");
+});
+
+test('a refused read is the api answering, and never a lost connection', () => {
+  // TASK-521 — the same question `frames-material.ts` asks before it stands its plate: only a read
+  // nobody got an answer at all is the connection. A 403/404/500 is the server's own word about
+  // something else, and «нет связи» over a list that is fine says the wrong reason out loud.
+  // Pinned on the *guard*, not on the words around it: what the failure says is `failed`'s job and
+  // `failed` is its own state now, so the two cannot be told apart by looking at either alone.
+  expect(index).toContain("import { answered } from '@/lib/failure';");
+  expect(index).toContain("if (!answered(e)) setLink('gone');");
+  // The whole state: a read that failed writes the reason and nothing else, and where the connection
+  // stands is never derived from a failure — that derivation is what made a 403 look like an outage.
+  expect(index).toContain('const [failed, setFailed] = useState<string | null>(null);');
+  expect(index).not.toMatch(/setLink\(\{\s*at: 'gone'/);
 });
 
 test('the empty list invites instead of reporting, and the first load says which it is', () => {
