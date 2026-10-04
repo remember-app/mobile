@@ -245,7 +245,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   const sheet = useMemo(() => rows.flatMap((row) => row.frames ?? []), [rows]);
 
   /**
-   * The date spine at the right edge (spec 7.8, detail 66, `MemoryScrub`): its own module, because
+   * The date spine at the left edge (spec 7.8, detail 66, `MemoryScrub`): its own module, because
    * none of it is about the frames — it measures the feed, fades itself in and out and answers a
    * finger, and all it wants from here is what is being drawn and how tall a row of it is.
    */
@@ -629,7 +629,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
         }}
       />
 
-      {/* The spine at the right edge, over the photographs and taking no room from them. */}
+      {/* The spine at the left edge, over the photographs and taking no room from them. */}
       <SpineLayer {...spine} />
 
       {/* Spec 7.1, detail 4 — the glass over the feed. In the feed it is «Назад», the memory's name
