@@ -1331,6 +1331,58 @@ const grabber = (screen: Screen) =>
       JSON.stringify(one.props.style ?? '').includes('"width":32'),
   )[0];
 
+/**
+ * Everything inside the spine's layer a finger would land on (TASK-524). `pointerEvents` is read by
+ * hit-testing, not inherited by React: a view answers unless something between it and the layer is
+ * `none`, and the layer standing at `box-none` is precisely the rule that lets the strip below
+ * through. The layer lies over the photographs the whole time it can be seen, so anything in it
+ * that answers takes the flick away from the feed — which is how a second one came to wait a second.
+ */
+function answering(screen: Screen) {
+  const layer = spineLayer(screen);
+  const shut = (one: TestRenderer.ReactTestInstance) =>
+    one.props.pointerEvents === 'none' || one.props.pointerEvents === 'box-only';
+  return layer
+    .findAll(() => true)
+    .filter((one) => one !== layer && !shut(one))
+    .filter((one) => {
+      for (let up = one.parent; up && up !== layer; up = up.parent) if (shut(up)) return false;
+      return true;
+    })
+    .map((one) =>
+      typeof one.props.onResponderGrant === 'function' ? 'the strip' : 'something over the feed',
+    );
+}
+
+test('the spine proves over the photographs without standing in the way of a second flick', async () => {
+  const scrollToOffset = vi
+    .spyOn(FlatList.prototype, 'scrollToOffset')
+    .mockImplementation(() => {});
+  clock();
+  try {
+    world();
+    const screen = await open();
+    await measure(screen);
+    // Nothing of it answers while it is not there to be seen — the strip included, or a flick along
+    // the right edge would be half a grab and half a scroll.
+    expect(answering(screen)).toEqual([]);
+    // Up: the strip is live, and the marks lying over the feed are not.
+    await act(async () => grabber(screen).props.onResponderGrant(touch({ y: 300 })));
+    expect(answering(screen)).toEqual(['the strip']);
+    // A flick during the second the spine stands is the feed's own — the layer over it draws
+    // photographs and nothing else, and takes nothing.
+    await wait(900);
+    expect(answering(screen)).toEqual(['the strip']);
+    // And a second after the last touch it all goes quiet again.
+    await wait(200);
+    expect(answering(screen)).toEqual([]);
+    expect(scrollToOffset).toHaveBeenCalledTimes(1);
+  } finally {
+    vi.useRealTimers();
+    scrollToOffset.mockRestore();
+  }
+});
+
 test('dragging the spine throws the feed to where the finger stands on it, held inside the strip at either end', async () => {
   const scrollToOffset = vi
     .spyOn(FlatList.prototype, 'scrollToOffset')
