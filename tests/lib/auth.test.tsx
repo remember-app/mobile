@@ -356,6 +356,16 @@ test('a launch with no copy to open on keeps the account for the next one', asyn
   expect(kept()).toEqual(ME);
 });
 
+// The copy is the api's account, and the token is the api's permission to spend it. Without the
+// token the copy is nothing to show: this is what a copy left behind by a keychain that refused to
+// let go of one of the two must not be able to do.
+test('a copy with no token beside it opens nothing', async () => {
+  await launch(null, ME);
+
+  expect(auth).toMatchObject({ token: null, user: null, status: 'signed-out' });
+  expect(api.calls).toEqual([]);
+});
+
 // «Даты между днями» (TASK-292): the account's one setting for every feed. It comes with every
 // answer that carries the person and is changed by `POST /me/dates-between-days` (api docs/auth.md).
 
