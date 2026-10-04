@@ -576,7 +576,12 @@ test('the ceiling on a comment is the api’s alone, and this repository writes 
   expect(comments).toContain('setDraft(next);');
   // And the send is what it always was — the api's answer decides, and a refusal leaves the words.
   expect(comments).toContain('onSent(await addFrameComment(token, memoryId, mediaId, body));');
-  expect(comments).toContain('setUnsent(true);');
+  // The refusal says which one it was: what the api sent if it sent anything, and otherwise the
+  // plain admission that the words did not go. Pinned on the flag and not on its wording, because
+  // this file is about the ceiling living in one repository and not about how a refusal reads —
+  // `frame-comments.test.tsx` is where the words are checked, and there against a screen that ran,
+  // which is the only way a line that says the wrong thing can be caught (TASK-506).
+  expect(comments).toContain('setUnsent(said(failure) ?? s.viewer.commentNotSent);');
 });
 
 test('what expo-image keeps on disk has a ceiling, set once at startup and only where there is none', () => {
