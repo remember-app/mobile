@@ -48,16 +48,20 @@ import { bodyOf, load, MEMORY, MONTAGE, replay } from './recorded';
 mountsTrees();
 
 const LANGUAGES: Language[] = ['ru', 'en'];
-/** Every reason the worker writes on a frame it passes over. */
-const CODES = [
-  'unreadable',
-  'blur',
-  'exposure',
-  'duplicate',
-  'excluded',
-  'no_room',
-  'left_out',
-] as const;
+/**
+ * Every code the app keeps a word for on a frame passed over, each with the word it must be said in
+ * — the words written out, not read back out of the dictionary. Asking the dictionary what it says
+ * about itself passes whatever the answer is, and the screen then says that same wrong word beside
+ * it; a pinned word is what makes this test fail instead of agree.
+ */
+const CODES: [string, string, string][] = [
+  ['unreadable', 'Не открылся', 'Would not open'],
+  ['blur', 'Смазан', 'Blurred'],
+  ['exposure', 'Свет не тот', 'The light is off'],
+  ['duplicate', 'Дубль', 'A double'],
+  ['excluded', 'Убрали при заказе', 'Left out at the order'],
+  ['left_out', 'Не в истории', 'Not in the story'],
+];
 
 const READY = 'journal_of_ready_montage';
 /** Seconds after the recording's own clock, so no stage has run «for minutes». */
@@ -128,9 +132,10 @@ describe.each(LANGUAGES)('every reason the worker writes, on the frame (%s)', (l
 
   const { live } = strings[lang].montage;
 
-  test.each(CODES)('«%s» is named in its own word under «Мимо»', async (code) => {
-    expect(pillsOf(await screen(code))).toContainEqual(['pass', live.reason[code]]);
-    expect(live.reason[code]).not.toBe(live.reason.other);
+  // The word this test expects is the pinned one, never `live.reason[code]`: a screen drawn from a
+  // wrong word and a test expecting that same wrong word are two halves of one mistake.
+  test.each(CODES)('«%s» is named in its own word under «Мимо»', async (code, russian, english) => {
+    expect(pillsOf(await screen(code))).toContainEqual(['pass', lang === 'ru' ? russian : english]);
   });
 
   test.each(['shaky_pan', 'constructor', '__proto__'])(

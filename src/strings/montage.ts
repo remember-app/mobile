@@ -422,8 +422,6 @@ export const en = {
         duplicate: 'A double',
         /** Struck off by hand at the order — the director had no say in this one. */
         excluded: 'Left out at the order',
-        /** Good enough, but the movie is only so long. */
-        no_room: 'No room left',
         /** The director's own choice to leave it out — its words about why are the record's thought. */
         left_out: 'Not in the story',
         /** The one reason on a frame that was taken: the organizer asked for it at the order. */
@@ -968,7 +966,6 @@ export const ru: typeof en = {
         unreadable: 'Не открылся',
         duplicate: 'Дубль',
         excluded: 'Убрали при заказе',
-        no_room: 'Не влез',
         left_out: 'Не в истории',
         included: 'Взят по слову организатора',
         other: 'Не подошёл',

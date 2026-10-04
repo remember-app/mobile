@@ -518,7 +518,7 @@ describe('where a frame ended up', () => {
     const held = [
       second,
       entry(7, { media_id: 'f2', decision: 'take' }),
-      entry(5, { media_id: 'f1', decision: 'skip', reason: 'no_room' }),
+      entry(5, { media_id: 'f1', decision: 'skip', reason: 'left_out' }),
       entry(4, { media_id: 'f1' }),
       first,
       entry(2, { media_id: 'f2', decision: 'take' }),
