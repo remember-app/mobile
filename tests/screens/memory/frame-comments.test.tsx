@@ -16,10 +16,10 @@ vi.mock('@/kit', async (original) => ({
 }));
 
 import type { ReactNode } from 'react';
-import { ScrollView } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import type { FrameComment, FrameInfo } from '@/api';
-import { ConfirmSheet, Field, IconButton, Text } from '@/kit';
+import { Avatar, ConfirmSheet, Field, IconButton, Text } from '@/kit';
 import { compiled } from '@/kit/story';
 import { FrameInfoPanel } from '@/screens/memory/frame-info';
 import { ru } from '@/strings';
@@ -175,6 +175,32 @@ test('a comment of their own is the same row with «вы» where the name stands
   expect(screen.button(ru.viewer.commentRemove)).toBeDefined();
 });
 
+test('a row is the drawing: a 28 face, 10 from the words, the name 7 from when it was written', async () => {
+  // `FrameInfo.html` lines 40–43. The sizes and the air between them are the whole of what the
+  // drawing settles here, and each of them is one number somewhere in this block's own styles.
+  const screen = await drawn(told({ comments: [said()] }));
+  const avatar = screen.root.findAllByType(Avatar)[0];
+  expect(avatar.props.size).toBe(28);
+
+  // The row: the face at the left, the words taking what is left of it.
+  const row = screen.root
+    .findAllByType(View)
+    .find((one) => styleOf(one).flexDirection === 'row' && styleOf(one).gap === 10);
+  expect(row, 'the row: face and words').toBeDefined();
+  const words = styleOf(row!);
+  expect(words.gap).toBe(10);
+  expect(words.alignItems).toBe('flex-start');
+
+  // The name and the moment share a baseline 7 apart — line 42 — while the block's own head row
+  // shares one 8 apart, so the row inside a comment is picked out by its own number.
+  const line = screen.root
+    .findAllByType(View)
+    .find((one) => styleOf(one).alignItems === 'baseline' && styleOf(one).gap === 7);
+  expect(line, 'the name and when it was written').toBeDefined();
+  const stack = screen.root.findAllByType(View).find((one) => styleOf(one).gap === 2);
+  expect(stack, 'the words under the name').toBeDefined();
+});
+
 test('the count is the whole number, not a count of what fits — three stand and the fourth says 4', async () => {
   const many = await drawn(
     told({
@@ -188,6 +214,15 @@ test('the count is the whole number, not a count of what fits — three stand an
   expect(many.words()).toContain('4');
   expect(many.words()).not.toContain('3');
 });
+
+/** A node's own style, flattened out of whatever shape React Native was given it in. */
+const styleOf = (node: { props: { style?: unknown } }): Record<string, unknown> => {
+  const one = (style: unknown): Record<string, unknown> =>
+    Array.isArray(style)
+      ? Object.assign({}, ...style.map(one))
+      : ((style as Record<string, unknown> | null) ?? {});
+  return one(node.props.style);
+};
 
 test('the list is floored at three rows and walks to its end when the list grows', async () => {
   // The fifth decision: three comments stand without a scroll and the rest are reached inside the
@@ -206,6 +241,18 @@ test('the list is floored at three rows and walks to its end when the list grows
   // three stand without a scroll and a row of two lines grows past it. Read off the sheet the style
   // compiled to, the way the kit's own stories read a shape.
   expect(compiled()).toContain(`max-height:${3 * 36 + 2 * 12}px`);
+  // The 12 between the rows has to be there for the arithmetic to be about anything: without it
+  // the floor is three rows and 24 of air, and the fourth comment arrives at a line already off.
+  expect(JSON.stringify(list.props.contentContainerStyle)).toContain('gap');
+  expect(JSON.stringify(list.props.contentContainerStyle)).toContain('12');
+  // And a row pads nothing of its own, or the 36 above is not a row and the three do not fit.
+  const row = four.root
+    .findAllByType(View)
+    .find((one) => styleOf(one).flexDirection === 'row' && styleOf(one).gap === 10);
+  expect(row, 'the comment row: the face 28, 10 from the words').toBeDefined();
+  expect(styleOf(row!), 'a row that pads itself is not a row').not.toHaveProperty(
+    'paddingVertical',
+  );
 
   // And the list walks to its end: a comment just written joins at the end of the api's order, and
   // a person who cannot see the line they just wrote has not been told anything. The scroll itself

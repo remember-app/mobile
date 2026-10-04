@@ -165,10 +165,14 @@ export function FrameComments({
  * them stand without a scroll and everything past that is reached inside this one, so a frame with
  * thirty comments under it has not pushed the file's own lines off the screen.
  *
- * The floor is three rows of one line each — a name, and a body on the line under it (`FrameInfo`
- * line 42: a comment is short, and one that wraps is the one that scrolls). A taller row of two
- * lines grows the list past this and scrolls with it, which is the point: the number under the
- * heading is the number there is, whatever of it is in sight.
+ * The floor is three rows of one line each — the name 16 and the body 18 under it, with 2 between
+ * (`FrameInfo` lines 42–43) — and the block's own 12 between rows. A comment of two lines grows the
+ * list past this and scrolls with it, which is the point: the number under the heading is the
+ * number there is, whatever of it is in sight.
+ *
+ * ponytail: 36 is the row height written out, because it is the row height of *this* row — the
+ * name's line plus the body's. A row that grows with the system's type grows the list with it and
+ * scrolls, which is what a floor is for; the number stops being an estimate when the row does.
  */
 const THREE_ROWS = 3 * 36 + 2 * space.s3;
 
@@ -187,6 +191,7 @@ function CommentList({
     <ScrollView
       ref={list}
       style={styles.list}
+      contentContainerStyle={styles.rows}
       showsVerticalScrollIndicator={false}
       // A comment just written stands at the end of the api's order, which is the end of the list,
       // and a person who cannot see the line they just wrote has not been told anything.
@@ -238,8 +243,13 @@ const useStyles = themed(() =>
     none: { marginTop: -4 },
     // Three rows and no more, then it scrolls inside itself.
     list: { maxHeight: THREE_ROWS, flexGrow: 0 },
-    // `FrameInfo.html` line 40: the face 28, 10 from the words, which take the rest.
-    row: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 6 },
+    // The block's own 12 between rows (`FrameInfo.html` line 37), the same one the header and the
+    // pill stand 12 apart by.
+    rows: { gap: space.s3 },
+    // `FrameInfo.html` line 40: the face 28, 10 from the words, which take the rest. No padding of
+    // its own — the 12 between rows is the block's, and a row that padded itself would make
+    // {@link THREE_ROWS} a number about something else.
+    row: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
     words: { flex: 1, minWidth: 0, gap: 2 },
     // The name and when it was written, the one on the baseline of the other (line 42).
     line: { flexDirection: 'row', alignItems: 'baseline', gap: 7 },
