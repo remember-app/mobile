@@ -472,14 +472,16 @@ test('the phone holds no ceiling of its own: what was written is what goes over 
   expect(screen.log.at(-1)?.body).toEqual({ body: long });
 });
 
-test('an emoji a ceiling would have cut in half reaches the api whole', async () => {
+test('a ceiling counted any way at all would still cut this, and none of them is here', async () => {
   // Why the ceiling cannot simply be copied and obeyed: the base counts an emoji as one letter and
-  // a phone as two, so `slice` at the api's own 500 lands between the halves of a pair and sends
-  // back a broken character no wording can undo. Written whole is the only way it survives, which
-  // is what makes TASK-509's slice redundant rather than merely nicer (decision, TASK-507).
+  // a phone as two, so no slice can be made to agree with the api. Worse, a slice that kept
+  // surrogate pairs whole — by code point, or `Intl.Segmenter` — would be a *neater* version of the
+  // same mismatch, which is why the emoji case is written to catch those too and not only the
+  // crude one: 600 emojis are 600 the api's way, 600 by code point, 600 by grapheme and 1200 by
+  // `slice`, so every one of those ceilings cuts this text and only no ceiling at all lets it
+  // through. Written whole is what makes TASK-509's slice redundant, not merely nicer (TASK-507).
   const screen = await drawn(told({ comments: [] }));
-  // 300 emojis are 600 units — over the api's 500 counted the api's way and a slice's way both.
-  const said = '😀'.repeat(300);
+  const said = '😀'.repeat(600);
   await screen.type(said);
   expect(screen.pill()?.props.value).toBe(said);
   await screen.press(screen.button(ru.action.send)!);
