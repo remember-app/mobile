@@ -1331,6 +1331,65 @@ const grabber = (screen: Screen) =>
       JSON.stringify(one.props.style ?? '').includes('"width":32'),
   )[0];
 
+/**
+ * Everything inside the spine's layer a finger would land on (TASK-524). `pointerEvents` is read by
+ * hit-testing rather than inherited by React, and it says two things at once: `box-none` is the view
+ * standing aside for its children, `box-only` is the view taking every touch and giving none to
+ * them. The layer lies over the photographs the whole time it can be seen, so anything in it that
+ * answers takes the flick away from the feed — which is how a second one came to wait a second.
+ *
+ * The host elements `react-native-web` wraps a view in are left out: in node they are one view drawn
+ * twice, and there is no such node on the phone.
+ */
+function answering(screen: Screen) {
+  const layer = spineLayer(screen);
+  /** A view that answers nothing itself: `none` takes its children with it, `box-only` does not answer. */
+  const keepsToItself = (one: TestRenderer.ReactTestInstance) =>
+    one.props.pointerEvents === 'none' || one.props.pointerEvents === 'box-none';
+  /** A view that answers nothing for its children: `none`, and `box-only` standing over them. */
+  const shutsOut = (one: TestRenderer.ReactTestInstance) =>
+    one.props.pointerEvents === 'none' || one.props.pointerEvents === 'box-only';
+  return layer
+    .findAll((one) => typeof one.type !== 'string')
+    .filter((one) => one !== layer && !keepsToItself(one))
+    .filter((one) => {
+      for (let up = one.parent; up; up = up.parent) if (shutsOut(up)) return false;
+      return true;
+    })
+    .map((one) =>
+      typeof one.props.onResponderGrant === 'function' ? 'the strip' : 'something over the feed',
+    );
+}
+
+test('the spine proves over the photographs without standing in the way of a second flick', async () => {
+  const scrollToOffset = vi
+    .spyOn(FlatList.prototype, 'scrollToOffset')
+    .mockImplementation(() => {});
+  clock();
+  try {
+    world();
+    const screen = await open();
+    await measure(screen);
+    // Nothing of it answers while it is not there to be seen — the strip included, or a flick along
+    // the right edge would be half a grab and half a scroll.
+    expect(answering(screen)).toEqual([]);
+    // Up: the strip is live, and the marks lying over the feed are not.
+    await act(async () => grabber(screen).props.onResponderGrant(touch({ y: 300 })));
+    expect(answering(screen)).toEqual(['the strip']);
+    // A flick during the second the spine stands is the feed's own — the layer over it draws
+    // photographs and nothing else, and takes nothing.
+    await wait(900);
+    expect(answering(screen)).toEqual(['the strip']);
+    // And a second after the last touch it all goes quiet again.
+    await wait(200);
+    expect(answering(screen)).toEqual([]);
+    expect(scrollToOffset).toHaveBeenCalledTimes(1);
+  } finally {
+    vi.useRealTimers();
+    scrollToOffset.mockRestore();
+  }
+});
+
 test('dragging the spine throws the feed to where the finger stands on it, held inside the strip at either end', async () => {
   const scrollToOffset = vi
     .spyOn(FlatList.prototype, 'scrollToOffset')
