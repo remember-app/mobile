@@ -482,7 +482,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
             style={{ marginTop: lift }}
           >
             {error !== null && items === null ? (
-              <Banner tone="error" text={error}>
+              <Banner tone="error" text={error.text} icon={error.icon}>
                 {/* Wrapped rather than handed `load` itself: a press hands its own argument along,
                     and the first one here is «read quietly». */}
                 <Button variant="quiet" size="xs" label={s.action.retry} onPress={() => read()} />

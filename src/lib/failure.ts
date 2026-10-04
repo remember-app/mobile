@@ -12,19 +12,23 @@ export type Failure = { text: string; icon?: IconComponent };
 /** The statuses a route words itself, because the api's bare «forbidden» or «not found» says nothing. */
 export type Refusals = Partial<Record<number, Failure>>;
 
+/** A 403 is about rights; anything else the api refused wears the plain warning. */
+function glyph(status: number): IconComponent {
+  return status === 403 ? Lock : TriangleAlert;
+}
+
 /**
  * The one place a refusal turns into a glyph, for every banner in the app — the same question
  * `errorMessage` answers in words, asked beside it in a sign.
  *
- * Told apart by what came back and never by the words: anything the api answered is not the
- * connection, and the two are told apart by the status alone so a language switched under a banner
- * cannot change its meaning. A 403 is about rights; a 404 is something that is not there, and what
- * that is depends on the route, so every route names its own; anything else the api refused — a
- * conflict, a rate limit, a route it has not built — is said in its words beside a plain warning,
- * because the design gives that refusal no sign of its own and a sign invented here would be one
- * nobody drew (spec 5).
+ * Told apart by what came back and never by the words, so a language switched under a banner cannot
+ * change what it means: anything the api answered is not the connection. A 404 is something that is
+ * not there, and what that is depends on the route, so every route names its own — naming the words
+ * only, since the sign is the status's either way. A route that names a sign too keeps it: the
+ * memory you are no longer in is about the person, and a tie is cut, whatever the status says.
  */
 export function failure(e: unknown, refused: Refusals = {}): Failure {
   if (!(e instanceof ApiError)) return { text: errorMessage(e) };
-  return refused[e.status] ?? { text: e.message, icon: e.status === 403 ? Lock : TriangleAlert };
+  const said = refused[e.status];
+  return { text: said?.text ?? e.message, icon: said?.icon ?? glyph(e.status) };
 }

@@ -1868,7 +1868,7 @@ test('a label the filter holds stays on it when the labels are read again, while
 test('a memory that would not read is a line under the bar with a way to read it again, and the feed under it goes on', async () => {
   world();
   const reload = vi.fn();
-  const screen = await open({ memory: null, error: 'Нет связи', reload });
+  const screen = await open({ memory: null, error: { text: 'Нет связи' }, reload });
   expect(notice(screen)).toEqual(['Нет связи']);
   expect(screen.feed()).toHaveLength(5);
   await screen.press(screen.button(ru.action.retry));
@@ -1877,7 +1877,7 @@ test('a memory that would not read is a line under the bar with a way to read it
 
 test('what floats over the feed is cleared as it came out, not as the layout draws it', async () => {
   world();
-  const screen = await open({ memory: null, error: 'Нет связи', reload: () => {} });
+  const screen = await open({ memory: null, error: { text: 'Нет связи' }, reload: () => {} });
   const feed = () => screen.root.findByType(FlatList);
   const bottom = () => StyleSheet.flatten(feed().props.contentContainerStyle).paddingBottom;
   const floating = () => screen.root.findByType(MemoryHead).findAllByType(HeadTrouble);
@@ -1915,7 +1915,7 @@ async function trouble(
 ) {
   world(empty === undefined ? {} : { media: [] });
   Object.assign(device, over);
-  const screen = await open({ memory: null, error: 'Нет связи', reload: () => {} });
+  const screen = await open({ memory: null, error: { text: 'Нет связи' }, reload: () => {} });
   const size = (height: number) => ({
     nativeEvent: { layout: { x: 0, y: 0, width: 390, height } },
   });

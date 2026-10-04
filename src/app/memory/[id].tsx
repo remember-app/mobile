@@ -2,8 +2,9 @@ import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { errorMessage, listMemories, type Memory } from '@/api';
+import { listMemories, type Memory } from '@/api';
 import { useAuth } from '@/lib/auth';
+import { failure, type Failure } from '@/lib/failure';
 import { Frames } from '@/screens/memory/frames';
 import { themed } from '@/theme';
 
@@ -24,7 +25,7 @@ export default function MemoryScreen() {
   const styles = useStyles();
   // null means «not read yet» — the capsule stands under the one shared fallback word until it is.
   const [memory, setMemory] = useState<Memory | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Failure | null>(null);
 
   const load = useCallback(() => {
     if (!token) return;
@@ -34,7 +35,7 @@ export default function MemoryScreen() {
     // included, neither of which carries a title along.
     listMemories(token).then(
       (memories) => setMemory(memories.find((one) => one.id === id) ?? null),
-      (e: unknown) => setError(errorMessage(e)),
+      (e: unknown) => setError(failure(e)),
     );
   }, [token, id]);
 
