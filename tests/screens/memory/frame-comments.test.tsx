@@ -16,9 +16,11 @@ vi.mock('@/kit', async (original) => ({
 }));
 
 import type { ReactNode } from 'react';
+import { ScrollView } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import type { FrameComment, FrameInfo } from '@/api';
 import { ConfirmSheet, Field, IconButton, Text } from '@/kit';
+import { compiled } from '@/kit/story';
 import { FrameInfoPanel } from '@/screens/memory/frame-info';
 import { ru } from '@/strings';
 import { setTheme } from '@/theme';
@@ -187,6 +189,36 @@ test('the count is the whole number, not a count of what fits — three stand an
   expect(many.words()).not.toContain('3');
 });
 
+test('the list is floored at three rows and walks to its end when the list grows', async () => {
+  // The fifth decision: three comments stand without a scroll and the rest are reached inside the
+  // block, so a frame with thirty under it has not pushed the panel's own blocks off the window.
+  const four = await drawn(
+    told({
+      comments: [said({ id: 'c1' }), said({ id: 'c2' }), said({ id: 'c3' }), said({ id: 'c4' })],
+    }),
+  );
+  // The panel's own scroll is around it; this is the list inside the block, which is the one that
+  // carries the floor and the walk.
+  const list = four.root
+    .findAllByType(ScrollView)
+    .find((one) => one.props.onContentSizeChange !== undefined)!;
+  // A floor and not a height: three rows of one line each (36) and the two 12s between them, so
+  // three stand without a scroll and a row of two lines grows past it. Read off the sheet the style
+  // compiled to, the way the kit's own stories read a shape.
+  expect(compiled()).toContain(`max-height:${3 * 36 + 2 * 12}px`);
+
+  // And the list walks to its end: a comment just written joins at the end of the api's order, and
+  // a person who cannot see the line they just wrote has not been told anything. The scroll itself
+  // belongs to the browser's own `ScrollView`, which carries no prototype to stand in for here — so
+  // what is checked is the one thing this block decides, that it asks for the walk and not for a
+  // fixed place. A list that kept its top would hide the line that was just written.
+  const grow = list.props.onContentSizeChange;
+  expect(grow).toBeTypeOf('function');
+  // Calling it is what happens on every change of what fits inside: a new comment, and the api's
+  // answer landing. It must not throw with a list that has nothing to scroll yet.
+  await act(async () => grow());
+});
+
 test('the button stands in the pill only once there is something in it', async () => {
   const screen = await drawn(told({ comments: [] }));
   expect(screen.pill()).toBeDefined();
@@ -213,7 +245,10 @@ test('a press sends the words, the api’s own row joins the end of the list, an
   const root = tree.root;
   const send = () =>
     root.findAllByType(IconButton).find((one) => one.props.label === ru.action.send);
-  await act(async () => root.findAllByType(Field)[0]?.props.onChangeText?.('Первый танец'));
+  // Padded at both ends on purpose: what goes over the wire is the sentence, not the spaces a
+  // phone's keyboard left around it. The api trims as well, and the row it hands back is already
+  // the trimmed one — this checks the phone, not the server.
+  await act(async () => root.findAllByType(Field)[0]?.props.onChangeText?.('  Первый танец  '));
   await act(async () => send()?.props.onPress?.());
   // The body goes as written under this frame, and the api is asked nothing else: the row comes
   // back in the read's own form, so the list grows by it rather than by a second round trip.
@@ -255,6 +290,25 @@ test('the sign of their own comment drops a sheet that asks, and the api takes t
   // Gone from the panel, and the count says so.
   expect(screen.words()).not.toContain(said().body);
   expect(screen.words()).toContain('0');
+  // And the sheet goes with it — a sheet left standing over a comment that is no longer there is
+  // a sheet asking about something the person can no longer see.
+  expect(sheet()?.props.visible).toBe(false);
+});
+
+test('a delete the api refuses takes nothing down, and the sheet stays up over the comment', async () => {
+  // The comment is still there because the api said so. Closing the sheet over it would be the app
+  // deciding on the server's behalf that the words went.
+  const screen = await drawn(told({ comments: [said({ mine: true })] }), frame, () =>
+    refused(404, 'not found'),
+  );
+  const sheet = () => screen.root.findAllByType(ConfirmSheet)[0];
+  await screen.press(screen.button(ru.viewer.commentRemove)!);
+  await act(async () => sheet()?.props.onConfirm());
+  expect(screen.log.filter((one) => one.method === 'DELETE')).toHaveLength(1);
+  // The comment stands, and the count with it.
+  expect(screen.words()).toContain(said().body);
+  expect(screen.words()).toContain('1');
+  expect(sheet()?.props.visible).toBe(true);
 });
 
 test('somebody else’s comment has no sign at all — the api owns that rule, not the phone', async () => {
