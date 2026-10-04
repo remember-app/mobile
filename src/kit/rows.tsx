@@ -14,7 +14,7 @@ import { height, photo, radius, space, themed, useTheme } from '@/theme';
 import { Divider } from './bits';
 import { IconButton } from './button';
 import { Icon, type IconComponent, playFor } from './icon';
-import { type hitSlop, PRESS, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
+import { hitSlop, PRESS, useFocusRing, useHoverFocus, useReducedMotion } from './interaction';
 import { Text } from './text';
 
 /**
@@ -62,6 +62,69 @@ export function RowSummary({
         </Text>
         {onPress ? <Icon icon={ChevronRight} size={18} color={color.faint} /> : null}
       </Tappable>
+    </View>
+  );
+}
+
+/**
+ * A fact and the words that change it (spec 8, `FrameInfo`): when the frame was shot, and at its
+ * tail «Изменить» in `accent` — words alone, with no chevron and nothing round them. The chevron
+ * belongs to a row that leads to a screen, and this one leads nowhere: the editor opens in place,
+ * under the row. So the words are the row's own tail and not a separate button standing beside it.
+ *
+ * `onEdit` left off, the tail is not drawn at all rather than drawn as words that refuse — the same
+ * answer `RowSummary` gives a fact it cannot lead anywhere from. What is left is the value, which
+ * every reader of the frame may see whatever they may do to it.
+ *
+ * The value is at 15 / 600 like the layout's (`FrameInfo.html` e58), which is the `row` face and
+ * not the summary's — a date has no other column here to line up with.
+ */
+export function RowEdit({
+  value,
+  edit,
+  onEdit,
+  divider,
+}: {
+  value: string;
+  /** «Изменить» — the words at the tail, written by the screen. */
+  edit: string;
+  /** What the tail does. Left off, there is no tail. */
+  onEdit?: () => void;
+  divider?: boolean;
+}) {
+  const styles = useStyles();
+  const { focused, props } = useHoverFocus();
+  const reduced = useReducedMotion();
+  const focusRing = useFocusRing();
+
+  return (
+    <View>
+      {divider ? <Divider soft /> : null}
+      <View style={styles.edit}>
+        <Text role="row" style={[styles.grow, styles.figures]}>
+          {value}
+        </Text>
+        {onEdit ? (
+          <Pressable
+            accessibilityRole="button"
+            // The words alone say «Изменить» and not what — so they are read out with the value,
+            // the way `RowSummary` reads a line of a list.
+            accessibilityLabel={`${edit}: ${value}`}
+            hitSlop={hitSlop(EDIT_TAIL)}
+            onPress={onEdit}
+            {...props}
+            style={({ pressed }) => [
+              styles.editAt,
+              pressed && !reduced ? PRESS : null,
+              focused ? focusRing : null,
+            ]}
+          >
+            <Text role="controlSm" tone="accent">
+              {edit}
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -390,6 +453,9 @@ function Tappable({
   );
 }
 
+/** The height `FrameInfo` draws its «Изменить» at — 28, and a finger's 44 all the same (spec 10.2). */
+const EDIT_TAIL = 28;
+
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
     grow: { flex: 1, minWidth: 0 },
@@ -404,6 +470,22 @@ const useStyles = themed(({ color }) =>
       paddingVertical: 11,
       paddingHorizontal: space.s4,
     },
+    // `FrameInfo.html` e57: the row is 14 over its value and 12 under, the words at its end beside
+    // the first line rather than centred on the whole — a two-line date with one button beside it
+    // would leave the button floating between the lines.
+    edit: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: space.s3,
+      paddingTop: 14,
+      paddingBottom: 12,
+      paddingHorizontal: space.s4,
+    },
+    // The tail is 28 tall (`FrameInfo.html` e61) and felt at a finger's 44; it holds only its words,
+    // so it is a floor and the words grow through it.
+    editAt: { minHeight: EDIT_TAIL },
+    // A date is figures that never dance (spec 3), the value of this row whatever face it is set in.
+    figures: { fontVariant: ['tabular-nums'] },
     // A row that leads somewhere is a button, and a button is never under a finger's 44.
     summaryTap: { minHeight: height.small },
     summaryLabel: { width: 96 },

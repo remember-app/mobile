@@ -159,6 +159,8 @@ export const en = {
      */
     brought: (day: string, n: number) => `brought it ${day} · ${n} frames in all`,
     file: 'File',
+    /** The tail of the shot row — the words that change when the frame was shot (`FrameInfo.html` e61). */
+    editShot: 'Change',
     /** The frame in pixels, which the layout calls «Размер» — the file's weight is on the line above. */
     pixels: 'Size',
     camera: 'Camera',
@@ -353,6 +355,7 @@ export const ru: typeof en = {
     brought: (day: string, n: number) =>
       `принёс ${day} · всего ${count(n, 'кадр', 'кадра', 'кадров')}`,
     file: 'Файл',
+    editShot: 'Изменить',
     pixels: 'Размер',
     camera: 'Камера',
     place: 'Место',

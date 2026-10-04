@@ -17,7 +17,15 @@ import { IconButton } from '@/kit/button';
 import { Field } from '@/kit/field';
 import { playFor } from '@/kit/icon';
 import { AvatarStack } from '@/kit/member';
-import { RowAction, RowRejected, RowSection, RowSummary, RowTrack, Waveform } from '@/kit/rows';
+import {
+  RowAction,
+  RowEdit,
+  RowRejected,
+  RowSection,
+  RowSummary,
+  RowTrack,
+  Waveform,
+} from '@/kit/rows';
 import { allDifferent, story } from '@/kit/story';
 import { font, setTheme } from '@/theme';
 
@@ -303,6 +311,36 @@ test('a section row carries its sign, two lines and the chevron that says where 
   expect(row).toContain('8 человек');
   expect(row).toContain('role="button"');
   expect(row).toContain('АН');
+});
+
+test('the date row carries the words that change it, and no chevron promising a screen', () => {
+  // Spec 8, `FrameInfo` and `FrameInfo.html` e57–e62: the card of what the file is opens with when
+  // it was shot, and at its end «Изменить» — words alone in `accent`, 28 tall, with nothing round
+  // them. A chevron here would promise a screen to go to, and there is none: the editor opens in
+  // place, under the row.
+  const row = story(<RowEdit value="13 сентября, 21:47" edit="Изменить" onEdit={() => {}} />);
+  expect(row).toContain('13 сентября, 21:47');
+  expect(row).toContain('Изменить');
+  expect(row).toContain('role="button"');
+  expect(row).not.toContain('data-glyph');
+  // The tail is `accent` (#A7AEFF, `FrameInfo.html` e61) and not the `paper` the value is set in.
+  expect(row).toContain(rule('color:rgba(167,174,255,1.00)'));
+  expect(row).toContain(rule('min-height:28px'));
+  // 14 over the value and 12 under, and the row's own sides — as the layout draws it.
+  expect(row).toContain(rule('padding-top:14px'));
+  expect(row).toContain(rule('padding-bottom:12px'));
+  // Read out with the value, so «Изменить» is not the only thing a reader is answered with.
+  expect(row).toContain('aria-label="Изменить: 13 сентября, 21:47"');
+});
+
+test('the date row with nobody able to change it is the date and no words', () => {
+  // `editMedia` answers 404 for a frame that is not the asker's own, so a row that offered the words
+  // anyway would be words that refuse — the same answer `RowSummary` gives a fact it cannot lead
+  // anywhere from, and the same one the chips give a box the api will not let this person file into.
+  const row = story(<RowEdit value="13 сентября, 21:47" edit="Изменить" />);
+  expect(row).toContain('13 сентября, 21:47');
+  expect(row).not.toContain('Изменить');
+  expect(row).not.toContain('role="button"');
 });
 
 test('a row nobody can press is not a button', () => {
