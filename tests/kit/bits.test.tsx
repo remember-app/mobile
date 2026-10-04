@@ -64,11 +64,13 @@ const background = (token: string) =>
 test('the paper scale lays a `line` track under the fill, so the step ahead is a road and not a hole', () => {
   // Spec 7.1, detail 75: 4px, what is walked in `paper`, what is ahead in `line`. Every rule is found
   // by what it says and not by what it is called, so nothing here names a class of its own.
+  // Drawn first, then asked: a name comes out of the sheet the drawing fills, so a rule looked up
+  // before its own scale is drawn is only there because some other check drew one (TASK-526).
+  const drawn = story(<StepScale tone="paper" steps={5} done={2} stopped />);
   const track = rule(background(themes.dark.color.line));
   const walked = rule(background(themes.dark.color.paper));
   const stopped = rule(background(themes.dark.color.dangerText));
   const clip = shorthand('overflow', 'overflow-x:hidden');
-  const drawn = story(<StepScale tone="paper" steps={5} done={2} stopped />);
 
   // One track to a step, all five of them — the three the walk has not reached included — each
   // painted in `line` and clipping what rides on it.
