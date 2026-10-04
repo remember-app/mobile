@@ -52,6 +52,14 @@ const YESTERDAY = (() => {
   return day.toISOString();
 })();
 
+/** Three days back, so the two standing rows can be told apart by when they were written. */
+const THREE_BACK = (() => {
+  const day = new Date();
+  day.setDate(day.getDate() - 3);
+  day.setHours(11, 0, 0, 0);
+  return day.toISOString();
+})();
+
 const said = (over: Partial<FrameComment> = {}): FrameComment => ({
   id: 'c1',
   body: 'Здесь бабушка первый раз увидела платье — возьмите в ролик',
@@ -60,6 +68,9 @@ const said = (over: Partial<FrameComment> = {}): FrameComment => ({
   mine: false,
   ...over,
 });
+
+/** The row a POST is answered with — the api's own shape, in the form the read would have given. */
+const writtenRow = () => said({ id: 'c9', body: 'Первый танец', mine: true });
 
 const told = (over: Partial<FrameInfo> = {}): FrameInfo => ({
   id: 'a',
@@ -146,6 +157,20 @@ async function drawn(answer: unknown, item = frame, onWrite: (asked: Asked) => u
     pill,
     type,
     count,
+    /**
+     * The bodies of the comments, **in the order the list draws them** — the order is the whole of
+     * what this block decides about a row that was just written, and `words()` cannot carry it: it
+     * is a set, and a set drawn in the wrong order is the same set. Read off the block's own list
+     * (the `ScrollView` that carries the walk) rather than off the panel's words, so what is asked
+     * is the rows of the comments and not every line on the panel that happens to be one.
+     */
+    bodies: () =>
+      root
+        .findAllByType(ScrollView)
+        .find((one) => one.props.onContentSizeChange !== undefined)!
+        .findAllByType(Text)
+        .filter((one) => one.props.role === 'log')
+        .map((one) => one.props.children),
     /** Every line of words on the panel, as one string — for what stands and what does not. */
     said: () =>
       root
@@ -369,6 +394,105 @@ test('a press sends the words, the api’s own row joins the end of the list, an
   expect(words).toContain('2');
   // And the pill is empty again, so its button has gone with it.
   expect(send()).toBeUndefined();
+});
+
+/**
+ * The decision of the human's own: «нажатие отправляет, комментарий встаёт в конец списка» — and
+ * this is where it is held, because a check that only asks *which rows stand* cannot hold it.
+ *
+ * **Why the arrangement is asked both ways round.** The api hands its list over oldest first
+ * (`order by created_at, id`), and the new row joins at the end of whatever it sent. A check on one
+ * arrangement is a check on half the ways to be wrong: a block that re-sorted the list by
+ * `created_at` or by `id` before appending draws the right answer whenever the list arrived already
+ * in that order — which is the arrangement a test picks by writing `[old, newer]` — and the wrong
+ * one as soon as it does not. So the standing rows are given in both orders, and the pair is what
+ * makes a re-sort visible rather than a coincidence. The same lesson TASK-505 learned the hard way
+ * about deletion, asked there of *which* row went and here of *where* the row landed.
+ */
+test('the api’s own row joins the end of the list — in both orders the list can arrive in', async () => {
+  // Two standing rows that any reordering can be seen through: their bodies, their ids and their
+  // moments all differ, so a list sorted by any of the three is a list that reads differently.
+  const older = said({ id: 'c1', body: 'Первый кадр — в начало', created_at: THREE_BACK });
+  const newer = said({ id: 'c2', body: 'Второй кадр — за ним', created_at: YESTERDAY });
+  const written = said({ id: 'c9', body: 'Третий кадр — в конец', mine: true });
+
+  for (const standing of [
+    [older, newer],
+    [newer, older],
+  ]) {
+    const screen = await drawn(told({ comments: standing }), frame, () => written);
+    await screen.type(written.body);
+    await screen.press(screen.button(ru.action.send)!);
+
+    // The whole list, in the order it is drawn — not the set of its words, which a row in the wrong
+    // place leaves untouched, and not one arrangement out of the two, which is what lets a re-sort
+    // through. The new row is last because it arrived last, and the rows already standing are left
+    // in the order the api put them in.
+    expect(screen.bodies(), `list standing as ${standing.map((one) => one.id).join(',')}`).toEqual([
+      ...standing.map((one) => one.body),
+      written.body,
+    ]);
+  }
+});
+
+/**
+ * One errand in the air at a time — the `writing` flag both errands share (TASK-510).
+ *
+ * **Why the press is made on the handler and not on two ticks.** Two POSTs out of a single tick is
+ * an artifact of the test, not of the phone: there `writing` is still `false` in the closure of both
+ * presses, so a check written that way would be testing a state a person's finger cannot reach, and
+ * it would be testing it for the wrong reason. So this does not reproduce a double tap — it holds
+ * the thing a double tap leans on. The first press goes out and is answered **later**, the block
+ * re-renders with the errand in the air, and the second press arrives against that standing tree.
+ * That is the state of a real phone: a second finger while the first is still on its way, before the
+ * disabled button has any say. The second press must put nothing in the air, and taking `writing`
+ * out of the guard is what makes it put a second copy of the same words on the wire — a comment a
+ * person sees twice and cannot account for.
+ *
+ * Asked of the delete as well as the send, because the guard is one and both errands lean on it:
+ * two DELETEs leave the second one refused over a row that has already gone, and the refusal is
+ * shown as a refusal (TASK-506), so the person is told something failed just after it succeeded.
+ */
+test('one errand at a time: a press while the first is still in the air puts nothing new up', async () => {
+  // The send: the words go out and the api has not answered yet, which is the whole of the window.
+  const answer = later<unknown>();
+  const screen = await drawn(told({ comments: [] }), frame, () => answer.promise);
+  await screen.type('Первый танец');
+
+  await screen.press(screen.button(ru.action.send)!);
+  expect(screen.log.filter((one) => one.method === 'POST')).toHaveLength(1);
+  // What the person sees while it is in the air: the pill takes no words and its button no press.
+  expect(screen.button(ru.action.send)?.props.disabled).toBe(true);
+  expect(screen.pill()?.props.editable).toBe(false);
+
+  // The second press, against the tree the first one left behind.
+  await screen.press(screen.button(ru.action.send)!);
+  expect(
+    screen.log.filter((one) => one.method === 'POST'),
+    'a second press while the first is in the air',
+  ).toHaveLength(1);
+
+  await act(async () => answer.settle(writtenRow()));
+  // And once the answer lands there is one row, not two — the same words standing twice is what the
+  // person would be looking at.
+  expect(screen.bodies()).toEqual(['Первый танец']);
+
+  // The delete, the same window over the other errand: the sheet is up, the DELETE is gone, the api
+  // has not answered, and «удалить» is pressed again.
+  const gone = later<unknown>();
+  const sheet = await drawn(told({ comments: [said({ mine: true })] }), frame, () => gone.promise);
+  await sheet.press(sheet.button(ru.viewer.commentRemove)!);
+  await act(async () => sheet.sheet()?.props.onConfirm());
+  expect(sheet.log.filter((one) => one.method === 'DELETE')).toHaveLength(1);
+
+  await act(async () => sheet.sheet()?.props.onConfirm());
+  expect(
+    sheet.log.filter((one) => one.method === 'DELETE'),
+    'a second confirm while the first is in the air',
+  ).toHaveLength(1);
+
+  await act(async () => gone.settle({ ok: true }));
+  expect(sheet.words()).not.toContain(said().body);
 });
 
 test('a comment goes under a video exactly as it goes under a photograph', async () => {
