@@ -6,7 +6,8 @@
  * tap nobody held the line against.
  *
  * Every case here was proved by breaking the code where the value is made and watching it go red.
- * Four of the seventeen the tester wrote did not survive that and are **not** in this file:
+ * Five of the seventeen the tester wrote did not survive that and are **not** in this file — three
+ * outlived the code they were written against, two never caught anything:
  *
  * - the padded text and the text past the ceiling — TASK-507 took the ceiling off the phone, so both
  *   stood on a cut that no longer exists; the padded one is the committed suite's trim check twice;
@@ -19,6 +20,12 @@
  *
  * `refused` and `later` are here for the errands that are held in the air, which is where the second
  * tap and the second errand live.
+ *
+ * Two cases here — the appended row's order and the second press — now stand beside TASK-510's own
+ * checks of the same two things, which landed on `dev` while this file was being taken. They are
+ * left in: each was proved against its own break, and a list where one file holds the order and
+ * another the repeat press is harder to read than one where both stand together. Anyone trimming
+ * this file should check TASK-510's two first, not assume this one is the only copy.
  */
 import { type Asked, later, photo, refused, serve } from '@tests/helpers/api';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
