@@ -88,7 +88,8 @@ export function CardMemory({
   // nothing there to turn, and the card says so by not keeping a clock.
   const turnable = large && cover ? [] : rest;
   const at = useTurning(turnable);
-  const shots = cover ? [cover, ...[...turnable.slice(at), ...turnable.slice(0, at)]] : turnable;
+  const turned = [...turnable.slice(at), ...turnable.slice(0, at)];
+  const shots = cover ? [cover, ...turned] : turned;
 
   return (
     <Pressable
@@ -184,7 +185,7 @@ export function CardMemory({
  * `duration` does not hold it — that is a count of how long the product waits for something, and
  * this is how long it sits still.
  */
-const TURN_MS = 7000;
+export const TURN_MS = 7000;
 
 /**
  * Which of the frames to show this time round — the same frames as last time, walked along one
@@ -198,14 +199,18 @@ const TURN_MS = 7000;
  */
 function useTurning(frames: readonly string[]): number {
   const [at, setAt] = useState(0);
+  // The count and not the array itself: `thumbs` is read afresh on every render, so a card would
+  // put its clock up and take it down again on every one of them — and the frames arriving late
+  // would be a new clock, not the one already running.
+  const count = frames.length;
 
   useEffect(() => {
-    if (frames.length < 2) return;
-    const turn = setInterval(() => setAt((was) => (was + 1) % frames.length), TURN_MS);
+    if (count < 2) return;
+    const turn = setInterval(() => setAt((was) => (was + 1) % count), TURN_MS);
     return () => clearInterval(turn);
-  }, [frames]);
+  }, [count]);
 
-  return at % frames.length;
+  return count ? at % count : 0;
 }
 
 /**
