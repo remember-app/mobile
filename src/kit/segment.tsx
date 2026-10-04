@@ -7,10 +7,14 @@ import { Hint } from './field';
 import { hitSlop, TAP, useFocusRing, useHoverFocus } from './interaction';
 import { Text } from './text';
 
-/** One of the values on offer, and the word it is offered under. */
-export type SegmentOption<T extends string> = { value: T; label: string };
+/**
+ * One of the values on offer, and the word it is offered under. The value is a string for the theme
+ * and the language and a number for the density of the gallery (doc-12), so both are admitted here
+ * rather than the density being cast to and from its own digits at the call.
+ */
+export type SegmentOption<T extends string | number> = { value: T; label: string };
 
-export type SegmentProps<T extends string> = {
+export type SegmentProps<T extends string | number> = {
   /**
    * The heading over the row, and the radiogroup's name for a screen reader. Drawn the way the
    * layout draws every heading over a group — the eyebrow, in caps, `muted` («ФОРМАТ», «ТЕМА»).
@@ -66,7 +70,7 @@ export function rowHolds(width: number, words: readonly number[]): boolean {
  * Controlled and wordless, like everything else here: the caller holds the value and says what the
  * words are.
  */
-export function Segment<T extends string>({
+export function Segment<T extends string | number>({
   label,
   hideLabel,
   hint,

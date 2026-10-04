@@ -37,6 +37,7 @@ import {
   megabytesOf,
   openFrameOf,
   removeFrames,
+  rowsOf,
   SORT_DEFAULT,
   type Sort,
   shotBy,
@@ -687,20 +688,64 @@ test('by kind, photos before videos, and a kind nobody brought is not a heading'
   expect(groupFrames([], byKind, false)).toEqual([]);
 });
 
+test('a gallery is cut into rows of however many across, and the last row holds what is left', () => {
+  // The one cut all four galleries go through (TASK-523). A last row is not padded out — a frame
+  // that stood in two rows was drawn twice, and the count over a day would not match its strips.
+  const seven = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
+  expect(rowsOf(seven, 3)).toEqual([['a', 'b', 'c'], ['d', 'e', 'f'], ['g']]);
+  expect(rowsOf(seven, 5)).toEqual([
+    ['a', 'b', 'c', 'd', 'e'],
+    ['f', 'g'],
+  ]);
+  expect(rowsOf(seven, 7)).toEqual([seven]);
+  // Nothing is no rows at all, not one empty one: an empty row is a strip with no tiles in it, and
+  // a list hands a blank row to a key extractor that has nothing to name.
+  expect(rowsOf([], 3)).toEqual([]);
+  // A row of one is a row: one frame in a phone-width row stands at the left, as the layout draws
+  // it, rather than being stretched across the row the way `flex: 1/3` used to stretch it.
+  expect(rowsOf(['a'], 3)).toEqual([['a']]);
+});
+
 test('every day of the wall is a mark on the spine, on the seam between two rows', () => {
   // Spec 7.8, detail 66 — `MemoryScrub`. The wall in the order it is actually drawn in, three
   // across: «goodbyes», «breakfast» and «dancing» make the first row, «vows» and «morning» the
   // second. So the last day opens the feed at its very top, and the first day opens the second row
   // one pitch down.
   const wall = groupFrames(wedding3, SORT_DEFAULT, false)[0].frames;
-  expect(dateMarks(wall, { top: 100, row: 131 })).toEqual([
+  expect(dateMarks(wall, { top: 100, row: 131, columns: 3 })).toEqual([
     { at: day(5), top: 100 },
     { at: day(3), top: 231 },
   ]);
   // And the day in between gets no pill of its own: it begins in the middle of the first row, on a
   // seam that already carries one. A mark stands between rows and never inside one, and a seam
   // holds a single pill — the day that opened it.
-  expect(dateMarks([], { top: 100, row: 131 })).toEqual([]);
+  expect(dateMarks([], { top: 100, row: 131, columns: 3 })).toEqual([]);
+});
+
+test('the marks are counted over the rows that really are, at whichever density is drawn', () => {
+  // The spine is not part of the feed but it counts it (TASK-523). Eleven frames, six of them on the
+  // 13th and five on the 12th: the second day begins on the seventh frame, and where the seventh
+  // frame stands is the density's own question. Under three it is the third row, under five the
+  // second, and under seven it is still in the first row — on a seam that already carries a pill,
+  // so the 12th gets none of its own and only the day that opened the feed is marked.
+  const wall = [
+    ...Array.from({ length: 6 }, (_, i) =>
+      record({ id: `a${i}`, captured_at: shotAt(13, 10 - i) }),
+    ),
+    ...Array.from({ length: 5 }, (_, i) =>
+      record({ id: `b${i}`, captured_at: shotAt(12, 10 - i) }),
+    ),
+  ];
+  const marks = (columns: number) => dateMarks(wall, { top: 0, row: 100, columns });
+  expect(marks(3)).toEqual([
+    { at: day(13), top: 0 },
+    { at: day(12), top: 200 },
+  ]);
+  expect(marks(5)).toEqual([
+    { at: day(13), top: 0 },
+    { at: day(12), top: 100 },
+  ]);
+  expect(marks(7)).toEqual([{ at: day(13), top: 0 }]);
 });
 
 test('the wall is three across: a day that begins in the same row as another gives its seam up to it', () => {
@@ -714,7 +759,7 @@ test('the wall is three across: a day that begins in the same row as another giv
     record({ id: 'd', captured_at: shotAt(12, 14) }),
     record({ id: 'e', captured_at: shotAt(11, 10) }),
   ];
-  expect(dateMarks(wall, { top: 0, row: 100 })).toEqual([
+  expect(dateMarks(wall, { top: 0, row: 100, columns: 3 })).toEqual([
     { at: day(13), top: 0 },
     { at: day(11), top: 100 },
   ]);
@@ -728,7 +773,7 @@ test('the wall is three across: a day that begins in the same row as another giv
     record({ id: 'f', captured_at: shotAt(12, 8) }),
     record({ id: 'g', captured_at: shotAt(11, 8) }),
   ];
-  expect(dateMarks(each, { top: 10, row: 50 })).toEqual([
+  expect(dateMarks(each, { top: 10, row: 50, columns: 3 })).toEqual([
     { at: day(13), top: 10 },
     { at: day(12), top: 60 },
     { at: day(11), top: 110 },

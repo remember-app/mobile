@@ -4,6 +4,8 @@ import { useMemo, useState } from 'react';
 import { FlatList, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Button, GRID_GAP, type IconComponent, RowRejected, Sheet, Text, Tile } from '@/kit';
 import { formatRuntime } from '@/lib/dates';
+import { useDensity } from '@/lib/density';
+import { rowsOf } from '@/lib/frames';
 import { useStrings } from '@/lib/language';
 import {
   afterTap,
@@ -35,24 +37,21 @@ export default function PickFramesStep() {
   const styles = useStyles();
   /**
    * One column of the grid, worked out rather than flexed — `memory/frames.tsx` says why at length:
-   * a `1fr` column is the same width in a last row of one as in a full row of three, and
-   * `flex: 1/3` is not. This grid stands inside the screen's own 16 margins.
+   * a `1fr` column is the same width in a last row of one as in a full row, and `flex: 1/3` is
+   * not. How many across is the account's own setting (`@/lib/density`), the same one every gallery
+   * is cut at. This grid stands inside the screen's own 16 margins.
    */
   const { width } = useWindowDimensions();
-  const cell = { width: (width - space.s4 * 2 - GRID_GAP * 2) / 3 };
+  const columns = useDensity();
+  const cell = { width: (width - space.s4 * 2 - GRID_GAP * 2) / columns };
   /** Whether `SheetRejected` is up — what the automatic pass dropped, and why. */
   const [showDropped, setShowDropped] = useState(false);
 
   const inMovie = taken(material, order);
   const passDropped = droppedByPass(material, order);
-  // Three to a row by hand rather than `numColumns`, the way both galleries cut theirs.
-  const rows = useMemo(
-    () =>
-      Array.from({ length: Math.ceil(material.length / 3) }, (_, i) =>
-        material.slice(i * 3, i * 3 + 3),
-      ),
-    [material],
-  );
+  // Cut by hand rather than `numColumns`, the way the galleries cut theirs, and through the one
+  // `rowsOf` they all use.
+  const rows = useMemo(() => rowsOf(material, columns), [material, columns]);
 
   /**
    * Under three taken there is nothing to cut, and the one step that can put an order below the

@@ -30,13 +30,15 @@ test('every column of a contact sheet is the same width, the last row included',
     // `flex: 1/3` divides what a row has left after its gaps, so a last row with one frame in it —
     // no gaps in it to leave — handed that frame a third of the whole row instead of a column.
     expect(sheet).not.toContain('flex: 1 / 3');
-    // A column worked out from the width the sheet spans, and re-read when the phone turns. Which
-    // gutter it is worked out of belongs to the lane the frames stand in (spec 7.8): the memory's
-    // feed and the upload screen's feed run edge to edge, the wizard and the queue stand in 16.
-    expect(sheet).toMatch(/(GRID_GAP|FEED_GAP|gap) \* 2\) \/ 3/);
+    // A column worked out from the width the sheet spans, and re-read when the phone turns, as many
+    // across as the account stands at (`@/lib/density`) — never a third written out in the screen,
+    // which is how a density change would leave one gallery three and another five. Which gutter it
+    // is worked out of belongs to the lane the frames stand in (spec 7.8): the memory's feed and the
+    // upload screen's feed run edge to edge, the wizard and the queue stand in 16.
+    expect(sheet).toMatch(/(GRID_GAP|FEED_GAP|gap) \* 2\) \/ columns/);
   }
   // The memory's feed is one wall of photographs, gutter 2 and no margins at all.
-  expect(frames).toContain('const cell = { width: (width - FEED_GAP * 2) / 3 };');
+  expect(frames).toContain('const cell = { width: (width - FEED_GAP * 2) / columns };');
   expect(frames).toContain('feed: { flexGrow: 1, gap: FEED_GAP }');
   expect(frames).toContain('lane="feed"');
   // The phone's roll is the same wall on its feed face and the queue's grid in 16 when something is

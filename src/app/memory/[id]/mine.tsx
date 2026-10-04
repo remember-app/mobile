@@ -22,8 +22,9 @@ import {
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { formatDay, formatRuntime, formatWeekday } from '@/lib/dates';
+import { useDensity } from '@/lib/density';
 import { type Failure, failure } from '@/lib/failure';
-import { byDay, COLUMNS, frameOf, removeFrames, shotAt } from '@/lib/frames';
+import { byDay, frameOf, removeFrames, rowsOf, shotAt } from '@/lib/frames';
 import { useStrings } from '@/lib/language';
 import { type ParkedFile, progress } from '@/lib/upload/queue';
 import { useUploads } from '@/lib/upload/send';
@@ -57,7 +58,10 @@ export default function MyFramesScreen() {
   const styles = useStyles();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const cell = { width: (width - FEED_GAP * 2) / 3 };
+  // As many across as the account stands at (`@/lib/density`), measured out of the width the same
+  // way the shared feed measures its own — `memory/frames.tsx` says why at length.
+  const columns = useDensity();
+  const cell = { width: (width - FEED_GAP * 2) / columns };
   const { items, roster, error, read, wrote } = useMaterial({ memoryId: id, token, hidden: true });
   const uploads = useUploads();
   /** The frame whose sheet is up, by its key — a re-read hands the sheet the fresh record. */
@@ -102,18 +106,18 @@ export default function MyFramesScreen() {
     ].sort((a, b) => b.at - a.at);
   }, [items, queued, user]);
 
-  /** Every day with its count over its frames, three to a row — dates always, as on `Upload`. */
+  /** Every day with its count over its frames, as many to a row as the account stands at. */
   const rows = useMemo(
     () =>
       byDay(own, (one) => one.at).flatMap(({ at, frames }): Row[] => [
         { key: `day-${at}`, day: at, count: frames.length },
-        ...Array.from({ length: Math.ceil(frames.length / COLUMNS) }, (_, i) => ({
-          key: frames[i * COLUMNS].key,
-          frames: frames.slice(i * COLUMNS, i * COLUMNS + COLUMNS),
+        ...rowsOf(frames, columns).map((strip, i) => ({
+          key: strip[0].key,
+          frames: strip,
           lead: i === 0,
         })),
       ]),
-    [own],
+    [own, columns],
   );
 
   const inMemory = (items ?? []).filter((item) => item.uploaded_by === user?.id).length;

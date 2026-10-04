@@ -18,8 +18,10 @@ import layout from '@/app/_layout.tsx?raw';
 import home from '@/app/index.tsx?raw';
 import invite from '@/app/invite.tsx?raw';
 import edit from '@/app/memory/[id]/edit.tsx?raw';
+import mine from '@/app/memory/[id]/mine.tsx?raw';
 import film from '@/app/memory/[id]/montage/[montageId]/film.tsx?raw';
 import live from '@/app/memory/[id]/montage/[montageId]/index.tsx?raw';
+import picker from '@/app/memory/[id]/order/frames.tsx?raw';
 import settings from '@/app/memory/[id]/settings.tsx?raw';
 import upload from '@/app/memory/[id]/upload.tsx?raw';
 import memory from '@/app/memory/[id].tsx?raw';
@@ -37,6 +39,7 @@ import viewer from '@/screens/memory/frame-viewer.tsx?raw';
 import frames from '@/screens/memory/frames.tsx?raw';
 import errands from '@/screens/memory/frames-errands.ts?raw';
 import material from '@/screens/memory/frames-material.ts?raw';
+import spine from '@/screens/memory/frames-spine.tsx?raw';
 import head from '@/screens/memory/head.tsx?raw';
 import inviteSheet from '@/screens/memory/invite-sheet.tsx?raw';
 import { en, ru } from '@/strings';
@@ -387,9 +390,11 @@ test('the sheet is one flat list of headings and strips, never a three-column gr
   // The phone's own roll is cut into the days it was shot on; this face's cut is the answer the
   // sort sheet gave, and it comes off `@/lib/frames` rather than off `@/lib/media-window` — this face has
   // no event window to sort by, every frame in it is already the event's.
-  expect(upload).toContain('frames: day');
+  expect(upload).toContain('{ key: `day-${day.at}`, day }');
   expect(frames).toContain('groupFrames(kept, sort, datesBetweenDays)');
-  expect(frames).toContain('frames: group.frames.slice(i * COLUMNS, i * COLUMNS + COLUMNS)');
+  expect(frames).toContain(
+    'rowsOf(group.frames, columns).map((frames) => ({ key: frames[0].id, frames }))',
+  );
   expect(frames).not.toContain('assetsByDay');
   // What is laid out is what the filter left, and both are asked of `@/lib/frames` so the sheet, the
   // strip under the open frame and the count on the filter's own button cannot come apart.
@@ -397,7 +402,35 @@ test('the sheet is one flat list of headings and strips, never a three-column gr
   // Cut once per read and held, not on every tap: marking a frame is a render, and the sheet of a
   // whole wedding is re-cut in it.
   expect(frames).toContain('const rows = useMemo(');
-  expect(frames).toContain('[kept, sort, datesBetweenDays],');
+  expect(frames).toContain('[kept, sort, datesBetweenDays, columns],');
+});
+
+test('every gallery is cut by the one cut, at the density the account stands at', () => {
+  // TASK-523: three, five or seven across, in all four galleries. They are four screens with three
+  // different row shapes between them — a seam over a strip, a day's heading, a flat list — and the
+  // one thing they share is the cut. Written out per screen it is four copies of the same
+  // arithmetic and four places a density of five quietly stays three; and the flow tests each hold
+  // one screen, so none of them would notice the other three.
+  for (const [name, source] of Object.entries({
+    'the feed of a memory': frames,
+    '«Мои кадры»': mine,
+    '«Добавить кадры»': upload,
+    'the montage’s picker': picker,
+  })) {
+    // Where the number comes from: the account's own setting, asked of it in every one — and never
+    // a three written out where the width is measured.
+    expect(source, name).toContain('const columns = useDensity();');
+    expect(source, name).toMatch(/\) \/ columns/);
+  }
+  // And the cut is one function all four reach for, rather than four slices that agree today.
+  expect(frames).toContain('rowsOf(group.frames, columns)');
+  expect(mine).toContain('rowsOf(frames, columns)');
+  expect(upload).toContain('rowsOf(day.assets, columns)');
+  expect(picker).toContain('rowsOf(material, columns)');
+  // The date spine is not one of the four, but it counts their rows: at five or seven its marks
+  // stand on seams that are not the ones drawn unless it is handed the density too.
+  expect(spine).toContain('dateMarks(frames, { top: feedTop, row: rowPitch, columns })');
+  expect(frames).toContain('    columns,');
 });
 
 test('the seam over a strip says what is under it, and takes the whole day while picking', () => {
