@@ -3,17 +3,11 @@ import { EyeOff, MapPin, Trash2 } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import {
-  editMedia,
-  errorMessage,
-  type FrameInfo,
-  fetchFrameInfo,
-  type MediaEdit,
-  type MediaItem,
-} from '@/api';
+import { editMedia, type FrameInfo, fetchFrameInfo, type MediaEdit, type MediaItem } from '@/api';
 import { Banner, Button, Calendar, Field, RowCard, RowDo, RowProp, Sheet, Text } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { atClock, clockOf, formatDay, formatMonth, formatTime, weekdayLetters } from '@/lib/dates';
+import { type Failure, failure } from '@/lib/failure';
 import { megabytes } from '@/lib/frames';
 import { findPlace, usePlaceName } from '@/lib/geocoder';
 import { useStrings } from '@/lib/language';
@@ -57,7 +51,7 @@ export function FrameSheet({
   const styles = useStyles();
   const item = own.item;
   const [info, setInfo] = useState<FrameInfo | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<Failure | null>(null);
   const [editing, setEditing] = useState<'shot' | 'place' | null>(null);
   const [busy, setBusy] = useState<Busy | null>(null);
 
@@ -67,7 +61,7 @@ export function FrameSheet({
     let live = true;
     fetchFrameInfo(token, memoryId, item.id).then(
       (read) => live && setInfo(read),
-      (e: unknown) => live && setNotice(errorMessage(e)),
+      (e: unknown) => live && setNotice(failure(e)),
     );
     return () => {
       live = false;
@@ -85,7 +79,7 @@ export function FrameSheet({
       await editMedia(token, memoryId, item.id, edit);
       return true;
     } catch (e) {
-      setNotice(errorMessage(e));
+      setNotice(failure(e));
       return false;
     } finally {
       setBusy(null);
@@ -140,7 +134,7 @@ export function FrameSheet({
         </View>
       }
     >
-      {notice !== null ? <Banner tone="error" text={notice} /> : null}
+      {notice !== null ? <Banner tone="error" text={notice.text} icon={notice.icon} /> : null}
       {item ? (
         <>
           <RowCard>
