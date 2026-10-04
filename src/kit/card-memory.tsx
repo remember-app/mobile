@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { ImageIcon } from 'lucide-react-native';
-import type { ReactNode } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
 import { font, photo, radius, space, themed, useTheme } from '@/theme';
@@ -26,6 +26,13 @@ import { Text, useWordRoom, WordRoom } from './text';
  * badges go under what no longer leaves them room — the films badge under the organizer's on the
  * large card, under the name on the ordinary one once the name breaks a word beside it. The name is
  * never cut on either (TASK-400): it is the one place the list says which memory this is.
+ *
+ * The frames on it turn (TASK-525, doc-12): the card shows what the listing signed for, and a
+ * memory that is the same four photographs for as long as it is on screen says nothing about
+ * itself. The turn is the card's own — a card holds it, so only that card is drawn again and not
+ * the list around it — and it asks nothing for: the frames it turns between are the ones it was
+ * handed, already signed and already cached, so nothing leaves the phone that the card did not
+ * already hold.
  */
 export function CardMemory({
   title,
@@ -74,8 +81,15 @@ export function CardMemory({
   const focusRing = useFocusRing();
   const { roomy, way, room } = useWordRoom();
   // The chosen frame leads the strip and is never repeated further along it (spec 10.8.3): four
-  // cells, and the first of them is now spoken for.
-  const shots = cover ? [cover, ...(thumbs ?? []).filter((uri) => uri !== cover)] : (thumbs ?? []);
+  // cells, and the first of them is now spoken for. It is somebody's own pick of what this memory
+  // looks like, so it is also the one frame the turn below never moves (TASK-525).
+  const rest = (thumbs ?? []).filter((uri) => uri !== cover);
+  // Nothing behind a chosen cover is drawn on the large card — it is the whole face — so there is
+  // nothing there to turn, and the card says so by not keeping a clock.
+  const turnable = large && cover ? [] : rest;
+  const at = useTurning(turnable);
+  const turned = [...turnable.slice(at), ...turnable.slice(0, at)];
+  const shots = cover ? [cover, ...turned] : turned;
 
   return (
     <Pressable
@@ -160,6 +174,47 @@ export function CardMemory({
       )}
     </Pressable>
   );
+}
+
+/**
+ * How long the frames on a card stand before the next ones come (doc-12: «чтобы периодически
+ * менялись фотки, которые отображаются у воспоминаний»).
+ *
+ * Long enough that the card is a card and not a slideshow: the name on it is read at a glance, and
+ * a person who looks away for ten seconds comes back to a different picture of the same memory.
+ * `duration` does not hold it — that is a count of how long the product waits for something, and
+ * this is how long it sits still.
+ */
+export const TURN_MS = 7000;
+
+/**
+ * Which of the frames to show this time round — the same frames as last time, walked along one
+ * place. Zero while there is nothing to walk between, and standing at zero for a card that has only
+ * ever had one frame.
+ *
+ * `reduce motion` says nothing here on purpose (spec 6 silences movement, and nothing on this card
+ * moves: the frames are one set of pictures replacing another, in the same cells, with no
+ * transition). What it does stop is a picture appearing that was never on the screen before, and
+ * the person who set that asked not to be shown things that arrive unasked.
+ */
+function useTurning(frames: readonly string[]): number {
+  const [at, setAt] = useState(0);
+  // The count and not the array itself: `thumbs` is read afresh on every render, so a card would
+  // put its clock up and take it down again on every one of them — and the frames arriving late
+  // would be a new clock, not the one already running.
+  const count = frames.length;
+
+  useEffect(() => {
+    if (count < 2) return;
+    const turn = setInterval(() => setAt((was) => (was + 1) % count), TURN_MS);
+    return () => clearInterval(turn);
+  }, [count]);
+
+  // The two halves put together again, which is the whole of the fold: `slice(at)` off the front and
+  // `slice(0, at)` onto the back always come to exactly `count` frames, so the count may climb past
+  // them for ever and the strip stays full. It is the order the count makes that repeats, and the
+  // count is already folded where it is made.
+  return at;
 }
 
 /**
