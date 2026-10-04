@@ -2,9 +2,10 @@ import { useFocusEffect, useIsFocused } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { type Label, listLabels, listMedia, listMembers, type MediaItem, type Member } from '@/api';
-import { type Failure, failure } from '@/lib/failure';
+import { answered, type Failure, failure } from '@/lib/failure';
 import { keepReady, stillPreparing } from '@/lib/frames';
 import { keepKept, readKept } from '@/lib/frames-kept';
+import { duration } from '@/theme';
 
 /**
  * What a memory holds, read and kept fresh: the material, the roster over it and the labels it is
@@ -18,6 +19,13 @@ import { keepKept, readKept } from '@/lib/frames-kept';
  * finished yet.
  */
 const WHILE_PREPARING_MS = 3000;
+
+/**
+ * Where the connection stands, as the screens draw it (spec 7.6, detail 47; `HomeOffline`,
+ * `HomeOnline`) — four states and not two, because putting the message away is not the connection
+ * coming back, and somebody who hid the line is still owed the news that it is.
+ */
+export type Link = 'ok' | 'back' | 'gone' | 'hushed';
 
 /**
  * How a read may touch what is already on screen. Three and not one, because a read that somebody
@@ -55,6 +63,16 @@ export function useMaterial({
   labels: Label[];
   error: Failure | null;
   loading: boolean;
+  /**
+   * Where the connection stands, as the asked reads found it — and nothing else moves it. A read the
+   * screen makes underneath itself is quiet about this as it is about everything else: lighting the
+   * plate over frames that are on screen is the one thing a quiet read must never do, or the three
+   * seconds of a poll would stand a banner over somebody's photographs every time a frame turns
+   * `ready`.
+   */
+  link: Link;
+  /** The cross on the plate: the message goes, the news that it came back stays owed. */
+  hushed: () => void;
   /** Read it again — asked, for a pull; under, for anything the screen does to itself. */
   read: (how?: Reading) => void;
   readLabels: () => void;
@@ -87,6 +105,7 @@ export function useMaterial({
   const [error, setError] = useState<Failure | null>(null);
   // Nothing to wait for over a feed this phone already had: the pull reads underneath it.
   const [loading, setLoading] = useState(kept === null);
+  const [link, setLink] = useState<Link>('ok');
 
   /**
    * How many times this screen has written the feed itself — a frame deleted, a label filed. That
@@ -124,12 +143,24 @@ export function useMaterial({
             setRoster(members);
             setError(null);
             drew.current = true;
+            // An answer of any kind is the connection being there — including one that refused,
+            // which is the api's own word rather than a silence. The good news is owed only to
+            // somebody who watched it go, and it is not owed twice: a read landing while the plate
+            // that says it is back is still standing leaves that same object in place, so the three
+            // seconds it has left do not start over.
+            if (!quiet) setLink((was) => (was === 'gone' || was === 'hushed' ? 'back' : was));
             // What came back is what the next launch opens on. A read that failed writes nothing,
             // so a phone that cannot reach the api keeps what it had rather than emptying it.
             if (!hidden) keepKept(memoryId, media, members);
           },
           (e: unknown) => {
-            if (!quiet) setError(failure(e));
+            if (quiet) return;
+            setError(failure(e));
+            // Only a read nobody got an answer at all is the connection (TASK-275: everything the api
+            // refused came back in its own words, and that is about something else). A refused pull
+            // says itself in the banner and leaves the plate alone — otherwise every 403 over a
+            // feed that is fine would put «нет связи» over somebody's photographs.
+            if (!answered(e)) setLink('gone');
           },
         )
         .finally(() => {
@@ -199,5 +230,17 @@ export function useMaterial({
     setItems(change);
   }, []);
 
-  return { items, roster, labels, error, loading, read, readLabels, wrote };
+  const hushed = useCallback(() => setLink((was) => (was === 'gone' ? 'hushed' : was)), []);
+
+  // Spec 7.6: the `done` banner carries no button at all, because it is already going. This is it
+  // going — the one thing on the screen that happens without anybody doing anything. It leaves on a
+  // timer of its own and not on a read: the news was already given the moment an answer arrived, and
+  // a screen nobody touches any more must finish saying it by itself.
+  useEffect(() => {
+    if (link !== 'back') return;
+    const leaves = setTimeout(() => setLink('ok'), duration.hold);
+    return () => clearTimeout(leaves);
+  }, [link]);
+
+  return { items, roster, labels, error, loading, link, hushed, read, readLabels, wrote };
 }

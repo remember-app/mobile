@@ -39,10 +39,19 @@ function glyph(status: number): IconComponent {
  * memory you are no longer in is about the person, and a tie is cut, whatever the status says.
  */
 export function failure(e: unknown, refused: Refusals = {}): Failure {
-  if (!(e instanceof ApiError)) return { text: saying(errorMessage(e)) };
+  if (!answered(e)) return { text: saying(errorMessage(e)) };
   const said = refused[e.status];
   return { text: said?.text ?? saying(e.message), icon: said?.icon ?? glyph(e.status) };
 }
+
+/**
+ * Whether the api answered at all: every refusal and every page comes back as an `ApiError`, and a
+ * request that never reached it cannot be one. A guard rather than a plain question because it is
+ * the same question asked twice — here, and by the plate that says «нет связи» and has to tell a
+ * lost connection from a refusal to know whether to stand at all. One answer, so the banner's words
+ * and the plate standing cannot disagree about which of the two happened.
+ */
+export const answered = (e: unknown): e is ApiError => e instanceof ApiError;
 
 /**
  * A line that says an errand went through. Not a refusal and not dressed as one: it wears no sign,

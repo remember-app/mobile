@@ -1629,7 +1629,10 @@ test('a read that fails is a banner in place of the feed with a way to try again
   up = true;
   // A press hands its own argument along, and the first one here is «read quietly» — so it is called.
   await screen.press(screen.button(ru.action.retry));
-  expect(notice(screen)).toEqual([]);
+  // The failure in the feed's place is gone with the feed it stood in, and what replaces it is the
+  // news that the connection is back — `HomeOnline`, said once to somebody who watched it go, the
+  // same line the main screen gives the same press.
+  expect(notice(screen)).toEqual([ru.home.online]);
   expect(screen.feed()).toHaveLength(5);
 });
 
