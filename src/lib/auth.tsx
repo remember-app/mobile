@@ -26,6 +26,24 @@ import { useLanguage } from '@/lib/language';
 const TOKEN_KEY = 'session-token';
 
 /**
+ * The account as the api last said it, kept beside the token and nowhere else (TASK-513).
+ *
+ * The gate holds on the whole account, not on the token: `status` is ready only once there is a
+ * `user`, so a launch that waits for `/me` before it has one is a launch with no signal that lands
+ * on /login. The app opens on this copy instead and the api is asked underneath it.
+ *
+ * Read only beside a token, so a copy left without one opens nothing, and deleted in `forget()` with
+ * the token — the one place either is dropped, so a copy cannot outlive the session it is about.
+ */
+const ACCOUNT_KEY = 'session-account';
+
+/** The account this phone kept beside the token, or null where the keychain holds nothing. */
+async function readAccount(): Promise<User | null> {
+  const kept = await SecureStore.getItemAsync(ACCOUNT_KEY);
+  return kept ? (JSON.parse(kept) as User) : null;
+}
+
+/**
  * Where the session stands. `token` and `user` always move together, so anything other
  * than `loading` is a settled answer about what the app may show.
  */
@@ -74,15 +92,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const language = useLanguage();
 
   /**
+   * The account as the api has just said it, kept on the phone beside the token so the next launch
+   * can open on it (TASK-513). Off `user` and not written by hand at each call site: the copy is
+   * whatever the screen is holding, so no path that moves the account — the sign-ins, the username,
+   * «Даты между днями», the launch's own refresh — can leave the copy behind, and a path that
+   * refuses to move the account cannot write one either.
+   */
+  useEffect(() => {
+    if (!user) return;
+    // Best effort: a keychain that will not take the copy costs the next launch its offline opening
+    // and nothing else. Kept out of iCloud backups with the token, same reason as that one.
+    SecureStore.setItemAsync(ACCOUNT_KEY, JSON.stringify(user), {
+      keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+    }).catch((e) => console.warn('the account was not kept on this phone:', e));
+  }, [user]);
+
+  /**
    * The session gone from this phone, which is what the gate turns into /login. Out of the app
    * before out of the keychain: a poll that answered 401 is still on its way to its screen, and the
-   * screen has to be gone by the time it would say «no connection».
+   * screen has to be gone by the time it would say «no connection». The account goes with the token
+   * and nowhere else: a copy that outlived its token would open the app as somebody else.
    */
   const forget = useCallback(async () => {
     setToken(null);
     setUser(null);
     setDatesAsked(null);
     await SecureStore.deleteItemAsync(TOKEN_KEY);
+    await SecureStore.deleteItemAsync(ACCOUNT_KEY);
   }, []);
 
   // Restore the stored session once at startup.
@@ -92,6 +128,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const stored = await SecureStore.getItemAsync(TOKEN_KEY);
         if (stored) {
+          const kept = await readAccount();
+          // The gate opens on what this phone already holds, not on what the api answers: `status`
+          // is `ready` only with an account, so a launch that waited for `/me` before it had one put
+          // a signed-in person with no signal on /login (TASK-513). The api is asked underneath and
+          // its answer lands on top of this one, or ends the session if it refuses the token.
+          if (kept && live) {
+            setToken(stored);
+            setUser(kept);
+            setLoading(false);
+          }
           try {
             const me = await fetchMe(stored);
             if (live) {
@@ -100,7 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
           } catch (error) {
             // Only a refusal kills the stored token. A network blip must not log the pilot out
-            // for good — this launch lands on /login, the next one with the api up restores it.
+            // for good — this launch stays on the copy, the next one with the api up refreshes it.
             if (error instanceof ApiError && error.status === 401) await forget();
           }
         }

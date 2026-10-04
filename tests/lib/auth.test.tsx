@@ -2,13 +2,24 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
 
-/** The keychain: the session token this phone holds, and how many times it was told to let go. */
-const keychain = vi.hoisted(() => ({ token: null as string | null, deleted: 0 }));
+/**
+ * The keychain: the session token this phone holds, the account it kept beside that token
+ * (TASK-513), and how many times it was told to let go of the token.
+ */
+const keychain = vi.hoisted(() => ({
+  token: null as string | null,
+  account: null as string | null,
+  deleted: 0,
+}));
 vi.mock('expo-secure-store', () => ({
   WHEN_UNLOCKED_THIS_DEVICE_ONLY: 0,
-  getItemAsync: async (key: string) => (key === 'session-token' ? keychain.token : null),
-  setItemAsync: async () => {},
+  getItemAsync: async (key: string) =>
+    key === 'session-token' ? keychain.token : key === 'session-account' ? keychain.account : null,
+  setItemAsync: async (key: string, value: string) => {
+    if (key === 'session-account') keychain.account = value;
+  },
   deleteItemAsync: async (key: string) => {
+    if (key === 'session-account') keychain.account = null;
     if (key !== 'session-token') return;
     keychain.token = null;
     keychain.deleted += 1;
@@ -73,6 +84,7 @@ let tree: TestRenderer.ReactTestRenderer | undefined;
 
 beforeEach(() => {
   keychain.token = null;
+  keychain.account = null;
   keychain.deleted = 0;
   api.honoured = new Set();
   api.calls = [];
@@ -96,9 +108,10 @@ async function settle() {
   }
 }
 
-/** The app coming up with `stored` in the keychain. */
-async function launch(stored: string | null) {
+/** The app coming up with `stored` in the keychain, and the account beside it if this launch has one. */
+async function launch(stored: string | null, account: unknown = null) {
   keychain.token = stored;
+  keychain.account = account ? JSON.stringify(account) : null;
   await act(async () => {
     tree = TestRenderer.create(
       <AuthProvider>
@@ -114,6 +127,11 @@ async function signedIn() {
   await launch(SESSION);
   expect(auth.status).toBe('ready');
   api.calls = [];
+}
+
+/** The account as it lies on the phone, read back off the keychain rather than off the screen. */
+function kept() {
+  return keychain.account ? JSON.parse(keychain.account) : null;
 }
 
 test('a 401 on a request that carried the session ends it once, however many were in the air', async () => {
@@ -133,7 +151,7 @@ test('a 401 on a request that carried the session ends it once, however many wer
     expect((one as PromiseRejectedResult).reason).toMatchObject({ status: 401 });
   }
   expect(auth).toMatchObject({ status: 'signed-out', token: null, user: null });
-  expect(keychain).toEqual({ token: null, deleted: 1 });
+  expect(keychain).toMatchObject({ token: null, account: null, deleted: 1 });
   expect(console.info).toHaveBeenCalledTimes(1);
   // And nothing more is asked: not even /auth/logout, which the api would only refuse again.
   expect(api.calls).toEqual(['GET /memories', 'GET /memories', 'GET /memories']);
@@ -173,14 +191,14 @@ test('a late 401 for a token this phone no longer holds leaves the session it do
   await settle();
 
   expect(auth.status).toBe('ready');
-  expect(keychain).toEqual({ token: SESSION, deleted: 0 });
+  expect(keychain).toMatchObject({ token: SESSION, deleted: 0 });
 });
 
 test('a token refused at launch is forgotten the same way, and the app comes up signed out', async () => {
   await launch('session-gone');
 
   expect(auth.status).toBe('signed-out');
-  expect(keychain).toEqual({ token: null, deleted: 1 });
+  expect(keychain).toMatchObject({ token: null, account: null, deleted: 1 });
   expect(api.calls).toEqual(['GET /me']);
 });
 
@@ -194,7 +212,7 @@ test.each([
   await launch(SESSION);
 
   expect(auth.status).toBe('signed-out');
-  expect(keychain).toEqual({ token: SESSION, deleted: 0 });
+  expect(keychain).toMatchObject({ token: SESSION, deleted: 0 });
 });
 
 test('signing out by hand still tells the api, and leaves the phone where a refusal does', async () => {
@@ -205,7 +223,137 @@ test('signing out by hand still tells the api, and leaves the phone where a refu
 
   expect(api.calls).toEqual(['POST /auth/logout']);
   expect(auth).toMatchObject({ status: 'signed-out', token: null, user: null });
-  expect(keychain).toEqual({ token: null, deleted: 1 });
+  expect(keychain).toMatchObject({ token: null, account: null, deleted: 1 });
+});
+
+// TASK-513 — «запуск не уводит вошедшего человека на экран входа» (doc-12). The gate is ready only
+// with a whole account, so the account is kept on the phone beside the token: the launch opens on
+// that copy and the api answers underneath it. A copy that outlived its token would open the app
+// as somebody who is not here, so it goes wherever the token goes.
+
+// The gate opens on the copy, not on /me — a status checked while the request is still in the air
+// is the only one that can tell the two apart.
+test('the app opens on the account this phone kept, before the api has answered', async () => {
+  const answered = later<void>();
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => {
+      await answered.promise;
+      return json(200, ME);
+    }),
+  );
+  keychain.token = SESSION;
+  keychain.account = JSON.stringify(ME);
+  await act(async () => {
+    tree = TestRenderer.create(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    );
+  });
+
+  expect(auth).toMatchObject({ token: SESSION, user: ME, status: 'ready' });
+
+  await act(async () => answered.settle());
+  await settle();
+});
+
+test.each([
+  ['unreachable', () => Promise.reject(new TypeError('Network request failed'))],
+  ['falling over', () => Promise.resolve(json(500, { error: 'internal server error' }))],
+])('a launch with the api %s lands in the app, not on /login', async (_, failing) => {
+  vi.stubGlobal('fetch', vi.fn(failing));
+  await launch(SESSION, ME);
+
+  expect(auth).toMatchObject({ token: SESSION, user: ME, status: 'ready' });
+  expect(keychain).toMatchObject({ token: SESSION, account: JSON.stringify(ME), deleted: 0 });
+});
+
+// A refusal is not a network blip: the copy is no proof of anything, and the app must still end up
+// on /login — with the copy gone, or the next launch would open it as somebody else.
+test('a token refused at launch over a kept account ends the session and takes the copy', async () => {
+  await launch(SESSION, ME);
+
+  expect(auth).toMatchObject({ token: null, user: null, status: 'signed-out' });
+  expect(keychain).toMatchObject({ token: null, account: null, deleted: 1 });
+});
+
+// The copy is kept wherever the account moves — including by a call in flight when the session was
+// dropped, which must not leave one behind either.
+test.each([
+  [
+    'a refusal while the app was running',
+    async () => {
+      await signedIn();
+      api.honoured.delete(SESSION);
+      await act(async () => {
+        await listMemories(SESSION).catch(() => {});
+      });
+    },
+  ],
+  [
+    'an answer that lands after signing out',
+    async () => {
+      const answered = later<void>();
+      holding(false, async () => {
+        await answered.promise;
+        return json(200, ME);
+      });
+      await signedIn();
+      let done!: Promise<void>;
+      await act(async () => {
+        done = auth.setDatesBetweenDays(true);
+      });
+      await act(() => auth.signOut());
+      await act(async () => {
+        answered.settle();
+        await done.catch(() => {});
+      });
+    },
+  ],
+])('the copy is not left on the phone after %s', async (_, act_it) => {
+  await act_it();
+
+  expect(auth.status).toBe('signed-out');
+  expect(keychain).toMatchObject({ token: null, account: null });
+});
+
+// The answer underneath the copy is the account the next launch opens on, so a launch that never
+// refreshes it hands a stale name to a phone that was offline.
+test('the answer underneath the copy lands on the screen and on the phone', async () => {
+  const renamed = account({ username: 'anya', name: 'Аня Ким', email: 'anya@test.test' });
+  const answered = later<void>();
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => {
+      await answered.promise;
+      return json(200, renamed);
+    }),
+  );
+  keychain.token = SESSION;
+  keychain.account = JSON.stringify(ME);
+  await act(async () => {
+    tree = TestRenderer.create(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    );
+  });
+  await act(async () => answered.settle());
+  await settle();
+
+  expect(auth.user).toEqual(renamed);
+  expect(kept()).toEqual(renamed);
+});
+
+// A launch with a token but no copy yet — the first one after the app was updated — still keeps the
+// account, so the launch after it can open without the api.
+test('a launch with no copy to open on keeps the account for the next one', async () => {
+  api.honoured.add(SESSION);
+  await launch(SESSION);
+
+  expect(auth.status).toBe('ready');
+  expect(kept()).toEqual(ME);
 });
 
 // «Даты между днями» (TASK-292): the account's one setting for every feed. It comes with every
