@@ -71,7 +71,13 @@ export async function setDensity(next: Density): Promise<void> {
   await SecureStore.setItemAsync(CHOICE_KEY, String(next));
 }
 
-function subscribe(listener: () => void): () => void {
+/**
+ * Exported for `density.test.ts` as well as the hook below: there is no harness in this repo that
+ * mounts a component and watches it redraw, so the contract `useSyncExternalStore` relies on — a
+ * listener called when the value moves, and not when it does not — is proven by registering one
+ * here directly, the way `theme.test.ts` proves its own.
+ */
+export function subscribe(listener: () => void): () => void {
   listeners.add(listener);
   return () => {
     listeners.delete(listener);

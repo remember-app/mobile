@@ -23,7 +23,7 @@ import {
 import { useAuth } from '@/lib/auth';
 import { formatDay, formatRuntime, formatWeekday } from '@/lib/dates';
 import { type Failure, failure } from '@/lib/failure';
-import { byDay, frameOf, removeFrames, shotAt } from '@/lib/frames';
+import { byDay, frameOf, removeFrames, rowsOf, shotAt } from '@/lib/frames';
 import { useDensity } from '@/lib/density';
 import { useStrings } from '@/lib/language';
 import { type ParkedFile, progress } from '@/lib/upload/queue';
@@ -111,9 +111,9 @@ export default function MyFramesScreen() {
     () =>
       byDay(own, (one) => one.at).flatMap(({ at, frames }): Row[] => [
         { key: `day-${at}`, day: at, count: frames.length },
-        ...Array.from({ length: Math.ceil(frames.length / columns) }, (_, i) => ({
-          key: frames[i * columns].key,
-          frames: frames.slice(i * columns, i * columns + columns),
+        ...rowsOf(frames, columns).map((strip, i) => ({
+          key: strip[0].key,
+          frames: strip,
           lead: i === 0,
         })),
       ]),

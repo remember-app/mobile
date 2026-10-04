@@ -301,6 +301,25 @@ export function arranged(sort: Sort): boolean {
 }
 
 /**
+ * A gallery cut into rows of `columns`, which is how many across the person stands at
+ * (`@/lib/density`). A last row holds what is left rather than padding out, so nothing stands in a
+ * row twice.
+ *
+ * One cut for every gallery — the memory's own feed, «Мои кадры», «Добавить кадры» and the montage's
+ * picker — because it is the same question four times and the number is the account's own: four
+ * hand-written slices are four places where a density of five quietly stays three.
+ *
+ * Cut by hand rather than `numColumns` whatever the width: `numColumns` lays the list out underneath
+ * it, and none of these four can use it — three of them stand headings between the strips, and the
+ * fourth is cut by day.
+ */
+export function rowsOf<T>(items: readonly T[], columns: number): T[][] {
+  return Array.from({ length: Math.ceil(items.length / columns) }, (_, i) =>
+    items.slice(i * columns, i * columns + columns),
+  );
+}
+
+/**
  * Spec 7.8, detail 66 — where each day begins on the feed, so the spine can hang a pill on that
  * seam. Points from the top of the list: `top` is where the first row starts and `row` is the pitch
  * of one row, a tile and the gutter under it, both worked out by the screen because it is the one

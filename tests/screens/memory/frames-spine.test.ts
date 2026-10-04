@@ -22,7 +22,11 @@ test('the feed nobody arranged is one wall, and the days are only on the spine',
   expect(frames).toContain("plain: sort.by === 'none' && !datesBetweenDays,");
   expect(spine).toContain('!plain || headerHeight === 0 || reach <= 0');
   expect(spine).toContain('const reach = feed.content - feed.view;');
-  expect(spine).toContain('dateMarks(frames, { top: feedTop, row: rowPitch })');
+  expect(spine).toContain('dateMarks(frames, { top: feedTop, row: rowPitch, columns })');
+  // And the marks are counted over the rows the feed is really cut at (TASK-523): the spine is not
+  // part of the feed but it counts it, so the density the feed is drawn at is handed to it rather
+  // than read out of the layout's three.
+  expect(frames).toContain('columns,');
   // Where the first row of frames stands: the top the feed is pushed down by, the block of films
   // over it measured rather than guessed, and the one gutter between them.
   expect(spine).toContain(

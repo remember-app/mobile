@@ -46,6 +46,7 @@ import {
   mayOpen,
   mayPick,
   megabytesOf,
+  rowsOf,
   SORT_DEFAULT,
   type Sort,
   toggleDay,
@@ -219,7 +220,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
    * (`@/lib/frames`); this only flattens the groups into rows, because a row of them has to be cut
    * by hand — `numColumns` lays out the list underneath and cannot do it around the headings standing
    * between the strips. The «Добавить кадры» screen cuts the phone's own roll the same way, for the
-   * same reason.
+   * same reason, and both cut it through the one `rowsOf`.
    *
    * Held across renders: every tap on a frame is a render, and the whole feed is re-cut here.
    */
@@ -229,10 +230,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
         // The wall has no seam over it at all (`MemoryFrames`, `MemoryScrub`): with the dates off
         // and nothing grouped, the days are read off the spine at the edge instead.
         ...(group.by === 'all' ? [] : [{ key: group.key, group }]),
-        ...Array.from({ length: Math.ceil(group.frames.length / columns) }, (_, i) => ({
-          key: group.frames[i * columns].id,
-          frames: group.frames.slice(i * columns, i * columns + columns),
-        })),
+        ...rowsOf(group.frames, columns).map((frames) => ({ key: frames[0].id, frames })),
       ]),
     [kept, sort, datesBetweenDays, columns],
   );

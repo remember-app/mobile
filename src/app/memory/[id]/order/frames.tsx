@@ -5,6 +5,7 @@ import { FlatList, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Button, GRID_GAP, type IconComponent, RowRejected, Sheet, Text, Tile } from '@/kit';
 import { formatRuntime } from '@/lib/dates';
 import { useDensity } from '@/lib/density';
+import { rowsOf } from '@/lib/frames';
 import { useStrings } from '@/lib/language';
 import {
   afterTap,
@@ -48,14 +49,9 @@ export default function PickFramesStep() {
 
   const inMovie = taken(material, order);
   const passDropped = droppedByPass(material, order);
-  // Cut by hand rather than `numColumns`, the way both galleries cut theirs.
-  const rows = useMemo(
-    () =>
-      Array.from({ length: Math.ceil(material.length / columns) }, (_, i) =>
-        material.slice(i * columns, i * columns + columns),
-      ),
-    [material, columns],
-  );
+  // Cut by hand rather than `numColumns`, the way the galleries cut theirs, and through the one
+  // `rowsOf` they all use.
+  const rows = useMemo(() => rowsOf(material, columns), [material, columns]);
 
   /**
    * Under three taken there is nothing to cut, and the one step that can put an order below the

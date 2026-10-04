@@ -44,6 +44,7 @@ import { useAuth } from '@/lib/auth';
 import { formatDay, formatEventDates, formatRuntime, formatWeekday } from '@/lib/dates';
 import { useDensity } from '@/lib/density';
 import { type Failure, failure } from '@/lib/failure';
+import { rowsOf } from '@/lib/frames';
 import { useStrings } from '@/lib/language';
 import { assetsByDay, type ShootingDay } from '@/lib/media-window';
 import { type ParkedFile, parkedReason, progress } from '@/lib/upload/queue';
@@ -176,9 +177,9 @@ export default function UploadScreen({ queue = false }: { queue?: boolean }) {
     () =>
       assetsByDay(memory, gallery).flatMap((day): Row[] => [
         { key: `day-${day.at}`, day },
-        ...Array.from({ length: Math.ceil(day.assets.length / columns) }, (_, i) => ({
-          key: day.assets[i * columns].id,
-          frames: day.assets.slice(i * columns, i * columns + columns),
+        ...rowsOf(day.assets, columns).map((strip, i) => ({
+          key: strip[0].id,
+          frames: strip,
           lead: i === 0,
         })),
         // What a partial grant leaves out is said under the strip it is missing from, and nowhere

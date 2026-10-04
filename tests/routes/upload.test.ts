@@ -25,7 +25,7 @@ test('the roll is the kit’s feed edge to edge, and the queue’s grid in the m
   // window rather than flexed — `flex: 1/3` hands a lone last frame a third of the row.
   expect(upload).toContain('const gap = glass ? FEED_GAP : GRID_GAP;');
   expect(upload).toContain(
-    'const cell = { width: (width - (glass ? 0 : space.s4 * 2) - gap * 2) / 3 };',
+    'const cell = { width: (width - (glass ? 0 : space.s4 * 2) - gap * 2) / columns };',
   );
   expect(upload).toContain("lane={glass ? 'feed' : 'pick'}");
   expect(upload).toContain('ring={!glass}');
