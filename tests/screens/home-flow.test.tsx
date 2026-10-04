@@ -34,7 +34,7 @@ vi.mock('expo-router', async () => {
   };
 });
 
-import { later, memory, serve } from '@tests/helpers/api';
+import { later, memory, refused, serve } from '@tests/helpers/api';
 import { measure, scrolled } from '@tests/helpers/board';
 import { thisYear2026 } from '@tests/helpers/clock';
 import { mounted, mountsTrees, themesShown } from '@tests/helpers/renderer';
@@ -86,7 +86,7 @@ const wedding = (over: Partial<Memory> = {}) =>
     ...over,
   });
 
-async function open(list: Memory[] | 'offline' | Promise<unknown>) {
+async function open(list: Memory[] | 'offline' | Response | Promise<unknown>) {
   const state = { list };
   serve(() => state.list);
   let tree!: TestRenderer.ReactTestRenderer;
@@ -330,6 +330,68 @@ test('a connection that was never lost is never announced: a read that succeeds 
   expect(screen.banners()).toEqual([]);
 });
 
+/**
+ * TASK-521 — the two screens asked two different questions and drew the same line.
+ *
+ * The memory screen (`frames-material.ts`) has stood one question since TASK-275: only a read nobody
+ * got an answer at all is the connection, and a refusal is the api's own word about something else.
+ * The home screen raised the plate on *any* failure, so every 403 or 404 over a list of memories
+ * somebody's phone could read fine put «Нет связи с сервером» over it — the same plate saying «the
+ * server is silent» about a server that had just answered.
+ *
+ * Written to go red the moment the guard goes, and checked from the drawn tree rather than off the
+ * screen's state: the failure *is* reported (where there is a place for it), so what is being
+ * checked is that the plate does not stand, not that nothing happened.
+ */
+test('a refusal is the api answering: the plate does not stand over a list that is fine', async () => {
+  const screen = await open([wedding()]);
+  expect(screen.cards()).toHaveLength(1);
+  expect(screen.banners()).toEqual([]);
+
+  // The api is there and says no.
+  screen.state.list = refused(403, 'forbidden');
+  await screen.refocus();
+
+  // No «нет связи» anywhere: not the plate, and not the good news either — nothing was lost.
+  expect(screen.banners()).toEqual([]);
+  // The list is untouched underneath it, and the sign in the list's own place is not about a network.
+  expect(screen.cards()).toHaveLength(1);
+  expect(screen.root.findAllByType(Empty)).toHaveLength(0);
+
+  // And it is there and says yes, again and again.
+  screen.state.list = [wedding()];
+  await screen.refocus();
+  expect(screen.banners()).toEqual([]);
+});
+
+/** The other side of the same line, and the reason the guard is not just «never fail again». */
+test('a real silence still stands the plate, over the same list that a refusal does not', async () => {
+  const screen = await open([wedding()]);
+  screen.state.list = 'offline';
+  await screen.refocus();
+  expect(screen.banners()).toEqual([{ text: ru.state.offline, tone: undefined }]);
+  expect(screen.cards()).toHaveLength(1);
+});
+
+/**
+ * A first load that was refused has no list to keep, so the failure stands where the list would have
+ * been — and it says the api's own words, not «нет связи». Before the split there was one value for
+ * both questions, and this is the case that read the reason off the plate.
+ */
+test('a first load that was refused is refused in its own words, not as a lost connection', async () => {
+  const screen = await open(refused(403, 'нет прав'));
+  expect(screen.root.findByType(Empty).props.text).toBe('нет прав');
+  expect(screen.root.findAllByType(Empty)[0].props.title).toBeUndefined();
+  // The list was never there, so there is nothing for a line above it to be about.
+  expect(screen.banners()).toEqual([]);
+  // And the way out is still there: the action is live and «Повторить» reads again.
+  expect(screen.create().props.disabled).toBe(false);
+  screen.state.list = [wedding()];
+  await screen.pull();
+  expect(screen.cards()).toHaveLength(1);
+  expect(screen.banners()).toEqual([]);
+});
+
 test('in daylight the list is drawn in the day’s tokens and carries none of the night’s', async () => {
   // The night is what the harness starts in, and the detector sees it — or the empty answer below proves nothing.
   expect(themesShown((await open([wedding()])).root).night.length).toBeGreaterThan(0);
@@ -349,7 +411,7 @@ test('in daylight the list is drawn in the day’s tokens and carries none of th
  * once they do not they are the list's own head and foot — in every state the screen has, once each,
  * and both actions still answer.
  */
-const STATES: [string, () => Memory[] | 'offline' | Promise<unknown>][] = [
+const STATES: [string, () => Memory[] | 'offline' | Response | Promise<unknown>][] = [
   ['a list of memories', () => [wedding({ id: 'a' }), wedding({ id: 'b', title: 'Вторая' })]],
   ['no memories', () => []],
   ['a list that never came', () => 'offline'],

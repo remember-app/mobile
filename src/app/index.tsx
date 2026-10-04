@@ -20,6 +20,7 @@ import {
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { formatEventDates } from '@/lib/dates';
+import { answered } from '@/lib/failure';
 import { useStrings } from '@/lib/language';
 import { board, duration, height, space } from '@/theme';
 
@@ -28,8 +29,13 @@ import { board, duration, height, space } from '@/theme';
  * screen and the connection is a line above it, never a replacement for what is on it. `hushed` is
  * that same line put away by hand — the message left, the connection did not come back, so the
  * `spark` one is still owed when it does.
+ *
+ * The four states of `useMaterial`'s own `link`, told apart the same way: only a read nobody got an
+ * answer at all may stand one, and a refusal is the api's own word about something else (TASK-275).
+ * Which is the question this state answers, and nothing else — why a read failed is `failed`, and a
+ * screen that keeps the two in one value cannot say one without the other.
  */
-type Link = { at: 'ok' | 'back' } | { at: 'gone' | 'hushed'; why: string };
+type Link = 'ok' | 'back' | 'gone' | 'hushed';
 
 /** Spec 8, `Main` — every memory this account organizes or was invited to. */
 export default function HomeScreen() {
@@ -41,18 +47,29 @@ export default function HomeScreen() {
   // the list on screen instead of flashing the spinner over it — and a *failed* refetch keeps it
   // too, which is the whole of `HomeOffline`.
   const [memories, setMemories] = useState<Memory[] | null>(null);
-  const [link, setLink] = useState<Link>({ at: 'ok' });
+  const [link, setLink] = useState<Link>('ok');
+  // Why the last read failed, in words — a separate question from where the connection stands, so
+  // the plate above the list cannot be told about a refusal that never spoke about the connection.
+  const [failed, setFailed] = useState<string | null>(null);
 
   const load = useCallback(() => {
     if (!token) return;
     listMemories(token).then(
       (list) => {
         setMemories(list);
+        setFailed(null);
         // «Соединение установлено» is owed only to somebody who watched it go — and the same object
         // back otherwise, so a refetch while the banner stands does not restart its three seconds.
-        setLink((was) => (was.at === 'gone' || was.at === 'hushed' ? { at: 'back' } : was));
+        setLink((was) => (was === 'gone' || was === 'hushed' ? 'back' : was));
       },
-      (e: unknown) => setLink({ at: 'gone', why: errorMessage(e) }),
+      (e: unknown) => {
+        setFailed(errorMessage(e));
+        // Only a read nobody got an answer at all is the connection (TASK-275: everything the api
+        // refused came back in its own words, and that is about something else). A refused pull says
+        // itself where the failure stands and leaves the plate alone — otherwise every 403 over a
+        // list that is fine would put «нет связи» over somebody's memories.
+        if (!answered(e)) setLink('gone');
+      },
     );
   }, [token]);
 
@@ -63,22 +80,20 @@ export default function HomeScreen() {
   // Spec 7.6: the `done` banner carries no button at all, because it is already going. This is it
   // going — the one thing on the screen that happens without anybody doing anything.
   useEffect(() => {
-    if (link.at !== 'back') return;
-    const leaves = setTimeout(() => setLink({ at: 'ok' }), duration.hold);
+    if (link !== 'back') return;
+    const leaves = setTimeout(() => setLink('ok'), duration.hold);
     return () => clearTimeout(leaves);
   }, [link]);
-
-  const failed = link.at === 'gone' || link.at === 'hushed' ? link.why : null;
 
   // The banner is the first thing in the body and pushes the cards down (spec 7.6): it is about
   // what is under it, so it never lies over it.
   const banner =
-    link.at === 'gone' ? (
+    link === 'gone' ? (
       <Banner
         text={s.state.offline}
-        hide={{ label: s.action.hide, onPress: () => setLink({ at: 'hushed', why: link.why }) }}
+        hide={{ label: s.action.hide, onPress: () => setLink('hushed') }}
       />
-    ) : link.at === 'back' ? (
+    ) : link === 'back' ? (
       <Banner tone="done" text={s.state.online} />
     ) : null;
 
