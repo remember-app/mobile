@@ -3,7 +3,7 @@ import { Image as ImageIcon, Shield, Smile } from 'lucide-react-native';
 import { type ReactNode, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { acceptConsent, errorMessage } from '@/api';
+import { acceptConsent } from '@/api';
 import {
   ActionBar,
   Banner,
@@ -18,6 +18,7 @@ import {
   Text,
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
+import { type Failure, failure } from '@/lib/failure';
 import { useStrings } from '@/lib/language';
 import { OnboardingHead } from '@/screens/onboarding/head';
 import { font, radius, space, themed, useTheme } from '@/theme';
@@ -38,7 +39,7 @@ export default function ConsentScreen() {
   const s = useStrings();
   const styles = useStyles();
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Failure | null>(null);
   const [open, setOpen] = useState(false);
 
   async function accept() {
@@ -52,7 +53,7 @@ export default function ConsentScreen() {
       // Pushed, so the name's «Назад» comes back here.
       router.push('/set-username');
     } catch (e) {
-      setError(errorMessage(e));
+      setError(failure(e));
     } finally {
       setBusy(false);
     }
@@ -115,12 +116,11 @@ export default function ConsentScreen() {
         </ActionBar>
       }
     >
-      <OnboardingHead
-        step={4}
-        back={() => signOut().catch((e: unknown) => setError(errorMessage(e)))}
-      />
+      <OnboardingHead step={4} back={() => signOut().catch((e: unknown) => setError(failure(e)))} />
 
-      <View style={styles.room}>{error ? <Banner tone="error" text={error} /> : null}</View>
+      <View style={styles.room}>
+        {error ? <Banner tone="error" text={error.text} icon={error.icon} /> : null}
+      </View>
 
       <Sheet
         visible={open}
