@@ -63,6 +63,13 @@ type ConfirmProps = {
    */
   busy?: boolean;
   /**
+   * The api refused, and the sheet stays up over what did not go — so this is the only thing on it
+   * that says the press did nothing (TASK-506). What the api said when it said anything, and
+   * nothing it did not: a phone cannot tell a dead connection from a right that is not this person's,
+   * and a line naming either sends them looking for a reason that is not there.
+   */
+  error?: string;
+  /**
    * Spec 7.1, detail 8 — the kind asked when nothing is lost: leaving an account, walking away from
    * edits nobody saved. No thumbnail, no avatar, and the button at the bottom is `paper` rather than
    * red, with a quiet way out under it. The dangerous red never appears here, or it stops meaning
@@ -95,6 +102,7 @@ export function ConfirmSheet({
   price,
   priceOn = 'danger',
   busy,
+  error,
   variant = 'danger',
 }: ConfirmProps) {
   const { color } = useTheme();
@@ -175,6 +183,14 @@ export function ConfirmSheet({
             {price}
           </Text>
         </View>
+      ) : null}
+      {/* Last in the body, so it is the closest thing to the button that was pressed — the sheet
+          asks what will be lost, and this says that none of it happened. `note` and not a plate:
+          the plate above is a price to read before the press, and this is a quiet word after it. */}
+      {error ? (
+        <Text role="note" tone="danger" accessibilityRole="alert">
+          {error}
+        </Text>
       ) : null}
     </Sheet>
   );

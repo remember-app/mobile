@@ -2,7 +2,14 @@ import { ArrowUp, Ellipsis } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
-import { addFrameComment, deleteFrameComment, type FrameComment, memberName } from '@/api';
+import {
+  addFrameComment,
+  ApiError,
+  apiReason,
+  deleteFrameComment,
+  type FrameComment,
+  memberName,
+} from '@/api';
 import { Avatar, ConfirmSheet, Field, IconButton, Text } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { formatAgo } from '@/lib/dates';
@@ -46,10 +53,18 @@ export function FrameComments({
   const styles = useStyles();
   const { token } = useAuth();
   const [draft, setDraft] = useState('');
-  /** The words are still in the field and the api would not take them: the field wears the red. */
-  const [unsent, setUnsent] = useState(false);
+  /**
+   * The words are still in the field and the api would not take them: the field wears the red, and
+   * this is what stands under it — the api's own sentence where it sent one, and otherwise nothing
+   * but the fact that it did not go. A phone cannot tell a dead connection from a comment over the
+   * server's ceiling, and a line naming either sends the person hunting a signal that is not the
+   * reason (TASK-506).
+   */
+  const [unsent, setUnsent] = useState<string | null>(null);
   const [writing, setWriting] = useState(false);
   const [dropping, setDropping] = useState<FrameComment | null>(null);
+  /** And the same, said over the comment the api would not take down. */
+  const [undropped, setUndropped] = useState<string | null>(null);
 
   /** The write either lands in the list or does not; an errand already in the air is not repeated. */
   async function send() {
@@ -59,11 +74,11 @@ export function FrameComments({
     try {
       onSent(await addFrameComment(token, memoryId, mediaId, body));
       setDraft('');
-      setUnsent(false);
-    } catch {
+      setUnsent(null);
+    } catch (failure) {
       // The words stay where they were typed, and pressing again sends them again — the api was
       // never asked to remember a draft, and the person is the one holding it.
-      setUnsent(true);
+      setUnsent(said(failure) ?? s.viewer.commentNotSent);
     } finally {
       setWriting(false);
     }
@@ -77,9 +92,11 @@ export function FrameComments({
       await deleteFrameComment(token, memoryId, mediaId, one.id);
       onGone(one.id);
       setDropping(null);
-    } catch {
+      setUndropped(null);
+    } catch (failure) {
       // The api refused, so the comment is still there and the sheet stays up over it: an errand
-      // that did not happen changes nothing on screen.
+      // that did not happen changes nothing on screen — unless it says so.
+      setUndropped(said(failure) ?? s.viewer.commentNotRemoved);
     } finally {
       setWriting(false);
     }
@@ -102,7 +119,15 @@ export function FrameComments({
           {s.viewer.commentsNone}
         </Text>
       ) : (
-        <CommentList comments={comments} onDrop={setDropping} />
+        <CommentList
+          comments={comments}
+          onDrop={(one) => {
+            // A refusal is about the comment it happened over; the next sheet asks about another one
+            // and must not open carrying the last one's words.
+            setUndropped(null);
+            setDropping(one);
+          }}
+        />
       )}
 
       {/* The pill, and the round button that stands in it only once there is something to send. */}
@@ -113,7 +138,7 @@ export function FrameComments({
         value={draft}
         onChangeText={(next) => {
           setDraft(next);
-          setUnsent(false);
+          setUnsent(null);
         }}
         placeholder={s.viewer.commentPlaceholder}
         multiline
@@ -136,7 +161,7 @@ export function FrameComments({
           frame is still true, and this one thing is not. */}
       {unsent ? (
         <Text role="hint" style={styles.unsent}>
-          {s.viewer.commentNotSent}
+          {unsent}
         </Text>
       ) : null}
 
@@ -147,11 +172,26 @@ export function FrameComments({
         confirmLabel={s.action.delete}
         cancelLabel={s.gallery.keep}
         busy={writing}
+        error={undropped ?? undefined}
         onConfirm={() => void drop()}
-        onCancel={() => setDropping(null)}
+        onCancel={() => {
+          setDropping(null);
+          setUndropped(null);
+        }}
       />
     </View>
   );
+}
+
+/**
+ * What the api said about a refusal, and nothing else — `undefined` where it said nothing, which is
+ * the whole reason this is not `errorMessage`: that one says «Cannot reach the API» for anything
+ * that was not an `ApiError`, and it is already a guess — a request can fail because the phone
+ * slept, not because the wire is down. This screen has two refusals and one line each, so the line
+ * is the api's own sentence or it is nothing (TASK-506).
+ */
+function said(failure: unknown): string | undefined {
+  return failure instanceof ApiError ? apiReason(failure.body) : undefined;
 }
 
 /**

@@ -191,8 +191,15 @@ export const en = {
     /** And the sheet it drops, which names the cost before the press as every confirmation does. */
     commentDeleteAsk: 'Delete this comment?',
     commentDeleteText: 'It goes for good — from the frame, and from what the director reads.',
-    /** Under the pill whose words did not go. Repeat the press and they go. */
-    commentNotSent: 'Not sent — no connection',
+    /**
+     * Under the pill whose words did not go, and in the delete sheet — repeat the press and they
+     * go. What it says and no more: the phone cannot tell a dead connection from a comment over the
+     * ceiling, and a line naming either sends the person looking for a signal that is not the
+     * reason. The api's own words stand in this one's place whenever it sent any.
+     */
+    commentNotSent: 'Not sent',
+    /** The same quiet admission where it was a deletion that did not happen. */
+    commentNotRemoved: 'Not deleted',
     /** `formatAgo` (m-32): the two days back that are named rather than dated. */
     agoYesterday: 'yesterday',
     agoBeforeYesterday: 'the day before yesterday',
@@ -361,7 +368,8 @@ export const ru: typeof en = {
     commentRemove: 'Удалить комментарий',
     commentDeleteAsk: 'Удалить комментарий?',
     commentDeleteText: 'Он исчезнет навсегда — с кадра и из того, что читает режиссёр.',
-    commentNotSent: 'Не отправилось — нет связи',
+    commentNotSent: 'Не отправилось',
+    commentNotRemoved: 'Не удалилось',
     agoYesterday: 'вчера',
     agoBeforeYesterday: 'позавчера',
     notOpened: 'Кадр не открылся',
