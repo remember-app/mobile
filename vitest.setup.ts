@@ -43,9 +43,16 @@ vi.mock('expo-sharing', () => ({ shareAsync: async () => {} }));
 // Photos and posters. `expo-image` and not React Native's own — `kit/tile.tsx` says why. It stands
 // in as a plain view wearing the same style, so what a part does *to* a picture — dimming a dropped
 // frame, rounding a thumbnail — is still there to be read off the markup.
+//
+// `source` comes through as well, and that is the point: it is the url a picture is fetched from and
+// the key it is filed under (`kit/tile.tsx`), and dropping it here made every question about either
+// one invisible. A test that removed the cache key from a tile went green, because the stub had
+// thrown the key away before anybody could look at it. Carried here rather than re-mocked in each
+// test that asks: the mock is in one place, so a test written later cannot inherit the blindness by
+// forgetting to stand over it. `tests/setup/image-stub.test.tsx` pins this.
 vi.mock('expo-image', () => ({
-  Image: ({ style }: { style?: unknown }) =>
-    createElement(View, { style, testID: 'image' } as never),
+  Image: ({ style, ...rest }: { style?: unknown; [prop: string]: unknown }) =>
+    createElement(View, { style, ...rest, testID: 'image' } as never),
 }));
 
 type Glyph = (props: {
