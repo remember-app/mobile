@@ -460,12 +460,46 @@ test('the red field and its line go as soon as the words are touched again', asy
   expect(screen.words()).not.toContain(ru.viewer.commentNotSent);
 });
 
-test('nothing longer than the api will take is ever sent', async () => {
-  // The field holds to the ceiling silently — nobody is counting down — and the words past it are
-  // not in the pill to be sent, so the api is never met with a refusal it announced nowhere.
+test('the phone holds no ceiling of its own: what was written is what goes over the wire', async () => {
+  // The ceiling belongs to the api (`MAX_COMMENT_LENGTH`), and a phone that kept a copy of the
+  // number would answer for a limit it cannot see — so nothing is cut here and nothing counts down.
+  // What a person wrote is what the api is asked, whole; what the api answers is the whole answer.
   const screen = await drawn(told({ comments: [] }));
-  await screen.type('а'.repeat(900));
-  expect(screen.pill()?.props.value).toHaveLength(500);
+  const long = 'а'.repeat(900);
+  await screen.type(long);
+  expect(screen.pill()?.props.value).toBe(long);
+  await screen.press(screen.button(ru.action.send)!);
+  expect(screen.log.at(-1)?.body).toEqual({ body: long });
+});
+
+test('an emoji a ceiling would have cut in half reaches the api whole', async () => {
+  // Why the ceiling cannot simply be copied and obeyed: the base counts an emoji as one letter and
+  // a phone as two, so `slice` at the api's own 500 lands between the halves of a pair and sends
+  // back a broken character no wording can undo. Written whole is the only way it survives, which
+  // is what makes TASK-509's slice redundant rather than merely nicer (decision, TASK-507).
+  const screen = await drawn(told({ comments: [] }));
+  // 300 emojis are 600 units — over the api's 500 counted the api's way and a slice's way both.
+  const said = '😀'.repeat(300);
+  await screen.type(said);
+  expect(screen.pill()?.props.value).toBe(said);
+  await screen.press(screen.button(ru.action.send)!);
+  expect(screen.log.at(-1)?.body).toEqual({ body: said });
+});
+
+test('a refusal over the api’s ceiling leaves the words where they were written', async () => {
+  // The other half of handing the ceiling over: now that the phone does not pre-empt it, an over-long
+  // comment is the api's 400 to give, and it must arrive as a refusal with the words still in the
+  // pill — not as a silently shortened text that went through. What the line under the field *says*
+  // about it is TASK-506's to word; that the words survive the refusal is this screen's own.
+  const long = 'а'.repeat(900);
+  const screen = await drawn(told({ comments: [] }), frame, () => refused(400, 'too long'));
+  await screen.type(long);
+  await screen.press(screen.button(ru.action.send)!);
+  expect(screen.pill()?.props.value).toBe(long);
+  expect(screen.pill()?.props.state).toBe('error');
+  expect(screen.words()).toContain(ru.viewer.commentNotSent);
+  // And nothing was added to the list for a comment the api never took.
+  expect(screen.words()).not.toContain('1');
 });
 
 test('a comment is named by its day, and only the two nearest days are named by words', async () => {

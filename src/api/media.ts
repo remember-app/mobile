@@ -20,14 +20,6 @@ export type FrameComment = {
   mine: boolean;
 };
 
-/**
- * What the api will take of one comment (`MAX_COMMENT_LENGTH` on its side). The phone holds to it
- * silently, the way `TextArea` holds to its `limit`: nothing counts down and the field does not
- * explain itself, because the one thing a writer must not meet is a refusal for words nobody said
- * would not be taken.
- */
-export const MAX_COMMENT = 500;
-
 /** The material: declaring a file, sending it, reading it back, and taking it away. */
 /**
  * How a file gets into R2 without the bytes passing through the api: the row it minted, and a
@@ -287,7 +279,11 @@ export function fetchFrameInfo(
  * somebody else's frame as much as under their own: a comment is a note about a picture, and doc-14
  * does not ask who is looking at it.
  *
- * 400 for a body that is empty once the server has trimmed it, or over {@link MAX_COMMENT}.
+ * 400 for a body that is empty once the server has trimmed it, or over `MAX_COMMENT_LENGTH`. That
+ * ceiling is the api's alone and is not written here in a second copy: the two repositories have no
+ * shared source to read it from, and a copy that quietly disagreed would refuse words the server had
+ * long since agreed to take. It cannot even be matched — the base counts an emoji as one letter and
+ * a phone as two — so the phone writes what a person wrote and answers with what came back.
  */
 export function addFrameComment(
   token: string,

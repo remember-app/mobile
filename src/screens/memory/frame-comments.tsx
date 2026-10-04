@@ -2,13 +2,7 @@ import { ArrowUp, Ellipsis } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
-import {
-  addFrameComment,
-  deleteFrameComment,
-  type FrameComment,
-  MAX_COMMENT,
-  memberName,
-} from '@/api';
+import { addFrameComment, deleteFrameComment, type FrameComment, memberName } from '@/api';
 import { Avatar, ConfirmSheet, Field, IconButton, Text } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { formatAgo } from '@/lib/dates';
@@ -118,7 +112,7 @@ export function FrameComments({
         variant="comment"
         value={draft}
         onChangeText={(next) => {
-          setDraft(next.slice(0, MAX_COMMENT));
+          setDraft(next);
           setUnsent(false);
         }}
         placeholder={s.viewer.commentPlaceholder}

@@ -11,6 +11,7 @@
  * where a thing stands, and what is no longer in the file.
  */
 
+import { api } from '@tests/helpers/source';
 import { expect, test } from 'vitest';
 import layout from '@/app/_layout.tsx?raw';
 import home from '@/app/index.tsx?raw';
@@ -19,6 +20,7 @@ import home from '@/app/index.tsx?raw';
 import bars from '@/kit/bars.tsx?raw';
 import filmstrip from '@/kit/filmstrip.tsx?raw';
 import films from '@/screens/memory/films.tsx?raw';
+import comments from '@/screens/memory/frame-comments.tsx?raw';
 import info from '@/screens/memory/frame-info.tsx?raw';
 import viewer from '@/screens/memory/frame-viewer.tsx?raw';
 import frames from '@/screens/memory/frames.tsx?raw';
@@ -558,6 +560,23 @@ test('the open frame is kept on the phone, filed under the record and not under 
   expect(viewer).toContain('cacheKey: `${item.id}:');
   const key = viewer.slice(viewer.indexOf('cacheKey:'));
   expect(key.slice(0, key.indexOf('\n'))).not.toContain('${shown.uri}');
+});
+
+test('the ceiling on a comment is the api’s alone, and this repository writes no copy of it', () => {
+  // The ceiling is `MAX_COMMENT_LENGTH` on the api's side and it lives nowhere else. The two
+  // repositories share no source to read the number from, so a copy here is a number that can
+  // disagree — and it would disagree silently, holding the field at 500 while the api had moved on.
+  // Read as text, because the thing that must not come back is a number in a file, and a rendered
+  // screen cannot show a constant nobody wired to anything (TASK-507). Only a *declaration* is
+  // forbidden in `@/api`: naming the api's own constant in a comment is how the number stays
+  // findable from this side without being restated here.
+  expect(api).not.toMatch(/const\s+MAX_COMMENT\b/);
+  expect(comments).not.toMatch(/MAX_COMMENT|\.slice\(|\b500\b|maxLength/);
+  // What is left of the field is the whole of what it does: the words go down as they are typed.
+  expect(comments).toContain('setDraft(next);');
+  // And the send is what it always was — the api's answer decides, and a refusal leaves the words.
+  expect(comments).toContain('onSent(await addFrameComment(token, memoryId, mediaId, body));');
+  expect(comments).toContain('setUnsent(true);');
 });
 
 test('what expo-image keeps on disk has a ceiling, set once at startup and only where there is none', () => {
