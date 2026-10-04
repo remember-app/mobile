@@ -1,3 +1,25 @@
+/**
+ * The holes testing m-32 found in the comment checks, written on a stand-in api and brought in
+ * whole (TASK-511). `frame-comments.test.tsx` holds the decisions; this file holds the places where
+ * that suite could not tell a right answer from a wrong one — a delete out of a list of one, an
+ * append that reads the same as a prepend, a scroll whose callback is a call on nothing, a second
+ * tap nobody held the line against.
+ *
+ * Every case here was proved by breaking the code where the value is made and watching it go red.
+ * Four of the seventeen the tester wrote did not survive that and are **not** in this file:
+ *
+ * - the padded text and the text past the ceiling — TASK-507 took the ceiling off the phone, so both
+ *   stood on a cut that no longer exists; the padded one is the committed suite's trim check twice;
+ * - the emoji pinned with `test.fails` — the defect it named (a surrogate cut in half) was closed by
+ *   TASK-507 removing the cut, and what is left cannot fail for the reason it was pinned;
+ * - the api answering a write with a row that is not a comment — it accepted either answer, and the
+ *   counter really does reach 1, so it proved nothing;
+ * - the write landing on a panel being shut away — `void send()` drops the rejection and the block's
+ *   own `try` holds the rest, so nothing thrown on that path can reach the check.
+ *
+ * `refused` and `later` are here for the errands that are held in the air, which is where the second
+ * tap and the second errand live.
+ */
 import { type Asked, later, photo, refused, serve } from '@tests/helpers/api';
 import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { afterEach, beforeAll, expect, test, vi } from 'vitest';
@@ -329,28 +351,6 @@ test('a delete the api has not answered yet cannot be asked for twice', async ()
 
 /* ── scenarios the suite never stood on ──────────────────────────────────────── */
 
-test('a padded text at the ceiling sends the words without the padding and under it', async () => {
-  // The field cuts at 500 as the words are typed and the api cuts the padding off at its end. The
-  // two can disagree about what goes over the wire: what must arrive is neither padded nor over.
-  const screen = await drawn(told({ comments: [] }), () => ({ ok: true }));
-  await screen.type(`  ${'я'.repeat(498)}  `);
-  await screen.press(screen.button(ru.action.send)!);
-  const post = screen.log.find((one) => one.method === 'POST') as { body: { body: string } };
-  expect(post.body.body).toBe('я'.repeat(498));
-});
-
-test('a text typed past the ceiling sends the ceiling and never a refusal it announced nowhere', async () => {
-  // 900 characters typed: what leaves the phone is 500, which is what the api will take. A body
-  // over the ceiling would come back 400 and land in the red field for words nobody was told
-  // would not fit.
-  const screen = await drawn(told({ comments: [] }), () => ({ ok: true }));
-  await screen.type('я'.repeat(900));
-  expect(screen.pill()?.props.value).toHaveLength(500);
-  await screen.press(screen.button(ru.action.send)!);
-  const post = screen.log.find((one) => one.method === 'POST') as { body: { body: string } };
-  expect(post.body.body).toHaveLength(500);
-});
-
 test('a comment of many lines grows the row, and the list still floors at three of them', async () => {
   // `THREE_ROWS` is three rows of one line each. A comment of four lines is taller than the floor
   // and has to scroll inside the block rather than push the panel's own blocks down the window.
@@ -382,28 +382,6 @@ test('a delete of somebody else’s comment is never asked of the api — there 
       .filter((one) => one.props.label === ru.viewer.commentRemove),
   ).toHaveLength(0);
   expect(screen.log.filter((one) => one.method === 'DELETE')).toHaveLength(0);
-});
-
-test('an api that answers the write with a row that is not a comment does not put it on screen', async () => {
-  // The contract says the POST answers the row itself. What the phone does with a shape it was
-  // never told about is not the contract's business — but it must not be silently counted.
-  const screen = await drawn(
-    told({ comments: [] }),
-    () => ({ ok: true }) as unknown as FrameComment,
-  );
-  await screen.type('Первый танец');
-  await screen.press(screen.button(ru.action.send)!);
-  // Whatever stands, the pill empties only on what the api said it wrote.
-  const head = screen.root
-    .findAllByType(Text)
-    .find((one) => one.props.children === ru.viewer.comments);
-  const counter = head?.parent
-    ?.findAllByType(Text)
-    .map((one) => one.props.children)
-    .find((one) => one !== ru.viewer.comments);
-  // Reported as a fact, not hidden: what is worth catching here is a crash or a hang, not a
-  // shape the api promised it would not send.
-  expect(['0', '1']).toContain(counter);
 });
 
 test('the pill is not editable while the words are in the air, and it is afterwards', async () => {
@@ -453,74 +431,4 @@ test('cancelling the sheet asks the api nothing and leaves the row standing', as
   expect(screen.log.filter((one) => one.method === 'DELETE')).toHaveLength(0);
   expect(screen.bodies()).toContain('Первый танец');
   expect(screen.sheet()?.props.visible).toBe(false);
-});
-
-/* ── races the panel can lose ─────────────────────────────────────────────────── */
-
-test('a comment written while the panel is being shut away does not throw over the person’s back', async () => {
-  // The panel is mounted by being opened and unmounted by being shut. A write still in the air when
-  // it goes has nothing to answer into — the same rule the panel's own read is written by.
-  const answer = later<FrameComment>();
-  serve((asked) => (asked.method === 'GET' ? told({ comments: [] }) : answer.promise));
-  let tree!: TestRenderer.ReactTestRenderer;
-  await act(async () => {
-    tree = mounted(
-      TestRenderer.create(<FrameInfoPanel memoryId="m1" item={frame} onFilm={() => {}} />),
-    );
-  });
-  const root = tree.root;
-  const pill = () =>
-    root.findAllByType(Field).find((one) => one.props.label === ru.viewer.commentPlaceholder)!;
-  await act(async () => pill().props.onChangeText('Первый танец'));
-  const send = root.findAllByType(IconButton).find((one) => one.props.label === ru.action.send)!;
-  const inFlight = act(async () => {
-    send.props.onPress?.();
-  });
-  // The panel is shut with the words still in the air.
-  await act(async () => tree.unmount());
-  await expect(inFlight).resolves.toBeUndefined();
-  await expect(
-    act(async () => answer.settle(said({ id: 'c1', body: 'Первый танец' }))),
-  ).resolves.toBeUndefined();
-});
-
-/**
- * **Known defect, pinned on 2026-10-04.** The field cuts with `slice(0, 500)`, which counts UTF-16
- * code units; a letter to a reader — and to the api's `maxLength` — is a code point. A person who
- * types or pastes 499 letters and then an emoji gets a comment whose last letter is half of one,
- * which goes over the wire as `\ud83d` and lands in the api as U+FFFD: a black diamond where the
- * emoji was. `test.fails` so the suite is green and the defect stays written down — when it is
- * fixed, this fails and the marker comes off.
- */
-test.fails('the ceiling is counted in what a person typed, and an emoji is not cut in half', async () => {
-  // The field cuts at 500 as the words arrive. An emoji is two code units and one letter to a
-  // reader, so a cut through one leaves a half a character on the wire — and the api counts what
-  // the reader counts, not what `slice` counted.
-  const screen = await drawn(told({ comments: [] }), () => ({ ok: true }));
-  // 499 letters and then an emoji: the cut at 500 lands between the emoji's two halves.
-  await screen.type(`${'а'.repeat(499)}😀`);
-  const held = screen.pill()?.props.value as string;
-  expect(held.length).toBeLessThanOrEqual(500);
-  // What the api will take is 500 letters, and a letter to a reader is a code point: 500 code
-  // units can never be more than 500 of those, so the ceiling cannot be overshot — only landed on
-  // with a letter cut through.
-  expect(
-    [...held].length,
-    'the api counts letters, the field counts code units',
-  ).toBeLessThanOrEqual(500);
-  // No lone surrogate anywhere in what is held: every high surrogate is followed by its low one.
-  for (let at = 0; at < held.length; at += 1) {
-    const code = held.charCodeAt(at);
-    if (code >= 0xd800 && code <= 0xdbff) {
-      expect(held.charCodeAt(at + 1), `a whole emoji at ${at}`).toBeGreaterThanOrEqual(0xdc00);
-      at += 1;
-    }
-  }
-  await screen.press(screen.button(ru.action.send)!);
-  const post = screen.log.find((one) => one.method === 'POST') as { body: { body: string } };
-  const body = post.body.body;
-  expect(
-    [...body].every((one) => one === '😀'),
-    'and the wire carries whole letters',
-  ).toBe(true);
 });
