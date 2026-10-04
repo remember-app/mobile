@@ -409,30 +409,39 @@ test('the row that goes down is the row that was pressed, and the other one stan
   //
   // What a wrong answer costs is stated here because it is the worst thing this button can do: a
   // person presses «удалить» on their own words and **somebody else's** disappear, exactly
-  // backwards, and nothing on the screen says which one was touched. So the check reads three
-  // separate things rather than one — the pressed row is gone, the other row stands, the counter
-  // says one — and each of them fails on a different way of getting it wrong.
+  // backwards, and nothing on the screen says which one was touched.
+  //
+  // Both orders, and the second is not the first again. A delete that dropped the head instead of
+  // the row pressed is right by accident while the pressed row stands first and wrong the moment it
+  // stands last; a delete that dropped the tail is the other way round. One order is green on one
+  // of the two, so the pair is asked twice and each pass is caught by the pass that had it covered.
   const mine = said({ id: 'c1', body: 'Мой кадр — в начало', mine: true });
   const theirs = said({ id: 'c2', body: 'Чужой кадр — в середину' });
-  const screen = await drawn(told({ comments: [mine, theirs] }));
 
-  // The press is made on the person's own row, and only that one wears a sign — so what the api is
-  // asked about names the row, not a position in the list.
-  await screen.press(screen.button(ru.viewer.commentRemove)!);
-  await act(async () => screen.sheet()?.props.onConfirm());
-  expect(screen.log.at(-1)?.method).toBe('DELETE');
-  expect(screen.log.at(-1)?.path).toBe('/memories/m1/media/a/comments/c1');
+  for (const standing of [
+    [mine, theirs],
+    [theirs, mine],
+  ]) {
+    const screen = await drawn(told({ comments: standing }));
 
-  // The three, and the first is the one a broken answer gets wrong. Both rows are here on purpose
-  // and not one: a check that only watched the pressed row go would be green on a list emptied
-  // outright, on the tail dropped instead of the head, and on the head dropped instead of the tail.
-  expect(screen.words()).not.toContain(mine.body);
-  // The row nobody pressed is still there — every word of it, not a row left standing by accident.
-  expect(screen.words()).toContain(theirs.body);
-  // And the count is the count of rows, so it is one and not the number of rows the api was asked
-  // about. Read off the heading's row, not off the panel's words: the size and the date are
-  // numbers too, and one of them would stand in for this without meaning anything by it.
-  expect(screen.count()).toBe('1');
+    // The press is made on the person's own row, and only that one wears a sign — so what the api
+    // is asked about names the row, not a position in the list.
+    await screen.press(screen.button(ru.viewer.commentRemove)!);
+    await act(async () => screen.sheet()?.props.onConfirm());
+    expect(screen.log.at(-1)?.method).toBe('DELETE');
+    expect(screen.log.at(-1)?.path).toBe('/memories/m1/media/a/comments/c1');
+
+    // The three, and the first is the one a broken answer gets wrong. Both rows are here on
+    // purpose and not one: a check that only watched the pressed row go would be green on a list
+    // emptied outright and on whichever end was dropped instead of the pressed row.
+    expect(screen.words()).not.toContain(mine.body);
+    // The row nobody pressed is still there — every word of it, not a row left standing by accident.
+    expect(screen.words()).toContain(theirs.body);
+    // And the count is the count of rows, so it is one and not the number of rows the api was asked
+    // about. Read off the heading's row, not off the panel's words: the size and the date are
+    // numbers too, and one of them would stand in for this without meaning anything by it.
+    expect(screen.count()).toBe('1');
+  }
 });
 
 test('a delete the api refuses takes nothing down, and the sheet says so over the comment', async () => {
