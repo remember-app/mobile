@@ -121,6 +121,20 @@ async function drawn(answer: unknown, item = frame, onWrite: (asked: Asked) => u
   const type = async (text: string) => {
     await act(async () => pill()?.props.onChangeText?.(text));
   };
+  /**
+   * The number under «Комментарии», read off the heading's own row rather than off the panel's
+   * words: every count on this panel is a number somebody can read wrong — one that came down
+   * with a size, one with a date — and only this one counts the rows standing.
+   */
+  const count = () => {
+    const head = root
+      .findAllByType(Text)
+      .find(
+        (one) => one.props.accessibilityRole === 'header' && one.props.children === ru.viewer.comments,
+      );
+    const rows = head?.parent?.props.children;
+    return (Array.isArray(rows) ? rows[1] : undefined)?.props?.children;
+  };
   return {
     root,
     log,
@@ -130,6 +144,7 @@ async function drawn(answer: unknown, item = frame, onWrite: (asked: Asked) => u
     saidBySheet,
     pill,
     type,
+    count,
     /** Every line of words on the panel, as one string — for what stands and what does not. */
     said: () =>
       root
@@ -383,6 +398,41 @@ test('the sign of their own comment drops a sheet that asks, and the api takes t
   // And the sheet goes with it — a sheet left standing over a comment that is no longer there is
   // a sheet asking about something the person can no longer see.
   expect(sheet()?.props.visible).toBe(false);
+});
+
+test('the row that goes down is the row that was pressed, and the other one stands', async () => {
+  // The case above deletes out of a list of **one**, and in a list of one there is nothing to
+  // choose: «the row that was pressed went» and «some row went» draw the same screen, so the check
+  // cannot tell them apart. Two rows are what it takes, and the pair has to be one the api can
+  // tell apart too — that is what `mine` is: the sign is drawn only on the person's own row, so
+  // the press names one of the two and the other is what must survive.
+  //
+  // What a wrong answer costs is stated here because it is the worst thing this button can do: a
+  // person presses «удалить» on their own words and **somebody else's** disappear, exactly
+  // backwards, and nothing on the screen says which one was touched. So the check reads three
+  // separate things rather than one — the pressed row is gone, the other row stands, the counter
+  // says one — and each of them fails on a different way of getting it wrong.
+  const mine = said({ id: 'c1', body: 'Мой кадр — в начало', mine: true });
+  const theirs = said({ id: 'c2', body: 'Чужой кадр — в середину' });
+  const screen = await drawn(told({ comments: [mine, theirs] }));
+
+  // The press is made on the person's own row, and only that one wears a sign — so what the api is
+  // asked about names the row, not a position in the list.
+  await screen.press(screen.button(ru.viewer.commentRemove)!);
+  await act(async () => screen.sheet()?.props.onConfirm());
+  expect(screen.log.at(-1)?.method).toBe('DELETE');
+  expect(screen.log.at(-1)?.path).toBe('/memories/m1/media/a/comments/c1');
+
+  // The three, and the first is the one a broken answer gets wrong. Both rows are here on purpose
+  // and not one: a check that only watched the pressed row go would be green on a list emptied
+  // outright, on the tail dropped instead of the head, and on the head dropped instead of the tail.
+  expect(screen.words()).not.toContain(mine.body);
+  // The row nobody pressed is still there — every word of it, not a row left standing by accident.
+  expect(screen.words()).toContain(theirs.body);
+  // And the count is the count of rows, so it is one and not the number of rows the api was asked
+  // about. Read off the heading's row, not off the panel's words: the size and the date are
+  // numbers too, and one of them would stand in for this without meaning anything by it.
+  expect(screen.count()).toBe('1');
 });
 
 test('a delete the api refuses takes nothing down, and the sheet says so over the comment', async () => {
