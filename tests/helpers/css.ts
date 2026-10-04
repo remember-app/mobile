@@ -7,6 +7,12 @@ import { compiled } from '@/kit/story';
  * style from `StyleSheet.create` is drawn as a class and not as `style="…"` (`src/kit/story.tsx`).
  * `css` is the rule as written, parentheses and all: `background-color:rgba(11,11,18,0.55)`. One
  * declaration is one class wherever it is drawn, so this names the value and not the part.
+ *
+ * Draw the thing the rule belongs to before asking for it: the sheet this reads is the one the
+ * drawing fills, so a name asked for before its own component is drawn is only there because some
+ * other check drew one, and the check passes on that neighbour instead of on its own subject —
+ * green in the ordinary run, red run alone, and only as often as the order happens to fall
+ * (TASK-526).
  */
 export function rule(css: string): string {
   const name = new RegExp(`\\.(r-[A-Za-z]+-[a-z0-9]+)\\{${escaped(css)};\\}`).exec(compiled())?.[1];
