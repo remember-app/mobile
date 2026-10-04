@@ -22,6 +22,7 @@ import {
   Text,
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
+import { DENSITIES, setDensity, useDensity } from '@/lib/density';
 import { type Failure, failure } from '@/lib/failure';
 import { setLanguage, useLanguage, useStrings } from '@/lib/language';
 import { UsernameForm } from '@/screens/onboarding/username-form';
@@ -46,6 +47,7 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const theme = useThemeChoice();
   const language = useLanguage();
+  const density = useDensity();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<Failure | null>(null);
@@ -191,14 +193,24 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {/* The person's own setting for every feed of every memory: on, the day is written between
-          the strips (`MemoryDated`); off, it is read off the spine while the feed moves. */}
+      {/* The person's own settings for every feed of every memory: on, the day is written between
+          the strips (`MemoryDated`); off, it is read off the spine while the feed moves. And how
+          many frames stand in a row, which every gallery is cut at — the pills say the counts
+          themselves, so the words under them are the heading alone (doc-12). */}
       <View style={styles.section}>
         <Heading>{s.profile.gallery}</Heading>
         <RowToggle
           label={s.profile.datesBetweenDays}
           value={datesBetweenDays}
           onValueChange={(on) => remember(setDatesBetweenDays(on))}
+        />
+        <Segment
+          label={s.profile.density}
+          hideLabel
+          small
+          value={density}
+          onChange={(next) => remember(setDensity(next))}
+          options={DENSITIES.map((one) => ({ value: one, label: String(one) }))}
         />
       </View>
 

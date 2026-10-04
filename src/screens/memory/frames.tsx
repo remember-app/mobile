@@ -33,7 +33,6 @@ import { formatDayShort, formatEventDates, formatRuntime, formatWeekday } from '
 import {
   allTaken,
   arranged,
-  COLUMNS,
   FILTER_NONE,
   type Filter,
   type Frame,
@@ -52,6 +51,7 @@ import {
   toggleDay,
   toggleEvery,
 } from '@/lib/frames';
+import { useDensity } from '@/lib/density';
 import { filed } from '@/lib/labels';
 import { useStrings } from '@/lib/language';
 import { Films } from '@/screens/memory/films';
@@ -102,15 +102,19 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   const { color } = useTheme();
   const insets = useSafeAreaInsets();
   /**
-   * One column of the feed, worked out rather than flexed. The feed is three `1fr` columns running
-   * the whole width of the phone with a 2px gutter and no margins (spec 7.8), and a `1fr` column is
-   * the same width in a last row of one as in a full row of three. `flex: 1/3` is not: it hands each
-   * frame a third of what the row has left after its gaps, and a row with one frame in it has no
-   * gaps to leave — so the last frame of the feed came out wider than every frame above it, which is
-   * what the designer measured. Rotating the phone re-reads the width.
+   * One column of the feed, worked out rather than flexed. The feed is `1fr` columns running the
+   * whole width of the phone with a 2px gutter and no margins (spec 7.8), and a `1fr` column is the
+   * same width in a last row of one as in a full row. `flex: 1/3` is not: it hands each frame a
+   * third of what the row has left after its gaps, and a row with one frame in it has no gaps to
+   * leave — so the last frame of the feed came out wider than every frame above it, which is what the
+   * designer measured. Rotating the phone re-reads the width.
+   *
+   * How many across is the account's own setting (`@/lib/density`), so the width follows it rather
+   * than the layout's three being written out here a second time.
    */
   const { width, height: screen, fontScale } = useWindowDimensions();
-  const cell = { width: (width - FEED_GAP * 2) / 3 };
+  const columns = useDensity();
+  const cell = { width: (width - FEED_GAP * 2) / columns };
   /** The record the viewer is showing, held by id so a reload hands it a fresh signed url. */
   const [open, setOpen] = useState<string | null>(null);
   /**
@@ -210,11 +214,12 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   const kept = useMemo(() => framesMatching(items ?? [], filter), [items, filter]);
 
   /**
-   * The feed as the layout lays it out: a heading, then the frames under it three to a row, then
-   * the next heading. What the headings are about is the sort's business (`@/lib/frames`); this only
-   * flattens the groups into rows, because three to a row has to be cut by hand — `numColumns` lays
-   * out the list underneath and cannot do it around the headings standing between the strips. The
-   * «Добавить кадры» screen cuts the phone's own roll the same way, for the same reason.
+   * The feed as the layout lays it out: a heading, then the frames under it as many to a row as the
+   * account stands at, then the next heading. What the headings are about is the sort's business
+   * (`@/lib/frames`); this only flattens the groups into rows, because a row of them has to be cut
+   * by hand — `numColumns` lays out the list underneath and cannot do it around the headings standing
+   * between the strips. The «Добавить кадры» screen cuts the phone's own roll the same way, for the
+   * same reason.
    *
    * Held across renders: every tap on a frame is a render, and the whole feed is re-cut here.
    */
@@ -224,12 +229,12 @@ export function Frames({ id, head }: { id: string; head: Head }) {
         // The wall has no seam over it at all (`MemoryFrames`, `MemoryScrub`): with the dates off
         // and nothing grouped, the days are read off the spine at the edge instead.
         ...(group.by === 'all' ? [] : [{ key: group.key, group }]),
-        ...Array.from({ length: Math.ceil(group.frames.length / COLUMNS) }, (_, i) => ({
-          key: group.frames[i * COLUMNS].id,
-          frames: group.frames.slice(i * COLUMNS, i * COLUMNS + COLUMNS),
+        ...Array.from({ length: Math.ceil(group.frames.length / columns) }, (_, i) => ({
+          key: group.frames[i * columns].id,
+          frames: group.frames.slice(i * columns, i * columns + columns),
         })),
       ]),
-    [kept, sort, datesBetweenDays],
+    [kept, sort, datesBetweenDays, columns],
   );
 
   /**
@@ -251,6 +256,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
     // Cut into people or kinds, or with the dates written between the days, the seams already say
     // where a day begins and there is nothing for a spine to add.
     plain: sort.by === 'none' && !datesBetweenDays,
+    columns,
     rowPitch: cell.width + FEED_GAP,
     scrollTo,
   });

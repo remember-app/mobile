@@ -300,25 +300,24 @@ export function arranged(sort: Sort): boolean {
   return sort.by !== SORT_DEFAULT.by || sort.order !== SORT_DEFAULT.order;
 }
 
-/** Three across, in both lanes of spec 7.8 — the feed is cut by hand, so the number is named once. */
-export const COLUMNS = 3;
-
 /**
  * Spec 7.8, detail 66 — where each day begins on the feed, so the spine can hang a pill on that
  * seam. Points from the top of the list: `top` is where the first row starts and `row` is the pitch
  * of one row, a tile and the gutter under it, both worked out by the screen because it is the one
- * that knows how wide a phone is.
+ * that knows how wide a phone is. `columns` is how many across it cuts the feed at — asked of the
+ * same screen, so the marks stand on the seams of the grid actually drawn (TASK-523: at five or
+ * seven the rows are shorter and every mark below the first one moves up).
  *
  * Only ever asked of the ungrouped feed, which is the only arrangement where the days run in order
  * down the wall: cut by person or by kind the days interleave, and a rail of them would point at
  * nothing.
  *
  * A mark stands on the seam between two rows and never inside one, so two days beginning in the same
- * row of three share a seam — and a seam carries one pill, the day that opens it.
+ * row share a seam — and a seam carries one pill, the day that opens it.
  */
 export function dateMarks(
   frames: readonly MediaItem[],
-  { top, row }: { top: number; row: number },
+  { top, row, columns }: { top: number; row: number; columns: number },
 ): { at: number; top: number }[] {
   const marks: { at: number; top: number }[] = [];
   let day: number | null = null;
@@ -326,7 +325,7 @@ export function dateMarks(
     const on = dayOf(item);
     if (on === day) return;
     day = on;
-    const y = top + Math.floor(at / COLUMNS) * row;
+    const y = top + Math.floor(at / columns) * row;
     if (marks.at(-1)?.top === y) return;
     marks.push({ at: on, top: y });
   });

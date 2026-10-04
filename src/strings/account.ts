@@ -20,6 +20,8 @@ export const en = {
     /** The heading over the one setting of every feed of every memory. */
     gallery: 'Gallery',
     datesBetweenDays: 'Dates between days',
+    /** The heading over the density of every gallery — the pills are the counts themselves (doc-12). */
+    density: 'Frames per row',
     /** Leaving loses nothing, and the sheet says so (spec 8, `Account`). */
     logOutAsk: 'Log out of your account?',
     logOutText: 'Your frames stay in the memories.',
@@ -101,6 +103,7 @@ export const ru: typeof en = {
     contactsMeta: 'Зовите выбором, не по нику',
     gallery: 'Галерея',
     datesBetweenDays: 'Даты между днями',
+    density: 'Кадров в ряду',
     logOutAsk: 'Выйти из аккаунта?',
     logOutText: 'Кадры останутся в воспоминаниях.',
     logOutDo: 'Выйти',

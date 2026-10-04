@@ -42,6 +42,7 @@ import {
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { formatDay, formatEventDates, formatRuntime, formatWeekday } from '@/lib/dates';
+import { useDensity } from '@/lib/density';
 import { type Failure, failure } from '@/lib/failure';
 import { useStrings } from '@/lib/language';
 import { assetsByDay, type ShootingDay } from '@/lib/media-window';
@@ -121,6 +122,9 @@ export default function UploadScreen({ queue = false }: { queue?: boolean }) {
   const styles = useStyles();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  // As many across as the account stands at (`@/lib/density`) — this roll is cut the way the
+  // memory's own feed is cut, and the setting is the same one.
+  const columns = useDensity();
   // The whole app's queue; the rows below are this memory's share of it.
   const uploads = useUploads();
   /**
@@ -158,11 +162,12 @@ export default function UploadScreen({ queue = false }: { queue?: boolean }) {
   const [apiError, setApiError] = useState<Failure | null>(null);
 
   /**
-   * The roll as the kit lays it out: the day it was shot on, then that day's frames three to a row,
-   * then the next day — the event's days first. Flat, and three to a row by hand, because that is
-   * what `numColumns` does to a list underneath and a list cannot do it around the days standing
-   * between the strips. A day holding its own frames would read better and would mount a wedding —
-   * six hundred frames on one day, the day this screen floats to the top — in a single item.
+   * The roll as the kit lays it out: the day it was shot on, then that day's frames as many to a
+   * row as the account stands at, then the next day — the event's days first. Flat, and cut by hand,
+   * because that is what `numColumns` does to a list underneath and a list cannot do it around the
+   * days standing between the strips. A day holding its own frames would read better and would mount
+   * a wedding — six hundred frames on one day, the day this screen floats to the top — in a single
+   * item.
    *
    * Held across renders: every tap on a frame is a render, and the cut runs over the whole camera
    * roll, which is thousands of rows on a phone that has had one a while.
@@ -171,16 +176,16 @@ export default function UploadScreen({ queue = false }: { queue?: boolean }) {
     () =>
       assetsByDay(memory, gallery).flatMap((day): Row[] => [
         { key: `day-${day.at}`, day },
-        ...Array.from({ length: Math.ceil(day.assets.length / 3) }, (_, i) => ({
-          key: day.assets[i * 3].id,
-          frames: day.assets.slice(i * 3, i * 3 + 3),
+        ...Array.from({ length: Math.ceil(day.assets.length / columns) }, (_, i) => ({
+          key: day.assets[i * columns].id,
+          frames: day.assets.slice(i * columns, i * columns + columns),
           lead: i === 0,
         })),
         // What a partial grant leaves out is said under the strip it is missing from, and nowhere
         // else: a day of three frames out of sixty otherwise reads as a day when nobody shot.
         ...(limited ? [{ key: `unseen-${day.at}`, unseen: true as const }] : []),
       ]),
-    [memory, gallery, limited],
+    [memory, gallery, limited, columns],
   );
 
   const load = useCallback(() => {
@@ -236,7 +241,7 @@ export default function UploadScreen({ queue = false }: { queue?: boolean }) {
   // frame has none to leave, so it came out wider than the rest. The feed runs edge to edge; the
   // queue's grid stands in the screen's 16.
   const gap = glass ? FEED_GAP : GRID_GAP;
-  const cell = { width: (width - (glass ? 0 : space.s4 * 2) - gap * 2) / 3 };
+  const cell = { width: (width - (glass ? 0 : space.s4 * 2) - gap * 2) / columns };
 
   /** Whether every frame of a day is taken. */
   const dayTaken = (day: ShootingDay<MediaLibrary.Asset>) =>

@@ -58,6 +58,7 @@ export type Spine = {
 export function useSpine({
   frames,
   plain,
+  columns,
   rowPitch,
   scrollTo,
 }: {
@@ -65,6 +66,8 @@ export function useSpine({
   frames: readonly MediaItem[];
   /** The plain wall of frames — cut into seams, or with the dates written, there is no spine. */
   plain: boolean;
+  /** How many across the feed is cut at — the marks are counted over the rows that really are. */
+  columns: number;
   /** A square tile and the gutter under it: what every row of the feed is worth in points. */
   rowPitch: number;
   scrollTo: (offset: number) => void;
@@ -142,11 +145,11 @@ export function useSpine({
     () =>
       !plain || headerHeight === 0 || reach <= 0
         ? []
-        : dateMarks(frames, { top: feedTop, row: rowPitch }).map((mark) => ({
+        : dateMarks(frames, { top: feedTop, row: rowPitch, columns }).map((mark) => ({
             label: formatDayTiny(new Date(mark.at)),
             top: mark.top - SEAM_LIFT,
           })),
-    [plain, frames, headerHeight, reach, feedTop, rowPitch],
+    [plain, frames, headerHeight, reach, feedTop, rowPitch, columns],
   );
 
   /** Where the strip the spine is grabbed by begins and how tall it is: between the two glasses. */
