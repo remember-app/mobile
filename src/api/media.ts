@@ -2,6 +2,32 @@ import { request } from './call';
 import type { Contact } from './contacts';
 import type { Label } from './labels';
 
+/**
+ * One line written under a frame — doc-14. It rides `FrameInfo` rather than a route of its own:
+ * it is drawn on the sheet the person just opened, so a second request would only mean the panel
+ * filling in after it appears, the way the labels do not (TASK-497).
+ *
+ * `mine` is the server's own answer about the asker and the only thing that says «this is yours,
+ * this may be taken down». The rule behind it is never repeated on the phone: somebody else's
+ * comment is removed by nobody, the organizer included, and the sign is drawn where the server
+ * said it may be — the way `Label.can_edit` works.
+ */
+export type FrameComment = {
+  id: string;
+  body: string;
+  created_at: string;
+  author: Contact;
+  mine: boolean;
+};
+
+/**
+ * What the api will take of one comment (`MAX_COMMENT_LENGTH` on its side). The phone holds to it
+ * silently, the way `TextArea` holds to its `limit`: nothing counts down and the field does not
+ * explain itself, because the one thing a writer must not meet is a refusal for words nobody said
+ * would not be taken.
+ */
+export const MAX_COMMENT = 500;
+
 /** The material: declaring a file, sending it, reading it back, and taking it away. */
 /**
  * How a file gets into R2 without the bytes passing through the api: the row it minted, and a
@@ -229,6 +255,17 @@ export type FrameInfo = {
    * picker does not.
    */
   labels: Label[];
+  /**
+   * What people wrote under this frame (doc-14), oldest first — the order the panel draws them in
+   * and the order a new one joins at the end of. An empty array and never `null`, like `labels`:
+   * nobody has written yet is a fact about the frame, not a missing field, and the panel says so
+   * in words rather than drawing nothing at all.
+   *
+   * Missing altogether on an answer from an api that does not send it yet, which is not the same
+   * thing and is not read as one — the panel's own rule says a line the server knows nothing about
+   * is not drawn.
+   */
+  comments?: FrameComment[];
 };
 
 /**
@@ -241,6 +278,45 @@ export function fetchFrameInfo(
   mediaId: string,
 ): Promise<FrameInfo> {
   return request(`/memories/${memoryId}/media/${mediaId}`, { token });
+}
+
+/**
+ * Write one under a frame and get **the list row itself** back — not `{ok:true}`. The form is the
+ * one `GET …/media/:mediaId` would have handed over, so the panel puts it at the end of what it is
+ * already showing and asks nothing a second time. Written by any member, a viewer included, under
+ * somebody else's frame as much as under their own: a comment is a note about a picture, and doc-14
+ * does not ask who is looking at it.
+ *
+ * 400 for a body that is empty once the server has trimmed it, or over {@link MAX_COMMENT}.
+ */
+export function addFrameComment(
+  token: string,
+  memoryId: string,
+  mediaId: string,
+  body: string,
+): Promise<FrameComment> {
+  return request(`/memories/${memoryId}/media/${mediaId}/comments`, {
+    method: 'POST',
+    body: { body },
+    token,
+  });
+}
+
+/**
+ * Take one down — the writer's own, and only the writer's: somebody else's answers 404 rather than
+ * 403, because «not allowed» would be an answer about a comment everybody can already see. Nobody
+ * works the rule out on the phone; the panel draws the sign off `mine`, which the api worked out.
+ */
+export function deleteFrameComment(
+  token: string,
+  memoryId: string,
+  mediaId: string,
+  commentId: string,
+): Promise<{ ok: true }> {
+  return request(`/memories/${memoryId}/media/${mediaId}/comments/${commentId}`, {
+    method: 'DELETE',
+    token,
+  });
 }
 
 /**

@@ -36,7 +36,7 @@ import { Text, TYPE_MOST } from './text';
 export type FieldState = 'ok' | 'error';
 
 /**
- * The seven fields the layout draws, which differ by height and by the face the text is typed in
+ * The eight fields the layout draws, which differ by height and by the face the text is typed in
  * (spec 7.3):
  *
  * - `name` — 56, Unbounded: the memory's name is typed in the face it will be printed in on the cover;
@@ -46,7 +46,10 @@ export type FieldState = 'ok' | 'error';
  * - `search` — 52, a magnifier and an `@`;
  * - `labelName` — 52, a label's name with its colour square in front of it;
  * - `wish` — 44, the one field that lives inside another block: what to do with one chosen track,
- *   unfolded under its row in «Выбрано».
+ *   unfolded under its row in «Выбрано»;
+ * - `comment` — 48, on `ink`, pill-shaped: the one line written under a frame
+ *   (`FrameInfo.html` line 47). The only one whose box is padded unevenly, because the round
+ *   button that sends it stands inside its own right edge.
  */
 export type FieldVariant =
   | 'name'
@@ -55,7 +58,8 @@ export type FieldVariant =
   | 'handle'
   | 'search'
   | 'labelName'
-  | 'wish';
+  | 'wish'
+  | 'comment';
 
 const BOX: Record<FieldVariant, { minHeight: number; borderRadius: number }> = {
   name: { minHeight: height.primary, borderRadius: radius.field },
@@ -65,6 +69,7 @@ const BOX: Record<FieldVariant, { minHeight: number; borderRadius: number }> = {
   search: { minHeight: height.field, borderRadius: radius.cell },
   labelName: { minHeight: height.field, borderRadius: radius.cell },
   wish: { minHeight: height.small, borderRadius: radius.strip },
+  comment: { minHeight: 48, borderRadius: radius.pill },
 };
 
 /**
@@ -92,6 +97,9 @@ const FACE: Record<FieldVariant, TextStyle> = {
   search: { ...type.body, fontFamily: font.medium },
   labelName: { ...type.row, fontSize: 16 },
   wish: { ...type.label, fontSize: 13 },
+  // `FrameInfo.html` line 47: the comment pill writes at 14 in the running face, not the 16 every
+  // other field on a screen takes — it is a line under a picture, not a value in a form.
+  comment: { ...type.body, fontSize: 14 },
 };
 
 /**
@@ -136,6 +144,7 @@ export function Field({
   icon,
   swatch,
   onSurface,
+  trailing,
   style,
   onFocus,
   onBlur,
@@ -179,8 +188,19 @@ export function Field({
    * Spec 7.3 — the field standing inside a sheet is filled with `ink`, the same way the segments
    * there are: the sheet under it is already `surface`, and a `surface` box on a `surface` sheet is
    * a field nobody can see the edges of.
+   *
+   * The comment pill carries its own `ink` and does not need this: it stands over the panel, which
+   * is `surface` too, so it says so by the variant rather than by a prop the caller has to know to
+   * pass.
    */
   onSurface?: boolean;
+  /**
+   * A control standing inside the box at its right — the round button that sends what is typed into
+   * the comment pill (`FrameInfo.html` line 47). The only field with one, and the only box padded
+   * unevenly for it: the layout draws 6 to the button's right against 16 to the words' left, so
+   * the button sits in the pill's own edge rather than 10 off it.
+   */
+  trailing?: ReactNode;
 }) {
   const [focused, setFocused] = useState(false);
   const theme = useTheme();
@@ -213,12 +233,13 @@ export function Field({
           BOX[variant],
           variant === 'wish' ? styles.boxTight : null,
           variant === 'search' ? styles.boxSearch : null,
+          variant === 'comment' ? styles.boxComment : null,
           wayIn ? styles.boxWayIn : null,
           {
             borderColor: borderColor(theme, variant, state, focused),
             backgroundColor: disabled
               ? theme.color.raise
-              : onSurface || variant === 'wish'
+              : onSurface || variant === 'wish' || variant === 'comment'
                 ? theme.color.ink
                 : theme.color.surface,
           },
@@ -281,6 +302,7 @@ export function Field({
             <Icon icon={Check} size={13} color={theme.color.sparkInk} />
           </View>
         ) : null}
+        {trailing}
       </View>
       {hint && !hintAbove ? (
         <Hint
@@ -520,6 +542,9 @@ const useStyles = themed(({ color }) =>
     // The wish line stands inside a block that already has its own 16 of air around it.
     boxTight: { paddingHorizontal: space.s3, gap: space.s2 },
     boxWayIn: { paddingHorizontal: 18, gap: space.s1 },
+    // `FrameInfo.html` line 47: the comment pill keeps its own 16 to the words and gives 6 to the
+    // button in it, so the round sits in the curve of the pill rather than floating off its edge.
+    boxComment: { paddingLeft: space.s4, paddingRight: 6, gap: space.s2 },
     // `Contacts.json` e7…e9: the magnifier 15 in from the edge, the `@` and the words 10 after it.
     boxSearch: { paddingLeft: 14, gap: 10 },
     // Spec 2.5 — the focus ring, on the box rather than on the input, so it rings the whole field.

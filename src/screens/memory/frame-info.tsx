@@ -19,6 +19,7 @@ import { frameFacts } from '@/lib/frames';
 import { usePlaceName } from '@/lib/geocoder';
 import { labelTint } from '@/lib/labels';
 import { useStrings } from '@/lib/language';
+import { FrameComments } from '@/screens/memory/frame-comments';
 import { LabelSheets } from '@/screens/memory/label-sheets';
 import { board, height, radius, space, themed, useTheme } from '@/theme';
 
@@ -170,6 +171,39 @@ export function FrameInfoPanel({
           ) : null
         ) : (
           <>
+            {/* What people wrote under this frame (`FrameInfo.html` lines 33–49), the block the
+                layout puts above the boxes. Its own file: it has a field, a list that scrolls
+                inside itself and two errands of its own, and none of that is the panel's business.
+
+                Drawn only where the api sent the field at all. `[]` is a fact about the frame and
+                the block says so in words; a missing field is not, and the panel's own rule says a
+                line the server knows nothing about is not drawn — which is not the same answer and
+                must not be read as one. */}
+            {info.comments === undefined ? null : (
+              <FrameComments
+                memoryId={memoryId}
+                mediaId={item.id}
+                comments={info.comments}
+                // The api hands back the row it wrote in the form the read would have given, so
+                // the list grows by one line rather than by a second round trip (TASK-497).
+                onSent={(comment) =>
+                  setInfo((was) =>
+                    was === null ? was : { ...was, comments: [...(was.comments ?? []), comment] },
+                  )
+                }
+                onGone={(id) =>
+                  setInfo((was) =>
+                    was === null
+                      ? was
+                      : {
+                          ...was,
+                          comments: (was.comments ?? []).filter((one) => one.id !== id),
+                        },
+                  )
+                }
+              />
+            )}
+
             {/* Spec 10.8.2, detail 18 — the boxes this frame lies in, and the way into the rest of
                 them. Shared and personal are told apart by the mark: a colour for a box everybody
                 sees, a lock for one that is only this person's. A frame in no box has no block here

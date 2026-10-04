@@ -187,6 +187,36 @@ export function endOfDay(day: Date): Date {
 }
 
 /**
+ * When a moment was, for a line that is about the moment and not about a day — «вчера» under a
+ * comment's name (`FrameInfo.html` line 42). Two days back are named; anything older falls to
+ * {@link formatDayShort}, because the further back it is the less useful its name is among a list
+ * of them — a comment from March reads «3 марта», not «109 дней назад». That is the same rule the
+ * gallery reads a memory's dates by, and it is why this stops at two rather than counting on.
+ *
+ * The words are the caller's: they sit in the dictionary beside every other word on the screen, and
+ * this file writes no words of its own. `names` and `now` are for a test to say both out loud; the
+ * app hands over the words it is speaking and the real today.
+ *
+ * Counted by local day and not by hours, which is what a person means by «вчера»: an evening and a
+ * morning twenty hours apart are yesterday and today, not yesterday by an hour's grace. A moment
+ * that will not parse is no moment at all, the way an unreadable day is no day.
+ */
+export function formatAgo(
+  value: string | Date,
+  names: { yesterday: string; beforeYesterday: string },
+  now: Date = new Date(),
+): string {
+  const at = new Date(value);
+  if (Number.isNaN(at.getTime())) return '';
+  const back = Math.round(
+    (startOfDay(now).getTime() - startOfDay(at).getTime()) / (24 * 60 * 60 * 1000),
+  );
+  if (back === 1) return names.yesterday;
+  if (back === 2) return names.beforeYesterday;
+  return formatDayShort(at);
+}
+
+/**
  * The month over the calendar's grid — «Сентябрь 2026», «September 2026». Asked for on its own a
  * month comes back in the form that heads a page («сентябрь», not «сентября»), and only its first
  * letter has to be raised: Russian writes the word lowercase and the layout prints it capitalised.

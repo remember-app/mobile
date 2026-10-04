@@ -53,12 +53,19 @@ test('no screen scrolls up and down by a scroll of its own', () => {
   // `frame-info.tsx` is the third, and it is a surface rather than a screen: the panel is the bottom
   // of the viewer's window (TASK-478), not a route of its own, and it scrolls because it is handed
   // the rest of that window — the same two reasons the sheet's body does.
+  //
+  // `frame-comments.tsx` is a block of that same surface (TASK-499), and its list scrolls inside
+  // itself for the reason the decision of 2026-10-03 gives: three comments stand without a scroll
+  // and the ones past them are reached inside the block, so a frame with thirty under it has not
+  // pushed the panel's own blocks off the window. It has a floor rather than the window, which is
+  // what keeps it from being a scroll of a screen.
   const own = sources
     .filter(
       ([path]) =>
         path !== 'kit/bars.tsx' &&
         path !== 'kit/sheet.tsx' &&
-        path !== 'screens/memory/frame-info.tsx',
+        path !== 'screens/memory/frame-info.tsx' &&
+        path !== 'screens/memory/frame-comments.tsx',
     )
     .filter(([, source]) =>
       [...flat(source).matchAll(/<(Animated\.)?ScrollView\b[^>]*>/g)].some(

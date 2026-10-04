@@ -2,7 +2,7 @@ import { rule, shorthand } from '@tests/helpers/css';
 import { fontFile, naturalLine } from '@tests/helpers/font';
 import { Pencil, Search } from 'lucide-react-native';
 import { beforeAll, expect, test } from 'vitest';
-
+import { IconButton } from '@/kit/button';
 import { AreaRoom, CodeField, Field, type FieldVariant, Hint, TextArea } from '@/kit/field';
 import { allDifferent, compiled, story } from '@/kit/story';
 import { Text } from '@/kit/text';
@@ -22,9 +22,10 @@ const VARIANTS: FieldVariant[] = [
   'search',
   'labelName',
   'wish',
+  'comment',
 ];
 
-test('the seven fields differ by height and by the face they are typed in', () => {
+test('the eight fields differ by height and by the face they are typed in', () => {
   allDifferent(
     Object.fromEntries(
       VARIANTS.map((variant) => [variant, <Field label="Название" variant={variant} value="" />]),
@@ -407,4 +408,35 @@ test('the hint under a control has the four voices it is ever said in', () => {
     danger: <Hint tone="danger">Такой ник уже занят</Hint>,
     spark: <Hint tone="spark">Ник свободен.</Hint>,
   });
+});
+
+test('the comment pill is 48 and pill-shaped, writes at 14, and keeps the send button in its own edge', () => {
+  // `FrameInfo.html` line 47: 48 tall, round as a pill, `ink` under a `line` ring, the words 16 in
+  // and the button 6 from the right — so the round sits in the curve rather than 10 off it. It is
+  // the only box padded unevenly, and the only one with a control inside it.
+  const pill = story(
+    <Field
+      label="Написать про этот кадр…"
+      labelHidden
+      variant="comment"
+      placeholder="Написать про этот кадр…"
+      value=""
+      trailing={<IconButton icon={Pencil} label="Отправить" size={36} tone="paper" />}
+    />,
+  );
+  expect(pill).toContain('border-top-left-radius:999px');
+  expect(pill).toContain(rule('padding-left:16px'));
+  expect(pill).toContain(rule('padding-right:6px'));
+  expect(pill).toContain('min-height:48px');
+  // `ink` under a `line` ring — a `surface` box on the panel's own `surface` is a field nobody can
+  // see the edges of, and the drawing gives the pill its own well (line 47).
+  expect(pill).toContain('background-color:rgba(11,11,18,1.00)');
+  expect(pill).toContain('border-top-color:rgba(44,44,58,1.00)');
+  // 14 in the running face, not the 16 every other field on a screen takes.
+  const input = /<input[^>]*style="([^"]*)"/.exec(pill)?.[1];
+  expect(input).toContain(`font-family:${font.regular}`);
+  expect(input).toContain('font-size:14px');
+  // And the button is inside the box, drawn as a round of its own.
+  expect(pill).toContain('data-glyph="Pencil"');
+  expect(pill).toContain('background-color:rgba(245,243,238,1.00)');
 });

@@ -16,6 +16,10 @@ vi.mock('@/screens/memory/label-sheets', () => ({
     return null;
   },
 }));
+// The comments block is a block of the panel with a field, a list and two errands in it, and none of
+// that is what this file is about — it is what `frame-comments.test.tsx` is about, mounted through
+// this same panel. Stood in for here so that the panel's own blocks are what stands in this tree.
+vi.mock('@/screens/memory/frame-comments', () => ({ FrameComments: () => null }));
 
 import TestRenderer, { act } from 'react-test-renderer';
 import type { FrameInfo, Label } from '@/api';
@@ -60,6 +64,8 @@ const told = (over: Partial<FrameInfo> = {}): FrameInfo => ({
   montages: [{ id: 'f', duration_seconds: 60, start_seconds: 72 }],
   // A frame in no box at all: an empty array, which is how the api says it (TASK-479).
   labels: [],
+  // Nobody has written under it — a fact about the frame, and the block still drawn (TASK-499).
+  comments: [],
   ...over,
 });
 

@@ -171,6 +171,31 @@ export const en = {
     inFilms: 'In movies',
     /** The second a frame stands at inside a movie, on the row that opens it. */
     at: (runtime: string) => `at ${runtime}`,
+    /**
+     * `FrameInfo` (spec 8, `FrameInfo.html` lines 33–49) — what people wrote under the frame.
+     * A frame nobody has written about says so in words under a counter of zero, because the
+     * block is on the sheet and an empty box with no line in it is not an answer.
+     */
+    comments: 'Comments',
+    /** Under a counter of zero — not an error and not a spinner, and not the block's absence. */
+    commentsNone: 'Nobody has written yet',
+    /** The pill: what is typed under a frame. */
+    commentPlaceholder: 'Write about this frame…',
+    /**
+     * Over a comment of their own, where somebody else's stands. The row is otherwise the same
+     * one, and naming the writer is the only difference the design draws.
+     */
+    commentMine: 'you',
+    /** The sign at the right of their own comment — the same three dots the frame's bar drops. */
+    commentRemove: 'Delete this comment',
+    /** And the sheet it drops, which names the cost before the press as every confirmation does. */
+    commentDeleteAsk: 'Delete this comment?',
+    commentDeleteText: 'It goes for good — from the frame, and from what the director reads.',
+    /** Under the pill whose words did not go. Repeat the press and they go. */
+    commentNotSent: 'Not sent — no connection',
+    /** `formatAgo` (m-32): the two days back that are named rather than dated. */
+    agoYesterday: 'yesterday',
+    agoBeforeYesterday: 'the day before yesterday',
     /** Spec 8: a frame whose picture never arrived says so, and the strip stays where it is. */
     notOpened: 'This frame would not open',
     /** The tap on the picture itself (TASK-476) — the two words a reader is given, one per state. */
@@ -329,6 +354,16 @@ export const ru: typeof en = {
     coords: (lat: number, lon: number) => `${lat}, ${lon}`,
     inFilms: 'В роликах',
     at: (runtime: string) => `на ${runtime}`,
+    comments: 'Комментарии',
+    commentsNone: 'Пока никто не написал',
+    commentPlaceholder: 'Написать про этот кадр…',
+    commentMine: 'вы',
+    commentRemove: 'Удалить комментарий',
+    commentDeleteAsk: 'Удалить комментарий?',
+    commentDeleteText: 'Он исчезнет навсегда — с кадра и из того, что читает режиссёр.',
+    commentNotSent: 'Не отправилось — нет связи',
+    agoYesterday: 'вчера',
+    agoBeforeYesterday: 'позавчера',
     notOpened: 'Кадр не открылся',
     hideTools: 'Спрятать панели',
     showTools: 'Показать панели',

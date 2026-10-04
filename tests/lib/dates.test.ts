@@ -14,6 +14,7 @@ import {
   clockOf,
   daysBefore,
   endOfDay,
+  formatAgo,
   formatDay,
   formatDayShort,
   formatDayTiny,
@@ -281,4 +282,30 @@ test('«Снято» is typed back as a clock round the clock, and anything else
   expect(atClock(day, ' 7.30 ')).toEqual(new Date(2026, 8, 13, 7, 30));
   for (const typed of ['24:00', '18:60', '1842', '', 'утром'])
     expect(atClock(day, typed)).toBeNull();
+});
+
+test('when a moment was: the two days back are named, and anything older is a plain day', () => {
+  // `formatAgo` (m-32, the line under a comment's name — `FrameInfo.html` line 42). The words are
+  // handed in rather than taken from a locale, because this file writes no words of its own.
+  const ago = { yesterday: 'вчера', beforeYesterday: 'позавчера' };
+  const NOW = new Date(2026, 8, 25, 22, 10);
+  const ago_ = (d: Date) => formatAgo(d, ago, NOW);
+
+  expect(ago_(new Date(2026, 8, 24, 9, 5))).toBe('вчера');
+  expect(ago_(new Date(2026, 8, 23, 9, 5))).toBe('позавчера');
+  // Counted by local day, not by hours: an evening and a morning twenty hours apart are two days,
+  // and this is what a person means by «вчера».
+  expect(ago_(new Date(2026, 8, 24, 23, 59))).toBe('вчера');
+  expect(ago_(new Date(2026, 8, 24, 0, 1))).toBe('вчера');
+  // Older than that is a day, the way every other day on the panel is written — not a count.
+  expect(ago_(new Date(2026, 8, 22, 9, 5))).toBe('22 сентября');
+  expect(ago_(new Date(2025, 8, 22, 9, 5))).toBe('22 сентября');
+  // A moment a minute old is this one — there is no word for it and none is invented here.
+  expect(ago_(new Date(2026, 8, 25, 22, 9))).toBe('25 сентября');
+  // Unreadable is nothing, as it is for a day and a clock.
+  expect(formatAgo('не дата', ago, NOW)).toBe('');
+  // And the words are the caller's: the same moment reads in whichever language is handed over.
+  expect(
+    formatAgo(new Date(2026, 8, 24, 9, 5), { yesterday: 'yesterday', beforeYesterday: 'x' }, NOW),
+  ).toBe('yesterday');
 });
