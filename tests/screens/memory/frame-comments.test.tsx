@@ -111,7 +111,9 @@ async function drawn(answer: unknown, item = frame, onWrite: (asked: Asked) => u
   let tree!: TestRenderer.ReactTestRenderer;
   await act(async () => {
     tree = mounted(
-      TestRenderer.create(<FrameInfoPanel memoryId="m1" item={item} onFilm={() => {}} />),
+      TestRenderer.create(
+        <FrameInfoPanel memoryId="m1" item={item} onFilm={() => {}} onEdited={() => {}} />,
+      ),
     );
   });
   const root = tree.root;
@@ -370,7 +372,9 @@ test('a press sends the words, the api’s own row joins the end of the list, an
   let tree!: TestRenderer.ReactTestRenderer;
   await act(async () => {
     tree = mounted(
-      TestRenderer.create(<FrameInfoPanel memoryId="m1" item={frame} onFilm={() => {}} />),
+      TestRenderer.create(
+        <FrameInfoPanel memoryId="m1" item={frame} onFilm={() => {}} onEdited={() => {}} />,
+      ),
     );
   });
   const root = tree.root;
@@ -747,7 +751,9 @@ test('words that did not go stay in the pill, the field wears the red, and press
   let tree!: TestRenderer.ReactTestRenderer;
   await act(async () => {
     tree = mounted(
-      TestRenderer.create(<FrameInfoPanel memoryId="m1" item={frame} onFilm={() => {}} />),
+      TestRenderer.create(
+        <FrameInfoPanel memoryId="m1" item={frame} onFilm={() => {}} onEdited={() => {}} />,
+      ),
     );
   });
   const root = tree.root;
@@ -883,7 +889,9 @@ test('a read that has not answered yet is a wait with no comments block over it'
   let tree!: TestRenderer.ReactTestRenderer;
   await act(async () => {
     tree = mounted(
-      TestRenderer.create(<FrameInfoPanel memoryId="m1" item={frame} onFilm={() => {}} />),
+      TestRenderer.create(
+        <FrameInfoPanel memoryId="m1" item={frame} onFilm={() => {}} onEdited={() => {}} />,
+      ),
     );
   });
   const saidNow = () =>
