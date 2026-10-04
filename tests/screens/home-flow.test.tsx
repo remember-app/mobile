@@ -86,9 +86,16 @@ const wedding = (over: Partial<Memory> = {}) =>
     ...over,
   });
 
-async function open(list: Memory[] | 'offline' | Response | Promise<unknown>) {
+/**
+ * What the listing answers: the memories themselves, `'offline'` for a connection that never came,
+ * or a `refused(…)` **called on every read**. The call matters — a `Response` body is one-shot, so a
+ * response handed back twice throws a `TypeError` on the second read, and a `TypeError` is not an
+ * `ApiError`, which is the very thing this file is about: the stand-in would turn into the outage it
+ * is meant to be about. A refusal is signed per request, as the api signs it.
+ */
+async function open(list: Memory[] | 'offline' | (() => Response) | Promise<unknown>) {
   const state = { list };
-  serve(() => state.list);
+  serve(() => (typeof state.list === 'function' ? state.list() : state.list));
   let tree!: TestRenderer.ReactTestRenderer;
   await act(async () => {
     tree = mounted(TestRenderer.create(<HomeScreen />));
@@ -349,7 +356,7 @@ test('a refusal is the api answering: the plate does not stand over a list that 
   expect(screen.banners()).toEqual([]);
 
   // The api is there and says no.
-  screen.state.list = refused(403, 'forbidden');
+  screen.state.list = () => refused(403, 'forbidden');
   await screen.refocus();
 
   // No «нет связи» anywhere: not the plate, and not the good news either — nothing was lost.
@@ -379,7 +386,7 @@ test('a real silence still stands the plate, over the same list that a refusal d
  * both questions, and this is the case that read the reason off the plate.
  */
 test('a first load that was refused is refused in its own words, not as a lost connection', async () => {
-  const screen = await open(refused(403, 'нет прав'));
+  const screen = await open(() => refused(403, 'нет прав'));
   expect(screen.root.findByType(Empty).props.text).toBe('нет прав');
   expect(screen.root.findAllByType(Empty)[0].props.title).toBeUndefined();
   // The list was never there, so there is nothing for a line above it to be about.
@@ -411,7 +418,7 @@ test('in daylight the list is drawn in the day’s tokens and carries none of th
  * once they do not they are the list's own head and foot — in every state the screen has, once each,
  * and both actions still answer.
  */
-const STATES: [string, () => Memory[] | 'offline' | Response | Promise<unknown>][] = [
+const STATES: [string, () => Memory[] | 'offline' | (() => Response) | Promise<unknown>][] = [
   ['a list of memories', () => [wedding({ id: 'a' }), wedding({ id: 'b', title: 'Вторая' })]],
   ['no memories', () => []],
   ['a list that never came', () => 'offline'],
