@@ -210,7 +210,11 @@ function useTurning(frames: readonly string[]): number {
     return () => clearInterval(turn);
   }, [count]);
 
-  return count ? at % count : 0;
+  // The two halves put together again, which is the whole of the fold: `slice(at)` off the front and
+  // `slice(0, at)` onto the back always come to exactly `count` frames, so the count may climb past
+  // them for ever and the strip stays full. It is the order the count makes that repeats, and the
+  // count is already folded where it is made.
+  return at;
 }
 
 /**

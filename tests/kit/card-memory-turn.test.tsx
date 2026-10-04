@@ -32,9 +32,12 @@ const FRAMES = [
   'https://r2.example/3',
   'https://r2.example/4',
 ];
+/** Somebody's own pick of what this memory looks like (spec 10.8.3). */
+const COVER = 'https://r2.example/cover';
 
 async function draw(card: ReactElement) {
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+  const before = vi.getTimerCount();
   let tree!: TestRenderer.ReactTestRenderer;
   await act(async () => {
     tree = mounted(TestRenderer.create(card));
@@ -42,6 +45,8 @@ async function draw(card: ReactElement) {
   return {
     /** The frames on the card right now, cell by cell, in the order the card draws them. */
     drawn: () => tree.root.findAllByType(Image).map((one) => one.props.source.uri as string),
+    /** How many clocks this card put up on mounting — its own, and nobody else's. */
+    clocks: () => vi.getTimerCount() - before,
     turn: () => act(async () => void vi.advanceTimersByTime(TURN_MS)),
     rest: (ms: number) => act(async () => void vi.advanceTimersByTime(ms)),
   };
@@ -60,6 +65,14 @@ test('the frames on a card come round, one frame at a time, and come back to whe
   // As many turns as there are frames and it is the card it was on the first time — a loop, not a
   // walk off the end of the list into nothing.
   expect(card.drawn()).toEqual(FRAMES);
+
+  // And past that, rather than only up to it. A count that keeps climbing past the frames it walks
+  // between has nothing left to show, and `slice` past the end answers with nothing rather than
+  // complaining — so a card can stand still without ever looking broken. Asked a fifth time on,
+  // which is where the two answers part: a count that folded back is on its second frame, and one
+  // that kept climbing is showing a strip of four out of an empty tail.
+  for (let step = 0; step < FRAMES.length + 1; step += 1) await card.turn();
+  expect(card.drawn()).toEqual([FRAMES[1], FRAMES[2], FRAMES[3], FRAMES[0]]);
 });
 
 test('the turn waits: nothing moves before the card has stood long enough to be read', async () => {
@@ -71,23 +84,60 @@ test('the turn waits: nothing moves before the card has stood long enough to be 
 });
 
 test('the frame somebody chose is not one of the frames that change, on either card', async () => {
-  const cover = 'https://r2.example/cover';
+  // Five frames rather than four, and a chosen frame that is one of them — so the cover really is
+  // among the frames on offer and could be picked up by the turn if anything swept the whole tail.
+  const frames = [COVER, ...FRAMES];
   const ordinary = await draw(
-    <CardMemory title="Свадьба" meta={['12 сентября']} thumbs={FRAMES} cover={cover} />,
+    <CardMemory title="Свадьба" meta={['12 сентября']} thumbs={frames} cover={COVER} />,
   );
-  expect(ordinary.drawn()).toEqual([cover, FRAMES[0], FRAMES[1], FRAMES[2]]);
-  await ordinary.turn();
-  // It leads the strip and stays leading it — the tail behind it turns, the chosen frame does not.
-  expect(ordinary.drawn()).toEqual([cover, FRAMES[1], FRAMES[2], FRAMES[3]]);
+  // A whole turn round, not one step: the cover leads the strip and stays leading it, and the three
+  // cells behind it hold three different frames of the tail — never the cover a second time, which
+  // is what a turn that swept the whole `thumbs` would put in the strip behind it, and never fewer
+  // than three, which is what a tail cut short on a card that does have frames to show would leave.
+  for (let at = 0; at < frames.length + 1; at += 1) {
+    const [first, ...tail] = ordinary.drawn();
+    expect(first).toBe(COVER);
+    expect(tail).toEqual([
+      FRAMES[at % FRAMES.length],
+      FRAMES[(at + 1) % FRAMES.length],
+      FRAMES[(at + 2) % FRAMES.length],
+    ]);
+    await ordinary.turn();
+  }
 
-  // On the large card the chosen frame is the whole face, and there is nothing behind it to turn:
-  // the card draws one picture and keeps drawing it.
   const large = await draw(
-    <CardMemory title="Свадьба" meta={['12 сентября']} thumbs={FRAMES} cover={cover} large />,
+    <CardMemory title="Свадьба" meta={['12 сентября']} thumbs={frames} cover={COVER} large />,
   );
-  expect(large.drawn()).toEqual([cover]);
+  expect(large.drawn()).toEqual([COVER]);
   await large.turn();
-  expect(large.drawn()).toEqual([cover]);
+  expect(large.drawn()).toEqual([COVER]);
+});
+
+test('a card with nothing to turn keeps no clock at all', async () => {
+  // On the large card the chosen frame is the whole face and there is nothing behind it, and a card
+  // with one frame in it has nothing to walk to. Both draw the same picture for as long as they are
+  // on screen, and neither is woken up: a clock kept running for a card that never draws differently
+  // is a phone doing work for nothing. Counted rather than read off the tree — a mosaic behind a
+  // cover is not drawn at all, so only the clock itself shows that the turn stood down.
+  const covered = await draw(
+    <CardMemory
+      title="Свадьба"
+      meta={['12 сентября']}
+      thumbs={[COVER, ...FRAMES]}
+      cover={COVER}
+      large
+    />,
+  );
+  expect(covered.clocks()).toBe(0);
+
+  const one = await draw(
+    <CardMemory title="Свадьба" meta={['12 сентября']} thumbs={[FRAMES[0]]} />,
+  );
+  expect(one.clocks()).toBe(0);
+
+  // And a card that does turn keeps exactly one — its own, not one for the list around it.
+  const turning = await draw(<CardMemory title="Свадьба" meta={['12 сентября']} thumbs={FRAMES} />);
+  expect(turning.clocks()).toBe(1);
 });
 
 test('the large card turns its own mosaic, and a card with one frame in it stands still', async () => {
