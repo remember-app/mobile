@@ -198,6 +198,35 @@ test('while the request is in the air the dangerous button waits and «Оста�
   expect(story(<ConfirmSheet {...base} />)).not.toContain('aria-disabled="true"');
 });
 
+test('the sheet can say the press did nothing, and says nothing when there is nothing to say', () => {
+  // TASK-506: a confirmation the api refused stays up over what did not go, and until now it had
+  // nowhere to say so — the person pressed «Удалить», nothing on screen moved, and pressing again
+  // is the only thing left to try. The line is the last thing in the body, nearest the button that
+  // was pressed, and it is a quiet word and not a plate: the plate above is a price to read before
+  // the press, this is what the press came back with.
+  const refused = story(
+    <ConfirmSheet {...base} price="54 кадра исчезнут из воспоминания" error="Сервер ответил 404." />,
+  );
+  expect(refused).toContain('Сервер ответил 404.');
+  // Stand the three against each other, or a slot that drew nothing would pass the first half for
+  // the same reason a sheet with no slot at all passes it: both say nothing about the press.
+  allDifferent({
+    idle: <ConfirmSheet {...base} />,
+    refused: <ConfirmSheet {...base} error="Сервер ответил 404." />,
+    // The red words, on the quiet line — read off the sheet's own markup.
+    plate: <ConfirmSheet {...base} price="54 кадра исчезнут из воспоминания" />,
+  });
+  // And a sheet with no refusal draws no line where one would stand: the slot costs nothing.
+  expect(story(<ConfirmSheet {...base} />)).not.toContain('Сервер ответил 404.');
+
+  // It sits after the price, so it is the closest thing in the body to the buttons below.
+  const order = ['Оно уйдёт', '54 кадра исчезнут', 'Сервер ответил 404.', 'aria-label="Удалить"'].map(
+    (part) => refused.indexOf(part),
+  );
+  expect(order.every((at) => at >= 0)).toBe(true);
+  expect([...order].sort((a, b) => a - b)).toEqual(order);
+});
+
 /** The sheet's own style: its rhythm, and its floor when it has one. */
 const sheetStyle = (markup: string) => /style="(gap:[^"]*padding-bottom:[^"]*)"/.exec(markup)?.[1];
 

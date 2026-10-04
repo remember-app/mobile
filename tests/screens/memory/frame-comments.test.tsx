@@ -108,6 +108,13 @@ async function drawn(answer: unknown, item = frame, onWrite: (asked: Asked) => u
     act(async () => one.props.onPress?.());
   const button = (label: string) =>
     root.findAllByType(IconButton).find((one) => one.props.label === label);
+  /** The sheet over the comment, which the block raises and puts a refusal in. */
+  const sheet = () => root.findAllByType(ConfirmSheet)[0];
+  /**
+   * What the sheet is holding as its refusal — read off the props rather than off `words()`, which
+   * would find the same line twice, once for the sheet and once for anywhere else it was drawn.
+   */
+  const saidBySheet = () => sheet()?.props.error as string | undefined;
   /** The pill, found by its placeholder — the one field the block adds to the panel. */
   const pill = () =>
     root.findAllByType(Field).find((one) => one.props.label === ru.viewer.commentPlaceholder);
@@ -119,6 +126,8 @@ async function drawn(answer: unknown, item = frame, onWrite: (asked: Asked) => u
     log,
     press,
     button,
+    sheet,
+    saidBySheet,
     pill,
     type,
     /** Every line of words on the panel, as one string — for what stands and what does not. */
@@ -376,20 +385,112 @@ test('the sign of their own comment drops a sheet that asks, and the api takes t
   expect(sheet()?.props.visible).toBe(false);
 });
 
-test('a delete the api refuses takes nothing down, and the sheet stays up over the comment', async () => {
+test('a delete the api refuses takes nothing down, and the sheet says so over the comment', async () => {
   // The comment is still there because the api said so. Closing the sheet over it would be the app
-  // deciding on the server's behalf that the words went.
+  // deciding on the server's behalf that the words went — and leaving it up without a word under
+  // the buttons was the silence this card is about: a person who pressed «Удалить» and saw nothing
+  // change presses again, and again, and nothing ever happens (TASK-506).
   const screen = await drawn(told({ comments: [said({ mine: true })] }), frame, () =>
     refused(404, 'not found'),
   );
-  const sheet = () => screen.root.findAllByType(ConfirmSheet)[0];
   await screen.press(screen.button(ru.viewer.commentRemove)!);
-  await act(async () => sheet()?.props.onConfirm());
+  // Nothing is claimed before the press, so a sheet that is only up has not failed at anything yet.
+  expect(screen.saidBySheet()).toBeUndefined();
+
+  await act(async () => screen.sheet()?.props.onConfirm());
   expect(screen.log.filter((one) => one.method === 'DELETE')).toHaveLength(1);
   // The comment stands, and the count with it.
   expect(screen.words()).toContain(said().body);
   expect(screen.words()).toContain('1');
-  expect(sheet()?.props.visible).toBe(true);
+  expect(screen.sheet()?.props.visible).toBe(true);
+  // And the sheet is no longer a question that got no answer.
+  expect(screen.saidBySheet()).toBeDefined();
+});
+
+/**
+ * What a refusal is worth saying, and the one pair of cases that says it (TASK-506).
+ *
+ * Both are about the same line in the same place, and a check on either alone could pass on code
+ * that gets the other wrong — which is how the silence this card is about was in: one test saw the
+ * comment stand and called the refusal handled. So they are written as a pair over *both* refusals
+ * this block makes, and each one asserts the half that the other does not:
+ *
+ * - a refusal **with** a reason puts the api's own words there, so «не отправилось» is never the
+ *   whole of what a person is told;
+ * - a refusal **without** one says only that it did not happen, and never names a cause it cannot
+ *   know — a phone cannot tell a dead connection from a comment over the server's ceiling, and the
+ *   line that guessed «нет связи» sent the person out of the tunnel to look for a signal that was
+ *   never the reason.
+ *
+ * The pairing is the point: a line that always showed the api's words would pass the first case and
+ * fall over on the second (there is nothing to show), and a line that always showed the bare
+ * «не отправилось» would pass the second and swallow every reason the server did send. Neither can
+ * be green here by accident.
+ */
+test('a refusal with a reason speaks it, and one without says only that it did not happen', async () => {
+  // With a reason: the api's own words, in the sheet and under the pill alike — the phone adds
+  // nothing to what it was told, and takes nothing away from it.
+  const refusedWithReason = await drawn(told({ comments: [said({ mine: true })] }), frame, () =>
+    refused(404, 'not found'),
+  );
+  await refusedWithReason.press(refusedWithReason.button(ru.viewer.commentRemove)!);
+  await act(async () => refusedWithReason.sheet()?.props.onConfirm());
+  expect(refusedWithReason.saidBySheet()).toBe('not found');
+  // The same rule under the pill: the words that did not go are named by what stopped them.
+  const sendRefused = await drawn(told({ comments: [] }), frame, () => refused(400, 'too long'));
+  await sendRefused.type('Первый танец');
+  await sendRefused.press(sendRefused.button(ru.action.send)!);
+  expect(sendRefused.words()).toContain('too long');
+  expect(sendRefused.words()).not.toContain(ru.viewer.commentNotSent);
+
+  // Without one: what is known, and nothing besides it. A connection that was never there answers
+  // with a `TypeError` and no body at all, and that is the case where a line must keep its mouth
+  // shut about the cause — the phone cannot tell it from a server that refused for a reason of its
+  // own, and «нет связи» would be the app deciding which one it was.
+  const silent = await drawn(told({ comments: [said({ mine: true })] }), frame, () => 'offline');
+  await silent.press(silent.button(ru.viewer.commentRemove)!);
+  await act(async () => silent.sheet()?.props.onConfirm());
+  expect(silent.saidBySheet()).toBe(ru.viewer.commentNotRemoved);
+  // Not a word about the wire, in any language the dictionary has: this is what the check is for.
+  for (const cause of ['connection', 'network', 'offline', 'связ', 'сеть', 'интернет']) {
+    expect(silent.saidBySheet()!.toLowerCase(), cause).not.toContain(cause);
+  }
+  // And the plain line about the api, which is itself the guess in longer words, is nowhere in it.
+  expect(silent.saidBySheet()).not.toContain(ru.error.offline);
+
+  // The same for the pill — and its own word, «не отправилось», says nothing about a cause either.
+  const sendSilent = await drawn(told({ comments: [] }), frame, () => 'offline');
+  await sendSilent.type('Первый танец');
+  await sendSilent.press(sendSilent.button(ru.action.send)!);
+  expect(sendSilent.words()).toContain(ru.viewer.commentNotSent);
+  for (const cause of ['connection', 'network', 'offline', 'связ', 'сеть', 'интернет']) {
+    expect(ru.viewer.commentNotSent.toLowerCase(), cause).not.toContain(cause);
+  }
+});
+
+test('the refusal goes with the sheet, and the next one opens saying nothing about the last', async () => {
+  // A line about a comment that is no longer being deleted is worse than no line: it stands over a
+  // question the person did not ask. So it goes when the sheet does, and when another sheet comes
+  // up over another comment.
+  const screen = await drawn(
+    told({ comments: [said({ id: 'c1', mine: true }), said({ id: 'c2', mine: true })] }),
+    frame,
+    (asked) => (asked.method === 'DELETE' ? refused(404, 'not found') : ok()),
+  );
+  await screen.press(screen.button(ru.viewer.commentRemove)!);
+  await act(async () => screen.sheet()?.props.onConfirm());
+  expect(screen.saidBySheet()).toBe('not found');
+
+  // Closing the sheet takes the line with it.
+  await act(async () => screen.sheet()?.props.onCancel());
+  expect(screen.saidBySheet()).toBeUndefined();
+  // And the next question opens over its own comment, not carrying the last one's words.
+  const signs = screen.root
+    .findAllByType(IconButton)
+    .filter((one) => one.props.label === ru.viewer.commentRemove);
+  await screen.press(signs[1]);
+  expect(screen.sheet()?.props.visible).toBe(true);
+  expect(screen.saidBySheet()).toBeUndefined();
 });
 
 test('somebody else’s comment has no sign at all — the api owns that rule, not the phone', async () => {
@@ -449,15 +550,17 @@ test('words that did not go stay in the pill, the field wears the red, and press
 
 test('the red field and its line go as soon as the words are touched again', async () => {
   // The failure is about those words and not about the field: retyping is not sending, so it
-  // takes the apology away and leaves the sentence in the pill to send.
+  // takes the apology away and leaves the sentence in the pill to send. The line that goes is
+  // this api's own sentence about them — «busy» — and the check follows it, not a fixed word, so
+  // that a line which named some other cause could not pass by saying this one.
   const screen = await drawn(told({ comments: [] }), frame, () => refused(503, 'busy'));
   await screen.type('Первый танец');
   await screen.press(screen.button(ru.action.send)!);
   expect(screen.pill()?.props.state).toBe('error');
-  expect(screen.words()).toContain(ru.viewer.commentNotSent);
+  expect(screen.words()).toContain('busy');
   await screen.type('Первый танец ');
   expect(screen.pill()?.props.state).toBeUndefined();
-  expect(screen.words()).not.toContain(ru.viewer.commentNotSent);
+  expect(screen.words()).not.toContain('busy');
 });
 
 test('the phone holds no ceiling of its own: what was written is what goes over the wire', async () => {
@@ -491,15 +594,18 @@ test('a ceiling counted any way at all would still cut this, and none of them is
 test('a refusal over the api’s ceiling leaves the words where they were written', async () => {
   // The other half of handing the ceiling over: now that the phone does not pre-empt it, an over-long
   // comment is the api's 400 to give, and it must arrive as a refusal with the words still in the
-  // pill — not as a silently shortened text that went through. What the line under the field *says*
-  // about it is TASK-506's to word; that the words survive the refusal is this screen's own.
+  // pill — not as a silently shortened text that went through. What the line says about it is the
+  // api's own «too long», which is the whole point of the ceiling having moved: a refusal about the
+  // length of the text read as a broken wire sends the person out of the tunnel to look for a
+  // signal that was never the reason (TASK-506).
   const long = 'а'.repeat(900);
   const screen = await drawn(told({ comments: [] }), frame, () => refused(400, 'too long'));
   await screen.type(long);
   await screen.press(screen.button(ru.action.send)!);
   expect(screen.pill()?.props.value).toBe(long);
   expect(screen.pill()?.props.state).toBe('error');
-  expect(screen.words()).toContain(ru.viewer.commentNotSent);
+  expect(screen.words()).toContain('too long');
+  expect(screen.words()).not.toContain(ru.viewer.commentNotSent);
   // And nothing was added to the list for a comment the api never took.
   expect(screen.words()).not.toContain('1');
 });
