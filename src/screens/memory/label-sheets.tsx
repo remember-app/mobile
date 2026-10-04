@@ -1,22 +1,11 @@
-import {
-  Lock,
-  Pencil,
-  Plus,
-  Tag as TagIcon,
-  Trash2,
-  TriangleAlert,
-  Unlink,
-  Users,
-} from 'lucide-react-native';
+import { Lock, Pencil, Plus, Tag as TagIcon, Trash2, Unlink, Users } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import {
-  ApiError,
   addLabelMedia,
   createLabel,
   deleteLabel,
-  errorMessage,
   type Label,
   listLabels,
   type MediaItem,
@@ -32,7 +21,6 @@ import {
   Hint,
   hitSlop,
   IconButton,
-  type IconComponent,
   Palette,
   RowLabel,
   Sheet,
@@ -40,6 +28,7 @@ import {
   Waiting,
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
+import { failure, type Failure, type Refusals } from '@/lib/failure';
 import {
   filing,
   LABEL_NAME_MAX,
@@ -71,26 +60,6 @@ import { height, labelColors, radius, space, themed, useTheme } from '@/theme';
 
 /** `SheetLabelNew`: shut, making one (`label: null`), or editing the one it holds. */
 type Writing = { label: Label | null } | null;
-
-/**
- * A failure as a sheet says it: the words, and the glyph beside them. No glyph is the banner's own
- * «no signal», which only a request that never got an answer has earned.
- */
-export type Failure = { text: string; icon?: IconComponent };
-
-/** The statuses a route words itself, because the api's bare «forbidden» or «not found» says nothing. */
-type Refusals = Partial<Record<number, Failure>>;
-
-/**
- * Told apart by what came back and never by the words: anything the api answered is not the
- * connection. A 403 is about rights; a 404 is something that is not there, and what that is depends
- * on the route, so every route names its own; anything else the api refused is said in its words
- * beside a plain warning.
- */
-function failure(e: unknown, refused: Refusals): Failure {
-  if (!(e instanceof ApiError)) return { text: errorMessage(e) };
-  return refused[e.status] ?? { text: e.message, icon: e.status === 403 ? Lock : TriangleAlert };
-}
 
 /** The api's one answer to somebody not in the memory: about the person, so a tie that is cut. */
 const notMember = (s: Strings): Failure => ({ text: s.memory.gone, icon: Unlink });
