@@ -106,6 +106,7 @@ export function FrameViewer({
   onOpen,
   onClose,
   onRemoved,
+  onEdited,
 }: {
   memoryId: string;
   /** The record on screen, as the face's own list holds it — re-read, and freshly signed with it. */
@@ -121,6 +122,8 @@ export function FrameViewer({
   onOpen: (id: string) => void;
   onClose: () => void;
   onRemoved: (id: string) => void;
+  /** A record changed while it was open — the panel moving when it was shot. The face writes it. */
+  onEdited: (item: MediaItem) => void;
 }) {
   const { token } = useAuth();
   const router = useRouter();
@@ -863,6 +866,7 @@ export function FrameViewer({
               memoryId={memoryId}
               item={item}
               onFilm={openFilm}
+              onEdited={onEdited}
               style={{ height: screen - room }}
             />
           ) : null}

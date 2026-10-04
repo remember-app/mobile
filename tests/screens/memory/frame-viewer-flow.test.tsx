@@ -75,6 +75,7 @@ import {
   Icon,
   IconButton,
   RowAction,
+  RowEdit,
   RowFilmAt,
   RowSummary,
   Spinner,
@@ -173,6 +174,7 @@ const props = (over: Props = {}): React.ComponentProps<typeof FrameViewer> => ({
   onOpen: vi.fn(),
   onClose: vi.fn(),
   onRemoved: vi.fn(),
+  onEdited: vi.fn(),
   ...over,
 });
 
@@ -1035,12 +1037,16 @@ test('the lines of the frame’s own screen stand in one card, and a film with n
   serve(() => told({ montages: [{ id: 'f9', duration_seconds: null, start_seconds: 5 }] }));
   const screen = await open();
   await screen.press(screen.pill);
+  // Every line of the card carries a rule above it, the first included: the card opens with the shot
+  // date (`FrameInfo.html` e57), and what stands under that row is separated from it. The date row
+  // itself carries none — nothing stands above the head of a card.
   expect(
     screen
       .info()
       .findAllByType(RowSummary)
       .map((one) => one.props.divider),
-  ).toEqual([false, true, true]);
+  ).toEqual([true, true, true]);
+  expect(screen.info().findByType(RowEdit).props.divider).toBeFalsy();
   const row = screen.info().findByType(RowFilmAt);
   expect(row.props.title).toBe(ru.montage.count(1));
   expect(row.props.at).toBe(ru.viewer.at('0:05'));
