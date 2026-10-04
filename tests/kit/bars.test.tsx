@@ -558,8 +558,11 @@ test('the date in the viewer’s pill is the night’s paper and not the photogr
   // pinned to the night because it lies on the photograph.
   const bar = <ViewerBar date="13 сентября" meta="21:47 · Марк Ковалёв" />;
   const dateOf = (markup: string) => markup.match(/class="([^"]*)">13 сентября</)?.[1];
+  // Drawn first, then asked: the class is out of the sheet the drawing fills, so a rule looked up
+  // before its own bar is drawn is only there because another check drew one (TASK-526).
+  const drawn = story(bar);
   const paper = rule('color:rgba(245,243,238,1.00)');
-  expect(dateOf(story(bar))).toContain(paper);
+  expect(dateOf(drawn)).toContain(paper);
   await setTheme('light');
   expect(dateOf(story(bar))).toContain(paper);
   await setTheme('dark');
