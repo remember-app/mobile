@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "biome check --error-on-warnings",
     "format": "biome format --write",
-    "update:dev": "EXPO_NO_DOTENV=1 EXPO_PUBLIC_API_URL=https://dev-api-remember.noxlabs.xyz eas update --channel dev --environment preview"
+    "update:dev": "EXPO_NO_DOTENV=1 EXPO_PUBLIC_API_URL=https://api.remember-app.fun eas update --channel dev --environment preview"
   },
   "dependencies": {
     "@expo-google-fonts/onest": "^0.4.2",
