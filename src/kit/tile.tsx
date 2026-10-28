@@ -73,6 +73,7 @@ export function Tile({
   pick,
   ring,
   length,
+  single,
   reason,
   caption,
   own,
@@ -105,6 +106,11 @@ export function Tile({
   ring?: boolean;
   /** A video's running time as the screen writes it, «0:24». */
   length?: string;
+  /**
+   * The one-frame feed of `MemorySingle` (spec 10.14.2): the running time stands 12 in from the
+   * corners rather than the feed grid's 7, because the frame is the whole width of the phone.
+   */
+  single?: boolean;
   /** Why the automatic pass dropped this one: a glyph and a word, «Размыто» / «Дубль» / «Темно». */
   reason?: { icon: IconComponent; label: string };
   /** What a developing frame says of itself. */
@@ -169,7 +175,9 @@ export function Tile({
       {/* Under the running time: the length of a video stays readable over any of the three. */}
       {own ? <OwnLayer own={own} percent={percent} /> : null}
 
-      {length && state === 'ready' && !reason ? <FrameMark length={length} lane={lane} /> : null}
+      {length && state === 'ready' && !reason ? (
+        <FrameMark length={length} lane={lane} single={single} />
+      ) : null}
       {reason ? <FrameMark icon={reason.icon} label={reason.label} lane={lane} /> : null}
 
       {/* Spec 7.4 — a picked frame goes down under a scrim so the circle on it stays the brightest
@@ -359,17 +367,27 @@ export function FrameMark({
   icon,
   label,
   lane = 'pick',
+  single = false,
 }: {
   length?: string;
   icon?: IconComponent;
   label?: string;
   lane?: TileLane;
+  /** The one-frame feed's larger tile: the timecode stands 12 in from the corners (10.14.2). */
+  single?: boolean;
 }) {
   const styles = useStyles();
   const bare = lane === 'feed' && !label;
 
   return (
-    <View style={[styles.mark, bare ? styles.markBare : null, label ? styles.markWide : null]}>
+    <View
+      style={[
+        styles.mark,
+        bare ? styles.markBare : null,
+        single ? styles.markSingle : null,
+        label ? styles.markWide : null,
+      ]}
+    >
       <Icon
         icon={icon ?? Play}
         size={bare ? FEED_PLAY : length ? 9 : 11}
@@ -381,7 +399,12 @@ export function FrameMark({
       <Text
         role="meta"
         numberOfLines={1}
-        style={[styles.markText, bare ? styles.markShadow : null, label ? styles.markTextSm : null]}
+        style={[
+          styles.markText,
+          bare ? styles.markShadow : null,
+          single ? styles.markTextSingle : null,
+          label ? styles.markTextSm : null,
+        ]}
       >
         {length ?? label}
       </Text>
@@ -446,6 +469,10 @@ const useStyles = themed(({ color }) =>
       paddingVertical: 0,
       backgroundColor: undefined,
     },
+    // `MemorySingle` (spec 10.14.2, `MemorySingle.html`): the tile is the whole width of the phone,
+    // so the timecode stands 12 in from the corners instead of the grid's 7, and reads at 13.
+    markSingle: { right: 12, bottom: 12 },
+    markTextSingle: { fontSize: 13, lineHeight: 17 },
     // The reason is a 21 pill across the tile, 5 in from its sides and its foot — a word needs the
     // room a timecode does not (`MontageSelect.json` e21, e27, e42).
     markWide: {

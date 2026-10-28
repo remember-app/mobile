@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
-const { who, router, downloads, device } = vi.hoisted(() => ({
+const { who, router, downloads, device, motion } = vi.hoisted(() => ({
   /** The phone: how tall its window is, the type size it is set to, and the height of its status line. */
   device: { height: 844, fontScale: 1, top: 0 },
+  /** «Reduce motion», told to the app by the test: the OS's answer is a listener it already holds. */
+  motion: { tell: (_on: boolean) => {} },
   /**
    * Who is asking, and their account's «Даты между днями». A test sets both before it opens the
    * screen; the setting turned while a feed is open is `frames-dates-flow.test.tsx`'s.
@@ -29,6 +31,17 @@ vi.mock('react-native', async (importOriginal) => {
     }),
     Modal: ({ visible, children }: { visible?: boolean; children?: unknown }) =>
       visible === false ? null : (children as never),
+    // Node has no media query to ask, and `react-native-web` answers «reduced» for good where there
+    // is none. The feed's pill is hidden under «reduce motion» (spec 10.14.1), so the answer is made
+    // answerable both ways here — off unless a test says otherwise.
+    AccessibilityInfo: {
+      ...rn.AccessibilityInfo,
+      isReduceMotionEnabled: () => Promise.resolve(false),
+      addEventListener: (_event: string, listen: (on: boolean) => void) => {
+        motion.tell = listen;
+        return { remove: () => {} };
+      },
+    },
   };
 });
 vi.mock('react-native-safe-area-context', () => ({
@@ -121,6 +134,9 @@ beforeEach(async () => {
   who.id = 'me';
   who.dates = false;
   Object.assign(device, { height: 844, fontScale: 1, top: 0 });
+  // The pill is hidden under «reduce motion», and one test turns it on: everything else starts
+  // with the setting off.
+  motion.tell(false);
   // The density is one value for the whole app, and the feed is where it is walked now: a test
   // that pinches it must leave the next one the layout's three, or the rows of every test after
   // it are cut at whatever the last one ended on.
@@ -2275,6 +2291,19 @@ test('lifting the fingers leaves the feed where it was walked to, and the pill f
   } finally {
     vi.useRealTimers();
   }
+});
+
+test('under «reduce motion» the pinch still walks the density, and no pill stands over it', async () => {
+  // Spec 10.14.1: with motion reduced there is no pill — the value changes at once and the feed is
+  // re-cut under the fingers. The gesture itself is not the setting's to take away.
+  world();
+  const screen = await open();
+  await act(async () => motion.tell(true));
+  await act(async () => pinchView(screen)().props.onResponderGrant(pinch({ spread: 200 })));
+  expect(screen.root.findAllByType(DensityPill)).toHaveLength(0);
+  await act(async () => pinchView(screen)().props.onResponderMove(pinch({ spread: 100 })));
+  expect(currentDensity()).toBe(5);
+  expect(screen.root.findAllByType(DensityPill)).toHaveLength(0);
 });
 
 test('the last step of the pinch is the single frame: one to a row, touching, the days on the spine', async () => {

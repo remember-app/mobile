@@ -1737,6 +1737,21 @@ test('the picture travels with the finger, and the frames either side of it are 
   expect(drawn).toEqual(['a:thumb', 'b:thumb', 'd:thumb']);
 });
 
+test('on a turned phone the row travels a whole frame of the room it is drawn in', async () => {
+  // TASK-540, AC #2. With the panel away the frame is drawn whole — 520 across a turned phone of
+  // 844 — so the row must travel 520; clamped to the 219 the panel's room would leave, it stopped
+  // short of the neighbour and jumped the rest of the way when the record changed.
+  Object.assign(phone, { width: 844, height: 390 });
+  try {
+    serve(() => undefined);
+    const screen = await open({ item: { ...shots()[1], width: 4032, height: 3024 } });
+    await pull(screen, -300);
+    expect(shiftOf(screen)).toBe(-300);
+  } finally {
+    Object.assign(phone, { width: 390, height: 844 });
+  }
+});
+
 test('a drag at either end of the strip does not travel into the black behind it', async () => {
   // Nothing before the first frame: the row cannot move that way, and the frame in hand stays
   // exactly where it is rather than sliding out with nothing behind it (TASK-540, AC #2).
