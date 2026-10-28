@@ -45,6 +45,12 @@ export function useDensityPinch(): {
 } {
   const [pinching, setPinching] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  /**
+   * Spec 10.14.1: «при reduce — без перерезки на глазах и без пилюли: значение меняется сразу».
+   * The re-cut is already instant (the grids are cut from the value, not animated); what the setting
+   * takes away is the pill, so the two flags the bar draws it from are shut off for it.
+   */
+  const reduced = useReducedMotion();
   /** How far apart the fingers were when they landed: every step is measured against this. */
   const base = useRef(0);
   /**
@@ -109,7 +115,9 @@ export function useDensityPinch(): {
     [letGo],
   );
 
-  return { pinching, leaving, panHandlers };
+  // The pill is the only reader of the two; the gesture itself and the value it walks are untouched
+  // by «reduce motion».
+  return { pinching: !reduced && pinching, leaving: !reduced && leaving, panHandlers };
 }
 
 /**
@@ -124,7 +132,13 @@ export function DensityPill({ value, leaving }: { value: Density; leaving: boole
   const fade = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    if (!leaving) return;
+    // Fingers down again while the pill is still on its way out: the same pill is kept mounted (the
+    // bar shows it while either flag is up), so it has to be brought back to full strength rather
+    // than left at whatever the interrupted fade had reached.
+    if (!leaving) {
+      fade.setValue(1);
+      return;
+    }
     const run = Animated.timing(fade, {
       toValue: 0,
       duration: reduced ? 0 : duration.banner,

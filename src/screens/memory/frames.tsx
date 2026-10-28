@@ -614,6 +614,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
                     <Tile
                       key={item.id}
                       lane="feed"
+                      single={single}
                       style={cell}
                       state={frame.state}
                       uri={frame.uri ?? undefined}

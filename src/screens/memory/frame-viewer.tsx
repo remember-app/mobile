@@ -377,13 +377,22 @@ export function FrameViewer({
   }, [item.id, shift]);
 
   /**
+   * How wide one step of the row is right now — the box the row is actually drawn in. The frame
+   * shrinks as the panel rises, and with it the cells beside it, so a turned phone's frame is a
+   * whole `full.width` wide with the panel away and only `box.width` once it stands. Reading the
+   * shrunk box for a drag made with the panel shut would stop the row short of the frame it is
+   * bringing in, and the picture would jump the last part of the way when the record changed.
+   */
+  const travel = panel ? box.width : full.width;
+
+  /**
    * How far the row may travel each way, read through a ref like the step: the responder below is
    * built once and the neighbours under it change as the strip is walked. A whole box where there is
    * a frame to bring in, and nowhere at all at either end — a picture dragged past the last frame
    * has nothing behind it, and black coming in from the edge reads as a window that broke.
    */
   const reach = useRef({ back: 0, on: 0 });
-  reach.current = { back: before ? box.width : 0, on: after ? box.width : 0 };
+  reach.current = { back: before ? travel : 0, on: after ? travel : 0 };
 
   /**
    * Where a downward drag may begin, read the same way — the responder is built once and the window
@@ -493,7 +502,7 @@ export function FrameViewer({
       return;
     }
     Animated.timing(shift, {
-      toValue: goes ? by * box.width : 0,
+      toValue: goes ? by * travel : 0,
       duration: motion.step,
       easing: EASE,
       // The JS driver, like the arrival above and for the same kind of reason: this is the same

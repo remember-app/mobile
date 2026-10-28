@@ -212,7 +212,8 @@ test('a face with no feed puts its message on the feed’s own line: 108 under t
 test('`UploadEmpty` stands in the middle of the whole body under the glass, at 422', () => {
   // `UploadEmpty` (TASK-565): the body under the glass bar is the whole screen, 0…844, so the empty
   // state is centred on it — 422 — as `FramesEmpty` is, and not counted from an old body height.
-  expect((0 + 844) / 2).toBe(422);
+  // That is a matter of the column being the whole body and centring in it, which is what is read:
+  // no top padding to count from (below), and the middle grown to the room there is.
   const empty = noFeed.slice(noFeed.indexOf('<View style={styles.middle}>'));
   expect(empty).toContain('<Empty');
   expect(noFeed).toContain("middle: { flexGrow: 1, justifyContent: 'center' }");

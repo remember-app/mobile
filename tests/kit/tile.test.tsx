@@ -257,6 +257,20 @@ test('the running time in the feed stands 7 from the right edge and 6 from the f
   expect(story(<FrameMark length="0:24" />)).toContain('width="9"');
 });
 
+test('the running time in the single-frame feed stands 12 from the corners', () => {
+  // `MemorySingle` (spec 10.14.2, `MemorySingle.html`): the tile is the whole width of the phone,
+  // and the timecode moves in to 12 from the corners (and reads at 13) rather than the grid's 7/6.
+  let tree!: TestRenderer.ReactTestRenderer;
+  act(() => {
+    tree = mounted(TestRenderer.create(<FrameMark length="0:24" lane="feed" single />));
+  });
+  const mark = StyleSheet.flatten(tree.root.findAllByType(View)[0].props.style) as ViewStyle;
+  expect(mark.right).toBe(12);
+  expect(mark.bottom).toBe(12);
+  const words = StyleSheet.flatten(tree.root.findAllByType(RNText)[0].props.style) as ViewStyle;
+  expect(words.fontSize).toBe(13);
+});
+
 /** The flattened styles of every view a tree draws. */
 const viewsOf = (tree: ReactElement) => {
   let drawn!: TestRenderer.ReactTestRenderer;

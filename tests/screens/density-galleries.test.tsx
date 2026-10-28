@@ -65,6 +65,14 @@ vi.mock('react-native', async (importOriginal) => {
     useWindowDimensions: () => ({ width: 390, height: 844, scale: 3, fontScale: 1 }),
     Modal: ({ visible, children }: { visible?: boolean; children?: unknown }) =>
       visible === false ? null : (children as never),
+    // Node has no media query to ask, and `react-native-web` answers «reduced» where there is none.
+    // What these tests read is the pill, which «reduce motion» hides (spec 10.14.1), so the setting
+    // is answered off here. The hiding itself is `frames-feed-flow.test.tsx`'s.
+    AccessibilityInfo: {
+      ...rn.AccessibilityInfo,
+      isReduceMotionEnabled: () => Promise.resolve(false),
+      addEventListener: () => ({ remove: () => {} }),
+    },
   };
 });
 
