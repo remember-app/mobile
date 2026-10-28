@@ -2244,11 +2244,14 @@ test('a pinch right in the feed walks the density, and nothing is said about it 
   world();
   const screen = await open();
   const capsule = screen.root.findByType(GlassBar).props.title;
+  const middle = () => screen.root.findByType(MemoryHead).props.middle;
   // Nothing of the density is on screen until a second finger lands: the capsule is the bar's own.
   expect(screen.root.findAllByType(DensityPill)).toHaveLength(0);
+  expect(middle()).toBeUndefined();
   await act(async () => pinchView(screen)().props.onResponderGrant(pinch({ spread: 200 })));
   // No pill, no count and no words while the fingers are down: the capsule is still the memory's.
   expect(screen.root.findAllByType(DensityPill)).toHaveLength(0);
+  expect(middle()).toBeUndefined();
   expect(screen.root.findByType(GlassBar).props.title).toBe(capsule);
   // The fingers come together: more to a row. 200 apart to 100 is past the step, so the value
   // moves one along the scale — and the feed is re-cut under the hand.

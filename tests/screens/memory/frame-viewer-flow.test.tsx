@@ -71,7 +71,7 @@ import { type Asked, later, member, memory, photo, refused, serve } from '@tests
 import { restFinger, touch } from '@tests/helpers/gesture';
 import { bannersSaid, mounted, mountsTrees } from '@tests/helpers/renderer';
 import { sheetBox } from '@tests/helpers/sheet';
-import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Animated, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
 import type { FrameInfo, MediaItem, Member } from '@/api';
 import {
@@ -93,6 +93,7 @@ import { setLanguage } from '@/lib/language';
 import { FrameInfoPanel } from '@/screens/memory/frame-info';
 import { FrameViewer, frameBox } from '@/screens/memory/frame-viewer';
 import { ru, strings } from '@/strings';
+import { duration } from '@/theme';
 
 /**
  * `Viewer` (spec 8, «Просмотр медиа») — one frame on the whole of the phone: the three glass buttons,
@@ -1315,10 +1316,19 @@ test('the scrubber reaches for the player’s place rather than stepping onto it
   const place = () => Number.parseFloat(String(numberOf(fill()[0])));
   expect(place()).toBeCloseTo(25);
 
+  // And it is a movement over the layout's own time, not a value dropped where it lands: the reach
+  // starts an animation of `duration.progress` towards the new place. A bar that set the value at
+  // once would pass every check above while still stepping four times a second.
+  const timing = vi.spyOn(Animated, 'timing');
   // And it follows the next answer.
   player.currentTime = 20;
   await act(async () => screen.show({ item: clip, frames: [clip] }));
   expect(place()).toBeCloseTo(50);
+  expect(timing).toHaveBeenCalledWith(
+    expect.anything(),
+    expect.objectContaining({ toValue: 50, duration: duration.progress }),
+  );
+  timing.mockRestore();
 });
 
 test('a length the api did not send is the player’s, and one nobody knows is a scrubber that cannot be wound', async () => {
