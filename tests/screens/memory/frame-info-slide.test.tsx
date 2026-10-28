@@ -210,8 +210,9 @@ test('the panel is raised over the layout’s 260 with the frame shrinking above
   runs.length = 0;
   const screen = await open();
   const full = frameBox(null, null, phone.width, phone.height);
-  // The panel's own height, and the room the frame keeps: the layout's 352 upright.
-  const panelTall = phone.height - 352;
+  // The panel's own height from the layout's 292 down to the foot of the window, and the room the
+  // frame keeps above it: the layout's 289 upright.
+  const panelTall = phone.height - 292;
 
   // Nothing has moved and nothing is moving: the picture has the whole of the window.
   expect(over(260)).toHaveLength(0);
@@ -225,20 +226,20 @@ test('the panel is raised over the layout’s 260 with the frame shrinking above
   expect(panelLift(screen)).toBe(panelTall);
   expect(over(260)).toHaveLength(1);
 
-  // Stopped half-way: the panel is half up, the frame is half shrunk, and the panel's own top is
-  // exactly where the frame's room ends. That is what «одним движением» means — a window that
-  // shrank the frame first and slid the panel after would have them in two different places here.
+  // Stopped half-way: the panel is half up and the frame is half shrunk. That is what «одним
+  // движением» means — one value drives both, so a window that shrank the frame first and slid the
+  // panel after would have them in two different places here.
   const rise = over(260)[0];
   await act(async () => rise.value.setValue(0.5));
   expect(panelLift(screen)).toBe(panelTall / 2);
-  expect(numberOf(stageOf(screen))).toBe(352 + panelTall / 2);
-  expect(numberOf(boxOf(picture(screen)).height)).toBe((full.height + 352) / 2);
+  expect(numberOf(stageOf(screen))).toBe((phone.height + 289) / 2);
+  expect(numberOf(boxOf(picture(screen)).height)).toBe((full.height + 289) / 2);
 
-  // And settled: the panel at the foot of the window and the frame in the top 352 of it.
+  // And settled: the panel at the foot of the window and the frame in the top 289 of it.
   await act(async () => rise.end());
   expect(panelLift(screen)).toBe(0);
-  expect(numberOf(stageOf(screen))).toBe(352);
-  expect(numberOf(boxOf(picture(screen)).height)).toBe(352);
+  expect(numberOf(stageOf(screen))).toBe(289);
+  expect(numberOf(boxOf(picture(screen)).height)).toBe(289);
 });
 
 test('the panel leaves over its own 200, and is put away only once it has arrived', async () => {
@@ -255,7 +256,7 @@ test('the panel leaves over its own 200, and is put away only once it has arrive
   // when the panel is gone, not when it starts to leave.
   expect(screen.panels()).toHaveLength(1);
   expect(screen.root.findAllByType(Filmstrip)).toHaveLength(0);
-  expect(numberOf(stageOf(screen))).toBe(352);
+  expect(numberOf(stageOf(screen))).toBe(289);
 
   await act(async () => over(200)[0].end());
   expect(screen.panels()).toHaveLength(0);
@@ -272,7 +273,7 @@ test('under «reduce motion» there is no rise at all: the panel is simply there
   expect(over(260)).toHaveLength(0);
   expect(screen.panels()).toHaveLength(1);
   expect(panelLift(screen)).toBe(0);
-  expect(numberOf(stageOf(screen))).toBe(352);
+  expect(numberOf(stageOf(screen))).toBe(289);
 
   // And it goes at once too.
   await screen.press();

@@ -1102,12 +1102,12 @@ test('the frame gives up the top of the window for the panel, and takes it back 
   expect(frameBox(3024, 4032, phone.width, phone.height)).toEqual({ width: 390, height: 520 });
   expect(screen.panels()).toHaveLength(0);
   await screen.press(screen.pill);
-  // 352 upright — the layout's own number — and the panel takes everything below it.
+  // 292 upright — the layout's own number for the panel's top edge — and it stands from there down.
   const panel = screen.info();
-  expect(panel.props.style).toEqual({ height: phone.height - 352 });
+  expect(panel.props.style).toEqual({ height: phone.height - 292 });
   // The frame is drawn in the room the panel left rather than in the one it took: the same box, a
-  // shorter room, so a 3:4 frame that was 520 tall is 352 and is cropped rather than squashed.
-  expect(frameBox(3024, 4032, phone.width, phone.height, 352)).toEqual({ width: 390, height: 352 });
+  // shorter room, so a 3:4 frame that was 520 tall is 289 and is cropped rather than squashed.
+  expect(frameBox(3024, 4032, phone.width, phone.height, 289)).toEqual({ width: 390, height: 289 });
   await screen.press(screen.pill);
   expect(screen.panels()).toHaveLength(0);
 });
@@ -1435,7 +1435,7 @@ test('a frame is drawn in a box of its own proportions, not fitted to the screen
   expect(frameBox(1000, 10000, 390, 844)).toEqual({ width: 390, height: 844 });
   // A shorter room (TASK-478, the panel under the picture) clamps the frame and nothing else: the
   // phone is still held upright, so a 3:4 frame is cropped to the room and not turned on its side.
-  expect(frameBox(3024, 4032, 390, 844, 352)).toEqual({ width: 390, height: 352 });
+  expect(frameBox(3024, 4032, 390, 844, 289)).toEqual({ width: 390, height: 289 });
   // Turned, the room runs across the other way — it bounds whichever side is standing up-and-down,
   // and with the phone on its side that is the one the frame takes the screen along. Same rule,
   // same room, and the frame fits inside the panel's reach instead of under it (TASK-485): the 3:4
@@ -1451,7 +1451,7 @@ test('a frame is drawn in a box of its own proportions, not fitted to the screen
   // The room bounds the side that is up-and-down and never the other: a standing frame is 390 wide
   // whatever the room, and a turned one is held to the 844 the phone is across rather than the 3280
   // a 10000 × 500 panorama would want out of the room's 164.
-  expect(frameBox(3024, 4032, 390, 844, 352).width).toBe(390);
+  expect(frameBox(3024, 4032, 390, 844, 289).width).toBe(390);
   expect(frameBox(10000, 500, 844, 390, 164)).toEqual({ width: 844, height: 164 });
 });
 
@@ -1815,7 +1815,7 @@ test('the picture and the panel are one movement: the frame’s room shrinks as 
   const screen = await open();
   const clip = shots()[0];
   const full = frameBox(clip.width, clip.height, phone.width, phone.height);
-  const settled = frameBox(clip.width, clip.height, phone.width, phone.height, 352);
+  const settled = frameBox(clip.width, clip.height, phone.width, phone.height, 289);
 
   const shot = () =>
     screen.root.findAllByType(Image).find((one) => one.props.contentFit === 'cover')!;
@@ -1825,9 +1825,10 @@ test('the picture and the panel are one movement: the frame’s room shrinks as 
 
   await screen.press(screen.pill);
   // Settled, the stage is the top of the window and the frame is the box that room makes of it —
-  // the layout's own 352 upright.
-  expect(numberOf(stageBoxOf(screen))).toBe(352);
+  // the layout's own 289 upright.
+  expect(numberOf(stageBoxOf(screen))).toBe(289);
   expect(numberOf(boxOf(shot()).height)).toBe(settled.height);
-  // And the panel is drawn where the stage ends: the frame gave up exactly what the panel takes.
-  expect(screen.info().props.style).toEqual({ height: phone.height - 352 });
+  // And the panel is drawn from the layout's 292 down: the frame's room and a hairline of black
+  // between the two.
+  expect(screen.info().props.style).toEqual({ height: phone.height - 292 });
 });

@@ -119,31 +119,44 @@ export const height = {
   sheetConfirmMemory: 434,
   sheetFilter: 669,
   /**
-   * The frame's own height on `FrameInfo` (spec 8): the screen of a frame's details is the frame at
-   * the top of the window and the panel under it, so 352 of a standing phone is what is left for
-   * the picture and everything below it scrolls. A cap and not a rule — a phone on its side has no
-   * 352 to give, and the frame gives up as much of it as the panel can do without (see
+   * The frame's own room on `FrameInfo` (spec 8, 10.14.3): the screen of a frame's details is the
+   * frame at the top of the window and the panel under it, so 289 of a standing phone is what is
+   * left for the picture and everything below it scrolls. A cap and not a rule — a phone on its
+   * side has no 289 to give, and the frame gives up as much of it as the panel can do without (see
    * `frameInfoRoom`).
    */
-  frameInfo: 352,
+  frameInfo: 289,
+  /**
+   * Where the panel of a frame's details begins (`FrameInfo`, spec 10.14.3): the layout's 292, the
+   * frame's own room above it at 289 and a hairline of black between — which is what the screen
+   * draws. A cap like the room's, and the same share of a shorter window (see `frameInfoPanelTop`).
+   */
+  frameInfoPanel: 292,
 } as const;
 
 /**
- * How much of the window the frame keeps while the panel of its details stands (`FrameInfo`). The
- * layout's 352 on a phone held upright, and never more than a share of whatever the window is — a
- * phone on its side has a fraction of that height to divide between a picture and a panel, and a
- * frame left at 352 there would leave the panel a sliver.
+ * How much of the window the frame keeps while the panel of its details stands (`FrameInfo`), and
+ * where that panel's top edge comes to. Each is the layout's own number on a phone held upright —
+ * the frame's room 289 and the panel's top 292, the room and a hairline of black under it — and
+ * neither is ever more than a share of whatever the window is: a phone on its side has a fraction
+ * of that height to divide between a picture and a panel, and a frame left at 289 there would leave
+ * the panel a sliver.
  *
- * The share is the layout's own 352 said as a fraction of the window it was drawn on: 352 of 844 is
- * 0.417, so the frame keeps that share whatever the window measures and the cap above holds it to
- * the drawn number on a standing phone. It is the rule «та же логика на всех ориентациях» turned
- * into one number, not a coefficient picked to make a case come out: on a phone lying on its side
- * the frame takes 164 of 390 and the panel the 226 below it.
+ * The layout draws the upright phone alone, so the turned one keeps the share it has always had:
+ * 0.42 of the window, which the app read off the old 352 of 844 (0.417) and which the layout's new
+ * numbers leave where it was — on a phone lying on its side the frame takes 164 of 390 and the panel
+ * the 226 below it, exactly as before. The cap above holds each to the drawn number upright.
  */
 const FRAME_INFO_SHARE = 0.42;
 
+/** The room the frame keeps at the top of the window (`FrameInfo`). */
 export function frameInfoRoom(screenHeight: number): number {
   return Math.min(height.frameInfo, Math.round(screenHeight * FRAME_INFO_SHARE));
+}
+
+/** Where the panel of the frame's details begins, below that room (`FrameInfo`). */
+export function frameInfoPanelTop(screenHeight: number): number {
+  return Math.min(height.frameInfoPanel, Math.round(screenHeight * FRAME_INFO_SHARE));
 }
 
 /**
