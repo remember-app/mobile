@@ -375,7 +375,8 @@ test('a ready montage shows its own still, and one without a still keeps the pla
   expect(api).toContain('poster_url: string | null;');
   expect(films).toContain('poster={montage.poster_url ?? undefined}');
   expect(cardMontage).toContain('poster ? (');
-  expect(cardMontage).toContain('source={{ uri: poster }}');
+  // Filed under the object's own path (doc-15), so a fresh signature is not a fresh download.
+  expect(cardMontage).toContain('source={{ uri: poster, cacheKey: pictureKey(poster) }}');
 });
 
 test('the montage’s card is the poster, and the still fills it', () => {

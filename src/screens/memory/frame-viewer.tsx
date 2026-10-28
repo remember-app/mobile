@@ -14,7 +14,7 @@ import {
   Volume2,
   VolumeX,
 } from 'lucide-react-native';
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Modal,
@@ -68,6 +68,7 @@ import {
 import { edgeBack, GO, SIDEWAYS, topDown } from '@/lib/gesture';
 import { useStrings } from '@/lib/language';
 import { useTurnsWithPhone } from '@/lib/orientation';
+import { cachedVideo, keepVideo } from '@/lib/video-cache';
 import { FrameInfoPanel } from '@/screens/memory/frame-info';
 import {
   frameInfoPanelTop,
@@ -203,8 +204,30 @@ export function FrameViewer({
    * phone is mush).
    */
   const shown = openFrameOf(item);
-  /** A video is played where it lies; a record whose 720p was never made is a picture again. */
-  const playable = item.kind === 'video' ? item.preview_url : null;
+  /**
+   * The file the player is handed: the copy already on the phone, else the signed stream — and a
+   * record whose 720p was never made is a picture again.
+   *
+   * Read once per record and not once per render on purpose. The first opening keeps the video on
+   * the phone in the background (below), and a source that followed the download would build a new
+   * player the moment it finished — the film would jump back to its start halfway through. Opening
+   * it again is a new record and reads the file off the disk then.
+   */
+  const playable = useMemo(
+    () => (item.kind === 'video' ? (cachedVideo(item.id) ?? item.preview_url) : null),
+    [item.id, item.kind, item.preview_url],
+  );
+
+  /**
+   * What the first watching leaves behind: the video on the phone, under its record's id. Nothing
+   * waits for it — the stream above plays while it arrives, so the first opening is not slower —
+   * and the next opening is served off the disk, with no connection needed (doc-15).
+   */
+  useEffect(() => {
+    if (item.kind !== 'video' || item.preview_url === null) return;
+    if (cachedVideo(item.id) !== null) return;
+    void keepVideo(item.id, item.preview_url);
+  }, [item.id, item.kind, item.preview_url]);
 
   /**
    * The box the frame is drawn in, which is the whole of the change (TASK-475, spec 8, the four
@@ -303,7 +326,18 @@ export function FrameViewer({
   /** Where along the strip this frame stands, and the strip itself as the library takes it. */
   const index = frameIndex(frames, item.id);
   const strip = useMemo(
-    () => frames.map((one) => ({ uri: frameOf(one).uri ?? '', video: one.kind === 'video' })),
+    () =>
+      frames.map((one) => {
+        const frame = frameOf(one);
+        return {
+          uri: frame.uri ?? '',
+          video: one.kind === 'video',
+          // The same key the tile and the frame in hand are filed under: the strip's links are
+          // signed afresh with the rest, and without it its neighbours are downloaded again on
+          // every visit.
+          cacheKey: frame.key,
+        };
+      }),
     [frames],
   );
 
