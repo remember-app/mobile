@@ -257,6 +257,37 @@ test('a frame this person hid is still a file they already gave: the question is
   expect(screen.ask().props.title).toBe(ru.upload.alreadyThere(1));
 });
 
+test('a video this person already gave is asked about too — by its kind, its instant, its frame and its run time', async () => {
+  // A video is matched on a longer list than a photograph (TASK-584): the kind, the instant, the
+  // measured frame and the run time the worker rounded. The phone cannot measure this original —
+  // there is no file behind the reference here, as with one still in iCloud — and what cannot be
+  // measured cannot rule the pair out, so the question is still asked.
+  const clip = { mediaType: 'video' as const, duration: 12, width: 1920, height: 1080 };
+  lib.getAssetsAsync.mockResolvedValue({
+    assets: [asset('v1', at(13, 20), clip)],
+    hasNextPage: false,
+    endCursor: undefined,
+  });
+  serve((asked) => {
+    if (asked.path === '/memories') return [memory()];
+    if (asked.path === '/memories/m1/media')
+      return [
+        photo('own-v1', 'me', when(13, 20), {
+          kind: 'video',
+          duration_seconds: 12.4,
+          width: clip.width,
+          height: clip.height,
+        }),
+      ];
+    return undefined;
+  });
+  const screen = await open();
+  await screen.press(screen.tile('v1'));
+  await screen.press(() => screen.send());
+  expect(screen.ask().props.visible).toBe(true);
+  expect(screen.ask().props.title).toBe(ru.upload.alreadyThere(1));
+});
+
 test('a listing that never arrived leaves the sending as it always was: no question, the files sent', async () => {
   serve((asked) => {
     if (asked.path === '/memories') return [memory()];
