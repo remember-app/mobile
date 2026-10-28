@@ -156,10 +156,22 @@ export function Filmstrip({
     // The glide came to rest exactly where the lift already asked: there is nothing to overrule and
     // no second ask to make — one finger, one frame, asked once (AC #3).
     if (overrules && at === lifted.current) return;
+    // A touch that did not move the strip has chosen nothing, and the strip is already standing
+    // where it belongs — there is nowhere to walk it back from.
+    if (at < 0) return;
+    // The frame the finger came back to is the one in hand: nobody is asked — the window has it
+    // already — and the strip is walked back under it. Let go of anywhere but the frame in hand, by
+    // a drag short of the next frame or a glide that stopped between two, and the strip comes to
+    // rest off-centre on its own; the frame the picture above it shows is what the middle of the
+    // strip always stands over (AC #3).
+    if (at === index) {
+      settled.current = true;
+      return to(index, true);
+    }
+    // A frame the window takes stands for itself — it walks the strip on the very next render —
+    // and one it refuses is the same answer as the frame in hand: back under the picture.
     settled.current = true;
-    // Nothing chosen — a touch that did not move the strip, or the frame in hand itself — and a
-    // frame the window took stands for itself: it walks the strip on the very next render.
-    if (at < 0 || at === index || onSettle?.(at)) return;
+    if (onSettle?.(at)) return;
     to(index, true);
   }
 

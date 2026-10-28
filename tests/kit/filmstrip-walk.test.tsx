@@ -309,6 +309,24 @@ test('a frame the window did not take puts the strip back on the frame in hand',
   });
 });
 
+test('a finger that lets the strip go on the frame in hand walks it back under that frame', async () => {
+  // TASK-540, AC #3: the strip always stands centred on the frame the picture shows. A drag that
+  // comes short of the next frame — or a glide that stops between two — leaves the strip resting
+  // off-centre, with the frame in hand no longer under the middle of it. Nobody is asked for a
+  // frame here (the window already has it), and the strip is walked back.
+  //
+  // 15 points: a pitch of 32, so the middle of the strip is still over the fifth frame, 50 being
+  // where that frame stands it and 65 where the finger left it.
+  const asked: number[] = [];
+  const strip = await drawSettled(4, (at) => {
+    asked.push(at);
+    return true;
+  });
+  await strip.flick(65);
+  expect(asked).toEqual([]);
+  expect(strip.scrollToIndex).toHaveBeenCalledWith({ index: 4, viewPosition: 0.5, animated: true });
+});
+
 test('swiping past the first and the last frame does nothing, and the strip does not go into the empty', async () => {
   // AC #3 of TASK-474. At either end the strip cannot scroll further, so the middle of it stands over
   // a neighbour a few frames away — and read on its own that neighbour would be opened by a finger
