@@ -3,30 +3,34 @@ import { reverseGeocodeAsync } from 'expo-location';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
-const { router, downloads, videoCache, ask, player, turns, platform, phone } = vi.hoisted(() => ({
-  router: { push: vi.fn(), back: vi.fn(), setParams: vi.fn() },
-  downloads: { maySaveToPhone: vi.fn(), saveToPhone: vi.fn(), shareFile: vi.fn() },
-  // The phone's copy of a watched video (doc-15): what is already on the disk, and what a first
-  // opening leaves behind.
-  videoCache: { cachedVideo: vi.fn(), keepVideo: vi.fn() },
-  ask: { id: 'me' },
-  // The one player of the window, a bag of the few things it is read for and told to do.
-  player: {
-    play: vi.fn(),
-    pause: vi.fn(),
-    currentTime: 0,
-    duration: 0,
-    playing: false,
-    muted: false,
-    timeUpdateEventInterval: 0,
-  },
-  // What the window asks of the orientation lock, and which platform it thinks it is on.
-  turns: vi.fn(),
-  platform: { os: 'android' as 'android' | 'ios' },
-  // The phone's own screen, standing at first — a test that wants the other three turns it
-  // (TASK-475). Not `screen`: that name is this file's own word for the open window.
-  phone: { width: 390, height: 844, scale: 3, fontScale: 1 },
-}));
+const { router, downloads, videoCache, ask, player, turns, platform, phone, motion } = vi.hoisted(
+  () => ({
+    router: { push: vi.fn(), back: vi.fn(), setParams: vi.fn() },
+    /** «Reduce motion», told to the app by a test: the OS's answer is a listener it already holds. */
+    motion: { tell: (_on: boolean) => {} },
+    downloads: { maySaveToPhone: vi.fn(), saveToPhone: vi.fn(), shareFile: vi.fn() },
+    // The phone's copy of a watched video (doc-15): what is already on the disk, and what a first
+    // opening leaves behind.
+    videoCache: { cachedVideo: vi.fn(), keepVideo: vi.fn() },
+    ask: { id: 'me' },
+    // The one player of the window, a bag of the few things it is read for and told to do.
+    player: {
+      play: vi.fn(),
+      pause: vi.fn(),
+      currentTime: 0,
+      duration: 0,
+      playing: false,
+      muted: false,
+      timeUpdateEventInterval: 0,
+    },
+    // What the window asks of the orientation lock, and which platform it thinks it is on.
+    turns: vi.fn(),
+    platform: { os: 'android' as 'android' | 'ios' },
+    // The phone's own screen, standing at first — a test that wants the other three turns it
+    // (TASK-475). Not `screen`: that name is this file's own word for the open window.
+    phone: { width: 390, height: 844, scale: 3, fontScale: 1 },
+  }),
+);
 
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
 vi.mock('@/lib/auth', () => ({ useAuth: () => ({ token: 'session', user: { id: ask.id } }) }));
@@ -58,6 +62,19 @@ vi.mock('react-native', async (importOriginal) => {
     AccessibilityInfo: {
       ...rn.AccessibilityInfo,
       isReduceMotionEnabled: () => Promise.resolve(false),
+      // «Reduce motion» off unless a test says otherwise, and answerable both ways: the setting is
+      // what one video test is about, and it arrives through the listener the app holds from import.
+      addEventListener: (event: string, listen: (on: boolean) => void) => {
+        if (event === 'reduceMotionChanged') {
+          motion.tell = listen;
+          return { remove: () => {} };
+        }
+        const add = rn.AccessibilityInfo.addEventListener as unknown as (
+          event: string,
+          listen: unknown,
+        ) => unknown;
+        return add(event, listen);
+      },
     },
     Platform: new Proxy(rn.Platform, {
       get: (target, key) => (key === 'OS' ? platform.os : Reflect.get(target, key)),
@@ -114,6 +131,7 @@ const geocode = vi.mocked(reverseGeocodeAsync);
 beforeEach(() => {
   ask.id = 'me';
   platform.os = 'android';
+  motion.tell(false);
   Object.assign(player, {
     currentTime: 0,
     duration: 0,
@@ -1046,6 +1064,84 @@ test('a tap beside a video’s 72 hides the interface and the button with it, an
   expect(tools(screen)).toEqual({ bar: 1, strip: 1, scrubber: 1 });
   expect(button()).toHaveLength(1);
   expect(player.pause).not.toHaveBeenCalled();
+});
+
+test('a video with its details standing keeps the 72 while the panel is up, and it goes with the interface once the panel is away', async () => {
+  // m-42 #1 over the other state a video is really watched in: with the frame's own screen raised,
+  // a tap is the panel's way down first (the bar is the only other way out), so the interface and
+  // the 72 must not go with it. The next tap is the window's tidy-up, and only then does the button
+  // go; the one after that brings both back.
+  serve(() => told());
+  const clip = video();
+  player.playing = true;
+  const screen = await open({ item: clip, frames: [clip] });
+  const button = () => screen.root.findAllByType(IconButton).filter((one) => one.props.size === 72);
+  await screen.press(screen.pill);
+  expect(screen.panels()).toHaveLength(1);
+  expect(tools(screen).bar).toBe(1);
+  expect(button()).toHaveLength(1);
+
+  await tap(screen);
+  expect(screen.panels()).toHaveLength(0);
+  expect(tools(screen).bar).toBe(1);
+  expect(button()).toHaveLength(1);
+
+  await tap(screen);
+  expect(tools(screen).bar).toBe(0);
+  expect(button()).toHaveLength(0);
+  await tap(screen);
+  expect(tools(screen).bar).toBe(1);
+  expect(button()).toHaveLength(1);
+  expect(player.pause).not.toHaveBeenCalled();
+});
+
+test('under «reduce motion» a tap still hides the video’s 72 with the interface at once, and the next brings it back', async () => {
+  // m-42 #1 with the transitions taken away: the setting changes what moves, never what hides. The
+  // button goes and comes back in the same tap, and the film under it is not touched either way.
+  serve(() => undefined);
+  const clip = video();
+  player.playing = true;
+  const screen = await open({ item: clip, frames: [clip] });
+  const button = () => screen.root.findAllByType(IconButton).filter((one) => one.props.size === 72);
+  await act(async () => motion.tell(true));
+  try {
+    expect(button()).toHaveLength(1);
+    await tap(screen);
+    expect(tools(screen).bar).toBe(0);
+    expect(button()).toHaveLength(0);
+    await tap(screen);
+    expect(tools(screen).bar).toBe(1);
+    expect(button()).toHaveLength(1);
+    expect(player.pause).not.toHaveBeenCalled();
+  } finally {
+    await act(async () => motion.tell(false));
+  }
+});
+
+test('a video’s 72 comes back with the interface when a hidden window is left by a swipe or by a step along the strip', async () => {
+  // m-42 #1 in the way a person actually leaves a tidied window: the gesture that moves on brings the
+  // tools back, so the 72 has to come with them — otherwise a person who hid the interface and then
+  // swiped lands on a film with no way to stop it.
+  serve(() => undefined);
+  const first = video();
+  const second = video({ id: 'w', preview_url: 'https://r2.example/w.mp4' });
+  const screen = await open({ item: first, frames: [first, second] });
+  const button = () => screen.root.findAllByType(IconButton).filter((one) => one.props.size === 72);
+  await tap(screen);
+  expect(tools(screen).bar).toBe(0);
+  expect(button()).toHaveLength(0);
+  expect(await swipe(screen, -100)).toBe(true);
+  expect(opened(screen)).toEqual(['w']);
+  expect(tools(screen).bar).toBe(1);
+  expect(button()).toHaveLength(1);
+
+  // And the strip's own answer, after a finger flung it and the interface was hidden mid-fling.
+  const strip = screen.root.findByType(Filmstrip).props as { onSettle: (at: number) => boolean };
+  await tap(screen);
+  expect(button()).toHaveLength(0);
+  await act(async () => void strip.onSettle(1));
+  expect(tools(screen).bar).toBe(1);
+  expect(button()).toHaveLength(1);
 });
 
 test('the picture is one control to a screen reader, named by what its tap will do', async () => {
