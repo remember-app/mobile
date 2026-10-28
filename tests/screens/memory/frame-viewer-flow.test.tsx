@@ -1287,6 +1287,26 @@ test('the first watching keeps the video under its record, and the opening is no
   expect(videoCache.keepVideo).toHaveBeenCalledWith('v', 'https://r2.example/v.mp4');
 });
 
+test('the first watching does not swap the player under the film when the file lands', async () => {
+  serve(() => undefined);
+  const clip = video();
+  const screen = await open({ item: clip, frames: [clip] });
+  expect(vi.mocked(useVideoPlayer)).toHaveBeenLastCalledWith(
+    'https://r2.example/v.mp4',
+    expect.any(Function),
+  );
+
+  // The download finishes while the film is playing, and the window draws again for some other
+  // reason. The source is read once per record: one that followed the disk would build a new player
+  // the moment the file arrived, and the film would jump back to its start halfway through.
+  videoCache.cachedVideo.mockReturnValue('file:///cache/video/v.mp4');
+  await screen.show({});
+  expect(vi.mocked(useVideoPlayer)).toHaveBeenLastCalledWith(
+    'https://r2.example/v.mp4',
+    expect.any(Function),
+  );
+});
+
 test('a photograph is a player with no source, and a video whose file was never made is a picture again, off its poster', async () => {
   serve(() => undefined);
   const still = await open();
@@ -1309,6 +1329,8 @@ test('a photograph is a player with no source, and a video whose file was never 
   const poster = await open({ item: clip, frames: [clip] });
   expect(poster.root.findAllByType(VideoView)).toHaveLength(0);
   expect(poster.root.findAllByType(VideoTrack)).toHaveLength(0);
+  // Nothing to keep: a record whose playable file was never made must not send a download after it.
+  expect(videoCache.keepVideo).not.toHaveBeenCalled();
   expect(
     poster.root.findAllByType(Image).find((one) => one.props.contentFit === 'cover')!.props.source
       .cacheKey,
