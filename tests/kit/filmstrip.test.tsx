@@ -49,15 +49,11 @@ test('a video is marked on the frame in hand and nowhere else', () => {
 
 test('each frame of the strip says which one it is, and whether it is the open one', () => {
   const strip = story(
-    <Filmstrip
-      frames={FRAMES}
-      index={2}
-      onPick={() => {}}
-      labelAt={(at) => `Кадр ${at + 1} из 5`}
-    />,
+    <Filmstrip frames={FRAMES} index={2} labelAt={(at) => `Кадр ${at + 1} из 5`} />,
   );
   expect(strip).toContain('aria-label="Кадр 1 из 5"');
-  expect(strip).toContain('role="button"');
+  // A picture with a name, not a button: a tap on the strip opens nothing (TASK-574, #3).
+  expect(strip).not.toContain('role="button"');
 });
 
 test('the two mosaics are two layouts', () => {

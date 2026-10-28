@@ -308,9 +308,10 @@ export function FrameViewer({
   );
 
   /**
-   * One step along the sheet, asked for by name — a tap on the strip, and the frame a finger has
-   * left the strip resting on. A frame still being developed stays shut: there is nothing behind it
-   * to open yet, and it is the same gate the contact sheet puts on the same record.
+   * One step along the sheet, asked for by name — the frame a finger has left the strip resting on
+   * (TASK-574, #3: a tap on the strip no longer counts). A frame still being developed stays shut:
+   * there is nothing behind it to open yet, and it is the same gate the contact sheet puts on the
+   * same record.
    *
    * It is `walk` and not `stride` that a resting finger gets, unlike a swipe across the picture:
    * the strip has landed on one frame, and carrying on past it to the next would open something
@@ -390,9 +391,17 @@ export function FrameViewer({
    * built once and the neighbours under it change as the strip is walked. A whole box where there is
    * a frame to bring in, and nowhere at all at either end — a picture dragged past the last frame
    * has nothing behind it, and black coming in from the edge reads as a window that broke.
+   *
+   * Turned, nowhere either (TASK-574, #6): a frame that is narrower than the phone across leaves
+   * its neighbours standing on the screen, and the horizontal viewer is meant to show the one frame
+   * and nothing beside it. A sideways finger there still walks the gallery — it opens the frame it
+   * went towards — but the row under it does not slide, because there is nothing drawn to slide in.
    */
   const reach = useRef({ back: 0, on: 0 });
-  reach.current = { back: before ? travel : 0, on: after ? travel : 0 };
+  reach.current = {
+    back: before && !turned ? travel : 0,
+    on: after && !turned ? travel : 0,
+  };
 
   /**
    * Where a downward drag may begin, read the same way — the responder is built once and the window
@@ -440,15 +449,15 @@ export function FrameViewer({
   };
 
   /**
-   * And what a tap on the picture means (TASK-476): a video plays and stands still — its own
-   * transport is the button in the middle of the frame and the picture is not a place to tidy the
-   * window away from — while a photograph gives the glass, the shades and the tools away and a
-   * second tap brings them back.
+   * And what a tap on the picture means (TASK-476): the glass, the shades and the tools go away and
+   * a second tap brings them back — over a photograph and a video alike (TASK-574, #4). A video's
+   * play and pause is the 72 in the middle of the frame and nowhere else: a tap on the picture is
+   * the same tidy-up a photograph's is, and the film under it keeps playing through it.
    *
-   * With the panel of the frame's own screen standing (TASK-478), a photograph's tap takes that
-   * panel down rather than the glass: the bar holds the only other way back and the bar is what a
-   * tap here would be putting away, so tidying it would leave a panel with nothing to close it. The
-   * panel is the tidier thing to put away and it is the one that was just opened.
+   * With the panel of the frame's own screen standing (TASK-478), a tap takes that panel down
+   * rather than the glass: the bar holds the only other way back and the bar is what a tap here
+   * would be putting away, so tidying it would leave a panel with nothing to close it. The panel is
+   * the tidier thing to put away and it is the one that was just opened.
    *
    * Read through the ref below like the step above it: the gesture is built once, and the player
    * under it is replaced as the strip is walked.
@@ -457,11 +466,6 @@ export function FrameViewer({
   tapped.current = tapPicture;
 
   function tapPicture() {
-    if (playable !== null) {
-      if (isPlaying) player.pause();
-      else player.play();
-      return;
-    }
     if (panel) {
       slide.current(0);
       return;
@@ -470,9 +474,10 @@ export function FrameViewer({
   }
 
   /**
-   * The details asked for by a finger coming down the picture (TASK-540, spec 10.14.4). It is the
-   * same press the pill makes, so there is one way in and not two that drift — and with the panel
-   * already up there is nothing to raise: the gesture that puts it away is the one over the panel.
+   * The details asked for by a finger going up the picture (TASK-574, #2; spec 10.14.3, 10.14.4).
+   * It is the same press the pill makes, so there is one way in and not two that drift — and with
+   * the panel already up there is nothing to raise: the gesture that puts it away is the one over
+   * the panel.
    */
   const shows = useRef(() => {});
   shows.current = () => {
@@ -490,19 +495,27 @@ export function FrameViewer({
    * rather than a swap at the moment they lifted — and one that meant nothing is put back where it
    * was. At either end of the strip there is no frame to bring in, and the row goes back under the
    * one in hand however far it was dragged.
+   *
+   * The row carries on the way the finger was going, and `by` is the direction of the *frame*, not
+   * of the finger: a drag to the left (a negative `dx`) asks for the next one, and the row must keep
+   * travelling left — a whole box towards `by * -1` of the sign. Written the other way round the
+   * row snapped back under the previous frame and then teleported to the next when the record
+   * changed, which is the jump the first test on a phone reported (TASK-574, #1).
    */
   const settle = useRef<(by: -1 | 0 | 1) => void>(() => {});
   settle.current = (by) => {
     // Whether there is a frame at that edge to bring in at all: the strip's own ends, where the row
     // is put back under the frame in hand however far it was dragged.
     const goes = (by === 1 ? after : by === -1 ? before : null) !== null;
-    if (still.current) {
+    // Under «reduce motion» there is nothing to move, and turned there is nothing drawn to move:
+    // the neighbours are not in the row (TASK-574, #6), so the frame is swapped rather than slid.
+    if (still.current || turned) {
       shift.setValue(0);
       if (goes && by !== 0) step.current(by);
       return;
     }
     Animated.timing(shift, {
-      toValue: goes ? by * travel : 0,
+      toValue: goes ? -by * travel : 0,
       duration: motion.step,
       easing: EASE,
       // The JS driver, like the arrival above and for the same kind of reason: this is the same
@@ -524,11 +537,12 @@ export function FrameViewer({
    * product, and the scrubber above it is the other sideways gesture — the layout puts each on a
    * line of its own precisely so that no two of them ever share a finger.
    *
-   * Three things, and the window's way out is not one of them any more (TASK-540, spec 10.14.4):
-   * down over the picture raises the frame's own screen, sideways walks the gallery, and in from the
-   * left edge — the platform's own back, which the window answers because it is a `Modal` and the
-   * app-wide `useEdgeBack` is nowhere near it — closes it. What closes it for a finger that is not
-   * on the edge is the «Закрыть» in the corner, which is where the layout has it.
+   * Four things since TASK-574, and the ways are told apart by which way the finger went:
+   * sideways walks the gallery, up raises the frame's own screen and down closes the window
+   * (spec 10.14.4 — the pair that used to be the other way round, decision-25 now repealed), and
+   * in from the left edge — the platform's own back, which the window answers because it is a
+   * `Modal` and the app-wide `useEdgeBack` is nowhere near it — closes it in any state, like the
+   * «Закрыть» in the corner.
    *
    * Built once and never rebuilt, with the step, the row and the way out read through the refs
    * above. `PanResponder` keeps how far the finger has come inside the object `create` hands back,
@@ -536,9 +550,9 @@ export function FrameViewer({
    * four times a second for the whole of a playing video (`timeUpdate`). Rebuilt per render, every
    * threshold below was measured against whatever scrap of the swipe fell after the last of those
    * renders: the walk worked on a photograph and failed on video, which is the same symptom a third
-   * time. Three gestures on one responder rather than three responders stacked on one view: the
+   * time. Four gestures on one responder rather than four responders stacked on one view: the
    * stage takes the finger down once, and whichever way it went is decided once, from the same
-   * numbers — three responders would each be deciding from a tally of their own.
+   * numbers — four responders would each be deciding from a tally of their own.
    *
    * That is also what makes the gesture work when the tools are away — this responder is on the
    * stage, which is the whole of the window either way, and TASK-476 put nothing between them.
@@ -553,15 +567,17 @@ export function FrameViewer({
         onStartShouldSetPanResponderCapture: () => false,
         onStartShouldSetPanResponder: () => true,
         // Capture, so a finger that has plainly gone one way takes the pause button under it with it
-        // — a sideways drag begun on that button is still the gallery's, and a downward one is still
-        // the details'.
+        // — a sideways drag begun on that button is still the gallery's, and an up or down one is
+        // the frame's own screen or the way out (TASK-574). Any vertical past the threshold is
+        // claimed: the picture is the whole of what stands under the stage, and nothing on it
+        // scrolls, so a finger going up or down there is asking the window for one of its two.
         onMoveShouldSetPanResponderCapture: (_, g) =>
           (Math.abs(g.dx) > SIDEWAYS && Math.abs(g.dx) > Math.abs(g.dy)) ||
-          topDown(g, downFrom.current),
+          (Math.abs(g.dy) > SIDEWAYS && Math.abs(g.dy) > Math.abs(g.dx)),
         // The frame follows the finger while it is down (TASK-540, AC #2) — from the first point it
         // travels, not from the point a gesture is recognised at, because a picture that waits for
         // a threshold before moving is a picture that jumps. Only the gallery's own gesture moves
-        // the row: a finger coming down the picture, or in from the edge, is not a frame being
+        // the row: a finger going up or down the picture, or in from the edge, is not a frame being
         // dragged sideways, and the row is left exactly where it stands.
         onPanResponderMove: (_, g) => {
           if (Math.abs(g.dx) <= Math.abs(g.dy)) return;
@@ -569,15 +585,20 @@ export function FrameViewer({
           shift.setValue(Math.max(-on, Math.min(back, g.dx)));
         },
         onPanResponderRelease: (_, g) => {
-          // A finger that stayed where it was put down is a tap: a video plays and stands still, a
-          // photograph puts the tools away or brings them back. Anything else is a gesture, and
-          // which one is said by where it began and which way it went — not by how far.
+          // A finger that stayed where it was put down is a tap: the tools go away or come back
+          // (TASK-476, TASK-574 #4). Anything else is a gesture, and which one is said by where it
+          // began and which way it went — not by how far.
           if (Math.abs(g.dx) <= SIDEWAYS && Math.abs(g.dy) <= SIDEWAYS) return tapped.current();
-          // Down over the picture raises the frame's own screen (TASK-540, spec 10.14.4). It used
-          // to be the way out of the window, and one gesture cannot mean both: the way out is the
-          // «Закрыть» in the corner, and the edge swipe below.
-          if (topDown(g, downFrom.current, GO)) return shows.current();
+          // The way out, whatever state the window is in: the edge swipe and the «Закрыть» are the
+          // two that never depend on the panel (TASK-574, #2).
           if (edgeBack(g, GO)) return closed.current();
+          // Down over the picture closes the window — with the details standing or without them
+          // (spec 10.14.4). Over the details themselves the same drag is caught by the panel and
+          // puts them away first; once there is nothing left over the picture, it closes (TASK-574).
+          if (topDown(g, downFrom.current, GO)) return closed.current();
+          // Up over the picture raises the frame's own screen (spec 10.14.3): the gesture and the
+          // movement now go the same way.
+          if (g.dy <= -GO && Math.abs(g.dy) > Math.abs(g.dx)) return shows.current();
           setBare(false);
           // A drag that came short of the step was a feel for the next frame and no more: the row
           // goes back under the one in hand, and nothing is opened.
@@ -740,8 +761,13 @@ export function FrameViewer({
    *
    * Hidden from a screen reader, like the mosaic: what is beside the frame is off the screen and is
    * a picture the reader has no way to reach, and the strip under it is where frames are named.
+   *
+   * Turned, there is no cell at all (TASK-574, #6): a frame that is shorter than the phone across
+   * leaves its neighbours inside the screen, and the horizontal viewer shows the frame it is on and
+   * nothing beside it. The row keeps its middle, which is what the picture is drawn in.
    */
   function beside(one: MediaItem | null) {
+    if (turned) return null;
     const frame = one === null ? null : frameOf(one);
     return (
       <Animated.View
@@ -800,12 +826,11 @@ export function FrameViewer({
               picture alone that carries this, and it carries it whenever the tools are away — the
               one moment the reader most needs a way back in.
 
-              A video is not given one, and the reason is the button, not an omission: a tap on a
-              video plays and stands still rather than hiding anything (AC #5), and that is exactly
-              what the 72 in the middle of the frame already says it does, so the reader already
-              holds this control under its own name. Marking this view would be marking it on top of
-              that button, and on iOS a container marked accessible is read instead of its children
-              — the play and pause would go missing to buy a duplicate of itself. */}
+              A video is not given one, and the reason is the button, not an omission: marking this
+              view would mark it on top of the 72 in the middle, and on iOS a container marked
+              accessible is read instead of its children — the play and pause would go missing to buy
+              a duplicate of itself. The tap still tidies a video's tools away like a photograph's
+              (TASK-574, #4); what it does not do is stand in for the transport. */}
           <Animated.View
             style={[styles.stage, { height: arrival.stage }]}
             {...swipe.panHandlers}
@@ -1042,10 +1067,11 @@ export function FrameViewer({
                     size={stripSize}
                     style={styles.strip}
                     labelAt={(to) => nameOf(frames[to], frameOf(frames[to]), to === index)}
-                    // A tap names the frame it wants and a finger leaves the strip resting on one, so
-                    // both are the gate and not the stride: refusing is the honest answer to «open
-                    // this one», and the two agree on what may open.
-                    onPick={walk}
+                    // A finger leaves the strip resting on a frame and that frame is opened — the
+                    // gate, not the stride: refusing is the honest answer to «open this one». A tap
+                    // names nothing (TASK-574, #3): the strip is there to show where the middle
+                    // stands, and a tap that jumped to the picture under the finger was one gesture
+                    // doing what a swipe already does.
                     onSettle={walk}
                   />
                 </View>

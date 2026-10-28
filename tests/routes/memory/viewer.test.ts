@@ -448,14 +448,14 @@ test('the picture is walked with a finger, and the finger is taken on the pictur
   expect(viewer).toContain('const step = useRef(stride);');
   // One rule about what opens, for the finger and for the strip alike — so photographs and videos
   // walk the same way whichever of the two asked, and the strip follows the frame in hand. The two
-  // differ on one thing only: a tap names a frame and is refused when that frame cannot open,
-  // while a finger names a direction and carries on past it rather than hitting a wall.
+  // differ on one thing only: a finger names a direction and carries on past a frame still being
+  // made, while the strip names the frame a finger came to rest on and is refused when that frame
+  // cannot open.
   //
-  // The strip asks twice over (TASK-474) and both are that same `walk`: once by name, and once by
-  // the frame a finger left the strip resting on. The answer is said back to the strip, so a frame
-  // it will not open puts the strip back on the frame in hand rather than leaving it centred over
-  // one this window never opened.
-  expect(viewer).toContain('onPick={walk}');
+  // The strip asks once (TASK-574, #3): the frame a finger left it resting on. A tap on the strip
+  // used to be the second ask and is gone — it opened the frame under the finger, which is what the
+  // swipe already does, and it caught people who only meant to move the row.
+  expect(viewer).not.toContain('onPick={walk}');
   expect(viewer).toContain('onSettle={walk}');
   expect(viewer.match(/if \(!next \|\| !mayOpen\(next\)\) return false;/g)).toHaveLength(1);
   // And the frame is opened under that gate, never before it — what else stands between the two is
