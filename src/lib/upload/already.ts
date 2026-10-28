@@ -22,8 +22,9 @@ const SAME_DURATION = 1;
  * whichever of the measured size and the run time the record has been given.
  *
  * The record's `width`, `height` and `duration_seconds` are null until the worker has measured
- * them, and a record with no capture date says nothing about when it was shot. Either is left out
- * of the judgement rather than read as a difference — what is not there cannot disagree.
+ * them, and each is left out of the judgement while it is rather than read as a difference — what
+ * is not there cannot disagree. The capture date is the exception: it is the one axis the phone and
+ * the record already share, so a record without one is never called the same file.
  */
 export function mayBeSame(asset: MediaLibrary.Asset, record: MediaItem): boolean {
   if (record.kind !== kindOf(asset)) return false;
