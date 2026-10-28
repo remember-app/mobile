@@ -472,6 +472,21 @@ test('the word over the panel leaves by itself, and the middle keeps the word th
   }
 });
 
+test('leaving the picking mode gives the offer back when it is entered again', async () => {
+  // «Ничего не выбрано» is what one press earned, not a lasting state of the screen: the mode left
+  // and entered again starts at rest, with the offer in the middle (spec 10.15, `FramesPicking`).
+  world();
+  const screen = await open();
+  await screen.startPicking();
+  await proposing(screen);
+  expect(screen.footer().middle.label).toBe(ru.gallery.nothingPicked);
+
+  await screen.stopPicking();
+  await screen.startPicking();
+  expect(screen.footer().middle.label).toBe(ru.gallery.proposeToRemove);
+  expect(screen.footer().middle.disabled).toBe(false);
+});
+
 test('a marked frame wears the accent circle, the button counts with the number alone, and the feed has no scroll bar of its own', async () => {
   world();
   const screen = await open();
