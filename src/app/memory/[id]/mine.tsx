@@ -22,12 +22,13 @@ import {
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { formatDay, formatRuntime, formatWeekday } from '@/lib/dates';
-import { gridColumns, useDensity } from '@/lib/density';
+import { useDensity } from '@/lib/density';
 import { type Failure, failure } from '@/lib/failure';
 import { byDay, frameOf, removeFrames, rowsOf, shotAt } from '@/lib/frames';
 import { useStrings } from '@/lib/language';
 import { type ParkedFile, progress } from '@/lib/upload/queue';
 import { useUploads } from '@/lib/upload/send';
+import { DensityPill, useDensityPinch } from '@/screens/memory/frames-density';
 import { useMaterial } from '@/screens/memory/frames-material';
 import { FrameSheet, type Own } from '@/screens/mine/frame-sheet';
 import { board, height, space, themed } from '@/theme';
@@ -59,10 +60,13 @@ export default function MyFramesScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   // As many across as the person stands at (`@/lib/density`), measured out of the width the same
-  // way the shared feed measures its own — `memory/frames.tsx` says why at length. The single
-  // frame is the feed's alone (spec 10.14.2): this grid keeps to the layout's three.
-  const columns = gridColumns(useDensity());
-  const cell = { width: (width - FEED_GAP * 2) / columns };
+  // way the shared feed measures its own — `memory/frames.tsx` says why at length. The last step of
+  // the scale is the single frame (spec 10.14.2): one the whole width with no gutter, walked by the
+  // same pinch, which is hung on the view below.
+  const density = useDensity();
+  const gap = density === 1 ? 0 : FEED_GAP;
+  const cell = { width: (width - gap * 2) / density };
+  const pinch = useDensityPinch();
   const { items, roster, error, read, wrote } = useMaterial({ memoryId: id, token, hidden: true });
   const uploads = useUploads();
   /** The frame whose sheet is up, by its key — a re-read hands the sheet the fresh record. */
@@ -112,13 +116,13 @@ export default function MyFramesScreen() {
     () =>
       byDay(own, (one) => one.at).flatMap(({ at, frames }): Row[] => [
         { key: `day-${at}`, day: at, count: frames.length },
-        ...rowsOf(frames, columns).map((strip, i) => ({
+        ...rowsOf(frames, density).map((strip, i) => ({
           key: strip[0].key,
           frames: strip,
           lead: i === 0,
         })),
       ]),
-    [own, columns],
+    [own, density],
   );
 
   const inMemory = (items ?? []).filter((item) => item.uploaded_by === user?.id).length;
@@ -222,66 +226,77 @@ export default function MyFramesScreen() {
     <Board
       style={styles.bleed}
       list={() => (
-        <FlatList
-          data={rows}
-          keyExtractor={(row) => row.key}
-          contentContainerStyle={[
-            styles.feed,
-            // Spec 8: from 108 under the glass bar, and clear of the bottom layer's 190.
-            {
-              paddingTop: insets.top + height.roundViewer + space.s2,
-              paddingBottom: board.footerGallery,
-            },
-            rows.length === 0 ? styles.feedEmpty : null,
-          ]}
-          ListHeaderComponent={
-            line || failed !== null ? (
-              <View style={styles.head}>
-                {failed !== null ? (
-                  <Banner tone="error" failure={failed}>
-                    <Button
-                      variant="quiet"
-                      size="xs"
-                      label={s.action.retry}
-                      onPress={() => {
-                        setDropFailed(null);
-                        read();
-                      }}
-                    />
-                  </Banner>
-                ) : null}
-                {line}
-              </View>
-            ) : null
-          }
-          ListEmptyComponent={
-            items === null ? (
-              failed === null ? (
-                <Waiting text={s.state.loading} />
+        // The grid stands in a view of its own so a two-finger pinch is taken off the scroll before
+        // it begins (spec 10.14.1); a one-finger drag passes straight through and the wall scrolls.
+        <View style={styles.feedWrap} testID="density-pinch" {...pinch.panHandlers}>
+          <FlatList
+            data={rows}
+            keyExtractor={(row) => row.key}
+            contentContainerStyle={[
+              styles.feed,
+              // Spec 8: from 108 under the glass bar, and clear of the bottom layer's 190.
+              {
+                paddingTop: insets.top + height.roundViewer + space.s2,
+                paddingBottom: board.footerGallery,
+              },
+              rows.length === 0 ? styles.feedEmpty : null,
+            ]}
+            ListHeaderComponent={
+              line || failed !== null ? (
+                <View style={styles.head}>
+                  {failed !== null ? (
+                    <Banner tone="error" failure={failed}>
+                      <Button
+                        variant="quiet"
+                        size="xs"
+                        label={s.action.retry}
+                        onPress={() => {
+                          setDropFailed(null);
+                          read();
+                        }}
+                      />
+                    </Banner>
+                  ) : null}
+                  {line}
+                </View>
               ) : null
-            ) : (
-              <Empty icon={ImageIcon} title={s.mine.emptyTitle} text={s.mine.emptyText} />
-            )
-          }
-          renderItem={({ item: row }) =>
-            row.day !== undefined ? (
-              <DayMark
-                label={`${formatDay(new Date(row.day))}, ${formatWeekday(new Date(row.day))}`}
-                count={String(row.count)}
-              />
-            ) : (
-              <View style={[styles.strip, { marginTop: row.lead ? 0 : FEED_GAP }]}>
-                {row.frames.map(tileOf)}
-              </View>
-            )
-          }
-        />
+            }
+            ListEmptyComponent={
+              items === null ? (
+                failed === null ? (
+                  <Waiting text={s.state.loading} />
+                ) : null
+              ) : (
+                <Empty icon={ImageIcon} title={s.mine.emptyTitle} text={s.mine.emptyText} />
+              )
+            }
+            renderItem={({ item: row }) =>
+              row.day !== undefined ? (
+                <DayMark
+                  label={`${formatDay(new Date(row.day))}, ${formatWeekday(new Date(row.day))}`}
+                  count={String(row.count)}
+                />
+              ) : (
+                <View style={[styles.strip, { gap, marginTop: row.lead ? 0 : gap }]}>
+                  {row.frames.map(tileOf)}
+                </View>
+              )
+            }
+          />
+        </View>
       )}
     >
       <GlassBar
         style={styles.glass}
         title={s.mine.title}
         meta={meta}
+        // The density pill takes the capsule's slot for as long as the pinch walks it, and the
+        // 200ms it takes to fade — the capsule itself is back the moment the fingers lift.
+        middle={
+          pinch.pinching || pinch.leaving ? (
+            <DensityPill value={density} leaving={pinch.leaving} />
+          ) : undefined
+        }
         capsuleLabel={meta ? `${s.mine.title}, ${meta}` : s.mine.title}
         left={
           <IconButton
@@ -345,10 +360,14 @@ const useStyles = themed(() =>
   StyleSheet.create({
     bleed: { paddingTop: 0 },
     feed: { flexGrow: 1 },
+    // The view the grid and the pinch stand in: nothing of its own but the room the list fills.
+    feedWrap: { flex: 1 },
     feedEmpty: { justifyContent: 'center', paddingHorizontal: space.s4 },
     // The line over the feed keeps the screen's 16, and the first day stands 14 under it.
     head: { gap: space.s3, paddingHorizontal: space.s4, paddingBottom: 14 },
-    strip: { flexDirection: 'row', gap: FEED_GAP },
+    // The gutter between the frames is the row's own — 0 at the single frame, so one frame stands
+    // the whole width with nothing beside it (spec 10.14.2).
+    strip: { flexDirection: 'row' },
     glass: { position: 'absolute', left: 0, right: 0, top: 0 },
     layer: { position: 'absolute', left: 0, right: 0, bottom: 0 },
   }),

@@ -23,9 +23,10 @@ test('every face with a feed is the kit’s feed edge to edge — the queue and 
   // Spec 7.8, detail 64 (28 October): the feed, `UploadQueue` and `UploadLimited` are three to a row
   // with 2 of gutter, no margins and no radius — the queue's own 117 grid is gone, and the wizard's
   // 3 gutter with it. The column is measured out of the window rather than flexed — `flex: 1/3`
-  // hands a lone last frame a third of the row.
-  expect(upload).toContain('const gap = FEED_GAP;');
-  expect(upload).toContain('const cell = { width: (width - gap * 2) / columns };');
+  // hands a lone last frame a third of the row. The gutter goes to nought at the single frame the
+  // pinch walks the roll to (TASK-564, spec 10.14.2).
+  expect(upload).toContain('const gap = density === 1 ? 0 : FEED_GAP;');
+  expect(upload).toContain('const cell = { width: (width - gap * 2) / density };');
   expect(upload).toContain('lane="feed"');
   // `Upload.json`: the seam 108–128, the first frames at 128, the second row at 259 — a day's seam
   // is flush with its strips, and the gutter only stands between strips.

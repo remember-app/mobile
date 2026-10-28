@@ -13,9 +13,11 @@ import { useStrings } from '@/lib/language';
 import { duration, height, photo, radius, themed } from '@/theme';
 
 /**
- * The density of the feed, walked by a pinch right in it (spec 10.14.1, `MemoryDensity`): squeezing
+ * The density of a gallery, walked by a pinch right in it (spec 10.14.1, `MemoryDensity`): squeezing
  * the fingers together cuts more frames to a row, spreading them apart cuts fewer, and the last
  * step of the same gesture is the single frame (`MemorySingle`, spec 10.14.2). No button opens it.
+ * Every gallery that reads the pick wears it — the memory's feed, «Мои кадры», «Добавить кадры» and
+ * the montage's picker — so the gesture is the same one wherever the frames are.
  *
  * None of this is a kit part: the layout draws neither the pill nor the gesture, and spec 10.14
  * says outright that no new detail is added to section 7 for them. What it draws instead is the
@@ -29,9 +31,9 @@ function spread(touches: readonly { pageX: number; pageY: number }[]): number {
 }
 
 /**
- * The pinch, hung on the view the feed stands in. A drag of two fingers is the density's and is
- * taken off the feed before the scroll sees it; a drag of one is the feed's own and passes straight
- * through, so the wall still scrolls and a frame is still a button.
+ * The pinch, hung on the view a gallery stands in. A drag of two fingers is the density's and is
+ * taken off the feed before the scroll sees it; a drag of one is the gallery's own and passes
+ * straight through, so the wall still scrolls and a frame is still a button.
  *
  * `pinching` is the fingers down, `leaving` is the 200ms the pill takes to go after they lift — the
  * bar draws the pill while either is true, and `DensityPill` fades itself out on `leaving`.

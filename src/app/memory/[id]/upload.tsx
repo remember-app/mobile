@@ -41,13 +41,14 @@ import {
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { formatDay, formatEventDates, formatRuntime, formatWeekday } from '@/lib/dates';
-import { gridColumns, useDensity } from '@/lib/density';
+import { useDensity } from '@/lib/density';
 import { type Failure, failure } from '@/lib/failure';
 import { rowsOf } from '@/lib/frames';
 import { useStrings } from '@/lib/language';
 import { assetsByDay, type ShootingDay } from '@/lib/media-window';
 import { type ParkedFile, parkedReason, progress } from '@/lib/upload/queue';
 import { answerAskAll, drop, enqueue, useAskAll, useUploads, wake } from '@/lib/upload/send';
+import { DensityPill, useDensityPinch } from '@/screens/memory/frames-density';
 import { NoFeed } from '@/screens/upload/message';
 import { useRoll } from '@/screens/upload/roll';
 import {
@@ -122,9 +123,10 @@ export default function UploadScreen({ queue = false }: { queue?: boolean }) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   // As many across as the person stands at (`@/lib/density`) — this roll is cut the way the
-  // memory's own feed is cut, and the setting is the same one. The single frame is the feed's
-  // alone (spec 10.14.2): this roll keeps to the layout's three.
-  const columns = gridColumns(useDensity());
+  // memory's own feed is cut, and the setting is the same one, the single frame of the scale
+  // (spec 10.14.2) included: the pinch below walks it right on the roll.
+  const density = useDensity();
+  const pinch = useDensityPinch();
   // The whole app's queue; the rows below are this memory's share of it.
   const uploads = useUploads();
   /**
@@ -176,7 +178,7 @@ export default function UploadScreen({ queue = false }: { queue?: boolean }) {
     () =>
       assetsByDay(memory, gallery).flatMap((day): Row[] => [
         { key: `day-${day.at}`, day },
-        ...rowsOf(day.assets, columns).map((strip, i) => ({
+        ...rowsOf(day.assets, density).map((strip, i) => ({
           key: strip[0].id,
           frames: strip,
           lead: i === 0,
@@ -185,7 +187,7 @@ export default function UploadScreen({ queue = false }: { queue?: boolean }) {
         // else: a day of three frames out of sixty otherwise reads as a day when nobody shot.
         ...(limited ? [{ key: `unseen-${day.at}`, unseen: true as const }] : []),
       ]),
-    [memory, gallery, limited, columns],
+    [memory, gallery, limited, density],
   );
 
   const load = useCallback(() => {
@@ -234,9 +236,10 @@ export default function UploadScreen({ queue = false }: { queue?: boolean }) {
   // The gutter of the grid (spec 7.8), and the column measured out of the window rather than flexed
   // — `flex: 1/3` divides what a row has left after its gaps, and a last row of one frame has none
   // to leave, so it came out wider than the rest. Every feed runs edge to edge, with no margin at
-  // all.
-  const gap = FEED_GAP;
-  const cell = { width: (width - gap * 2) / columns };
+  // all. At the single frame the gutter is nothing, so one frame stands the whole width (spec
+  // 10.14.2).
+  const gap = density === 1 ? 0 : FEED_GAP;
+  const cell = { width: (width - gap * 2) / density };
 
   /** Whether every frame of a day is taken. */
   const dayTaken = (day: ShootingDay<MediaLibrary.Asset>) =>
@@ -472,65 +475,71 @@ export default function UploadScreen({ queue = false }: { queue?: boolean }) {
       list={
         feed
           ? () => (
-              <FlatList
-                data={rows}
-                keyExtractor={(row) => row.key}
-                // A day's band lies over the strips either side of it (spec detail 65).
-                CellRendererComponent={SeamCell}
-                contentContainerStyle={[
-                  styles.feed,
-                  {
-                    // Spec 4: the body under the glass bar starts at 108 — the status line, the
-                    // bar's own 48 and 8 under it — and ends clear of the bottom layer, where there
-                    // is one.
-                    paddingTop: insets.top + height.roundViewer + space.s2,
-                    paddingBottom: picking ? board.footerTall : space.s5,
-                  },
-                ]}
-                // What is said over the roll is the only thing here that is not a photograph, so the
-                // only thing that takes the screen's own margin — and only when it has something to
-                // say, so the first day stands directly under the bar.
-                ListHeaderComponent={
-                  said ? (
-                    <View style={[styles.head, styles.headFeed, styles.headSaid]}>{blocks()}</View>
-                  ) : null
-                }
-                renderItem={({ item: row }) =>
-                  row.day ? (
-                    dayOf(row.day)
-                  ) : row.unseen ? (
-                    <DashedNote text={s.upload.restUnseen} style={styles.unseen} />
-                  ) : (
-                    // A day's strips a gutter apart, and its first one flush with the day over it.
-                    <View style={[styles.strip, { gap, marginTop: row.lead ? 0 : gap }]}>
-                      {row.frames.map((item) => (
-                        <Tile
-                          key={item.id}
-                          // Every frame here is one the phone already holds, so `ready` is the only
-                          // state this feed ever draws — the other two belong to the gallery, where
-                          // a file is still being turned into a derivative.
-                          state="ready"
-                          // The feed's own lane, with no rounding and the 24 circle in the corner
-                          // — the queue and the partial grant wear it too (spec 7.8, 28 October).
-                          lane="feed"
-                          uri={item.uri}
-                          // No circle at all with picking off: a frame that is not being picked is
-                          // not a checkbox, and the layout takes the circles away with the mode.
-                          pick={choosing ? (picked.has(item.id) ? 'send' : 'off') : undefined}
-                          // The kit marks a video by how long it runs rather than by the word
-                          // «video».
-                          length={
-                            item.mediaType === 'video' ? formatRuntime(item.duration) : undefined
-                          }
-                          label={nameOf(item)}
-                          onPress={() => (choosing ? toggle(item.id) : setOpen(item))}
-                          style={cell}
-                        />
-                      ))}
-                    </View>
-                  )
-                }
-              />
+              // The roll stands in a view of its own so a two-finger pinch is taken off the scroll
+              // before it begins (spec 10.14.1); a one-finger drag scrolls the roll as it always did.
+              <View style={styles.pinch} testID="density-pinch" {...pinch.panHandlers}>
+                <FlatList
+                  data={rows}
+                  keyExtractor={(row) => row.key}
+                  // A day's band lies over the strips either side of it (spec detail 65).
+                  CellRendererComponent={SeamCell}
+                  contentContainerStyle={[
+                    styles.feed,
+                    {
+                      // Spec 4: the body under the glass bar starts at 108 — the status line, the
+                      // bar's own 48 and 8 under it — and ends clear of the bottom layer, where there
+                      // is one.
+                      paddingTop: insets.top + height.roundViewer + space.s2,
+                      paddingBottom: picking ? board.footerTall : space.s5,
+                    },
+                  ]}
+                  // What is said over the roll is the only thing here that is not a photograph, so the
+                  // only thing that takes the screen's own margin — and only when it has something to
+                  // say, so the first day stands directly under the bar.
+                  ListHeaderComponent={
+                    said ? (
+                      <View style={[styles.head, styles.headFeed, styles.headSaid]}>
+                        {blocks()}
+                      </View>
+                    ) : null
+                  }
+                  renderItem={({ item: row }) =>
+                    row.day ? (
+                      dayOf(row.day)
+                    ) : row.unseen ? (
+                      <DashedNote text={s.upload.restUnseen} style={styles.unseen} />
+                    ) : (
+                      // A day's strips a gutter apart, and its first one flush with the day over it.
+                      <View style={[styles.strip, { gap, marginTop: row.lead ? 0 : gap }]}>
+                        {row.frames.map((item) => (
+                          <Tile
+                            key={item.id}
+                            // Every frame here is one the phone already holds, so `ready` is the only
+                            // state this feed ever draws — the other two belong to the gallery, where
+                            // a file is still being turned into a derivative.
+                            state="ready"
+                            // The feed's own lane, with no rounding and the 24 circle in the corner
+                            // — the queue and the partial grant wear it too (spec 7.8, 28 October).
+                            lane="feed"
+                            uri={item.uri}
+                            // No circle at all with picking off: a frame that is not being picked is
+                            // not a checkbox, and the layout takes the circles away with the mode.
+                            pick={choosing ? (picked.has(item.id) ? 'send' : 'off') : undefined}
+                            // The kit marks a video by how long it runs rather than by the word
+                            // «video».
+                            length={
+                              item.mediaType === 'video' ? formatRuntime(item.duration) : undefined
+                            }
+                            label={nameOf(item)}
+                            onPress={() => (choosing ? toggle(item.id) : setOpen(item))}
+                            style={cell}
+                          />
+                        ))}
+                      </View>
+                    )
+                  }
+                />
+              </View>
             )
           : undefined
       }
@@ -556,6 +565,13 @@ export default function UploadScreen({ queue = false }: { queue?: boolean }) {
           style={styles.glass}
           title={s.upload.title}
           meta={memory ? s.upload.into(memory.title) : undefined}
+          // The density pill takes the capsule's slot for as long as the pinch walks it, and the
+          // 200ms it takes to fade — the capsule itself is back the moment the fingers lift.
+          middle={
+            pinch.pinching || pinch.leaving ? (
+              <DensityPill value={density} leaving={pinch.leaving} />
+            ) : undefined
+          }
           capsuleLabel={
             memory ? `${s.upload.title}, ${s.upload.into(memory.title)}` : s.upload.title
           }
@@ -681,6 +697,8 @@ const useStyles = themed(({ color }) =>
     // The feed is the kit's own: edge to edge, and a day's seam flush with the strips on both sides
     // of it (`Upload`: the seam 108–128, the first frames at 128) — the gutter is between strips.
     feed: { flexGrow: 1 },
+    // The view the roll and the pinch stand in: nothing of its own but the room the list fills.
+    pinch: { flex: 1 },
     strip: { flexDirection: 'row' },
     // What the sending and the grant have to say, 16 apart (`UploadQueue`).
     head: { gap: space.s4 },
