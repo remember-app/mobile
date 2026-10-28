@@ -19,17 +19,14 @@ import { board, height, uploadGaps } from '@/theme';
 
 const ru = strings.ru;
 
-test('the roll is the kit’s feed edge to edge, and the queue’s grid in the margins', () => {
-  // Spec 7.8, detail 64: the feed three to a row with 2 of gutter and no margins; the queue (and the
-  // wizard) in the screen's 16 with 3 of gutter and a 4 radius. The column is measured out of the
-  // window rather than flexed — `flex: 1/3` hands a lone last frame a third of the row.
-  expect(upload).toContain('const gap = glass ? FEED_GAP : GRID_GAP;');
-  expect(upload).toContain(
-    'const cell = { width: (width - (glass ? 0 : space.s4 * 2) - gap * 2) / columns };',
-  );
-  expect(upload).toContain("lane={glass ? 'feed' : 'pick'}");
-  expect(upload).toContain('ring={!glass}');
-  expect(upload).toContain('grid: { flexGrow: 1, paddingHorizontal: space.s4');
+test('every face with a feed is the kit’s feed edge to edge — the queue and a partial grant with the picking face', () => {
+  // Spec 7.8, detail 64 (28 October): the feed, `UploadQueue` and `UploadLimited` are three to a row
+  // with 2 of gutter, no margins and no radius — the queue's own 117 grid is gone, and the wizard's
+  // 3 gutter with it. The column is measured out of the window rather than flexed — `flex: 1/3`
+  // hands a lone last frame a third of the row.
+  expect(upload).toContain('const gap = FEED_GAP;');
+  expect(upload).toContain('const cell = { width: (width - gap * 2) / columns };');
+  expect(upload).toContain('lane="feed"');
   // `Upload.json`: the seam 108–128, the first frames at 128, the second row at 259 — a day's seam
   // is flush with its strips, and the gutter only stands between strips.
   expect(upload).toContain('feed: { flexGrow: 1 },');
@@ -37,24 +34,34 @@ test('the roll is the kit’s feed edge to edge, and the queue’s grid in the m
   expect(upload).toContain('lead: i === 0,');
 });
 
-test('the queue and a partial grant are drawn in the plain face, and the feed is glass only with nothing said over it', () => {
-  // `UploadQueue` and `UploadLimited` wear the plain bar with the memory named under the heading,
-  // and no switch for the mode: picking is simply on there. The queue's face is a route of its own
-  // (27 September): `Upload` itself says nothing of the sending.
-  expect(upload).toContain('const glass = feed && !limited && !queue;');
+test('one look for every face with a feed, and the queue and the grant tell themselves apart by their blocks alone', () => {
+  // 28 October: `UploadQueue` and `UploadLimited` are `Upload`'s own states, so they are the same
+  // screen — the glass bar, the edge-to-edge grid and the floating button. There is no flag left that
+  // sends them down a second layout: the only thing that knows which face this is, is what is said
+  // over the roll. The queue's route is its own (27 September): `Upload` itself says nothing of the
+  // sending.
+  expect(upload).not.toContain('const glass');
+  expect(upload).not.toContain('glass ?');
   expect(upload).toContain(
     'const queued = queue ? uploads.filter((file) => file.memoryId === id) : [];',
   );
   expect(queueRoute).toContain('<UploadScreen queue />');
   expect(layout).toContain('<Stack.Screen name="memory/[id]/queue"');
-  expect(upload).toContain('const choosing = picking || !glass;');
-  expect(flat(upload)).toContain('<Board style={glass ? styles.bleed : undefined}');
-  expect(upload).toContain('footer={glass ? undefined : layer}');
-  expect(upload).toContain('{glass ? layer : null}');
+  // The switch on the glass bar is the word wherever there is a feed — the queue's bar carries it
+  // too now; a face with no feed has nothing to pick and choosing is on there regardless.
+  expect(upload).toContain('const choosing = picking || !feed;');
+  expect(flat(upload)).toContain('<Board style={feed ? styles.bleed : undefined}');
+  expect(upload).toContain('{feed ? layer : null}');
+  // The bar is the feed's own wherever there is a feed, and the plain one only over a message.
+  expect(flat(upload)).toContain('bar={ feed ? undefined : (');
+  // The blocks the queue and the grant add are what is left of the two old faces.
+  expect(upload).toContain('{queued.length > 0 ? (\n          <Upload');
+  expect(upload).toContain('<BlockStuck');
+  expect(upload).toContain('{limited ? (\n          <HintNote');
 });
 
 test('the bar over the feed is glass, and its capsule is a plate rather than a button', () => {
-  const bar = upload.slice(upload.indexOf('<GlassBar'), upload.indexOf('{glass ? layer'));
+  const bar = upload.slice(upload.indexOf('<GlassBar'), upload.indexOf('{feed ? layer'));
   // «Добавить кадры» over «в „Свадьба Лизы и Марка“» — the screen is about this phone's roll, and the
   // memory is the line under it.
   expect(bar).toContain('title={s.upload.title}');
@@ -140,9 +147,10 @@ test('the send button stands from the start and is simply out until something is
   expect(layer).toContain('disabled={picked.size === 0}');
   expect(layer).toContain('label={picked.size > 0 ? s.upload.send(picked.size) : s.action.send}');
   expect(ru.upload.send(12)).toBe('Отправить 12 файлов');
-  // On the feed the deepest of the five footers, the one that lies over photographs (spec 2); under
-  // the queue's grid the board's own, the 176 of `UploadLimited` with the count over the button.
-  expect(layer).toContain("footer={glass ? 'upload' : undefined}");
+  // On every face with a feed, the deepest of the five footers, the one that lies over photographs
+  // (spec 2) — the queue's own grid and the grant's among them (28 October). Under the grant's count
+  // the footer is left off, and `ActionBar` draws its own shallower 176.
+  expect(layer).toContain("footer={limited ? undefined : 'upload'}");
   // With picking off there is nothing to send, and the faces with no feed carry no layer at all.
   // Spec 8, `UploadQueue` and 10.11: while something is going the layer stands only once something
   // is marked — a dead «Отправить» would argue with the sending the screen is about.
@@ -179,13 +187,13 @@ test('the four other faces are this screen with no feed under it', () => {
 });
 
 test('the plain face’s body starts where the layout starts it: 124, and the message card at 132', () => {
-  // Spec 4: «124 — тело после шапки с подзаголовком (`Upload*`)»; `UploadQueue.json` e5 and
-  // `UploadLimited.json` e5 at 124, `UploadAccess.json` e6 at 132 — under a bar whose row ends at 96.
+  // Spec 4: «124 — тело после шапки с подзаголовком (`Upload*`)»; `UploadAccess.json` e6 at 132 —
+  // under a bar whose row ends at 96. Only the faces with no feed stand on it now: a feed starts
+  // under the glass bar, at 108.
   expect(upload).toContain('const LEAD = board.bodyUpload - board.status - height.bar;');
   expect([board.bodyUpload, board.bodyUploadCard]).toEqual([124, 132]);
   expect(board.bodyUpload - board.status - height.bar).toBe(28);
   expect(upload).toContain('body: { paddingHorizontal: space.s4, paddingTop: LEAD }');
-  expect(upload).toContain('lead: { paddingTop: LEAD }');
   expect(noFeed).toContain('message: { marginTop: board.bodyUploadCard - board.bodyUpload }');
   // The unseen plate 22 under its strip (`UploadLimited.json`: e12 ends at 455, e18 at 477).
   expect(uploadGaps).toEqual({ unseen: 477 - (338 + 117) });

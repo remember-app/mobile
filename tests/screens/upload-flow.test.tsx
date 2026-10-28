@@ -85,7 +85,6 @@ import {
   Empty,
   FEED_GAP,
   GlassBar,
-  GRID_GAP,
   HintNote,
   IconButton,
   Sheet,
@@ -458,10 +457,11 @@ test('under a partial grant the line over the button counts the marks — agains
 test('a partial grant shows only what was handed over: a day is a heading with its count, each day says the rest is unseen, and «Отдать ещё» reads the roll again', async () => {
   lib.access = { granted: true, canAskAgain: true, accessPrivileges: 'limited' };
   const screen = await open();
-  // `UploadLimited`: the plain bar, «Снято 13 сентября» with a line and a count — nothing to take
-  // the whole of — and a dashed plate under each day.
-  expect(screen.root.findAllByType(GlassBar)).toHaveLength(0);
-  expect(screen.root.findAllByType(AppBar)).toHaveLength(1);
+  // `UploadLimited` (28 October): the same glass bar and edge-to-edge grid as the picking face, with
+  // «Снято 13 сентября» and a count in place of the day's seam — nothing to take the whole of — and a
+  // dashed plate under each day.
+  expect(screen.root.findAllByType(GlassBar)).toHaveLength(1);
+  expect(screen.root.findAllByType(AppBar)).toHaveLength(0);
   expect(screen.seams()).toHaveLength(0);
   expect(screen.heads().map((one) => [one.props.label, one.props.count])).toEqual([
     [ru.upload.shotOn('13 сентября'), ru.memory.frames(3)],
@@ -824,23 +824,24 @@ const going = {
   parts: {},
 };
 
-test('on the queue’s route the roll stands in the queue’s face: the plain bar, the grid in the margins, each day a seam over its frames', async () => {
+test('on the queue’s route the roll stands in the picking face’s own look: the glass bar, the grid edge to edge, each day a seam over its frames', async () => {
   uploads.queue = [going];
   const screen = await open({ queue: true });
-  // `UploadQueue`: «Добавить кадры» over «Свадьба Лизы и Марка · 12–13 сентября», no glass, no switch.
-  expect(screen.root.findByType(AppBar).props.title).toBe('Добавить кадры');
-  expect(screen.root.findAllByType(GlassBar)).toHaveLength(0);
-  expect(screen.root.findByType(AppBar).props.subtitle).toBe(
-    'Свадьба Лизы и Марка · 12–13 сентября',
-  );
-  expect(screen.icon(ru.upload.picking)).toHaveLength(0);
-  // Spec 7.8, detail 64 and `UploadQueue.json` e29–e31: 117.33 across, 3 apart, in the margins 16.
-  expect(screen.tile('a1')().props.style).toEqual({ width: (390 - 16 * 2 - GRID_GAP * 2) / 3 });
-  expect((390 - 16 * 2 - GRID_GAP * 2) / 3).toBeCloseTo(117.33, 2);
-  expect(screen.tile('a1')().props.lane).toBe('pick');
-  expect(screen.tile('a1')().props.ring).toBe(true);
-  // Spec 8, `UploadQueue` and 10.11: nothing marked, no «Отправить» and no bottom layer at all — the
-  // sending is what the screen is about, and a dead button would argue with it.
+  // `UploadQueue` (28 October): «Добавить кадры» over «в „Свадьба Лизы и Марка“», the way back and the
+  // switch for the mode — the same bar as the picking face, slot for slot.
+  const bar = screen.root.findByType(GlassBar);
+  expect(screen.root.findAllByType(AppBar)).toHaveLength(0);
+  expect(bar.props.title).toBe('Добавить кадры');
+  expect(bar.props.meta).toBe(ru.upload.into('Свадьба Лизы и Марка'));
+  expect(screen.icon(ru.upload.picking)).toHaveLength(1);
+  expect(screen.icon(ru.upload.picking)[0].props.on).toBe(true);
+  // Spec 7.8, detail 64 and `UploadQueue.json` e29–e31 (28 October): the feed's own grid — 129 across
+  // with 2 between, no margin, no radius, the 24 circle in the corner.
+  expect(screen.tile('a1')().props.style).toEqual({ width: (390 - FEED_GAP * 2) / 3 });
+  expect(screen.tile('a1')().props.lane).toBe('feed');
+  expect(screen.tile('a1')().props.ring).toBeUndefined();
+  // Spec 8, `UploadQueue` and 10.11: nothing marked, no «Отправить» — the sending is what the screen
+  // is about, and a dead button would argue with it.
   expect(screen.root.findAllByType(ActionBar)).toHaveLength(0);
   expect(screen.button(ru.action.send)).toHaveLength(0);
   // The queue's grid draws the very seam the picking face does (TASK-541): no day heading with a
@@ -855,11 +856,16 @@ test('on the queue’s route the roll stands in the queue’s face: the plain ba
   await screen.press(seam);
   expect(['a1', 'a2', 'a3'].map(screen.mark)).toEqual(['send', 'send', 'send']);
   expect(seam().props.picked).toBe(true);
-  // Something marked: the layer stands, the board's own there and not one floating over
-  // photographs, the number in the button and no line of counting over it.
+  // Something marked: the layer stands, floating over the photographs on the feed's own deepest
+  // footer, the number in the button and no line of counting over it.
   const layer = screen.root.findByType(ActionBar);
-  expect(layer.props.footer).toBeUndefined();
-  expect(layer.props.style).toBeUndefined();
+  expect(layer.props.footer).toBe('upload');
+  expect(StyleSheet.flatten(layer.props.style)).toEqual({
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+  });
   expect(layer.props.above).toBeUndefined();
   expect(screen.send().props.label).toBe(ru.upload.send(3));
   await screen.press(seam);
@@ -867,11 +873,12 @@ test('on the queue’s route the roll stands in the queue’s face: the plain ba
   expect(screen.root.findAllByType(ActionBar)).toHaveLength(0);
 });
 
-test('the queue’s face picks with no switch, and once nothing goes its «Отправить» stands out, the way it does on `Upload`', async () => {
+test('the queue’s face carries the mode’s own switch, and once nothing goes its «Отправить» stands out, the way it does on `Upload`', async () => {
   uploads.queue = [going];
   const screen = await open({ queue: true });
-  // No switch to turn it on with, so it is on — and with nothing marked, no layer (`UploadQueue`).
-  expect(screen.icon(ru.upload.picking)).toHaveLength(0);
+  // The switch is there and on (28 October), so a frame wears its circle — and with nothing marked,
+  // no layer (`UploadQueue`).
+  expect(screen.icon(ru.upload.picking)).toHaveLength(1);
   expect(screen.mark('a1')).toBe('off');
   expect(screen.root.findAllByType(ActionBar)).toHaveLength(0);
   await screen.press(screen.tile('a1'));
@@ -879,10 +886,47 @@ test('the queue’s face picks with no switch, and once nothing goes its «От�
   await screen.press(screen.tile('a1'));
   uploads.queue = [];
   await screen.redraw();
-  // Everything went: the same plain face and its grid, and the button back, out until something is marked.
-  expect(screen.root.findAllByType(GlassBar)).toHaveLength(0);
+  // Everything went: the same glass face and its grid, and the button back, out until something is
+  // marked.
+  expect(screen.root.findAllByType(GlassBar)).toHaveLength(1);
   expect(screen.seams()).toHaveLength(3);
   expect(screen.send().props.disabled).toBe(true);
+  // And the switch turns the picking off here too, as it does on the picking face: the circles go
+  // with it.
+  await screen.press(() => screen.icon(ru.upload.picking)[0]);
+  expect(screen.mark('a1')).toBeUndefined();
+});
+
+test('the queue and the picking face are one look: the same bar over the roll, the same grid, the same button at the foot', async () => {
+  // 28 October: `UploadQueue` is `Upload` in another state, so the three things a person sees first —
+  // the bar, the grid, and where «Отправить» stands — are the picking face's own. Read side by side,
+  // so a divergence in any one of the three turns this red.
+  uploads.queue = [going];
+  const pick = await open();
+  const queue = await open({ queue: true });
+
+  // 1. The bar: the glass one, with the same words in the same slots — and no plain bar at all.
+  expect(pick.root.findAllByType(GlassBar)).toHaveLength(1);
+  expect(queue.root.findAllByType(AppBar)).toHaveLength(0);
+  const pickBar = pick.root.findByType(GlassBar).props;
+  expect(queue.root.findByType(GlassBar).props).toMatchObject({
+    title: pickBar.title,
+    meta: pickBar.meta,
+    capsuleLabel: pickBar.capsuleLabel,
+  });
+  expect(queue.icon(ru.upload.picking)).toHaveLength(pick.icon(ru.upload.picking).length);
+
+  // 2. The grid: the same column width and the same lane, edge to edge.
+  expect(queue.tile('a1')().props.style).toEqual(pick.tile('a1')().props.style);
+  expect(queue.tile('a1')().props.lane).toBe(pick.tile('a1')().props.lane);
+
+  // 3. The button: floating over the photographs on the same footer. On the queue it stands only once
+  // something is marked, so mark one first.
+  await queue.press(queue.tile('a1'));
+  const pickLayer = pick.root.findByType(ActionBar).props;
+  const queueLayer = queue.root.findByType(ActionBar).props;
+  expect(queueLayer.footer).toBe(pickLayer.footer);
+  expect(StyleSheet.flatten(queueLayer.style)).toEqual(StyleSheet.flatten(pickLayer.style));
 });
 
 test('on the feed a day’s seam is flush with its strips, the gutter stands between strips, and nothing stands over the first day', async () => {
