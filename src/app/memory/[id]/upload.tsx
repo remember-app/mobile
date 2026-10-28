@@ -30,7 +30,6 @@ import {
   DayMark,
   FEED_GAP,
   GlassBar,
-  GRID_GAP,
   HintNote,
   Icon,
   IconButton,
@@ -104,14 +103,12 @@ const SeamCell = seamsOver<Row>((row) => row.day !== undefined);
  * Spec «Экраны»: `Upload`, and its four other faces — `UploadAccess`, `UploadLimited`,
  * `UploadQueue`, `UploadEmpty` — plus the sheet `SheetAskAll`. `UploadQueue` is a route of its own
  * (`queue.tsx`, this screen with `queue` on): «Отправить» hands the pick over and moves there, and
- * «Разобрать» on «Мои кадры» leads there. Three faces the layout draws apart:
+ * «Разобрать» on «Мои кадры» leads there. Two faces the layout draws apart (28 October):
  *
- * - **the feed** (`Upload`) — the whole roll and nothing to say over it: photographs edge to edge
- *   under the glass bar, the days as seams between them;
- * - **the queue** (`UploadQueue`, `UploadLimited`) — the same roll with something said over it, the
- *   sending and what did not go, or the partial grant: the plain bar with the memory named under the
- *   heading, the frames in the screen's margins, each day a seam as on the picking face — save under
- *   a partial grant, where there is no whole day to take and the heading counts what is here;
+ * - **a feed** (`Upload`, `UploadQueue`, `UploadLimited`) — the roll edge to edge under the glass
+ *   bar, the days as seams between them, the send button floating over the photographs: one look for
+ *   all three, because they are one screen's states. What tells them apart is only what is said over
+ *   the roll — the sending and what did not go, or the partial grant;
  * - **no feed** (`UploadAccess`, `UploadEmpty`, the waits) — the plain bar over a message.
  */
 export default function UploadScreen({ queue = false }: { queue?: boolean }) {
@@ -229,22 +226,17 @@ export default function UploadScreen({ queue = false }: { queue?: boolean }) {
 
   const feed = granted && rows.length > 0;
   /**
-   * The feed face is the roll with nothing said over it. The sending and a partial grant are said
-   * over it, and the layout draws those two in the queue face instead (`UploadQueue`,
-   * `UploadLimited`): the plain bar, and the frames in the margins.
+   * A face with no feed has nothing to pick and nothing to press, so choosing is on there whatever
+   * the switch was left at; where there is a feed, the switch on the glass bar is the word — the
+   * queue's bar carries it too (28 October).
    */
-  const glass = feed && !limited && !queue;
-  /**
-   * The queue face has no switch for the mode — its bar is the plain one — so picking is on there
-   * whatever the switch on the glass was left at.
-   */
-  const choosing = picking || !glass;
-  // The gutter of the grid this face stands in (spec 7.8), and the column measured out of it rather
-  // than flexed — `flex: 1/3` divides what a row has left after its gaps, and a last row of one
-  // frame has none to leave, so it came out wider than the rest. The feed runs edge to edge; the
-  // queue's grid stands in the screen's 16.
-  const gap = glass ? FEED_GAP : GRID_GAP;
-  const cell = { width: (width - (glass ? 0 : space.s4 * 2) - gap * 2) / columns };
+  const choosing = picking || !feed;
+  // The gutter of the grid (spec 7.8), and the column measured out of the window rather than flexed
+  // — `flex: 1/3` divides what a row has left after its gaps, and a last row of one frame has none
+  // to leave, so it came out wider than the rest. Every feed runs edge to edge, with no margin at
+  // all.
+  const gap = FEED_GAP;
+  const cell = { width: (width - gap * 2) / columns };
 
   /** Whether every frame of a day is taken. */
   const dayTaken = (day: ShootingDay<MediaLibrary.Asset>) =>
@@ -384,18 +376,21 @@ export default function UploadScreen({ queue = false }: { queue?: boolean }) {
    * all. With nothing going, the button stands there from the start and is simply out until
    * something is marked — the layout would rather show what this screen is for than hide it. While
    * something is going it stands only once something is marked (`UploadQueue`): the sending is what
-   * that screen is about, and a button with nothing to send would argue with it. On the feed it
-   * floats over the photographs on the deepest footer, the one that lies on them; under the queue's
-   * grid it is the board's own, fading the screen's ink the way `UploadLimited` draws it.
+   * that screen is about, and a button with nothing to send would argue with it. On every face with
+   * a feed it floats over the photographs on the deepest footer, the one that lies on them — the
+   * queue's grid and the partial grant's among them (28 October), where before they stood in the
+   * board's own footer under the grid.
    *
    * The count over the button is `UploadLimited`'s alone (spec 8): everywhere else the number rides
-   * in the button, and a day or a frame is let go of by a tap on it.
+   * in the button, and a day or a frame is let go of by a tap on it. With that count standing over
+   * it, the footer is the shallower `count` — the layout draws `UploadLimited`'s 176 and not the 210
+   * of the queue's own.
    */
   const layer =
     feed && choosing && (picked.size > 0 || queued.length === 0) ? (
       <ActionBar
-        style={glass ? styles.layer : undefined}
-        footer={glass ? 'upload' : undefined}
+        style={styles.layer}
+        footer={limited ? undefined : 'upload'}
         above={
           limited && picked.size > 0 ? (
             <>
@@ -461,11 +456,11 @@ export default function UploadScreen({ queue = false }: { queue?: boolean }) {
     // On the feed the board keeps nothing back for the status line: the photographs run under it
     // and the glass bar's own darkening is what makes the glyphs on it readable (spec 7.1).
     <Board
-      style={glass ? styles.bleed : undefined}
+      style={feed ? styles.bleed : undefined}
       // Spec 7.1: with no feed of photographs under it the bar is the plain one, and the memory is
       // named under the heading instead of inside a capsule of glass.
       bar={
-        glass ? undefined : (
+        feed ? undefined : (
           <AppBar
             title={s.upload.title}
             subtitle={subtitleFor(memory)}
@@ -473,50 +468,33 @@ export default function UploadScreen({ queue = false }: { queue?: boolean }) {
           />
         )
       }
-      footer={glass ? undefined : layer}
       body={styles.body}
       list={
         feed
-          ? ({ head, foot }) => (
+          ? () => (
               <FlatList
                 data={rows}
                 keyExtractor={(row) => row.key}
                 // A day's band lies over the strips either side of it (spec detail 65).
                 CellRendererComponent={SeamCell}
-                contentContainerStyle={
-                  glass
-                    ? [
-                        styles.feed,
-                        {
-                          // Spec 4: the body under the glass bar starts at 108 — the status line,
-                          // the bar's own 48 and 8 under it — and ends clear of the bottom layer,
-                          // where there is one.
-                          paddingTop: insets.top + height.roundViewer + space.s2,
-                          paddingBottom: picking ? board.footerTall : space.s5,
-                        },
-                      ]
-                    : styles.grid
-                }
+                contentContainerStyle={[
+                  styles.feed,
+                  {
+                    // Spec 4: the body under the glass bar starts at 108 — the status line, the
+                    // bar's own 48 and 8 under it — and ends clear of the bottom layer, where there
+                    // is one.
+                    paddingTop: insets.top + height.roundViewer + space.s2,
+                    paddingBottom: picking ? board.footerTall : space.s5,
+                  },
+                ]}
+                // What is said over the roll is the only thing here that is not a photograph, so the
+                // only thing that takes the screen's own margin — and only when it has something to
+                // say, so the first day stands directly under the bar.
                 ListHeaderComponent={
-                  glass ? (
-                    // On the feed the only thing that is not a photograph, so the only thing that
-                    // takes the screen's own margin — and only when it has something to say, so the
-                    // first day stands directly under the bar.
-                    said ? (
-                      <View style={[styles.head, styles.headFeed, styles.headSaid]}>
-                        {blocks()}
-                      </View>
-                    ) : null
-                  ) : (
-                    // The bar, once the board has no room to keep it standing, keeps the screen's
-                    // edges and not the grid's margins.
-                    <View>
-                      {head ? <View style={styles.edge}>{head}</View> : null}
-                      <View style={[styles.head, styles.lead]}>{blocks()}</View>
-                    </View>
-                  )
+                  said ? (
+                    <View style={[styles.head, styles.headFeed, styles.headSaid]}>{blocks()}</View>
+                  ) : null
                 }
-                ListFooterComponent={foot ? <View style={styles.edge}>{foot}</View> : null}
                 renderItem={({ item: row }) =>
                   row.day ? (
                     dayOf(row.day)
@@ -532,10 +510,9 @@ export default function UploadScreen({ queue = false }: { queue?: boolean }) {
                           // state this feed ever draws — the other two belong to the gallery, where
                           // a file is still being turned into a derivative.
                           state="ready"
-                          lane={glass ? 'feed' : 'pick'}
-                          // In the queue's grid a picked frame wears the 3 of `accent` round it too
-                          // (spec 7.4, «22 в очереди отправки»).
-                          ring={!glass}
+                          // The feed's own lane, with no rounding and the 24 circle in the corner
+                          // — the queue and the partial grant wear it too (spec 7.8, 28 October).
+                          lane="feed"
                           uri={item.uri}
                           // No circle at all with picking off: a frame that is not being picked is
                           // not a checkbox, and the layout takes the circles away with the mode.
@@ -574,7 +551,7 @@ export default function UploadScreen({ queue = false }: { queue?: boolean }) {
       {/* Over the feed and not above it, which is what makes it glass. «Добавить кадры» over the memory
           this material is going into — a plate and not a button: the memory's own screen is behind
           «Назад», and there is nothing else here to open. */}
-      {glass ? (
+      {feed ? (
         <GlassBar
           style={styles.glass}
           title={s.upload.title}
@@ -604,7 +581,7 @@ export default function UploadScreen({ queue = false }: { queue?: boolean }) {
         />
       ) : null}
 
-      {glass ? layer : null}
+      {feed ? layer : null}
 
       {/* Picking off, a tap opens the frame instead — the phone's own copy, at the size it was shot.
           ponytail: a video shows the poster the library hands back and does not play; the frame that
@@ -696,20 +673,16 @@ function subtitleFor(memory: Memory | null): string | undefined {
 
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
-    // The feed face keeps nothing back for the status line — the glass bar is what stands there.
+    // A feed keeps nothing back for the status line — the glass bar is what stands there.
     bleed: { paddingTop: 0 },
-    // Spec 4: the body under the plain bar starts at 124. The screen's margin is the app's 16.
+    // Spec 4: the body under the plain bar of a face with no feed starts at 124. The screen's margin
+    // is the app's 16.
     body: { paddingHorizontal: space.s4, paddingTop: LEAD },
     // The feed is the kit's own: edge to edge, and a day's seam flush with the strips on both sides
     // of it (`Upload`: the seam 108–128, the first frames at 128) — the gutter is between strips.
     feed: { flexGrow: 1 },
-    // The queue's grid stands in the screen's 16, and so does everything over it.
-    grid: { flexGrow: 1, paddingHorizontal: space.s4, paddingBottom: space.s5 },
-    // The bar and the bottom layer scrolling with the grid keep the screen's edges.
-    edge: { marginHorizontal: -space.s4 },
-    lead: { paddingTop: LEAD },
     strip: { flexDirection: 'row' },
-    // What the queue and the grant have to say, 16 apart (`UploadQueue`).
+    // What the sending and the grant have to say, 16 apart (`UploadQueue`).
     head: { gap: space.s4 },
     // Over the feed it takes the margin the photographs do not…
     headFeed: { paddingHorizontal: space.s4 },
