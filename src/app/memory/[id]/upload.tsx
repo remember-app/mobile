@@ -19,8 +19,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { listMemories, type Memory } from '@/api';
 import {
   ActionBar,
-  AppBar,
-  BackButton,
   Banner,
   BlockStuck,
   Board,
@@ -40,7 +38,7 @@ import {
   Upload,
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
-import { formatDay, formatEventDates, formatRuntime, formatWeekday } from '@/lib/dates';
+import { formatDay, formatRuntime, formatWeekday } from '@/lib/dates';
 import { useDensity } from '@/lib/density';
 import { type Failure, failure } from '@/lib/failure';
 import { rowsOf } from '@/lib/frames';
@@ -68,12 +66,6 @@ import {
  * one deliberate pin): around a photograph there must be nothing brighter than the photograph.
  */
 const room = themes.dark.color;
-
-/**
- * Where the body under the plain bar starts: spec 4's 124, less the status line and the bar's own
- * row over it — the phone's status line is measured by the board, not assumed.
- */
-const LEAD = board.bodyUpload - board.status - height.bar;
 
 /**
  * One line of the feed: a day of the roll, up to three of the frames shot on it — `lead` for the
@@ -110,7 +102,8 @@ const SeamCell = seamsOver<Row>((row) => row.day !== undefined);
  *   bar, the days as seams between them, the send button floating over the photographs: one look for
  *   all three, because they are one screen's states. What tells them apart is only what is said over
  *   the roll — the sending and what did not go, or the partial grant;
- * - **no feed** (`UploadAccess`, `UploadEmpty`, the waits) — the plain bar over a message.
+ * - **no feed** (`UploadAccess`, `UploadEmpty`, the waits) — the same glass bar over a message, and
+ *   no bottom layer: there is nothing to pick and nothing to send (28 October).
  */
 export default function UploadScreen({ queue = false }: { queue?: boolean }) {
   // `sent` is what the picking face handed over on its way here, for «Это всё?» to count.
@@ -122,6 +115,12 @@ export default function UploadScreen({ queue = false }: { queue?: boolean }) {
   const styles = useStyles();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  /**
+   * Where the content under the glass bar begins: spec 4's 108 — the status line, the bar's own 48
+   * and 8 under it. The feed's roll and the message card of a face with no feed start on the same
+   * line, the one screen's order (28 October); the phone's status line is measured, not assumed.
+   */
+  const underBar = insets.top + height.roundViewer + space.s2;
   // As many across as the person stands at (`@/lib/density`) — this roll is cut the way the
   // memory's own feed is cut, and the setting is the same one, the single frame of the scale
   // (spec 10.14.2) included: the pinch below walks it right on the roll.
@@ -456,135 +455,209 @@ export default function UploadScreen({ queue = false }: { queue?: boolean }) {
   }
 
   return (
-    // On the feed the board keeps nothing back for the status line: the photographs run under it
-    // and the glass bar's own darkening is what makes the glyphs on it readable (spec 7.1).
-    <Board
-      style={feed ? styles.bleed : undefined}
-      // Spec 7.1: with no feed of photographs under it the bar is the plain one, and the memory is
-      // named under the heading instead of inside a capsule of glass.
-      bar={
-        feed ? undefined : (
-          <AppBar
-            title={s.upload.title}
-            subtitle={subtitleFor(memory)}
-            left={<BackButton label={s.action.back} onPress={leave} />}
-          />
-        )
-      }
-      body={styles.body}
-      list={
-        feed
-          ? () => (
-              // The roll stands in a view of its own so a two-finger pinch is taken off the scroll
-              // before it begins (spec 10.14.1); a one-finger drag scrolls the roll as it always did.
-              <View style={styles.pinch} testID="density-pinch" {...pinch.panHandlers}>
-                <FlatList
-                  data={rows}
-                  keyExtractor={(row) => row.key}
-                  // A day's band lies over the strips either side of it (spec detail 65).
-                  CellRendererComponent={SeamCell}
-                  contentContainerStyle={[
-                    styles.feed,
-                    {
-                      // Spec 4: the body under the glass bar starts at 108 — the status line, the
-                      // bar's own 48 and 8 under it — and ends clear of the bottom layer, where there
-                      // is one.
-                      paddingTop: insets.top + height.roundViewer + space.s2,
-                      paddingBottom: picking ? board.footerTall : space.s5,
-                    },
-                  ]}
-                  // What is said over the roll is the only thing here that is not a photograph, so the
-                  // only thing that takes the screen's own margin — and only when it has something to
-                  // say, so the first day stands directly under the bar.
-                  ListHeaderComponent={
-                    said ? (
-                      <View style={[styles.head, styles.headFeed, styles.headSaid]}>
-                        {blocks()}
-                      </View>
-                    ) : null
-                  }
-                  renderItem={({ item: row }) =>
-                    row.day ? (
-                      dayOf(row.day)
-                    ) : row.unseen ? (
-                      <DashedNote text={s.upload.restUnseen} style={styles.unseen} />
-                    ) : (
-                      // A day's strips a gutter apart, and its first one flush with the day over it.
-                      <View style={[styles.strip, { gap, marginTop: row.lead ? 0 : gap }]}>
-                        {row.frames.map((item) => (
-                          <Tile
-                            key={item.id}
-                            // Every frame here is one the phone already holds, so `ready` is the only
-                            // state this feed ever draws — the other two belong to the gallery, where
-                            // a file is still being turned into a derivative.
-                            state="ready"
-                            // The feed's own lane, with no rounding and the 24 circle in the corner
-                            // — the queue and the partial grant wear it too (spec 7.8, 28 October).
-                            lane="feed"
-                            uri={item.uri}
-                            // No circle at all with picking off: a frame that is not being picked is
-                            // not a checkbox, and the layout takes the circles away with the mode.
-                            pick={choosing ? (picked.has(item.id) ? 'send' : 'off') : undefined}
-                            // The kit marks a video by how long it runs rather than by the word
-                            // «video».
-                            length={
-                              item.mediaType === 'video' ? formatRuntime(item.duration) : undefined
-                            }
-                            label={nameOf(item)}
-                            onPress={() => (choosing ? toggle(item.id) : setOpen(item))}
-                            style={cell}
-                          />
-                        ))}
-                      </View>
-                    )
-                  }
+    <View style={styles.screen}>
+      {/* The board keeps nothing back for the status line: the photographs and the message run
+          under the glass bar, whose own darkening is what makes the glyphs on it readable (spec
+          7.1). The bar is not the board's own: it floats over the whole screen, message face too. */}
+      <Board
+        style={styles.bleed}
+        body={styles.body}
+        list={
+          feed
+            ? () => (
+                // The roll stands in a view of its own so a two-finger pinch is taken off the scroll
+                // before it begins (spec 10.14.1); a one-finger drag scrolls the roll as it always did.
+                <View style={styles.pinch} testID="density-pinch" {...pinch.panHandlers}>
+                  <FlatList
+                    data={rows}
+                    keyExtractor={(row) => row.key}
+                    // A day's band lies over the strips either side of it (spec detail 65).
+                    CellRendererComponent={SeamCell}
+                    contentContainerStyle={[
+                      styles.feed,
+                      {
+                        // Spec 4: the roll starts on the body's own line under the glass bar and ends
+                        // clear of the bottom layer, where there is one.
+                        paddingTop: underBar,
+                        paddingBottom: picking ? board.footerTall : space.s5,
+                      },
+                    ]}
+                    // What is said over the roll is the only thing here that is not a photograph, so the
+                    // only thing that takes the screen's own margin — and only when it has something to
+                    // say, so the first day stands directly under the bar.
+                    ListHeaderComponent={
+                      said ? (
+                        <View style={[styles.head, styles.headFeed, styles.headSaid]}>
+                          {blocks()}
+                        </View>
+                      ) : null
+                    }
+                    renderItem={({ item: row }) =>
+                      row.day ? (
+                        dayOf(row.day)
+                      ) : row.unseen ? (
+                        <DashedNote text={s.upload.restUnseen} style={styles.unseen} />
+                      ) : (
+                        // A day's strips a gutter apart, and its first one flush with the day over it.
+                        <View style={[styles.strip, { gap, marginTop: row.lead ? 0 : gap }]}>
+                          {row.frames.map((item) => (
+                            <Tile
+                              key={item.id}
+                              // Every frame here is one the phone already holds, so `ready` is the only
+                              // state this feed ever draws — the other two belong to the gallery, where
+                              // a file is still being turned into a derivative.
+                              state="ready"
+                              // The feed's own lane, with no rounding and the 24 circle in the corner
+                              // — the queue and the partial grant wear it too (spec 7.8, 28 October).
+                              lane="feed"
+                              uri={item.uri}
+                              // No circle at all with picking off: a frame that is not being picked is
+                              // not a checkbox, and the layout takes the circles away with the mode.
+                              pick={choosing ? (picked.has(item.id) ? 'send' : 'off') : undefined}
+                              // The kit marks a video by how long it runs rather than by the word
+                              // «video».
+                              length={
+                                item.mediaType === 'video'
+                                  ? formatRuntime(item.duration)
+                                  : undefined
+                              }
+                              label={nameOf(item)}
+                              onPress={() => (choosing ? toggle(item.id) : setOpen(item))}
+                              style={cell}
+                            />
+                          ))}
+                        </View>
+                      )
+                    }
+                  />
+                </View>
+              )
+            : undefined
+        }
+      >
+        {feed ? null : (
+          <>
+            {/* A face with no feed keeps the same body under the same glass: the card at 108, the
+                middle of the whole screen for what stands in place of a roll (spec 4, 28 October). */}
+            {said ? (
+              <View style={[styles.head, styles.headSaid, { marginTop: underBar }]}>
+                {blocks()}
+              </View>
+            ) : null}
+            <NoFeed
+              error={galleryError}
+              access={access}
+              ask={ask}
+              reading={reading}
+              onRetry={retry}
+              top={said ? 0 : underBar}
+            />
+          </>
+        )}
+        {feed ? layer : null}
+
+        {/* Picking off, a tap opens the frame instead — the phone's own copy, at the size it was shot.
+          ponytail: a video shows the poster the library hands back and does not play; the frame that
+          plays is the one already in a memory (`src/screens/memory/frame-viewer.tsx`). The day somebody
+          wants playback here, it is `expo-video` over `getAssetInfoAsync().localUri`. */}
+        <Modal
+          visible={open !== null}
+          statusBarTranslucent
+          animationType="fade"
+          onRequestClose={() => setOpen(null)}
+        >
+          <ThemePin value="dark">
+            <View style={styles.room}>
+              {open ? (
+                <Image
+                  source={{ uri: open.uri }}
+                  contentFit="contain"
+                  accessibilityLabel={nameOf(open)}
+                  style={StyleSheet.absoluteFill}
+                />
+              ) : null}
+              <View style={[styles.roomBar, { paddingTop: insets.top }]}>
+                <IconButton
+                  icon={X}
+                  label={s.action.close}
+                  tone="viewer"
+                  size={height.roundViewer}
+                  onPress={() => setOpen(null)}
                 />
               </View>
-            )
-          : undefined
-      }
-    >
-      {feed ? null : (
-        <>
-          <View style={[styles.head, said ? styles.headSaid : null]}>{blocks()}</View>
-          <NoFeed
-            error={galleryError}
-            access={access}
-            ask={ask}
-            reading={reading}
-            onRetry={retry}
-          />
-        </>
-      )}
+            </View>
+          </ThemePin>
+        </Modal>
 
-      {/* Over the feed and not above it, which is what makes it glass. «Добавить кадры» over the memory
-          this material is going into — a plate and not a button: the memory's own screen is behind
-          «Назад», and there is nothing else here to open. */}
-      {feed ? (
-        <GlassBar
-          style={styles.glass}
-          title={s.upload.title}
-          meta={memory ? s.upload.into(memory.title) : undefined}
-          // The density pill takes the capsule's slot for as long as the pinch walks it, and the
-          // 200ms it takes to fade — the capsule itself is back the moment the fingers lift.
-          middle={
-            pinch.pinching || pinch.leaving ? (
-              <DensityPill value={density} leaving={pinch.leaving} />
-            ) : undefined
+        {/* `SheetAskAll` — doc-06's one question, and the person's own answer to it. Both buttons are
+          equal in weight: this is their word about themselves, not something wanted from them. */}
+        <Sheet
+          visible={asking}
+          onCancel={() => answerAskAll(null)}
+          // Spec 8, `SheetAskAll`: the line of what went, then the question with its paragraph 8 under
+          // it, one block with it.
+          head={
+            <View style={styles.result}>
+              <View
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+                style={styles.tick}
+              >
+                <Icon icon={Check} size={15} color={color.sparkInk} />
+              </View>
+              <Text role="rowSm">{s.upload.sentToMemory(sent)}</Text>
+            </View>
           }
-          capsuleLabel={
-            memory ? `${s.upload.title}, ${s.upload.into(memory.title)}` : s.upload.title
+          title={s.upload.askAll}
+          lead={
+            <Text role="bodySm" tone="muted">
+              {s.upload.askAllText}
+            </Text>
           }
-          left={
-            <IconButton
-              icon={ChevronLeft}
-              label={s.action.back}
-              tone="glass"
-              size={height.roundViewer}
-              onPress={leave}
-            />
+          footer={
+            <>
+              <Button
+                variant="paper"
+                label={s.upload.thatsAll}
+                onPress={() => answerAskAll('done')}
+              />
+              <Button
+                variant="secondary"
+                label={s.upload.moreToCome}
+                onPress={() => answerAskAll('more_coming')}
+              />
+            </>
           }
-          right={
+        />
+      </Board>
+
+      {/* Over the whole screen and not above it, which is what makes it glass. «Добавить кадры»
+          over the memory this material is going into — a plate and not a button: the memory's own
+          screen is behind «Назад», and there is nothing else here to open. A face with no feed
+          keeps the bar and its empty right slot, having nothing there to pick (28 October). */}
+      <GlassBar
+        style={styles.glass}
+        title={s.upload.title}
+        meta={memory ? s.upload.into(memory.title) : undefined}
+        // The density pill takes the capsule's slot for as long as the pinch walks it, and the
+        // 200ms it takes to fade — the capsule itself is back the moment the fingers lift.
+        middle={
+          feed && (pinch.pinching || pinch.leaving) ? (
+            <DensityPill value={density} leaving={pinch.leaving} />
+          ) : undefined
+        }
+        capsuleLabel={memory ? `${s.upload.title}, ${s.upload.into(memory.title)}` : s.upload.title}
+        left={
+          <IconButton
+            icon={ChevronLeft}
+            label={s.action.back}
+            tone="glass"
+            size={height.roundViewer}
+            onPress={leave}
+          />
+        }
+        right={
+          feed ? (
             <IconButton
               icon={CircleCheckBig}
               label={s.upload.picking}
@@ -593,110 +666,28 @@ export default function UploadScreen({ queue = false }: { queue?: boolean }) {
               on={picking}
               onPress={() => setPicking((was) => !was)}
             />
-          }
-        />
-      ) : null}
-
-      {feed ? layer : null}
-
-      {/* Picking off, a tap opens the frame instead — the phone's own copy, at the size it was shot.
-          ponytail: a video shows the poster the library hands back and does not play; the frame that
-          plays is the one already in a memory (`src/screens/memory/frame-viewer.tsx`). The day somebody
-          wants playback here, it is `expo-video` over `getAssetInfoAsync().localUri`. */}
-      <Modal
-        visible={open !== null}
-        statusBarTranslucent
-        animationType="fade"
-        onRequestClose={() => setOpen(null)}
-      >
-        <ThemePin value="dark">
-          <View style={styles.room}>
-            {open ? (
-              <Image
-                source={{ uri: open.uri }}
-                contentFit="contain"
-                accessibilityLabel={nameOf(open)}
-                style={StyleSheet.absoluteFill}
-              />
-            ) : null}
-            <View style={[styles.roomBar, { paddingTop: insets.top }]}>
-              <IconButton
-                icon={X}
-                label={s.action.close}
-                tone="viewer"
-                size={height.roundViewer}
-                onPress={() => setOpen(null)}
-              />
-            </View>
-          </View>
-        </ThemePin>
-      </Modal>
-
-      {/* `SheetAskAll` — doc-06's one question, and the person's own answer to it. Both buttons are
-          equal in weight: this is their word about themselves, not something wanted from them. */}
-      <Sheet
-        visible={asking}
-        onCancel={() => answerAskAll(null)}
-        // Spec 8, `SheetAskAll`: the line of what went, then the question with its paragraph 8 under
-        // it, one block with it.
-        head={
-          <View style={styles.result}>
-            <View
-              accessibilityElementsHidden
-              importantForAccessibility="no-hide-descendants"
-              style={styles.tick}
-            >
-              <Icon icon={Check} size={15} color={color.sparkInk} />
-            </View>
-            <Text role="rowSm">{s.upload.sentToMemory(sent)}</Text>
-          </View>
-        }
-        title={s.upload.askAll}
-        lead={
-          <Text role="bodySm" tone="muted">
-            {s.upload.askAllText}
-          </Text>
-        }
-        footer={
-          <>
-            <Button
-              variant="paper"
-              label={s.upload.thatsAll}
-              onPress={() => answerAskAll('done')}
-            />
-            <Button
-              variant="secondary"
-              label={s.upload.moreToCome}
-              onPress={() => answerAskAll('more_coming')}
-            />
-          </>
+          ) : undefined
         }
       />
-    </Board>
+    </View>
   );
-}
-
-/**
- * The line under «Добавить кадры» on the plain bar: which memory this is going into and when it
- * happened. The separator goes with the dates, so a memory whose dates will not read is never left
- * hanging off a «·» — `@/lib/frames` learnt that one the hard way.
- */
-function subtitleFor(memory: Memory | null): string | undefined {
-  if (memory === null) return undefined;
-  const when = formatEventDates(memory.event_start, memory.event_end);
-  return when === '' ? memory.title : `${memory.title} · ${when}`;
 }
 
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
-    // A feed keeps nothing back for the status line — the glass bar is what stands there.
+    // Nothing is kept back for the status line — the glass bar is what stands there, over the
+    // photographs and over a message alike (28 October).
     bleed: { paddingTop: 0 },
-    // Spec 4: the body under the plain bar of a face with no feed starts at 124. The screen's margin
-    // is the app's 16.
-    body: { paddingHorizontal: space.s4, paddingTop: LEAD },
     // The feed is the kit's own: edge to edge, and a day's seam flush with the strips on both sides
     // of it (`Upload`: the seam 108–128, the first frames at 128) — the gutter is between strips.
     feed: { flexGrow: 1 },
+    // The bar floats over the whole screen, so the body is a sibling of the board and not a child
+    // of it: this keeps the two on the same frame.
+    screen: { flex: 1 },
+    // A face with no feed: the screen's margin of 16, and the whole height of the body under the
+    // glass for what stands in place of the roll — an empty state is centred on it, not under the
+    // bar (spec 4, `UploadEmpty`).
+    body: { paddingHorizontal: space.s4 },
     // The view the roll and the pinch stand in: nothing of its own but the room the list fills.
     pinch: { flex: 1 },
     strip: { flexDirection: 'row' },

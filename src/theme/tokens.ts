@@ -201,13 +201,6 @@ export const board = {
   bannerMain: 112,
   bodyCreate: 124,
   bodyAccount: 132,
-  /**
-   * The `Upload*` faces with no feed under them, under the plain bar with a subtitle (spec 4: 124,
-   * `UploadEmpty`) — and the message card of `UploadAccess`, which the layout stands lower still, at
-   * 132. A face with a feed starts higher, under the glass bar, at 108.
-   */
-  bodyUpload: 124,
-  bodyUploadCard: 132,
 } as const;
 
 /**

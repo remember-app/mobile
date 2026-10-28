@@ -239,9 +239,8 @@ export function Board({ bar, heading, footer, body, list, children, style }: Boa
  * - **root** — the screen's own name in `displaySm` and one round button on the right;
  * - **inner** — a back button, the name in `barTitle` — the product's own word, which does not grow
  *   and fits its line on 375; on a narrower phone it wraps at a space rather than lose its end;
- * - **inner with a subtitle** — a `meta` line under the name, the whole `Upload*` family: a memory's
- *   name, a film's, how long it took — words that carry sense, so they wrap and the bar grows down
- *   (TASK-400);
+ * - **inner with a subtitle** — a `meta` line under the name: a film's memory, how long it took —
+ *   words that carry sense, so they wrap and the bar grows down (TASK-400);
  * - **inner with a right action** — the same plus a round button, or the «смотрят сейчас» pill;
  * - **inner with a quiet action** — a bare 44 whose glyph is `faint`, the way to something grave
  *   that is there without arguing with the name or with the screen's main button;

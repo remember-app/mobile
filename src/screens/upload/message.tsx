@@ -4,12 +4,16 @@ import { Linking, StyleSheet, View } from 'react-native';
 
 import { Button, CardMessage, Empty, Waiting } from '@/kit';
 import { useStrings } from '@/lib/language';
-import { board, themed } from '@/theme';
+import { themed } from '@/theme';
 
 /**
  * The body of the upload screen with no feed on it, in the four states the layout draws it in: a
  * gallery that would not open, the phone not having answered yet, the grant not given, and the roll
  * still arriving — and an empty roll under all of them.
+ *
+ * It is the same screen as the feed (`Upload`), so the message card starts on the feed's own line,
+ * 108 under the glass bar, and what stands in place of the roll is centred on the whole body — 0…844
+ * under the glass, 422 in the middle — as `FramesEmpty` is (spec 4, 28 October).
  */
 export function NoFeed({
   error,
@@ -17,12 +21,15 @@ export function NoFeed({
   ask,
   reading,
   onRetry,
+  top,
 }: {
   error: string | null;
   access: MediaLibrary.PermissionResponse | null;
   ask: () => Promise<MediaLibrary.PermissionResponse>;
   reading: boolean;
   onRetry: () => void;
+  /** Where the card begins under the glass bar — 0 once a block of the screen already stands there. */
+  top: number;
 }) {
   const s = useStrings();
   const styles = useStyles();
@@ -31,7 +38,7 @@ export function NoFeed({
   // done about it, the same shape `UploadAccess` uses — this one can only be tried again.
   if (error !== null) {
     return (
-      <CardMessage icon={ImageIcon} text={error} style={styles.message}>
+      <CardMessage icon={ImageIcon} text={error} style={{ marginTop: top }}>
         <Button
           variant="primary"
           size="md"
@@ -59,7 +66,7 @@ export function NoFeed({
       <CardMessage
         icon={ImageIcon}
         text={access.canAskAgain ? s.upload.explain : s.upload.refused}
-        style={styles.message}
+        style={{ marginTop: top }}
       >
         <Button
           variant="primary"
@@ -81,8 +88,8 @@ export function NoFeed({
   }
 
   // `UploadEmpty` — access given and nothing to give back. No bottom layer under it: there is
-  // nothing to offer. In the middle of the body down to the screen's edge (124 to 844), like the
-  // waits above, and not pinned under the bar.
+  // nothing to offer. The body under the glass bar is the whole screen (0…844), so this stands in
+  // its middle — 422 — like the waits above, and not under the bar.
   return (
     <View style={styles.middle}>
       <Empty
@@ -99,7 +106,5 @@ const useStyles = themed(() =>
   StyleSheet.create({
     centre: { flexGrow: 1, alignItems: 'center', justifyContent: 'center' },
     middle: { flexGrow: 1, justifyContent: 'center' },
-    // The message card stands lower than the body under the bar (`UploadAccess`: 132, not 124).
-    message: { marginTop: board.bodyUploadCard - board.bodyUpload },
   }),
 );

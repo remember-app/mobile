@@ -786,31 +786,31 @@ test('the block of sending is there only while this memory has something in the 
   expect(screen.tiles()).toHaveLength(6);
 });
 
-test('the plate over the roll names the memory and says when it was — and without a memory, or a day that will not read, says less and never a dot alone', async () => {
+test('the plate over the roll names the memory, and a face with no feed keeps the same plate', async () => {
   const screen = await open();
   expect(screen.root.findByType(GlassBar).props.meta).toBe(ru.upload.into('Свадьба Лизы и Марка'));
   expect(screen.root.findByType(GlassBar).props.capsuleLabel).toBe(
     `${ru.upload.title}, ${ru.upload.into('Свадьба Лизы и Марка')}`,
   );
 
-  // With the roll empty the plain bar takes over, and names the memory and its days under the heading.
+  // With the roll empty the same plate stays over the message (28 October): no plain bar anywhere,
+  // and the right slot left empty — there is nothing here to pick.
   lib.getAssetsAsync.mockResolvedValue({ assets: [], hasNextPage: false, endCursor: undefined });
   const plain = await open();
-  expect(plain.root.findByType(AppBar).props.subtitle).toBe(
-    'Свадьба Лизы и Марка · 12–13 сентября',
+  expect(plain.root.findAllByType(AppBar)).toHaveLength(0);
+  const bar = plain.root.findByType(GlassBar);
+  expect(bar.props.meta).toBe(ru.upload.into('Свадьба Лизы и Марка'));
+  expect(bar.props.capsuleLabel).toBe(
+    `${ru.upload.title}, ${ru.upload.into('Свадьба Лизы и Марка')}`,
   );
-  vi.unstubAllGlobals();
-  serve((asked) =>
-    asked.path === '/memories'
-      ? [memory({ event_start: 'not a day', event_end: null })]
-      : undefined,
-  );
-  const unreadable = await open();
-  expect(unreadable.root.findByType(AppBar).props.subtitle).toBe('Свадьба Лизы и Марка');
+  expect(bar.props.right).toBeUndefined();
+  expect(plain.icon(ru.upload.picking)).toHaveLength(0);
+
+  // Without a memory the plate says only what it is; it invents no second line.
   vi.unstubAllGlobals();
   serve(() => 'offline');
   const unknown = await open();
-  expect(unknown.root.findByType(AppBar).props.subtitle).toBeUndefined();
+  expect(unknown.root.findByType(GlassBar).props.meta).toBeUndefined();
 });
 
 /** One file of this memory on its way up — what puts the screen in the queue's face. */
