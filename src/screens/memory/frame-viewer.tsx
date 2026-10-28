@@ -70,6 +70,7 @@ import { useStrings } from '@/lib/language';
 import { useTurnsWithPhone } from '@/lib/orientation';
 import { FrameInfoPanel } from '@/screens/memory/frame-info';
 import {
+  frameInfoPanelTop,
   frameInfoRoom,
   height,
   duration as motion,
@@ -226,7 +227,7 @@ export function FrameViewer({
    * The room is the whole of the window except while the frame's own screen is standing under the
    * picture (TASK-478): the panel is not a sheet rising over the frame, the frame stays and gives up
    * the bottom of the screen to it. So the same `frameBox` in a shorter room is all that takes — a
-   * 3:4 frame that was 390 × 520 becomes 390 × 352, and `cover` crops what no longer fits rather
+   * 3:4 frame that was 390 × 520 becomes 390 × 289, and `cover` crops what no longer fits rather
    * than the frame shrinking out of its own proportions.
    *
    * The panel arrives rather than appearing (TASK-540, spec 10.14.3), so what `rise` moves between
@@ -238,8 +239,12 @@ export function FrameViewer({
   const room = frameInfoRoom(screen);
   const full = frameBox(item.width, item.height, width, screen, screen);
   const box = frameBox(item.width, item.height, width, screen, room);
-  /** How tall the panel stands at rest: what it takes off the frame, and what it rises by. */
-  const panelTall = screen - room;
+  /**
+   * How tall the panel stands at rest: from where the layout puts its top edge down to the bottom of
+   * the window — which is what it rises by. Its top is the frame's room and a hairline of black, so
+   * it is the panel's own number that says where it lands, not the room the frame gave up.
+   */
+  const panelTall = screen - frameInfoPanelTop(screen);
   /**
    * The four numbers of the arrival, all of them read off `rise` (TASK-540): the room the frame is
    * centred in, the box it is drawn in, and how far the panel still has to come. One value, four
@@ -885,7 +890,7 @@ export function FrameViewer({
               // Above the strip rather than under it: the tools lie over the picture now, so a
               // notice pinned to the bottom of the stage would stand behind them. The panel has
               // taken the strip's place (TASK-478), so there is nothing left to clear but the
-              // foot of the stage — which is the panel's own top edge.
+              // foot of the stage — which is a hairline above the panel's own top edge.
               <Banner
                 text={notice}
                 style={[styles.notice, { bottom: panel ? space.s4 : toolsTall + space.s4 }]}
@@ -1095,8 +1100,10 @@ export function FrameViewer({
               the night it is drawn in is the one the photograph above it is in, not the one the app
               happens to be in.
 
-              It takes whatever the frame gave up, which is `frameInfoRoom` — 352 on a phone held
-              upright, less on one lying on its side, and the whole screen when it is shut.
+              It stands from where the layout puts its top edge, `frameInfoPanelTop` — 292 on a
+              phone held upright, less on one lying on its side, and the whole screen when it is
+              shut — so it is the panel's own number that says where it lands, a hairline of black
+              under the frame's room.
 
               It arrives rather than appearing (TASK-540, spec 10.14.3): the box is at the foot of
               the window and the same `rise` that shrinks the frame above it carries it the rest of
@@ -1175,7 +1182,7 @@ const TOGGLE = [{ name: 'activate' }];
  * `room` is how far down the frame may reach, and it is the whole screen except while the frame's
  * own screen is standing under the picture (TASK-478) — which is a shorter window either way up the
  * phone is held. It is a separate argument and not a smaller `screenHeight` because which way up the
- * phone is held is read off the two numbers together, and a frame squeezed into 352 of a 390-wide
+ * phone is held is read off the two numbers together, and a frame squeezed into 289 of a 390-wide
  * phone would otherwise turn itself on its side.
  *
  * A record the api has not measured — `width` and `height` are null until the worker has looked —
@@ -1194,7 +1201,7 @@ export function frameBox(
   // The side that runs across the way the phone is held, and the room bounds whichever of the two
   // that is standing up-and-down: `across` with the phone upright, `along` with it turned, where
   // it is the screen's own height that the frame is measured against. One rule both ways up, which
-  // is what the layout says and what the four `Viewer*` boxes are — 352 of a standing phone, and
+  // is what the layout says and what the four `Viewer*` boxes are — 289 of a standing phone, and
   // as much of a turned one as its shorter window can spare the panel (`frameInfoRoom`).
   const along = turned ? Math.min(screenHeight, down) : screenWidth;
   // The other side is bounded by the screen itself, for the same reason the room is not passed for

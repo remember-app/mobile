@@ -110,14 +110,14 @@ test('the pill of when and who is the road to the frame’s own screen, and the 
   expect(viewer).toContain('slide.current(panel ? 0 : 1)');
   expect(viewer).not.toContain('fetchFrameInfo');
   expect(viewer).toContain('{panel ? (');
-  // The frame gives up the top of the window for it — the layout's 352 upright, and less on a phone
+  // The frame gives up the top of the window for it — the layout's 289 upright, and less on a phone
   // lying on its side, which has a fraction of that height to divide (`frameInfoRoom`).
   expect(viewer).toContain('const room = frameInfoRoom(screen);');
   expect(viewer).toContain(
     'const full = frameBox(item.width, item.height, width, screen, screen);',
   );
   // The screen's own two numbers and the room beside them: which way up the phone is held is read
-  // off the first pair, and a frame squeezed into 352 of a 390-wide phone must not read as a turn.
+  // off the first pair, and a frame squeezed into 289 of a 390-wide phone must not read as a turn.
   expect(viewer).toContain('const box = frameBox(item.width, item.height, width, screen, room);');
   expect(ru.viewer.details).toBe('Сведения о кадре');
   expect(ru.viewer.hideDetails).toBe('Скрыть сведения');
