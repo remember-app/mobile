@@ -112,7 +112,6 @@ test('the strip can be walked to any frame without measuring one: the frame in h
   expect(layout(null, 2)).toEqual({ length: 44, offset: 64, index: 2 });
   expect(layout(null, 3)).toEqual({ length: 30, offset: 3 * 32 + 14, index: 3 });
   expect(layout(null, 5)).toEqual({ length: 30, offset: 5 * 32 + 14, index: 5 });
-  expect(219 - 173).toBe(44 + 2);
 });
 
 test('the play circle stands in the corner of the frame in hand, 4 in from its left and its foot', async () => {

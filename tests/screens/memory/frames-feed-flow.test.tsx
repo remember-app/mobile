@@ -751,7 +751,6 @@ test('a seam takes the place of the gutter on each side of it, and lies over the
   for (const seam of screen.seams()) {
     expect(StyleSheet.flatten(seam.props.style)).toMatchObject({ marginVertical: -FEED_GAP });
   }
-  expect(673 - 653).toBe(20);
   // The band of a seam that picks spills 12 onto its neighbours and wins there (detail 65), so its
   // cell is the one on top.
   const cells = screen.root
