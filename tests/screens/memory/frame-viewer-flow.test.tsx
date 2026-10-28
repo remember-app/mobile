@@ -1021,26 +1021,30 @@ test('tools that were put away come back on a swipe and on a step along the stri
   expect(tools(strip).bar).toBe(1);
 });
 
-test('a tap beside a video’s 72 hides the interface and does not stop the film', async () => {
-  // TASK-574, #4: the play and pause is the 72 in the middle of the frame and nowhere else. A
-  // finger on the picture is the same tidy-up a photograph's is — the glass, the shades and the
-  // strip go, the film keeps playing, and a second tap brings the tools back.
+test('a tap beside a video’s 72 hides the interface and the button with it, and does not stop the film', async () => {
+  // TASK-583 (m-42 #1): the play and pause is the 72 in the middle of the frame and nowhere else,
+  // and the tap that hides the glass, the shades and the strip hides this too — m-40 left it
+  // standing on purpose, and the person repealed that after the second test on a phone. A finger on
+  // the picture never pauses the film, and the second tap brings the button and the tools back.
   serve(() => undefined);
   const clip = { ...shots()[0], kind: 'video' as const, preview_url: 'https://r2.example/v.mp4' };
   player.playing = true;
   const screen = await open({ item: clip, frames: [clip] });
   // The window starts the film on being given it; what this test is about is the tap, not that.
   player.play.mockClear();
+  const button = () => screen.root.findAllByType(IconButton).filter((one) => one.props.size === 72);
   expect(tools(screen)).toEqual({ bar: 1, strip: 1, scrubber: 1 });
+  expect(button()).toHaveLength(1);
   await tap(screen);
   expect(player.pause).not.toHaveBeenCalled();
   expect(tools(screen)).toEqual({ bar: 0, strip: 0, scrubber: 0 });
-  // The 72 stays: it is inside the frame and is the film's own transport, not a tool.
-  expect(screen.root.findAllByType(IconButton).filter((one) => one.props.size === 72)).toHaveLength(
-    1,
-  );
+  // Gone from the tree and not merely invisible: a button left in it would still take a finger and
+  // still be read out as a control floating over a picture with nothing else on it.
+  expect(button()).toHaveLength(0);
+  // The button and the interface come back on the same tap.
   await tap(screen);
   expect(tools(screen)).toEqual({ bar: 1, strip: 1, scrubber: 1 });
+  expect(button()).toHaveLength(1);
   expect(player.pause).not.toHaveBeenCalled();
 });
 
