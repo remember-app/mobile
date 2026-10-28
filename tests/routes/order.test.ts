@@ -458,8 +458,10 @@ test('the shelf can be listened to, and the listening ends with the step', () =>
 
 test('step 3 is an empty «Выбрано» until a track is taken, and the tracks in it after', () => {
   // Nothing taken: the block stays where it is and says what the film will sound like — a state
-  // and not a choice, so the «Без музыки» card that used to be pressed is gone (spec 7.7, 54).
-  expect(music).toContain('{picked.length === 0 ? (');
+  // and not a choice, so the «Без музыки» card that used to be pressed is gone (spec 7.7, 54). The
+  // third view stands ahead of it: with the choice handed to the director there are no tracks to draw.
+  expect(music).toContain('{order.director ? (');
+  expect(music).toContain(') : picked.length === 0 ? (');
   expect(music).toContain('count={s.montage.nothingAdded}');
   expect(music).toContain('empty={{ title: s.montage.noMusic, note: s.montage.noMusicNote }}');
   expect(music).not.toContain('ChoiceCard');
@@ -521,11 +523,12 @@ test('a wish is written to one track, behind the pencil in its row', () => {
 test('tracks go in in any number, in the order they play, and that order is dragged about', () => {
   // The shelf adds to the end of the list rather than replacing one answer with another — several
   // at once is the whole of the new step — and their own track lands in the same list.
-  expect(music).toContain('change({ tracks: [...picked, { key, name: null }] })');
+  expect(music).toContain('change({ tracks: [...picked, { key, name: null }], director: false });');
   // Their own track lands on the list as it is when the upload ends, not as it was when the picker
-  // opened: the shelf stays pressable meanwhile, and what was added there must not be dropped.
+  // opened: the shelf stays pressable meanwhile, and what was added there must not be dropped. A
+  // named track lifts the director's choice the way the plus does.
   expect(music).toContain(
-    'change((was) => ({ tracks: [...was.tracks, { key, name: file.name }] }));',
+    'change((was) => ({ tracks: [...was.tracks, { key, name: file.name }], director: false }));',
   );
   // The shelf's tick is `paper`, not `accent` (spec 7.7, detail 53), and still a switch.
   expect(music).toContain("tone={taken ? 'paper' : 'ghost'}");
@@ -552,6 +555,61 @@ test('tracks go in in any number, in the order they play, and that order is drag
   // their own has no link this app could play, so it has no button pretending otherwise.
   expect(music).toMatch(/play=\{\s*shelf === null\s*\?\s*undefined\s*:/);
   expect(music).toContain('s.montage.stopTrack(name) : s.montage.listen(name)');
+});
+
+test('step 3 hands the choice to the director on a card of its own, and the shelf goes down under it', () => {
+  // Spec 8, `MontageMusicDirector` and detail 81: the card stands between «Выбрано» and the shelf —
+  // not a row of the shelf, whose plus adds to the list and where this choice never stands.
+  expect(music).toContain('<CardDirector');
+  expect(music).toContain('picked={order.director}');
+  expect(music).toContain(
+    'label={order.director ? s.montage.directorPicked : s.montage.directorOffer}',
+  );
+  expect(ru.montage.directorChoice).toBe('На усмотрение режиссёра');
+  expect(ru.montage.directorChoiceNote).toBe('Режиссёр подберёт один трек сам');
+  expect(ru.montage.directorOffer).toBe('Отдать выбор режиссёру — один трек он подберёт сам');
+  expect(ru.montage.directorPicked).toBe('Выбрано: режиссёр подберёт один трек сам');
+  expect(ru.montage.directorHead).toBe('подберёт режиссёр');
+  expect(ru.montage.directorBlockTitle).toBe('Режиссёр подберёт трек сам');
+  expect(ru.montage.directorBlockNote).toBe('Один трек, который он назовёт');
+
+  // The card comes after the block and before the shelf, in the body's own order.
+  const block = music.indexOf('<BlockPicked');
+  const card = music.indexOf('<CardDirector');
+  const shelf = music.indexOf('s.montage.music.toUpperCase()');
+  expect(block).toBeGreaterThan(-1);
+  expect(card).toBeGreaterThan(block);
+  expect(shelf).toBeGreaterThan(card);
+
+  // Detail 81: while the director holds the choice the whole section goes to 40 % — «сейчас выбран
+  // не он», not «недоступно»: it stays live, and one plus takes the choice back.
+  expect(music).toContain('<View style={[styles.block, order.director ? styles.dimmed : null]}>');
+  expect(music).toContain('dimmed: { opacity: 0.4 },');
+  // One question with two answers: taking the card gives up the named tracks, and naming one lifts
+  // the card's tick.
+  expect(music).toContain('const flipDirector = () => {');
+  expect(music).toContain('change((was) => ({ director: !was.director, tracks: [] }));');
+});
+
+test('the body carries the director’s choice in place of the list, and both ends read it back', () => {
+  // One place builds the body (`lib/montage/order`), and the flag is the whole of what the director
+  // answered: `music_tracks` gives way to it, which is how the worker tells «режиссёр выберет» from
+  // «без музыки» (api README). With no tracks there are no wishes, so neither goes out.
+  expect(model).toContain(
+    '...(order.director ? { music_director: true } : { music_tracks: tracks }),',
+  );
+  expect(model).toContain(
+    '...(!order.director && said.length > 0 ? { music_wishes: Object.fromEntries(said) } : {}),',
+  );
+  // The total speaks of the choice where it would list tracks; a film already cut that way says the
+  // same word on its card and in its sheet, all off the one function.
+  expect(summary).toContain('{order.director ? (');
+  expect(summary).toContain('{s.montage.directorChoice}');
+  expect(model).toContain('if (music_director) return [s.montage.directorChoice];');
+  // A template fills the order in, music and all, so the choice handed over goes with its tracks.
+  expect(model).toContain('director: false,');
+  // And the choice is an answer like any other: the way out of the wizard asks before losing it.
+  expect(model).toContain('order.director ||');
 });
 
 test('step 4 asks the api how long the film may be, and asks again when the frames change', () => {

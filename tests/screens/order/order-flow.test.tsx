@@ -165,8 +165,10 @@ import StoryStep from '@/app/memory/[id]/order/story';
 import SummaryStep from '@/app/memory/[id]/order/summary';
 import {
   Banner,
+  BlockPicked,
   Board,
   Button,
+  CardDirector,
   ConfirmSheet,
   IconButton,
   Text as KitText,
@@ -176,6 +178,7 @@ import {
   RowTrack,
   Segment,
   Sheet,
+  SummarySection,
   Tile,
   TileTemplate,
   WizardBar,
@@ -1132,6 +1135,93 @@ test('a wish is written to one of several tracks, stands under its name, and can
   expect(server.orders).toHaveLength(1);
   expect(server.orders[0]?.music_tracks).toEqual(['calm', 'warm']);
   expect(server.orders[0]).not.toHaveProperty('music_wishes');
+});
+
+test('the music can be handed to the director, and the order says so instead of naming tracks', async () => {
+  const server = serve();
+  await open();
+  await press(ru.montage.ownSetup);
+  await forward();
+  await forward();
+  expect(nav.top()).toBe('music');
+
+  // The card stands between «Выбрано» and the shelf, unpicked, and the block is the empty view.
+  const card = () => root().findAllByType(CardDirector).at(-1)!;
+  const block = () => root().findAllByType(BlockPicked).at(-1)!;
+  expect(card().props.picked).toBe(false);
+  expect(card().props.label).toBe(ru.montage.directorOffer);
+  expect(block().props.empty).toBeDefined();
+
+  await act(async () => card().props.onPress());
+  expect(card().props.picked).toBe(true);
+  expect(card().props.label).toBe(ru.montage.directorPicked);
+  // «Выбрано» stands in its third view: the director's words and no tracks to draw.
+  expect(block().props.director).toEqual({
+    title: ru.montage.directorBlockTitle,
+    note: ru.montage.directorBlockNote,
+  });
+  expect(block().props.empty).toBeUndefined();
+
+  // The choice holds while the step is left and come back to: the answers live above the steps.
+  await forward();
+  expect(nav.top()).toBe('build');
+  await press(ru.action.back);
+  expect(nav.top()).toBe('music');
+  expect(card().props.picked).toBe(true);
+  expect(block().props.director).toBeDefined();
+
+  // The shelf stays live under it: one plus takes the choice back and names that track instead.
+  await press(ru.montage.addTrack(ru.montage.track.warm));
+  expect(card().props.picked).toBe(false);
+  expect(wizard.order.tracks.map((track) => track.key)).toEqual(['warm']);
+
+  // And the card again gives that track up with it — one question, one answer.
+  await act(async () => card().props.onPress());
+  expect(wizard.order.tracks).toEqual([]);
+  expect(card().props.picked).toBe(true);
+
+  await forward();
+  await forward();
+  await settle();
+  expect(nav.top()).toBe('summary');
+  // The total is asked off the body the order sends: the flag in place of the list.
+  expect(server.previews.at(-1)).toMatchObject({ music_director: true });
+  expect(server.previews.at(-1)).not.toHaveProperty('music_tracks');
+  // And the total's music section reads the choice back, not a list of tracks.
+  const musicSection = root()
+    .findAllByType(SummarySection)
+    .find((one) => one.props.title === ru.montage.music)!;
+  expect(musicSection.findAllByType(KitText).map((one) => one.props.children)).toContain(
+    ru.montage.directorChoice,
+  );
+
+  await press(ru.montage.startCut);
+  expect(server.orders).toHaveLength(1);
+  expect(server.orders[0]).toMatchObject({ music_director: true });
+  expect(server.orders[0]).not.toHaveProperty('music_tracks');
+  expect(server.orders[0]).not.toHaveProperty('music_wishes');
+});
+
+test('a template pressed over the director’s choice answers the question with its own tracks', async () => {
+  const server = serve();
+  await open();
+  await press(ru.montage.ownSetup);
+  await forward();
+  await forward();
+  await act(async () => root().findAllByType(CardDirector).at(-1)!.props.onPress());
+  expect(wizard.order.director).toBe(true);
+
+  // The way into the wizard is still mounted under the steps, and its tile fills the whole order in,
+  // music and all: the template names its own tracks, so the choice handed over goes with it.
+  await act(async () => tile('parents').props.onPress());
+  await settle();
+  expect(nav.top()).toBe('summary');
+  expect(wizard.order.director).toBe(false);
+  expect(wizard.order.tracks.map((track) => track.key)).toEqual(['warm']);
+
+  await press(ru.montage.startCut);
+  expect(server.orders[0]).toMatchObject({ template: 'parents', music_tracks: ['warm'] });
+  expect(server.orders[0]).not.toHaveProperty('music_director');
 });
 
 test('the music step in daylight, a wish standing under one track and a field open under another, wears only the day', async () => {
