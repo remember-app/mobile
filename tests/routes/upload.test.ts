@@ -8,7 +8,7 @@ import uploads from '@/lib/upload/send.ts?raw';
 import noFeed from '@/screens/upload/message.tsx?raw';
 import roll from '@/screens/upload/roll.ts?raw';
 import { strings } from '@/strings';
-import { board, height, uploadGaps } from '@/theme';
+import { uploadGaps } from '@/theme';
 
 /**
  * «Добавить кадры» — the camera roll drawn the way a memory's own feed is (TASK-210). Read as text, the
@@ -51,10 +51,11 @@ test('one look for every face with a feed, and the queue and the grant tell them
   // The switch on the glass bar is the word wherever there is a feed — the queue's bar carries it
   // too now; a face with no feed has nothing to pick and choosing is on there regardless.
   expect(upload).toContain('const choosing = picking || !feed;');
-  expect(flat(upload)).toContain('<Board style={feed ? styles.bleed : undefined}');
+  expect(flat(upload)).toContain('<Board style={styles.bleed}');
   expect(upload).toContain('{feed ? layer : null}');
-  // The bar is the feed's own wherever there is a feed, and the plain one only over a message.
-  expect(flat(upload)).toContain('bar={ feed ? undefined : (');
+  // No plain bar is left anywhere in the family: the glass one stands over the roll and over a
+  // message alike, and only a face with no feed keeps its right slot empty (28 October).
+  expect(upload).not.toContain('<AppBar');
   // The blocks the queue and the grant add are what is left of the two old faces.
   expect(upload).toContain('{queued.length > 0 ? (\n          <Upload');
   expect(upload).toContain('<BlockStuck');
@@ -62,7 +63,10 @@ test('one look for every face with a feed, and the queue and the grant tell them
 });
 
 test('the bar over the feed is glass, and its capsule is a plate rather than a button', () => {
-  const bar = upload.slice(upload.indexOf('<GlassBar'), upload.indexOf('{feed ? layer'));
+  const bar = upload.slice(
+    upload.indexOf('<GlassBar'),
+    upload.indexOf('</View>', upload.indexOf('<GlassBar')),
+  );
   // «Добавить кадры» over «в „Свадьба Лизы и Марка“» — the screen is about this phone's roll, and the
   // memory is the line under it.
   expect(bar).toContain('title={s.upload.title}');
@@ -165,10 +169,14 @@ test('the send button stands from the start and is simply out until something is
 });
 
 test('the four other faces are this screen with no feed under it', () => {
-  // `UploadAccess`, `UploadEmpty` and the two waits: the plain bar with the memory under the
-  // heading, which is what the layout draws where there are no photographs to float glass over.
+  // `UploadAccess`, `UploadEmpty` and the two waits: the same glass bar over a message, as the
+  // layout draws it (28 October). Only the roll is missing; the heading, the memory and the way
+  // back are the feed's own.
   expect(upload).toContain('const feed = granted && rows.length > 0;');
-  expect(upload).toContain('subtitle={subtitleFor(memory)}');
+  expect(flat(upload)).not.toContain('<AppBar');
+  // The picking switch is the feed's alone: a face with no feed has nothing to pick, and the kit
+  // keeps the empty 48 in its place.
+  expect(flat(upload)).toContain('right={ feed ? (');
   expect(noFeed).toContain('label={access.canAskAgain ? s.upload.allow : s.action.openSettings}');
   // Both buttons of the message card say their words at 15 / 600 (spec detail 45; `UploadAccess.json`
   // e10), not the 16 a 52 says elsewhere.
@@ -187,27 +195,31 @@ test('the four other faces are this screen with no feed under it', () => {
   expect(upload).toContain('{limited ? (\n          <HintNote');
 });
 
-test('the plain face’s body starts where the layout starts it: 124, and the message card at 132', () => {
-  // Spec 4: «124 — тело после шапки с подзаголовком (`Upload*`)»; `UploadAccess.json` e6 at 132 —
-  // under a bar whose row ends at 96. Only the faces with no feed stand on it now: a feed starts
-  // under the glass bar, at 108.
-  expect(upload).toContain('const LEAD = board.bodyUpload - board.status - height.bar;');
-  expect([board.bodyUpload, board.bodyUploadCard]).toEqual([124, 132]);
-  expect(board.bodyUpload - board.status - height.bar).toBe(28);
-  expect(upload).toContain('body: { paddingHorizontal: space.s4, paddingTop: LEAD }');
-  expect(noFeed).toContain('message: { marginTop: board.bodyUploadCard - board.bodyUpload }');
+test('a face with no feed puts its message on the feed’s own line: 108 under the glass bar', () => {
+  // Spec 4 and `UploadAccess.json` e6 (28 October): the card starts where the roll would, the status
+  // line, the bar's 48 and 8 under it — the same line both faces share. The card has nothing of the
+  // old plain bar's 132 left.
+  expect(upload).toContain('const underBar = insets.top + height.roundViewer + space.s2;');
+  expect(upload).toContain('paddingTop: underBar,');
+  expect(flat(upload)).toContain('top={said ? 0 : underBar}');
+  expect(flat(noFeed)).toContain('style={{ marginTop: top }}');
+  expect(noFeed).not.toContain('board.bodyUploadCard');
   // The unseen plate 22 under its strip (`UploadLimited.json`: e12 ends at 455, e18 at 477).
   expect(uploadGaps).toEqual({ unseen: 477 - (338 + 117) });
   expect(upload).toContain('unseen: { marginTop: uploadGaps.unseen }');
 });
 
-test('`UploadEmpty` stands in the middle of the body down to the screen’s edge, not under the bar', () => {
-  // `UploadEmpty.json`: the sign at 382, the paragraph ending at 586 — a block of 204 centred on
-  // (124 + 844) / 2. The app pinned it under the bar, 239 higher.
-  expect((124 + 844) / 2 - (586 - 382) / 2).toBe(382);
+test('`UploadEmpty` stands in the middle of the whole body under the glass, at 422', () => {
+  // `UploadEmpty` (TASK-565): the body under the glass bar is the whole screen, 0…844, so the empty
+  // state is centred on it — 422 — as `FramesEmpty` is, and not counted from an old body height.
+  expect((0 + 844) / 2).toBe(422);
   const empty = noFeed.slice(noFeed.indexOf('<View style={styles.middle}>'));
   expect(empty).toContain('<Empty');
   expect(noFeed).toContain("middle: { flexGrow: 1, justifyContent: 'center' }");
+  // The body scrolls to the screen's edges under the glass: no top padding to count the empty state
+  // from, and the screen's own 16 at the sides.
+  expect(upload).toContain('body: { paddingHorizontal: space.s4 },');
+  expect(upload).not.toContain('paddingTop: LEAD');
 });
 
 test('a partial grant counts the day instead of offering to select all of it', () => {
