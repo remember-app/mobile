@@ -41,7 +41,12 @@ async function open(days: number[]) {
         <FilterSheet
           people={[]}
           labels={[]}
-          days={[]}
+          // Two days of the memory, so the day section stands (TASK-542): with one it is off whole,
+          // and the calendar would not be there to open. Neither day is the one chosen here.
+          days={[
+            { at: day(8, 12), count: 2, fill: 1 },
+            { at: day(8, 13), count: 1, fill: 0.5 },
+          ]}
           value={value}
           count={() => 1}
           onApply={() => {}}
@@ -75,7 +80,11 @@ test('a chosen day no tile shows opens the calendar with the sheet, marked, and 
     <FilterSheet
       people={[]}
       labels={[]}
-      days={[{ at: tiled, count: 3, fill: 1 }]}
+      // The 13th and the 12th have tiles; the 5th of August is the calendar's (TASK-542).
+      days={[
+        { at: tiled, count: 3, fill: 1 },
+        { at: day(8, 12), count: 2, fill: 0.5 },
+      ]}
       value={{ ...FILTER_NONE, days: new Set(chosen) }}
       count={() => 1}
       onApply={() => {}}
@@ -308,9 +317,8 @@ test('a filter that is applied hands over exactly what was chosen, and later edi
   expect([...sent.people]).toEqual(['p2']);
 });
 
-test('one day and two days stretch their tiles across the row, three share it evenly, and more than three stay three', async () => {
+test('two days stretch their tiles across the row, three share it evenly, and more than three stay three', async () => {
   for (const [days, drawn] of [
-    [1, 1],
     [2, 2],
     [3, 3],
     [4, 3],
