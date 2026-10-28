@@ -75,7 +75,11 @@ test('the whole window is three buttons on glass, and under the picture only the
   // And since TASK-478 one more thing stands inside the window: the frame's own screen, under the
   // picture and not over it. It is the last of the three, and it takes what the frame gave up.
   expect(viewer.indexOf('<FrameInfoPanel')).toBeLessThan(viewer.indexOf('</ThemePin>'));
-  expect(viewer).toContain('style={{ height: screen - room }}');
+  // Its own height is the panel's — the frame above has given it that much of the room — and the
+  // box it is drawn in is what travels: since TASK-540 the panel is raised rather than appearing,
+  // and the height it is raised by is the window's own arrival.
+  expect(viewer).toContain('style={{ height: panelTall }}');
+  expect(viewer).toContain('translateY: arrival.panel');
   // The three of them, each in its own place: «Назад» on the left, the pill of when and who in the
   // middle, «⋯» on the right — and no fourth.
   const bar = viewer.slice(viewer.indexOf('<ViewerBar'), viewer.indexOf('styles.tools,'));
@@ -85,7 +89,7 @@ test('the whole window is three buttons on glass, and under the picture only the
   // …and while the panel stands the same pill says the other thing, and the window hands it the
   // held-in state the layout draws it in.
   expect(bar).toContain('s.viewer.hideDetails');
-  expect(bar).toContain('on={details}');
+  expect(bar).toContain('on={panel}');
   expect(bar.match(/<IconButton/g)).toHaveLength(2);
 });
 
@@ -101,13 +105,17 @@ test('the pill of when and who is the road to the frame’s own screen, and the 
   expect(viewer).toContain('onPress={toggleDetails}');
   // One piece of state behind it, and the read behind that belongs to the panel: it asks on being
   // mounted, so the window carries no read of its own and an answer that lands after the panel was
-  // shut has nothing to land in.
-  expect(viewer).toContain('setDetails((was) => !was)');
+  // shut has nothing to land in. Since TASK-540 the state is whether the panel is mounted at all —
+  // the movement that brings it is a value of its own, and the panel stays mounted until it is over.
+  expect(viewer).toContain('slide.current(panel ? 0 : 1)');
   expect(viewer).not.toContain('fetchFrameInfo');
-  expect(viewer).toContain('{details ? (');
+  expect(viewer).toContain('{panel ? (');
   // The frame gives up the top of the window for it — the layout's 352 upright, and less on a phone
   // lying on its side, which has a fraction of that height to divide (`frameInfoRoom`).
-  expect(viewer).toContain('const room = details ? frameInfoRoom(screen) : screen;');
+  expect(viewer).toContain('const room = frameInfoRoom(screen);');
+  expect(viewer).toContain(
+    'const full = frameBox(item.width, item.height, width, screen, screen);',
+  );
   // The screen's own two numbers and the room beside them: which way up the phone is held is read
   // off the first pair, and a frame squeezed into 352 of a 390-wide phone must not read as a turn.
   expect(viewer).toContain('const box = frameBox(item.width, item.height, width, screen, room);');
@@ -222,7 +230,7 @@ test('a movie the frame stands in is named by its length and opens the one playe
   // which has no such event, goes on at once.
   const shut = viewer.replace(/\s+/g, ' ');
   expect(shut).toContain(
-    "function openFilm(montageId: string) { setDetails(false); setFilm(montageId); if (Platform.OS !== 'ios') raiseFilm(montageId); }",
+    "function openFilm(montageId: string) { slide.current(0); setFilm(montageId); if (Platform.OS !== 'ios') raiseFilm(montageId); }",
   );
   expect(shut).toContain(
     'function raiseFilm(montageId: string) { onClose(); router.setParams({ montage: montageId }); }',
@@ -245,7 +253,7 @@ test('a movie the frame stands in is named by its length and opens the one playe
 test('a frame that would not open says so, and the strip stays where it is', () => {
   // Spec 8, the edge of `Viewer`: «знак image и „Кадр не открылся“, плёнка остаётся». The sign is
   // inside the frame's own box, so everything under it — the scrubber, the strip — is untouched.
-  const stage = viewer.slice(viewer.indexOf('<View style={[styles.big, box, styles.blank]}>'));
+  const stage = viewer.slice(viewer.indexOf('<View style={styles.blank}>'));
   expect(stage).toContain('<Empty icon={ImageSign} text={s.viewer.notOpened} />');
   expect(viewer.indexOf('styles.blank')).toBeLessThan(viewer.indexOf('<Filmstrip'));
   expect(ru.viewer.notOpened).toBe('Кадр не открылся');
@@ -304,7 +312,13 @@ test('the 72 stands in the middle of the picture, on the dark the layout puts un
   // One box holds the picture and the button, and it is the frame's own box — hung on the stage
   // instead, the button would centre itself over whatever the stage has left over rather than over
   // the frame. That is what the middle of the one being the middle of the other means (TASK-475).
-  expect(stage).toContain('<View style={[styles.big, box]}>');
+  //
+  // Since TASK-540 the box is a cell of the row the finger walks, so what carries it is the size the
+  // cell is drawn at rather than a style object of its own — the same two numbers, read off the
+  // arrival, and the button still stands inside that cell and not in the stage.
+  expect(viewer).toContain(
+    'style={[styles.cell, { width: arrival.width, height: arrival.height }]}',
+  );
   expect(stage.indexOf('<VideoView')).toBeLessThan(stage.indexOf('styles.middleOfFrame'));
   // The box is the frame's own proportions and the video is covered into it, like a photograph.
   expect(viewer).toContain('const box = frameBox(item.width, item.height, width, screen, room);');
@@ -360,13 +374,16 @@ test('the notice says itself above the tools, not behind them', () => {
   // strip — the one thing lying over the picture's foot (TASK-475).
   expect(viewer).toContain('const toolsTall =');
   expect(viewer).toContain('stripSize.tall +');
-  expect(viewer).toContain('{ bottom: details ? space.s4 : toolsTall + space.s4 }');
+  expect(viewer).toContain('{ bottom: panel ? space.s4 : toolsTall + space.s4 }');
   // Over a video the scrubber is above the strip, so it counts too — the 14 of the gap and the 36
   // the sound button makes its row.
   expect(viewer).toContain('(playable !== null ? viewerFoot.track + height.roundRow : 0)');
   // And while the frame's own screen is standing under the picture (TASK-478) the strip is gone and
   // the panel is what lies over the foot — so there is nothing left to clear but the foot itself.
-  expect(viewer).toContain('{details ? null : (');
+  // It is `panel` and not the intent (TASK-540): the tools come back when the panel is gone, not
+  // when it starts to leave, and a strip standing under a panel still on its way down is a strip
+  // nobody can read.
+  expect(viewer).toContain('{panel ? null : (');
   // The notice is inside the stage and the tools are its next sibling, so the tools are drawn after
   // it either way — what the branch changes is how far up the notice stands.
   expect(viewer).toContain('const toolsTall =');
@@ -413,8 +430,13 @@ test('the picture is walked with a finger, and the finger is taken on the pictur
   // anywhere else on the picture is the picture's. By capture it would be the other way about.
   expect(swipe).toContain('onStartShouldSetPanResponder: () => true');
   expect(swipe).toContain('Math.abs(g.dx) > SIDEWAYS && Math.abs(g.dx) > Math.abs(g.dy)');
-  // Left is the next frame of the sheet, right the one before it.
-  expect(swipe).toContain('step.current(g.dx < 0 ? 1 : -1);');
+  // Left is the next frame of the sheet, right the one before it — and since TASK-540 the finger
+  // that let go of a drag that meant one of them carries the row the rest of the way to it, rather
+  // than the frame being swapped where the finger happened to lift (AC #2).
+  expect(swipe).toContain('settle.current(g.dx < 0 ? 1 : -1);');
+  // And the frame follows the finger while it is down: the drag is written straight into the row's
+  // own offset, which is what «уходит за край экрана» means rather than a swap on the lift.
+  expect(swipe).toContain('shift.setValue(Math.max(-on, Math.min(back, g.dx)));');
   // And built once, never per render (found in review): `PanResponder` keeps how far the finger
   // has come inside the object `create` returns, and a playing video re-renders this window four
   // times a second — a responder made afresh under a finger starts counting from nothing, and both
@@ -439,10 +461,16 @@ test('the picture is walked with a finger, and the finger is taken on the pictur
   // And the frame is opened under that gate, never before it — what else stands between the two is
   // not the gate being moved (a step also puts the tools back, TASK-476).
   expect(viewer.replace(/\s+/g, ' ')).toContain('onOpen(next.id); return true;');
+  // The step by direction reads the same gate, once, and hands it back the frame rather than only
+  // opening it (TASK-540): what the finger drags in is the frame the step would open, so the row and
+  // the step cannot come to disagree about which frame is beside the one in hand.
   expect(viewer.replace(/\s+/g, ' ')).toContain(
-    'for (let to = index + by; to >= 0 && to < frames.length; to += by) ' +
-      '{ if (mayOpen(frames[to])) return onOpen(frames[to].id); }',
+    'function neighbour(by: 1 | -1): MediaItem | null ' +
+      '{ for (let to = index + by; to >= 0 && to < frames.length; to += by) ' +
+      '{ if (mayOpen(frames[to])) return frames[to]; } return null; }',
   );
+  expect(viewer).toContain('const before = neighbour(-1);');
+  expect(viewer).toContain('const after = neighbour(1);');
   expect(viewer).toContain('const index = frameIndex(frames, item.id);');
   expect(viewer).toContain('index={index}');
 });

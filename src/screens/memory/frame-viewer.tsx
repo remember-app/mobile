@@ -14,8 +14,9 @@ import {
   Volume2,
   VolumeX,
 } from 'lucide-react-native';
-import { useMemo, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
+  Animated,
   Modal,
   PanResponder,
   Platform,
@@ -40,6 +41,7 @@ import {
   ActionMenu,
   Banner,
   ConfirmSheet,
+  EASE,
   Empty,
   Filmstrip,
   ICO_S,
@@ -47,6 +49,7 @@ import {
   RowAction,
   STRIP_STANDING,
   STRIP_TURNED,
+  useReducedMotion,
   VideoTrack,
   ViewerBar,
 } from '@/kit';
@@ -62,13 +65,14 @@ import {
   shotAt,
   shotBy,
 } from '@/lib/frames';
-import { edgeBack, GO, SIDEWAYS, TOP, topDown } from '@/lib/gesture';
+import { edgeBack, GO, SIDEWAYS, topDown } from '@/lib/gesture';
 import { useStrings } from '@/lib/language';
 import { useTurnsWithPhone } from '@/lib/orientation';
 import { FrameInfoPanel } from '@/screens/memory/frame-info';
 import {
   frameInfoRoom,
   height,
+  duration as motion,
   photo,
   space,
   ThemePin,
@@ -146,15 +150,30 @@ export function FrameViewer({
   /** The film the panel asked for, held while this window shuts and raised once it is gone. */
   const [film, setFilm] = useState<string | null>(null);
   /**
-   * Whether the frame's own screen stands under the picture (spec 8, `FrameInfo`, TASK-478). It is
-   * a screen and not a sheet: the frame keeps the top of the window, the panel takes the rest and
-   * scrolls, and the pill in the bar is held in while it stands — the same press that brought it
-   * up takes it back down.
+   * Whether the frame's own screen stands under the picture (spec 8, `FrameInfo`, TASK-478) — and,
+   * since TASK-540, the movement that brings it there (spec 10.14.3). It is a screen and not a
+   * sheet: the frame keeps the top of the window, the panel takes the rest and scrolls, and the pill
+   * in the bar is held in while it stands — the same press that brought it up takes it back down.
    *
-   * It also undoes the bare frame (TASK-476): the pill that brings the panel up is one of the
-   * things a tap on the picture puts away, and a panel with no way back out of it is a trap.
+   * `rise` is that movement — 0 with the panel away and 1 with it settled — and it is the only thing
+   * that moves: the panel coming up from the foot of the window and the frame's own room shrinking
+   * to the top of it are one value read twice, so the two travel together rather than one after the
+   * other. `panel` is whether the panel is mounted at all; it is unmounted once the value is back at
+   * 0, so the read behind it belongs to the opening and not to every frame that is looked at.
+   *
+   * It also undoes the bare frame (TASK-476): the pill that brings the panel up is one of the things
+   * a tap on the picture puts away, and a panel with no way back out of it is a trap.
    */
-  const [details, setDetails] = useState(false);
+  const [panel, setPanel] = useState(false);
+  const rise = useRef(new Animated.Value(0)).current;
+  /**
+   * «Reduce motion», read at the moment it is needed rather than closed over: the gestures below are
+   * built once, and a person turning the setting on while the window is open must get the instant
+   * version rather than the one the window was built with.
+   */
+  const reduced = useReducedMotion();
+  const still = useRef(reduced);
+  still.current = reduced;
 
   // A frame shot sideways is worth turning the phone for, and the rest of the app is portrait-only.
   // This component exists for exactly as long as a frame is open, so the flag is simply `true`: the
@@ -209,9 +228,34 @@ export function FrameViewer({
    * the bottom of the screen to it. So the same `frameBox` in a shorter room is all that takes — a
    * 3:4 frame that was 390 × 520 becomes 390 × 352, and `cover` crops what no longer fits rather
    * than the frame shrinking out of its own proportions.
+   *
+   * The panel arrives rather than appearing (TASK-540, spec 10.14.3), so what `rise` moves between
+   * is the two ends of that shrinking: `full` is the frame with the panel away, `box` is where it
+   * settles with the panel up, and everything drawn in between is read off the one value. With the
+   * panel away the two are the same box, so the interpolation is a constant and a frame that is only
+   * being looked at is laid out by the plain numbers rather than by an animation.
    */
-  const room = details ? frameInfoRoom(screen) : screen;
+  const room = frameInfoRoom(screen);
+  const full = frameBox(item.width, item.height, width, screen, screen);
   const box = frameBox(item.width, item.height, width, screen, room);
+  /** How tall the panel stands at rest: what it takes off the frame, and what it rises by. */
+  const panelTall = screen - room;
+  /**
+   * The four numbers of the arrival, all of them read off `rise` (TASK-540): the room the frame is
+   * centred in, the box it is drawn in, and how far the panel still has to come. One value, four
+   * readers — which is what makes it one movement rather than a shrink and a slide.
+   */
+  const arrival = useMemo(
+    () => ({
+      stage: rise.interpolate({ inputRange: [0, 1], outputRange: [screen, room] }),
+      width: rise.interpolate({ inputRange: [0, 1], outputRange: [full.width, box.width] }),
+      height: rise.interpolate({ inputRange: [0, 1], outputRange: [full.height, box.height] }),
+      panel: rise.interpolate({ inputRange: [0, 1], outputRange: [panelTall, 0] }),
+    }),
+    // The four nodes are made again when one of the numbers moves, and never once per frame of a
+    // playing video: the boxes are the record's own proportions and the room is the layout's.
+    [rise, screen, room, panelTall, full.width, full.height, box.width, box.height],
+  );
 
   /**
    * How tall the tools lying over the picture come out — the strip, its own distance from the bottom
@@ -285,28 +329,101 @@ export function FrameViewer({
    * records the worker has not finished with is exactly what the top of a sheet looks like minutes
    * after an upload. A wall there is one more «не листается» (TASK-106, TASK-123) with nothing on
    * screen to explain it.
+   *
+   * It is read for the row as well as for the step (TASK-540): the frame a swipe would open is the
+   * frame drawn at that edge of the picture, so what the finger drags in and what it lands on are
+   * one record by construction rather than two readings that happen to agree.
    */
-  function stride(by: 1 | -1) {
+  function neighbour(by: 1 | -1): MediaItem | null {
     for (let to = index + by; to >= 0 && to < frames.length; to += by) {
-      if (mayOpen(frames[to])) return onOpen(frames[to].id);
+      if (mayOpen(frames[to])) return frames[to];
     }
+    return null;
+  }
+
+  function stride(by: 1 | -1) {
+    const next = neighbour(by);
+    if (next) onOpen(next.id);
   }
 
   /** The step as this render knows it, for a gesture that outlives the render it began in. */
   const step = useRef(stride);
   step.current = stride;
 
+  /** The two frames beside the one in hand — what a swipe drags in, and nothing at either end. */
+  const before = neighbour(-1);
+  const after = neighbour(1);
+
   /**
-   * Where the way back is measured from, read the same way — the responder below is built once, and
-   * the window turns with the phone (TASK-475), so the band a downward swipe has to begin in is a
-   * number that moves. Held as a ref rather than closed over for the same reason the step is.
+   * How far the row of frames has been dragged, in points (TASK-540, AC #2). The picture follows the
+   * finger rather than being swapped out from under it when the finger lifts: zero is the frame in
+   * hand in the middle of the screen, a whole box either way is the neighbour it is being swapped
+   * for, and the row is what moves — the frame in hand and the two beside it travel together, so
+   * what leaves by one edge is what comes in at the other.
+   *
+   * Reset rather than carried across a change of frame: the record is drawn in the middle of the row
+   * whichever one it is, so the value belongs to the movement and not to the record. It is reset in
+   * a layout effect, which runs before the new frame is on the screen — set in an effect after it,
+   * the frame that was just dragged in would be drawn a whole box off to one side for a frame.
    */
-  const backFrom = useRef(screen * TOP);
-  backFrom.current = screen * TOP;
+  const shift = useRef(new Animated.Value(0)).current;
+  useLayoutEffect(() => {
+    shift.setValue(0);
+  }, [item.id, shift]);
+
+  /**
+   * How far the row may travel each way, read through a ref like the step: the responder below is
+   * built once and the neighbours under it change as the strip is walked. A whole box where there is
+   * a frame to bring in, and nowhere at all at either end — a picture dragged past the last frame
+   * has nothing behind it, and black coming in from the edge reads as a window that broke.
+   */
+  const reach = useRef({ back: 0, on: 0 });
+  reach.current = { back: before ? box.width : 0, on: after ? box.width : 0 };
+
+  /**
+   * Where a downward drag may begin, read the same way — the responder is built once and the window
+   * turns with the phone (TASK-475), so the band is a number that moves. It is the whole of the
+   * stage, because the stage is the picture and nothing else: the tools that lie over its foot are
+   * its siblings and take their own fingers, so any finger coming down the picture asks for the
+   * frame's details and none of them is taken from a scroll or a scrubber (TASK-540, spec 10.14.4).
+   */
+  const downFrom = useRef(screen);
+  downFrom.current = screen;
 
   /** The way out, read through a ref like the step: the responder is built once and outlives it. */
   const closed = useRef(onClose);
   closed.current = onClose;
+
+  /**
+   * The details, raised and dropped (TASK-540, spec 10.14.3, 10.14.4). One value moved to 1 or to 0
+   * over the layout's own times — 260 up, 200 down — with the panel mounted and unmounted around it.
+   * Under «reduce motion» there is no movement to make: the value is put where it belongs at once,
+   * and the panel is simply there.
+   *
+   * Read through a ref like the step: the responder is built once and outlives the render.
+   */
+  const slide = useRef<(to: 0 | 1) => void>(() => {});
+  slide.current = (to) => {
+    if (still.current) {
+      rise.setValue(to);
+      setPanel(to === 1);
+      return;
+    }
+    if (to === 1) setPanel(true);
+    Animated.timing(rise, {
+      toValue: to,
+      duration: to === 1 ? motion.sheet : motion.banner,
+      easing: EASE,
+      // Not on the native driver, and it cannot be: what moves is the room the frame is laid out in,
+      // and a height is a layout property. The panel's own travel rides the same value, so the two
+      // are one movement and cannot be split between the two drivers.
+      useNativeDriver: false,
+    }).start(({ finished }) => {
+      // Only on the way out, and only once it has arrived: a run that was replaced mid-flight ends
+      // with `finished` false, and the panel under it is the next run's to put away.
+      if (finished && to === 0) setPanel(false);
+    });
+  };
 
   /**
    * And what a tap on the picture means (TASK-476): a video plays and stands still — its own
@@ -331,38 +448,86 @@ export function FrameViewer({
       else player.play();
       return;
     }
-    if (details) {
-      setDetails(false);
+    if (panel) {
+      slide.current(0);
       return;
     }
     setBare((was) => !was);
   }
 
   /**
+   * The details asked for by a finger coming down the picture (TASK-540, spec 10.14.4). It is the
+   * same press the pill makes, so there is one way in and not two that drift — and with the panel
+   * already up there is nothing to raise: the gesture that puts it away is the one over the panel.
+   */
+  const shows = useRef(() => {});
+  shows.current = () => {
+    if (panel) return;
+    // The tools come back with it (TASK-476): the pill in the bar is the panel's own way back out,
+    // and a panel raised over a picture whose bar was hidden is a panel with nothing to close it.
+    setBare(false);
+    slide.current(1);
+  };
+
+  /**
+   * What a finger let go of does to the row (TASK-540, AC #2): a drag that meant the next frame is
+   * carried on to it — the picture travels the rest of the way under its own momentum and the frame
+   * is opened once it has arrived, so what a person sees is the frame they asked for coming in
+   * rather than a swap at the moment they lifted — and one that meant nothing is put back where it
+   * was. At either end of the strip there is no frame to bring in, and the row goes back under the
+   * one in hand however far it was dragged.
+   */
+  const settle = useRef<(by: -1 | 0 | 1) => void>(() => {});
+  settle.current = (by) => {
+    // Whether there is a frame at that edge to bring in at all: the strip's own ends, where the row
+    // is put back under the frame in hand however far it was dragged.
+    const goes = (by === 1 ? after : by === -1 ? before : null) !== null;
+    if (still.current) {
+      shift.setValue(0);
+      if (goes && by !== 0) step.current(by);
+      return;
+    }
+    Animated.timing(shift, {
+      toValue: goes ? by * box.width : 0,
+      duration: motion.step,
+      easing: EASE,
+      // The JS driver, like the arrival above and for the same kind of reason: this is the same
+      // value a finger writes to while it drags, and a value cannot be handed to the native driver
+      // and written from javascript in the same gesture.
+      useNativeDriver: false,
+    }).start(({ finished }) => {
+      if (finished && goes && by !== 0) step.current(by);
+    });
+  };
+
+  /**
    * The picture is walked with a finger, photographs and videos alike, across the whole gallery
    * (TASK-182) — the gesture the window never had, which is what two reports about «не листается»
-   * were really asking for (TASK-123) — and, since TASK-477, the way out of the window is a swipe
-   * down over the picture or in from its left edge, on one and the same finger.
+   * were really asking for (TASK-123) — and since TASK-540 the frame travels under it rather than
+   * being swapped when it lifts (AC #2).
    *
    * It lives on the picture and nowhere else. The strip below is the one horizontal scroll in the
    * product, and the scrubber above it is the other sideways gesture — the layout puts each on a
    * line of its own precisely so that no two of them ever share a finger.
    *
-   * Built once and never rebuilt, with the step and the way out read through the refs above.
-   * `PanResponder` keeps how far the finger has come inside the object `create` hands back, so a
-   * responder made afresh mid-gesture starts counting from nothing — and this window re-renders
-   * four times a second for the whole of a playing video (`timeUpdate`). Rebuilt per render, both
-   * thresholds below were measured against whatever scrap of the swipe fell after the last of those
+   * Three things, and the window's way out is not one of them any more (TASK-540, spec 10.14.4):
+   * down over the picture raises the frame's own screen, sideways walks the gallery, and in from the
+   * left edge — the platform's own back, which the window answers because it is a `Modal` and the
+   * app-wide `useEdgeBack` is nowhere near it — closes it. What closes it for a finger that is not
+   * on the edge is the «Закрыть» in the corner, which is where the layout has it.
+   *
+   * Built once and never rebuilt, with the step, the row and the way out read through the refs
+   * above. `PanResponder` keeps how far the finger has come inside the object `create` hands back,
+   * so a responder made afresh mid-gesture starts counting from nothing — and this window re-renders
+   * four times a second for the whole of a playing video (`timeUpdate`). Rebuilt per render, every
+   * threshold below was measured against whatever scrap of the swipe fell after the last of those
    * renders: the walk worked on a photograph and failed on video, which is the same symptom a third
    * time. Three gestures on one responder rather than three responders stacked on one view: the
    * stage takes the finger down once, and whichever way it went is decided once, from the same
    * numbers — three responders would each be deciding from a tally of their own.
    *
-   * The window is a `Modal`, so it stands over the navigator and the app-wide edge swipe
-   * (`useEdgeBack`) is nowhere near it: it is asked here too, on the same finger, and the left
-   * edge answers exactly as it does on a screen. That is also what makes the gesture work when the
-   * tools are away — this responder is on the stage, which is the whole of the window either way,
-   * and TASK-476 put nothing between them.
+   * That is also what makes the gesture work when the tools are away — this responder is on the
+   * stage, which is the whole of the window either way, and TASK-476 put nothing between them.
    */
   const swipe = useMemo(
     () =>
@@ -373,28 +538,37 @@ export function FrameViewer({
         // tap anywhere else on the picture is this window's (TASK-476).
         onStartShouldSetPanResponderCapture: () => false,
         onStartShouldSetPanResponder: () => true,
-        // Capture, so the window's own way out is decided before the strip below or the scrubber
-        // takes the finger — the strip is horizontal and answers a swipe of its own, and a finger
-        // that began up in the top third and is falling was never going to be its anyway.
+        // Capture, so a finger that has plainly gone one way takes the pause button under it with it
+        // — a sideways drag begun on that button is still the gallery's, and a downward one is still
+        // the details'.
         onMoveShouldSetPanResponderCapture: (_, g) =>
           (Math.abs(g.dx) > SIDEWAYS && Math.abs(g.dx) > Math.abs(g.dy)) ||
-          topDown(g, backFrom.current),
+          topDown(g, downFrom.current),
+        // The frame follows the finger while it is down (TASK-540, AC #2) — from the first point it
+        // travels, not from the point a gesture is recognised at, because a picture that waits for
+        // a threshold before moving is a picture that jumps. Only the gallery's own gesture moves
+        // the row: a finger coming down the picture, or in from the edge, is not a frame being
+        // dragged sideways, and the row is left exactly where it stands.
+        onPanResponderMove: (_, g) => {
+          if (Math.abs(g.dx) <= Math.abs(g.dy)) return;
+          const { back, on } = reach.current;
+          shift.setValue(Math.max(-on, Math.min(back, g.dx)));
+        },
         onPanResponderRelease: (_, g) => {
           // A finger that stayed where it was put down is a tap: a video plays and stands still, a
           // photograph puts the tools away or brings them back. Anything else is a gesture, and
           // which one is said by where it began and which way it went — not by how far.
           if (Math.abs(g.dx) <= SIDEWAYS && Math.abs(g.dy) <= SIDEWAYS) return tapped.current();
-          // The way out (TASK-477), asked at the same moment as the walk and on the same numbers:
-          // down over the picture, or in from the left edge. Neither brings the tools back first —
-          // there is nowhere to bring them back to, the window is gone.
-          if (topDown(g, backFrom.current, GO) || edgeBack(g, GO)) return closed.current();
+          // Down over the picture raises the frame's own screen (TASK-540, spec 10.14.4). It used
+          // to be the way out of the window, and one gesture cannot mean both: the way out is the
+          // «Закрыть» in the corner, and the edge swipe below.
+          if (topDown(g, downFrom.current, GO)) return shows.current();
+          if (edgeBack(g, GO)) return closed.current();
           setBare(false);
-          // ponytail: the frame is swapped when the finger lifts, and does not travel under it. A
-          // carousel that follows the finger is a second horizontal scroll inside a modal over a
-          // player — the exact ground TASK-106 and TASK-123 were lost on. Worth building the day
-          // the movement itself is asked for, and not before.
-          if (Math.abs(g.dx) < GO) return;
-          step.current(g.dx < 0 ? 1 : -1);
+          // A drag that came short of the step was a feel for the next frame and no more: the row
+          // goes back under the one in hand, and nothing is opened.
+          if (Math.abs(g.dx) < GO) return settle.current(0);
+          settle.current(g.dx < 0 ? 1 : -1);
         },
       }),
     [],
@@ -409,14 +583,14 @@ export function FrameViewer({
    * control for the same thing in the same place is a control nobody needs.
    *
    * The read is the panel's own (it asks on being mounted), which is why there is no bookkeeping
-   * here: the panel unmounts when this goes false and takes its read with it.
+   * here: the panel unmounts when it is shut and takes its read with it.
    */
   function toggleDetails() {
     setMenu(false);
     // The panel needs the bar to be there to be put away from, and the bar is one of the things a
     // tap on the picture hides (TASK-476).
     setBare(false);
-    setDetails((was) => !was);
+    slide.current(panel ? 0 : 1);
   }
 
   /**
@@ -435,7 +609,7 @@ export function FrameViewer({
    * trouble, so it runs at once. The feed under is left on the frame it was on either way.
    */
   function openFilm(montageId: string) {
-    setDetails(false);
+    slide.current(0);
     setFilm(montageId);
     if (Platform.OS !== 'ios') raiseFilm(montageId);
   }
@@ -543,6 +717,35 @@ export function FrameViewer({
         }
       : null;
 
+  /**
+   * One side of the row (TASK-540, AC #2): the frame beside the one in hand, in a cell of exactly
+   * the box the frame in hand is drawn in — so the three of them stand one whole box apart and a
+   * drag of one box lands on the neighbour. A side with no frame to bring in is a cell of the same
+   * size with nothing in it: the frame in hand is the middle of three whichever frames there are,
+   * and the black at that end is never dragged into, because the row cannot travel there.
+   *
+   * Hidden from a screen reader, like the mosaic: what is beside the frame is off the screen and is
+   * a picture the reader has no way to reach, and the strip under it is where frames are named.
+   */
+  function beside(one: MediaItem | null) {
+    const frame = one === null ? null : frameOf(one);
+    return (
+      <Animated.View
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={[styles.cell, { width: arrival.width, height: arrival.height }]}
+      >
+        {frame?.uri ? (
+          <Image
+            source={{ uri: frame.uri, cacheKey: frame.key }}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+          />
+        ) : null}
+      </Animated.View>
+    );
+  }
+
   return (
     <Modal
       // Shut, and not unmounted, when a film is asked for: the event that says the window is gone
@@ -589,64 +792,94 @@ export function FrameViewer({
               holds this control under its own name. Marking this view would be marking it on top of
               that button, and on iOS a container marked accessible is read instead of its children
               — the play and pause would go missing to buy a duplicate of itself. */}
-          <View style={styles.stage} {...swipe.panHandlers} {...said}>
-            {playable !== null ? (
-              // Streamed off the signed url, index first, so it plays before the whole file is down
-              // (doc-02, «Видео в галерее»). Its transport is the row under the strip and the button
-              // in the middle of the frame, so the platform's own is off.
-              //
-              // The picture and its button share one box, and that box is the frame's own — hung on
-              // the stage instead, the button would centre itself over whatever the stage has left
-              // over rather than over the frame (reported off a device, TASK-181).
-              <View style={[styles.big, box]}>
-                <VideoView
-                  player={player}
-                  nativeControls={false}
-                  // `cover` and not `contain`, like the photograph below and for the same reason:
-                  // the box already carries the frame's own proportions, so this fills it rather
-                  // than letterboxing inside a box that is already the right shape (TASK-475).
-                  contentFit="cover"
-                  style={styles.fill}
-                />
+          <Animated.View
+            style={[styles.stage, { height: arrival.stage }]}
+            {...swipe.panHandlers}
+            {...said}
+          >
+            {/* The row the finger walks (TASK-540, AC #2): the frame in hand in the middle and the
+                two beside it one box apart, so the picture travels under the finger and what leaves
+                by one edge is what comes in at the other. A frame still being developed is not a
+                neighbour at all — `neighbour` carries on past it exactly as the step does — and the
+                row is where that shows, because the frame a swipe lands on is the frame drawn at
+                that edge of it.
 
-                {/* Pause and play, 72 in the middle of the picture — `ViewerVideo` and nowhere
-                    else. Dark and not glass (spec 7.2): the viewer's glass vanishes over a bright
-                    frame, and this glyph has to hold over any. `box-none`, so everything around the
-                    circle belongs to the picture under it. */}
-                <View style={styles.middleOfFrame} pointerEvents="box-none">
-                  <IconButton
-                    icon={isPlaying ? Pause : Play}
-                    label={isPlaying ? s.viewer.pause : s.viewer.play}
-                    size={72}
-                    tone="video"
-                    onPress={() => (isPlaying ? player.pause() : player.play())}
+                The row is what moves, and it moves entire: the frames are laid out in it once and
+                its own offset is all that changes, so a drag re-lays nothing out.
+
+                A neighbour is drawn the way the strip draws it and not the way the open frame is —
+                `frameOf`, the record's own thumbnail, rather than the big derivative. The strip has
+                already fetched exactly this picture, so a neighbour is a frame that is on the phone
+                rather than two more big files every open frame would ask for.
+                ponytail: a half-swiped neighbour is therefore the soft 640px picture. The big
+                derivative is worth asking for the day the drag is slow enough to be looked at. */}
+            <Animated.View style={[styles.row, { transform: [{ translateX: shift }] }]}>
+              {beside(before)}
+              <Animated.View
+                style={[styles.cell, { width: arrival.width, height: arrival.height }]}
+              >
+                {playable !== null ? (
+                  // Streamed off the signed url, index first, so it plays before the whole file is
+                  // down (doc-02, «Видео в галерее»). Its transport is the row under the strip and
+                  // the button in the middle of the frame, so the platform's own is off.
+                  //
+                  // The picture fills the frame's own box (TASK-475), and the button lies over that
+                  // same box — hung on the stage instead, it would centre itself over whatever the
+                  // stage has left over rather than over the frame (reported off a device,
+                  // TASK-181). The box is what says how big the picture is: left to itself, a
+                  // `VideoView` measures nothing and the frame comes out as sound over black.
+                  <>
+                    <VideoView
+                      player={player}
+                      nativeControls={false}
+                      // `cover` and not `contain`, like the photograph beside it and for the same
+                      // reason: the box already carries the frame's own proportions, so this fills
+                      // it rather than letterboxing inside a box that is already the right shape.
+                      contentFit="cover"
+                      style={StyleSheet.absoluteFill}
+                    />
+
+                    {/* Pause and play, 72 in the middle of the picture — `ViewerVideo` and nowhere
+                        else. Dark and not glass (spec 7.2): the viewer's glass vanishes over a
+                        bright frame, and this glyph has to hold over any. `box-none`, so everything
+                        around the circle belongs to the picture under it. */}
+                    <View style={styles.middleOfFrame} pointerEvents="box-none">
+                      <IconButton
+                        icon={isPlaying ? Pause : Play}
+                        label={isPlaying ? s.viewer.pause : s.viewer.play}
+                        size={72}
+                        tone="video"
+                        onPress={() => (isPlaying ? player.pause() : player.play())}
+                      />
+                    </View>
+                  </>
+                ) : shown.uri !== null ? (
+                  // Covered rather than contained (TASK-475): a horizontal frame used to be
+                  // `contain`ed into whatever room was left between the glass and the strip, which
+                  // left it small and centred on the screen — the whole of that task.
+                  //
+                  // `expo-image` and not React Native's own, for the disk behind it: the same frame
+                  // opened twice should come off the phone rather than down the wire. What it is
+                  // filed under is `shown`'s own key — `@/lib/frames` says why, and the tile reads
+                  // the same one, so a record is one file on the phone rather than one per screen.
+                  <Image
+                    source={{ uri: shown.uri, cacheKey: shown.key }}
+                    style={StyleSheet.absoluteFill}
+                    contentFit="cover"
                   />
-                </View>
-              </View>
-            ) : shown.uri !== null ? (
-              // In the frame's own box, covered rather than contained (TASK-475): a horizontal
-              // frame used to be `contain`ed into whatever room was left between the glass and the
-              // strip, which left it small and centred on the screen — the whole of this task.
-              //
-              // `expo-image` and not React Native's own, for the disk behind it: the same frame
-              // opened twice should come off the phone rather than down the wire. What it is filed
-              // under is `shown`'s own key — `@/lib/frames` says why, and the tile reads the same
-              // one, so a record is one file on the phone rather than one per screen.
-              <Image
-                source={{ uri: shown.uri, cacheKey: shown.key }}
-                style={[styles.big, box]}
-                contentFit="cover"
-              />
-            ) : (
-              // Nothing was ever made for this one (spec 8, «кадр не загрузился»): the `image` sign
-              // and one line, with the strip left exactly where it is — whoever is here can walk
-              // straight past it. Said here as well as on the tile, because this is the window the
-              // delete is offered from, and a frame nobody can look at is the one somebody wants
-              // rid of.
-              <View style={[styles.big, box, styles.blank]}>
-                <Empty icon={ImageSign} text={s.viewer.notOpened} />
-              </View>
-            )}
+                ) : (
+                  // Nothing was ever made for this one (spec 8, «кадр не загрузился»): the `image`
+                  // sign and one line, with the strip left exactly where it is — whoever is here
+                  // can walk straight past it. Said here as well as on the tile, because this is
+                  // the window the delete is offered from, and a frame nobody can look at is the
+                  // one somebody wants rid of.
+                  <View style={styles.blank}>
+                    <Empty icon={ImageSign} text={s.viewer.notOpened} />
+                  </View>
+                )}
+              </Animated.View>
+              {beside(after)}
+            </Animated.View>
 
             {notice ? (
               // Above the strip rather than under it: the tools lie over the picture now, so a
@@ -655,10 +888,10 @@ export function FrameViewer({
               // foot of the stage — which is the panel's own top edge.
               <Banner
                 text={notice}
-                style={[styles.notice, { bottom: details ? space.s4 : toolsTall + space.s4 }]}
+                style={[styles.notice, { bottom: panel ? space.s4 : toolsTall + space.s4 }]}
               />
             ) : null}
-          </View>
+          </Animated.View>
 
           {/* Everything the window draws over the frame, and nothing of the frame itself (TASK-476):
               the two darkenings, the glass bar and the tools. A tap on the picture takes all three
@@ -696,10 +929,12 @@ export function FrameViewer({
                 date={when}
                 meta={meta}
                 // One button both ways (TASK-478): what it will do, said under its own name — the
-                // panel is standing under it, or it is not, and that is the whole difference.
-                label={`${details ? s.viewer.hideDetails : s.viewer.details}: ${when}, ${meta}`}
+                // panel is standing under it, or it is not, and that is the whole difference. A tap
+                // here and a swipe down over the picture are the same press (TASK-540, spec
+                // 10.14.4), so the pill is pressed in while the panel stands either way.
+                label={`${panel ? s.viewer.hideDetails : s.viewer.details}: ${when}, ${meta}`}
                 onPress={toggleDetails}
-                on={details}
+                on={panel}
                 turned={turned}
                 // Spec 7.1, detail 5: `top 52` — the glass starts where the status line ends, with
                 // nothing between. Turned, the phone is short and the layout puts the bar 18 down
@@ -741,8 +976,9 @@ export function FrameViewer({
 
                   Neither of them stands while the panel of the frame's own screen does (TASK-478):
                   the panel takes the whole of that foot of the window, and the strip walks to frames
-                  the panel says nothing about. */}
-              {details ? null : (
+                  the panel says nothing about. `panel` and not the intent: they come back when the
+                  panel is gone, not when it starts to leave (TASK-540). */}
+              {panel ? null : (
                 <View
                   style={[styles.tools, { paddingBottom: Math.max(insets.bottom, stripSize.foot) }]}
                 >
@@ -860,15 +1096,27 @@ export function FrameViewer({
               happens to be in.
 
               It takes whatever the frame gave up, which is `frameInfoRoom` — 352 on a phone held
-              upright, less on one lying on its side, and the whole screen when it is shut. */}
-          {details ? (
-            <FrameInfoPanel
-              memoryId={memoryId}
-              item={item}
-              onFilm={openFilm}
-              onEdited={onEdited}
-              style={{ height: screen - room }}
-            />
+              upright, less on one lying on its side, and the whole screen when it is shut.
+
+              It arrives rather than appearing (TASK-540, spec 10.14.3): the box is at the foot of
+              the window and the same `rise` that shrinks the frame above it carries it the rest of
+              the way up, so the two are one movement. The panel is the one that is mounted — it
+              stays until the movement is over, so the strip does not come back under a panel that is
+              still leaving. */}
+          {panel ? (
+            <Animated.View
+              style={[styles.panelBox, { transform: [{ translateY: arrival.panel }] }]}
+            >
+              <FrameInfoPanel
+                memoryId={memoryId}
+                item={item}
+                onFilm={openFilm}
+                onEdited={onEdited}
+                onLetGo={(goes) => slide.current(goes ? 0 : 1)}
+                rise={rise}
+                style={{ height: panelTall }}
+              />
+            </Animated.View>
           ) : null}
         </View>
       </ThemePin>
@@ -977,12 +1225,24 @@ const useStyles = themed(() =>
     viewer: { flex: 1, backgroundColor: photo.viewer },
     // The frame is centred in the whole of the phone rather than in what is left between the
     // floating bar and the strip: the strip lies over the picture now, so there is no room above
-    // the frame for the picture to be pushed down into (TASK-475).
-    stage: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-    // The frame's own box — `frameBox` above, one of the four the layout draws.
-    big: {},
-    fill: {},
-    blank: { alignItems: 'center', justifyContent: 'center' },
+    // the frame for the picture to be pushed down into (TASK-475). Its height is the room the frame
+    // has — the whole window, or the top of it while the panel of its own screen stands — and it is
+    // `arrival.stage` that moves, because the panel arrives rather than appearing (TASK-540).
+    //
+    // No `overflow: hidden`, and that is the carousel (AC #2): the frames beside the one in hand
+    // stand outside the stage by a whole box each, and a stage that clipped would leave the row
+    // with nothing to drag in.
+    stage: { alignItems: 'center', justifyContent: 'center' },
+    // The three frames the finger walks, one box apart, laid out once and moved entire.
+    row: { flexDirection: 'row' },
+    // One frame of that row: the box of its own proportions `frameBox` gives, with the picture
+    // filling it rather than sized by itself.
+    cell: { overflow: 'hidden' },
+    blank: {
+      ...StyleSheet.absoluteFill,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     // Over the picture's own box and not the stage's, which is what puts the button in the middle
     // of the frame rather than in the middle of what is left over above it.
     middleOfFrame: {
@@ -997,6 +1257,11 @@ const useStyles = themed(() =>
     shadeFoot: { bottom: 0, experimental_backgroundImage: photo.viewerShadeFoot },
     shadeFootTurned: { experimental_backgroundImage: photo.viewerShadeFootTurned },
     bar: { position: 'absolute', left: 0, right: 0 },
+    // The frame's own screen at the foot of the window, off the bottom of it until it is raised
+    // (TASK-540): the box is where the panel will stand, and `arrival.panel` carries it up from
+    // under the edge. Its own height is the panel's — the frame above has already given it that
+    // much of the room — so the two are the same surface either way.
+    panelBox: { position: 'absolute', left: 0, right: 0, bottom: 0 },
     // Over the picture and at the foot of it: the strip below stays the only thing under it.
     notice: { position: 'absolute', left: space.s4, right: space.s4, bottom: space.s4 },
     // The strip and, over a video, its scrubber, lying over the picture — not below it. The

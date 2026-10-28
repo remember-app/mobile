@@ -1,6 +1,14 @@
 import { Lock, Plus } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
+import {
+  type Animated,
+  PanResponder,
+  ScrollView,
+  type StyleProp,
+  StyleSheet,
+  View,
+  type ViewStyle,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -29,6 +37,7 @@ import { formatDay, formatDayShort, formatRuntime, formatTime } from '@/lib/date
 import { type Failure, failure } from '@/lib/failure';
 import { frameFacts, shotCells } from '@/lib/frames';
 import { usePlaceName } from '@/lib/geocoder';
+import { letGo, SIDEWAYS } from '@/lib/gesture';
 import { labelTint } from '@/lib/labels';
 import { useStrings } from '@/lib/language';
 import { FrameComments } from '@/screens/memory/frame-comments';
@@ -43,7 +52,10 @@ import { board, height, radius, space, themed, useTheme } from '@/theme';
  * held in while it stands — the same press that brought the panel up takes it back down.
  *
  * It lives here and not in `frames-sheets.tsx` because it is no longer a sheet: nothing about it
- * rises from the bottom edge, and the frame it is about is still on the screen above it.
+ * rises from the bottom edge, and the frame it is about is still on the screen above it. Since
+ * TASK-540 the window raises it as one movement with the frame shrinking above it (spec 10.14.3),
+ * and a finger coming down the panel puts it away again (10.14.4) — the panel is where that gesture
+ * is caught, because the scroll inside it is the one thing a downward drag there can also mean.
  *
  * Its own file reads the frame itself, which is what the sheet used to have handed in. Mounted by
  * being opened, so the one read happens on the opening and the panel says nothing until it answers.
@@ -61,6 +73,8 @@ export function FrameInfoPanel({
   onFilm,
   onEdited,
   style,
+  rise,
+  onLetGo,
 }: {
   memoryId: string;
   /** The record the panel is about, as the viewer's own list holds it. */
@@ -71,6 +85,18 @@ export function FrameInfoPanel({
   onEdited: (item: MediaItem) => void;
   /** How much of the window the panel takes — what the frame above it gave up. */
   style?: StyleProp<ViewStyle>;
+  /**
+   * The window's own arrival, 0 with the panel away and 1 with it settled — handed in so that a
+   * finger dragging the panel down carries the frame above it with it rather than the two parting
+   * (TASK-540, AC #2). A panel drawn outside a window that animates it takes nothing.
+   */
+  rise?: Animated.Value;
+  /**
+   * The finger let go of the panel: `true` when it meant to put it away, `false` when it was only
+   * feeling for it. What that means — the details going, or coming back — is the window's, which is
+   * also where the animation lives.
+   */
+  onLetGo?: (goes: boolean) => void;
 }) {
   const { token, user } = useAuth();
   const s = useStrings();
@@ -85,6 +111,48 @@ export function FrameInfoPanel({
   const [editingShot, setEditingShot] = useState(false);
   const [savingShot, setSavingShot] = useState(false);
   const place = usePlaceName(info?.latitude, info?.longitude);
+  /** Where the panel's own scroll is, which is what tells a drag from a scroll (TASK-540). */
+  const down = useRef(0);
+  /**
+   * How tall the panel came out — the distance a downward drag is measured against, so that the
+   * frame above gives its room back in step with the finger rather than all at once. A ref and not
+   * state: nothing about the panel is drawn from it, and a layout that re-rendered the whole read
+   * behind it would be a render for a number the gesture is the only reader of.
+   */
+  const tall = useRef(0);
+  // Read through refs like the rest of this file's gesture: the responder below is built once and
+  // outlives every render of a panel that is redrawn as its own read answers.
+  const carry = useRef(rise);
+  carry.current = rise;
+  const letGoOf = useRef(onLetGo);
+  letGoOf.current = onLetGo;
+
+  /**
+   * The panel is put away by a finger coming down it (TASK-540, spec 10.14.4) — and the panel is the
+   * one place in the window where a downward drag has two meanings, because it scrolls. So the
+   * gesture is caught by the same rule the sheet's is, asked of the scroll instead of the handle:
+   * while the panel is scrolled down its own content the drag is the scroll's and this never sees
+   * it, and once it is at the top the same drag is «put this away».
+   *
+   * What it moves is the window's own value, so the frame above gives its room back as the panel
+   * comes — one movement under the finger and not two (AC #2). Let go of past the drop and the
+   * details go; short of it, the panel climbs back and nothing has happened.
+   */
+  const pull = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponderCapture: (_, g) =>
+          down.current <= 0 && g.dy > SIDEWAYS && g.dy > Math.abs(g.dx),
+        onPanResponderTerminationRequest: () => false,
+        onPanResponderMove: (_, g) => {
+          const how = Math.max(1, tall.current);
+          carry.current?.setValue(Math.max(0, Math.min(1, 1 - g.dy / how)));
+        },
+        onPanResponderRelease: (_, g) => letGoOf.current?.(letGo(g)),
+        onPanResponderTerminate: () => letGoOf.current?.(false),
+      }).panHandlers,
+    [],
+  );
 
   /**
    * The one read behind the panel, asked for when it opens and not before, and asked again after
@@ -193,7 +261,16 @@ export function FrameInfoPanel({
   const theme = useTheme();
 
   return (
-    <View style={[styles.panel, style]}>
+    // The finger that puts the panel away is caught here, on the panel itself (TASK-540): the
+    // gesture is decided by where the panel's own scroll stands, which is the one thing about it
+    // that this view is not told by its props.
+    <View
+      style={[styles.panel, style]}
+      onLayout={(e) => {
+        tall.current = e.nativeEvent.layout.height;
+      }}
+      {...pull}
+    >
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[
@@ -201,6 +278,12 @@ export function FrameInfoPanel({
           { paddingBottom: Math.max(insets.bottom, board.bottom) },
         ]}
         showsVerticalScrollIndicator={false}
+        // Where the panel stands in its own content, kept for the gesture above: at the top a
+        // downward drag is «put this away», and anywhere below it the same drag is the scroll's.
+        onScroll={(e) => {
+          down.current = e.nativeEvent.contentOffset.y;
+        }}
+        scrollEventThrottle={16}
       >
         {failed === null ? null : <Banner tone="error" failure={failed} />}
 

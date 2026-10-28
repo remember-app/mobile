@@ -61,10 +61,10 @@ vi.mock('@/lib/downloads', () => downloads);
 
 import { expectReachable, targets } from '@tests/helpers/access';
 import { type Asked, later, member, memory, photo, refused, serve } from '@tests/helpers/api';
-import { touch } from '@tests/helpers/gesture';
+import { restFinger, touch } from '@tests/helpers/gesture';
 import { bannersSaid, mounted, mountsTrees } from '@tests/helpers/renderer';
 import { sheetBox } from '@tests/helpers/sheet';
-import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
 import type { FrameInfo, MediaItem, Member } from '@/api';
 import {
@@ -709,6 +709,126 @@ const tools = (screen: Awaited<ReturnType<typeof open>>) => ({
   scrubber: screen.root.findAllByType(VideoTrack).length,
 });
 
+/**
+ * The row the finger walks (TASK-540, AC #2): the one view of the window whose style carries a
+ * `translateX`, which is the offset the three frames in it are drawn at.
+ */
+const rowOf = (screen: Awaited<ReturnType<typeof open>>) =>
+  screen.root.findAll((one) =>
+    Array.isArray(
+      (StyleSheet.flatten(one.props.style) as { transform?: unknown[] } | undefined)?.transform,
+    ),
+  )[0];
+
+/** Where that row stands, in points: zero is the frame in hand in the middle of the screen. */
+const shiftOf = (screen: Awaited<ReturnType<typeof open>>) =>
+  (
+    StyleSheet.flatten(rowOf(screen).props.style) as {
+      transform: { translateX: { __getValue(): number } }[];
+    }
+  ).transform[0].translateX.__getValue();
+
+/**
+ * A number off the tree that is still an `Animated` node — the sizes the window's arrival moves
+ * (TASK-540). The frame's box, the room it is centred in and the panel's travel are all of them
+ * values rather than plain numbers, so what they come to is asked of the node itself.
+ */
+const numberOf = (one: unknown) => (one as { __getValue(): number }).__getValue();
+
+/** The box the frame in `node` is drawn in: the nearest ancestor drawn at an animated size. */
+function boxOf(node: ReactTestInstance) {
+  for (let up = node.parent; up; up = up.parent) {
+    const style = StyleSheet.flatten(up.props.style) as
+      | { width?: unknown; height?: unknown }
+      | undefined;
+    if (style?.width !== undefined && style?.height !== undefined && isAnimated(style.width))
+      return style as { width: unknown; height: unknown };
+  }
+  throw new Error('nothing around this node is drawn at a size of its own');
+}
+
+/** The room the frame is centred in — the stage, which is the one view above the row sized so. */
+function stageBoxOf(screen: Awaited<ReturnType<typeof open>>) {
+  for (let up = rowOf(screen).parent; up; up = up.parent) {
+    const style = StyleSheet.flatten(up.props.style) as { height?: unknown } | undefined;
+    if (isAnimated(style?.height)) return style?.height;
+  }
+  throw new Error('the row stands in nothing that is drawn at a height of its own');
+}
+
+const isAnimated = (one: unknown) =>
+  typeof (one as { __getValue?: unknown } | undefined)?.__getValue === 'function';
+
+/**
+ * A finger that goes down on the picture and is dragged, as the responder system has it — start,
+ * down, grant and the move — with the lift left to whoever is asking. That split is what lets a
+ * test look at where the frame stands *under* the finger, which is the whole of AC #2.
+ *
+ * One `act()` for the gesture, because that is what one is, and because `PanResponder` keeps how far
+ * the finger has come inside the object `create` hands back: a render between the parts of a gesture
+ * rebuilds it and the new one counts from nothing.
+ */
+async function pull(
+  screen: Awaited<ReturnType<typeof open>>,
+  dx: number,
+  dy = 0,
+  from = { x: 200, y: 300 },
+) {
+  await act(async () => {
+    const stage = stageOf(screen);
+    restFinger();
+    stage.props.onStartShouldSetResponder(touch({ x: from.x, y: from.y }));
+    stage.props.onResponderGrant(touch({ x: from.x, y: from.y }));
+    stage.props.onResponderMove(
+      touch({ x: from.x + dx, y: from.y + dy, fromX: from.x, fromY: from.y, over: 400 }),
+    );
+  });
+}
+
+/** And the same finger lifting where it was left. */
+async function lift(
+  screen: Awaited<ReturnType<typeof open>>,
+  dx: number,
+  dy = 0,
+  from = { x: 200, y: 300 },
+) {
+  await act(async () =>
+    stageOf(screen).props.onResponderRelease(touch({ x: from.x + dx, y: from.y + dy })),
+  );
+}
+
+/**
+ * A finger coming down the panel of the frame's own screen (TASK-540, spec 10.14.4). The whole
+ * gesture in one `act()` for the reason `pull` gives, and `over` is how long the finger took: «let
+ * go» and «flick» are the same movement and only the speed tells them apart, so a drag meant to be
+ * slow has to be slow. Returns whether the panel took the gesture at all — a drag over a panel
+ * scrolled down its own content is the scroll's and never reaches this.
+ */
+async function panelDrag(screen: Awaited<ReturnType<typeof open>>, dy: number, over = 400) {
+  let taken = false;
+  await act(async () => {
+    const panel = screen
+      .info()
+      .find((one) => typeof one.props.onLayout === 'function' && 'onResponderRelease' in one.props);
+    const call = (name: string, at: ReturnType<typeof touch>) => {
+      const handler = panel.props[name] as ((e: unknown) => unknown) | undefined;
+      return typeof handler === 'function' ? handler(at) : undefined;
+    };
+    restFinger();
+    call('onStartShouldSetResponderCapture', touch({ x: 200, y: 500 }));
+    call('onStartShouldSetResponder', touch({ x: 200, y: 500 }));
+    call('onResponderGrant', touch({ x: 200, y: 500 }));
+    taken = Boolean(
+      call(
+        'onMoveShouldSetResponderCapture',
+        touch({ x: 200, y: 500 + dy, fromX: 200, fromY: 500, over }),
+      ),
+    );
+    if (taken) call('onResponderRelease', touch({ x: 200, y: 500 + dy }));
+  });
+  return taken;
+}
+
 test('a swipe to the left opens the next frame and a swipe to the right the one before, and neither goes past the ends', async () => {
   serve(() => undefined);
   const first = await open({ item: shots()[0] });
@@ -742,7 +862,7 @@ test('a strip that ends in frames still developing has nowhere to swipe on to', 
   expect(opened(screen)).toEqual([]);
 });
 
-test('a short lift is a change of mind, and a movement that is more up and down than sideways is not the picture’s', async () => {
+test('a short lift is a change of mind, and a movement that is more up and down than sideways is not the walk', async () => {
   serve(() => undefined);
   const screen = await open({ item: shots()[0] });
   // Under 56 points in all: the finger was taken (it went sideways) and let go of without a step.
@@ -750,9 +870,11 @@ test('a short lift is a change of mind, and a movement that is more up and down 
   expect(opened(screen)).toEqual([]);
   // Barely moved at all: not taken, so a tap on a button under it is still a tap.
   expect(await swipe(screen, -8)).toBe(false);
-  // Further down than across: a scroll or a drag of something else.
-  expect(await swipe(screen, -100, 150)).toBe(false);
+  // Further down than across is not the gallery's — it is a finger coming down the picture, which
+  // raises the frame's own screen (TASK-540, spec 10.14.4). It is taken, and it walks nowhere.
+  expect(await swipe(screen, -100, 150)).toBe(true);
   expect(opened(screen)).toEqual([]);
+  expect(screen.panels()).toHaveLength(1);
   // Just past the threshold it walks.
   expect(await swipe(screen, -57)).toBe(true);
   expect(opened(screen)).toEqual(['b']);
@@ -1459,16 +1581,26 @@ test('turned, the window keeps every name, role and 44 that it has standing', as
 const closed = (screen: Awaited<ReturnType<typeof open>>) =>
   (screen.shown.onClose as ReturnType<typeof vi.fn>).mock.calls.length;
 
-test('a swipe down over the picture closes the window, and one from the middle does not', async () => {
-  serve(() => undefined);
+test('a swipe down over the picture raises the frame’s own screen, wherever on the picture it began', async () => {
+  // TASK-540, spec 10.14.4. The downward swipe used to be the way out of the window; it is the way
+  // into the frame's own screen now, and it is no longer asked to begin in the top third of the
+  // picture: the stage is the picture and nothing else — the tools along the foot are its siblings
+  // and take their own fingers — so a finger coming down anywhere over the frame is asking for the
+  // same thing.
+  serve(() => told());
   const screen = await open();
-  // The phone stands at 390 × 844, so the upper third the gesture is asked for ends at 295.
   expect(await swipe(screen, 0, 300, { x: 200, y: 60 })).toBe(true);
-  expect(closed(screen)).toBe(1);
-  // Begun below that band it is not the way out: that is where the strip and the scrubber live, and
-  // a downward drag over them belongs to them.
-  expect(await swipe(screen, 0, 300, { x: 200, y: 400 })).toBe(false);
-  expect(closed(screen)).toBe(1);
+  expect(screen.panels()).toHaveLength(1);
+  // And the swipe does not close the window any more: the «Закрыть» in the corner does (AC #4).
+  expect(closed(screen)).toBe(0);
+  // The same press puts it away again.
+  await screen.press(screen.pill);
+  expect(screen.panels()).toHaveLength(0);
+
+  const middle = await open();
+  expect(await swipe(middle, 0, 300, { x: 200, y: 400 })).toBe(true);
+  expect(middle.panels()).toHaveLength(1);
+  expect(closed(middle)).toBe(0);
 });
 
 test('a swipe in from the left edge closes the window, exactly as it does on a screen', async () => {
@@ -1515,20 +1647,27 @@ test('the gallery still wins sideways, whatever a person meant the window by', a
   expect(closed(still)).toBe(0);
 });
 
-test('with the tools put away the same two gestures are still the way out', async () => {
-  serve(() => undefined);
+test('with the tools put away the two gestures still do their work, and the bar comes back with the panel', async () => {
+  serve(() => told());
   // The one state TASK-476 added and this task has to answer for: a person who has hidden the
   // interface is left with a photograph and, without these, no way off it but a second tap.
   const screen = await open();
   await tap(screen);
   expect(tools(screen)).toEqual({ bar: 0, strip: 0, scrubber: 0 });
-  expect(await swipe(screen, 0, 300, { x: 200, y: 60 })).toBe(true);
+  expect(await swipe(screen, 200, 0, { x: 4, y: 300 })).toBe(true);
   expect(closed(screen)).toBe(1);
 
+  // A finger coming down the bare picture raises the frame's own screen, and the tools come back
+  // with it: the pill in the bar is the panel's own way back out, and a panel raised over a picture
+  // with no bar would be a panel with nothing to close it (TASK-540).
   const bare = await open();
   await tap(bare);
-  expect(await swipe(bare, 200, 0, { x: 4, y: 300 })).toBe(true);
-  expect(closed(bare)).toBe(1);
+  expect(await swipe(bare, 0, 300, { x: 200, y: 60 })).toBe(true);
+  expect(bare.panels()).toHaveLength(1);
+  expect(closed(bare)).toBe(0);
+  expect(tools(bare)).toEqual({ bar: 1, strip: 0, scrubber: 0 });
+  await bare.press(bare.pill);
+  expect(bare.panels()).toHaveLength(0);
 });
 
 test('to a screen reader the way out is the escape the platform gives it, over a photo and over a film', async () => {
@@ -1545,5 +1684,150 @@ test('to a screen reader the way out is the escape the platform gives it, over a
     expect(closed(shot)).toBe(1);
   }
   // And it is the room, so nothing of the picture's own reading was replaced to add it.
-  expect(screen.root.findAllByProps({ accessibilityLabel: ru.viewer.hideTools })).toHaveLength(1);
+  expect(stageOf(screen).props.accessibilityLabel).toBe(ru.viewer.hideTools);
+});
+
+test('a video is drawn in the frame’s own box and fills it, exactly as the photograph is', async () => {
+  // Reported off a device for m-38 (TASK-540, AC #1): a video played with its sound and no picture.
+  // `expo-video`'s own view measures nothing — it has no size and no content of its own — so a view
+  // handed a style of `{}` inside the frame's box comes out as nothing at all, and the player goes
+  // on playing over it. What it is given instead is the whole of the cell it stands in.
+  serve(() => undefined);
+  const clip = video();
+  const screen = await open({ item: clip, frames: [clip] });
+  const view = screen.root.findByType(VideoView);
+  expect(StyleSheet.flatten(view.props.style)).toMatchObject({
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  });
+  // And the cell it fills is the frame's own box — the same two numbers, off the same `frameBox`,
+  // that the photograph beside it is drawn in.
+  const box = frameBox(clip.width, clip.height, phone.width, phone.height);
+  expect(numberOf(boxOf(view).width)).toBe(box.width);
+  expect(numberOf(boxOf(view).height)).toBe(box.height);
+
+  const still = await open();
+  const shot = still.root.findAllByType(Image).find((one) => one.props.contentFit === 'cover')!;
+  expect(numberOf(boxOf(shot).width)).toBe(box.width);
+});
+
+test('the picture travels with the finger, and the frames either side of it are already in the row', async () => {
+  // TASK-540, AC #2: «смахивая, фотография уходит за край экрана, следующая появляется, как у
+  // Apple». The window draws three frames and moves them together, so what the finger sees under it
+  // is the frame it is dragging away and the one coming in — not a swap at the moment it lifts.
+  serve(() => undefined);
+  const screen = await open({ item: shots()[1] });
+  expect(shiftOf(screen)).toBe(0);
+  await pull(screen, -120);
+  expect(shiftOf(screen)).toBe(-120);
+  await lift(screen, -120);
+  // Let go of past the step, the frame it was dragged towards is the one that opens.
+  expect(opened(screen)).toEqual(['d']);
+
+  // The frames either side are in the row already, and they are the pictures the strip draws them
+  // by — so a drag brings a frame in from the edge rather than black.
+  const beside = await open({ item: shots()[1] });
+  const drawn = beside.root
+    .findAllByType(Image)
+    .map((one) => one.props.source?.cacheKey)
+    .filter(Boolean);
+  expect(drawn).toEqual(['a:thumb', 'b:thumb', 'd:thumb']);
+});
+
+test('a drag at either end of the strip does not travel into the black behind it', async () => {
+  // Nothing before the first frame: the row cannot move that way, and the frame in hand stays
+  // exactly where it is rather than sliding out with nothing behind it (TASK-540, AC #2).
+  serve(() => undefined);
+  const first = await open({ item: shots()[0] });
+  await pull(first, 120);
+  expect(shiftOf(first)).toBe(0);
+  await lift(first, 120);
+  expect(opened(first)).toEqual([]);
+  expect(shiftOf(first)).toBe(0);
+
+  const last = await open({ item: shots()[3] });
+  await pull(last, -120);
+  expect(shiftOf(last)).toBe(0);
+  await lift(last, -120);
+  expect(opened(last)).toEqual([]);
+});
+
+test('a finger that came short of the step leaves the row where it found it and opens nothing', async () => {
+  serve(() => undefined);
+  const screen = await open({ item: shots()[1] });
+  await pull(screen, -40);
+  expect(shiftOf(screen)).toBe(-40);
+  await lift(screen, -40);
+  expect(opened(screen)).toEqual([]);
+  expect(shiftOf(screen)).toBe(0);
+});
+
+test('the pill and a finger coming down the picture are the same press, and the panel’s own swipe puts it away', async () => {
+  // TASK-540, spec 10.14.4: the downward swipe used to close the window and now raises the frame's
+  // own screen; the same swipe over the panel itself puts it away again. The pill in the bar is
+  // that same press, and it is held in while the panel stands.
+  serve(() => told());
+  const screen = await open();
+  await screen.press(screen.pill);
+  expect(screen.panels()).toHaveLength(1);
+  expect(screen.pill().props.on).toBe(true);
+  expect(screen.pill().props.label).toContain(ru.viewer.hideDetails);
+
+  // A finger coming down the panel, far enough: the details go.
+  expect(await panelDrag(screen, 150)).toBe(true);
+  expect(screen.panels()).toHaveLength(0);
+  expect(screen.pill().props.on).toBe(false);
+
+  // And a short slow drag is a finger feeling for the panel and no more: it comes back.
+  const again = await open();
+  await again.press(again.pill);
+  expect(await panelDrag(again, 40, 600)).toBe(true);
+  expect(again.panels()).toHaveLength(1);
+});
+
+test('a drag down a panel scrolled into its own content is the scroll’s, not the way out', async () => {
+  // The panel is the one place in the window where a downward drag has two meanings, because it
+  // scrolls — the same trouble a sheet has, settled the same way (TASK-477): while the panel is
+  // scrolled down its content the drag is «листать» whatever the finger meant, and only at the top
+  // is it «убрать» (TASK-540, spec 10.14.4).
+  serve(() => told());
+  const screen = await open();
+  await screen.press(screen.pill);
+  await act(async () =>
+    screen
+      .info()
+      .findByType(ScrollView)
+      .props.onScroll({ nativeEvent: { contentOffset: { y: 120 } } }),
+  );
+  expect(await panelDrag(screen, 150)).toBe(false);
+  expect(screen.panels()).toHaveLength(1);
+});
+
+test('the picture and the panel are one movement: the frame’s room shrinks as the panel rises', async () => {
+  // TASK-540, spec 10.14.3: «кадр при этом ужимается кверху … одним движением, а не двумя». One
+  // value is what the window's arrival is, and the room the frame is drawn in, the box it is drawn
+  // in and the panel's own travel are all read off it — so there is no state in which the panel has
+  // moved and the frame has not.
+  serve(() => told());
+  const screen = await open();
+  const clip = shots()[0];
+  const full = frameBox(clip.width, clip.height, phone.width, phone.height);
+  const settled = frameBox(clip.width, clip.height, phone.width, phone.height, 352);
+
+  const shot = () =>
+    screen.root.findAllByType(Image).find((one) => one.props.contentFit === 'cover')!;
+  // With the panel away the frame is drawn in the whole of the screen and the stage is the screen.
+  expect(numberOf(stageBoxOf(screen))).toBe(phone.height);
+  expect(numberOf(boxOf(shot()).height)).toBe(full.height);
+
+  await screen.press(screen.pill);
+  // Settled, the stage is the top of the window and the frame is the box that room makes of it —
+  // the layout's own 352 upright.
+  expect(numberOf(stageBoxOf(screen))).toBe(352);
+  expect(numberOf(boxOf(shot()).height)).toBe(settled.height);
+  // And the panel is drawn where the stage ends: the frame gave up exactly what the panel takes.
+  expect(screen.info().props.style).toEqual({ height: phone.height - 352 });
 });

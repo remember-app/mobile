@@ -61,14 +61,6 @@ export const DROP = 120;
 export const FALL = 0.5;
 
 /**
- * How much of the window down a drag has to begin in to be one that means «back» rather than one
- * that happens to be going down. The upper third, and no further: everything below it is either the
- * picture, whose own gestures are sideways, or the tools along the foot — whose horizontal drags a
- * downward one would otherwise take away from them.
- */
-export const TOP = 0.35;
-
-/**
  * Whether a drag that began in the strip at the left edge has gone back, as far as `over`.
  *
  * The horizontal test is not decoration: the corner of the screen is where a diagonal comes from,
@@ -83,7 +75,9 @@ export function edgeBack(g: Drag, over = SIDEWAYS): boolean {
 
 /**
  * Whether a drag that began in the top `band` of the window has gone down, as far as `over` — the
- * answer a full-screen photograph gives, where sideways means «the next one» and down means «back».
+ * answer a full-screen photograph gives, where sideways means «the next one» and down means the
+ * frame's own details (spec 10.14.4). The band is the caller's: the window hands it the whole of the
+ * picture, and a picture is the whole of what stands under the bar and above the tools.
  */
 export function topDown(g: Drag, band: number, over = SIDEWAYS): boolean {
   return g.y0 <= band && g.dy >= over && g.dy > Math.abs(g.dx);
