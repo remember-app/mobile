@@ -240,3 +240,32 @@ test('several repeats are said as a count, and choosing every frame repeats ever
   expect(screen.ask().props.title).toBe(ru.upload.alreadyThere(2));
   expect(ru.upload.alreadyThere(2)).toBe('2 файла уже есть в воспоминании');
 });
+
+test('a frame this person hid is still a file they already gave: the question is asked', async () => {
+  // Hidden from the shared feed, and still theirs (`listMedia` keeps it only when asked for it), so
+  // re-picking it is a repeat like any other and must not slip past the check in silence.
+  serve((asked) => {
+    if (asked.path === '/memories') return [memory()];
+    if (asked.path === '/memories/m1/media')
+      return [photo('own-hidden', 'me', when(12, 18), { hidden: true })];
+    return undefined;
+  });
+  const screen = await open();
+  await screen.press(screen.tile('b1'));
+  await screen.press(() => screen.send());
+  expect(screen.ask().props.visible).toBe(true);
+  expect(screen.ask().props.title).toBe(ru.upload.alreadyThere(1));
+});
+
+test('a listing that never arrived leaves the sending as it always was: no question, the files sent', async () => {
+  serve((asked) => {
+    if (asked.path === '/memories') return [memory()];
+    if (asked.path === '/memories/m1/media') return 'offline';
+    return undefined;
+  });
+  const screen = await open();
+  await screen.press(screen.tile('a1'));
+  await screen.press(() => screen.send());
+  expect(screen.ask().props.visible).toBe(false);
+  expect(uploads.enqueue).toHaveBeenCalledWith('m1', [expect.objectContaining({ id: 'a1' })]);
+});
