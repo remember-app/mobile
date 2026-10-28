@@ -1,8 +1,10 @@
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Aperture, ChevronRight, CircleSlash, Copy, ImageOff, SunDim } from 'lucide-react-native';
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { analyzeMemory } from '@/api';
 import { Button, GRID_GAP, type IconComponent, RowRejected, Sheet, Text, Tile } from '@/kit';
+import { useAuth } from '@/lib/auth';
 import { formatRuntime } from '@/lib/dates';
 import { useDensity } from '@/lib/density';
 import { rowsOf } from '@/lib/frames';
@@ -16,6 +18,7 @@ import {
   reasonOf,
   rejectedGroups,
   taken,
+  usable,
 } from '@/lib/montage/order';
 import { DensityPill, useDensityPinch } from '@/screens/memory/frames-density';
 import { useOrder, WizardStep } from '@/screens/order/wizard';
@@ -30,11 +33,22 @@ import { space, themed } from '@/theme';
  * proposed is on the grid, what it dropped is behind «Что сняли», and neither is a verdict. What
  * stands in front of it is `MontageTemplate` (`index.tsx`), which is the way into the order — this
  * step is reached from «Настроить самому» there, or walked through by the autopilot.
+ *
+ * The automatic pass is the organizer's to start since m-43 (spec 10.15): it does not come down
+ * with the material any more. Until every ready frame carries a verdict the line offers
+ * «Проанализировать», and while the worker writes them the screen reads the material again and
+ * again in place, never blanking the grid. A pass that dropped nothing says so and leaves no
+ * button; one that failed says that instead and offers «Повторить». Finished, the pass is reused —
+ * «Что сняли» stands where the analyze button was. None of it locks the step: «Дальше» works
+ * through the whole run.
  */
+const POLL_MS = 3000;
+
 export default function PickFramesStep() {
   const router = useRouter();
   const s = useStrings();
-  const { id, material, order, change } = useOrder();
+  const { id, material, order, change, refresh } = useOrder();
+  const { token } = useAuth();
   const styles = useStyles();
   /**
    * One column of the grid, worked out rather than flexed — `memory/frames.tsx` says why at length:
@@ -52,8 +66,67 @@ export default function PickFramesStep() {
   /** Whether `SheetRejected` is up — what the automatic pass dropped, and why. */
   const [showDropped, setShowDropped] = useState(false);
 
+  /**
+   * Where the automatic pass stands: `running` from the press until every visible frame has a
+   * verdict, and `failed` when the call or a read of the material did not go through. The pass
+   * itself is not the state — whether it has spoken is read off the frames, `screening_rejected`
+   * being `null` until it does — so the view follows rereads by itself.
+   */
+  const [analysis, setAnalysis] = useState<'idle' | 'running' | 'failed'>('idle');
+  /** Whether the run still wants its readings. Cleared by leaving the step or by a failure. */
+  const polling = useRef(false);
+  useFocusEffect(
+    useCallback(
+      () => () => {
+        polling.current = false;
+      },
+      [],
+    ),
+  );
+  // Unmounted is left as well, and the read already in flight must not bring a step back.
+  useEffect(
+    () => () => {
+      polling.current = false;
+    },
+    [],
+  );
+
+  const analyze = useCallback(async () => {
+    if (!token || polling.current) return;
+    polling.current = true;
+    setAnalysis('running');
+    try {
+      await analyzeMemory(token, id);
+    } catch {
+      if (!polling.current) return;
+      polling.current = false;
+      setAnalysis('failed');
+      return;
+    }
+    // The worker writes verdicts frame by frame; read until every ready one has one. Not faster
+    // than `POLL_MS`: the pass is short, and hammering the material for it helps nobody.
+    while (polling.current) {
+      await new Promise((done) => setTimeout(done, POLL_MS));
+      if (!polling.current) return;
+      const next = await refresh();
+      if (!polling.current) return;
+      if (next === null) {
+        polling.current = false;
+        setAnalysis('failed');
+        return;
+      }
+      if (usable(next).every((item) => item.screening_rejected !== null)) {
+        polling.current = false;
+        setAnalysis('idle');
+        return;
+      }
+    }
+  }, [token, id, refresh]);
+
   const inMovie = taken(material, order);
   const passDropped = droppedByPass(material, order);
+  /** Some ready frame the pass has not spoken about yet — the analyze button's own question. */
+  const pending = material.some((item) => item.screening_rejected === null);
   // Cut by hand rather than `numColumns`, the way the galleries cut theirs, and through the one
   // `rowsOf` they all use.
   const rows = useMemo(() => rowsOf(material, density), [material, density]);
@@ -66,15 +139,20 @@ export default function PickFramesStep() {
    * a minute that was asked for (found in review).
    */
   const enough = inMovie.length >= MIN_FRAMES;
+  const count = s.montage.pickMeta(inMovie.length, material.length);
+  const failed = analysis === 'failed';
+  const running = analysis === 'running';
 
   return (
     <WizardStep
       step={1}
       title={s.montage.pickTitle}
       /* The count and the way into what the pass dropped, on one line: the pass reports here and
-         explains itself there. No button while it has dropped nothing. While the pinch is walking
-         the density, the pill takes this line's place (spec 10.14.1) — the same slot the feed's
-         pill takes of the glass bar's capsule. */
+         explains itself there. Spec 10.15 — until every frame has a verdict this line offers the
+         pass itself; finished, it reports and leaves no button when nothing was dropped; failed,
+         the error takes the count's place. The line keeps its 44 whatever it holds, so the grid
+         under it never jumps. While the pinch is walking the density, the pill takes this line's
+         place (spec 10.14.1) — the same slot the feed's pill takes of the glass bar's capsule. */
       head={
         pinch.pinching || pinch.leaving ? (
           <View style={styles.pill}>
@@ -82,12 +160,34 @@ export default function PickFramesStep() {
           </View>
         ) : (
           <View style={styles.headLine}>
-            <Text role="label" tone="muted" style={styles.grow}>
-              {passDropped.length > 0
-                ? `${s.montage.pickMeta(inMovie.length, material.length)} · ${s.montage.passDropped(passDropped.length)}`
-                : s.montage.pickMeta(inMovie.length, material.length)}
+            <Text role="label" tone={failed ? 'danger' : 'muted'} style={styles.grow}>
+              {failed
+                ? s.montage.analyzeFailed
+                : pending
+                  ? count
+                  : passDropped.length > 0
+                    ? `${count} · ${s.montage.passDropped(passDropped.length)}`
+                    : `${count} · ${s.montage.nothingToDrop}`}
             </Text>
-            {passDropped.length > 0 ? (
+            {failed ? (
+              <Button
+                variant="small"
+                label={s.action.retry}
+                onPress={() => void analyze()}
+                style={styles.whatDropped}
+              />
+            ) : pending ? (
+              // The spinner takes the sign's place and the words stay put (spec 10.15), so the
+              // button does not resize while it waits.
+              <Button
+                variant="small"
+                label={s.montage.analyze}
+                busy={running}
+                busySize={16}
+                onPress={() => void analyze()}
+                style={styles.whatDropped}
+              />
+            ) : passDropped.length > 0 ? (
               // Spec 7.2 — the small one, outlined in `line` and as wide as its words: a button the
               // width of the row squeezes the count to nothing.
               <Button
@@ -108,7 +208,12 @@ export default function PickFramesStep() {
           trailingIcon={ChevronRight}
           label={s.montage.nextWith(inMovie.length)}
           disabled={!enough}
-          onPress={() => router.push({ pathname: '/memory/[id]/order/story', params: { id } })}
+          onPress={() => {
+            // Leaving the step stops its readings: the next step may stand over this one, and the
+            // pass is no longer the screen's business.
+            polling.current = false;
+            router.push({ pathname: '/memory/[id]/order/story', params: { id } });
+          }}
         />
       }
       list={({ head, foot }) => (
@@ -232,7 +337,15 @@ const useStyles = themed(() =>
     // At least half the row: on large type «Что сняли» goes under the count rather than squeeze it
     // letter by letter (TASK-375), and on the ordinary one it stays beside it, as drawn.
     grow: { flex: 1, minWidth: '50%' },
-    headLine: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s3 },
+    // Spec 10.15: 44 whichever face the line wears — the count alone, a button, a spinner, the
+    // error — so the grid under it never jumps. The line wraps when the words outgrow the row.
+    headLine: {
+      minHeight: 44,
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      gap: space.s3,
+    },
     // The layout hangs it 4 past the screen's margin (`MontageSelect`: its right edge at 378).
     whatDropped: { marginRight: -space.s1 },
     // The rows' gutter is the grid's own and follows the density: the layout's 3 between rows, and

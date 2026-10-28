@@ -105,6 +105,14 @@ export const en = {
     pickMeta: (taken: number, all: number) => `Taking ${taken} of ${all}`,
     passDropped: (n: number) => `${n} dropped automatically`,
     whatDropped: 'What was dropped',
+    /**
+     * Spec 10.15 — the automatic pass is the organizer's to start now, not something that has
+     * already happened by the time they arrive. Busy, the button keeps this word and only gains a
+     * spinner; a pass that found nothing dropped says so beside the count and leaves no button.
+     */
+    analyze: 'Analyze',
+    nothingToDrop: 'nothing to drop',
+    analyzeFailed: 'Could not analyze',
     nextWith: (n: number) => `Next — ${n} ${n === 1 ? 'frame' : 'frames'}`,
     /**
      * Under the button that has gone dark: everything was crossed out, and there is no film in
@@ -810,6 +818,9 @@ export const ru: typeof en = {
     pickMeta: (taken: number, all: number) => `Возьмём ${taken} из ${all}`,
     passDropped: (n: number) => `${n} сняли автоматически`,
     whatDropped: 'Что сняли',
+    analyze: 'Проанализировать',
+    nothingToDrop: 'снимать нечего',
+    analyzeFailed: 'Не получилось проанализировать',
     nextWith: (n: number) => `Дальше — ${count(n, 'кадр', 'кадра', 'кадров')}`,
     keepAtLeast: (n: number) => `Оставьте хотя бы ${count(n, 'кадр', 'кадра', 'кадров')}`,
     inMovie: 'Берём в ролик',

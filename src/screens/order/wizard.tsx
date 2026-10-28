@@ -81,6 +81,13 @@ export type Wizard = {
    * out from the old read — step 4's range above all — is asked again off the new one.
    */
   reread: () => void;
+  /**
+   * The same read, in place: the frames already on screen stay while the new ones come in, and a
+   * failure is handed back rather than raised as the step's own. Step 1 asks again this way while
+   * the screening runs, so the grid does not blank out on every look and a dropped connection is
+   * the button's own state rather than the whole screen's banner. `null` is a read that failed.
+   */
+  refresh: () => Promise<MediaItem[] | null>;
   /** The `ready` half of them — the only frames an order can be made of. */
   material: MediaItem[];
   error: string | null;
@@ -231,6 +238,16 @@ export function OrderProvider({ id, children }: { id: string; children: ReactNod
     listMedia(token, id).then(setItems, (e: unknown) => setError(refusal(e).text));
   }, [token, id]);
   useEffect(reread, [reread]);
+  const refresh = useCallback(async (): Promise<MediaItem[] | null> => {
+    if (!token) return null;
+    try {
+      const next = await listMedia(token, id);
+      setItems(next);
+      return next;
+    } catch {
+      return null;
+    }
+  }, [token, id]);
 
   const change = useCallback(
     (patch: Partial<Order> | ((was: Order) => Partial<Order>)) =>
@@ -364,6 +381,7 @@ export function OrderProvider({ id, children }: { id: string; children: ReactNod
       id,
       items,
       reread,
+      refresh,
       material,
       error,
       short,
@@ -375,7 +393,22 @@ export function OrderProvider({ id, children }: { id: string; children: ReactNod
       start,
       stop,
     }),
-    [id, items, reread, material, error, short, tooLittle, order, change, leave, auto, start, stop],
+    [
+      id,
+      items,
+      reread,
+      refresh,
+      material,
+      error,
+      short,
+      tooLittle,
+      order,
+      change,
+      leave,
+      auto,
+      start,
+      stop,
+    ],
   );
 
   return (

@@ -286,7 +286,19 @@ test('step 1 rules the automatic pass, and cannot leave the order below the floo
   );
   expect(frames).toContain('onCancel={() => setShowDropped(false)}');
   // No way into the sheet while the pass has dropped nothing — an empty report is not a button.
-  expect(frames).toContain('{passDropped.length > 0 ? (');
+  expect(frames).toContain('passDropped.length > 0 ? (');
+
+  // Spec 10.15: the pass waits for the organizer now — the line offers «Проанализировать» until
+  // every frame carries a verdict, says so when there was nothing to drop, and keeps 44 tall
+  // whichever face it wears, so the grid under it never jumps.
+  expect(frames).toContain('label={s.montage.analyze}');
+  expect(frames).toContain('s.montage.analyzeFailed');
+  expect(frames).toContain('s.montage.nothingToDrop');
+  expect(frames).toContain('minHeight: 44');
+  expect(ru.montage.analyze).toBe('Проанализировать');
+  expect(en.montage.analyze).toBe('Analyze');
+  expect(ru.montage.analyzeFailed).toBe('Не получилось проанализировать');
+  expect(ru.montage.nothingToDrop).toBe('снимать нечего');
 
   // The floor holds on what was picked and not only on what the memory holds: the api counts the
   // ready material for its 409 and never the selection (found in review, m-23). The button goes

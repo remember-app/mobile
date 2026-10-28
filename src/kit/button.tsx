@@ -115,6 +115,8 @@ export type ButtonProps = {
    */
   busy?: boolean;
   busyLabel?: string;
+  /** The spinner's size while busy: 18 unless the place draws it smaller (spec 10.15's 16). */
+  busySize?: number;
   disabled?: boolean;
   /** A glyph before the words — the plus on «Новое воспоминание». */
   icon?: IconComponent;
@@ -147,6 +149,7 @@ export function Button({
   wide,
   busy,
   busyLabel,
+  busySize,
   disabled,
   icon,
   glyph: drawn,
@@ -217,7 +220,7 @@ export function Button({
         style,
       ]}
     >
-      {busy ? <Spinner size={18} track={tint} head="transparent" /> : null}
+      {busy ? <Spinner size={busySize ?? 18} track={tint} head="transparent" /> : null}
       {icon && !busy ? <Icon icon={icon} {...glyph} color={tint} /> : null}
       <Text
         role={labelRole ?? wordsRole(variant, sized, kind)}

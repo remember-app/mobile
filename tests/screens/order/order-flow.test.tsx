@@ -139,7 +139,7 @@ vi.mock('@/kit', async (original) => {
 });
 
 import { expectReachable } from '@tests/helpers/access';
-import { later } from '@tests/helpers/api';
+import { later, refused } from '@tests/helpers/api';
 import { measure, scrolled } from '@tests/helpers/board';
 import { orderRefusal } from '@tests/helpers/contract';
 import { contrast } from '@tests/helpers/contrast';
@@ -147,7 +147,7 @@ import { act, BEAT_BY_BEAT, drives } from '@tests/helpers/drive';
 import { frame } from '@tests/helpers/labels';
 import { mountsTrees, themesShown } from '@tests/helpers/renderer';
 import { Fragment, type ReactElement, useSyncExternalStore } from 'react';
-import { ScrollView, StyleSheet, Text } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import TestRenderer, { act as reactAct } from 'react-test-renderer';
 import type {
   MediaItem,
@@ -229,6 +229,19 @@ type Server = {
   failing?: keyof typeof CALLS;
   /** How many times the wizard has read the material. */
   reads: number;
+  /**
+   * The automatic pass (spec 10.15). `calls` counts the presses that reached `/analyze`; `refuse`
+   * is answered instead of a 202; `left` is how many reads still come back without verdicts, and
+   * `verdict` is what the worker writes onto every ready frame once they run out.
+   */
+  analysis: {
+    calls: number;
+    /** How many reads after the press still carry no verdicts before the worker's land. */
+    after?: number;
+    refuse?: Response;
+    left?: number;
+    verdict?: (item: MediaItem) => MediaItem;
+  };
   previews: Body[];
   orders: Body[];
 };
@@ -313,11 +326,31 @@ function total(server: Server, body: Body): Response {
 
 /** Seven ready photos (p7 dropped by the automatic pass), a two-minute video and a frame still in processing. */
 const material = (): MediaItem[] => [
-  ...['p1', 'p2', 'p3', 'p4', 'p5', 'p6'].map((id) => ({ ...frame(id), uploaded_by: 'ann' })),
+  ...['p1', 'p2', 'p3', 'p4', 'p5', 'p6'].map((id) => ({
+    ...frame(id),
+    uploaded_by: 'ann',
+    screening_rejected: false,
+  })),
   { ...frame('p7'), uploaded_by: 'cid', screening_rejected: true, screening_reason: 'blur' },
-  { ...frame('v1'), kind: 'video' as const, duration_seconds: 120, uploaded_by: 'bob' },
+  {
+    ...frame('v1'),
+    kind: 'video' as const,
+    duration_seconds: 120,
+    uploaded_by: 'bob',
+    screening_rejected: false,
+  },
   { ...frame('busy'), status: 'processing' as const },
 ];
+
+/** The material as it arrives since m-43: no verdict on any ready frame until the pass is asked. */
+const unseen = (items: MediaItem[] = material()): MediaItem[] =>
+  items.map((item) => ({ ...item, screening_rejected: null, screening_reason: null }));
+
+/** What the worker writes: p7 dropped, everything else kept. */
+const verdicts = (item: MediaItem): MediaItem =>
+  item.id === 'p7'
+    ? { ...item, screening_rejected: true, screening_reason: 'blur' }
+    : { ...item, screening_rejected: false, screening_reason: null };
 // What an order that leaves p7 out can carry: 6 photos × 2.5 s + the video's 120 s, less 0.5 s on
 // each of the six joins between those seven frames.
 const CEILING = 132;
@@ -328,6 +361,7 @@ function serve(over: Partial<Server> = {}): Server {
     templates: [],
     ceiling: 600,
     reads: 0,
+    analysis: { calls: 0 },
     previews: [],
     orders: [],
     ...over,
@@ -351,8 +385,22 @@ function serve(over: Partial<Server> = {}): Server {
       throw new TypeError('Network request failed');
     if (server.failing && path === CALLS[server.failing])
       return json({ error: 'internal server error' }, 500);
+    if (path === '/m1/analyze') {
+      server.analysis.calls += 1;
+      if (server.analysis.refuse) return server.analysis.refuse;
+      if (server.analysis.after !== undefined) server.analysis.left = server.analysis.after;
+      return json({ status: 'queued' }, 202);
+    }
     if (path === '/m1/media') {
       server.reads += 1;
+      // The worker writes its verdicts frame by frame, so they land after the reads the test asked
+      // for rather than together with the press.
+      if (server.analysis.left !== undefined) {
+        if (server.analysis.left <= 0) {
+          server.material = server.material.map((item) => server.analysis.verdict?.(item) ?? item);
+          server.analysis.left = undefined;
+        } else server.analysis.left -= 1;
+      }
       return json(server.material);
     }
     if (path === '/m1/montage-templates') {
@@ -473,6 +521,19 @@ async function wishTo(track: string, text: string) {
 }
 const sheet = () => root().findAllByType(ConfirmSheet).at(-1)!;
 const shown = () => JSON.stringify(tree!.toJSON());
+/**
+ * Step 1's line under the heading — the count, the analyze button or the error. Spec 10.15: it
+ * stands 44 tall in every face, so the grid under it does not jump.
+ */
+const headline = () =>
+  root()
+    .findAllByType(View)
+    .find((one) => {
+      const style = StyleSheet.flatten(one.props.style) as
+        | { minHeight?: number; flexWrap?: string }
+        | undefined;
+      return style?.minHeight === 44 && style?.flexWrap === 'wrap';
+    });
 const tile = (id: MontageTemplateId) =>
   root()
     .findAllByType(TileTemplate)
@@ -905,6 +966,140 @@ test('«Что сняли» opens a sheet that reports: the paragraph 8 under th
   expect(rows[0].parent).toBe(rows[1].parent);
   expect(rows[0].parent?.type).not.toBe(ScrollView);
   expect(rows.map((row) => row.props.divider)).toEqual([false, true]);
+});
+
+/* ── The automatic pass, started by hand (spec 10.15, m-43) ─────────────── */
+
+test('the pass is not something the material brings: step 1 offers «Проанализировать» until it is asked', async () => {
+  // TASK-591. Since m-43 the screening waits for the organizer: `screening_rejected` arrives
+  // `null` on every frame, and the line says what an untouched order would take rather than
+  // reporting a pass nobody has run.
+  serve({ material: unseen() });
+  await open();
+  await press(say().montage.ownSetup);
+
+  expect(has(say().montage.analyze)).toBe(true);
+  expect(has(ru.montage.whatDropped)).toBe(false);
+  expect(shown()).toContain(ru.montage.pickMeta(8, 8));
+  expect(shown()).not.toContain(ru.montage.nothingToDrop);
+  // The line is 44 tall with no button at all as well as with one (spec 10.15).
+  expect(headline()).toBeDefined();
+});
+
+test('pressing «Проанализировать» calls the api route and keeps the button busy while the worker writes', async () => {
+  // The press is one POST, quoted back as 202 with where the job stands: `queued` or `running`.
+  // The words do not change while it waits — only a 16 spinner takes the sign's place — and the
+  // material is read again no faster than every few seconds, until every frame has a verdict.
+  const server = serve({
+    material: unseen(),
+    analysis: { calls: 0, after: 1, verdict: verdicts },
+  });
+  await open();
+  await press(say().montage.ownSetup);
+  const before = server.reads;
+
+  await press(ru.montage.analyze);
+  expect(server.analysis.calls).toBe(1);
+  const busy = buttons(ru.montage.analyze).at(-1)!;
+  expect(busy.props.busy).toBe(true);
+  expect(busy.props.busySize).toBe(16);
+  expect(headline()).toBeDefined();
+
+  // Not faster than once in a few seconds: a second after the press the material has not been read.
+  await run(1000);
+  expect(server.reads).toBe(before);
+  // The first look is still too early for the worker; the second carries the verdicts.
+  await run(2000);
+  expect(server.reads).toBe(before + 1);
+  expect(buttons(ru.montage.analyze).at(-1)!.props.busy).toBe(true);
+  await run(3000);
+  expect(server.reads).toBe(before + 2);
+  // Every frame has a verdict now, so the button gives way to the report.
+  expect(has(ru.montage.analyze)).toBe(false);
+  expect(has(ru.montage.whatDropped)).toBe(true);
+});
+
+test('a finished pass is reused: «Что сняли» where the button was', async () => {
+  // Nothing is re-run once every frame has its verdict (spec 10.15): what the pass dropped is
+  // reported, and the reasons are explained in the sheet behind «Что сняли».
+  serve({ material: material() });
+  await open();
+  await press(say().montage.ownSetup);
+  expect(has(ru.montage.analyze)).toBe(false);
+  expect(has(ru.montage.whatDropped)).toBe(true);
+  expect(shown()).toContain(ru.montage.passDropped(1));
+  expect(headline()).toBeDefined();
+});
+
+test('a pass that dropped nothing says so and leaves no button', async () => {
+  serve({
+    material: material().map((item) => ({
+      ...item,
+      screening_rejected: false,
+      screening_reason: null,
+    })),
+  });
+  await open();
+  await press(say().montage.ownSetup);
+  expect(has(ru.montage.analyze)).toBe(false);
+  expect(has(ru.montage.whatDropped)).toBe(false);
+  expect(shown()).toContain(ru.montage.nothingToDrop);
+  expect(headline()).toBeDefined();
+});
+
+test('a pass that did not go through says so on the line, and «Повторить» asks again', async () => {
+  // Only the organizer may spend the worker's time, so a 403 is one face of the failure; a dropped
+  // connection is the other. Neither is a banner over the whole screen — the step stays whole.
+  const server = serve({
+    material: unseen(),
+    analysis: { calls: 0, after: 0, verdict: verdicts, refuse: refused(403, 'forbidden') },
+  });
+  await open();
+  await press(say().montage.ownSetup);
+
+  await press(ru.montage.analyze);
+  expect(server.analysis.calls).toBe(1);
+  expect(banner()).toBeUndefined();
+  expect(shown()).toContain(ru.montage.analyzeFailed);
+  expect(has(say().action.retry)).toBe(true);
+  const failed = root()
+    .findAllByType(KitText)
+    .find((one) => one.props.children === ru.montage.analyzeFailed)!;
+  expect(failed.props.tone).toBe('danger');
+  expect(headline()).toBeDefined();
+
+  // The api is happy the second time: the same press runs the pass and lands its verdicts.
+  server.analysis.refuse = undefined;
+  await press(say().action.retry);
+  expect(server.analysis.calls).toBe(2);
+  await run(3000);
+  expect(has(ru.montage.whatDropped)).toBe(true);
+  expect(shown()).toContain(ru.montage.passDropped(1));
+});
+
+test('«Дальше» works while the pass is running, and leaving the step stops its readings', async () => {
+  // The pass locks nothing (spec 10.15): an order may be walked on while the worker is still
+  // writing. But the step's readings are its own — once it is left, nothing more is asked.
+  const server = serve({
+    material: unseen(),
+    analysis: { calls: 0, after: 5, verdict: verdicts },
+  });
+  await open();
+  await press(say().montage.ownSetup);
+
+  await press(ru.montage.analyze);
+  const next = buttons(NEXT().frames).at(-1)!;
+  expect(next.props.disabled).toBe(false);
+  await forward();
+  expect(nav.top()).toBe('story');
+
+  const reads = server.reads;
+  await run(30_000);
+  expect(server.reads).toBe(reads);
+  // And the order goes on from where the person left it.
+  await forward();
+  await run(0);
+  expect(nav.top()).toBe('music');
 });
 
 test('the heading over the length and the one over the shape are the layout’s eyebrows, in muted', async () => {
