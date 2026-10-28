@@ -180,6 +180,20 @@ export const en = {
     nothingAdded: 'nothing added',
     noMusic: 'The film will have no music',
     noMusicNote: 'Just the live sound from the videos',
+    /**
+     * The choice handed to the director (spec 7.7, detail 81): the card on step 3, the third view of
+     * «Выбрано», and — for a film already cut that way — the word for its music wherever a track
+     * list would stand: the strip, its card and its sheet.
+     */
+    directorChoice: "The director's choice",
+    directorChoiceNote: 'The director will pick one track',
+    /** The whole card read out, in its two states (detail 81). */
+    directorOffer: 'Let the director choose — they will pick one track',
+    directorPicked: 'Chosen: the director will pick one track',
+    /** The third view of «Выбрано» (detail 54): the count in its head and the row under it. */
+    directorHead: 'the director picks',
+    directorBlockTitle: 'The director will pick the track',
+    directorBlockNote: 'One track, named by the director',
     /** The round buttons of a track row — spoken, because every one of them is a glyph alone. */
     addTrack: (track: string) => `Add ${track}`,
     unpickTrack: (track: string) => `Remove ${track} from the chosen`,
@@ -831,6 +845,13 @@ export const ru: typeof en = {
     nothingAdded: 'ничего не добавлено',
     noMusic: 'Ролик будет без музыки',
     noMusicNote: 'Только живой звук из видео',
+    directorChoice: 'На усмотрение режиссёра',
+    directorChoiceNote: 'Режиссёр подберёт один трек сам',
+    directorOffer: 'Отдать выбор режиссёру — один трек он подберёт сам',
+    directorPicked: 'Выбрано: режиссёр подберёт один трек сам',
+    directorHead: 'подберёт режиссёр',
+    directorBlockTitle: 'Режиссёр подберёт трек сам',
+    directorBlockNote: 'Один трек, который он назовёт',
     addTrack: (track: string) => `Добавить «${track}»`,
     unpickTrack: (track: string) => `Убрать «${track}» из выбранных`,
     dropTrack: (track: string) => `Убрать «${track}»`,
