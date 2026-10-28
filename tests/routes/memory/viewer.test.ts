@@ -488,9 +488,12 @@ test("the strip under the frame is the grid's own list, in the grid's own order,
   expect(material.match(/listMedia\(/g)).toHaveLength(1);
   // And the library is handed that same list, picture for picture: the window invents no second
   // reading of a record — `@/lib/frames` answers for both sheets (TASK-86, TASK-120).
-  expect(viewer).toContain(
-    "frames.map((one) => ({ uri: frameOf(one).uri ?? '', video: one.kind === 'video' }))",
-  );
+  expect(viewer).toContain('const frame = frameOf(one);');
+  expect(viewer).toContain("uri: frame.uri ?? ''");
+  expect(viewer).toContain("video: one.kind === 'video'");
+  // And each picture is filed under its record's key, so the strip's signed links move without the
+  // frames behind them being fetched again (doc-15).
+  expect(viewer).toContain('cacheKey: frame.key');
 });
 
 test('the strip is walked to the frame in hand, and the walk hangs on its own width', () => {

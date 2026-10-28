@@ -11,12 +11,19 @@ import {
   type ViewStyle,
 } from 'react-native';
 
+import { pictureKey } from '@/lib/picture-key';
 import { photo, radius, themed } from '@/theme';
 
 import { Icon } from './icon';
 
-/** One frame as the strip and the mosaic know it: a picture, and whether it moves. */
-export type Frame = { uri: string; video?: boolean };
+/**
+ * One frame as the strip and the mosaic know it: a picture, and whether it moves.
+ *
+ * `cacheKey` is what the phone files the picture under (`@/lib/frames`), carried through because
+ * the strip's url is signed afresh on every read: without it the same frame is a new file each time
+ * the window opens, and the strip downloads its neighbours again on every visit.
+ */
+export type Frame = { uri: string; video?: boolean; cacheKey?: string };
 
 /** Spec 7.8, detail 67 — a neighbour and the frame in hand lie 2 apart, whichever way up the phone. */
 const GAP = 2;
@@ -274,7 +281,11 @@ function Shot({
       onAccessibilityAction={onActivate}
       style={[{ width, height }, styles.shot, current ? styles.shotCurrent : { opacity: dim }]}
     >
-      <Image source={{ uri: frame.uri }} contentFit="cover" style={StyleSheet.absoluteFill} />
+      <Image
+        source={frame.cacheKey ? { uri: frame.uri, cacheKey: frame.cacheKey } : { uri: frame.uri }}
+        contentFit="cover"
+        style={StyleSheet.absoluteFill}
+      />
       {current && frame.video ? <PlayDot /> : null}
     </View>
   );
@@ -389,7 +400,13 @@ export function Mosaic({
             ]}
           >
             {uri ? (
-              <Image source={{ uri }} contentFit="cover" style={StyleSheet.absoluteFill} />
+              // The same object under a fresh signature on every read — filed under its path, so
+              // the card's mosaic is drawn off the phone the second time (`pictureKey`).
+              <Image
+                source={{ uri, cacheKey: pictureKey(uri) }}
+                contentFit="cover"
+                style={StyleSheet.absoluteFill}
+              />
             ) : null}
           </View>
         );

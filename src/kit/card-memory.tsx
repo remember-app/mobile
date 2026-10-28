@@ -3,6 +3,7 @@ import { ImageIcon } from 'lucide-react-native';
 import { type ReactNode, useEffect, useState } from 'react';
 import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
+import { pictureKey } from '@/lib/picture-key';
 import { font, photo, radius, space, themed, useTheme } from '@/theme';
 
 import { DashedFrame, MetaDot, Progress } from './bits';
@@ -112,7 +113,11 @@ export function CardMemory({
           {/* Spec 10.8.3 — a chosen frame takes the whole face; without one the memory shows itself
               as the mosaic of what is in it. Everything laid over the picture stays put either way. */}
           {cover ? (
-            <Image source={{ uri: cover }} contentFit="cover" style={StyleSheet.absoluteFill} />
+            <Image
+              source={{ uri: cover, cacheKey: pictureKey(cover) }}
+              contentFit="cover"
+              style={StyleSheet.absoluteFill}
+            />
           ) : (
             <Mosaic photos={shots} layout="cover" />
           )}

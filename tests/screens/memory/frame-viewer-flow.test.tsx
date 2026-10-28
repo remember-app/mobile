@@ -3,9 +3,12 @@ import { reverseGeocodeAsync } from 'expo-location';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
-const { router, downloads, ask, player, turns, platform, phone } = vi.hoisted(() => ({
+const { router, downloads, videoCache, ask, player, turns, platform, phone } = vi.hoisted(() => ({
   router: { push: vi.fn(), back: vi.fn(), setParams: vi.fn() },
   downloads: { maySaveToPhone: vi.fn(), saveToPhone: vi.fn(), shareFile: vi.fn() },
+  // The phone's copy of a watched video (doc-15): what is already on the disk, and what a first
+  // opening leaves behind.
+  videoCache: { cachedVideo: vi.fn(), keepVideo: vi.fn() },
   ask: { id: 'me' },
   // The one player of the window, a bag of the few things it is read for and told to do.
   player: {
@@ -65,6 +68,7 @@ vi.mock('react-native', async (importOriginal) => {
   };
 });
 vi.mock('@/lib/downloads', () => downloads);
+vi.mock('@/lib/video-cache', () => videoCache);
 
 import { expectReachable, targets } from '@tests/helpers/access';
 import { type Asked, later, member, memory, photo, refused, serve } from '@tests/helpers/api';
@@ -125,12 +129,16 @@ beforeEach(() => {
     player.play,
     player.pause,
     ...Object.values(downloads),
+    ...Object.values(videoCache),
     geocode,
   ])
     fn.mockReset();
   downloads.maySaveToPhone.mockResolvedValue(true);
   downloads.saveToPhone.mockResolvedValue(undefined);
   downloads.shareFile.mockResolvedValue(undefined);
+  // Nothing on the phone until a test says otherwise: a first opening streams and keeps a copy.
+  videoCache.cachedVideo.mockReturnValue(null);
+  videoCache.keepVideo.mockResolvedValue(null);
   geocode.mockResolvedValue([]);
 });
 afterEach(() => vi.unstubAllGlobals());
@@ -1243,12 +1251,40 @@ test('a video is streamed off its own file by one player, set up to report four 
   expect(view.props.nativeControls).toBe(false);
   expect(view.props.player).toBe(player);
   // A playing video draws no picture under it — the frame in hand is the player, and the strip's
-  // own thumbnails are the only other `Image` on the window (they carry no `cacheKey`).
-  expect(screen.root.findAllByType(Image).filter((one) => one.props.source?.cacheKey)).toHaveLength(
-    0,
-  );
+  // own thumbnails are the only other `Image` on the window, each filed under its record
+  // (`@/lib/frames`) so a neighbour is not downloaded again on every visit.
+  const strip = screen.root.findAllByType(Image).map((one) => one.props.source);
+  expect(strip).toEqual([{ uri: 'https://r2.example/a', cacheKey: 'v:thumb' }]);
   // Covered into the frame's own box, exactly like the photograph under it — one rule for the two.
   expect(view.props.contentFit).toBe('cover');
+  // And the first watching leaves the file on the phone — the stream above plays while it arrives.
+  expect(videoCache.keepVideo).toHaveBeenCalledWith('v', 'https://r2.example/v.mp4');
+});
+
+test('a video already on the phone is played from the disk, and nothing is fetched for it', async () => {
+  serve(() => undefined);
+  const local = 'file:///cache/video/v.mp4';
+  videoCache.cachedVideo.mockReturnValue(local);
+  const clip = video();
+  await open({ item: clip, frames: [clip] });
+  // The second opening, and the offline one: the player is handed the file and not the signed link.
+  expect(vi.mocked(useVideoPlayer)).toHaveBeenLastCalledWith(local, expect.any(Function));
+  // The file is there — there is nothing to download again.
+  expect(videoCache.keepVideo).not.toHaveBeenCalled();
+});
+
+test('the first watching keeps the video under its record, and the opening is not held back for it', async () => {
+  serve(() => undefined);
+  // The download has not finished (it may never): the player still gets the signed stream, so a
+  // first look is not a spinner behind a whole file.
+  videoCache.keepVideo.mockReturnValue(new Promise(() => {}));
+  const clip = video();
+  await open({ item: clip, frames: [clip] });
+  expect(vi.mocked(useVideoPlayer)).toHaveBeenLastCalledWith(
+    'https://r2.example/v.mp4',
+    expect.any(Function),
+  );
+  expect(videoCache.keepVideo).toHaveBeenCalledWith('v', 'https://r2.example/v.mp4');
 });
 
 test('a photograph is a player with no source, and a video whose file was never made is a picture again, off its poster', async () => {
@@ -1389,10 +1425,11 @@ test('the strip is the feed’s frames by picture and by whether they move, and 
   const screen = await open({ item: list[0], frames: list });
   const strip = screen.root.findByType(Filmstrip).props;
   expect(strip.frames).toEqual([
-    { uri: 'https://r2.example/a', video: false },
-    { uri: 'https://r2.example/a', video: true },
-    // Still being made: it stays in the strip with nothing to draw yet.
-    { uri: '', video: false },
+    // Each picture carries the record's own key (doc-15), so the strip is not downloaded again on
+    // the next visit; a still-developing frame carries its key too but nothing to file.
+    { uri: 'https://r2.example/a', video: false, cacheKey: 'a:thumb' },
+    { uri: 'https://r2.example/a', video: true, cacheKey: 'v:thumb' },
+    { uri: '', video: false, cacheKey: 'c:thumb' },
   ]);
   expect(strip.index).toBe(0);
   expect(strip.labelAt(0)).toBe('a:open');
@@ -1851,7 +1888,9 @@ test('the picture travels with the finger, and the frames either side of it are 
     .findAllByType(Image)
     .map((one) => one.props.source?.cacheKey)
     .filter(Boolean);
-  expect(drawn).toEqual(['a:thumb', 'b:thumb', 'd:thumb']);
+  // The row's own three come first; the strip under it repeats the same records and now carries
+  // their keys too (doc-15), which is the rest of the list.
+  expect(drawn.slice(0, 3)).toEqual(['a:thumb', 'b:thumb', 'd:thumb']);
 });
 
 test('on a turned phone only the frame in hand is drawn — no neighbour peeks in from either side', async () => {
@@ -1866,7 +1905,8 @@ test('on a turned phone only the frame in hand is drawn — no neighbour peeks i
       .findAllByType(Image)
       .map((one) => one.props.source?.cacheKey)
       .filter(Boolean);
-    expect(drawn).toEqual(['b:thumb']);
+    // The frame in hand is the first picture; the strip below it is the rest.
+    expect(drawn.slice(0, 1)).toEqual(['b:thumb']);
     await pull(screen, -300);
     expect(shiftOf(screen)).toBe(0);
     await lift(screen, -300);

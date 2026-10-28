@@ -3,6 +3,7 @@ import { Check, Play, Plus } from 'lucide-react-native';
 import { type ReactNode, useState } from 'react';
 import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
+import { pictureKey } from '@/lib/picture-key';
 import { night, photo, radius, space, ThemePin, themed, useTheme } from '@/theme';
 
 import type { MontageState } from './badge';
@@ -186,7 +187,7 @@ export function CardMontage({
         // something there, and it is not ready to be looked at. `expo-image` blurs it natively;
         // the scale is what keeps the blur from leaving a soft edge around the card.
         <Image
-          source={{ uri: poster }}
+          source={{ uri: poster, cacheKey: pictureKey(poster) }}
           contentFit="cover"
           blurRadius={ready ? 0 : BLUR}
           style={[StyleSheet.absoluteFill, ready ? null : styles.unfocused]}
@@ -271,7 +272,11 @@ export function PosterFilm({
       style={[styles.film, focused ? focusRing : null]}
     >
       {poster ? (
-        <Image source={{ uri: poster }} contentFit="cover" style={StyleSheet.absoluteFill} />
+        <Image
+          source={{ uri: poster, cacheKey: pictureKey(poster) }}
+          contentFit="cover"
+          style={StyleSheet.absoluteFill}
+        />
       ) : null}
       <View pointerEvents="none" style={styles.filmHead} />
       <View

@@ -2,6 +2,7 @@ import { Image } from 'expo-image';
 import { TriangleAlert } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 
+import { pictureKey } from '@/lib/picture-key';
 import { height, radius, space, themed, useTheme } from '@/theme';
 
 import { Button } from './button';
@@ -110,7 +111,11 @@ export function ConfirmSheet({
   const gentle = variant === 'gentle';
   // One 64 mark, whichever of the four this sheet is about.
   const mark = gentle ? null : thumb ? (
-    <Image source={{ uri: thumb }} contentFit="cover" style={styles.thumb} />
+    <Image
+      source={{ uri: thumb, cacheKey: pictureKey(thumb) }}
+      contentFit="cover"
+      style={styles.thumb}
+    />
   ) : cover ? (
     <CoverSlot {...cover} size={64} />
   ) : who ? (
