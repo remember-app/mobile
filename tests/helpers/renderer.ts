@@ -30,6 +30,16 @@ export function mounted<T extends ReactTestRenderer>(tree: T): T {
   return tree;
 }
 
+/**
+ * The time given to a test that draws a tree over and over in one go — a calendar at every width
+ * and type size, the comments block at every count. Alone it takes a fraction of a second; under a
+ * load average of 50 the same work runs past vitest's own five seconds, and a test that is green
+ * every time on its own then goes red for a reason that is about the machine and not the code.
+ * Twenty is the number `drive.ts` gives its beat-by-beat tests for the same reason; a test that
+ * mounts a tree once or twice keeps the default, and is seen to.
+ */
+export const DRAWS_MANY = { timeout: 20_000 };
+
 export function mountsTrees() {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   beforeAll(async () => {

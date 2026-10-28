@@ -1,5 +1,5 @@
 import { type Asked, later, photo, refused, serve } from '@tests/helpers/api';
-import { mounted, mountsTrees } from '@tests/helpers/renderer';
+import { DRAWS_MANY, mounted, mountsTrees } from '@tests/helpers/renderer';
 import { afterEach, beforeAll, expect, test, vi } from 'vitest';
 
 // The words come from the dictionary, and the dictionary asks the phone which language it is in.
@@ -269,27 +269,31 @@ test('the count is the whole number, not a count of what fits — three stand an
   expect(counterOf(many.root)).toBe('4');
 });
 
-test('the count is the whole number at every size — nothing about it is cut to fit', async () => {
-  // The fifth decision: «счётчик всегда показывает полное число и не обрезается». The check above
-  // reads four, and every way of cutting a number agrees with the number itself below ten — so a
-  // check on four alone cannot tell a whole count from a cut one.
-  //
-  // What is asked here is the invariant and not a number: the counter equals the number of rows
-  // standing, checked over sizes that cross every place a cutting could happen. A count cut to its
-  // last digit fails at ten, one cut to a fixed width fails at three digits, and one cut to what is
-  // in sight fails the moment there are more rows than fit — so the class of cuttings is what dies
-  // here, not one way of doing it.
-  for (const n of [1, 3, 4, 9, 10, 12, 25, 99, 100, 123, 1001]) {
-    const ids = Array.from({ length: n }, (_, at) => `c${at + 1}`);
-    const screen = await drawn(told({ comments: ids.map((id) => said({ id })) }));
-    expect(counterOf(screen.root), `counter at ${n} comments`).toBe(String(n));
-    // And the rows behind it are all of them: a count of what is in sight would be in sight.
-    expect(
-      screen.words().filter((word) => word === 'Аня Петрова'),
-      `rows at ${n}`,
-    ).toHaveLength(n);
-  }
-});
+test(
+  'the count is the whole number at every size — nothing about it is cut to fit',
+  DRAWS_MANY,
+  async () => {
+    // The fifth decision: «счётчик всегда показывает полное число и не обрезается». The check above
+    // reads four, and every way of cutting a number agrees with the number itself below ten — so a
+    // check on four alone cannot tell a whole count from a cut one.
+    //
+    // What is asked here is the invariant and not a number: the counter equals the number of rows
+    // standing, checked over sizes that cross every place a cutting could happen. A count cut to its
+    // last digit fails at ten, one cut to a fixed width fails at three digits, and one cut to what is
+    // in sight fails the moment there are more rows than fit — so the class of cuttings is what dies
+    // here, not one way of doing it.
+    for (const n of [1, 3, 4, 9, 10, 12, 25, 99, 100, 123, 1001]) {
+      const ids = Array.from({ length: n }, (_, at) => `c${at + 1}`);
+      const screen = await drawn(told({ comments: ids.map((id) => said({ id })) }));
+      expect(counterOf(screen.root), `counter at ${n} comments`).toBe(String(n));
+      // And the rows behind it are all of them: a count of what is in sight would be in sight.
+      expect(
+        screen.words().filter((word) => word === 'Аня Петрова'),
+        `rows at ${n}`,
+      ).toHaveLength(n);
+    }
+  },
+);
 
 /**
  * The number in the block's head, read as the one standing next to the heading rather than as any

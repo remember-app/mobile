@@ -16,7 +16,7 @@ vi.mock('react-native', async (importOriginal) => {
 vi.mock('expo-localization', () => ({ getLocales: () => [{ languageTag: 'ru-RU' }] }));
 
 import { fontFile, wordWidth } from '@tests/helpers/font';
-import { mounted, mountsTrees } from '@tests/helpers/renderer';
+import { DRAWS_MANY, mounted, mountsTrees } from '@tests/helpers/renderer';
 import { Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
 import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
 
@@ -174,38 +174,42 @@ const WEEKS = [
   [382, 'the iPhone 17 Pro Max'],
 ] as const;
 
-test('the weekday letters stay whole in their column in both languages, measured off the face they are drawn in', async () => {
-  // TASK-404: the letters the phone draws are «MON»…«SUN» in English, 2.59 em where «ПН» is 1.59 —
-  // a measure taken off «ПН» alone broke them into «MO / N» on the SE and the 17e from AX-XL up.
-  const words = [...weekdayLetters('ru'), ...weekdayLetters('en')];
-  expect(words).toEqual(expect.arrayContaining(['ПН', 'ВС', 'MON', 'WED', 'SUN']));
-  const tracking = type.badge.letterSpacing / type.badge.fontSize;
-  for (const [width, where] of WEEKS) {
-    const column = width / 7;
-    for (const scale of SCALES) {
-      for (const language of ['ru', 'en']) {
-        const it = await drawCalendar(width, scale, [], weekdayLetters(language));
-        for (const letters of it.weekdays()) {
-          const { fontFamily } = StyleSheet.flatten([type.badge, letters.props.style]);
-          const face = ONEST(String(fontFamily).replace(/^Onest_/, ''));
-          // The widest of both languages, with the badge's tracking after every letter.
-          const widest = Math.max(
-            ...words.map((word) => wordWidth(face, word, 1) + word.length * tracking),
-          );
-          const most = letters.props.maxFontSizeMultiplier as number;
-          const at = `${where} ×${scale} ${language}`;
-          expect(most, at).toBeGreaterThanOrEqual(1);
-          expect(type.badge.fontSize * Math.min(scale, most) * widest, at).toBeLessThanOrEqual(
-            column - 4 + 0.01,
-          );
-          // And held back no further than the widest of them needs.
-          const fits = (column - 4) / (type.badge.fontSize * widest);
-          expect(most, at).toBeGreaterThanOrEqual(Math.max(1, fits / 1.05));
+test(
+  'the weekday letters stay whole in their column in both languages, measured off the face they are drawn in',
+  DRAWS_MANY,
+  async () => {
+    // TASK-404: the letters the phone draws are «MON»…«SUN» in English, 2.59 em where «ПН» is 1.59 —
+    // a measure taken off «ПН» alone broke them into «MO / N» on the SE and the 17e from AX-XL up.
+    const words = [...weekdayLetters('ru'), ...weekdayLetters('en')];
+    expect(words).toEqual(expect.arrayContaining(['ПН', 'ВС', 'MON', 'WED', 'SUN']));
+    const tracking = type.badge.letterSpacing / type.badge.fontSize;
+    for (const [width, where] of WEEKS) {
+      const column = width / 7;
+      for (const scale of SCALES) {
+        for (const language of ['ru', 'en']) {
+          const it = await drawCalendar(width, scale, [], weekdayLetters(language));
+          for (const letters of it.weekdays()) {
+            const { fontFamily } = StyleSheet.flatten([type.badge, letters.props.style]);
+            const face = ONEST(String(fontFamily).replace(/^Onest_/, ''));
+            // The widest of both languages, with the badge's tracking after every letter.
+            const widest = Math.max(
+              ...words.map((word) => wordWidth(face, word, 1) + word.length * tracking),
+            );
+            const most = letters.props.maxFontSizeMultiplier as number;
+            const at = `${where} ×${scale} ${language}`;
+            expect(most, at).toBeGreaterThanOrEqual(1);
+            expect(type.badge.fontSize * Math.min(scale, most) * widest, at).toBeLessThanOrEqual(
+              column - 4 + 0.01,
+            );
+            // And held back no further than the widest of them needs.
+            const fits = (column - 4) / (type.badge.fontSize * widest);
+            expect(most, at).toBeGreaterThanOrEqual(Math.max(1, fits / 1.05));
+          }
         }
       }
     }
-  }
-});
+  },
+);
 
 test('before the week is measured nothing is held back, and at the system’s size the days are the layout’s 40', async () => {
   for (const scale of [1, 2]) {
