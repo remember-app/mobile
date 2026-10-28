@@ -89,6 +89,11 @@ test('the cover a memory has is the one chain everywhere it is shown', () => {
   expect(coverSlot).toContain('<DashedFrame');
   expect(home).toContain('const cover = item.cover_thumbnail_url ?? null;');
   expect(home).toContain('cover={cover}');
+  // The frames behind it are the listing's wider sample from the whole memory, the tail its fallback
+  // (TASK-544) — the card the organizer's own pick leads, whichever pool it came from.
+  expect(home).toContain(
+    'const thumbs = item.card_thumbnail_urls ?? item.recent_thumbnail_urls ?? [];',
+  );
 });
 
 test('a standing is one of three words, and «nothing to add» is not one of the other two', () => {
