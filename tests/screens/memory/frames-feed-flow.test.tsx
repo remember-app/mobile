@@ -281,12 +281,10 @@ async function open(
     tap: async (...ids: string[]) => {
       for (const id of ids) await press(tile(id));
     },
-    /** What the three buttons of the picking layer are, off or on. */
+    /** What the three buttons of the picking layer are, off or on, and which word the middle wears. */
     footer: () => ({
       share: icon(ru.action.share)().props.disabled as boolean,
-      download: root
-        .findAllByType(Button)
-        .find((one) => one.props.icon !== undefined && one.props.wide)!.props,
+      middle: root.findAllByType(Button).find((one) => one.props.wide)!.props,
       remove: icon(ru.action.delete)().props.disabled as boolean,
     }),
     sheet: () => root.findByType(ConfirmSheet),
@@ -339,18 +337,21 @@ const picked = (n: number, weight: string, kinds: string) => ({
   meta: `${ru.viewer.size(weight)} · ${kinds}`,
 });
 
-test('picking starts with nothing marked, says so, and holds the three buttons off', async () => {
+test('picking starts with nothing marked: the middle offers what the screening suggests, and the two round buttons stay off', async () => {
   world();
   const screen = await open();
   await screen.startPicking();
-  // «Ничего не выбрано» is said by the capsule, by the button that would take it home, and by every
-  // button that would do something to it — none of them is a promise about nothing.
+  // «Ничего не выбрано» is said by the capsule and by every button that would do something to a
+  // selection — and the middle of the layer is now the press that offers frames (spec 10.15).
   expect(screen.capsule()).toEqual({ title: ru.gallery.pickNothing, meta: undefined });
   const foot = screen.footer();
   expect(foot.share).toBe(true);
   expect(foot.remove).toBe(true);
-  expect(foot.download.disabled).toBe(true);
-  expect(foot.download.label).toBe(ru.gallery.nothingPicked);
+  expect(foot.middle.label).toBe(ru.gallery.proposeToRemove);
+  expect(foot.middle.disabled).toBe(false);
+  // The ring, no glyph (spec 10.15, `FramesPicking`), and the whole middle of the row.
+  expect(foot.middle.variant).toBe('secondary');
+  expect(foot.middle.icon).toBeUndefined();
   expect(screen.icon(ru.gallery.labelsPut)().props.disabled).toBe(true);
   // Every frame there is something to take home of wears an empty circle; the developing one none.
   for (const id of ['a', 'b', 'c', 'e']) expect(screen.mark(id)).toBe('off');
@@ -366,12 +367,109 @@ test('a tap marks a frame, and the capsule counts what is marked, weighs it and 
   expect(screen.mark('c')).toBe('off');
   // 4,2 and 30 megabytes together, a photograph and a video — not the largest, not the count.
   expect(screen.capsule()).toEqual(picked(2, '34', ru.gallery.pickedKinds(1, 1)));
-  expect(screen.footer().download.label).toBe(ru.gallery.download(2));
-  expect(screen.footer().download.disabled).toBe(false);
+  expect(screen.footer().middle.label).toBe(ru.gallery.download(2));
+  expect(screen.footer().middle.disabled).toBe(false);
   expect(screen.footer().share).toBe(false);
   // The same tap again gives it back.
   await screen.tap('b');
   expect(screen.capsule()).toEqual(picked(1, '4,2', ru.gallery.pickedKinds(1, 0)));
+});
+
+/**
+ * «Предложить удалить» (spec 10.15, `FramesPicking`; TASK-592). With nothing marked, the middle of
+ * the layer offers what the screening suggests; the press marks those frames the way a tap would —
+ * the same circles, the same capsule, the same «Скачать N» and trash under them. There is no sign of
+ * the advice on a tile: a mark is a mark.
+ */
+const proposing = (screen: Screen) => screen.press(screen.button(ru.gallery.proposeToRemove));
+
+test('the middle offers removal; the press marks exactly the frames the screening rejected that this person may delete', async () => {
+  world({
+    media: [
+      photo('a', 'me', at(13, 10), { screening_rejected: true }),
+      photo('b', 'liza', at(13, 9), { screening_rejected: true }),
+      photo('c', 'liza', at(12, 15), { screening_rejected: false }),
+      {
+        ...developing('d', 'me', at(12, 14)),
+        thumbnail_url: 'https://r2.example/d',
+        screening_rejected: true,
+      },
+      photo('e', 'me', at(11, 10)),
+    ],
+  });
+  const screen = await open();
+  await screen.startPicking();
+  expect(screen.footer().middle.label).toBe(ru.gallery.proposeToRemove);
+  await proposing(screen);
+
+  // `c` was not rejected, `e` has no verdict at all, and `d` is still being made — it wears no
+  // circle, so a mark on it would promise what no tap could give.
+  expect(['a', 'b', 'c', 'e'].map((id) => screen.mark(id))).toEqual(['send', 'send', 'off', 'off']);
+  expect(screen.mark('d')).toBeUndefined();
+  expect(screen.capsule().title).toBe(ru.gallery.picked(2));
+  // The middle takes the count and both round buttons come alive — no fourth button was added.
+  expect(screen.footer().middle.label).toBe(ru.gallery.download(2));
+  expect(screen.footer().middle.disabled).toBe(false);
+  expect(screen.footer().share).toBe(false);
+  expect(screen.footer().remove).toBe(false);
+});
+
+test('a contributor is offered only the rejected frames they may themselves delete, so the trash comes alive with the mark', async () => {
+  who.id = 'liza';
+  world({
+    media: [
+      photo('a', 'me', at(13, 10), { screening_rejected: true }),
+      photo('b', 'liza', at(13, 9), { screening_rejected: true }),
+      photo('c', 'liza', at(12, 15), { screening_rejected: true }),
+    ],
+  });
+  const screen = await open();
+  await screen.startPicking();
+  await proposing(screen);
+
+  // `a` is somebody else's: it is not marked, and the delete button is not left off over a mark.
+  expect(screen.mark('a')).toBe('off');
+  expect(screen.mark('b')).toBe('send');
+  expect(screen.mark('c')).toBe('send');
+  expect(screen.capsule().title).toBe(ru.gallery.picked(2));
+  expect(screen.footer().remove).toBe(false);
+});
+
+test('nothing to suggest is said once over the panel, and the middle comes back to the off «Ничего не выбрано»', async () => {
+  // Every frame's verdict is `null`: no screening has run, which by now is the same as nothing to
+  // offer (decision-30 still keeps the run off this button).
+  world();
+  const screen = await open();
+  await screen.startPicking();
+  await proposing(screen);
+
+  expect(bannersSaid(screen.root).map(([words]) => words)).toEqual([ru.gallery.proposeNothing]);
+  expect(screen.root.findAllByType(Banner)[0].props.tone).toBe('done');
+  // Nothing was marked, and the middle is the off button rather than the offer to press again.
+  expect(screen.capsule().title).toBe(ru.gallery.pickNothing);
+  expect(screen.footer().middle.label).toBe(ru.gallery.nothingPicked);
+  expect(screen.footer().middle.disabled).toBe(true);
+  expect(screen.footer().remove).toBe(true);
+});
+
+test('the word over the panel leaves by itself, and the middle keeps the word the press earned', async () => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  try {
+    world();
+    const screen = await open();
+    await screen.startPicking();
+    await proposing(screen);
+    expect(screen.root.findAllByType(Banner)).toHaveLength(1);
+
+    await act(async () => void vi.advanceTimersByTime(duration.hold - 1));
+    expect(screen.root.findAllByType(Banner)).toHaveLength(1);
+    await act(async () => void vi.advanceTimersByTime(1));
+    expect(screen.root.findAllByType(Banner)).toHaveLength(0);
+    // The banner is a line, not the middle: «Ничего не выбрано» stays off.
+    expect(screen.footer().middle.label).toBe(ru.gallery.nothingPicked);
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 test('a marked frame wears the accent circle, the button counts with the number alone, and the feed has no scroll bar of its own', async () => {
@@ -384,7 +482,7 @@ test('a marked frame wears the accent circle, the button counts with the number 
   expect(screen.mark('a')).toBe('send');
   // The layout's button reads «Скачать 4»: the number, and no noun after it (spec 9).
   expect(ru.gallery.download(4)).toBe('Скачать 4');
-  expect(screen.footer().download.label).toBe('Скачать 1');
+  expect(screen.footer().middle.label).toBe('Скачать 1');
   // `MemoryScrub`: the spine is the feed's indicator; the platform's bar stood beside it (x≈385).
   const feed = screen.root.findAll(
     (one) => one.props.refreshControl !== undefined && one.props.onScroll !== undefined,
@@ -1489,7 +1587,7 @@ const original = (id: string, kind: 'photo' | 'video' = 'photo') => ({
   kind,
   url: `https://r2.example/original/${id}`,
 });
-const download = (screen: Screen) => screen.footer().download;
+const download = (screen: Screen) => screen.footer().middle;
 const said = (screen: Screen) => notice(screen);
 const downloadButton = (screen: Screen, n: number) => () =>
   screen.root.findAllByType(Button).find((one) => one.props.label === ru.gallery.download(n))!;
@@ -1562,7 +1660,7 @@ test('while frames are being deleted every button of the mode is shut, and they 
   const foot = () => screen.footer();
   expect(foot().share).toBe(true);
   expect(foot().remove).toBe(true);
-  expect(foot().download.disabled).toBe(true);
+  expect(foot().middle.disabled).toBe(true);
   expect(screen.icon(ru.gallery.leaveSelect)().props.disabled).toBe(true);
   await act(async () => gate.settle({ ok: true }));
   expect(screen.icon(ru.gallery.leaveSelect)().props.disabled).toBe(false);
