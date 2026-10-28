@@ -184,6 +184,20 @@ export async function listMedia(
 }
 
 /**
+ * «Проанализировать» — ask the automatic screening to look at this memory's material now, rather
+ * than wait for the worker to reach it (spec 10.15). The organizer's alone, and the api does not
+ * analyse anything itself: it puts one job in the worker's queue and answers 202 with where that
+ * job stands. The verdicts land on the frames themselves, so the screen reads the material again
+ * until `screening_rejected` stops being `null`.
+ */
+export function analyzeMemory(
+  token: string,
+  memoryId: string,
+): Promise<{ status: 'queued' | 'running' }> {
+  return request(`/memories/${memoryId}/analyze`, { method: 'POST', token });
+}
+
+/**
  * What the person who brought a frame may change about it: whether it is hidden, when it was shot,
  * and where. The two coordinates go together, both `null` takes the place off; the date cannot be
  * taken off. 404 for a frame that is not the asker's own, as for one that is gone.
