@@ -1102,6 +1102,54 @@ test('«Дальше» works while the pass is running, and leaving the step sto
   expect(nav.top()).toBe('music');
 });
 
+test('coming back to the step after leaving mid-pass finds the press at rest, not busy and deaf', async () => {
+  // The step stays mounted under the one pushed over it, so its own face must be put back on the
+  // way out: a «Проанализировать» left busy is a button the kit draws off and swallows every tap,
+  // with nothing behind it reading the material any more.
+  serve({ material: unseen(), analysis: { calls: 0, after: 5, verdict: verdicts } });
+  await open();
+  await press(say().montage.ownSetup);
+  await press(ru.montage.analyze);
+  expect(buttons(ru.montage.analyze).at(-1)!.props.busy).toBe(true);
+
+  await forward();
+  await act(async () => nav.router.back());
+  const again = buttons(ru.montage.analyze).at(-1)!;
+  expect(again.props.busy).not.toBe(true);
+  expect(again.props.disabled).not.toBe(true);
+});
+
+test('a frame brought after a finished pass does not bring «Проанализировать» back', async () => {
+  // Spec 10.15: the pass is not re-run for frames that came later — «Что сняли» stands where it
+  // was, and the new frame stays without a proposal until the montage, which screens everything.
+  serve({ material: [...material(), { ...frame('p8'), uploaded_by: 'ann' }] });
+  await open();
+  await press(say().montage.ownSetup);
+
+  expect(has(ru.montage.analyze)).toBe(false);
+  expect(has(ru.montage.whatDropped)).toBe(true);
+  expect(shown()).toContain(ru.montage.passDropped(1));
+});
+
+test('a pass the worker never finishes is stopped being waited for, and its press is offered again', async () => {
+  // The readings are bounded: a pass that writes nothing for ten minutes is said to have failed,
+  // and the material is not asked again after that — no timer keeps running behind the screen.
+  const server = serve({
+    material: unseen(),
+    analysis: { calls: 0, after: 100_000, verdict: verdicts },
+  });
+  await open();
+  await press(say().montage.ownSetup);
+  await press(ru.montage.analyze);
+
+  await run(10 * 60 * 1000 + 1);
+  expect(shown()).toContain(ru.montage.analyzeFailed);
+  expect(has(say().action.retry)).toBe(true);
+  const reads = server.reads;
+  await run(30_000);
+  expect(server.reads).toBe(reads);
+});
+
 test('the heading over the length and the one over the shape are the layout’s eyebrows, in muted', async () => {
   // TASK-384 (R5), `MontageBuild.json`: «ДЛИНА» and «ФОРМАТ», 12 / 700 in caps, #A4A1B2. «ДЛИНА» was
   // drawn in `paper`, «Формат» as a 13 / 600 line in `paper` (the segment's own heading).
