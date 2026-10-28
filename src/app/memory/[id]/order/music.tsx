@@ -37,7 +37,7 @@ import { radius, space, themed, useTheme, wizardLead } from '@/theme';
 
 /**
  * Step 3, `MontageMusicNone` / `MontageMusic` / `MontageMusicDirector` — what the film is cut to:
- * nothing at all and the video's own sound, any number of tracks off the shelf of five or off this
+ * nothing at all and the video's own sound, any number of tracks off the shelf of ten or off this
  * phone, or the one track the director picks itself.
  *
  * Three things, top to bottom. «Выбрано», which is never away: empty it says the film will have no
@@ -85,7 +85,7 @@ export default function MusicStep() {
   const gone = useStillHere();
   const picked = order.tracks;
 
-  /** What a chosen track is called: one of the five has a word here, a file has its own name. */
+  /** What a chosen track is called: one of the ten has a word here, a file has its own name. */
   const nameOf = (track: PickedTrack, shelf: MusicTrackId | null) =>
     shelf === null ? (track.name ?? s.montage.ownTrackShort) : s.montage.track[shelf];
   const inOrder = (key: string) => picked.some((track) => track.key === key);
@@ -276,7 +276,7 @@ export default function MusicStep() {
           }
         >
           {picked.map((track, i) => {
-            // Which kind of track this is, asked the one way there is to ask it: the five have a
+            // Which kind of track this is, asked the one way there is to ask it: the ten have a
             // word in the dictionary, and anything else is a file somebody sent up themselves.
             const shelf = shelfTrack(track.key);
             const name = nameOf(track, shelf);
@@ -439,7 +439,7 @@ export default function MusicStep() {
   );
 }
 
-/** The running time of one of the five, written out — the shelf holds it as seconds. */
+/** The running time of one of the ten, written out — the shelf holds it as seconds. */
 const lengthOf = (id: MusicTrackId): string =>
   formatRuntime(TRACKS.find((track) => track.id === id)?.seconds ?? null) ?? '';
 
@@ -472,7 +472,7 @@ const useStyles = themed(({ color }) =>
       gap: space.s2,
       paddingLeft: 2,
     },
-    // The five stand inside one surface with the corners cut off it, so the hairline between two
+    // The ten stand inside one surface with the corners cut off it, so the hairline between two
     // rows never reaches the rounding.
     card: {
       borderRadius: radius.section,

@@ -27,8 +27,19 @@ export const en = {
       ready: 'Ready',
       failed: 'Did not finish',
     },
-    /** The worker's five tracks, under names to pick between. The ids are the api's own. */
-    track: { bright: 'Bright', warm: 'Warm', calm: 'Calm', night: 'Night', road: 'Road' },
+    /** The worker's ten tracks, under names to pick between. The ids are the api's own. */
+    track: {
+      bright: 'Bright',
+      warm: 'Warm',
+      calm: 'Calm',
+      night: 'Night',
+      road: 'Road',
+      merry: 'Merry',
+      tender: 'Tender',
+      dreamy: 'Dreamy',
+      mystery: 'Mystery',
+      energetic: 'Energetic',
+    },
     /**
      * Which way up the movie comes out, by the api's own two ids. Said as the shape it has and not
      * as «landscape/portrait» — the words on the sheet are for whoever is about to watch it on a
@@ -755,7 +766,18 @@ export const ru: typeof en = {
       ready: 'Готов',
       failed: 'Не собрался',
     },
-    track: { bright: 'Яркая', warm: 'Тёплая', calm: 'Спокойная', night: 'Ночь', road: 'Дорога' },
+    track: {
+      bright: 'Яркая',
+      warm: 'Тёплая',
+      calm: 'Спокойная',
+      night: 'Ночь',
+      road: 'Дорога',
+      merry: 'Весёлая',
+      tender: 'Нежная',
+      dreamy: 'Мечтательная',
+      mystery: 'Таинственная',
+      energetic: 'Энергичная',
+    },
     orientation: { landscape: 'Горизонтальный', portrait: 'Вертикальный' },
     count: (n: number) => count(n, 'ролик', 'ролика', 'роликов'),
     ofLength: (runtime: string) => `Ролик на ${runtime}`,
