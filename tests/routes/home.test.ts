@@ -11,7 +11,12 @@ import { en, ru } from '@/strings';
  */
 
 test('a memory card on the home screen draws the frames the listing actually signed', () => {
-  expect(index).toContain('const thumbs = item.recent_thumbnail_urls ?? [];');
+  // The wider sample from the whole memory, and the tail behind it for an api older than that field
+  // (TASK-544). Both `??` — a build that knows the field can meet an api that does not, and a card
+  // that read a missing one bare would throw inside the list renderer.
+  expect(index).toContain(
+    'const thumbs = item.card_thumbnail_urls ?? item.recent_thumbnail_urls ?? [];',
+  );
   expect(index).toContain('thumbs={thumbs}');
 });
 

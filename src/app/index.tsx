@@ -166,11 +166,13 @@ export default function HomeScreen() {
                   <Empty sign="spark" icon={Camera} title={s.home.emptyTitle} text={s.home.empty} />
                 }
                 renderItem={({ item, index }) => {
-                  // `?? []` and not a bare read: the app ships over the air and the api deploys on
-                  // its own, so a build that knows this field can meet one that does not. Every
-                  // other new field degrades quietly under that skew — this one would throw inside
-                  // the list renderer and take the main screen down with it.
-                  const thumbs = item.recent_thumbnail_urls ?? [];
+                  // The card draws the listing's own random sample from the whole memory (TASK-544),
+                  // and the recent tail for an api older than that field. `?? []` and not a bare
+                  // read: the app ships over the air and the api deploys on its own, so a build that
+                  // knows this field can meet one that does not. Every other new field degrades
+                  // quietly under that skew — this one would throw inside the list renderer and take
+                  // the main screen down with it.
+                  const thumbs = item.card_thumbnail_urls ?? item.recent_thumbnail_urls ?? [];
                   // The one frame the organizer chose as this memory's face (api README, `PATCH
                   // /memories/:memoryId`). `?? null` and not a bare read for the same reason as
                   // above: an api older than the field sends nothing, and the card is then what it
