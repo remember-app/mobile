@@ -26,7 +26,7 @@ const frames = (n: number): Frame[] =>
 
 async function draw(index: number, list: readonly Frame[] = frames(6)) {
   const strip = (at: number, held: readonly Frame[]) => (
-    <Filmstrip frames={held} index={at} onPick={() => {}} labelAt={(i) => `Кадр ${i + 1}`} />
+    <Filmstrip frames={held} index={at} labelAt={(i) => `Кадр ${i + 1}`} />
   );
   let tree!: TestRenderer.ReactTestRenderer;
   await act(async () => {
@@ -40,7 +40,8 @@ async function draw(index: number, list: readonly Frame[] = frames(6)) {
       act(async () =>
         tree.root.findByType(FlatList).props.onLayout({ nativeEvent: { layout: { width } } }),
       ),
-    shots: () => tree.root.findAllByType(Pressable),
+    shots: () =>
+      tree.root.findAllByType(View).filter((one) => one.props.accessibilityLabel !== undefined),
   };
 }
 
@@ -156,23 +157,21 @@ test('the fade is by distance from the frame in hand, and the frame in hand is a
   ]);
 });
 
-test('a press on a frame of the strip names that frame, and a strip with nobody to tell is not a row of buttons', async () => {
-  const picked: number[] = [];
-  let tree!: TestRenderer.ReactTestRenderer;
-  await act(async () => {
-    tree = mounted(
-      TestRenderer.create(
-        <Filmstrip frames={frames(3)} index={0} onPick={(at) => picked.push(at)} />,
-      ),
-    );
-  });
-  await act(async () => tree.root.findAllByType(Pressable)[2].props.onPress());
-  await act(async () => tree.root.findAllByType(Pressable)[1].props.onPress());
-  expect(picked).toEqual([2, 1]);
-  await act(async () => {
-    tree.update(<Filmstrip frames={frames(3)} index={0} />);
-  });
-  expect(tree.root.findAllByType(Pressable).every((one) => one.props.disabled === true)).toBe(true);
+test('a frame of the strip is a picture with a name, and a tap on it opens nothing', async () => {
+  // TASK-574, #3: the strip is the row that shows where the middle stands and a finger that swipes
+  // it walks the gallery. A tap that jumped to the frame under the finger was a second way to do
+  // what the swipe already does, and it caught people who meant only to move the row.
+  const strip = await draw(0);
+  expect(strip.root.findAllByType(Pressable)).toHaveLength(0);
+  expect(strip.shots().map((one) => one.props.accessibilityLabel)).toEqual([
+    'Кадр 1',
+    'Кадр 2',
+    'Кадр 3',
+    'Кадр 4',
+    'Кадр 5',
+    'Кадр 6',
+  ]);
+  expect(strip.shots()[0].props.accessibilityState).toEqual({ selected: true });
 });
 
 /**

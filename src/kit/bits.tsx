@@ -309,6 +309,20 @@ export function VideoTrack({
   /** How wide the line is, measured rather than assumed: it is whatever the row leaves it. */
   const width = useRef(0);
   const shown = held ?? clamped;
+  /**
+   * The bar reaches for each new place rather than stepping onto it (TASK-574, #5). The player
+   * answers four times a second at best, and a bar that jumps a quarter of a second sideways every
+   * time reads as stutter; `useReach` carries it the rest of the way over the layout's own time,
+   * with the same silence under «reduce motion» every other moving thing has.
+   *
+   * A finger on the line is drawn where the finger is — the film answering behind it is slower than
+   * the hand, and a handle that chased it would lag the finger (TASK-540).
+   */
+  const reached = useReach(shown * 100);
+  const place =
+    held === null
+      ? reached.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] })
+      : (`${held * 100}%` as `${number}%`);
 
   // `locationX` is the touch measured against the view it landed on, which is the pad and never
   // the line inside it: the line, the fill and the handle are all `none` to a finger, and the pad
@@ -368,8 +382,8 @@ export function VideoTrack({
         {...pan?.panHandlers}
       >
         <View style={styles.videoTrack} pointerEvents="none">
-          <View style={[styles.videoFill, { width: `${shown * 100}%` }]} />
-          <View style={[styles.videoHandle, { left: `${shown * 100}%` }]} />
+          <Animated.View style={[styles.videoFill, { width: place }]} />
+          <Animated.View style={[styles.videoHandle, { left: place }]} />
         </View>
       </View>
       <Text role="timecode" style={styles.runs}>

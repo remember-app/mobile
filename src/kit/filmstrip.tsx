@@ -5,7 +5,6 @@ import {
   FlatList,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
-  Pressable,
   type StyleProp,
   StyleSheet,
   View,
@@ -15,8 +14,6 @@ import {
 import { photo, radius, themed } from '@/theme';
 
 import { Icon } from './icon';
-import { useFocusRing, useHoverFocus } from './interaction';
-import { TAP } from './tap';
 
 /** One frame as the strip and the mosaic know it: a picture, and whether it moves. */
 export type Frame = { uri: string; video?: boolean };
@@ -69,9 +66,9 @@ export const STRIP_TURNED: StripSize = {
  * The one place in the product with a horizontal scroll (spec 1.5), and it turns with the frame
  * above it both ways: the frame in hand is walked to the middle of the strip whenever it changes,
  * and a finger that leaves the strip resting on another frame asks for that frame to be opened.
- * One is not the other — a strip that walks and never listens is the «не меняет элементы при
- * листании» a real phone reported (doc-12), and a strip that listens and never walks is a frame
- * in hand standing somewhere other than the picture over it.
+ * That is the whole of what a finger does here — a tap on one of the pictures opens nothing
+ * (TASK-574, #3): the strip is read as a row of where the middle stands, and the swipe is the way
+ * through it.
  *
  * A `FlatList` and not a plain row of everything: a memory holds up to a thousand records, and a
  * strip that mounts a thousand thumbnails fetches a thousand pictures to show eleven of them.
@@ -80,7 +77,6 @@ export function Filmstrip({
   frames,
   index,
   size = STRIP_STANDING,
-  onPick,
   onSettle,
   labelAt,
   style,
@@ -89,7 +85,6 @@ export function Filmstrip({
   index: number;
   /** How big it is drawn — the window's own, one per way up the phone is held (`Viewer*`, TASK-475). */
   size?: StripSize;
-  onPick?: (at: number) => void;
   /**
    * The frame the finger left the strip resting on, and whether the window took it in hand. The
    * answer is not a maybe: a frame still being developed is refused, and the strip has to go back
@@ -214,7 +209,6 @@ export function Filmstrip({
           // The fade is by distance from the frame in hand: 0.75, 0.6, then 0.45 for everything past.
           dim={[0.75, 0.6][Math.abs(at - index) - 1] ?? 0.45}
           label={labelAt?.(at)}
-          onPress={onPick ? () => onPick(at) : undefined}
         />
       )}
     />
@@ -227,45 +221,30 @@ function Shot({
   current,
   dim,
   label,
-  onPress,
 }: {
   frame: Frame;
   size: StripSize;
   current: boolean;
   dim: number;
   label?: string;
-  onPress?: () => void;
 }) {
-  const { focused, props } = useHoverFocus();
   const styles = useStyles();
-  const focusRing = useFocusRing();
   const width = current ? size.current : size.shot;
   const height = current ? size.tall : size.shotTall;
 
   return (
-    <Pressable
-      accessibilityRole="button"
+    <View
+      // Read out as the frame it is and whether it is the one in hand — not as a control: a tap on
+      // it opens nothing (TASK-574, #3), and a button that does nothing is worse than a picture
+      // with a name.
+      accessible
       accessibilityLabel={label}
       accessibilityState={{ selected: current }}
-      disabled={!onPress}
-      onPress={onPress}
-      // Spec 1.6 and 10.2: a shot is drawn at the layout's size — 26 × 36 turned, 30 × 44 standing —
-      // and neither is 44 across, so the target grows out to it in transparent space. It grows as
-      // far as the frame beside it allows ({@link slopFor}): reaching past the half of the gap
-      // between two shots would put a tap on the frame the person did not touch, which is worse
-      // than a small one.
-      hitSlop={slopFor(height)}
-      {...props}
-      style={[
-        { width, height },
-        styles.shot,
-        current ? styles.shotCurrent : { opacity: dim },
-        focused ? focusRing : null,
-      ]}
+      style={[{ width, height }, styles.shot, current ? styles.shotCurrent : { opacity: dim }]}
     >
       <Image source={{ uri: frame.uri }} contentFit="cover" style={StyleSheet.absoluteFill} />
       {current && frame.video ? <PlayDot /> : null}
-    </Pressable>
+    </View>
   );
 }
 
@@ -323,24 +302,6 @@ function restedAt(x: number, viewport: number, count: number, index: number, siz
     }
   }
   return on;
-}
-
-/**
- * How far a shot's touch reaches past what it is drawn at (spec 10.2), never past the frame beside
- * it: the two stand {@link GAP} apart, so half that is all a tap can take without landing on the
- * wrong photograph.
- *
- * That leaves the strip short of the 44 in both directions at the layout's own turned sizes — 38 and
- * 40, with a 2 gap between frames that are themselves only 26 wide. Those are the numbers
- * `ViewerRotated*` draws and the window cannot change them; a shot is walked by its neighbours and
- * by the finger, not aimed at, and the frames either side of it are what a person hits instead.
- * ponytail: a strip whose shots were 44 wide would need the gap to grow with them and the pictures
- * to stop being a strip. Raise it when the layout moves off 38 × 40.
- */
-function slopFor(height: number) {
-  const across = GAP / 2;
-  const down = Math.max(0, (TAP - height) / 2);
-  return { left: across, right: across, top: down, bottom: down };
 }
 
 function PlayDot() {

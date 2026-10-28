@@ -49,6 +49,13 @@ vi.mock('react-native', async (importOriginal) => {
   const rn = await importOriginal<typeof import('react-native')>();
   return {
     ...rn,
+    // Motion is on in this window: the arrival of the details, the row settling and the scrubber
+    // reaching for its next place are all movements, and a test that ran them as instant swaps could
+    // not tell a row carried the right way from one put where it stands (TASK-574).
+    AccessibilityInfo: {
+      ...rn.AccessibilityInfo,
+      isReduceMotionEnabled: () => Promise.resolve(false),
+    },
     Platform: new Proxy(rn.Platform, {
       get: (target, key) => (key === 'OS' ? platform.os : Reflect.get(target, key)),
     }),
@@ -549,19 +556,23 @@ test('a place found for the frame before is not written into the panel of the ne
   expect(screen.facts().at(-1)).toEqual([ru.viewer.place, 'Казань']);
 });
 
-test('the strip is the feed’s own row of frames, and a tap on one opens it — unless it is still developing', async () => {
+test('the strip is the feed’s own row of frames, and a tap on one opens nothing — the swipe does', async () => {
   serve(() => undefined);
   const screen = await open();
   const strip = screen.root.findByType(Filmstrip);
   expect(strip.props.frames).toHaveLength(4);
   expect(strip.props.index).toBe(0);
-  await act(async () => strip.props.onPick(1));
+  // TASK-574, #3: a tap names nothing, and there is no handler to jump to the picture under the
+  // finger — the strip is only the row that shows where the middle stands.
+  expect(strip.props.onPick).toBeUndefined();
+  // A finger that leaves the strip resting on a frame is the one way it opens one (TASK-474).
+  await act(async () => strip.props.onSettle(1));
   expect(screen.shown.onOpen).toHaveBeenCalledWith('b');
   (screen.shown.onOpen as ReturnType<typeof vi.fn>).mockClear();
   // «c» is still being made: it stays in the strip, and there is nothing behind it to open.
-  await act(async () => strip.props.onPick(2));
+  await act(async () => strip.props.onSettle(2));
   expect(screen.shown.onOpen).not.toHaveBeenCalled();
-  await act(async () => strip.props.onPick(3));
+  await act(async () => strip.props.onSettle(3));
   expect(screen.shown.onOpen).toHaveBeenCalledWith('d');
   // The strip stands on the frame in hand.
   await screen.show({ item: shots()[3] });
@@ -572,14 +583,15 @@ test('a finger that leaves the strip resting on a frame opens it — and one sti
   // TASK-474: the strip is the one horizontal scroll in the product, and it was asked by name only.
   // Scrolling it moved the strip and left the picture standing — «не меняет элементы при листании».
   //
-  // It is asked through the very same `walk` a tap goes through, which is what the equality below
-  // says: one rule about what opens, asked twice. And the answer goes back to the strip, because a
-  // frame it will not open has to put the strip back on the frame in hand rather than leave it
-  // standing centred over one this window never opened.
+  // It is asked through the very same `walk` a tap used to go through, which is what the equality
+  // below says: one rule about what opens, asked once (TASK-574, #3 — the tap is gone, the walk
+  // stays). And the answer goes back to the strip, because a frame it will not open has to put the
+  // strip back on the frame in hand rather than leave it standing centred over one this window
+  // never opened.
   serve(() => undefined);
   const screen = await open();
   const strip = () => screen.root.findByType(Filmstrip).props;
-  expect(strip().onSettle).toBe(strip().onPick);
+  expect(strip().onSettle).toBeDefined();
 
   expect(strip().onSettle(1)).toBe(true);
   expect(screen.shown.onOpen).toHaveBeenLastCalledWith('b');
@@ -869,11 +881,12 @@ test('a short lift is a change of mind, and a movement that is more up and down 
   expect(opened(screen)).toEqual([]);
   // Barely moved at all: not taken, so a tap on a button under it is still a tap.
   expect(await swipe(screen, -8)).toBe(false);
-  // Further down than across is not the gallery's — it is a finger coming down the picture, which
-  // raises the frame's own screen (TASK-540, spec 10.14.4). It is taken, and it walks nowhere.
+  // Further down than across is not the gallery's — it is a finger going down the picture, which
+  // closes the window (TASK-574, spec 10.14.4). It is taken, and it walks nowhere.
   expect(await swipe(screen, -100, 150)).toBe(true);
   expect(opened(screen)).toEqual([]);
-  expect(screen.panels()).toHaveLength(1);
+  expect(screen.panels()).toHaveLength(0);
+  expect(closed(screen)).toBe(1);
   // Just past the threshold it walks.
   expect(await swipe(screen, -57)).toBe(true);
   expect(opened(screen)).toEqual(['b']);
@@ -971,27 +984,27 @@ test('tools that were put away come back on a swipe and on a step along the stri
   expect(tools(strip).bar).toBe(1);
 });
 
-test('a video taps to play and to stand still, and its 72 stays where it is in both states', async () => {
+test('a tap beside a video’s 72 hides the interface and does not stop the film', async () => {
+  // TASK-574, #4: the play and pause is the 72 in the middle of the frame and nowhere else. A
+  // finger on the picture is the same tidy-up a photograph's is — the glass, the shades and the
+  // strip go, the film keeps playing, and a second tap brings the tools back.
   serve(() => undefined);
   const clip = { ...shots()[0], kind: 'video' as const, preview_url: 'https://r2.example/v.mp4' };
-  player.playing = false;
-  const screen = await open({ item: clip, frames: [clip] });
-  expect(tools(screen)).toEqual({ bar: 1, strip: 1, scrubber: 1 });
-  await tap(screen);
-  expect(player.play).toHaveBeenCalled();
-  // A video's tap never hides anything — the transport is the frame's own business (AC #5).
-  expect(tools(screen)).toEqual({ bar: 1, strip: 1, scrubber: 1 });
-
   player.playing = true;
-  await act(async () => screen.show({ item: clip, frames: [clip] }));
-  expect(screen.icon(ru.viewer.pause)().props.size).toBe(72);
-  await tap(screen);
-  expect(player.pause).toHaveBeenCalled();
+  const screen = await open({ item: clip, frames: [clip] });
+  // The window starts the film on being given it; what this test is about is the tap, not that.
+  player.play.mockClear();
   expect(tools(screen)).toEqual({ bar: 1, strip: 1, scrubber: 1 });
-  // And the button itself is still there and still its own — not taken by the tap, and not hidden.
+  await tap(screen);
+  expect(player.pause).not.toHaveBeenCalled();
+  expect(tools(screen)).toEqual({ bar: 0, strip: 0, scrubber: 0 });
+  // The 72 stays: it is inside the frame and is the film's own transport, not a tool.
   expect(screen.root.findAllByType(IconButton).filter((one) => one.props.size === 72)).toHaveLength(
     1,
   );
+  await tap(screen);
+  expect(tools(screen)).toEqual({ bar: 1, strip: 1, scrubber: 1 });
+  expect(player.pause).not.toHaveBeenCalled();
 });
 
 test('the picture is one control to a screen reader, named by what its tap will do', async () => {
@@ -1282,6 +1295,32 @@ test('the scrubber reads the player’s place against the api’s own length, an
   expect(player.currentTime).toBe(20);
 });
 
+test('the scrubber reaches for the player’s place rather than stepping onto it', async () => {
+  // TASK-574, #5. The player answers four times a second, and a bar drawn straight from each answer
+  // jumps a quarter of a second sideways four times a second — the stutter the person saw. What the
+  // fill and the handle are drawn from is one animated place that carries the rest of the way.
+  serve(() => undefined);
+  const clip = video({ duration_seconds: 40 });
+  player.currentTime = 10;
+  const screen = await open({ item: clip, frames: [clip] });
+  const fill = () =>
+    screen.root
+      .findByType(VideoTrack)
+      .findAll((one) =>
+        isAnimated((StyleSheet.flatten(one.props.style) as { width?: unknown } | undefined)?.width),
+      )
+      .map((one) => (StyleSheet.flatten(one.props.style) as { width: unknown }).width);
+  // One drawn place and not a bare `${value}%` string: a string is the step, animated is the reach.
+  expect(fill()).toHaveLength(1);
+  const place = () => Number.parseFloat(String(numberOf(fill()[0])));
+  expect(place()).toBeCloseTo(25);
+
+  // And it follows the next answer.
+  player.currentTime = 20;
+  await act(async () => screen.show({ item: clip, frames: [clip] }));
+  expect(place()).toBeCloseTo(50);
+});
+
 test('a length the api did not send is the player’s, and one nobody knows is a scrubber that cannot be wound', async () => {
   serve(() => undefined);
   player.duration = 45;
@@ -1496,18 +1535,27 @@ test('turned, the window keeps every name, role and 44 that it has standing', as
   // TASK-475: the phone lying on its side is the same window with the same controls on glass, and a
   // screen reader must not lose one of them because the picture is drawn the other way round. The
   // bar's own round buttons drop from 48 to 44 — the layout's — and a 44 with its slop is still the
-  // floor, so they keep meeting it. The strip's shots are the layout's 26 × 36 and 38 × 40, which do
-  // not: they grow as far as the 2 gap between two shots allows and no further, because reaching
-  // past that puts a tap on the frame the person did not touch. That is `ViewerRotated*`'s own
-  // numbers, and it is said here rather than hidden by not asking.
+  // floor, so they keep meeting it. The strip's own frames are pictures with a name and not controls
+  // (TASK-574, #3), so they are not held to the 44 a finger reaches for — they are read off the tree
+  // separately, at the sizes `ViewerRotated*` draws them.
   serve(() => undefined);
   const standing = { width: 390, height: 844 };
-  // The strip's own shots are told by what they are drawn at: a control on the window is 44 or more
-  // across, and nothing in the strip is. A control whose width the layout decides — the pill, which
-  // is as long as the day and the name in it — is not one of them and is not short of anything: it
-  // has no width to be short in, and reading `undefined` as 0 filed the window's own glass in the
-  // strip.
-  const inStrip = (one: { width: number | undefined }) => one.width !== undefined && one.width < 44;
+  // The strip's own frames, told by what they are drawn at: a control on the window is 44 or more
+  // across, and a shot of the strip is never. The pill's width the layout decides — it is as long as
+  // the day and the name in it — and it carries no width of its own.
+  const stripShots = (root: ReactTestInstance) =>
+    root
+      .findAll(
+        (one) =>
+          typeof one.props.accessibilityLabel === 'string' &&
+          one.props.accessibilityState?.selected !== undefined,
+      )
+      .map((one) => ({
+        name: one.props.accessibilityLabel as string,
+        style: StyleSheet.flatten(one.props.style) as { width?: number; height?: number },
+      }))
+      .filter((one) => typeof one.style?.width === 'number' && one.style.width < 44)
+      .map(({ name, style }) => ({ name, width: style.width, height: style.height }));
   // The strip has to have neighbours in it for any of this to mean anything. It was opened on a
   // strip of one frame and the neighbour checks ran over an empty list — a check that can only pass
   // is not a check, and the 44 it waved through was the 44 of a strip that was not there.
@@ -1518,17 +1566,19 @@ test('turned, the window keeps every name, role and 44 that it has standing', as
   try {
     for (const item of [shots()[0], video()]) {
       Object.assign(phone, standing);
-      const upright = targets((await open({ item, frames: beside(item) })).root);
+      const upright = await open({ item, frames: beside(item) });
       Object.assign(phone, { width: 844, height: 390 });
-      const sideways = targets((await open({ item, frames: beside(item) })).root);
+      const sideways = await open({ item, frames: beside(item) });
 
       // The same controls, in the same words, on the same job — only the geometry moved.
-      expect(sideways.map((one) => one.name).sort()).toEqual(upright.map((one) => one.name).sort());
-      for (const one of upright) {
-        expect(sideways.find((two) => two.name === one.name)?.role, one.name).toBe(one.role);
+      const up = targets(upright.root);
+      const side = targets(sideways.root);
+      expect(side.map((one) => one.name).sort()).toEqual(up.map((one) => one.name).sort());
+      for (const one of up) {
+        expect(side.find((two) => two.name === one.name)?.role, one.name).toBe(one.role);
       }
       // Every control a finger reaches for on its own is still 44 by 44, standing or turned.
-      for (const one of sideways.filter((two) => !inStrip(two))) {
+      for (const one of side) {
         expect(one.role, one.name).toBeTruthy();
         expect(one.name, 'a control with no name').not.toBe('');
         if (one.width !== undefined)
@@ -1536,31 +1586,30 @@ test('turned, the window keeps every name, role and 44 that it has standing', as
         if (one.height !== undefined)
           expect(one.height, `«${one.name}» is ${one.height} high`).toBeGreaterThanOrEqual(44);
       }
-      // And the strip's own frames keep the names and roles they had, at the sizes the layout draws.
-      // Standing, a neighbour is 30 across and the frame in hand 44, so the strip is four neighbours
-      // and no current one; turned, the frame in hand is 38 and counts as one of the strip's five —
-      // the same layout gap said the other way round, and the reason the counts are pinned.
-      const stripUpright = upright.filter(inStrip);
-      const stripTurned = sideways.filter(inStrip);
+      // And the strip's own frames keep the names they had, at the sizes the layout draws. Standing,
+      // a neighbour is 30 across and the frame in hand 44, so the strip is four neighbours and no
+      // current one; turned, the frame in hand is 38 and counts as one of the strip's five — the
+      // same layout gap said the other way round, and the reason the counts are pinned.
+      const stripUpright = stripShots(upright.root);
+      const stripTurned = stripShots(sideways.root);
       expect(stripUpright).toHaveLength(4);
       expect(stripTurned).toHaveLength(5);
       for (const one of stripUpright) {
-        expect(one.role, one.name).toBe('button');
         expect(one.name, 'a strip frame with no name').not.toBe('');
-        // 30 wide with the half of the gap either side of it — never less than the layout's own.
+        // 30 wide — never less than the layout's own.
         expect(one.width, one.name).toBeGreaterThanOrEqual(30);
       }
       for (const one of stripTurned) {
-        expect(one.role, one.name).toBe('button');
         expect(one.name, 'a strip frame with no name').not.toBe('');
         if (one.width !== undefined) expect(one.width, one.name).toBeGreaterThanOrEqual(26);
         // And here it is said rather than hidden: turned, the strip is short of 44 across, the
-        // neighbours at 28 and the frame in hand at 40. Those are `ViewerRotated*`'s own numbers
+        // neighbours at 26 and the frame in hand at 38. Those are `ViewerRotated*`'s own numbers
         // and they are still the numbers — this is here so that a change to them cannot pass as
         // «the 44 held anyway», which is what an empty neighbour list would have let it do.
         expect(one.width, `«${one.name}» is ${one.width} wide`).toBeLessThan(44);
-        // It is still 44 tall, so it is only the distance across that a finger comes up short on.
-        expect(one.height, `«${one.name}» is ${one.height} high`).toBeGreaterThanOrEqual(44);
+        // It is still 36–40 tall where it is 26–38 across, the layout's own turned sizes — a
+        // picture with a name, held to nothing, and said here rather than left out.
+        expect(one.height, `«${one.name}» is ${one.height} high`).toBeGreaterThanOrEqual(36);
       }
     }
   } finally {
@@ -1580,26 +1629,51 @@ test('turned, the window keeps every name, role and 44 that it has standing', as
 const closed = (screen: Awaited<ReturnType<typeof open>>) =>
   (screen.shown.onClose as ReturnType<typeof vi.fn>).mock.calls.length;
 
-test('a swipe down over the picture raises the frame’s own screen, wherever on the picture it began', async () => {
-  // TASK-540, spec 10.14.4. The downward swipe used to be the way out of the window; it is the way
-  // into the frame's own screen now, and it is no longer asked to begin in the top third of the
-  // picture: the stage is the picture and nothing else — the tools along the foot are its siblings
-  // and take their own fingers — so a finger coming down anywhere over the frame is asking for the
-  // same thing.
+test('a swipe up over the picture raises the frame’s own screen, and a swipe down closes the window', async () => {
+  // TASK-574, spec 10.14.3–10.14.4. m-38 gave the details to a downward swipe (decision-25) and the
+  // person repealed that after the first test on a phone: up raises them, down closes the window.
   serve(() => told());
   const screen = await open();
-  expect(await swipe(screen, 0, 300, { x: 200, y: 60 })).toBe(true);
+  expect(await swipe(screen, 0, -300, { x: 200, y: 60 })).toBe(true);
   expect(screen.panels()).toHaveLength(1);
-  // And the swipe does not close the window any more: the «Закрыть» in the corner does (AC #4).
+  // And it does not close the window on the way: the «Закрыть» in the corner does.
   expect(closed(screen)).toBe(0);
   // The same press puts it away again.
   await screen.press(screen.pill);
   expect(screen.panels()).toHaveLength(0);
 
+  // Anywhere on the picture, not only near the top: the stage is the picture and nothing else.
   const middle = await open();
-  expect(await swipe(middle, 0, 300, { x: 200, y: 400 })).toBe(true);
+  expect(await swipe(middle, 0, -300, { x: 200, y: 400 })).toBe(true);
   expect(middle.panels()).toHaveLength(1);
   expect(closed(middle)).toBe(0);
+
+  // Down over the picture, details away: the window goes — the habit of m-34 comes back.
+  const down = await open();
+  expect(await swipe(down, 0, 300, { x: 200, y: 60 })).toBe(true);
+  expect(down.panels()).toHaveLength(0);
+  expect(closed(down)).toBe(1);
+
+  // And with the details standing, the same downward finger over the picture closes it too — the
+  // details are the panel's own to put away, and that drag is caught over the panel (below).
+  const showing = await open();
+  await showing.press(showing.pill);
+  expect(showing.panels()).toHaveLength(1);
+  expect(await swipe(showing, 0, 300, { x: 200, y: 60 })).toBe(true);
+  expect(closed(showing)).toBe(1);
+});
+
+test('«Закрыть» closes the window in any state — with the details standing as without them', async () => {
+  serve(() => told());
+  const plain = await open();
+  await plain.press(plain.icon(ru.action.close));
+  expect(closed(plain)).toBe(1);
+
+  const showing = await open();
+  await showing.press(showing.pill);
+  expect(showing.panels()).toHaveLength(1);
+  await showing.press(showing.icon(ru.action.close));
+  expect(closed(showing)).toBe(1);
 });
 
 test('a swipe in from the left edge closes the window, exactly as it does on a screen', async () => {
@@ -1627,9 +1701,11 @@ test('a swipe that came back, and one that is a diagonal rather than a way, do n
   // neither — the window answers only what it can name.
   expect(await swipe(screen, 200, 200, { x: 4, y: 60 })).toBe(false);
   expect(closed(screen)).toBe(0);
-  // And a finger that went up the screen out of the corner is not on its way out of anything.
-  expect(await swipe(screen, 0, -300, { x: 4, y: 400 })).toBe(false);
+  // And a finger that went up the screen out of the corner is not on its way out of anything — it
+  // is asking for the details (TASK-574, #2).
+  expect(await swipe(screen, 0, -300, { x: 4, y: 400 })).toBe(true);
   expect(closed(screen)).toBe(0);
+  expect(screen.panels()).toHaveLength(1);
 });
 
 test('the gallery still wins sideways, whatever a person meant the window by', async () => {
@@ -1656,12 +1732,12 @@ test('with the tools put away the two gestures still do their work, and the bar 
   expect(await swipe(screen, 200, 0, { x: 4, y: 300 })).toBe(true);
   expect(closed(screen)).toBe(1);
 
-  // A finger coming down the bare picture raises the frame's own screen, and the tools come back
+  // A finger going up the bare picture raises the frame's own screen, and the tools come back
   // with it: the pill in the bar is the panel's own way back out, and a panel raised over a picture
-  // with no bar would be a panel with nothing to close it (TASK-540).
+  // with no bar would be a panel with nothing to close it (TASK-574, #2).
   const bare = await open();
   await tap(bare);
-  expect(await swipe(bare, 0, 300, { x: 200, y: 60 })).toBe(true);
+  expect(await swipe(bare, 0, -300, { x: 200, y: 60 })).toBe(true);
   expect(bare.panels()).toHaveLength(1);
   expect(closed(bare)).toBe(0);
   expect(tools(bare)).toEqual({ bar: 1, strip: 0, scrubber: 0 });
@@ -1725,6 +1801,10 @@ test('the picture travels with the finger, and the frames either side of it are 
   await lift(screen, -120);
   // Let go of past the step, the frame it was dragged towards is the one that opens.
   expect(opened(screen)).toEqual(['d']);
+  // And the row carries on the way the finger went — to the left, onto the frame that opens — and
+  // does not snap back to the previous one first (TASK-574, #1). The box here is the whole screen:
+  // a record the worker has not measured is drawn across the phone whole.
+  expect(shiftOf(screen)).toBe(-390);
 
   // The frames either side are in the row already, and they are the pictures the strip draws them
   // by — so a drag brings a frame in from the edge rather than black.
@@ -1736,16 +1816,24 @@ test('the picture travels with the finger, and the frames either side of it are 
   expect(drawn).toEqual(['a:thumb', 'b:thumb', 'd:thumb']);
 });
 
-test('on a turned phone the row travels a whole frame of the room it is drawn in', async () => {
-  // TASK-540, AC #2. With the panel away the frame is drawn whole — 520 across a turned phone of
-  // 844 — so the row must travel 520; clamped to the 219 the panel's room would leave, it stopped
-  // short of the neighbour and jumped the rest of the way when the record changed.
+test('on a turned phone only the frame in hand is drawn — no neighbour peeks in from either side', async () => {
+  // TASK-574, #6. A 3:2 frame turned is 585 across a phone of 844, and its neighbours stood inside
+  // the screen beside it. The horizontal viewer is the frame and nothing else: no cells beside it,
+  // and a sideways finger still walks the gallery with the frame swapped rather than slid.
   Object.assign(phone, { width: 844, height: 390 });
   try {
     serve(() => undefined);
     const screen = await open({ item: { ...shots()[1], width: 4032, height: 3024 } });
+    const drawn = screen.root
+      .findAllByType(Image)
+      .map((one) => one.props.source?.cacheKey)
+      .filter(Boolean);
+    expect(drawn).toEqual(['b:thumb']);
     await pull(screen, -300);
-    expect(shiftOf(screen)).toBe(-300);
+    expect(shiftOf(screen)).toBe(0);
+    await lift(screen, -300);
+    expect(shiftOf(screen)).toBe(0);
+    expect(opened(screen)).toEqual(['d']);
   } finally {
     Object.assign(phone, { width: 390, height: 844 });
   }
@@ -1779,10 +1867,9 @@ test('a finger that came short of the step leaves the row where it found it and 
   expect(shiftOf(screen)).toBe(0);
 });
 
-test('the pill and a finger coming down the picture are the same press, and the panel’s own swipe puts it away', async () => {
-  // TASK-540, spec 10.14.4: the downward swipe used to close the window and now raises the frame's
-  // own screen; the same swipe over the panel itself puts it away again. The pill in the bar is
-  // that same press, and it is held in while the panel stands.
+test('a finger down the open panel puts the details away first, and the next one down the picture closes the window', async () => {
+  // TASK-574, #2 (spec 10.14.4): the gesture acts on whatever it is over. Over the panel it puts
+  // the details away; over the picture with nothing left on it, it closes the window.
   serve(() => told());
   const screen = await open();
   await screen.press(screen.pill);
@@ -1790,10 +1877,15 @@ test('the pill and a finger coming down the picture are the same press, and the 
   expect(screen.pill().props.on).toBe(true);
   expect(screen.pill().props.label).toContain(ru.viewer.hideDetails);
 
-  // A finger coming down the panel, far enough: the details go.
+  // A finger coming down the panel, far enough: the details go, the window stays.
   expect(await panelDrag(screen, 150)).toBe(true);
   expect(screen.panels()).toHaveLength(0);
   expect(screen.pill().props.on).toBe(false);
+  expect(closed(screen)).toBe(0);
+
+  // The next movement down, over the picture now: the window goes.
+  expect(await swipe(screen, 0, 300, { x: 200, y: 60 })).toBe(true);
+  expect(closed(screen)).toBe(1);
 
   // And a short slow drag is a finger feeling for the panel and no more: it comes back.
   const again = await open();
