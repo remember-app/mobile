@@ -194,7 +194,7 @@ async function open({ queue = false }: { queue?: boolean } = {}) {
     tiles: () => root.findAllByType(Tile).map((one) => String(one.props.uri).replace('ph://', '')),
     seams: () => root.findAllByType(DayMark),
     seam: (n: number) => () => root.findAllByType(DayMark)[n],
-    /** The days over the queue's grid, headed with a line. */
+    /** The day headings — now the partial grant's alone, which has no whole day to take. */
     heads: () => root.findAllByType(DayHead),
     button: (label: string) =>
       root.findAllByType(Button).filter((one) => one.props.label === label),
@@ -824,7 +824,7 @@ const going = {
   parts: {},
 };
 
-test('on the queue’s route the roll stands in the queue’s face: the plain bar, the grid in the margins, each day headed with a line and a button', async () => {
+test('on the queue’s route the roll stands in the queue’s face: the plain bar, the grid in the margins, each day a seam over its frames', async () => {
   uploads.queue = [going];
   const screen = await open({ queue: true });
   // `UploadQueue`: «Добавить кадры» over «Свадьба Лизы и Марка · 12–13 сентября», no glass, no switch.
@@ -843,18 +843,18 @@ test('on the queue’s route the roll stands in the queue’s face: the plain ba
   // sending is what the screen is about, and a dead button would argue with it.
   expect(screen.root.findAllByType(ActionBar)).toHaveLength(0);
   expect(screen.button(ru.action.send)).toHaveLength(0);
-  // «Снято 13 сентября» … «Выбрать все 3», and the button takes the day and gives it back — «Снять
-  // все 3» once the whole day is marked (spec detail 65).
-  const head = () => screen.heads()[0];
-  const button = () => head().findByType(Button);
-  expect(head().props.label).toBe(ru.upload.shotOn('13 сентября'));
-  expect(head().props.count).toBeUndefined();
-  expect(button().props.variant).toBe('small');
-  expect(button().props.label).toBe(ru.upload.selectDay(3));
-  await screen.press(button);
+  // The queue's grid draws the very seam the picking face does (TASK-541): no day heading with a
+  // button at its end, but «13 сентября, воскресенье» and «3» with the whole band taking the day and
+  // giving it back.
+  const seam = () => screen.seams()[0];
+  expect(screen.heads()).toHaveLength(0);
+  expect(seam().props.label).toBe('13 сентября, воскресенье');
+  expect(seam().props.count).toBe('3');
+  expect(seam().props.onPress).toBeDefined();
+  expect(seam().props.pressLabel).toBe(ru.upload.takeDay('13 сентября, воскресенье'));
+  await screen.press(seam);
   expect(['a1', 'a2', 'a3'].map(screen.mark)).toEqual(['send', 'send', 'send']);
-  expect(button().props.label).toBe(ru.upload.unselectDay(3));
-  expect(ru.upload.unselectDay(61)).toBe('Снять все 61');
+  expect(seam().props.picked).toBe(true);
   // Something marked: the layer stands, the board's own there and not one floating over
   // photographs, the number in the button and no line of counting over it.
   const layer = screen.root.findByType(ActionBar);
@@ -862,7 +862,7 @@ test('on the queue’s route the roll stands in the queue’s face: the plain ba
   expect(layer.props.style).toBeUndefined();
   expect(layer.props.above).toBeUndefined();
   expect(screen.send().props.label).toBe(ru.upload.send(3));
-  await screen.press(button);
+  await screen.press(seam);
   expect(['a1', 'a2', 'a3'].map(screen.mark)).toEqual(['off', 'off', 'off']);
   expect(screen.root.findAllByType(ActionBar)).toHaveLength(0);
 });
@@ -881,7 +881,7 @@ test('the queue’s face picks with no switch, and once nothing goes its «От�
   await screen.redraw();
   // Everything went: the same plain face and its grid, and the button back, out until something is marked.
   expect(screen.root.findAllByType(GlassBar)).toHaveLength(0);
-  expect(screen.heads()).toHaveLength(3);
+  expect(screen.seams()).toHaveLength(3);
   expect(screen.send().props.disabled).toBe(true);
 });
 

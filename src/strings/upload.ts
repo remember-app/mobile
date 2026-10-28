@@ -31,10 +31,6 @@ export const en = {
     cannotRead: 'Cannot read the gallery on this phone.',
     /** Over one strip of the contact sheet: the day everything under it was shot on. */
     shotOn: (day: string) => `Shot on ${day}`,
-    /** And at the other end of that line — everything shot on that one day, in one tap. */
-    selectDay: (n: number) => `Select all ${n}`,
-    /** The same button once the whole day is taken: the next tap gives it back. */
-    unselectDay: (n: number) => `Unselect all ${n}`,
     /**
      * The seam of a day on the feed, read out (spec detail 65): the band's own words are a date and
      * a figure, so what it does is said with the day it does it to — and which way it goes now.
@@ -145,8 +141,6 @@ export const ru: typeof en = {
     restUnseen: 'Остальное с этого дня Remember не видит',
     cannotRead: 'Не получилось прочитать галерею на этом телефоне.',
     shotOn: (day: string) => `Снято ${day}`,
-    selectDay: (n: number) => `Выбрать все ${n}`,
-    unselectDay: (n: number) => `Снять все ${n}`,
     takeDay: (day: string) => `Выбрать все кадры за ${day}`,
     leaveDay: (day: string) => `Снять выбор со всех кадров за ${day}`,
     reading: 'Ещё читаем галерею…',

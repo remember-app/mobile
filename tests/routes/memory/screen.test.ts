@@ -486,10 +486,8 @@ test('«Выбрать все N» counts the frames a tap could reach, and the s
   // `toggleDay` (`tests/lib/frames.test.ts`), which only ever touches this group's frames.
   expect(daymark).toContain('picked={allTaken(markable, picked)}');
   expect(daymark).toContain('setPicked((have) => toggleDay(markable, have))');
-  // The kit's quiet action of the day, and the same words on both sheets that have one — «тем же
-  // тихим действием дня, что и на „Выборе кадров“». Two keys because each face keeps its own words,
-  // held equal here so they cannot drift apart in one language only.
-  for (const set of [en, ru]) expect(set.gallery.selectDay(9)).toBe(set.upload.selectDay(9));
+  // The kit's quiet action of the day, in the seam's own words — «Выбрать все 9». The upload face's
+  // own day button, whose words were held equal here, is gone with the queue's heading (TASK-541).
   expect(ru.gallery.selectDay(9)).toBe('Выбрать все 9');
 });
 
