@@ -103,9 +103,11 @@ import {
   shelfTrack,
   TRACKS,
   taken,
+  trackWords,
   wishes,
 } from '@/lib/montage/order';
 import { createPreview, type Playing, sendOwnTrack } from '@/lib/music';
+import { en } from '@/strings';
 
 /**
  * The four steps of an order, checked where they can be: what the organizer settled about the
@@ -334,6 +336,41 @@ test('the music goes out even when there is none, and a wish only under its own 
   expect(wishes(gallery, three)).not.toHaveProperty('music_track_key');
 });
 
+test('the music handed to the director goes out as the flag, and names no track at all', () => {
+  const start = blankOrder();
+  // The third answer to the music question (spec 8, `MontageMusicDirector`): nothing is named and
+  // the flag stands where the list would — the only way the worker tells «режиссёр выберет» from
+  // «без музыки», which is the empty list that has always gone out.
+  const sent = wishes(gallery, { ...start, director: true });
+  expect(sent).toMatchObject({ music_director: true });
+  expect(sent).not.toHaveProperty('music_tracks');
+  // No tracks, no wishes: a wish lives on a track the order names, and here it names none.
+  expect(sent).not.toHaveProperty('music_wishes');
+  // With the flag off nothing changed: the list goes out, empty included, and no flag beside it.
+  expect(wishes(gallery, start).music_tracks).toEqual([]);
+  expect(wishes(gallery, start)).not.toHaveProperty('music_director');
+
+  // Naming a track and handing the choice over are one question, so the body never carries both:
+  // the flag stands and the list goes, whatever is left standing in the wizard behind it.
+  const both = wishes(gallery, { ...start, director: true, tracks: [{ key: 'calm', name: null }] });
+  expect(both).not.toHaveProperty('music_tracks');
+  expect(both).not.toHaveProperty('music_wishes');
+});
+
+test('a film cut to the director’s own track says so wherever a list of tracks would stand', () => {
+  // The strip of films, a film's card and its sheet all read the music off this one function, so a
+  // director's order answers in one word rather than in a track it does not have (detail 81).
+  expect(trackWords({ music_director: true }, en)).toEqual([en.montage.directorChoice]);
+  // And nothing else about it changed: a named track is still its own word, and an order that said
+  // nothing about music still says nothing.
+  expect(trackWords({ music_tracks: ['warm'] }, en)).toEqual([en.montage.track.warm]);
+  expect(trackWords({}, en)).toEqual([]);
+  // The api never writes the two together; if one ever arrives, the flag is the answer it wrote.
+  expect(trackWords({ music_director: true, music_tracks: ['warm'] }, en)).toEqual([
+    en.montage.directorChoice,
+  ]);
+});
+
 test('a walk with nothing said in it costs nothing to leave, and every answer is something said', () => {
   // The question «Отмена» asks before it throws the wizard away: walked into and straight back
   // out of, there is nothing to confirm, and a sheet asking anyway is a door held shut for nothing.
@@ -351,6 +388,9 @@ test('a walk with nothing said in it costs nothing to leave, and every answer is
     { template: 'parents' },
     { tracks: [{ key: 'calm', name: null }] },
     { tracks: [{ key: 'calm', name: null, wish: 'Погромче к финалу' }] },
+    // Handing the choice to the director is an answer too, and one worth asking about: the film is
+    // cut to a track nobody has heard yet.
+    { director: true },
     { seconds: 90 },
     { orientation: 'portrait' },
   ];
@@ -474,6 +514,9 @@ test('a template is an order already filled in, and it reaches the api as one', 
       { key: 'warm', name: null, wish: 'Тёплая на сборы' },
       { key: 'calm', name: null },
     ],
+    // A template names its own tracks, so a choice handed to the director before it is answered
+    // now by the template instead (spec 8: the two are one question, and this one is the template's).
+    director: false,
     seconds: 150,
     ownLength: false,
     orientation: 'landscape',
@@ -495,6 +538,15 @@ test('a template is an order already filled in, and it reaches the api as one', 
   });
   expect(order.dropped.size).toBe(0);
   expect(order.returned.size).toBe(0);
+
+  // A choice handed to the director before the tile was pressed is answered by the template now:
+  // its own tracks are named, so the flag that would refuse them goes (spec 8: one question, one
+  // answer, and this one is the template's).
+  const before: Order = { ...blankOrder(), director: true };
+  const handed: Order = { ...before, ...fill };
+  expect(handed.director).toBe(false);
+  expect(wishes(gallery, handed)).toMatchObject({ music_tracks: ['warm', 'calm'] });
+  expect(wishes(gallery, handed)).not.toHaveProperty('music_director');
 });
 
 test('a template with two tracks puts each of its two wishes on its own track', () => {

@@ -46,6 +46,14 @@ export type MontageWishes = {
    */
   music_tracks?: string[];
   /**
+   * The choice handed to the director instead of named tracks (doc-03, TASK-549): true is «подбери
+   * сам», and the worker's own network names the one track. The api writes it into `params` in place
+   * of `music_tracks`, which is how the worker tells «режиссёр выберет» from «без музыки» — so the
+   * two never go out together: a non-empty `music_tracks` beside the flag is a 400, an empty one is
+   * the same answer said twice.
+   */
+  music_director?: boolean;
+  /**
    * What to do with each of those tracks, in words, keyed by the track exactly as it stands in
    * `music_tracks` of the same order. Only tracks the order names (400 for any other) and only the
    * ones something was said about; up to 500 characters each. It took the place of one line for

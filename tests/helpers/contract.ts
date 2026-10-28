@@ -20,6 +20,8 @@ const KNOWN = [
   'include_media_ids',
   'exclude_media_ids',
   'music_tracks',
+  // The choice handed to the director instead of tracks (TASK-549, `src/montages/order.ts`).
+  'music_director',
   'music_wishes',
   'orientation',
   // Not the worker's: the film keeps them in columns of their own (`src/montages/order.ts`).
@@ -76,6 +78,18 @@ export function orderRefusal(body: unknown): Response | null {
     return schema('body/name must be a string of at most 200 characters');
   if ('template' in order && !TEMPLATES.includes(order.template as string))
     return schema('body/template must be equal to one of the allowed values');
+
+  if ('music_director' in order && typeof order.music_director !== 'boolean')
+    return schema('body/music_director must be boolean');
+  // «Отдаю выбор» and «играй вот эти» are two orders about one thing: the api picks neither and
+  // refuses the pair, as it refuses a frame named both in and out (api README, «Музыка»). An empty
+  // list beside the flag says the same thing twice and is taken.
+  if (
+    order.music_director === true &&
+    Array.isArray(order.music_tracks) &&
+    order.music_tracks.length > 0
+  )
+    return json({ error: 'music_director cannot be combined with music_tracks' }, 400);
 
   const tracks = order.music_tracks;
   if ('music_tracks' in order) {

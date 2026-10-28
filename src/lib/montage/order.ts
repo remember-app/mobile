@@ -50,9 +50,13 @@ export const shelfTrack = (key: string): MusicTrackId | null =>
  * The music a film was cut to, in the order it plays, a word to a track — a shelf one by its name,
  * one off the phone as one. A montage ordered before the list names its one track in either of the
  * two single fields the api took then; it is still in the strip, so both are read.
+ *
+ * An order that handed the choice to the director names no track at all: the one word for that
+ * answer stands where the list would, so the strip, a film's card and its sheet all say the same.
  */
 export function trackWords(params: Montage['params'], s: Strings): string[] {
-  const { music_tracks, music_track_id, music_track_key } = params;
+  const { music_director, music_tracks, music_track_id, music_track_key } = params;
+  if (music_director) return [s.montage.directorChoice];
   if (music_tracks?.length)
     return music_tracks.map((key) => {
       const shelf = shelfTrack(key);
@@ -184,6 +188,12 @@ export type Order = {
    * the video's own sound.
    */
   tracks: readonly PickedTrack[];
+  /**
+   * The choice handed to the director instead of named tracks (spec 8, `MontageMusicDirector`): the
+   * network picks the one track. The other answer to the same question as `tracks`, so the two never
+   * stand together — taking one is giving up the other, and the api refuses the pair outright.
+   */
+  director: boolean;
   /** Any whole number of seconds; null is «не сказали», and then the api picks and clamps it. */
   seconds: number | null;
   /**
@@ -203,6 +213,7 @@ export const blankOrder = (): Order => ({
   template: null,
   ownStory: false,
   tracks: [],
+  director: false,
   seconds: null,
   ownLength: false,
   orientation: 'landscape',
@@ -227,6 +238,10 @@ export type TemplateFill = Omit<Order, 'dropped' | 'returned' | 'seconds'> & {
  * template's again, which is what puts its plate over the story and its line under the length —
  * and a second template pressed after the first one was edited is a fresh answer, not a half of
  * the old one.
+ *
+ * `director` comes back to false with them, and for the same reason: a template names its tracks, so
+ * whatever was handed to the director before is answered now by the template instead. The two are one
+ * question and one of them is the template's.
  */
 export const fromTemplate = (template: MontageTemplate): TemplateFill => ({
   template: template.id,
@@ -240,6 +255,7 @@ export const fromTemplate = (template: MontageTemplate): TemplateFill => ({
     name: null,
     wish: template.music_wishes[key],
   })),
+  director: false,
   seconds: template.target_seconds,
   ownLength: false,
   orientation: template.orientation,
@@ -257,6 +273,7 @@ export const entered = (order: Order): boolean =>
   order.story.trim() !== '' ||
   order.template !== null ||
   order.tracks.length > 0 ||
+  order.director ||
   order.seconds !== null ||
   order.orientation !== 'landscape';
 
@@ -363,6 +380,10 @@ export function rejectedGroups(
  * звук» from an order that simply said nothing. Each wish goes under its own track's key, and only
  * where something was said: held on the track, a wish can only ever be about a track the order
  * names — the api answers 400 to any other — and an empty one is «не сказали».
+ *
+ * An order that handed the choice to the director names no track at all: `music_tracks` gives way to
+ * the flag that says so, which is the only way the worker tells «режиссёр выберет» from «без музыки»
+ * — and with no tracks there are no wishes, so neither goes out (api README, «Музыка»).
  */
 export function wishes(items: readonly MediaItem[], order: Order): MontageWishes {
   const material = usable(items);
@@ -382,12 +403,12 @@ export function wishes(items: readonly MediaItem[], order: Order): MontageWishes
 
   return {
     orientation: order.orientation,
-    music_tracks: tracks,
+    ...(order.director ? { music_director: true } : { music_tracks: tracks }),
     ...(order.seconds === null ? {} : { target_seconds: order.seconds }),
     ...(story ? { story_text: story } : {}),
     ...(include.length > 0 ? { include_media_ids: include } : {}),
     ...(exclude.length > 0 ? { exclude_media_ids: exclude } : {}),
-    ...(said.length > 0 ? { music_wishes: Object.fromEntries(said) } : {}),
+    ...(!order.director && said.length > 0 ? { music_wishes: Object.fromEntries(said) } : {}),
   };
 }
 
