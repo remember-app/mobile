@@ -140,9 +140,37 @@ test('opening it again reads the disk and does not go to the network', async () 
 });
 
 test('a failed download is the signed stream’s problem, not the play’s — the caller keeps its link', async () => {
-  downloadFileAsync.mockRejectedValue(new Error('no connection'));
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  const failure = new Error('no connection');
+  downloadFileAsync.mockRejectedValue(failure);
   await expect(keepVideo(UUID, URL)).resolves.toBeNull();
   expect(cachedVideo(UUID)).toBeNull();
+  // Said out loud rather than swallowed: a video that would not land is a fault to find later, and
+  // the record's id is what makes that log line useful when the person reports the film not playing.
+  expect(warn).toHaveBeenCalledWith('the video was not kept on this phone:', UUID, failure);
+  warn.mockRestore();
+});
+
+test('a file outlives the app: a cold launch reads it off the disk and downloads nothing', async () => {
+  await keepVideo(UUID, URL);
+  // A new process: every module's own memory is gone, and the phone's disk is all that is left.
+  vi.resetModules();
+  const launched = await import('@/lib/video-cache');
+  expect(launched.cachedVideo(UUID)).toBe(LOCAL);
+  await expect(launched.keepVideo(UUID, URL)).resolves.toBe(LOCAL);
+  expect(downloadFileAsync).toHaveBeenCalledTimes(1);
+});
+
+test('two videos are two files on the phone, each played off its own', async () => {
+  const other = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+  await keepVideo(UUID, URL);
+  await keepVideo(other, 'https://r2.example/other.mp4');
+  expect(cachedVideo(UUID)).toBe(LOCAL);
+  expect(cachedVideo(other)).toBe(`cache/video/${other}.mp4`);
+  // Both already there: neither is fetched again, and neither is mistaken for the other.
+  await keepVideo(UUID, URL);
+  await keepVideo(other, 'https://r2.example/other.mp4');
+  expect(downloadFileAsync).toHaveBeenCalledTimes(2);
 });
 
 test('an id that is not a uuid names no file at all, and is never downloaded', async () => {
