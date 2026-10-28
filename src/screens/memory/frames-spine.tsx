@@ -10,10 +10,10 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { MediaItem } from '@/api';
-import { DateSpine, EASE, FEED_GAP, useReducedMotion } from '@/kit';
+import { DateSpine, EASE, FEED_GAP, Text, useReducedMotion } from '@/kit';
 import { formatDayTiny } from '@/lib/dates';
 import { dateMarks } from '@/lib/frames';
-import { board, duration, height, space, themed } from '@/theme';
+import { board, duration, height, photo, radius, space, themed } from '@/theme';
 
 /**
  * `MemoryScrub` — the spine at the left edge of the feed (spec 7.8): a hairline with a pill on
@@ -45,6 +45,9 @@ const GRAB = 32;
  * goes — without it the pill sits inside the first row of its day, 9 short of the layout.
  */
 const SEAM_LIFT = FEED_GAP / 2 + 8;
+
+/** How far the seam's day pill stands in from the left edge — the spine's own 12 (spec 7.8). */
+const SEAM_LEFT = 12;
 
 /** Everything the layer below is drawn from, worked out by the hook above it. */
 export type Spine = {
@@ -217,6 +220,25 @@ export function useSpine({
 }
 
 /**
+ * The day mark the single-frame feed keeps after its spine is gone (spec 10.14.2): the spine's own
+ * pill, without the line and the dot, standing on the seam between two frames where the day begins.
+ * It lies over the photographs, so the frames keep standing touching — the 20 a day-gap takes in
+ * the grid would tear them apart.
+ */
+export function SeamDay({ label }: { label: string }) {
+  const styles = useStyles();
+  return (
+    <View style={styles.seam} pointerEvents="none" accessibilityRole="header">
+      <View style={styles.seamPill}>
+        <Text role="day" style={styles.seamText}>
+          {label}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+/**
  * The layer the marks are drawn on: the whole screen, over the photographs, moved by the scroll
  * itself rather than by the feed re-rendering.
  */
@@ -267,5 +289,16 @@ const useStyles = themed(() =>
     feed: { position: 'absolute', top: 0, left: 0, right: 0 },
     // Where a finger takes hold of it: the left edge between the two glasses, drawn by nothing.
     grab: { position: 'absolute', left: 0, width: GRAB },
+    // The single frame's day mark: half of the 16 pill above the row it opens, so it is centred on
+    // the seam — no line under it, and no gap spent on saying so.
+    seam: { position: 'absolute', top: -8, left: SEAM_LEFT },
+    seamPill: {
+      minHeight: 16,
+      justifyContent: 'center',
+      paddingHorizontal: 6,
+      borderRadius: radius.pill,
+      backgroundColor: photo.plateQuiet,
+    },
+    seamText: { color: photo.spineMark, lineHeight: 16, letterSpacing: 0 },
   }),
 );

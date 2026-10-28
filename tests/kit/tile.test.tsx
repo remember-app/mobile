@@ -271,6 +271,23 @@ test('the running time in the single-frame feed stands 12 from the corners', () 
   expect(words.fontSize).toBe(13);
 });
 
+test('the single-frame tile takes its height from the photograph, and stays square without one', () => {
+  // `MemorySingle` (spec 10.14.2): the photograph is drawn whole — nothing cropped off its edges —
+  // so the tile is as tall as the picture's own proportion asks. The picture fills that box exactly,
+  // which is what makes `cover` crop nothing.
+  const [wide] = viewsOf(
+    <Tile state="ready" uri={A} lane="feed" single ratio={1.5} label="Фото" />,
+  );
+  expect(wide.aspectRatio).toBe(1.5);
+  const [tall] = viewsOf(
+    <Tile state="ready" uri={A} lane="feed" single ratio={2 / 3} label="Фото" />,
+  );
+  expect(tall.aspectRatio).toBe(2 / 3);
+  // A video, and any frame without a proportion of its own, is still the square of the grid.
+  const [square] = viewsOf(<Tile state="ready" uri={A} lane="feed" single label="Видео" />);
+  expect(square.aspectRatio).toBe(1);
+});
+
 /** The flattened styles of every view a tree draws. */
 const viewsOf = (tree: ReactElement) => {
   let drawn!: TestRenderer.ReactTestRenderer;

@@ -19,9 +19,9 @@ test('the feed nobody arranged is one wall, and the days are only on the spine',
   expect(frames).toContain("...(group.by === 'all' ? [] : [{ key: group.key, group }])");
   // And the spine is drawn only there: cut by people or by kind the days interleave, and a rail of
   // them would point at nothing. A feed shorter than the screen has no spine either (spec 8).
-  // The single frame is the one place the days are the spine's whatever the account says, the
-  // day-gap having no room between frames that stand touching (spec 10.14.2) — hence `dated`.
-  expect(frames).toContain("plain: sort.by === 'none' && !dated,");
+  // The single frame has no spine at all (spec 10.14.2): its days stand as pills on the seams
+  // between the frames, so the line, its marks and its drag are all off there — hence `!single`.
+  expect(frames).toContain("plain: !single && sort.by === 'none' && !dated,");
   expect(spine).toContain('!plain || headerHeight === 0 || reach <= 0');
   expect(spine).toContain('const reach = feed.content - feed.view;');
   expect(spine).toContain('dateMarks(frames, { top: feedTop, row: rowPitch, columns })');

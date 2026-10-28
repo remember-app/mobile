@@ -74,6 +74,7 @@ export function Tile({
   ring,
   length,
   single,
+  ratio,
   reason,
   caption,
   own,
@@ -111,6 +112,12 @@ export function Tile({
    * corners rather than the feed grid's 7, because the frame is the whole width of the phone.
    */
   single?: boolean;
+  /**
+   * The one-frame feed's own proportion, width over height (spec 10.14.2): the tile takes its
+   * height from the picture rather than the square grid, so a photograph is drawn whole and nothing
+   * is cropped off its edges. Left off, the frame is the square of `Tile`.
+   */
+  ratio?: number | null;
   /** Why the automatic pass dropped this one: a glyph and a word, «Размыто» / «Дубль» / «Темно». */
   reason?: { icon: IconComponent; label: string };
   /** What a developing frame says of itself. */
@@ -211,6 +218,9 @@ export function Tile({
   const frame: StyleProp<ViewStyle> = [
     styles.tile,
     lane === 'feed' ? styles.feed : null,
+    // After `styles.tile`, which is the square: the column is the same width either way, and only
+    // the height follows the photograph (spec 10.14.2).
+    ratio ? { aspectRatio: ratio } : null,
     state === 'processing' ? styles.processing : null,
     state === 'failed' ? styles.broken : null,
     style,
