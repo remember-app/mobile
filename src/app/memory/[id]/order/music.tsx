@@ -8,6 +8,7 @@ import type { MusicTrackId } from '@/api';
 import {
   BlockPicked,
   Button,
+  CardDirector,
   DRAWN,
   Field,
   IconButton,
@@ -35,13 +36,21 @@ import { refusal, useOrder, useStillHere, WizardStep } from '@/screens/order/wiz
 import { radius, space, themed, useTheme, wizardLead } from '@/theme';
 
 /**
- * Step 3, `MontageMusicNone` / `MontageMusic` — what the film is cut to: nothing at all and the
- * video's own sound, or any number of tracks off the shelf of five or off this phone.
+ * Step 3, `MontageMusicNone` / `MontageMusic` / `MontageMusicDirector` — what the film is cut to:
+ * nothing at all and the video's own sound, any number of tracks off the shelf of five or off this
+ * phone, or the one track the director picks itself.
  *
- * Two blocks. On top «Выбрано», which is never away: with nothing in it, it says the film will have
- * no music — a state, not a choice to press; with tracks in it, it holds them in the order they
- * will play, each with its own wish. Under it the shelf, where the plus takes a track up and the
- * tick gives it back.
+ * Three things, top to bottom. «Выбрано», which is never away: empty it says the film will have no
+ * music — a state, not a choice to press; with the choice handed over it says so in its third view;
+ * with tracks in it, it holds them in the order they will play, each with its own wish. Under it the
+ * card that hands the choice to the director. Under that the shelf, where the plus takes a track up
+ * and the tick gives it back.
+ *
+ * Naming tracks and handing the choice over are one question with two answers (spec 8), so they are
+ * one axis and never stand together: taking a track back to the list lifts the card's tick, and
+ * taking the card empties the list — the tracks go with their wishes, which the api would otherwise
+ * refuse as wishes about tracks the order no longer names. While the director holds the choice the
+ * shelf stays live and only goes down to 40 %: that is «сейчас выбран не он», not «недоступно».
  *
  * A wish belongs to one track (spec 7.7, detail 54). The pencil in a chosen row unfolds a field
  * under that row, one field at a time; when the field lets go of the keyboard it folds away, and
@@ -97,13 +106,26 @@ export default function MusicStep() {
 
   /**
    * One tap on the shelf's plus or tick: the track goes on the end of the list, or comes off it —
-   * and with the list full it stays where it is, and the step says why.
+   * and with the list full it stays where it is, and the step says why. Taking one back to the list
+   * is answering the same question the card asks, so the director's choice is given up with it.
    */
   const flip = (key: MusicTrackId) => {
     setNotice(null);
     if (inOrder(key)) drop(key);
     else if (full) setNotice(s.montage.tracksFull(TRACK_LIMIT));
-    else change({ tracks: [...picked, { key, name: null }] });
+    else change({ tracks: [...picked, { key, name: null }], director: false });
+  };
+
+  /**
+   * The card between «Выбрано» and the shelf, and the other answer to the same question: taking it
+   * gives up every named track, which carries its own wish out with it — a wish about a track the
+   * order no longer names is the one thing the api answers 400 to. Pressed again it is taken back,
+   * and the step is what it was: nothing named, nothing handed over.
+   */
+  const flipDirector = () => {
+    setNotice(null);
+    stop();
+    change((was) => ({ director: !was.director, tracks: [] }));
   };
 
   const move = (from: number, to: number) =>
@@ -192,8 +214,9 @@ export default function MusicStep() {
 
       const key = await sendOwnTrack(token, id, { uri: file.uri, name: file.name });
       if (gone.current) return;
-      // Onto the list as it is now: the shelf stays pressable while the file goes up.
-      change((was) => ({ tracks: [...was.tracks, { key, name: file.name }] }));
+      // Onto the list as it is now: the shelf stays pressable while the file goes up. A file is a
+      // named track like any other, so it lifts the director's choice the way the plus does.
+      change((was) => ({ tracks: [...was.tracks, { key, name: file.name }], director: false }));
     } catch (e) {
       if (!gone.current) setNotice(refusal(e).text);
     } finally {
@@ -230,7 +253,14 @@ export default function MusicStep() {
       // is being typed, rather than spending it on putting the keyboard away.
       body={styles.body}
     >
-      {picked.length === 0 ? (
+      {order.director ? (
+        // The third view of the same block (detail 54): the choice is made, so no track stands in it.
+        <BlockPicked
+          title={s.montage.picked}
+          count={s.montage.directorHead}
+          director={{ title: s.montage.directorBlockTitle, note: s.montage.directorBlockNote }}
+        />
+      ) : picked.length === 0 ? (
         <BlockPicked
           title={s.montage.picked}
           count={s.montage.nothingAdded}
@@ -336,7 +366,19 @@ export default function MusicStep() {
         </BlockPicked>
       )}
 
-      <View style={styles.block}>
+      {/* Spec 8, `MontageMusicDirector`: its own card between the block and the shelf, not a row of
+          the shelf — the plus there adds to the list, and this choice never stands in the list. */}
+      <CardDirector
+        title={s.montage.directorChoice}
+        note={s.montage.directorChoiceNote}
+        picked={order.director}
+        label={order.director ? s.montage.directorPicked : s.montage.directorOffer}
+        onPress={flipDirector}
+      />
+
+      {/* Detail 81: with the choice handed over the whole section goes down to 40 % — «сейчас выбран
+          не он», not «недоступно». It stays live: one tap on a plus takes the choice back. */}
+      <View style={[styles.block, order.director ? styles.dimmed : null]}>
         <View style={styles.blockHead}>
           <Text role="eyebrow" tone="muted" accessibilityRole="header" style={styles.grow}>
             {s.montage.music.toUpperCase()}
@@ -420,6 +462,9 @@ const useStyles = themed(({ color }) =>
       gap: 18,
     },
     block: { gap: 10 },
+    // Detail 81: the section the director's choice is not standing in — the shelf's own 40 %, as
+    // every template but the chosen one wears. It reads as «не он», and it stays pressable.
+    dimmed: { opacity: 0.4 },
     blockHead: {
       flexDirection: 'row',
       flexWrap: 'wrap',

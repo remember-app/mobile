@@ -37,6 +37,14 @@ export type Memory = {
    */
   recent_thumbnail_urls: string[];
   /**
+   * Up to twelve signed thumbnail urls for the main screen's card, drawn at random from the whole
+   * memory rather than from its tail (TASK-543): the card is a face of what is inside, and a memory
+   * that is only ever its last four photographs says nothing about the rest. Signed for the same
+   * quarter of an hour as the tail, hidden frames left out, and missing from an api older than the
+   * field — where the card falls back to `recent_thumbnail_urls`.
+   */
+  card_thumbnail_urls?: string[];
+  /**
    * The frame the organizer chose as this memory's face (spec 10.8.3), and the signed link to its
    * preview — signed and living exactly as long as the ones in the tail above. Both are `null`
    * until somebody picks one, and then the card draws what it drew before the cover existed. The

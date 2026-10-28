@@ -27,12 +27,12 @@ import { Text, useWordRoom, WordRoom } from './text';
  * large card, under the name on the ordinary one once the name breaks a word beside it. The name is
  * never cut on either (TASK-400): it is the one place the list says which memory this is.
  *
- * The frames on it turn (TASK-525, doc-12): the card shows what the listing signed for, and a
- * memory that is the same four photographs for as long as it is on screen says nothing about
- * itself. The turn is the card's own — a card holds it, so only that card is drawn again and not
- * the list around it — and it asks nothing for: the frames it turns between are the ones it was
- * handed, already signed and already cached, so nothing leaves the phone that the card did not
- * already hold.
+ * The frames on it are drawn from what the listing signed for the whole memory, and drawn again
+ * every five hours (TASK-544, doc-12): a memory that is the same few photographs all day says
+ * nothing about itself, and one that changes every few seconds is a slideshow rather than a card.
+ * Which few of them are on it is the card's own — drawn from the frames it was handed, already
+ * signed and already cached, so nothing leaves the phone that the card did not already hold, and
+ * nothing is asked for on the clock.
  */
 export function CardMemory({
   title,
@@ -82,14 +82,14 @@ export function CardMemory({
   const { roomy, way, room } = useWordRoom();
   // The chosen frame leads the strip and is never repeated further along it (spec 10.8.3): four
   // cells, and the first of them is now spoken for. It is somebody's own pick of what this memory
-  // looks like, so it is also the one frame the turn below never moves (TASK-525).
+  // looks like, so it is also the one frame the draw below never moves (TASK-544).
   const rest = (thumbs ?? []).filter((uri) => uri !== cover);
   // Nothing behind a chosen cover is drawn on the large card — it is the whole face — so there is
-  // nothing there to turn, and the card says so by not keeping a clock.
-  const turnable = large && cover ? [] : rest;
-  const at = useTurning(turnable);
-  const turned = [...turnable.slice(at), ...turnable.slice(0, at)];
-  const shots = cover ? [cover, ...turned] : turned;
+  // nothing there to draw again, and the card says so by not keeping a clock.
+  const pool = large && cover ? [] : rest;
+  const era = useEra(pool.length);
+  const drawn = pickFrames(pool, era);
+  const shots = cover ? [cover, ...drawn] : drawn;
 
   return (
     <Pressable
@@ -177,44 +177,66 @@ export function CardMemory({
 }
 
 /**
- * How long the frames on a card stand before the next ones come (doc-12: «чтобы периодически
- * менялись фотки, которые отображаются у воспоминаний»).
+ * How long the frames on a card stand before it draws itself again (doc-12: «чтобы периодически
+ * менялись фотки, которые отображаются у воспоминаний»; TASK-544).
  *
- * Long enough that the card is a card and not a slideshow: the name on it is read at a glance, and
- * a person who looks away for ten seconds comes back to a different picture of the same memory.
- * `duration` does not hold it — that is a count of how long the product waits for something, and
- * this is how long it sits still.
+ * Five hours, and not the seven seconds this was: the card is a card and not a slideshow, and the
+ * person who asked for the pictures to change meant over a day, not under a minute. `duration` does
+ * not hold it — that is a count of how long the product waits for something, and this is how long
+ * the face sits still.
  */
-export const TURN_MS = 7000;
+export const FACE_MS = 5 * 60 * 60 * 1000;
+
+/** Which five-hour window a moment falls in — the number a card's face is drawn from. */
+const eraAt = (now: number) => Math.floor(now / FACE_MS);
 
 /**
- * Which of the frames to show this time round — the same frames as last time, walked along one
- * place. Zero while there is nothing to walk between, and standing at zero for a card that has only
- * ever had one frame.
+ * Which of the frames the card draws this time round: the pool the listing brought, shuffled by a
+ * number that stands for five hours (TASK-544).
+ *
+ * A shuffle and not a walk along: the api already picked these frames at random from the whole
+ * memory, and the card's own part is only which few of them are on it now — the first of the
+ * shuffled pool is what the mosaic takes. Nothing here is random at draw time: the same pool and
+ * the same window always come out the same way, so a card that is drawn again by a scroll or a
+ * re-render puts back exactly the face it had, and only the window turning changes it.
  *
  * `reduce motion` says nothing here on purpose (spec 6 silences movement, and nothing on this card
  * moves: the frames are one set of pictures replacing another, in the same cells, with no
  * transition). What it does stop is a picture appearing that was never on the screen before, and
  * the person who set that asked not to be shown things that arrive unasked.
  */
-function useTurning(frames: readonly string[]): number {
-  const [at, setAt] = useState(0);
-  // The count and not the array itself: `thumbs` is read afresh on every render, so a card would
-  // put its clock up and take it down again on every one of them — and the frames arriving late
-  // would be a new clock, not the one already running.
-  const count = frames.length;
+export function pickFrames(pool: readonly string[], era: number): string[] {
+  const out = [...pool];
+  // A linear congruential generator, seeded by the window — enough to scatter a dozen frames, and
+  // no more: nothing here is a secret and nothing depends on the numbers looking random.
+  let s = era >>> 0 || 1;
+  for (let i = out.length - 1; i > 0; i -= 1) {
+    s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+    const j = s % (i + 1);
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+/**
+ * Which five-hour window the card is in, and the clock that carries it into the next (TASK-544).
+ * The frames are drawn from this number, so a card left standing draws itself again when the window
+ * turns and never before — and a card with fewer than two frames to draw from keeps no clock at all,
+ * because it would draw the same picture whatever the window said.
+ */
+function useEra(count: number): number {
+  const [era, setEra] = useState(() => eraAt(Date.now()));
 
   useEffect(() => {
     if (count < 2) return;
-    const turn = setInterval(() => setAt((was) => (was + 1) % count), TURN_MS);
-    return () => clearInterval(turn);
-  }, [count]);
+    // Woken at the boundary and not on a beat: a card that is one picture all afternoon is a card
+    // doing nothing in between, and an interval that fires into a window that has not turned is
+    // work for a face that does not change.
+    const at = setTimeout(() => setEra(eraAt(Date.now())), (era + 1) * FACE_MS - Date.now());
+    return () => clearTimeout(at);
+  }, [era, count]);
 
-  // The two halves put together again, which is the whole of the fold: `slice(at)` off the front and
-  // `slice(0, at)` onto the back always come to exactly `count` frames, so the count may climb past
-  // them for ever and the strip stays full. It is the order the count makes that repeats, and the
-  // count is already folded where it is made.
-  return at;
+  return era;
 }
 
 /**

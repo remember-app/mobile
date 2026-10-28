@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { VolumeX } from 'lucide-react-native';
+import { Check, Sparkles, VolumeX } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
@@ -325,30 +325,39 @@ export function SummaryTrack({ title, note }: { title: string; note?: string }) 
  * With nothing taken the block stays where it is and says so (`empty`): the head reads «ничего не
  * добавлено», and under it stands the one row of what that means — a film with only the video's own
  * sound. A state and not a choice, so nothing in it presses: music is added on the shelf below.
+ *
+ * `director` is the third view of the same block (detail 54): the choice handed to the network. The
+ * same one row, with the sparkles sign in place of the mute and the director's words in it — no
+ * tracks, because the film is cut to the one track the director will name.
  */
 export function BlockPicked({
   title,
   count,
   empty,
+  director,
   children,
   style,
 }: {
   /** «ВЫБРАНО». */
   title: string;
-  /** «2 трека · 3:45», or «ничего не добавлено» — written by the screen. */
+  /** «2 трека · 3:45», «ничего не добавлено» or «подберёт режиссёр» — written by the screen. */
   count?: string;
   /** Nothing taken: «Ролик будет без музыки» over «Только живой звук из видео». */
   empty?: { title: string; note: string };
+  /** Handed to the director: «Режиссёр подберёт трек сам» over «Один трек, который он назовёт». */
+  director?: { title: string; note: string };
   /** The `RowTrack`s that were taken. */
   children?: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
   const { color } = useTheme();
   const styles = useStyles();
+  // The two are the same slot with two answers, and a screen hands over whichever it is in.
+  const held = empty ?? director;
 
   return (
-    <View style={[styles.picked, empty ? styles.pickedEmpty : null, style]}>
-      <View style={[styles.pickedHead, empty ? null : styles.pickedHeadOverRows]}>
+    <View style={[styles.picked, held ? styles.pickedEmpty : null, style]}>
+      <View style={[styles.pickedHead, held ? null : styles.pickedHeadOverRows]}>
         <Text role="eyebrow" tone="muted" accessibilityRole="header" style={styles.lead}>
           {title.toUpperCase()}
         </Text>
@@ -356,20 +365,93 @@ export function BlockPicked({
             3.48 : 1 on the block, under the floor for 12 px. */}
         {count ? <Text role="meta">{count}</Text> : null}
       </View>
-      {empty ? (
+      {held ? (
         <View accessible style={styles.silence}>
           <View style={styles.silenceSign}>
-            <Icon icon={VolumeX} size={18} color={color.muted} />
+            <Icon
+              icon={empty ? VolumeX : Sparkles}
+              size={18}
+              // The mute is an aside in `muted`; the director speaks, and the sparkles say so in `paper`.
+              color={empty ? color.muted : color.paper}
+            />
           </View>
           <View style={[styles.grow, styles.silenceWords]}>
-            <Text role="row">{empty.title}</Text>
-            <Text role="meta">{empty.note}</Text>
+            <Text role="row">{held.title}</Text>
+            <Text role="meta">{held.note}</Text>
           </View>
         </View>
       ) : (
         children
       )}
     </View>
+  );
+}
+
+/**
+ * Spec 7.7, detail 81 — the card that hands the music to the director, between «Выбрано» and the
+ * shelf: not a row of the shelf, because the plus there adds to the list and this choice never
+ * stands in the list. The whole card is the button, and the 36 on its right says which way it
+ * stands — an empty outlined circle, or the tick on `paper` as a chosen track carries it.
+ *
+ * The sparkles on the left and not a play: there is nothing to listen to yet. `accent` is nowhere on
+ * it, because this is not the screen's main action.
+ */
+export function CardDirector({
+  title,
+  note,
+  picked,
+  label,
+  onPress,
+  style,
+}: {
+  /** «На усмотрение режиссёра». */
+  title: string;
+  /** «Режиссёр подберёт один трек сам». */
+  note: string;
+  /** The choice is made: the tick stands in the 36 and the card is read as pressed. */
+  picked?: boolean;
+  /** For a screen reader: the two ways the card reads, in the screen's words (detail 81). */
+  label: string;
+  onPress: () => void;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const { color } = useTheme();
+  const { focused, props } = useHoverFocus();
+  const reduced = useReducedMotion();
+  const styles = useStyles();
+  const focusRing = useFocusRing();
+
+  return (
+    <Pressable
+      // A switch that stays in (spec 7.7, `aria-pressed`), the way the label row is one.
+      accessibilityRole="togglebutton"
+      accessibilityLabel={label}
+      accessibilityState={{ checked: !!picked }}
+      onPress={onPress}
+      {...props}
+      style={({ pressed }) => [
+        styles.director,
+        pressed && !reduced ? PRESS : null,
+        focused ? focusRing : null,
+        style,
+      ]}
+    >
+      <View
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={styles.directorSign}
+      >
+        <Icon icon={Sparkles} size={16} color={color.paper} />
+      </View>
+      <View style={[styles.grow, styles.silenceWords]}>
+        <Text role="row">{title}</Text>
+        {/* No `numberOfLines`: the note wraps by words and the card grows (detail 81). */}
+        <Text role="meta">{note}</Text>
+      </View>
+      <View style={[styles.directorTick, picked ? styles.directorTickOn : null]}>
+        {picked ? <Icon icon={Check} size={15} stroke={3} color={color.ink} /> : null}
+      </View>
+    </Pressable>
   );
 }
 
@@ -532,5 +614,40 @@ const useStyles = themed(({ color }) =>
       justifyContent: 'center',
     },
     silenceWords: { gap: 2 },
+    // Spec 7.7, detail 81: radius 20, `surface` + `line`, 60 tall, 12 at the sides and between the
+    // three. A floor, not a height — the note wrapping on a narrow screen grows the card down.
+    director: {
+      minHeight: 60,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: space.s3,
+      paddingHorizontal: space.s3,
+      borderRadius: radius.section,
+      borderWidth: 1,
+      borderColor: color.line,
+      backgroundColor: color.surface,
+    },
+    // The 40 `raise` circle with the sparkles in it — «режиссёр говорит», where a track's row
+    // carries a `play`: there is nothing to listen to yet.
+    directorSign: {
+      width: 40,
+      height: 40,
+      borderRadius: radius.pill,
+      backgroundColor: color.raise,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    // The 36 on the right: an empty outlined circle unselected, `paper` with the tick selected —
+    // the same shape a chosen track's row carries, and never the plus, which adds to the list.
+    directorTick: {
+      width: 36,
+      height: 36,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      borderColor: color.lineStrong,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    directorTickOn: { backgroundColor: color.paper, borderColor: color.paper },
   }),
 );

@@ -47,6 +47,7 @@ export function MemoryHead({
   meta,
   capsuleLabel,
   onCapsule,
+  middle,
   left,
   right,
   children,
@@ -55,6 +56,8 @@ export function MemoryHead({
   meta?: string;
   capsuleLabel: string;
   onCapsule?: () => void;
+  /** What stands in the capsule's slot instead of the name — the density pill, while it is up. */
+  middle?: ReactNode;
   left?: ReactNode;
   right?: ReactNode;
   /** What stands under the glass: the line about a memory that would not read (`HeadTrouble`). */
@@ -72,6 +75,7 @@ export function MemoryHead({
         meta={meta}
         capsuleLabel={capsuleLabel}
         onCapsule={onCapsule}
+        middle={middle}
         left={
           left ?? (
             <IconButton

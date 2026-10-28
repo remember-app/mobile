@@ -251,7 +251,11 @@ export default function SummaryStep() {
             </SummarySection>
 
             <SummarySection title={s.montage.music} divider>
-              {order.tracks.length === 0 ? (
+              {order.director ? (
+                // The third answer to the music question: no track to name, so the choice itself is
+                // read back — the same word the film's own card and sheet carry (detail 81).
+                <Text role="row">{s.montage.directorChoice}</Text>
+              ) : order.tracks.length === 0 ? (
                 <Text role="row" tone="muted">
                   {s.montage.noMusicLive}
                 </Text>

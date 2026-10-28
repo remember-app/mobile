@@ -19,20 +19,23 @@ test('the feed nobody arranged is one wall, and the days are only on the spine',
   expect(frames).toContain("...(group.by === 'all' ? [] : [{ key: group.key, group }])");
   // And the spine is drawn only there: cut by people or by kind the days interleave, and a rail of
   // them would point at nothing. A feed shorter than the screen has no spine either (spec 8).
-  expect(frames).toContain("plain: sort.by === 'none' && !datesBetweenDays,");
+  // The single frame is the one place the days are the spine's whatever the account says, the
+  // day-gap having no room between frames that stand touching (spec 10.14.2) — hence `dated`.
+  expect(frames).toContain("plain: sort.by === 'none' && !dated,");
   expect(spine).toContain('!plain || headerHeight === 0 || reach <= 0');
   expect(spine).toContain('const reach = feed.content - feed.view;');
   expect(spine).toContain('dateMarks(frames, { top: feedTop, row: rowPitch, columns })');
   // And the marks are counted over the rows the feed is really cut at (TASK-523): the spine is not
   // part of the feed but it counts it, so the density the feed is drawn at is handed to it rather
   // than read out of the layout's three.
-  expect(frames).toContain('columns,');
+  expect(frames).toContain('columns: density,');
   // Where the first row of frames stands: the top the feed is pushed down by, the block of films
-  // over it measured rather than guessed, and the one gutter between them.
+  // over it measured rather than guessed, and the one gutter between them — which is the feed's
+  // own `gap`, nought at the single frame.
   expect(spine).toContain(
     'const feedTop = insets.top + height.roundViewer + space.s4 + headerHeight + FEED_GAP;',
   );
-  expect(frames).toContain('rowPitch: cell.width + FEED_GAP,');
+  expect(frames).toContain('rowPitch: cell.width + gap,');
   // And the pill is centred on the seam and not hung from the row (`MemoryScrub`: the pills stand at
   // 195 and 588 over rows that start at 204 and 597 — 9 above, which is half a gutter and half a
   // pill).

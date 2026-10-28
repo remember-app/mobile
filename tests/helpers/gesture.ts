@@ -37,6 +37,55 @@ export function restFinger(): void {
   clock = 1;
 }
 
+/**
+ * Two fingers down at once, `spread` points apart about `at` — what a pinch looks like. Read off
+ * `nativeEvent.touches`, which is where React Native hands the real pair over, and carried with a
+ * `touchHistory` of both, since a `PanResponder` works its own gesture state out of that and reads
+ * nothing else. One event per moment, like {@link touch}.
+ */
+export function pinch({
+  spread = 200,
+  at = 195,
+  y = 400,
+  over = 1,
+}: {
+  /** How far apart the two fingers are, in points. */
+  spread?: number;
+  /** The middle between them, across the screen. */
+  at?: number;
+  y?: number;
+  over?: number;
+} = {}) {
+  const from = clock;
+  clock += over;
+  const half = spread / 2;
+  const point = (side: number) => ({ pageX: at + side * half, pageY: y });
+  const bank = [-1, 1].map((side) => {
+    const one = point(side);
+    return {
+      touchActive: true,
+      startPageX: one.pageX,
+      startPageY: one.pageY,
+      startTimeStamp: from,
+      currentPageX: one.pageX,
+      currentPageY: one.pageY,
+      currentTimeStamp: clock,
+      previousPageX: one.pageX,
+      previousPageY: one.pageY,
+      previousTimeStamp: from,
+    };
+  });
+  return {
+    nativeEvent: { pageX: at, pageY: y, touches: [point(-1), point(1)] },
+    touchHistory: {
+      touchBank: bank,
+      numberActiveTouches: 2,
+      indexOfSingleActiveTouch: 0,
+      mostRecentTimeStamp: clock,
+    },
+  };
+}
+
 /** One touch event with one finger down. A press has no `from`; a move has one. */
 export function touch({ x = 0, y = 0, fromX = x, fromY = y, over = 1 }: Finger = {}) {
   const from = clock;

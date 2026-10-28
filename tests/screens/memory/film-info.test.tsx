@@ -35,13 +35,13 @@ const film: Montage = {
   watched_by: [person('me'), person('liza'), person('vera')],
 };
 
-async function sheet(mayEdit: boolean) {
+async function sheet(mayEdit: boolean, over: Partial<Montage> = {}) {
   let tree!: TestRenderer.ReactTestRenderer;
   await act(async () => {
     tree = mounted(
       TestRenderer.create(
         <FilmInfoSheet
-          film={film}
+          film={{ ...film, ...over }}
           memory={{ title: 'Свадьба Лизы и Марка', media_count: 120 }}
           people={5}
           mayEdit={mayEdit}
@@ -66,4 +66,17 @@ test('«Посмотрели» counts out of everybody in the memory, viewers to
   expect(organizer.words).toContain(ru.montage.live.doneOf(3, 5));
   expect(organizer.doors).toEqual([ru.montage.film.rename, ru.montage.film.remove]);
   expect((await sheet(false)).doors).toEqual([]);
+});
+
+test('a film the director chose the music for says so instead of naming tracks', async () => {
+  // The music row is where a film's music is read back (spec 8, `SheetFilmInfo`). A director's order
+  // names no track, so the choice itself stands there — the list's own quoting is for track names.
+  const direct = await sheet(true, { params: { music_director: true } });
+  expect(direct.words).toContain(ru.montage.directorChoice);
+  expect(direct.words).not.toContain(ru.montage.film.noMusic);
+  // A film cut to named tracks still lists them, quoted, the way it always did.
+  const named = await sheet(true, { params: { music_tracks: ['warm', 'calm'] } });
+  expect(named.words).toContain(
+    ru.montage.film.tracks([ru.montage.track.warm, ru.montage.track.calm]),
+  );
 });

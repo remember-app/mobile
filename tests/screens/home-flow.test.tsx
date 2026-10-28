@@ -181,6 +181,14 @@ test('each card is handed the cover, the signed frames and the days and count �
   // One day of this year is the day alone, like a span (spec 9: «3 октября»).
   expect(second.meta).toEqual(['12 сентября', ru.memory.frames(1)]);
 
+  // The wider sample the listing drew from the whole memory leads the card when it is sent, and the
+  // recent tail is what an api older than that field leaves behind (TASK-544).
+  vi.unstubAllGlobals();
+  const wider = await open([
+    wedding({ card_thumbnail_urls: ['https://r2.example/a', 'https://r2.example/b'] }),
+  ]);
+  expect(wider.cards()[0].thumbs).toEqual(['https://r2.example/a', 'https://r2.example/b']);
+
   // Neither field in the answer at all: the same card, and nothing thrown inside the list.
   vi.unstubAllGlobals();
   const old = await open([

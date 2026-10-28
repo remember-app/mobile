@@ -406,18 +406,21 @@ test('the pills turn the theme and the language', async () => {
   expect(asked).toContainEqual({ method: 'POST', path: '/me/language', body: { language: 'en' } });
 });
 
-test('the density is three pills beside the switch, and it is the galleries that follow the pick', async () => {
+test('the density is not in the account any more: the feed is where it is set now', async () => {
   world();
   const screen = await open();
-  // «3», «5», «7» — the counts themselves rather than words about them: the pill is the number it
-  // stands for, and the heading over the group is what says what they are (doc-12, spec 7.3).
-  const group = screen.segment(ru.profile.density);
-  expect(group.props.options.map((one: { label: string }) => one.label)).toEqual(['3', '5', '7']);
-  expect(group.props.value).toBe(3);
-  // A press is the whole of it: the value moves, and it moves the module every gallery reads.
-  await screen.press(screen.option('7'));
-  expect(screen.segment(ru.profile.density).props.value).toBe(7);
-  expect(currentDensity()).toBe(7);
+  // Spec 10.14.1: the «Кадров в ряду» segment left the account for the feed, where a pinch walks
+  // it (TASK-545). What is left under «Галерея» is the one switch, and no segment of its own.
+  expect(screen.segment(ru.profile.datesBetweenDays)).toBeUndefined();
+  expect(
+    screen
+      .root()
+      .findAllByType(Segment)
+      .map((one) => one.props.label),
+  ).toEqual([ru.theme.label, ru.language.label]);
+  // Nothing on the screen moves the pick either: it stands where the account found it.
+  expect(screen.words()).not.toContain('3');
+  expect(currentDensity()).toBe(3);
 });
 
 test('the pencil opens the one username form on a sheet, and a new name closes it', async () => {
@@ -598,8 +601,8 @@ test('every control on the screen has a role and a name, a finger can hit it, an
   const screen = await open();
   const found = expectReachable(screen.root());
   // Top to bottom, as the layout stacks them: the way back, the pencil, the contacts, the pills of
-  // the theme and of the language, the switch, the pills of the density, the way out — read out as
-  // they are drawn.
+  // the theme and of the language, the switch, the way out — read out as they are drawn. The
+  // density is not one of them any more (spec 10.14.1).
   expect(found.map((one) => one.name)).toEqual([
     ru.action.back,
     ru.profile.edit,
@@ -610,9 +613,6 @@ test('every control on the screen has a role and a name, a finger can hit it, an
     'Русский',
     'English',
     ru.profile.datesBetweenDays,
-    '3',
-    '5',
-    '7',
     ru.action.logOut,
   ]);
   expect(found.map((one) => one.role)).toEqual([
@@ -621,7 +621,6 @@ test('every control on the screen has a role and a name, a finger can hit it, an
     'button',
     ...Array(5).fill('radio'),
     'switch',
-    ...Array(3).fill('radio'),
     'button',
   ]);
   // The pills carry no line of their own, so the group is what says what they choose between.
@@ -631,7 +630,7 @@ test('every control on the screen has a role and a name, a finger can hit it, an
       .findAllByType(View)
       .filter((one) => one.props.accessibilityRole === 'radiogroup')
       .map((one) => one.props.accessibilityLabel),
-  ).toEqual([ru.theme.label, ru.language.label, ru.profile.density]);
+  ).toEqual([ru.theme.label, ru.language.label]);
   // And the switch says which way it stands, not only that it is one.
   expect(screen.toggle().findByType(Pressable).props.accessibilityState).toMatchObject({
     checked: false,

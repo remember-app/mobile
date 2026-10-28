@@ -62,6 +62,11 @@ export function FilmInfoSheet({
 }) {
   const s = useStrings();
   const tracks = trackWords(film.params, s);
+  /**
+   * A film the director chose the music for names no track: `trackWords` hands back the one word for
+   * that answer, and it stands on the row as it is — the list's own quoting is for track names.
+   */
+  const director = film.params.music_director === true;
   const size = megabytes({ size_bytes: film.size_bytes ?? '' });
   const watched = (film.watched_by ?? []).map(memberName);
   const of = (n: number, all: number | undefined) =>
@@ -92,7 +97,13 @@ export function FilmInfoSheet({
         ) : null}
         <RowProp
           label={s.montage.music}
-          value={tracks.length > 0 ? s.montage.film.tracks(tracks) : s.montage.film.noMusic}
+          value={
+            director
+              ? s.montage.directorChoice
+              : tracks.length > 0
+                ? s.montage.film.tracks(tracks)
+                : s.montage.film.noMusic
+          }
           empty={s.mine.none}
         />
         {taken === undefined ? null : (
