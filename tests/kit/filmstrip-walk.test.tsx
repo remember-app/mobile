@@ -174,6 +174,49 @@ test('a frame of the strip is a picture with a name, and a tap on it opens nothi
   expect(strip.shots()[0].props.accessibilityState).toEqual({ selected: true });
 });
 
+test('a screen reader activates the frame it is on, and a frame the window refuses puts the strip back', async () => {
+  // TASK-582: the strip lost its touch handler when a tap stopped naming a frame (TASK-574, #3), and
+  // with it a reader lost the only way to open one. The action is the same ask a resting finger
+  // makes, so the same gate answers it — «c» still developing is refused, and the strip returns to
+  // the frame in hand rather than standing over one nobody opened.
+  const asked: number[] = [];
+  const strip = await drawSettled(4, (at) => {
+    asked.push(at);
+    return true;
+  });
+  expect(strip.shots()[6].props.accessibilityActions).toEqual([{ name: 'activate' }]);
+  await strip.activate(6);
+  expect(asked).toEqual([6]);
+  // The window took it: the frame change itself walks the strip, and the answer does not fight it.
+  expect(strip.scrollToIndex).not.toHaveBeenCalled();
+
+  const refused = await drawSettled(4, () => false);
+  await refused.activate(6);
+  expect(refused.scrollToIndex).toHaveBeenCalledWith({
+    index: 4,
+    viewPosition: 0.5,
+    animated: true,
+  });
+});
+
+test('activating the frame already in hand asks for nothing', async () => {
+  const asked: number[] = [];
+  const strip = await drawSettled(4, (at) => {
+    asked.push(at);
+    return true;
+  });
+  await strip.activate(4);
+  expect(asked).toEqual([]);
+  expect(strip.scrollToIndex).not.toHaveBeenCalled();
+});
+
+test('a strip that opens nothing offers no action to a screen reader, and is still not a pressable to a finger', async () => {
+  const strip = await draw(2);
+  expect(strip.shots().every((one) => one.props.accessibilityActions === undefined)).toBe(true);
+  expect(strip.shots().every((one) => one.props.onAccessibilityAction === undefined)).toBe(true);
+  expect(strip.root.findAllByType(Pressable)).toHaveLength(0);
+});
+
 /**
  * A strip with somebody listening, and a finger on it. The strip is laid out 200 wide, which is
  * narrower than the ten frames it holds and so leaves room to scroll it — a strip that fits cannot
@@ -208,6 +251,8 @@ async function drawSettled(
     );
   });
   const list = () => tree.root.findByType(FlatList).props as Record<string, (e?: unknown) => void>;
+  const shots = () =>
+    tree.root.findAllByType(View).filter((one) => one.props.accessibilityState !== undefined);
   await act(async () =>
     tree.root.findByType(FlatList).props.onLayout({ nativeEvent: { layout: { width } } }),
   );
@@ -220,6 +265,12 @@ async function drawSettled(
     });
   return {
     scrollToIndex,
+    shots,
+    /** A screen reader's activation of one frame — it has no finger, so the action is the whole way in. */
+    activate: (at: number) =>
+      act(async () =>
+        shots()[at].props.onAccessibilityAction({ nativeEvent: { actionName: 'activate' } }),
+      ),
     /** A finger that begins on the strip, walks it to `lifted` and lets go, gliding on to `glided`. */
     flick: async (lifted: number, glided: number | null = null) => {
       await act(async () => list().onScrollBeginDrag());

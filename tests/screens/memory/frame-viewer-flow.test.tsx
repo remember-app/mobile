@@ -605,6 +605,34 @@ test('a finger that leaves the strip resting on a frame opens it — and one sti
   expect(screen.shown.onOpen).toHaveBeenLastCalledWith('d');
 });
 
+test('a screen reader opens the frame it activates in the strip through the same gate a finger’s rest uses — a tap still opens nothing', async () => {
+  // TASK-582: a tap on the strip names nothing (TASK-574, #3), and a reader was left with a row of
+  // frames it could name and never reach. The action is `activate`, the same one the picture above
+  // the strip carries, and it goes through `walk` — so a frame still developing is refused.
+  serve(() => undefined);
+  const screen = await open();
+  const shot = (at: number) =>
+    screen.root
+      .findByType(Filmstrip)
+      .findAllByType(View)
+      .filter((one) => one.props.accessibilityState !== undefined)[at];
+  // To a finger the strip is still pictures: no press handler, no `Pressable`.
+  expect(screen.root.findByType(Filmstrip).findAllByType(Pressable)).toHaveLength(0);
+  expect(shot(1).props.onPress).toBeUndefined();
+  expect(shot(1).props.accessibilityActions).toEqual([{ name: 'activate' }]);
+
+  await act(async () =>
+    shot(1).props.onAccessibilityAction({ nativeEvent: { actionName: 'activate' } }),
+  );
+  expect(screen.shown.onOpen).toHaveBeenCalledWith('b');
+  (screen.shown.onOpen as ReturnType<typeof vi.fn>).mockClear();
+  // «c» is still being made, and the same gate says no.
+  await act(async () =>
+    shot(2).props.onAccessibilityAction({ nativeEvent: { actionName: 'activate' } }),
+  );
+  expect(screen.shown.onOpen).not.toHaveBeenCalled();
+});
+
 test('a frame with nothing behind it is «кадр не открылся», with the strip and the delete still there', async () => {
   serve(() => undefined);
   const bare = { ...shots()[1], thumbnail_url: null, preview_url: null };

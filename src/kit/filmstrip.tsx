@@ -22,6 +22,13 @@ export type Frame = { uri: string; video?: boolean };
 const GAP = 2;
 
 /**
+ * The one thing a screen reader may do to a frame of the strip (TASK-582). `activate` is the name
+ * both platforms answer to — iOS reads it in `accessibilityActivate`, Android maps it to
+ * `ACTION_CLICK` — so one list serves both, as the picture above the strip does.
+ */
+const ACTIVATE = [{ name: 'activate' }];
+
+/**
  * The sizes the strip is drawn at, measured off the layout (spec 7.8, detail 67 for the standing
  * phone; TASK-475 for the turned one). Held here and not in the strip, because the strip does not
  * decide how big it is drawn — the window it stands under does, and there are two of those.
@@ -114,6 +121,18 @@ export function Filmstrip({
 
   const to = (at: number, animated: boolean) =>
     strip.current?.scrollToIndex({ index: at, viewPosition: 0.5, animated });
+
+  /**
+   * A frame asked for by a screen reader, and not by a finger (TASK-582). It is the same ask a
+   * resting finger makes ({@link rest}) and goes through the same answer: a frame the window will
+   * not open is refused, and the strip is walked back under the frame in hand rather than left
+   * centred over one nobody opened. A reader focuses a frame and activates it; nothing about the
+   * strip's own touch changes to give it this — a tap still names nothing (TASK-574, #3).
+   */
+  function activate(at: number) {
+    if (at === index) return;
+    if (!onSettle?.(at)) to(index, true);
+  }
 
   useEffect(() => {
     if (viewport === 0 || index < 0 || index >= frames.length) return;
@@ -209,6 +228,9 @@ export function Filmstrip({
           // The fade is by distance from the frame in hand: 0.75, 0.6, then 0.45 for everything past.
           dim={[0.75, 0.6][Math.abs(at - index) - 1] ?? 0.45}
           label={labelAt?.(at)}
+          // Offered only where the window has an answer to give: a strip that opens nothing must
+          // not tell a reader that this frame does.
+          onActivate={onSettle ? () => activate(at) : undefined}
         />
       )}
     />
@@ -221,12 +243,18 @@ function Shot({
   current,
   dim,
   label,
+  onActivate,
 }: {
   frame: Frame;
   size: StripSize;
   current: boolean;
   dim: number;
   label?: string;
+  /**
+   * What a screen reader's activation does — open this frame (TASK-582). Absent where the strip has
+   * no answer to give, and then no action is offered either.
+   */
+  onActivate?: () => void;
 }) {
   const styles = useStyles();
   const width = current ? size.current : size.shot;
@@ -234,12 +262,16 @@ function Shot({
 
   return (
     <View
-      // Read out as the frame it is and whether it is the one in hand — not as a control: a tap on
-      // it opens nothing (TASK-574, #3), and a button that does nothing is worse than a picture
-      // with a name.
+      // Read out as the frame it is and whether it is the one in hand. It is not a control to a
+      // finger: a tap on it opens nothing (TASK-574, #3). A screen reader is answered by an action
+      // instead, because it has no way to swipe the row and the frame would otherwise be a picture
+      // it could name and never reach (TASK-582). `activate` is the one name iOS and Android both
+      // answer to — the same one the picture above the strip carries.
       accessible
       accessibilityLabel={label}
       accessibilityState={{ selected: current }}
+      accessibilityActions={onActivate ? ACTIVATE : undefined}
+      onAccessibilityAction={onActivate}
       style={[{ width, height }, styles.shot, current ? styles.shotCurrent : { opacity: dim }]}
     >
       <Image source={{ uri: frame.uri }} contentFit="cover" style={StyleSheet.absoluteFill} />
