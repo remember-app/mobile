@@ -11,8 +11,19 @@ const json = (body: unknown, status: number) => new Response(JSON.stringify(body
 /** The 400 of a body that fails the api's schema: the words are Fastify's, the status is what counts. */
 const schema = (why: string) => json({ statusCode: 400, error: 'Bad Request', message: why }, 400);
 
-/** The five tracks of the worker's own shelf (`docs/music.md`); anything else is a key off a phone. */
-const SHELF = ['bright', 'warm', 'calm', 'night', 'road'];
+/** The ten tracks of the worker's own shelf (`docs/music.md`); anything else is a key off a phone. */
+const SHELF = [
+  'bright',
+  'warm',
+  'calm',
+  'night',
+  'road',
+  'merry',
+  'tender',
+  'dreamy',
+  'mystery',
+  'energetic',
+];
 
 const KNOWN = [
   'target_seconds',

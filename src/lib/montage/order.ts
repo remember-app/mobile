@@ -21,9 +21,9 @@ import type { Strings } from '@/strings';
 
 /**
  * The shelf of tracks, in the layout's own order (`design/screens/MontageMusic.html`), each with the
- * running time of the file the worker holds (`projects/montage/tracks/README.md`). The times are
- * facts about those five files and not something the api hands out — there is no route that lists
- * the shelf, and a list of five that changes about once a year is not worth one.
+ * running time of the file the worker holds (`projects/montage/video/tracks/README.md`). The times
+ * are facts about those ten files and not something the api hands out — there is no route that lists
+ * the shelf, and a list of ten that changes about once a year is not worth one.
  *
  * Seconds and not «1:20»: the same number is a row's own length and part of the sum over everything
  * chosen, and a figure written out once has to be parsed back to be added up. `formatRuntime` is
@@ -35,10 +35,15 @@ export const TRACKS: readonly { id: MusicTrackId; seconds: number }[] = [
   { id: 'calm', seconds: 110 },
   { id: 'night', seconds: 110 },
   { id: 'road', seconds: 146 },
+  { id: 'merry', seconds: 120 },
+  { id: 'tender', seconds: 72 },
+  { id: 'dreamy', seconds: 127 },
+  { id: 'mystery', seconds: 135 },
+  { id: 'energetic', seconds: 231 },
 ];
 
 /**
- * Which of the five a track in an order is, or none of them — and then it is one the organizer
+ * Which of the ten a track in an order is, or none of them — and then it is one the organizer
  * sent up themselves, whose key is a storage path (`music/<uuid>`) and never a word for a person.
  * The api reads one list of both kinds, so telling them apart is the reader's job: a shelf id has
  * a name in the dictionary, and anything else is «Свой трек».
@@ -101,7 +106,7 @@ export const STORY_LIMIT = 1800;
  * One track of the order, as the api takes it: `key` is either an id off the shelf (`calm`) or the
  * storage key of a file the organizer sent up themselves (`music/<uuid>`) — the api reads one list
  * of both, so this holds one kind of thing too. `name` is the phone's own name for their file, and
- * null for the shelf, whose five names are the app's own and come from `@/strings`.
+ * null for the shelf, whose ten names are the app's own and come from `@/strings`.
  *
  * `wish` is what to do with this one track, in the organizer's words. It is held on the track and
  * nowhere else, so a track moved carries its wish along and a track taken out takes its wish with

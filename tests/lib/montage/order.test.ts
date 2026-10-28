@@ -399,20 +399,25 @@ test('a walk with nothing said in it costs nothing to leave, and every answer is
 
 test('a track is told from the shelf by its key, and everything else is somebody’s own file', () => {
   // The api hands the two kinds back in one list, so this is the only way a screen can name them:
-  // the five have words in the dictionary, and a storage path never does.
+  // the shelf has words in the dictionary, and a storage path never does.
   expect(TRACKS.map((track) => shelfTrack(track.id))).toEqual([
     'bright',
     'warm',
     'calm',
     'night',
     'road',
+    'merry',
+    'tender',
+    'dreamy',
+    'mystery',
+    'energetic',
   ]);
   expect(shelfTrack('music/7d2e-own-file')).toBeNull();
   expect(shelfTrack('')).toBeNull();
 });
 
 test('the block of chosen tracks counts their time, and stays quiet about a file it never heard', () => {
-  // The five are known to the second (`projects/montage/tracks/README.md`), so two of them add up.
+  // The ten are known to the second (`projects/montage/video/tracks/README.md`), so any of them add up.
   expect(pickedSeconds([{ key: 'warm', name: null }])).toBe(126);
   expect(
     pickedSeconds([
@@ -420,6 +425,14 @@ test('the block of chosen tracks counts their time, and stays quiet about a file
       { key: 'calm', name: null },
     ]),
   ).toBe(236);
+  // Including the five added with TASK-562: a new shelf row is counted like any old one.
+  expect(
+    pickedSeconds([
+      { key: 'merry', name: null },
+      { key: 'dreamy', name: null },
+      { key: 'energetic', name: null },
+    ]),
+  ).toBe(120 + 127 + 231);
   expect(pickedSeconds([])).toBe(0);
   // A track off somebody's phone has no length anywhere on this side, and a sum missing one of the
   // tracks in it would be a shorter film promised out loud.

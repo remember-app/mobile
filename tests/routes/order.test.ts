@@ -340,8 +340,12 @@ test('step 2 is skippable, and the plate says whose words are in the box', () =>
     'dopamine: Sun',
   ])
     expect(wizard).toContain(sign);
-  // The six templates the api hands out have a word each in both sets, by its own ids.
-  const ids = [...api.matchAll(/^ {2}\| '(\w+)'/gm)].map(([, id]) => id);
+  // The six templates the api hands out have a word each in both sets, by its own ids — read off
+  // the `MontageTemplateId` declaration alone, since the shelf of tracks is written the same way.
+  const templates_ = api.slice(api.indexOf('export type MontageTemplateId ='));
+  const ids = [...templates_.slice(0, templates_.indexOf(';')).matchAll(/'(\w+)'/g)].map(
+    ([, id]) => id,
+  );
   expect(ids).toEqual(['for_myself', 'quick', 'report', 'short_form', 'parents', 'dopamine']);
   // In the api's own order, which is the order of the tiles on the screen that starts the order.
   for (const set of [en, ru]) expect(Object.keys(set.montage.template)).toEqual(ids);
@@ -448,12 +452,24 @@ test('the shelf can be listened to, and the listening ends with the step', () =>
   // the screen going away.
   expect(music).toContain('useTrackPreview(token)');
   expect(wizard).not.toContain('useTrackPreview');
-  // The shelf is five, in the order the layout draws it, and every one of them is named in both
-  // sets — the running times are the worker's files and live beside the ids.
-  for (const set of [en, ru]) {
-    expect(Object.keys(set.montage.track)).toEqual(['bright', 'warm', 'calm', 'night', 'road']);
-  }
+  // The shelf is ten, in the order the layout draws it, the five it first had and then the five
+  // TASK-562 added, and every one of them is named in both sets — the running times are the
+  // worker's files and live beside the ids.
+  const shelf = [
+    'bright',
+    'warm',
+    'calm',
+    'night',
+    'road',
+    'merry',
+    'tender',
+    'dreamy',
+    'mystery',
+    'energetic',
+  ];
+  for (const set of [en, ru]) expect(Object.keys(set.montage.track)).toEqual(shelf);
   expect(model).toContain("{ id: 'bright', seconds: 80 }");
+  expect(model).toContain("{ id: 'energetic', seconds: 231 }");
 });
 
 test('step 3 is an empty «Выбрано» until a track is taken, and the tracks in it after', () => {

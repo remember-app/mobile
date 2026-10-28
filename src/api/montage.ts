@@ -3,13 +3,23 @@ import type { Contact } from './contacts';
 
 /** Ordering a movie and reading what became of it. */
 /**
- * The tracks the montage worker holds, by id. Five strings the api enumerates and refuses anything
+ * The tracks the montage worker holds, by id. Ten strings the api enumerates and refuses anything
  * outside of, so they are written out here rather than typed as `string` — what each one sounds
- * like is the worker's (`projects/montage/tracks`), and what each one is called on screen is the
- * screen's. The shelf's own order is the layout's, and it lives in `@/lib/montage/order` beside the running
- * time of each one.
+ * like is the worker's (`projects/montage/video/tracks`), and what each one is called on screen is
+ * the screen's. The shelf's own order is the layout's, and it lives in `@/lib/montage/order` beside
+ * the running time of each one.
  */
-export type MusicTrackId = 'bright' | 'warm' | 'calm' | 'night' | 'road';
+export type MusicTrackId =
+  | 'bright'
+  | 'warm'
+  | 'calm'
+  | 'night'
+  | 'road'
+  | 'merry'
+  | 'tender'
+  | 'dreamy'
+  | 'mystery'
+  | 'energetic';
 
 /**
  * Which way up the finished video stands (doc-03). The api takes these two and nothing else, and
