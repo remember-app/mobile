@@ -646,7 +646,6 @@ test('the glass starts where the status line ends, and the scrubber keeps 16 at 
   expect(StyleSheet.flatten(row.props.style)).toMatchObject({ paddingHorizontal: 16 });
   const sound = screen.root.findByType(VideoTrack).props.sound;
   expect(StyleSheet.flatten(sound.props.style)).toMatchObject({ marginRight: -8 });
-  expect(390 - 16 + 8 - 36).toBe(346);
 });
 
 /**
