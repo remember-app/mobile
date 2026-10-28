@@ -44,8 +44,10 @@ test('every column of a contact sheet is the same width, the last row included',
   expect(frames).toContain('feed: { flexGrow: 1, gap: FEED_GAP }');
   expect(frames).toContain('lane="feed"');
   // The phone's roll is the same wall on every face with a feed — the queue's grid and the partial
-  // grant's among them (28 October), all pinned in `tests/routes/upload.test.ts`.
-  expect(upload).toContain('const gap = FEED_GAP;');
+  // grant's among them (28 October), all pinned in `tests/routes/upload.test.ts`. Its gutter goes to
+  // nought at the single frame too, the pinch walking the roll as it walks the memory's feed
+  // (TASK-564, spec 10.14.2).
+  expect(upload).toContain('const gap = density === 1 ? 0 : FEED_GAP;');
   // And the other lane still exists for the wizard to stand in: inside the screen's 16, a hair
   // more air and a 4 radius, because there a frame is a thing being picked out of a list. Which
   // screens use it is their own business — the two gutters are the kit's, and it holds both.

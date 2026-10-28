@@ -474,7 +474,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
           scroll before the scroll begins (spec 10.14.1). A one-finger drag is the feed's own: the
           responder hands it straight through, so the wall still scrolls and a frame is still a
           button. */}
-      <View style={styles.feedWrap} testID="feed-pinch" {...pinch.panHandlers}>
+      <View style={styles.feedWrap} testID="density-pinch" {...pinch.panHandlers}>
         <Animated.FlatList<Row>
           ref={list}
           data={rows}

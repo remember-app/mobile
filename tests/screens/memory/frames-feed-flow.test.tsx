@@ -2218,7 +2218,7 @@ test('while picking the back button is the labels button, and the way out of the
  * pill it shows stands in the glass bar's capsule slot for as long as the fingers are down.
  */
 const pinchView = (screen: Screen) => () =>
-  screen.root.find((one) => one.props.testID === 'feed-pinch');
+  screen.root.find((one) => one.props.testID === 'density-pinch');
 /** The pill, found by the live region it is: the number changes under the fingers, read out once. */
 const densityPill = (screen: Screen) =>
   screen.root.findAll((one) => one.props.accessibilityLiveRegion === 'polite')[0];
@@ -2297,15 +2297,4 @@ test('the last step of the pinch is the single frame: one to a row, touching, th
   // The days are read off the spine at the left edge instead — one pill per day, on its own seam.
   await measure(screen);
   expect(spine(screen).map((one) => one.label)).toEqual(['13 сент', '12 сент', '11 сент']);
-});
-
-test('a gallery that is a grid is cut at the layout’s three however far the feed has been pinched', async () => {
-  // The single frame is the memory's own feed: «Мои кадры» and the rest read the same pick and
-  // stay a grid (spec 10.14.2).
-  const { gridColumns } = await import('@/lib/density');
-  await act(async () => {
-    await setDensity(1);
-  });
-  expect(currentDensity()).toBe(1);
-  expect(gridColumns(currentDensity())).toBe(3);
 });

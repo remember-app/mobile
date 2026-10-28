@@ -421,23 +421,40 @@ test('every gallery is cut by the one cut, at the density the person stands at',
     'the montage’s picker': picker,
   })) {
     // Where the number comes from: the person's own setting, asked of `@/lib/density` in every one
-    // — and never a three written out where the width is measured.
-    expect(source, name).toContain('useDensity()');
+    // — and never a three written out where the width is measured. TASK-564 reads it whole in all
+    // four: the single frame of the scale is not the feed's alone, and no screen clamps it back up.
+    expect(source, name).toContain('const density = useDensity();');
     expect(source, name).toMatch(/\) \/ (density|columns)/);
   }
-  // The feed is the one that also walks to the single frame, so it reads the pick whole; the three
-  // grids keep to the layout's three however far the feed has been pinched (spec 10.14.2).
-  expect(frames).toContain('const density = useDensity();');
-  for (const grid of [mine, upload, picker]) expect(grid).toContain('gridColumns(useDensity())');
   // And the cut is one function all four reach for, rather than four slices that agree today.
   expect(frames).toContain('rowsOf(group.frames, density)');
-  expect(mine).toContain('rowsOf(frames, columns)');
-  expect(upload).toContain('rowsOf(day.assets, columns)');
-  expect(picker).toContain('rowsOf(material, columns)');
+  expect(mine).toContain('rowsOf(frames, density)');
+  expect(upload).toContain('rowsOf(day.assets, density)');
+  expect(picker).toContain('rowsOf(material, density)');
   // The date spine is not one of the four, but it counts their rows: at five or seven its marks
   // stand on seams that are not the ones drawn unless it is handed the density too.
   expect(spine).toContain('dateMarks(frames, { top: feedTop, row: rowPitch, columns })');
   expect(frames).toContain('columns: density,');
+});
+
+test('the pinch walks the density in every gallery, not only the feed', () => {
+  // TASK-564: the gesture the feed got in TASK-545 stands in all four galleries now — «Мои кадры»,
+  // the roll and the picker pinch the same one value, and the pill says the count under the fingers.
+  // Read off the source because no one flow test holds more than one screen, so a gallery left
+  // without the pinch would be invisible to the others. That the wiring actually changes the
+  // density is driven through the handlers in `tests/screens/density-galleries.test.tsx`.
+  for (const [name, source] of Object.entries({
+    'the feed of a memory': frames,
+    '«Мои кадры»': mine,
+    '«Добавить кадры»': upload,
+    'the montage’s picker': picker,
+  })) {
+    expect(source, name).toContain('useDensityPinch()');
+    expect(source, name).toContain('{...pinch.panHandlers}');
+    expect(source, name).toContain('testID="density-pinch"');
+    expect(source, name).toContain('<DensityPill value={density} leaving={pinch.leaving} />');
+    expect(source, name).toContain('pinch.pinching || pinch.leaving');
+  }
 });
 
 test('the seam over a strip says what is under it, and takes the whole day while picking', () => {

@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { FlatList, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Button, GRID_GAP, type IconComponent, RowRejected, Sheet, Text, Tile } from '@/kit';
 import { formatRuntime } from '@/lib/dates';
-import { gridColumns, useDensity } from '@/lib/density';
+import { useDensity } from '@/lib/density';
 import { rowsOf } from '@/lib/frames';
 import { useStrings } from '@/lib/language';
 import {
@@ -17,6 +17,7 @@ import {
   rejectedGroups,
   taken,
 } from '@/lib/montage/order';
+import { DensityPill, useDensityPinch } from '@/screens/memory/frames-density';
 import { useOrder, WizardStep } from '@/screens/order/wizard';
 import { space, themed } from '@/theme';
 
@@ -39,12 +40,15 @@ export default function PickFramesStep() {
    * One column of the grid, worked out rather than flexed — `memory/frames.tsx` says why at length:
    * a `1fr` column is the same width in a last row of one as in a full row, and `flex: 1/3` is
    * not. How many across is the person's own setting (`@/lib/density`), the same one every gallery
-   * is cut at — the single frame aside, which is the memory's own feed alone (spec 10.14.2): this
-   * picker keeps to the layout's three. The grid stands inside the screen's own 16 margins.
+   * is cut at, the single frame of the scale (spec 10.14.2) included — walked by the pinch hung on
+   * the view below, and cut here with no gutter at that last step, so one frame stands the width the
+   * grid has. The grid stands inside the screen's own 16 margins.
    */
   const { width } = useWindowDimensions();
-  const columns = gridColumns(useDensity());
-  const cell = { width: (width - space.s4 * 2 - GRID_GAP * 2) / columns };
+  const density = useDensity();
+  const pinch = useDensityPinch();
+  const gap = density === 1 ? 0 : GRID_GAP;
+  const cell = { width: (width - space.s4 * 2 - gap * 2) / density };
   /** Whether `SheetRejected` is up — what the automatic pass dropped, and why. */
   const [showDropped, setShowDropped] = useState(false);
 
@@ -52,7 +56,7 @@ export default function PickFramesStep() {
   const passDropped = droppedByPass(material, order);
   // Cut by hand rather than `numColumns`, the way the galleries cut theirs, and through the one
   // `rowsOf` they all use.
-  const rows = useMemo(() => rowsOf(material, columns), [material, columns]);
+  const rows = useMemo(() => rowsOf(material, density), [material, density]);
 
   /**
    * Under three taken there is nothing to cut, and the one step that can put an order below the
@@ -68,25 +72,33 @@ export default function PickFramesStep() {
       step={1}
       title={s.montage.pickTitle}
       /* The count and the way into what the pass dropped, on one line: the pass reports here and
-         explains itself there. No button while it has dropped nothing. */
+         explains itself there. No button while it has dropped nothing. While the pinch is walking
+         the density, the pill takes this line's place (spec 10.14.1) — the same slot the feed's
+         pill takes of the glass bar's capsule. */
       head={
-        <View style={styles.headLine}>
-          <Text role="label" tone="muted" style={styles.grow}>
-            {passDropped.length > 0
-              ? `${s.montage.pickMeta(inMovie.length, material.length)} · ${s.montage.passDropped(passDropped.length)}`
-              : s.montage.pickMeta(inMovie.length, material.length)}
-          </Text>
-          {passDropped.length > 0 ? (
-            // Spec 7.2 — the small one, outlined in `line` and as wide as its words: a button the
-            // width of the row squeezes the count to nothing.
-            <Button
-              variant="small"
-              label={s.montage.whatDropped}
-              onPress={() => setShowDropped(true)}
-              style={styles.whatDropped}
-            />
-          ) : null}
-        </View>
+        pinch.pinching || pinch.leaving ? (
+          <View style={styles.pill}>
+            <DensityPill value={density} leaving={pinch.leaving} />
+          </View>
+        ) : (
+          <View style={styles.headLine}>
+            <Text role="label" tone="muted" style={styles.grow}>
+              {passDropped.length > 0
+                ? `${s.montage.pickMeta(inMovie.length, material.length)} · ${s.montage.passDropped(passDropped.length)}`
+                : s.montage.pickMeta(inMovie.length, material.length)}
+            </Text>
+            {passDropped.length > 0 ? (
+              // Spec 7.2 — the small one, outlined in `line` and as wide as its words: a button the
+              // width of the row squeezes the count to nothing.
+              <Button
+                variant="small"
+                label={s.montage.whatDropped}
+                onPress={() => setShowDropped(true)}
+                style={styles.whatDropped}
+              />
+            ) : null}
+          </View>
+        )
       }
       above={enough ? undefined : <Text role="meta">{s.montage.keepAtLeast(MIN_FRAMES)}</Text>}
       action={
@@ -100,43 +112,47 @@ export default function PickFramesStep() {
         />
       }
       list={({ head, foot }) => (
-        <FlatList
-          data={rows}
-          keyExtractor={(row) => row[0]?.id ?? ''}
-          contentContainerStyle={styles.grid}
-          // Scrolling with the frames, the bar and the bottom layer keep the screen's edges and not
-          // the grid's margins.
-          ListHeaderComponent={head ? <View style={styles.edge}>{head}</View> : null}
-          ListFooterComponent={foot ? <View style={styles.edge}>{foot}</View> : null}
-          renderItem={({ item: row }) => (
-            <View style={styles.row}>
-              {row.map((item) => {
-                const pick = pickOf(item, order);
-                const reason = reasonOf(item.screening_reason);
+        // The grid stands in a view of its own so a two-finger pinch is taken off the scroll before
+        // it begins (spec 10.14.1); a one-finger drag scrolls the grid as it always did.
+        <View style={styles.pinch} testID="density-pinch" {...pinch.panHandlers}>
+          <FlatList
+            data={rows}
+            keyExtractor={(row) => row[0]?.id ?? ''}
+            contentContainerStyle={[styles.grid, { gap }]}
+            // Scrolling with the frames, the bar and the bottom layer keep the screen's edges and not
+            // the grid's margins.
+            ListHeaderComponent={head ? <View style={styles.edge}>{head}</View> : null}
+            ListFooterComponent={foot ? <View style={styles.edge}>{foot}</View> : null}
+            renderItem={({ item: row }) => (
+              <View style={[styles.row, { gap }]}>
+                {row.map((item) => {
+                  const pick = pickOf(item, order);
+                  const reason = reasonOf(item.screening_reason);
 
-                return (
-                  <Tile
-                    key={item.id}
-                    state="ready"
-                    uri={item.thumbnail_url ?? undefined}
-                    pick={pick}
-                    length={
-                      item.kind === 'video' ? formatRuntime(item.duration_seconds) : undefined
-                    }
-                    reason={
-                      pick === 'auto'
-                        ? { icon: REASON_SIGN[reason], label: s.montage.reason[reason] }
-                        : undefined
-                    }
-                    label={pick === 'keep' ? s.montage.inMovie : s.montage.outOfMovie}
-                    onPress={() => change(afterTap(item, order))}
-                    style={cell}
-                  />
-                );
-              })}
-            </View>
-          )}
-        />
+                  return (
+                    <Tile
+                      key={item.id}
+                      state="ready"
+                      uri={item.thumbnail_url ?? undefined}
+                      pick={pick}
+                      length={
+                        item.kind === 'video' ? formatRuntime(item.duration_seconds) : undefined
+                      }
+                      reason={
+                        pick === 'auto'
+                          ? { icon: REASON_SIGN[reason], label: s.montage.reason[reason] }
+                          : undefined
+                      }
+                      label={pick === 'keep' ? s.montage.inMovie : s.montage.outOfMovie}
+                      onPress={() => change(afterTap(item, order))}
+                      style={cell}
+                    />
+                  );
+                })}
+              </View>
+            )}
+          />
+        </View>
       )}
     >
       <Sheet
@@ -219,8 +235,17 @@ const useStyles = themed(() =>
     headLine: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s3 },
     // The layout hangs it 4 past the screen's margin (`MontageSelect`: its right edge at 378).
     whatDropped: { marginRight: -space.s1 },
-    grid: { paddingHorizontal: space.s4, paddingBottom: space.s7, gap: GRID_GAP },
+    // The rows' gutter is the grid's own and follows the density: the layout's 3 between rows, and
+    // nought at the single frame (spec 10.14.2), where the frames stand touching.
+    grid: { paddingHorizontal: space.s4, paddingBottom: space.s7 },
     edge: { marginHorizontal: -space.s4 },
-    row: { flexDirection: 'row', gap: GRID_GAP },
+    // The view the grid and the pinch stand in: nothing of its own but the room the list fills.
+    pinch: { flex: 1 },
+    // Where the pill stands in the head line's place while the pinch walks the density, centred as
+    // the feed's pill is in the capsule's slot.
+    pill: { alignItems: 'center' },
+    // The gutter between the columns is the row's own — 0 at the single frame (spec 10.14.2), so one
+    // frame stands the whole width of the grid.
+    row: { flexDirection: 'row' },
   }),
 );

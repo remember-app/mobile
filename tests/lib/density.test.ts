@@ -54,14 +54,6 @@ test('the pinch walks the scale, one step to half again as far apart or two thir
   expect(densityWalked(3, 1)).toBe(3);
 });
 
-test('a gallery that is a grid never cuts below the layout’s three, whatever the pick', async () => {
-  const { gridColumns } = await start();
-  // The single frame is the memory’s own feed (spec 10.14.2); «Мои кадры», the roll and the
-  // picker read the same pick and stay a grid.
-  expect(gridColumns(1)).toBe(3);
-  for (const one of [3, 5, 7] as const) expect(gridColumns(one)).toBe(one);
-});
-
 test('a picked density beats the default, and outlives the app', async () => {
   phone.disk.clear();
   const first = await start();

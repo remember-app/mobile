@@ -48,15 +48,6 @@ export function densityWalked(from: Density, scale: number): Density {
 }
 
 /**
- * How many across a gallery that is a *grid* is cut. The memory's own feed also walks to the single
- * frame (`MemorySingle`, spec 10.14.2); the other galleries read the same pick and never cut below
- * the layout's three.
- */
-export function gridColumns(density: Density): Density {
-  return density === 1 ? DENSITY_DEFAULT : density;
-}
-
-/**
  * Where the picked density is kept. Not a secret, but `expo-secure-store` is the key-value store
  * this app already carries, and one string is not worth a second storage library.
  */
