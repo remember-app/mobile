@@ -178,10 +178,13 @@ test('the capsule says what the memory holds, and what is marked while picking',
 
 test('the footer of the frames is one wide button, «Add more» off the picking mode', () => {
   // Two footers in the file — the picking one first, the ordinary one after it — and each of them
-  // holds exactly one wide button. «Нижняя кнопка остаётся на месте и в том же весе».
+  // holds exactly one wide button on screen. The picking middle names its three states as three
+  // buttons (spec 10.15): «Скачать N», the off «Ничего не выбрано», and the ringed press that offers
+  // frames — one of them drawn at a time.
   const bars = actionBars(frames);
   expect(bars).toHaveLength(2);
-  for (const bar of bars) expect(bar.match(/wide/g)).toHaveLength(1);
+  expect(bars[0].match(/wide/g)).toHaveLength(3);
+  expect(bars[1].match(/wide/g)).toHaveLength(1);
   // One action in two places, and the only difference is whether there is anything here yet
   // (spec 9): «Добавить ещё» over a sheet with frames on it, «Добавить кадры» over `FramesEmpty`.
   expect(bars[1]).toContain('label={any ? s.gallery.addMore : s.gallery.add}');
@@ -312,9 +315,12 @@ test('the picking footer is share, a download that carries its count, and delete
   expect(picking).toContain('tint={color.dangerText}');
   expect(picking).toContain('s.gallery.download(marked.length)');
   expect(picking).toContain('s.gallery.nothingPicked');
+  expect(picking).toContain('s.gallery.proposeToRemove');
   expect(picking).toContain('onPress={() => void save()}');
-  // Both off with nothing marked, and both off while something is already coming down.
-  expect(picking.match(/disabled=\{busy \|\| marked\.length === 0\}/g)).toHaveLength(2);
+  // «Поделиться» is off with nothing marked, and off while something is already coming down. The
+  // other two say their own: the trash counts what may be deleted, and the middle has a state for
+  // each of the three things it can be (spec 10.15).
+  expect(picking.match(/disabled=\{busy \|\| marked\.length === 0\}/g)).toHaveLength(1);
   // Counted off the feed and never off the raw set. `picked` is emptied only by leaving the mode or
   // by the capsule, while the feed moves on its own — the three-second re-read, the focus, the
   // pull. A frame somebody else deleted stayed in the set and stayed in the count: the button
@@ -624,9 +630,11 @@ test('the ember on a face is the one action that face is for', () => {
   // The kit gives the glow to one action per surface. Each face draws two surfaces at most — itself
   // and a sheet over it — so two is the number, never one for the screen and one for a shortcut to
   // another screen (which is what the guest list's «Movie» button was).
-  // Two on the frames because the footer has two shapes and only ever one of them is on screen:
-  // «Скачать N файлов» while picking, «Добавить кадры» the rest of the time.
-  expect(frames.match(/variant="primary"/g)).toHaveLength(2);
+  // Three on the frames because the footer has two shapes and only ever one of them is on screen:
+  // «Скачать N файлов» while picking, «Добавить кадры» the rest of the time — and with nothing
+  // marked the picking middle is either the off «Ничего не выбрано» or the ringed press that offers
+  // frames, never both (spec 10.15).
+  expect(frames.match(/variant="primary"/g)).toHaveLength(3);
   // None on the strip of movies: ordering one is the dashed tile and the paper button on the empty
   // block, and the one ember a film has — «Сохранить и поделиться» — is in the player's own window
   // (TASK-222), which is a surface of its own and carries exactly one.

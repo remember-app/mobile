@@ -9,6 +9,7 @@ import {
   Share,
   Tag,
   Trash2,
+  TriangleAlert,
 } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, RefreshControl, StyleSheet, useWindowDimensions, View } from 'react-native';
@@ -72,7 +73,7 @@ import { FilterSheet, SortSheet } from '@/screens/memory/frames-sheets';
 import { SeamDay, SpineLayer, useSpine } from '@/screens/memory/frames-spine';
 import { BlockHead, type Head, HeadTrouble, MemoryHead } from '@/screens/memory/head';
 import { LabelSheets } from '@/screens/memory/label-sheets';
-import { board, height, space, themed, type, useTheme } from '@/theme';
+import { board, duration, height, space, themed, type, useTheme } from '@/theme';
 
 /** A seam over a strip of frames — every cut but the one that has no seam at all. */
 type Seam = Exclude<FrameGroup, { by: 'all' }>;
@@ -141,6 +142,15 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   const [picked, setPicked] = useState<ReadonlySet<string>>(() => new Set());
   /** Whether the sheet that asks about deleting what is marked is up. */
   const [dropping, setDropping] = useState(false);
+  /**
+   * What the last press of «Предложить удалить» left the middle of the layer saying. It is not the
+   * banner's state: the banner leaves by itself, and the middle keeps the word the press earned —
+   * «Убирать нечего» stays off until the mode is left, and after a failure the button is back to
+   * press again (spec 10.15, `FramesPicking`).
+   */
+  const [proposal, setProposal] = useState<'idle' | 'nothing'>('idle');
+  /** The one line that press has to say over the panel, gone in three seconds like «Связь есть». */
+  const [proposed, setProposed] = useState<'nothing' | 'failed' | null>(null);
   /** And whether the labels of the memory are up over it (spec 7.7, `SheetLabels`). */
   const [labelling, setLabelling] = useState(false);
   /** What of the memory is shown, and how it is laid out — the two sheets at the foot of it. */
@@ -196,6 +206,14 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   // The sheets are not in here: they are the kit's own `Sheet`, and since TASK-129 a sheet shuts
   // itself when the screen under it loses focus.
   useFocusEffect(useCallback(() => () => setOpen(null), []));
+
+  // Spec 10.15: both outcomes of «Предложить удалить» stand over the panel and leave by themselves;
+  // the middle under them keeps the word the press earned. The same three seconds as «Связь есть».
+  useEffect(() => {
+    if (proposed === null) return;
+    const leaves = setTimeout(() => setProposed(null), duration.hold);
+    return () => clearTimeout(leaves);
+  }, [proposed]);
 
   const memory = head.memory;
   // The caller's own standing, read off their row the way the roster is read.
@@ -452,7 +470,39 @@ export function Frames({ id, head }: { id: string; head: Head }) {
    */
   function togglePicking() {
     setPicked(new Set());
+    setProposal('idle');
+    setProposed(null);
     setPicking((on) => !on);
+  }
+
+  /**
+   * «Предложить удалить» (spec 10.15, `FramesPicking`): marks what the screening offers to take out,
+   * as the same circles a finger would put there. Only frames on the screen a mark could mean
+   * anything on, and only those this person may delete — otherwise the trash would stay off over a
+   * mark that promises nothing. No verdicts at all (`screening_rejected` null on every frame) is the
+   * same answer as no offered frames: «Убирать нечего», said once over the panel.
+   *
+   * The screening run is not started from here — decision-30 is still open, so the press only marks
+   * what is already there. When a run does come, this is where its failure lands.
+   */
+  function propose() {
+    setProposed(null);
+    try {
+      const offered = kept.filter(
+        (item) => item.screening_rejected === true && mayPick(item) && mayDelete(item),
+      );
+      if (offered.length === 0) {
+        setProposal('nothing');
+        setProposed('nothing');
+        return;
+      }
+      setPicked(new Set(offered.map((item) => item.id)));
+    } catch {
+      // The middle is already the button, so a failure asks for nothing but the line; the same
+      // press is the retry. Today the walk over the records cannot throw — the run that would
+      // fill the verdicts is decision-30's, and its failure lands here when it comes.
+      setProposed('failed');
+    }
   }
 
   /**
@@ -755,6 +805,19 @@ export function Frames({ id, head }: { id: string; head: Head }) {
         pointerEvents="box-none"
         onLayout={(e) => setLayer(e.nativeEvent.layout.height)}
       >
+        {/* What «Предложить удалить» had to say: «Убирать нечего» or the failure, over the panel
+            and leaving by itself. The panel under it stands where it is — the layer grows upward
+            from the edge (spec 10.15). */}
+        {proposed === null ? null : (
+          <Banner
+            tone={proposed === 'nothing' ? 'done' : 'error'}
+            // The failure is not the connection's: the frame draws its own warning sign (10.15).
+            icon={proposed === 'nothing' ? undefined : TriangleAlert}
+            text={proposed === 'nothing' ? s.gallery.proposeNothing : s.gallery.proposeFailed}
+            style={styles.proposalNotice}
+          />
+        )}
+
         {/* Where «X of N» is read while the lot comes down, and the summary after it. The open file
             has its own copy of this line — only one of the two is ever on screen. */}
         {notice ? <Banner failure={notice} style={styles.notice} /> : null}
@@ -796,19 +859,32 @@ export function Frames({ id, head }: { id: string; head: Head }) {
               />
             }
           >
-            <Button
-              variant="primary"
-              wide
-              icon={Download}
-              // The count rides in the label — it is what the button is about to take home. With
-              // nothing marked the button is off and says why: «Скачать 0» reads as a button
-              // that would take nothing if only it worked.
-              label={
-                marked.length === 0 ? s.gallery.nothingPicked : s.gallery.download(marked.length)
-              }
-              onPress={() => void save()}
-              disabled={busy || marked.length === 0}
-            />
+            {marked.length > 0 ? (
+              <Button
+                variant="primary"
+                wide
+                icon={Download}
+                // The count rides in the label — it is what the button is about to take home.
+                label={s.gallery.download(marked.length)}
+                onPress={() => void save()}
+                disabled={busy}
+              />
+            ) : proposal === 'nothing' ? (
+              // The press found nothing to offer: the middle comes back to the same off button it
+              // was before, and stays so until the mode is left (spec 10.15).
+              <Button variant="primary" wide label={s.gallery.nothingPicked} disabled />
+            ) : (
+              // With nothing marked the middle is the press that offers frames to take out: 56,
+              // ringed in `lineStrong`, no glyph (spec 10.15, `FramesPicking`). It comes back after
+              // a failure as well — the same press is the retry.
+              <Button
+                variant="secondary"
+                wide
+                label={s.gallery.proposeToRemove}
+                onPress={propose}
+                disabled={busy}
+              />
+            )}
           </ActionBar>
         ) : any || mayUpload ? (
           <ActionBar
@@ -999,6 +1075,9 @@ const useStyles = themed(() =>
     // what the last frames pass under.
     bottom: { position: 'absolute', left: 0, right: 0, bottom: 0 },
     notice: { marginHorizontal: space.s4, marginTop: space.s3 },
+    // Spec 10.15 (the three `FramesPropose*` frames): the banner stands 16 from the edges and 10
+    // over the action, and the action under it does not move.
+    proposalNotice: { marginHorizontal: space.s4, marginBottom: 10 },
     // Where the one action of the screen would stand for somebody who may add to it.
     grow: { flex: 1 },
   }),

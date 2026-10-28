@@ -66,6 +66,15 @@ export const en = {
     download: (n: number) => `Download ${n}`,
     /** The same button with nothing marked yet: off, and saying why rather than «Download 0». */
     nothingPicked: 'Nothing selected',
+    /**
+     * The middle of the picking layer while nothing is marked: what the screening offers to take
+     * out, marked the way a finger would mark it (spec 10.15, `FramesPicking`).
+     */
+    proposeToRemove: 'Propose to remove',
+    /** What that press says over the panel when there is nothing it could offer. */
+    proposeNothing: 'Nothing to remove — the frames are good',
+    /** And when the press could not be made at all — the same press asks again. */
+    proposeFailed: 'Could not find anything to remove',
     addMore: 'Add more',
     /**
      * The same errand from an empty gallery, where there is no «more» to add to yet — and the same
@@ -326,6 +335,9 @@ export const ru: typeof en = {
     picked: (n: number) => `Выбрано ${n}`,
     download: (n: number) => `Скачать ${n}`,
     nothingPicked: 'Ничего не выбрано',
+    proposeToRemove: 'Предложить удалить',
+    proposeNothing: 'Убирать нечего — кадры хороши',
+    proposeFailed: 'Не получилось предложить, что убрать',
     addMore: 'Добавить ещё',
     add: 'Добавить кадры',
 
