@@ -293,63 +293,67 @@ export function FilterSheet({
         </View>
       )}
 
-      <View style={styles.block}>
-        <SectionHead
-          label={s.gallery.whichDays}
-          open={draft.days.size === 0}
-          onAll={() => change({ days: new Set() })}
-        >
-          {/* A day the tiles are not offering — past the three fullest, or one that holds nothing
+      {/* A memory of a single day has nothing for this section to choose between (TASK-542): it is
+          left off whole — no heading over one tile — rather than drawn with the one day it holds. */}
+      {days.length > 1 ? (
+        <View style={styles.block}>
+          <SectionHead
+            label={s.gallery.whichDays}
+            open={draft.days.size === 0}
+            onAll={() => change({ days: new Set() })}
+          >
+            {/* A day the tiles are not offering — past the three fullest, or one that holds nothing
               at all. Held in while the calendar is open under the tiles. */}
-          <IconButton
-            size={height.chipTag}
-            tone={calendar ? 'paper' : 'outline'}
-            on={calendar}
-            icon={CalendarDays}
-            label={s.gallery.otherDay}
-            onPress={() => setCalendar((open) => !open)}
-          />
-        </SectionHead>
-        {tiles.length === 0 ? null : (
-          // Spec 7.3, detail 74: the tiles share one row evenly, 8 apart — never a row that scrolls.
-          <Shares>
-            {tiles.map((day) => {
-              const date = new Date(day.at);
-              const weekday = formatWeekday(date, undefined, 'short');
-              const frames = s.memory.frames(day.count);
-              return (
-                <DayTile
-                  key={day.at}
-                  day={String(date.getDate())}
-                  weekday={weekday}
-                  count={frames}
-                  fill={day.fill}
-                  label={s.gallery.dayTile(formatDayShort(date), weekday, frames)}
-                  selected={draft.days.has(day.at)}
-                  onPress={() => toggleDay(day.at)}
-                />
-              );
-            })}
-          </Shares>
-        )}
-        {calendar ? (
-          <Calendar
-            month={month}
-            onMonth={setMonth}
-            // One day at a time here, not a span: the filter holds a set of days, and each tap on
-            // the grid adds one to it or takes it back out.
-            from={latest}
-            to={null}
-            onPick={(day) => toggleDay(startOfDay(day).getTime())}
-            max={today}
-            weekdays={weekdayLetters()}
-            monthLabel={formatMonth(month)}
-            prevLabel={s.create.prevMonth}
-            nextLabel={s.create.nextMonth}
-            dayLabel={formatDay}
-          />
-        ) : null}
-      </View>
+            <IconButton
+              size={height.chipTag}
+              tone={calendar ? 'paper' : 'outline'}
+              on={calendar}
+              icon={CalendarDays}
+              label={s.gallery.otherDay}
+              onPress={() => setCalendar((open) => !open)}
+            />
+          </SectionHead>
+          {tiles.length === 0 ? null : (
+            // Spec 7.3, detail 74: the tiles share one row evenly, 8 apart — never a row that scrolls.
+            <Shares>
+              {tiles.map((day) => {
+                const date = new Date(day.at);
+                const weekday = formatWeekday(date, undefined, 'short');
+                const frames = s.memory.frames(day.count);
+                return (
+                  <DayTile
+                    key={day.at}
+                    day={String(date.getDate())}
+                    weekday={weekday}
+                    count={frames}
+                    fill={day.fill}
+                    label={s.gallery.dayTile(formatDayShort(date), weekday, frames)}
+                    selected={draft.days.has(day.at)}
+                    onPress={() => toggleDay(day.at)}
+                  />
+                );
+              })}
+            </Shares>
+          )}
+          {calendar ? (
+            <Calendar
+              month={month}
+              onMonth={setMonth}
+              // One day at a time here, not a span: the filter holds a set of days, and each tap on
+              // the grid adds one to it or takes it back out.
+              from={latest}
+              to={null}
+              onPick={(day) => toggleDay(startOfDay(day).getTime())}
+              max={today}
+              weekdays={weekdayLetters()}
+              monthLabel={formatMonth(month)}
+              prevLabel={s.create.prevMonth}
+              nextLabel={s.create.nextMonth}
+              dayLabel={formatDay}
+            />
+          ) : null}
+        </View>
+      ) : null}
     </Sheet>
   );
 }

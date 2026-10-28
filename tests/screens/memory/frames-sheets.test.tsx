@@ -146,18 +146,34 @@ const tilesOf = (drawn: string) =>
   [...drawn.matchAll(/aria-label="(\d+) сентября, [а-я]+, \d+ кадр/g)].map((one) => one[1]);
 
 test('a tile per day up to three; past three, the three fullest — and never a row that scrolls', () => {
-  expect(tilesOf(story(filter({}, 1, labels, daysOf(1))))).toEqual(['10']);
   expect(tilesOf(story(filter({}, 3, labels, daysOf(2))))).toEqual(['10', '11']);
   expect(tilesOf(story(filter({}, 6, labels, daysOf(3))))).toEqual(['10', '11', '12']);
   // Four days and a week: the fullest three, still earliest first; the rest are the calendar's.
   expect(tilesOf(story(filter({}, 10, labels, daysOf(4))))).toEqual(['11', '12', '13']);
   expect(tilesOf(story(filter({}, 28, labels, daysOf(7))))).toEqual(['14', '15', '16']);
   // And the head of the block is the same whatever the count: «Все» and the calendar.
-  for (const n of [1, 2, 3, 4, 7]) {
+  for (const n of [2, 3, 4, 7]) {
     const drawn = story(filter({}, 1, labels, daysOf(n)));
     expect(drawn).toContain('aria-label="Все: День"');
     expect(drawn).toContain('aria-label="Выбрать другую дату"');
   }
+});
+
+test('a memory of a single day has no day filter at all — no heading, no tile, no calendar', () => {
+  // TASK-542: one day is nothing to choose between, so the whole section is left off rather than
+  // drawn with the one tile it holds — and no empty heading or gap is left behind for it.
+  const one = story(filter({}, 400, labels, daysOf(1)));
+  expect(one).not.toContain('ДЕНЬ');
+  expect(one).not.toContain('aria-label="Все: День"');
+  expect(one).not.toContain('aria-label="Выбрать другую дату"');
+  expect(tilesOf(one)).toEqual([]);
+  // The other four sections stay exactly as they were.
+  for (const kept of ['КТО ПРИНЁС', 'ТИП', 'ОРИЕНТАЦИЯ', 'ЛЕЙБЛЫ']) expect(one).toContain(kept);
+  // Two days bring it back, head, tiles and all.
+  const two = story(filter({}, 486, labels, daysOf(2)));
+  expect(two).toContain('ДЕНЬ');
+  expect(two).toContain('aria-label="Все: День"');
+  expect(tilesOf(two)).toEqual(['10', '11']);
 });
 
 /** `n` people, each a name of their own. */
