@@ -19,7 +19,7 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "6"
+      "buildNumber": "7"
     },
     "android": {
       "adaptiveIcon": {
@@ -64,7 +64,10 @@
         {
           "photosPermission": "Remember shows your gallery here so you can pick the photos and videos you add to a memory.",
           "savePhotosPermission": "Remember puts the photos and videos you download from a memory into your gallery.",
-          "granularPermissions": ["photo", "video"]
+          "granularPermissions": [
+            "photo",
+            "video"
+          ]
         }
       ],
       "expo-video",
