@@ -10,6 +10,7 @@ import { beforeAll, expect, test } from 'vitest';
 import {
   BlockPicked,
   BlockSummary,
+  CardDirector,
   ChipTemplate,
   PosterOrder,
   SummarySection,
@@ -279,11 +280,69 @@ test('with nothing chosen the block stays and says the film will have no music',
         empty={{ title: 'Ролик будет без музыки', note: 'Только живой звук из видео' }}
       />
     ),
+    director: (
+      <BlockPicked
+        title="Выбрано"
+        count="подберёт режиссёр"
+        director={{ title: 'Режиссёр подберёт трек сам', note: 'Один трек, который он назовёт' }}
+      />
+    ),
     chosen: (
       <BlockPicked title="Выбрано" count="1 трек · 1:40">
         <RowTrack picked title="Тёплая" length="1:40" />
       </BlockPicked>
     ),
+  });
+});
+
+test('the third view of «Выбрано» hands the choice over, and no track stands in it', () => {
+  // Spec 7.7, detail 54: the same one row as the empty view, with the director's sign and words.
+  const block = story(
+    <BlockPicked
+      title="Выбрано"
+      count="подберёт режиссёр"
+      director={{ title: 'Режиссёр подберёт трек сам', note: 'Один трек, который он назовёт' }}
+    />,
+  );
+  expect(block).toContain('ВЫБРАНО');
+  expect(block).toContain('подберёт режиссёр');
+  expect(block).toContain('Режиссёр подберёт трек сам');
+  expect(block).toContain('Один трек, который он назовёт');
+  // The sparkles and not the mute: the director speaks where silence would be a state of its own.
+  expect(block).toContain('data-glyph="Sparkles"');
+  expect(block).not.toContain('data-glyph="VolumeX"');
+  // A state like the empty one — the choice is made on the card below, so nothing here presses.
+  expect(block).not.toContain('role="button"');
+  expect(block).not.toContain('role="togglebutton"');
+});
+
+test('the director’s card is a switch in two states, and the tick is the whole of what tells them', () => {
+  const card = (picked: boolean, label: string) => (
+    <CardDirector
+      title="На усмотрение режиссёра"
+      note="Режиссёр подберёт один трек сам"
+      picked={picked}
+      label={label}
+      onPress={() => {}}
+    />
+  );
+  const offered = story(card(false, 'Отдать выбор режиссёру — один трек он подберёт сам'));
+  expect(offered).toContain('На усмотрение режиссёра');
+  expect(offered).toContain('Режиссёр подберёт один трек сам');
+  // A switch that stays in, as the label row is one (spec 7.7, detail 81: `aria-pressed`), and the
+  // whole card is the button — there is no smaller one inside it.
+  expect(offered).toContain('role="togglebutton"');
+  expect(offered).toContain('aria-label="Отдать выбор режиссёру — один трек он подберёт сам"');
+  // The sparkles and not a play: there is nothing to listen to yet (spec 5).
+  expect(offered).toContain('data-glyph="Sparkles"');
+  expect(offered).not.toContain('data-glyph="Check"');
+
+  const picked = story(card(true, 'Выбрано: режиссёр подберёт один трек сам'));
+  expect(picked).toContain('aria-label="Выбрано: режиссёр подберёт один трек сам"');
+  expect(picked).toContain('data-glyph="Check"');
+  allDifferent({
+    offered: card(false, 'Отдать выбор режиссёру — один трек он подберёт сам'),
+    picked: card(true, 'Выбрано: режиссёр подберёт один трек сам'),
   });
 });
 
