@@ -15,6 +15,13 @@ import { Directory, File, Paths } from 'expo-file-system';
 
 const folder = () => new Directory(Paths.cache, 'video');
 
+/**
+ * The downloads under way, one per record. Two openings of one video — a swipe away and back while
+ * the first file is still arriving — share the download that is already running instead of writing
+ * the same file twice at once.
+ */
+const keeping = new Map<string, Promise<string | null>>();
+
 /** Where a record's video is kept, or null for an id unsafe to name a file after. */
 function videoFile(id: string): File | null {
   // The id arrives off the wire: one with a slash or a `..` would write outside the folder. Every
@@ -40,19 +47,35 @@ export function cachedVideo(id: string): string | null {
  *
  * `null` for an id that cannot name a file and for a download that failed: the caller plays the
  * signed link it already had, which is exactly what the window did before this cache existed.
- * `idempotent` so two openings racing over one file share the first download rather than the
- * second failing on its leftover.
  */
-export async function keepVideo(id: string, url: string): Promise<string | null> {
+export function keepVideo(id: string, url: string): Promise<string | null> {
+  const held = keeping.get(id);
+  if (held !== undefined) return held;
+  const run = keep(id, url).finally(() => keeping.delete(id));
+  keeping.set(id, run);
+  return run;
+}
+
+async function keep(id: string, url: string): Promise<string | null> {
   const file = videoFile(id);
   if (file === null) return null;
+  // Android writes the response body straight into the destination, so a download cut off halfway
+  // would leave a truncated file that every later opening would take for the video. It lands under
+  // `.part` instead and is moved into place only once whole; a process killed mid-download leaves
+  // a part behind that the next attempt overwrites, never a file that passes for the video.
+  const part = new File(folder(), `${id}.part`);
   try {
     if (file.exists) return file.uri;
     if (!folder().exists) folder().create({ intermediates: true, idempotent: true });
-    const saved = await File.downloadFileAsync(url, file, { idempotent: true });
-    return saved.uri;
+    await File.downloadFileAsync(url, part, { idempotent: true });
+    await part.move(file, { overwrite: true });
+    return file.uri;
   } catch (e) {
     console.warn('the video was not kept on this phone:', e);
+    // `delete()` throws both on a file that was never written and on one already gone.
+    try {
+      part.delete();
+    } catch {}
     return null;
   }
 }

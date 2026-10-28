@@ -41,6 +41,12 @@ vi.mock('expo-file-system', () => {
     delete() {
       disk.delete(this.uri);
     }
+    async move(target: { uri: string }) {
+      const bytes = disk.get(this.uri);
+      if (bytes === undefined) throw new Error(`no file at ${this.uri}`);
+      disk.set(target.uri, bytes);
+      disk.delete(this.uri);
+    }
   }
   (File as unknown as { downloadFileAsync: typeof downloadFileAsync }).downloadFileAsync =
     downloadFileAsync;
@@ -52,6 +58,7 @@ const { cachedVideo, keepVideo } = await import('@/lib/video-cache');
 const UUID = '11111111-2222-3333-4444-555555555555';
 const URL = 'https://r2.example/v.mp4?X-Amz-Signature=aaa';
 const LOCAL = `cache/video/${UUID}.mp4`;
+const PART = `cache/video/${UUID}.part`;
 
 beforeEach(() => {
   disk.clear();
@@ -67,11 +74,46 @@ test('the first watching leaves the file under the record’s id, and answers wh
   await expect(keepVideo(UUID, URL)).resolves.toBe(LOCAL);
   expect(downloadFileAsync).toHaveBeenCalledTimes(1);
   expect(downloadFileAsync.mock.calls[0][0]).toBe(URL);
-  // The file is named by the record, not by the signed link: a fresh signature is the same file.
-  expect((downloadFileAsync.mock.calls[0][1] as { uri: string }).uri).toBe(LOCAL);
-  // `idempotent`, so two openings racing over one file share the first download.
-  expect(downloadFileAsync.mock.calls[0][2]).toEqual({ idempotent: true });
+  // The download lands under a part and is moved under the record's id only once it is whole: a
+  // fresh signature is the same file, and nothing half-written ever passes for the video.
+  expect((downloadFileAsync.mock.calls[0][1] as { uri: string }).uri).toBe(PART);
+  expect(disk.has(PART)).toBe(false);
   expect(cachedVideo(UUID)).toBe(LOCAL);
+});
+
+test('a download cut off halfway leaves nothing that would pass for the video', async () => {
+  // Android streams the body straight into its destination; a connection dropped mid-file leaves a
+  // truncated file there. The next opening must download again rather than play the stump.
+  downloadFileAsync.mockImplementationOnce(async (_url: string, target: { uri: string }) => {
+    disk.set(target.uri, 'half');
+    throw new Error('connection dropped');
+  });
+  await expect(keepVideo(UUID, URL)).resolves.toBeNull();
+  expect(cachedVideo(UUID)).toBeNull();
+  expect(disk.has(PART)).toBe(false);
+
+  await expect(keepVideo(UUID, URL)).resolves.toBe(LOCAL);
+  expect(downloadFileAsync).toHaveBeenCalledTimes(2);
+  expect(cachedVideo(UUID)).toBe(LOCAL);
+});
+
+test('two openings of one video share the download already under way', async () => {
+  let finish!: () => void;
+  downloadFileAsync.mockImplementationOnce(
+    (_url: string, target: { uri: string }) =>
+      new Promise((resolve) => {
+        finish = () => {
+          disk.set(target.uri, 'bytes');
+          resolve(target);
+        };
+      }),
+  );
+  const first = keepVideo(UUID, URL);
+  const second = keepVideo(UUID, URL);
+  expect(downloadFileAsync).toHaveBeenCalledTimes(1);
+  finish();
+  await expect(Promise.all([first, second])).resolves.toEqual([LOCAL, LOCAL]);
+  expect(downloadFileAsync).toHaveBeenCalledTimes(1);
 });
 
 test('opening it again reads the disk and does not go to the network', async () => {

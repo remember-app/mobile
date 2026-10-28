@@ -4,7 +4,7 @@ import type { ReactElement } from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
 import { expect, test } from 'vitest';
 import { CardMemory } from '@/kit/card-memory';
-import { CardMontage, PosterFilm } from '@/kit/card-montage';
+import { CardMontage, EmptyMontages, PosterFilm } from '@/kit/card-montage';
 import { CoverSlot } from '@/kit/cover';
 import { Filmstrip, Mosaic } from '@/kit/filmstrip';
 import { pictureKey } from '@/lib/picture-key';
@@ -67,6 +67,16 @@ test('a montage’s poster is filed the same way on its card and on the film’s
 
   const [film] = await sourcesOf(<PosterFilm poster={SIGNED} label="Смотреть ролик" />);
   expect(film.cacheKey).toBe(OBJECT);
+});
+
+test('the memory’s own frames on the empty montages block are filed under the object too', async () => {
+  // `recent_thumbnail_urls`, two bare links and no record id beside them, on the block that stands
+  // where a memory has no montages yet.
+  const shots = await sourcesOf(<EmptyMontages text="Собрать ролик" photos={[SIGNED, RESIGNED]} />);
+  expect(shots).toEqual([
+    { uri: SIGNED, cacheKey: OBJECT },
+    { uri: RESIGNED, cacheKey: OBJECT },
+  ]);
 });
 
 test('the filmstrip carries the record’s key through, so a neighbour is not fetched again', async () => {

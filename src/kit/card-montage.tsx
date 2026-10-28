@@ -434,7 +434,7 @@ export function EmptyMontages({
         {(photos ?? []).slice(0, 2).map((uri, i) => (
           <Image
             key={uri}
-            source={{ uri }}
+            source={{ uri, cacheKey: pictureKey(uri) }}
             contentFit="cover"
             style={[styles.stackShot, i === 0 ? styles.stackBack : styles.stackFront]}
           />
