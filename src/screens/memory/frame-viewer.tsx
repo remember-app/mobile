@@ -486,7 +486,8 @@ export function FrameViewer({
    * And what a tap on the picture means (TASK-476): the glass, the shades and the tools go away and
    * a second tap brings them back — over a photograph and a video alike (TASK-574, #4). A video's
    * play and pause is the 72 in the middle of the frame and nowhere else: a tap on the picture is
-   * the same tidy-up a photograph's is, and the film under it keeps playing through it.
+   * the same tidy-up a photograph's is — the button goes with the rest of the interface and comes
+   * back with it (TASK-583), and the film under it keeps playing through it.
    *
    * With the panel of the frame's own screen standing (TASK-478), a tap takes that panel down
    * rather than the glass: the bar holds the only other way back and the bar is what a tap here
@@ -915,16 +916,23 @@ export function FrameViewer({
                     {/* Pause and play, 72 in the middle of the picture — `ViewerVideo` and nowhere
                         else. Dark and not glass (spec 7.2): the viewer's glass vanishes over a
                         bright frame, and this glyph has to hold over any. `box-none`, so everything
-                        around the circle belongs to the picture under it. */}
-                    <View style={styles.middleOfFrame} pointerEvents="box-none">
-                      <IconButton
-                        icon={isPlaying ? Pause : Play}
-                        label={isPlaying ? s.viewer.pause : s.viewer.play}
-                        size={72}
-                        tone="video"
-                        onPress={() => (isPlaying ? player.pause() : player.play())}
-                      />
-                    </View>
+                        around the circle belongs to the picture under it.
+
+                        It goes with the interface (TASK-583): the tap that puts the glass and the
+                        tools away puts this away too, and the second tap brings both back. Not
+                        drawn while the frame is bare, so it takes no finger and a screen reader
+                        finds no invisible element to reach; the film under it keeps playing. */}
+                    {bare ? null : (
+                      <View style={styles.middleOfFrame} pointerEvents="box-none">
+                        <IconButton
+                          icon={isPlaying ? Pause : Play}
+                          label={isPlaying ? s.viewer.pause : s.viewer.play}
+                          size={72}
+                          tone="video"
+                          onPress={() => (isPlaying ? player.pause() : player.play())}
+                        />
+                      </View>
+                    )}
                   </>
                 ) : shown.uri !== null ? (
                   // Covered rather than contained (TASK-475): a horizontal frame used to be
@@ -969,8 +977,11 @@ export function FrameViewer({
           {/* Everything the window draws over the frame, and nothing of the frame itself (TASK-476):
               the two darkenings, the glass bar and the tools. A tap on the picture takes all three
               away and brings them back, and a swipe or a step along the strip brings them back
-              whatever they were doing — so this block is the whole of what «the frame alone» means,
-              and the pause button over a video stays because it is inside the frame and not here.
+              whatever they were doing — so this block is the whole of what «the frame alone» means.
+
+              The pause button over a video is not here, because it is inside the frame and drawn
+              with it; it carries the same `bare` and so goes and comes back with this block
+              (TASK-583, m-42 #1 — the m-40 decision to leave it standing is repealed).
 
               The layout draws no state without them and none is invented for this: what stands
               without them is the same window with these not drawn. */}
