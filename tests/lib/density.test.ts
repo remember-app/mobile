@@ -28,7 +28,38 @@ test('three across until somebody says otherwise — the layout’s own three', 
   phone.disk.clear();
   const density = await start();
   expect(density.currentDensity()).toBe(3);
-  expect(density.DENSITIES).toEqual([3, 5, 7]);
+  expect(density.DENSITY_DEFAULT).toBe(3);
+  // The scale the pinch walks, densest first (spec 10.14.1): seven, five, three, and the single
+  // frame at the far end — the last step of the same gesture, not a value of its own.
+  expect(density.DENSITY_SCALE).toEqual([7, 5, 3, 1]);
+});
+
+test('the pinch walks the scale, one step to half again as far apart or two thirds as close', async () => {
+  const { densityWalked } = await start();
+  // Untouched, and inside the first step either way: the value it began on.
+  for (const scale of [1, 1.2, 0.9]) expect(densityWalked(3, scale), String(scale)).toBe(3);
+  // Spreading the fingers cuts fewer to a row; squeezing cuts more. Half again as far apart, or
+  // two thirds as close, is one step, and the scale is walked step by step from where it began.
+  expect(densityWalked(3, 1.5)).toBe(1);
+  expect(densityWalked(3, 1.7)).toBe(1);
+  expect(densityWalked(7, 2.5)).toBe(3);
+  expect(densityWalked(3, 0.6)).toBe(5);
+  expect(densityWalked(3, 0.4)).toBe(7);
+  expect(densityWalked(5, 0.4)).toBe(7);
+  // Past either end the value stands still: seven is as many as fits, and the single frame is the
+  // last step — there is no fewer than one.
+  expect(densityWalked(7, 0.1)).toBe(7);
+  expect(densityWalked(1, 5)).toBe(1);
+  // A finger that came back to where it began asks for nothing.
+  expect(densityWalked(3, 1)).toBe(3);
+});
+
+test('a gallery that is a grid never cuts below the layout’s three, whatever the pick', async () => {
+  const { gridColumns } = await start();
+  // The single frame is the memory’s own feed (spec 10.14.2); «Мои кадры», the roll and the
+  // picker read the same pick and stay a grid.
+  expect(gridColumns(1)).toBe(3);
+  for (const one of [3, 5, 7] as const) expect(gridColumns(one)).toBe(one);
 });
 
 test('a picked density beats the default, and outlives the app', async () => {
@@ -59,12 +90,16 @@ test('the pick is filed under one key and read back under that same one', async 
 
 test('a stored value this build does not know is not a pick', async () => {
   // Four, six, a blank, anything a rolled-back build or a hand-edited keychain could leave behind:
-  // the layout’s three stand until a person picks one of the three on offer.
+  // the layout’s three stand until a person walks the scale to one of its own values.
   for (const value of ['4', '6', '', 'five']) {
     phone.disk.clear();
     phone.disk.set('density', value);
     expect((await start()).currentDensity(), value).toBe(3);
   }
+  // The single frame is one of them now (spec 10.14.2), and it is read back like the rest.
+  phone.disk.clear();
+  phone.disk.set('density', '1');
+  expect((await start()).currentDensity()).toBe(1);
 });
 
 test('a keychain that cannot be read leaves the layout deciding, and does not throw at a launch', async () => {

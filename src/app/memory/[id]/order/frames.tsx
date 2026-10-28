@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { FlatList, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Button, GRID_GAP, type IconComponent, RowRejected, Sheet, Text, Tile } from '@/kit';
 import { formatRuntime } from '@/lib/dates';
-import { useDensity } from '@/lib/density';
+import { gridColumns, useDensity } from '@/lib/density';
 import { rowsOf } from '@/lib/frames';
 import { useStrings } from '@/lib/language';
 import {
@@ -38,11 +38,12 @@ export default function PickFramesStep() {
   /**
    * One column of the grid, worked out rather than flexed — `memory/frames.tsx` says why at length:
    * a `1fr` column is the same width in a last row of one as in a full row, and `flex: 1/3` is
-   * not. How many across is the account's own setting (`@/lib/density`), the same one every gallery
-   * is cut at. This grid stands inside the screen's own 16 margins.
+   * not. How many across is the person's own setting (`@/lib/density`), the same one every gallery
+   * is cut at — the single frame aside, which is the memory's own feed alone (spec 10.14.2): this
+   * picker keeps to the layout's three. The grid stands inside the screen's own 16 margins.
    */
   const { width } = useWindowDimensions();
-  const columns = useDensity();
+  const columns = gridColumns(useDensity());
   const cell = { width: (width - space.s4 * 2 - GRID_GAP * 2) / columns };
   /** Whether `SheetRejected` is up — what the automatic pass dropped, and why. */
   const [showDropped, setShowDropped] = useState(false);

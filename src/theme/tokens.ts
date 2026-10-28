@@ -584,6 +584,8 @@ export const photo = {
    * across the room.
    */
   pillHeld: 'rgba(245,243,238,0.92)',
+  /** …and the hairline round it, a hair brighter than the glass the pill wears the rest of the time. */
+  pillHeldEdge: 'rgba(255,255,255,0.14)',
   /** …and the words on it, which are the night's own ink rather than its paper. */
   pillHeldInk: '#0B0B12',
   /** …with the second line quieter, at the 62 the layout draws it at. */

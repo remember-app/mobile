@@ -391,9 +391,12 @@ test('the sheet is one flat list of headings and strips, never a three-column gr
   // sort sheet gave, and it comes off `@/lib/frames` rather than off `@/lib/media-window` — this face has
   // no event window to sort by, every frame in it is already the event's.
   expect(upload).toContain('{ key: `day-${day.at}`, day }');
-  expect(frames).toContain('groupFrames(kept, sort, datesBetweenDays)');
+  // The days are cut between the strips unless the feed stands at the single frame, where a 20
+  // day-gap would tear apart frames that stand touching (spec 10.14.2) — hence `dated` and not the
+  // account's setting straight.
+  expect(frames).toContain('groupFrames(kept, sort, dated)');
   expect(frames).toContain(
-    'rowsOf(group.frames, columns).map((frames) => ({ key: frames[0].id, frames }))',
+    'rowsOf(group.frames, density).map((frames) => ({ key: frames[0].id, frames }))',
   );
   expect(frames).not.toContain('assetsByDay');
   // What is laid out is what the filter left, and both are asked of `@/lib/frames` so the sheet, the
@@ -402,10 +405,10 @@ test('the sheet is one flat list of headings and strips, never a three-column gr
   // Cut once per read and held, not on every tap: marking a frame is a render, and the sheet of a
   // whole wedding is re-cut in it.
   expect(frames).toContain('const rows = useMemo(');
-  expect(frames).toContain('[kept, sort, datesBetweenDays, columns],');
+  expect(frames).toContain('[kept, sort, dated, density],');
 });
 
-test('every gallery is cut by the one cut, at the density the account stands at', () => {
+test('every gallery is cut by the one cut, at the density the person stands at', () => {
   // TASK-523: three, five or seven across, in all four galleries. They are four screens with three
   // different row shapes between them — a seam over a strip, a day's heading, a flat list — and the
   // one thing they share is the cut. Written out per screen it is four copies of the same
@@ -417,26 +420,31 @@ test('every gallery is cut by the one cut, at the density the account stands at'
     '«Добавить кадры»': upload,
     'the montage’s picker': picker,
   })) {
-    // Where the number comes from: the account's own setting, asked of it in every one — and never
-    // a three written out where the width is measured.
-    expect(source, name).toContain('const columns = useDensity();');
-    expect(source, name).toMatch(/\) \/ columns/);
+    // Where the number comes from: the person's own setting, asked of `@/lib/density` in every one
+    // — and never a three written out where the width is measured.
+    expect(source, name).toContain('useDensity()');
+    expect(source, name).toMatch(/\) \/ (density|columns)/);
   }
+  // The feed is the one that also walks to the single frame, so it reads the pick whole; the three
+  // grids keep to the layout's three however far the feed has been pinched (spec 10.14.2).
+  expect(frames).toContain('const density = useDensity();');
+  for (const grid of [mine, upload, picker]) expect(grid).toContain('gridColumns(useDensity())');
   // And the cut is one function all four reach for, rather than four slices that agree today.
-  expect(frames).toContain('rowsOf(group.frames, columns)');
+  expect(frames).toContain('rowsOf(group.frames, density)');
   expect(mine).toContain('rowsOf(frames, columns)');
   expect(upload).toContain('rowsOf(day.assets, columns)');
   expect(picker).toContain('rowsOf(material, columns)');
   // The date spine is not one of the four, but it counts their rows: at five or seven its marks
   // stand on seams that are not the ones drawn unless it is handed the density too.
   expect(spine).toContain('dateMarks(frames, { top: feedTop, row: rowPitch, columns })');
-  expect(frames).toContain('    columns,');
+  expect(frames).toContain('columns: density,');
 });
 
 test('the seam over a strip says what is under it, and takes the whole day while picking', () => {
-  const daymark = frames.slice(
-    frames.indexOf('<DayMark'),
-    frames.indexOf('/>', frames.indexOf('<DayMark')),
+  // Read flat, the way the rest of this file reads source: where the formatter broke the line is
+  // biome's business, and the seam now stands a level deeper, inside the view the pinch hangs on.
+  const daymark = flat(
+    frames.slice(frames.indexOf('<DayMark'), frames.indexOf('/>', frames.indexOf('<DayMark'))),
   );
   // Three kinds of seam, one component, and which one it is comes from the group itself.
   expect(frames).toContain('const heading = headingOf(group);');
@@ -445,7 +453,7 @@ test('the seam over a strip says what is under it, and takes the whole day while
   // at all, because `MemoryDated` draws the date by itself. While the mode is on every seam counts:
   // the band itself is then the button that takes the group.
   expect(daymark).toContain(
-    "picking || group.by !== 'day'\n                    ? String(picking ? markable.length : group.frames.length)\n                    : undefined",
+    "picking || group.by !== 'day' ? String(picking ? markable.length : group.frames.length) : undefined",
   );
   expect(daymark).toContain('onPress={');
   // Read out in place of the band's words, the press names the group it takes.
