@@ -437,12 +437,12 @@ test('every gallery is cut by the one cut, at the density the person stands at',
   expect(frames).toContain('columns: density,');
 });
 
-test('the pinch walks the density in every gallery, not only the feed', () => {
+test('the pinch walks the density in every gallery, and only the feed says nothing at the top', () => {
   // TASK-564: the gesture the feed got in TASK-545 stands in all four galleries now — «Мои кадры»,
-  // the roll and the picker pinch the same one value, and the pill says the count under the fingers.
-  // Read off the source because no one flow test holds more than one screen, so a gallery left
-  // without the pinch would be invisible to the others. That the wiring actually changes the
-  // density is driven through the handlers in `tests/screens/density-galleries.test.tsx`.
+  // the roll and the picker pinch the same one value. Read off the source because no one flow test
+  // holds more than one screen, so a gallery left without the pinch would be invisible to the
+  // others. That the wiring actually changes the density is driven through the handlers in
+  // `tests/screens/density-galleries.test.tsx`.
   for (const [name, source] of Object.entries({
     'the feed of a memory': frames,
     '«Мои кадры»': mine,
@@ -452,6 +452,16 @@ test('the pinch walks the density in every gallery, not only the feed', () => {
     expect(source, name).toContain('useDensityPinch()');
     expect(source, name).toContain('{...pinch.panHandlers}');
     expect(source, name).toContain('testID="density-pinch"');
+  }
+  // The feed shows nothing of the density while the fingers walk it (spec 10.14.1, TASK-575): no
+  // pill, no count, no words — the capsule is the bar's own the whole time. The other three still
+  // draw the pill.
+  expect(frames).not.toContain('DensityPill');
+  for (const [name, source] of Object.entries({
+    '«Мои кадры»': mine,
+    '«Добавить кадры»': upload,
+    'the montage’s picker': picker,
+  })) {
     expect(source, name).toContain('<DensityPill value={density} leaving={pinch.leaving} />');
     expect(source, name).toContain('pinch.pinching || pinch.leaving');
   }

@@ -42,6 +42,7 @@ import {
   type Sort,
   shotBy,
   shotCells,
+  singleFrameOf,
   stillPreparing,
   toggleDay,
   toggleEvery,
@@ -156,6 +157,63 @@ test('a record with neither is the fallen frame however it is opened', () => {
     state: 'processing',
     uri: null,
     key: 'a:thumb',
+  });
+});
+
+test('the single frame is the big copy in the photograph’s own proportion, and a video keeps its poster', () => {
+  // `MemorySingle` (spec 10.14.2): the photograph is drawn whole, so it is the big copy and not the
+  // tile's 640px miniature, and its height comes from the api's own measurement of it.
+  const big = record({
+    id: 'p',
+    status: 'ready',
+    width: 1200,
+    height: 800,
+    thumbnail_url: 'https://r2.example/thumbnails/p.jpg?sig=1',
+    preview_url: 'https://r2.example/previews/p.jpg?sig=1',
+  });
+  expect(singleFrameOf(big)).toEqual({
+    state: 'ready',
+    uri: 'https://r2.example/previews/p.jpg?sig=1',
+    key: 'p:preview',
+    ratio: 1.5,
+  });
+  // A photograph whose big copy the worker has not made yet is still the picture that exists, and
+  // still its own proportion — blurry beats absent, the way the viewer reads it.
+  expect(
+    singleFrameOf(
+      record({
+        status: 'ready',
+        width: 800,
+        height: 1200,
+        thumbnail_url: 'https://r2.example/thumbnails/a.jpg?sig=1',
+      }),
+    ),
+  ).toEqual({
+    state: 'ready',
+    uri: 'https://r2.example/thumbnails/a.jpg?sig=1',
+    key: 'a:thumb',
+    ratio: 2 / 3,
+  });
+  // Unmeasured, there is no proportion to take a height from: the tile's square stands.
+  expect(singleFrameOf(secondRead[0]).ratio).toBeNull();
+  // A video is drawn as the grid draws it — the poster, the square, the running time — whatever
+  // proportion the api measured and whatever `preview_url` holds (that is the file to play).
+  expect(
+    singleFrameOf(
+      record({
+        id: 'v',
+        kind: 'video',
+        status: 'ready',
+        width: 1920,
+        height: 1080,
+        thumbnail_url: 'https://r2.example/posters/v.jpg',
+        preview_url: 'https://r2.example/v720.mp4',
+      }),
+    ),
+  ).toEqual({
+    state: 'ready',
+    uri: 'https://r2.example/posters/v.jpg',
+    key: 'v:thumb',
   });
 });
 

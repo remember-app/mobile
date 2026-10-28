@@ -29,11 +29,18 @@ import {
   Waiting,
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
-import { formatDayShort, formatEventDates, formatRuntime, formatWeekday } from '@/lib/dates';
+import {
+  formatDayShort,
+  formatDayTiny,
+  formatEventDates,
+  formatRuntime,
+  formatWeekday,
+} from '@/lib/dates';
 import { useDensity } from '@/lib/density';
 import {
   allTaken,
   arranged,
+  dayOf,
   FILTER_NONE,
   type Filter,
   type Frame,
@@ -50,6 +57,7 @@ import {
   rowsOf,
   SORT_DEFAULT,
   type Sort,
+  singleFrameOf,
   toggleDay,
   toggleEvery,
 } from '@/lib/frames';
@@ -57,11 +65,11 @@ import { filed } from '@/lib/labels';
 import { useStrings } from '@/lib/language';
 import { Films } from '@/screens/memory/films';
 import { FrameViewer } from '@/screens/memory/frame-viewer';
-import { DensityPill, useDensityPinch } from '@/screens/memory/frames-density';
+import { useDensityPinch } from '@/screens/memory/frames-density';
 import { useMarkedErrands } from '@/screens/memory/frames-errands';
 import { useMaterial } from '@/screens/memory/frames-material';
 import { FilterSheet, SortSheet } from '@/screens/memory/frames-sheets';
-import { SpineLayer, useSpine } from '@/screens/memory/frames-spine';
+import { SeamDay, SpineLayer, useSpine } from '@/screens/memory/frames-spine';
 import { BlockHead, type Head, HeadTrouble, MemoryHead } from '@/screens/memory/head';
 import { LabelSheets } from '@/screens/memory/label-sheets';
 import { board, height, space, themed, type, useTheme } from '@/theme';
@@ -223,7 +231,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   /**
    * Whether the days are written between the strips (`MemoryDated`). Not in the single frame: the
    * 20 the day-gap takes would tear apart frames that are meant to stand touching (spec 10.14.2),
-   * so there the days are read off the spine at the edge instead, as they are on the plain wall.
+   * so there the days stand as pills on the seams between frames instead.
    */
   const dated = datesBetweenDays && !single;
 
@@ -258,6 +266,25 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   const sheet = useMemo(() => rows.flatMap((row) => row.frames ?? []), [rows]);
 
   /**
+   * Where each day begins in the single-frame feed (spec 10.14.2): there is no spine to carry the
+   * marks, so they stand on the seams between the frames instead — one row opens each day. Only the
+   * ungrouped feed has its days running in order down it; cut by person or by kind the seams already
+   * name their groups, and the days inside them interleave.
+   */
+  const seamDays = useMemo(() => {
+    if (!single || sort.by !== 'none') return null;
+    let day: number | null = null;
+    return rows.map((row) => {
+      const first = row.frames?.[0];
+      if (first === undefined) return null;
+      const on = dayOf(first);
+      const opens = on !== day;
+      day = on;
+      return opens ? formatDayTiny(new Date(on)) : null;
+    });
+  }, [rows, single, sort.by]);
+
+  /**
    * The date spine at the left edge (spec 7.8, detail 66, `MemoryScrub`): its own module, because
    * none of it is about the frames — it measures the feed, fades itself in and out and answers a
    * finger, and all it wants from here is what is being drawn and how tall a row of it is.
@@ -265,9 +292,10 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   const { spine, onScroll, onContentSizeChange, onLayout, onHeaderLayout } = useSpine({
     frames: sheet,
     // Cut into people or kinds, or with the dates written between the days, the seams already say
-    // where a day begins and there is nothing for a spine to add. The single frame is the one
-    // place it is the spine's job again whatever the account says (spec 10.14.2).
-    plain: sort.by === 'none' && !dated,
+    // where a day begins and there is nothing for a spine to add. The single frame has no spine at
+    // all (spec 10.14.2): no line, no marks on it and nothing to drag — its days stand on the seams
+    // between the frames instead.
+    plain: !single && sort.by === 'none' && !dated,
     columns: density,
     rowPitch: cell.width + gap,
     scrollTo,
@@ -275,8 +303,8 @@ export function Frames({ id, head }: { id: string; head: Head }) {
 
   /**
    * The pinch that walks the density without leaving the feed (spec 10.14.1). It is hung on the
-   * view the list stands in, so a drag of two fingers is taken off the scroll before it begins; the
-   * pill it shows stands in the glass bar's capsule slot while either of its two flags is up.
+   * view the list stands in, so a drag of two fingers is taken off the scroll before it begins.
+   * Nothing of it stands at the top of the screen: the rows under the fingers are the whole answer.
    */
   const pinch = useDensityPinch();
 
@@ -562,7 +590,7 @@ export function Frames({ id, head }: { id: string; head: Head }) {
               )}
             </View>
           }
-          renderItem={({ item: row }) => {
+          renderItem={({ item: row, index }) => {
             // The seam over its own strip (spec 7.8): what the frames under it have in common at one
             // edge, and at the other the one thing that belongs to that group — how many frames it
             // holds while the feed is being looked at, «Выбрать все 174» while it is being picked
@@ -601,12 +629,16 @@ export function Frames({ id, head }: { id: string; head: Head }) {
                 />
               );
             }
+            const day = seamDays?.[index];
             return (
               <View style={[styles.feedRow, single ? styles.tight : null]}>
+                {/* The day a row opens, on the seam above it and over the photographs — the one
+                    mark the single frame keeps without its spine (spec 10.14.2). */}
+                {day ? <SeamDay label={day} /> : null}
                 {row.frames.map((item) => {
                   // What a record is on screen is `@/lib/frames` and not this line: the viewer below
                   // draws off the same reading, and the two must not drift.
-                  const frame = frameOf(item);
+                  const frame = single ? singleFrameOf(item) : frameOf(item);
                   // «Ждущие и упавшие кадры не отмечаются: скачивать нечего» — asked of `@/lib/frames`
                   // so the group's own count above cannot come to a different answer than the tap.
                   const pickable = picking && mayPick(item);
@@ -619,6 +651,10 @@ export function Frames({ id, head }: { id: string; head: Head }) {
                       state={frame.state}
                       uri={frame.uri ?? undefined}
                       cacheKey={frame.key}
+                      // The single frame takes its height from the photograph (spec 10.14.2):
+                      // whole width, its own proportion, nothing cropped. A video has none and
+                      // stays the square the grid draws it as.
+                      ratio={single ? frame.ratio : undefined}
                       caption={s.gallery.waiting[item.status]}
                       // The layout marks a video by its length in the corner; a record that came
                       // without one still says what it is, in the same place.
@@ -668,13 +704,9 @@ export function Frames({ id, head }: { id: string; head: Head }) {
       <MemoryHead
         title={capsule}
         meta={under}
-        // The density pill takes the capsule's slot for as long as the pinch is walking it, and
-        // the 200ms it takes to fade — the capsule itself is back the moment the fingers lift.
-        middle={
-          pinch.pinching || pinch.leaving ? (
-            <DensityPill value={density} leaving={pinch.leaving} />
-          ) : undefined
-        }
+        // Nothing of the density stands at the top while the pinch walks it (spec 10.14.1): no
+        // pill, no count, no words — the capsule is the bar's own the whole time, and the re-cut
+        // feed under the fingers is the answer.
         // Read out in full either way: the drawn name is cut with an ellipsis, and a count on its
         // own does not say that pressing it takes everything.
         capsuleLabel={picking ? `${capsule}. ${s.gallery.selectAll}` : s.memory.settings(name)}
@@ -953,7 +985,7 @@ const useStyles = themed(() =>
     // An empty state stands in the middle of the body rather than at the top of nothing, and keeps
     // the screen's own margins, which the feed does not have.
     feedEmpty: { justifyContent: 'center', paddingHorizontal: space.s4 },
-    feedRow: { flexDirection: 'row', gap: FEED_GAP },
+    feedRow: { flexDirection: 'row', gap: FEED_GAP, position: 'relative' },
     // A seam takes the place of the gutter on each side of it rather than standing between two
     // (spec detail 65, `MemoryDated`): the row over it ends on its top edge, the next starts on its
     // bottom one.

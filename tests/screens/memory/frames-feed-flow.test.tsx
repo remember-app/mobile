@@ -114,6 +114,7 @@ import { FrameViewer } from '@/screens/memory/frame-viewer';
 import { Frames } from '@/screens/memory/frames';
 import { DensityPill } from '@/screens/memory/frames-density';
 import { FilterSheet, SortSheet } from '@/screens/memory/frames-sheets';
+import { SeamDay } from '@/screens/memory/frames-spine';
 import { BlockHead, type Head, HeadTrouble, MemoryHead } from '@/screens/memory/head';
 import { LabelSheets } from '@/screens/memory/label-sheets';
 import { ru } from '@/strings';
@@ -2229,31 +2230,32 @@ test('while picking the back button is the labels button, and the way out of the
 
 /**
  * The density of the feed, walked by a pinch right in it (spec 10.14.1, `MemoryDensity`). The
- * gesture is the feed's own — a two-finger drag is taken off the scroll before it begins — and the
- * pill it shows stands in the glass bar's capsule slot for as long as the fingers are down.
+ * gesture is the feed's own — a two-finger drag is taken off the scroll before it begins — and
+ * nothing of it is shown at the top (TASK-575): the rows under the fingers are the whole answer.
  */
 const pinchView = (screen: Screen) => () =>
   screen.root.find((one) => one.props.testID === 'density-pinch');
-/** The pill, found by the live region it is: the number changes under the fingers, read out once. */
-const densityPill = (screen: Screen) =>
-  screen.root.findAll((one) => one.props.accessibilityLiveRegion === 'polite')[0];
+/** The day marks of the single frame, standing on the seams between the frames (spec 10.14.2). */
+const seamDays = (screen: Screen) =>
+  screen.root.findAllByType(SeamDay).map((one) => one.props.label as string);
 const rowsOfFeed = (screen: Screen) => screen.root.findByType(FlatList).props.data as unknown[];
 
-test('a pinch right in the feed walks the density, and the pill says the count under the fingers', async () => {
+test('a pinch right in the feed walks the density, and nothing is said about it at the top', async () => {
   world();
   const screen = await open();
+  const capsule = screen.root.findByType(GlassBar).props.title;
   // Nothing of the density is on screen until a second finger lands: the capsule is the bar's own.
   expect(screen.root.findAllByType(DensityPill)).toHaveLength(0);
   await act(async () => pinchView(screen)().props.onResponderGrant(pinch({ spread: 200 })));
-  expect(screen.root.findAllByType(DensityPill)).toHaveLength(1);
-  expect(screen.root.findByType(DensityPill).props.value).toBe(3);
-  expect(densityPill(screen).props.accessibilityLabel).toBe(ru.gallery.framesPerRow(3));
+  // No pill, no count and no words while the fingers are down: the capsule is still the memory's.
+  expect(screen.root.findAllByType(DensityPill)).toHaveLength(0);
+  expect(screen.root.findByType(GlassBar).props.title).toBe(capsule);
   // The fingers come together: more to a row. 200 apart to 100 is past the step, so the value
   // moves one along the scale — and the feed is re-cut under the hand.
   await act(async () => pinchView(screen)().props.onResponderMove(pinch({ spread: 100 })));
   expect(currentDensity()).toBe(5);
-  expect(screen.root.findByType(DensityPill).props.value).toBe(5);
-  expect(densityPill(screen).props.accessibilityLabel).toBe(ru.gallery.framesPerRow(5));
+  expect(screen.root.findAllByType(DensityPill)).toHaveLength(0);
+  expect(screen.root.findByType(GlassBar).props.title).toBe(capsule);
   // All the way in: seven, and past it nothing more — the scale has no eighth step, and five
   // frames stand in one row of it.
   await act(async () => pinchView(screen)().props.onResponderMove(pinch({ spread: 60 })));
@@ -2267,26 +2269,25 @@ test('a pinch right in the feed walks the density, and the pill says the count u
   expect(rowsOfFeed(screen)).toHaveLength(2);
 });
 
-test('lifting the fingers leaves the feed where it was walked to, and the pill fades out behind it', async () => {
+test('lifting the fingers leaves the feed where it was walked to, with nothing faded out behind it', async () => {
   clock();
   try {
     world();
     const screen = await open();
+    const capsule = screen.root.findByType(GlassBar).props.title;
     await act(async () => pinchView(screen)().props.onResponderGrant(pinch({ spread: 200 })));
     // Spreading apart: fewer to a row, down to the single frame — the last step of the same
     // gesture, not a button of its own (spec 10.14.2).
     await act(async () => pinchView(screen)().props.onResponderMove(pinch({ spread: 320 })));
     expect(currentDensity()).toBe(1);
-    expect(screen.root.findByType(DensityPill).props.value).toBe(1);
-    expect(densityPill(screen).props.accessibilityLabel).toBe(ru.gallery.onePerRow);
-    await act(async () => pinchView(screen)().props.onResponderRelease(pinch({ spread: 320 })));
-    // The pill is still there, on its way out over the 200 the layout gives it (spec 10.14.1) …
-    expect(screen.root.findAllByType(DensityPill)).toHaveLength(1);
-    await wait(duration.banner);
-    // … and then the capsule is back, with the feed still at the value the fingers walked it to.
     expect(screen.root.findAllByType(DensityPill)).toHaveLength(0);
+    await act(async () => pinchView(screen)().props.onResponderRelease(pinch({ spread: 320 })));
+    // Nothing was shown, so nothing leaves: the capsule never moved, and the feed stays at the
+    // value the fingers walked it to.
+    expect(screen.root.findAllByType(DensityPill)).toHaveLength(0);
+    await wait(duration.banner);
     expect(currentDensity()).toBe(1);
-    expect(screen.root.findByType(GlassBar).props.title).toBe('Свадьба Лизы и Марка');
+    expect(screen.root.findByType(GlassBar).props.title).toBe(capsule);
   } finally {
     vi.useRealTimers();
   }
@@ -2305,24 +2306,98 @@ test('under «reduce motion» the pinch still walks the density, and no pill sta
   expect(screen.root.findAllByType(DensityPill)).toHaveLength(0);
 });
 
-test('the last step of the pinch is the single frame: one to a row, touching, the days on the spine', async () => {
-  // The account writes the days between the strips, which at three to a row is a seam per day.
-  who.dates = true;
+test('the single frame has no spine at all — no line, no marks on it, nothing to drag — and its days stand on the seams', async () => {
   world();
   const screen = await open();
-  expect(screen.seams().length).toBeGreaterThan(0);
+  await measure(screen);
+  // On the wall the spine is there: its marks, and the strip a finger takes hold of.
+  expect(spine(screen).map((one) => one.label)).toEqual(['13 сент', '11 сент']);
+  expect(spineLayer(screen)).toBeDefined();
   await act(async () => {
     await setDensity(1);
   });
-  // One frame to a row — five rows for five frames — and not one seam of a day among them: the 20
-  // a day-gap takes would tear apart frames that are meant to stand touching (spec 10.14.2).
+  // One frame to a row — five rows for five frames.
   expect(rowsOfFeed(screen)).toHaveLength(5);
-  expect(screen.seams()).toHaveLength(0);
   expect(screen.root.findAllByType(Tile)).toHaveLength(5);
   // No gutter at all, so the frames of the feed stand against one another.
   const feed = StyleSheet.flatten(screen.root.findByType(FlatList).props.contentContainerStyle);
   expect(feed.gap).toBe(0);
-  // The days are read off the spine at the left edge instead — one pill per day, on its own seam.
-  await measure(screen);
-  expect(spine(screen).map((one) => one.label)).toEqual(['13 сент', '12 сент', '11 сент']);
+  // And no spine: not a mark, not the 1px line under them, not the strip a finger drags.
+  expect(screen.root.findAllByType(DateSpine)).toHaveLength(0);
+  expect(spine(screen)).toEqual([]);
+  expect(spineLayer(screen)).toBeUndefined();
+  // The days are still there, as the spine's own pill on the seam where each begins.
+  expect(seamDays(screen)).toEqual(['13 сент', '12 сент', '11 сент']);
+  await screen.unmount();
+
+  // With the account's «Даты между днями» on, the grid spends a 20 seam on each day; the single
+  // frame spends none — its frames stand touching, and the same pills stand over their seams.
+  who.dates = true;
+  await act(async () => {
+    await setDensity(3);
+  });
+  const dated = await open();
+  expect(dated.seams().length).toBeGreaterThan(0);
+  await act(async () => {
+    await setDensity(1);
+  });
+  expect(dated.seams()).toHaveLength(0);
+  expect(seamDays(dated)).toEqual(['13 сент', '12 сент', '11 сент']);
+});
+
+test('the single frame draws a photo whole, in its own proportion and off the big copy; a video stays the grid’s square poster', async () => {
+  world({
+    media: [
+      photo('wide', 'me', at(13, 10), {
+        width: 1200,
+        height: 800,
+        preview_url: 'https://r2.example/wide-big',
+      }),
+      photo('tall', 'me', at(13, 9), {
+        width: 800,
+        height: 1200,
+        preview_url: 'https://r2.example/tall-big',
+      }),
+      photo('clip', 'me', at(13, 8), {
+        kind: 'video',
+        duration_seconds: 12,
+        width: 1920,
+        height: 1080,
+        preview_url: 'https://r2.example/clip.mp4',
+      }),
+    ],
+  });
+  const screen = await open();
+  const tiles = () => screen.root.findAllByType(Tile).map((one) => one.props);
+  // In the grid they are the small square tiles, filed under the thumbnails the feed has always
+  // drawn — the one-frame reading is not the grid's.
+  expect(screen.links()).toEqual([
+    'https://r2.example/wide',
+    'https://r2.example/tall',
+    'https://r2.example/clip',
+  ]);
+  expect(tiles().map((one) => one.ratio)).toEqual([undefined, undefined, undefined]);
+
+  await act(async () => {
+    await setDensity(1);
+  });
+  // A photograph is the whole width and takes its height from its own proportion; the file is the
+  // big copy (a video's is the playable 720p, so a video keeps the poster). The two are filed apart,
+  // so one id cannot serve the thumbnail over the big copy.
+  expect(tiles().map((one) => one.uri)).toEqual([
+    'https://r2.example/wide-big',
+    'https://r2.example/tall-big',
+    'https://r2.example/clip',
+  ]);
+  expect(tiles().map((one) => one.cacheKey)).toEqual([
+    'wide:preview',
+    'tall:preview',
+    'clip:thumb',
+  ]);
+  expect(tiles().map((one) => one.ratio)).toEqual([1.5, 2 / 3, undefined]);
+  expect(tiles().map((one) => one.single)).toEqual([true, true, true]);
+  // Every one of them is the whole width of the phone.
+  for (const one of tiles()) {
+    expect(StyleSheet.flatten(one.style).width).toBe(390);
+  }
 });

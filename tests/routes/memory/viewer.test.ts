@@ -568,8 +568,9 @@ test('the frame shown full screen is read for the phone, the tiles for a tile', 
   expect(viewer).toContain('const shown = openFrameOf(item);');
   expect(viewer).toContain('<Image');
   expect(viewer).toContain('uri: shown.uri,');
-  // The grid is the other reading, and it is the tile's own.
-  expect(frames).toContain('const frame = frameOf(item);');
+  // The grid is the other reading, and it is the tile's own — except at the single frame, which
+  // asks for the big copy and the photograph's proportion (spec 10.14.2).
+  expect(frames).toContain('const frame = single ? singleFrameOf(item) : frameOf(item);');
 });
 
 test('the open frame is kept on the phone, filed under the record and not under its signature', () => {

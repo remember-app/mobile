@@ -26,7 +26,17 @@ import type { Strings } from '@/strings';
  * this reading — the tile and the frame opened from it — and a key written out twice is two keys a
  * month from now.
  */
-export type Frame = { state: TileState; uri: string | null; key: string };
+export type Frame = {
+  state: TileState;
+  uri: string | null;
+  key: string;
+  /**
+   * The picture's own proportion, width over height — only the single-frame feed has any use for it
+   * (spec 10.14.2), where it is what the tile takes its height from instead of the square. Absent
+   * everywhere else.
+   */
+  ratio?: number | null;
+};
 
 /**
  * One record read as a frame. The status is the state, with one correction: a `ready` record that
@@ -57,6 +67,26 @@ export function openFrameOf(item: MediaItem): Frame {
     item.preview_url ?? item.thumbnail_url,
     item.preview_url === null ? 'thumb' : 'preview',
   );
+}
+
+/**
+ * The same record read for the single-frame feed (`MemorySingle`, spec 10.14.2). Its photograph is
+ * drawn the whole width of the phone and at its own proportion, so it asks for the big copy the
+ * viewer reads rather than the tile's small thumbnail, and carries the proportion the tile takes
+ * its height from — width over height as the api measured it, `null` while it has measured neither.
+ *
+ * A video keeps the grid's reading: it is still the square with its poster and its running time
+ * (the spec draws it that way), and a video's `preview_url` is the file to play, not a picture.
+ */
+export function singleFrameOf(item: MediaItem): Frame {
+  if (item.kind === 'video') return frameOf(item);
+  return {
+    ...openFrameOf(item),
+    ratio:
+      item.width !== null && item.height !== null && item.width > 0 && item.height > 0
+        ? item.width / item.height
+        : null,
+  };
 }
 
 /**
