@@ -42,7 +42,7 @@ import {
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { formatDay, formatEventDates, formatRuntime, formatWeekday } from '@/lib/dates';
-import { useDensity } from '@/lib/density';
+import { gridColumns, useDensity } from '@/lib/density';
 import { type Failure, failure } from '@/lib/failure';
 import { rowsOf } from '@/lib/frames';
 import { useStrings } from '@/lib/language';
@@ -124,9 +124,10 @@ export default function UploadScreen({ queue = false }: { queue?: boolean }) {
   const styles = useStyles();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  // As many across as the account stands at (`@/lib/density`) — this roll is cut the way the
-  // memory's own feed is cut, and the setting is the same one.
-  const columns = useDensity();
+  // As many across as the person stands at (`@/lib/density`) — this roll is cut the way the
+  // memory's own feed is cut, and the setting is the same one. The single frame is the feed's
+  // alone (spec 10.14.2): this roll keeps to the layout's three.
+  const columns = gridColumns(useDensity());
   // The whole app's queue; the rows below are this memory's share of it.
   const uploads = useUploads();
   /**

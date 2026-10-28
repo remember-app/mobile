@@ -75,6 +75,17 @@ export const en = {
     add: 'Add frames',
 
     /**
+     * The density of the feed, said by the pill that stands in the glass bar while a pinch is
+     * walking it (spec 10.14.1). These are the account's own words, moved here with the setting:
+     * `framesPerRow` reads the pill out — «Frames per row: 5» — and `framesPerRowWords` is the
+     * line drawn under the number. At the last step of the scale the caption and the reading are
+     * both `onePerRow`.
+     */
+    framesPerRow: (n: number) => `Frames per row: ${n}`,
+    framesPerRowWords: 'frames per row',
+    onePerRow: 'one per row',
+
+    /**
      * `SheetFilter` — what of the gallery is shown. Five sections of its own; the glowing button
      * counts what is about to be shown, so it says outright when that count is nought.
      */
@@ -317,6 +328,12 @@ export const ru: typeof en = {
     nothingPicked: 'Ничего не выбрано',
     addMore: 'Добавить ещё',
     add: 'Добавить кадры',
+
+    // Слова аккаунта, переехавшие вместе с настройкой: подпись под числом и то, как пилюля
+    // читается вслух. На последнем шаге шкалы и то и другое — «по одному кадру».
+    framesPerRow: (n: number) => `Кадров в ряду: ${n}`,
+    framesPerRowWords: 'кадров в ряду',
+    onePerRow: 'по одному кадру',
 
     filters: 'Фильтры',
     all: 'Все',

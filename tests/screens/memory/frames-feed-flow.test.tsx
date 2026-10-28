@@ -67,7 +67,7 @@ import {
   serve,
 } from '@tests/helpers/api';
 import { thisYear2026 } from '@tests/helpers/clock';
-import { touch } from '@tests/helpers/gesture';
+import { pinch, touch } from '@tests/helpers/gesture';
 import { label } from '@tests/helpers/labels';
 import { bannersSaid, mounted, mountsTrees } from '@tests/helpers/renderer';
 import { sheetBox, wordsIn } from '@tests/helpers/sheet';
@@ -94,15 +94,17 @@ import {
   Waiting,
 } from '@/kit';
 import { startOfDay } from '@/lib/dates';
+import { currentDensity, setDensity } from '@/lib/density';
 import { failure, notMember, said as plainSaid } from '@/lib/failure';
 import { frameOf } from '@/lib/frames';
 import { FrameViewer } from '@/screens/memory/frame-viewer';
 import { Frames } from '@/screens/memory/frames';
+import { DensityPill } from '@/screens/memory/frames-density';
 import { FilterSheet, SortSheet } from '@/screens/memory/frames-sheets';
 import { BlockHead, type Head, HeadTrouble, MemoryHead } from '@/screens/memory/head';
 import { LabelSheets } from '@/screens/memory/label-sheets';
 import { ru } from '@/strings';
-import { board, height, space, type } from '@/theme';
+import { board, duration, height, space, type } from '@/theme';
 
 /**
  * The feed of a memory the way a person works it (spec 8, `MemoryFrames` and `FramesPicking`): the
@@ -115,10 +117,14 @@ import { board, height, space, type } from '@/theme';
 
 mountsTrees();
 
-beforeEach(() => {
+beforeEach(async () => {
   who.id = 'me';
   who.dates = false;
   Object.assign(device, { height: 844, fontScale: 1, top: 0 });
+  // The density is one value for the whole app, and the feed is where it is walked now: a test
+  // that pinches it must leave the next one the layout's three, or the rows of every test after
+  // it are cut at whatever the last one ended on.
+  await setDensity(3);
   router.push.mockClear();
   router.back.mockClear();
   router.replace.mockClear();
@@ -2204,4 +2210,102 @@ test('while picking the back button is the labels button, and the way out of the
   expect(screen.icon(ru.gallery.labelsPut)()).toBeDefined();
   await screen.stopPicking();
   expect(screen.icon(ru.action.back)()).toBeDefined();
+});
+
+/**
+ * The density of the feed, walked by a pinch right in it (spec 10.14.1, `MemoryDensity`). The
+ * gesture is the feed's own — a two-finger drag is taken off the scroll before it begins — and the
+ * pill it shows stands in the glass bar's capsule slot for as long as the fingers are down.
+ */
+const pinchView = (screen: Screen) => () =>
+  screen.root.find((one) => one.props.testID === 'feed-pinch');
+/** The pill, found by the live region it is: the number changes under the fingers, read out once. */
+const densityPill = (screen: Screen) =>
+  screen.root.findAll((one) => one.props.accessibilityLiveRegion === 'polite')[0];
+const rowsOfFeed = (screen: Screen) => screen.root.findByType(FlatList).props.data as unknown[];
+
+test('a pinch right in the feed walks the density, and the pill says the count under the fingers', async () => {
+  world();
+  const screen = await open();
+  // Nothing of the density is on screen until a second finger lands: the capsule is the bar's own.
+  expect(screen.root.findAllByType(DensityPill)).toHaveLength(0);
+  await act(async () => pinchView(screen)().props.onResponderGrant(pinch({ spread: 200 })));
+  expect(screen.root.findAllByType(DensityPill)).toHaveLength(1);
+  expect(screen.root.findByType(DensityPill).props.value).toBe(3);
+  expect(densityPill(screen).props.accessibilityLabel).toBe(ru.gallery.framesPerRow(3));
+  // The fingers come together: more to a row. 200 apart to 100 is past the step, so the value
+  // moves one along the scale — and the feed is re-cut under the hand.
+  await act(async () => pinchView(screen)().props.onResponderMove(pinch({ spread: 100 })));
+  expect(currentDensity()).toBe(5);
+  expect(screen.root.findByType(DensityPill).props.value).toBe(5);
+  expect(densityPill(screen).props.accessibilityLabel).toBe(ru.gallery.framesPerRow(5));
+  // All the way in: seven, and past it nothing more — the scale has no eighth step, and five
+  // frames stand in one row of it.
+  await act(async () => pinchView(screen)().props.onResponderMove(pinch({ spread: 60 })));
+  expect(currentDensity()).toBe(7);
+  expect(rowsOfFeed(screen)).toHaveLength(1);
+  await act(async () => pinchView(screen)().props.onResponderMove(pinch({ spread: 30 })));
+  expect(currentDensity()).toBe(7);
+  // Spreading the fingers back apart walks the other way, measured from where the gesture began.
+  await act(async () => pinchView(screen)().props.onResponderMove(pinch({ spread: 200 })));
+  expect(currentDensity()).toBe(3);
+  expect(rowsOfFeed(screen)).toHaveLength(2);
+});
+
+test('lifting the fingers leaves the feed where it was walked to, and the pill fades out behind it', async () => {
+  clock();
+  try {
+    world();
+    const screen = await open();
+    await act(async () => pinchView(screen)().props.onResponderGrant(pinch({ spread: 200 })));
+    // Spreading apart: fewer to a row, down to the single frame — the last step of the same
+    // gesture, not a button of its own (spec 10.14.2).
+    await act(async () => pinchView(screen)().props.onResponderMove(pinch({ spread: 320 })));
+    expect(currentDensity()).toBe(1);
+    expect(screen.root.findByType(DensityPill).props.value).toBe(1);
+    expect(densityPill(screen).props.accessibilityLabel).toBe(ru.gallery.onePerRow);
+    await act(async () => pinchView(screen)().props.onResponderRelease(pinch({ spread: 320 })));
+    // The pill is still there, on its way out over the 200 the layout gives it (spec 10.14.1) …
+    expect(screen.root.findAllByType(DensityPill)).toHaveLength(1);
+    await wait(duration.banner);
+    // … and then the capsule is back, with the feed still at the value the fingers walked it to.
+    expect(screen.root.findAllByType(DensityPill)).toHaveLength(0);
+    expect(currentDensity()).toBe(1);
+    expect(screen.root.findByType(GlassBar).props.title).toBe('Свадьба Лизы и Марка');
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test('the last step of the pinch is the single frame: one to a row, touching, the days on the spine', async () => {
+  // The account writes the days between the strips, which at three to a row is a seam per day.
+  who.dates = true;
+  world();
+  const screen = await open();
+  expect(screen.seams().length).toBeGreaterThan(0);
+  await act(async () => {
+    await setDensity(1);
+  });
+  // One frame to a row — five rows for five frames — and not one seam of a day among them: the 20
+  // a day-gap takes would tear apart frames that are meant to stand touching (spec 10.14.2).
+  expect(rowsOfFeed(screen)).toHaveLength(5);
+  expect(screen.seams()).toHaveLength(0);
+  expect(screen.root.findAllByType(Tile)).toHaveLength(5);
+  // No gutter at all, so the frames of the feed stand against one another.
+  const feed = StyleSheet.flatten(screen.root.findByType(FlatList).props.contentContainerStyle);
+  expect(feed.gap).toBe(0);
+  // The days are read off the spine at the left edge instead — one pill per day, on its own seam.
+  await measure(screen);
+  expect(spine(screen).map((one) => one.label)).toEqual(['13 сент', '12 сент', '11 сент']);
+});
+
+test('a gallery that is a grid is cut at the layout’s three however far the feed has been pinched', async () => {
+  // The single frame is the memory's own feed: «Мои кадры» and the rest read the same pick and
+  // stay a grid (spec 10.14.2).
+  const { gridColumns } = await import('@/lib/density');
+  await act(async () => {
+    await setDensity(1);
+  });
+  expect(currentDensity()).toBe(1);
+  expect(gridColumns(currentDensity())).toBe(3);
 });

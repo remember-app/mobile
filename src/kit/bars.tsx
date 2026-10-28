@@ -446,6 +446,7 @@ export function GlassBar({
   meta,
   capsuleLabel,
   onCapsule,
+  middle,
   left,
   right,
   bare,
@@ -457,6 +458,12 @@ export function GlassBar({
   capsuleLabel: string;
   /** Left off, the capsule is a plate rather than a button — `Upload` is the one place it is. */
   onCapsule?: () => void;
+  /**
+   * What stands in the capsule's slot instead of the name — the density pill of the feed while a
+   * pinch is walking it (spec 10.14.1). Given, the name and its second line are not drawn: the
+   * piece handed in carries its own look and answers no finger.
+   */
+  middle?: ReactNode;
   left?: ReactNode;
   /** Empty on `FramesEmpty`: with no frames there is nothing to pick. */
   right?: ReactNode;
@@ -500,25 +507,26 @@ export function GlassBar({
           />
         )}
         {left}
-        {onCapsule ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={capsuleLabel}
-            onPress={onCapsule}
-            style={styles.capsule}
-          >
-            {words}
-          </Pressable>
-        ) : (
-          <View
-            accessible
-            accessibilityRole="header"
-            accessibilityLabel={capsuleLabel}
-            style={styles.capsule}
-          >
-            {words}
-          </View>
-        )}
+        {middle ??
+          (onCapsule ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={capsuleLabel}
+              onPress={onCapsule}
+              style={styles.capsule}
+            >
+              {words}
+            </Pressable>
+          ) : (
+            <View
+              accessible
+              accessibilityRole="header"
+              accessibilityLabel={capsuleLabel}
+              style={styles.capsule}
+            >
+              {words}
+            </View>
+          ))}
         {/* An empty slot still holds its 48 (`FramesEmpty`): the capsule stays in the middle of the
             bar instead of running to the edge and taking the name off-centre with it. */}
         {right ?? <View style={styles.slot} />}
@@ -858,7 +866,7 @@ const useStyles = themed(({ color }) =>
     // the edge than the glass wears, and the two floors of words in the ink it is printed over.
     viewerPillOn: {
       backgroundColor: photo.pillHeld,
-      borderColor: 'rgba(255,255,255,0.14)',
+      borderColor: photo.pillHeldEdge,
     },
     viewerPillOnInk: { color: photo.pillHeldInk },
     viewerPillOnMeta: { color: photo.pillHeldMeta },

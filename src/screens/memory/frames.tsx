@@ -57,6 +57,7 @@ import { filed } from '@/lib/labels';
 import { useStrings } from '@/lib/language';
 import { Films } from '@/screens/memory/films';
 import { FrameViewer } from '@/screens/memory/frame-viewer';
+import { DensityPill, useDensityPinch } from '@/screens/memory/frames-density';
 import { useMarkedErrands } from '@/screens/memory/frames-errands';
 import { useMaterial } from '@/screens/memory/frames-material';
 import { FilterSheet, SortSheet } from '@/screens/memory/frames-sheets';
@@ -110,12 +111,17 @@ export function Frames({ id, head }: { id: string; head: Head }) {
    * leave — so the last frame of the feed came out wider than every frame above it, which is what the
    * designer measured. Rotating the phone re-reads the width.
    *
-   * How many across is the account's own setting (`@/lib/density`), so the width follows it rather
-   * than the layout's three being written out here a second time.
+   * How many across is the person's own pick (`@/lib/density`), walked by the pinch right on this
+   * feed, so the width follows it rather than the layout's three being written out here a second
+   * time. The last step of that scale is not a grid at all (spec 10.14.2, `MemorySingle`): one
+   * frame the whole width of the phone, with no gutter, so the frames stand touching — and the
+   * gutter is the only thing that changes with it, three, five and seven keeping the layout's 2.
    */
   const { width, height: screen, fontScale } = useWindowDimensions();
-  const columns = useDensity();
-  const cell = { width: (width - FEED_GAP * 2) / columns };
+  const density = useDensity();
+  const single = density === 1;
+  const gap = single ? 0 : FEED_GAP;
+  const cell = { width: (width - gap * 2) / density };
   /** The record the viewer is showing, held by id so a reload hands it a fresh signed url. */
   const [open, setOpen] = useState<string | null>(null);
   /**
@@ -215,6 +221,13 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   const kept = useMemo(() => framesMatching(items ?? [], filter), [items, filter]);
 
   /**
+   * Whether the days are written between the strips (`MemoryDated`). Not in the single frame: the
+   * 20 the day-gap takes would tear apart frames that are meant to stand touching (spec 10.14.2),
+   * so there the days are read off the spine at the edge instead, as they are on the plain wall.
+   */
+  const dated = datesBetweenDays && !single;
+
+  /**
    * The feed as the layout lays it out: a heading, then the frames under it as many to a row as the
    * account stands at, then the next heading. What the headings are about is the sort's business
    * (`@/lib/frames`); this only flattens the groups into rows, because a row of them has to be cut
@@ -226,13 +239,13 @@ export function Frames({ id, head }: { id: string; head: Head }) {
    */
   const rows = useMemo(
     () =>
-      groupFrames(kept, sort, datesBetweenDays).flatMap((group): Row[] => [
+      groupFrames(kept, sort, dated).flatMap((group): Row[] => [
         // The wall has no seam over it at all (`MemoryFrames`, `MemoryScrub`): with the dates off
         // and nothing grouped, the days are read off the spine at the edge instead.
         ...(group.by === 'all' ? [] : [{ key: group.key, group }]),
-        ...rowsOf(group.frames, columns).map((frames) => ({ key: frames[0].id, frames })),
+        ...rowsOf(group.frames, density).map((frames) => ({ key: frames[0].id, frames })),
       ]),
-    [kept, sort, datesBetweenDays, columns],
+    [kept, sort, dated, density],
   );
 
   /**
@@ -252,12 +265,20 @@ export function Frames({ id, head }: { id: string; head: Head }) {
   const { spine, onScroll, onContentSizeChange, onLayout, onHeaderLayout } = useSpine({
     frames: sheet,
     // Cut into people or kinds, or with the dates written between the days, the seams already say
-    // where a day begins and there is nothing for a spine to add.
-    plain: sort.by === 'none' && !datesBetweenDays,
-    columns,
-    rowPitch: cell.width + FEED_GAP,
+    // where a day begins and there is nothing for a spine to add. The single frame is the one
+    // place it is the spine's job again whatever the account says (spec 10.14.2).
+    plain: sort.by === 'none' && !dated,
+    columns: density,
+    rowPitch: cell.width + gap,
     scrollTo,
   });
+
+  /**
+   * The pinch that walks the density without leaving the feed (spec 10.14.1). It is hung on the
+   * view the list stands in, so a drag of two fingers is taken off the scroll before it begins; the
+   * pill it shows stands in the glass bar's capsule slot while either of its two flags is up.
+   */
+  const pinch = useDensityPinch();
 
   /**
    * What floats over the feed, as it came out rather than as the layout draws it (TASK-372). The
@@ -449,185 +470,192 @@ export function Frames({ id, head }: { id: string; head: Head }) {
 
   return (
     <>
-      <Animated.FlatList<Row>
-        ref={list}
-        data={rows}
-        keyExtractor={(row) => row.key}
-        // A group's band, while it picks, lies over the rows either side of it (spec detail 65).
-        CellRendererComponent={SeamCell}
-        // What the spine is hung on: the offset goes to the native side, where the marks are moved
-        // with the photographs, and the listener is what lights the thing and puts it out again.
-        onScroll={onScroll}
-        scrollEventThrottle={16}
-        // The spine is this feed's scroll indicator (`MemoryScrub`), and the seams are where the
-        // dates stand when it is off; the platform's own bar beside it is a second one.
-        showsVerticalScrollIndicator={false}
-        // What the spine measures itself against: how much there is to scroll, and how much of it
-        // is in view.
-        onContentSizeChange={onContentSizeChange}
-        onLayout={onLayout}
-        // The feed runs under the glass bar and under the bottom layer, and starts far enough down
-        // for the block over it to clear the bar. An empty one is one block in the middle instead.
-        contentContainerStyle={[
-          styles.feed,
-          { paddingTop: top },
-          rows.length === 0 ? styles.feedEmpty : null,
-          { paddingBottom: bottom },
-        ]}
-        // Still here, and mostly for the person who would rather not wait: a record turning `ready`
-        // is answered by the re-read above on its own. Not the fifteen-minute links, though — that
-        // read deliberately leaves a finished record's own url where it is (`keepReady`), so on a
-        // screen left open past the quarter hour a pull is the short way to freshly signed ones.
-        refreshControl={
-          <RefreshControl
-            refreshing={loading}
-            onRefresh={() => read()}
-            tintColor={color.accent}
-            colors={[color.accent]}
-            progressBackgroundColor={color.surface}
-          />
-        }
-        // The head of the feed (spec 8): the films first — the thing the whole memory is being
-        // filled up for — and under them the material itself, named and counted. Neither is drawn
-        // over `FramesEmpty`: with nothing brought there is no film to cut and nothing to count.
-        ListHeaderComponent={
-          any || !floats || plate ? (
-            // Measured rather than reckoned: the films are a block whose height is its own business
-            // — a strip, an empty state, nothing at all while it reads — and the spine's marks are
-            // counted from the first row of frames, which stands under it.
-            <View onLayout={onHeaderLayout}>
-              {plate}
-              {floats ? null : trouble}
-              {any ? (
-                <>
-                  <Films id={id} memory={memory} />
-                  <BlockHead
-                    title={s.memory.framesPlain}
-                    count={s.memory.frames(kept.length)}
-                    style={styles.framesHead}
-                  />
-                </>
-              ) : null}
-            </View>
-          ) : null
-        }
-        ListEmptyComponent={
-          // Only over a feed that was never read. A read somebody asked for that fails over frames
-          // already on screen leaves them where they are, and its reason must not come back later
-          // as the answer to «nothing here» — every frame deleted afterwards is an empty feed, and
-          // an empty feed is `FramesEmpty`, not a connection that failed a minute ago.
-          <View
-            onLayout={(e) => setEmptied(e.nativeEvent.layout.height)}
-            style={{ marginTop: lift }}
-          >
-            {error !== null && items === null ? (
-              <Banner tone="error" failure={error}>
-                {/* Wrapped rather than handed `load` itself: a press hands its own argument along,
-                    and the first one here is «read quietly». */}
-                <Button variant="quiet" size="xs" label={s.action.retry} onPress={() => read()} />
-              </Banner>
-            ) : items === null ? (
-              <Waiting text={s.state.loading} />
-            ) : (
-              // `FramesEmpty`: the dashed circle, what is missing, and what to do about it. The
-              // action itself is in the bottom layer and not in here (spec 7.9).
-              <Empty icon={ImageIcon} title={s.gallery.emptyTitle} text={s.gallery.empty} />
-            )}
-          </View>
-        }
-        renderItem={({ item: row }) => {
-          // The seam over its own strip (spec 7.8): what the frames under it have in common at one
-          // edge, and at the other the one thing that belongs to that group — how many frames it
-          // holds while the feed is being looked at, «Выбрать все 174» while it is being picked
-          // from. What decides whether a seam is drawn at all is the sort and the account's dates.
-          if (row.group) {
-            const group = row.group;
-            // What «все» is here: the frames a mark would actually mean something on, by the very
-            // rule the single tap below is gated on. A group still being developed whole has
-            // nothing to offer, so the action is off rather than counting to zero.
-            const markable = group.frames.filter(mayPick);
-            const heading = headingOf(group);
-            return (
-              <DayMark
-                {...heading}
-                // The seam holds one figure and never a sentence (spec 7.8): how many that person
-                // brought, and over a day nothing at all — `MemoryDated` writes the date alone.
-                // While the mode is on every seam counts, because the whole band is then the button
-                // that takes the group.
-                count={
-                  picking || group.by !== 'day'
-                    ? String(picking ? markable.length : group.frames.length)
-                    : undefined
-                }
-                // The seam is the group's own switch: its circle says whether all of it is taken,
-                // and a second press gives it back.
-                picked={allTaken(markable, picked)}
-                onPress={
-                  picking && markable.length > 0
-                    ? () => setPicked((have) => toggleDay(markable, have))
-                    : undefined
-                }
-                // Read out in place of the band's own words, so it names whose frames it takes:
-                // «Выбрать все 5» alone would be every seam of the feed at once.
-                pressLabel={`${heading.label}, ${s.gallery.selectDay(markable.length)}`}
-                style={styles.seam}
-              />
-            );
+      {/* The feed stands in a view of its own so that a two-finger pinch can be taken off the
+          scroll before the scroll begins (spec 10.14.1). A one-finger drag is the feed's own: the
+          responder hands it straight through, so the wall still scrolls and a frame is still a
+          button. */}
+      <View style={styles.feedWrap} testID="feed-pinch" {...pinch.panHandlers}>
+        <Animated.FlatList<Row>
+          ref={list}
+          data={rows}
+          keyExtractor={(row) => row.key}
+          // A group's band, while it picks, lies over the rows either side of it (spec detail 65).
+          CellRendererComponent={SeamCell}
+          // What the spine is hung on: the offset goes to the native side, where the marks are moved
+          // with the photographs, and the listener is what lights the thing and puts it out again.
+          onScroll={onScroll}
+          scrollEventThrottle={16}
+          // The spine is this feed's scroll indicator (`MemoryScrub`), and the seams are where the
+          // dates stand when it is off; the platform's own bar beside it is a second one.
+          showsVerticalScrollIndicator={false}
+          // What the spine measures itself against: how much there is to scroll, and how much of it
+          // is in view.
+          onContentSizeChange={onContentSizeChange}
+          onLayout={onLayout}
+          // The feed runs under the glass bar and under the bottom layer, and starts far enough down
+          // for the block over it to clear the bar. An empty one is one block in the middle instead.
+          contentContainerStyle={[
+            styles.feed,
+            single ? styles.tight : null,
+            { paddingTop: top },
+            rows.length === 0 ? styles.feedEmpty : null,
+            { paddingBottom: bottom },
+          ]}
+          // Still here, and mostly for the person who would rather not wait: a record turning `ready`
+          // is answered by the re-read above on its own. Not the fifteen-minute links, though — that
+          // read deliberately leaves a finished record's own url where it is (`keepReady`), so on a
+          // screen left open past the quarter hour a pull is the short way to freshly signed ones.
+          refreshControl={
+            <RefreshControl
+              refreshing={loading}
+              onRefresh={() => read()}
+              tintColor={color.accent}
+              colors={[color.accent]}
+              progressBackgroundColor={color.surface}
+            />
           }
-          return (
-            <View style={styles.feedRow}>
-              {row.frames.map((item) => {
-                // What a record is on screen is `@/lib/frames` and not this line: the viewer below
-                // draws off the same reading, and the two must not drift.
-                const frame = frameOf(item);
-                // «Ждущие и упавшие кадры не отмечаются: скачивать нечего» — asked of `@/lib/frames`
-                // so the group's own count above cannot come to a different answer than the tap.
-                const pickable = picking && mayPick(item);
-                return (
-                  <Tile
-                    key={item.id}
-                    lane="feed"
-                    style={cell}
-                    state={frame.state}
-                    uri={frame.uri ?? undefined}
-                    cacheKey={frame.key}
-                    caption={s.gallery.waiting[item.status]}
-                    // The layout marks a video by its length in the corner; a record that came
-                    // without one still says what it is, in the same place.
-                    length={
-                      item.kind === 'video'
-                        ? (formatRuntime(item.duration_seconds) ?? s.media.video)
-                        : undefined
-                    }
-                    // Read out, never drawn — so it says «Photo» and not the api's own `photo`.
-                    label={nameOf(item, frame)}
-                    // Spec 7.4, detail 26: a frame marked in the feed wears `accent` with a white
-                    // collar (`FramesPicking`) — `spark` is the wizard's «taken into the film».
-                    // Only while the mode is on and only where a mark means something: handed
-                    // `undefined`, the tile is a button again rather than a checkbox that is
-                    // permanently off.
-                    pick={pickable ? (picked.has(item.id) ? 'send' : 'off') : undefined}
-                    // While the mode is on a tap marks the frame instead of opening it. Off it,
-                    // the same gate the strip below puts on the same record, and for the same
-                    // reason: a frame still being made has nothing behind it to open, so opening it
-                    // lands on a whole screen saying «Проявляем…». A fallen one still opens — that
-                    // is where the delete lives.
-                    onPress={
-                      picking
-                        ? pickable
-                          ? () => pick(item.id)
-                          : undefined
-                        : mayOpen(item)
-                          ? () => setOpen(item.id)
-                          : undefined
-                    }
-                  />
-                );
-              })}
+          // The head of the feed (spec 8): the films first — the thing the whole memory is being
+          // filled up for — and under them the material itself, named and counted. Neither is drawn
+          // over `FramesEmpty`: with nothing brought there is no film to cut and nothing to count.
+          ListHeaderComponent={
+            any || !floats || plate ? (
+              // Measured rather than reckoned: the films are a block whose height is its own business
+              // — a strip, an empty state, nothing at all while it reads — and the spine's marks are
+              // counted from the first row of frames, which stands under it.
+              <View onLayout={onHeaderLayout}>
+                {plate}
+                {floats ? null : trouble}
+                {any ? (
+                  <>
+                    <Films id={id} memory={memory} />
+                    <BlockHead
+                      title={s.memory.framesPlain}
+                      count={s.memory.frames(kept.length)}
+                      style={styles.framesHead}
+                    />
+                  </>
+                ) : null}
+              </View>
+            ) : null
+          }
+          ListEmptyComponent={
+            // Only over a feed that was never read. A read somebody asked for that fails over frames
+            // already on screen leaves them where they are, and its reason must not come back later
+            // as the answer to «nothing here» — every frame deleted afterwards is an empty feed, and
+            // an empty feed is `FramesEmpty`, not a connection that failed a minute ago.
+            <View
+              onLayout={(e) => setEmptied(e.nativeEvent.layout.height)}
+              style={{ marginTop: lift }}
+            >
+              {error !== null && items === null ? (
+                <Banner tone="error" failure={error}>
+                  {/* Wrapped rather than handed `load` itself: a press hands its own argument along,
+                    and the first one here is «read quietly». */}
+                  <Button variant="quiet" size="xs" label={s.action.retry} onPress={() => read()} />
+                </Banner>
+              ) : items === null ? (
+                <Waiting text={s.state.loading} />
+              ) : (
+                // `FramesEmpty`: the dashed circle, what is missing, and what to do about it. The
+                // action itself is in the bottom layer and not in here (spec 7.9).
+                <Empty icon={ImageIcon} title={s.gallery.emptyTitle} text={s.gallery.empty} />
+              )}
             </View>
-          );
-        }}
-      />
+          }
+          renderItem={({ item: row }) => {
+            // The seam over its own strip (spec 7.8): what the frames under it have in common at one
+            // edge, and at the other the one thing that belongs to that group — how many frames it
+            // holds while the feed is being looked at, «Выбрать все 174» while it is being picked
+            // from. What decides whether a seam is drawn at all is the sort and the account's dates.
+            if (row.group) {
+              const group = row.group;
+              // What «все» is here: the frames a mark would actually mean something on, by the very
+              // rule the single tap below is gated on. A group still being developed whole has
+              // nothing to offer, so the action is off rather than counting to zero.
+              const markable = group.frames.filter(mayPick);
+              const heading = headingOf(group);
+              return (
+                <DayMark
+                  {...heading}
+                  // The seam holds one figure and never a sentence (spec 7.8): how many that person
+                  // brought, and over a day nothing at all — `MemoryDated` writes the date alone.
+                  // While the mode is on every seam counts, because the whole band is then the button
+                  // that takes the group.
+                  count={
+                    picking || group.by !== 'day'
+                      ? String(picking ? markable.length : group.frames.length)
+                      : undefined
+                  }
+                  // The seam is the group's own switch: its circle says whether all of it is taken,
+                  // and a second press gives it back.
+                  picked={allTaken(markable, picked)}
+                  onPress={
+                    picking && markable.length > 0
+                      ? () => setPicked((have) => toggleDay(markable, have))
+                      : undefined
+                  }
+                  // Read out in place of the band's own words, so it names whose frames it takes:
+                  // «Выбрать все 5» alone would be every seam of the feed at once.
+                  pressLabel={`${heading.label}, ${s.gallery.selectDay(markable.length)}`}
+                  style={[styles.seam, single ? styles.tightSeam : null]}
+                />
+              );
+            }
+            return (
+              <View style={[styles.feedRow, single ? styles.tight : null]}>
+                {row.frames.map((item) => {
+                  // What a record is on screen is `@/lib/frames` and not this line: the viewer below
+                  // draws off the same reading, and the two must not drift.
+                  const frame = frameOf(item);
+                  // «Ждущие и упавшие кадры не отмечаются: скачивать нечего» — asked of `@/lib/frames`
+                  // so the group's own count above cannot come to a different answer than the tap.
+                  const pickable = picking && mayPick(item);
+                  return (
+                    <Tile
+                      key={item.id}
+                      lane="feed"
+                      style={cell}
+                      state={frame.state}
+                      uri={frame.uri ?? undefined}
+                      cacheKey={frame.key}
+                      caption={s.gallery.waiting[item.status]}
+                      // The layout marks a video by its length in the corner; a record that came
+                      // without one still says what it is, in the same place.
+                      length={
+                        item.kind === 'video'
+                          ? (formatRuntime(item.duration_seconds) ?? s.media.video)
+                          : undefined
+                      }
+                      // Read out, never drawn — so it says «Photo» and not the api's own `photo`.
+                      label={nameOf(item, frame)}
+                      // Spec 7.4, detail 26: a frame marked in the feed wears `accent` with a white
+                      // collar (`FramesPicking`) — `spark` is the wizard's «taken into the film».
+                      // Only while the mode is on and only where a mark means something: handed
+                      // `undefined`, the tile is a button again rather than a checkbox that is
+                      // permanently off.
+                      pick={pickable ? (picked.has(item.id) ? 'send' : 'off') : undefined}
+                      // While the mode is on a tap marks the frame instead of opening it. Off it,
+                      // the same gate the strip below puts on the same record, and for the same
+                      // reason: a frame still being made has nothing behind it to open, so opening it
+                      // lands on a whole screen saying «Проявляем…». A fallen one still opens — that
+                      // is where the delete lives.
+                      onPress={
+                        picking
+                          ? pickable
+                            ? () => pick(item.id)
+                            : undefined
+                          : mayOpen(item)
+                            ? () => setOpen(item.id)
+                            : undefined
+                      }
+                    />
+                  );
+                })}
+              </View>
+            );
+          }}
+        />
+      </View>
 
       {/* The spine at the left edge, over the photographs and taking no room from them. */}
       <SpineLayer {...spine} />
@@ -639,6 +667,13 @@ export function Frames({ id, head }: { id: string; head: Head }) {
       <MemoryHead
         title={capsule}
         meta={under}
+        // The density pill takes the capsule's slot for as long as the pinch is walking it, and
+        // the 200ms it takes to fade — the capsule itself is back the moment the fingers lift.
+        middle={
+          pinch.pinching || pinch.leaving ? (
+            <DensityPill value={density} leaving={pinch.leaving} />
+          ) : undefined
+        }
         // Read out in full either way: the drawn name is cut with an ellipsis, and a count on its
         // own does not say that pressing it takes everything.
         capsuleLabel={picking ? `${capsule}. ${s.gallery.selectAll}` : s.memory.settings(name)}
@@ -901,12 +936,19 @@ export function Frames({ id, head }: { id: string; head: Head }) {
 // frame is a dark room and says so in its own file (`frame-viewer.tsx`).
 const useStyles = themed(() =>
   StyleSheet.create({
+    // The view the list stands in, and the pinch with it (spec 10.14.1): nothing of its own but
+    // the room the list fills.
+    feedWrap: { flex: 1 },
     /**
      * The feed: three columns running the whole width of the phone, a 2px gutter between the frames
      * and no margins at all, so the material reads as a wall of it (spec 7.8). The column itself is
      * measured out above — the row only holds the gutters between them.
      */
     feed: { flexGrow: 1, gap: FEED_GAP },
+    // The single frame (spec 10.14.2): no gutter at all, so the frames of the feed stand touching
+    // — on the rows and on the seams alike, the seam's own 20 gap having gone with the days.
+    tight: { gap: 0 },
+    tightSeam: { marginVertical: 0 },
     // An empty state stands in the middle of the body rather than at the top of nothing, and keeps
     // the screen's own margins, which the feed does not have.
     feedEmpty: { justifyContent: 'center', paddingHorizontal: space.s4 },

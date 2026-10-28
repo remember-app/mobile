@@ -22,7 +22,7 @@ import {
 } from '@/kit';
 import { useAuth } from '@/lib/auth';
 import { formatDay, formatRuntime, formatWeekday } from '@/lib/dates';
-import { useDensity } from '@/lib/density';
+import { gridColumns, useDensity } from '@/lib/density';
 import { type Failure, failure } from '@/lib/failure';
 import { byDay, frameOf, removeFrames, rowsOf, shotAt } from '@/lib/frames';
 import { useStrings } from '@/lib/language';
@@ -58,9 +58,10 @@ export default function MyFramesScreen() {
   const styles = useStyles();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  // As many across as the account stands at (`@/lib/density`), measured out of the width the same
-  // way the shared feed measures its own — `memory/frames.tsx` says why at length.
-  const columns = useDensity();
+  // As many across as the person stands at (`@/lib/density`), measured out of the width the same
+  // way the shared feed measures its own — `memory/frames.tsx` says why at length. The single
+  // frame is the feed's alone (spec 10.14.2): this grid keeps to the layout's three.
+  const columns = gridColumns(useDensity());
   const cell = { width: (width - FEED_GAP * 2) / columns };
   const { items, roster, error, read, wrote } = useMaterial({ memoryId: id, token, hidden: true });
   const uploads = useUploads();
