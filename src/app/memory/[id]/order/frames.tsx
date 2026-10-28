@@ -1,6 +1,6 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Aperture, ChevronRight, CircleSlash, Copy, ImageOff, SunDim } from 'lucide-react-native';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { FlatList, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { analyzeMemory } from '@/api';
 import { Button, GRID_GAP, type IconComponent, RowRejected, Sheet, Text, Tile } from '@/kit';
@@ -18,7 +18,6 @@ import {
   reasonOf,
   rejectedGroups,
   taken,
-  usable,
 } from '@/lib/montage/order';
 import { DensityPill, useDensityPinch } from '@/screens/memory/frames-density';
 import { useOrder, WizardStep } from '@/screens/order/wizard';
@@ -35,14 +34,21 @@ import { space, themed } from '@/theme';
  * step is reached from «Настроить самому» there, or walked through by the autopilot.
  *
  * The automatic pass is the organizer's to start since m-43 (spec 10.15): it does not come down
- * with the material any more. Until every ready frame carries a verdict the line offers
- * «Проанализировать», and while the worker writes them the screen reads the material again and
- * again in place, never blanking the grid. A pass that dropped nothing says so and leaves no
- * button; one that failed says that instead and offers «Повторить». Finished, the pass is reused —
- * «Что сняли» stands where the analyze button was. None of it locks the step: «Дальше» works
- * through the whole run.
+ * with the material any more. Until the pass has spoken here — no ready frame carrying a verdict —
+ * the line offers «Проанализировать», and while the worker writes them the screen reads the
+ * material again and again in place, never blanking the grid. A pass that dropped nothing says so
+ * and leaves no button; one that failed says that instead and offers «Повторить». Finished, the
+ * pass is reused — «Что сняли» stands where the analyze button was, a frame brought later staying
+ * without a proposal until the montage. None of it locks the step: «Дальше» works through the whole
+ * run.
  */
 const POLL_MS = 3000;
+/**
+ * How many looks the pass is given — ten minutes at `POLL_MS`. A pass that has written nothing by
+ * then is not one this screen can wait out: the line says so and offers the press again, rather
+ * than reading the material every three seconds for as long as the step stays open.
+ */
+const POLL_TRIES = 200;
 
 export default function PickFramesStep() {
   const router = useRouter();
@@ -67,66 +73,75 @@ export default function PickFramesStep() {
   const [showDropped, setShowDropped] = useState(false);
 
   /**
-   * Where the automatic pass stands: `running` from the press until every visible frame has a
-   * verdict, and `failed` when the call or a read of the material did not go through. The pass
-   * itself is not the state — whether it has spoken is read off the frames, `screening_rejected`
-   * being `null` until it does — so the view follows rereads by itself.
+   * Where the automatic pass stands: `running` from the press until the frames it was asked about
+   * carry their verdicts, and `failed` when the call, a read of the material or the waiting did not
+   * get there. The pass itself is not the state — whether it has spoken is read off the frames,
+   * `screening_rejected` being `null` until it does — so the view follows rereads by itself.
    */
   const [analysis, setAnalysis] = useState<'idle' | 'running' | 'failed'>('idle');
-  /** Whether the run still wants its readings. Cleared by leaving the step or by a failure. */
-  const polling = useRef(false);
+  /**
+   * The run whose readings are wanted, if any. An identity rather than a flag: leaving the step
+   * opens the way to a new run, and the old one must not go on reading beside it.
+   */
+  const polling = useRef<object | null>(null);
   useFocusEffect(
     useCallback(
       () => () => {
-        polling.current = false;
+        polling.current = null;
+        setAnalysis((was) => (was === 'running' ? 'idle' : was));
       },
       [],
     ),
   );
-  // Unmounted is left as well, and the read already in flight must not bring a step back.
-  useEffect(
-    () => () => {
-      polling.current = false;
-    },
-    [],
-  );
 
   const analyze = useCallback(async () => {
     if (!token || polling.current) return;
-    polling.current = true;
+    const run = {};
+    polling.current = run;
     setAnalysis('running');
+    /** Ends this run's readings, unless another has taken them; `face` is what the line says next. */
+    const stop = (face: 'idle' | 'failed') => {
+      if (polling.current !== run) return;
+      polling.current = null;
+      setAnalysis(face);
+    };
+    /**
+     * The frames this run waits on: the ready ones without a verdict when it was asked. A frame
+     * brought while it runs is not one of them — the pass never saw it, and waiting for it would
+     * wait for an answer nobody asked for (spec 10.15: it stays without a proposal).
+     */
+    const wanted = new Set(
+      material.filter((item) => item.screening_rejected === null).map((item) => item.id),
+    );
     try {
       await analyzeMemory(token, id);
+      // The worker writes verdicts frame by frame; read until each wanted frame has one. Not
+      // faster than `POLL_MS`: the pass is short, and hammering the material for it helps nobody.
+      for (let tried = 0; polling.current === run && tried < POLL_TRIES; tried += 1) {
+        await new Promise((done) => setTimeout(done, POLL_MS));
+        if (polling.current !== run) return;
+        const next = await refresh();
+        if (polling.current !== run) return;
+        if (next === null) return stop('failed');
+        if (next.every((item) => !wanted.has(item.id) || item.screening_rejected !== null)) {
+          return stop('idle');
+        }
+      }
+      stop('failed');
     } catch {
-      if (!polling.current) return;
-      polling.current = false;
-      setAnalysis('failed');
-      return;
+      stop('failed');
     }
-    // The worker writes verdicts frame by frame; read until every ready one has one. Not faster
-    // than `POLL_MS`: the pass is short, and hammering the material for it helps nobody.
-    while (polling.current) {
-      await new Promise((done) => setTimeout(done, POLL_MS));
-      if (!polling.current) return;
-      const next = await refresh();
-      if (!polling.current) return;
-      if (next === null) {
-        polling.current = false;
-        setAnalysis('failed');
-        return;
-      }
-      if (usable(next).every((item) => item.screening_rejected !== null)) {
-        polling.current = false;
-        setAnalysis('idle');
-        return;
-      }
-    }
-  }, [token, id, refresh]);
+  }, [token, id, material, refresh]);
 
   const inMovie = taken(material, order);
   const passDropped = droppedByPass(material, order);
-  /** Some ready frame the pass has not spoken about yet — the analyze button's own question. */
-  const pending = material.some((item) => item.screening_rejected === null);
+  /**
+   * Whether the pass has never spoken here: not one ready frame carries a verdict. Not "some frame
+   * has none" — a frame brought after a finished pass is left without a proposal until the montage
+   * (spec 10.15), and must not bring «Проанализировать» back on its own.
+   */
+  const unspoken =
+    material.length > 0 && !material.some((item) => item.screening_rejected !== null);
   // Cut by hand rather than `numColumns`, the way the galleries cut theirs, and through the one
   // `rowsOf` they all use.
   const rows = useMemo(() => rowsOf(material, density), [material, density]);
@@ -163,7 +178,7 @@ export default function PickFramesStep() {
             <Text role="label" tone={failed ? 'danger' : 'muted'} style={styles.grow}>
               {failed
                 ? s.montage.analyzeFailed
-                : pending
+                : running || unspoken
                   ? count
                   : passDropped.length > 0
                     ? `${count} · ${s.montage.passDropped(passDropped.length)}`
@@ -176,7 +191,7 @@ export default function PickFramesStep() {
                 onPress={() => void analyze()}
                 style={styles.whatDropped}
               />
-            ) : pending ? (
+            ) : running || unspoken ? (
               // The spinner takes the sign's place and the words stay put (spec 10.15), so the
               // button does not resize while it waits.
               <Button
@@ -209,9 +224,10 @@ export default function PickFramesStep() {
           label={s.montage.nextWith(inMovie.length)}
           disabled={!enough}
           onPress={() => {
-            // Leaving the step stops its readings: the next step may stand over this one, and the
-            // pass is no longer the screen's business.
-            polling.current = false;
+            // Leaving the step stops its readings and puts its face back at rest: the next step
+            // stands over this one, and a run left behind must not be found busy on the way back.
+            polling.current = null;
+            setAnalysis('idle');
             router.push({ pathname: '/memory/[id]/order/story', params: { id } });
           }}
         />
