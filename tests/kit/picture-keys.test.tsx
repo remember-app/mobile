@@ -79,6 +79,21 @@ test('the memory’s own frames on the empty montages block are filed under the 
   ]);
 });
 
+test('a re-signed mosaic keeps its cells, so no cell remounts and flashes grey on a re-read', async () => {
+  let tree!: TestRenderer.ReactTestRenderer;
+  await act(async () => {
+    tree = mounted(TestRenderer.create(<Mosaic photos={[SIGNED]} />));
+  });
+  const [before] = tree.root.findAllByType(Image);
+  await act(async () => {
+    tree.update(<Mosaic photos={[RESIGNED]} />);
+  });
+  const [after] = tree.root.findAllByType(Image);
+  // Same cell, same picture instance: the new signature moved the url, not the thing behind it.
+  expect(after).toBe(before);
+  expect(after.props.source.cacheKey).toBe(OBJECT);
+});
+
 test('the filmstrip carries the record’s key through, so a neighbour is not fetched again', async () => {
   const [shot] = await sourcesOf(
     <Filmstrip

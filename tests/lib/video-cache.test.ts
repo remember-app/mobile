@@ -5,8 +5,10 @@ import { beforeEach, expect, test, vi } from 'vitest';
  * off the disk and needs no connection. The disk is a map here because that is all these functions
  * ask of it: a file exists, it does not, it is written or it is not.
  */
-const { disk, downloadFileAsync } = vi.hoisted(() => ({
+const { disk, dirs, downloadFileAsync } = vi.hoisted(() => ({
   disk: new Map<string, string>(),
+  // The folders that have been made, so the create-on-a-fresh-install branch is walkable.
+  dirs: new Set<string>(),
   downloadFileAsync: vi.fn(),
 }));
 
@@ -26,9 +28,11 @@ vi.mock('expo-file-system', () => {
       this.uri = at(parts);
     }
     get exists() {
-      return true;
+      return dirs.has(this.uri);
     }
-    create() {}
+    create() {
+      dirs.add(this.uri);
+    }
   }
   class File {
     readonly uri: string;
@@ -62,6 +66,7 @@ const PART = `cache/video/${UUID}.part`;
 
 beforeEach(() => {
   disk.clear();
+  dirs.clear();
   downloadFileAsync.mockReset();
   downloadFileAsync.mockImplementation(async (_url: string, target: { uri: string }) => {
     disk.set(target.uri, 'bytes');
@@ -95,6 +100,12 @@ test('a download cut off halfway leaves nothing that would pass for the video', 
   await expect(keepVideo(UUID, URL)).resolves.toBe(LOCAL);
   expect(downloadFileAsync).toHaveBeenCalledTimes(2);
   expect(cachedVideo(UUID)).toBe(LOCAL);
+});
+
+test('the folder is made on a fresh install, before the first download', async () => {
+  expect(dirs.has('cache/video')).toBe(false);
+  await keepVideo(UUID, URL);
+  expect(dirs.has('cache/video')).toBe(true);
 });
 
 test('two openings of one video share the download already under way', async () => {

@@ -37,7 +37,8 @@ export function cachedVideo(id: string): string | null {
   try {
     const file = videoFile(id);
     return file?.exists ? file.uri : null;
-  } catch {
+  } catch (e) {
+    console.warn('the video cache could not be read for', id, e);
     return null;
   }
 }
@@ -71,7 +72,7 @@ async function keep(id: string, url: string): Promise<string | null> {
     await part.move(file, { overwrite: true });
     return file.uri;
   } catch (e) {
-    console.warn('the video was not kept on this phone:', e);
+    console.warn('the video was not kept on this phone:', id, e);
     // `delete()` throws both on a file that was never written and on one already gone.
     try {
       part.delete();

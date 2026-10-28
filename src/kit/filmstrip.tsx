@@ -392,7 +392,10 @@ export function Mosaic({
         const uri = photos[i];
         return (
           <View
-            key={uri ?? i}
+            // By position and not by the picture: a fresh signature on every read would make a new
+            // key, and React would remount the cell — a grey square until the disk is read, the very
+            // flash this key exists to stop.
+            key={i}
             style={[
               styles.cell,
               layout === 'cover' && i === 0 ? styles.cellBig : null,

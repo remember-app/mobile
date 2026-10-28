@@ -1884,13 +1884,14 @@ test('the picture travels with the finger, and the frames either side of it are 
   // The frames either side are in the row already, and they are the pictures the strip draws them
   // by — so a drag brings a frame in from the edge rather than black.
   const beside = await open({ item: shots()[1] });
+  // The row and the strip under it both carry keys now, so the strip's own pictures are taken out
+  // by identity: what is left is exactly the row, and an extra frame cannot hide behind it.
+  const inStrip = new Set(beside.root.findByType(Filmstrip).findAllByType(Image));
   const drawn = beside.root
     .findAllByType(Image)
-    .map((one) => one.props.source?.cacheKey)
-    .filter(Boolean);
-  // The row's own three come first; the strip under it repeats the same records and now carries
-  // their keys too (doc-15), which is the rest of the list.
-  expect(drawn.slice(0, 3)).toEqual(['a:thumb', 'b:thumb', 'd:thumb']);
+    .filter((one) => !inStrip.has(one))
+    .map((one) => one.props.source?.cacheKey);
+  expect(drawn).toEqual(['a:thumb', 'b:thumb', 'd:thumb']);
 });
 
 test('on a turned phone only the frame in hand is drawn — no neighbour peeks in from either side', async () => {
@@ -1901,12 +1902,14 @@ test('on a turned phone only the frame in hand is drawn — no neighbour peeks i
   try {
     serve(() => undefined);
     const screen = await open({ item: { ...shots()[1], width: 4032, height: 3024 } });
+    // The strip under the picture is not part of the claim; everything outside it is the row, and
+    // it must be exactly the frame in hand — a neighbour drawn beside it fails here.
+    const inStrip = new Set(screen.root.findByType(Filmstrip).findAllByType(Image));
     const drawn = screen.root
       .findAllByType(Image)
-      .map((one) => one.props.source?.cacheKey)
-      .filter(Boolean);
-    // The frame in hand is the first picture; the strip below it is the rest.
-    expect(drawn.slice(0, 1)).toEqual(['b:thumb']);
+      .filter((one) => !inStrip.has(one))
+      .map((one) => one.props.source?.cacheKey);
+    expect(drawn).toEqual(['b:thumb']);
     await pull(screen, -300);
     expect(shiftOf(screen)).toBe(0);
     await lift(screen, -300);

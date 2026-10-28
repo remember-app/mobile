@@ -433,7 +433,8 @@ export function EmptyMontages({
       >
         {(photos ?? []).slice(0, 2).map((uri, i) => (
           <Image
-            key={uri}
+            // By position, so a freshly signed link does not remount the frame (`filmstrip.tsx`).
+            key={i}
             source={{ uri, cacheKey: pictureKey(uri) }}
             contentFit="cover"
             style={[styles.stackShot, i === 0 ? styles.stackBack : styles.stackFront]}
