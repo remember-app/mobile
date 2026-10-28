@@ -7,7 +7,7 @@ import { mounted, mountsTrees } from '@tests/helpers/renderer';
 import { Image } from 'expo-image';
 import { Copy } from 'lucide-react-native';
 import type { ReactElement } from 'react';
-import { Text as RNText, StyleSheet, View, type ViewStyle } from 'react-native';
+import { Text as RNText, StyleSheet, type TextStyle, View, type ViewStyle } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 import { beforeAll, expect, test } from 'vitest';
 import { Icon } from '@/kit/icon';
@@ -267,7 +267,7 @@ test('the running time in the single-frame feed stands 12 from the corners', () 
   const mark = StyleSheet.flatten(tree.root.findAllByType(View)[0].props.style) as ViewStyle;
   expect(mark.right).toBe(12);
   expect(mark.bottom).toBe(12);
-  const words = StyleSheet.flatten(tree.root.findAllByType(RNText)[0].props.style) as ViewStyle;
+  const words = StyleSheet.flatten(tree.root.findAllByType(RNText)[0].props.style) as TextStyle;
   expect(words.fontSize).toBe(13);
 });
 
