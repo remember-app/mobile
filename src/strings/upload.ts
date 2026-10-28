@@ -89,6 +89,18 @@ export const en = {
     sentToMemory: (n: number) => `${n} ${n === 1 ? 'file is' : 'files are'} in the memory`,
     moreToCome: 'More to come',
     thatsAll: 'That’s all',
+    /**
+     * A file picked off the phone that this same person already gave this memory (TASK-584): asked
+     * before the sending, never skipped in silence. One question per sending — a single repeat said
+     * as one file, several as their count.
+     */
+    alreadyThere: (n: number) =>
+      n === 1 ? 'This file is already in the memory' : `${n} files are already in the memory`,
+    /** What the two answers do, spelled out: «Yes» sends all, «No» only what is new. */
+    alreadyThereText:
+      'You gave them earlier. Yes sends everything again, No sends only the new files.',
+    alreadyYes: 'Yes',
+    alreadyNo: 'No',
   },
 
   /**
@@ -179,6 +191,14 @@ export const ru: typeof en = {
       } в воспоминание`,
     moreToCome: 'Ещё будет',
     thatsAll: 'Больше ничего',
+    alreadyThere: (n: number) =>
+      n === 1
+        ? 'Этот файл уже есть в воспоминании'
+        : `${count(n, 'файл', 'файла', 'файлов')} уже есть в воспоминании`,
+    alreadyThereText:
+      'Вы уже приносили их раньше. «Да» — отправить всё снова, «Нет» — только новые файлы.',
+    alreadyYes: 'Да',
+    alreadyNo: 'Нет',
   },
 
   mine: {

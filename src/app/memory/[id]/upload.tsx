@@ -16,13 +16,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Modal, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { listMemories, type Memory } from '@/api';
+import { listMedia, listMemories, type MediaItem, type Memory } from '@/api';
 import {
   ActionBar,
   Banner,
   BlockStuck,
   Board,
   Button,
+  ConfirmSheet,
   DashedNote,
   DayHead,
   DayMark,
@@ -44,6 +45,7 @@ import { type Failure, failure } from '@/lib/failure';
 import { rowsOf } from '@/lib/frames';
 import { useStrings } from '@/lib/language';
 import { assetsByDay, type ShootingDay } from '@/lib/media-window';
+import { alreadyThere } from '@/lib/upload/already';
 import { type ParkedFile, parkedReason, progress } from '@/lib/upload/queue';
 import { answerAskAll, drop, enqueue, useAskAll, useUploads, wake } from '@/lib/upload/send';
 import { DensityPill, useDensityPinch } from '@/screens/memory/frames-density';
@@ -109,7 +111,7 @@ export default function UploadScreen({ queue = false }: { queue?: boolean }) {
   // `sent` is what the picking face handed over on its way here, for «Это всё?» to count.
   const { id, sent: handed } = useLocalSearchParams<{ id: string; sent?: string }>();
   const router = useRouter();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { color } = useTheme();
   const s = useStrings();
   const styles = useStyles();
@@ -161,6 +163,20 @@ export default function UploadScreen({ queue = false }: { queue?: boolean }) {
   // open leaves nothing to put on the screen; an api that cannot be reached only costs the event
   // dates — picking and queueing carry on, which is the whole point of a queue that waits.
   const [apiError, setApiError] = useState<Failure | null>(null);
+  /**
+   * What this person already gave this memory — the listing narrowed to their own records, read
+   * beside the memory itself and checked against before anything is sent (TASK-584).
+   */
+  const [brought, setBrought] = useState<MediaItem[] | null>(null);
+  /**
+   * The picked files once some of them are already in: held while the question is up, so the
+   * sending waits for the person's word on which copies go.
+   */
+  const [repeat, setRepeat] = useState<{
+    all: MediaLibrary.Asset[];
+    fresh: MediaLibrary.Asset[];
+    count: number;
+  } | null>(null);
 
   /**
    * The roll as the kit lays it out: the day it was shot on, then that day's frames as many to a
@@ -202,6 +218,31 @@ export default function UploadScreen({ queue = false }: { queue?: boolean }) {
   }, [token, id]);
 
   useEffect(load, [load]);
+
+  const me = user?.id;
+  /**
+   * This person's own records in the memory — hidden ones included, since a frame taken out of the
+   * shared feed is still a file they have already given. `mine.tsx` reads «my own» by the same
+   * `uploaded_by === user.id`.
+   */
+  const readBrought = useCallback(async (): Promise<MediaItem[]> => {
+    if (!token || me === undefined) return [];
+    const all = await listMedia(token, id, { hidden: true });
+    return all.filter((item) => item.uploaded_by === me);
+  }, [token, id, me]);
+
+  useEffect(() => {
+    let live = true;
+    // Only the «already here» question is at stake: an api that will not answer leaves it unasked
+    // and the sending goes the way it always did, so this never raises the screen's banner.
+    readBrought().then(
+      (own) => live && setBrought(own),
+      () => live && setBrought([]),
+    );
+    return () => {
+      live = false;
+    };
+  }, [readBrought]);
 
   function retry() {
     load();
@@ -274,9 +315,33 @@ export default function UploadScreen({ queue = false }: { queue?: boolean }) {
    * screen is done with it: the queue holds it on disk, sends it part by part, and picks up again
    * by itself if the network or the app goes away mid-file. Offline is not a refusal here — the
    * files wait in the queue exactly as they do when a tunnel swallows them halfway.
+   *
+   * First, though, a file this person already gave this memory is not sent again in silence
+   * (TASK-584). The match is soft (`@/lib/upload/already`), so it asks and never refuses: «Да»
+   * takes every picked file, «Нет» only the new ones.
    */
-  function send() {
+  async function send() {
     const chosen = gallery.filter((asset) => picked.has(asset.id));
+    if (chosen.length === 0) return;
+    // A list still on its way is read now rather than let past: the check is what keeps a copy out
+    // of the memory, and it costs one request only on the rare sending that beats the screen's own.
+    const own = brought ?? (await readBrought().catch(() => [] as MediaItem[]));
+    const repeats = await alreadyThere(chosen, own);
+    if (repeats.size === 0) return hand(chosen);
+    setRepeat({
+      all: chosen,
+      fresh: chosen.filter((asset) => !repeats.has(asset.id)),
+      count: repeats.size,
+    });
+  }
+
+  /** The chosen files to the queue, and the screen on to the sending. */
+  function hand(chosen: readonly MediaLibrary.Asset[]) {
+    // «Нет» with nothing new among the picks: they were all copies, and there is nowhere to go.
+    if (chosen.length === 0) {
+      setPicked(new Set());
+      return;
+    }
     enqueue(id, chosen);
     setPicked(new Set());
     // Spec 8, `Upload`: «отправка идёт — UploadQueue». The picking face hands over and gives way to
@@ -628,6 +693,28 @@ export default function UploadScreen({ queue = false }: { queue?: boolean }) {
               />
             </>
           }
+        />
+
+        {/* TASK-584: some of the picks are already in, and the answer decides which copies go.
+            The gentle kind — nothing is lost, and this is the person's word about their own
+            material. «Да» sends everything, «Нет» sends only the new files. */}
+        <ConfirmSheet
+          visible={repeat !== null}
+          variant="gentle"
+          title={s.upload.alreadyThere(repeat?.count ?? 0)}
+          text={s.upload.alreadyThereText}
+          confirmLabel={s.upload.alreadyYes}
+          cancelLabel={s.upload.alreadyNo}
+          onConfirm={() => {
+            const chosen = repeat?.all ?? [];
+            setRepeat(null);
+            hand(chosen);
+          }}
+          onCancel={() => {
+            const chosen = repeat?.fresh ?? [];
+            setRepeat(null);
+            hand(chosen);
+          }}
         />
       </Board>
 
