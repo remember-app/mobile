@@ -110,7 +110,8 @@ const SeamCell = seamsOver<Row>((row) => row.day !== undefined);
  *   under the glass bar, the days as seams between them;
  * - **the queue** (`UploadQueue`, `UploadLimited`) — the same roll with something said over it, the
  *   sending and what did not go, or the partial grant: the plain bar with the memory named under the
- *   heading, the frames in the screen's margins, each day headed with a line;
+ *   heading, the frames in the screen's margins, each day a seam as on the picking face — save under
+ *   a partial grant, where there is no whole day to take and the heading counts what is here;
  * - **no feed** (`UploadAccess`, `UploadEmpty`, the waits) — the plain bar over a message.
  */
 export default function UploadScreen({ queue = false }: { queue?: boolean }) {
@@ -429,43 +430,29 @@ export default function UploadScreen({ queue = false }: { queue?: boolean }) {
     ) : null;
 
   /**
-   * A day over its frames. On the feed it is spec 7.8's seam of the third kind — «13 сентября,
-   * суббота» and how many — and the band itself takes the day and gives it back. Over the queue's
-   * grid it is a heading with a line, «Снято 13 сентября», and the button at its end does the same
-   * (`UploadQueue`); under a partial grant there is no whole day to take, only a count of what is
-   * here (`UploadLimited`). Either way the press is out until the whole roll is in hand: it arrives
-   * 500 at a time and a day that straddles a page is still growing, so «все» would take only its
-   * head.
+   * A day over its frames — spec 7.8's seam of the third kind: «13 сентября, суббота» and how many,
+   * with the band itself taking the day and giving it back. The picking face and the queue's grid
+   * draw one and the same day; only a partial grant differs, having no whole day to take and counting
+   * what is here instead (`UploadLimited`). The press is out until the whole roll is in hand: it
+   * arrives 500 at a time and a day that straddles a page is still growing, so «все» would take only
+   * its head.
    */
   function dayOf(day: ShootingDay<MediaLibrary.Asset>) {
     const at = new Date(day.at);
     const frames = day.assets.length;
     const takes = choosing && !limited && !reading;
-    if (glass) {
-      const label = `${formatDay(at)}, ${formatWeekday(at)}`;
-      return (
-        <DayMark
-          label={label}
-          count={String(frames)}
-          picked={dayTaken(day)}
-          onPress={takes ? () => toggleDay(day) : undefined}
-          pressLabel={dayTaken(day) ? s.upload.leaveDay(label) : s.upload.takeDay(label)}
-        />
-      );
+    if (limited) {
+      return <DayHead label={s.upload.shotOn(formatDay(at))} count={s.memory.frames(frames)} />;
     }
+    const label = `${formatDay(at)}, ${formatWeekday(at)}`;
     return (
-      <DayHead
-        label={s.upload.shotOn(formatDay(at))}
-        count={takes ? undefined : s.memory.frames(frames)}
-      >
-        {takes ? (
-          <Button
-            variant="small"
-            label={dayTaken(day) ? s.upload.unselectDay(frames) : s.upload.selectDay(frames)}
-            onPress={() => toggleDay(day)}
-          />
-        ) : null}
-      </DayHead>
+      <DayMark
+        label={label}
+        count={String(frames)}
+        picked={dayTaken(day)}
+        onPress={takes ? () => toggleDay(day) : undefined}
+        pressLabel={dayTaken(day) ? s.upload.leaveDay(label) : s.upload.takeDay(label)}
+      />
     );
   }
 

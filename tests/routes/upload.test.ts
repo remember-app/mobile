@@ -99,16 +99,17 @@ test('the date between two days takes the whole day and gives it back', () => {
     'pressLabel={dayTaken(day) ? s.upload.leaveDay(label) : s.upload.takeDay(label)}',
   );
   expect(daymark).toContain('count={String(frames)}');
-  // Over the queue's grid the same press is a button at the end of the day's heading, and it says
-  // which way it goes (`UploadQueue`: «Снято 13 сентября» … «Выбрать все 61»).
-  const heading = upload.slice(upload.indexOf('<DayHead'), upload.indexOf('</DayHead>'));
-  expect(heading).toContain('label={s.upload.shotOn(formatDay(at))}');
-  expect(heading).toContain(
-    'label={dayTaken(day) ? s.upload.unselectDay(frames) : s.upload.selectDay(frames)}',
+  // The queue's grid draws the same seam and not a heading with a button at its end (TASK-541): the
+  // one heading left is the partial grant's, and it offers nothing to take.
+  expect(upload).not.toContain('s.upload.selectDay');
+  expect(upload).not.toContain('s.upload.unselectDay');
+  const heading = upload.slice(
+    upload.indexOf('<DayHead'),
+    upload.indexOf('/>', upload.indexOf('<DayHead')),
   );
+  expect(heading).toContain('label={s.upload.shotOn(formatDay(at))}');
+  expect(heading).toContain('count={s.memory.frames(frames)}');
   expect(ru.upload.shotOn('13 сентября')).toBe('Снято 13 сентября');
-  expect(ru.upload.selectDay(61)).toBe('Выбрать все 61');
-  expect(ru.upload.unselectDay(61)).toBe('Снять все 61');
   // A day already whole comes off; anything else goes on. Only this day either way.
   const toggling = upload.slice(upload.indexOf('function toggleDay'));
   expect(toggling.slice(0, toggling.indexOf('\n  }'))).toContain(
@@ -204,8 +205,11 @@ test('a partial grant counts the day instead of offering to select all of it', (
   // `UploadLimited`: «Выбрать все» is gone because there is nothing to select all of, and the plate
   // under the strip says the rest is unseen rather than missing. The layout's «3 из 61» is not to be
   // had: under a partial grant the phone hands over the three and never says how many the day holds.
-  const heading = upload.slice(upload.indexOf('<DayHead'), upload.indexOf('</DayHead>'));
-  expect(heading).toContain('count={takes ? undefined : s.memory.frames(frames)}');
+  const heading = upload.slice(
+    upload.indexOf('<DayHead'),
+    upload.indexOf('/>', upload.indexOf('<DayHead')),
+  );
+  expect(heading).toContain('count={s.memory.frames(frames)}');
   expect(upload).toContain(
     '...(limited ? [{ key: `unseen-${day.at}`, unseen: true as const }] : []),',
   );
