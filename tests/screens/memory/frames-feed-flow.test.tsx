@@ -450,6 +450,56 @@ test('nothing to suggest is said once over the panel, and the middle comes back 
   expect(screen.footer().middle.label).toBe(ru.gallery.nothingPicked);
   expect(screen.footer().middle.disabled).toBe(true);
   expect(screen.footer().remove).toBe(true);
+
+  // A pass that ran and kept everything is the same answer as one that never ran: empty is empty.
+  await screen.unmount();
+  world({
+    media: frames().map((one) => ({ ...one, screening_rejected: false, screening_reason: null })),
+  });
+  const clean = await open();
+  await clean.startPicking();
+  await proposing(clean);
+  expect(bannersSaid(clean.root).map(([words]) => words)).toEqual([ru.gallery.proposeNothing]);
+  expect(clean.capsule().title).toBe(ru.gallery.pickNothing);
+  expect(clean.footer().middle.label).toBe(ru.gallery.nothingPicked);
+  expect(clean.footer().middle.disabled).toBe(true);
+});
+
+test('the offer marks only what the filter shows, and nothing held back', async () => {
+  // «Предложить удалить» is a press on the feed in front of the person, not on the memory: what the
+  // filter holds back is not marked (spec 8, «все» is what is on the screen), and the marks that do
+  // land are the ordinary ones a finger would put there — the capsule counts them, and a tap takes
+  // one back.
+  world({
+    media: [
+      photo('a', 'me', at(13, 10), { screening_rejected: true }),
+      photo('b', 'liza', at(13, 9), { screening_rejected: true }),
+      photo('c', 'liza', at(12, 15), { screening_rejected: true }),
+      photo('e', 'liza', at(11, 10), { screening_rejected: false }),
+    ],
+  });
+  const screen = await open();
+  await openFilter(screen);
+  await screen.press(face(screen, 'Лиза Морозова'));
+  await screen.press(applyButton(screen));
+  await screen.startPicking();
+  await proposing(screen);
+
+  // Liza's two rejected frames are marked; her kept one is not, and the frame of «Я» out of the
+  // filter is not marked for all that its verdict would offer it.
+  expect(screen.root.findAllByType(Tile).map((one) => [one.props.uri, one.props.pick])).toEqual([
+    ['https://r2.example/b', 'send'],
+    ['https://r2.example/c', 'send'],
+    ['https://r2.example/e', 'off'],
+  ]);
+  expect(screen.capsule().title).toBe(ru.gallery.picked(2));
+  expect(screen.footer().middle.label).toBe(ru.gallery.download(2));
+
+  // A mark the press made is a mark like any other: one tap gives it back, the other stays.
+  await screen.tap('b');
+  expect(screen.capsule().title).toBe(ru.gallery.picked(1));
+  expect(screen.mark('b')).toBe('off');
+  expect(screen.mark('c')).toBe('send');
 });
 
 test('the word over the panel leaves by itself, and the middle keeps the word the press earned', async () => {

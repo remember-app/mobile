@@ -82,11 +82,44 @@ const nav = vi.hoisted(() => {
     snapshot: () => seen,
   };
 });
-vi.mock('expo-router', () => ({
-  useFocusEffect: () => {},
-  useIsFocused: () => true,
-  useRouter: () => nav.router,
+/**
+ * The phone's focus, and what a screen hears of it: on until a test takes it away, the way a push
+ * over a step does. `useFocusEffect` runs its callback while the focus is on and the callback's own
+ * cleanup when it goes — a step leaving the top of the stack is exactly that, whether it is pushed
+ * over or the app is unmounted.
+ */
+const focus = vi.hoisted(() => ({
+  on: true,
+  sleeps: new Set<() => void>(),
+  wakes: new Set<() => void>(),
 }));
+vi.mock('expo-router', async () => {
+  const { useEffect } = await import('react');
+  return {
+    useFocusEffect: (run: () => void | (() => void)) => {
+      useEffect(() => {
+        let cleanup: void | (() => void);
+        const wake = () => {
+          cleanup = run();
+        };
+        const sleep = () => {
+          cleanup?.();
+          cleanup = undefined;
+        };
+        focus.wakes.add(wake);
+        focus.sleeps.add(sleep);
+        if (focus.on) wake();
+        return () => {
+          sleep();
+          focus.wakes.delete(wake);
+          focus.sleeps.delete(sleep);
+        };
+      }, [run]);
+    },
+    useIsFocused: () => true,
+    useRouter: () => nav.router,
+  };
+});
 // The shelf's speaker and the phone's file picker are native. The speaker is never pressed here; the
 // picker answers what a test sets (a cancelled pick by default), and the upload of the chosen file
 // to storage answers with the key it was given, or fails.
@@ -236,6 +269,10 @@ type Server = {
    */
   analysis: {
     calls: number;
+    /** The method each press of the pass went over the wire with — filled in by `serve`. */
+    methods?: string[];
+    /** What the api says the job is doing — both answers the press may meet. */
+    status?: 'queued' | 'running';
     /** How many reads after the press still carry no verdicts before the worker's land. */
     after?: number;
     refuse?: Response;
@@ -266,6 +303,7 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 const CALLS = {
   media: '/m1/media',
   templates: '/m1/montage-templates',
+  analyze: '/m1/analyze',
   preview: '/m1/montages/preview',
 } as const;
 
@@ -366,6 +404,7 @@ function serve(over: Partial<Server> = {}): Server {
     orders: [],
     ...over,
   };
+  if (!server.analysis.methods) server.analysis.methods = [];
   const clamp = (seconds: number) => Math.min(Math.max(seconds, 10), CEILING);
   server.templates =
     over.templates ??
@@ -387,9 +426,11 @@ function serve(over: Partial<Server> = {}): Server {
       return json({ error: 'internal server error' }, 500);
     if (path === '/m1/analyze') {
       server.analysis.calls += 1;
+      server.analysis.methods = server.analysis.methods ?? [];
+      server.analysis.methods.push(init.method ?? 'GET');
       if (server.analysis.refuse) return server.analysis.refuse;
       if (server.analysis.after !== undefined) server.analysis.left = server.analysis.after;
-      return json({ status: 'queued' }, 202);
+      return json({ status: server.analysis.status ?? 'queued' }, 202);
     }
     if (path === '/m1/media') {
       server.reads += 1;
@@ -453,6 +494,7 @@ beforeEach(async () => {
   calm.on = false;
   Object.assign(handset, { height: 0, fontScale: 0 });
   nav.reset();
+  focus.on = true;
   phone.pick = { canceled: true };
   phone.send = async () => 'music/own';
   await setLanguage('ru');
@@ -473,6 +515,18 @@ async function open() {
 }
 
 const run = (ms: number) => act(async () => void (await vi.advanceTimersByTimeAsync(ms)));
+/** The step leaving the top of the stack: what it heard on focus is taken away. */
+const loseFocus = () =>
+  act(async () => {
+    focus.on = false;
+    for (const sleep of focus.sleeps) sleep();
+  });
+/** And back on top again, for whatever the step says when it is met a second time. */
+const gainFocus = () =>
+  act(async () => {
+    focus.on = true;
+    for (const wake of focus.wakes) wake();
+  });
 /** Time moving on in small steps until the wizard is where the test wants it. */
 async function until(ready: () => boolean, limit = 20_000) {
   for (let at = 0; !ready() && at < limit; at += 10) await run(10);
@@ -1000,6 +1054,8 @@ test('pressing «Проанализировать» calls the api route and keep
 
   await press(ru.montage.analyze);
   expect(server.analysis.calls).toBe(1);
+  // The job is put in the queue by a POST, never read off the memory.
+  expect(server.analysis.methods).toEqual(['POST']);
   const busy = buttons(ru.montage.analyze).at(-1)!;
   expect(busy.props.busy).toBe(true);
   expect(busy.props.busySize).toBe(16);
@@ -1017,6 +1073,24 @@ test('pressing «Проанализировать» calls the api route and keep
   // Every frame has a verdict now, so the button gives way to the report.
   expect(has(ru.montage.analyze)).toBe(false);
   expect(has(ru.montage.whatDropped)).toBe(true);
+});
+
+test('a job the api quotes as already running is waited on the same as a queued one', async () => {
+  // The 202 may come back with either standing of the job. The screen does not branch on the word:
+  // both mean the worker is on it, so the same readings run until the verdicts land.
+  const server = serve({
+    material: unseen(),
+    analysis: { calls: 0, status: 'running', after: 1, verdict: verdicts },
+  });
+  await open();
+  await press(say().montage.ownSetup);
+  await press(ru.montage.analyze);
+
+  expect(server.analysis.calls).toBe(1);
+  expect(buttons(ru.montage.analyze).at(-1)!.props.busy).toBe(true);
+  await run(6000);
+  expect(has(ru.montage.whatDropped)).toBe(true);
+  expect(shown()).toContain(ru.montage.passDropped(1));
 });
 
 test('a finished pass is reused: «Что сняли» where the button was', async () => {
@@ -1077,6 +1151,40 @@ test('a pass that did not go through says so on the line, and «Повторит
   expect(shown()).toContain(ru.montage.passDropped(1));
 });
 
+test('a 404 and a dead connection are the same failure on the line, with the press offered again', async () => {
+  // A pass the api cannot route and one that never left the phone read alike to the person: the
+  // line says the analysis did not happen, «Повторить» is there, and no banner takes the step over.
+  const cases: (() => { server: Server; reached: number })[] = [
+    () => ({
+      server: serve({
+        material: unseen(),
+        analysis: { calls: 0, refuse: refused(404, 'not found') },
+      }),
+      reached: 1,
+    }),
+    () => {
+      const server = serve({ material: unseen() });
+      server.offline = 'analyze';
+      return { server, reached: 0 };
+    },
+  ];
+  for (const scenario of cases) {
+    const { server, reached } = scenario();
+    await open();
+    await press(say().montage.ownSetup);
+    await press(ru.montage.analyze);
+
+    // The 404 arrived and was refused; the dead connection never got there at all.
+    expect(server.analysis.calls).toBe(reached);
+    expect(banner()).toBeUndefined();
+    expect(shown()).toContain(ru.montage.analyzeFailed);
+    expect(has(say().action.retry)).toBe(true);
+    expect(headline()).toBeDefined();
+    await act(async () => tree!.unmount());
+    tree = undefined;
+  }
+});
+
 test('«Дальше» works while the pass is running, and leaving the step stops its readings', async () => {
   // The pass locks nothing (spec 10.15): an order may be walked on while the worker is still
   // writing. But the step's readings are its own — once it is left, nothing more is asked.
@@ -1119,6 +1227,64 @@ test('coming back to the step after leaving mid-pass finds the press at rest, no
   expect(again.props.disabled).not.toBe(true);
 });
 
+test('losing the screen’s focus stops the readings and puts the press at rest', async () => {
+  // A step that is not on top is not the person's screen any more: reading the material behind
+  // something else spends the worker's queue for nobody, and the button comes back ready for when
+  // the step is met again.
+  const server = serve({
+    material: unseen(),
+    analysis: { calls: 0, after: 5, verdict: verdicts },
+  });
+  await open();
+  await press(say().montage.ownSetup);
+  await press(ru.montage.analyze);
+  expect(buttons(ru.montage.analyze).at(-1)!.props.busy).toBe(true);
+
+  await loseFocus();
+  expect(buttons(ru.montage.analyze).at(-1)!.props.busy).not.toBe(true);
+  const reads = server.reads;
+  await run(30_000);
+  expect(server.reads).toBe(reads);
+  // Back on top, the same press is live again.
+  await gainFocus();
+  expect(buttons(ru.montage.analyze).at(-1)!.props.disabled).not.toBe(true);
+});
+
+test('the step being unmounted stops the readings too', async () => {
+  // The same rule by the other way out: the phone is closed, the memory left — no timer survives
+  // the screen that hung it.
+  const server = serve({
+    material: unseen(),
+    analysis: { calls: 0, after: 5, verdict: verdicts },
+  });
+  await open();
+  await press(say().montage.ownSetup);
+  await press(ru.montage.analyze);
+
+  await act(async () => tree!.unmount());
+  tree = undefined;
+  const reads = server.reads;
+  await run(30_000);
+  expect(server.reads).toBe(reads);
+});
+
+test('coming back to the step after the pass finished shows the report, not the press', async () => {
+  // The pass has spoken and the material carries its verdicts; meeting the step again reuses them
+  // rather than asking the worker a second time.
+  const server = serve({ material: material() });
+  await open();
+  await press(say().montage.ownSetup);
+  expect(has(ru.montage.whatDropped)).toBe(true);
+
+  await forward();
+  expect(nav.top()).toBe('story');
+  await act(async () => nav.router.back());
+  expect(nav.top()).toBe('frames');
+  expect(has(ru.montage.analyze)).toBe(false);
+  expect(has(ru.montage.whatDropped)).toBe(true);
+  expect(server.analysis.calls).toBe(0);
+});
+
 test('a frame brought after a finished pass does not bring «Проанализировать» back', async () => {
   // Spec 10.15: the pass is not re-run for frames that came later — «Что сняли» stands where it
   // was, and the new frame stays without a proposal until the montage, which screens everything.
@@ -1129,6 +1295,29 @@ test('a frame brought after a finished pass does not bring «Проанализ�
   expect(has(ru.montage.analyze)).toBe(false);
   expect(has(ru.montage.whatDropped)).toBe(true);
   expect(shown()).toContain(ru.montage.passDropped(1));
+});
+
+test('a frame brought while the pass runs neither holds the readings open nor brings the press back', async () => {
+  // The run waits only for the frames it was asked about. One that arrived afterwards was never
+  // seen by the worker, so waiting for its verdict would wait for an answer nobody asked for; the
+  // readings stop with the last wanted verdict, and the new frame does not make the pass unspoken.
+  const server = serve({
+    material: unseen(),
+    analysis: { calls: 0, after: 0, verdict: (item) => (item.id === 'p8' ? item : verdicts(item)) },
+  });
+  await open();
+  await press(say().montage.ownSetup);
+  await press(ru.montage.analyze);
+  // The worker starts writing, and a new frame comes down from the phone in the same breath.
+  server.material = [...server.material, { ...frame('p8'), uploaded_by: 'ann' }];
+
+  await run(3000);
+  expect(has(ru.montage.whatDropped)).toBe(true);
+  expect(has(ru.montage.analyze)).toBe(false);
+  expect(shown()).toContain(ru.montage.passDropped(1));
+  const reads = server.reads;
+  await run(30_000);
+  expect(server.reads).toBe(reads);
 });
 
 test('a pass the worker never finishes is stopped being waited for, and its press is offered again', async () => {
