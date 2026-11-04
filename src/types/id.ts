@@ -1,0 +1,12 @@
+export type UserId = string;
+export type SessionId = string;
+export type ProjectId = string;
+export type ProjectItemId = string;
+export type MediaId = string;
+export type UploadId = string;
+export type LabelId = string;
+export type SongId = string;
+export type InviteId = string;
+export type MontageId = string;
+export type MovieId = string;
+export type TemplateId = string;
