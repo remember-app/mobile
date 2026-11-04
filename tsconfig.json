@@ -2,14 +2,12 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
-    // One test reads a font file off the disk to prove it carries Cyrillic, which is the whole
-    // reason the two typefaces changed. That is the only node api in the tree.
     "types": ["node"],
     "paths": {
       "@/*": ["./src/*"],
-      "@/assets/*": ["./assets/*"],
-      "@tests/*": ["./tests/*"]
+      "@/assets/*": ["./assets/*"]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],
+  "exclude": ["src-archive", "node_modules"]
 }
