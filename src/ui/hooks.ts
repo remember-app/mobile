@@ -6,6 +6,7 @@ import {
   inviteState,
   labelsState,
   membersState,
+  networkState,
   projectsState,
   pushState,
   sessionState,
@@ -14,6 +15,7 @@ import {
   subscribeInvites,
   subscribeLabels,
   subscribeMembers,
+  subscribeNetwork,
   subscribeProjects,
   subscribePush,
   subscribeSession,
@@ -31,6 +33,7 @@ export const useProjects = () => useStore(subscribeProjects, projectsState);
 export const useUploads = () => useStore(subscribeUploads, uploadsState);
 export const useContacts = () => useStore(subscribeContacts, contactsState);
 export const usePush = () => useStore(subscribePush, pushState);
+export const useNetwork = () => useStore(subscribeNetwork, networkState);
 
 export function useProjectCard(projectId: ProjectId) {
   const state = useProjects();

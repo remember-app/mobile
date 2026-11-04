@@ -33,6 +33,7 @@ export {
   renameContact,
   subscribeContacts,
 } from './contact/contacts';
+export { type AppInfo, appInfo } from './device/app';
 export {
   attachItems,
   clearLabels,
@@ -50,6 +51,17 @@ export {
   updateLabel,
 } from './label/labels';
 export {
+  cachedOriginal,
+  cachedPreview,
+  cachedThumbnail,
+  ensureOriginal,
+  ensurePreview,
+  ensureThumbnail,
+  saveItemsToPhone,
+  saveItemToPhone,
+  shareItem,
+} from './media/cache';
+export {
   clearGalleries,
   downloadItems,
   forgetGallery,
@@ -66,6 +78,7 @@ export {
   updateItem,
   updateMediaInfo,
 } from './media/gallery';
+export { isOnline, type NetworkState, networkState, subscribeNetwork } from './network/network';
 export {
   acceptInvite,
   clearInvites,
@@ -118,7 +131,15 @@ export {
   unregisterPush,
 } from './push/push';
 export { readLanguage, writeLanguage } from './settings/language';
+export { copyInviteLink, copyText, inviteLink, shareInviteLink } from './share/share';
 export { hydrateGlobal, hydrateProject, refreshGlobal, startApp } from './start';
+export {
+  type DeviceAsset,
+  type DeviceAssetKind,
+  loadDeviceAssets,
+  uploadAudioFiles,
+  uploadDeviceAssets,
+} from './upload/picker';
 export {
   clearUploads,
   enqueueUploads,
