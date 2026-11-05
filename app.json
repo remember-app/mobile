@@ -78,7 +78,8 @@
           "enableBackgroundPlayback": false
         }
       ],
-      "expo-background-task"
+      "expo-background-task",
+      "./plugins/with-scene-lifecycle"
     ],
     "experiments": {
       "typedRoutes": true,
