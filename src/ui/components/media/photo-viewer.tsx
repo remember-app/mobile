@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import PagerView from 'react-native-pager-view';
 import Animated, {
+  Easing,
   type SharedValue,
   useAnimatedStyle,
   useSharedValue,
@@ -16,6 +17,8 @@ import { scheduleOnRN } from 'react-native-worklets';
 
 import { Text } from '@/ui/kit/text';
 
+import type { Rect } from './photo-grid';
+
 export type ViewerPhoto = {
   id: string;
   source: ImageSource | null;
@@ -24,62 +27,157 @@ export type ViewerPhoto = {
 type Props = {
   photos: readonly ViewerPhoto[];
   initialIndex: number;
+  origin?: Rect;
   onClose: () => void;
 };
 
-export function PhotoViewer({ photos, initialIndex, onClose }: Props) {
+type Phase = 'entering' | 'open' | 'leaving';
+
+export function PhotoViewer({ photos, initialIndex, origin, onClose }: Props) {
   const insets = useSafeAreaInsets();
   const pager = useRef<PagerView>(null);
   const [index, setIndex] = useState(initialIndex);
   const [zoomed, setZoomed] = useState(false);
   const dragY = useSharedValue(0);
   const { width, height } = useWindowDimensions();
+  const cover = photos[initialIndex]?.source ?? null;
+  const current = photos[index]?.source ?? null;
+  const grows = Boolean(origin && cover);
+  const [phase, setPhase] = useState<Phase>(grows ? 'entering' : 'open');
+  const progress = useSharedValue(grows ? 0 : 1);
+  const flight = useSharedValue(0);
+  const fromY = useSharedValue(0);
+  const fromSX = useSharedValue(1);
+  const fromSY = useSharedValue(1);
 
   useEffect(() => {
     pager.current?.setScrollEnabled(!zoomed);
   }, [zoomed]);
 
-  const backdrop = useAnimatedStyle(() => ({
-    opacity: 1 - Math.min(Math.abs(dragY.value) / 300, 1),
+  useEffect(() => {
+    if (!grows) return;
+    const frame = requestAnimationFrame(() => {
+      progress.value = withTiming(
+        1,
+        { duration: 300, easing: Easing.out(Easing.cubic) },
+        (done) => {
+          if (done) scheduleOnRN(setPhase, 'open');
+        },
+      );
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [grows, progress]);
+
+  const targetLeft = origin?.x ?? 0;
+  const targetTop = origin?.y ?? 0;
+  const targetSX = origin ? origin.width / width : 1;
+  const targetSY = origin ? origin.height / height : 1;
+
+  const leave = useCallback(() => {
+    if (!origin || index !== initialIndex || phase === 'leaving') {
+      onClose();
+      return;
+    }
+    const dy = dragY.value;
+    fromY.value = dy;
+    const shrink = 1 - Math.min(Math.abs(dy) / 2000, 0.15);
+    fromSX.value = shrink;
+    fromSY.value = shrink;
+    flight.value = 0;
+    setPhase('leaving');
+    flight.value = withTiming(1, { duration: 260, easing: Easing.out(Easing.cubic) }, (done) => {
+      if (done) scheduleOnRN(onClose);
+    });
+  }, [dragY, flight, fromSX, fromSY, fromY, index, initialIndex, onClose, origin, phase]);
+
+  const backdrop = useAnimatedStyle(() => {
+    const drag = 1 - Math.min(Math.abs(dragY.value) / 300, 1);
+    return { opacity: Math.min(progress.value, drag) * (1 - flight.value) };
+  });
+  const growth = useAnimatedStyle(() => ({
+    transformOrigin: 'top left',
+    transform: [
+      { translateX: targetLeft * (1 - progress.value) },
+      { translateY: targetTop * (1 - progress.value) },
+      { scaleX: targetSX + (1 - targetSX) * progress.value },
+      { scaleY: targetSY + (1 - targetSY) * progress.value },
+    ],
   }));
+  const landing = useAnimatedStyle(() => {
+    const sx = fromSX.value;
+    const sy = fromSY.value;
+    const startLeft = (width / 2) * (1 - sx);
+    const startTop = (height / 2) * (1 - sy) + fromY.value;
+    const fly = flight.value;
+    return {
+      transformOrigin: 'top left',
+      transform: [
+        { translateX: startLeft + (targetLeft - startLeft) * fly },
+        { translateY: startTop + (targetTop - startTop) * fly },
+        { scaleX: sx + (targetSX - sx) * fly },
+        { scaleY: sy + (targetSY - sy) * fly },
+      ],
+    };
+  });
+
+  const busy = phase !== 'open';
 
   return (
     <View style={StyleSheet.absoluteFill}>
       <Animated.View style={[StyleSheet.absoluteFill, styles.backdrop, backdrop]} />
-      <PagerView
-        ref={pager}
-        style={StyleSheet.absoluteFill}
-        initialPage={initialIndex}
-        offscreenPageLimit={1}
-        onPageSelected={(event) => {
-          dragY.value = 0;
-          setIndex(event.nativeEvent.position);
-        }}
+      <Animated.View
+        style={[StyleSheet.absoluteFill, busy ? styles.off : null]}
+        pointerEvents={busy ? 'none' : 'auto'}
       >
-        {photos.map((photo) => (
-          <View key={photo.id} style={styles.page}>
-            <Zoomable
-              source={photo.source}
-              width={width}
-              height={height}
-              dragY={dragY}
-              onZoomed={setZoomed}
-              onClose={onClose}
-            />
+        <PagerView
+          ref={pager}
+          style={StyleSheet.absoluteFill}
+          initialPage={initialIndex}
+          offscreenPageLimit={1}
+          onPageSelected={(event) => {
+            dragY.value = 0;
+            setIndex(event.nativeEvent.position);
+          }}
+        >
+          {photos.map((photo, at) => (
+            <View key={photo.id} style={styles.page}>
+              {Math.abs(at - index) <= 2 ? (
+                <Zoomable
+                  source={photo.source}
+                  width={width}
+                  height={height}
+                  dragY={dragY}
+                  onZoomed={setZoomed}
+                  onDismiss={leave}
+                />
+              ) : null}
+            </View>
+          ))}
+        </PagerView>
+      </Animated.View>
+      {phase === 'entering' && cover ? (
+        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, growth]}>
+          <Image source={cover} style={StyleSheet.absoluteFill} contentFit="cover" />
+        </Animated.View>
+      ) : null}
+      {phase === 'leaving' && current ? (
+        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, landing]}>
+          <Image source={current} style={StyleSheet.absoluteFill} contentFit="cover" />
+        </Animated.View>
+      ) : null}
+      {phase === 'open' ? (
+        <View style={[styles.bar, { top: insets.top + 8 }]} pointerEvents="box-none">
+          <Pressable onPress={leave} hitSlop={12} style={styles.close}>
+            <X color="#ffffff" size={22} />
+          </Pressable>
+          <View style={styles.counter} pointerEvents="none">
+            <Text role="meta" tone="onFill">
+              {`${index + 1} / ${photos.length}`}
+            </Text>
           </View>
-        ))}
-      </PagerView>
-      <View style={[styles.bar, { top: insets.top + 8 }]} pointerEvents="box-none">
-        <Pressable onPress={onClose} hitSlop={12} style={styles.close}>
-          <X color="#ffffff" size={22} />
-        </Pressable>
-        <View style={styles.counter} pointerEvents="none">
-          <Text role="meta" tone="onFill">
-            {`${index + 1} / ${photos.length}`}
-          </Text>
+          <View style={styles.close} />
         </View>
-        <View style={styles.close} />
-      </View>
+      ) : null}
     </View>
   );
 }
@@ -90,7 +188,7 @@ type ZoomProps = {
   height: number;
   dragY: SharedValue<number>;
   onZoomed: (value: boolean) => void;
-  onClose: () => void;
+  onDismiss: () => void;
 };
 
 const clamp = (value: number, min: number, max: number) => {
@@ -98,7 +196,7 @@ const clamp = (value: number, min: number, max: number) => {
   return Math.min(Math.max(value, min), max);
 };
 
-function Zoomable({ source, width, height, dragY, onZoomed, onClose }: ZoomProps) {
+function Zoomable({ source, width, height, dragY, onZoomed, onDismiss }: ZoomProps) {
   const [zoomed, setZoomed] = useState(false);
   const scale = useSharedValue(1);
   const x = useSharedValue(0);
@@ -154,14 +252,13 @@ function Zoomable({ source, width, height, dragY, onZoomed, onClose }: ZoomProps
   const dismiss = Gesture.Pan()
     .enabled(!zoomed)
     .maxPointers(1)
-    .activeOffsetY([-12, 12])
-    .failOffsetX([-24, 24])
+    .activeOffsetY([-10000, 4])
+    .failOffsetX([-20, 20])
     .onUpdate((event) => {
       dragY.value = event.translationY;
     })
-    .onEnd((event) => {
-      if (Math.abs(event.translationY) > 140) scheduleOnRN(onClose);
-      else dragY.value = withSpring(0, { damping: 20, stiffness: 220 });
+    .onEnd(() => {
+      scheduleOnRN(onDismiss);
     });
 
   const doubleTap = Gesture.Tap()
@@ -200,7 +297,7 @@ function Zoomable({ source, width, height, dragY, onZoomed, onClose }: ZoomProps
           <Image
             source={source}
             style={{ width, height }}
-            contentFit="contain"
+            contentFit="cover"
             transition={100}
             cachePolicy="memory-disk"
           />
@@ -215,6 +312,9 @@ function Zoomable({ source, width, height, dragY, onZoomed, onClose }: ZoomProps
 const styles = StyleSheet.create({
   backdrop: {
     backgroundColor: '#000000',
+  },
+  off: {
+    opacity: 0,
   },
   page: {
     flex: 1,

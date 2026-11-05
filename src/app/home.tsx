@@ -1,56 +1,71 @@
+import { FlashList } from '@shopify/flash-list';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Plus, User } from 'lucide-react-native';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { OnboardingFinal } from '@/ui/components/onboarding/final';
 import { ProjectCard } from '@/ui/components/project-card';
-import { ActionBar, AppBar, Board } from '@/ui/kit/bars';
+import { BlurBar } from '@/ui/kit/blur-bar';
 import { Button, IconButton } from '@/ui/kit/button';
+import { Text } from '@/ui/kit/text';
 import { MOCK_PROJECTS } from '@/ui/mocks/projects';
-import { space } from '@/ui/theme';
+import { space, useTheme } from '@/ui/theme';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { color } = useTheme();
   const { celebrate } = useLocalSearchParams<{ celebrate?: string }>();
 
   return (
     <>
-      <Board
-        body={styles.body}
-        bar={
-          <AppBar
-            variant="root"
-            title="Воспоминания"
-            right={
-              <IconButton
-                icon={User}
-                label="Профиль"
-                tone="surface"
-                onPress={() => router.push('/profile')}
-              />
-            }
-          />
-        }
-        footer={
-          <ActionBar>
-            <Button
-              label="Новое воспоминание"
-              variant="primary"
-              icon={Plus}
-              onPress={() => router.push('/create')}
+      <View style={[styles.root, { backgroundColor: color.ink }]}>
+        <FlashList
+          data={MOCK_PROJECTS}
+          keyExtractor={(entry) => entry.project.id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{
+            paddingTop: insets.top + 60,
+            paddingBottom: insets.bottom + 92,
+            paddingHorizontal: space.s4,
+          }}
+          ItemSeparatorComponent={() => <View style={styles.gap} />}
+          renderItem={({ item }) => (
+            <ProjectCard
+              project={item.project}
+              cover={item.cover}
+              people={item.people}
+              onPress={() =>
+                router.push({ pathname: '/project/[id]', params: { id: item.project.id } })
+              }
             />
-          </ActionBar>
-        }
-      >
-        {MOCK_PROJECTS.map(({ project, cover, people }) => (
-          <ProjectCard
-            key={project.id}
-            project={project}
-            cover={cover}
-            people={people}
-            onPress={() => router.push({ pathname: '/project/[id]', params: { id: project.id } })}
+          )}
+        />
+        <BlurBar edge="top" style={styles.top}>
+          <Text role="barTitle" accessibilityRole="header">
+            Воспоминания
+          </Text>
+          <IconButton
+            icon={User}
+            label="Профиль"
+            tone="surface"
+            size={40}
+            onPress={() => router.push('/profile')}
           />
-        ))}
-      </Board>
+        </BlurBar>
+        <View
+          pointerEvents="box-none"
+          style={[styles.bottom, { paddingBottom: insets.bottom + space.s2 }]}
+        >
+          <Button
+            label="Новое воспоминание"
+            variant="primary"
+            icon={Plus}
+            onPress={() => router.push('/create')}
+          />
+        </View>
+      </View>
       {celebrate ? (
         <OnboardingFinal
           name={celebrate}
@@ -62,10 +77,25 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  body: {
+  root: {
+    flex: 1,
+  },
+  top: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: space.s4,
-    paddingTop: space.s3,
-    paddingBottom: space.s6,
-    gap: space.s4,
+    minHeight: 44,
+  },
+  bottom: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: space.s4,
+    paddingTop: space.s2,
+  },
+  gap: {
+    height: space.s3,
   },
 });

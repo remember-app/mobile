@@ -13,15 +13,6 @@ type Props = {
   onPress: () => void;
 };
 
-function frames(count: number): string {
-  const whole = Math.abs(count) % 100;
-  const last = whole % 10;
-  if (whole > 10 && whole < 20) return `${count} кадров`;
-  if (last === 1) return `${count} кадр`;
-  if (last >= 2 && last <= 4) return `${count} кадра`;
-  return `${count} кадров`;
-}
-
 function day(value: Date): string {
   return new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long' }).format(value);
 }
@@ -32,38 +23,31 @@ function dates(start: Date, end: Date | null): string {
 }
 
 export function ProjectCard({ project, cover, people, onPress }: Props) {
-  const { color } = useTheme();
   const styles = useStyles();
+  const { color } = useTheme();
 
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={styles.card}>
-      <View style={styles.cover}>
-        {cover ? (
-          <Image
-            source={cover}
-            style={StyleSheet.absoluteFill}
-            contentFit="cover"
-            transition={120}
-          />
-        ) : (
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: color.raise }]} />
-        )}
-      </View>
-      <View style={styles.body}>
-        <Text role="title" numberOfLines={2}>
-          {project.title}
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={project.title}
+      onPress={onPress}
+      style={({ pressed }) => [styles.card, pressed ? styles.pressed : null]}
+    >
+      {cover ? (
+        <Image source={cover} style={StyleSheet.absoluteFill} contentFit="cover" transition={120} />
+      ) : (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: color.raise }]} />
+      )}
+      <View pointerEvents="none" style={[styles.shade, styles.shadeTop]} />
+      <View pointerEvents="none" style={[styles.shade, styles.shadeBottom]} />
+      <Text role="title" tone="onFill" numberOfLines={2} style={styles.title}>
+        {project.title}
+      </Text>
+      <View style={styles.foot}>
+        <AvatarStack names={people} size={36} />
+        <Text role="meta" tone="onFill">
+          {dates(project.eventStart, project.eventEnd)}
         </Text>
-        <Text role="noteSm" tone="muted">
-          {`${dates(project.eventStart, project.eventEnd)} · ${frames(project.itemCount)}`}
-        </Text>
-        <View style={styles.foot}>
-          <AvatarStack names={people} size={26} on={color.surface} />
-          {project.memberCount > 1 ? (
-            <Text role="metaSm" tone="faint">
-              {`${project.sharedCount} из ${project.memberCount} поделились`}
-            </Text>
-          ) : null}
-        </View>
       </View>
     </Pressable>
   );
@@ -72,26 +56,43 @@ export function ProjectCard({ project, cover, people, onPress }: Props) {
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
     card: {
-      borderRadius: radius.card,
-      borderWidth: 1,
-      borderColor: color.line,
-      backgroundColor: color.surface,
-      overflow: 'hidden',
-    },
-    cover: {
       aspectRatio: 4 / 3,
+      borderRadius: radius.card,
+      overflow: 'hidden',
       backgroundColor: color.raise,
     },
-    body: {
-      padding: space.s4,
-      gap: space.s1,
+    pressed: {
+      transform: [{ scale: 0.985 }],
+    },
+    shade: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      height: '52%',
+    },
+    shadeTop: {
+      top: 0,
+      experimental_backgroundImage: 'linear-gradient(to bottom, rgba(0,0,0,0.62), rgba(0,0,0,0))',
+    },
+    shadeBottom: {
+      bottom: 0,
+      experimental_backgroundImage: 'linear-gradient(to top, rgba(0,0,0,0.62), rgba(0,0,0,0))',
+    },
+    title: {
+      position: 'absolute',
+      top: space.s4,
+      left: space.s4,
+      right: space.s4,
     },
     foot: {
+      position: 'absolute',
+      left: space.s4,
+      right: space.s4,
+      bottom: space.s4,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: space.s3,
-      paddingTop: space.s2,
     },
   }),
 );
