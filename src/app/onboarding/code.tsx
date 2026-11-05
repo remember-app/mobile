@@ -46,7 +46,7 @@ export default function CodeScreen() {
         </Text>
       </View>
       <View style={styles.body}>
-        <CodeField label="Код" labelHidden value={code} onChangeText={setCode} autoFocus />
+        <CodeField label="Код" value={code} onChangeText={setCode} autoFocus />
         <Button
           label="Отправить ещё раз"
           variant="link"

@@ -1,10 +1,10 @@
 import { ArrowRight } from 'lucide-react-native';
 import { type ComponentRef, useRef, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, type TextInputProps, View } from 'react-native';
-import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Field } from '@/ui/kit/field';
+import { KeyboardBar } from '@/ui/kit/keyboard';
 import { height, radius, space, useTheme } from '@/ui/theme';
 
 import { StepDots } from './steps';
@@ -65,14 +65,10 @@ export function OnboardingInput({
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
       />
-      <KeyboardStickyView
-        offset={{ closed: -insets.bottom, opened: -space.s2 }}
-        style={styles.footer}
-      >
+      <KeyboardBar style={styles.footer}>
         <View style={styles.fieldWrap}>
           <Field
             label={label}
-            labelHidden
             value={value}
             onChangeText={onChangeText}
             placeholder={placeholder}
@@ -107,7 +103,7 @@ export function OnboardingInput({
             </Pressable>
           ) : null}
         </View>
-      </KeyboardStickyView>
+      </KeyboardBar>
     </View>
   );
 }

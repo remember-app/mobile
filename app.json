@@ -7,6 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "remember",
     "userInterfaceStyle": "automatic",
+    "backgroundColor": "#0B0B12",
     "runtimeVersion": {
       "policy": "fingerprint"
     },

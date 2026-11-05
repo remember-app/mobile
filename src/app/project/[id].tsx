@@ -1,10 +1,10 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Plus, Users } from 'lucide-react-native';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { PhotoGrid, type Rect } from '@/ui/components/media/photo-grid';
+import { type MeasureTile, PhotoGrid, type Rect } from '@/ui/components/media/photo-grid';
 import { PhotoViewer } from '@/ui/components/media/photo-viewer';
 import { AppBar, Board } from '@/ui/kit/bars';
 import { BlurBar } from '@/ui/kit/blur-bar';
@@ -23,6 +23,7 @@ export default function ProjectScreen() {
   const project = MOCK_PROJECTS.find((entry) => entry.project.id === id);
   const [columns, setColumns] = useState(3);
   const [open, setOpen] = useState<{ index: number; rect?: Rect } | null>(null);
+  const measureTile = useRef<MeasureTile | null>(null);
   const photos = useMemo(() => mockPhotos(64).reverse(), []);
 
   if (!project) {
@@ -41,43 +42,53 @@ export default function ProjectScreen() {
   }
 
   return (
-    <View style={[styles.root, { backgroundColor: theme.color.ink }]}>
-      <PhotoGrid
-        photos={photos}
-        columns={columns}
-        onColumns={setColumns}
-        onOpen={(index, rect) => setOpen({ index, rect })}
-        padding={{ top: insets.top + 60, bottom: insets.bottom + 76 }}
-        startAtEnd
-      />
-      <BlurBar edge="top" style={styles.top}>
-        <BackButton label="Назад" onPress={() => router.back()} />
-        <Text role="barTitle" numberOfLines={1} style={styles.title}>
-          {project.project.title}
-        </Text>
-        <IconButton
-          icon={Users}
-          label="Участники"
-          tone="surface"
-          size={40}
-          onPress={() => undefined}
-        />
-      </BlurBar>
-      <View
-        pointerEvents="box-none"
-        style={[styles.bottom, { paddingBottom: insets.bottom + space.s2 }]}
-      >
-        <Button label="Добавить" variant="primary" icon={Plus} onPress={() => undefined} />
-      </View>
-      {open === null ? null : (
-        <PhotoViewer
+    <>
+      <Stack.Screen options={{ gestureEnabled: open === null }} />
+      <View style={[styles.root, { backgroundColor: theme.color.ink }]}>
+        <PhotoGrid
           photos={photos}
-          initialIndex={open.index}
-          origin={open.rect}
-          onClose={() => setOpen(null)}
+          columns={columns}
+          onColumns={setColumns}
+          onOpen={(index, rect) => setOpen({ index, rect })}
+          padding={{ top: insets.top + 60, bottom: insets.bottom + 76 }}
+          startAtEnd
+          blankIndex={open?.index ?? null}
+          measureRef={measureTile}
         />
-      )}
-    </View>
+        <BlurBar edge="top" style={styles.top}>
+          <BackButton label="Назад" onPress={() => router.back()} />
+          <Text role="barTitle" numberOfLines={1} style={styles.title}>
+            {project.project.title}
+          </Text>
+          <IconButton
+            icon={Users}
+            label="Участники"
+            tone="surface"
+            size={40}
+            onPress={() => undefined}
+          />
+        </BlurBar>
+        <View
+          pointerEvents="box-none"
+          style={[styles.bottom, { paddingBottom: insets.bottom + space.s2 }]}
+        >
+          <Button label="Добавить" variant="primary" icon={Plus} onPress={() => undefined} />
+        </View>
+        {open === null ? null : (
+          <PhotoViewer
+            photos={photos}
+            initialIndex={open.index}
+            origin={open.rect}
+            onClose={() => setOpen(null)}
+            onIndex={(next) =>
+              measureTile.current?.(next, (rect) =>
+                setOpen((was) => (was === null ? was : { index: next, rect })),
+              )
+            }
+          />
+        )}
+      </View>
+    </>
   );
 }
 

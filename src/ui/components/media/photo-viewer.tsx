@@ -1,4 +1,5 @@
 import { Image, type ImageSource } from 'expo-image';
+import { setStatusBarHidden } from 'expo-status-bar';
 import { X } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
@@ -16,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { Text } from '@/ui/kit/text';
+import { radius } from '@/ui/theme';
 
 import type { Rect } from './photo-grid';
 
@@ -29,11 +31,12 @@ type Props = {
   initialIndex: number;
   origin?: Rect;
   onClose: () => void;
+  onIndex?: (index: number) => void;
 };
 
 type Phase = 'entering' | 'open' | 'leaving';
 
-export function PhotoViewer({ photos, initialIndex, origin, onClose }: Props) {
+export function PhotoViewer({ photos, initialIndex, origin, onClose, onIndex }: Props) {
   const insets = useSafeAreaInsets();
   const pager = useRef<PagerView>(null);
   const [index, setIndex] = useState(initialIndex);
@@ -44,6 +47,8 @@ export function PhotoViewer({ photos, initialIndex, origin, onClose }: Props) {
   const current = photos[index]?.source ?? null;
   const grows = Boolean(origin && cover);
   const [phase, setPhase] = useState<Phase>(grows ? 'entering' : 'open');
+  const [chrome, setChrome] = useState(true);
+  const chromeOpacity = useSharedValue(1);
   const progress = useSharedValue(grows ? 0 : 1);
   const flight = useSharedValue(0);
   const fromY = useSharedValue(0);
@@ -53,6 +58,15 @@ export function PhotoViewer({ photos, initialIndex, origin, onClose }: Props) {
   useEffect(() => {
     pager.current?.setScrollEnabled(!zoomed);
   }, [zoomed]);
+
+  useEffect(() => {
+    chromeOpacity.value = withTiming(chrome ? 1 : 0, { duration: 160 });
+    setStatusBarHidden(!chrome, 'fade');
+  }, [chrome, chromeOpacity]);
+
+  useEffect(() => () => setStatusBarHidden(false, 'fade'), []);
+
+  const chromeStyle = useAnimatedStyle(() => ({ opacity: chromeOpacity.value }));
 
   useEffect(() => {
     if (!grows) return;
@@ -74,7 +88,7 @@ export function PhotoViewer({ photos, initialIndex, origin, onClose }: Props) {
   const targetSY = origin ? origin.height / height : 1;
 
   const leave = useCallback(() => {
-    if (!origin || index !== initialIndex || phase === 'leaving') {
+    if (!origin || phase === 'leaving') {
       onClose();
       return;
     }
@@ -88,7 +102,7 @@ export function PhotoViewer({ photos, initialIndex, origin, onClose }: Props) {
     flight.value = withTiming(1, { duration: 260, easing: Easing.out(Easing.cubic) }, (done) => {
       if (done) scheduleOnRN(onClose);
     });
-  }, [dragY, flight, fromSX, fromSY, fromY, index, initialIndex, onClose, origin, phase]);
+  }, [dragY, flight, fromSX, fromSY, fromY, onClose, origin, phase]);
 
   const backdrop = useAnimatedStyle(() => {
     const drag = 1 - Math.min(Math.abs(dragY.value) / 300, 1);
@@ -110,6 +124,7 @@ export function PhotoViewer({ photos, initialIndex, origin, onClose }: Props) {
     const startTop = (height / 2) * (1 - sy) + fromY.value;
     const fly = flight.value;
     return {
+      opacity: fly <= 0.9 ? 1 - fly / 0.9 : 0,
       transformOrigin: 'top left',
       transform: [
         { translateX: startLeft + (targetLeft - startLeft) * fly },
@@ -117,6 +132,21 @@ export function PhotoViewer({ photos, initialIndex, origin, onClose }: Props) {
         { scaleX: sx + (targetSX - sx) * fly },
         { scaleY: sy + (targetSY - sy) * fly },
       ],
+    };
+  });
+
+  const tileCover = origin ? Math.max(width / origin.width, height / origin.height) : 1;
+  const squareStartLeft = origin ? (width - origin.width * tileCover) / 2 : 0;
+  const squareStartTop = origin ? (height - origin.height * tileCover) / 2 : 0;
+  const square = useAnimatedStyle(() => {
+    const fly = flight.value;
+    const scale = tileCover + (1 - tileCover) * fly;
+    const left = squareStartLeft + (targetLeft - squareStartLeft) * fly;
+    const top = (squareStartTop + fromY.value) * (1 - fly) + targetTop * fly;
+    return {
+      opacity: Math.min(1, fly / 0.9),
+      transformOrigin: 'top left',
+      transform: [{ translateX: left }, { translateY: top }, { scale }],
     };
   });
 
@@ -135,8 +165,10 @@ export function PhotoViewer({ photos, initialIndex, origin, onClose }: Props) {
           initialPage={initialIndex}
           offscreenPageLimit={1}
           onPageSelected={(event) => {
+            const next = event.nativeEvent.position;
             dragY.value = 0;
-            setIndex(event.nativeEvent.position);
+            setIndex(next);
+            onIndex?.(next);
           }}
         >
           {photos.map((photo, at) => (
@@ -149,6 +181,7 @@ export function PhotoViewer({ photos, initialIndex, origin, onClose }: Props) {
                   dragY={dragY}
                   onZoomed={setZoomed}
                   onDismiss={leave}
+                  onTap={() => setChrome((shown) => !shown)}
                 />
               ) : null}
             </View>
@@ -165,8 +198,19 @@ export function PhotoViewer({ photos, initialIndex, origin, onClose }: Props) {
           <Image source={current} style={StyleSheet.absoluteFill} contentFit="cover" />
         </Animated.View>
       ) : null}
+      {phase === 'leaving' && current && origin ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.square, { width: origin.width, height: origin.height }, square]}
+        >
+          <Image source={current} style={StyleSheet.absoluteFill} contentFit="cover" />
+        </Animated.View>
+      ) : null}
       {phase === 'open' ? (
-        <View style={[styles.bar, { top: insets.top + 8 }]} pointerEvents="box-none">
+        <Animated.View
+          style={[styles.bar, { top: insets.top + 8 }, chromeStyle]}
+          pointerEvents={chrome ? 'box-none' : 'none'}
+        >
           <Pressable onPress={leave} hitSlop={12} style={styles.close}>
             <X color="#ffffff" size={22} />
           </Pressable>
@@ -176,7 +220,7 @@ export function PhotoViewer({ photos, initialIndex, origin, onClose }: Props) {
             </Text>
           </View>
           <View style={styles.close} />
-        </View>
+        </Animated.View>
       ) : null}
     </View>
   );
@@ -189,6 +233,7 @@ type ZoomProps = {
   dragY: SharedValue<number>;
   onZoomed: (value: boolean) => void;
   onDismiss: () => void;
+  onTap: () => void;
 };
 
 const clamp = (value: number, min: number, max: number) => {
@@ -196,7 +241,7 @@ const clamp = (value: number, min: number, max: number) => {
   return Math.min(Math.max(value, min), max);
 };
 
-function Zoomable({ source, width, height, dragY, onZoomed, onDismiss }: ZoomProps) {
+function Zoomable({ source, width, height, dragY, onZoomed, onDismiss, onTap }: ZoomProps) {
   const [zoomed, setZoomed] = useState(false);
   const scale = useSharedValue(1);
   const x = useSharedValue(0);
@@ -280,7 +325,16 @@ function Zoomable({ source, width, height, dragY, onZoomed, onDismiss }: ZoomPro
       scheduleOnRN(change, true);
     });
 
-  const gesture = Gesture.Simultaneous(pinch, Gesture.Race(doubleTap, move, dismiss));
+  const singleTap = Gesture.Tap()
+    .numberOfTaps(1)
+    .onEnd(() => {
+      scheduleOnRN(onTap);
+    });
+
+  const gesture = Gesture.Simultaneous(
+    pinch,
+    Gesture.Race(Gesture.Exclusive(doubleTap, singleTap), move, dismiss),
+  );
 
   const style = useAnimatedStyle(() => ({
     transform: [
@@ -315,6 +369,13 @@ const styles = StyleSheet.create({
   },
   off: {
     opacity: 0,
+  },
+  square: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    overflow: 'hidden',
+    borderRadius: radius.tile,
   },
   page: {
     flex: 1,

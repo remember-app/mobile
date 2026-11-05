@@ -20,7 +20,6 @@ import {
   type,
   useTheme,
 } from '@/ui/theme';
-import { BlockHead } from './block-head';
 import { Spinner } from './empty';
 import { Icon, type IconComponent } from './icon';
 import { useFieldInBar } from './interaction';
@@ -83,11 +82,9 @@ export function Hint({
 }
 export function Field({
   label,
-  labelHidden,
   variant = 'email',
   hint,
   hintAfter,
-  hintAbove,
   state,
   pending,
   prefix,
@@ -101,11 +98,9 @@ export function Field({
   ...input
 }: TextInputProps & {
   label: string;
-  labelHidden?: boolean;
   variant?: FieldVariant;
   hint?: string;
   hintAfter?: string;
-  hintAbove?: boolean;
   state?: FieldState;
   pending?: boolean;
   prefix?: string;
@@ -122,22 +117,7 @@ export function Field({
   const tone = state === 'error' ? 'danger' : state === 'ok' ? 'spark' : 'muted';
   useFieldInBar();
   return (
-    <View style={[styles.field, wayIn && !hintAbove ? styles.fieldWayIn : null]}>
-      {labelHidden ? null : hintAbove ? (
-        <View style={wayIn ? styles.inset : null}>
-          <BlockHead label={label.toUpperCase()}>
-            {hint ? (
-              <Text role="eyebrow" tone={tone} style={styles.status}>
-                {hint.toUpperCase()}
-              </Text>
-            ) : null}
-          </BlockHead>
-        </View>
-      ) : (
-        <Text role="eyebrow" tone="muted" style={wayIn ? styles.inset : null}>
-          {label.toUpperCase()}
-        </Text>
-      )}
+    <View style={[styles.field, wayIn ? styles.fieldWayIn : null]}>
       <View
         style={[
           styles.box,
@@ -210,7 +190,7 @@ export function Field({
         ) : null}
         {trailing}
       </View>
-      {hint && !hintAbove ? (
+      {hint ? (
         <Hint
           tone={tone}
           style={[wayIn ? styles.inset : null, state === 'ok' ? styles.answer : null]}
@@ -229,22 +209,18 @@ export function Field({
 }
 export function CodeField({
   label,
-  tail,
   value,
   onChangeText,
   length = 6,
   state,
   autoFocus,
-  labelHidden,
 }: {
   label: string;
-  tail?: ReactNode;
   value: string;
   onChangeText: (next: string) => void;
   length?: number;
   state?: FieldState;
   autoFocus?: boolean;
-  labelHidden?: boolean;
 }) {
   const [focused, setFocused] = useState(false);
   const theme = useTheme();
@@ -252,13 +228,6 @@ export function CodeField({
   useFieldInBar();
   return (
     <View style={styles.field}>
-      {labelHidden ? null : (
-        <View style={styles.inset}>
-          <BlockHead label={label} tone={state === 'error' ? 'danger' : 'muted'}>
-            {tail}
-          </BlockHead>
-        </View>
-      )}
       <View style={styles.code}>
         {Array.from({ length }, (_, i) => (
           <View
@@ -307,7 +276,6 @@ export function areaSight(fontScale: number): number {
 export const AreaRoom = createContext<number | null>(null);
 export function TextArea({
   label,
-  labelHidden,
   hint,
   limit,
   state,
@@ -316,7 +284,6 @@ export function TextArea({
   ...input
 }: TextInputProps & {
   label: string;
-  labelHidden?: boolean;
   hint?: string;
   limit?: number;
   state?: FieldState;
@@ -329,11 +296,6 @@ export function TextArea({
   useFieldInBar();
   return (
     <View style={styles.field}>
-      {labelHidden ? null : (
-        <Text role="eyebrow" tone="muted">
-          {label.toUpperCase()}
-        </Text>
-      )}
       <TextInput
         accessibilityLabel={label}
         accessibilityHint={hint}
@@ -378,7 +340,6 @@ const useStyles = themed(({ color }) =>
     field: { alignSelf: 'stretch', gap: space.s2 },
     fieldWayIn: { gap: space.s3 },
     inset: { paddingLeft: space.s1 },
-    status: { letterSpacing: 0.72 },
     answer: { fontFamily: font.semi },
     after: { fontFamily: font.regular },
     box: {

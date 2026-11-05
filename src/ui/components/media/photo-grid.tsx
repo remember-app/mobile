@@ -1,5 +1,13 @@
 import { Image, type ImageSource } from 'expo-image';
-import { type ComponentRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type ComponentRef,
+  type MutableRefObject,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { ScrollView, type ScrollViewInstance, StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -11,6 +19,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
+
+import { radius } from '@/ui/theme';
 
 import { PhotoTile } from './photo-tile';
 
@@ -26,6 +36,8 @@ export type Rect = {
   height: number;
 };
 
+export type MeasureTile = (index: number, done: (rect: Rect) => void) => void;
+
 type Props = {
   photos: readonly Photo[];
   columns: number;
@@ -33,6 +45,8 @@ type Props = {
   onOpen: (index: number, rect?: Rect) => void;
   padding?: { top: number; bottom: number };
   startAtEnd?: boolean;
+  blankIndex?: number | null;
+  measureRef?: MutableRefObject<MeasureTile | null>;
 };
 
 const LEVELS = [1, 3, 5, 7];
@@ -193,7 +207,16 @@ function AnchorPhoto({ photos, anchor, from, to, zoom, pointX, pointY }: AnchorP
   );
 }
 
-export function PhotoGrid({ photos, columns, onColumns, onOpen, padding, startAtEnd }: Props) {
+export function PhotoGrid({
+  photos,
+  columns,
+  onColumns,
+  onOpen,
+  padding,
+  startAtEnd,
+  blankIndex,
+  measureRef,
+}: Props) {
   const topPad = padding?.top ?? 0;
   const bottomPad = padding?.bottom ?? 0;
   const lead = leading(photos.length, columns);
@@ -203,9 +226,11 @@ export function PhotoGrid({ photos, columns, onColumns, onOpen, padding, startAt
   const [pinching, setPinching] = useState(false);
   const [commit, setCommit] = useState(0);
   const [pad, setPad] = useState(0);
+  const [seen, setSeen] = useState({ from: 0, to: 6 });
 
   const scroller = useRef<ScrollViewInstance>(null);
   const cells = useRef<Array<ComponentRef<typeof View> | null>>([]);
+
   const pending = useRef<number | null>(null);
   const anchorRef = useRef<Anchor | null>(null);
   const applied = useRef(false);
@@ -224,6 +249,17 @@ export function PhotoGrid({ photos, columns, onColumns, onOpen, padding, startAt
   const level = Math.max(0, LEVELS.indexOf(columns));
   const pitch = width > 0 ? width / columns : 0;
 
+  const reveal = useCallback(
+    (y: number) => {
+      if (pitch <= 0) return;
+      const total = Math.ceil((photos.length + lead + pad) / columns);
+      const first = Math.max(0, Math.floor((y - topPad) / pitch) - 2);
+      const last = Math.min(total - 1, Math.ceil((y - topPad + height) / pitch) + 2);
+      setSeen((was) => (was.from === first && was.to === last ? was : { from: first, to: last }));
+    },
+    [columns, height, lead, pad, photos.length, pitch, topPad],
+  );
+
   const landedAtEnd = useRef(false);
   useEffect(() => {
     if (!startAtEnd || landedAtEnd.current || width <= 0 || height <= 0 || photos.length === 0) {
@@ -232,6 +268,7 @@ export function PhotoGrid({ photos, columns, onColumns, onOpen, padding, startAt
     const rows = Math.ceil((photos.length + lead) / columns);
     const content = topPad + bottomPad + rows * (width / columns);
     const y = Math.max(0, content - height);
+    setSeen({ from: Math.max(0, rows - 8), to: rows - 1 });
     const frame = requestAnimationFrame(() => {
       scroller.current?.scrollTo({ y, animated: false });
       scroll.value = y;
@@ -239,6 +276,52 @@ export function PhotoGrid({ photos, columns, onColumns, onOpen, padding, startAt
     });
     return () => cancelAnimationFrame(frame);
   }, [bottomPad, columns, height, lead, photos.length, scroll, startAtEnd, topPad, width]);
+
+  useEffect(() => {
+    if (!measureRef) return;
+    measureRef.current = (index, done) => {
+      const node = cells.current[index];
+      if (!node) return;
+      node.measureInWindow((x, y, w, h) => {
+        if (y + h > 0 && y < height) {
+          done({ x, y, width: w - GAP, height: h - GAP });
+          return;
+        }
+        if (pitch > 0 && height > 0) {
+          const row = Math.floor((lead + pad + index) / columns);
+          const rows = Math.ceil((photos.length + lead + pad) / columns);
+          const content = topPad + bottomPad + rows * pitch;
+          const target = Math.max(
+            0,
+            Math.min(content - height, topPad + row * pitch + pitch / 2 - height / 2),
+          );
+          scroller.current?.scrollTo({ y: target, animated: false });
+          scroll.value = target;
+          reveal(target);
+        }
+        requestAnimationFrame(() =>
+          node.measureInWindow((x2, y2, w2, h2) =>
+            done({ x: x2, y: y2, width: w2 - GAP, height: h2 - GAP }),
+          ),
+        );
+      });
+    };
+    return () => {
+      measureRef.current = null;
+    };
+  }, [
+    bottomPad,
+    columns,
+    height,
+    lead,
+    measureRef,
+    pad,
+    photos.length,
+    pitch,
+    reveal,
+    scroll,
+    topPad,
+  ]);
 
   const begin = useCallback(
     (index: number, u: number, v: number, from: number, startX: number, startY: number) => {
@@ -440,6 +523,7 @@ export function PhotoGrid({ photos, columns, onColumns, onOpen, padding, startAt
           onScroll={(event) => {
             const y = event.nativeEvent.contentOffset.y;
             scroll.value = y;
+            reveal(y);
             if (y <= 0) setPad((value) => (value === 0 ? value : 0));
           }}
           scrollEventThrottle={16}
@@ -451,30 +535,51 @@ export function PhotoGrid({ photos, columns, onColumns, onOpen, padding, startAt
             {Array.from({ length: pad + lead }, (_, index) => (
               <View key={`pad-${index}`} style={{ width: pitch, height: pitch }} />
             ))}
-            {photos.map((photo, index) => (
-              <View
-                key={photo.id}
-                ref={(node) => {
-                  cells.current[index] = node;
-                }}
-                style={{ width: pitch, height: pitch, paddingRight: GAP, paddingBottom: GAP }}
-              >
-                <PhotoTile
-                  id={photo.id}
-                  source={photo.source}
-                  onPress={() => {
-                    const node = cells.current[index];
-                    if (!node) {
-                      onOpen(index);
-                      return;
-                    }
-                    node.measureInWindow((x, y, width, height) =>
-                      onOpen(index, { x, y, width, height }),
-                    );
+            {photos.map((photo, index) => {
+              const row = Math.floor((lead + pad + index) / columns);
+              const shown = row >= seen.from && row <= seen.to;
+              return (
+                <View
+                  key={photo.id}
+                  ref={(node) => {
+                    cells.current[index] = node;
                   }}
-                />
-              </View>
-            ))}
+                  style={{ width: pitch, height: pitch, paddingRight: GAP, paddingBottom: GAP }}
+                >
+                  {shown ? (
+                    index === blankIndex ? (
+                      <View
+                        style={{
+                          flex: 1,
+                          backgroundColor: '#000000',
+                          borderRadius: radius.tile,
+                        }}
+                      />
+                    ) : (
+                      <PhotoTile
+                        id={photo.id}
+                        source={photo.source}
+                        onPress={() => {
+                          const node = cells.current[index];
+                          if (!node) {
+                            onOpen(index);
+                            return;
+                          }
+                          node.measureInWindow((x, y, width, height) =>
+                            onOpen(index, {
+                              x,
+                              y,
+                              width: width - GAP,
+                              height: height - GAP,
+                            }),
+                          );
+                        }}
+                      />
+                    )
+                  ) : null}
+                </View>
+              );
+            })}
           </View>
         </ScrollView>
         {pinching && anchor ? (

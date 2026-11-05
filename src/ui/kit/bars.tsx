@@ -29,7 +29,7 @@ import { StepScale } from './bits';
 import { BAR_GLYPH, Button, IconButton } from './button';
 import { AreaRoom, areaSight, focusedField } from './field';
 import type { IconComponent } from './icon';
-import { DISMISS_KEYBOARD, FieldInBar, KEYBOARD_SCROLL, useKeyboardShown } from './interaction';
+import { FieldInBar, KEYBOARD_SCROLL, useKeyboardShown } from './interaction';
 import { useMeasured } from './sheet';
 import { Text, TYPE_MOST, useWordRoom, WordRoom } from './text';
 export type BoardProps = {
@@ -124,7 +124,6 @@ export function Board({ bar, heading, footer, body, list, children, style }: Boa
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={[styles.board, list ? null : styles.stands, { paddingTop: insets.top }, style]}
-      {...DISMISS_KEYBOARD}
     >
       <View style={[styles.room, list ? null : styles.stands]} onLayout={onRoom}>
         {stands ? head : null}

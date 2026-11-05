@@ -152,10 +152,6 @@ export const KEYBOARD_SCROLL = {
   keyboardShouldPersistTaps: 'handled',
   keyboardDismissMode: 'on-drag',
 } as const;
-export const DISMISS_KEYBOARD = {
-  onStartShouldSetResponder: () => Keyboard.isVisible(),
-  onResponderRelease: () => Keyboard.dismiss(),
-} as const;
 export function useKeyboardShown(): boolean {
   const [shown, setShown] = useState(() => Keyboard.isVisible());
   useEffect(() => {

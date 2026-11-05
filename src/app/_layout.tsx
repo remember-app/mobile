@@ -7,7 +7,7 @@ import { Onest_700Bold } from '@expo-google-fonts/onest/700Bold';
 import { useFonts } from '@expo-google-fonts/onest/useFonts';
 import { Unbounded_600SemiBold } from '@expo-google-fonts/unbounded/600SemiBold';
 import { Unbounded_700Bold } from '@expo-google-fonts/unbounded/700Bold';
-import { Stack } from 'expo-router';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
@@ -43,19 +43,27 @@ export default function RootLayout() {
 
   if (!loaded) return null;
 
+  const base = theme.name === 'dark' ? DarkTheme : DefaultTheme;
+  const navigation = {
+    ...base,
+    colors: { ...base.colors, background: theme.color.ink, card: theme.color.ink },
+  };
+
   return (
     <KeyboardProvider>
-      <GestureHandlerRootView style={styles.root}>
+      <GestureHandlerRootView style={[styles.root, { backgroundColor: theme.color.ink }]}>
         <SafeAreaProvider>
           <StatusBar style={theme.name === 'dark' ? 'light' : 'dark'} />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              animation: 'slide_from_right',
-              fullScreenGestureEnabled: true,
-              contentStyle: { backgroundColor: theme.color.ink },
-            }}
-          />
+          <ThemeProvider value={navigation}>
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                animation: 'slide_from_right',
+                animationDuration: 220,
+                contentStyle: { backgroundColor: theme.color.ink },
+              }}
+            />
+          </ThemeProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>
     </KeyboardProvider>

@@ -1,7 +1,7 @@
 import { Image, type ImageSource } from 'expo-image';
 import { Pressable, View } from 'react-native';
 
-import { useTheme } from '@/ui/theme';
+import { radius, useTheme } from '@/ui/theme';
 
 type Props = {
   id: string;
@@ -12,7 +12,7 @@ type Props = {
 export function PhotoTile({ id, source, onPress }: Props) {
   const theme = useTheme();
   return (
-    <Pressable onPress={onPress} style={{ flex: 1 }}>
+    <Pressable onPress={onPress} style={{ flex: 1, borderRadius: radius.tile, overflow: 'hidden' }}>
       {source ? (
         <Image
           source={source}

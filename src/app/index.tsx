@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Switch, View } from 'react-native';
 
 import { setNetworkOverride } from '@/functionality';
 import { readLanguage, writeLanguage } from '@/functionality/settings/language';
@@ -11,8 +11,8 @@ import { AppBar, Board } from '@/ui/kit/bars';
 import { BlockHead } from '@/ui/kit/block-head';
 import { Button } from '@/ui/kit/button';
 import { Segment } from '@/ui/kit/segment';
-import { RowToggle } from '@/ui/kit/toggle';
-import { setTheme, space, themed, useThemeChoice } from '@/ui/theme';
+import { Text } from '@/ui/kit/text';
+import { setTheme, space, themed, useTheme, useThemeChoice } from '@/ui/theme';
 
 const THEMES = [
   { value: 'system', label: 'Система' },
@@ -28,6 +28,7 @@ const LANGUAGES = [
 export default function DevScreen() {
   const router = useRouter();
   const theme = useThemeChoice();
+  const { color } = useTheme();
   const network = useNetwork();
   const [language, setLanguage] = useState<Language>('ru');
   const styles = useStyles();
@@ -60,7 +61,15 @@ export default function DevScreen() {
             void applyLanguage(next);
           }}
         />
-        <RowToggle label="Сеть" value={online} onValueChange={(next) => setNetworkOverride(next)} />
+        <View style={styles.row}>
+          <Text role="row">Сеть</Text>
+          <Switch
+            value={online}
+            onValueChange={(next) => setNetworkOverride(next)}
+            trackColor={{ false: color.line, true: color.accent }}
+            ios_backgroundColor={color.line}
+          />
+        </View>
       </View>
 
       <BlockHead label="Экраны" />
@@ -97,6 +106,11 @@ const useStyles = themed(({ color }) =>
     },
     column: {
       gap: space.s3,
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
     },
   }),
 );

@@ -1,7 +1,8 @@
 import { FlashList } from '@shopify/flash-list';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Plus, User } from 'lucide-react-native';
-import { StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { RefreshControl, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { OnboardingFinal } from '@/ui/components/onboarding/final';
@@ -17,6 +18,12 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { color } = useTheme();
   const { celebrate } = useLocalSearchParams<{ celebrate?: string }>();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const refresh = () => {
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 600);
+  };
 
   return (
     <>
@@ -25,6 +32,9 @@ export default function HomeScreen() {
           data={MOCK_PROJECTS}
           keyExtractor={(entry) => entry.project.id}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={color.muted} />
+          }
           contentContainerStyle={{
             paddingTop: insets.top + 60,
             paddingBottom: insets.bottom + 92,
