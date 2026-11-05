@@ -1,46 +1,102 @@
 import { useRouter } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 
-import { Text } from '@/ui/kit/text';
-import { radius, space, useTheme } from '@/ui/theme';
+import { setNetworkOverride } from '@/functionality';
+import { readLanguage, writeLanguage } from '@/functionality/settings/language';
+import type { Language } from '@/types/language';
+import { useNetwork } from '@/ui/hooks';
+import { applyLanguage } from '@/ui/i18n';
+import { AppBar, Board } from '@/ui/kit/bars';
+import { BlockHead } from '@/ui/kit/block-head';
+import { Button } from '@/ui/kit/button';
+import { Segment } from '@/ui/kit/segment';
+import { RowToggle } from '@/ui/kit/toggle';
+import { setTheme, space, themed, useThemeChoice } from '@/ui/theme';
 
-export default function HomeScreen() {
+const THEMES = [
+  { value: 'system', label: 'Система' },
+  { value: 'light', label: 'Светлая' },
+  { value: 'dark', label: 'Тёмная' },
+] as const;
+
+const LANGUAGES = [
+  { value: 'ru', label: 'Русский' },
+  { value: 'en', label: 'English' },
+] as const;
+
+export default function DevScreen() {
   const router = useRouter();
-  const theme = useTheme();
+  const theme = useThemeChoice();
+  const network = useNetwork();
+  const [language, setLanguage] = useState<Language>('ru');
+  const styles = useStyles();
+  const online = network.status !== 'offline';
+
+  useEffect(() => {
+    void readLanguage().then((next) => {
+      setLanguage(next);
+      void applyLanguage(next);
+    });
+  }, []);
 
   return (
-    <View style={[styles.screen, { backgroundColor: theme.color.ink }]}>
-      <Text role="hero">Remember</Text>
-      <Text role="body" tone="muted" style={styles.lead}>
-        Лаборатория движения: сетка фотографий, полноэкранный просмотр, жесты.
-      </Text>
-      <Pressable
-        onPress={() => router.push('/lab')}
-        style={[styles.button, { backgroundColor: theme.color.accent }]}
-      >
-        <Text role="control" tone="onFill">
-          Открыть лабораторию
-        </Text>
-      </Pressable>
-    </View>
+    <Board bar={<AppBar variant="root" title="Разработка" />} body={styles.body}>
+      <BlockHead label="Настройки" />
+      <View style={styles.card}>
+        <Segment
+          label="Тема"
+          options={THEMES}
+          value={theme}
+          onChange={(next) => void setTheme(next)}
+        />
+        <Segment
+          label="Язык"
+          options={LANGUAGES}
+          value={language}
+          onChange={(next) => {
+            setLanguage(next);
+            void writeLanguage(next);
+            void applyLanguage(next);
+          }}
+        />
+        <RowToggle label="Сеть" value={online} onValueChange={(next) => setNetworkOverride(next)} />
+      </View>
+
+      <BlockHead label="Экраны" />
+      <View style={styles.column}>
+        <Button
+          label="Онбординг"
+          variant="secondary"
+          onPress={() => router.push('/onboarding/welcome')}
+        />
+        <Button label="Приложение" variant="secondary" onPress={() => router.push('/home')} />
+      </View>
+
+      <BlockHead label="Плейграунд" />
+      <Button label="Кит" variant="secondary" onPress={() => router.push('/kit')} />
+    </Board>
   );
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: space.s6,
-    gap: space.s4,
-  },
-  lead: {
-    maxWidth: 340,
-  },
-  button: {
-    height: 52,
-    borderRadius: radius.cell,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: space.s4,
-  },
-});
+const useStyles = themed(({ color }) =>
+  StyleSheet.create({
+    body: {
+      paddingHorizontal: space.s4,
+      paddingTop: space.s4,
+      paddingBottom: space.s7,
+      gap: space.s3,
+    },
+    card: {
+      backgroundColor: color.surface,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: color.line,
+      padding: space.s4,
+      gap: space.s4,
+    },
+    column: {
+      gap: space.s3,
+    },
+  }),
+);

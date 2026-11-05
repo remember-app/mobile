@@ -10,7 +10,7 @@ export function readFilePart(uri: string, part: FilePart): Uint8Array<ArrayBuffe
   const handle = source.open(FileMode.ReadOnly);
   try {
     handle.offset = part.start;
-    return handle.readBytes(part.length) as Uint8Array<ArrayBuffer>;
+    return handle.readBytesSync(part.length);
   } finally {
     handle.close();
   }

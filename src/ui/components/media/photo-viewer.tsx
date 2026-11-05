@@ -14,7 +14,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 
-import { Text } from './text';
+import { Text } from '@/ui/kit/text';
 
 export type ViewerPhoto = {
   id: string;

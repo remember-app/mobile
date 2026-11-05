@@ -9,9 +9,11 @@ import { Unbounded_600SemiBold } from '@expo-google-fonts/unbounded/600SemiBold'
 import { Unbounded_700Bold } from '@expo-google-fonts/unbounded/700Bold';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { readLanguage } from '@/functionality/settings/language';
@@ -42,16 +44,21 @@ export default function RootLayout() {
   if (!loaded) return null;
 
   return (
-    <GestureHandlerRootView style={styles.root}>
-      <SafeAreaProvider>
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: theme.color.ink },
-          }}
-        />
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <KeyboardProvider>
+      <GestureHandlerRootView style={styles.root}>
+        <SafeAreaProvider>
+          <StatusBar style={theme.name === 'dark' ? 'light' : 'dark'} />
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              animation: 'slide_from_right',
+              fullScreenGestureEnabled: true,
+              contentStyle: { backgroundColor: theme.color.ink },
+            }}
+          />
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </KeyboardProvider>
   );
 }
 

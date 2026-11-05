@@ -1,16 +1,16 @@
 import { StyleSheet, type TextStyle } from 'react-native';
 export const space = { s1: 4, s2: 8, s3: 12, s4: 16, s5: 20, s6: 24, s7: 32, s8: 48 } as const;
 export const radius = {
-  tile: 4,
-  queue: 10,
-  thumb: 12,
-  strip: 14,
-  cell: 16,
-  field: 18,
-  section: 20,
-  card: 22,
-  cover: 26,
-  sheet: 28,
+  tile: 3,
+  queue: 8,
+  thumb: 10,
+  strip: 12,
+  cell: 14,
+  field: 16,
+  section: 18,
+  card: 20,
+  cover: 22,
+  sheet: 24,
   pill: 999,
 } as const;
 export const height = {

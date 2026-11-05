@@ -79,7 +79,7 @@
         }
       ],
       "expo-background-task",
-      "./plugins/with-scene-lifecycle"
+      "expo-status-bar"
     ],
     "experiments": {
       "typedRoutes": true,

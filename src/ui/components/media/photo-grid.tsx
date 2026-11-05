@@ -1,7 +1,7 @@
 import { Image, type ImageSource } from 'expo-image';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
+import { ScrollView, type ScrollViewInstance, StyleSheet, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   Easing,
   type SharedValue,
@@ -188,7 +188,7 @@ export function PhotoGrid({ photos, columns, onColumns, onOpen }: Props) {
   const [commit, setCommit] = useState(0);
   const [pad, setPad] = useState(0);
 
-  const scroller = useRef<ScrollView>(null);
+  const scroller = useRef<ScrollViewInstance>(null);
   const pending = useRef<number | null>(null);
   const anchorRef = useRef<Anchor | null>(null);
   const applied = useRef(false);
@@ -304,7 +304,6 @@ export function PhotoGrid({ photos, columns, onColumns, onOpen }: Props) {
       if (frozen.value) return;
       scheduleOnRN(setPair, clamp(next, 0, LAST));
     },
-    [],
   );
 
   const pinch = Gesture.Pinch()

@@ -78,7 +78,13 @@ export {
   updateItem,
   updateMediaInfo,
 } from './media/gallery';
-export { isOnline, type NetworkState, networkState, subscribeNetwork } from './network/network';
+export {
+  isOnline,
+  type NetworkState,
+  networkState,
+  setNetworkOverride,
+  subscribeNetwork,
+} from './network/network';
 export {
   acceptInvite,
   clearInvites,
@@ -131,7 +137,7 @@ export {
   unregisterPush,
 } from './push/push';
 export { readLanguage, writeLanguage } from './settings/language';
-export { copyInviteLink, copyText, inviteLink, shareInviteLink } from './share/share';
+export { copyInviteLink, copyText, inviteLink, readText, shareInviteLink } from './share/share';
 export { hydrateGlobal, hydrateProject, refreshGlobal, startApp } from './start';
 export {
   type DeviceAsset,
