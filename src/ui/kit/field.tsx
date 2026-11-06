@@ -1,5 +1,12 @@
 import { Check, Tag } from 'lucide-react-native';
-import { createContext, type ReactNode, useContext, useState } from 'react';
+import {
+  type ComponentRef,
+  createContext,
+  type ReactNode,
+  type Ref,
+  useContext,
+  useState,
+} from 'react';
 import {
   type StyleProp,
   StyleSheet,
@@ -62,6 +69,8 @@ const FACE: Record<FieldVariant, TextStyle> = {
   wish: { ...type.label, fontSize: 13 },
   comment: { ...type.body, fontSize: 14 },
 };
+export type TextInputRef = ComponentRef<typeof TextInput>;
+
 export function focusedField() {
   return TextInput.State.currentlyFocusedInput?.() ?? null;
 }
@@ -95,6 +104,7 @@ export function Field({
   style,
   onFocus,
   onBlur,
+  inputRef,
   ...input
 }: TextInputProps & {
   label: string;
@@ -108,6 +118,7 @@ export function Field({
   swatch?: string;
   onSurface?: boolean;
   trailing?: ReactNode;
+  inputRef?: Ref<TextInputRef>;
 }) {
   const [focused, setFocused] = useState(false);
   const theme = useTheme();
@@ -160,6 +171,7 @@ export function Field({
           </Text>
         ) : null}
         <TextInput
+          ref={inputRef}
           accessibilityLabel={label}
           accessibilityHint={hintAfter ? `${hint} ${hintAfter}` : hint}
           placeholderTextColor={theme.color.faint}

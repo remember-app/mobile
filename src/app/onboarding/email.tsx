@@ -2,11 +2,21 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 
 import { OnboardingInput } from '@/ui/components/onboarding/input';
+import { isRegisteredEmail } from '@/ui/mocks/profile';
 
 export default function EmailScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
-  const ready = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const address = email.trim();
+  const ready = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address);
+
+  const submit = () => {
+    if (isRegisteredEmail(address)) {
+      router.push({ pathname: '/onboarding/code', params: { email: address } });
+      return;
+    }
+    router.push({ pathname: '/onboarding/invite', params: { email: address } });
+  };
 
   return (
     <OnboardingInput
@@ -18,9 +28,7 @@ export default function EmailScreen() {
       valid={ready}
       inputMode="email"
       autoComplete="email"
-      onSubmit={() =>
-        router.push({ pathname: '/onboarding/code', params: { email: email.trim() } })
-      }
+      onSubmit={submit}
     />
   );
 }

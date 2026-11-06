@@ -20,6 +20,10 @@ const listeners = new Set<() => void>();
 
 export const profileState = () => profile;
 
+export function isRegisteredEmail(email: string): boolean {
+  return email.trim().toLowerCase() === profile.email;
+}
+
 export function subscribeProfile(listener: () => void): () => void {
   listeners.add(listener);
   return () => {

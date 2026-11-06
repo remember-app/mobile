@@ -1,7 +1,8 @@
-import { type ComponentRef, useRef } from 'react';
-import { Pressable, StyleSheet, TextInput, type TextInputProps, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Pressable, StyleSheet, type TextInputProps, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import type { TextInputRef } from '@/ui/kit/field';
 import { KeyboardBar } from '@/ui/kit/keyboard';
 import { space, useTheme } from '@/ui/theme';
 
@@ -43,27 +44,24 @@ export function OnboardingInput({
 }: Props) {
   const insets = useSafeAreaInsets();
   const { color } = useTheme();
-  const keeper = useRef<ComponentRef<typeof TextInput>>(null);
+  const field = useRef<TextInputRef>(null);
+
+  useEffect(() => {
+    if (!autoFocus) return;
+    const timer = setTimeout(() => field.current?.focus(), 250);
+    return () => clearTimeout(timer);
+  }, [autoFocus]);
 
   return (
     <View style={[styles.root, { backgroundColor: color.ink }]}>
-      <Pressable style={styles.space} onPress={() => keeper.current?.focus()}>
+      <Pressable style={styles.space} onPress={() => field.current?.focus()}>
         <View style={[styles.top, { paddingTop: insets.top + space.s3 }]}>
           <StepDots step={step} total={total} />
         </View>
       </Pressable>
-      <TextInput
-        ref={keeper}
-        style={styles.keeper}
-        keyboardType={inputMode === 'email' ? 'email-address' : 'default'}
-        autoCapitalize="none"
-        autoCorrect={false}
-        caretHidden
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-      />
       <KeyboardBar style={styles.footer}>
         <ArrowField
+          inputRef={field}
           label={label}
           value={value}
           onChangeText={onChangeText}
@@ -94,13 +92,5 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingHorizontal: space.s5,
-  },
-  keeper: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: 1,
-    height: 1,
-    opacity: 0,
   },
 });

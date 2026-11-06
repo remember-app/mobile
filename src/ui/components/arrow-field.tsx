@@ -1,8 +1,8 @@
 import { ArrowRight } from 'lucide-react-native';
-import { useState } from 'react';
+import { type Ref, useState } from 'react';
 import { Pressable, StyleSheet, type TextInputProps, View } from 'react-native';
 
-import { Field } from '@/ui/kit/field';
+import { Field, type TextInputRef } from '@/ui/kit/field';
 import { height, radius, useTheme } from '@/ui/theme';
 
 type Props = {
@@ -18,6 +18,7 @@ type Props = {
   autoCapitalize?: TextInputProps['autoCapitalize'];
   autoCorrect?: boolean;
   autoFocus?: boolean;
+  inputRef?: Ref<TextInputRef>;
 };
 
 export function ArrowField({
@@ -33,6 +34,7 @@ export function ArrowField({
   autoCapitalize,
   autoCorrect,
   autoFocus,
+  inputRef,
 }: Props) {
   const { color } = useTheme();
   const [focused, setFocused] = useState(false);
@@ -41,6 +43,7 @@ export function ArrowField({
   return (
     <View style={styles.wrap}>
       <Field
+        inputRef={inputRef}
         label={label}
         value={value}
         onChangeText={onChangeText}

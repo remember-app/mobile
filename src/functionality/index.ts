@@ -88,11 +88,14 @@ export {
 export {
   acceptInvite,
   clearInvites,
+  clearPendingInvite,
   createAppInvite,
   type InviteState,
   inviteState,
   loadInvite,
+  pendingInvite,
   rotateInvite,
+  stashInvite,
   subscribeInvites,
 } from './project/invites';
 export {
@@ -137,7 +140,14 @@ export {
   unregisterPush,
 } from './push/push';
 export { readLanguage, writeLanguage } from './settings/language';
-export { copyInviteLink, copyText, inviteLink, readText, shareInviteLink } from './share/share';
+export {
+  copyInviteLink,
+  copyText,
+  inviteLink,
+  parseInvite,
+  readText,
+  shareInviteLink,
+} from './share/share';
 export { hydrateGlobal, hydrateProject, refreshGlobal, startApp } from './start';
 export {
   type DeviceAsset,

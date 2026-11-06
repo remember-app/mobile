@@ -17,6 +17,20 @@ export type InviteState = {
 
 const EMPTY: InviteState = { status: 'idle', invite: null, error: null };
 const states = new Map<ProjectId, InviteState>();
+
+let pending: string | null = null;
+
+export function stashInvite(token: string): void {
+  pending = token;
+}
+
+export function pendingInvite(): string | null {
+  return pending;
+}
+
+export function clearPendingInvite(): void {
+  pending = null;
+}
 const listeners = new Set<() => void>();
 
 export const inviteState = (projectId: ProjectId): InviteState => states.get(projectId) ?? EMPTY;
