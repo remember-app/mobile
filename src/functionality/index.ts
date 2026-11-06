@@ -142,7 +142,10 @@ export { hydrateGlobal, hydrateProject, refreshGlobal, startApp } from './start'
 export {
   type DeviceAsset,
   type DeviceAssetKind,
+  type DeviceCollection,
+  deviceMediaAllowed,
   loadDeviceAssets,
+  resolveDeviceAsset,
   uploadAudioFiles,
   uploadDeviceAssets,
 } from './upload/picker';

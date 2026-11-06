@@ -31,10 +31,11 @@ export async function mediaPermission(): Promise<boolean> {
 export async function listDeviceAssets(
   after?: string,
   first = 60,
+  mediaTypes: DeviceAssetKind[] = ['photo', 'video'],
 ): Promise<{ assets: DeviceAsset[]; next: string | null }> {
   const page = await MediaLibrary.getAssetsAsync({
-    mediaType: ['photo', 'video'],
-    sortBy: ['creationTime'],
+    mediaType: mediaTypes,
+    sortBy: [['creationTime', false]],
     first,
     ...(after === undefined ? {} : { after }),
   });
@@ -56,6 +57,11 @@ export async function listDeviceAssets(
     ];
   });
   return { assets, next: page.hasNextPage ? page.endCursor : null };
+}
+
+export async function assetIsFavorite(id: string): Promise<boolean> {
+  const info = await MediaLibrary.getAssetInfoAsync(id, { shouldDownloadFromNetwork: false });
+  return info.isFavorite ?? false;
 }
 
 export async function resolveDeviceAsset(id: string): Promise<LocalMedia> {
