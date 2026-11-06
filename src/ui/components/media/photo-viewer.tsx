@@ -1,7 +1,7 @@
 import { Image, type ImageSource } from 'expo-image';
 import { setStatusBarHidden } from 'expo-status-bar';
 import { useVideoPlayer, VideoView } from 'expo-video';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Image as RNImage,
   type ScrollViewInstance,
@@ -26,8 +26,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { resolveDeviceAsset } from '@/functionality';
-import { radius } from '@/ui/theme';
-
+import { Avatar } from '@/ui/kit/avatar';
+import { photo, radius, space } from '@/ui/theme';
+import { PhotoInfo } from './info/photo-info';
 import type { Rect } from './photo-grid';
 import { PhotoStrip, STRIP_PITCH } from './photo-strip';
 
@@ -74,19 +75,31 @@ type Props = {
   origin?: Rect;
   onClose: () => void;
   onIndex?: (index: number) => void;
+  renderInfo?: (index: number) => ReactNode;
+  author?: string;
 };
 
 type Phase = 'entering' | 'open' | 'leaving';
 
-export function PhotoViewer({ photos, initialIndex, origin, onClose, onIndex }: Props) {
+export function PhotoViewer({
+  photos,
+  initialIndex,
+  origin,
+  onClose,
+  onIndex,
+  renderInfo,
+  author,
+}: Props) {
   const insets = useSafeAreaInsets();
   const viewPhotos = useMemo(() => [...photos].reverse(), [photos]);
   const start = Math.max(0, viewPhotos.length - 1 - initialIndex);
   const indexRef = useRef(start);
   const [index, setIndex] = useState(start);
   const [zoomed, setZoomed] = useState(false);
+  const [info, setInfo] = useState(false);
   const [stripDriving, setStripDriving] = useState(false);
   const dragY = useSharedValue(0);
+  const lift = useSharedValue(0);
   const { width, height } = useWindowDimensions();
   const mainRef = useAnimatedRef<ScrollViewInstance>();
   const stripRef = useAnimatedRef<ScrollViewInstance>();
@@ -95,7 +108,10 @@ export function PhotoViewer({ photos, initialIndex, origin, onClose, onIndex }: 
   const stripActive = useSharedValue(0);
   const initialMain = useRef({ x: start * width, y: 0 });
   const cover = viewPhotos[start]?.source ?? null;
-  const current = viewPhotos[index]?.source ?? null;
+  const currentPhoto = viewPhotos[index];
+  const current = currentPhoto?.source ?? null;
+  const startBox = boxFor(currentPhoto ? mediaSize(currentPhoto) : null, width, height);
+  const startTop = (height - startBox.height) / 2;
   const grows = Boolean(origin && cover);
   const [phase, setPhase] = useState<Phase>(grows ? 'entering' : 'open');
   const [chrome, setChrome] = useState(true);
@@ -106,8 +122,8 @@ export function PhotoViewer({ photos, initialIndex, origin, onClose, onIndex }: 
   const fromSY = useSharedValue(1);
 
   useEffect(() => {
-    setStatusBarHidden(!chrome, 'fade');
-  }, [chrome]);
+    setStatusBarHidden(!chrome || info, 'fade');
+  }, [chrome, info]);
 
   useEffect(() => () => setStatusBarHidden(false, 'fade'), []);
 
@@ -189,10 +205,27 @@ export function PhotoViewer({ photos, initialIndex, origin, onClose, onIndex }: 
     const drag = 1 - Math.min(Math.abs(dragY.value) / 300, 1);
     return { opacity: Math.min(progress.value, drag) * (1 - flight.value) };
   });
+  const rise = startTop + startBox.height * INFO_RISE;
+  const pagerStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: -rise * lift.value }],
+  }));
+  const photoBottom = startTop + startBox.height;
+  const infoStyle = useAnimatedStyle(() => ({
+    top: photoBottom + (height * 0.4 - photoBottom) * lift.value,
+    opacity: Math.min(1, lift.value * 12),
+  }));
+  const contentStyle = useAnimatedStyle(() => ({
+    opacity: lift.value,
+  }));
+  const authorStyle = useAnimatedStyle(() => ({
+    top: photoBottom + (height * 0.4 - photoBottom) * lift.value - 44,
+    opacity: lift.value,
+  }));
   const stripStyle = useAnimatedStyle(() => {
     const appear = Math.max(0, Math.min(1, (progress.value - 0.6) / 0.4));
     const hide = 1 - Math.min(Math.abs(dragY.value) / 72, 1);
-    return { opacity: appear * hide };
+    const gone = Math.min(1, Math.max(0, (lift.value - 0.2) / 0.2));
+    return { opacity: appear * hide * (1 - gone) };
   });
   const growth = useAnimatedStyle(() => {
     const t = progress.value;
@@ -253,7 +286,7 @@ export function PhotoViewer({ photos, initialIndex, origin, onClose, onIndex }: 
     <View style={StyleSheet.absoluteFill}>
       <Animated.View style={[StyleSheet.absoluteFill, styles.backdrop, backdrop]} />
       <Animated.View
-        style={[StyleSheet.absoluteFill, busy ? styles.off : null]}
+        style={[StyleSheet.absoluteFill, busy ? styles.off : null, pagerStyle]}
         pointerEvents={busy ? 'none' : 'auto'}
       >
         <Animated.ScrollView
@@ -279,6 +312,9 @@ export function PhotoViewer({ photos, initialIndex, origin, onClose, onIndex }: 
                     width={width}
                     height={height}
                     dragY={dragY}
+                    lift={lift}
+                    info={info}
+                    onInfo={setInfo}
                     onDismiss={leave}
                   />
                 ) : (
@@ -288,6 +324,9 @@ export function PhotoViewer({ photos, initialIndex, origin, onClose, onIndex }: 
                     width={width}
                     height={height}
                     dragY={dragY}
+                    lift={lift}
+                    info={info}
+                    onInfo={setInfo}
                     onZoomed={setZoomed}
                     onDismiss={leave}
                     onTap={() => setChrome((shown) => !shown)}
@@ -298,6 +337,18 @@ export function PhotoViewer({ photos, initialIndex, origin, onClose, onIndex }: 
           ))}
         </Animated.ScrollView>
       </Animated.View>
+      <Animated.View style={[styles.info, infoStyle]} pointerEvents={info ? 'auto' : 'none'}>
+        <Animated.View style={[styles.fill, contentStyle]}>
+          <PhotoInfo lift={lift} onDismiss={() => setInfo(false)}>
+            {renderInfo?.(viewPhotos.length - 1 - index)}
+          </PhotoInfo>
+        </Animated.View>
+      </Animated.View>
+      {author ? (
+        <Animated.View style={[styles.author, authorStyle]} pointerEvents="none">
+          <Avatar name={author} size={34} />
+        </Animated.View>
+      ) : null}
       {phase === 'entering' && cover ? (
         <Animated.View
           pointerEvents="none"
@@ -332,7 +383,7 @@ export function PhotoViewer({ photos, initialIndex, origin, onClose, onIndex }: 
       ) : null}
       {chrome && !zoomed && viewPhotos.length > 1 ? (
         <Animated.View
-          pointerEvents={phase === 'open' ? 'auto' : 'none'}
+          pointerEvents={info || phase !== 'open' ? 'none' : 'auto'}
           style={[styles.strip, { bottom: insets.bottom + 8 }, stripStyle]}
         >
           <PhotoStrip
@@ -357,17 +408,100 @@ type ZoomProps = {
   width: number;
   height: number;
   dragY: SharedValue<number>;
+  lift: SharedValue<number>;
+  info: boolean;
+  onInfo: (value: boolean) => void;
   onZoomed: (value: boolean) => void;
   onDismiss: () => void;
   onTap: () => void;
 };
+
+const INFO_RISE = 0.1;
 
 const clamp = (value: number, min: number, max: number) => {
   'worklet';
   return Math.min(Math.max(value, min), max);
 };
 
-function Zoomable({ source, media, width, height, dragY, onZoomed, onDismiss, onTap }: ZoomProps) {
+type VerticalProps = {
+  height: number;
+  info: boolean;
+  zoomed: boolean;
+  lift: SharedValue<number>;
+  dragY: SharedValue<number>;
+  onInfo: (value: boolean) => void;
+  onDismiss: () => void;
+};
+
+function verticalGestures({ height, info, zoomed, lift, dragY, onInfo, onDismiss }: VerticalProps) {
+  const span = height * 0.32;
+
+  const openInfo = Gesture.Pan()
+    .enabled(!info && !zoomed)
+    .maxPointers(1)
+    .activeOffsetY([-28, 10000])
+    .failOffsetX([-24, 24])
+    .onUpdate((event) => {
+      lift.value = clamp(-event.translationY / span, 0, 1);
+    })
+    .onEnd((event) => {
+      const projected = event.translationY + event.velocityY * 0.15;
+      if (projected < -60) {
+        lift.value = withTiming(1, { duration: 240, easing: Easing.out(Easing.cubic) });
+        scheduleOnRN(onInfo, true);
+      } else {
+        lift.value = withSpring(0, { damping: 20, stiffness: 220 });
+      }
+    });
+
+  const closeInfo = Gesture.Pan()
+    .enabled(info && !zoomed)
+    .maxPointers(1)
+    .activeOffsetY([-10000, 28])
+    .failOffsetX([-24, 24])
+    .onUpdate((event) => {
+      lift.value = clamp(1 - event.translationY / span, 0, 1);
+    })
+    .onEnd((event) => {
+      const projected = event.translationY + event.velocityY * 0.15;
+      if (projected > 60) {
+        lift.value = withTiming(0, { duration: 220, easing: Easing.out(Easing.cubic) });
+        scheduleOnRN(onInfo, false);
+      } else {
+        lift.value = withSpring(1, { damping: 20, stiffness: 220 });
+      }
+    });
+
+  const dismiss = Gesture.Pan()
+    .enabled(!info && !zoomed)
+    .maxPointers(1)
+    .activeOffsetY([-10000, 30])
+    .failOffsetX([-24, 24])
+    .onUpdate((event) => {
+      dragY.value = event.translationY;
+    })
+    .onEnd((event) => {
+      const projected = event.translationY + event.velocityY * 0.15;
+      if (projected > 70) scheduleOnRN(onDismiss);
+      else dragY.value = withSpring(0, { damping: 20, stiffness: 220 });
+    });
+
+  return { openInfo, closeInfo, dismiss };
+}
+
+function Zoomable({
+  source,
+  media,
+  width,
+  height,
+  dragY,
+  lift,
+  info,
+  onInfo,
+  onZoomed,
+  onDismiss,
+  onTap,
+}: ZoomProps) {
   const [zoomed, setZoomed] = useState(false);
   const scale = useSharedValue(1);
   const x = useSharedValue(0);
@@ -385,6 +519,7 @@ function Zoomable({ source, media, width, height, dragY, onZoomed, onDismiss, on
   );
 
   const pinch = Gesture.Pinch()
+    .enabled(!info)
     .onStart(() => {
       fromScale.value = scale.value;
     })
@@ -420,22 +555,19 @@ function Zoomable({ source, media, width, height, dragY, onZoomed, onDismiss, on
       y.value = clamp(fromY.value + event.translationY, -maxY, maxY);
     });
 
-  const dismiss = Gesture.Pan()
-    .enabled(!zoomed)
-    .maxPointers(1)
-    .activeOffsetY([-10000, 30])
-    .failOffsetX([-24, 24])
-    .onUpdate((event) => {
-      dragY.value = event.translationY;
-    })
-    .onEnd((event) => {
-      const projected = event.translationY + event.velocityY * 0.15;
-      if (projected > 70) scheduleOnRN(onDismiss);
-      else dragY.value = withSpring(0, { damping: 20, stiffness: 220 });
-    });
+  const { openInfo, closeInfo, dismiss } = verticalGestures({
+    height,
+    info,
+    zoomed,
+    lift,
+    dragY,
+    onInfo,
+    onDismiss,
+  });
 
   const doubleTap = Gesture.Tap()
     .numberOfTaps(2)
+    .enabled(!info)
     .onEnd((event) => {
       if (scale.value > 1) {
         scale.value = withTiming(1);
@@ -461,7 +593,7 @@ function Zoomable({ source, media, width, height, dragY, onZoomed, onDismiss, on
 
   const gesture = Gesture.Simultaneous(
     pinch,
-    Gesture.Race(Gesture.Exclusive(doubleTap, singleTap), move, dismiss),
+    Gesture.Race(Gesture.Exclusive(doubleTap, singleTap), move, dismiss, openInfo, closeInfo),
   );
 
   const style = useAnimatedStyle(() => ({
@@ -498,12 +630,18 @@ function VideoFrame({
   width,
   height,
   dragY,
+  lift,
+  info,
+  onInfo,
   onDismiss,
 }: {
   photo: ViewerPhoto;
   width: number;
   height: number;
   dragY: SharedValue<number>;
+  lift: SharedValue<number>;
+  info: boolean;
+  onInfo: (value: boolean) => void;
   onDismiss: () => void;
 }) {
   const [uri, setUri] = useState<string | null>(null);
@@ -523,18 +661,15 @@ function VideoFrame({
     };
   }, [photo.assetId]);
 
-  const pan = Gesture.Pan()
-    .maxPointers(1)
-    .activeOffsetY([-10000, 30])
-    .failOffsetX([-24, 24])
-    .onUpdate((event) => {
-      dragY.value = event.translationY;
-    })
-    .onEnd((event) => {
-      const projected = event.translationY + event.velocityY * 0.15;
-      if (projected > 70) scheduleOnRN(onDismiss);
-      else dragY.value = withSpring(0, { damping: 20, stiffness: 220 });
-    });
+  const { openInfo, closeInfo, dismiss } = verticalGestures({
+    height,
+    info,
+    zoomed: false,
+    lift,
+    dragY,
+    onInfo,
+    onDismiss,
+  });
 
   const style = useAnimatedStyle(() => ({
     transform: [
@@ -544,7 +679,7 @@ function VideoFrame({
   }));
 
   return (
-    <GestureDetector gesture={pan}>
+    <GestureDetector gesture={Gesture.Race(openInfo, closeInfo, dismiss)}>
       <Animated.View style={[styles.page, style]}>
         {uri ? (
           <Video uri={uri} box={videoBox} />
@@ -572,13 +707,29 @@ function Video({ uri, box }: { uri: string; box: Box }) {
 
 const styles = StyleSheet.create({
   backdrop: {
-    backgroundColor: '#000000',
+    backgroundColor: photo.viewer,
   },
   off: {
     opacity: 0,
   },
   flight: {
     position: 'absolute',
+  },
+  info: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 2,
+    backgroundColor: photo.viewer,
+  },
+  fill: {
+    flex: 1,
+  },
+  author: {
+    position: 'absolute',
+    left: space.s4,
+    zIndex: 3,
   },
   strip: {
     position: 'absolute',

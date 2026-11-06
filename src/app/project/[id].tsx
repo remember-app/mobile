@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from 're
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { MediaInfo } from '@/ui/components/media/info/media-info';
 import { type MeasureTile, PhotoGrid, type Rect } from '@/ui/components/media/photo-grid';
 import { PhotoViewer } from '@/ui/components/media/photo-viewer';
 import { UploadSheet } from '@/ui/components/upload-sheet';
@@ -12,7 +13,9 @@ import { BlurBar } from '@/ui/kit/blur-bar';
 import { BackButton, Button, IconButton } from '@/ui/kit/button';
 import { Empty } from '@/ui/kit/empty';
 import { Text } from '@/ui/kit/text';
+import { mockPhotoMeta } from '@/ui/mocks/media-info';
 import { mockPhotos } from '@/ui/mocks/photos';
+import { profileState, subscribeProfile } from '@/ui/mocks/profile';
 import { MOCK_PROJECTS } from '@/ui/mocks/projects';
 import { subscribeUploads, uploadsOf } from '@/ui/mocks/uploads';
 import { space, useTheme } from '@/ui/theme';
@@ -28,6 +31,7 @@ export default function ProjectScreen() {
   const measureTile = useRef<MeasureTile | null>(null);
   const getUploads = useCallback(() => uploadsOf(id), [id]);
   const uploads = useSyncExternalStore(subscribeUploads, getUploads);
+  const profile = useSyncExternalStore(subscribeProfile, profileState);
   const shots = useMemo(() => mockPhotos(64).reverse(), []);
   const upload = uploads.find((entry) => entry.id === uploadId) ?? null;
   const photos = useMemo(
@@ -37,6 +41,8 @@ export default function ProjectScreen() {
         source: entry.source,
         video: entry.video,
         assetId: entry.assetId ?? undefined,
+        width: entry.width ?? undefined,
+        height: entry.height ?? undefined,
         upload:
           entry.status === 'done'
             ? undefined
@@ -127,6 +133,11 @@ export default function ProjectScreen() {
                 setOpen((was) => (was === null ? was : { index: next, rect })),
               )
             }
+            author={profile.name}
+            renderInfo={(index) => {
+              const photo = photos[index];
+              return photo ? <MediaInfo key={photo.id} meta={mockPhotoMeta(photo, index)} /> : null;
+            }}
           />
         )}
       </View>

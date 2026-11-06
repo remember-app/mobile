@@ -123,6 +123,8 @@ export default function PickScreen() {
         source: { uri: asset.uri },
         video: asset.kind === 'video',
         assetId: asset.id,
+        width: asset.width,
+        height: asset.height,
       })),
     );
     router.back();

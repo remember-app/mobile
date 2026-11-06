@@ -14,6 +14,8 @@ export type Photo = {
   source: ImageSource | string | null;
   video?: boolean;
   assetId?: string;
+  width?: number;
+  height?: number;
   upload?: TileUpload;
   select?: number | null;
   note?: string;

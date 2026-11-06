@@ -8,6 +8,8 @@ export type MockUpload = {
   source: ImageSource | null;
   video: boolean;
   assetId: string | null;
+  width: number | null;
+  height: number | null;
   status: MockUploadStatus;
   progress: number;
 };
@@ -16,6 +18,8 @@ type NewUpload = {
   source: ImageSource | null;
   video: boolean;
   assetId: string | null;
+  width?: number | null;
+  height?: number | null;
 };
 
 const EMPTY: readonly MockUpload[] = [];
@@ -86,6 +90,8 @@ export function enqueueMockUploads(projectId: string, uploads: readonly NewUploa
     source: upload.source,
     video: upload.video,
     assetId: upload.assetId,
+    width: upload.width ?? null,
+    height: upload.height ?? null,
     status: 'uploading' as const,
     progress: 0,
   }));
