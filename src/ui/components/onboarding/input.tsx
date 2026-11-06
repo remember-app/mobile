@@ -1,12 +1,11 @@
-import { ArrowRight } from 'lucide-react-native';
-import { type ComponentRef, useRef, useState } from 'react';
+import { type ComponentRef, useRef } from 'react';
 import { Pressable, StyleSheet, TextInput, type TextInputProps, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Field } from '@/ui/kit/field';
 import { KeyboardBar } from '@/ui/kit/keyboard';
-import { height, radius, space, useTheme } from '@/ui/theme';
+import { space, useTheme } from '@/ui/theme';
 
+import { ArrowField } from '../arrow-field';
 import { StepDots } from './steps';
 
 type Props = {
@@ -44,9 +43,7 @@ export function OnboardingInput({
 }: Props) {
   const insets = useSafeAreaInsets();
   const { color } = useTheme();
-  const [focused, setFocused] = useState(false);
   const keeper = useRef<ComponentRef<typeof TextInput>>(null);
-  const border = focused ? color.accent : color.line;
 
   return (
     <View style={[styles.root, { backgroundColor: color.ink }]}>
@@ -66,43 +63,20 @@ export function OnboardingInput({
         importantForAccessibility="no-hide-descendants"
       />
       <KeyboardBar style={styles.footer}>
-        <View style={styles.fieldWrap}>
-          <Field
-            label={label}
-            value={value}
-            onChangeText={onChangeText}
-            placeholder={placeholder}
-            prefix={prefix}
-            inputMode={inputMode}
-            autoComplete={autoComplete}
-            autoCapitalize={autoCapitalize}
-            autoCorrect={autoCorrect}
-            autoFocus={autoFocus}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
-            style={value.length > 0 ? { paddingRight: height.fieldTall } : undefined}
-          />
-          {value.length > 0 ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Продолжить"
-              disabled={!valid}
-              onPress={onSubmit}
-              style={[
-                styles.arrow,
-                {
-                  backgroundColor: valid ? color.accent : color.raise,
-                  borderTopColor: border,
-                  borderBottomColor: border,
-                  borderRightColor: border,
-                  borderLeftColor: valid ? color.accent : border,
-                },
-              ]}
-            >
-              <ArrowRight size={20} color={valid ? color.onFill : color.faint} />
-            </Pressable>
-          ) : null}
-        </View>
+        <ArrowField
+          label={label}
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          valid={valid}
+          onSubmit={onSubmit}
+          prefix={prefix}
+          inputMode={inputMode}
+          autoComplete={autoComplete}
+          autoCapitalize={autoCapitalize}
+          autoCorrect={autoCorrect}
+          autoFocus={autoFocus}
+        />
       </KeyboardBar>
     </View>
   );
@@ -121,9 +95,6 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: space.s5,
   },
-  fieldWrap: {
-    position: 'relative',
-  },
   keeper: {
     position: 'absolute',
     top: 0,
@@ -131,20 +102,5 @@ const styles = StyleSheet.create({
     width: 1,
     height: 1,
     opacity: 0,
-  },
-  arrow: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    width: height.fieldTall,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderRightWidth: 1,
-    borderLeftWidth: 1,
-    borderTopRightRadius: radius.section,
-    borderBottomRightRadius: radius.section,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });

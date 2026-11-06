@@ -40,6 +40,7 @@ export function Avatar({ name, size = 42, uri, ring, gone, display, stacked, sty
   const { color } = useTheme();
   const styles = useStyles();
   const circle = { width: size, height: size, borderRadius: size / 2 };
+  const letterSize = display ? Math.round(size * 0.3) : (LETTERS[size] ?? Math.round(size / 3));
   return (
     <View
       accessibilityElementsHidden
@@ -67,9 +68,8 @@ export function Avatar({ name, size = 42, uri, ring, gone, display, stacked, sty
                   paddingRight: stacked.covered,
                 }
               : {
-                  fontSize: display
-                    ? Math.round(size * 0.3)
-                    : (LETTERS[size] ?? Math.round(size / 3)),
+                  fontSize: letterSize,
+                  lineHeight: Math.round(letterSize * 1.15),
                   ...(!display && BOLD.has(size) ? { fontFamily: font.bold } : null),
                   letterSpacing: 0,
                 }

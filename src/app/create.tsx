@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -10,7 +10,7 @@ import { Calendar } from '@/ui/kit/calendar';
 import { dayKey } from '@/ui/kit/calendar-grid';
 import { Field } from '@/ui/kit/field';
 import { Slider } from '@/ui/kit/slider';
-import { MOCK_CONTACTS } from '@/ui/mocks/contacts';
+import { contactsState, subscribeContacts } from '@/ui/mocks/contacts';
 import { space } from '@/ui/theme';
 
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
@@ -36,6 +36,7 @@ export default function CreateScreen() {
   );
   const [from, setFrom] = useState<Date | null>(null);
   const [to, setTo] = useState<Date | null>(null);
+  const contacts = useSyncExternalStore(subscribeContacts, contactsState);
   const [invited, setInvited] = useState<ReadonlySet<string>>(() => new Set());
   const [limit, setLimit] = useState(10);
 
@@ -79,7 +80,7 @@ export default function CreateScreen() {
         nextLabel="Следующий месяц"
         dayLabel={dayLabel}
       />
-      <ContactStrip contacts={MOCK_CONTACTS} selected={invited} onToggle={toggle} />
+      <ContactStrip contacts={contacts} selected={invited} onToggle={toggle} />
       <Slider
         value={limit}
         onChange={setLimit}
@@ -89,8 +90,6 @@ export default function CreateScreen() {
         minLabel="1 ГБ"
         maxLabel="100 ГБ"
         label="Лимит памяти"
-        shorterLabel="Меньше"
-        longerLabel="Больше"
       />
       <Button
         label="Создать"

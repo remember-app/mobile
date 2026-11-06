@@ -56,7 +56,7 @@ export default function ProjectScreen() {
           measureRef={measureTile}
         />
         <BlurBar edge="top" style={styles.top}>
-          <BackButton label="Назад" onPress={() => router.back()} />
+          <BackButton label="Назад" size={52} onPress={() => router.back()} />
           <Text role="barTitle" numberOfLines={1} style={styles.title}>
             {project.project.title}
           </Text>
@@ -64,8 +64,10 @@ export default function ProjectScreen() {
             icon={Users}
             label="Участники"
             tone="surface"
-            size={40}
-            onPress={() => undefined}
+            size={48}
+            onPress={() =>
+              router.push({ pathname: '/project/[id]/info', params: { id: project.project.id } })
+            }
           />
         </BlurBar>
         <View
@@ -99,10 +101,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space.s3,
     paddingHorizontal: space.s4,
-    minHeight: 44,
+    minHeight: 52,
   },
   title: {
     flex: 1,
+    fontSize: 22,
+    lineHeight: 26,
   },
   bottom: {
     position: 'absolute',

@@ -53,14 +53,14 @@ export default function HomeScreen() {
           )}
         />
         <BlurBar edge="top" style={styles.top}>
-          <Text role="barTitle" accessibilityRole="header">
+          <Text role="barTitle" accessibilityRole="header" style={styles.barTitle}>
             Воспоминания
           </Text>
           <IconButton
             icon={User}
             label="Профиль"
             tone="surface"
-            size={40}
+            size={48}
             onPress={() => router.push('/profile')}
           />
         </BlurBar>
@@ -95,7 +95,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: space.s4,
-    minHeight: 44,
+    minHeight: 52,
+  },
+  barTitle: {
+    fontSize: 22,
+    lineHeight: 26,
   },
   bottom: {
     position: 'absolute',

@@ -344,16 +344,19 @@ export const BAR_GLYPH = { size: ICO, stroke: 1.9 } as const;
 export function BackButton({
   label,
   onPress,
+  size,
   style,
 }: {
   label: string;
   onPress: () => void;
+  size?: number;
   style?: StyleProp<ViewStyle>;
 }) {
   return (
     <IconButton
       icon={ChevronLeft}
       label={label}
+      size={size}
       glyph={BAR_GLYPH}
       onPress={onPress}
       style={style}

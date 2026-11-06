@@ -8,6 +8,9 @@ export type Contact = {
   name: string;
 };
 
+const AVATAR = 48;
+export const CONTACT_STRIP_HEIGHT = AVATAR + space.s3 * 2 + 2;
+
 export function ContactStrip({
   contacts,
   selected,
@@ -38,7 +41,7 @@ export function ContactStrip({
               onPress={() => onToggle(contact.id)}
               style={[styles.face, on ? { boxShadow: `0 0 0 2px ${color.accent}` } : null]}
             >
-              <Avatar name={contact.name} size={48} />
+              <Avatar name={contact.name} size={AVATAR} />
             </Pressable>
           );
         })}
@@ -63,8 +66,8 @@ const useStyles = themed(({ color }) =>
       paddingHorizontal: space.s3,
     },
     face: {
-      width: 48,
-      height: 48,
+      width: AVATAR,
+      height: AVATAR,
       borderRadius: radius.pill,
     },
   }),
