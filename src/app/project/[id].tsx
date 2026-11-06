@@ -94,7 +94,7 @@ export default function ProjectScreen() {
           <IconButton
             icon={Users}
             label="Участники"
-            tone="surface"
+            tone="ghost"
             size={48}
             onPress={() =>
               router.push({ pathname: '/project/[id]/info', params: { id: project.project.id } })

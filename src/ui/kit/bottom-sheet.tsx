@@ -1,9 +1,11 @@
 import { type ReactNode, useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
   Easing,
   useAnimatedStyle,
   useSharedValue,
+  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,18 +19,22 @@ type Props = {
   visible: boolean;
   onClose: () => void;
   title?: string;
+  size?: 'auto' | 'full';
   children: ReactNode;
 };
 
-export function BottomSheet({ visible, onClose, title, children }: Props) {
+export function BottomSheet({ visible, onClose, title, size = 'auto', children }: Props) {
+  const tall = size === 'full';
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const { color } = useTheme();
   const [mounted, setMounted] = useState(visible);
   const progress = useSharedValue(visible ? 1 : 0);
+  const drag = useSharedValue(0);
 
   useEffect(() => {
     if (visible) {
+      drag.value = 0;
       setMounted(true);
       progress.value = withTiming(1, { duration: 260, easing: Easing.out(Easing.cubic) });
       return;
@@ -36,41 +42,54 @@ export function BottomSheet({ visible, onClose, title, children }: Props) {
     progress.value = withTiming(0, { duration: 200, easing: Easing.in(Easing.cubic) }, (done) => {
       if (done) scheduleOnRN(setMounted, false);
     });
-  }, [progress, visible]);
+  }, [drag, progress, visible]);
 
   const backdrop = useAnimatedStyle(() => ({ opacity: progress.value * 0.55 }));
   const sheet = useAnimatedStyle(() => ({
-    transform: [{ translateY: (1 - progress.value) * height }],
+    transform: [{ translateY: (1 - progress.value) * height + drag.value }],
   }));
+
+  const pan = Gesture.Pan()
+    .activeOffsetY([8, 10000])
+    .onUpdate((event) => {
+      drag.value = Math.max(0, event.translationY);
+    })
+    .onEnd((event) => {
+      if (event.translationY > 120 || event.velocityY > 800) scheduleOnRN(onClose);
+      else drag.value = withSpring(0, { damping: 20, stiffness: 220 });
+    });
 
   if (!visible && !mounted) return null;
 
   return (
     <Modal transparent visible onRequestClose={onClose} animationType="none" statusBarTranslucent>
-      <View style={styles.root}>
+      <GestureHandlerRootView style={styles.root}>
         <Animated.View style={[StyleSheet.absoluteFill, styles.backdrop, backdrop]}>
           <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         </Animated.View>
-        <Animated.View
-          accessibilityViewIsModal
-          style={[
-            styles.sheet,
-            {
-              backgroundColor: color.surface,
-              paddingBottom: insets.bottom + space.s3,
-            },
-            sheet,
-          ]}
-        >
-          <View style={[styles.grabber, { backgroundColor: color.lineStrong }]} />
-          {title ? (
-            <Text role="title" style={styles.title}>
-              {title}
-            </Text>
-          ) : null}
-          <View style={styles.content}>{children}</View>
-        </Animated.View>
-      </View>
+        <GestureDetector gesture={pan}>
+          <Animated.View
+            accessibilityViewIsModal
+            style={[
+              styles.sheet,
+              {
+                backgroundColor: color.surface,
+                paddingBottom: insets.bottom + space.s3,
+              },
+              tall ? { height: height * 0.94 } : null,
+              sheet,
+            ]}
+          >
+            <View style={[styles.grabber, { backgroundColor: color.lineStrong }]} />
+            {title ? (
+              <Text role="title" style={styles.title}>
+                {title}
+              </Text>
+            ) : null}
+            <View style={[styles.content, tall ? styles.fill : null]}>{children}</View>
+          </Animated.View>
+        </GestureDetector>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
@@ -103,5 +122,8 @@ const styles = StyleSheet.create({
   content: {
     gap: space.s3,
     paddingBottom: space.s3,
+  },
+  fill: {
+    flex: 1,
   },
 });

@@ -1,16 +1,14 @@
-import { FlashList } from '@shopify/flash-list';
+import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { User } from 'lucide-react-native';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { RefreshControl, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { OnboardingFinal } from '@/ui/components/onboarding/final';
 import { ProjectCard } from '@/ui/components/project-card';
-import { BlurBar } from '@/ui/kit/blur-bar';
 import { Button, IconButton } from '@/ui/kit/button';
-import { Text } from '@/ui/kit/text';
-import { MOCK_PROJECTS } from '@/ui/mocks/projects';
+import { MOCK_PROJECTS, type MockProject } from '@/ui/mocks/projects';
 import { space, useTheme } from '@/ui/theme';
 
 export default function HomeScreen() {
@@ -19,6 +17,8 @@ export default function HomeScreen() {
   const { color } = useTheme();
   const { celebrate } = useLocalSearchParams<{ celebrate?: string }>();
   const [refreshing, setRefreshing] = useState(false);
+  const list = useRef<FlashListRef<MockProject>>(null);
+  const anchored = useRef(false);
 
   const refresh = () => {
     setRefreshing(true);
@@ -29,14 +29,20 @@ export default function HomeScreen() {
     <>
       <View style={[styles.root, { backgroundColor: color.ink }]}>
         <FlashList
+          ref={list}
           data={MOCK_PROJECTS}
           keyExtractor={(entry) => entry.project.id}
+          onContentSizeChange={(_width, height) => {
+            if (anchored.current || height <= 0) return;
+            anchored.current = true;
+            list.current?.scrollToEnd({ animated: false });
+          }}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={color.muted} />
           }
           contentContainerStyle={{
-            paddingTop: insets.top + 60,
+            paddingTop: insets.top,
             paddingBottom: insets.bottom + 92,
             paddingHorizontal: space.s4,
           }}
@@ -52,18 +58,14 @@ export default function HomeScreen() {
             />
           )}
         />
-        <BlurBar edge="top" style={styles.top}>
-          <Text role="barTitle" accessibilityRole="header" style={styles.barTitle}>
-            Воспоминания
-          </Text>
-          <IconButton
-            icon={User}
-            label="Профиль"
-            tone="surface"
-            size={48}
-            onPress={() => router.push('/profile')}
-          />
-        </BlurBar>
+        <IconButton
+          icon={User}
+          label="Профиль"
+          tone="ghost"
+          size={48}
+          style={[styles.profile, { top: insets.top + space.s1 }]}
+          onPress={() => router.push('/profile')}
+        />
         <View
           pointerEvents="box-none"
           style={[styles.bottom, { paddingBottom: insets.bottom + space.s2 }]}
@@ -89,16 +91,9 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
   },
-  top: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: space.s4,
-    minHeight: 52,
-  },
-  barTitle: {
-    fontSize: 22,
-    lineHeight: 26,
+  profile: {
+    position: 'absolute',
+    right: space.s4,
   },
   bottom: {
     position: 'absolute',

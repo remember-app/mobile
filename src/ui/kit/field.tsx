@@ -226,6 +226,9 @@ export function CodeField({
   length = 6,
   state,
   autoFocus,
+  alnum,
+  highlight,
+  inputRef,
 }: {
   label: string;
   value: string;
@@ -233,8 +236,12 @@ export function CodeField({
   length?: number;
   state?: FieldState;
   autoFocus?: boolean;
+  alnum?: boolean;
+  highlight?: boolean;
+  inputRef?: Ref<TextInputRef>;
 }) {
   const [focused, setFocused] = useState(false);
+  const lit = highlight ?? focused;
   const theme = useTheme();
   const styles = useStyles();
   useFieldInBar();
@@ -250,9 +257,11 @@ export function CodeField({
                 borderColor:
                   state === 'error'
                     ? theme.color.dangerText
-                    : focused && i === Math.min(value.length, length - 1)
+                    : state === 'ok'
                       ? theme.color.accent
-                      : theme.color.line,
+                      : lit && i === Math.min(value.length, length - 1)
+                        ? theme.color.accent
+                        : theme.color.line,
               },
             ]}
           >
@@ -260,13 +269,22 @@ export function CodeField({
           </View>
         ))}
         <TextInput
+          ref={inputRef}
           accessibilityLabel={label}
           value={value}
-          onChangeText={(next) => onChangeText(next.replace(/\D/g, '').slice(0, length))}
-          keyboardType="number-pad"
-          textContentType="oneTimeCode"
-          autoComplete="one-time-code"
+          onChangeText={(next) =>
+            onChangeText(
+              (alnum ? next.replace(/[^0-9A-Za-z]/g, '') : next.replace(/\D/g, '')).slice(
+                0,
+                length,
+              ),
+            )
+          }
+          keyboardType={alnum ? 'default' : 'number-pad'}
           maxLength={length}
+          {...(alnum
+            ? { autoCapitalize: 'none' as const, autoCorrect: false }
+            : { textContentType: 'oneTimeCode' as const, autoComplete: 'one-time-code' as const })}
           maxFontSizeMultiplier={TYPE_MOST}
           autoFocus={autoFocus}
           onFocus={() => setFocused(true)}

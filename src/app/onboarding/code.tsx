@@ -1,13 +1,13 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { readText } from '@/functionality';
+import { CodeInput, type CodeOutcome } from '@/ui/components/code-input';
 import { StepDots } from '@/ui/components/onboarding/steps';
 import { Button } from '@/ui/kit/button';
-import { CodeField } from '@/ui/kit/field';
 import { Text } from '@/ui/kit/text';
 import { font, space, useTheme } from '@/ui/theme';
 
@@ -17,15 +17,19 @@ export default function CodeScreen() {
   const { color } = useTheme();
   const { email } = useLocalSearchParams<{ email?: string }>();
   const [code, setCode] = useState('');
+  const [outcome, setOutcome] = useState<CodeOutcome | null>(null);
 
-  useEffect(() => {
-    if (code.length === 6) router.replace('/onboarding/username');
-  }, [code, router]);
+  const change = (next: string) => {
+    setCode(next);
+    setOutcome(next.length === 6 ? 'ok' : null);
+  };
 
   const paste = async () => {
     const text = await readText();
     const digits = text.replace(/\D/g, '').slice(0, 6);
-    if (digits) setCode(digits);
+    if (!digits) return;
+    setCode(digits);
+    setOutcome(digits.length === 6 ? 'ok' : null);
   };
 
   return (
@@ -46,7 +50,17 @@ export default function CodeScreen() {
         </Text>
       </View>
       <View style={styles.body}>
-        <CodeField label="Код" value={code} onChangeText={setCode} autoFocus />
+        <CodeInput
+          label="Код"
+          value={code}
+          onChangeText={change}
+          outcome={outcome}
+          onSettled={(result) => {
+            if (result === 'ok') router.push('/onboarding/username');
+          }}
+          autoFocus
+          highlight
+        />
         <Button
           label="Отправить ещё раз"
           variant="link"

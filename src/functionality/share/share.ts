@@ -7,16 +7,16 @@ export function inviteLink(token: string): string {
   return `remember://invite?token=${encodeURIComponent(token)}`;
 }
 
-const TOKEN = /^[A-Za-z0-9_-]{16,}$/;
+const CODE = /^[A-Za-z0-9]{6}$/;
 
 export function parseInvite(text: string): string | null {
   const value = text.trim();
   if (!value) return null;
-  const found = /[?&]token=([^&#\s]+)/.exec(value)?.[1];
-  if (!found) return TOKEN.test(value) ? value : null;
+  const found = /[?&](?:token|code)=([^&#\s]+)/.exec(value)?.[1];
+  if (!found) return CODE.test(value) ? value : null;
   try {
-    const token = decodeURIComponent(found);
-    return TOKEN.test(token) ? token : null;
+    const code = decodeURIComponent(found);
+    return CODE.test(code) ? code : null;
   } catch {
     return null;
   }
