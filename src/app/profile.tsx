@@ -1,18 +1,21 @@
 import { useRouter } from 'expo-router';
-import { Check, ChevronDown, ChevronRight, ChevronUp, Pencil } from 'lucide-react-native';
+import { Check, ChevronDown, ChevronRight, ChevronUp } from 'lucide-react-native';
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from 'react-native';
 
+import { isUsernameShapeValid } from '@/functionality';
 import { readLanguage, writeLanguage } from '@/functionality/settings/language';
 import type { Language } from '@/types/language';
 import { applyLanguage } from '@/ui/i18n';
 import { Avatar } from '@/ui/kit/avatar';
 import { AppBar, Board } from '@/ui/kit/bars';
 import { Divider } from '@/ui/kit/bits';
-import { BackButton, Button, IconButton } from '@/ui/kit/button';
+import { BottomSheet } from '@/ui/kit/bottom-sheet';
+import { BackButton, Button } from '@/ui/kit/button';
+import { Field } from '@/ui/kit/field';
 import { Text } from '@/ui/kit/text';
 import { contactsState, subscribeContacts } from '@/ui/mocks/contacts';
-import { profileState, subscribeProfile } from '@/ui/mocks/profile';
+import { profileState, saveProfile, subscribeProfile } from '@/ui/mocks/profile';
 import { radius, space, themed, useTheme } from '@/ui/theme';
 
 const LANGUAGES = [
@@ -32,6 +35,9 @@ export default function ProfileScreen() {
   const contacts = useSyncExternalStore(subscribeContacts, contactsState);
   const [language, setLanguage] = useState<Language>('ru');
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(profile.name);
+  const [username, setUsername] = useState(profile.username);
 
   useEffect(() => {
     void readLanguage().then((next) => {
@@ -49,6 +55,20 @@ export default function ProfileScreen() {
 
   const left = Math.max(0, profile.storageTotalGb - profile.storageUsedGb);
   const current = LANGUAGES.find((item) => item.value === language) ?? LANGUAGES[0];
+  const clean = username.trim().replace(/^@/, '');
+  const valid = isUsernameShapeValid(clean);
+
+  const openEdit = () => {
+    setName(profile.name);
+    setUsername(profile.username);
+    setEditing(true);
+  };
+
+  const save = () => {
+    if (!valid) return;
+    saveProfile({ name: name.trim() || clean, username: clean });
+    setEditing(false);
+  };
 
   return (
     <Board
@@ -57,32 +77,36 @@ export default function ProfileScreen() {
         <AppBar title="Профиль" left={<BackButton label="Назад" onPress={() => router.back()} />} />
       }
     >
-      <View style={[styles.card, styles.person]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Изменить профиль"
+        onPress={openEdit}
+        style={[styles.card, styles.person]}
+      >
         <Avatar name={profile.name} size={64} />
         <View style={styles.words}>
-          <Text role="title">{profile.name}</Text>
-          <Text role="noteSm" tone="muted">{`@${profile.username}`}</Text>
+          <View style={styles.nameRow}>
+            <Text role="title" numberOfLines={1} style={styles.name}>
+              {profile.name}
+            </Text>
+            <Text role="noteSm" tone="muted" numberOfLines={1} style={styles.nick}>
+              {`@${profile.username}`}
+            </Text>
+          </View>
           <Text role="noteSm" tone="faint">
             {profile.email}
           </Text>
         </View>
-        <IconButton
-          icon={Pencil}
-          label="Изменить профиль"
-          tone="surface"
-          size={40}
-          onPress={() => router.push('/profile/edit')}
-        />
-      </View>
+      </Pressable>
 
       <View style={styles.card}>
         <View style={styles.row}>
-          <Text role="row">Место</Text>
+          <Text role="row">Хранилище</Text>
           <Text role="rowPlain" tone="muted">
             {`${number(left)} / ${number(profile.storageTotalGb)} ГБ`}
           </Text>
         </View>
-        <Divider />
+        <Divider style={styles.fullDivider} />
         <View style={styles.row}>
           <Text role="row">Токены</Text>
           <Text role="rowPlain" tone="muted">
@@ -138,6 +162,31 @@ export default function ProfileScreen() {
         variant="danger"
         onPress={() => router.replace('/onboarding/welcome')}
       />
+
+      <BottomSheet visible={editing} onClose={() => setEditing(false)} title="Изменить профиль">
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.form}
+        >
+          <Field
+            label="Имя"
+            value={name}
+            onChangeText={setName}
+            placeholder="Имя"
+            autoCapitalize="words"
+          />
+          <Field
+            label="Ник"
+            value={username}
+            onChangeText={setUsername}
+            placeholder="Ник"
+            prefix="@"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          <Button label="Сохранить" variant="primary" disabled={!valid} onPress={save} />
+        </KeyboardAvoidingView>
+      </BottomSheet>
     </Board>
   );
 }
@@ -156,9 +205,26 @@ const useStyles = themed(({ color }) =>
       gap: space.s4,
       paddingVertical: space.s4,
     },
+    form: {
+      gap: space.s4,
+    },
     words: {
       flex: 1,
       gap: 2,
+    },
+    fullDivider: {
+      marginHorizontal: -space.s4,
+    },
+    nameRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    name: {
+      flexShrink: 1,
+    },
+    nick: {
+      flexShrink: 1,
     },
     card: {
       backgroundColor: color.surface,

@@ -98,6 +98,7 @@ const styles = StyleSheet.create({
   },
   title: {
     marginBottom: space.s3,
+    textAlign: 'center',
   },
   content: {
     gap: space.s3,

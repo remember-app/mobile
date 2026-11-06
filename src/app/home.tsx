@@ -1,6 +1,6 @@
 import { FlashList } from '@shopify/flash-list';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Plus, User } from 'lucide-react-native';
+import { User } from 'lucide-react-native';
 import { useState } from 'react';
 import { RefreshControl, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -71,7 +71,6 @@ export default function HomeScreen() {
           <Button
             label="Новое воспоминание"
             variant="primary"
-            icon={Plus}
             onPress={() => router.push('/create')}
           />
         </View>

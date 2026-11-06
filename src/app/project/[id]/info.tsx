@@ -4,6 +4,7 @@ import { type ReactNode, useCallback, useState, useSyncExternalStore } from 'rea
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { InviteBlocks } from '@/ui/components/invite-blocks';
+import { LabelsManager } from '@/ui/components/labels-manager';
 import { MemberList } from '@/ui/components/member-list';
 import { MemberSheet } from '@/ui/components/member-sheet';
 import { AppBar, Board } from '@/ui/kit/bars';
@@ -28,7 +29,7 @@ type Metric = 'people' | 'gb' | 'tokens';
 
 const TITLES: Record<Metric, string> = {
   people: 'Пригласить',
-  gb: 'Место',
+  gb: 'Хранилище',
   tokens: 'Токены',
 };
 
@@ -122,7 +123,9 @@ export default function ProjectInfoScreen() {
         />
       </View>
 
-      <MemberList members={members} onSelect={setSelected} />
+      <MemberList members={members} onSelect={setSelected} onAdd={() => setMetric('people')} />
+
+      <LabelsManager projectId={id} />
 
       <MemberSheet member={selected} onClose={() => setSelected(null)} />
 
@@ -144,7 +147,7 @@ export default function ProjectInfoScreen() {
               valueLabel={`${gbValue} ГБ`}
               minLabel="1 ГБ"
               maxLabel={`${gbMax} ГБ`}
-              label="Поделиться местом"
+              label="Поделиться хранилищем"
             />
             <Button
               label="Поделиться"

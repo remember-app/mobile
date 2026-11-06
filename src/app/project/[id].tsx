@@ -1,5 +1,5 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { Plus, Users } from 'lucide-react-native';
+import { Users } from 'lucide-react-native';
 import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -108,7 +108,6 @@ export default function ProjectScreen() {
           <Button
             label="Добавить"
             variant="primary"
-            icon={Plus}
             onPress={() =>
               router.navigate({
                 pathname: '/project/[id]/pick',
@@ -136,7 +135,9 @@ export default function ProjectScreen() {
             author={profile.name}
             renderInfo={(index) => {
               const photo = photos[index];
-              return photo ? <MediaInfo key={photo.id} meta={mockPhotoMeta(photo, index)} /> : null;
+              return photo ? (
+                <MediaInfo key={photo.id} photoId={photo.id} meta={mockPhotoMeta(photo, index)} />
+              ) : null;
             }}
           />
         )}

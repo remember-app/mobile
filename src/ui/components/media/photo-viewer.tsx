@@ -125,6 +125,10 @@ export function PhotoViewer({
     setStatusBarHidden(!chrome || info, 'fade');
   }, [chrome, info]);
 
+  useEffect(() => {
+    if (!info) setChrome(true);
+  }, [info]);
+
   useEffect(() => () => setStatusBarHidden(false, 'fade'), []);
 
   useEffect(() => {

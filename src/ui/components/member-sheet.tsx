@@ -32,8 +32,14 @@ export function MemberSheet({
           <View style={styles.person}>
             <Avatar name={member.name} size={72} />
             <View style={styles.words}>
-              <Text role="title">{member.name}</Text>
-              <Text role="noteSm" tone="muted">{`@${member.username}`}</Text>
+              <View style={styles.nameRow}>
+                <Text role="title" numberOfLines={1} style={styles.name}>
+                  {member.name}
+                </Text>
+                <Text role="noteSm" tone="muted" numberOfLines={1} style={styles.nick}>
+                  {`@${member.username}`}
+                </Text>
+              </View>
             </View>
           </View>
 
@@ -48,7 +54,7 @@ export function MemberSheet({
               <View style={styles.tile}>
                 <Text role="row">{gigabytes(member.gigabytes)}</Text>
                 <Text role="noteSm" tone="muted">
-                  Место
+                  Хранилище
                 </Text>
               </View>
               <View style={styles.tile}>
@@ -89,6 +95,17 @@ const useStyles = themed(({ color }) =>
     words: {
       flex: 1,
       gap: 2,
+    },
+    nameRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    name: {
+      flexShrink: 1,
+    },
+    nick: {
+      flexShrink: 1,
     },
     stats: {
       flexDirection: 'row',

@@ -1,13 +1,14 @@
 import { useRouter } from 'expo-router';
-import { Plus, X } from 'lucide-react-native';
+import { Plus, Trash2 } from 'lucide-react-native';
 import { useState, useSyncExternalStore } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ArrowField } from '@/ui/components/arrow-field';
+import { SwipeRow } from '@/ui/components/swipe-row';
 import { Avatar } from '@/ui/kit/avatar';
 import { AppBar, Board } from '@/ui/kit/bars';
 import { Divider } from '@/ui/kit/bits';
-import { BackButton, IconButton } from '@/ui/kit/button';
+import { BackButton } from '@/ui/kit/button';
 import { Text } from '@/ui/kit/text';
 import {
   acceptSuggestion,
@@ -59,20 +60,21 @@ export default function ContactsScreen() {
         {contacts.map((contact, index) => (
           <View key={contact.id}>
             {index > 0 ? <Divider /> : null}
-            <View style={styles.contact}>
-              <Avatar name={contact.name} size={40} />
-              <View style={styles.words}>
-                <Text role="row">{contact.name}</Text>
-                <Text role="noteSm" tone="muted">{`@${contact.username}`}</Text>
+            <SwipeRow tone="danger" icon={Trash2} onAction={() => removeContact(contact.id)}>
+              <View style={styles.contact}>
+                <Avatar name={contact.name} size={40} />
+                <View style={styles.words}>
+                  <View style={styles.nameRow}>
+                    <Text role="row" numberOfLines={1} style={styles.name}>
+                      {contact.name}
+                    </Text>
+                    <Text role="noteSm" tone="muted" numberOfLines={1} style={styles.nick}>
+                      {`@${contact.username}`}
+                    </Text>
+                  </View>
+                </View>
               </View>
-              <IconButton
-                icon={X}
-                label="Удалить"
-                tone="ghost"
-                size={36}
-                onPress={() => removeContact(contact.id)}
-              />
-            </View>
+            </SwipeRow>
           </View>
         ))}
         {contacts.length === 0 ? (
@@ -91,20 +93,21 @@ export default function ContactsScreen() {
             {suggestions.map((contact, index) => (
               <View key={contact.id}>
                 {index > 0 ? <Divider /> : null}
-                <View style={styles.contact}>
-                  <Avatar name={contact.name} size={40} />
-                  <View style={styles.words}>
-                    <Text role="row">{contact.name}</Text>
-                    <Text role="noteSm" tone="muted">{`@${contact.username}`}</Text>
+                <SwipeRow tone="accent" icon={Plus} onAction={() => acceptSuggestion(contact.id)}>
+                  <View style={styles.contact}>
+                    <Avatar name={contact.name} size={40} />
+                    <View style={styles.words}>
+                      <View style={styles.nameRow}>
+                        <Text role="row" numberOfLines={1} style={styles.name}>
+                          {contact.name}
+                        </Text>
+                        <Text role="noteSm" tone="muted" numberOfLines={1} style={styles.nick}>
+                          {`@${contact.username}`}
+                        </Text>
+                      </View>
+                    </View>
                   </View>
-                  <IconButton
-                    icon={Plus}
-                    label="Добавить"
-                    tone="surface"
-                    size={36}
-                    onPress={() => acceptSuggestion(contact.id)}
-                  />
-                </View>
+                </SwipeRow>
               </View>
             ))}
           </View>
@@ -127,20 +130,34 @@ const useStyles = themed(({ color }) =>
       borderRadius: radius.card,
       borderWidth: 1,
       borderColor: color.line,
-      paddingHorizontal: space.s4,
+      overflow: 'hidden',
     },
     contact: {
       minHeight: 60,
       flexDirection: 'row',
       alignItems: 'center',
       gap: space.s3,
+      paddingHorizontal: space.s4,
+      backgroundColor: color.surface,
     },
     words: {
       flex: 1,
       gap: 2,
     },
+    nameRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    name: {
+      flexShrink: 1,
+    },
+    nick: {
+      flexShrink: 1,
+    },
     empty: {
       paddingVertical: space.s5,
+      paddingHorizontal: space.s4,
       textAlign: 'center',
     },
   }),

@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -26,6 +27,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { board, height, photo, radius, space, ThemePin, themed, type, useTheme } from '@/ui/theme';
 import { StepScale } from './bits';
+import { BoardScrollContext } from './board-scroll';
 import { BAR_GLYPH, Button, IconButton } from './button';
 import { AreaRoom, areaSight, focusedField } from './field';
 import type { IconComponent } from './icon';
@@ -76,6 +78,14 @@ export function Board({ bar, heading, footer, body, list, children, style }: Boa
     offset.current = Math.max(0, y);
     scroll.current?.scrollTo({ y: offset.current, animated: false });
   };
+  const scrollBy = useCallback(
+    (delta: number) => {
+      to(offset.current + delta);
+    },
+    // `to` only reads refs, so the first closure stays valid.
+    [],
+  );
+  const boardScroll = useMemo(() => ({ scrollBy }), [scrollBy]);
   const was = useRef({ lifted, room, sight });
   const bring = () => {
     const field = focusedField();
@@ -121,40 +131,42 @@ export function Board({ bar, heading, footer, body, list, children, style }: Boa
     ) : null;
   const tail = footer ? <View onLayout={onFoot}>{footer}</View> : null;
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={[styles.board, list ? null : styles.stands, { paddingTop: insets.top }, style]}
-    >
-      <View style={[styles.room, list ? null : styles.stands]} onLayout={onRoom}>
-        {stands ? head : null}
-        {leads ? under : null}
-        {list ? (
-          <View style={styles.room}>{list({ head: scrolled, foot: pinned ? null : tail })}</View>
-        ) : (
-          <ScrollView
-            ref={scroll}
-            style={styles.room}
-            contentContainerStyle={styles.grow}
-            alwaysBounceVertical={false}
-            onScroll={follow}
-            scrollEventThrottle={16}
-            {...KEYBOARD_SCROLL}
-          >
-            {scrolled}
-            <View ref={column} style={[styles.grow, body]}>
-              <AreaRoom.Provider
-                value={pinned && room > 0 ? Math.max(0, sight - FIELD_BOX * 2) : null}
-              >
-                {children}
-              </AreaRoom.Provider>
-            </View>
-            {pinned ? null : tail}
-          </ScrollView>
-        )}
-      </View>
-      {pinned ? tail : null}
-      {list ? children : null}
-    </KeyboardAvoidingView>
+    <BoardScrollContext.Provider value={boardScroll}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={[styles.board, list ? null : styles.stands, { paddingTop: insets.top }, style]}
+      >
+        <View style={[styles.room, list ? null : styles.stands]} onLayout={onRoom}>
+          {stands ? head : null}
+          {leads ? under : null}
+          {list ? (
+            <View style={styles.room}>{list({ head: scrolled, foot: pinned ? null : tail })}</View>
+          ) : (
+            <ScrollView
+              ref={scroll}
+              style={styles.room}
+              contentContainerStyle={styles.grow}
+              alwaysBounceVertical={false}
+              onScroll={follow}
+              scrollEventThrottle={16}
+              {...KEYBOARD_SCROLL}
+            >
+              {scrolled}
+              <View ref={column} style={[styles.grow, body]}>
+                <AreaRoom.Provider
+                  value={pinned && room > 0 ? Math.max(0, sight - FIELD_BOX * 2) : null}
+                >
+                  {children}
+                </AreaRoom.Provider>
+              </View>
+              {pinned ? null : tail}
+            </ScrollView>
+          )}
+        </View>
+        {pinned ? tail : null}
+        {list ? children : null}
+      </KeyboardAvoidingView>
+    </BoardScrollContext.Provider>
   );
 }
 export function AppBar({

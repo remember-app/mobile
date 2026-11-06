@@ -60,7 +60,9 @@ const useStyles = themed(({ color }) =>
       overflow: 'hidden',
     },
     row: {
+      flexGrow: 1,
       alignItems: 'center',
+      justifyContent: 'center',
       gap: space.s3,
       paddingVertical: space.s3,
       paddingHorizontal: space.s3,
