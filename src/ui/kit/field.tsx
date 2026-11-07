@@ -160,7 +160,7 @@ export function Field({
           <Icon
             icon={icon}
             size={variant === 'wish' ? 16 : 18}
-            stroke={variant === 'search' ? 1.9 : undefined}
+            stroke={variant === 'search' ? 2.1 : undefined}
             color={variant === 'wish' ? theme.color.faint : theme.color.muted}
           />
         ) : null}
@@ -227,7 +227,6 @@ export function CodeField({
   state,
   autoFocus,
   alnum,
-  highlight,
   inputRef,
 }: {
   label: string;
@@ -237,11 +236,9 @@ export function CodeField({
   state?: FieldState;
   autoFocus?: boolean;
   alnum?: boolean;
-  highlight?: boolean;
   inputRef?: Ref<TextInputRef>;
 }) {
   const [focused, setFocused] = useState(false);
-  const lit = highlight ?? focused;
   const theme = useTheme();
   const styles = useStyles();
   useFieldInBar();
@@ -259,7 +256,7 @@ export function CodeField({
                     ? theme.color.dangerText
                     : state === 'ok'
                       ? theme.color.accent
-                      : lit && i === Math.min(value.length, length - 1)
+                      : focused && i === Math.min(value.length, length - 1)
                         ? theme.color.accent
                         : theme.color.line,
               },

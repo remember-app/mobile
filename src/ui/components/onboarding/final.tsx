@@ -77,7 +77,7 @@ export function OnboardingFinal({ name, onDone }: { name: string; onDone: () => 
   }, [fade, finish]);
 
   const sheet = useAnimatedStyle(() => ({
-    transform: [{ scale: fade.value }],
+    opacity: fade.value,
   }));
 
   return (

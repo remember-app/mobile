@@ -26,7 +26,7 @@ export function CardMessage({
           importantForAccessibility="no-hide-descendants"
           style={styles.square}
         >
-          <Icon icon={icon} size={24} stroke={1.7} color={color.paper} />
+          <Icon icon={icon} size={24} stroke={1.9} color={color.paper} />
         </View>
       ) : null}
 
@@ -66,7 +66,7 @@ export function HintNote({
           <Icon
             icon={icon}
             size={19}
-            stroke={1.8}
+            stroke={2}
             color={tone === 'spark' ? color.spark : color.muted}
           />
         </View>

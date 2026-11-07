@@ -1,5 +1,6 @@
 import { Check, ChevronUp, Plus } from 'lucide-react-native';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   FadeIn,
@@ -12,7 +13,7 @@ import Animated, {
 
 import { LabelMark } from '@/ui/components/label';
 import { Text } from '@/ui/kit/text';
-import { night, radius, space } from '@/ui/theme';
+import { radius, space, themed, useTheme } from '@/ui/theme';
 
 export type LabelChip = {
   id: string;
@@ -27,6 +28,9 @@ type Props = {
 };
 
 export function LabelsBlock({ labels, all, onToggle }: Props) {
+  const { t } = useTranslation();
+  const { color } = useTheme();
+  const styles = useStyles();
   const [open, setOpen] = useState(false);
   const [names, setNames] = useState(false);
   const turn = useSharedValue(0);
@@ -60,27 +64,27 @@ export function LabelsBlock({ labels, all, onToggle }: Props) {
       <View style={styles.header}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={open ? 'Скрыть лейблы' : 'Показать лейблы'}
+          accessibilityLabel={open ? t('labels.hide') : t('labels.show')}
           onPress={toggleOpen}
           style={styles.side}
         >
           <Animated.View style={[styles.centre, plusStyle]}>
-            <Plus size={18} color={night.muted} />
+            <Plus size={18} color={color.muted} />
           </Animated.View>
           <Animated.View style={[StyleSheet.absoluteFill, styles.centre, chevronStyle]}>
-            <ChevronUp size={18} color={night.muted} />
+            <ChevronUp size={18} color={color.muted} />
           </Animated.View>
         </Pressable>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={names ? 'Скрыть названия лейблов' : 'Показать названия лейблов'}
+          accessibilityLabel={names ? t('labels.hideNames') : t('labels.showNames')}
           onPress={toggleNames}
           style={styles.body}
         >
           <Animated.View layout={LinearTransition.duration(180)} style={styles.labels}>
             {labels.length === 0 ? (
               <Text role="bodySm" style={styles.muted}>
-                Нет лейблов
+                {t('labels.noneOnPhoto')}
               </Text>
             ) : (
               labels.map((label) => (
@@ -122,7 +126,7 @@ export function LabelsBlock({ labels, all, onToggle }: Props) {
                   <Text role="metaSm" style={on ? styles.paper : styles.muted}>
                     {label.name}
                   </Text>
-                  {on ? <Check size={14} color={night.accentText} /> : null}
+                  {on ? <Check size={14} color={color.accentText} /> : null}
                 </Pressable>
               );
             })}
@@ -133,84 +137,86 @@ export function LabelsBlock({ labels, all, onToggle }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    borderRadius: radius.card,
-    backgroundColor: night.surface,
-    overflow: 'hidden',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-  },
-  side: {
-    width: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRightWidth: 1,
-    borderRightColor: night.line,
-  },
-  centre: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  body: {
-    flex: 1,
-    minHeight: 56,
-    justifyContent: 'center',
-    padding: space.s3,
-  },
-  labels: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: space.s2,
-  },
-  chip: {
-    borderRadius: radius.pill,
-  },
-  chipClosed: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  chipOpen: {
-    height: 32,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  optionsWrap: {
-    borderTopWidth: 1.5,
-    borderTopColor: night.line,
-  },
-  options: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: space.s2,
-    padding: space.s3,
-  },
-  option: {
-    height: 32,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingLeft: 6,
-    paddingRight: space.s3,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: night.line,
-  },
-  optionOn: {
-    borderColor: 'transparent',
-    backgroundColor: night.raise,
-  },
-  paper: {
-    color: night.paper,
-  },
-  muted: {
-    color: night.muted,
-  },
-});
+const useStyles = themed(({ color }) =>
+  StyleSheet.create({
+    card: {
+      borderRadius: radius.card,
+      backgroundColor: color.surface,
+      overflow: 'hidden',
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'stretch',
+    },
+    side: {
+      width: 52,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRightWidth: 1,
+      borderRightColor: color.line,
+    },
+    centre: {
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    body: {
+      flex: 1,
+      minHeight: 56,
+      justifyContent: 'center',
+      padding: space.s3,
+    },
+    labels: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: space.s2,
+    },
+    chip: {
+      borderRadius: radius.pill,
+    },
+    chipClosed: {
+      width: 32,
+      height: 32,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    chipOpen: {
+      height: 32,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    optionsWrap: {
+      borderTopWidth: 1.5,
+      borderTopColor: color.line,
+    },
+    options: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: space.s2,
+      padding: space.s3,
+    },
+    option: {
+      height: 32,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingLeft: 6,
+      paddingRight: space.s3,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      borderColor: color.line,
+    },
+    optionOn: {
+      borderColor: 'transparent',
+      backgroundColor: color.raise,
+    },
+    paper: {
+      color: color.paper,
+    },
+    muted: {
+      color: color.muted,
+    },
+  }),
+);

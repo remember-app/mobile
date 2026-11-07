@@ -66,11 +66,11 @@ export function PhotoInfo({
   );
 }
 
-const useStyles = themed(() =>
+const useStyles = themed(({ color, name }) =>
   StyleSheet.create({
     panel: {
       flex: 1,
-      backgroundColor: photo.viewer,
+      backgroundColor: name === 'dark' ? photo.viewer : color.ink,
     },
     body: {
       paddingTop: space.s4,

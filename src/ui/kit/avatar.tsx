@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import { Plus } from 'lucide-react-native';
 import { type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
 import { faceOf, font, themed, useTheme } from '@/ui/theme';
@@ -58,7 +59,7 @@ export function Avatar({ name, size = 42, uri, ring, gone, display, stacked, sty
       ) : (
         <Text
           role={display ? 'subtitleDisplay' : 'row'}
-          tone={gone ? 'faint' : 'paper'}
+          tone={gone ? 'faint' : 'onFill'}
           maxFontSizeMultiplier={1}
           style={
             stacked
@@ -107,10 +108,12 @@ export function AvatarStack({
   names,
   on,
   size = 36,
+  limit,
 }: {
   names: readonly string[];
   on?: string;
   size?: keyof typeof STACK;
+  limit?: number;
 }) {
   const { color } = useTheme();
   const styles = useStackStyles();
@@ -123,9 +126,11 @@ export function AvatarStack({
       ? { boxShadow: `0 0 0 ${halo}px ${under}` }
       : { borderWidth: 1, borderColor: under };
   const over = { marginLeft: -overlap };
-  const rest = names.length > 4 ? names.length - 3 : 0;
-  const faces = rest ? names.slice(0, 3) : names.slice(0, 4);
-  const last = rest ? -1 : faces.length - 1;
+  const rest = limit === undefined && names.length > 4 ? names.length - 3 : 0;
+  const more = limit !== undefined && names.length > limit;
+  const faces =
+    limit !== undefined ? names.slice(0, limit) : rest ? names.slice(0, 3) : names.slice(0, 4);
+  const last = more || rest ? -1 : faces.length - 1;
   return (
     <View style={styles.row}>
       {faces.map((name, i) => (
@@ -137,7 +142,15 @@ export function AvatarStack({
           style={[collar, i === 0 ? null : over]}
         />
       ))}
-      {rest ? (
+      {more ? (
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={[styles.more, collar, over, { width: size, height: size, borderRadius: size / 2 }]}
+        >
+          <Plus size={Math.round(size * 0.42)} color={color.muted} />
+        </View>
+      ) : rest ? (
         <View
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"

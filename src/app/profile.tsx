@@ -1,12 +1,15 @@
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { Check, ChevronDown, ChevronRight, ChevronUp } from 'lucide-react-native';
 import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useTranslation } from 'react-i18next';
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { isUsernameShapeValid } from '@/functionality';
 import { readLanguage, writeLanguage } from '@/functionality/settings/language';
 import type { Language } from '@/types/language';
-import { applyLanguage } from '@/ui/i18n';
+import { confirmAction } from '@/ui/confirm';
+import { applyLanguage, locale } from '@/ui/i18n';
 import { Avatar } from '@/ui/kit/avatar';
 import { AppBar, Board } from '@/ui/kit/bars';
 import { Divider } from '@/ui/kit/bits';
@@ -15,19 +18,29 @@ import { BackButton, Button } from '@/ui/kit/button';
 import { Field } from '@/ui/kit/field';
 import { Text } from '@/ui/kit/text';
 import { contactsState, subscribeContacts } from '@/ui/mocks/contacts';
-import { profileState, saveProfile, subscribeProfile } from '@/ui/mocks/profile';
-import { radius, space, themed, useTheme } from '@/ui/theme';
+import { profileState, saveProfile, setAvatar, subscribeProfile } from '@/ui/mocks/profile';
+import { radius, setTheme, space, themed, useTheme, useThemeChoice } from '@/ui/theme';
 
-const LANGUAGES = [
-  { value: 'ru', label: 'Русский' },
-  { value: 'en', label: 'English' },
-] as const;
+const LANGUAGES = ['ru', 'en'] as const;
+const THEMES = ['system', 'light', 'dark'] as const;
+
+const LANGUAGE_LABELS = {
+  ru: 'profile.languages.ru',
+  en: 'profile.languages.en',
+} as const;
+
+const THEME_LABELS = {
+  system: 'profile.themes.system',
+  light: 'profile.themes.light',
+  dark: 'profile.themes.dark',
+} as const;
 
 function number(value: number): string {
-  return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 1 }).format(value);
+  return new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(value);
 }
 
 export default function ProfileScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { color } = useTheme();
   const styles = useStyles();
@@ -35,6 +48,8 @@ export default function ProfileScreen() {
   const contacts = useSyncExternalStore(subscribeContacts, contactsState);
   const [language, setLanguage] = useState<Language>('ru');
   const [open, setOpen] = useState(false);
+  const [themeOpen, setThemeOpen] = useState(false);
+  const chosen = useThemeChoice();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(profile.name);
   const [username, setUsername] = useState(profile.username);
@@ -54,7 +69,6 @@ export default function ProfileScreen() {
   };
 
   const left = Math.max(0, profile.storageTotalGb - profile.storageUsedGb);
-  const current = LANGUAGES.find((item) => item.value === language) ?? LANGUAGES[0];
   const clean = username.trim().replace(/^@/, '');
   const valid = isUsernameShapeValid(clean);
 
@@ -70,20 +84,33 @@ export default function ProfileScreen() {
     setEditing(false);
   };
 
+  const pickAvatar = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled) setAvatar(result.assets[0]?.uri ?? null);
+  };
+
   return (
     <Board
       body={styles.body}
       bar={
-        <AppBar title="Профиль" left={<BackButton label="Назад" onPress={() => router.back()} />} />
+        <AppBar
+          title={t('profile.title')}
+          left={<BackButton label={t('action.back')} onPress={() => router.back()} />}
+        />
       }
     >
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Изменить профиль"
+        accessibilityLabel={t('profile.edit')}
         onPress={openEdit}
         style={[styles.card, styles.person]}
       >
-        <Avatar name={profile.name} size={64} />
+        <Avatar name={profile.name} size={64} uri={profile.avatarUri} />
         <View style={styles.words}>
           <View style={styles.nameRow}>
             <Text role="title" numberOfLines={1} style={styles.name}>
@@ -101,14 +128,14 @@ export default function ProfileScreen() {
 
       <View style={styles.card}>
         <View style={styles.row}>
-          <Text role="row">Хранилище</Text>
+          <Text role="row">{t('profile.storage')}</Text>
           <Text role="rowPlain" tone="muted">
-            {`${number(left)} / ${number(profile.storageTotalGb)} ГБ`}
+            {`${number(left)} / ${number(profile.storageTotalGb)} ${t('unit.gb')}`}
           </Text>
         </View>
         <Divider style={styles.fullDivider} />
         <View style={styles.row}>
-          <Text role="row">Токены</Text>
+          <Text role="row">{t('profile.tokens')}</Text>
           <Text role="rowPlain" tone="muted">
             {profile.tokens}
           </Text>
@@ -116,12 +143,18 @@ export default function ProfileScreen() {
       </View>
 
       <View style={[styles.card, styles.settingsCard]}>
-        <View style={styles.settingsWrap}>
-          <Pressable onPress={() => setOpen((was) => !was)} style={styles.row}>
-            <Text role="row">Язык</Text>
+        <View style={[styles.settingsWrap, open ? styles.front : null]}>
+          <Pressable
+            onPress={() => {
+              setOpen((was) => !was);
+              setThemeOpen(false);
+            }}
+            style={styles.row}
+          >
+            <Text role="row">{t('profile.language')}</Text>
             <View style={styles.value}>
               <Text role="rowPlain" tone="muted">
-                {current.label}
+                {t(LANGUAGE_LABELS[language])}
               </Text>
               {open ? (
                 <ChevronUp size={18} color={color.muted} />
@@ -133,13 +166,48 @@ export default function ProfileScreen() {
           {open ? (
             <View style={styles.options}>
               {LANGUAGES.map((item) => (
+                <Pressable key={item} onPress={() => choose(item)} style={styles.option}>
+                  <Text role="row">{t(LANGUAGE_LABELS[item])}</Text>
+                  {item === language ? <Check size={18} color={color.accent} /> : null}
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
+        </View>
+        <Divider style={styles.fullDivider} />
+        <View style={[styles.settingsWrap, themeOpen ? styles.front : null]}>
+          <Pressable
+            onPress={() => {
+              setThemeOpen((was) => !was);
+              setOpen(false);
+            }}
+            style={styles.row}
+          >
+            <Text role="row">{t('profile.theme')}</Text>
+            <View style={styles.value}>
+              <Text role="rowPlain" tone="muted">
+                {t(THEME_LABELS[chosen])}
+              </Text>
+              {themeOpen ? (
+                <ChevronUp size={18} color={color.muted} />
+              ) : (
+                <ChevronDown size={18} color={color.muted} />
+              )}
+            </View>
+          </Pressable>
+          {themeOpen ? (
+            <View style={styles.options}>
+              {THEMES.map((item) => (
                 <Pressable
-                  key={item.value}
-                  onPress={() => choose(item.value)}
+                  key={item}
+                  onPress={() => {
+                    setThemeOpen(false);
+                    void setTheme(item);
+                  }}
                   style={styles.option}
                 >
-                  <Text role="row">{item.label}</Text>
-                  {item.value === language ? <Check size={18} color={color.accent} /> : null}
+                  <Text role="row">{t(THEME_LABELS[item])}</Text>
+                  {item === chosen ? <Check size={18} color={color.accent} /> : null}
                 </Pressable>
               ))}
             </View>
@@ -147,8 +215,8 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      <Pressable onPress={() => router.push('/contacts')} style={[styles.card, styles.row]}>
-        <Text role="row">Мои контакты</Text>
+      <Pressable onPress={() => router.navigate('/contacts')} style={[styles.card, styles.row]}>
+        <Text role="row">{t('profile.contacts')}</Text>
         <View style={styles.value}>
           <Text role="rowPlain" tone="muted">
             {contacts.length}
@@ -158,33 +226,50 @@ export default function ProfileScreen() {
       </Pressable>
 
       <Button
-        label="Выйти"
+        label={t('profile.logout')}
         variant="danger"
-        onPress={() => router.replace('/onboarding/welcome')}
+        onPress={() =>
+          confirmAction({
+            confirm: t('profile.logout'),
+            destructive: true,
+            onConfirm: () => router.replace('/onboarding/welcome'),
+          })
+        }
       />
 
-      <BottomSheet visible={editing} onClose={() => setEditing(false)} title="Изменить профиль">
+      <BottomSheet visible={editing} onClose={() => setEditing(false)} title={t('profile.edit')}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('profile.changePhoto')}
+          onPress={() => void pickAvatar()}
+          style={styles.avatarEdit}
+        >
+          <Avatar name={profile.name} size={72} uri={profile.avatarUri} />
+          <Text role="controlSm" tone="accent">
+            {t('profile.changePhoto')}
+          </Text>
+        </Pressable>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.form}
         >
           <Field
-            label="Имя"
+            label={t('profile.name')}
             value={name}
             onChangeText={setName}
-            placeholder="Имя"
+            placeholder={t('profile.name')}
             autoCapitalize="words"
           />
           <Field
-            label="Ник"
+            label={t('profile.nick')}
             value={username}
             onChangeText={setUsername}
-            placeholder="Ник"
+            placeholder={t('profile.nick')}
             prefix="@"
             autoCapitalize="none"
             autoCorrect={false}
           />
-          <Button label="Сохранить" variant="primary" disabled={!valid} onPress={save} />
+          <Button label={t('action.save')} variant="primary" disabled={!valid} onPress={save} />
         </KeyboardAvoidingView>
       </BottomSheet>
     </Board>
@@ -207,6 +292,11 @@ const useStyles = themed(({ color }) =>
     },
     form: {
       gap: space.s4,
+    },
+    avatarEdit: {
+      alignItems: 'center',
+      gap: space.s2,
+      paddingVertical: space.s2,
     },
     words: {
       flex: 1,
@@ -251,6 +341,9 @@ const useStyles = themed(({ color }) =>
     settingsWrap: {
       position: 'relative',
       zIndex: 20,
+    },
+    front: {
+      zIndex: 40,
     },
     options: {
       position: 'absolute',

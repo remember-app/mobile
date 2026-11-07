@@ -12,10 +12,10 @@ export const ICO = 22;
 export const ICO_S = 18;
 export const ICO_XS = 13;
 export function strokeFor(size: number): number {
-  if (size >= 24) return 1.5;
-  if (size >= 20) return 1.75;
-  if (size >= 16) return 2;
-  return 2.1;
+  if (size >= 24) return 1.7;
+  if (size >= 20) return 1.95;
+  if (size >= 16) return 2.2;
+  return 2.3;
 }
 export const playFor = (box: number): number => Math.round((box * 13.6) / (18 + 2.1));
 export function drawnAs(Glyph: IconComponent, share: number): IconComponent {

@@ -1,14 +1,18 @@
+import { useSyncExternalStore } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { CollapsibleList } from '@/ui/components/collapsible-list';
 import { Contribution } from '@/ui/components/contribution';
+import { i18n, locale } from '@/ui/i18n';
 import { Avatar } from '@/ui/kit/avatar';
 import { Text } from '@/ui/kit/text';
 import type { MockMember } from '@/ui/mocks/members';
+import { profileState, subscribeProfile } from '@/ui/mocks/profile';
 import { radius, space, themed } from '@/ui/theme';
 
 export const gigabytes = (value: number): string =>
-  `${new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 1 }).format(value)} ГБ`;
+  `${new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(value)} ${i18n.t('unit.gb')}`;
 
 export function MemberList({
   members,
@@ -19,9 +23,14 @@ export function MemberList({
   onSelect?: (member: MockMember) => void;
   onAdd?: () => void;
 }) {
+  const { t } = useTranslation();
   const styles = useStyles();
-  const contributors = members.filter((member) => member.role !== 'viewer');
-  const viewers = members.filter((member) => member.role === 'viewer');
+  const profile = useSyncExternalStore(subscribeProfile, profileState);
+  const isSelf = (member: MockMember) => member.username === profile.username;
+  const order = (list: readonly MockMember[]) =>
+    [...list].sort((a, b) => Number(isSelf(b)) - Number(isSelf(a)));
+  const contributors = order(members.filter((member) => member.role !== 'viewer'));
+  const viewers = order(members.filter((member) => member.role === 'viewer'));
 
   const row = (member: MockMember) => {
     const face = (
@@ -29,7 +38,12 @@ export function MemberList({
         <Avatar name={member.name} size={44} />
         <View style={styles.words}>
           <View style={styles.nameRow}>
-            <Text role="row" numberOfLines={1} style={styles.name}>
+            <Text
+              role="row"
+              tone={isSelf(member) ? 'accent' : 'paper'}
+              numberOfLines={1}
+              style={styles.name}
+            >
               {member.name}
             </Text>
             <Text role="noteSm" tone="muted" numberOfLines={1} style={styles.nick}>
@@ -57,31 +71,41 @@ export function MemberList({
         <>
           <Pressable accessibilityRole="button" onPress={onAdd} style={styles.add}>
             <Text role="row" tone="accent">
-              Добавить пользователей
+              {t('members.add')}
             </Text>
           </Pressable>
           <View style={styles.divider} />
         </>
       ) : null}
-      <CollapsibleList collapsed={320} expanded={512}>
-        {contributors.map(row)}
-        {viewers.length > 0 ? (
-          <View style={styles.break}>
-            <View style={styles.line} />
-            <Text role="metaSm" tone="muted">
-              Смотрящие
-            </Text>
-            <View style={styles.line} />
-          </View>
-        ) : null}
-        {viewers.map(row)}
-      </CollapsibleList>
+      {members.length === 0 ? (
+        <Text role="note" tone="muted" style={styles.empty}>
+          {t('members.empty')}
+        </Text>
+      ) : (
+        <CollapsibleList collapsed={320} expanded={512}>
+          {contributors.map(row)}
+          {viewers.length > 0 ? (
+            <View style={styles.break}>
+              <View style={styles.line} />
+              <Text role="metaSm" tone="muted">
+                {t('members.viewers')}
+              </Text>
+              <View style={styles.line} />
+            </View>
+          ) : null}
+          {viewers.map(row)}
+        </CollapsibleList>
+      )}
     </View>
   );
 }
 
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
+    empty: {
+      paddingVertical: space.s5,
+      textAlign: 'center',
+    },
     card: {
       backgroundColor: color.surface,
       borderRadius: radius.card,

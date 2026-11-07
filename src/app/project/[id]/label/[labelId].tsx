@@ -1,6 +1,7 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
-import { useCallback, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -19,6 +20,7 @@ import { profileState, subscribeProfile } from '@/ui/mocks/profile';
 import { space, useTheme } from '@/ui/theme';
 
 export default function LabelScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const theme = useTheme();
@@ -30,15 +32,26 @@ export default function LabelScreen() {
   const label = labels.find((entry) => entry.id === labelId);
   const [open, setOpen] = useState<{ index: number; rect?: Rect } | null>(null);
   const measureTile = useRef<MeasureTile | null>(null);
+  const viewerPhotos = useMemo(
+    () =>
+      photos.map((photo, index) => ({
+        ...photo,
+        capturedAt: mockPhotoMeta(photo, index).capturedAt,
+      })),
+    [photos],
+  );
 
   if (!label) {
     return (
       <Board
         bar={
-          <AppBar title="Лейбл" left={<BackButton label="Назад" onPress={() => router.back()} />} />
+          <AppBar
+            title={t('labels.title')}
+            left={<BackButton label={t('action.back')} onPress={() => router.back()} />}
+          />
         }
       >
-        <Empty sign="dashed" title="Лейбл не найден" />
+        <Empty sign="dashed" title={t('labels.notFound')} />
       </Board>
     );
   }
@@ -48,7 +61,7 @@ export default function LabelScreen() {
       <Stack.Screen options={{ gestureEnabled: open === null }} />
       <View style={[styles.root, { backgroundColor: theme.color.ink }]}>
         {photos.length === 0 ? (
-          <Empty sign="dashed" title="Нет файлов" />
+          <Empty sign="dashed" title={t('labels.empty')} />
         ) : (
           <PhotoGrid
             photos={photos}
@@ -71,7 +84,7 @@ export default function LabelScreen() {
           style={[styles.bottom, { paddingBottom: insets.bottom + space.s2 }]}
         >
           <Button
-            label="Назад"
+            label={t('action.back')}
             variant="primary"
             icon={ChevronLeft}
             onPress={() => router.back()}
@@ -79,7 +92,7 @@ export default function LabelScreen() {
         </View>
         {open === null ? null : (
           <PhotoViewer
-            photos={photos}
+            photos={viewerPhotos}
             initialIndex={open.index}
             origin={open.rect}
             onClose={() => setOpen(null)}

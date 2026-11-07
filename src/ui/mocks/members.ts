@@ -141,6 +141,15 @@ let data: Record<string, MockMember[]> = {
       files: 20,
       gigabytes: 0.9,
     },
+    {
+      id: 's6',
+      name: 'Анна Петрова',
+      username: 'anna',
+      role: 'contributor',
+      contribution: 'done',
+      files: 22,
+      gigabytes: 0.8,
+    },
   ],
   office: [
     {
@@ -251,13 +260,24 @@ let data: Record<string, MockMember[]> = {
       files: 0,
       gigabytes: 0,
     },
+    {
+      id: 'o13',
+      name: 'Анна Петрова',
+      username: 'anna',
+      role: 'contributor',
+      contribution: 'not_started',
+      files: 0,
+      gigabytes: 0,
+    },
   ],
 };
 
 const listeners = new Set<() => void>();
 
+const EMPTY: MockMember[] = [];
+
 export function membersOf(projectId: string): MockMember[] {
-  return data[projectId] ?? [];
+  return data[projectId] ?? EMPTY;
 }
 
 export function subscribeMembers(listener: () => void): () => void {
@@ -269,6 +289,43 @@ export function subscribeMembers(listener: () => void): () => void {
 
 function emit(): void {
   for (const listener of listeners) listener();
+}
+
+export function seedOrganizer(projectId: string, name: string, username: string): void {
+  const list = data[projectId] ?? EMPTY;
+  if (list.some((member) => member.username === username)) return;
+  data = {
+    ...data,
+    [projectId]: [
+      {
+        id: `m-${projectId}-${username}`,
+        name,
+        username,
+        role: 'admin',
+        contribution: 'not_started',
+        files: 0,
+        gigabytes: 0,
+      },
+      ...list,
+    ],
+  };
+  emit();
+}
+
+export function setContribution(
+  projectId: string,
+  memberId: string,
+  contribution: MockContribution,
+): void {
+  const list = data[projectId];
+  if (!list) return;
+  data = {
+    ...data,
+    [projectId]: list.map((member) =>
+      member.id === memberId ? { ...member, contribution } : member,
+    ),
+  };
+  emit();
 }
 
 export function addMember(projectId: string, username: string): void {

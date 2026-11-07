@@ -1,6 +1,8 @@
 import type { ImageSource } from 'expo-image';
 
 import type { ProjectCard } from '@/models/project';
+import { seedOrganizer } from './members';
+import { profileState } from './profile';
 
 const covers: ImageSource[] = [
   require('../../../assets/images/mock/birthday.jpg'),
@@ -14,7 +16,7 @@ export type MockProject = {
   people: string[];
 };
 
-export const MOCK_PROJECTS: MockProject[] = [
+let projects: MockProject[] = [
   {
     project: {
       id: 'birthday',
@@ -67,3 +69,113 @@ export const MOCK_PROJECTS: MockProject[] = [
     people: ['Егор', 'Лена', 'Марк', 'Ника', 'Олег'],
   },
 ];
+
+const listeners = new Set<() => void>();
+
+export const projectsState = (): MockProject[] => projects;
+
+export function subscribeProjects(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+function emit(): void {
+  for (const listener of listeners) listener();
+}
+
+export type ProjectPatch = {
+  title?: string;
+  eventStart?: Date;
+  eventEnd?: Date | null;
+  cover?: ImageSource;
+};
+
+export function createMockProject(input: {
+  title: string;
+  eventStart: Date;
+  eventEnd: Date | null;
+}): string {
+  const id = `project-${Date.now()}`;
+  projects = [
+    ...projects,
+    {
+      project: {
+        id,
+        title: input.title,
+        eventStart: input.eventStart,
+        eventEnd: input.eventEnd,
+        coverUrl: null,
+        previewUrls: [],
+        itemCount: 0,
+        memberCount: 1,
+        sharedCount: 0,
+        myRole: 'admin',
+        myContribution: 'not_started',
+      },
+      cover: covers[0],
+      people: [],
+    },
+  ];
+  emit();
+  const host = profileState();
+  seedOrganizer(id, host.name, host.username);
+  return id;
+}
+
+export function updateMockProject(id: string, patch: ProjectPatch): void {
+  projects = projects.map((entry) => {
+    if (entry.project.id !== id) return entry;
+    return {
+      ...entry,
+      cover: patch.cover ?? entry.cover,
+      project: {
+        ...entry.project,
+        title: patch.title ?? entry.project.title,
+        eventStart: patch.eventStart ?? entry.project.eventStart,
+        eventEnd: patch.eventEnd === undefined ? entry.project.eventEnd : patch.eventEnd,
+      },
+    };
+  });
+  emit();
+}
+
+export function deleteMockProject(id: string): void {
+  projects = projects.filter((entry) => entry.project.id !== id);
+  emit();
+}
+
+export function setMockProjectCount(count: number): void {
+  const target = Math.max(0, Math.floor(count));
+  if (target <= projects.length) {
+    projects = projects.slice(0, target);
+    emit();
+    return;
+  }
+  const next = [...projects];
+  const host = profileState();
+  for (let index = next.length; index < target; index += 1) {
+    const id = `project-dev-${index + 1}`;
+    next.push({
+      project: {
+        id,
+        title: `Воспоминание ${index + 1}`,
+        eventStart: new Date(),
+        eventEnd: null,
+        coverUrl: null,
+        previewUrls: [],
+        itemCount: 0,
+        memberCount: 1,
+        sharedCount: 0,
+        myRole: 'admin',
+        myContribution: 'not_started',
+      },
+      cover: covers[0],
+      people: [],
+    });
+    seedOrganizer(id, host.name, host.username);
+  }
+  projects = next;
+  emit();
+}

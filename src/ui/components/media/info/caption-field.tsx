@@ -1,6 +1,7 @@
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, TextInput } from 'react-native';
 
-import { font, night, radius, space } from '@/ui/theme';
+import { font, radius, space, themed, useTheme } from '@/ui/theme';
 
 type Props = {
   value: string;
@@ -8,13 +9,16 @@ type Props = {
 };
 
 export function CaptionField({ value, onChangeText }: Props) {
+  const { t } = useTranslation();
+  const { color } = useTheme();
+  const styles = useStyles();
   return (
     <TextInput
       value={value}
       onChangeText={onChangeText}
-      placeholder="Добавить подпись"
-      placeholderTextColor={night.muted}
-      selectionColor={night.accent}
+      placeholder={t('photo.caption')}
+      placeholderTextColor={color.faint}
+      selectionColor={color.accent}
       returnKeyType="done"
       maxLength={200}
       style={styles.input}
@@ -22,14 +26,16 @@ export function CaptionField({ value, onChangeText }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  input: {
-    height: 52,
-    borderRadius: radius.field,
-    backgroundColor: night.surface,
-    paddingHorizontal: space.s4,
-    color: night.paper,
-    fontFamily: font.regular,
-    fontSize: 16,
-  },
-});
+const useStyles = themed(({ color }) =>
+  StyleSheet.create({
+    input: {
+      height: 52,
+      borderRadius: radius.field,
+      backgroundColor: color.surface,
+      paddingHorizontal: space.s4,
+      color: color.paper,
+      fontFamily: font.regular,
+      fontSize: 16,
+    },
+  }),
+);

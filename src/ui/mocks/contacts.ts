@@ -63,6 +63,22 @@ export function removeContact(id: string): void {
   emit();
 }
 
+export function setContactCount(count: number): void {
+  const target = Math.max(0, Math.floor(count));
+  if (target <= contacts.length) {
+    contacts = contacts.slice(0, target);
+    emit();
+    return;
+  }
+  const next = [...contacts];
+  for (let index = next.length; index < target; index += 1) {
+    const username = `user${index + 1}`;
+    next.push({ id: `c-${username}`, name: `Пользователь ${index + 1}`, username });
+  }
+  contacts = next;
+  emit();
+}
+
 export function acceptSuggestion(id: string): void {
   const found = suggestions.find((suggestion) => suggestion.id === id);
   if (!found) return;

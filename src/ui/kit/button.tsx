@@ -183,9 +183,9 @@ function wordsRole(variant: ButtonVariant, sized: ButtonSize, kind: Kind | null)
   if (sized === 'md') return variant === 'dashed' ? 'controlSm' : 'controlMd';
   return 'control';
 }
-const MAIN_GLYPH = { size: 19, stroke: 2.1 } as const;
+const MAIN_GLYPH = { size: 19, stroke: 2.3 } as const;
 const SMALL_GLYPH = { size: 16 } as const;
-const BOXED_GLYPH = { size: 16, stroke: 2.2 } as const;
+const BOXED_GLYPH = { size: 16, stroke: 2.35 } as const;
 const ROW_GLYPH: Partial<
   Record<
     ButtonSize,
@@ -195,11 +195,11 @@ const ROW_GLYPH: Partial<
     }
   >
 > = {
-  xs: { size: 14, stroke: 1.8 },
-  mini: { size: 14, stroke: 1.8 },
-  xxs: { size: 14, stroke: 2.2 },
+  xs: { size: 14, stroke: 2 },
+  mini: { size: 14, stroke: 2 },
+  xxs: { size: 14, stroke: 2.35 },
 };
-const MAKE_GLYPH = { size: 15, stroke: 2.2 } as const;
+const MAKE_GLYPH = { size: 15, stroke: 2.35 } as const;
 const DASHED: ViewStyle = { borderStyle: 'dashed', backgroundColor: 'transparent' };
 function fill(
   { color, shadow }: Theme,
@@ -340,7 +340,7 @@ export function roundGlyphSize(diameter: number): number {
   if (diameter > 28) return 16;
   return 14;
 }
-export const BAR_GLYPH = { size: ICO, stroke: 1.9 } as const;
+export const BAR_GLYPH = { size: ICO, stroke: 2.3 } as const;
 export function BackButton({
   label,
   onPress,

@@ -1,22 +1,24 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Coins, HardDrive, Users } from 'lucide-react-native';
+import { Coins, HardDrive, Settings2, Users } from 'lucide-react-native';
 import { type ReactNode, useCallback, useState, useSyncExternalStore } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
-
 import { InviteBlocks } from '@/ui/components/invite-blocks';
 import { LabelsManager } from '@/ui/components/labels-manager';
 import { MemberList } from '@/ui/components/member-list';
 import { MemberSheet } from '@/ui/components/member-sheet';
+import { confirmAction } from '@/ui/confirm';
+import { locale } from '@/ui/i18n';
 import { AppBar, Board } from '@/ui/kit/bars';
 import { BottomSheet } from '@/ui/kit/bottom-sheet';
-import { BackButton, Button } from '@/ui/kit/button';
+import { BackButton, Button, IconButton } from '@/ui/kit/button';
 import { CircularProgress } from '@/ui/kit/circular-progress';
 import { Empty } from '@/ui/kit/empty';
 import { Slider } from '@/ui/kit/slider';
 import { Text } from '@/ui/kit/text';
 import { type MockMember, membersOf, subscribeMembers } from '@/ui/mocks/members';
 import { donateStorage, donateTokens, profileState, subscribeProfile } from '@/ui/mocks/profile';
-import { MOCK_PROJECTS } from '@/ui/mocks/projects';
+import { projectsState, subscribeProjects } from '@/ui/mocks/projects';
 import {
   receiveStorage,
   receiveTokens,
@@ -27,21 +29,23 @@ import { radius, space, themed, useTheme } from '@/ui/theme';
 
 type Metric = 'people' | 'gb' | 'tokens';
 
-const TITLES: Record<Metric, string> = {
-  people: 'Пригласить',
-  gb: 'Хранилище',
-  tokens: 'Токены',
-};
+const TITLES = {
+  people: 'info.invite',
+  gb: 'info.storage',
+  tokens: 'info.tokens',
+} as const;
 
 const number = (value: number) =>
-  new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 1 }).format(value);
+  new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(value);
 
 export default function ProjectInfoScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { color } = useTheme();
   const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const project = MOCK_PROJECTS.find((entry) => entry.project.id === id);
+  const projects = useSyncExternalStore(subscribeProjects, projectsState);
+  const project = projects.find((entry) => entry.project.id === id);
   const getMembers = useCallback(() => membersOf(id), [id]);
   const getResources = useCallback(() => resourcesOf(id), [id]);
   const members = useSyncExternalStore(subscribeMembers, getMembers);
@@ -57,12 +61,12 @@ export default function ProjectInfoScreen() {
       <Board
         bar={
           <AppBar
-            title="Воспоминание"
-            left={<BackButton label="Назад" onPress={() => router.back()} />}
+            title={t('project.title')}
+            left={<BackButton label={t('action.back')} onPress={() => router.back()} />}
           />
         }
       >
-        <Empty sign="dashed" title="Воспоминание не найдено" />
+        <Empty sign="dashed" title={t('project.notFound')} />
       </Board>
     );
   }
@@ -77,19 +81,29 @@ export default function ProjectInfoScreen() {
   const tokenValue = Math.min(tokenAmount, tokenMax);
 
   const shareStorage = () => {
-    if (ownStorage < gbValue) return;
-    if (donateStorage(gbValue)) {
-      receiveStorage(id, gbValue);
-      setGbAmount(1);
-    }
+    confirmAction({
+      confirm: t('info.share'),
+      onConfirm: () => {
+        if (ownStorage < gbValue) return;
+        if (donateStorage(gbValue)) {
+          receiveStorage(id, gbValue);
+          setGbAmount(1);
+        }
+      },
+    });
   };
 
   const shareTokens = () => {
-    if (profile.tokens < tokenValue) return;
-    if (donateTokens(tokenValue)) {
-      receiveTokens(id, tokenValue);
-      setTokenAmount(10);
-    }
+    confirmAction({
+      confirm: t('info.share'),
+      onConfirm: () => {
+        if (profile.tokens < tokenValue) return;
+        if (donateTokens(tokenValue)) {
+          receiveTokens(id, tokenValue);
+          setTokenAmount(10);
+        }
+      },
+    });
   };
 
   return (
@@ -98,7 +112,18 @@ export default function ProjectInfoScreen() {
       bar={
         <AppBar
           title={project.project.title}
-          left={<BackButton label="Назад" onPress={() => router.back()} />}
+          left={<BackButton label={t('action.back')} onPress={() => router.back()} />}
+          right={
+            <IconButton
+              icon={Settings2}
+              label={t('project.settings')}
+              tone="ghost"
+              size={48}
+              onPress={() =>
+                router.navigate({ pathname: '/project/[id]/settings', params: { id } })
+              }
+            />
+          }
         />
       }
     >
@@ -127,12 +152,12 @@ export default function ProjectInfoScreen() {
 
       <LabelsManager projectId={id} />
 
-      <MemberSheet member={selected} onClose={() => setSelected(null)} />
+      <MemberSheet projectId={id} member={selected} onClose={() => setSelected(null)} />
 
       <BottomSheet
         visible={metric !== null}
         onClose={() => setMetric(null)}
-        title={metric ? TITLES[metric] : undefined}
+        title={metric ? t(TITLES[metric]) : undefined}
       >
         {metric === 'people' ? (
           <InviteBlocks projectId={id} projectTitle={project.project.title} />
@@ -144,13 +169,13 @@ export default function ProjectInfoScreen() {
               onChange={setGbAmount}
               min={1}
               max={gbMax}
-              valueLabel={`${gbValue} ГБ`}
-              minLabel="1 ГБ"
-              maxLabel={`${gbMax} ГБ`}
-              label="Поделиться хранилищем"
+              valueLabel={`${gbValue} ${t('unit.gb')}`}
+              minLabel={`1 ${t('unit.gb')}`}
+              maxLabel={`${gbMax} ${t('unit.gb')}`}
+              label={t('info.shareStorage')}
             />
             <Button
-              label="Поделиться"
+              label={t('info.share')}
               variant="secondary"
               disabled={ownStorage < 1}
               onPress={shareStorage}
@@ -167,10 +192,10 @@ export default function ProjectInfoScreen() {
               valueLabel={`${tokenValue}`}
               minLabel="10"
               maxLabel={`${tokenMax}`}
-              label="Поделиться токенами"
+              label={t('info.shareTokens')}
             />
             <Button
-              label="Поделиться"
+              label={t('info.share')}
               variant="secondary"
               disabled={profile.tokens < 10}
               onPress={shareTokens}

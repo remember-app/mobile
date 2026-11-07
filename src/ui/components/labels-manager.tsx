@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import { Trash2 } from 'lucide-react-native';
 import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
@@ -46,6 +47,7 @@ function hslToHex(hue: number, saturation = 1, lightness = 0.5): string {
 }
 
 export function LabelsManager({ projectId }: { projectId: string }) {
+  const { t } = useTranslation();
   const router = useRouter();
   const labels = useSyncExternalStore(subscribeLabels, labelUsage);
   const styles = useStyles();
@@ -65,13 +67,13 @@ export function LabelsManager({ projectId }: { projectId: string }) {
       <View style={styles.card}>
         <Pressable accessibilityRole="button" onPress={() => setOpen(true)} style={styles.add}>
           <Text role="row" tone="accent">
-            Добавить лейбл
+            {t('labels.add')}
           </Text>
         </Pressable>
         <View style={styles.divider} />
         {labels.length === 0 ? (
           <Text role="noteSm" tone="muted" style={styles.empty}>
-            Лейблов пока нет
+            {t('labels.none')}
           </Text>
         ) : (
           <CollapsibleList collapsed={224} expanded={392}>
@@ -81,7 +83,7 @@ export function LabelsManager({ projectId }: { projectId: string }) {
                 <LabelRow
                   label={label}
                   onOpen={() =>
-                    router.push({
+                    router.navigate({
                       pathname: '/project/[id]/label/[labelId]',
                       params: { id: projectId, labelId: label.id },
                     })
@@ -93,14 +95,14 @@ export function LabelsManager({ projectId }: { projectId: string }) {
           </CollapsibleList>
         )}
       </View>
-      <BottomSheet visible={open} onClose={() => setOpen(false)} title="Новый лейбл">
+      <BottomSheet visible={open} onClose={() => setOpen(false)} title={t('labels.new')}>
         <View style={styles.form}>
           <ColorSlider hue={hue} onChange={setHue} />
           <ArrowField
-            label="Название"
+            label={t('labels.name')}
             value={name}
             onChangeText={setName}
-            placeholder="Название лейбла"
+            placeholder={t('labels.namePlaceholder')}
             valid={name.trim().length > 0}
             onSubmit={create}
           />

@@ -18,6 +18,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
+import { useTheme } from '@/ui/theme';
+
 import type { ViewerPhoto } from './photo-viewer';
 
 const SELECTED = 48;
@@ -44,6 +46,7 @@ type ItemProps = {
 };
 
 function StripItem({ index, photo, lead, count, scrollX, onSelect }: ItemProps) {
+  const { color } = useTheme();
   const style = useAnimatedStyle(() => {
     const progress = clamp(scrollX.value / STRIP_PITCH, 0, count - 1);
     const length =
@@ -71,7 +74,7 @@ function StripItem({ index, photo, lead, count, scrollX, onSelect }: ItemProps) 
             recyclingKey={photo.id}
           />
         ) : (
-          <View style={[styles.fill, styles.empty]} />
+          <View style={[styles.fill, { backgroundColor: color.raise }]} />
         )}
         {photo.video ? (
           <View style={styles.play} pointerEvents="none">
@@ -234,9 +237,6 @@ const styles = StyleSheet.create({
   },
   fill: {
     flex: 1,
-  },
-  empty: {
-    backgroundColor: '#22222e',
   },
   play: {
     position: 'absolute',

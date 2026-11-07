@@ -1,39 +1,24 @@
 import { useRouter } from 'expo-router';
 import { useState, useSyncExternalStore } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ContactStrip } from '@/ui/components/contact-strip';
+import { EventDates } from '@/ui/components/event-dates';
 import { AppBar, Board } from '@/ui/kit/bars';
 import { BackButton, Button } from '@/ui/kit/button';
-import { Calendar } from '@/ui/kit/calendar';
-import { dayKey } from '@/ui/kit/calendar-grid';
 import { Field } from '@/ui/kit/field';
 import { Slider } from '@/ui/kit/slider';
 import { contactsState, subscribeContacts } from '@/ui/mocks/contacts';
+import { createMockProject } from '@/ui/mocks/projects';
 import { space } from '@/ui/theme';
 
-const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
-
-function monthLabel(month: Date): string {
-  return new Intl.DateTimeFormat('ru-RU', { month: 'long', year: 'numeric' }).format(month);
-}
-
-function dayLabel(day: Date): string {
-  return new Intl.DateTimeFormat('ru-RU', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  }).format(day);
-}
-
 export default function CreateScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [title, setTitle] = useState('');
-  const [month, setMonth] = useState(
-    () => new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-  );
   const [from, setFrom] = useState<Date | null>(null);
   const [to, setTo] = useState<Date | null>(null);
   const contacts = useSyncExternalStore(subscribeContacts, contactsState);
@@ -48,37 +33,30 @@ export default function CreateScreen() {
       return next;
     });
 
-  const pick = (day: Date) => {
-    if (!from || to || dayKey(day) <= dayKey(from)) {
-      setFrom(day);
-      setTo(null);
-      return;
-    }
-    setTo(day);
-  };
-
   return (
     <Board
       body={[styles.body, { paddingBottom: insets.bottom + space.s6 }]}
       bar={
         <AppBar
-          title="Новое воспоминание"
-          left={<BackButton label="Назад" onPress={() => router.back()} />}
+          title={t('create.title')}
+          left={<BackButton label={t('action.back')} onPress={() => router.back()} />}
         />
       }
     >
-      <Field label="Название" value={title} onChangeText={setTitle} placeholder="Название" />
-      <Calendar
-        month={month}
-        onMonth={setMonth}
+      <Field
+        label={t('create.name')}
+        value={title}
+        onChangeText={setTitle}
+        placeholder={t('create.name')}
+        maxLength={30}
+      />
+      <EventDates
         from={from}
         to={to}
-        onPick={pick}
-        weekdays={WEEKDAYS}
-        monthLabel={monthLabel(month)}
-        prevLabel="Предыдущий месяц"
-        nextLabel="Следующий месяц"
-        dayLabel={dayLabel}
+        onChange={(nextFrom, nextTo) => {
+          setFrom(nextFrom);
+          setTo(nextTo);
+        }}
       />
       <ContactStrip contacts={contacts} selected={invited} onToggle={toggle} />
       <Slider
@@ -86,16 +64,20 @@ export default function CreateScreen() {
         onChange={setLimit}
         min={1}
         max={100}
-        valueLabel={`${limit} ГБ`}
-        minLabel="1 ГБ"
-        maxLabel="100 ГБ"
-        label="Лимит памяти"
+        valueLabel={`${limit} ${t('unit.gb')}`}
+        minLabel={`1 ${t('unit.gb')}`}
+        maxLabel={`100 ${t('unit.gb')}`}
+        label={t('create.limit')}
       />
       <Button
-        label="Создать"
+        label={t('create.create')}
         variant="primary"
         disabled={!title.trim() || !from}
-        onPress={() => router.back()}
+        onPress={() => {
+          if (!title.trim() || !from) return;
+          createMockProject({ title: title.trim(), eventStart: from, eventEnd: to });
+          router.back();
+        }}
       />
     </Board>
   );

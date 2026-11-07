@@ -2,6 +2,7 @@ export type MockProfile = {
   name: string;
   username: string;
   email: string;
+  avatarUri: string | null;
   storageUsedGb: number;
   storageTotalGb: number;
   tokens: number;
@@ -11,6 +12,7 @@ let profile: MockProfile = {
   name: 'Анна Петрова',
   username: 'anna',
   email: 'anna@example.com',
+  avatarUri: null,
   storageUsedGb: 3.6,
   storageTotalGb: 10,
   tokens: 120,
@@ -33,6 +35,11 @@ export function subscribeProfile(listener: () => void): () => void {
 
 function emit(): void {
   for (const listener of listeners) listener();
+}
+
+export function setAvatar(uri: string | null): void {
+  profile = { ...profile, avatarUri: uri };
+  emit();
 }
 
 export function saveProfile(next: Pick<MockProfile, 'name' | 'username'>): void {

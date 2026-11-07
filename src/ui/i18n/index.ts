@@ -24,4 +24,8 @@ export function currentLanguage(): Language {
   return i18n.language === 'ru' ? 'ru' : 'en';
 }
 
+export function locale(): string {
+  return i18n.language === 'ru' ? 'ru-RU' : 'en-US';
+}
+
 export { i18n };

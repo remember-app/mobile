@@ -12,8 +12,9 @@ let data: Record<string, MockResources> = {
 
 const listeners = new Set<() => void>();
 
-export const resourcesOf = (projectId: string): MockResources =>
-  data[projectId] ?? { storageGb: 0, tokensLeft: 0, tokensTotal: 0 };
+const NONE: MockResources = { storageGb: 0, tokensLeft: 0, tokensTotal: 0 };
+
+export const resourcesOf = (projectId: string): MockResources => data[projectId] ?? NONE;
 
 export function subscribeResources(listener: () => void): () => void {
   listeners.add(listener);

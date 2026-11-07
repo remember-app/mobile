@@ -1,11 +1,10 @@
-import { useRef, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
-import { useKeyboardState } from 'react-native-keyboard-controller';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Keyboard, Pressable, StyleSheet, View } from 'react-native';
 
 import { parseInvite, readText, stashInvite } from '@/functionality';
 import { BottomSheet } from '@/ui/kit/bottom-sheet';
 import { Button } from '@/ui/kit/button';
-import type { TextInputRef } from '@/ui/kit/field';
 import { Text } from '@/ui/kit/text';
 import { space } from '@/ui/theme';
 
@@ -27,11 +26,10 @@ type Props = {
 };
 
 export function InviteSheet({ visible, onClose, onAccepted }: Props) {
-  const keyboard = useKeyboardState((state) => state.height);
+  const { t } = useTranslation();
   const [code, setCode] = useState('');
   const [bad, setBad] = useState(false);
   const [outcome, setOutcome] = useState<CodeOutcome | null>(null);
-  const field = useRef<TextInputRef>(null);
 
   const change = (next: string) => {
     setCode(next);
@@ -47,7 +45,6 @@ export function InviteSheet({ visible, onClose, onAccepted }: Props) {
     }
     setCode('');
     setOutcome(null);
-    field.current?.focus();
   };
 
   const paste = async () => {
@@ -60,40 +57,40 @@ export function InviteSheet({ visible, onClose, onAccepted }: Props) {
     setBad(false);
     setCode(parsed);
     setOutcome(lucky(parsed) ? 'ok' : 'error');
-    field.current?.focus();
   };
 
   return (
     <BottomSheet visible={visible} onClose={onClose} size="full">
-      <View style={[styles.root, { paddingBottom: keyboard }]}>
+      <View style={styles.root}>
         <View style={styles.top}>
           <CodeInput
-            label="Код приглашения"
+            label={t('onboarding.invite.code')}
             value={code}
             onChangeText={change}
             outcome={outcome}
             state={bad ? 'error' : undefined}
             onSettled={settle}
             alnum
-            autoFocus
-            highlight
-            inputRef={field}
           />
           {bad ? (
             <Text role="hint" tone="danger" style={styles.hint}>
-              Не нашли код в буфере
+              {t('onboarding.invite.notFound')}
             </Text>
           ) : null}
         </View>
-        <Pressable style={styles.space} onPress={() => field.current?.focus()}>
+        <Pressable style={styles.space} onPress={Keyboard.dismiss}>
           <View style={styles.centre}>
             <Text role="body" tone="muted" style={styles.lead}>
-              Remember сейчас доступен только по приглашению
+              {t('onboarding.invite.title')}
             </Text>
           </View>
         </Pressable>
         <View style={styles.footer}>
-          <Button label="Вставить" variant="primary" onPress={() => void paste()} />
+          <Button
+            label={t('onboarding.invite.paste')}
+            variant="primary"
+            onPress={() => void paste()}
+          />
         </View>
       </View>
     </BottomSheet>

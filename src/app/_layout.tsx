@@ -10,13 +10,15 @@ import { Unbounded_700Bold } from '@expo-google-fonts/unbounded/700Bold';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
+import { LucideProvider } from 'lucide-react-native';
 import { useEffect } from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { readLanguage } from '@/functionality/settings/language';
+import { maybeCloseOpenRows } from '@/ui/components/swipe-row';
 import { applyLanguage } from '@/ui/i18n';
 import { useTheme } from '@/ui/theme';
 
@@ -52,19 +54,29 @@ export default function RootLayout() {
   return (
     <KeyboardProvider>
       <GestureHandlerRootView style={[styles.root, { backgroundColor: theme.color.ink }]}>
-        <SafeAreaProvider>
-          <StatusBar style={theme.name === 'dark' ? 'light' : 'dark'} />
-          <ThemeProvider value={navigation}>
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                animation: 'slide_from_right',
-                animationDuration: 220,
-                contentStyle: { backgroundColor: theme.color.ink },
-              }}
-            />
-          </ThemeProvider>
-        </SafeAreaProvider>
+        <LucideProvider strokeWidth={2.2}>
+          <SafeAreaProvider>
+            <StatusBar style={theme.name === 'dark' ? 'light' : 'dark'} />
+            <ThemeProvider value={navigation}>
+              <View
+                style={styles.root}
+                onStartShouldSetResponderCapture={(event) => {
+                  maybeCloseOpenRows(event.nativeEvent.pageX, event.nativeEvent.pageY);
+                  return false;
+                }}
+              >
+                <Stack
+                  screenOptions={{
+                    headerShown: false,
+                    animation: 'slide_from_right',
+                    animationDuration: 220,
+                    contentStyle: { backgroundColor: theme.color.ink },
+                  }}
+                />
+              </View>
+            </ThemeProvider>
+          </SafeAreaProvider>
+        </LucideProvider>
       </GestureHandlerRootView>
     </KeyboardProvider>
   );

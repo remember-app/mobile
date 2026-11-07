@@ -1,6 +1,7 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { Users } from 'lucide-react-native';
+import { Camera, Users } from 'lucide-react-native';
 import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -16,26 +17,38 @@ import { Text } from '@/ui/kit/text';
 import { mockPhotoMeta } from '@/ui/mocks/media-info';
 import { mockPhotos } from '@/ui/mocks/photos';
 import { profileState, subscribeProfile } from '@/ui/mocks/profile';
-import { MOCK_PROJECTS } from '@/ui/mocks/projects';
+import { projectsState, subscribeProjects } from '@/ui/mocks/projects';
 import { subscribeUploads, uploadsOf } from '@/ui/mocks/uploads';
 import { space, useTheme } from '@/ui/theme';
 
 export default function ProjectScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const project = MOCK_PROJECTS.find((entry) => entry.project.id === id);
+  const projects = useSyncExternalStore(subscribeProjects, projectsState);
+  const project = projects.find((entry) => entry.project.id === id);
   const [open, setOpen] = useState<{ index: number; rect?: Rect } | null>(null);
   const [uploadId, setUploadId] = useState<string | null>(null);
+  const [removed, setRemoved] = useState<ReadonlySet<string>>(() => new Set());
   const measureTile = useRef<MeasureTile | null>(null);
   const getUploads = useCallback(() => uploadsOf(id), [id]);
   const uploads = useSyncExternalStore(subscribeUploads, getUploads);
   const profile = useSyncExternalStore(subscribeProfile, profileState);
-  const shots = useMemo(() => mockPhotos(64).reverse(), []);
+  const seeded = !id.startsWith('project-');
+  const shots = useMemo(
+    () =>
+      seeded
+        ? mockPhotos(64)
+            .reverse()
+            .filter((photo) => !removed.has(photo.id))
+        : [],
+    [removed, seeded],
+  );
   const upload = uploads.find((entry) => entry.id === uploadId) ?? null;
-  const photos = useMemo(
-    () => [
+  const photos = useMemo(() => {
+    const base = [
       ...uploads.map((entry) => ({
         id: entry.id,
         source: entry.source,
@@ -49,21 +62,24 @@ export default function ProjectScreen() {
             : { progress: entry.progress, failed: entry.status === 'failed' },
       })),
       ...shots,
-    ],
-    [shots, uploads],
-  );
+    ];
+    return base.map((photo, index) => ({
+      ...photo,
+      capturedAt: mockPhotoMeta(photo, index).capturedAt,
+    }));
+  }, [shots, uploads]);
 
   if (!project) {
     return (
       <Board
         bar={
           <AppBar
-            title="Воспоминание"
-            left={<BackButton label="Назад" onPress={() => router.back()} />}
+            title={t('project.title')}
+            left={<BackButton label={t('action.back')} onPress={() => router.back()} />}
           />
         }
       >
-        <Empty sign="dashed" title="Воспоминание не найдено" />
+        <Empty sign="dashed" title={t('project.notFound')} />
       </Board>
     );
   }
@@ -72,32 +88,57 @@ export default function ProjectScreen() {
     <>
       <Stack.Screen options={{ gestureEnabled: open === null }} />
       <View style={[styles.root, { backgroundColor: theme.color.ink }]}>
-        <PhotoGrid
-          photos={photos}
-          onOpen={(index, rect) => {
-            if (photos[index]?.upload) {
-              setUploadId(photos[index]?.id ?? null);
-              return;
-            }
-            setOpen({ index, rect });
-          }}
-          padding={{ top: insets.top + 60, bottom: insets.bottom + 76 }}
-          blankIndex={open?.index ?? null}
-          measureRef={measureTile}
-          endKey={uploads[0]?.id}
-        />
+        {photos.length === 0 ? (
+          <View
+            style={[
+              styles.emptyFill,
+              { paddingTop: insets.top + 60, paddingBottom: insets.bottom + 76 },
+            ]}
+          >
+            <Empty
+              sign="dashed"
+              icon={Camera}
+              title={t('project.emptyTitle')}
+              text={t('project.emptyText')}
+            />
+          </View>
+        ) : (
+          <PhotoGrid
+            photos={photos}
+            onOpen={(index, rect) => {
+              if (photos[index]?.upload) {
+                setUploadId(photos[index]?.id ?? null);
+                return;
+              }
+              setOpen({ index, rect });
+            }}
+            padding={{ top: insets.top + 60, bottom: insets.bottom + 76 }}
+            blankIndex={open?.index ?? null}
+            measureRef={measureTile}
+            endKey={uploads[0]?.id}
+          />
+        )}
         <BlurBar edge="top" style={styles.top}>
-          <BackButton label="Назад" size={52} onPress={() => router.back()} />
-          <Text role="barTitle" numberOfLines={1} style={styles.title}>
+          <BackButton label={t('action.back')} size={52} onPress={() => router.back()} />
+          <Text
+            role="barTitle"
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.7}
+            style={styles.title}
+          >
             {project.project.title}
           </Text>
           <IconButton
             icon={Users}
-            label="Участники"
+            label={t('project.members')}
             tone="ghost"
-            size={48}
+            size={52}
             onPress={() =>
-              router.push({ pathname: '/project/[id]/info', params: { id: project.project.id } })
+              router.navigate({
+                pathname: '/project/[id]/info',
+                params: { id: project.project.id },
+              })
             }
           />
         </BlurBar>
@@ -106,7 +147,7 @@ export default function ProjectScreen() {
           style={[styles.bottom, { paddingBottom: insets.bottom + space.s2 }]}
         >
           <Button
-            label="Добавить"
+            label={t('project.add')}
             variant="primary"
             onPress={() =>
               router.navigate({
@@ -133,6 +174,10 @@ export default function ProjectScreen() {
               )
             }
             author={profile.name}
+            onDelete={(photo) => {
+              setRemoved((was) => new Set(was).add(photo.id));
+              setOpen(null);
+            }}
             renderInfo={(index) => {
               const photo = photos[index];
               return photo ? (
@@ -148,6 +193,11 @@ export default function ProjectScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  emptyFill: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: space.s6,
+  },
   top: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -159,6 +209,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 22,
     lineHeight: 26,
+    textAlign: 'center',
   },
   bottom: {
     position: 'absolute',

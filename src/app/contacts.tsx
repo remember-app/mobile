@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import { Plus, Trash2 } from 'lucide-react-native';
 import { useState, useSyncExternalStore } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
 import { ArrowField } from '@/ui/components/arrow-field';
@@ -22,6 +23,7 @@ import {
 import { radius, space, themed } from '@/ui/theme';
 
 export default function ContactsScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const styles = useStyles();
   const contacts = useSyncExternalStore(subscribeContacts, contactsState);
@@ -39,16 +41,16 @@ export default function ContactsScreen() {
       body={styles.body}
       bar={
         <AppBar
-          title="Контакты"
-          left={<BackButton label="Назад" onPress={() => router.back()} />}
+          title={t('contacts.title')}
+          left={<BackButton label={t('action.back')} onPress={() => router.back()} />}
         />
       }
     >
       <ArrowField
-        label="Ник"
+        label={t('contacts.nick')}
         value={username}
         onChangeText={setUsername}
-        placeholder="Ник"
+        placeholder={t('contacts.nick')}
         prefix="@"
         valid={Boolean(clean)}
         onSubmit={add}
@@ -79,7 +81,7 @@ export default function ContactsScreen() {
         ))}
         {contacts.length === 0 ? (
           <Text role="note" tone="muted" style={styles.empty}>
-            Пока никого нет
+            {t('contacts.empty')}
           </Text>
         ) : null}
       </View>
@@ -87,7 +89,7 @@ export default function ContactsScreen() {
       {suggestions.length > 0 ? (
         <>
           <Text role="eyebrow" tone="muted">
-            Возможно, знакомы
+            {t('contacts.suggestions')}
           </Text>
           <View style={styles.card}>
             {suggestions.map((contact, index) => (

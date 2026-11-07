@@ -1,7 +1,9 @@
 import { Image, type ImageSource } from 'expo-image';
 import { setStatusBarHidden } from 'expo-status-bar';
 import { useVideoPlayer, VideoView } from 'expo-video';
+import { Trash2 } from 'lucide-react-native';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Image as RNImage,
   type ScrollViewInstance,
@@ -26,8 +28,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { resolveDeviceAsset } from '@/functionality';
+import { confirmAction } from '@/ui/confirm';
+import { locale } from '@/ui/i18n';
 import { Avatar } from '@/ui/kit/avatar';
-import { photo, radius, space } from '@/ui/theme';
+import { BlurBar } from '@/ui/kit/blur-bar';
+import { BackButton, IconButton } from '@/ui/kit/button';
+import { Text } from '@/ui/kit/text';
+import { photo, radius, space, useTheme } from '@/ui/theme';
 import { PhotoInfo } from './info/photo-info';
 import type { Rect } from './photo-grid';
 import { PhotoStrip, STRIP_PITCH } from './photo-strip';
@@ -39,7 +46,23 @@ export type ViewerPhoto = {
   height?: number;
   video?: boolean;
   assetId?: string;
+  capturedAt?: Date | null;
 };
+
+function dayText(value: Date): string {
+  return new Intl.DateTimeFormat(locale(), {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(value);
+}
+
+function timeText(value: Date): string {
+  return new Intl.DateTimeFormat(locale(), {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(value);
+}
 
 type Box = { width: number; height: number };
 
@@ -77,6 +100,7 @@ type Props = {
   onIndex?: (index: number) => void;
   renderInfo?: (index: number) => ReactNode;
   author?: string;
+  onDelete?: (photo: ViewerPhoto) => void;
 };
 
 type Phase = 'entering' | 'open' | 'leaving';
@@ -89,8 +113,13 @@ export function PhotoViewer({
   onIndex,
   renderInfo,
   author,
+  onDelete,
 }: Props) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
+  const background = theme.name === 'dark' ? photo.viewer : theme.color.surface;
+  const panel = theme.name === 'dark' ? photo.viewer : theme.color.ink;
   const viewPhotos = useMemo(() => [...photos].reverse(), [photos]);
   const start = Math.max(0, viewPhotos.length - 1 - initialIndex);
   const indexRef = useRef(start);
@@ -288,7 +317,7 @@ export function PhotoViewer({
 
   return (
     <View style={StyleSheet.absoluteFill}>
-      <Animated.View style={[StyleSheet.absoluteFill, styles.backdrop, backdrop]} />
+      <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: background }, backdrop]} />
       <Animated.View
         style={[StyleSheet.absoluteFill, busy ? styles.off : null, pagerStyle]}
         pointerEvents={busy ? 'none' : 'auto'}
@@ -341,7 +370,10 @@ export function PhotoViewer({
           ))}
         </Animated.ScrollView>
       </Animated.View>
-      <Animated.View style={[styles.info, infoStyle]} pointerEvents={info ? 'auto' : 'none'}>
+      <Animated.View
+        style={[styles.info, { backgroundColor: panel }, infoStyle]}
+        pointerEvents={info ? 'auto' : 'none'}
+      >
         <Animated.View style={[styles.fill, contentStyle]}>
           <PhotoInfo lift={lift} onDismiss={() => setInfo(false)}>
             {renderInfo?.(viewPhotos.length - 1 - index)}
@@ -401,6 +433,36 @@ export function PhotoViewer({
             onSettle={(next) => settle(next)}
           />
         </Animated.View>
+      ) : null}
+      {chrome && phase === 'open' ? (
+        <BlurBar edge="top" style={styles.hud}>
+          <BackButton label={t('action.back')} size={52} onPress={onClose} />
+          <View style={styles.hudWords}>
+            {currentPhoto?.capturedAt ? (
+              <>
+                <Text role="row">{dayText(currentPhoto.capturedAt)}</Text>
+                <Text role="meta">{timeText(currentPhoto.capturedAt)}</Text>
+              </>
+            ) : null}
+          </View>
+          {onDelete && currentPhoto ? (
+            <IconButton
+              icon={Trash2}
+              label={t('action.delete')}
+              tone="ghost"
+              size={48}
+              onPress={() =>
+                confirmAction({
+                  confirm: t('action.delete'),
+                  destructive: true,
+                  onConfirm: () => onDelete(currentPhoto),
+                })
+              }
+            />
+          ) : (
+            <View style={styles.hudSide} />
+          )}
+        </BlurBar>
       ) : null}
     </View>
   );
@@ -710,9 +772,6 @@ function Video({ uri, box }: { uri: string; box: Box }) {
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    backgroundColor: photo.viewer,
-  },
   off: {
     opacity: 0,
   },
@@ -725,7 +784,6 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     zIndex: 2,
-    backgroundColor: photo.viewer,
   },
   fill: {
     flex: 1,
@@ -739,6 +797,21 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
+  },
+  hud: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.s3,
+    paddingHorizontal: space.s4,
+    minHeight: 52,
+  },
+  hudWords: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 2,
+  },
+  hudSide: {
+    width: 48,
   },
   square: {
     position: 'absolute',

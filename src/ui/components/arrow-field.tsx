@@ -1,5 +1,6 @@
 import { ArrowRight } from 'lucide-react-native';
 import { type Ref, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, type TextInputProps, View } from 'react-native';
 
 import { Field, type TextInputRef } from '@/ui/kit/field';
@@ -36,6 +37,7 @@ export function ArrowField({
   autoFocus,
   inputRef,
 }: Props) {
+  const { t } = useTranslation();
   const { color } = useTheme();
   const [focused, setFocused] = useState(false);
   const border = focused ? color.accent : color.line;
@@ -56,12 +58,16 @@ export function ArrowField({
         autoFocus={autoFocus}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
+        returnKeyType="done"
+        onSubmitEditing={() => {
+          if (valid) onSubmit();
+        }}
         style={value.length > 0 ? { paddingRight: height.fieldTall } : undefined}
       />
       {value.length > 0 ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Продолжить"
+          accessibilityLabel={t('action.continue')}
           disabled={!valid}
           onPress={onSubmit}
           style={[

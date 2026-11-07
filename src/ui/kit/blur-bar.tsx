@@ -52,7 +52,10 @@ export function BlurBar({ edge, children, intensity = 30, shade = true, style }:
     >
       <MaskedView
         pointerEvents="none"
-        style={StyleSheet.absoluteFill}
+        style={[
+          styles.blur,
+          top ? { top: 0, height: insets.top } : { bottom: 0, height: insets.bottom },
+        ]}
         maskElement={<Fade top={top} />}
       >
         <BlurView
@@ -81,6 +84,11 @@ export function BlurBar({ edge, children, intensity = 30, shade = true, style }:
 
 const styles = StyleSheet.create({
   layer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+  },
+  blur: {
     position: 'absolute',
     left: 0,
     right: 0,

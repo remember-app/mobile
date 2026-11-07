@@ -68,6 +68,12 @@
           "granularPermissions": ["photo", "video"]
         }
       ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Remember uses your photos so you can choose an avatar."
+        }
+      ],
       "expo-video",
       "expo-image",
       "expo-localization",

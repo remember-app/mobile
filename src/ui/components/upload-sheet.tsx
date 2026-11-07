@@ -1,5 +1,6 @@
 import { Image } from 'expo-image';
 import { AlertCircle, CheckCircle2, Play } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
 import { BottomSheet } from '@/ui/kit/bottom-sheet';
@@ -18,6 +19,7 @@ export function UploadSheet({
   upload: MockUpload | null;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const { color } = useTheme();
   const styles = useStyles();
 
@@ -56,19 +58,19 @@ export function UploadSheet({
             )}
             <Text role="row">
               {upload.status === 'uploading'
-                ? 'Загружается'
+                ? t('upload.uploading')
                 : upload.status === 'failed'
-                  ? 'Не удалось'
-                  : 'Готово'}
+                  ? t('upload.failed')
+                  : t('upload.done')}
             </Text>
           </View>
 
           {upload.status === 'uploading' ? (
-            <Button label="Отменить" variant="secondary" onPress={remove} />
+            <Button label={t('upload.cancel')} variant="secondary" onPress={remove} />
           ) : upload.status === 'failed' ? (
             <View style={styles.actions}>
-              <Button label="Повторить" variant="primary" onPress={retry} />
-              <Button label="Удалить" variant="quiet" wide={false} onPress={remove} />
+              <Button label={t('upload.retry')} variant="primary" onPress={retry} />
+              <Button label={t('upload.delete')} variant="quiet" wide={false} onPress={remove} />
             </View>
           ) : null}
         </View>

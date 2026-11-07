@@ -1,5 +1,6 @@
 import { ChevronDown } from 'lucide-react-native';
 import { type ReactNode, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, type ScrollViewInstance, StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useSharedValue } from 'react-native-reanimated';
@@ -15,6 +16,7 @@ type Props = {
 };
 
 export function CollapsibleList({ children, collapsed, expanded }: Props) {
+  const { t } = useTranslation();
   const { color } = useTheme();
   const board = useBoardScroll();
   const scrollBoard = board?.scrollBy;
@@ -77,7 +79,7 @@ export function CollapsibleList({ children, collapsed, expanded }: Props) {
       {content > collapsed ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={open ? 'Свернуть' : 'Показать полностью'}
+          accessibilityLabel={open ? t('common.collapse') : t('common.expand')}
           onPress={toggle}
           style={[styles.arrow, { borderTopColor: color.line }]}
         >

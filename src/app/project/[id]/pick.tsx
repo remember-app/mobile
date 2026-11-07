@@ -1,6 +1,7 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Check, ChevronDown, ImageOff } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Linking, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -28,17 +29,24 @@ const PAGE = 60;
 const SKELETON = 24;
 
 const COLLECTIONS = [
-  { value: 'all', label: 'Все' },
-  { value: 'favorites', label: 'Избранные' },
-  { value: 'videos', label: 'Видео' },
-  { value: 'photos', label: 'Фото' },
-] as const satisfies readonly { value: DeviceCollection; label: string }[];
+  'all',
+  'favorites',
+  'videos',
+  'photos',
+] as const satisfies readonly DeviceCollection[];
+
+const LABELS = {
+  all: 'picker.all',
+  favorites: 'picker.favorites',
+  videos: 'picker.videos',
+  photos: 'picker.photos',
+} as const;
 
 const EMPTY = {
-  all: 'Здесь пока нет фото',
-  favorites: 'Нет избранных',
-  videos: 'Нет видео',
-  photos: 'Нет фото',
+  all: 'picker.emptyAll',
+  favorites: 'picker.emptyFavorites',
+  videos: 'picker.emptyVideos',
+  photos: 'picker.emptyPhotos',
 } as const;
 
 function duration(seconds: number): string {
@@ -47,6 +55,7 @@ function duration(seconds: number): string {
 }
 
 export default function PickScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { color } = useTheme();
@@ -66,7 +75,7 @@ export default function PickScreen() {
   const measureTile = useRef<MeasureTile | null>(null);
   const ordered = assets;
   const cell = Math.floor(width / PHOTO_COLUMNS);
-  const label = COLLECTIONS.find((item) => item.value === collection)?.label ?? 'Все';
+  const label = t(LABELS[collection]);
 
   useEffect(() => {
     let live = true;
@@ -159,6 +168,7 @@ export default function PickScreen() {
         height: asset.height,
         video: asset.kind === 'video',
         assetId: asset.id,
+        capturedAt: new Date(asset.createdAt),
       })),
     [ordered],
   );
@@ -172,10 +182,10 @@ export default function PickScreen() {
             <View style={styles.centre}>
               <ImageOff size={40} color={color.muted} />
               <Text role="body" tone="muted">
-                Нет доступа к фото
+                {t('picker.denied')}
               </Text>
               <Button
-                label="Открыть настройки"
+                label={t('picker.settings')}
                 variant="secondary"
                 wide={false}
                 onPress={() => void Linking.openSettings()}
@@ -203,7 +213,7 @@ export default function PickScreen() {
             <View style={styles.centre}>
               <ImageOff size={40} color={color.muted} />
               <Text role="body" tone="muted">
-                {EMPTY[collection]}
+                {t(EMPTY[collection])}
               </Text>
             </View>
           ) : (
@@ -223,7 +233,7 @@ export default function PickScreen() {
           )}
         </View>
         <BlurBar edge="top" style={styles.top}>
-          <BackButton label="Назад" onPress={() => router.back()} />
+          <BackButton label={t('action.back')} onPress={() => router.back()} />
           <Pressable onPress={() => setMenu((was) => !was)} style={styles.title}>
             <Text role="barTitle">{label}</Text>
             <ChevronDown size={18} color={color.paper} />
@@ -246,18 +256,18 @@ export default function PickScreen() {
             >
               {COLLECTIONS.map((item) => (
                 <Pressable
-                  key={item.value}
+                  key={item}
                   onPress={() => {
-                    setCollection(item.value);
+                    setCollection(item);
                     setMenu(false);
                     setPreview(null);
                   }}
                   style={styles.option}
                 >
-                  <Text role="row" tone={item.value === collection ? 'paper' : 'muted'}>
-                    {item.label}
+                  <Text role="row" tone={item === collection ? 'paper' : 'muted'}>
+                    {t(LABELS[item])}
                   </Text>
-                  {item.value === collection ? <Check size={18} color={color.accent} /> : null}
+                  {item === collection ? <Check size={18} color={color.accent} /> : null}
                 </Pressable>
               ))}
             </View>
@@ -268,7 +278,9 @@ export default function PickScreen() {
           style={[styles.bottom, { paddingBottom: insets.bottom + space.s2 }]}
         >
           <Button
-            label={selected.length ? `Добавить ${selected.length}` : 'Добавить'}
+            label={
+              selected.length ? t('picker.addCount', { count: selected.length }) : t('picker.add')
+            }
             variant="primary"
             disabled={selected.length === 0}
             onPress={confirm}

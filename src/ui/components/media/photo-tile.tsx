@@ -81,7 +81,7 @@ export function PhotoTile({ id, source, video, upload, select, note, onPress, on
                 value={upload.progress}
                 size={30}
                 stroke={3}
-                color={theme.color.paper}
+                color={theme.color.onFill}
                 track="rgba(255,255,255,0.28)"
               />
             )}

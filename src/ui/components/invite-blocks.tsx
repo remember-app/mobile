@@ -1,5 +1,6 @@
 import { Copy, Share2 } from 'lucide-react-native';
 import { useCallback, useState, useSyncExternalStore } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
 import { copyInviteLink, shareInviteLink } from '@/functionality';
@@ -19,11 +20,12 @@ export function InviteBlocks({
   projectId: string;
   projectTitle: string;
 }) {
+  const { t } = useTranslation();
   const styles = useStyles();
   const contacts = useSyncExternalStore(subscribeContacts, contactsState);
   const getMembers = useCallback(() => membersOf(projectId), [projectId]);
   const members = useSyncExternalStore(subscribeMembers, getMembers);
-  const [token] = useState('demo');
+  const [token] = useState('anna12');
 
   const usernames = new Set(members.map((member) => member.username));
   const available = contacts.filter((contact) => !usernames.has(contact.username));
@@ -40,9 +42,7 @@ export function InviteBlocks({
       ) : (
         <View style={styles.emptyCard}>
           <Text role="noteSm" tone="muted">
-            {contacts.length === 0
-              ? 'У вас пока нет контактов'
-              : 'Все ваши контакты уже приглашены'}
+            {contacts.length === 0 ? t('invite.noContacts') : t('invite.allInvited')}
           </Text>
         </View>
       )}
@@ -55,14 +55,14 @@ export function InviteBlocks({
         <View style={styles.actions}>
           <IconButton
             icon={Copy}
-            label="Скопировать"
+            label={t('invite.copy')}
             tone="ghost"
             size={44}
             onPress={() => void copyInviteLink(token)}
           />
           <IconButton
             icon={Share2}
-            label="Поделиться"
+            label={t('invite.share')}
             tone="ghost"
             size={44}
             onPress={() => void shareInviteLink(token, projectTitle)}

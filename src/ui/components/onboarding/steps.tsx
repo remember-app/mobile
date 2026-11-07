@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
 import { BackButton } from '@/ui/kit/button';
@@ -36,11 +37,16 @@ type Props = {
 };
 
 export function OnboardingHead({ step, total, title, lead, back, children }: Props) {
+  const { t } = useTranslation();
   const styles = useStyles();
   return (
     <View style={styles.head}>
       <View style={styles.bar}>
-        {back ? <BackButton label="Назад" onPress={back} /> : <View style={styles.side} />}
+        {back ? (
+          <BackButton label={t('action.back')} onPress={back} />
+        ) : (
+          <View style={styles.side} />
+        )}
         <View style={styles.track}>
           <StepDots step={step} total={total} />
         </View>

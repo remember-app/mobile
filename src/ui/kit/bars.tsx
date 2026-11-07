@@ -176,6 +176,7 @@ export function AppBar({
   left,
   right,
   quiet,
+  centerTitle,
   style,
 }: {
   title: string;
@@ -183,6 +184,7 @@ export function AppBar({
   variant?: 'root' | 'inner' | 'live';
   left?: ReactNode;
   right?: ReactNode;
+  centerTitle?: boolean;
   quiet?: {
     icon: IconComponent;
     label: string;
@@ -201,6 +203,10 @@ export function AppBar({
         <Text
           accessibilityRole="header"
           role={variant === 'root' ? 'displaySm' : variant === 'live' ? 'barTitleLive' : 'barTitle'}
+          numberOfLines={centerTitle ? 1 : undefined}
+          adjustsFontSizeToFit={centerTitle || undefined}
+          minimumFontScale={centerTitle ? 0.7 : undefined}
+          style={centerTitle ? styles.titleCenter : undefined}
         >
           {title}
         </Text>
@@ -539,6 +545,7 @@ const useStyles = themed(({ color }) =>
     pullLeft: { marginLeft: -10 },
     pullRight: { marginRight: -10 },
     barWords: { flex: 1, minWidth: 0, gap: 2 },
+    titleCenter: { textAlign: 'center' },
     glassBar: {
       flexDirection: 'row',
       alignItems: 'center',

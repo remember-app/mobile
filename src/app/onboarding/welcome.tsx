@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Mail } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ScrollView,
   type ScrollViewInstance,
@@ -27,32 +28,33 @@ import { radius, space, useTheme } from '@/ui/theme';
 
 const SLIDES = [
   {
-    text: 'Здесь вы всё-таки получите все фото с вечеринки от друзей.',
+    text: 'onboarding.welcome.slogan1',
     photo: require('../../../assets/images/mock/party.jpg'),
   },
   {
-    text: 'Соберёте все воспоминания с дня рождения в одно видео.',
+    text: 'onboarding.welcome.slogan2',
     photo: require('../../../assets/images/mock/birthday.jpg'),
   },
   {
-    text: 'Поездка на дачу тоже станет фильмом.',
+    text: 'onboarding.welcome.slogan3',
     photo: require('../../../assets/images/mock/picnic.jpg'),
   },
   {
-    text: 'Свадьба, выпускной, концерт — всё окажется в одном месте.',
+    text: 'onboarding.welcome.slogan4',
     photo: require('../../../assets/images/mock/wedding.jpg'),
   },
   {
-    text: 'Начнёте замечать и сохранять мелкие моменты жизни.',
+    text: 'onboarding.welcome.slogan5',
     photo: require('../../../assets/images/mock/dance.jpg'),
   },
-];
+] as const;
 
 const SLIDE_MS = 6000;
 const REVEAL_AFTER_MS = 6500;
 const TAPS_TO_REVEAL = 3;
 
 export default function WelcomeScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
@@ -104,7 +106,7 @@ export default function WelcomeScreen() {
         <View style={styles.scrim} />
         <View style={[styles.brand, { top: insets.top + space.s4 }]}>
           <Text role="display" tone="onFill" style={styles.centre}>
-            Добро пожаловать в
+            {t('onboarding.welcome.welcome')}
           </Text>
           <Text role="heroSm" tone="onFill" style={styles.centre}>
             Remember
@@ -117,7 +119,7 @@ export default function WelcomeScreen() {
             exiting={FadeOutRight.duration(400)}
           >
             <Text role="display" tone="onFill">
-              {slide.text}
+              {t(slide.text)}
             </Text>
           </Animated.View>
         </Animated.View>
@@ -157,10 +159,10 @@ export default function WelcomeScreen() {
       <Animated.View style={[styles.action, actionStyle]}>
         <View style={[styles.actionInner, { paddingBottom: insets.bottom }]}>
           <Button
-            label="Продолжить с почтой"
+            label={t('onboarding.welcome.continue')}
             variant="primary"
             icon={Mail}
-            onPress={() => router.push('/onboarding/email')}
+            onPress={() => router.navigate('/onboarding/email')}
           />
         </View>
       </Animated.View>
