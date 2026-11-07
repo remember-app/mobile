@@ -18,8 +18,9 @@ import {
 } from 'react-native';
 import { themed, type } from '@/ui/theme';
 import { TAP } from './tap';
-export type TypeRole = keyof typeof type;
-export type TextTone =
+
+type TypeRole = keyof typeof type;
+type TextTone =
   | 'paper'
   | 'muted'
   | 'faint'
@@ -31,7 +32,7 @@ export type TextTone =
   | 'onFill'
   | 'quote';
 export const TYPE_MOST = 2;
-export const HEADING_MOST: Partial<Record<TypeRole, number>> = {
+const HEADING_MOST: Partial<Record<TypeRole, number>> = {
   hero: 1.13,
   heroNarrow: 1.33,
   heroSm: 1.51,
@@ -59,13 +60,11 @@ const QUIET = new Set<TypeRole>(['meta', 'metaSm', 'note', 'hint', 'eyebrow']);
 type KitTextProps = Omit<TextProps, 'role'> & {
   role?: TypeRole;
   tone?: TextTone;
-  balance?: boolean;
   fit?: boolean;
 };
 export function Text({
   role = 'body',
   tone,
-  balance,
   fit,
   style,
   maxFontSizeMultiplier,
@@ -74,13 +73,12 @@ export function Text({
   ...rest
 }: KitTextProps) {
   const styles = useStyles();
-  const room = useContext(WordRoom);
   const nested = useContext(InText);
   const words = wordsOf(children);
   const whole = useWhole(maxFontSizeMultiplier ?? HEADING_MOST[role] ?? TYPE_MOST, words);
   const face = [type[role], style];
   const set = whole.grown === 1 ? null : grownBy(face, whole.grown);
-  const watching = room !== null || (fit ?? WIDE.has(role));
+  const watching = fit ?? WIDE.has(role);
   const pieces =
     watching && !nested && whole.grown > 1 && words !== null && rest.numberOfLines === undefined
       ? piecesOf(words)
@@ -92,26 +90,12 @@ export function Text({
     const box = widthOf(shown.current);
     const widest = widthOf(twin.current);
     if (box === 0 || widest === 0) return false;
-    if (widest > box + SLACK && !room?.()) whole.fit(box / widest);
+    if (widest > box + SLACK) whole.fit(box / widest);
     return true;
   };
   useLayoutEffect(() => {
     check();
   });
-  if (balance && typeof children === 'string')
-    return (
-      <Balanced
-        role={role}
-        tone={tone}
-        fit={fit}
-        style={style}
-        maxFontSizeMultiplier={maxFontSizeMultiplier}
-        onTextLayout={onTextLayout}
-        {...rest}
-      >
-        {children}
-      </Balanced>
-    );
   const drawn = (
     <RNText
       key={whole.fitted ?? 'grown'}
@@ -124,7 +108,7 @@ export function Text({
           ? (event) => {
               onTextLayout?.(event);
               const { lines } = event.nativeEvent;
-              if (!check() && brokeWord(lines) && !room?.()) whole.less(lines);
+              if (!check() && brokeWord(lines)) whole.less(lines);
             }
           : onTextLayout
       }
@@ -156,7 +140,7 @@ function wordsOf(children: ReactNode): string | null {
   if (plain(children)) return String(children);
   return Array.isArray(children) && children.every(plain) ? children.join('') : null;
 }
-export function piecesOf(words: string): string {
+function piecesOf(words: string): string {
   return words
     .split(/\s+/)
     .flatMap((word) => word.match(/[^-‐–—]+[-‐–—]*|[-‐–—]+/g) ?? [])
@@ -197,14 +181,14 @@ const tornAt = (
     text: string;
   },
 ) => !/[\s\-‐–—]$/.test(above.text) && !/^\s/.test(below.text);
-export function brokeWord(
+function brokeWord(
   lines: readonly {
     text: string;
   }[],
 ): boolean {
   return lines.some((line, i) => i > 0 && tornAt(lines[i - 1], line));
 }
-export function wholeAt(
+function wholeAt(
   lines: readonly {
     text: string;
     width: number;
@@ -281,146 +265,6 @@ function grownBy(style: StyleProp<TextStyle>, by: number) {
     ...(lineHeight === undefined ? null : { lineHeight: lineHeight * by }),
   };
 }
-export function balanced(
-  words: readonly number[],
-  space: number,
-  room: number,
-  most = Number.POSITIVE_INFINITY,
-):
-  | {
-      width: number;
-      lines: number;
-    }
-  | undefined {
-  const linesAt = (width: number) => {
-    let lines = 1;
-    let run = words[0];
-    for (const word of words.slice(1)) {
-      if (run + space + word <= width) run += space + word;
-      else {
-        lines += 1;
-        run = word;
-      }
-    }
-    return lines;
-  };
-  const widest = Math.max(...words);
-  const lines = linesAt(room);
-  if (lines < 2 || lines > most || widest > room) return undefined;
-  let short = widest;
-  let width = room;
-  while (width - short > 0.01) {
-    const mid = (short + width) / 2;
-    if (linesAt(mid) > lines) short = mid;
-    else width = mid;
-  }
-  return { width, lines };
-}
-function Balanced({
-  children,
-  role,
-  tone,
-  fit,
-  maxFontSizeMultiplier,
-  numberOfLines,
-  style,
-  onTextLayout,
-  ...rest
-}: Omit<KitTextProps, 'balance' | 'children'> & {
-  children: string;
-}) {
-  const words = children.split(' ').filter(Boolean);
-  const [room, setRoom] = useState(0);
-  const [drawn, setDrawn] = useState<readonly number[]>([]);
-  const [line, setLine] = useState(0);
-  const [missed, setMissed] = useState<string | null>(null);
-  const box = useRef<ComponentRef<typeof View>>(null);
-  const face = { role, tone, maxFontSizeMultiplier, style };
-  const measures = [...words, `${words[0]} ${words[1]}`];
-  const measured =
-    words.length > 1 && room > 0 && measures.every((_, at) => drawn[at] !== undefined);
-  const even = measured
-    ? balanced(
-        drawn.slice(0, words.length),
-        drawn[words.length] - drawn[0] - drawn[1],
-        room,
-        numberOfLines,
-      )
-    : undefined;
-  const width = even ? Math.ceil(even.width) + 1 : undefined;
-  const tried = `${room} ${width}`;
-  const narrow = even && missed !== tried ? { maxWidth: width } : null;
-  useLayoutEffect(() => {
-    if (!narrow || !even || line === 0) return;
-    let tall = 0;
-    box.current?.measure((_x, _y, _width, height) => {
-      tall = height;
-    });
-    if (tall > line * (even.lines + 0.5)) setMissed(tried);
-  });
-  if (words.length < 2)
-    return (
-      <Text {...face} fit={fit} numberOfLines={numberOfLines} onTextLayout={onTextLayout} {...rest}>
-        {children}
-      </Text>
-    );
-  return (
-    <View ref={box} onLayout={(event) => setRoom(event.nativeEvent.layout.width)}>
-      <Text
-        {...face}
-        fit={fit}
-        style={[style, narrow, measured ? null : hidden.unseen]}
-        numberOfLines={numberOfLines}
-        onTextLayout={(event) => {
-          onTextLayout?.(event);
-          if (narrow && even && event.nativeEvent.lines.length > even.lines) setMissed(tried);
-        }}
-        {...rest}
-      >
-        {children}
-      </Text>
-      <View
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        style={hidden.measure}
-      >
-        {measures.map((words, at) => (
-          <Text
-            key={at}
-            {...face}
-            fit={false}
-            onLayout={(event) => {
-              const { width: wide, height } = event.nativeEvent.layout;
-              setDrawn((had) => (had[at] === wide ? had : Object.assign([...had], { [at]: wide })));
-              if (at === 0) setLine(height);
-            }}
-          >
-            {words}
-          </Text>
-        ))}
-      </View>
-    </View>
-  );
-}
-export const WordRoom = createContext<(() => boolean) | null>(null);
-export function useWordRoom(): {
-  roomy: boolean;
-  way: 'roomy' | 'drawn';
-  room: () => boolean;
-} {
-  const { fontScale, width } = useWindowDimensions();
-  const here = `${fontScale} ${width}`;
-  const [broke, setBroke] = useState<string | null>(null);
-  return {
-    roomy: broke === here,
-    way: broke === here ? 'roomy' : 'drawn',
-    room: () => {
-      if (broke === here) return false;
-      setBroke(here);
-      return true;
-    },
-  };
-}
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
     paper: { color: color.paper },
@@ -460,16 +304,7 @@ export function fitCell({
     height: fontScale > 1 ? Math.max(TAP, Math.ceil(lineHeight * grown) + FIT_INSET) : rest,
   };
 }
-export function HiddenLabel({ children, nativeID }: { children: string; nativeID?: string }) {
-  return (
-    <RNText nativeID={nativeID} allowFontScaling={false} style={hidden.clip}>
-      {children}
-    </RNText>
-  );
-}
 const hidden = StyleSheet.create({
-  clip: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0 },
-  unseen: { opacity: 0 },
   measure: {
     position: 'absolute',
     top: 0,

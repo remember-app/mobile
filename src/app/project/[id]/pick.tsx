@@ -19,6 +19,8 @@ import {
   type Rect,
 } from '@/ui/components/media/photo-grid';
 import { PhotoViewer } from '@/ui/components/media/photo-viewer';
+import { duration } from '@/ui/format';
+import { ActionBar } from '@/ui/kit/action-bar';
 import { BlurBar } from '@/ui/kit/blur-bar';
 import { BackButton, Button } from '@/ui/kit/button';
 import { Text } from '@/ui/kit/text';
@@ -48,11 +50,6 @@ const EMPTY = {
   videos: 'picker.emptyVideos',
   photos: 'picker.emptyPhotos',
 } as const;
-
-function duration(seconds: number): string {
-  const whole = Math.floor(seconds);
-  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;
-}
 
 export default function PickScreen() {
   const { t } = useTranslation();
@@ -273,10 +270,7 @@ export default function PickScreen() {
             </View>
           </>
         ) : null}
-        <View
-          pointerEvents="box-none"
-          style={[styles.bottom, { paddingBottom: insets.bottom + space.s2 }]}
-        >
+        <ActionBar>
           <Button
             label={
               selected.length ? t('picker.addCount', { count: selected.length }) : t('picker.add')
@@ -285,7 +279,7 @@ export default function PickScreen() {
             disabled={selected.length === 0}
             onPress={confirm}
           />
-        </View>
+        </ActionBar>
         {preview === null ? null : (
           <PhotoViewer
             photos={viewerPhotos}

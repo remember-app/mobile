@@ -4,20 +4,22 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Plus, User } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, RefreshControl, StyleSheet, View } from 'react-native';
+import { RefreshControl, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { NetworkBanner } from '@/ui/components/network-banner';
 import { OnboardingFinal } from '@/ui/components/onboarding/final';
 import { ProjectCard } from '@/ui/components/project-card';
 import { ProjectCardSkeleton } from '@/ui/components/skeletons';
+import { ActionBar } from '@/ui/kit/action-bar';
 import { Button, IconButton } from '@/ui/kit/button';
+import { Card } from '@/ui/kit/card';
 import { Text } from '@/ui/kit/text';
 import { photosForLabel, subscribeLabels } from '@/ui/mocks/labels';
 import { loadingState, subscribeLoading } from '@/ui/mocks/loading';
 import { profileState, subscribeProfile } from '@/ui/mocks/profile';
 import { type MockProject, projectsState, subscribeProjects } from '@/ui/mocks/projects';
-import { radius, space, useTheme } from '@/ui/theme';
+import { space, useTheme } from '@/ui/theme';
 
 export default function HomeScreen() {
   const { t } = useTranslation();
@@ -63,18 +65,11 @@ export default function HomeScreen() {
           </View>
         ) : projects.length === 0 ? (
           <View style={styles.emptyFill}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('home.create')}
+            <Card
+              clip
+              label={t('home.create')}
               onPress={() => router.navigate('/create')}
-              style={[
-                styles.newCard,
-                {
-                  backgroundColor: color.surface,
-                  borderColor: color.line,
-                  borderStyle: covers[0] ? 'solid' : 'dashed',
-                },
-              ]}
+              style={[styles.newCard, { borderStyle: covers[0] ? 'solid' : 'dashed' }]}
             >
               {covers[0] ? (
                 <>
@@ -86,7 +81,7 @@ export default function HomeScreen() {
               <Text role="title" tone={covers[0] ? 'onFill' : 'paper'}>
                 {t('home.create')}
               </Text>
-            </Pressable>
+            </Card>
           </View>
         ) : (
           <FlashList
@@ -137,16 +132,13 @@ export default function HomeScreen() {
           onPress={() => router.navigate('/profile')}
         />
         {projects.length > 0 ? (
-          <View
-            pointerEvents="box-none"
-            style={[styles.bottom, { paddingBottom: insets.bottom + space.s2 }]}
-          >
+          <ActionBar>
             <Button
               label={t('home.create')}
               variant="primary"
               onPress={() => router.navigate('/create')}
             />
-          </View>
+          </ActionBar>
         ) : null}
         <NetworkBanner />
       </View>
@@ -176,9 +168,6 @@ const styles = StyleSheet.create({
   },
   newCard: {
     aspectRatio: 4 / 3,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
     gap: space.s3,

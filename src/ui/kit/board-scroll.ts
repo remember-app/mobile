@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react';
 
-export type BoardScroll = {
+type BoardScroll = {
   scrollBy: (delta: number) => void;
 };
 

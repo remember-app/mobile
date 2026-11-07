@@ -13,6 +13,7 @@ import { LabelMark } from '@/ui/components/label';
 import { LabelRowsSkeleton } from '@/ui/components/skeletons';
 import { SwipeRow } from '@/ui/components/swipe-row';
 import { BottomSheet } from '@/ui/kit/bottom-sheet';
+import { Card } from '@/ui/kit/card';
 import { Text } from '@/ui/kit/text';
 import {
   createLabel,
@@ -69,7 +70,7 @@ export function LabelsManager({ projectId }: { projectId: string }) {
 
   return (
     <>
-      <View style={styles.card}>
+      <Card clip>
         <Pressable accessibilityRole="button" onPress={() => setOpen(true)} style={styles.add}>
           <Text role="row" tone="accent">
             {t('labels.add')}
@@ -99,7 +100,7 @@ export function LabelsManager({ projectId }: { projectId: string }) {
             ))}
           </CollapsibleList>
         )}
-      </View>
+      </Card>
       <BottomSheet visible={open} onClose={() => setOpen(false)} title={t('labels.new')}>
         <View style={styles.form}>
           <ColorSlider hue={hue} onChange={setHue} />
@@ -184,13 +185,6 @@ function ColorSlider({ hue, onChange }: { hue: number; onChange: (hue: number) =
 
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
-    card: {
-      backgroundColor: color.surface,
-      borderRadius: radius.card,
-      borderWidth: 1,
-      borderColor: color.line,
-      overflow: 'hidden',
-    },
     row: {
       minHeight: 56,
       flexDirection: 'row',

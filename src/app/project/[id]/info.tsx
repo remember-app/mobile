@@ -9,10 +9,11 @@ import { MemberList } from '@/ui/components/member-list';
 import { MemberSheet } from '@/ui/components/member-sheet';
 import { StatsSkeleton } from '@/ui/components/skeletons';
 import { confirmAction } from '@/ui/confirm';
-import { locale } from '@/ui/i18n';
-import { AppBar, Board } from '@/ui/kit/bars';
+import { number } from '@/ui/format';
+import { AppBar, Board, pageBody } from '@/ui/kit/bars';
 import { BottomSheet } from '@/ui/kit/bottom-sheet';
 import { BackButton, Button, IconButton } from '@/ui/kit/button';
+import { Card } from '@/ui/kit/card';
 import { CircularProgress } from '@/ui/kit/circular-progress';
 import { Empty } from '@/ui/kit/empty';
 import { Slider } from '@/ui/kit/slider';
@@ -27,7 +28,7 @@ import {
   resourcesOf,
   subscribeResources,
 } from '@/ui/mocks/resources';
-import { radius, space, themed, useTheme } from '@/ui/theme';
+import { space, themed, useTheme } from '@/ui/theme';
 
 type Metric = 'people' | 'gb' | 'tokens';
 
@@ -36,9 +37,6 @@ const TITLES = {
   gb: 'info.storage',
   tokens: 'info.tokens',
 } as const;
-
-const number = (value: number) =>
-  new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(value);
 
 export default function ProjectInfoScreen() {
   const { t } = useTranslation();
@@ -111,7 +109,7 @@ export default function ProjectInfoScreen() {
 
   return (
     <Board
-      body={styles.body}
+      body={pageBody}
       bar={
         <AppBar
           title={project.project.title}
@@ -133,7 +131,7 @@ export default function ProjectInfoScreen() {
       {loading ? (
         <StatsSkeleton />
       ) : (
-        <View style={[styles.card, styles.stats]}>
+        <Card style={styles.stats}>
           <Stat
             icon={<Users size={26} color={color.paper} />}
             value={total > 0 ? shared / total : 0}
@@ -152,7 +150,7 @@ export default function ProjectInfoScreen() {
             label={`${resources.tokensLeft} / ${resources.tokensTotal}`}
             onPress={() => setMetric('tokens')}
           />
-        </View>
+        </Card>
       )}
 
       <MemberList members={members} onSelect={setSelected} onAdd={() => setMetric('people')} />
@@ -241,20 +239,8 @@ function Stat({
   );
 }
 
-const useStyles = themed(({ color }) =>
+const useStyles = themed(() =>
   StyleSheet.create({
-    body: {
-      paddingHorizontal: space.s5,
-      paddingTop: space.s5,
-      paddingBottom: space.s7,
-      gap: space.s4,
-    },
-    card: {
-      backgroundColor: color.surface,
-      borderRadius: radius.card,
-      borderWidth: 1,
-      borderColor: color.line,
-    },
     stats: {
       flexDirection: 'row',
       padding: space.s4,

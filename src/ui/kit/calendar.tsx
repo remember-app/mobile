@@ -16,7 +16,7 @@ import { TAP } from './tap';
 import { fitCell, Text } from './text';
 
 const DAY = 40;
-export type CalendarProps = {
+type CalendarProps = {
   month: Date;
   onMonth: (month: Date) => void;
   from: Date | null;

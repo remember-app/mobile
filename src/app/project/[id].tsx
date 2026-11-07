@@ -10,6 +10,7 @@ import { type MeasureTile, PhotoGrid, type Rect } from '@/ui/components/media/ph
 import { PhotoViewer } from '@/ui/components/media/photo-viewer';
 import { GallerySkeleton } from '@/ui/components/skeletons';
 import { UploadSheet } from '@/ui/components/upload-sheet';
+import { ActionBar } from '@/ui/kit/action-bar';
 import { AppBar, Board } from '@/ui/kit/bars';
 import { BlurBar } from '@/ui/kit/blur-bar';
 import { BackButton, Button, IconButton } from '@/ui/kit/button';
@@ -147,10 +148,7 @@ export default function ProjectScreen() {
             }
           />
         </BlurBar>
-        <View
-          pointerEvents="box-none"
-          style={[styles.bottom, { paddingBottom: insets.bottom + space.s2 }]}
-        >
+        <ActionBar>
           <Button
             label={t('project.add')}
             variant="primary"
@@ -161,7 +159,7 @@ export default function ProjectScreen() {
               })
             }
           />
-        </View>
+        </ActionBar>
         <UploadSheet
           projectId={project.project.id}
           upload={upload}

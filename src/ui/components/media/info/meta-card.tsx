@@ -1,7 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { i18n, locale } from '@/ui/i18n';
+import { dateTime, megabytes, number } from '@/ui/format';
+import { Card } from '@/ui/kit/card';
 import { Text } from '@/ui/kit/text';
 import { radius, space, themed } from '@/ui/theme';
 
@@ -24,31 +25,11 @@ export type PhotoMeta = {
   place: Place | null;
 };
 
-function dateText(date: Date): string {
-  const text = new Intl.DateTimeFormat(locale(), {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date);
-  return text.charAt(0).toUpperCase() + text.slice(1);
-}
-
-function decimal(value: number): string {
-  return new Intl.NumberFormat(locale(), { maximumFractionDigits: 2 }).format(value);
-}
-
-function megabytes(bytes: number): string {
-  return `${decimal(bytes / 1024 / 1024)} ${i18n.t('unit.mb')}`;
-}
-
 export function MetaCard({ meta, onEdit }: { meta: PhotoMeta; onEdit?: () => void }) {
   const { t } = useTranslation();
   const styles = useStyles();
   const focal = meta.focalLengthMm === null ? null : `${meta.focalLengthMm} mm`;
-  const aperture = meta.aperture === null ? null : `ƒ${decimal(meta.aperture)}`;
+  const aperture = meta.aperture === null ? null : `ƒ${number(meta.aperture, 2)}`;
   const optics = [focal, aperture].filter(Boolean).join(' ');
   const lens = meta.lens ? (optics ? `${meta.lens} — ${optics}` : meta.lens) : optics;
   const megapixels = Math.round((meta.width * meta.height) / 1_000_000);
@@ -62,10 +43,10 @@ export function MetaCard({ meta, onEdit }: { meta: PhotoMeta; onEdit?: () => voi
   ].filter((part): part is string => part !== null);
 
   return (
-    <View style={styles.card}>
+    <Card clip flat>
       <View style={styles.row}>
         <Text role="row" numberOfLines={1} style={[styles.grow, styles.paper]}>
-          {dateText(meta.capturedAt)}
+          {dateTime(meta.capturedAt)}
         </Text>
         {onEdit ? (
           <Pressable accessibilityRole="button" hitSlop={10} onPress={onEdit}>
@@ -106,7 +87,7 @@ export function MetaCard({ meta, onEdit }: { meta: PhotoMeta; onEdit?: () => voi
           </View>
         ))}
       </View>
-    </View>
+    </Card>
   );
 }
 
@@ -123,11 +104,6 @@ function Chip({ text }: { text: string }) {
 
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
-    card: {
-      borderRadius: radius.card,
-      backgroundColor: color.surface,
-      overflow: 'hidden',
-    },
     row: {
       flexDirection: 'row',
       alignItems: 'center',

@@ -4,17 +4,14 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { CollapsibleList } from '@/ui/components/collapsible-list';
 import { Contribution } from '@/ui/components/contribution';
+import { Person } from '@/ui/components/person';
 import { MemberRowsSkeleton } from '@/ui/components/skeletons';
-import { i18n, locale } from '@/ui/i18n';
-import { Avatar } from '@/ui/kit/avatar';
+import { Card } from '@/ui/kit/card';
 import { Text } from '@/ui/kit/text';
 import { loadingState, subscribeLoading } from '@/ui/mocks/loading';
 import type { MockMember } from '@/ui/mocks/members';
 import { profileState, subscribeProfile } from '@/ui/mocks/profile';
-import { radius, space, themed } from '@/ui/theme';
-
-export const gigabytes = (value: number): string =>
-  `${new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(value)} ${i18n.t('unit.gb')}`;
+import { space, themed } from '@/ui/theme';
 
 export function MemberList({
   members,
@@ -39,27 +36,18 @@ export function MemberList({
 
   const row = (member: MockMember) => {
     const face = (
-      <View style={styles.member}>
-        <Avatar name={member.name} size={44} />
-        <View style={styles.words}>
-          <View style={styles.nameRow}>
-            <Text
-              role="row"
-              tone={isSelf(member) ? 'accent' : 'paper'}
-              numberOfLines={1}
-              style={styles.name}
-            >
-              {member.name}
-            </Text>
-            <Text role="noteSm" tone="muted" numberOfLines={1} style={styles.nick}>
-              {`@${member.username}`}
-            </Text>
+      <Person
+        name={member.name}
+        username={member.username}
+        size={44}
+        accent={isSelf(member)}
+        style={styles.member}
+        right={
+          <View style={styles.standing}>
+            <Contribution contribution={member.contribution} />
           </View>
-        </View>
-        <View style={styles.standing}>
-          <Contribution contribution={member.contribution} />
-        </View>
-      </View>
+        }
+      />
     );
     return onSelect ? (
       <Pressable key={member.id} onPress={() => onSelect(member)} accessibilityRole="button">
@@ -71,7 +59,7 @@ export function MemberList({
   };
 
   return (
-    <View style={styles.card}>
+    <Card clip>
       {onAdd ? (
         <>
           <Pressable accessibilityRole="button" onPress={onAdd} style={styles.add}>
@@ -101,7 +89,7 @@ export function MemberList({
           {viewers.map(row)}
         </CollapsibleList>
       )}
-    </View>
+    </Card>
   );
 }
 
@@ -110,13 +98,6 @@ const useStyles = themed(({ color }) =>
     empty: {
       paddingVertical: space.s5,
       textAlign: 'center',
-    },
-    card: {
-      backgroundColor: color.surface,
-      borderRadius: radius.card,
-      borderWidth: 1,
-      borderColor: color.line,
-      overflow: 'hidden',
     },
     add: {
       minHeight: 56,
@@ -129,25 +110,7 @@ const useStyles = themed(({ color }) =>
     },
     member: {
       minHeight: 64,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: space.s3,
       paddingHorizontal: space.s4,
-    },
-    words: {
-      flex: 1,
-      gap: 2,
-    },
-    nameRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-    },
-    name: {
-      flexShrink: 1,
-    },
-    nick: {
-      flexShrink: 1,
     },
     standing: {
       maxWidth: '48%',

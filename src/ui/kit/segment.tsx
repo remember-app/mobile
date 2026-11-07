@@ -1,17 +1,16 @@
 import { useState } from 'react';
 import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 import { height, radius, space, themed, useTheme } from '@/ui/theme';
-import { Hint } from './field';
 import { hitSlop, TAP, useFocusRing, useHoverFocus } from './interaction';
 import { Text } from './text';
-export type SegmentOption<T extends string | number> = {
+
+type SegmentOption<T extends string | number> = {
   value: T;
   label: string;
 };
-export type SegmentProps<T extends string | number> = {
+type SegmentProps<T extends string | number> = {
   label: string;
   hideLabel?: boolean;
-  hint?: string;
   small?: boolean;
   onSurface?: boolean;
   options: readonly SegmentOption<T>[];
@@ -21,14 +20,13 @@ export type SegmentProps<T extends string | number> = {
   style?: StyleProp<ViewStyle>;
 };
 const STACKED = 22;
-export function rowHolds(width: number, words: readonly number[]): boolean {
+function rowHolds(width: number, words: readonly number[]): boolean {
   const cell = (width - 2 * (space.s1 + 1) - space.s1 * (words.length - 1)) / words.length;
   return words.every((word) => word <= cell - 2 * space.s1);
 }
 export function Segment<T extends string | number>({
   label,
   hideLabel,
-  hint,
   small,
   onSurface,
   options,
@@ -62,7 +60,6 @@ export function Segment<T extends string | number>({
         ]}
         accessibilityRole={onClear ? undefined : 'radiogroup'}
         accessibilityLabel={label}
-        accessibilityHint={hint}
       >
         {options.map((option) => {
           const checked = option.value === value;
@@ -79,7 +76,6 @@ export function Segment<T extends string | number>({
           );
         })}
       </View>
-      {hint ? <Hint>{hint}</Hint> : null}
 
       <View
         pointerEvents="none"

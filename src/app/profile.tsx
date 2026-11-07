@@ -8,13 +8,16 @@ import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from 'rea
 import { isUsernameShapeValid } from '@/functionality';
 import { readLanguage, writeLanguage } from '@/functionality/settings/language';
 import type { Language } from '@/types/language';
+import { Person } from '@/ui/components/person';
 import { confirmAction } from '@/ui/confirm';
-import { applyLanguage, locale } from '@/ui/i18n';
+import { number } from '@/ui/format';
+import { applyLanguage } from '@/ui/i18n';
 import { Avatar } from '@/ui/kit/avatar';
-import { AppBar, Board } from '@/ui/kit/bars';
+import { AppBar, Board, pageBody } from '@/ui/kit/bars';
 import { Divider } from '@/ui/kit/bits';
 import { BottomSheet } from '@/ui/kit/bottom-sheet';
 import { BackButton, Button } from '@/ui/kit/button';
+import { Card } from '@/ui/kit/card';
 import { Field } from '@/ui/kit/field';
 import { Text } from '@/ui/kit/text';
 import { contactsState, subscribeContacts } from '@/ui/mocks/contacts';
@@ -34,10 +37,6 @@ const THEME_LABELS = {
   light: 'profile.themes.light',
   dark: 'profile.themes.dark',
 } as const;
-
-function number(value: number): string {
-  return new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(value);
-}
 
 export default function ProfileScreen() {
   const { t } = useTranslation();
@@ -96,7 +95,7 @@ export default function ProfileScreen() {
 
   return (
     <Board
-      body={styles.body}
+      body={pageBody}
       bar={
         <AppBar
           title={t('profile.title')}
@@ -104,29 +103,18 @@ export default function ProfileScreen() {
         />
       }
     >
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t('profile.edit')}
-        onPress={openEdit}
-        style={[styles.card, styles.person]}
-      >
-        <Avatar name={profile.name} size={64} uri={profile.avatarUri} />
-        <View style={styles.words}>
-          <View style={styles.nameRow}>
-            <Text role="title" numberOfLines={1} style={styles.name}>
-              {profile.name}
-            </Text>
-            <Text role="noteSm" tone="muted" numberOfLines={1} style={styles.nick}>
-              {`@${profile.username}`}
-            </Text>
-          </View>
-          <Text role="noteSm" tone="faint">
-            {profile.email}
-          </Text>
-        </View>
-      </Pressable>
+      <Card label={t('profile.edit')} onPress={openEdit} style={[styles.pad, styles.person]}>
+        <Person
+          name={profile.name}
+          username={profile.username}
+          size={64}
+          heading
+          note={profile.email}
+          uri={profile.avatarUri}
+        />
+      </Card>
 
-      <View style={styles.card}>
+      <Card style={styles.pad}>
         <View style={styles.row}>
           <Text role="row">{t('profile.storage')}</Text>
           <Text role="rowPlain" tone="muted">
@@ -140,82 +128,46 @@ export default function ProfileScreen() {
             {profile.tokens}
           </Text>
         </View>
-      </View>
+      </Card>
 
-      <View style={[styles.card, styles.settingsCard]}>
-        <View style={[styles.settingsWrap, open ? styles.front : null]}>
-          <Pressable
-            onPress={() => {
-              setOpen((was) => !was);
-              setThemeOpen(false);
-            }}
-            style={styles.row}
-          >
-            <Text role="row">{t('profile.language')}</Text>
-            <View style={styles.value}>
-              <Text role="rowPlain" tone="muted">
-                {t(LANGUAGE_LABELS[language])}
-              </Text>
-              {open ? (
-                <ChevronUp size={18} color={color.muted} />
-              ) : (
-                <ChevronDown size={18} color={color.muted} />
-              )}
-            </View>
-          </Pressable>
-          {open ? (
-            <View style={styles.options}>
-              {LANGUAGES.map((item) => (
-                <Pressable key={item} onPress={() => choose(item)} style={styles.option}>
-                  <Text role="row">{t(LANGUAGE_LABELS[item])}</Text>
-                  {item === language ? <Check size={18} color={color.accent} /> : null}
-                </Pressable>
-              ))}
-            </View>
-          ) : null}
-        </View>
+      <Card style={[styles.pad, styles.settingsCard]}>
+        <SettingsSelect
+          label={t('profile.language')}
+          value={t(LANGUAGE_LABELS[language])}
+          open={open}
+          onToggle={() => {
+            setOpen((was) => !was);
+            setThemeOpen(false);
+          }}
+          options={LANGUAGES.map((item) => ({
+            value: item,
+            label: t(LANGUAGE_LABELS[item]),
+            selected: item === language,
+          }))}
+          onChange={choose}
+        />
         <Divider style={styles.fullDivider} />
-        <View style={[styles.settingsWrap, themeOpen ? styles.front : null]}>
-          <Pressable
-            onPress={() => {
-              setThemeOpen((was) => !was);
-              setOpen(false);
-            }}
-            style={styles.row}
-          >
-            <Text role="row">{t('profile.theme')}</Text>
-            <View style={styles.value}>
-              <Text role="rowPlain" tone="muted">
-                {t(THEME_LABELS[chosen])}
-              </Text>
-              {themeOpen ? (
-                <ChevronUp size={18} color={color.muted} />
-              ) : (
-                <ChevronDown size={18} color={color.muted} />
-              )}
-            </View>
-          </Pressable>
-          {themeOpen ? (
-            <View style={styles.options}>
-              {THEMES.map((item) => (
-                <Pressable
-                  key={item}
-                  onPress={() => {
-                    setThemeOpen(false);
-                    void setTheme(item);
-                  }}
-                  style={styles.option}
-                >
-                  <Text role="row">{t(THEME_LABELS[item])}</Text>
-                  {item === chosen ? <Check size={18} color={color.accent} /> : null}
-                </Pressable>
-              ))}
-            </View>
-          ) : null}
-        </View>
-      </View>
+        <SettingsSelect
+          label={t('profile.theme')}
+          value={t(THEME_LABELS[chosen])}
+          open={themeOpen}
+          onToggle={() => {
+            setThemeOpen((was) => !was);
+            setOpen(false);
+          }}
+          options={THEMES.map((item) => ({
+            value: item,
+            label: t(THEME_LABELS[item]),
+            selected: item === chosen,
+          }))}
+          onChange={(next) => {
+            setThemeOpen(false);
+            void setTheme(next);
+          }}
+        />
+      </Card>
 
-      <Pressable onPress={() => router.navigate('/contacts')} style={[styles.card, styles.row]}>
+      <Card onPress={() => router.navigate('/contacts')} style={[styles.pad, styles.row]}>
         <Text role="row">{t('profile.contacts')}</Text>
         <View style={styles.value}>
           <Text role="rowPlain" tone="muted">
@@ -223,7 +175,7 @@ export default function ProfileScreen() {
           </Text>
           <ChevronRight size={18} color={color.muted} />
         </View>
-      </Pressable>
+      </Card>
 
       <Button
         label={t('profile.logout')}
@@ -276,14 +228,58 @@ export default function ProfileScreen() {
   );
 }
 
+function SettingsSelect<T extends string>({
+  label,
+  value,
+  open,
+  onToggle,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  open: boolean;
+  onToggle: () => void;
+  options: readonly { value: T; label: string; selected: boolean }[];
+  onChange: (value: T) => void;
+}) {
+  const { color } = useTheme();
+  const styles = useStyles();
+  return (
+    <View style={[styles.settingsWrap, open ? styles.front : null]}>
+      <Pressable onPress={onToggle} style={styles.row}>
+        <Text role="row">{label}</Text>
+        <View style={styles.value}>
+          <Text role="rowPlain" tone="muted">
+            {value}
+          </Text>
+          {open ? (
+            <ChevronUp size={18} color={color.muted} />
+          ) : (
+            <ChevronDown size={18} color={color.muted} />
+          )}
+        </View>
+      </Pressable>
+      {open ? (
+        <View style={styles.options}>
+          {options.map((option) => (
+            <Pressable
+              key={option.value}
+              onPress={() => onChange(option.value)}
+              style={styles.option}
+            >
+              <Text role="row">{option.label}</Text>
+              {option.selected ? <Check size={18} color={color.accent} /> : null}
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
-    body: {
-      paddingHorizontal: space.s5,
-      paddingTop: space.s5,
-      paddingBottom: space.s7,
-      gap: space.s4,
-    },
     person: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -298,29 +294,10 @@ const useStyles = themed(({ color }) =>
       gap: space.s2,
       paddingVertical: space.s2,
     },
-    words: {
-      flex: 1,
-      gap: 2,
-    },
     fullDivider: {
       marginHorizontal: -space.s4,
     },
-    nameRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-    },
-    name: {
-      flexShrink: 1,
-    },
-    nick: {
-      flexShrink: 1,
-    },
-    card: {
-      backgroundColor: color.surface,
-      borderRadius: radius.card,
-      borderWidth: 1,
-      borderColor: color.line,
+    pad: {
       paddingHorizontal: space.s4,
     },
     row: {

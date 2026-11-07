@@ -103,9 +103,6 @@ export default function DevScreen() {
         />
         <Button label="Приложение" variant="secondary" onPress={() => router.navigate('/home')} />
       </View>
-
-      <BlockHead label="Плейграунд" />
-      <Button label="Кит" variant="secondary" onPress={() => router.navigate('/kit')} />
     </Board>
   );
 }

@@ -23,7 +23,7 @@ const LETTERS: Record<number, number> = {
 
 const BOLD = new Set([16, 18, 24, 28, 36, 38, 48]);
 
-export type AvatarProps = {
+type AvatarProps = {
   name: string;
   size?: number;
   uri?: string | null;
@@ -83,7 +83,7 @@ export function Avatar({ name, size = 42, uri, ring, gone, display, stacked, sty
   );
 }
 
-export function initials(name: string): string {
+function initials(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean);
   if (words.length === 0) return '';
   const first = lead(words[0]);

@@ -9,6 +9,7 @@ import { LabelMark } from '@/ui/components/label';
 import { MediaInfo } from '@/ui/components/media/info/media-info';
 import { type MeasureTile, PhotoGrid, type Rect } from '@/ui/components/media/photo-grid';
 import { PhotoViewer } from '@/ui/components/media/photo-viewer';
+import { ActionBar } from '@/ui/kit/action-bar';
 import { AppBar, Board } from '@/ui/kit/bars';
 import { BlurBar } from '@/ui/kit/blur-bar';
 import { BackButton, Button } from '@/ui/kit/button';
@@ -79,17 +80,14 @@ export default function LabelScreen() {
             </Text>
           </View>
         </BlurBar>
-        <View
-          pointerEvents="box-none"
-          style={[styles.bottom, { paddingBottom: insets.bottom + space.s2 }]}
-        >
+        <ActionBar>
           <Button
             label={t('action.back')}
             variant="primary"
             icon={ChevronLeft}
             onPress={() => router.back()}
           />
-        </View>
+        </ActionBar>
         {open === null ? null : (
           <PhotoViewer
             photos={viewerPhotos}

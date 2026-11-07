@@ -6,6 +6,7 @@ import { StyleSheet, View } from 'react-native';
 import { copyInviteLink, shareInviteLink } from '@/functionality';
 import { CONTACT_STRIP_HEIGHT, ContactStrip } from '@/ui/components/contact-strip';
 import { IconButton } from '@/ui/kit/button';
+import { Card } from '@/ui/kit/card';
 import { Text } from '@/ui/kit/text';
 import { contactsState, subscribeContacts } from '@/ui/mocks/contacts';
 import { addMember, membersOf, subscribeMembers } from '@/ui/mocks/members';
@@ -40,11 +41,11 @@ export function InviteBlocks({
       {available.length > 0 ? (
         <ContactStrip contacts={available} selected={NONE} onToggle={invite} />
       ) : (
-        <View style={styles.emptyCard}>
+        <Card style={styles.emptyCard}>
           <Text role="noteSm" tone="muted">
             {contacts.length === 0 ? t('invite.noContacts') : t('invite.allInvited')}
           </Text>
-        </View>
+        </Card>
       )}
       <View style={styles.linkBlock}>
         <View style={styles.codeBox}>
@@ -80,10 +81,6 @@ const useStyles = themed(({ color }) =>
     },
     emptyCard: {
       minHeight: CONTACT_STRIP_HEIGHT,
-      borderRadius: radius.card,
-      borderWidth: 1,
-      borderColor: color.line,
-      backgroundColor: color.surface,
       alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: space.s3,

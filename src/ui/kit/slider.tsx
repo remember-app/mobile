@@ -5,7 +5,7 @@ import { radius, space, themed, useTheme } from '@/ui/theme';
 
 import { Text } from './text';
 
-export type SliderProps = {
+type SliderProps = {
   value: number;
   onChange: (value: number) => void;
   min: number;

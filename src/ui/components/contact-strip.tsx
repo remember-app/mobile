@@ -1,6 +1,7 @@
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet } from 'react-native';
 
 import { Avatar } from '@/ui/kit/avatar';
+import { Card } from '@/ui/kit/card';
 import { radius, space, themed, useTheme } from '@/ui/theme';
 
 export type Contact = {
@@ -24,7 +25,7 @@ export function ContactStrip({
   const styles = useStyles();
 
   return (
-    <View style={styles.card}>
+    <Card clip>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -46,19 +47,12 @@ export function ContactStrip({
           );
         })}
       </ScrollView>
-    </View>
+    </Card>
   );
 }
 
-const useStyles = themed(({ color }) =>
+const useStyles = themed(() =>
   StyleSheet.create({
-    card: {
-      borderRadius: radius.card,
-      borderWidth: 1,
-      borderColor: color.line,
-      backgroundColor: color.surface,
-      overflow: 'hidden',
-    },
     row: {
       flexGrow: 1,
       alignItems: 'center',

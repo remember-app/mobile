@@ -9,7 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import type { ProjectCard as Project } from '@/models/project';
-import { locale } from '@/ui/i18n';
+import { dateRange } from '@/ui/format';
 import { AvatarStack } from '@/ui/kit/avatar';
 import { Text } from '@/ui/kit/text';
 import { radius, space, themed } from '@/ui/theme';
@@ -21,15 +21,6 @@ type Props = {
   people: readonly string[];
   onPress: () => void;
 };
-
-function day(value: Date): string {
-  return new Intl.DateTimeFormat(locale(), { day: 'numeric', month: 'long' }).format(value);
-}
-
-function dates(start: Date, end: Date | null): string {
-  if (!end || day(start) === day(end)) return day(start);
-  return `${day(start)} — ${day(end)}`;
-}
 
 export function ProjectCard({ project, cover, covers = [], people, onPress }: Props) {
   const styles = useStyles();
@@ -114,7 +105,7 @@ export function ProjectCard({ project, cover, covers = [], people, onPress }: Pr
         <View style={styles.foot}>
           <AvatarStack names={people} size={36} limit={7} />
           <Text role="meta" tone="onFill">
-            {dates(project.eventStart, project.eventEnd)}
+            {dateRange(project.eventStart, project.eventEnd)}
           </Text>
         </View>
       </Pressable>

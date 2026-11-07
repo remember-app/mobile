@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
-import { i18n, locale } from '@/ui/i18n';
+import { fullDay, monthYear } from '@/ui/format';
+import { i18n } from '@/ui/i18n';
 import { Calendar } from '@/ui/kit/calendar';
 import { dayKey } from '@/ui/kit/calendar-grid';
 
@@ -8,18 +9,6 @@ const WEEKDAYS = {
   ru: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'],
   en: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
 };
-
-function monthLabel(month: Date): string {
-  return new Intl.DateTimeFormat(locale(), { month: 'long', year: 'numeric' }).format(month);
-}
-
-function dayLabel(day: Date): string {
-  return new Intl.DateTimeFormat(locale(), {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  }).format(day);
-}
 
 type Props = {
   from: Date | null;
@@ -49,10 +38,10 @@ export function EventDates({ from, to, onChange }: Props) {
       to={to}
       onPick={pick}
       weekdays={WEEKDAYS[i18n.language === 'ru' ? 'ru' : 'en']}
-      monthLabel={monthLabel(month)}
+      monthLabel={monthYear(month)}
       prevLabel={i18n.t('common.prevMonth')}
       nextLabel={i18n.t('common.nextMonth')}
-      dayLabel={dayLabel}
+      dayLabel={fullDay}
     />
   );
 }

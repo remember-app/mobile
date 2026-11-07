@@ -20,21 +20,17 @@ import { scheduleOnRN } from 'react-native-worklets';
 
 import { useTheme } from '@/ui/theme';
 
-import type { ViewerPhoto } from './photo-viewer';
+import { clamp } from './viewer/geometry';
+import type { ViewerPhoto } from './viewer/types';
 
 const SELECTED = 48;
 const UNSELECTED = 30;
 const GAP = 3;
 const PADDING = 10;
 const BREADTH = 48;
-export const STRIP_HEIGHT = 82;
+const STRIP_HEIGHT = 82;
 export const STRIP_PITCH = UNSELECTED + GAP;
 const WINDOW = 14;
-
-const clamp = (value: number, low: number, high: number) => {
-  'worklet';
-  return Math.min(Math.max(value, low), high);
-};
 
 type ItemProps = {
   index: number;

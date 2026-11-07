@@ -1,5 +1,6 @@
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
+import { Card } from '@/ui/kit/card';
 import { Skeleton } from '@/ui/kit/skeleton';
 import { radius, space, themed } from '@/ui/theme';
 
@@ -27,7 +28,7 @@ export function GallerySkeleton({ top, bottom }: { top: number; bottom: number }
 export function MemberRowsSkeleton({ rows = 4 }: { rows?: number }) {
   const styles = useStyles();
   return (
-    <View style={styles.card}>
+    <Card style={styles.cardPad}>
       {Array.from({ length: rows }, (_, index) => (
         <View key={index} style={styles.member}>
           <Skeleton width={44} height={44} round={22} />
@@ -38,14 +39,14 @@ export function MemberRowsSkeleton({ rows = 4 }: { rows?: number }) {
           <Skeleton width={22} height={22} round={11} />
         </View>
       ))}
-    </View>
+    </Card>
   );
 }
 
 export function LabelRowsSkeleton({ rows = 4 }: { rows?: number }) {
   const styles = useStyles();
   return (
-    <View style={styles.card}>
+    <Card style={styles.cardPad}>
       {Array.from({ length: rows }, (_, index) => (
         <View key={index} style={styles.labelRow}>
           <Skeleton width={30} height={30} round={8} />
@@ -54,36 +55,32 @@ export function LabelRowsSkeleton({ rows = 4 }: { rows?: number }) {
           <Skeleton width={22} height={12} round={6} />
         </View>
       ))}
-    </View>
+    </Card>
   );
 }
 
 export function StatsSkeleton() {
   const styles = useStyles();
   return (
-    <View style={styles.stats}>
+    <Card style={styles.stats}>
       {Array.from({ length: 3 }, (_, index) => (
         <View key={index} style={styles.stat}>
           <Skeleton width={68} height={68} round={34} />
           <Skeleton width={42} height={12} round={6} />
         </View>
       ))}
-    </View>
+    </Card>
   );
 }
 
-const useStyles = themed(({ color }) =>
+const useStyles = themed(() =>
   StyleSheet.create({
     grid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
       alignContent: 'flex-start',
     },
-    card: {
-      backgroundColor: color.surface,
-      borderRadius: radius.card,
-      borderWidth: 1,
-      borderColor: color.line,
+    cardPad: {
       paddingHorizontal: space.s4,
     },
     member: {
@@ -108,10 +105,6 @@ const useStyles = themed(({ color }) =>
     stats: {
       flexDirection: 'row',
       justifyContent: 'space-around',
-      backgroundColor: color.surface,
-      borderRadius: radius.card,
-      borderWidth: 1,
-      borderColor: color.line,
       paddingVertical: space.s4,
     },
     stat: {

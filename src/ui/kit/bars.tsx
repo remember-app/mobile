@@ -1,4 +1,3 @@
-import { X } from 'lucide-react-native';
 import {
   type ComponentRef,
   type ReactNode,
@@ -12,10 +11,10 @@ import {
 import {
   Keyboard,
   KeyboardAvoidingView,
+  type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   Platform,
-  Pressable,
   ScrollView,
   type ScrollViewInstance,
   type StyleProp,
@@ -25,16 +24,19 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { board, height, photo, radius, space, ThemePin, themed, type, useTheme } from '@/ui/theme';
-import { StepScale } from './bits';
+import { height, space, themed, type, useTheme } from '@/ui/theme';
 import { BoardScrollContext } from './board-scroll';
-import { BAR_GLYPH, Button, IconButton } from './button';
+import { IconButton } from './button';
 import { AreaRoom, areaSight, focusedField } from './field';
 import type { IconComponent } from './icon';
-import { FieldInBar, KEYBOARD_SCROLL, useKeyboardShown } from './interaction';
-import { useMeasured } from './sheet';
-import { Text, TYPE_MOST, useWordRoom, WordRoom } from './text';
-export type BoardProps = {
+import { FieldInBar, KEYBOARD_SCROLL } from './interaction';
+import { Text, TYPE_MOST } from './text';
+
+function useMeasured(): [number, (event: LayoutChangeEvent) => void] {
+  const [height, setHeight] = useState(0);
+  return [height, (event) => setHeight(event.nativeEvent.layout.height)];
+}
+type BoardProps = {
   bar?: ReactNode;
   heading?: ReactNode;
   footer?: ReactNode;
@@ -44,6 +46,12 @@ export type BoardProps = {
   style?: StyleProp<ViewStyle>;
 };
 const FIELD_BOX = space.s3;
+export const pageBody = {
+  paddingHorizontal: space.s5,
+  paddingTop: space.s5,
+  paddingBottom: space.s7,
+  gap: space.s4,
+} as const;
 export function Board({ bar, heading, footer, body, list, children, style }: BoardProps) {
   const insets = useSafeAreaInsets();
   const { fontScale, height: tall } = useWindowDimensions();
@@ -217,317 +225,6 @@ export function AppBar({
     </View>
   );
 }
-export const CANCEL_WORD_SCALE = 1.2;
-export type WizardFace = 'step' | 'summary' | 'entry';
-export function WizardBar({
-  step,
-  steps,
-  label,
-  variant = 'step',
-  back,
-  cancel,
-  style,
-}: {
-  step: number;
-  steps: number;
-  label: string;
-  variant?: WizardFace;
-  back?: ReactNode;
-  cancel?: {
-    label: string;
-    onPress: () => void;
-  };
-  style?: StyleProp<ViewStyle>;
-}) {
-  const styles = useStyles();
-  const { color } = useTheme();
-  const { fontScale } = useWindowDimensions();
-  const glyph = fontScale > CANCEL_WORD_SCALE;
-  const side = glyph ? styles.wizardSideNarrow : styles.wizardSide;
-  return (
-    <View style={style}>
-      <View style={styles.bar}>
-        <View style={side}>{back}</View>
-        <Text role="label" tone="muted" style={styles.wizardStep}>
-          {label}
-        </Text>
-        <View style={[side, styles.wizardRight]}>
-          {cancel === undefined ? null : glyph ? (
-            <IconButton
-              icon={X}
-              label={cancel.label}
-              glyph={BAR_GLYPH}
-              tint={color.muted}
-              onPress={cancel.onPress}
-              style={styles.pullRight}
-            />
-          ) : (
-            <Button
-              variant="quiet"
-              labelRole="controlSm"
-              label={cancel.label}
-              onPress={cancel.onPress}
-              style={styles.cancelWord}
-            />
-          )}
-        </View>
-      </View>
-
-      {variant === 'step' ? (
-        <StepScale steps={steps} done={step} style={styles.wizardScale} />
-      ) : null}
-    </View>
-  );
-}
-export function WizardHeading({
-  title,
-  note,
-  variant = 'step',
-}: {
-  title: string;
-  note?: string;
-  variant?: WizardFace;
-}) {
-  const styles = useStyles();
-  return (
-    <View style={[styles.wizardWords, variant === 'entry' ? styles.wizardWordsEntry : null]}>
-      <Text role="display" accessibilityRole="header">
-        {title}
-      </Text>
-      {note ? (
-        <Text role="note" tone="muted" style={styles.wizardNote}>
-          {note}
-        </Text>
-      ) : null}
-    </View>
-  );
-}
-export function GlassBar({
-  title,
-  meta,
-  capsuleLabel,
-  onCapsule,
-  middle,
-  left,
-  right,
-  bare,
-  style,
-}: {
-  title: string;
-  meta?: string;
-  capsuleLabel: string;
-  onCapsule?: () => void;
-  middle?: ReactNode;
-  left?: ReactNode;
-  right?: ReactNode;
-  bare?: boolean;
-  style?: StyleProp<ViewStyle>;
-}) {
-  const insets = useSafeAreaInsets();
-  const styles = useStyles();
-  const words = (
-    <>
-      <Text role="pillTitle" numberOfLines={1}>
-        {title}
-      </Text>
-      {meta ? (
-        <Text role="meta" numberOfLines={1}>
-          {meta}
-        </Text>
-      ) : null}
-    </>
-  );
-  return (
-    <ThemePin value="dark">
-      <View style={[styles.glassBar, { paddingTop: insets.top }, style]}>
-        {bare ? null : (
-          <View
-            pointerEvents="none"
-            style={[
-              StyleSheet.absoluteFill,
-              {
-                bottom: undefined,
-                height: board.headGallery,
-                experimental_backgroundImage: photo.headGallery,
-              },
-            ]}
-          />
-        )}
-        {left}
-        {middle ??
-          (onCapsule ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={capsuleLabel}
-              onPress={onCapsule}
-              style={styles.capsule}
-            >
-              {words}
-            </Pressable>
-          ) : (
-            <View
-              accessible
-              accessibilityRole="header"
-              accessibilityLabel={capsuleLabel}
-              style={styles.capsule}
-            >
-              {words}
-            </View>
-          ))}
-
-        {right ?? <View style={styles.slot} />}
-      </View>
-    </ThemePin>
-  );
-}
-export function ViewerBar({
-  date,
-  meta,
-  label,
-  onPress,
-  on = false,
-  turned = false,
-  left,
-  right,
-  style,
-}: {
-  date: string;
-  meta: string;
-  label?: string;
-  onPress?: () => void;
-  on?: boolean;
-  turned?: boolean;
-  left?: ReactNode;
-  right?: ReactNode;
-  style?: StyleProp<ViewStyle>;
-}) {
-  const styles = useStyles();
-  return (
-    <ThemePin value="dark">
-      <View style={[styles.viewerBar, turned ? styles.viewerBarTurned : null, style]}>
-        {left}
-        <View style={styles.viewerMiddle}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={label}
-            accessibilityState={{ selected: on }}
-            onPress={onPress}
-            disabled={!onPress}
-            style={[
-              styles.viewerPill,
-              turned ? styles.viewerPillTurned : null,
-              on ? styles.viewerPillOn : null,
-            ]}
-          >
-            <Text
-              role="row"
-              style={[
-                styles.centred,
-                turned ? styles.unwrapped : null,
-                on ? styles.viewerPillOnInk : null,
-              ]}
-            >
-              {date}
-            </Text>
-
-            {turned ? <View style={styles.viewerDot} /> : null}
-            <Text
-              role="meta"
-              style={[
-                styles.viewerMeta,
-                styles.centred,
-                turned ? styles.viewerMetaTurned : null,
-                turned ? styles.unwrapped : null,
-                on ? styles.viewerPillOnMeta : null,
-              ]}
-            >
-              {meta}
-            </Text>
-          </Pressable>
-        </View>
-        {right}
-      </View>
-    </ThemePin>
-  );
-}
-export type Footer = 'plain' | 'count' | 'gallery' | 'upload';
-const FOOTERS: Record<
-  Footer,
-  {
-    height: number;
-    over?: string;
-    stop: string;
-  }
-> = {
-  plain: { height: board.footer, stop: '58%' },
-  count: { height: board.footerTall, stop: '62%' },
-  gallery: { height: board.footerGallery, over: photo.footerGallery, stop: '' },
-  upload: { height: board.footerUpload, over: photo.footerUpload, stop: '' },
-};
-export function ActionBar({
-  children,
-  start,
-  end,
-  above,
-  footer,
-  keyboardGap,
-  style,
-}: {
-  children: ReactNode;
-  start?: ReactNode;
-  end?: ReactNode;
-  above?: ReactNode;
-  footer?: Footer;
-  keyboardGap?: number;
-  style?: StyleProp<ViewStyle>;
-}) {
-  const insets = useSafeAreaInsets();
-  const { color } = useTheme();
-  const styles = useStyles();
-  const { roomy, room } = useWordRoom();
-  const keyboard = useKeyboardShown();
-  const kind = FOOTERS[footer ?? (above ? 'count' : 'plain')];
-  const sides = start !== undefined || end !== undefined;
-  const bottom =
-    keyboard && keyboardGap !== undefined ? keyboardGap : Math.max(insets.bottom, board.bottom);
-  return (
-    <View style={[styles.layer, { paddingBottom: bottom }, style]}>
-      <View
-        pointerEvents="none"
-        style={[
-          StyleSheet.absoluteFill,
-          {
-            top: undefined,
-            height: kind.height,
-            experimental_backgroundImage:
-              kind.over ?? `linear-gradient(to top, ${color.ink} ${kind.stop}, transparent)`,
-          },
-        ]}
-      />
-      {above ? <View style={styles.layerAbove}>{above}</View> : null}
-      {sides && roomy ? (
-        <View style={styles.layerSides}>
-          {start}
-          {end}
-        </View>
-      ) : null}
-      <WordRoom.Provider value={sides ? room : null}>
-        <View style={styles.layerRow}>
-          {sides && !roomy ? start : null}
-          {children}
-          {sides && !roomy ? end : null}
-        </View>
-      </WordRoom.Provider>
-    </View>
-  );
-}
-export function useFooterOverhang(): number {
-  const insets = useSafeAreaInsets();
-  return Math.max(
-    0,
-    board.footer - space.s3 - height.primary - Math.max(insets.bottom, board.bottom),
-  );
-}
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
     board: { flex: 1, backgroundColor: color.ink },
@@ -546,80 +243,5 @@ const useStyles = themed(({ color }) =>
     pullRight: { marginRight: -10 },
     barWords: { flex: 1, minWidth: 0, gap: 2 },
     titleCenter: { textAlign: 'center' },
-    glassBar: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: space.s2,
-      paddingHorizontal: space.s3,
-    },
-    capsule: {
-      flex: 1,
-      minWidth: 0,
-      minHeight: height.roundViewer,
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 2,
-      paddingHorizontal: space.s4,
-      borderRadius: radius.pill,
-      backgroundColor: photo.bar,
-      borderWidth: 1,
-      borderColor: photo.barEdge,
-    },
-    slot: { width: height.roundViewer },
-    wizardScale: { marginHorizontal: space.s4, marginTop: space.s3 },
-    wizardWords: { marginHorizontal: space.s4, marginTop: 18 },
-    wizardWordsEntry: { marginTop: 14 },
-    wizardNote: { marginTop: 10 },
-    wizardSide: { width: 74, alignItems: 'flex-start' },
-    wizardSideNarrow: { width: height.roundBar, alignItems: 'flex-start' },
-    wizardRight: { alignItems: 'flex-end' },
-    cancelWord: { paddingHorizontal: 10, marginRight: -10 },
-    wizardStep: { flex: 1, textAlign: 'center', fontVariant: ['tabular-nums'] },
-    viewerBar: {
-      minHeight: height.roundViewer,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-      paddingHorizontal: space.s3,
-    },
-    viewerBarTurned: {
-      minHeight: height.roundBar,
-      paddingHorizontal: 44,
-    },
-    viewerMiddle: { flex: 1, minWidth: 0, alignItems: 'center' },
-    viewerPill: {
-      minHeight: height.roundViewer,
-      maxWidth: '100%',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 1,
-      paddingHorizontal: 20,
-      paddingVertical: space.s1,
-      borderRadius: radius.pill,
-      backgroundColor: photo.glass,
-      borderWidth: 1,
-      borderColor: photo.barEdge,
-    },
-    viewerPillTurned: {
-      minHeight: height.roundBar,
-      flexDirection: 'row',
-      gap: 9,
-      paddingVertical: 0,
-    },
-    viewerDot: { width: 3, height: 3, borderRadius: radius.pill, backgroundColor: photo.viewerDot },
-    viewerMetaTurned: { fontSize: 13 },
-    unwrapped: { flexShrink: 0 },
-    viewerMeta: { color: photo.viewerMeta },
-    viewerPillOn: {
-      backgroundColor: photo.pillHeld,
-      borderColor: photo.pillHeldEdge,
-    },
-    viewerPillOnInk: { color: photo.pillHeldInk },
-    viewerPillOnMeta: { color: photo.pillHeldMeta },
-    centred: { textAlign: 'center' },
-    layer: { paddingHorizontal: space.s4, paddingTop: space.s3, gap: space.s3 },
-    layerAbove: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s3 },
-    layerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-    layerSides: { flexDirection: 'row', justifyContent: 'space-between' },
   }),
 );

@@ -1,58 +1,38 @@
-import type { ReactNode } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import { radius, space, spinner, themed, useTheme } from '@/ui/theme';
+import { StyleSheet, View } from 'react-native';
+import { radius, space, themed, useTheme } from '@/ui/theme';
 import { Icon, type IconComponent } from './icon';
 import { Text } from './text';
-export type SpinnerSize = (typeof spinner)[keyof typeof spinner];
-export function Spinner({
-  size = spinner.join,
-  head,
-}: {
-  size?: SpinnerSize | number;
-  track?: string;
-  head?: string;
-  ring?: number;
-}) {
-  const { color } = useTheme();
-  const small = typeof size === 'number' ? size <= 24 : size <= 26;
-  return <ActivityIndicator size={small ? 'small' : 'large'} color={head ?? color.muted} />;
-}
-export type EmptySign = 'dashed' | 'line' | 'spark';
+
+type EmptySign = 'dashed' | 'line' | 'spark';
+
 const SIGN = { dashed: 'signDashed', line: 'signLine', spark: 'signSpark' } as const;
+
 export function Empty({
   sign = 'dashed',
   icon,
-  busy,
   title,
   text,
-  children,
 }: {
   sign?: EmptySign;
   icon?: IconComponent;
-  busy?: boolean;
   title?: string;
   text?: string;
-  children?: ReactNode;
 }) {
   const { color } = useTheme();
   const styles = useStyles();
   return (
     <View style={styles.empty}>
-      {busy ? (
-        <Spinner size={spinner.screen} />
-      ) : (
-        <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <View style={[styles.sign, styles[SIGN[sign]]]}>
-            {icon ? (
-              <Icon
-                icon={icon}
-                size={sign === 'dashed' ? 38 : 40}
-                color={sign === 'spark' ? color.paper : color.faint}
-              />
-            ) : null}
-          </View>
+      <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        <View style={[styles.sign, styles[SIGN[sign]]]}>
+          {icon ? (
+            <Icon
+              icon={icon}
+              size={sign === 'dashed' ? 38 : 40}
+              color={sign === 'spark' ? color.paper : color.faint}
+            />
+          ) : null}
         </View>
-      )}
+      </View>
 
       <View style={styles.words}>
         {title ? (
@@ -66,10 +46,10 @@ export function Empty({
           </Text>
         ) : null}
       </View>
-      {children}
     </View>
   );
 }
+
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
     empty: {

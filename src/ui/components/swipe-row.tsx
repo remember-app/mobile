@@ -14,12 +14,12 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { Icon, type IconComponent } from '@/ui/kit/icon';
 import { useTheme } from '@/ui/theme';
 
-export const SWIPE_WIDTH = 64;
+const SWIPE_WIDTH = 64;
 
 const openRows = new Set<SwipeableMethods>();
 let rowRect: { x: number; y: number; width: number; height: number } | null = null;
 
-export function closeOpenRows(): void {
+function closeOpenRows(): void {
   for (const row of openRows) row.close();
   rowRect = null;
 }

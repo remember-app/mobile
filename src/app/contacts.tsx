@@ -5,12 +5,13 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
 import { ArrowField } from '@/ui/components/arrow-field';
+import { Person } from '@/ui/components/person';
 import { MemberRowsSkeleton } from '@/ui/components/skeletons';
 import { SwipeRow } from '@/ui/components/swipe-row';
-import { Avatar } from '@/ui/kit/avatar';
-import { AppBar, Board } from '@/ui/kit/bars';
+import { AppBar, Board, pageBody } from '@/ui/kit/bars';
 import { Divider } from '@/ui/kit/bits';
 import { BackButton } from '@/ui/kit/button';
+import { Card } from '@/ui/kit/card';
 import { Text } from '@/ui/kit/text';
 import {
   acceptSuggestion,
@@ -22,7 +23,7 @@ import {
   suggestionsState,
 } from '@/ui/mocks/contacts';
 import { loadingState, subscribeLoading } from '@/ui/mocks/loading';
-import { radius, space, themed } from '@/ui/theme';
+import { space, themed } from '@/ui/theme';
 
 export default function ContactsScreen() {
   const { t } = useTranslation();
@@ -41,7 +42,7 @@ export default function ContactsScreen() {
 
   return (
     <Board
-      body={styles.body}
+      body={pageBody}
       bar={
         <AppBar
           title={t('contacts.title')}
@@ -64,24 +65,12 @@ export default function ContactsScreen() {
       {loading ? (
         <MemberRowsSkeleton rows={4} />
       ) : (
-        <View style={styles.card}>
+        <Card clip>
           {contacts.map((contact, index) => (
             <View key={contact.id}>
               {index > 0 ? <Divider /> : null}
               <SwipeRow tone="danger" icon={Trash2} onAction={() => removeContact(contact.id)}>
-                <View style={styles.contact}>
-                  <Avatar name={contact.name} size={40} />
-                  <View style={styles.words}>
-                    <View style={styles.nameRow}>
-                      <Text role="row" numberOfLines={1} style={styles.name}>
-                        {contact.name}
-                      </Text>
-                      <Text role="noteSm" tone="muted" numberOfLines={1} style={styles.nick}>
-                        {`@${contact.username}`}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
+                <Person name={contact.name} username={contact.username} style={styles.contact} />
               </SwipeRow>
             </View>
           ))}
@@ -90,7 +79,7 @@ export default function ContactsScreen() {
               {t('contacts.empty')}
             </Text>
           ) : null}
-        </View>
+        </Card>
       )}
 
       {!loading && suggestions.length > 0 ? (
@@ -98,28 +87,16 @@ export default function ContactsScreen() {
           <Text role="eyebrow" tone="muted">
             {t('contacts.suggestions')}
           </Text>
-          <View style={styles.card}>
+          <Card clip>
             {suggestions.map((contact, index) => (
               <View key={contact.id}>
                 {index > 0 ? <Divider /> : null}
                 <SwipeRow tone="accent" icon={Plus} onAction={() => acceptSuggestion(contact.id)}>
-                  <View style={styles.contact}>
-                    <Avatar name={contact.name} size={40} />
-                    <View style={styles.words}>
-                      <View style={styles.nameRow}>
-                        <Text role="row" numberOfLines={1} style={styles.name}>
-                          {contact.name}
-                        </Text>
-                        <Text role="noteSm" tone="muted" numberOfLines={1} style={styles.nick}>
-                          {`@${contact.username}`}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
+                  <Person name={contact.name} username={contact.username} style={styles.contact} />
                 </SwipeRow>
               </View>
             ))}
-          </View>
+          </Card>
         </>
       ) : null}
     </Board>
@@ -128,41 +105,10 @@ export default function ContactsScreen() {
 
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
-    body: {
-      paddingHorizontal: space.s5,
-      paddingTop: space.s5,
-      paddingBottom: space.s7,
-      gap: space.s4,
-    },
-    card: {
-      backgroundColor: color.surface,
-      borderRadius: radius.card,
-      borderWidth: 1,
-      borderColor: color.line,
-      overflow: 'hidden',
-    },
     contact: {
       minHeight: 60,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: space.s3,
       paddingHorizontal: space.s4,
       backgroundColor: color.surface,
-    },
-    words: {
-      flex: 1,
-      gap: 2,
-    },
-    nameRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-    },
-    name: {
-      flexShrink: 1,
-    },
-    nick: {
-      flexShrink: 1,
     },
     empty: {
       paddingVertical: space.s5,
