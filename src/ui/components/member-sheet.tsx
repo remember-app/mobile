@@ -1,17 +1,20 @@
 import { useRouter } from 'expo-router';
-import { CheckCircle2, CircleDashed, Clock } from 'lucide-react-native';
-import { useSyncExternalStore } from 'react';
+import { CheckCircle2, CircleDashed, Clock, Coins, HardDrive, LogOut } from 'lucide-react-native';
+import { type ReactNode, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Contribution } from '@/ui/components/contribution';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { removeMember, setContribution } from '@/functionality';
+import type { Member } from '@/models';
+import type { ProjectId } from '@/types/id';
 import { Person } from '@/ui/components/person';
 import { confirmAction } from '@/ui/confirm';
-import { gigabytes } from '@/ui/format';
+import { number } from '@/ui/format';
+import { useProjectCard, useSession } from '@/ui/hooks';
 import { BottomSheet } from '@/ui/kit/bottom-sheet';
-import { Button } from '@/ui/kit/button';
+import { IconButton } from '@/ui/kit/button';
+import { CircularProgress } from '@/ui/kit/circular-progress';
 import { Text } from '@/ui/kit/text';
-import { type MockMember, setContribution } from '@/ui/mocks/members';
-import { profileState, subscribeProfile } from '@/ui/mocks/profile';
 import { radius, space, themed, useTheme } from '@/ui/theme';
 
 const CONTRIBUTIONS = [
@@ -20,54 +23,131 @@ const CONTRIBUTIONS = [
   { value: 'done', icon: CheckCircle2, label: 'members.done' },
 ] as const;
 
+const share = (part: number, whole: number): number =>
+  whole > 0 ? Math.min(1, Math.max(0, part / whole)) : 0;
+
 export function MemberSheet({
   projectId,
   member,
   onClose,
 }: {
-  projectId: string;
-  member: MockMember | null;
+  projectId: ProjectId;
+  member: Member | null;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
   const router = useRouter();
-  const profile = useSyncExternalStore(subscribeProfile, profileState);
+  const session = useSession();
+  const project = useProjectCard(projectId);
+  const account = 'account' in session ? session.account : undefined;
   const { color } = useTheme();
   const styles = useStyles();
-  const self = member !== null && member.username === profile.username;
+  const self = member !== null && member.userId === account?.id;
+  const [switchWidth, setSwitchWidth] = useState(0);
+  const options = member
+    ? CONTRIBUTIONS.filter(
+        (option) => option.value !== 'more_coming' || member.consumables.storage.spend > 0,
+      )
+    : CONTRIBUTIONS;
+  const index = Math.max(
+    0,
+    options.findIndex((option) => option.value === member?.contribution),
+  );
+  const thumbWidth =
+    switchWidth > 0 ? (switchWidth - (options.length + 1) * space.s1) / options.length : 0;
+  const slide = useSharedValue(index);
+  const thumbStyle = useAnimatedStyle(() => ({ transform: [{ translateX: slide.value }] }));
+  useEffect(() => {
+    slide.value = withTiming(index * (thumbWidth + space.s1), { duration: 220 });
+  }, [index, slide, thumbWidth]);
 
   return (
     <BottomSheet visible={member !== null} onClose={onClose}>
       {member ? (
         <View style={styles.body}>
-          <Person name={member.name} username={member.username} size={72} heading />
+          <View style={styles.profile}>
+            <Person
+              name={member.name ?? ''}
+              username={member.username ?? ''}
+              size={72}
+              heading
+              right={
+                self ? (
+                  <IconButton
+                    icon={LogOut}
+                    label={t('members.leave')}
+                    tone="ghost"
+                    size={44}
+                    onPress={() =>
+                      confirmAction({
+                        confirm: t('members.leave'),
+                        destructive: true,
+                        onConfirm: () => {
+                          if (!account) return;
+                          onClose();
+                          void removeMember(projectId, account.id).finally(() =>
+                            router.replace('/home'),
+                          );
+                        },
+                      })
+                    }
+                  />
+                ) : undefined
+              }
+            />
+          </View>
 
           {member.role === 'viewer' ? null : (
             <View style={styles.stats}>
-              <View style={styles.tile}>
-                <Text role="row">{member.files}</Text>
-                <Text role="noteSm" tone="muted">
-                  {t('members.files')}
-                </Text>
-              </View>
-              <View style={styles.tile}>
-                <Text role="row">{gigabytes(member.gigabytes)}</Text>
-                <Text role="noteSm" tone="muted">
-                  {t('members.storage')}
-                </Text>
-              </View>
-              <View style={styles.tile}>
-                <Contribution contribution={member.contribution} />
-                <Text role="noteSm" tone="muted">
-                  {t('members.contribution')}
-                </Text>
-              </View>
+              <StatTile
+                value={share(
+                  member.consumables.tokens.tokens,
+                  project?.consumables.tokens.tokens ?? 0,
+                )}
+                amount={number(member.consumables.tokens.tokens)}
+                label={t('members.shared')}
+                icon={<Coins size={18} color={color.muted} />}
+              />
+              <StatTile
+                value={share(
+                  member.consumables.tokens.spend,
+                  project?.consumables.tokens.tokens ?? 0,
+                )}
+                amount={number(member.consumables.tokens.spend)}
+                label={t('members.spent')}
+                icon={<Coins size={18} color={color.muted} />}
+              />
+              <StatTile
+                value={share(
+                  member.consumables.storage.bytes,
+                  project?.consumables.storage.bytes ?? 0,
+                )}
+                amount={number(member.consumables.storage.bytes / 1024 ** 3)}
+                label={t('members.shared')}
+                icon={<HardDrive size={18} color={color.muted} />}
+              />
+              <StatTile
+                value={share(
+                  member.consumables.storage.spend,
+                  project?.consumables.storage.bytes ?? 0,
+                )}
+                amount={number(member.consumables.storage.spend / 1024 ** 3)}
+                label={t('members.spent')}
+                icon={<HardDrive size={18} color={color.muted} />}
+              />
             </View>
           )}
 
           {self && member.role !== 'viewer' ? (
-            <View style={styles.switch}>
-              {CONTRIBUTIONS.map(({ value, icon: Icon, label }) => {
+            <View
+              style={styles.switch}
+              onLayout={(event) => setSwitchWidth(event.nativeEvent.layout.width)}
+            >
+              <Animated.View
+                pointerEvents="none"
+                style={[styles.thumb, { width: thumbWidth }, thumbStyle]}
+              />
+              {options.map(({ value, icon: Icon, label }) => {
                 const on = member.contribution === value;
                 return (
                   <Pressable
@@ -75,11 +155,8 @@ export function MemberSheet({
                     accessibilityRole="radio"
                     accessibilityLabel={t(label)}
                     aria-checked={on}
-                    onPress={() => setContribution(projectId, member.id, value)}
-                    style={[
-                      styles.switchOption,
-                      { backgroundColor: on ? color.paper : 'transparent' },
-                    ]}
+                    onPress={() => void setContribution(projectId, value)}
+                    style={styles.switchOption}
                   >
                     <Icon size={22} color={on ? color.ink : color.muted} />
                   </Pressable>
@@ -87,26 +164,40 @@ export function MemberSheet({
               })}
             </View>
           ) : null}
-
-          {self ? (
-            <Button
-              label={t('members.leave')}
-              variant="danger"
-              onPress={() =>
-                confirmAction({
-                  confirm: t('action.leave'),
-                  destructive: true,
-                  onConfirm: () => {
-                    onClose();
-                    router.replace('/home');
-                  },
-                })
-              }
-            />
-          ) : null}
         </View>
       ) : null}
     </BottomSheet>
+  );
+}
+
+function StatTile({
+  value,
+  amount,
+  label,
+  icon,
+}: {
+  value: number;
+  amount: string;
+  label: string;
+  icon: ReactNode;
+}) {
+  const styles = useStyles();
+  const { color } = useTheme();
+  return (
+    <View style={styles.tile}>
+      <View style={styles.circle}>
+        <CircularProgress value={value} size={44} stroke={4} track={color.line} />
+        <View style={styles.icon} pointerEvents="none">
+          {icon}
+        </View>
+      </View>
+      <View style={styles.tileWords}>
+        <Text role="row">{amount}</Text>
+        <Text role="noteSm" tone="muted">
+          {label}
+        </Text>
+      </View>
+    </View>
   );
 }
 
@@ -115,11 +206,22 @@ const useStyles = themed(({ color }) =>
     body: {
       gap: space.s4,
     },
+    profile: {
+      borderWidth: 1,
+      borderColor: color.line,
+      borderRadius: radius.card,
+      backgroundColor: color.raise,
+      padding: space.s4,
+    },
     stats: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
       gap: space.s2,
     },
     switch: {
+      position: 'relative',
+      overflow: 'hidden',
       flexDirection: 'row',
       alignItems: 'center',
       gap: space.s1,
@@ -127,24 +229,51 @@ const useStyles = themed(({ color }) =>
       borderRadius: radius.pill,
       borderWidth: 1,
       borderColor: color.line,
-      backgroundColor: color.ink,
+      backgroundColor: color.raise,
+    },
+    thumb: {
+      position: 'absolute',
+      top: space.s1,
+      bottom: space.s1,
+      left: space.s1,
+      borderRadius: radius.pill,
+      backgroundColor: color.paper,
     },
     switchOption: {
       flex: 1,
       height: 40,
+      zIndex: 1,
       borderRadius: radius.pill,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    tile: {
-      flex: 1,
-      minHeight: 72,
+    circle: {
+      position: 'relative',
+      width: 44,
+      height: 44,
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 4,
+    },
+    icon: {
+      position: 'absolute',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    tile: {
+      flexGrow: 1,
+      flexBasis: '48%',
+      minHeight: 64,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: space.s3,
       borderRadius: radius.field,
       backgroundColor: color.raise,
-      paddingHorizontal: space.s2,
+      paddingHorizontal: space.s3,
+      paddingVertical: space.s2,
+    },
+    tileWords: {
+      flex: 1,
+      gap: 2,
     },
   }),
 );

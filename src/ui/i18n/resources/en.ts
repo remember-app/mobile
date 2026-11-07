@@ -34,7 +34,6 @@ export const en = {
   },
   onboarding: {
     welcome: {
-      welcome: 'Welcome to',
       slogan1: 'All the photos from the party with your friends end up here.',
       slogan2: 'Every memory from the birthday becomes one film.',
       slogan3: 'Even a weekend at the dacha turns into a movie.',
@@ -61,7 +60,11 @@ export const en = {
     },
     username: {
       label: 'Username',
+      name: 'Name',
+      avatar: 'Avatar',
       prompt: 'Choose a username',
+      taken: 'That username is taken',
+      register: 'Sign up',
     },
   },
   home: {
@@ -75,6 +78,7 @@ export const en = {
     name: 'Title',
     create: 'Create',
     storage: 'Storage',
+    error: "Couldn't create it. Check the list for the memory before trying again.",
   },
   profile: {
     title: 'Profile',
@@ -102,6 +106,8 @@ export const en = {
     title: 'Contacts',
     nick: 'Username',
     empty: 'Nobody here yet',
+    none: 'No contacts yet',
+    inviteError: "Couldn't create the link",
     suggestions: 'You may know',
   },
   project: {
@@ -127,8 +133,8 @@ export const en = {
     emptyPhotos: 'No photos',
     denied: 'No access to photos',
     settings: 'Open settings',
-    add: 'Add',
     addCount: 'Add {{count}}',
+    selectAll: "Select from the memory's dates",
   },
   info: {
     invite: 'Invite',
@@ -164,6 +170,8 @@ export const en = {
     viewers: 'Viewers',
     files: 'Files',
     storage: 'Storage',
+    shared: 'Shared',
+    spent: 'Spent',
     contribution: 'Contribution',
     leave: 'Leave memory',
     empty: 'Nobody here yet',

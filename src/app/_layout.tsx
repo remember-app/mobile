@@ -7,16 +7,17 @@ import { Onest_700Bold } from '@expo-google-fonts/onest/700Bold';
 import { useFonts } from '@expo-google-fonts/onest/useFonts';
 import { Unbounded_600SemiBold } from '@expo-google-fonts/unbounded/600SemiBold';
 import { Unbounded_700Bold } from '@expo-google-fonts/unbounded/700Bold';
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { LucideProvider } from 'lucide-react-native';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { onPushOpened, startApp } from '@/functionality';
 import { readLanguage } from '@/functionality/settings/language';
 import { maybeCloseOpenRows } from '@/ui/components/swipe-row';
 import { applyLanguage } from '@/ui/i18n';
@@ -26,6 +27,8 @@ void SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const theme = useTheme();
+  const router = useRouter();
+  const [ready, setReady] = useState(false);
   const [loaded] = useFonts({
     Onest_400Regular,
     Onest_500Medium,
@@ -36,14 +39,23 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
+    void startApp().finally(() => setReady(true));
     void readLanguage().then(applyLanguage);
   }, []);
 
   useEffect(() => {
-    if (loaded) void SplashScreen.hideAsync();
-  }, [loaded]);
+    if (loaded && ready) void SplashScreen.hideAsync();
+  }, [loaded, ready]);
 
-  if (!loaded) return null;
+  useEffect(() => {
+    return onPushOpened((payload) => {
+      if (payload.projectId) {
+        router.navigate({ pathname: '/project/[id]', params: { id: payload.projectId } });
+      }
+    });
+  }, [router]);
+
+  if (!loaded || !ready) return null;
 
   const base = theme.name === 'dark' ? DarkTheme : DefaultTheme;
   const navigation = {

@@ -1,16 +1,15 @@
-import { Copy, Share2 } from 'lucide-react-native';
-import { useCallback, useState, useSyncExternalStore } from 'react';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
-import { copyInviteLink, shareInviteLink } from '@/functionality';
+import { addMember, loadContacts, loadInvite } from '@/functionality';
+import type { ProjectId } from '@/types/id';
 import { CONTACT_STRIP_HEIGHT, ContactStrip } from '@/ui/components/contact-strip';
-import { IconButton } from '@/ui/kit/button';
+import { InviteCode } from '@/ui/components/invite-code';
+import { useContacts, useInvite, useMembers } from '@/ui/hooks';
 import { Card } from '@/ui/kit/card';
 import { Text } from '@/ui/kit/text';
-import { contactsState, subscribeContacts } from '@/ui/mocks/contacts';
-import { addMember, membersOf, subscribeMembers } from '@/ui/mocks/members';
-import { radius, space, themed } from '@/ui/theme';
+import { space, themed } from '@/ui/theme';
 
 const NONE: ReadonlySet<string> = new Set();
 
@@ -18,63 +17,55 @@ export function InviteBlocks({
   projectId,
   projectTitle,
 }: {
-  projectId: string;
+  projectId: ProjectId;
   projectTitle: string;
 }) {
   const { t } = useTranslation();
   const styles = useStyles();
-  const contacts = useSyncExternalStore(subscribeContacts, contactsState);
-  const getMembers = useCallback(() => membersOf(projectId), [projectId]);
-  const members = useSyncExternalStore(subscribeMembers, getMembers);
-  const [token] = useState('anna12');
+  const contacts = useContacts();
+  const members = useMembers(projectId);
+  const invite = useInvite(projectId);
+  const token = invite.invite?.token ?? '';
 
-  const usernames = new Set(members.map((member) => member.username));
-  const available = contacts.filter((contact) => !usernames.has(contact.username));
+  useEffect(() => {
+    void loadContacts();
+    void loadInvite(projectId).catch(() => undefined);
+  }, [projectId]);
 
-  const invite = (id: string) => {
-    const contact = available.find((entry) => entry.id === id);
-    if (contact) addMember(projectId, contact.username);
+  const taken = new Set(members.members.map((member) => member.userId));
+  const available = contacts.contacts.filter((contact) => !taken.has(contact.userId));
+
+  const inviteContact = (userId: string) => {
+    const contact = available.find((entry) => entry.userId === userId);
+    if (contact?.username) void addMember(projectId, contact.username, 'contributor');
   };
 
   return (
     <View style={styles.blocks}>
       {available.length > 0 ? (
-        <ContactStrip contacts={available} selected={NONE} onToggle={invite} />
+        <ContactStrip
+          contacts={available.map((contact) => ({
+            id: contact.userId,
+            name: contact.name ?? contact.username ?? '',
+          }))}
+          selected={NONE}
+          onToggle={inviteContact}
+        />
       ) : (
         <Card style={styles.emptyCard}>
           <Text role="noteSm" tone="muted">
-            {contacts.length === 0 ? t('invite.noContacts') : t('invite.allInvited')}
+            {contacts.contacts.length === 0 ? t('invite.noContacts') : t('invite.allInvited')}
           </Text>
         </Card>
       )}
-      <View style={styles.linkBlock}>
-        <View style={styles.codeBox}>
-          <Text role="title" numberOfLines={1} style={styles.code}>
-            {token}
-          </Text>
-        </View>
-        <View style={styles.actions}>
-          <IconButton
-            icon={Copy}
-            label={t('invite.copy')}
-            tone="ghost"
-            size={44}
-            onPress={() => void copyInviteLink(token)}
-          />
-          <IconButton
-            icon={Share2}
-            label={t('invite.share')}
-            tone="ghost"
-            size={44}
-            onPress={() => void shareInviteLink(token, projectTitle)}
-          />
-        </View>
-      </View>
+      <Card clip>
+        <InviteCode token={token} title={projectTitle} height={CONTACT_STRIP_HEIGHT} />
+      </Card>
     </View>
   );
 }
 
-const useStyles = themed(({ color }) =>
+const useStyles = themed(() =>
   StyleSheet.create({
     blocks: {
       gap: space.s3,
@@ -84,33 +75,6 @@ const useStyles = themed(({ color }) =>
       alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: space.s3,
-    },
-    linkBlock: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: space.s2,
-      backgroundColor: color.raise,
-      borderRadius: radius.field,
-      padding: space.s2,
-    },
-    codeBox: {
-      flex: 1,
-      minHeight: 52,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: color.surface,
-      borderRadius: radius.field,
-      borderWidth: 1,
-      borderColor: color.line,
-      paddingHorizontal: space.s3,
-    },
-    code: {
-      textAlign: 'center',
-    },
-    actions: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: space.s1,
     },
   }),
 );

@@ -84,6 +84,7 @@ export function toUser(wire: UserWire): User {
     name: wire.name,
     email: wire.email,
     language: wire.language,
+    registered: wire.registered,
     profileMediaId: wire.profileMediaId,
   };
 }

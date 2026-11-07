@@ -1,28 +1,37 @@
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import { Check, ChevronDown, ChevronRight, ChevronUp } from 'lucide-react-native';
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { ChevronRight, LogOut } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
-import { isUsernameShapeValid } from '@/functionality';
-import { readLanguage, writeLanguage } from '@/functionality/settings/language';
+import {
+  isUsernameShapeValid,
+  loadAvatar,
+  loadContacts,
+  setName as saveName,
+  setUsername as saveUsername,
+  setAccountLanguage,
+  signOut,
+  uploadAvatar,
+} from '@/functionality';
+import { writeLanguage } from '@/functionality/settings/language';
 import type { Language } from '@/types/language';
 import { Person } from '@/ui/components/person';
+import { SettingsSelect } from '@/ui/components/settings-select';
 import { confirmAction } from '@/ui/confirm';
 import { number } from '@/ui/format';
+import { useAvatar, useContacts, useSession } from '@/ui/hooks';
 import { applyLanguage } from '@/ui/i18n';
 import { Avatar } from '@/ui/kit/avatar';
 import { AppBar, Board, pageBody } from '@/ui/kit/bars';
 import { Divider } from '@/ui/kit/bits';
 import { BottomSheet } from '@/ui/kit/bottom-sheet';
-import { BackButton, Button } from '@/ui/kit/button';
+import { BackButton, Button, IconButton } from '@/ui/kit/button';
 import { Card } from '@/ui/kit/card';
 import { Field } from '@/ui/kit/field';
 import { Text } from '@/ui/kit/text';
-import { contactsState, subscribeContacts } from '@/ui/mocks/contacts';
-import { profileState, saveProfile, setAvatar, subscribeProfile } from '@/ui/mocks/profile';
-import { radius, setTheme, space, themed, useTheme, useThemeChoice } from '@/ui/theme';
+import { setTheme, space, themed, useTheme, useThemeChoice } from '@/ui/theme';
 
 const LANGUAGES = ['ru', 'en'] as const;
 const THEMES = ['system', 'light', 'dark'] as const;
@@ -43,55 +52,77 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { color } = useTheme();
   const styles = useStyles();
-  const profile = useSyncExternalStore(subscribeProfile, profileState);
-  const contacts = useSyncExternalStore(subscribeContacts, contactsState);
-  const [language, setLanguage] = useState<Language>('ru');
+  const session = useSession();
+  const account = 'account' in session ? session.account : undefined;
+  const avatar = useAvatar();
+  const contacts = useContacts();
+  const [language, setLanguage] = useState<Language>(account?.language ?? 'ru');
   const [open, setOpen] = useState(false);
   const [themeOpen, setThemeOpen] = useState(false);
   const chosen = useThemeChoice();
   const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(profile.name);
-  const [username, setUsername] = useState(profile.username);
+  const [name, setName] = useState(account?.name ?? '');
+  const [username, setUsername] = useState(account?.username ?? '');
 
   useEffect(() => {
-    void readLanguage().then((next) => {
-      setLanguage(next);
-      void applyLanguage(next);
-    });
+    void loadAvatar();
+    void loadContacts();
   }, []);
+
+  useEffect(() => {
+    if (account) setLanguage(account.language);
+  }, [account?.language]);
 
   const choose = (next: Language) => {
     setLanguage(next);
     setOpen(false);
     void writeLanguage(next);
     void applyLanguage(next);
+    void setAccountLanguage(next).catch(() => undefined);
   };
 
-  const left = Math.max(0, profile.storageTotalGb - profile.storageUsedGb);
+  const storage = account?.consumables.storage;
+  const tokens = account?.consumables.tokens;
+  const gib = 1024 ** 3;
+  const left = Math.max(0, (storage?.bytes ?? 0) - (storage?.spend ?? 0)) / gib;
+  const total = (storage?.bytes ?? 0) / gib;
+  const tokenLeft = Math.max(0, (tokens?.tokens ?? 0) - (tokens?.spend ?? 0));
   const clean = username.trim().replace(/^@/, '');
   const valid = isUsernameShapeValid(clean);
 
   const openEdit = () => {
-    setName(profile.name);
-    setUsername(profile.username);
+    setName(account?.name ?? '');
+    setUsername(account?.username ?? '');
     setEditing(true);
   };
 
-  const save = () => {
+  const save = async () => {
     if (!valid) return;
-    saveProfile({ name: name.trim() || clean, username: clean });
-    setEditing(false);
+    try {
+      await saveName(name.trim() || null);
+      await saveUsername(clean);
+      setEditing(false);
+    } catch {
+      return;
+    }
   };
 
   const pickAvatar = async () => {
+    setEditing(false);
+    await new Promise((resolve) => setTimeout(resolve, 260));
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
     });
-    if (!result.canceled) setAvatar(result.assets[0]?.uri ?? null);
+    const asset = result.assets?.[0];
+    if (result.canceled || !asset) return;
+    const extension = asset.mimeType?.split('/')[1] ?? 'jpg';
+    await uploadAvatar(asset.uri, asset.fileName ?? `avatar.${extension}`).catch(() => undefined);
   };
+
+  if (!account) return null;
 
   return (
     <Board
@@ -100,17 +131,34 @@ export default function ProfileScreen() {
         <AppBar
           title={t('profile.title')}
           left={<BackButton label={t('action.back')} onPress={() => router.back()} />}
+          right={
+            <IconButton
+              icon={LogOut}
+              label={t('profile.logout')}
+              tone="ghost"
+              size={48}
+              onPress={() =>
+                confirmAction({
+                  confirm: t('profile.logout'),
+                  destructive: true,
+                  onConfirm: () => {
+                    void signOut().finally(() => router.replace('/onboarding/welcome'));
+                  },
+                })
+              }
+            />
+          }
         />
       }
     >
       <Card label={t('profile.edit')} onPress={openEdit} style={[styles.pad, styles.person]}>
         <Person
-          name={profile.name}
-          username={profile.username}
+          name={account.name ?? ''}
+          username={account.username ?? ''}
           size={64}
           heading
-          note={profile.email}
-          uri={profile.avatarUri}
+          note={account.email ?? ''}
+          uri={avatar.url}
         />
       </Card>
 
@@ -118,14 +166,14 @@ export default function ProfileScreen() {
         <View style={styles.row}>
           <Text role="row">{t('profile.storage')}</Text>
           <Text role="rowPlain" tone="muted">
-            {`${number(left)} / ${number(profile.storageTotalGb)} ${t('unit.gb')}`}
+            {`${number(left)} / ${number(total)} ${t('unit.gb')}`}
           </Text>
         </View>
         <Divider style={styles.fullDivider} />
         <View style={styles.row}>
           <Text role="row">{t('profile.tokens')}</Text>
           <Text role="rowPlain" tone="muted">
-            {profile.tokens}
+            {tokenLeft}
           </Text>
         </View>
       </Card>
@@ -171,23 +219,11 @@ export default function ProfileScreen() {
         <Text role="row">{t('profile.contacts')}</Text>
         <View style={styles.value}>
           <Text role="rowPlain" tone="muted">
-            {contacts.length}
+            {contacts.contacts.length}
           </Text>
           <ChevronRight size={18} color={color.muted} />
         </View>
       </Card>
-
-      <Button
-        label={t('profile.logout')}
-        variant="danger"
-        onPress={() =>
-          confirmAction({
-            confirm: t('profile.logout'),
-            destructive: true,
-            onConfirm: () => router.replace('/onboarding/welcome'),
-          })
-        }
-      />
 
       <BottomSheet visible={editing} onClose={() => setEditing(false)} title={t('profile.edit')}>
         <Pressable
@@ -196,15 +232,12 @@ export default function ProfileScreen() {
           onPress={() => void pickAvatar()}
           style={styles.avatarEdit}
         >
-          <Avatar name={profile.name} size={72} uri={profile.avatarUri} />
+          <Avatar name={account.name ?? ''} size={72} uri={avatar.url} />
           <Text role="controlSm" tone="accent">
             {t('profile.changePhoto')}
           </Text>
         </Pressable>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.form}
-        >
+        <View style={styles.form}>
           <Field
             label={t('profile.name')}
             value={name}
@@ -222,63 +255,13 @@ export default function ProfileScreen() {
             autoCorrect={false}
           />
           <Button label={t('action.save')} variant="primary" disabled={!valid} onPress={save} />
-        </KeyboardAvoidingView>
+        </View>
       </BottomSheet>
     </Board>
   );
 }
 
-function SettingsSelect<T extends string>({
-  label,
-  value,
-  open,
-  onToggle,
-  options,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  open: boolean;
-  onToggle: () => void;
-  options: readonly { value: T; label: string; selected: boolean }[];
-  onChange: (value: T) => void;
-}) {
-  const { color } = useTheme();
-  const styles = useStyles();
-  return (
-    <View style={[styles.settingsWrap, open ? styles.front : null]}>
-      <Pressable onPress={onToggle} style={styles.row}>
-        <Text role="row">{label}</Text>
-        <View style={styles.value}>
-          <Text role="rowPlain" tone="muted">
-            {value}
-          </Text>
-          {open ? (
-            <ChevronUp size={18} color={color.muted} />
-          ) : (
-            <ChevronDown size={18} color={color.muted} />
-          )}
-        </View>
-      </Pressable>
-      {open ? (
-        <View style={styles.options}>
-          {options.map((option) => (
-            <Pressable
-              key={option.value}
-              onPress={() => onChange(option.value)}
-              style={styles.option}
-            >
-              <Text role="row">{option.label}</Text>
-              {option.selected ? <Check size={18} color={color.accent} /> : null}
-            </Pressable>
-          ))}
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
-const useStyles = themed(({ color }) =>
+const useStyles = themed(() =>
   StyleSheet.create({
     person: {
       flexDirection: 'row',
@@ -314,35 +297,6 @@ const useStyles = themed(({ color }) =>
     },
     settingsCard: {
       zIndex: 20,
-    },
-    settingsWrap: {
-      position: 'relative',
-      zIndex: 20,
-    },
-    front: {
-      zIndex: 40,
-    },
-    options: {
-      position: 'absolute',
-      top: '100%',
-      left: 0,
-      right: 0,
-      marginTop: space.s1,
-      backgroundColor: color.raise,
-      borderRadius: radius.field,
-      borderWidth: 1,
-      borderColor: color.line,
-      paddingHorizontal: space.s3,
-      paddingVertical: space.s1,
-      boxShadow: '0 12px 30px rgba(0,0,0,0.35)',
-      zIndex: 30,
-    },
-    option: {
-      minHeight: 44,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: space.s3,
     },
   }),
 );

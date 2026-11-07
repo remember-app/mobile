@@ -19,6 +19,7 @@ export type Photo = {
   upload?: TileUpload;
   select?: number | null;
   note?: string;
+  capturedAt?: Date | null;
 };
 
 export type Rect = {

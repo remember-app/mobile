@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Mail } from 'lucide-react-native';
@@ -105,12 +106,14 @@ export default function WelcomeScreen() {
         />
         <View style={styles.scrim} />
         <View style={[styles.brand, { top: insets.top + space.s4 }]}>
-          <Text role="display" tone="onFill" style={styles.centre}>
-            {t('onboarding.welcome.welcome')}
-          </Text>
-          <Text role="heroSm" tone="onFill" style={styles.centre}>
+          <Text role="heroSm" tone="onFill">
             Remember
           </Text>
+          <Image
+            source={require('../../../assets/images/logo.svg')}
+            contentFit="contain"
+            style={styles.logo}
+          />
         </View>
         <Animated.View style={[styles.caption, captionStyle]}>
           <Animated.View
@@ -225,10 +228,11 @@ const styles = StyleSheet.create({
     left: space.s5,
     right: space.s5,
     alignItems: 'center',
-    gap: space.s1,
+    gap: space.s2,
   },
-  centre: {
-    textAlign: 'center',
+  logo: {
+    width: 80,
+    height: 80,
   },
   caption: {
     position: 'absolute',

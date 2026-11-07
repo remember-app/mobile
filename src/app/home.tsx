@@ -1,24 +1,21 @@
 import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Plus, User } from 'lucide-react-native';
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { User } from 'lucide-react-native';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RefreshControl, StyleSheet, View } from 'react-native';
+import { Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { loadMoreProjects, loadProjects, projectCoverFrames } from '@/functionality';
+import type { ProjectCard as ProjectCardModel } from '@/models';
 import { NetworkBanner } from '@/ui/components/network-banner';
 import { OnboardingFinal } from '@/ui/components/onboarding/final';
 import { ProjectCard } from '@/ui/components/project-card';
 import { ProjectCardSkeleton } from '@/ui/components/skeletons';
+import { useProjects } from '@/ui/hooks';
 import { ActionBar } from '@/ui/kit/action-bar';
 import { Button, IconButton } from '@/ui/kit/button';
-import { Card } from '@/ui/kit/card';
-import { Text } from '@/ui/kit/text';
-import { photosForLabel, subscribeLabels } from '@/ui/mocks/labels';
-import { loadingState, subscribeLoading } from '@/ui/mocks/loading';
-import { profileState, subscribeProfile } from '@/ui/mocks/profile';
-import { type MockProject, projectsState, subscribeProjects } from '@/ui/mocks/projects';
 import { space, useTheme } from '@/ui/theme';
 
 export default function HomeScreen() {
@@ -28,29 +25,41 @@ export default function HomeScreen() {
   const { color } = useTheme();
   const { celebrate } = useLocalSearchParams<{ celebrate?: string }>();
   const [refreshing, setRefreshing] = useState(false);
-  const projects = useSyncExternalStore(subscribeProjects, projectsState);
-  const profile = useSyncExternalStore(subscribeProfile, profileState);
-  const loading = useSyncExternalStore(subscribeLoading, loadingState);
-  const coverPhotos = useCallback(() => photosForLabel('cover'), []);
-  const coverFrames = useSyncExternalStore(subscribeLabels, coverPhotos);
-  const covers = useMemo(
-    () =>
-      coverFrames.flatMap((photo) =>
-        photo.source && typeof photo.source !== 'string' ? [photo.source] : [],
-      ),
-    [coverFrames],
-  );
-  const list = useRef<FlashListRef<MockProject>>(null);
+  const [covers, setCovers] = useState<Record<string, string[]>>({});
+  const state = useProjects();
+  const cards = state.cards;
+  const loading = state.status === 'loading' && cards.length === 0;
+  const list = useRef<FlashListRef<ProjectCardModel>>(null);
   const anchored = useRef(false);
 
-  const refresh = () => {
+  useEffect(() => {
+    void loadProjects();
+  }, []);
+
+  const refresh = async () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 600);
+    try {
+      await loadProjects(true);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   useEffect(() => {
     list.current?.scrollToEnd({ animated: true });
-  }, [projects.length]);
+  }, [cards.length]);
+
+  useEffect(() => {
+    let live = true;
+    void Promise.all(
+      cards.map(async (card) => [card.id, await projectCoverFrames(card.id)] as const),
+    ).then((entries) => {
+      if (live) setCovers(Object.fromEntries(entries));
+    });
+    return () => {
+      live = false;
+    };
+  }, [cards]);
 
   return (
     <>
@@ -63,31 +72,26 @@ export default function HomeScreen() {
               <ProjectCardSkeleton key={key} />
             ))}
           </View>
-        ) : projects.length === 0 ? (
+        ) : cards.length === 0 ? (
           <View style={styles.emptyFill}>
-            <Card
-              clip
-              label={t('home.create')}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('home.create')}
               onPress={() => router.navigate('/create')}
-              style={[styles.newCard, { borderStyle: covers[0] ? 'solid' : 'dashed' }]}
+              style={styles.newCard}
             >
-              {covers[0] ? (
-                <>
-                  <Image source={covers[0]} style={StyleSheet.absoluteFill} contentFit="cover" />
-                  <View style={[StyleSheet.absoluteFill, styles.newShade]} />
-                </>
-              ) : null}
-              <Plus size={28} color={covers[0] ? color.onFill : color.muted} />
-              <Text role="title" tone={covers[0] ? 'onFill' : 'paper'}>
-                {t('home.create')}
-              </Text>
-            </Card>
+              <Image
+                source={require('../../assets/images/create-empty.png')}
+                style={styles.newArt}
+                contentFit="contain"
+              />
+            </Pressable>
           </View>
         ) : (
           <FlashList
             ref={list}
-            data={projects}
-            keyExtractor={(entry) => entry.project.id}
+            data={cards}
+            keyExtractor={(entry) => entry.id}
             onContentSizeChange={(_width, height) => {
               if (anchored.current || height <= 0) return;
               anchored.current = true;
@@ -103,23 +107,17 @@ export default function HomeScreen() {
               paddingHorizontal: space.s4,
             }}
             ItemSeparatorComponent={() => <View style={styles.gap} />}
-            renderItem={({ item }) => {
-              const first = profile.name.split(' ')[0] ?? profile.name;
-              const people = item.people.some((name) => name === profile.name || name === first)
-                ? item.people
-                : [profile.name, ...item.people];
-              return (
-                <ProjectCard
-                  project={item.project}
-                  cover={item.cover}
-                  covers={covers}
-                  people={people}
-                  onPress={() =>
-                    router.navigate({ pathname: '/project/[id]', params: { id: item.project.id } })
-                  }
-                />
-              );
-            }}
+            onEndReached={() => void loadMoreProjects()}
+            onEndReachedThreshold={0.6}
+            renderItem={({ item }) => (
+              <ProjectCard
+                project={item}
+                covers={covers[item.id]}
+                onPress={() =>
+                  router.navigate({ pathname: '/project/[id]', params: { id: item.id } })
+                }
+              />
+            )}
           />
         )}
         <IconButton
@@ -131,7 +129,7 @@ export default function HomeScreen() {
           style={[styles.profile, { top: insets.top + space.s1 }]}
           onPress={() => router.navigate('/profile')}
         />
-        {projects.length > 0 ? (
+        {cards.length > 0 ? (
           <ActionBar>
             <Button
               label={t('home.create')}
@@ -167,13 +165,13 @@ const styles = StyleSheet.create({
     gap: space.s3,
   },
   newCard: {
-    aspectRatio: 4 / 3,
     alignItems: 'center',
     justifyContent: 'center',
     gap: space.s3,
   },
-  newShade: {
-    backgroundColor: 'rgba(0,0,0,0.35)',
+  newArt: {
+    width: 360,
+    height: 270,
   },
   profile: {
     position: 'absolute',

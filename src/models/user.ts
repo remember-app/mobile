@@ -19,6 +19,7 @@ export type User = {
   name: string | null;
   email: string | null;
   language: Language;
+  registered: boolean;
   profileMediaId: string | null;
 };
 

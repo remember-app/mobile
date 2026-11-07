@@ -1,4 +1,5 @@
-import { Image, type ImageSource } from 'expo-image';
+import { Image } from 'expo-image';
+import { Users } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
@@ -10,26 +11,25 @@ import Animated, {
 
 import type { ProjectCard as Project } from '@/models/project';
 import { dateRange } from '@/ui/format';
-import { AvatarStack } from '@/ui/kit/avatar';
 import { Text } from '@/ui/kit/text';
-import { radius, space, themed } from '@/ui/theme';
+import { radius, space, themed, useTheme } from '@/ui/theme';
 
 type Props = {
   project: Project;
-  cover: ImageSource | null;
-  covers?: readonly ImageSource[];
-  people: readonly string[];
+  covers?: readonly string[];
   onPress: () => void;
 };
 
-export function ProjectCard({ project, cover, covers = [], people, onPress }: Props) {
+export function ProjectCard({ project, covers, onPress }: Props) {
   const styles = useStyles();
+  const { color } = useTheme();
   const press = useSharedValue(1);
   const scale = useAnimatedStyle(() => ({ transform: [{ scale: press.value }] }));
 
-  const frames = covers.length > 0 ? covers : cover ? [cover] : [];
+  const frames = covers && covers.length > 0 ? covers : project.previewUrls;
   const total = frames.length;
-  const [sources, setSources] = useState<[ImageSource | null, ImageSource | null]>(() => [
+  const empty = project.itemCount === 0;
+  const [sources, setSources] = useState<[string | null, string | null]>(() => [
     frames[0] ?? null,
     frames[1] ?? frames[0] ?? null,
   ]);
@@ -37,6 +37,14 @@ export function ProjectCard({ project, cover, covers = [], people, onPress }: Pr
   const cursor = useRef(0);
   const opacity0 = useSharedValue(1);
   const opacity1 = useSharedValue(0);
+
+  useEffect(() => {
+    setSources([frames[0] ?? null, frames[1] ?? frames[0] ?? null]);
+    setActive(0);
+    cursor.current = 0;
+    opacity0.value = 1;
+    opacity1.value = 0;
+  }, [frames, opacity0, opacity1]);
 
   useEffect(() => {
     if (total < 2) return;
@@ -75,8 +83,15 @@ export function ProjectCard({ project, cover, covers = [], people, onPress }: Pr
         onPressOut={() => {
           press.value = withTiming(1, { duration: 170 });
         }}
-        style={styles.card}
+        style={[styles.card, empty ? styles.cardEmpty : null]}
       >
+        {empty ? (
+          <Image
+            source={require('../../../assets/images/memory-empty.png')}
+            style={StyleSheet.absoluteFill}
+            contentFit="contain"
+          />
+        ) : null}
         <Animated.View style={[StyleSheet.absoluteFill, style0]} pointerEvents="none">
           {sources[0] ? (
             <Image
@@ -97,14 +112,28 @@ export function ProjectCard({ project, cover, covers = [], people, onPress }: Pr
             />
           ) : null}
         </Animated.View>
-        <View pointerEvents="none" style={[styles.shade, styles.shadeTop]} />
-        <View pointerEvents="none" style={[styles.shade, styles.shadeBottom]} />
-        <Text role="title" tone="onFill" numberOfLines={2} style={styles.title}>
+        {total > 0 ? (
+          <>
+            <View pointerEvents="none" style={[styles.shade, styles.shadeTop]} />
+            <View pointerEvents="none" style={[styles.shade, styles.shadeBottom]} />
+          </>
+        ) : null}
+        <Text
+          role="title"
+          tone={total > 0 ? 'onFill' : 'paper'}
+          numberOfLines={2}
+          style={styles.title}
+        >
           {project.title}
         </Text>
         <View style={styles.foot}>
-          <AvatarStack names={people} size={36} limit={7} />
-          <Text role="meta" tone="onFill">
+          <View style={styles.people}>
+            <Users size={16} color={total > 0 ? color.onFill : color.paper} />
+            <Text role="meta" tone={total > 0 ? 'onFill' : 'paper'}>
+              {project.memberCount}
+            </Text>
+          </View>
+          <Text role="meta" tone={total > 0 ? 'onFill' : 'paper'}>
             {dateRange(project.eventStart, project.eventEnd)}
           </Text>
         </View>
@@ -120,6 +149,11 @@ const useStyles = themed(({ color }) =>
       borderRadius: radius.card,
       overflow: 'hidden',
       backgroundColor: color.raise,
+    },
+    cardEmpty: {
+      backgroundColor: color.ink,
+      borderWidth: 1,
+      borderColor: color.line,
     },
     shade: {
       position: 'absolute',
@@ -150,6 +184,11 @@ const useStyles = themed(({ color }) =>
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: space.s3,
+    },
+    people: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: space.s1,
     },
   }),
 );

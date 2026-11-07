@@ -1,5 +1,6 @@
 export * from './account';
 export * from './auth';
+export * from './avatar';
 export { ApiError, isApiError, onSessionRefused } from './client';
 export * from './consumables';
 export * from './contacts';

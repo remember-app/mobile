@@ -3,25 +3,34 @@ import { useState } from 'react';
 
 import { useTranslation } from 'react-i18next';
 
-import { pendingInvite } from '@/functionality';
+import { pendingInvite, requestCode } from '@/functionality';
 import { OnboardingInput } from '@/ui/components/onboarding/input';
 import { InviteSheet } from '@/ui/components/onboarding/invite-sheet';
-import { isRegisteredEmail } from '@/ui/mocks/profile';
 
 export default function EmailScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [invite, setInvite] = useState(false);
+  const [busy, setBusy] = useState(false);
   const address = email.trim();
   const ready = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address);
 
-  const submit = () => {
-    if (isRegisteredEmail(address) || pendingInvite()) {
+  const submit = async () => {
+    if (!ready || busy) return;
+    setBusy(true);
+    try {
+      const result = await requestCode(address);
+      if (!pendingInvite() && !result.registered) {
+        setInvite(true);
+        return;
+      }
       router.navigate({ pathname: '/onboarding/code', params: { email: address } });
-      return;
+    } catch {
+      setInvite(true);
+    } finally {
+      setBusy(false);
     }
-    setInvite(true);
   };
 
   const accept = () => {

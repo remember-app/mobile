@@ -17,6 +17,7 @@ type Props = {
   placeholder: string;
   valid: boolean;
   onSubmit: () => void;
+  error?: string;
   prefix?: string;
   inputMode?: TextInputProps['inputMode'];
   autoComplete?: TextInputProps['autoComplete'];
@@ -35,6 +36,7 @@ export function OnboardingInput({
   placeholder,
   valid,
   onSubmit,
+  error,
   prefix,
   inputMode,
   autoComplete,
@@ -69,6 +71,11 @@ export function OnboardingInput({
             autoCorrect={autoCorrect}
             autoFocus={autoFocus}
           />
+          {error ? (
+            <Text role="hint" tone="danger">
+              {error}
+            </Text>
+          ) : null}
         </View>
       </Pressable>
     </View>

@@ -36,7 +36,6 @@ export const ru: typeof en = {
   },
   onboarding: {
     welcome: {
-      welcome: 'Добро пожаловать в',
       slogan1: 'Здесь вы всё-таки получите все фото с вечеринки от друзей.',
       slogan2: 'Соберёте все воспоминания с дня рождения в одно видео.',
       slogan3: 'Поездка на дачу тоже станет фильмом.',
@@ -63,7 +62,11 @@ export const ru: typeof en = {
     },
     username: {
       label: 'Ник',
+      name: 'Имя',
+      avatar: 'Аватар',
       prompt: 'Придумайте себе ник',
+      taken: 'Этот ник уже занят',
+      register: 'Зарегистрироваться',
     },
   },
   home: {
@@ -77,6 +80,8 @@ export const ru: typeof en = {
     name: 'Название',
     create: 'Создать',
     storage: 'Хранилище',
+    error:
+      'Не удалось создать. Проверьте, не появилось ли воспоминание в списке, прежде чем повторять.',
   },
   profile: {
     title: 'Профиль',
@@ -104,6 +109,8 @@ export const ru: typeof en = {
     title: 'Контакты',
     nick: 'Ник',
     empty: 'Пока никого нет',
+    none: 'Контактов пока нет',
+    inviteError: 'Не удалось создать ссылку',
     suggestions: 'Возможно, знакомы',
   },
   project: {
@@ -129,8 +136,8 @@ export const ru: typeof en = {
     emptyPhotos: 'Нет фото',
     denied: 'Нет доступа к фото',
     settings: 'Открыть настройки',
-    add: 'Добавить',
     addCount: 'Добавить {{count}}',
+    selectAll: 'Выбрать за даты воспоминания',
   },
   info: {
     invite: 'Пригласить',
@@ -166,6 +173,8 @@ export const ru: typeof en = {
     viewers: 'Смотрящие',
     files: 'Файлы',
     storage: 'Хранилище',
+    shared: 'Поделился',
+    spent: 'Потратил',
     contribution: 'Вклад',
     leave: 'Выйти из воспоминания',
     empty: 'Пока никого нет',

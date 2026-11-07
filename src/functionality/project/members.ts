@@ -204,7 +204,7 @@ export async function removeMember(projectId: ProjectId, userId: UserId): Promis
 
 export async function setContribution(
   projectId: ProjectId,
-  status: Exclude<Contribution, 'not_started'>,
+  status: Contribution,
 ): Promise<Contribution> {
   const current = sessionState();
   const userId = 'account' in current ? current.account.id : undefined;

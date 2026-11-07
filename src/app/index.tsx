@@ -1,21 +1,23 @@
 import { useRouter } from 'expo-router';
-import { Minus, Plus } from 'lucide-react-native';
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Switch, View } from 'react-native';
 
-import { setNetworkOverride } from '@/functionality';
+import {
+  confirmCode,
+  refreshGlobal,
+  requestCode,
+  setNetworkOverride,
+  signOut,
+} from '@/functionality';
 import { readLanguage, writeLanguage } from '@/functionality/settings/language';
 import type { Language } from '@/types/language';
-import { useNetwork } from '@/ui/hooks';
+import { SettingsSelect } from '@/ui/components/settings-select';
+import { useNetwork, useSession } from '@/ui/hooks';
 import { applyLanguage } from '@/ui/i18n';
 import { AppBar, Board } from '@/ui/kit/bars';
 import { BlockHead } from '@/ui/kit/block-head';
-import { Button, IconButton } from '@/ui/kit/button';
-import { Segment } from '@/ui/kit/segment';
+import { Button } from '@/ui/kit/button';
 import { Text } from '@/ui/kit/text';
-import { contactsState, setContactCount, subscribeContacts } from '@/ui/mocks/contacts';
-import { loadingState, setMockLoading, subscribeLoading } from '@/ui/mocks/loading';
-import { projectsState, setMockProjectCount, subscribeProjects } from '@/ui/mocks/projects';
 import { setTheme, space, themed, useTheme, useThemeChoice } from '@/ui/theme';
 
 const THEMES = [
@@ -29,15 +31,26 @@ const LANGUAGES = [
   { value: 'en', label: 'English' },
 ] as const;
 
+const USERS = [
+  { email: 'a@x.io', username: 'alice', name: 'Алиса' },
+  { email: 'b@x.io', username: 'bob', name: 'Bob' },
+  { email: 'c@x.io', username: 'carol', name: 'Кэрол' },
+  { email: 'd@x.io', username: 'dave', name: 'Dave' },
+];
+
+type Open = 'user' | 'theme' | 'language' | null;
+
 export default function DevScreen() {
   const router = useRouter();
   const theme = useThemeChoice();
   const { color } = useTheme();
   const network = useNetwork();
-  const projects = useSyncExternalStore(subscribeProjects, projectsState);
-  const contacts = useSyncExternalStore(subscribeContacts, contactsState);
-  const loading = useSyncExternalStore(subscribeLoading, loadingState);
+  const session = useSession();
+  const account = 'account' in session ? session.account : undefined;
   const [language, setLanguage] = useState<Language>('ru');
+  const [open, setOpen] = useState<Open>(null);
+  const [switching, setSwitching] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const styles = useStyles();
   const online = network.status !== 'offline';
 
@@ -48,21 +61,71 @@ export default function DevScreen() {
     });
   }, []);
 
+  const switchUser = async (email: string) => {
+    setOpen(null);
+    setSwitching(email);
+    setError(null);
+    try {
+      await signOut();
+      const result = await requestCode(email);
+      await confirmCode(email, result.code ?? '123456');
+      await refreshGlobal();
+      router.navigate('/home');
+    } catch {
+      setError('Не удалось войти под этим пользователем');
+    } finally {
+      setSwitching(null);
+    }
+  };
+
   return (
     <Board bar={<AppBar variant="root" title="Разработка" />} body={styles.body}>
       <BlockHead label="Настройки" />
       <View style={styles.card}>
-        <Segment
-          label="Тема"
-          options={THEMES}
-          value={theme}
-          onChange={(next) => void setTheme(next)}
+        <SettingsSelect
+          label="Пользователь"
+          value={switching ? 'Переключаем…' : (account?.username ?? 'не выбран')}
+          open={open === 'user'}
+          onToggle={() => setOpen(open === 'user' ? null : 'user')}
+          options={USERS.map((user) => ({
+            value: user.email,
+            label: `${user.username} · ${user.email}`,
+            selected: account?.email === user.email,
+          }))}
+          onChange={(email) => void switchUser(email)}
         />
-        <Segment
-          label="Язык"
-          options={LANGUAGES}
-          value={language}
+        {error ? (
+          <Text role="hint" tone="danger">
+            {error}
+          </Text>
+        ) : null}
+        <SettingsSelect
+          label="Тема"
+          value={THEMES.find((option) => option.value === theme)?.label ?? theme}
+          open={open === 'theme'}
+          onToggle={() => setOpen(open === 'theme' ? null : 'theme')}
+          options={THEMES.map((option) => ({
+            value: option.value,
+            label: option.label,
+            selected: option.value === theme,
+          }))}
           onChange={(next) => {
+            setOpen(null);
+            void setTheme(next);
+          }}
+        />
+        <SettingsSelect
+          label="Язык"
+          value={LANGUAGES.find((option) => option.value === language)?.label ?? language}
+          open={open === 'language'}
+          onToggle={() => setOpen(open === 'language' ? null : 'language')}
+          options={LANGUAGES.map((option) => ({
+            value: option.value,
+            label: option.label,
+            selected: option.value === language,
+          }))}
+          onChange={(next) => {
+            setOpen(null);
             setLanguage(next);
             void writeLanguage(next);
             void applyLanguage(next);
@@ -73,21 +136,6 @@ export default function DevScreen() {
           <Switch
             value={online}
             onValueChange={(next) => setNetworkOverride(next)}
-            trackColor={{ false: color.line, true: color.accent }}
-            ios_backgroundColor={color.line}
-          />
-        </View>
-      </View>
-
-      <BlockHead label="Данные" />
-      <View style={styles.card}>
-        <CountRow label="Воспоминания" value={projects.length} onChange={setMockProjectCount} />
-        <CountRow label="Контакты" value={contacts.length} onChange={setContactCount} />
-        <View style={styles.row}>
-          <Text role="row">Скелетоны</Text>
-          <Switch
-            value={loading}
-            onValueChange={setMockLoading}
             trackColor={{ false: color.line, true: color.accent }}
             ios_backgroundColor={color.line}
           />
@@ -107,43 +155,6 @@ export default function DevScreen() {
   );
 }
 
-function CountRow({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  onChange: (value: number) => void;
-}) {
-  const styles = useStyles();
-  return (
-    <View style={styles.row}>
-      <Text role="row">{label}</Text>
-      <View style={styles.counter}>
-        <IconButton
-          icon={Minus}
-          label="Меньше"
-          tone="ghost"
-          size={36}
-          disabled={value <= 0}
-          onPress={() => onChange(value - 1)}
-        />
-        <Text role="row" style={styles.count}>
-          {value}
-        </Text>
-        <IconButton
-          icon={Plus}
-          label="Больше"
-          tone="ghost"
-          size={36}
-          onPress={() => onChange(value + 1)}
-        />
-      </View>
-    </View>
-  );
-}
-
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
     body: {
@@ -159,6 +170,7 @@ const useStyles = themed(({ color }) =>
       borderColor: color.line,
       padding: space.s4,
       gap: space.s4,
+      zIndex: 20,
     },
     column: {
       gap: space.s3,
@@ -167,15 +179,6 @@ const useStyles = themed(({ color }) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-    },
-    counter: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: space.s2,
-    },
-    count: {
-      minWidth: 24,
-      textAlign: 'center',
     },
   }),
 );

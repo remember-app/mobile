@@ -1,21 +1,18 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Trash2 } from 'lucide-react-native';
-import { useState, useSyncExternalStore } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { deleteProject, loadProjects, updateProject } from '@/functionality';
+import type { ProjectId } from '@/types/id';
 import { EventDates } from '@/ui/components/event-dates';
 import { confirmAction } from '@/ui/confirm';
+import { useProjectCard } from '@/ui/hooks';
 import { AppBar, Board } from '@/ui/kit/bars';
 import { BackButton, Button, IconButton } from '@/ui/kit/button';
 import { Empty } from '@/ui/kit/empty';
 import { Field } from '@/ui/kit/field';
-import {
-  deleteMockProject,
-  projectsState,
-  subscribeProjects,
-  updateMockProject,
-} from '@/ui/mocks/projects';
 import { space } from '@/ui/theme';
 
 export default function ProjectSettingsScreen() {
@@ -23,11 +20,22 @@ export default function ProjectSettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const projects = useSyncExternalStore(subscribeProjects, projectsState);
-  const project = projects.find((entry) => entry.project.id === id);
-  const [title, setTitle] = useState(project?.project.title ?? '');
-  const [from, setFrom] = useState<Date | null>(project?.project.eventStart ?? null);
-  const [to, setTo] = useState<Date | null>(project?.project.eventEnd ?? null);
+  const projectId = id as ProjectId;
+  const project = useProjectCard(projectId);
+  const [title, setTitle] = useState(project?.title ?? '');
+  const [from, setFrom] = useState<Date | null>(project?.eventStart ?? null);
+  const [to, setTo] = useState<Date | null>(project?.eventEnd ?? null);
+
+  useEffect(() => {
+    void loadProjects();
+  }, []);
+
+  useEffect(() => {
+    if (!project) return;
+    setTitle(project.title);
+    setFrom(project.eventStart);
+    setTo(project.eventEnd);
+  }, [project?.id]);
 
   if (!project) {
     return (
@@ -44,14 +52,18 @@ export default function ProjectSettingsScreen() {
     );
   }
 
-  const save = () => {
+  const save = async () => {
     if (!title.trim() || !from) return;
-    updateMockProject(id, { title: title.trim(), eventStart: from, eventEnd: to });
+    await updateProject(projectId, {
+      title: title.trim(),
+      eventStart: from.toISOString(),
+      eventEnd: to?.toISOString() ?? null,
+    });
     router.back();
   };
 
-  const remove = () => {
-    deleteMockProject(id);
+  const remove = async () => {
+    await deleteProject(projectId);
     router.dismissTo('/home');
   };
 
@@ -60,7 +72,7 @@ export default function ProjectSettingsScreen() {
       body={[styles.body, { paddingBottom: insets.bottom + space.s6 }]}
       bar={
         <AppBar
-          title={project.project.title}
+          title={project.title}
           centerTitle
           left={<BackButton size={48} label={t('action.back')} onPress={() => router.back()} />}
           right={
@@ -74,7 +86,7 @@ export default function ProjectSettingsScreen() {
                 confirmAction({
                   confirm: t('action.delete'),
                   destructive: true,
-                  onConfirm: remove,
+                  onConfirm: () => void remove(),
                 })
               }
             />
@@ -101,7 +113,7 @@ export default function ProjectSettingsScreen() {
         label={t('project.save')}
         variant="primary"
         disabled={!title.trim() || !from}
-        onPress={save}
+        onPress={() => void save()}
       />
     </Board>
   );

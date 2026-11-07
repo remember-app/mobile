@@ -1,4 +1,11 @@
 export {
+  avatarState,
+  loadAvatar,
+  removeAvatar,
+  subscribeAvatar,
+  uploadAvatar,
+} from './account/avatar';
+export {
   clearUsernameChecks,
   isUsernameShapeValid,
   knownAvailability,
@@ -13,6 +20,7 @@ export {
   restoreSession,
   type SessionState,
   sessionState,
+  setAccountLanguage,
   setName,
   setUsername,
   signIn,
@@ -33,6 +41,12 @@ export {
   renameContact,
   subscribeContacts,
 } from './contact/contacts';
+export {
+  clearSuggestions,
+  loadSuggestions,
+  subscribeSuggestions,
+  suggestionsState,
+} from './contact/suggestions';
 export { type AppInfo, appInfo } from './device/app';
 export {
   attachItems,
@@ -87,6 +101,7 @@ export {
   subscribeNetwork,
 } from './network/network';
 export { type ConsumableShare, shareProjectConsumables } from './project/consumables';
+export { projectCoverFrames } from './project/cover';
 export {
   acceptInvite,
   clearInvites,

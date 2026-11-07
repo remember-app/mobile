@@ -9,8 +9,11 @@ import {
   type DeviceAsset,
   type DeviceCollection,
   deviceMediaAllowed,
+  enqueueUploads,
   loadDeviceAssets,
+  resolveDeviceAsset,
 } from '@/functionality';
+import type { ProjectId } from '@/types/id';
 import {
   type MeasureTile,
   PHOTO_COLUMNS,
@@ -20,11 +23,11 @@ import {
 } from '@/ui/components/media/photo-grid';
 import { PhotoViewer } from '@/ui/components/media/photo-viewer';
 import { duration } from '@/ui/format';
+import { useProjectCard } from '@/ui/hooks';
 import { ActionBar } from '@/ui/kit/action-bar';
 import { BlurBar } from '@/ui/kit/blur-bar';
 import { BackButton, Button } from '@/ui/kit/button';
 import { Text } from '@/ui/kit/text';
-import { enqueueMockUploads } from '@/ui/mocks/uploads';
 import { radius, space, useTheme } from '@/ui/theme';
 
 const PAGE = 60;
@@ -55,6 +58,7 @@ export default function PickScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const project = useProjectCard(id as ProjectId);
   const { color } = useTheme();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -121,18 +125,35 @@ export default function PickScreen() {
     );
   };
 
-  const confirm = () => {
-    if (!selected.length || !id) return;
-    enqueueMockUploads(
-      id,
-      selected.map((asset) => ({
-        source: { uri: asset.uri },
-        video: asset.kind === 'video',
-        assetId: asset.id,
-        width: asset.width,
-        height: asset.height,
-      })),
+  const selectAll = () => {
+    const start = project?.eventStart;
+    if (!start) return;
+    const until = project?.eventEnd ?? new Date(start.getTime() + 24 * 60 * 60 * 1000);
+    setSelected(
+      assets.filter((asset) => {
+        const at = new Date(asset.createdAt);
+        return at >= start && at <= until;
+      }),
     );
+  };
+
+  const confirm = async () => {
+    if (!selected.length || !id) return;
+    const files = await Promise.all(
+      selected.map(async (asset) => {
+        const local = await resolveDeviceAsset(asset.id);
+        return {
+          projectId: id as ProjectId,
+          uri: local.uri,
+          fileName: local.fileName,
+          kind: local.kind,
+          sizeBytes: local.sizeBytes,
+          capturedAt: local.capturedAt,
+          durationSeconds: local.durationSeconds,
+        };
+      }),
+    );
+    enqueueUploads(files);
     router.back();
   };
 
@@ -273,11 +294,12 @@ export default function PickScreen() {
         <ActionBar>
           <Button
             label={
-              selected.length ? t('picker.addCount', { count: selected.length }) : t('picker.add')
+              selected.length
+                ? t('picker.addCount', { count: selected.length })
+                : t('picker.selectAll')
             }
             variant="primary"
-            disabled={selected.length === 0}
-            onPress={confirm}
+            onPress={() => (selected.length ? void confirm() : selectAll())}
           />
         </ActionBar>
         {preview === null ? null : (

@@ -1,7 +1,7 @@
 import { CheckCircle2, CircleDashed, Clock, Ellipsis } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 
-import type { MockContribution } from '@/ui/mocks/members';
+import type { Contribution as ContributionStatus } from '@/models';
 import { useTheme } from '@/ui/theme';
 
 const ICONS = {
@@ -9,7 +9,7 @@ const ICONS = {
   more_coming: Clock,
 } as const;
 
-export function Contribution({ contribution }: { contribution: MockContribution }) {
+export function Contribution({ contribution }: { contribution: ContributionStatus }) {
   const { color } = useTheme();
 
   if (contribution === 'not_started') {

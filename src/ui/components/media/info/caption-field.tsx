@@ -6,9 +6,10 @@ import { font, radius, space, themed, useTheme } from '@/ui/theme';
 type Props = {
   value: string;
   onChangeText: (value: string) => void;
+  onEndEditing?: () => void;
 };
 
-export function CaptionField({ value, onChangeText }: Props) {
+export function CaptionField({ value, onChangeText, onEndEditing }: Props) {
   const { t } = useTranslation();
   const { color } = useTheme();
   const styles = useStyles();
@@ -16,6 +17,7 @@ export function CaptionField({ value, onChangeText }: Props) {
     <TextInput
       value={value}
       onChangeText={onChangeText}
+      onEndEditing={onEndEditing}
       placeholder={t('photo.caption')}
       placeholderTextColor={color.faint}
       selectionColor={color.accent}

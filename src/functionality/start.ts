@@ -5,6 +5,7 @@ import { hydrateGallery } from '@/functionality/media/gallery';
 import { isOnline, subscribeNetwork } from '@/functionality/network/network';
 import { hydrateMembers } from '@/functionality/project/members';
 import { hydrateProjects, loadProjects } from '@/functionality/project/projects';
+import { registerPush } from '@/functionality/push/push';
 import { hydrateUploads, pump } from '@/functionality/upload/queue';
 import { onAppActive } from '@/integrations/app-state';
 import {
@@ -53,6 +54,7 @@ export async function startApp(): Promise<void> {
   if ('token' in session) {
     wire();
     void registerUploadTask();
+    void registerPush();
     void pump();
   }
 }

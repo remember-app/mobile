@@ -1,23 +1,28 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
-import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { loadGallery, loadLabels } from '@/functionality';
+import type { LabelId, ProjectId } from '@/types/id';
 import { LabelMark } from '@/ui/components/label';
 import { MediaInfo } from '@/ui/components/media/info/media-info';
-import { type MeasureTile, PhotoGrid, type Rect } from '@/ui/components/media/photo-grid';
+import {
+  type MeasureTile,
+  type Photo,
+  PhotoGrid,
+  type Rect,
+} from '@/ui/components/media/photo-grid';
 import { PhotoViewer } from '@/ui/components/media/photo-viewer';
+import { useGallery, useLabels, useSession } from '@/ui/hooks';
 import { ActionBar } from '@/ui/kit/action-bar';
 import { AppBar, Board } from '@/ui/kit/bars';
 import { BlurBar } from '@/ui/kit/blur-bar';
 import { BackButton, Button } from '@/ui/kit/button';
 import { Empty } from '@/ui/kit/empty';
 import { Text } from '@/ui/kit/text';
-import { labelUsage, photosForLabel, subscribeLabels } from '@/ui/mocks/labels';
-import { mockPhotoMeta } from '@/ui/mocks/media-info';
-import { profileState, subscribeProfile } from '@/ui/mocks/profile';
 import { space, useTheme } from '@/ui/theme';
 
 export default function LabelScreen() {
@@ -25,21 +30,35 @@ export default function LabelScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const theme = useTheme();
-  const { labelId } = useLocalSearchParams<{ id: string; labelId: string }>();
-  const getPhotos = useCallback(() => photosForLabel(labelId), [labelId]);
-  const photos = useSyncExternalStore(subscribeLabels, getPhotos);
-  const labels = useSyncExternalStore(subscribeLabels, labelUsage);
-  const profile = useSyncExternalStore(subscribeProfile, profileState);
-  const label = labels.find((entry) => entry.id === labelId);
+  const { id, labelId } = useLocalSearchParams<{ id: string; labelId: string }>();
+  const projectId = id as ProjectId;
+  const labelKey = labelId as LabelId;
+  const labels = useLabels(projectId);
+  const gallery = useGallery(projectId);
+  const session = useSession();
+  const account = 'account' in session ? session.account : undefined;
+  const label = labels.labels.find((entry) => entry.id === labelKey);
   const [open, setOpen] = useState<{ index: number; rect?: Rect } | null>(null);
   const measureTile = useRef<MeasureTile | null>(null);
-  const viewerPhotos = useMemo(
+
+  useEffect(() => {
+    void loadLabels(projectId);
+    void loadGallery(projectId);
+  }, [projectId]);
+
+  const photos = useMemo<Photo[]>(
     () =>
-      photos.map((photo, index) => ({
-        ...photo,
-        capturedAt: mockPhotoMeta(photo, index).capturedAt,
-      })),
-    [photos],
+      gallery.items
+        .filter((item) => item.labelIds.includes(labelKey))
+        .map((item) => ({
+          id: item.id,
+          source: item.links.thumbnail ?? item.links.preview ?? item.links.original,
+          video: item.kind === 'video',
+          width: item.media.dimensions?.width,
+          height: item.media.dimensions?.height,
+          capturedAt: item.media.capturedAt,
+        })),
+    [gallery.items, labelKey],
   );
 
   if (!label) {
@@ -90,7 +109,7 @@ export default function LabelScreen() {
         </ActionBar>
         {open === null ? null : (
           <PhotoViewer
-            photos={viewerPhotos}
+            photos={photos}
             initialIndex={open.index}
             origin={open.rect}
             onClose={() => setOpen(null)}
@@ -99,12 +118,12 @@ export default function LabelScreen() {
                 setOpen((was) => (was === null ? was : { index: next, rect })),
               )
             }
-            author={profile.name}
+            author={account?.name ?? undefined}
             renderInfo={(index) => {
               const photo = photos[index];
-              return photo ? (
-                <MediaInfo key={photo.id} photoId={photo.id} meta={mockPhotoMeta(photo, index)} />
-              ) : null;
+              if (!photo) return null;
+              const item = gallery.items.find((entry) => entry.id === photo.id);
+              return item ? <MediaInfo key={item.id} projectId={projectId} item={item} /> : null;
             }}
           />
         )}
@@ -131,13 +150,5 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     lineHeight: 26,
-  },
-  bottom: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: space.s4,
-    paddingTop: space.s2,
   },
 });

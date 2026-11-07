@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Keyboard, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { readText } from '@/functionality';
+import { acceptInvite, confirmCode, pendingInvite, readText, sessionState } from '@/functionality';
 import { CodeInput, type CodeOutcome } from '@/ui/components/code-input';
 import { StepDots } from '@/ui/components/onboarding/steps';
 import { Button } from '@/ui/kit/button';
@@ -19,10 +19,27 @@ export default function CodeScreen() {
   const { email } = useLocalSearchParams<{ email?: string }>();
   const [code, setCode] = useState('');
   const [outcome, setOutcome] = useState<CodeOutcome | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const verify = async (value: string) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await confirmCode(email ?? '', value);
+      const invite = pendingInvite();
+      if (invite) await acceptInvite(invite).catch(() => undefined);
+      setOutcome('ok');
+    } catch {
+      setOutcome('error');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const change = (next: string) => {
     setCode(next);
-    setOutcome(next.length === 6 ? 'ok' : null);
+    setOutcome(null);
+    if (next.length === 6) void verify(next);
   };
 
   const paste = async () => {
@@ -30,7 +47,8 @@ export default function CodeScreen() {
     const digits = text.replace(/\D/g, '').slice(0, 6);
     if (!digits) return;
     setCode(digits);
-    setOutcome(digits.length === 6 ? 'ok' : null);
+    setOutcome(null);
+    if (digits.length === 6) void verify(digits);
   };
 
   return (
@@ -58,7 +76,14 @@ export default function CodeScreen() {
             onChangeText={change}
             outcome={outcome}
             onSettled={(result) => {
-              if (result === 'ok') router.navigate('/onboarding/username');
+              if (result === 'ok') {
+                router.replace(
+                  sessionState().status === 'signed-in' ? '/home' : '/onboarding/username',
+                );
+                return;
+              }
+              setCode('');
+              setOutcome(null);
             }}
           />
           <Button

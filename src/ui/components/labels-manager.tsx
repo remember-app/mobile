@@ -1,28 +1,23 @@
 import { useRouter } from 'expo-router';
 import { Trash2 } from 'lucide-react-native';
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
-
+import { createLabel, deleteLabel, loadLabels } from '@/functionality';
+import type { Label } from '@/models';
+import type { ProjectId } from '@/types/id';
 import { ArrowField } from '@/ui/components/arrow-field';
 import { CollapsibleList } from '@/ui/components/collapsible-list';
 import { LabelMark } from '@/ui/components/label';
 import { LabelRowsSkeleton } from '@/ui/components/skeletons';
 import { SwipeRow } from '@/ui/components/swipe-row';
+import { useLabels } from '@/ui/hooks';
 import { BottomSheet } from '@/ui/kit/bottom-sheet';
 import { Card } from '@/ui/kit/card';
 import { Text } from '@/ui/kit/text';
-import {
-  createLabel,
-  deleteLabel,
-  type LabelWithCount,
-  labelUsage,
-  subscribeLabels,
-} from '@/ui/mocks/labels';
-import { loadingState, subscribeLoading } from '@/ui/mocks/loading';
 import { radius, space, themed } from '@/ui/theme';
 
 const SPECTRUM = Array.from({ length: 60 }, (_, index) => `hsl(${(index / 59) * 360}, 100%, 50%)`);
@@ -49,21 +44,30 @@ function hslToHex(hue: number, saturation = 1, lightness = 0.5): string {
   return `#${pair(r)}${pair(g)}${pair(b)}`;
 }
 
-export function LabelsManager({ projectId }: { projectId: string }) {
+export function LabelsManager({ projectId }: { projectId: ProjectId }) {
   const { t } = useTranslation();
   const router = useRouter();
-  const labels = useSyncExternalStore(subscribeLabels, labelUsage);
-  const loading = useSyncExternalStore(subscribeLoading, loadingState);
+  const state = useLabels(projectId);
+  const labels = state.labels;
+  const loading = state.status === 'loading' && labels.length === 0;
   const styles = useStyles();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [hue, setHue] = useState(205);
 
+  useEffect(() => {
+    void loadLabels(projectId);
+  }, [projectId]);
+
   if (loading) return <LabelRowsSkeleton rows={4} />;
 
-  const create = () => {
+  const create = async () => {
     if (!name.trim()) return;
-    createLabel(name, hslToHex(hue));
+    await createLabel(projectId, {
+      name: name.trim(),
+      color: hslToHex(hue) as `#${string}`,
+      shared: false,
+    });
     setName('');
     setOpen(false);
   };
@@ -94,7 +98,7 @@ export function LabelsManager({ projectId }: { projectId: string }) {
                       params: { id: projectId, labelId: label.id },
                     })
                   }
-                  onDelete={() => deleteLabel(label.id)}
+                  onDelete={() => void deleteLabel(projectId, label.id)}
                 />
               </View>
             ))}
@@ -110,7 +114,7 @@ export function LabelsManager({ projectId }: { projectId: string }) {
             onChangeText={setName}
             placeholder={t('labels.namePlaceholder')}
             valid={name.trim().length > 0}
-            onSubmit={create}
+            onSubmit={() => void create()}
           />
         </View>
       </BottomSheet>
@@ -123,7 +127,7 @@ function LabelRow({
   onOpen,
   onDelete,
 }: {
-  label: LabelWithCount;
+  label: Label;
   onOpen: () => void;
   onDelete: () => void;
 }) {
@@ -137,7 +141,7 @@ function LabelRow({
           {label.name}
         </Text>
         <Text role="bodySm" tone="muted">
-          {label.count}
+          {label.itemCount}
         </Text>
       </Pressable>
     </SwipeRow>

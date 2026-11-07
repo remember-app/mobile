@@ -1,4 +1,4 @@
-import { currentToken, onSignOut } from '@/functionality/auth/session';
+import { currentToken, onSignOut, refreshSession } from '@/functionality/auth/session';
 import {
   acceptInvite as apiAcceptInvite,
   createAppInvite as apiCreateAppInvite,
@@ -99,6 +99,7 @@ export async function createAppInvite(
 export async function acceptInvite(inviteToken: string): Promise<JoinResult> {
   const result = await apiAcceptInvite(token(), inviteToken);
   if ('project' in result) upsertProjectCard(result.project);
+  else await refreshSession();
   return result;
 }
 

@@ -183,6 +183,7 @@ export async function createProject(input: {
   title: string;
   eventStart: string;
   eventEnd?: string | null;
+  storageBytes?: number;
 }): Promise<ProjectCard> {
   const token = currentToken();
   if (!token) throw new Error('not signed in');
@@ -199,7 +200,6 @@ export async function updateProject(
     title?: string;
     eventStart?: string;
     eventEnd?: string | null;
-    coverItemId?: string | null;
   },
 ): Promise<ProjectCard> {
   const token = currentToken();

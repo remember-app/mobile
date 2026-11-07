@@ -1,44 +1,43 @@
-import { useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
-
+import type { Member } from '@/models';
 import { CollapsibleList } from '@/ui/components/collapsible-list';
 import { Contribution } from '@/ui/components/contribution';
 import { Person } from '@/ui/components/person';
 import { MemberRowsSkeleton } from '@/ui/components/skeletons';
+import { useSession } from '@/ui/hooks';
 import { Card } from '@/ui/kit/card';
 import { Text } from '@/ui/kit/text';
-import { loadingState, subscribeLoading } from '@/ui/mocks/loading';
-import type { MockMember } from '@/ui/mocks/members';
-import { profileState, subscribeProfile } from '@/ui/mocks/profile';
 import { space, themed } from '@/ui/theme';
 
 export function MemberList({
   members,
+  loading,
   onSelect,
   onAdd,
 }: {
-  members: readonly MockMember[];
-  onSelect?: (member: MockMember) => void;
+  members: readonly Member[];
+  loading?: boolean;
+  onSelect?: (member: Member) => void;
   onAdd?: () => void;
 }) {
   const { t } = useTranslation();
   const styles = useStyles();
-  const profile = useSyncExternalStore(subscribeProfile, profileState);
-  const loading = useSyncExternalStore(subscribeLoading, loadingState);
-  const isSelf = (member: MockMember) => member.username === profile.username;
-  const order = (list: readonly MockMember[]) =>
+  const session = useSession();
+  const account = 'account' in session ? session.account : undefined;
+  const isSelf = (member: Member) => member.userId === account?.id;
+  const order = (list: readonly Member[]) =>
     [...list].sort((a, b) => Number(isSelf(b)) - Number(isSelf(a)));
   const contributors = order(members.filter((member) => member.role !== 'viewer'));
   const viewers = order(members.filter((member) => member.role === 'viewer'));
 
   if (loading) return <MemberRowsSkeleton rows={4} />;
 
-  const row = (member: MockMember) => {
+  const row = (member: Member) => {
     const face = (
       <Person
-        name={member.name}
-        username={member.username}
+        name={member.name ?? ''}
+        username={member.username ?? ''}
         size={44}
         accent={isSelf(member)}
         style={styles.member}
@@ -50,11 +49,11 @@ export function MemberList({
       />
     );
     return onSelect ? (
-      <Pressable key={member.id} onPress={() => onSelect(member)} accessibilityRole="button">
+      <Pressable key={member.userId} onPress={() => onSelect(member)} accessibilityRole="button">
         {face}
       </Pressable>
     ) : (
-      <View key={member.id}>{face}</View>
+      <View key={member.userId}>{face}</View>
     );
   };
 

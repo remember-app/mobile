@@ -1,15 +1,18 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Coins, HardDrive, Settings2, Users } from 'lucide-react-native';
-import { type ReactNode, useCallback, useState, useSyncExternalStore } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
+
+import { loadMembers, loadProjects, shareProjectConsumables } from '@/functionality';
+import type { ProjectId } from '@/types/id';
 import { InviteBlocks } from '@/ui/components/invite-blocks';
 import { LabelsManager } from '@/ui/components/labels-manager';
 import { MemberList } from '@/ui/components/member-list';
 import { MemberSheet } from '@/ui/components/member-sheet';
-import { StatsSkeleton } from '@/ui/components/skeletons';
 import { confirmAction } from '@/ui/confirm';
 import { number } from '@/ui/format';
+import { useMembers, useProjectCard, useSession } from '@/ui/hooks';
 import { AppBar, Board, pageBody } from '@/ui/kit/bars';
 import { BottomSheet } from '@/ui/kit/bottom-sheet';
 import { BackButton, Button, IconButton } from '@/ui/kit/button';
@@ -18,16 +21,6 @@ import { CircularProgress } from '@/ui/kit/circular-progress';
 import { Empty } from '@/ui/kit/empty';
 import { Slider } from '@/ui/kit/slider';
 import { Text } from '@/ui/kit/text';
-import { loadingState, subscribeLoading } from '@/ui/mocks/loading';
-import { type MockMember, membersOf, subscribeMembers } from '@/ui/mocks/members';
-import { donateStorage, donateTokens, profileState, subscribeProfile } from '@/ui/mocks/profile';
-import { projectsState, subscribeProjects } from '@/ui/mocks/projects';
-import {
-  receiveStorage,
-  receiveTokens,
-  resourcesOf,
-  subscribeResources,
-} from '@/ui/mocks/resources';
 import { space, themed, useTheme } from '@/ui/theme';
 
 type Metric = 'people' | 'gb' | 'tokens';
@@ -38,24 +31,28 @@ const TITLES = {
   tokens: 'info.tokens',
 } as const;
 
+const GIB = 1024 ** 3;
+
 export default function ProjectInfoScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const { color } = useTheme();
   const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const projects = useSyncExternalStore(subscribeProjects, projectsState);
-  const project = projects.find((entry) => entry.project.id === id);
-  const getMembers = useCallback(() => membersOf(id), [id]);
-  const getResources = useCallback(() => resourcesOf(id), [id]);
-  const members = useSyncExternalStore(subscribeMembers, getMembers);
-  const resources = useSyncExternalStore(subscribeResources, getResources);
-  const loading = useSyncExternalStore(subscribeLoading, loadingState);
-  const profile = useSyncExternalStore(subscribeProfile, profileState);
+  const projectId = id as ProjectId;
+  const project = useProjectCard(projectId);
+  const membersState = useMembers(projectId);
+  const session = useSession();
+  const account = 'account' in session ? session.account : undefined;
   const [metric, setMetric] = useState<Metric | null>(null);
-  const [selected, setSelected] = useState<MockMember | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [gbAmount, setGbAmount] = useState(1);
   const [tokenAmount, setTokenAmount] = useState(10);
+
+  useEffect(() => {
+    void loadProjects();
+    void loadMembers(projectId);
+  }, [projectId]);
 
   if (!project) {
     return (
@@ -72,24 +69,33 @@ export default function ProjectInfoScreen() {
     );
   }
 
-  const shared = members.filter((member) => member.files > 0).length;
-  const total = members.length;
-  const used = members.reduce((sum, member) => sum + member.gigabytes, 0);
-  const ownStorage = profile.storageTotalGb - profile.storageUsedGb;
+  const members = membersState.members;
+  const selected = selectedId
+    ? (members.find((member) => member.userId === selectedId) ?? null)
+    : null;
+  const storage = project.consumables.storage;
+  const tokens = project.consumables.tokens;
+  const ownStorage = account
+    ? Math.max(0, (account.consumables.storage.bytes - account.consumables.storage.spend) / GIB)
+    : 0;
+  const ownTokens = account
+    ? Math.max(0, account.consumables.tokens.tokens - account.consumables.tokens.spend)
+    : 0;
   const gbMax = Math.max(1, Math.floor(ownStorage));
   const gbValue = Math.min(gbAmount, gbMax);
-  const tokenMax = Math.max(10, Math.floor(profile.tokens));
+  const tokenMax = Math.max(1, Math.floor(ownTokens));
   const tokenValue = Math.min(tokenAmount, tokenMax);
+  const used = storage.spend / GIB;
+  const capacity = storage.bytes / GIB;
+  const leftTokens = Math.max(0, tokens.tokens - tokens.spend);
 
   const shareStorage = () => {
     confirmAction({
       confirm: t('info.share'),
       onConfirm: () => {
-        if (ownStorage < gbValue) return;
-        if (donateStorage(gbValue)) {
-          receiveStorage(id, gbValue);
-          setGbAmount(1);
-        }
+        void shareProjectConsumables(projectId, { storageBytes: gbValue * GIB }).then(() =>
+          setGbAmount(1),
+        );
       },
     });
   };
@@ -98,11 +104,9 @@ export default function ProjectInfoScreen() {
     confirmAction({
       confirm: t('info.share'),
       onConfirm: () => {
-        if (profile.tokens < tokenValue) return;
-        if (donateTokens(tokenValue)) {
-          receiveTokens(id, tokenValue);
-          setTokenAmount(10);
-        }
+        void shareProjectConsumables(projectId, { tokens: tokenValue }).then(() =>
+          setTokenAmount(10),
+        );
       },
     });
   };
@@ -112,7 +116,7 @@ export default function ProjectInfoScreen() {
       body={pageBody}
       bar={
         <AppBar
-          title={project.project.title}
+          title={project.title}
           left={<BackButton label={t('action.back')} onPress={() => router.back()} />}
           right={
             <IconButton
@@ -121,43 +125,44 @@ export default function ProjectInfoScreen() {
               tone="ghost"
               size={48}
               onPress={() =>
-                router.navigate({ pathname: '/project/[id]/settings', params: { id } })
+                router.navigate({ pathname: '/project/[id]/settings', params: { id: projectId } })
               }
             />
           }
         />
       }
     >
-      {loading ? (
-        <StatsSkeleton />
-      ) : (
-        <Card style={styles.stats}>
-          <Stat
-            icon={<Users size={26} color={color.paper} />}
-            value={total > 0 ? shared / total : 0}
-            label={`${shared} / ${total}`}
-            onPress={() => setMetric('people')}
-          />
-          <Stat
-            icon={<HardDrive size={26} color={color.paper} />}
-            value={resources.storageGb > 0 ? used / resources.storageGb : 0}
-            label={`${number(used)} / ${number(resources.storageGb)}`}
-            onPress={() => setMetric('gb')}
-          />
-          <Stat
-            icon={<Coins size={26} color={color.paper} />}
-            value={resources.tokensTotal > 0 ? resources.tokensLeft / resources.tokensTotal : 0}
-            label={`${resources.tokensLeft} / ${resources.tokensTotal}`}
-            onPress={() => setMetric('tokens')}
-          />
-        </Card>
-      )}
+      <Card style={styles.stats}>
+        <Stat
+          icon={<Users size={26} color={color.paper} />}
+          value={project.memberCount > 0 ? project.sharedCount / project.memberCount : 0}
+          label={`${project.sharedCount} / ${project.memberCount}`}
+          onPress={() => setMetric('people')}
+        />
+        <Stat
+          icon={<HardDrive size={26} color={color.paper} />}
+          value={capacity > 0 ? used / capacity : 0}
+          label={`${number(used)} / ${number(capacity)}`}
+          onPress={() => setMetric('gb')}
+        />
+        <Stat
+          icon={<Coins size={26} color={color.paper} />}
+          value={tokens.tokens > 0 ? leftTokens / tokens.tokens : 0}
+          label={`${number(leftTokens)} / ${number(tokens.tokens)}`}
+          onPress={() => setMetric('tokens')}
+        />
+      </Card>
 
-      <MemberList members={members} onSelect={setSelected} onAdd={() => setMetric('people')} />
+      <MemberList
+        members={members}
+        loading={membersState.status === 'loading'}
+        onSelect={(member) => setSelectedId(member.userId)}
+        onAdd={() => setMetric('people')}
+      />
 
-      <LabelsManager projectId={id} />
+      <LabelsManager projectId={projectId} />
 
-      <MemberSheet projectId={id} member={selected} onClose={() => setSelected(null)} />
+      <MemberSheet projectId={projectId} member={selected} onClose={() => setSelectedId(null)} />
 
       <BottomSheet
         visible={metric !== null}
@@ -165,7 +170,7 @@ export default function ProjectInfoScreen() {
         title={metric ? t(TITLES[metric]) : undefined}
       >
         {metric === 'people' ? (
-          <InviteBlocks projectId={id} projectTitle={project.project.title} />
+          <InviteBlocks projectId={projectId} projectTitle={project.title} />
         ) : null}
         {metric === 'gb' ? (
           <>
@@ -174,9 +179,9 @@ export default function ProjectInfoScreen() {
               onChange={setGbAmount}
               min={1}
               max={gbMax}
-              valueLabel={`${gbValue} ${t('unit.gb')}`}
+              valueLabel={`${number(gbValue)} ${t('unit.gb')}`}
               minLabel={`1 ${t('unit.gb')}`}
-              maxLabel={`${gbMax} ${t('unit.gb')}`}
+              maxLabel={`${number(gbMax)} ${t('unit.gb')}`}
               label={t('info.shareStorage')}
             />
             <Button
@@ -192,17 +197,17 @@ export default function ProjectInfoScreen() {
             <Slider
               value={tokenValue}
               onChange={setTokenAmount}
-              min={10}
+              min={1}
               max={tokenMax}
-              valueLabel={`${tokenValue}`}
-              minLabel="10"
-              maxLabel={`${tokenMax}`}
+              valueLabel={`${number(tokenValue)}`}
+              minLabel="1"
+              maxLabel={`${number(tokenMax)}`}
               label={t('info.shareTokens')}
             />
             <Button
               label={t('info.share')}
               variant="secondary"
-              disabled={profile.tokens < 10}
+              disabled={ownTokens < 1}
               onPress={shareTokens}
             />
           </>

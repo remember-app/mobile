@@ -1,4 +1,5 @@
 import {
+  setLanguage as apiSetLanguage,
   setName as apiSetName,
   setUsername as apiSetUsername,
   getMe,
@@ -57,9 +58,9 @@ export const subscribeSession = (listener: () => void): (() => void) => {
 export const currentToken = (): string | undefined => ('token' in state ? state.token : undefined);
 
 function withAccount(token: string, account: Account): SessionState {
-  return account.username === null
-    ? { status: 'needs-username', token, account }
-    : { status: 'signed-in', token, account };
+  return account.registered
+    ? { status: 'signed-in', token, account }
+    : { status: 'needs-username', token, account };
 }
 
 async function keep(token: string, account: Account): Promise<void> {
@@ -80,7 +81,9 @@ async function forget(): Promise<void> {
 function keptAccount(raw: string | null): Account | null {
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as Account;
+    const value = JSON.parse(raw) as Partial<Account>;
+    if (!value || typeof value.id !== 'string' || !value.consumables) return null;
+    return { ...value, registered: value.registered ?? value.username !== null } as Account;
   } catch {
     return null;
   }
@@ -117,7 +120,7 @@ export async function signIn(token: string): Promise<void> {
   await keep(token, await getMe(token));
 }
 
-export async function requestCode(email: string): Promise<{ code?: string }> {
+export async function requestCode(email: string): Promise<{ registered: boolean; code?: string }> {
   return startEmailLogin(email);
 }
 
@@ -156,6 +159,13 @@ export async function setName(name: string | null): Promise<void> {
   const token = currentToken();
   if (!token || !('account' in state)) throw new Error('not signed in');
   const user = await apiSetName(token, name);
+  await keep(token, { ...state.account, ...user });
+}
+
+export async function setAccountLanguage(language: Account['language']): Promise<void> {
+  const token = currentToken();
+  if (!token || !('account' in state)) throw new Error('not signed in');
+  const user = await apiSetLanguage(token, language);
   await keep(token, { ...state.account, ...user });
 }
 

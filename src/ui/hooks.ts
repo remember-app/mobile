@@ -1,6 +1,7 @@
 import { useCallback, useSyncExternalStore } from 'react';
 
 import {
+  avatarState,
   contactsState,
   galleryState,
   inviteState,
@@ -10,6 +11,7 @@ import {
   projectsState,
   pushState,
   sessionState,
+  subscribeAvatar,
   subscribeContacts,
   subscribeGallery,
   subscribeInvites,
@@ -19,7 +21,9 @@ import {
   subscribeProjects,
   subscribePush,
   subscribeSession,
+  subscribeSuggestions,
   subscribeUploads,
+  suggestionsState,
   uploadsState,
 } from '@/functionality';
 import type { ProjectId, ProjectItemId } from '@/types/id';
@@ -29,9 +33,11 @@ function useStore<T>(subscribe: (listener: () => void) => () => void, snapshot: 
 }
 
 export const useSession = () => useStore(subscribeSession, sessionState);
+export const useAvatar = () => useStore(subscribeAvatar, avatarState);
 export const useProjects = () => useStore(subscribeProjects, projectsState);
 export const useUploads = () => useStore(subscribeUploads, uploadsState);
 export const useContacts = () => useStore(subscribeContacts, contactsState);
+export const useSuggestions = () => useStore(subscribeSuggestions, suggestionsState);
 export const usePush = () => useStore(subscribePush, pushState);
 export const useNetwork = () => useStore(subscribeNetwork, networkState);
 

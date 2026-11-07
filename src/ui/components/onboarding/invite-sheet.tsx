@@ -10,15 +10,6 @@ import { space } from '@/ui/theme';
 
 import { CodeInput, type CodeOutcome } from '../code-input';
 
-const VOWEL = /^[aeiouy]/i;
-
-// ponytail: mock accept rule — replace with the server's answer once invites are wired
-function lucky(code: string): boolean {
-  const first = code[0] ?? '';
-  if (/^[0-9]$/.test(first)) return Number(first) % 2 === 0;
-  return VOWEL.test(first);
-}
-
 type Props = {
   visible: boolean;
   onClose: () => void;
@@ -34,7 +25,7 @@ export function InviteSheet({ visible, onClose, onAccepted }: Props) {
   const change = (next: string) => {
     setCode(next);
     setBad(false);
-    setOutcome(next.length === 6 ? (lucky(next) ? 'ok' : 'error') : null);
+    setOutcome(next.length === 6 ? 'ok' : null);
   };
 
   const settle = (result: CodeOutcome) => {
@@ -56,7 +47,7 @@ export function InviteSheet({ visible, onClose, onAccepted }: Props) {
     }
     setBad(false);
     setCode(parsed);
-    setOutcome(lucky(parsed) ? 'ok' : 'error');
+    setOutcome('ok');
   };
 
   return (

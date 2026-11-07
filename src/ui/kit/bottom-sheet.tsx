@@ -3,6 +3,7 @@ import { Modal, Pressable, StyleSheet, useWindowDimensions, View } from 'react-n
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
   Easing,
+  useAnimatedKeyboard,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -31,6 +32,7 @@ export function BottomSheet({ visible, onClose, title, size = 'auto', children }
   const [mounted, setMounted] = useState(visible);
   const progress = useSharedValue(visible ? 1 : 0);
   const drag = useSharedValue(0);
+  const keyboard = useAnimatedKeyboard();
 
   useEffect(() => {
     if (visible) {
@@ -46,7 +48,7 @@ export function BottomSheet({ visible, onClose, title, size = 'auto', children }
 
   const backdrop = useAnimatedStyle(() => ({ opacity: progress.value * 0.55 }));
   const sheet = useAnimatedStyle(() => ({
-    transform: [{ translateY: (1 - progress.value) * height + drag.value }],
+    transform: [{ translateY: (1 - progress.value) * height + drag.value - keyboard.height.value }],
   }));
 
   const pan = Gesture.Pan()
@@ -86,7 +88,12 @@ export function BottomSheet({ visible, onClose, title, size = 'auto', children }
                 {title}
               </Text>
             ) : null}
-            <View style={[styles.content, tall ? styles.fill : null]}>{children}</View>
+            <Pressable
+              onPress={() => undefined}
+              style={[styles.content, tall ? styles.fill : null]}
+            >
+              {children}
+            </Pressable>
           </Animated.View>
         </GestureDetector>
       </GestureHandlerRootView>
