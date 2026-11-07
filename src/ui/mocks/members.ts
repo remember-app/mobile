@@ -1,5 +1,5 @@
 export type MockRole = 'admin' | 'contributor' | 'viewer';
-export type MockContribution = 'not_started' | 'more_coming' | 'done' | 'nothing';
+export type MockContribution = 'not_started' | 'more_coming' | 'done';
 
 export type MockMember = {
   id: string;
@@ -72,7 +72,7 @@ let data: Record<string, MockMember[]> = {
       name: 'Илья Кузнецов',
       username: 'ilya',
       role: 'viewer',
-      contribution: 'nothing',
+      contribution: 'not_started',
       files: 0,
       gigabytes: 0,
     },
@@ -81,7 +81,7 @@ let data: Record<string, MockMember[]> = {
       name: 'Марк Зайцев',
       username: 'mark',
       role: 'viewer',
-      contribution: 'nothing',
+      contribution: 'not_started',
       files: 0,
       gigabytes: 0,
     },
@@ -184,7 +184,7 @@ let data: Record<string, MockMember[]> = {
       name: 'Ника Белова',
       username: 'nika',
       role: 'viewer',
-      contribution: 'nothing',
+      contribution: 'not_started',
       files: 0,
       gigabytes: 0,
     },
@@ -211,7 +211,7 @@ let data: Record<string, MockMember[]> = {
       name: 'Борис Лебедев',
       username: 'boris',
       role: 'viewer',
-      contribution: 'nothing',
+      contribution: 'not_started',
       files: 0,
       gigabytes: 0,
     },
@@ -220,7 +220,7 @@ let data: Record<string, MockMember[]> = {
       name: 'Вера Соколова',
       username: 'vera',
       role: 'viewer',
-      contribution: 'nothing',
+      contribution: 'not_started',
       files: 0,
       gigabytes: 0,
     },
@@ -247,7 +247,7 @@ let data: Record<string, MockMember[]> = {
       name: 'Кира Орлова',
       username: 'kira',
       role: 'viewer',
-      contribution: 'nothing',
+      contribution: 'not_started',
       files: 0,
       gigabytes: 0,
     },

@@ -76,7 +76,7 @@ export const ru: typeof en = {
     title: 'Новое воспоминание',
     name: 'Название',
     create: 'Создать',
-    limit: 'Лимит памяти',
+    storage: 'Хранилище',
   },
   profile: {
     title: 'Профиль',

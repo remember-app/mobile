@@ -86,6 +86,7 @@ export {
   setNetworkOverride,
   subscribeNetwork,
 } from './network/network';
+export { type ConsumableShare, shareProjectConsumables } from './project/consumables';
 export {
   acceptInvite,
   clearInvites,

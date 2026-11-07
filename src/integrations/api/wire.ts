@@ -21,21 +21,30 @@ export type UserWire = {
   username: string | null;
   name: string | null;
   email: string | null;
+  language: 'ru' | 'en';
+  profileMediaId: string | null;
 };
 
 export type PublicUserWire = {
   id: string;
   username: string | null;
   name: string | null;
+  profileMediaId: string | null;
 };
 
-export type LimitsWire = {
-  tokens: string;
-  storageBytes: string;
+export type ConsumableWire = {
+  tokens: {
+    tokens: number;
+    spend: number;
+  };
+  storage: {
+    bytes: number;
+    spend: number;
+  };
 };
 
 export type AccountWire = UserWire & {
-  limits: LimitsWire;
+  consumables: ConsumableWire;
 };
 
 export type SessionWire = {
@@ -47,13 +56,14 @@ export type SessionWire = {
 
 export type RoleWire = 'admin' | 'contributor' | 'viewer';
 
-export type ContributionWire = 'not_started' | 'more_coming' | 'done' | 'nothing';
+export type ContributionWire = 'not_started' | 'more_coming' | 'done';
 
 export type MemberWire = {
   userId: string;
   username: string | null;
   name: string | null;
   role: RoleWire;
+  consumables: ConsumableWire;
   contribution: ContributionWire;
   joinedAt: string;
   invitedBy: string | null;
@@ -64,7 +74,7 @@ export type ProjectSummaryWire = {
   title: string;
   eventStart: string;
   eventEnd: string | null;
-  coverUrl: string | null;
+  consumables: ConsumableWire;
   itemCount: number;
   memberCount: number;
   sharedCount: number;
@@ -200,6 +210,11 @@ export type ProjectInviteWire = {
 export type AppInviteWire = {
   token: string;
   maxUses: number | null;
+};
+
+export type DonateConsumablesWire = {
+  project: ConsumableWire;
+  member: ConsumableWire;
 };
 
 export type JoinResultWire = ProjectWire | { joined: true };

@@ -1,6 +1,7 @@
 import type {
   Account,
   AppInvite,
+  Consumable,
   Contact,
   Item,
   JoinResult,
@@ -25,6 +26,7 @@ import type { CursorPage, Page } from '@/types/api';
 import type {
   AccountWire,
   AppInviteWire,
+  ConsumableWire,
   ContactWire,
   CursorPageWire,
   ItemWire,
@@ -51,7 +53,7 @@ const date = (value: string): Date => new Date(value);
 
 const dateOrNull = (value: string | null): Date | null => (value === null ? null : date(value));
 
-const count = (value: string): number => {
+const count = (value: string | number): number => {
   const parsed = Number(value);
   if (!Number.isSafeInteger(parsed)) throw new Error(`not a safe integer: ${value}`);
   return parsed;
@@ -68,19 +70,35 @@ export function toCursorPage<From, To>(
   return { items: wire.items.map(map), nextCursor: wire.nextCursor };
 }
 
+export function toConsumable(wire: ConsumableWire): Consumable {
+  return {
+    tokens: { tokens: count(wire.tokens.tokens), spend: count(wire.tokens.spend) },
+    storage: { bytes: count(wire.storage.bytes), spend: count(wire.storage.spend) },
+  };
+}
+
 export function toUser(wire: UserWire): User {
-  return { id: wire.id, username: wire.username, name: wire.name, email: wire.email };
+  return {
+    id: wire.id,
+    username: wire.username,
+    name: wire.name,
+    email: wire.email,
+    language: wire.language,
+    profileMediaId: wire.profileMediaId,
+  };
 }
 
 export function toPublicUser(wire: PublicUserWire): PublicUser {
-  return { id: wire.id, username: wire.username, name: wire.name };
+  return {
+    id: wire.id,
+    username: wire.username,
+    name: wire.name,
+    profileMediaId: wire.profileMediaId,
+  };
 }
 
 export function toAccount(wire: AccountWire): Account {
-  return {
-    ...toUser(wire),
-    limits: { tokens: count(wire.limits.tokens), storageBytes: count(wire.limits.storageBytes) },
-  };
+  return { ...toUser(wire), consumables: toConsumable(wire.consumables) };
 }
 
 export function toLoginResult(wire: LoginResultWire): Login {
@@ -102,6 +120,7 @@ export function toMember(wire: MemberWire): Member {
     username: wire.username,
     name: wire.name,
     role: wire.role,
+    consumables: toConsumable(wire.consumables),
     contribution: wire.contribution,
     joinedAt: date(wire.joinedAt),
     invitedBy: wire.invitedBy,
@@ -114,7 +133,7 @@ function toSummary(wire: ProjectSummaryWire): Project {
     title: wire.title,
     eventStart: date(wire.eventStart),
     eventEnd: dateOrNull(wire.eventEnd),
-    coverUrl: wire.coverUrl,
+    consumables: toConsumable(wire.consumables),
     itemCount: wire.itemCount,
     memberCount: wire.memberCount,
     sharedCount: wire.sharedCount,

@@ -39,7 +39,7 @@ export function removeMember(
 export function setContribution(
   token: string,
   projectId: ProjectId,
-  status: Exclude<Contribution, 'not_started'>,
+  status: Contribution,
 ): Promise<Contribution> {
   return request<{ status: ContributionWire }>(`/v1/projects/${projectId}/contribution`, {
     method: 'POST',

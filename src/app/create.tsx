@@ -11,7 +11,10 @@ import { BackButton, Button } from '@/ui/kit/button';
 import { Field } from '@/ui/kit/field';
 import { Slider } from '@/ui/kit/slider';
 import { contactsState, subscribeContacts } from '@/ui/mocks/contacts';
+import { addMember } from '@/ui/mocks/members';
+import { donateStorage, profileState, subscribeProfile } from '@/ui/mocks/profile';
 import { createMockProject } from '@/ui/mocks/projects';
+import { receiveStorage } from '@/ui/mocks/resources';
 import { space } from '@/ui/theme';
 
 export default function CreateScreen() {
@@ -22,8 +25,12 @@ export default function CreateScreen() {
   const [from, setFrom] = useState<Date | null>(null);
   const [to, setTo] = useState<Date | null>(null);
   const contacts = useSyncExternalStore(subscribeContacts, contactsState);
+  const profile = useSyncExternalStore(subscribeProfile, profileState);
   const [invited, setInvited] = useState<ReadonlySet<string>>(() => new Set());
-  const [limit, setLimit] = useState(10);
+  const [storageGb, setStorageGb] = useState(10);
+  const available = Math.max(0, Math.floor(profile.storageTotalGb - profile.storageUsedGb));
+  const most = Math.max(1, available);
+  const storage = Math.min(storageGb, most);
 
   const toggle = (id: string) =>
     setInvited((was) => {
@@ -60,22 +67,31 @@ export default function CreateScreen() {
       />
       <ContactStrip contacts={contacts} selected={invited} onToggle={toggle} />
       <Slider
-        value={limit}
-        onChange={setLimit}
+        value={storage}
+        onChange={setStorageGb}
         min={1}
-        max={100}
-        valueLabel={`${limit} ${t('unit.gb')}`}
+        max={most}
+        valueLabel={`${storage} ${t('unit.gb')}`}
         minLabel={`1 ${t('unit.gb')}`}
-        maxLabel={`100 ${t('unit.gb')}`}
-        label={t('create.limit')}
+        maxLabel={`${most} ${t('unit.gb')}`}
+        label={t('create.storage')}
       />
       <Button
         label={t('create.create')}
         variant="primary"
-        disabled={!title.trim() || !from}
+        disabled={!title.trim() || !from || available < 1}
         onPress={() => {
-          if (!title.trim() || !from) return;
-          createMockProject({ title: title.trim(), eventStart: from, eventEnd: to });
+          if (!title.trim() || !from || !donateStorage(storage)) return;
+          const id = createMockProject({
+            title: title.trim(),
+            eventStart: from,
+            eventEnd: to,
+            storageGb: storage,
+          });
+          receiveStorage(id, storage);
+          for (const contact of contacts) {
+            if (invited.has(contact.id)) addMember(id, contact.username);
+          }
           router.back();
         }}
       />

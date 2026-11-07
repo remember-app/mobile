@@ -1,15 +1,17 @@
 import type { ProjectId, UserId } from '@/types/id';
 
+import type { Consumable } from './user';
+
 export type Role = 'admin' | 'contributor' | 'viewer';
 
-export type Contribution = 'not_started' | 'more_coming' | 'done' | 'nothing';
+export type Contribution = 'not_started' | 'more_coming' | 'done';
 
 export type ProjectSummary = {
   id: ProjectId;
   title: string;
   eventStart: Date;
   eventEnd: Date | null;
-  coverUrl: string | null;
+  consumables: Consumable;
   itemCount: number;
   memberCount: number;
   sharedCount: number;
@@ -28,6 +30,7 @@ export type Member = {
   username: string | null;
   name: string | null;
   role: Role;
+  consumables: Consumable;
   contribution: Contribution;
   joinedAt: Date;
   invitedBy: UserId | null;

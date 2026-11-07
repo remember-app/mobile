@@ -4,7 +4,7 @@ export type ApiErrorCode =
   | 'unauthorized'
   | 'bad_request'
   | 'conflict'
-  | 'limit_exceeded'
+  | 'capacity_exceeded'
   | 'cancelled'
   | 'expired'
   | 'storage_unavailable'

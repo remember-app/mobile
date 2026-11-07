@@ -4,6 +4,11 @@ import type { ProjectCard } from '@/models/project';
 import { seedOrganizer } from './members';
 import { profileState } from './profile';
 
+const ZERO = {
+  tokens: { tokens: 0, spend: 0 },
+  storage: { bytes: 0, spend: 0 },
+};
+
 const covers: ImageSource[] = [
   require('../../../assets/images/mock/birthday.jpg'),
   require('../../../assets/images/mock/sea.jpg'),
@@ -23,7 +28,7 @@ let projects: MockProject[] = [
       title: 'День рождения Анны',
       eventStart: new Date(2026, 5, 14),
       eventEnd: null,
-      coverUrl: null,
+      consumables: ZERO,
       previewUrls: [],
       itemCount: 124,
       memberCount: 9,
@@ -40,7 +45,7 @@ let projects: MockProject[] = [
       title: 'Море, август',
       eventStart: new Date(2026, 7, 8),
       eventEnd: new Date(2026, 7, 15),
-      coverUrl: null,
+      consumables: ZERO,
       previewUrls: [],
       itemCount: 312,
       memberCount: 5,
@@ -57,7 +62,7 @@ let projects: MockProject[] = [
       title: 'Проводы Егора',
       eventStart: new Date(2026, 9, 2),
       eventEnd: null,
-      coverUrl: null,
+      consumables: ZERO,
       previewUrls: [],
       itemCount: 47,
       memberCount: 12,
@@ -96,8 +101,10 @@ export function createMockProject(input: {
   title: string;
   eventStart: Date;
   eventEnd: Date | null;
+  storageGb?: number;
 }): string {
   const id = `project-${Date.now()}`;
+  const storageBytes = Math.round((input.storageGb ?? 0) * 1024 ** 3);
   projects = [
     ...projects,
     {
@@ -106,7 +113,10 @@ export function createMockProject(input: {
         title: input.title,
         eventStart: input.eventStart,
         eventEnd: input.eventEnd,
-        coverUrl: null,
+        consumables: {
+          tokens: { tokens: 0, spend: 0 },
+          storage: { bytes: storageBytes, spend: 0 },
+        },
         previewUrls: [],
         itemCount: 0,
         memberCount: 1,
@@ -163,7 +173,7 @@ export function setMockProjectCount(count: number): void {
         title: `Воспоминание ${index + 1}`,
         eventStart: new Date(),
         eventEnd: null,
-        coverUrl: null,
+        consumables: ZERO,
         previewUrls: [],
         itemCount: 0,
         memberCount: 1,

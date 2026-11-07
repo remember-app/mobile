@@ -1,4 +1,4 @@
-import type { Account, PublicUser, User } from '@/models';
+import type { Account, Language, PublicUser, User } from '@/models';
 
 import { query, request } from './client';
 import { toAccount, toPublicUser, toUser } from './map';
@@ -29,4 +29,12 @@ export function setUsername(token: string, username: string): Promise<User> {
 
 export function setName(token: string, name: string | null): Promise<User> {
   return request<UserWire>('/v1/me/name', { method: 'POST', body: { name }, token }).then(toUser);
+}
+
+export function setLanguage(token: string, language: Language): Promise<User> {
+  return request<UserWire>('/v1/me/language', {
+    method: 'POST',
+    body: { language },
+    token,
+  }).then(toUser);
 }

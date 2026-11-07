@@ -12,13 +12,13 @@ export type NewProject = {
   title: string;
   eventStart: string;
   eventEnd?: string | null;
+  storageBytes?: number;
 };
 
 export type ProjectPatch = {
   title?: string;
   eventStart?: string;
   eventEnd?: string | null;
-  coverItemId?: string | null;
 };
 
 export function listProjects(token: string, page: ProjectPage = {}): Promise<Page<ProjectCard>> {

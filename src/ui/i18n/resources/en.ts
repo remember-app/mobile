@@ -74,7 +74,7 @@ export const en = {
     title: 'New memory',
     name: 'Title',
     create: 'Create',
-    limit: 'Storage limit',
+    storage: 'Storage',
   },
   profile: {
     title: 'Profile',

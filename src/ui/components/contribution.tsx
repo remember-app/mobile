@@ -7,7 +7,6 @@ import { useTheme } from '@/ui/theme';
 const ICONS = {
   done: CheckCircle2,
   more_coming: Clock,
-  nothing: CheckCircle2,
 } as const;
 
 export function Contribution({ contribution }: { contribution: MockContribution }) {
