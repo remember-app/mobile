@@ -10,6 +10,7 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { ArrowField } from '@/ui/components/arrow-field';
 import { CollapsibleList } from '@/ui/components/collapsible-list';
 import { LabelMark } from '@/ui/components/label';
+import { LabelRowsSkeleton } from '@/ui/components/skeletons';
 import { SwipeRow } from '@/ui/components/swipe-row';
 import { BottomSheet } from '@/ui/kit/bottom-sheet';
 import { Text } from '@/ui/kit/text';
@@ -20,6 +21,7 @@ import {
   labelUsage,
   subscribeLabels,
 } from '@/ui/mocks/labels';
+import { loadingState, subscribeLoading } from '@/ui/mocks/loading';
 import { radius, space, themed } from '@/ui/theme';
 
 const SPECTRUM = Array.from({ length: 60 }, (_, index) => `hsl(${(index / 59) * 360}, 100%, 50%)`);
@@ -50,10 +52,13 @@ export function LabelsManager({ projectId }: { projectId: string }) {
   const { t } = useTranslation();
   const router = useRouter();
   const labels = useSyncExternalStore(subscribeLabels, labelUsage);
+  const loading = useSyncExternalStore(subscribeLoading, loadingState);
   const styles = useStyles();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [hue, setHue] = useState(205);
+
+  if (loading) return <LabelRowsSkeleton rows={4} />;
 
   const create = () => {
     if (!name.trim()) return;

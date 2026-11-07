@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
 import { ArrowField } from '@/ui/components/arrow-field';
+import { MemberRowsSkeleton } from '@/ui/components/skeletons';
 import { SwipeRow } from '@/ui/components/swipe-row';
 import { Avatar } from '@/ui/kit/avatar';
 import { AppBar, Board } from '@/ui/kit/bars';
@@ -20,6 +21,7 @@ import {
   subscribeSuggestions,
   suggestionsState,
 } from '@/ui/mocks/contacts';
+import { loadingState, subscribeLoading } from '@/ui/mocks/loading';
 import { radius, space, themed } from '@/ui/theme';
 
 export default function ContactsScreen() {
@@ -28,6 +30,7 @@ export default function ContactsScreen() {
   const styles = useStyles();
   const contacts = useSyncExternalStore(subscribeContacts, contactsState);
   const suggestions = useSyncExternalStore(subscribeSuggestions, suggestionsState);
+  const loading = useSyncExternalStore(subscribeLoading, loadingState);
   const [username, setUsername] = useState('');
   const clean = username.trim();
 
@@ -58,35 +61,39 @@ export default function ContactsScreen() {
         autoCorrect={false}
       />
 
-      <View style={styles.card}>
-        {contacts.map((contact, index) => (
-          <View key={contact.id}>
-            {index > 0 ? <Divider /> : null}
-            <SwipeRow tone="danger" icon={Trash2} onAction={() => removeContact(contact.id)}>
-              <View style={styles.contact}>
-                <Avatar name={contact.name} size={40} />
-                <View style={styles.words}>
-                  <View style={styles.nameRow}>
-                    <Text role="row" numberOfLines={1} style={styles.name}>
-                      {contact.name}
-                    </Text>
-                    <Text role="noteSm" tone="muted" numberOfLines={1} style={styles.nick}>
-                      {`@${contact.username}`}
-                    </Text>
+      {loading ? (
+        <MemberRowsSkeleton rows={4} />
+      ) : (
+        <View style={styles.card}>
+          {contacts.map((contact, index) => (
+            <View key={contact.id}>
+              {index > 0 ? <Divider /> : null}
+              <SwipeRow tone="danger" icon={Trash2} onAction={() => removeContact(contact.id)}>
+                <View style={styles.contact}>
+                  <Avatar name={contact.name} size={40} />
+                  <View style={styles.words}>
+                    <View style={styles.nameRow}>
+                      <Text role="row" numberOfLines={1} style={styles.name}>
+                        {contact.name}
+                      </Text>
+                      <Text role="noteSm" tone="muted" numberOfLines={1} style={styles.nick}>
+                        {`@${contact.username}`}
+                      </Text>
+                    </View>
                   </View>
                 </View>
-              </View>
-            </SwipeRow>
-          </View>
-        ))}
-        {contacts.length === 0 ? (
-          <Text role="note" tone="muted" style={styles.empty}>
-            {t('contacts.empty')}
-          </Text>
-        ) : null}
-      </View>
+              </SwipeRow>
+            </View>
+          ))}
+          {contacts.length === 0 ? (
+            <Text role="note" tone="muted" style={styles.empty}>
+              {t('contacts.empty')}
+            </Text>
+          ) : null}
+        </View>
+      )}
 
-      {suggestions.length > 0 ? (
+      {!loading && suggestions.length > 0 ? (
         <>
           <Text role="eyebrow" tone="muted">
             {t('contacts.suggestions')}

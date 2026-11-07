@@ -185,6 +185,11 @@ export const en = {
     standard: 'Standard',
     noPlace: 'No place',
   },
+  network: {
+    offline: 'No network',
+    connecting: 'Connecting',
+    connected: 'Connected',
+  },
   state: {
     loading: 'Loading…',
   },

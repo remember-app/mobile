@@ -7,11 +7,14 @@ import { useTranslation } from 'react-i18next';
 import { Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { NetworkBanner } from '@/ui/components/network-banner';
 import { OnboardingFinal } from '@/ui/components/onboarding/final';
 import { ProjectCard } from '@/ui/components/project-card';
+import { ProjectCardSkeleton } from '@/ui/components/skeletons';
 import { Button, IconButton } from '@/ui/kit/button';
 import { Text } from '@/ui/kit/text';
 import { photosForLabel, subscribeLabels } from '@/ui/mocks/labels';
+import { loadingState, subscribeLoading } from '@/ui/mocks/loading';
 import { profileState, subscribeProfile } from '@/ui/mocks/profile';
 import { type MockProject, projectsState, subscribeProjects } from '@/ui/mocks/projects';
 import { radius, space, useTheme } from '@/ui/theme';
@@ -25,6 +28,7 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const projects = useSyncExternalStore(subscribeProjects, projectsState);
   const profile = useSyncExternalStore(subscribeProfile, profileState);
+  const loading = useSyncExternalStore(subscribeLoading, loadingState);
   const coverPhotos = useCallback(() => photosForLabel('cover'), []);
   const coverFrames = useSyncExternalStore(subscribeLabels, coverPhotos);
   const covers = useMemo(
@@ -49,7 +53,15 @@ export default function HomeScreen() {
   return (
     <>
       <View style={[styles.root, { backgroundColor: color.ink }]}>
-        {projects.length === 0 ? (
+        {loading ? (
+          <View
+            style={[styles.loading, { paddingTop: insets.top, paddingBottom: insets.bottom + 92 }]}
+          >
+            {[0, 1, 2].map((key) => (
+              <ProjectCardSkeleton key={key} />
+            ))}
+          </View>
+        ) : projects.length === 0 ? (
           <View style={styles.emptyFill}>
             <Pressable
               accessibilityRole="button"
@@ -136,6 +148,7 @@ export default function HomeScreen() {
             />
           </View>
         ) : null}
+        <NetworkBanner />
       </View>
       {celebrate ? (
         <OnboardingFinal
@@ -155,6 +168,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: space.s4,
+  },
+  loading: {
+    flex: 1,
+    paddingHorizontal: space.s4,
+    gap: space.s3,
   },
   newCard: {
     aspectRatio: 4 / 3,

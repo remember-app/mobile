@@ -82,6 +82,7 @@ export {
   isOnline,
   type NetworkState,
   networkState,
+  refreshNetwork,
   setNetworkOverride,
   subscribeNetwork,
 } from './network/network';

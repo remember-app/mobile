@@ -14,6 +14,7 @@ import { Button, IconButton } from '@/ui/kit/button';
 import { Segment } from '@/ui/kit/segment';
 import { Text } from '@/ui/kit/text';
 import { contactsState, setContactCount, subscribeContacts } from '@/ui/mocks/contacts';
+import { loadingState, setMockLoading, subscribeLoading } from '@/ui/mocks/loading';
 import { projectsState, setMockProjectCount, subscribeProjects } from '@/ui/mocks/projects';
 import { setTheme, space, themed, useTheme, useThemeChoice } from '@/ui/theme';
 
@@ -35,6 +36,7 @@ export default function DevScreen() {
   const network = useNetwork();
   const projects = useSyncExternalStore(subscribeProjects, projectsState);
   const contacts = useSyncExternalStore(subscribeContacts, contactsState);
+  const loading = useSyncExternalStore(subscribeLoading, loadingState);
   const [language, setLanguage] = useState<Language>('ru');
   const styles = useStyles();
   const online = network.status !== 'offline';
@@ -81,6 +83,15 @@ export default function DevScreen() {
       <View style={styles.card}>
         <CountRow label="Воспоминания" value={projects.length} onChange={setMockProjectCount} />
         <CountRow label="Контакты" value={contacts.length} onChange={setContactCount} />
+        <View style={styles.row}>
+          <Text role="row">Скелетоны</Text>
+          <Switch
+            value={loading}
+            onValueChange={setMockLoading}
+            trackColor={{ false: color.line, true: color.accent }}
+            ios_backgroundColor={color.line}
+          />
+        </View>
       </View>
 
       <BlockHead label="Экраны" />

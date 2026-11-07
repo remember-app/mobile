@@ -4,9 +4,11 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { CollapsibleList } from '@/ui/components/collapsible-list';
 import { Contribution } from '@/ui/components/contribution';
+import { MemberRowsSkeleton } from '@/ui/components/skeletons';
 import { i18n, locale } from '@/ui/i18n';
 import { Avatar } from '@/ui/kit/avatar';
 import { Text } from '@/ui/kit/text';
+import { loadingState, subscribeLoading } from '@/ui/mocks/loading';
 import type { MockMember } from '@/ui/mocks/members';
 import { profileState, subscribeProfile } from '@/ui/mocks/profile';
 import { radius, space, themed } from '@/ui/theme';
@@ -26,11 +28,14 @@ export function MemberList({
   const { t } = useTranslation();
   const styles = useStyles();
   const profile = useSyncExternalStore(subscribeProfile, profileState);
+  const loading = useSyncExternalStore(subscribeLoading, loadingState);
   const isSelf = (member: MockMember) => member.username === profile.username;
   const order = (list: readonly MockMember[]) =>
     [...list].sort((a, b) => Number(isSelf(b)) - Number(isSelf(a)));
   const contributors = order(members.filter((member) => member.role !== 'viewer'));
   const viewers = order(members.filter((member) => member.role === 'viewer'));
+
+  if (loading) return <MemberRowsSkeleton rows={4} />;
 
   const row = (member: MockMember) => {
     const face = (

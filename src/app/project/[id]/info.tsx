@@ -7,6 +7,7 @@ import { InviteBlocks } from '@/ui/components/invite-blocks';
 import { LabelsManager } from '@/ui/components/labels-manager';
 import { MemberList } from '@/ui/components/member-list';
 import { MemberSheet } from '@/ui/components/member-sheet';
+import { StatsSkeleton } from '@/ui/components/skeletons';
 import { confirmAction } from '@/ui/confirm';
 import { locale } from '@/ui/i18n';
 import { AppBar, Board } from '@/ui/kit/bars';
@@ -16,6 +17,7 @@ import { CircularProgress } from '@/ui/kit/circular-progress';
 import { Empty } from '@/ui/kit/empty';
 import { Slider } from '@/ui/kit/slider';
 import { Text } from '@/ui/kit/text';
+import { loadingState, subscribeLoading } from '@/ui/mocks/loading';
 import { type MockMember, membersOf, subscribeMembers } from '@/ui/mocks/members';
 import { donateStorage, donateTokens, profileState, subscribeProfile } from '@/ui/mocks/profile';
 import { projectsState, subscribeProjects } from '@/ui/mocks/projects';
@@ -50,6 +52,7 @@ export default function ProjectInfoScreen() {
   const getResources = useCallback(() => resourcesOf(id), [id]);
   const members = useSyncExternalStore(subscribeMembers, getMembers);
   const resources = useSyncExternalStore(subscribeResources, getResources);
+  const loading = useSyncExternalStore(subscribeLoading, loadingState);
   const profile = useSyncExternalStore(subscribeProfile, profileState);
   const [metric, setMetric] = useState<Metric | null>(null);
   const [selected, setSelected] = useState<MockMember | null>(null);
@@ -127,26 +130,30 @@ export default function ProjectInfoScreen() {
         />
       }
     >
-      <View style={[styles.card, styles.stats]}>
-        <Stat
-          icon={<Users size={26} color={color.paper} />}
-          value={total > 0 ? shared / total : 0}
-          label={`${shared} / ${total}`}
-          onPress={() => setMetric('people')}
-        />
-        <Stat
-          icon={<HardDrive size={26} color={color.paper} />}
-          value={resources.storageGb > 0 ? used / resources.storageGb : 0}
-          label={`${number(used)} / ${number(resources.storageGb)}`}
-          onPress={() => setMetric('gb')}
-        />
-        <Stat
-          icon={<Coins size={26} color={color.paper} />}
-          value={resources.tokensTotal > 0 ? resources.tokensLeft / resources.tokensTotal : 0}
-          label={`${resources.tokensLeft} / ${resources.tokensTotal}`}
-          onPress={() => setMetric('tokens')}
-        />
-      </View>
+      {loading ? (
+        <StatsSkeleton />
+      ) : (
+        <View style={[styles.card, styles.stats]}>
+          <Stat
+            icon={<Users size={26} color={color.paper} />}
+            value={total > 0 ? shared / total : 0}
+            label={`${shared} / ${total}`}
+            onPress={() => setMetric('people')}
+          />
+          <Stat
+            icon={<HardDrive size={26} color={color.paper} />}
+            value={resources.storageGb > 0 ? used / resources.storageGb : 0}
+            label={`${number(used)} / ${number(resources.storageGb)}`}
+            onPress={() => setMetric('gb')}
+          />
+          <Stat
+            icon={<Coins size={26} color={color.paper} />}
+            value={resources.tokensTotal > 0 ? resources.tokensLeft / resources.tokensTotal : 0}
+            label={`${resources.tokensLeft} / ${resources.tokensTotal}`}
+            onPress={() => setMetric('tokens')}
+          />
+        </View>
+      )}
 
       <MemberList members={members} onSelect={setSelected} onAdd={() => setMetric('people')} />
 

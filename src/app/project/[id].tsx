@@ -8,12 +8,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MediaInfo } from '@/ui/components/media/info/media-info';
 import { type MeasureTile, PhotoGrid, type Rect } from '@/ui/components/media/photo-grid';
 import { PhotoViewer } from '@/ui/components/media/photo-viewer';
+import { GallerySkeleton } from '@/ui/components/skeletons';
 import { UploadSheet } from '@/ui/components/upload-sheet';
 import { AppBar, Board } from '@/ui/kit/bars';
 import { BlurBar } from '@/ui/kit/blur-bar';
 import { BackButton, Button, IconButton } from '@/ui/kit/button';
 import { Empty } from '@/ui/kit/empty';
 import { Text } from '@/ui/kit/text';
+import { loadingState, subscribeLoading } from '@/ui/mocks/loading';
 import { mockPhotoMeta } from '@/ui/mocks/media-info';
 import { mockPhotos } from '@/ui/mocks/photos';
 import { profileState, subscribeProfile } from '@/ui/mocks/profile';
@@ -36,6 +38,7 @@ export default function ProjectScreen() {
   const getUploads = useCallback(() => uploadsOf(id), [id]);
   const uploads = useSyncExternalStore(subscribeUploads, getUploads);
   const profile = useSyncExternalStore(subscribeProfile, profileState);
+  const loading = useSyncExternalStore(subscribeLoading, loadingState);
   const seeded = !id.startsWith('project-');
   const shots = useMemo(
     () =>
@@ -88,7 +91,9 @@ export default function ProjectScreen() {
     <>
       <Stack.Screen options={{ gestureEnabled: open === null }} />
       <View style={[styles.root, { backgroundColor: theme.color.ink }]}>
-        {photos.length === 0 ? (
+        {loading ? (
+          <GallerySkeleton top={insets.top + 60} bottom={insets.bottom + 76} />
+        ) : photos.length === 0 ? (
           <View
             style={[
               styles.emptyFill,

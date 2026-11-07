@@ -39,5 +39,10 @@ function apply(connection: Connection): void {
   });
 }
 
+export async function refreshNetwork(): Promise<void> {
+  const connection = await networkStatus().catch(() => null);
+  if (connection) apply(connection);
+}
+
 watchNetwork(apply);
 void networkStatus().then(apply, () => undefined);

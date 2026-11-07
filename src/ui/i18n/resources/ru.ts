@@ -187,6 +187,11 @@ export const ru: typeof en = {
     standard: 'Стандарт',
     noPlace: 'Место не указано',
   },
+  network: {
+    offline: 'Ожидаем сеть',
+    connecting: 'Подключаемся',
+    connected: 'Подключено',
+  },
   state: {
     loading: 'Загружаем…',
   },
