@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useState } from 'react';
-import { Modal, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Keyboard, Modal, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
   Easing,
@@ -41,6 +41,7 @@ export function BottomSheet({ visible, onClose, title, size = 'auto', children }
       progress.value = withTiming(1, { duration: 260, easing: Easing.out(Easing.cubic) });
       return;
     }
+    Keyboard.dismiss();
     progress.value = withTiming(0, { duration: 200, easing: Easing.in(Easing.cubic) }, (done) => {
       if (done) scheduleOnRN(setMounted, false);
     });
@@ -48,7 +49,8 @@ export function BottomSheet({ visible, onClose, title, size = 'auto', children }
 
   const backdrop = useAnimatedStyle(() => ({ opacity: progress.value * 0.55 }));
   const sheet = useAnimatedStyle(() => ({
-    transform: [{ translateY: (1 - progress.value) * height + drag.value - keyboard.height.value }],
+    transform: [{ translateY: (1 - progress.value) * height + drag.value }],
+    paddingBottom: insets.bottom + space.s3 + keyboard.height.value,
   }));
 
   const pan = Gesture.Pan()
@@ -76,7 +78,6 @@ export function BottomSheet({ visible, onClose, title, size = 'auto', children }
               styles.sheet,
               {
                 backgroundColor: color.surface,
-                paddingBottom: insets.bottom + space.s3,
               },
               tall ? { height: height * 0.94 } : null,
               sheet,

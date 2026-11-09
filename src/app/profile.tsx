@@ -1,6 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import { ChevronRight, LogOut } from 'lucide-react-native';
+import { Camera, ChevronRight, LogOut } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -108,12 +108,8 @@ export default function ProfileScreen() {
   };
 
   const pickAvatar = async () => {
-    setEditing(false);
-    await new Promise((resolve) => setTimeout(resolve, 260));
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
       quality: 0.8,
     });
     const asset = result.assets?.[0];
@@ -151,6 +147,15 @@ export default function ProfileScreen() {
         />
       }
     >
+      {open || themeOpen ? (
+        <Pressable
+          style={styles.overlay}
+          onPress={() => {
+            setOpen(false);
+            setThemeOpen(false);
+          }}
+        />
+      ) : null}
       <Card label={t('profile.edit')} onPress={openEdit} style={[styles.pad, styles.person]}>
         <Person
           name={account.name ?? ''}
@@ -233,9 +238,15 @@ export default function ProfileScreen() {
           style={styles.avatarEdit}
         >
           <Avatar name={account.name ?? ''} size={72} uri={avatar.url} />
-          <Text role="controlSm" tone="accent">
-            {t('profile.changePhoto')}
-          </Text>
+          <View
+            pointerEvents="none"
+            style={[
+              styles.avatarBadge,
+              { backgroundColor: color.paper, borderColor: color.surface },
+            ]}
+          >
+            <Camera size={14} color={color.ink} />
+          </View>
         </Pressable>
         <View style={styles.form}>
           <Field
@@ -263,6 +274,14 @@ export default function ProfileScreen() {
 
 const useStyles = themed(() =>
   StyleSheet.create({
+    overlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      zIndex: 10,
+    },
     person: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -273,9 +292,21 @@ const useStyles = themed(() =>
       gap: space.s4,
     },
     avatarEdit: {
+      alignSelf: 'center',
+      position: 'relative',
+      width: 72,
+      height: 72,
+    },
+    avatarBadge: {
+      position: 'absolute',
+      right: -2,
+      bottom: -2,
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      borderWidth: 2,
       alignItems: 'center',
-      gap: space.s2,
-      paddingVertical: space.s2,
+      justifyContent: 'center',
     },
     fullDivider: {
       marginHorizontal: -space.s4,

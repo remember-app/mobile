@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { StyleSheet, Switch, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, View } from 'react-native';
 
 import {
   confirmCode,
@@ -80,6 +80,7 @@ export default function DevScreen() {
 
   return (
     <Board bar={<AppBar variant="root" title="Разработка" />} body={styles.body}>
+      {open !== null ? <Pressable style={styles.overlay} onPress={() => setOpen(null)} /> : null}
       <BlockHead label="Настройки" />
       <View style={styles.card}>
         <SettingsSelect
@@ -157,6 +158,14 @@ export default function DevScreen() {
 
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
+    overlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      zIndex: 10,
+    },
     body: {
       paddingHorizontal: space.s4,
       paddingTop: space.s4,
