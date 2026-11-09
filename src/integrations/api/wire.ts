@@ -30,6 +30,8 @@ import type {
   SongResponse,
   SongWithUrlResponse,
   SuggestionsPageResponse,
+  SystemMediaItem,
+  SystemMediaResponse,
   UploadCompleteResponse,
   UploadPlanResponse,
   UploadResponse,
@@ -72,6 +74,9 @@ export type JoinResultWire = JoinResponse;
 
 export type SongWire = SongResponse;
 export type SongWithUrlWire = SongWithUrlResponse;
+
+export type SystemMediaItemWire = SystemMediaItem;
+export type SystemMediaResponseWire = SystemMediaResponse;
 
 export type LoginStartWire = LoginStartResponse;
 export type LoginResultWire = LoginResponse;

@@ -166,6 +166,7 @@ export {
   shareInviteLink,
 } from './share/share';
 export { hydrateGlobal, hydrateProject, refreshGlobal, startApp } from './start';
+export { loadSystemMedia, subscribeSystemMedia, systemMediaState } from './system/media';
 export {
   type DeviceAsset,
   type DeviceAssetKind,

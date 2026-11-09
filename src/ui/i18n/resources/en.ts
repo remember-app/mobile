@@ -2,6 +2,11 @@ export const en = {
   app: {
     name: 'Remember',
   },
+  connection: {
+    title: 'Network required',
+    text: 'Connect to the internet — the app needs it to load your data.',
+    retry: 'Try again',
+  },
   action: {
     back: 'Back',
     cancel: 'Cancel',
@@ -34,11 +39,6 @@ export const en = {
   },
   onboarding: {
     welcome: {
-      slogan1: 'All the photos from the party with your friends end up here.',
-      slogan2: 'Every memory from the birthday becomes one film.',
-      slogan3: 'Even a weekend at the dacha turns into a movie.',
-      slogan4: 'A wedding, a graduation, a concert — all in one place.',
-      slogan5: 'You start noticing and keeping the small moments.',
       continue: 'Continue with email',
     },
     email: {

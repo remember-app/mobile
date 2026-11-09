@@ -17,8 +17,10 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { onPushOpened, startApp } from '@/functionality';
+import { onPushOpened, sessionState, startApp, systemMediaState } from '@/functionality';
 import { readLanguage } from '@/functionality/settings/language';
+import { health } from '@/integrations/api';
+import { NoConnection } from '@/ui/components/no-connection';
 import { maybeCloseOpenRows } from '@/ui/components/swipe-row';
 import { applyLanguage } from '@/ui/i18n';
 import { useTheme } from '@/ui/theme';
@@ -29,6 +31,8 @@ export default function RootLayout() {
   const theme = useTheme();
   const router = useRouter();
   const [ready, setReady] = useState(false);
+  const [gate, setGate] = useState<'checking' | 'ready' | 'blocked'>('checking');
+  const [attempt, setAttempt] = useState(0);
   const [loaded] = useFonts({
     Onest_400Regular,
     Onest_500Medium,
@@ -46,6 +50,25 @@ export default function RootLayout() {
   useEffect(() => {
     if (loaded && ready) void SplashScreen.hideAsync();
   }, [loaded, ready]);
+
+  useEffect(() => {
+    if (!loaded || !ready) return;
+    let live = true;
+    setGate('checking');
+    health().then(
+      () => {
+        if (live) setGate('ready');
+      },
+      () => {
+        if (!live) return;
+        const cached = 'token' in sessionState() || systemMediaState().length > 0;
+        setGate(cached ? 'ready' : 'blocked');
+      },
+    );
+    return () => {
+      live = false;
+    };
+  }, [loaded, ready, attempt]);
 
   useEffect(() => {
     return onPushOpened((payload) => {
@@ -77,14 +100,18 @@ export default function RootLayout() {
                   return false;
                 }}
               >
-                <Stack
-                  screenOptions={{
-                    headerShown: false,
-                    animation: 'slide_from_right',
-                    animationDuration: 220,
-                    contentStyle: { backgroundColor: theme.color.ink },
-                  }}
-                />
+                {gate === 'checking' ? null : gate === 'blocked' ? (
+                  <NoConnection onRetry={() => setAttempt((value) => value + 1)} />
+                ) : (
+                  <Stack
+                    screenOptions={{
+                      headerShown: false,
+                      animation: 'slide_from_right',
+                      animationDuration: 220,
+                      contentStyle: { backgroundColor: theme.color.ink },
+                    }}
+                  />
+                )}
               </View>
             </ThemeProvider>
           </SafeAreaProvider>

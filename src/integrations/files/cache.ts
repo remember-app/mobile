@@ -5,9 +5,9 @@ const fileOf = (name: string): File | null =>
   /^[a-z0-9._-]+$/i.test(name) ? new File(folder(), `${name}.json`) : null;
 
 export function readCache<T>(name: string): T | null {
-  const file = fileOf(name);
-  if (!file) return null;
   try {
+    const file = fileOf(name);
+    if (!file) return null;
     if (!file.exists) return null;
     return JSON.parse(file.textSync()) as T;
   } catch (error) {
@@ -17,11 +17,12 @@ export function readCache<T>(name: string): T | null {
 }
 
 export function writeCache(name: string, value: unknown): void {
-  const file = fileOf(name);
-  if (!file) return;
   try {
+    const file = fileOf(name);
+    if (!file) return;
     if (!folder().exists) folder().create({ intermediates: true, idempotent: true });
-    file.write(JSON.stringify(value));
+    if (!file.exists) file.create({ intermediates: true, overwrite: true });
+    file.writeSync(JSON.stringify(value));
   } catch (error) {
     console.warn(`cache ${name} could not be written:`, error);
   }
@@ -36,9 +37,9 @@ export function clearCache(): void {
 }
 
 export function removeCache(name: string): void {
-  const file = fileOf(name);
-  if (!file) return;
   try {
+    const file = fileOf(name);
+    if (!file) return;
     if (file.exists) file.delete();
   } catch (error) {
     console.warn(`cache ${name} could not be removed:`, error);

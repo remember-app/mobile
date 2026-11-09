@@ -22,8 +22,10 @@ import {
   subscribePush,
   subscribeSession,
   subscribeSuggestions,
+  subscribeSystemMedia,
   subscribeUploads,
   suggestionsState,
+  systemMediaState,
   uploadsState,
 } from '@/functionality';
 import type { ProjectId, ProjectItemId } from '@/types/id';
@@ -40,6 +42,7 @@ export const useContacts = () => useStore(subscribeContacts, contactsState);
 export const useSuggestions = () => useStore(subscribeSuggestions, suggestionsState);
 export const usePush = () => useStore(subscribePush, pushState);
 export const useNetwork = () => useStore(subscribeNetwork, networkState);
+export const useSystemMedia = () => useStore(subscribeSystemMedia, systemMediaState);
 
 export function useProjectCard(projectId: ProjectId) {
   const state = useProjects();

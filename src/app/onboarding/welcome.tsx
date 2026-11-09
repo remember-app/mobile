@@ -22,40 +22,18 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
+import { loadSystemMedia } from '@/functionality';
+import { useSystemMedia } from '@/ui/hooks';
 import { Button } from '@/ui/kit/button';
 import { Text } from '@/ui/kit/text';
 import { radius, space, useTheme } from '@/ui/theme';
-
-const SLIDES = [
-  {
-    text: 'onboarding.welcome.slogan1',
-    photo: require('../../../assets/images/mock/party.jpg'),
-  },
-  {
-    text: 'onboarding.welcome.slogan2',
-    photo: require('../../../assets/images/mock/birthday.jpg'),
-  },
-  {
-    text: 'onboarding.welcome.slogan3',
-    photo: require('../../../assets/images/mock/picnic.jpg'),
-  },
-  {
-    text: 'onboarding.welcome.slogan4',
-    photo: require('../../../assets/images/mock/wedding.jpg'),
-  },
-  {
-    text: 'onboarding.welcome.slogan5',
-    photo: require('../../../assets/images/mock/dance.jpg'),
-  },
-] as const;
 
 const SLIDE_MS = 6000;
 const REVEAL_AFTER_MS = 6500;
 const TAPS_TO_REVEAL = 3;
 
 export default function WelcomeScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
@@ -68,6 +46,11 @@ export default function WelcomeScreen() {
   const scroller = useRef<ScrollViewInstance>(null);
   const action = useSharedValue(0);
   const room = 56 + space.s4 + insets.bottom;
+  const language = i18n.language === 'en' ? 'en' : 'ru';
+  const media = useSystemMedia();
+  const slides = media.filter((item) => item.name.startsWith('onboarding-'));
+  const slide = slides.length > 0 ? slides[index % slides.length] : undefined;
+  const caption = slide?.captions ? slide.captions[language] : null;
 
   const open = useCallback(() => {
     scroller.current?.scrollTo({ y: room, animated: true });
@@ -76,34 +59,42 @@ export default function WelcomeScreen() {
   }, [action, room]);
 
   useEffect(() => {
-    const rotation = setInterval(() => {
-      setIndex((value) => (value + 1) % SLIDES.length);
-    }, SLIDE_MS);
+    void loadSystemMedia();
+  }, []);
+
+  useEffect(() => {
+    const rotation =
+      slides.length > 0
+        ? setInterval(() => {
+            setIndex((value) => (value + 1) % slides.length);
+          }, SLIDE_MS)
+        : null;
     timer.current = setTimeout(open, REVEAL_AFTER_MS);
     return () => {
-      clearInterval(rotation);
+      if (rotation) clearInterval(rotation);
       if (timer.current) clearTimeout(timer.current);
     };
-  }, [open]);
+  }, [open, slides.length]);
 
   const actionStyle = useAnimatedStyle(() => ({ height: action.value }));
   const captionStyle = useAnimatedStyle(() => ({
     bottom: space.s5 + insets.bottom * (1 - action.value / room),
   }));
-  const slide = SLIDES[index] ?? SLIDES[0];
 
   return (
     <View style={[styles.root, { backgroundColor: color.ink }]}>
       <StatusBar style="light" />
       <View style={styles.photo}>
-        <Animated.Image
-          key={slide.photo}
-          source={slide.photo}
-          resizeMode="cover"
-          entering={FadeIn.duration(1000)}
-          exiting={FadeOut.duration(800)}
-          style={StyleSheet.absoluteFill}
-        />
+        {slide ? (
+          <Animated.Image
+            key={slide.mediaId}
+            source={{ uri: slide.url }}
+            resizeMode="cover"
+            entering={FadeIn.duration(1000)}
+            exiting={FadeOut.duration(800)}
+            style={StyleSheet.absoluteFill}
+          />
+        ) : null}
         <View style={styles.scrim} />
         <View style={[styles.brand, { top: insets.top + space.s4 }]}>
           <Text role="heroSm" tone="onFill">
@@ -116,15 +107,17 @@ export default function WelcomeScreen() {
           />
         </View>
         <Animated.View style={[styles.caption, captionStyle]}>
-          <Animated.View
-            key={index}
-            entering={FadeInLeft.duration(600)}
-            exiting={FadeOutRight.duration(400)}
-          >
-            <Text role="display" tone="onFill">
-              {t(slide.text)}
-            </Text>
-          </Animated.View>
+          {caption ? (
+            <Animated.View
+              key={index}
+              entering={FadeInLeft.duration(600)}
+              exiting={FadeOutRight.duration(400)}
+            >
+              <Text role="display" tone="onFill">
+                {caption}
+              </Text>
+            </Animated.View>
+          ) : null}
         </Animated.View>
       </View>
       <ScrollView

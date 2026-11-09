@@ -7,5 +7,6 @@ export * from './media';
 export * from './project';
 export * from './push';
 export * from './song';
+export * from './system';
 export * from './upload';
 export * from './user';

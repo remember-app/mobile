@@ -26,8 +26,6 @@ export function rotateProjectInvite(
 export type NewAppInvite = {
   maxUses?: number | null;
   expiresAt?: string | null;
-  senderReward?: { tokens?: number; storageBytes?: number };
-  inviteeReward?: { tokens?: number; storageBytes?: number };
 };
 
 export function createAppInvite(token: string, input: NewAppInvite = {}): Promise<AppInvite> {

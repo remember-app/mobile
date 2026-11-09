@@ -16,6 +16,7 @@ import type {
   Session,
   Song,
   SongWithUrl,
+  SystemMediaItem,
   Upload,
   UploadComplete,
   UploadPlan,
@@ -43,6 +44,7 @@ import type {
   SessionWire,
   SongWire,
   SongWithUrlWire,
+  SystemMediaItemWire,
   UploadCompleteWire,
   UploadPlanWire,
   UploadWire,
@@ -256,4 +258,15 @@ export function toSong(wire: SongWire): Song {
 
 export function toSongWithUrl(wire: SongWithUrlWire): SongWithUrl {
   return { ...toSong(wire), url: wire.url };
+}
+
+export function toSystemMedia(wire: SystemMediaItemWire): SystemMediaItem {
+  return {
+    name: wire.name,
+    mediaId: wire.mediaId,
+    url: wire.url,
+    width: wire.width,
+    height: wire.height,
+    captions: wire.captions,
+  };
 }

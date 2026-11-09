@@ -86,12 +86,7 @@ export async function rotateInvite(
 }
 
 export async function createAppInvite(
-  input: {
-    maxUses?: number | null;
-    expiresAt?: string | null;
-    senderReward?: { tokens?: number; storageBytes?: number };
-    inviteeReward?: { tokens?: number; storageBytes?: number };
-  } = {},
+  input: { maxUses?: number | null; expiresAt?: string | null } = {},
 ): Promise<AppInvite> {
   return apiCreateAppInvite(token(), input);
 }
