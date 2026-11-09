@@ -2,6 +2,8 @@ export * from './contact';
 export * from './invite';
 export * from './label';
 export * from './media';
+export * from './montage';
+export * from './movie';
 export * from './project';
 export * from './song';
 export * from './system';

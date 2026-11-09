@@ -1,14 +1,16 @@
 import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { Users } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   loadGallery,
+  loadMontages,
   loadMoreGallery,
+  loadMovies,
   loadProjects,
   onUploaded,
   progressOf,
@@ -25,14 +27,21 @@ import {
   type Rect,
 } from '@/ui/components/media/photo-grid';
 import { PhotoViewer } from '@/ui/components/media/photo-viewer';
+import { ProjectHeader } from '@/ui/components/project-header';
 import { GallerySkeleton } from '@/ui/components/skeletons';
-import { useGallery, useProjectCard, useProjects, useSession, useUploads } from '@/ui/hooks';
+import {
+  useGallery,
+  useMontages,
+  useProjectCard,
+  useProjects,
+  useSession,
+  useUploads,
+} from '@/ui/hooks';
 import { ActionBar } from '@/ui/kit/action-bar';
 import { AppBar, Board } from '@/ui/kit/bars';
 import { BlurBar } from '@/ui/kit/blur-bar';
-import { BackButton, Button, IconButton } from '@/ui/kit/button';
+import { BackButton, Button } from '@/ui/kit/button';
 import { Empty } from '@/ui/kit/empty';
-import { Text } from '@/ui/kit/text';
 import { space, useTheme } from '@/ui/theme';
 
 export default function ProjectScreen() {
@@ -40,24 +49,40 @@ export default function ProjectScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const theme = useTheme();
+  const { width } = useWindowDimensions();
   const { id } = useLocalSearchParams<{ id: string }>();
   const projectId = id as ProjectId;
   const projects = useProjects();
   const project = useProjectCard(projectId);
   const gallery = useGallery(projectId);
+  const montages = useMontages(projectId);
   const uploads = useUploads();
   const session = useSession();
   const account = 'account' in session ? session.account : undefined;
   const [open, setOpen] = useState<{ index: number; rect?: Rect } | null>(null);
   const measureTile = useRef<MeasureTile | null>(null);
+  const opening = useRef(true);
+  const turning = useRef<'none' | 'open' | 'close'>('none');
+  const card = (width - space.s4 * 2 - space.s2 * 4) / 3;
+  const progress = useSharedValue(1);
 
   useEffect(() => {
     void loadProjects();
     void loadGallery(projectId);
+    void loadMontages(projectId, true).catch(() => undefined);
+    void loadMovies(projectId, true).catch(() => undefined);
     return onUploaded((_upload, project) => {
       if (project === projectId) void loadGallery(projectId, true);
     });
   }, [projectId]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      opening.current = false;
+      progress.value = withTiming(0, { duration: 320 });
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [progress]);
 
   const pending = useMemo(
     () => uploads.items.filter((upload) => upload.projectId === projectId),
@@ -94,6 +119,7 @@ export default function ProjectScreen() {
       <Board
         bar={
           <AppBar
+            boxed
             title={t('project.title')}
             left={<BackButton label={t('action.back')} onPress={() => router.back()} />}
           />
@@ -106,20 +132,26 @@ export default function ProjectScreen() {
 
   const title = project?.title ?? t('project.title');
   const loading = !project || (gallery.status === 'loading' && gallery.items.length === 0);
+  const banner = montages.items.length > 0;
+  const top = insets.top + space.s2 + 44 + (banner ? card + space.s2 * 2 + 2 : 0) + space.s2;
+  const bottom = insets.bottom + 76;
+  const scrolled = (offset: number) => {
+    if (opening.current) return;
+    const next = offset > 1 ? 'close' : 'open';
+    if (turning.current === next) return;
+    turning.current = next;
+    progress.value = withTiming(next === 'close' ? 1 : 0, { duration: 260 });
+  };
+  const pick = () => router.navigate({ pathname: '/project/[id]/pick', params: { id: projectId } });
 
   return (
     <>
       <Stack.Screen options={{ gestureEnabled: open === null }} />
       <View style={[styles.root, { backgroundColor: theme.color.ink }]}>
         {loading ? (
-          <GallerySkeleton top={insets.top + 60} bottom={insets.bottom + 76} />
+          <GallerySkeleton top={top} bottom={bottom} />
         ) : photos.length === 0 ? (
-          <View
-            style={[
-              styles.emptyFill,
-              { paddingTop: insets.top + 60, paddingBottom: insets.bottom + 76 },
-            ]}
-          >
+          <View style={[styles.emptyFill, { paddingTop: top, paddingBottom: bottom }]}>
             <Image
               source={require('../../../assets/images/memory-empty.png')}
               style={styles.emptyArt}
@@ -137,42 +169,28 @@ export default function ProjectScreen() {
               }
               setOpen({ index, rect });
             }}
-            padding={{ top: insets.top + 60, bottom: insets.bottom + 76 }}
+            padding={{ top, bottom }}
             blankIndex={open?.index ?? null}
             measureRef={measureTile}
             endKey={pending[0]?.localId}
             onLoadOlder={() => void loadMoreGallery(projectId)}
+            onScroll={scrolled}
           />
         )}
         <BlurBar edge="top" style={styles.top}>
-          <BackButton label={t('action.back')} size={52} onPress={() => router.back()} />
-          <Text
-            role="barTitle"
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.7}
-            style={styles.title}
-          >
-            {title}
-          </Text>
-          <IconButton
-            icon={Users}
-            label={t('project.members')}
-            tone="ghost"
-            size={52}
-            onPress={() =>
+          <ProjectHeader
+            projectId={projectId}
+            title={title}
+            card={card}
+            progress={progress}
+            onBack={() => router.back()}
+            onMembers={() =>
               router.navigate({ pathname: '/project/[id]/info', params: { id: projectId } })
             }
           />
         </BlurBar>
         <ActionBar>
-          <Button
-            label={t('project.add')}
-            variant="primary"
-            onPress={() =>
-              router.navigate({ pathname: '/project/[id]/pick', params: { id: projectId } })
-            }
-          />
+          <Button label={t('project.add')} variant="primary" onPress={pick} />
         </ActionBar>
         {open === null ? null : (
           <PhotoViewer
@@ -220,16 +238,6 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   top: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.s3,
     paddingHorizontal: space.s4,
-    minHeight: 52,
-  },
-  title: {
-    flex: 1,
-    fontSize: 22,
-    lineHeight: 26,
-    textAlign: 'center',
   },
 });

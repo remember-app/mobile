@@ -24,11 +24,9 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { height, space, themed, type, useTheme } from '@/ui/theme';
+import { height, radius, space, themed, type } from '@/ui/theme';
 import { BoardScrollContext } from './board-scroll';
-import { IconButton } from './button';
 import { AreaRoom, areaSight, focusedField } from './field';
-import type { IconComponent } from './icon';
 import { FieldInBar, KEYBOARD_SCROLL } from './interaction';
 import { Text, TYPE_MOST } from './text';
 
@@ -183,8 +181,7 @@ export function AppBar({
   variant = 'inner',
   left,
   right,
-  quiet,
-  centerTitle,
+  boxed,
   style,
 }: {
   title: string;
@@ -192,36 +189,35 @@ export function AppBar({
   variant?: 'root' | 'inner' | 'live';
   left?: ReactNode;
   right?: ReactNode;
-  centerTitle?: boolean;
-  quiet?: {
-    icon: IconComponent;
-    label: string;
-    onPress: () => void;
-    disabled?: boolean;
-  };
+  boxed?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
-  const { color } = useTheme();
   const styles = useStyles();
   const inner = variant !== 'root';
+  const words = (
+    <Text
+      accessibilityRole="header"
+      role={variant === 'root' ? 'displaySm' : variant === 'live' ? 'barTitleLive' : 'barTitle'}
+      numberOfLines={inner ? 1 : undefined}
+      adjustsFontSizeToFit={inner || undefined}
+      minimumFontScale={inner ? 0.7 : undefined}
+      style={inner ? styles.titleCentre : undefined}
+    >
+      {title}
+    </Text>
+  );
   return (
     <View style={[styles.bar, inner ? styles.barInner : null, style]}>
-      {left ? <View style={inner ? styles.pullLeft : null}>{left}</View> : null}
-      <View style={styles.barWords}>
-        <Text
-          accessibilityRole="header"
-          role={variant === 'root' ? 'displaySm' : variant === 'live' ? 'barTitleLive' : 'barTitle'}
-          numberOfLines={centerTitle ? 1 : undefined}
-          adjustsFontSizeToFit={centerTitle || undefined}
-          minimumFontScale={centerTitle ? 0.7 : undefined}
-          style={centerTitle ? styles.titleCenter : undefined}
-        >
-          {title}
-        </Text>
+      {inner ? (
+        <View style={[styles.side, styles.sideLeft]}>{left}</View>
+      ) : left ? (
+        <View>{left}</View>
+      ) : null}
+      <View style={[styles.barWords, inner ? styles.wordsCentre : null]}>
+        {boxed ? <View style={styles.box}>{words}</View> : words}
         {subtitle ? <Text role="meta">{subtitle}</Text> : null}
       </View>
-      {right}
-      {quiet ? <IconButton {...quiet} tint={color.faint} style={styles.pullRight} /> : null}
+      {inner ? <View style={[styles.side, styles.sideRight]}>{right}</View> : right}
     </View>
   );
 }
@@ -239,9 +235,21 @@ const useStyles = themed(({ color }) =>
       paddingHorizontal: space.s4,
     },
     barInner: { gap: space.s2 },
-    pullLeft: { marginLeft: -10 },
-    pullRight: { marginRight: -10 },
+    side: { minWidth: 104, flexDirection: 'row', alignItems: 'center', gap: space.s1 },
+    sideLeft: { justifyContent: 'flex-start' },
+    sideRight: { justifyContent: 'flex-end' },
     barWords: { flex: 1, minWidth: 0, gap: 2 },
-    titleCenter: { textAlign: 'center' },
+    wordsCentre: { alignItems: 'center' },
+    titleCentre: { textAlign: 'center' },
+    box: {
+      minHeight: 44,
+      maxWidth: '100%',
+      justifyContent: 'center',
+      paddingHorizontal: space.s3,
+      borderWidth: 1,
+      borderColor: color.line,
+      borderRadius: radius.pill,
+      backgroundColor: color.surface,
+    },
   }),
 );

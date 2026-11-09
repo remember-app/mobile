@@ -229,16 +229,18 @@ function roundGlyphSize(diameter: number): number {
   if (diameter > 28) return 16;
   return 14;
 }
-const BAR_GLYPH = { size: ICO, stroke: 2.3 } as const;
+const BAR_GLYPH = { size: ICO + 2, stroke: 2.3 } as const;
 export function BackButton({
   label,
   onPress,
   size,
+  tone = 'surface',
   style,
 }: {
   label: string;
   onPress: () => void;
   size?: number;
+  tone?: 'surface' | 'ghost';
   style?: StyleProp<ViewStyle>;
 }) {
   return (
@@ -246,6 +248,7 @@ export function BackButton({
       icon={ChevronLeft}
       label={label}
       size={size}
+      tone={tone}
       glyph={BAR_GLYPH}
       onPress={onPress}
       style={style}

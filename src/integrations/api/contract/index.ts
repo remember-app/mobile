@@ -4,6 +4,8 @@ export * from './common';
 export * from './contact';
 export * from './label';
 export * from './media';
+export * from './montage';
+export * from './movie';
 export * from './project';
 export * from './push';
 export * from './song';

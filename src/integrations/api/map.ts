@@ -9,6 +9,9 @@ import type {
   Login,
   Media,
   Member,
+  Montage,
+  MontageTemplate,
+  Movie,
   Project,
   ProjectCard,
   ProjectInvite,
@@ -36,6 +39,9 @@ import type {
   LoginResultWire,
   MediaWire,
   MemberWire,
+  MontageTemplateWire,
+  MontageWire,
+  MovieWire,
   OffsetPageWire,
   ProjectCardWire,
   ProjectInviteWire,
@@ -268,5 +274,50 @@ export function toSystemMedia(wire: SystemMediaItemWire): SystemMediaItem {
     width: wire.width,
     height: wire.height,
     captions: wire.captions,
+  };
+}
+
+export function toMontage(wire: MontageWire): Montage {
+  return {
+    id: wire.id,
+    projectId: wire.projectId,
+    createdBy: wire.createdBy,
+    status: wire.status,
+    stage: wire.stage,
+    createdAt: date(wire.createdAt),
+    error: wire.error,
+    itemIds: wire.itemIds,
+    movieId: wire.movieId,
+  };
+}
+
+export function toMontageTemplate(wire: MontageTemplateWire): MontageTemplate {
+  return {
+    id: wire.id,
+    name: wire.name,
+    settings: {
+      targetSeconds: wire.settings.targetSeconds,
+      prompt: wire.settings.prompt,
+      dimensions: wire.settings.dimensions,
+      musicIds: wire.settings.musicIds,
+    },
+    referenceMediaId: wire.referenceMediaId,
+  };
+}
+
+export function toMovie(wire: MovieWire): Movie {
+  return {
+    id: wire.id,
+    name: wire.name,
+    projectId: wire.projectId,
+    createdBy: wire.createdBy,
+    createdAt: date(wire.createdAt),
+    montageId: wire.montageId,
+    videoId: wire.videoId,
+    thumbnailId: wire.derived.thumbnailId,
+    previewId: wire.derived.previewId,
+    videoUrl: wire.video_url,
+    posterUrl: wire.poster_url,
+    previewUrl: wire.preview_url,
   };
 }

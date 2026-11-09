@@ -93,6 +93,23 @@ export {
   updateMediaInfo,
 } from './media/gallery';
 export {
+  createMontage,
+  hydrateMontages,
+  loadMontages,
+  type MontagesState,
+  montagesState,
+  subscribeMontages,
+} from './montage/montages';
+export {
+  hydrateMovies,
+  loadMovies,
+  type MoviesState,
+  moviesState,
+  removeMovie,
+  renameMovie,
+  subscribeMovies,
+} from './movie/movies';
+export {
   isOnline,
   type NetworkState,
   networkState,
@@ -165,6 +182,16 @@ export {
   readText,
   shareInviteLink,
 } from './share/share';
+export {
+  hydrateLibrarySongs,
+  hydrateProjectSongs,
+  librarySongsState,
+  loadLibrarySongs,
+  loadProjectSongs,
+  projectSongsState,
+  type SongsState,
+  subscribeSongs,
+} from './song/songs';
 export { hydrateGlobal, hydrateProject, refreshGlobal, startApp } from './start';
 export { loadSystemMedia, subscribeSystemMedia, systemMediaState } from './system/media';
 export {

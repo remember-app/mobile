@@ -6,8 +6,12 @@ import {
   galleryState,
   inviteState,
   labelsState,
+  librarySongsState,
   membersState,
+  montagesState,
+  moviesState,
   networkState,
+  projectSongsState,
   projectsState,
   pushState,
   sessionState,
@@ -17,10 +21,13 @@ import {
   subscribeInvites,
   subscribeLabels,
   subscribeMembers,
+  subscribeMontages,
+  subscribeMovies,
   subscribeNetwork,
   subscribeProjects,
   subscribePush,
   subscribeSession,
+  subscribeSongs,
   subscribeSuggestions,
   subscribeSystemMedia,
   subscribeUploads,
@@ -73,3 +80,20 @@ export function useInvite(projectId: ProjectId) {
   const snapshot = useCallback(() => inviteState(projectId), [projectId]);
   return useStore(subscribeInvites, snapshot);
 }
+
+export function useMontages(projectId: ProjectId) {
+  const snapshot = useCallback(() => montagesState(projectId), [projectId]);
+  return useStore(subscribeMontages, snapshot);
+}
+
+export function useMovies(projectId: ProjectId) {
+  const snapshot = useCallback(() => moviesState(projectId), [projectId]);
+  return useStore(subscribeMovies, snapshot);
+}
+
+export function useProjectSongs(projectId: ProjectId) {
+  const snapshot = useCallback(() => projectSongsState(projectId), [projectId]);
+  return useStore(subscribeSongs, snapshot);
+}
+
+export const useLibrarySongs = () => useStore(subscribeSongs, librarySongsState);

@@ -131,8 +131,8 @@ export default function ProfileScreen() {
             <IconButton
               icon={LogOut}
               label={t('profile.logout')}
-              tone="ghost"
-              size={48}
+              tone="surface"
+              size={44}
               onPress={() =>
                 confirmAction({
                   confirm: t('profile.logout'),

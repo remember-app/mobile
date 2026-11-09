@@ -59,6 +59,7 @@ export default function ProjectInfoScreen() {
       <Board
         bar={
           <AppBar
+            boxed
             title={t('project.title')}
             left={<BackButton label={t('action.back')} onPress={() => router.back()} />}
           />
@@ -116,14 +117,15 @@ export default function ProjectInfoScreen() {
       body={pageBody}
       bar={
         <AppBar
+          boxed
           title={project.title}
           left={<BackButton label={t('action.back')} onPress={() => router.back()} />}
           right={
             <IconButton
               icon={Settings2}
               label={t('project.settings')}
-              tone="ghost"
-              size={48}
+              tone="surface"
+              size={44}
               onPress={() =>
                 router.navigate({ pathname: '/project/[id]/settings', params: { id: projectId } })
               }

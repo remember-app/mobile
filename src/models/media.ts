@@ -33,11 +33,22 @@ export type Media = {
   uploadedBy: UserId | null;
 };
 
+export type AnalysisSegment = {
+  secStart: number;
+  secEnd: number;
+  text: string;
+};
+
+export type AnalysisFrame = {
+  second: number;
+  text: string;
+};
+
 export type Analysis = {
   description: string;
-  speech: string | null;
-  tags: string[];
   score: number;
+  transcription?: AnalysisSegment[];
+  frames?: AnalysisFrame[];
 };
 
 export type DownloadLink = {

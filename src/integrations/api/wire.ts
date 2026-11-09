@@ -19,6 +19,10 @@ import type {
   LoginStartResponse,
   MediaResponse,
   MemberResponse,
+  MontageResponse,
+  MontageTemplateResponse,
+  MovieResponse,
+  MoviesPageResponse,
   PageResponse,
   PlaceResponse,
   ProjectCardResponse,
@@ -74,6 +78,11 @@ export type JoinResultWire = JoinResponse;
 
 export type SongWire = SongResponse;
 export type SongWithUrlWire = SongWithUrlResponse;
+
+export type MontageWire = MontageResponse;
+export type MontageTemplateWire = MontageTemplateResponse;
+export type MovieWire = MovieResponse;
+export type MoviesPageWire = MoviesPageResponse;
 
 export type SystemMediaItemWire = SystemMediaItem;
 export type SystemMediaResponseWire = SystemMediaResponse;

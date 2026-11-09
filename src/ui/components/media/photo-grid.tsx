@@ -40,6 +40,7 @@ type Props = {
   measureRef?: MutableRefObject<MeasureTile | null>;
   endKey?: string;
   onLoadOlder?: () => void;
+  onScroll?: (offset: number) => void;
 };
 
 type ListItem = { key: string; index: number; photo: Photo };
@@ -55,6 +56,7 @@ export function PhotoGrid({
   measureRef,
   endKey,
   onLoadOlder,
+  onScroll,
 }: Props) {
   const topPad = padding?.top ?? 0;
   const bottomPad = padding?.bottom ?? 0;
@@ -126,6 +128,8 @@ export function PhotoGrid({
           if (userMoved.current) onLoadOlder?.();
         }}
         onEndReachedThreshold={1}
+        onScroll={(event) => onScroll?.(event.nativeEvent.contentOffset.y)}
+        scrollEventThrottle={16}
         onScrollBeginDrag={() => {
           userMoved.current = true;
         }}

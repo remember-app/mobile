@@ -42,6 +42,7 @@ export default function ProjectSettingsScreen() {
       <Board
         bar={
           <AppBar
+            boxed
             title={t('project.settings')}
             left={<BackButton label={t('action.back')} onPress={() => router.back()} />}
           />
@@ -72,15 +73,15 @@ export default function ProjectSettingsScreen() {
       body={[styles.body, { paddingBottom: insets.bottom + space.s6 }]}
       bar={
         <AppBar
+          boxed
           title={project.title}
-          centerTitle
-          left={<BackButton size={48} label={t('action.back')} onPress={() => router.back()} />}
+          left={<BackButton size={44} label={t('action.back')} onPress={() => router.back()} />}
           right={
             <IconButton
               icon={Trash2}
               label={t('project.delete')}
-              tone="ghost"
-              size={48}
+              tone="surface"
+              size={44}
               style={{ marginRight: -10 }}
               onPress={() =>
                 confirmAction({

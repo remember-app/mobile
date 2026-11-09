@@ -2,10 +2,13 @@ import { onSignOut, restoreSession, sessionState } from '@/functionality/auth/se
 import { hydrateContacts, loadContacts } from '@/functionality/contact/contacts';
 import { hydrateLabels } from '@/functionality/label/labels';
 import { hydrateGallery } from '@/functionality/media/gallery';
+import { hydrateMontages } from '@/functionality/montage/montages';
+import { hydrateMovies } from '@/functionality/movie/movies';
 import { isOnline, subscribeNetwork } from '@/functionality/network/network';
 import { hydrateMembers } from '@/functionality/project/members';
 import { hydrateProjects, loadProjects } from '@/functionality/project/projects';
 import { registerPush } from '@/functionality/push/push';
+import { hydrateLibrarySongs, hydrateProjectSongs } from '@/functionality/song/songs';
 import { hydrateUploads, pump } from '@/functionality/upload/queue';
 import { onAppActive } from '@/integrations/app-state';
 import {
@@ -39,12 +42,16 @@ export function hydrateGlobal(): void {
   hydrateProjects();
   hydrateContacts();
   hydrateUploads();
+  hydrateLibrarySongs();
 }
 
 export function hydrateProject(projectId: ProjectId): void {
   hydrateGallery(projectId);
   hydrateLabels(projectId);
   hydrateMembers(projectId);
+  hydrateMontages(projectId);
+  hydrateMovies(projectId);
+  hydrateProjectSongs(projectId);
 }
 
 export async function startApp(): Promise<void> {

@@ -66,6 +66,7 @@ export default function LabelScreen() {
       <Board
         bar={
           <AppBar
+            boxed
             title={t('labels.title')}
             left={<BackButton label={t('action.back')} onPress={() => router.back()} />}
           />

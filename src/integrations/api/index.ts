@@ -9,6 +9,8 @@ export * from './invites';
 export * from './labels';
 export * from './media';
 export * from './members';
+export * from './montages';
+export * from './movies';
 export * from './projects';
 export * from './push';
 export * from './songs';
