@@ -3,10 +3,10 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
-
 import { loadGallery, loadMontages } from '@/functionality';
 import { montageItemIds } from '@/models';
 import type { ProjectId } from '@/types/id';
+import { goBack } from '@/ui/back';
 import { PhotoViewer } from '@/ui/components/media/photo-viewer';
 import { scoreColor } from '@/ui/format';
 import { useGallery, useMontages } from '@/ui/hooks';
@@ -40,6 +40,7 @@ export default function AnalysisJournalScreen() {
     id: item.id,
     source: item.links.preview ?? item.links.original ?? item.links.thumbnail,
     video: item.kind === 'video',
+    playbackUrl: item.kind === 'video' ? (item.links.preview ?? item.links.original) : null,
     width: item.media.dimensions?.width,
     height: item.media.dimensions?.height,
     capturedAt: item.media.capturedAt,
@@ -52,7 +53,7 @@ export default function AnalysisJournalScreen() {
           <AppBar
             boxed
             title={t('montage.journal.analysis')}
-            left={<BackButton label={t('action.back')} onPress={() => router.back()} />}
+            left={<BackButton label={t('action.back')} onPress={() => goBack(router)} />}
           />
         }
         body={pageBody}

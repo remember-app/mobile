@@ -3,9 +3,9 @@ import { Coins, HardDrive, Settings2, Users } from 'lucide-react-native';
 import { type ReactNode, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
-
 import { loadMembers, loadProjects, shareProjectConsumables } from '@/functionality';
 import type { ProjectId } from '@/types/id';
+import { goBack } from '@/ui/back';
 import { InviteBlocks } from '@/ui/components/invite-blocks';
 import { LabelsManager } from '@/ui/components/labels-manager';
 import { MemberList } from '@/ui/components/member-list';
@@ -61,7 +61,7 @@ export default function ProjectInfoScreen() {
           <AppBar
             boxed
             title={t('project.title')}
-            left={<BackButton label={t('action.back')} onPress={() => router.back()} />}
+            left={<BackButton label={t('action.back')} onPress={() => goBack(router)} />}
           />
         }
       >
@@ -119,7 +119,7 @@ export default function ProjectInfoScreen() {
         <AppBar
           boxed
           title={project.title}
-          left={<BackButton label={t('action.back')} onPress={() => router.back()} />}
+          left={<BackButton label={t('action.back')} onPress={() => goBack(router)} />}
           right={
             <IconButton
               icon={Settings2}

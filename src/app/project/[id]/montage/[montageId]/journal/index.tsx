@@ -3,10 +3,10 @@ import { Check, Clock, TriangleExclamationPoint } from 'lucide-react-native';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
-
 import { loadGallery, loadMontages, loadProjects } from '@/functionality';
 import { type MontageStage, montageItemIds, montageStage } from '@/models';
 import type { ProjectId } from '@/types/id';
+import { goBack } from '@/ui/back';
 import { useGallery, useMontages, useProjectCard } from '@/ui/hooks';
 import { AppBar, Board } from '@/ui/kit/bars';
 import { BackButton } from '@/ui/kit/button';
@@ -60,7 +60,7 @@ export default function JournalScreen() {
         project?.title ||
         t('montage.journal.title')
       }
-      left={<BackButton label={t('action.back')} onPress={() => router.back()} />}
+      left={<BackButton label={t('action.back')} onPress={() => goBack(router)} />}
     />
   );
 

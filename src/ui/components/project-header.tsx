@@ -9,7 +9,7 @@ import type { Montage } from '@/models';
 import type { ProjectId } from '@/types/id';
 import { useMontages, useMovies } from '@/ui/hooks';
 import { BackButton, IconButton } from '@/ui/kit/button';
-import { Text } from '@/ui/kit/text';
+import { HeaderTitle } from '@/ui/kit/header-title';
 import { radius, space, useTheme } from '@/ui/theme';
 
 import { MontageCard } from './montage-card';
@@ -37,10 +37,12 @@ export function ProjectHeader({
   const shown = montages.items.slice(0, 3);
   const [full, setFull] = useState(0);
   const [head, setHead] = useState(0);
+  const side = space.s2 + 44 + space.s4 + space.s2;
+  const widest = Math.max(0, full - side * 2);
+  const collapsed = Math.min(head > 0 ? head : widest, widest);
 
   const capsule = useAnimatedStyle(() => {
     const p = progress.value;
-    const collapsed = head > 0 ? Math.min(head, full) : full;
     if (shown.length === 0) {
       return {
         width: collapsed,
@@ -97,18 +99,12 @@ export function ProjectHeader({
           onPress={() =>
             router.navigate({ pathname: '/project/[id]/movies', params: { id: projectId } })
           }
-          style={styles.head}
         >
-          <Clapperboard size={18} color={color.paper} />
-          <Text
-            role="barTitle"
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.7}
-            style={styles.title}
-          >
-            {title}
-          </Text>
+          <HeaderTitle
+            title={title}
+            icon={<Clapperboard size={18} color={color.paper} />}
+            maxWidth={widest || undefined}
+          />
         </Pressable>
         {shown.length > 0 ? (
           <Animated.View style={[styles.strip, strip]}>
@@ -141,12 +137,11 @@ export function ProjectHeader({
         style={styles.measure}
         onLayout={(event) => setHead(event.nativeEvent.layout.width)}
       >
-        <View style={styles.head}>
-          <Clapperboard size={18} color={color.paper} />
-          <Text role="barTitle" numberOfLines={1} style={styles.title}>
-            {title}
-          </Text>
-        </View>
+        <HeaderTitle
+          title={title}
+          icon={<Clapperboard size={18} color={color.paper} />}
+          maxWidth={widest || undefined}
+        />
       </View>
     </View>
   );
@@ -162,19 +157,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     overflow: 'hidden',
     borderWidth: 1,
-  },
-  head: {
-    height: 44,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.s1,
-    paddingHorizontal: space.s3,
-  },
-  title: {
-    flexShrink: 1,
-    fontSize: 20,
-    lineHeight: 24,
-    textAlign: 'center',
   },
   strip: {
     alignSelf: 'stretch',

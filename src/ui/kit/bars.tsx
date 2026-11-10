@@ -27,6 +27,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { height, radius, space, themed, type } from '@/ui/theme';
 import { BoardScrollContext } from './board-scroll';
 import { AreaRoom, areaSight, focusedField } from './field';
+import { HeaderTitle } from './header-title';
 import { FieldInBar, KEYBOARD_SCROLL } from './interaction';
 import { Text, TYPE_MOST } from './text';
 
@@ -175,7 +176,7 @@ export function Board({ bar, heading, footer, body, list, children, style }: Boa
     </BoardScrollContext.Provider>
   );
 }
-const TITLE_LIMIT = 24;
+const TITLE_LIMIT = 32;
 
 export function AppBar({
   title,
@@ -217,7 +218,13 @@ export function AppBar({
         <View>{left}</View>
       ) : null}
       <View style={[styles.barWords, inner ? styles.wordsCentre : null]}>
-        {boxed ? <View style={styles.box}>{words}</View> : words}
+        {boxed ? (
+          <View style={styles.box}>
+            <HeaderTitle title={title} />
+          </View>
+        ) : (
+          words
+        )}
         {subtitle ? <Text role="meta">{subtitle}</Text> : null}
       </View>
       {inner ? <View style={[styles.side, styles.sideRight]}>{right}</View> : right}
@@ -238,7 +245,7 @@ const useStyles = themed(({ color }) =>
       paddingHorizontal: space.s4,
     },
     barInner: { gap: space.s2 },
-    side: { minWidth: 92, flexDirection: 'row', alignItems: 'center', gap: space.s1 },
+    side: { minWidth: 84, flexDirection: 'row', alignItems: 'center', gap: space.s1 },
     sideLeft: { justifyContent: 'flex-start' },
     sideRight: { justifyContent: 'flex-end' },
     barWords: { flex: 1, minWidth: 0, gap: 2 },
@@ -249,7 +256,6 @@ const useStyles = themed(({ color }) =>
       maxWidth: '100%',
       flexShrink: 1,
       justifyContent: 'center',
-      paddingHorizontal: space.s3,
       borderWidth: 1,
       borderColor: color.line,
       borderRadius: radius.pill,

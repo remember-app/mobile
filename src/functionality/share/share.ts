@@ -1,7 +1,7 @@
 import { copyText, readText } from '@/integrations/clipboard';
 import { shareText } from '@/integrations/share';
 
-export { copyText, readText };
+export { copyText, readText, shareText };
 
 export function inviteLink(token: string): string {
   return `remember://invite?token=${encodeURIComponent(token)}`;

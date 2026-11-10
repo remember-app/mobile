@@ -2,8 +2,8 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
-
 import { cacheUsage, clearCache } from '@/functionality';
+import { goBack } from '@/ui/back';
 import { CacheDonut, type CacheSlice } from '@/ui/components/cache-donut';
 import { confirmAction } from '@/ui/confirm';
 import { size } from '@/ui/format';
@@ -66,7 +66,7 @@ export default function CacheScreen() {
       bar={
         <AppBar
           title={t('cache.title')}
-          left={<BackButton label={t('action.back')} onPress={() => router.back()} />}
+          left={<BackButton label={t('action.back')} onPress={() => goBack(router)} />}
         />
       }
       body={pageBody}

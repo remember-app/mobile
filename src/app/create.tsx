@@ -3,8 +3,8 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
 import { addMember, createProject, loadContacts, refreshSession } from '@/functionality';
+import { goBack } from '@/ui/back';
 import { ContactStrip } from '@/ui/components/contact-strip';
 import { EventDates } from '@/ui/components/event-dates';
 import { useContacts, useSession } from '@/ui/hooks';
@@ -57,7 +57,7 @@ export default function CreateScreen() {
       bar={
         <AppBar
           title={t('create.title')}
-          left={<BackButton label={t('action.back')} onPress={() => router.back()} />}
+          left={<BackButton label={t('action.back')} onPress={() => goBack(router)} />}
         />
       }
     >
@@ -116,7 +116,7 @@ export default function CreateScreen() {
               await Promise.allSettled(
                 usernames.map((username) => addMember(project.id, username, 'contributor')),
               );
-              router.back();
+              goBack(router);
             } catch {
               setError(t('create.error'));
             } finally {

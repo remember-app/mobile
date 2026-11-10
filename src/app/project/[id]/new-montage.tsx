@@ -11,7 +11,6 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
 import {
   createMontage,
   currentToken,
@@ -23,6 +22,7 @@ import {
 import { isApiError, listMontageTemplates, previewMontage } from '@/integrations/api';
 import type { MontageTemplate, Song } from '@/models';
 import type { ProjectId } from '@/types/id';
+import { goBack } from '@/ui/back';
 import { type Photo, PhotoGrid, type Rect } from '@/ui/components/media/photo-grid';
 import { PhotoViewer } from '@/ui/components/media/photo-viewer';
 import {
@@ -157,6 +157,11 @@ export default function NewMontageScreen() {
         id: item.id,
         source: item.links.thumbnail ?? item.links.preview ?? item.links.original,
         video: item.kind === 'video',
+        playbackUrl: item.kind === 'video' ? (item.links.preview ?? item.links.original) : null,
+        note:
+          item.kind === 'video' && item.media.duration !== null
+            ? duration(item.media.duration)
+            : undefined,
         width: item.media.dimensions?.width,
         height: item.media.dimensions?.height,
         select: selectedAt.get(item.id) ?? null,
@@ -171,6 +176,7 @@ export default function NewMontageScreen() {
         id: item.id,
         source: item.links.preview ?? item.links.original ?? item.links.thumbnail,
         video: item.kind === 'video',
+        playbackUrl: item.kind === 'video' ? (item.links.preview ?? item.links.original) : null,
         width: item.media.dimensions?.width,
         height: item.media.dimensions?.height,
         capturedAt: item.media.capturedAt,
@@ -483,7 +489,7 @@ export default function NewMontageScreen() {
         ) : null}
       </View>
       <OrderActions
-        back={() => (index === 0 ? router.back() : go(index - 1))}
+        back={() => (index === 0 ? goBack(router) : go(index - 1))}
         next={() => (index === titles.length - 1 ? void submit() : go(index + 1))}
         label={index === titles.length - 1 ? t('montage.order.start') : t('montage.order.next')}
         disabled={!canNext}

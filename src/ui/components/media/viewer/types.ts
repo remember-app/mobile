@@ -7,6 +7,7 @@ export type ViewerPhoto = {
   height?: number;
   video?: boolean;
   assetId?: string;
+  playbackUrl?: string | null;
   capturedAt?: Date | null;
 };
 

@@ -2,10 +2,11 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Trash2 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { deleteProject, loadProjects, updateProject } from '@/functionality';
 import type { ProjectId } from '@/types/id';
+import { goBack } from '@/ui/back';
 import { EventDates } from '@/ui/components/event-dates';
 import { confirmAction } from '@/ui/confirm';
 import { useProjectCard } from '@/ui/hooks';
@@ -44,7 +45,7 @@ export default function ProjectSettingsScreen() {
           <AppBar
             boxed
             title={t('project.settings')}
-            left={<BackButton label={t('action.back')} onPress={() => router.back()} />}
+            left={<BackButton label={t('action.back')} onPress={() => goBack(router)} />}
           />
         }
       >
@@ -60,7 +61,7 @@ export default function ProjectSettingsScreen() {
       eventStart: from.toISOString(),
       eventEnd: to?.toISOString() ?? null,
     });
-    router.back();
+    goBack(router);
   };
 
   const remove = async () => {
@@ -70,12 +71,22 @@ export default function ProjectSettingsScreen() {
 
   return (
     <Board
-      body={[styles.body, { paddingBottom: insets.bottom + space.s6 }]}
+      body={styles.body}
+      footer={
+        <View style={[styles.footer, { paddingBottom: insets.bottom + space.s4 }]}>
+          <Button
+            label={t('project.save')}
+            variant="primary"
+            disabled={!title.trim() || !from}
+            onPress={() => void save()}
+          />
+        </View>
+      }
       bar={
         <AppBar
           boxed
           title={project.title}
-          left={<BackButton size={44} label={t('action.back')} onPress={() => router.back()} />}
+          left={<BackButton size={44} label={t('action.back')} onPress={() => goBack(router)} />}
           right={
             <IconButton
               icon={Trash2}
@@ -110,17 +121,15 @@ export default function ProjectSettingsScreen() {
           setTo(nextTo);
         }}
       />
-      <Button
-        label={t('project.save')}
-        variant="primary"
-        disabled={!title.trim() || !from}
-        onPress={() => void save()}
-      />
     </Board>
   );
 }
 
 const styles = StyleSheet.create({
+  footer: {
+    paddingHorizontal: space.s5,
+    paddingTop: space.s3,
+  },
   body: {
     paddingHorizontal: space.s5,
     paddingTop: space.s5,

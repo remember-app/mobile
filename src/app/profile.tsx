@@ -4,7 +4,6 @@ import { Camera, ChevronRight, LogOut } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
-
 import {
   cacheUsage,
   isUsernameShapeValid,
@@ -18,6 +17,7 @@ import {
 } from '@/functionality';
 import { writeLanguage } from '@/functionality/settings/language';
 import type { Language } from '@/types/language';
+import { goBack } from '@/ui/back';
 import { Person } from '@/ui/components/person';
 import { SettingsSelect } from '@/ui/components/settings-select';
 import { confirmAction } from '@/ui/confirm';
@@ -134,7 +134,7 @@ export default function ProfileScreen() {
       bar={
         <AppBar
           title={t('profile.title')}
-          left={<BackButton label={t('action.back')} onPress={() => router.back()} />}
+          left={<BackButton label={t('action.back')} onPress={() => goBack(router)} />}
           right={
             <IconButton
               icon={LogOut}

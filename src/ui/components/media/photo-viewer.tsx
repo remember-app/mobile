@@ -99,8 +99,9 @@ export function PhotoViewer({
   }, [chrome, info]);
 
   useEffect(() => {
-    if (!info) setChrome(true);
-  }, [info]);
+    if (info) return;
+    setChrome(true);
+  }, [currentPhoto?.id, info]);
 
   useEffect(() => () => setStatusBarHidden(false, 'fade'), []);
 
@@ -293,6 +294,9 @@ export function PhotoViewer({
                     info={info}
                     onInfo={setInfo}
                     onDismiss={leave}
+                    onTap={() => setChrome((shown) => !shown)}
+                    active={at === index}
+                    visible={chrome}
                   />
                 ) : (
                   <Zoomable
@@ -324,7 +328,7 @@ export function PhotoViewer({
           </PhotoInfo>
         </Animated.View>
       </Animated.View>
-      {author ? (
+      {author && !currentPhoto?.video ? (
         <Animated.View style={[styles.author, authorStyle]} pointerEvents="none">
           <Avatar name={author} size={34} />
         </Animated.View>
@@ -364,7 +368,13 @@ export function PhotoViewer({
       {chrome && !zoomed && viewPhotos.length > 1 ? (
         <Animated.View
           pointerEvents={info || phase !== 'open' ? 'none' : 'auto'}
-          style={[styles.strip, { bottom: insets.bottom + 8 }, stripStyle]}
+          style={[
+            styles.strip,
+            {
+              bottom: insets.bottom + 44,
+            },
+            stripStyle,
+          ]}
         >
           <PhotoStrip
             photos={viewPhotos}
@@ -380,21 +390,29 @@ export function PhotoViewer({
       ) : null}
       {chrome && phase === 'open' ? (
         <BlurBar edge="top" style={styles.hud}>
-          <BackButton label={t('action.back')} size={52} onPress={onClose} />
+          <BackButton label={t('action.back')} size={44} onPress={onClose} />
           <View style={styles.hudWords}>
             {currentPhoto?.capturedAt ? (
-              <>
+              <View
+                style={[
+                  styles.hudBox,
+                  {
+                    backgroundColor: theme.color.surface,
+                    borderColor: theme.color.line,
+                  },
+                ]}
+              >
                 <Text role="row">{fullDay(currentPhoto.capturedAt)}</Text>
                 <Text role="meta">{time(currentPhoto.capturedAt)}</Text>
-              </>
+              </View>
             ) : null}
           </View>
           {onDelete && currentPhoto ? (
             <IconButton
               icon={Trash2}
               label={t('action.delete')}
-              tone="ghost"
-              size={48}
+              tone="surface"
+              size={44}
               onPress={() =>
                 confirmAction({
                   confirm: t('action.delete'),
@@ -444,15 +462,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space.s3,
     paddingHorizontal: space.s4,
-    minHeight: 52,
+    minHeight: 44,
   },
   hudWords: {
     flex: 1,
     alignItems: 'center',
     gap: 2,
   },
+  hudBox: {
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: space.s3,
+    borderWidth: 1,
+    borderRadius: radius.pill,
+    gap: 1,
+  },
   hudSide: {
-    width: 48,
+    width: 44,
   },
   square: {
     position: 'absolute',

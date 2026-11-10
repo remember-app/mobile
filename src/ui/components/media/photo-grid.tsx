@@ -14,6 +14,7 @@ export type Photo = {
   source: ImageSource | string | null;
   video?: boolean;
   assetId?: string;
+  playbackUrl?: string | null;
   width?: number;
   height?: number;
   upload?: TileUpload;
@@ -155,7 +156,6 @@ export function PhotoGrid({
                 <PhotoTile
                   id={photo.id}
                   source={photo.source}
-                  video={photo.video}
                   upload={photo.upload}
                   select={photo.select}
                   accent={photo.accent}

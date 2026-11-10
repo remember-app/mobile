@@ -23,12 +23,12 @@ import { useTheme } from '@/ui/theme';
 import { clamp } from './viewer/geometry';
 import type { ViewerPhoto } from './viewer/types';
 
-const SELECTED = 48;
-const UNSELECTED = 30;
-const GAP = 3;
-const PADDING = 10;
-const BREADTH = 48;
-const STRIP_HEIGHT = 82;
+const SELECTED = 40;
+const UNSELECTED = 26;
+const GAP = 8;
+const PADDING = 12;
+const BREADTH = 40;
+const STRIP_HEIGHT = 68;
 export const STRIP_PITCH = UNSELECTED + GAP;
 const WINDOW = 14;
 

@@ -3,12 +3,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
 import { loadGallery, loadMontages } from '@/functionality';
 import { montageItemIds } from '@/models';
 import type { ProjectId } from '@/types/id';
+import { goBack } from '@/ui/back';
 import { type Photo, PhotoGrid, type Rect } from '@/ui/components/media/photo-grid';
 import { PhotoViewer } from '@/ui/components/media/photo-viewer';
+import { duration } from '@/ui/format';
 import { useGallery, useMontages } from '@/ui/hooks';
 import { ActionBar } from '@/ui/kit/action-bar';
 import { AppBar, Board } from '@/ui/kit/bars';
@@ -50,6 +51,11 @@ export default function DirectingJournalScreen() {
         id: item.id,
         source: item.links.thumbnail ?? item.links.preview ?? item.links.original,
         video: item.kind === 'video',
+        playbackUrl: item.kind === 'video' ? (item.links.preview ?? item.links.original) : null,
+        note:
+          item.kind === 'video' && item.media.duration !== null
+            ? duration(item.media.duration)
+            : undefined,
         width: item.media.dimensions?.width,
         height: item.media.dimensions?.height,
         capturedAt: item.media.capturedAt,
@@ -64,6 +70,11 @@ export default function DirectingJournalScreen() {
         id: item.id,
         source: item.links.preview ?? item.links.original ?? item.links.thumbnail,
         video: item.kind === 'video',
+        playbackUrl: item.kind === 'video' ? (item.links.preview ?? item.links.original) : null,
+        note:
+          item.kind === 'video' && item.media.duration !== null
+            ? duration(item.media.duration)
+            : undefined,
         width: item.media.dimensions?.width,
         height: item.media.dimensions?.height,
         capturedAt: item.media.capturedAt,
@@ -75,7 +86,7 @@ export default function DirectingJournalScreen() {
     <AppBar
       boxed
       title={t('montage.journal.directing')}
-      left={<BackButton label={t('action.back')} onPress={() => router.back()} />}
+      left={<BackButton label={t('action.back')} onPress={() => goBack(router)} />}
     />
   );
 

@@ -4,9 +4,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
 import { loadGallery, loadLabels } from '@/functionality';
 import type { LabelId, ProjectId } from '@/types/id';
+import { goBack } from '@/ui/back';
 import { LabelMark } from '@/ui/components/label';
 import { MediaInfo } from '@/ui/components/media/info/media-info';
 import {
@@ -16,6 +16,7 @@ import {
   type Rect,
 } from '@/ui/components/media/photo-grid';
 import { PhotoViewer } from '@/ui/components/media/photo-viewer';
+import { duration } from '@/ui/format';
 import { useGallery, useLabels, useSession } from '@/ui/hooks';
 import { ActionBar } from '@/ui/kit/action-bar';
 import { AppBar, Board } from '@/ui/kit/bars';
@@ -54,6 +55,11 @@ export default function LabelScreen() {
           id: item.id,
           source: item.links.thumbnail ?? item.links.preview ?? item.links.original,
           video: item.kind === 'video',
+          playbackUrl: item.kind === 'video' ? (item.links.preview ?? item.links.original) : null,
+          note:
+            item.kind === 'video' && item.media.duration !== null
+              ? duration(item.media.duration)
+              : undefined,
           width: item.media.dimensions?.width,
           height: item.media.dimensions?.height,
           capturedAt: item.media.capturedAt,
@@ -68,7 +74,7 @@ export default function LabelScreen() {
           <AppBar
             boxed
             title={t('labels.title')}
-            left={<BackButton label={t('action.back')} onPress={() => router.back()} />}
+            left={<BackButton label={t('action.back')} onPress={() => goBack(router)} />}
           />
         }
       >
@@ -82,7 +88,9 @@ export default function LabelScreen() {
       <Stack.Screen options={{ gestureEnabled: open === null }} />
       <View style={[styles.root, { backgroundColor: theme.color.ink }]}>
         {photos.length === 0 ? (
-          <Empty sign="dashed" title={t('labels.empty')} />
+          <View style={styles.centre}>
+            <Empty sign="dashed" title={t('labels.empty')} />
+          </View>
         ) : (
           <PhotoGrid
             photos={photos}
@@ -105,7 +113,7 @@ export default function LabelScreen() {
             label={t('action.back')}
             variant="primary"
             icon={ChevronLeft}
-            onPress={() => router.back()}
+            onPress={() => goBack(router)}
           />
         </ActionBar>
         {open === null ? null : (
@@ -135,6 +143,11 @@ export default function LabelScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  centre: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   top: {
     flexDirection: 'row',
     alignItems: 'center',

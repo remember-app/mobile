@@ -146,6 +146,7 @@ export function IconButton({
   dot,
   disabled,
   tint,
+  hitX,
   glyph: drawn,
   style,
 }: {
@@ -158,6 +159,7 @@ export function IconButton({
   dot?: boolean;
   disabled?: boolean;
   tint?: string;
+  hitX?: number;
   glyph?: {
     size: number;
     stroke?: number;
@@ -185,7 +187,7 @@ export function IconButton({
         on === undefined ? { disabled: !!disabled } : { disabled: !!disabled, checked: lit }
       }
       disabled={disabled}
-      hitSlop={hitSlop(size)}
+      hitSlop={hitX === undefined ? hitSlop(size) : { left: hitX, right: hitX, top: 0, bottom: 0 }}
       onPress={onPress}
       {...props}
       style={({ pressed }) => [

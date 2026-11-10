@@ -6,10 +6,10 @@ import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
 import { loadGallery, loadMembers, loadMovies } from '@/functionality';
 import { montageItemIds } from '@/models';
 import type { ProjectId } from '@/types/id';
+import { goBack } from '@/ui/back';
 import { MontageConfigCard, VideoDetailsCard } from '@/ui/components/movie-blocks';
 import { fullDay, megabytes } from '@/ui/format';
 import { useGallery, useMembers, useMovies } from '@/ui/hooks';
@@ -90,7 +90,7 @@ export default function MovieScreen() {
           <AppBar
             boxed
             title={movie.name}
-            left={<BackButton label={t('action.back')} onPress={() => router.back()} />}
+            left={<BackButton label={t('action.back')} onPress={() => goBack(router)} />}
             right={
               <IconButton
                 icon={BookOpen}

@@ -4,10 +4,10 @@ import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
 import { loadMontages, loadMovies, loadProjects } from '@/functionality';
 import type { Montage } from '@/models';
 import type { ProjectId } from '@/types/id';
+import { goBack } from '@/ui/back';
 import { MontageCard } from '@/ui/components/montage-card';
 import { useMontages, useMovies, useProjectCard } from '@/ui/hooks';
 import { ActionBar } from '@/ui/kit/action-bar';
@@ -60,7 +60,7 @@ export default function MoviesScreen() {
           <AppBar
             boxed
             title={t('montage.title')}
-            left={<BackButton label={t('action.back')} onPress={() => router.back()} />}
+            left={<BackButton label={t('action.back')} onPress={() => goBack(router)} />}
           />
         }
         body={[pageBody, admin ? { paddingBottom: insets.bottom + 100 } : null]}

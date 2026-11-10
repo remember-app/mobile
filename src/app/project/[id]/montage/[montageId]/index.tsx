@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
 import {
   currentToken,
   loadGallery,
@@ -17,6 +16,7 @@ import {
 import { retryMontage } from '@/integrations/api';
 import { montageItemIds, montageStage } from '@/models';
 import type { ProjectId } from '@/types/id';
+import { goBack } from '@/ui/back';
 import { MontageBackdrop, MontageConfigCard, VideoDetailsCard } from '@/ui/components/movie-blocks';
 import {
   useGallery,
@@ -110,7 +110,7 @@ export default function MontageScreen() {
     <AppBar
       boxed
       title={heading}
-      left={<BackButton label={t('action.back')} onPress={() => router.back()} />}
+      left={<BackButton label={t('action.back')} onPress={() => goBack(router)} />}
       right={
         <IconButton
           icon={BookOpen}

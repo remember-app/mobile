@@ -3,7 +3,6 @@ import { Plus, Trash2 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
-
 import {
   addContact,
   createAppInvite,
@@ -11,6 +10,7 @@ import {
   loadSuggestions,
   removeContact,
 } from '@/functionality';
+import { goBack } from '@/ui/back';
 import { ArrowField } from '@/ui/components/arrow-field';
 import { InviteCode } from '@/ui/components/invite-code';
 import { Person } from '@/ui/components/person';
@@ -69,7 +69,7 @@ export default function ContactsScreen() {
       bar={
         <AppBar
           title={t('contacts.title')}
-          left={<BackButton label={t('action.back')} onPress={() => router.back()} />}
+          left={<BackButton label={t('action.back')} onPress={() => goBack(router)} />}
         />
       }
     >

@@ -4,16 +4,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Linking, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
 import {
   type DeviceAsset,
   type DeviceCollection,
   deviceMediaAllowed,
   enqueueUploads,
   loadDeviceAssets,
+  loadProjects,
   resolveDeviceAsset,
 } from '@/functionality';
 import type { ProjectId } from '@/types/id';
+import { goBack } from '@/ui/back';
 import {
   type MeasureTile,
   PHOTO_COLUMNS,
@@ -79,6 +80,10 @@ export default function PickScreen() {
   const label = t(LABELS[collection]);
 
   useEffect(() => {
+    void loadProjects();
+  }, []);
+
+  useEffect(() => {
     let live = true;
     setLoading(true);
     setDenied(false);
@@ -129,12 +134,15 @@ export default function PickScreen() {
     const start = project?.eventStart;
     if (!start) return;
     const until = project?.eventEnd ?? new Date(start.getTime() + 24 * 60 * 60 * 1000);
-    setSelected(
-      assets.filter((asset) => {
-        const at = new Date(asset.createdAt);
-        return at >= start && at <= until;
-      }),
-    );
+    const picked = assets.filter((asset) => {
+      const at = new Date(asset.createdAt);
+      return at >= start && at <= until;
+    });
+    setSelected(picked);
+    const first = assets.findIndex((asset) => picked.includes(asset));
+    if (first >= 0) {
+      requestAnimationFrame(() => measureTile.current?.(first, () => undefined));
+    }
   };
 
   const confirm = async () => {
@@ -154,7 +162,7 @@ export default function PickScreen() {
       }),
     );
     enqueueUploads(files);
-    router.back();
+    goBack(router);
   };
 
   const order = useMemo(() => {
@@ -251,7 +259,7 @@ export default function PickScreen() {
           )}
         </View>
         <BlurBar edge="top" style={styles.top}>
-          <BackButton label={t('action.back')} onPress={() => router.back()} />
+          <BackButton label={t('action.back')} onPress={() => goBack(router)} />
           <Pressable onPress={() => setMenu((was) => !was)} style={styles.title}>
             <Text role="barTitle">{label}</Text>
             <ChevronDown size={18} color={color.paper} />

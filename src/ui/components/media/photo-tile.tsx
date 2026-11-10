@@ -1,5 +1,5 @@
 import { Image, type ImageSource } from 'expo-image';
-import { AlertCircle, Play } from 'lucide-react-native';
+import { CircleX } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { CircularProgress } from '@/ui/kit/circular-progress';
@@ -14,7 +14,6 @@ export type TileUpload = {
 type Props = {
   id: string;
   source: ImageSource | string | null;
-  video?: boolean;
   upload?: TileUpload;
   select?: number | null;
   accent?: boolean;
@@ -23,17 +22,7 @@ type Props = {
   onSelect?: () => void;
 };
 
-export function PhotoTile({
-  id,
-  source,
-  video,
-  upload,
-  select,
-  accent,
-  note,
-  onPress,
-  onSelect,
-}: Props) {
+export function PhotoTile({ id, source, upload, select, accent, note, onPress, onSelect }: Props) {
   const theme = useTheme();
   const chosen = typeof select === 'number';
   return (
@@ -51,18 +40,13 @@ export function PhotoTile({
           recyclingKey={id}
         />
       ) : (
-        <View style={[styles.fill, styles.placeholder, { backgroundColor: theme.color.raise }]}>
-          {video ? <Play size={24} color={theme.color.muted} fill={theme.color.muted} /> : null}
-        </View>
+        <View style={[styles.fill, styles.placeholder, { backgroundColor: theme.color.raise }]} />
       )}
-      {(video && source) || note ? (
+      {note ? (
         <View style={styles.note} pointerEvents="none">
-          {video ? <Play size={9} color={theme.color.onFill} fill={theme.color.onFill} /> : null}
-          {note ? (
-            <Text role="metaSm" tone="onFill">
-              {note}
-            </Text>
-          ) : null}
+          <Text role="metaSm" tone="onFill">
+            {note}
+          </Text>
         </View>
       ) : null}
       {select !== undefined ? (
@@ -89,7 +73,7 @@ export function PhotoTile({
         <View style={styles.overlay} pointerEvents="none">
           <View style={styles.badge}>
             {upload.failed ? (
-              <AlertCircle size={24} color={theme.color.danger} />
+              <CircleX size={24} color={theme.color.danger} />
             ) : (
               <CircularProgress
                 value={upload.progress}
@@ -155,14 +139,8 @@ const styles = StyleSheet.create({
   },
   note: {
     position: 'absolute',
-    left: 4,
+    right: 4,
     bottom: 4,
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: 5,
-    backgroundColor: 'rgba(0,0,0,0.55)',
   },
 });

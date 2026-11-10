@@ -186,6 +186,7 @@ export {
   parseInvite,
   readText,
   shareInviteLink,
+  shareText,
 } from './share/share';
 export {
   hydrateLibrarySongs,
