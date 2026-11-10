@@ -1,6 +1,7 @@
 import { config } from '@/config';
 import type { ApiErrorCode } from '@/types/api';
 
+import { initMockMode, mockMode, mockResponse } from './mock';
 import type { ApiErrorWire } from './wire';
 
 export class ApiError extends Error {
@@ -55,6 +56,12 @@ export async function request<T>(
   path: string,
   { method = 'GET', body, token, timeout = config.api.timeoutMs }: Options = {},
 ): Promise<T> {
+  await initMockMode();
+  if (mockMode()) {
+    const answer = mockResponse(method, path, body);
+    if (answer === undefined) throw new ApiError(404, { error: 'not_found' });
+    return answer as T;
+  }
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(), timeout);
   try {

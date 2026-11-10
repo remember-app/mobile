@@ -1,9 +1,13 @@
 import { Image } from 'expo-image';
 import { Play, TriangleExclamationPoint } from 'lucide-react-native';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import type { Montage, Movie } from '@/models';
+import { loadGallery } from '@/functionality';
+import { type Montage, type Movie, montageItemIds, montageStage } from '@/models';
+import { MontageBackdrop } from '@/ui/components/movie-blocks';
+import { useGallery } from '@/ui/hooks';
 import { CircularSpinner } from '@/ui/kit/circular-spinner';
 import { Text } from '@/ui/kit/text';
 import { photo, radius, space, themed, useTheme } from '@/ui/theme';
@@ -29,14 +33,24 @@ export function MontageCard({
   const { t } = useTranslation();
   const { color } = useTheme();
   const styles = useStyles();
+  const gallery = useGallery(montage.projectId);
   const finished = montage.status === 'done';
   const failed = montage.status === 'failed';
   const poster = finished ? (movie?.posterUrl ?? null) : null;
+  const frames = montageItemIds(montage)
+    .flatMap((itemId) => gallery.items.filter((item) => item.id === itemId).slice(0, 1))
+    .map((item) => item.links.thumbnail ?? item.links.preview ?? item.links.original)
+    .filter((source): source is string => Boolean(source));
+
+  useEffect(() => {
+    if (gallery.items.length === 0) void loadGallery(montage.projectId);
+  }, [gallery.items.length, montage.projectId]);
+
   const label = finished
     ? (movie?.name ?? t('montage.movie.title'))
     : failed
       ? t('montage.failed')
-      : t(STAGE[montage.stage]);
+      : t(STAGE[montageStage(montage)]);
 
   return (
     <Pressable
@@ -61,18 +75,21 @@ export function MontageCard({
           </View>
         </>
       ) : (
-        <View style={styles.status}>
-          {failed ? (
-            <TriangleExclamationPoint size={wide ? 30 : 22} color={color.danger} />
-          ) : (
-            <CircularSpinner size={wide ? 30 : 22} stroke={2} />
-          )}
-        </View>
+        <>
+          <MontageBackdrop frames={frames} seed={montage.id} cycling={!failed} />
+          <View style={styles.status}>
+            {failed ? (
+              <TriangleExclamationPoint size={wide ? 30 : 22} color={color.danger} />
+            ) : (
+              <CircularSpinner size={wide ? 30 : 22} stroke={2} />
+            )}
+          </View>
+        </>
       )}
       <View style={[styles.words, wide ? styles.wordsWide : null]}>
         <Text
           role={wide ? 'row' : 'noteSm'}
-          tone={poster ? 'onFill' : failed ? 'danger' : 'paper'}
+          tone={poster || frames.length > 0 ? 'onFill' : failed ? 'danger' : 'paper'}
           numberOfLines={wide ? 1 : 2}
         >
           {label}

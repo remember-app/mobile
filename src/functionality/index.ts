@@ -13,6 +13,7 @@ export {
 } from './account/username';
 export {
   confirmCode,
+  currentToken,
   onBeforeSignOut,
   onSignOut,
   refreshSession,
@@ -25,6 +26,7 @@ export {
   setUsername,
   signIn,
   signOut,
+  startMockSession,
   subscribeSession,
 } from './auth/session';
 export {

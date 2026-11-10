@@ -9,6 +9,7 @@ import {
   startEmailLogin,
   verifyEmailCode,
 } from '@/integrations/api';
+import { mockAccount } from '@/integrations/api/mock/fixtures';
 import { clearCache } from '@/integrations/files/cache';
 import { readSecret, removeSecret, writeSecret } from '@/integrations/secure';
 import type { Account, Login } from '@/models';
@@ -69,6 +70,10 @@ async function keep(token: string, account: Account): Promise<void> {
     writeSecret(TOKEN_KEY, token),
     writeSecret(ACCOUNT_KEY, JSON.stringify(account)),
   ]);
+}
+
+export async function startMockSession(): Promise<void> {
+  await keep('mock-token', mockAccount as Account);
 }
 
 async function forget(): Promise<void> {

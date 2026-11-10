@@ -17,16 +17,30 @@ type Props = {
   video?: boolean;
   upload?: TileUpload;
   select?: number | null;
+  accent?: boolean;
   note?: string;
   onPress: () => void;
   onSelect?: () => void;
 };
 
-export function PhotoTile({ id, source, video, upload, select, note, onPress, onSelect }: Props) {
+export function PhotoTile({
+  id,
+  source,
+  video,
+  upload,
+  select,
+  accent,
+  note,
+  onPress,
+  onSelect,
+}: Props) {
   const theme = useTheme();
   const chosen = typeof select === 'number';
   return (
-    <Pressable onPress={onPress} style={styles.tile}>
+    <Pressable
+      onPress={onPress}
+      style={[styles.tile, accent ? { borderWidth: 2, borderColor: theme.color.accent } : null]}
+    >
       {source ? (
         <Image
           source={source}

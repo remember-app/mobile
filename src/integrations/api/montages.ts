@@ -3,7 +3,7 @@ import type { Page } from '@/types/api';
 import type { MontageId, ProjectId } from '@/types/id';
 
 import { query, request } from './client';
-import type { MontageCreateRequest } from './contract';
+import type { MontageCreateRequest, MontagePreviewResponse } from './contract';
 import { toMontage, toMontageTemplate, toPage } from './map';
 import type { MontageTemplateWire, MontageWire, OffsetPageWire } from './wire';
 
@@ -25,6 +25,29 @@ export function getMontage(
   return request<MontageWire>(`/v1/projects/${projectId}/montages/${montageId}`, {
     token,
   }).then(toMontage);
+}
+
+export function retryMontage(
+  token: string,
+  projectId: ProjectId,
+  montageId: MontageId,
+): Promise<Montage> {
+  return request<MontageWire>(`/v1/projects/${projectId}/montages/${montageId}/retry`, {
+    method: 'POST',
+    token,
+  }).then(toMontage);
+}
+
+export function previewMontage(
+  token: string,
+  projectId: ProjectId,
+  input: Omit<MontageCreateRequest, 'payFrom'>,
+): Promise<MontagePreviewResponse> {
+  return request<MontagePreviewResponse>(`/v1/projects/${projectId}/montages/preview`, {
+    method: 'POST',
+    body: input,
+    token,
+  });
 }
 
 export function createMontage(

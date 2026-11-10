@@ -175,6 +175,8 @@ export function Board({ bar, heading, footer, body, list, children, style }: Boa
     </BoardScrollContext.Provider>
   );
 }
+const TITLE_LIMIT = 24;
+
 export function AppBar({
   title,
   subtitle,
@@ -194,16 +196,17 @@ export function AppBar({
 }) {
   const styles = useStyles();
   const inner = variant !== 'root';
+  const shown =
+    inner && title.length > TITLE_LIMIT ? `${title.slice(0, TITLE_LIMIT - 1).trimEnd()}…` : title;
   const words = (
     <Text
       accessibilityRole="header"
       role={variant === 'root' ? 'displaySm' : variant === 'live' ? 'barTitleLive' : 'barTitle'}
       numberOfLines={inner ? 1 : undefined}
-      adjustsFontSizeToFit={inner || undefined}
-      minimumFontScale={inner ? 0.7 : undefined}
+      ellipsizeMode={inner ? 'tail' : undefined}
       style={inner ? styles.titleCentre : undefined}
     >
-      {title}
+      {shown}
     </Text>
   );
   return (
@@ -235,7 +238,7 @@ const useStyles = themed(({ color }) =>
       paddingHorizontal: space.s4,
     },
     barInner: { gap: space.s2 },
-    side: { minWidth: 104, flexDirection: 'row', alignItems: 'center', gap: space.s1 },
+    side: { minWidth: 92, flexDirection: 'row', alignItems: 'center', gap: space.s1 },
     sideLeft: { justifyContent: 'flex-start' },
     sideRight: { justifyContent: 'flex-end' },
     barWords: { flex: 1, minWidth: 0, gap: 2 },
@@ -244,6 +247,7 @@ const useStyles = themed(({ color }) =>
     box: {
       minHeight: 44,
       maxWidth: '100%',
+      flexShrink: 1,
       justifyContent: 'center',
       paddingHorizontal: space.s3,
       borderWidth: 1,

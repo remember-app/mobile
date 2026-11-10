@@ -68,10 +68,11 @@ export function ProjectHeader({
   });
 
   const open = (montage: Montage) => {
-    if (montage.status === 'done' && montage.movieId) {
+    const movie = movies.items.find((entry) => entry.montageId === montage.id);
+    if (montage.status === 'done' && movie) {
       router.navigate({
         pathname: '/project/[id]/movie/[movieId]',
-        params: { id: projectId, movieId: montage.movieId },
+        params: { id: projectId, movieId: movie.id },
       });
       return;
     }
@@ -116,7 +117,7 @@ export function ProjectHeader({
                 <View key={montage.id} style={{ width: card }}>
                   <MontageCard
                     montage={montage}
-                    movie={movies.items.find((movie) => movie.id === montage.movieId)}
+                    movie={movies.items.find((movie) => movie.montageId === montage.id)}
                     onPress={() => open(montage)}
                   />
                 </View>

@@ -35,10 +35,11 @@ export default function MoviesScreen() {
   }, [projectId]);
 
   const open = (montage: Montage) => {
-    if (montage.status === 'done' && montage.movieId) {
+    const movie = movies.items.find((entry) => entry.montageId === montage.id);
+    if (montage.status === 'done' && movie) {
       router.navigate({
         pathname: '/project/[id]/movie/[movieId]',
-        params: { id: projectId, movieId: montage.movieId },
+        params: { id: projectId, movieId: movie.id },
       });
       return;
     }
@@ -80,7 +81,7 @@ export default function MoviesScreen() {
             <MontageCard
               key={montage.id}
               montage={montage}
-              movie={movies.items.find((movie) => movie.id === montage.movieId)}
+              movie={movies.items.find((movie) => movie.montageId === montage.id)}
               wide
               onPress={() => open(montage)}
             />

@@ -18,6 +18,7 @@ export type Photo = {
   height?: number;
   upload?: TileUpload;
   select?: number | null;
+  accent?: boolean;
   note?: string;
   capturedAt?: Date | null;
 };
@@ -157,6 +158,7 @@ export function PhotoGrid({
                   video={photo.video}
                   upload={photo.upload}
                   select={photo.select}
+                  accent={photo.accent}
                   note={photo.note}
                   onSelect={() => onSelect?.(index)}
                   onPress={() => {

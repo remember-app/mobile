@@ -283,11 +283,10 @@ export function toMontage(wire: MontageWire): Montage {
     projectId: wire.projectId,
     createdBy: wire.createdBy,
     status: wire.status,
-    stage: wire.stage,
+    manifest: wire.manifest,
+    journal: wire.journal,
     createdAt: date(wire.createdAt),
     error: wire.error,
-    itemIds: wire.itemIds,
-    movieId: wire.movieId,
   };
 }
 
@@ -314,6 +313,8 @@ export function toMovie(wire: MovieWire): Movie {
     createdAt: date(wire.createdAt),
     montageId: wire.montageId,
     videoId: wire.videoId,
+    video: wire.video,
+    montage: wire.montage ? toMontage(wire.montage) : null,
     thumbnailId: wire.derived.thumbnailId,
     previewId: wire.derived.previewId,
     videoUrl: wire.video_url,
