@@ -1,5 +1,11 @@
 import { onSignOut } from '@/functionality/auth/session';
-import { cachedMedia, clearMediaCache, keepMedia } from '@/integrations/files/media-cache';
+import {
+  type CacheGroup,
+  cachedMedia,
+  clearMediaCache,
+  keepMedia,
+  mediaCacheUsage,
+} from '@/integrations/files/media-cache';
 import { saveToPhone, shareFile } from '@/integrations/files/save';
 import type { Item } from '@/models';
 
@@ -7,30 +13,36 @@ const previewExt = (item: Item): string | null =>
   item.kind === 'audio' ? null : item.kind === 'video' ? 'mp4' : 'jpg';
 
 export const cachedThumbnail = (item: Item): string | null =>
-  cachedMedia(item.media.id, 'thumbnail', 'jpg');
+  cachedMedia(item.media.id, 'thumbnail', 'jpg', item.projectId);
 
 export const cachedPreview = (item: Item): string | null => {
   const ext = previewExt(item);
-  return ext === null ? null : cachedMedia(item.media.id, 'preview', ext);
+  return ext === null ? null : cachedMedia(item.media.id, 'preview', ext, item.projectId);
 };
 
 export const cachedOriginal = (item: Item): string | null =>
-  cachedMedia(item.media.id, 'original', item.media.format);
+  cachedMedia(item.media.id, 'original', item.media.format, item.projectId);
 
 export async function ensureThumbnail(item: Item): Promise<string | null> {
   if (!item.links.thumbnail) return null;
-  return keepMedia(item.media.id, 'thumbnail', 'jpg', item.links.thumbnail);
+  return keepMedia(item.media.id, 'thumbnail', 'jpg', item.links.thumbnail, item.projectId);
 }
 
 export async function ensurePreview(item: Item): Promise<string | null> {
   const ext = previewExt(item);
   if (ext === null || !item.links.preview) return null;
-  return keepMedia(item.media.id, 'preview', ext, item.links.preview);
+  return keepMedia(item.media.id, 'preview', ext, item.links.preview, item.projectId);
 }
 
 export async function ensureOriginal(item: Item): Promise<string | null> {
   if (!item.links.original) return null;
-  return keepMedia(item.media.id, 'original', item.media.format, item.links.original);
+  return keepMedia(
+    item.media.id,
+    'original',
+    item.media.format,
+    item.links.original,
+    item.projectId,
+  );
 }
 
 export async function saveItemToPhone(item: Item): Promise<boolean> {
@@ -54,5 +66,9 @@ export async function shareItem(item: Item): Promise<void> {
   if (!local) throw new Error('the original is not available');
   await shareFile(local);
 }
+
+export const cacheUsage = (): { total: number; groups: CacheGroup[] } => mediaCacheUsage();
+
+export const clearCache = (): void => clearMediaCache();
 
 onSignOut(clearMediaCache);

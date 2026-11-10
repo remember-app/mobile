@@ -1,11 +1,12 @@
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Camera, ChevronRight, LogOut } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import {
+  cacheUsage,
   isUsernameShapeValid,
   loadAvatar,
   loadContacts,
@@ -20,7 +21,7 @@ import type { Language } from '@/types/language';
 import { Person } from '@/ui/components/person';
 import { SettingsSelect } from '@/ui/components/settings-select';
 import { confirmAction } from '@/ui/confirm';
-import { number } from '@/ui/format';
+import { number, size } from '@/ui/format';
 import { useAvatar, useContacts, useSession } from '@/ui/hooks';
 import { applyLanguage } from '@/ui/i18n';
 import { Avatar } from '@/ui/kit/avatar';
@@ -63,6 +64,7 @@ export default function ProfileScreen() {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(account?.name ?? '');
   const [username, setUsername] = useState(account?.username ?? '');
+  const [cacheBytes, setCacheBytes] = useState(0);
 
   useEffect(() => {
     void loadAvatar();
@@ -72,6 +74,12 @@ export default function ProfileScreen() {
   useEffect(() => {
     if (account) setLanguage(account.language);
   }, [account?.language]);
+
+  useFocusEffect(
+    useCallback(() => {
+      setCacheBytes(cacheUsage().total);
+    }, []),
+  );
 
   const choose = (next: Language) => {
     setLanguage(next);
@@ -225,6 +233,16 @@ export default function ProfileScreen() {
         <View style={styles.value}>
           <Text role="rowPlain" tone="muted">
             {contacts.contacts.length}
+          </Text>
+          <ChevronRight size={18} color={color.muted} />
+        </View>
+      </Card>
+
+      <Card onPress={() => router.navigate('/cache')} style={[styles.pad, styles.row]}>
+        <Text role="row">{t('profile.cache')}</Text>
+        <View style={styles.value}>
+          <Text role="rowPlain" tone="muted">
+            {size(cacheBytes)}
           </Text>
           <ChevronRight size={18} color={color.muted} />
         </View>

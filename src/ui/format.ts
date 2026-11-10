@@ -12,6 +12,10 @@ export function megabytes(bytes: number): string {
   return `${number(bytes / 1024 / 1024, 2)} ${i18n.t('unit.mb')}`;
 }
 
+export function size(bytes: number): string {
+  return bytes >= 1024 ** 3 ? gigabytes(bytes / 1024 ** 3) : megabytes(bytes);
+}
+
 export function dayMonth(value: Date): string {
   return new Intl.DateTimeFormat(locale(), { day: 'numeric', month: 'long' }).format(value);
 }

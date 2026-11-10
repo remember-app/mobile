@@ -70,6 +70,8 @@ export {
   cachedOriginal,
   cachedPreview,
   cachedThumbnail,
+  cacheUsage,
+  clearCache,
   ensureOriginal,
   ensurePreview,
   ensureThumbnail,
@@ -147,6 +149,7 @@ export {
   myMembership,
   removeMember,
   setContribution,
+  setRole,
   subscribeMembers,
 } from './project/members';
 export {

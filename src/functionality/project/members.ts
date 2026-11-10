@@ -3,6 +3,7 @@ import {
   addMember as apiAddMember,
   removeMember as apiRemoveMember,
   setContribution as apiSetContribution,
+  setMemberRole as apiSetMemberRole,
   listMembers,
 } from '@/integrations/api';
 import { readCache, removeCache, writeCache } from '@/integrations/files/cache';
@@ -182,6 +183,19 @@ export async function addMember(
   });
   persist(projectId);
   if (!exists) adjustProjectCounts(projectId, { members: 1 });
+  return member;
+}
+
+export async function setRole(projectId: ProjectId, userId: UserId, role: Role): Promise<Member> {
+  const member = await apiSetMemberRole(token(), projectId, userId, role);
+  const current = membersState(projectId);
+  if (current.status === 'ready') {
+    emit(projectId, {
+      ...current,
+      members: current.members.map((item) => (item.userId === userId ? member : item)),
+    });
+    persist(projectId);
+  }
   return member;
 }
 

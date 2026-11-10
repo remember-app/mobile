@@ -87,6 +87,7 @@ export const en = {
     language: 'Language',
     theme: 'Theme',
     contacts: 'My contacts',
+    cache: 'Media cache',
     logout: 'Log out',
     edit: 'Edit profile',
     name: 'Name',
@@ -167,6 +168,12 @@ export const en = {
   },
   members: {
     add: 'Add people',
+    role: 'Role',
+    roles: {
+      admin: 'Admin',
+      contributor: 'Contributor',
+      viewer: 'Viewer',
+    },
     viewers: 'Viewers',
     files: 'Files',
     storage: 'Storage',
@@ -267,6 +274,15 @@ export const en = {
       tooMany: 'Too many orders — try again later',
       noItems: 'There are no shots in this memory yet',
     },
+  },
+  cache: {
+    title: 'Cache',
+    used: 'Memory usage',
+    stored: 'Stored on this device',
+    empty: 'Cache is empty',
+    other: 'Other',
+    clear: 'Clear all cache',
+    note: 'All media stays in the cloud — you can download it again when needed.',
   },
   state: {
     loading: 'Loading…',

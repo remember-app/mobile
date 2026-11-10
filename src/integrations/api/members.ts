@@ -28,6 +28,19 @@ export function addMember(
   }).then(toMember);
 }
 
+export function setMemberRole(
+  token: string,
+  projectId: ProjectId,
+  userId: UserId,
+  role: Role,
+): Promise<Member> {
+  return request<MemberWire>(`/v1/projects/${projectId}/members/${userId}`, {
+    method: 'PATCH',
+    body: { role },
+    token,
+  }).then(toMember);
+}
+
 export function removeMember(
   token: string,
   projectId: ProjectId,

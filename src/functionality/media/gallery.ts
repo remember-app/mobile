@@ -92,7 +92,7 @@ export function clearGalleries(): void {
 }
 
 export function forgetGallery(projectId: ProjectId): void {
-  for (const item of galleryState(projectId).items) forgetItemMedia(item.media.id);
+  for (const item of galleryState(projectId).items) forgetItemMedia(item.media.id, item.projectId);
   states.delete(projectId);
   removeCache(cacheName(projectId));
   for (const listener of listeners) listener();

@@ -90,6 +90,7 @@ export const ru: typeof en = {
     language: 'Язык',
     theme: 'Тема',
     contacts: 'Мои контакты',
+    cache: 'Кэш медиа',
     logout: 'Выйти',
     edit: 'Изменить профиль',
     name: 'Имя',
@@ -170,6 +171,12 @@ export const ru: typeof en = {
   },
   members: {
     add: 'Добавить пользователей',
+    role: 'Роль',
+    roles: {
+      admin: 'Админ',
+      contributor: 'Участник',
+      viewer: 'Смотрящий',
+    },
     viewers: 'Смотрящие',
     files: 'Файлы',
     storage: 'Хранилище',
@@ -270,6 +277,15 @@ export const ru: typeof en = {
       tooMany: 'Слишком много заказов — попробуйте позже',
       noItems: 'В воспоминании пока нет кадров',
     },
+  },
+  cache: {
+    title: 'Кэш',
+    used: 'Использование памяти',
+    stored: 'Занято на устройстве',
+    empty: 'Кэш пуст',
+    other: 'Другое',
+    clear: 'Очистить весь кэш',
+    note: 'Все медиа остаются в облаке — при необходимости их можно скачать снова.',
   },
   state: {
     loading: 'Загружаем…',

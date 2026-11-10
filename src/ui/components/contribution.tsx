@@ -23,7 +23,11 @@ export function Contribution({ contribution }: { contribution: ContributionStatu
     );
   }
 
-  const Icon = ICONS[contribution];
+  const Icon = ICONS[contribution as keyof typeof ICONS];
+  if (!Icon) {
+    console.warn(`unknown contribution status: ${String(contribution)}`);
+    return null;
+  }
   return <Icon size={22} color={color.muted} />;
 }
 

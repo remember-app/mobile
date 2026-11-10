@@ -172,6 +172,10 @@ export function mockResponse(method: string, path: string, body?: unknown): unkn
         ? { ...found, item: { ...found.item, description: payload.description ?? null } }
         : undefined;
     }
+    if (parts[0] === 'projects' && parts[2] === 'members' && parts[3]) {
+      const found = bundleOf(parts[1] ?? '')?.members.find((one) => one.userId === parts[3]);
+      return found ? { ...found, role: payload.role ?? found.role } : undefined;
+    }
     return bundleOf(parts[1] ?? '')?.project ?? { ok: true };
   }
 

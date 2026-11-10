@@ -4,7 +4,7 @@ import { type ReactNode, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { removeMember, setContribution } from '@/functionality';
+import { removeMember, setContribution, setRole } from '@/functionality';
 import type { Member } from '@/models';
 import type { ProjectId } from '@/types/id';
 import { Person } from '@/ui/components/person';
@@ -14,8 +14,15 @@ import { useProjectCard, useSession } from '@/ui/hooks';
 import { BottomSheet } from '@/ui/kit/bottom-sheet';
 import { IconButton } from '@/ui/kit/button';
 import { CircularProgress } from '@/ui/kit/circular-progress';
+import { Segment } from '@/ui/kit/segment';
 import { Text } from '@/ui/kit/text';
 import { radius, space, themed, useTheme } from '@/ui/theme';
+
+const ROLES = [
+  { value: 'admin', label: 'members.roles.admin' },
+  { value: 'contributor', label: 'members.roles.contributor' },
+  { value: 'viewer', label: 'members.roles.viewer' },
+] as const;
 
 const CONTRIBUTIONS = [
   { value: 'not_started', icon: CircleDashed, label: 'members.notStarted' },
@@ -96,6 +103,15 @@ export function MemberSheet({
               }
             />
           </View>
+
+          {project?.myRole === 'admin' && !self ? (
+            <Segment
+              label={t('members.role')}
+              options={ROLES.map(({ value, label }) => ({ value, label: t(label) }))}
+              value={member.role}
+              onChange={(role) => void setRole(projectId, member.userId, role)}
+            />
+          ) : null}
 
           {member.role === 'viewer' ? null : (
             <View style={styles.stats}>
