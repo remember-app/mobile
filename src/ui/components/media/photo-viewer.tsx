@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { setStatusBarHidden } from 'expo-status-bar';
-import { Trash2 } from 'lucide-react-native';
+import { Circle, CircleCheck, Trash2 } from 'lucide-react-native';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type ScrollViewInstance, StyleSheet, useWindowDimensions, View } from 'react-native';
@@ -45,6 +45,8 @@ type Props = {
   renderInfo?: (index: number) => ReactNode;
   author?: string;
   onDelete?: (photo: ViewerPhoto) => void;
+  selected?: boolean;
+  onSelect?: () => void;
 };
 
 type Phase = 'entering' | 'open' | 'leaving';
@@ -58,6 +60,8 @@ export function PhotoViewer({
   renderInfo,
   author,
   onDelete,
+  selected,
+  onSelect,
 }: Props) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -420,6 +424,15 @@ export function PhotoViewer({
                   onConfirm: () => onDelete(currentPhoto),
                 })
               }
+            />
+          ) : onSelect ? (
+            <IconButton
+              icon={selected ? CircleCheck : Circle}
+              label={t('project.select')}
+              tone="surface"
+              size={44}
+              on={selected}
+              onPress={onSelect}
             />
           ) : (
             <View style={styles.hudSide} />

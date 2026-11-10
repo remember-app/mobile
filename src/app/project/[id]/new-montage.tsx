@@ -16,10 +16,12 @@ import {
   currentToken,
   loadGallery,
   loadLibrarySongs,
+  loadMontageTemplates,
   loadProjectSongs,
   loadProjects,
+  previewMontage,
 } from '@/functionality';
-import { isApiError, listMontageTemplates, previewMontage } from '@/integrations/api';
+import { isApiError } from '@/integrations/api';
 import type { MontageTemplate, Song } from '@/models';
 import type { ProjectId } from '@/types/id';
 import { goBack } from '@/ui/back';
@@ -85,8 +87,7 @@ export default function NewMontageScreen() {
     setDraft((was) => ({ ...was, ...(typeof patch === 'function' ? patch(was) : patch) }));
 
   useEffect(() => {
-    const token = currentToken();
-    if (token) listMontageTemplates(token, projectId).then(setTemplates, () => setTemplates([]));
+    loadMontageTemplates(projectId).then(setTemplates, () => setTemplates([]));
     void loadProjects();
     void loadGallery(projectId);
     void loadProjectSongs(projectId);
@@ -97,14 +98,13 @@ export default function NewMontageScreen() {
   const prompt = draft.prompt.trim() || null;
 
   useEffect(() => {
-    const token = currentToken();
-    if (!token || draft.includeItemIds.length === 0) {
+    if (draft.includeItemIds.length === 0) {
       setPreview(null);
       return;
     }
     let live = true;
     setPreviewFailed(false);
-    previewMontage(token, projectId, {
+    previewMontage(projectId, {
       templateId: draft.templateId,
       config: {
         targetSeconds: draft.targetSeconds,
@@ -500,6 +500,12 @@ export default function NewMontageScreen() {
           initialIndex={viewer.index}
           origin={viewer.rect}
           onClose={() => setViewer(null)}
+          onIndex={(next) => setViewer((was) => (was === null ? was : { ...was, index: next }))}
+          selected={selectedAt.has(gallery.items[viewer.index]?.id ?? '')}
+          onSelect={() => {
+            const item = gallery.items[viewer.index];
+            if (item) toggleShot(item.id);
+          }}
         />
       )}
     </View>

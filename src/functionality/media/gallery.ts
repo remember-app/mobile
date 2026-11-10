@@ -195,6 +195,10 @@ export async function loadMoreGallery(projectId: ProjectId): Promise<void> {
 export async function loadItem(projectId: ProjectId, itemId: ProjectItemId): Promise<Item> {
   const known = itemById(projectId, itemId);
   if (known) return known;
+  return refreshItem(projectId, itemId);
+}
+
+export async function refreshItem(projectId: ProjectId, itemId: ProjectItemId): Promise<Item> {
   const item = await getItem(token(), projectId, itemId);
   mergeItem(projectId, item);
   return item;
@@ -239,6 +243,31 @@ export async function removeItem(projectId: ProjectId, itemId: ProjectItemId): P
     items: current.items.filter((candidate) => candidate.id !== itemId),
   });
   persist(projectId);
+}
+
+export async function removeItems(
+  projectId: ProjectId,
+  itemIds: ProjectItemId[],
+): Promise<{ failed: number }> {
+  const targets = itemIds.flatMap((id) => {
+    const item = itemById(projectId, id);
+    return item ? [{ id, mediaId: item.media.id }] : [];
+  });
+  const results = await Promise.allSettled(
+    targets.map((target) => deleteMedia(token(), projectId, target.mediaId)),
+  );
+  const gone = new Set(
+    targets.filter((_, at) => results[at]?.status === 'fulfilled').map((target) => target.id),
+  );
+  if (gone.size > 0) {
+    const current = galleryState(projectId);
+    emit(projectId, {
+      ...current,
+      items: current.items.filter((candidate) => !gone.has(candidate.id)),
+    });
+    persist(projectId);
+  }
+  return { failed: targets.length - gone.size };
 }
 
 onSignOut(clearGalleries);

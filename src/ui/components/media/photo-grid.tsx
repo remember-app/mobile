@@ -21,6 +21,8 @@ export type Photo = {
   select?: number | null;
   accent?: boolean;
   note?: string;
+  author?: string | null;
+  labelColors?: string[];
   capturedAt?: Date | null;
 };
 
@@ -40,9 +42,11 @@ type Props = {
   padding?: { top: number; bottom: number };
   blankIndex?: number | null;
   measureRef?: MutableRefObject<MeasureTile | null>;
-  endKey?: string;
   onLoadOlder?: () => void;
   onScroll?: (offset: number) => void;
+  mark?: 'number' | 'check';
+  emptyMark?: boolean;
+  tapSelects?: boolean;
 };
 
 type ListItem = { key: string; index: number; photo: Photo };
@@ -56,9 +60,11 @@ export function PhotoGrid({
   padding,
   blankIndex,
   measureRef,
-  endKey,
   onLoadOlder,
   onScroll,
+  mark,
+  emptyMark,
+  tapSelects,
 }: Props) {
   const topPad = padding?.top ?? 0;
   const bottomPad = padding?.bottom ?? 0;
@@ -67,7 +73,6 @@ export function PhotoGrid({
   const list = useRef<FlashListRef<ListItem>>(null);
   const cells = useRef(new Map<string, ComponentRef<typeof View> | null>());
   const userMoved = useRef(false);
-  const lastEnd = useRef(endKey);
 
   const layout = useMemo(() => {
     const items: ListItem[] = [];
@@ -86,12 +91,6 @@ export function PhotoGrid({
     }
     return { data: items, at };
   }, [photos]);
-  useEffect(() => {
-    if (!endKey || endKey === lastEnd.current) return;
-    lastEnd.current = endKey;
-    list.current?.scrollToOffset({ offset: 0, animated: true });
-  }, [endKey]);
-
   useEffect(() => {
     if (!measureRef) return;
     measureRef.current = (index, done) => {
@@ -126,6 +125,7 @@ export function PhotoGrid({
         numColumns={PHOTO_COLUMNS}
         keyExtractor={(item) => item.key}
         inverted
+        maintainVisibleContentPosition={{ disabled: true }}
         onEndReached={() => {
           if (userMoved.current) onLoadOlder?.();
         }}
@@ -158,10 +158,18 @@ export function PhotoGrid({
                   source={photo.source}
                   upload={photo.upload}
                   select={photo.select}
+                  mark={mark}
+                  emptyMark={emptyMark}
                   accent={photo.accent}
                   note={photo.note}
+                  author={photo.author}
+                  labelColors={photo.labelColors}
                   onSelect={() => onSelect?.(index)}
                   onPress={() => {
+                    if (tapSelects && photo.select !== undefined) {
+                      onSelect?.(index);
+                      return;
+                    }
                     const node = cells.current.get(photo.id);
                     if (!node) {
                       onOpen(index);

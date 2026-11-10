@@ -91,6 +91,7 @@ export {
   loadItem,
   loadMoreGallery,
   removeItem,
+  removeItems,
   setItemLabels,
   subscribeGallery,
   updateItem,
@@ -100,8 +101,11 @@ export {
   createMontage,
   hydrateMontages,
   loadMontages,
+  loadMontageTemplates,
   type MontagesState,
   montagesState,
+  previewMontage,
+  retryMontage,
   subscribeMontages,
 } from './montage/montages';
 export {
@@ -214,6 +218,7 @@ export {
   clearUploads,
   enqueueUploads,
   hydrateUploads,
+  localPreviewOf,
   onUploaded,
   progressOf,
   pump,

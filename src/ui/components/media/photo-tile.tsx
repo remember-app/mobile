@@ -1,10 +1,12 @@
 import { Image, type ImageSource } from 'expo-image';
-import { CircleX } from 'lucide-react-native';
+import { Check, CircleX } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { Avatar } from '@/ui/kit/avatar';
 import { CircularProgress } from '@/ui/kit/circular-progress';
 import { Text } from '@/ui/kit/text';
 import { radius, useTheme } from '@/ui/theme';
+import { LabelMark } from '../label';
 
 export type TileUpload = {
   progress: number;
@@ -16,13 +18,30 @@ type Props = {
   source: ImageSource | string | null;
   upload?: TileUpload;
   select?: number | null;
+  mark?: 'number' | 'check';
+  emptyMark?: boolean;
   accent?: boolean;
   note?: string;
+  author?: string | null;
+  labelColors?: string[];
   onPress: () => void;
   onSelect?: () => void;
 };
 
-export function PhotoTile({ id, source, upload, select, accent, note, onPress, onSelect }: Props) {
+export function PhotoTile({
+  id,
+  source,
+  upload,
+  select,
+  mark = 'number',
+  emptyMark = true,
+  accent,
+  note,
+  author,
+  labelColors,
+  onPress,
+  onSelect,
+}: Props) {
   const theme = useTheme();
   const chosen = typeof select === 'number';
   return (
@@ -49,7 +68,7 @@ export function PhotoTile({ id, source, upload, select, accent, note, onPress, o
           </Text>
         </View>
       ) : null}
-      {select !== undefined ? (
+      {select !== undefined && (chosen || emptyMark) ? (
         <Pressable
           onPress={onSelect}
           hitSlop={10}
@@ -63,9 +82,13 @@ export function PhotoTile({ id, source, upload, select, accent, note, onPress, o
           ]}
         >
           {chosen ? (
-            <Text role="chipXs" tone="onFill">
-              {select}
-            </Text>
+            mark === 'check' ? (
+              <Check size={14} color={theme.color.onFill} strokeWidth={3} />
+            ) : (
+              <Text role="chipXs" tone="onFill">
+                {select}
+              </Text>
+            )
           ) : null}
         </Pressable>
       ) : null}
@@ -84,6 +107,18 @@ export function PhotoTile({ id, source, upload, select, accent, note, onPress, o
               />
             )}
           </View>
+        </View>
+      ) : null}
+      {labelColors && labelColors.length > 0 ? (
+        <View style={styles.labels} pointerEvents="none">
+          {labelColors.slice(0, 4).map((tint, at) => (
+            <LabelMark key={at} tint={tint} size={18} />
+          ))}
+        </View>
+      ) : null}
+      {author ? (
+        <View style={styles.author} pointerEvents="none">
+          <Avatar name={author} size={24} />
         </View>
       ) : null}
     </Pressable>
@@ -142,5 +177,17 @@ const styles = StyleSheet.create({
     right: 4,
     bottom: 4,
     alignItems: 'center',
+  },
+  labels: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    flexDirection: 'row',
+    gap: 4,
+  },
+  author: {
+    position: 'absolute',
+    left: 4,
+    bottom: 4,
   },
 });

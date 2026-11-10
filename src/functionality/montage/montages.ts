@@ -1,10 +1,16 @@
 import { currentToken, onSignOut } from '@/functionality/auth/session';
 import { onProjectDeleted } from '@/functionality/project/projects';
-import { createMontage as apiCreate, listMontages as apiList } from '@/integrations/api';
-import type { MontageCreateRequest } from '@/integrations/api/contract';
+import {
+  createMontage as apiCreate,
+  listMontages as apiList,
+  previewMontage as apiPreview,
+  retryMontage as apiRetry,
+  listMontageTemplates as apiTemplates,
+} from '@/integrations/api';
+import type { MontageCreateRequest, MontagePreviewResponse } from '@/integrations/api/contract';
 import { readCache, removeCache, writeCache } from '@/integrations/files/cache';
-import type { Montage } from '@/models';
-import type { ProjectId } from '@/types/id';
+import type { Montage, MontageTemplate } from '@/models';
+import type { MontageId, ProjectId } from '@/types/id';
 
 export type MontagesState = {
   status: 'loading' | 'ready' | 'error';
@@ -26,6 +32,7 @@ const EMPTY: MontagesState = {
 };
 
 const states = new Map<ProjectId, MontagesState>();
+const templates = new Map<ProjectId, MontageTemplate[]>();
 const inFlight = new Map<ProjectId, Promise<void>>();
 const listeners = new Set<() => void>();
 
@@ -116,8 +123,35 @@ export async function createMontage(
   return created;
 }
 
+export async function loadMontageTemplates(projectId: ProjectId): Promise<MontageTemplate[]> {
+  const cached = templates.get(projectId);
+  if (cached) return cached;
+  const items = await apiTemplates(token(), projectId);
+  templates.set(projectId, items);
+  return items;
+}
+
+export function previewMontage(
+  projectId: ProjectId,
+  input: Omit<MontageCreateRequest, 'payFrom'>,
+): Promise<MontagePreviewResponse> {
+  return apiPreview(token(), projectId, input);
+}
+
+export async function retryMontage(projectId: ProjectId, montageId: MontageId): Promise<Montage> {
+  const updated = await apiRetry(token(), projectId, montageId);
+  const current = montagesState(projectId);
+  emit(projectId, {
+    ...current,
+    items: current.items.map((item) => (item.id === updated.id ? updated : item)),
+  });
+  persist(projectId);
+  return updated;
+}
+
 function forgetMontages(projectId: string): void {
   states.delete(projectId);
+  templates.delete(projectId as ProjectId);
   removeCache(cacheName(projectId));
   for (const listener of listeners) listener();
 }
@@ -125,6 +159,7 @@ function forgetMontages(projectId: string): void {
 export function clearMontages(): void {
   for (const projectId of states.keys()) removeCache(cacheName(projectId));
   states.clear();
+  templates.clear();
   for (const listener of listeners) listener();
 }
 

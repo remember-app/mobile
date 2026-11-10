@@ -1,7 +1,7 @@
 import { ChevronLeft } from 'lucide-react-native';
 import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 import { height, photo, radius, space, type Theme, themed, type, useTheme } from '@/ui/theme';
-import { ICO, Icon, type IconComponent } from './icon';
+import { Icon, type IconComponent } from './icon';
 import { hitSlop, PRESS, useHoverFocus, useReducedMotion } from './interaction';
 import { Text } from './text';
 
@@ -164,6 +164,7 @@ export function IconButton({
     size: number;
     stroke?: number;
     filled?: boolean;
+    shiftX?: number;
   };
   style?: StyleProp<ViewStyle>;
 }) {
@@ -199,13 +200,15 @@ export function IconButton({
         style,
       ]}
     >
-      <Icon
-        icon={icon}
-        size={drawn?.size ?? roundGlyphSize(size)}
-        stroke={drawn?.stroke}
-        color={glyph}
-        fill={tone === 'video' || drawn?.filled ? glyph : undefined}
-      />
+      <View style={drawn?.shiftX ? { transform: [{ translateX: drawn.shiftX }] } : null}>
+        <Icon
+          icon={icon}
+          size={drawn?.size ?? roundGlyphSize(size)}
+          stroke={drawn?.stroke}
+          color={glyph}
+          fill={tone === 'video' || drawn?.filled ? glyph : undefined}
+        />
+      </View>
       {dot ? (
         <View
           style={[
@@ -225,13 +228,12 @@ const DOT = 9;
 const DOT_RING = 2;
 const DOT_INSET = 10 / 56;
 function roundGlyphSize(diameter: number): number {
-  if (diameter >= 64) return 26;
-  if (diameter >= 48) return 22;
-  if (diameter >= 40) return 20;
+  if (diameter >= 48) return 26;
+  if (diameter >= 40) return 24;
   if (diameter > 28) return 16;
   return 14;
 }
-const BAR_GLYPH = { size: ICO + 2, stroke: 2.3 } as const;
+const BAR_GLYPH = { size: 29, stroke: 2.3, shiftX: -1.5 } as const;
 export function BackButton({
   label,
   onPress,

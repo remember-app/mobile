@@ -1,5 +1,5 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { Check, ChevronDown, ImageOff } from 'lucide-react-native';
+import { Check, ChevronDown, ImageOff, X } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Linking, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
@@ -27,7 +27,7 @@ import { duration } from '@/ui/format';
 import { useProjectCard } from '@/ui/hooks';
 import { ActionBar } from '@/ui/kit/action-bar';
 import { BlurBar } from '@/ui/kit/blur-bar';
-import { BackButton, Button } from '@/ui/kit/button';
+import { BackButton, Button, IconButton } from '@/ui/kit/button';
 import { Text } from '@/ui/kit/text';
 import { radius, space, useTheme } from '@/ui/theme';
 
@@ -72,10 +72,23 @@ export default function PickScreen() {
   const collectionRef = useRef(collection);
   collectionRef.current = collection;
   const loadingMore = useRef(false);
+  const loadingRange = useRef(false);
   const [selected, setSelected] = useState<DeviceAsset[]>([]);
+  const [datesOnly, setDatesOnly] = useState(false);
   const [preview, setPreview] = useState<{ index: number; rect?: Rect } | null>(null);
   const measureTile = useRef<MeasureTile | null>(null);
-  const ordered = assets;
+  const from = project?.eventStart ? project.eventStart.getTime() : null;
+  const to = project?.eventEnd
+    ? project.eventEnd.getTime()
+    : from === null
+      ? null
+      : from + 24 * 60 * 60 * 1000;
+  const inDates = (asset: DeviceAsset) => {
+    if (from === null || to === null) return true;
+    const at = new Date(asset.createdAt).getTime();
+    return at >= from && at <= to;
+  };
+  const ordered = datesOnly ? assets.filter(inDates) : assets;
   const cell = Math.floor(width / PHOTO_COLUMNS);
   const label = t(LABELS[collection]);
 
@@ -109,7 +122,7 @@ export default function PickScreen() {
   }, [collection]);
 
   const loadMore = useCallback(async () => {
-    if (loadingMore.current || !cursor) return;
+    if (loadingMore.current || !cursor || datesOnly) return;
     loadingMore.current = true;
     const asked = collection;
     try {
@@ -120,7 +133,7 @@ export default function PickScreen() {
     } finally {
       loadingMore.current = false;
     }
-  }, [collection, cursor]);
+  }, [collection, cursor, datesOnly]);
 
   const toggle = (asset: DeviceAsset) => {
     setSelected((was) =>
@@ -130,18 +143,41 @@ export default function PickScreen() {
     );
   };
 
+  const loadRange = async () => {
+    if (from === null || loadingRange.current) return;
+    loadingRange.current = true;
+    const all: DeviceAsset[] = [...assets];
+    const seen = new Set(all.map((asset) => asset.id));
+    const asked = collection;
+    let next = cursor;
+    try {
+      while (next) {
+        const page = await loadDeviceAssets(next, PAGE, asked);
+        if (collectionRef.current !== asked) return;
+        for (const asset of page.assets) {
+          if (!seen.has(asset.id)) {
+            seen.add(asset.id);
+            all.push(asset);
+          }
+        }
+        next = page.next;
+        const oldest = page.assets[page.assets.length - 1];
+        if (!oldest || new Date(oldest.createdAt).getTime() < from) break;
+      }
+    } finally {
+      loadingRange.current = false;
+    }
+    setAssets(all);
+    setCursor(next);
+    setDatesOnly(true);
+    requestAnimationFrame(() => measureTile.current?.(0, () => undefined));
+  };
+
   const selectAll = () => {
-    const start = project?.eventStart;
-    if (!start) return;
-    const until = project?.eventEnd ?? new Date(start.getTime() + 24 * 60 * 60 * 1000);
-    const picked = assets.filter((asset) => {
-      const at = new Date(asset.createdAt);
-      return at >= start && at <= until;
-    });
+    const picked = ordered.filter(inDates);
     setSelected(picked);
-    const first = assets.findIndex((asset) => picked.includes(asset));
-    if (first >= 0) {
-      requestAnimationFrame(() => measureTile.current?.(first, () => undefined));
+    if (picked.length > 0) {
+      requestAnimationFrame(() => measureTile.current?.(0, () => undefined));
     }
   };
 
@@ -253,6 +289,7 @@ export default function PickScreen() {
               }}
               blankIndex={preview?.index ?? null}
               measureRef={measureTile}
+              mark="check"
               padding={{ top: insets.top + 60, bottom: insets.bottom + 76 }}
               onLoadOlder={() => void loadMore()}
             />
@@ -260,11 +297,26 @@ export default function PickScreen() {
         </View>
         <BlurBar edge="top" style={styles.top}>
           <BackButton label={t('action.back')} onPress={() => goBack(router)} />
-          <Pressable onPress={() => setMenu((was) => !was)} style={styles.title}>
-            <Text role="barTitle">{label}</Text>
-            <ChevronDown size={18} color={color.paper} />
-          </Pressable>
-          <View style={styles.spacer} />
+          <View style={styles.headCentre}>
+            <Pressable
+              onPress={() => setMenu((was) => !was)}
+              style={[styles.title, { backgroundColor: color.surface, borderColor: color.line }]}
+            >
+              <Text role="barTitle">{label}</Text>
+              <ChevronDown size={18} color={color.paper} />
+            </Pressable>
+          </View>
+          <IconButton
+            icon={X}
+            label={t('picker.clear')}
+            tone="surface"
+            size={44}
+            on={selected.length > 0 || datesOnly}
+            onPress={() => {
+              if (selected.length > 0) setSelected([]);
+              else if (datesOnly) setDatesOnly(false);
+            }}
+          />
         </BlurBar>
         {menu ? (
           <>
@@ -287,6 +339,8 @@ export default function PickScreen() {
                     setCollection(item);
                     setMenu(false);
                     setPreview(null);
+                    setSelected([]);
+                    setDatesOnly(false);
                   }}
                   style={styles.option}
                 >
@@ -304,10 +358,16 @@ export default function PickScreen() {
             label={
               selected.length
                 ? t('picker.addCount', { count: selected.length })
-                : t('picker.selectAll')
+                : datesOnly
+                  ? t('picker.selectAll')
+                  : t('picker.dates')
             }
             variant="primary"
-            onPress={() => (selected.length ? void confirm() : selectAll())}
+            onPress={() => {
+              if (selected.length > 0) void confirm();
+              else if (datesOnly) selectAll();
+              else void loadRange();
+            }}
           />
         </ActionBar>
         {preview === null ? null : (
@@ -321,6 +381,13 @@ export default function PickScreen() {
                 setPreview((was) => (was === null ? was : { index: next, rect })),
               )
             }
+            selected={
+              preview ? selected.some((asset) => asset.id === ordered[preview.index]?.id) : false
+            }
+            onSelect={() => {
+              const asset = preview ? ordered[preview.index] : undefined;
+              if (asset) toggle(asset);
+            }}
           />
         )}
       </View>
@@ -336,15 +403,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.s3,
     minHeight: 52,
   },
-  title: {
+  headCentre: {
     flex: 1,
+    alignItems: 'center',
+  },
+  title: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
-  },
-  spacer: {
-    width: 44,
+    height: 44,
+    paddingHorizontal: space.s3,
+    borderWidth: 1,
+    borderRadius: radius.pill,
   },
   menu: {
     position: 'absolute',

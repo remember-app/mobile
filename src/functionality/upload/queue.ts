@@ -1,13 +1,15 @@
 import { currentToken, onSignOut } from '@/functionality/auth/session';
+import { refreshItem } from '@/functionality/media/gallery';
 import { onProjectDeleted } from '@/functionality/project/projects';
 import { cancelUpload, completeUpload, resumeUpload, startUpload } from '@/integrations/api';
 import { readCache, writeCache } from '@/integrations/files/cache';
 import { type FilePart, readFilePart } from '@/integrations/files/parts';
 import { putPart } from '@/integrations/storage/upload';
 import type { MediaKind, UploadComplete, UploadedPart, UploadPlan } from '@/models';
-import type { ProjectId, UploadId } from '@/types/id';
+import type { ProjectId, ProjectItemId, UploadId } from '@/types/id';
 
 const CACHE = 'uploads';
+const FINISH_MS = 650;
 
 export type QueuedUpload = {
   localId: string;
@@ -32,7 +34,33 @@ export type UploadsState = {
 
 let state: UploadsState = { items: [], sending: false };
 const listeners = new Set<() => void>();
-const completed = new Set<(upload: UploadComplete, projectId: ProjectId) => void>();
+const completed = new Set<
+  (upload: UploadComplete, projectId: ProjectId, localId: string) => void | Promise<void>
+>();
+const localPreviews = new Map<string, string>();
+const previewQueue: { projectId: ProjectId; itemId: ProjectItemId }[] = [];
+let previewing = false;
+
+export const localPreviewOf = (itemId: string): string | undefined => localPreviews.get(itemId);
+
+async function watchPreview(projectId: ProjectId, itemId: ProjectItemId): Promise<void> {
+  previewQueue.push({ projectId, itemId });
+  if (previewing) return;
+  previewing = true;
+  try {
+    while (previewQueue.length > 0) {
+      const next = previewQueue.shift();
+      if (!next) continue;
+      for (let attempt = 0; attempt < 30; attempt += 1) {
+        const item = await refreshItem(next.projectId, next.itemId).catch(() => undefined);
+        if (item?.links.thumbnail || item?.links.preview) break;
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
+    }
+  } finally {
+    previewing = false;
+  }
+}
 
 export const uploadsState = (): UploadsState => state;
 
@@ -44,7 +72,7 @@ export const subscribeUploads = (listener: () => void): (() => void) => {
 };
 
 export function onUploaded(
-  listener: (upload: UploadComplete, projectId: ProjectId) => void,
+  listener: (upload: UploadComplete, projectId: ProjectId, localId: string) => void | Promise<void>,
 ): () => void {
   completed.add(listener);
   return () => {
@@ -160,9 +188,8 @@ export async function pump(): Promise<void> {
   try {
     for (let next = state.items.find((item) => item.status === 'waiting'); next; ) {
       try {
-        await send(next, token);
-        emit({ ...state, items: state.items.filter((item) => item.localId !== next?.localId) });
-        persist();
+        const done = await send(next, token);
+        if (done) void finish(next, done);
       } catch (error) {
         update(next.localId, {
           status: 'failed',
@@ -207,7 +234,7 @@ async function planFor(item: QueuedUpload, token: string): Promise<UploadPlan> {
   return plan;
 }
 
-async function send(item: QueuedUpload, token: string): Promise<void> {
+async function send(item: QueuedUpload, token: string): Promise<UploadComplete | null> {
   let plan = await planFor(item, token);
   const partBytes = plan.partBytes;
   const total = Math.ceil(item.sizeBytes / partBytes);
@@ -229,17 +256,27 @@ async function send(item: QueuedUpload, token: string): Promise<void> {
       etag = await perform();
     }
     const current = state.items.find((candidate) => candidate.localId === item.localId);
-    if (!current) return;
+    if (!current) return null;
     update(item.localId, { parts: { ...current.parts, [number]: etag }, error: null });
   }
   const current = state.items.find((candidate) => candidate.localId === item.localId);
-  if (!current) return;
+  if (!current) return null;
   const parts: UploadedPart[] = Object.entries(current.parts).map(([number, etag]) => ({
     part_number: Number(number),
     etag,
   }));
-  const done = await completeUpload(token, item.projectId, plan.id, parts);
-  for (const listener of completed) listener(done, item.projectId);
+  return completeUpload(token, item.projectId, plan.id, parts);
+}
+
+async function finish(item: QueuedUpload, done: UploadComplete): Promise<void> {
+  localPreviews.set(done.itemId, item.uri);
+  await new Promise((resolve) => setTimeout(resolve, FINISH_MS));
+  void watchPreview(item.projectId, done.itemId);
+  await Promise.allSettled(
+    [...completed].map((listener) => listener(done, item.projectId, item.localId)),
+  );
+  emit({ ...state, items: state.items.filter((candidate) => candidate.localId !== item.localId) });
+  persist();
 }
 
 onSignOut(clearUploads);

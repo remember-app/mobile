@@ -5,15 +5,14 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  currentToken,
   loadGallery,
   loadLibrarySongs,
   loadMontages,
   loadMovies,
   loadProjectSongs,
   loadProjects,
+  retryMontage,
 } from '@/functionality';
-import { retryMontage } from '@/integrations/api';
 import { montageItemIds, montageStage } from '@/models';
 import type { ProjectId } from '@/types/id';
 import { goBack } from '@/ui/back';
@@ -147,12 +146,11 @@ export default function MontageScreen() {
   const wide = settings ? settings.dimensions.width >= settings.dimensions.height : false;
 
   const retry = async () => {
-    const token = currentToken();
-    if (!token || busy) return;
+    if (busy) return;
     setBusy(true);
     setError(null);
     try {
-      await retryMontage(token, projectId, montage.id);
+      await retryMontage(projectId, montage.id);
       await loadMontages(projectId, true);
     } catch {
       setError(t('montage.order.error'));
