@@ -56,6 +56,10 @@ export function NetworkBanner() {
         () => true,
         () => false,
       );
+      if (networkState().status !== 'online') {
+        setPhase('no-network');
+        return false;
+      }
       if (reachable) {
         setPhase(phaseRef.current === 'hidden' ? 'hidden' : 'connected');
         return true;
