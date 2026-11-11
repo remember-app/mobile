@@ -8,12 +8,14 @@ import {
   mockProjects,
   mockSongs,
   mockTemplates,
+  mockUsers,
 } from './fixtures';
 
 const KEY = 'mock-mode';
 
 let on = false;
 let started: Promise<void> | null = null;
+let active = mockAccount;
 
 export async function initMockMode(): Promise<void> {
   if (!started) {
@@ -32,6 +34,7 @@ export const mockMode = (): boolean => on;
 
 export async function setMockMode(value: boolean): Promise<void> {
   on = value;
+  if (value) active = mockAccount;
   started = Promise.resolve();
   await writeSecret(KEY, value ? '1' : '0');
 }
@@ -58,7 +61,8 @@ export function mockResponse(method: string, path: string, body?: unknown): unkn
   const parts = url.split('/').filter(Boolean);
 
   if (method === 'GET') {
-    if (url === '/me') return mockAccount;
+    if (url === '/me') return active;
+    if (url === '/dev/users') return mockUsers;
     if (url === '/me/avatar') return { url: null };
     if (url === '/auth/sessions') return empty;
     if (url === '/me/contacts' || url === '/me/contacts/suggestions') return empty;
@@ -101,7 +105,11 @@ export function mockResponse(method: string, path: string, body?: unknown): unkn
 
   if (method === 'POST') {
     if (url === '/auth/email/start') return { ok: true, code: '123456', registered: true };
-    if (url === '/auth/email/verify') return { token: 'mock-token', user: mockAccount };
+    if (url === '/auth/email/verify') {
+      const email = typeof payload.email === 'string' ? payload.email : active.email;
+      active = mockUsers.find((user) => user.email === email) ?? mockAccount;
+      return { token: 'mock-token', user: active };
+    }
     if (url === '/auth/logout') return { ok: true };
     if (parts[0] === 'auth' && parts[1] === 'sessions' && parts[3] === 'revoke')
       return { ok: true };

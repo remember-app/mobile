@@ -39,16 +39,31 @@ const consumables = (tokens: number, bytes: number) => ({
   storage: { bytes, spend: 0 },
 });
 
-export const mockAccount: AccountResponse = {
-  id: MOCK_USER_ID,
-  username: 'alice',
-  name: 'Алиса',
-  email: 'a@x.io',
-  language: 'ru',
+const account = (
+  id: string,
+  username: string,
+  name: string,
+  email: string,
+  language: AccountResponse['language'],
+): AccountResponse => ({
+  id,
+  username,
+  name,
+  email,
+  language,
   registered: true,
   profileMediaId: null,
   consumables: consumables(90, 100 * 1024 ** 3),
-};
+});
+
+export const mockAccount = account(MOCK_USER_ID, 'alice', 'Алиса', 'a@x.io', 'ru');
+
+export const mockUsers: AccountResponse[] = [
+  mockAccount,
+  account('55555555-5555-4555-8555-555555555555', 'bob', 'Bob', 'b@x.io', 'en'),
+  account('66666666-6666-4666-8666-666666666666', 'carol', 'Кэрол', 'c@x.io', 'ru'),
+  account('77777777-7777-4777-8777-777777777777', 'dave', 'Dave', 'd@x.io', 'en'),
+];
 
 const alice: PublicUserResponse = {
   id: MOCK_USER_ID,
