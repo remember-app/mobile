@@ -18,6 +18,7 @@ import { initMockMode, mockMode, setMockMode } from '@/integrations/api/mock';
 import { clearCache } from '@/integrations/files/cache';
 import { clearMediaCache } from '@/integrations/files/media-cache';
 import type { Language } from '@/types/language';
+import { NetworkBanner } from '@/ui/components/network-banner';
 import { SettingsSelect } from '@/ui/components/settings-select';
 import { useNetwork, useSession } from '@/ui/hooks';
 import { applyLanguage } from '@/ui/i18n';
@@ -130,95 +131,98 @@ export default function DevScreen() {
   if (!__DEV__) return <Redirect href="/" />;
 
   return (
-    <Board bar={<AppBar variant="root" title="Разработка" />} body={styles.body}>
-      {open !== null ? <Pressable style={styles.overlay} onPress={() => setOpen(null)} /> : null}
-      <BlockHead label="Настройки" />
-      <View style={styles.card}>
-        <SettingsSelect
-          label="Пользователь"
-          value={switching ? 'Переключаем…' : (account?.username ?? 'не выбран')}
-          open={open === 'user'}
-          onToggle={() => setOpen(open === 'user' ? null : 'user')}
-          options={users.map((user) => ({
-            value: user.email,
-            label: user.username ? `${user.username} · ${user.email}` : user.email,
-            selected: account?.email === user.email,
-          }))}
-          onChange={(email) => void switchUser(email)}
-        />
-        {usersFailed ? (
-          <Text role="hint" tone="danger">
-            {USERS_NOTE}
-          </Text>
-        ) : null}
-        {error ? (
-          <Text role="hint" tone="danger">
-            {error}
-          </Text>
-        ) : null}
-        <SettingsSelect
-          label="Тема"
-          value={THEMES.find((option) => option.value === theme)?.label ?? theme}
-          open={open === 'theme'}
-          onToggle={() => setOpen(open === 'theme' ? null : 'theme')}
-          options={THEMES.map((option) => ({
-            value: option.value,
-            label: option.label,
-            selected: option.value === theme,
-          }))}
-          onChange={(next) => {
-            setOpen(null);
-            void setTheme(next);
-          }}
-        />
-        <SettingsSelect
-          label="Язык"
-          value={LANGUAGES.find((option) => option.value === language)?.label ?? language}
-          open={open === 'language'}
-          onToggle={() => setOpen(open === 'language' ? null : 'language')}
-          options={LANGUAGES.map((option) => ({
-            value: option.value,
-            label: option.label,
-            selected: option.value === language,
-          }))}
-          onChange={(next) => {
-            setOpen(null);
-            setLanguage(next);
-            void writeLanguage(next);
-            void applyLanguage(next);
-          }}
-        />
-        <View style={styles.row}>
-          <Text role="row">Сеть</Text>
-          <Switch
-            value={online}
-            onValueChange={(next) => setNetworkOverride(next)}
-            trackColor={{ false: color.line, true: color.accent }}
-            ios_backgroundColor={color.line}
+    <>
+      <Board bar={<AppBar variant="root" title="Разработка" />} body={styles.body}>
+        {open !== null ? <Pressable style={styles.overlay} onPress={() => setOpen(null)} /> : null}
+        <BlockHead label="Настройки" />
+        <View style={styles.card}>
+          <SettingsSelect
+            label="Пользователь"
+            value={switching ? 'Переключаем…' : (account?.username ?? 'не выбран')}
+            open={open === 'user'}
+            onToggle={() => setOpen(open === 'user' ? null : 'user')}
+            options={users.map((user) => ({
+              value: user.email,
+              label: user.username ? `${user.username} · ${user.email}` : user.email,
+              selected: account?.email === user.email,
+            }))}
+            onChange={(email) => void switchUser(email)}
           />
-        </View>
-        <View style={styles.row}>
-          <Text role="row">Мок-данные</Text>
-          <Switch
-            value={mock}
-            onValueChange={(next) => void changeMock(next)}
-            trackColor={{ false: color.line, true: color.accent }}
-            ios_backgroundColor={color.line}
+          {usersFailed ? (
+            <Text role="hint" tone="danger">
+              {USERS_NOTE}
+            </Text>
+          ) : null}
+          {error ? (
+            <Text role="hint" tone="danger">
+              {error}
+            </Text>
+          ) : null}
+          <SettingsSelect
+            label="Тема"
+            value={THEMES.find((option) => option.value === theme)?.label ?? theme}
+            open={open === 'theme'}
+            onToggle={() => setOpen(open === 'theme' ? null : 'theme')}
+            options={THEMES.map((option) => ({
+              value: option.value,
+              label: option.label,
+              selected: option.value === theme,
+            }))}
+            onChange={(next) => {
+              setOpen(null);
+              void setTheme(next);
+            }}
           />
+          <SettingsSelect
+            label="Язык"
+            value={LANGUAGES.find((option) => option.value === language)?.label ?? language}
+            open={open === 'language'}
+            onToggle={() => setOpen(open === 'language' ? null : 'language')}
+            options={LANGUAGES.map((option) => ({
+              value: option.value,
+              label: option.label,
+              selected: option.value === language,
+            }))}
+            onChange={(next) => {
+              setOpen(null);
+              setLanguage(next);
+              void writeLanguage(next);
+              void applyLanguage(next);
+            }}
+          />
+          <View style={styles.row}>
+            <Text role="row">Сеть</Text>
+            <Switch
+              value={online}
+              onValueChange={(next) => setNetworkOverride(next)}
+              trackColor={{ false: color.line, true: color.accent }}
+              ios_backgroundColor={color.line}
+            />
+          </View>
+          <View style={styles.row}>
+            <Text role="row">Мок-данные</Text>
+            <Switch
+              value={mock}
+              onValueChange={(next) => void changeMock(next)}
+              trackColor={{ false: color.line, true: color.accent }}
+              ios_backgroundColor={color.line}
+            />
+          </View>
+          <Button label="Сбросить кеш" variant="secondary" onPress={() => void resetCache()} />
         </View>
-        <Button label="Сбросить кеш" variant="secondary" onPress={() => void resetCache()} />
-      </View>
 
-      <BlockHead label="Экраны" />
-      <View style={styles.column}>
-        <Button
-          label="Онбординг"
-          variant="secondary"
-          onPress={() => router.navigate('/onboarding/welcome')}
-        />
-        <Button label="Приложение" variant="secondary" onPress={() => router.navigate('/home')} />
-      </View>
-    </Board>
+        <BlockHead label="Экраны" />
+        <View style={styles.column}>
+          <Button
+            label="Онбординг"
+            variant="secondary"
+            onPress={() => router.navigate('/onboarding/welcome')}
+          />
+          <Button label="Приложение" variant="secondary" onPress={() => router.navigate('/home')} />
+        </View>
+      </Board>
+      <NetworkBanner />
+    </>
   );
 }
 
