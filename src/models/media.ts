@@ -23,6 +23,7 @@ export type MediaCamera = {
 export type Media = {
   id: MediaId;
   kind: MediaKind;
+  fingerprint: string;
   format: string;
   bytes: number;
   dimensions: { width: number; height: number } | null;

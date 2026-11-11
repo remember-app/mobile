@@ -162,6 +162,7 @@ const item = (
       kind === 'photo'
         ? {
             id: mediaId,
+            fingerprint: '',
             kind: 'photo',
             format: 'jpeg',
             bytes: '287079',
@@ -175,6 +176,7 @@ const item = (
         : kind === 'video'
           ? {
               id: mediaId,
+              fingerprint: '',
               kind: 'video',
               format: 'mp4',
               bytes: '101349',
@@ -187,6 +189,7 @@ const item = (
             }
           : {
               id: mediaId,
+              fingerprint: '',
               kind: 'audio',
               format: 'm4a',
               bytes: '98823',

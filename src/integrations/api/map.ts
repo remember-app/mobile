@@ -161,6 +161,7 @@ export function toMedia(wire: MediaWire): Media {
   const base = {
     id: wire.id,
     kind: wire.kind,
+    fingerprint: wire.fingerprint,
     format: wire.format,
     bytes: count(wire.bytes),
     capturedAt: dateOrNull(wire.capturedAt),
@@ -218,7 +219,12 @@ export function toUploadPlan(wire: UploadPlanWire): UploadPlan {
 }
 
 export function toUploadComplete(wire: UploadCompleteWire): UploadComplete {
-  return { mediaId: wire.mediaId, itemId: wire.itemId, status: wire.status };
+  return {
+    mediaId: wire.mediaId,
+    itemId: wire.itemId,
+    status: wire.status,
+    ...(wire.duplicate ? { duplicate: true } : {}),
+  };
 }
 
 export function toLabel(wire: LabelWire): Label {

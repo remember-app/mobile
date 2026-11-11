@@ -5,6 +5,15 @@ export type FilePart = {
   length: number;
 };
 
+export async function fileDigest(uri: string): Promise<string | null> {
+  try {
+    return await new File(uri).digest('SHA-256');
+  } catch (error) {
+    console.warn('file could not be fingerprinted:', error);
+    return null;
+  }
+}
+
 export function readFilePart(uri: string, part: FilePart): Uint8Array<ArrayBuffer> {
   const source = new File(uri);
   const handle = source.open(FileMode.ReadOnly);
