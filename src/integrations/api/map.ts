@@ -257,6 +257,8 @@ export function toSong(wire: SongWire): Song {
     name: wire.name,
     author: wire.author,
     mediaId: wire.mediaId,
+    coverId: wire.coverId,
+    description: wire.description,
     projectId: wire.projectId,
     uploadedBy: wire.uploadedBy,
   };
@@ -300,6 +302,8 @@ export function toMontageTemplate(wire: MontageTemplateWire): MontageTemplate {
       dimensions: wire.settings.dimensions,
       musicIds: wire.settings.musicIds,
     },
+    coverId: wire.coverId,
+    description: wire.description,
     referenceMediaId: wire.referenceMediaId,
   };
 }

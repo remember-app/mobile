@@ -28,7 +28,13 @@ export function listProjectSongs(
 export function createSong(
   token: string,
   projectId: ProjectId,
-  input: { name: string; author: string; mediaId: MediaId },
+  input: {
+    name: string;
+    author: string;
+    mediaId: MediaId;
+    coverId?: MediaId | null;
+    description?: string | null;
+  },
 ): Promise<Song> {
   return request<SongWire>(`/v1/projects/${projectId}/songs`, {
     method: 'POST',
