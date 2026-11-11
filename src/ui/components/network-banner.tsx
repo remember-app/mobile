@@ -6,82 +6,101 @@ import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { networkState, refreshNetwork } from '@/functionality';
+import { health } from '@/integrations/api';
 import { useNetwork } from '@/ui/hooks';
 import { CircularSpinner } from '@/ui/kit/circular-spinner';
 import { Text } from '@/ui/kit/text';
 import { radius, space, useTheme } from '@/ui/theme';
 
+const NO_NETWORK = 0;
+const NO_SERVER = 1;
+const CONNECTING = 2;
+const CONNECTED = 3;
+
 const SHOWN_MS = 2400;
-const CHECK_MS = 1000;
+const NETWORK_POLL_MS = 2000;
 const PLATEAU_MS = 20000;
-const QUIET_ATTEMPTS = 3;
 const DELAYS = [100, 200, 500, 1000, 2000, 4000, 8000, 16000];
 
-type Phase = 'hidden' | 'waiting' | 'checking' | 'connected';
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+type Phase = 'hidden' | 'no-network' | 'waiting' | 'checking' | 'connected';
 
 export function NetworkBanner() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { color } = useTheme();
   const network = useNetwork();
-  const labels = [t('network.offline'), t('network.connecting'), t('network.connected')];
+  const labels = [
+    t('network.noNetwork'),
+    t('network.noServer'),
+    t('network.connecting'),
+    t('network.connected'),
+  ];
   const [phase, setPhase] = useState<Phase>('hidden');
-  const [widths, setWidths] = useState([0, 0, 0]);
+  const [widths, setWidths] = useState([0, 0, 0, 0]);
   const phaseRef = useRef<Phase>(phase);
   const running = useRef(false);
   phaseRef.current = phase;
   const widest = Math.max(...widths);
 
-  const check = useCallback(async (): Promise<boolean> => {
+  const check = useCallback(async (progress: boolean): Promise<boolean> => {
     if (running.current) return false;
     running.current = true;
-    setPhase('checking');
-    await refreshNetwork();
-    await sleep(CHECK_MS);
-    const online = networkState().status === 'online';
-    running.current = false;
-    if (online) {
-      setPhase('connected');
-    } else {
+    if (progress) setPhase('checking');
+    try {
+      await refreshNetwork();
+      if (networkState().status !== 'online') {
+        setPhase('no-network');
+        return false;
+      }
+      const reachable = await health().then(
+        () => true,
+        () => false,
+      );
+      if (reachable) {
+        setPhase(phaseRef.current === 'hidden' ? 'hidden' : 'connected');
+        return true;
+      }
       setPhase('waiting');
+      return false;
+    } finally {
+      running.current = false;
     }
-    return online;
   }, []);
 
   useEffect(() => {
-    if (network.status !== 'offline') return;
-    setPhase('hidden');
+    if (network.status === 'unknown') return;
     let live = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     let attempt = 0;
-    let timer: ReturnType<typeof setTimeout>;
 
-    const schedule = () => {
-      const delay = attempt < DELAYS.length ? DELAYS[attempt] : PLATEAU_MS;
-      timer = setTimeout(async () => {
-        if (!live) return;
-        attempt += 1;
-        if (attempt < QUIET_ATTEMPTS) {
+    if (network.status === 'offline') {
+      setPhase('no-network');
+      const poll = () => {
+        timer = setTimeout(async () => {
+          if (!live) return;
           await refreshNetwork();
-          if (live) schedule();
-          return;
-        }
-        const ok = await check();
-        if (live && !ok) schedule();
-      }, delay);
-    };
+          if (live) poll();
+        }, NETWORK_POLL_MS);
+      };
+      poll();
+      return () => {
+        live = false;
+        if (timer) clearTimeout(timer);
+      };
+    }
 
-    schedule();
+    const run = async () => {
+      const reachable = await check(attempt > 0);
+      if (!live || reachable) return;
+      const delay = attempt < DELAYS.length ? DELAYS[attempt] : PLATEAU_MS;
+      attempt += 1;
+      timer = setTimeout(() => void run(), delay);
+    };
+    void run();
     return () => {
       live = false;
-      clearTimeout(timer);
+      if (timer) clearTimeout(timer);
     };
-  }, [check, network.status]);
-
-  useEffect(() => {
-    if (network.status !== 'online' || phaseRef.current !== 'waiting') return;
-    void check();
   }, [check, network.status]);
 
   useEffect(() => {
@@ -92,6 +111,15 @@ export function NetworkBanner() {
 
   const connected = phase === 'connected';
   const checking = phase === 'checking';
+  const noNetwork = phase === 'no-network';
+  const label = connected
+    ? labels[CONNECTED]
+    : checking
+      ? labels[CONNECTING]
+      : noNetwork
+        ? labels[NO_NETWORK]
+        : labels[NO_SERVER];
+  const showsIcon = !noNetwork;
 
   return (
     <>
@@ -125,19 +153,21 @@ export function NetworkBanner() {
             style={[
               styles.pill,
               {
-                width: widest + 16 + space.s2 + space.s4 * 2 + space.s1 * 2,
+                width: widest + (showsIcon ? 16 + space.s2 : 0) + space.s4 * 2 + space.s1 * 2,
                 backgroundColor: color.surface,
                 borderColor: color.line,
               },
             ]}
           >
-            {connected ? (
-              <CheckCircle2 size={16} color={color.accent} />
-            ) : (
-              <CircularSpinner size={16} />
-            )}
+            {showsIcon ? (
+              connected ? (
+                <CheckCircle2 size={16} color={color.accent} />
+              ) : (
+                <CircularSpinner size={16} />
+              )
+            ) : null}
             <Text role="noteSm" tone="paper" numberOfLines={1} style={styles.label}>
-              {connected ? labels[2] : checking ? labels[1] : labels[0]}
+              {label}
             </Text>
           </Animated.View>
         </View>

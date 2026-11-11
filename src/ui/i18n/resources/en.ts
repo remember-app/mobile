@@ -227,7 +227,8 @@ export const en = {
     noPlace: 'No place',
   },
   network: {
-    offline: 'No network',
+    noNetwork: 'No network',
+    noServer: 'No server connection',
     connecting: 'Connecting',
     connected: 'Connected',
   },

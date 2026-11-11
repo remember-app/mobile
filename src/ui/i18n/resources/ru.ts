@@ -230,7 +230,8 @@ export const ru: typeof en = {
     noPlace: 'Место не указано',
   },
   network: {
-    offline: 'Ожидаем сеть',
+    noNetwork: 'Нет сети',
+    noServer: 'Нет связи с сервером',
     connecting: 'Подключаемся',
     connected: 'Подключено',
   },
