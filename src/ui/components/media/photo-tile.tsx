@@ -45,10 +45,7 @@ export function PhotoTile({
   const theme = useTheme();
   const chosen = typeof select === 'number';
   return (
-    <Pressable
-      onPress={onPress}
-      style={[styles.tile, accent ? { borderWidth: 2, borderColor: theme.color.accent } : null]}
-    >
+    <Pressable onPress={onPress} style={styles.tile}>
       {source ? (
         <Image
           source={source}
@@ -121,6 +118,12 @@ export function PhotoTile({
           <Avatar name={author} size={24} />
         </View>
       ) : null}
+      {accent ? (
+        <View
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFill, styles.frame, { borderColor: theme.color.accent }]}
+        />
+      ) : null}
     </Pressable>
   );
 }
@@ -130,6 +133,10 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: radius.tile,
     overflow: 'hidden',
+  },
+  frame: {
+    borderWidth: 2,
+    borderRadius: radius.tile,
   },
   fill: {
     flex: 1,
