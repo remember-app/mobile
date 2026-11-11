@@ -23,7 +23,9 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   attachItems,
+  cachedOriginal,
   detachItems,
+  ensureOriginal,
   loadGallery,
   loadItem,
   loadLabels,
@@ -103,6 +105,7 @@ export default function ProjectScreen() {
   const session = useSession();
   const account = 'account' in session ? session.account : undefined;
   const [open, setOpen] = useState<{ index: number; rect?: Rect } | null>(null);
+  const [originals, setOriginals] = useState<Record<string, string>>({});
   const [scrolling, setScrolling] = useState(false);
   const [selecting, setSelecting] = useState(false);
   const [filtering, setFiltering] = useState(false);
@@ -238,6 +241,28 @@ export default function ProjectScreen() {
       .sort((left, right) => (filters.sort === 'new' ? right.at - left.at : left.at - right.at))
       .map((entry) => entry.photo);
   }, [filters, gallery.items, labelMode, labels.labels, pending, selecting, selected]);
+
+  const viewerPhotos = useMemo<Photo[]>(
+    () =>
+      photos.map((photo) => {
+        const original = originals[photo.id];
+        return original && !photo.video ? { ...photo, source: original } : photo;
+      }),
+    [originals, photos],
+  );
+
+  const showOriginal = (itemId: string) => {
+    const item = gallery.items.find((entry) => entry.id === itemId);
+    if (item?.kind !== 'photo') return;
+    const cached = cachedOriginal(item);
+    if (cached) {
+      setOriginals((was) => (was[itemId] ? was : { ...was, [itemId]: cached }));
+      return;
+    }
+    void ensureOriginal(item).then((local) => {
+      if (local) setOriginals((was) => ({ ...was, [itemId]: local }));
+    });
+  };
 
   const actionStyle = useAnimatedStyle(() => ({
     opacity: 1 - chrome.value,
@@ -414,6 +439,7 @@ export default function ProjectScreen() {
                 retryUpload(photo.id);
                 return;
               }
+              showOriginal(photo.id);
               setOpen({ index, rect });
             }}
             onSelect={
@@ -615,15 +641,17 @@ export default function ProjectScreen() {
         ) : null}
         {open === null ? null : (
           <PhotoViewer
-            photos={photos}
+            photos={viewerPhotos}
             initialIndex={open.index}
             origin={open.rect}
             onClose={() => setOpen(null)}
-            onIndex={(next) =>
+            onIndex={(next) => {
+              const photo = photos[next];
+              if (photo) showOriginal(photo.id);
               measureTile.current?.(next, (rect) =>
                 setOpen((was) => (was === null ? was : { index: next, rect })),
-              )
-            }
+              );
+            }}
             author={account?.name ?? undefined}
             onDelete={(photo) => {
               setOpen(null);
