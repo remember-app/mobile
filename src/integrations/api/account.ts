@@ -8,6 +8,10 @@ export function getMe(token: string): Promise<Account> {
   return request<AccountWire>('/v1/me', { token }).then(toAccount);
 }
 
+export function listUsers(token: string): Promise<User[]> {
+  return request<UserWire[]>('/v1/dev/users', { token }).then((users) => users.map(toUser));
+}
+
 export function findUser(token: string, username: string): Promise<PublicUser> {
   return request<PublicUserWire>(`/v1/users/${encodeURIComponent(username)}`, { token }).then(
     toPublicUser,

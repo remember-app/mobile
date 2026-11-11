@@ -1,9 +1,11 @@
+import { Image } from 'expo-image';
 import { Redirect, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { DevSettings, Pressable, StyleSheet, Switch, View } from 'react-native';
 
 import {
   confirmCode,
+  currentToken,
   refreshGlobal,
   requestCode,
   setNetworkOverride,
@@ -11,6 +13,7 @@ import {
   startMockSession,
 } from '@/functionality';
 import { readLanguage, writeLanguage } from '@/functionality/settings/language';
+import { listUsers } from '@/integrations/api';
 import { initMockMode, mockMode, setMockMode } from '@/integrations/api/mock';
 import { clearCache } from '@/integrations/files/cache';
 import { clearMediaCache } from '@/integrations/files/media-cache';
@@ -35,14 +38,11 @@ const LANGUAGES = [
   { value: 'en', label: 'English' },
 ] as const;
 
-const USERS = [
-  { email: 'a@x.io', username: 'alice', name: 'Алиса' },
-  { email: 'b@x.io', username: 'bob', name: 'Bob' },
-  { email: 'c@x.io', username: 'carol', name: 'Кэрол' },
-  { email: 'd@x.io', username: 'dave', name: 'Dave' },
-];
+const USERS_NOTE = 'Список пользователей недоступен';
 
 type Open = 'user' | 'theme' | 'language' | null;
+
+type SwitchableUser = { email: string; username: string | null };
 
 export default function DevScreen() {
   const router = useRouter();
@@ -54,6 +54,8 @@ export default function DevScreen() {
   const [language, setLanguage] = useState<Language>('ru');
   const [open, setOpen] = useState<Open>(null);
   const [mock, setMock] = useState(false);
+  const [users, setUsers] = useState<SwitchableUser[]>([]);
+  const [usersFailed, setUsersFailed] = useState(false);
   const [switching, setSwitching] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const styles = useStyles();
@@ -67,6 +69,35 @@ export default function DevScreen() {
     });
     void initMockMode().then(() => setMock(mockMode()));
   }, []);
+
+  useEffect(() => {
+    const token = currentToken();
+    if (!token) return;
+    let alive = true;
+    listUsers(token)
+      .then((list) => {
+        if (!alive) return;
+        setUsers(
+          list.flatMap((user) =>
+            user.email === null ? [] : [{ email: user.email, username: user.username }],
+          ),
+        );
+      })
+      .catch(() => {
+        if (alive) setUsersFailed(true);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [session]);
+
+  const resetCache = async () => {
+    clearCache();
+    clearMediaCache();
+    await Image.clearMemoryCache();
+    await Image.clearDiskCache();
+    DevSettings.reload();
+  };
 
   const changeMock = async (next: boolean) => {
     setMock(next);
@@ -108,13 +139,18 @@ export default function DevScreen() {
           value={switching ? 'Переключаем…' : (account?.username ?? 'не выбран')}
           open={open === 'user'}
           onToggle={() => setOpen(open === 'user' ? null : 'user')}
-          options={USERS.map((user) => ({
+          options={users.map((user) => ({
             value: user.email,
-            label: `${user.username} · ${user.email}`,
+            label: user.username ? `${user.username} · ${user.email}` : user.email,
             selected: account?.email === user.email,
           }))}
           onChange={(email) => void switchUser(email)}
         />
+        {usersFailed ? (
+          <Text role="hint" tone="danger">
+            {USERS_NOTE}
+          </Text>
+        ) : null}
         {error ? (
           <Text role="hint" tone="danger">
             {error}
@@ -170,6 +206,7 @@ export default function DevScreen() {
             ios_backgroundColor={color.line}
           />
         </View>
+        <Button label="Сбросить кеш" variant="secondary" onPress={() => void resetCache()} />
       </View>
 
       <BlockHead label="Экраны" />
