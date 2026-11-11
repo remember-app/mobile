@@ -48,6 +48,8 @@ export function Zoomable({
   const fromScale = useSharedValue(1);
   const fromX = useSharedValue(0);
   const fromY = useSharedValue(0);
+  const fromFocalX = useSharedValue(0);
+  const fromFocalY = useSharedValue(0);
 
   const change = useCallback(
     (value: boolean) => {
@@ -59,11 +61,29 @@ export function Zoomable({
 
   const pinch = Gesture.Pinch()
     .enabled(!info)
-    .onStart(() => {
+    .onStart((event) => {
       fromScale.value = scale.value;
+      fromX.value = x.value;
+      fromY.value = y.value;
+      fromFocalX.value = event.focalX;
+      fromFocalY.value = event.focalY;
     })
     .onUpdate((event) => {
-      scale.value = clamp(fromScale.value * event.scale, 1, 5);
+      const next = clamp(fromScale.value * event.scale, 1, 5);
+      const ratio = next / fromScale.value;
+      const maxX = (width * (next - 1)) / 2;
+      const maxY = (height * (next - 1)) / 2;
+      x.value = clamp(
+        event.focalX - width / 2 - ratio * (fromFocalX.value - width / 2 - fromX.value),
+        -maxX,
+        maxX,
+      );
+      y.value = clamp(
+        event.focalY - height / 2 - ratio * (fromFocalY.value - height / 2 - fromY.value),
+        -maxY,
+        maxY,
+      );
+      scale.value = next;
     })
     .onEnd(() => {
       if (scale.value <= 1.02) {
