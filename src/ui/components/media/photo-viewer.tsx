@@ -34,8 +34,6 @@ import { Zoomable } from './viewer/zoomable';
 
 export type { ViewerPhoto } from './viewer/types';
 
-const INFO_RISE = 0.1;
-
 type Props = {
   photos: readonly ViewerPhoto[];
   initialIndex: number;
@@ -187,9 +185,10 @@ export function PhotoViewer({
     const drag = 1 - Math.min(Math.abs(dragY.value) / 300, 1);
     return { opacity: Math.min(progress.value, drag) * (1 - flight.value) };
   });
-  const rise = startTop + startBox.height * INFO_RISE;
+  const coverScale = Math.max(1, (height * 0.4) / Math.max(startBox.height, 1));
+  const coverY = -height * 0.3;
   const pagerStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: -rise * lift.value }],
+    transform: [{ translateY: coverY * lift.value }, { scale: 1 + (coverScale - 1) * lift.value }],
   }));
   const photoBottom = startTop + startBox.height;
   const infoStyle = useAnimatedStyle(() => ({
