@@ -394,7 +394,7 @@ export function PhotoViewer({
       ) : null}
       {chrome && phase === 'open' ? (
         <BlurBar edge="top" style={styles.hud}>
-          <BackButton label={t('action.back')} size={44} onPress={onClose} />
+          <BackButton label={t('action.back')} size={44} onPress={leave} />
           <View style={styles.hudWords}>
             {currentPhoto?.capturedAt ? (
               <View

@@ -12,6 +12,8 @@ export const PHOTO_COLUMNS = 3;
 export type Photo = {
   id: string;
   source: ImageSource | string | null;
+  preview?: ImageSource | string | null;
+  original?: string | null;
   video?: boolean;
   assetId?: string;
   playbackUrl?: string | null;
@@ -33,7 +35,7 @@ export type Rect = {
   height: number;
 };
 
-export type MeasureTile = (index: number, done: (rect: Rect) => void) => void;
+export type MeasureTile = (index: number, done: (rect: Rect) => void, center?: boolean) => void;
 
 type Props = {
   photos: readonly Photo[];
@@ -93,28 +95,38 @@ export function PhotoGrid({
   }, [photos]);
   useEffect(() => {
     if (!measureRef) return;
-    measureRef.current = (index, done) => {
+    measureRef.current = (index, done, center = blankIndex !== null) => {
       const photo = photos[index];
       const node = photo ? cells.current.get(photo.id) : null;
       const take = (target: ComponentRef<typeof View>) =>
         target.measureInWindow((x, y, w, h) => done({ x, y, width: w - GAP, height: h - GAP }));
-      if (node) {
+      if (node && !center) {
         take(node);
         return;
       }
       const target = layout.at.get(index);
       if (target === undefined) return;
-      void list.current?.scrollToIndex({ index: target, animated: false }).then(() => {
+      const after = (attempt: number) => {
         requestAnimationFrame(() => {
           const next = photo ? cells.current.get(photo.id) : null;
-          if (next) take(next);
+          if (next) {
+            take(next);
+            return;
+          }
+          if (attempt < 4) after(attempt + 1);
         });
-      });
+      };
+      void list.current
+        ?.scrollToIndex({ index: target, animated: false, viewPosition: center ? 0.5 : undefined })
+        .then(
+          () => after(0),
+          () => undefined,
+        );
     };
     return () => {
       measureRef.current = null;
     };
-  }, [layout, measureRef, photos]);
+  }, [blankIndex, layout, measureRef, photos]);
 
   return (
     <View style={styles.root}>
