@@ -6,7 +6,6 @@ import Animated, {
   type SharedValue,
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
@@ -50,6 +49,8 @@ export function Zoomable({
   const fromY = useSharedValue(0);
   const fromFocalX = useSharedValue(0);
   const fromFocalY = useSharedValue(0);
+  const pinching = useSharedValue(false);
+  const notified = useSharedValue(false);
 
   const change = useCallback(
     (value: boolean) => {
@@ -62,6 +63,8 @@ export function Zoomable({
   const pinch = Gesture.Pinch()
     .enabled(!info)
     .onStart((event) => {
+      pinching.value = true;
+      notified.value = false;
       fromScale.value = scale.value;
       fromX.value = x.value;
       fromY.value = y.value;
@@ -84,8 +87,13 @@ export function Zoomable({
         maxY,
       );
       scale.value = next;
+      if (next > 1.02 && !notified.value) {
+        notified.value = true;
+        scheduleOnRN(change, true);
+      }
     })
     .onEnd(() => {
+      pinching.value = false;
       if (scale.value <= 1.02) {
         scale.value = withTiming(1);
         x.value = withTiming(0);
@@ -94,20 +102,25 @@ export function Zoomable({
       } else {
         const maxX = (width * (scale.value - 1)) / 2;
         const maxY = (height * (scale.value - 1)) / 2;
-        x.value = withSpring(clamp(x.value, -maxX, maxX));
-        y.value = withSpring(clamp(y.value, -maxY, maxY));
+        x.value = clamp(x.value, -maxX, maxX);
+        y.value = clamp(y.value, -maxY, maxY);
         scheduleOnRN(change, true);
       }
+    })
+    .onFinalize(() => {
+      pinching.value = false;
     });
 
   const move = Gesture.Pan()
     .enabled(zoomed)
     .maxPointers(1)
     .onStart(() => {
+      if (pinching.value) return;
       fromX.value = x.value;
       fromY.value = y.value;
     })
     .onUpdate((event) => {
+      if (pinching.value) return;
       const maxX = (width * (scale.value - 1)) / 2;
       const maxY = (height * (scale.value - 1)) / 2;
       x.value = clamp(fromX.value + event.translationX, -maxX, maxX);

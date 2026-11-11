@@ -99,8 +99,8 @@ export function PhotoViewer({
   const fromSY = useSharedValue(1);
 
   useEffect(() => {
-    setStatusBarHidden(!chrome || info, 'fade');
-  }, [chrome, info]);
+    setStatusBarHidden(!chrome || info || zoomed, 'fade');
+  }, [chrome, info, zoomed]);
 
   useEffect(() => {
     if (info) return;
@@ -299,8 +299,9 @@ export function PhotoViewer({
                     onInfo={setInfo}
                     onDismiss={leave}
                     onTap={() => setChrome((shown) => !shown)}
+                    onZoomed={setZoomed}
                     active={at === index}
-                    visible={chrome}
+                    visible={chrome && !zoomed}
                   />
                 ) : (
                   <Zoomable
@@ -332,7 +333,7 @@ export function PhotoViewer({
           </PhotoInfo>
         </Animated.View>
       </Animated.View>
-      {author && !currentPhoto?.video ? (
+      {author && !currentPhoto?.video && !zoomed ? (
         <Animated.View style={[styles.author, authorStyle]} pointerEvents="none">
           <Avatar name={author} size={34} />
         </Animated.View>
@@ -392,7 +393,7 @@ export function PhotoViewer({
           />
         </Animated.View>
       ) : null}
-      {chrome && phase === 'open' ? (
+      {chrome && !zoomed && phase === 'open' ? (
         <BlurBar edge="top" style={styles.hud}>
           <BackButton label={t('action.back')} size={44} onPress={leave} />
           <View style={styles.hudWords}>

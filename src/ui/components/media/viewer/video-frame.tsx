@@ -3,18 +3,25 @@ import { useEventListener } from 'expo';
 import { Image } from 'expo-image';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { Pause, Play, Volume2, VolumeX } from 'lucide-react-native';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { type SharedValue, useAnimatedStyle } from 'react-native-reanimated';
+import Animated, {
+  type AnimatedStyle,
+  type SharedValue,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import { resolveDeviceAsset } from '@/functionality';
 import { IconButton } from '@/ui/kit/button';
 import { radius, space, useTheme } from '@/ui/theme';
 
-import { boxFor, mediaSize } from './geometry';
+import { boxFor, clamp, mediaSize } from './geometry';
 import { verticalGestures } from './gestures';
 import { viewerStyles } from './styles';
 import type { Box, ViewerPhoto } from './types';
@@ -29,6 +36,7 @@ export function VideoFrame({
   onInfo,
   onDismiss,
   onTap,
+  onZoomed,
   active,
   visible,
 }: {
@@ -41,11 +49,31 @@ export function VideoFrame({
   onInfo: (value: boolean) => void;
   onDismiss: () => void;
   onTap: () => void;
+  onZoomed: (value: boolean) => void;
   active: boolean;
   visible: boolean;
 }) {
   const [uri, setUri] = useState<string | null>(photo.playbackUrl ?? null);
+  const [zoomed, setZoomed] = useState(false);
   const videoBox = boxFor(mediaSize(photo), width, height);
+  const scale = useSharedValue(1);
+  const x = useSharedValue(0);
+  const y = useSharedValue(0);
+  const fromScale = useSharedValue(1);
+  const fromX = useSharedValue(0);
+  const fromY = useSharedValue(0);
+  const fromFocalX = useSharedValue(0);
+  const fromFocalY = useSharedValue(0);
+  const pinching = useSharedValue(false);
+  const notified = useSharedValue(false);
+
+  const change = useCallback(
+    (value: boolean) => {
+      setZoomed(value);
+      onZoomed(value);
+    },
+    [onZoomed],
+  );
 
   useEffect(() => {
     if (!photo.assetId) {
@@ -64,10 +92,81 @@ export function VideoFrame({
     };
   }, [photo.assetId, photo.playbackUrl]);
 
+  const pinch = Gesture.Pinch()
+    .enabled(!info)
+    .onStart((event) => {
+      pinching.value = true;
+      notified.value = false;
+      fromScale.value = scale.value;
+      fromX.value = x.value;
+      fromY.value = y.value;
+      fromFocalX.value = event.focalX;
+      fromFocalY.value = event.focalY;
+    })
+    .onUpdate((event) => {
+      const next = clamp(fromScale.value * event.scale, 1, 5);
+      const ratio = next / fromScale.value;
+      const maxX = (width * (next - 1)) / 2;
+      const maxY = (height * (next - 1)) / 2;
+      x.value = clamp(
+        event.focalX - width / 2 - ratio * (fromFocalX.value - width / 2 - fromX.value),
+        -maxX,
+        maxX,
+      );
+      y.value = clamp(
+        event.focalY - height / 2 - ratio * (fromFocalY.value - height / 2 - fromY.value),
+        -maxY,
+        maxY,
+      );
+      scale.value = next;
+      if (next > 1.02 && !notified.value) {
+        notified.value = true;
+        scheduleOnRN(change, true);
+      }
+    })
+    .onEnd(() => {
+      pinching.value = false;
+      if (scale.value <= 1.02) {
+        scale.value = withTiming(1);
+        x.value = withTiming(0);
+        y.value = withTiming(0);
+        scheduleOnRN(change, false);
+      } else {
+        const maxX = (width * (scale.value - 1)) / 2;
+        const maxY = (height * (scale.value - 1)) / 2;
+        x.value = clamp(x.value, -maxX, maxX);
+        y.value = clamp(y.value, -maxY, maxY);
+        scheduleOnRN(change, true);
+      }
+    })
+    .onFinalize(() => {
+      pinching.value = false;
+    });
+
+  const move = Gesture.Pan()
+    .enabled(zoomed)
+    .maxPointers(1)
+    .onStart(() => {
+      if (pinching.value) return;
+      fromX.value = x.value;
+      fromY.value = y.value;
+    })
+    .onUpdate((event) => {
+      if (pinching.value) return;
+      const maxX = (width * (scale.value - 1)) / 2;
+      const maxY = (height * (scale.value - 1)) / 2;
+      x.value = clamp(fromX.value + event.translationX, -maxX, maxX);
+      y.value = clamp(fromY.value + event.translationY, -maxY, maxY);
+    });
+
+  const zoomStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: x.value }, { translateY: y.value }, { scale: scale.value }],
+  }));
+
   const { openInfo, closeInfo, dismiss } = verticalGestures({
     height,
     info,
-    zoomed: false,
+    zoomed,
     lift,
     dragY,
     onInfo,
@@ -82,17 +181,30 @@ export function VideoFrame({
   }));
 
   return (
-    <GestureDetector gesture={Gesture.Race(openInfo, closeInfo, dismiss)}>
+    <GestureDetector
+      gesture={Gesture.Simultaneous(pinch, Gesture.Race(move, openInfo, closeInfo, dismiss))}
+    >
       <Animated.View style={[viewerStyles.page, style]}>
         {uri ? (
-          <Video uri={uri} box={videoBox} active={active} onTap={onTap} visible={visible} />
-        ) : photo.source ? (
-          <Image
-            source={photo.source}
-            style={videoBox}
-            contentFit="contain"
-            cachePolicy="memory-disk"
+          <Video
+            uri={uri}
+            box={videoBox}
+            active={active}
+            onTap={onTap}
+            visible={visible && !zoomed}
+            zoomStyle={zoomStyle}
           />
+        ) : photo.source ? (
+          <View style={videoBox}>
+            <Animated.View style={[StyleSheet.absoluteFill, zoomStyle]}>
+              <Image
+                source={photo.source}
+                style={StyleSheet.absoluteFill}
+                contentFit="contain"
+                cachePolicy="memory-disk"
+              />
+            </Animated.View>
+          </View>
         ) : (
           <View style={videoBox} />
         )}
@@ -107,12 +219,14 @@ function Video({
   active,
   onTap,
   visible,
+  zoomStyle,
 }: {
   uri: string;
   box: Box;
   active: boolean;
   onTap: () => void;
   visible: boolean;
+  zoomStyle: AnimatedStyle<ViewStyle>;
 }) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -160,12 +274,14 @@ function Video({
 
   return (
     <View style={box}>
-      <VideoView
-        player={player}
-        style={StyleSheet.absoluteFill}
-        contentFit="contain"
-        nativeControls={false}
-      />
+      <Animated.View style={[StyleSheet.absoluteFill, zoomStyle]}>
+        <VideoView
+          player={player}
+          style={StyleSheet.absoluteFill}
+          contentFit="contain"
+          nativeControls={false}
+        />
+      </Animated.View>
       <Pressable style={StyleSheet.absoluteFill} onPress={onTap} />
       <Pressable style={styles.center} onPress={toggle} />
       {visible ? (
