@@ -90,6 +90,7 @@ export {
   loadGallery,
   loadItem,
   loadMoreGallery,
+  refreshGalleryAll,
   removeItem,
   removeItems,
   setItemLabels,

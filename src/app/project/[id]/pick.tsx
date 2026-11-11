@@ -2,7 +2,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Check, ChevronDown, ImageOff, X } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Linking, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Alert, Linking, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   type DeviceAsset,
@@ -11,8 +11,10 @@ import {
   enqueueUploads,
   loadDeviceAssets,
   loadProjects,
+  refreshGalleryAll,
   resolveDeviceAsset,
 } from '@/functionality';
+import { fileDigest } from '@/integrations/files/parts';
 import type { ProjectId } from '@/types/id';
 import { goBack } from '@/ui/back';
 import {
@@ -74,6 +76,8 @@ export default function PickScreen() {
   const loadingMore = useRef(false);
   const loadingRange = useRef(false);
   const [selected, setSelected] = useState<DeviceAsset[]>([]);
+  const [duplicates, setDuplicates] = useState<Set<string>>(new Set());
+  const [checking, setChecking] = useState(false);
   const [datesOnly, setDatesOnly] = useState(false);
   const [preview, setPreview] = useState<{ index: number; rect?: Rect } | null>(null);
   const measureTile = useRef<MeasureTile | null>(null);
@@ -136,6 +140,7 @@ export default function PickScreen() {
   }, [collection, cursor, datesOnly]);
 
   const toggle = (asset: DeviceAsset) => {
+    setDuplicates(new Set());
     setSelected((was) =>
       was.some((entry) => entry.id === asset.id)
         ? was.filter((entry) => entry.id !== asset.id)
@@ -176,29 +181,84 @@ export default function PickScreen() {
   const selectAll = () => {
     const picked = ordered.filter(inDates);
     setSelected(picked);
+    setDuplicates(new Set());
     if (picked.length > 0) {
       requestAnimationFrame(() => measureTile.current?.(0, () => undefined));
     }
   };
 
   const confirm = async () => {
-    if (!selected.length || !id) return;
-    const files = await Promise.all(
-      selected.map(async (asset) => {
-        const local = await resolveDeviceAsset(asset.id);
-        return {
-          projectId: id as ProjectId,
-          uri: local.uri,
-          fileName: local.fileName,
-          kind: local.kind,
-          sizeBytes: local.sizeBytes,
-          capturedAt: local.capturedAt,
-          durationSeconds: local.durationSeconds,
-        };
-      }),
-    );
-    enqueueUploads(files);
-    goBack(router);
+    if (!selected.length || !id || checking) return;
+    const projectId = id as ProjectId;
+    setChecking(true);
+    try {
+      const [items, prepared] = await Promise.all([
+        refreshGalleryAll(projectId),
+        Promise.all(
+          selected.map(async (asset) => {
+            const local = await resolveDeviceAsset(asset.id);
+            return {
+              assetId: asset.id,
+              fingerprint: await fileDigest(local.uri),
+              file: {
+                projectId,
+                uri: local.uri,
+                fileName: local.fileName,
+                kind: local.kind,
+                sizeBytes: local.sizeBytes,
+                capturedAt: local.capturedAt,
+                durationSeconds: local.durationSeconds,
+              },
+            };
+          }),
+        ),
+      ]);
+      const known = new Set(
+        items.map((item) => item.media.fingerprint).filter((fingerprint) => fingerprint !== ''),
+      );
+      const dup = new Set(
+        prepared
+          .filter((entry) => entry.fingerprint !== null && known.has(entry.fingerprint))
+          .map((entry) => entry.assetId),
+      );
+      const upload = (entries: typeof prepared) =>
+        enqueueUploads(entries.map((entry) => ({ ...entry.file, fingerprint: entry.fingerprint })));
+      if (dup.size === 0) {
+        upload(prepared);
+        goBack(router);
+        return;
+      }
+      Alert.alert(t('picker.duplicatesTitle'), t('picker.duplicatesMessage', { count: dup.size }), [
+        {
+          text: t('picker.showDuplicates'),
+          onPress: () => setDuplicates(dup),
+        },
+        {
+          text: t('picker.excludeDuplicates'),
+          style: 'destructive',
+          onPress: () => {
+            const rest = prepared.filter((entry) => !dup.has(entry.assetId));
+            setSelected((was) => was.filter((asset) => !dup.has(asset.id)));
+            setDuplicates(new Set());
+            if (rest.length === 0) return;
+            upload(rest);
+            goBack(router);
+          },
+        },
+        {
+          text: t('picker.uploadAnyway'),
+          onPress: () => {
+            setDuplicates(new Set());
+            upload(prepared);
+            goBack(router);
+          },
+        },
+      ]);
+    } catch {
+      Alert.alert(t('picker.checkFailed'));
+    } finally {
+      setChecking(false);
+    }
   };
 
   const order = useMemo(() => {
@@ -216,9 +276,10 @@ export default function PickScreen() {
         source: asset.uri,
         video: asset.kind === 'video',
         select: order.get(asset.id) ?? null,
+        accent: duplicates.has(asset.id),
         note: asset.kind === 'video' ? duration(asset.duration) : undefined,
       })),
-    [order, ordered],
+    [duplicates, order, ordered],
   );
 
   const viewerPhotos = useMemo(
@@ -315,6 +376,7 @@ export default function PickScreen() {
             onPress={() => {
               if (selected.length > 0) setSelected([]);
               else if (datesOnly) setDatesOnly(false);
+              setDuplicates(new Set());
             }}
           />
         </BlurBar>
@@ -341,6 +403,7 @@ export default function PickScreen() {
                     setPreview(null);
                     setSelected([]);
                     setDatesOnly(false);
+                    setDuplicates(new Set());
                   }}
                   style={styles.option}
                 >
@@ -356,13 +419,16 @@ export default function PickScreen() {
         <ActionBar>
           <Button
             label={
-              selected.length
-                ? t('picker.addCount', { count: selected.length })
-                : datesOnly
-                  ? t('picker.selectAll')
-                  : t('picker.dates')
+              checking
+                ? t('picker.checking')
+                : selected.length
+                  ? t('picker.addCount', { count: selected.length })
+                  : datesOnly
+                    ? t('picker.selectAll')
+                    : t('picker.dates')
             }
             variant="primary"
+            disabled={checking}
             onPress={() => {
               if (selected.length > 0) void confirm();
               else if (datesOnly) selectAll();

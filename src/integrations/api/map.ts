@@ -219,12 +219,7 @@ export function toUploadPlan(wire: UploadPlanWire): UploadPlan {
 }
 
 export function toUploadComplete(wire: UploadCompleteWire): UploadComplete {
-  return {
-    mediaId: wire.mediaId,
-    itemId: wire.itemId,
-    status: wire.status,
-    ...(wire.duplicate ? { duplicate: true } : {}),
-  };
+  return { mediaId: wire.mediaId, itemId: wire.itemId, status: wire.status };
 }
 
 export function toLabel(wire: LabelWire): Label {

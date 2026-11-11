@@ -162,6 +162,13 @@ export const en = {
     settings: 'Open settings',
     addCount: 'Add {{count}}',
     selectAll: "Select from the memory's dates",
+    checking: 'Checking…',
+    duplicatesTitle: 'Duplicates found',
+    duplicatesMessage: 'Files already in this memory: {{count}}',
+    showDuplicates: 'Show',
+    excludeDuplicates: 'Exclude',
+    uploadAnyway: 'Upload',
+    checkFailed: 'Could not refresh the items',
   },
   info: {
     invite: 'Invite',

@@ -192,6 +192,21 @@ export async function loadMoreGallery(projectId: ProjectId): Promise<void> {
   return run;
 }
 
+export async function refreshGalleryAll(projectId: ProjectId): Promise<Item[]> {
+  const tokenValue = token();
+  const items = new Map<ProjectItemId, Item>();
+  let cursor: string | undefined;
+  do {
+    const page = await listGallery(tokenValue, projectId, { limit: 200, cursor });
+    for (const item of page.items) items.set(item.id, item);
+    cursor = page.nextCursor ?? undefined;
+  } while (cursor);
+  const list = [...items.values()];
+  emit(projectId, { status: 'ready', items: list, nextCursor: null, error: null });
+  persist(projectId);
+  return list;
+}
+
 export async function loadItem(projectId: ProjectId, itemId: ProjectItemId): Promise<Item> {
   const known = itemById(projectId, itemId);
   if (known) return known;

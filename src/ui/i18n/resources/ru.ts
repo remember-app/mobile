@@ -165,6 +165,13 @@ export const ru: typeof en = {
     settings: 'Открыть настройки',
     addCount: 'Добавить {{count}}',
     selectAll: 'Выбрать за даты воспоминания',
+    checking: 'Проверяем…',
+    duplicatesTitle: 'Найдены дубли',
+    duplicatesMessage: 'Файлов, которые уже есть в воспоминании: {{count}}',
+    showDuplicates: 'Показать',
+    excludeDuplicates: 'Исключить',
+    uploadAnyway: 'Загрузить',
+    checkFailed: 'Не удалось обновить список кадров',
   },
   info: {
     invite: 'Пригласить',

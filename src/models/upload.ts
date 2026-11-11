@@ -29,13 +29,6 @@ export type UploadPlan = {
   parts: string[];
 };
 
-export type UploadDuplicate = {
-  duplicate: {
-    mediaId: MediaId;
-    itemId: ProjectItemId;
-  };
-};
-
 export type UploadedPart = {
   part_number: number;
   etag: string;
@@ -45,5 +38,4 @@ export type UploadComplete = {
   mediaId: MediaId;
   itemId: ProjectItemId;
   status: 'processing';
-  duplicate?: boolean;
 };

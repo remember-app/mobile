@@ -37,7 +37,6 @@ import type {
   SystemMediaItem,
   SystemMediaResponse,
   UploadCompleteResponse,
-  UploadDuplicateResponse,
   UploadPlanResponse,
   UploadResponse,
   UserResponse,
@@ -68,7 +67,6 @@ export type ItemWire = ItemResponse;
 
 export type UploadWire = UploadResponse;
 export type UploadPlanWire = UploadPlanResponse;
-export type UploadDuplicateWire = UploadDuplicateResponse;
 export type UploadCompleteWire = UploadCompleteResponse;
 
 export type LabelWire = LabelResponse;

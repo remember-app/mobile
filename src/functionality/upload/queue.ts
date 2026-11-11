@@ -5,13 +5,7 @@ import { cancelUpload, completeUpload, resumeUpload, startUpload } from '@/integ
 import { readCache, writeCache } from '@/integrations/files/cache';
 import { type FilePart, fileDigest, readFilePart } from '@/integrations/files/parts';
 import { putPart } from '@/integrations/storage/upload';
-import type {
-  MediaKind,
-  UploadComplete,
-  UploadDuplicate,
-  UploadedPart,
-  UploadPlan,
-} from '@/models';
+import type { MediaKind, UploadComplete, UploadedPart, UploadPlan } from '@/models';
 import type { ProjectId, ProjectItemId, UploadId } from '@/types/id';
 
 const CACHE = 'uploads';
@@ -131,6 +125,7 @@ export function enqueueUploads(
     sizeBytes: number;
     capturedAt?: string | null;
     durationSeconds?: number | null;
+    fingerprint?: string | null;
   }[],
 ): QueuedUpload[] {
   const added = files.map(
@@ -143,7 +138,7 @@ export function enqueueUploads(
       sizeBytes: file.sizeBytes,
       capturedAt: file.capturedAt ?? null,
       durationSeconds: file.durationSeconds ?? null,
-      fingerprint: null,
+      fingerprint: file.fingerprint ?? null,
       uploadId: null,
       partBytes: null,
       parts: {},
@@ -217,14 +212,14 @@ function rangeOf(sizeBytes: number, partBytes: number, number: number): FilePart
   return { start, length: Math.min(partBytes, sizeBytes - start) };
 }
 
-async function planFor(item: QueuedUpload, token: string): Promise<UploadPlan | UploadDuplicate> {
+async function planFor(item: QueuedUpload, token: string): Promise<UploadPlan> {
   if (item.uploadId === null) {
     let fingerprint = item.fingerprint;
     if (fingerprint === null) {
       fingerprint = await fileDigest(item.uri);
       if (fingerprint) update(item.localId, { fingerprint });
     }
-    const answer = await startUpload(token, item.projectId, {
+    const plan = await startUpload(token, item.projectId, {
       kind: item.kind,
       sizeBytes: item.sizeBytes,
       fileName: item.fileName.slice(0, 255),
@@ -232,8 +227,6 @@ async function planFor(item: QueuedUpload, token: string): Promise<UploadPlan | 
       durationSeconds: item.durationSeconds,
       fingerprint,
     });
-    if ('duplicate' in answer) return answer;
-    const plan = answer;
     update(item.localId, {
       uploadId: plan.id,
       partBytes: plan.partBytes,
@@ -252,11 +245,7 @@ async function planFor(item: QueuedUpload, token: string): Promise<UploadPlan | 
 }
 
 async function send(item: QueuedUpload, token: string): Promise<UploadComplete | null> {
-  const initial = await planFor(item, token);
-  if ('duplicate' in initial) {
-    return { ...initial.duplicate, status: 'processing', duplicate: true };
-  }
-  let plan: UploadPlan = initial;
+  let plan: UploadPlan = await planFor(item, token);
   const partBytes = plan.partBytes;
   const total = Math.ceil(item.sizeBytes / partBytes);
   for (let number = 1; number <= total; number += 1) {
@@ -272,11 +261,7 @@ async function send(item: QueuedUpload, token: string): Promise<UploadComplete |
     try {
       etag = await perform();
     } catch {
-      const retry = await planFor(item, token);
-      if ('duplicate' in retry) {
-        return { ...retry.duplicate, status: 'processing', duplicate: true };
-      }
-      plan = retry;
+      plan = await planFor(item, token);
       if (plan.partBytes !== partBytes) throw new Error('part size changed');
       etag = await perform();
     }
