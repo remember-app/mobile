@@ -49,12 +49,14 @@ export function ProjectHeader({
         width: collapsed,
         height: 44,
         borderRadius: radius.pill,
+        transform: [{ translateY: space.s1 }],
       };
     }
     return {
       width: full - (full - collapsed) * p,
       height: 44 + (1 - p) * (space.s2 * 2 + card) + 2,
       borderRadius: radius.card + (radius.pill - radius.card) * p,
+      transform: [{ translateY: space.s1 }],
     };
   });
   const strip = useAnimatedStyle(() => {
