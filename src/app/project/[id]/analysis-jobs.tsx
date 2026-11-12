@@ -37,14 +37,12 @@ export default function AnalysisJobsScreen() {
       .finally(() => setLoading(false));
   }, [load, projectId]);
 
-  const live = jobs.some((job) => job.status === 'queued' || job.status === 'running');
   useEffect(() => {
-    if (!live) return;
     const timer = setInterval(() => {
       void load().catch(() => undefined);
-    }, 3000);
+    }, 7000);
     return () => clearInterval(timer);
-  }, [live, load]);
+  }, [load]);
 
   const statusOf = (job: AnalysisJob): string => {
     if (job.status === 'running') return t('montage.analysisRunning');
