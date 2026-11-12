@@ -1,7 +1,7 @@
 import { Plus, Trash2 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 import {
   addContact,
   createAppInvite,
@@ -16,7 +16,7 @@ import { MemberRowsSkeleton } from '@/ui/components/skeletons';
 import { SwipeRow } from '@/ui/components/swipe-row';
 import { useContacts, useSuggestions } from '@/ui/hooks';
 import { Board, pageBody } from '@/ui/kit/bars';
-import { Divider } from '@/ui/kit/bits';
+import { Rows } from '@/ui/kit/bits';
 import { Card } from '@/ui/kit/card';
 import { Text } from '@/ui/kit/text';
 import { BackBar } from '@/ui/screens/chrome';
@@ -88,9 +88,8 @@ export default function ContactsScreen() {
         <MemberRowsSkeleton rows={4} />
       ) : (
         <Card clip>
-          {contacts.map((contact, index) => (
-            <View key={contact.userId}>
-              {index > 0 ? <Divider /> : null}
+          <Rows items={contacts} keyOf={(contact) => contact.userId}>
+            {(contact) => (
               <SwipeRow
                 tone="danger"
                 icon={Trash2}
@@ -102,8 +101,8 @@ export default function ContactsScreen() {
                   style={styles.contact}
                 />
               </SwipeRow>
-            </View>
-          ))}
+            )}
+          </Rows>
           {contacts.length === 0 ? (
             <Text role="note" tone="muted" style={styles.empty}>
               {t('contacts.empty')}
@@ -118,9 +117,8 @@ export default function ContactsScreen() {
             {t('contacts.suggestions')}
           </Text>
           <Card clip>
-            {suggestions.map((suggestion, index) => (
-              <View key={suggestion.id}>
-                {index > 0 ? <Divider /> : null}
+            <Rows items={suggestions} keyOf={(suggestion) => suggestion.id}>
+              {(suggestion) => (
                 <SwipeRow
                   tone="accent"
                   icon={Plus}
@@ -132,8 +130,8 @@ export default function ContactsScreen() {
                     style={styles.contact}
                   />
                 </SwipeRow>
-              </View>
-            ))}
+              )}
+            </Rows>
           </Card>
         </>
       ) : null}

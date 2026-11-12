@@ -1,20 +1,17 @@
-import { Image } from 'expo-image';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { loadGallery, loadMontages } from '@/functionality';
 import { itemSource, montageItems } from '@/models';
 import type { ProjectId } from '@/types/id';
+import { AnalysisRow } from '@/ui/components/media/analysis-row';
 import { viewerOf } from '@/ui/components/media/photo-item';
 import { PhotoViewer } from '@/ui/components/media/photo-viewer';
-import { scoreColor } from '@/ui/format';
 import { useGallery, useMontages } from '@/ui/hooks';
 import { Board, pageBody } from '@/ui/kit/bars';
 import { Empty } from '@/ui/kit/empty';
-import { Text } from '@/ui/kit/text';
 import { BackBar } from '@/ui/screens/chrome';
-import { radius, space } from '@/ui/theme';
 
 export default function AnalysisJournalScreen() {
   const { t } = useTranslation();
@@ -43,45 +40,15 @@ export default function AnalysisJournalScreen() {
         {items.length === 0 ? (
           <Empty sign="dashed" title={t('montage.order.noItems')} />
         ) : (
-          items.map((item, at) => {
-            const analysis = item.analysis;
-            const source = itemSource(item);
-            return (
-              <Pressable
-                key={item.id}
-                accessibilityRole="button"
-                onPress={() => setViewer(at)}
-                style={styles.row}
-              >
-                <View style={styles.file}>
-                  {source ? (
-                    <Image
-                      source={source}
-                      style={styles.thumb}
-                      contentFit="cover"
-                      cachePolicy="memory-disk"
-                    />
-                  ) : (
-                    <View style={styles.thumb} />
-                  )}
-                  {analysis ? (
-                    <Text role="noteSm" style={{ color: scoreColor(analysis.score) }}>
-                      {analysis.score.toFixed(2)}
-                    </Text>
-                  ) : null}
-                </View>
-                <View style={styles.words}>
-                  {analysis ? (
-                    <Text role="body">{analysis.description}</Text>
-                  ) : (
-                    <Text role="body" tone="muted">
-                      {t('montage.journal.noDescription')}
-                    </Text>
-                  )}
-                </View>
-              </Pressable>
-            );
-          })
+          items.map((item, at) => (
+            <AnalysisRow
+              key={item.id}
+              source={itemSource(item)}
+              analysis={item.analysis}
+              status={t('montage.journal.noDescription')}
+              onPress={() => setViewer(at)}
+            />
+          ))
         )}
       </Board>
       {viewer === null ? null : (
@@ -94,24 +61,5 @@ export default function AnalysisJournalScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.s3,
-    paddingVertical: space.s2,
-  },
-  thumb: {
-    width: 64,
-    height: 64,
-    borderRadius: radius.tile,
-  },
-  file: {
-    alignItems: 'center',
-    gap: 2,
-  },
-  words: {
-    flex: 1,
-    minWidth: 0,
   },
 });

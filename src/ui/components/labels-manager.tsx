@@ -15,6 +15,7 @@ import { LabelMark } from '@/ui/components/label';
 import { LabelRowsSkeleton } from '@/ui/components/skeletons';
 import { SwipeRow } from '@/ui/components/swipe-row';
 import { useLabels } from '@/ui/hooks';
+import { Rows } from '@/ui/kit/bits';
 import { BottomSheet } from '@/ui/kit/bottom-sheet';
 import { Card } from '@/ui/kit/card';
 import { Text } from '@/ui/kit/text';
@@ -87,9 +88,8 @@ export function LabelsManager({ projectId }: { projectId: ProjectId }) {
           </Text>
         ) : (
           <CollapsibleList collapsed={224} expanded={392}>
-            {labels.map((label, index) => (
-              <View key={label.id}>
-                {index > 0 ? <View style={styles.divider} /> : null}
+            <Rows items={labels} keyOf={(label) => label.id} hairline>
+              {(label) => (
                 <LabelRow
                   label={label}
                   onOpen={() =>
@@ -100,8 +100,8 @@ export function LabelsManager({ projectId }: { projectId: ProjectId }) {
                   }
                   onDelete={() => void deleteLabel(projectId, label.id)}
                 />
-              </View>
-            ))}
+              )}
+            </Rows>
           </CollapsibleList>
         )}
       </Card>

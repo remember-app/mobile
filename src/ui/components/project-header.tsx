@@ -12,7 +12,7 @@ import { BackButton, IconButton } from '@/ui/kit/button';
 import { HeaderTitle } from '@/ui/kit/header-title';
 import { radius, space, useTheme } from '@/ui/theme';
 
-import { MontageCard } from './montage-card';
+import { MontageCard, openMontage } from './montage-card';
 
 export function ProjectHeader({
   projectId,
@@ -70,20 +70,13 @@ export function ProjectHeader({
     };
   });
 
-  const open = (montage: Montage) => {
-    const movie = movies.items.find((entry) => entry.montageId === montage.id);
-    if (montage.status === 'done' && movie) {
-      router.navigate({
-        pathname: '/project/[id]/movie/[movieId]',
-        params: { id: projectId, movieId: movie.id },
-      });
-      return;
-    }
-    router.navigate({
-      pathname: '/project/[id]/montage/[montageId]',
-      params: { id: projectId, montageId: montage.id },
-    });
-  };
+  const open = (montage: Montage) =>
+    openMontage(
+      router,
+      projectId,
+      montage,
+      movies.items.find((movie) => movie.montageId === montage.id),
+    );
 
   return (
     <View style={styles.bar} onLayout={(event) => setFull(event.nativeEvent.layout.width)}>

@@ -1,4 +1,3 @@
-import { Image } from 'expo-image';
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -8,14 +7,13 @@ import { currentToken, loadGallery } from '@/functionality';
 import { type AnalysisJob, listAnalysisJobs } from '@/integrations/api';
 import { itemSource } from '@/models';
 import type { ProjectId } from '@/types/id';
-import { scoreColor } from '@/ui/format';
+import { AnalysisRow } from '@/ui/components/media/analysis-row';
 import { useGallery } from '@/ui/hooks';
 import { Board, pageBody } from '@/ui/kit/bars';
 import { CircularSpinner } from '@/ui/kit/circular-spinner';
 import { Empty } from '@/ui/kit/empty';
-import { Text } from '@/ui/kit/text';
 import { BackBar } from '@/ui/screens/chrome';
-import { radius, space } from '@/ui/theme';
+import { space } from '@/ui/theme';
 
 export default function AnalysisJobsScreen() {
   const { t } = useTranslation();
@@ -67,42 +65,14 @@ export default function AnalysisJobsScreen() {
         ) : (
           jobs.map((job) => {
             const item = gallery.items.find((entry) => entry.id === job.itemId);
-            const source = item ? itemSource(item) : null;
-            const analysis = job.analysis;
             return (
-              <View key={job.itemId} style={styles.row}>
-                <View style={styles.file}>
-                  {source ? (
-                    <Image
-                      source={source}
-                      style={styles.thumb}
-                      contentFit="cover"
-                      cachePolicy="memory-disk"
-                    />
-                  ) : (
-                    <View style={[styles.thumb, styles.emptyThumb]} />
-                  )}
-                  {analysis ? (
-                    <Text role="noteSm" style={{ color: scoreColor(analysis.score) }}>
-                      {analysis.score.toFixed(2)}
-                    </Text>
-                  ) : null}
-                </View>
-                <View style={styles.words}>
-                  {analysis ? (
-                    <Text role="body">{analysis.description}</Text>
-                  ) : (
-                    <Text role="body" tone="muted">
-                      {statusOf(job)}
-                    </Text>
-                  )}
-                  {!analysis && job.error ? (
-                    <Text role="hint" tone="danger">
-                      {job.error}
-                    </Text>
-                  ) : null}
-                </View>
-              </View>
+              <AnalysisRow
+                key={job.itemId}
+                source={item ? itemSource(item) : null}
+                analysis={job.analysis}
+                status={statusOf(job)}
+                error={job.error}
+              />
             );
           })
         )}
@@ -118,27 +88,5 @@ const styles = StyleSheet.create({
   centre: {
     alignItems: 'center',
     paddingVertical: space.s7,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.s3,
-    paddingVertical: space.s2,
-  },
-  thumb: {
-    width: 64,
-    height: 64,
-    borderRadius: radius.tile,
-  },
-  emptyThumb: {
-    backgroundColor: 'rgba(128,128,128,0.18)',
-  },
-  file: {
-    alignItems: 'center',
-    gap: 2,
-  },
-  words: {
-    flex: 1,
-    minWidth: 0,
   },
 });

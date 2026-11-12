@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import type { useRouter } from 'expo-router';
 import { Play, TriangleExclamationPoint } from 'lucide-react-native';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -6,6 +7,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { loadGallery } from '@/functionality';
 import { itemSource, type Montage, type Movie, montageItems, montageStage } from '@/models';
+import type { ProjectId } from '@/types/id';
 import { MontageBackdrop } from '@/ui/components/movie-blocks';
 import { useGallery } from '@/ui/hooks';
 import { CircularSpinner } from '@/ui/kit/circular-spinner';
@@ -18,6 +20,27 @@ const STAGE = {
   directing: 'montage.stage.directing',
   editing: 'montage.stage.editing',
 } as const;
+
+type AppRouter = ReturnType<typeof useRouter>;
+
+export function openMontage(
+  router: AppRouter,
+  projectId: ProjectId,
+  montage: Montage,
+  movie?: Movie,
+): void {
+  if (montage.status === 'done' && movie) {
+    router.navigate({
+      pathname: '/project/[id]/movie/[movieId]',
+      params: { id: projectId, movieId: movie.id },
+    });
+    return;
+  }
+  router.navigate({
+    pathname: '/project/[id]/montage/[montageId]',
+    params: { id: projectId, montageId: montage.id },
+  });
+}
 
 export function MontageCard({
   montage,

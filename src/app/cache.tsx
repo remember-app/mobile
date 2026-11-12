@@ -8,7 +8,7 @@ import { confirmAction } from '@/ui/confirm';
 import { size } from '@/ui/format';
 import { useProjects } from '@/ui/hooks';
 import { Board, pageBody } from '@/ui/kit/bars';
-import { Divider } from '@/ui/kit/bits';
+import { Rows } from '@/ui/kit/bits';
 import { Button } from '@/ui/kit/button';
 import { Card } from '@/ui/kit/card';
 import { Text } from '@/ui/kit/text';
@@ -76,9 +76,8 @@ export default function CacheScreen() {
         </Text>
       ) : (
         <Card style={styles.list}>
-          {slices.map((slice, index) => (
-            <View key={slice.id}>
-              {index > 0 ? <Divider /> : null}
+          <Rows items={slices} keyOf={(slice) => slice.id}>
+            {(slice) => (
               <View style={styles.line}>
                 <View style={[styles.dot, { backgroundColor: slice.color }]} />
                 <Text role="row" style={styles.grow}>
@@ -88,8 +87,8 @@ export default function CacheScreen() {
                   {size(slice.bytes)}
                 </Text>
               </View>
-            </View>
-          ))}
+            )}
+          </Rows>
         </Card>
       )}
 

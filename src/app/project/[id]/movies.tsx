@@ -5,9 +5,8 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { loadMontages, loadMovies, loadProjects } from '@/functionality';
-import type { Montage } from '@/models';
 import type { ProjectId } from '@/types/id';
-import { MontageCard } from '@/ui/components/montage-card';
+import { MontageCard, openMontage } from '@/ui/components/montage-card';
 import { useMontages, useMovies, useProjectCard } from '@/ui/hooks';
 import { ActionBar } from '@/ui/kit/action-bar';
 import { Board, pageBody } from '@/ui/kit/bars';
@@ -33,21 +32,6 @@ export default function MoviesScreen() {
     void loadMontages(projectId, true).catch(() => undefined);
     void loadMovies(projectId, true).catch(() => undefined);
   }, [projectId]);
-
-  const open = (montage: Montage) => {
-    const movie = movies.items.find((entry) => entry.montageId === montage.id);
-    if (montage.status === 'done' && movie) {
-      router.navigate({
-        pathname: '/project/[id]/movie/[movieId]',
-        params: { id: projectId, movieId: movie.id },
-      });
-      return;
-    }
-    router.navigate({
-      pathname: '/project/[id]/montage/[montageId]',
-      params: { id: projectId, montageId: montage.id },
-    });
-  };
 
   const create = () =>
     router.navigate({ pathname: '/project/[id]/new-montage', params: { id: projectId } });
@@ -99,7 +83,14 @@ export default function MoviesScreen() {
               montage={montage}
               movie={movies.items.find((movie) => movie.montageId === montage.id)}
               wide
-              onPress={() => open(montage)}
+              onPress={() =>
+                openMontage(
+                  router,
+                  projectId,
+                  montage,
+                  movies.items.find((movie) => movie.montageId === montage.id),
+                )
+              }
             />
           ))
         )}

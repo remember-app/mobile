@@ -157,52 +157,12 @@ export function MontageConfigCard({
         {items.length > 0 ? (
           onFrames ? (
             <Pressable accessibilityRole="button" onPress={onFrames} style={styles.files}>
-              <View style={styles.thumbs}>
-                {items.slice(0, 4).map((item) => {
-                  const source = itemSource(item);
-                  return source ? (
-                    <Image
-                      key={item.id}
-                      source={source}
-                      style={styles.thumb}
-                      contentFit="cover"
-                      cachePolicy="memory-disk"
-                    />
-                  ) : null;
-                })}
-                {items.length > 4 ? (
-                  <View style={[styles.thumb, styles.more, { backgroundColor: color.raise }]}>
-                    <Text role="meta" tone="muted">
-                      +{items.length - 4}
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
+              <Thumbnails items={items} />
               <ChevronRight size={18} color={color.muted} />
             </Pressable>
           ) : (
             <View style={styles.files}>
-              <View style={styles.thumbs}>
-                {items.slice(0, 4).map((item) => {
-                  const source = itemSource(item);
-                  return source ? (
-                    <Image
-                      key={item.id}
-                      source={source}
-                      style={styles.thumb}
-                      contentFit="cover"
-                      cachePolicy="memory-disk"
-                    />
-                  ) : null;
-                })}
-                {items.length > 4 ? (
-                  <View style={[styles.thumb, styles.more, { backgroundColor: color.raise }]}>
-                    <Text role="meta" tone="muted">
-                      +{items.length - 4}
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
+              <Thumbnails items={items} />
             </View>
           )
         ) : null}
@@ -235,6 +195,33 @@ export function MontageConfigCard({
         <Text role="body">{prompt ?? ''}</Text>
       </BottomSheet>
     </>
+  );
+}
+
+function Thumbnails({ items }: { items: Item[] }) {
+  const { color } = useTheme();
+  return (
+    <View style={styles.thumbs}>
+      {items.slice(0, 4).map((item) => {
+        const source = itemSource(item);
+        return source ? (
+          <Image
+            key={item.id}
+            source={source}
+            style={styles.thumb}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+          />
+        ) : null;
+      })}
+      {items.length > 4 ? (
+        <View style={[styles.thumb, styles.more, { backgroundColor: color.raise }]}>
+          <Text role="meta" tone="muted">
+            +{items.length - 4}
+          </Text>
+        </View>
+      ) : null}
+    </View>
   );
 }
 
