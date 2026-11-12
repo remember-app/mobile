@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ScrollView,
@@ -68,6 +68,7 @@ export default function NewMontageScreen() {
   const [index, setIndex] = useState(0);
   const [height, setHeight] = useState(0);
   const [templates, setTemplates] = useState<MontageTemplate[] | null>(null);
+  const [templatesFailed, setTemplatesFailed] = useState(false);
   const [preview, setPreview] = useState<{ problems: string[]; tokens: number } | null>(null);
   const [previewFailed, setPreviewFailed] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -79,13 +80,22 @@ export default function NewMontageScreen() {
   const change = (patch: Partial<Draft> | ((was: Draft) => Partial<Draft>)) =>
     setDraft((was) => ({ ...was, ...(typeof patch === 'function' ? patch(was) : patch) }));
 
+  const loadTemplates = useCallback(() => {
+    setTemplates(null);
+    setTemplatesFailed(false);
+    loadMontageTemplates(projectId).then(setTemplates, () => {
+      setTemplates([]);
+      setTemplatesFailed(true);
+    });
+  }, [projectId]);
+
   useEffect(() => {
-    loadMontageTemplates(projectId).then(setTemplates, () => setTemplates([]));
+    loadTemplates();
     void loadProjects();
     void loadGallery(projectId);
     void loadProjectSongs(projectId);
     void loadLibrarySongs();
-  }, [projectId]);
+  }, [loadTemplates, projectId]);
 
   const dimensions = dimensionsOf(draft.orientation);
   const prompt = draft.prompt.trim() || null;
@@ -343,6 +353,8 @@ export default function NewMontageScreen() {
               chosenId={draft.templateId}
               covers={thumbnails}
               onChoose={pickTemplate}
+              failed={templatesFailed}
+              onRetry={loadTemplates}
             />
             <MetaPage
               width={width}

@@ -298,6 +298,7 @@ export const en = {
     order: {
       title: 'New video',
       templatesTitle: 'Templates',
+      templatesError: 'Could not load templates',
       ownSetup: 'Set it up myself',
       metaTitle: 'About the video',
       movieName: 'Video name',

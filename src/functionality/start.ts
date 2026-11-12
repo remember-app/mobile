@@ -63,6 +63,7 @@ export async function startApp(): Promise<void> {
     void registerUploadTask();
     void registerPush();
     void pump();
+    void loadProjects(true);
   }
 }
 

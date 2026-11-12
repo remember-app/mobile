@@ -301,6 +301,7 @@ export const ru: typeof en = {
     order: {
       title: 'Новый ролик',
       templatesTitle: 'Шаблоны',
+      templatesError: 'Не удалось загрузить шаблоны',
       ownSetup: 'Настрою сам',
       metaTitle: 'О ролике',
       movieName: 'Название ролика',
