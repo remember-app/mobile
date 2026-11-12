@@ -6,14 +6,13 @@ import { StyleSheet, View } from 'react-native';
 import { loadGallery, loadMontages, loadProjects } from '@/functionality';
 import { type MontageStage, montageItems, montageStage } from '@/models';
 import type { ProjectId } from '@/types/id';
-import { goBack } from '@/ui/back';
 import { useGallery, useMontages, useProjectCard } from '@/ui/hooks';
-import { AppBar, Board } from '@/ui/kit/bars';
-import { BackButton } from '@/ui/kit/button';
+import { Board } from '@/ui/kit/bars';
 import { Card } from '@/ui/kit/card';
 import { CircularSpinner } from '@/ui/kit/circular-spinner';
 import { Empty } from '@/ui/kit/empty';
 import { Text } from '@/ui/kit/text';
+import { BackBar } from '@/ui/screens/chrome';
 import { space, useTheme } from '@/ui/theme';
 
 const ORDER: MontageStage[] = ['analysis', 'preparation', 'directing', 'editing'];
@@ -53,14 +52,13 @@ export default function JournalScreen() {
   }, [projectId, running]);
 
   const bar = (
-    <AppBar
+    <BackBar
       boxed
       title={
         montage?.manifest.preparationConfig?.name?.trim() ||
         project?.title ||
         t('montage.journal.title')
       }
-      left={<BackButton label={t('action.back')} onPress={() => goBack(router)} />}
     />
   );
 

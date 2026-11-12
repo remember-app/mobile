@@ -1,25 +1,23 @@
 import { Image } from 'expo-image';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { loadGallery, loadMontages } from '@/functionality';
 import { itemSource, montageItems } from '@/models';
 import type { ProjectId } from '@/types/id';
-import { goBack } from '@/ui/back';
 import { viewerOf } from '@/ui/components/media/photo-item';
 import { PhotoViewer } from '@/ui/components/media/photo-viewer';
 import { scoreColor } from '@/ui/format';
 import { useGallery, useMontages } from '@/ui/hooks';
-import { AppBar, Board, pageBody } from '@/ui/kit/bars';
-import { BackButton } from '@/ui/kit/button';
+import { Board, pageBody } from '@/ui/kit/bars';
 import { Empty } from '@/ui/kit/empty';
 import { Text } from '@/ui/kit/text';
+import { BackBar } from '@/ui/screens/chrome';
 import { radius, space } from '@/ui/theme';
 
 export default function AnalysisJournalScreen() {
   const { t } = useTranslation();
-  const router = useRouter();
   const { id, montageId } = useLocalSearchParams<{ id: string; montageId: string }>();
   const projectId = id as ProjectId;
   const montages = useMontages(projectId);
@@ -41,16 +39,7 @@ export default function AnalysisJournalScreen() {
 
   return (
     <View style={styles.root}>
-      <Board
-        bar={
-          <AppBar
-            boxed
-            title={t('montage.journal.analysis')}
-            left={<BackButton label={t('action.back')} onPress={() => goBack(router)} />}
-          />
-        }
-        body={pageBody}
-      >
+      <Board bar={<BackBar boxed title={t('montage.journal.analysis')} />} body={pageBody}>
         {items.length === 0 ? (
           <Empty sign="dashed" title={t('montage.order.noItems')} />
         ) : (

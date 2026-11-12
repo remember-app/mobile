@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
@@ -8,19 +8,17 @@ import { currentToken, loadGallery } from '@/functionality';
 import { type AnalysisJob, listAnalysisJobs } from '@/integrations/api';
 import { itemSource } from '@/models';
 import type { ProjectId } from '@/types/id';
-import { goBack } from '@/ui/back';
 import { scoreColor } from '@/ui/format';
 import { useGallery } from '@/ui/hooks';
-import { AppBar, Board, pageBody } from '@/ui/kit/bars';
-import { BackButton } from '@/ui/kit/button';
+import { Board, pageBody } from '@/ui/kit/bars';
 import { CircularSpinner } from '@/ui/kit/circular-spinner';
 import { Empty } from '@/ui/kit/empty';
 import { Text } from '@/ui/kit/text';
+import { BackBar } from '@/ui/screens/chrome';
 import { radius, space } from '@/ui/theme';
 
 export default function AnalysisJobsScreen() {
   const { t } = useTranslation();
-  const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const projectId = id as ProjectId;
   const gallery = useGallery(projectId);
@@ -59,16 +57,7 @@ export default function AnalysisJobsScreen() {
 
   return (
     <View style={styles.root}>
-      <Board
-        bar={
-          <AppBar
-            boxed
-            title={t('montage.analysisTitle')}
-            left={<BackButton label={t('action.back')} onPress={() => goBack(router)} />}
-          />
-        }
-        body={pageBody}
-      >
+      <Board bar={<BackBar boxed title={t('montage.analysisTitle')} />} body={pageBody}>
         {loading ? (
           <View style={styles.centre}>
             <CircularSpinner size={32} />

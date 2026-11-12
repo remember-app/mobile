@@ -1,25 +1,24 @@
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import { cacheUsage, clearCache } from '@/functionality';
-import { goBack } from '@/ui/back';
 import { CacheDonut, type CacheSlice } from '@/ui/components/cache-donut';
 import { confirmAction } from '@/ui/confirm';
 import { size } from '@/ui/format';
 import { useProjects } from '@/ui/hooks';
-import { AppBar, Board, pageBody } from '@/ui/kit/bars';
+import { Board, pageBody } from '@/ui/kit/bars';
 import { Divider } from '@/ui/kit/bits';
-import { BackButton, Button } from '@/ui/kit/button';
+import { Button } from '@/ui/kit/button';
 import { Card } from '@/ui/kit/card';
 import { Text } from '@/ui/kit/text';
+import { BackBar } from '@/ui/screens/chrome';
 import { labelColors, space, useTheme } from '@/ui/theme';
 
 type Usage = ReturnType<typeof cacheUsage>;
 
 export default function CacheScreen() {
   const { t } = useTranslation();
-  const router = useRouter();
   const theme = useTheme();
   const projects = useProjects();
   const [usage, setUsage] = useState<Usage>({ total: 0, groups: [] });
@@ -62,15 +61,7 @@ export default function CacheScreen() {
     });
 
   return (
-    <Board
-      bar={
-        <AppBar
-          title={t('cache.title')}
-          left={<BackButton label={t('action.back')} onPress={() => goBack(router)} />}
-        />
-      }
-      body={pageBody}
-    >
+    <Board bar={<BackBar title={t('cache.title')} />} body={pageBody}>
       <View style={styles.top}>
         <CacheDonut slices={slices} total={usage.total} />
         <Text role="row">{t('cache.used')}</Text>

@@ -15,7 +15,6 @@ import {
 } from '@/functionality';
 import { itemSource, montageItemIds, montageItems, montageStage } from '@/models';
 import type { ProjectId } from '@/types/id';
-import { goBack } from '@/ui/back';
 import { MontageBackdrop, MontageConfigCard, VideoDetailsCard } from '@/ui/components/movie-blocks';
 import {
   useGallery,
@@ -26,11 +25,12 @@ import {
   useProjectSongs,
 } from '@/ui/hooks';
 import { ActionBar } from '@/ui/kit/action-bar';
-import { AppBar, Board } from '@/ui/kit/bars';
-import { BackButton, Button, IconButton } from '@/ui/kit/button';
+import { Board } from '@/ui/kit/bars';
+import { Button, IconButton } from '@/ui/kit/button';
 import { CircularSpinner } from '@/ui/kit/circular-spinner';
 import { Empty } from '@/ui/kit/empty';
 import { Text } from '@/ui/kit/text';
+import { BackBar } from '@/ui/screens/chrome';
 import { radius, space, useTheme } from '@/ui/theme';
 
 const STAGE = {
@@ -106,10 +106,9 @@ export default function MontageScreen() {
     montage?.manifest.preparationConfig?.name?.trim() || project?.title || t('montage.waiting');
 
   const bar = (
-    <AppBar
+    <BackBar
       boxed
       title={heading}
-      left={<BackButton label={t('action.back')} onPress={() => goBack(router)} />}
       right={
         <IconButton
           icon={BookOpen}

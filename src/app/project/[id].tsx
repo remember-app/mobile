@@ -77,12 +77,11 @@ import {
   useUploads,
 } from '@/ui/hooks';
 import { ActionBar } from '@/ui/kit/action-bar';
-import { AppBar, Board } from '@/ui/kit/bars';
 import { BlurBar } from '@/ui/kit/blur-bar';
-import { BackButton, Button, IconButton } from '@/ui/kit/button';
-import { Empty } from '@/ui/kit/empty';
+import { Button, IconButton } from '@/ui/kit/button';
 import { Icon, type IconComponent } from '@/ui/kit/icon';
 import { Text } from '@/ui/kit/text';
+import { Missing } from '@/ui/screens/chrome';
 import { height, radius, space, useTheme } from '@/ui/theme';
 
 const FILTER_HEIGHT = 288;
@@ -274,19 +273,7 @@ export default function ProjectScreen() {
   }, [filterAnim, filtering]);
 
   if (!project && projects.status !== 'loading') {
-    return (
-      <Board
-        bar={
-          <AppBar
-            boxed
-            title={t('project.title')}
-            left={<BackButton label={t('action.back')} onPress={() => goBack(router)} />}
-          />
-        }
-      >
-        <Empty sign="dashed" title={t('project.notFound')} />
-      </Board>
-    );
+    return <Missing title={t('project.title')} message={t('project.notFound')} />;
   }
 
   const title = project?.title ?? t('project.title');

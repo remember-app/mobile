@@ -8,11 +8,12 @@ import { goBack } from '@/ui/back';
 import { ContactStrip } from '@/ui/components/contact-strip';
 import { EventDates } from '@/ui/components/event-dates';
 import { useContacts, useSession } from '@/ui/hooks';
-import { AppBar, Board } from '@/ui/kit/bars';
-import { BackButton, Button } from '@/ui/kit/button';
+import { Board } from '@/ui/kit/bars';
+import { Button } from '@/ui/kit/button';
 import { Field } from '@/ui/kit/field';
 import { Slider } from '@/ui/kit/slider';
 import { Text } from '@/ui/kit/text';
+import { BackBar } from '@/ui/screens/chrome';
 import { space } from '@/ui/theme';
 
 export default function CreateScreen() {
@@ -54,12 +55,7 @@ export default function CreateScreen() {
   return (
     <Board
       body={[styles.body, { paddingBottom: insets.bottom + space.s6 }]}
-      bar={
-        <AppBar
-          title={t('create.title')}
-          left={<BackButton label={t('action.back')} onPress={() => goBack(router)} />}
-        />
-      }
+      bar={<BackBar title={t('create.title')} />}
     >
       <Field
         label={t('create.name')}

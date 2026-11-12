@@ -7,14 +7,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { loadMontages, loadMovies, loadProjects } from '@/functionality';
 import type { Montage } from '@/models';
 import type { ProjectId } from '@/types/id';
-import { goBack } from '@/ui/back';
 import { MontageCard } from '@/ui/components/montage-card';
 import { useMontages, useMovies, useProjectCard } from '@/ui/hooks';
 import { ActionBar } from '@/ui/kit/action-bar';
-import { AppBar, Board, pageBody } from '@/ui/kit/bars';
-import { BackButton, Button, IconButton } from '@/ui/kit/button';
+import { Board, pageBody } from '@/ui/kit/bars';
+import { Button, IconButton } from '@/ui/kit/button';
 import { CircularSpinner } from '@/ui/kit/circular-spinner';
 import { Empty } from '@/ui/kit/empty';
+import { BackBar } from '@/ui/screens/chrome';
 import { space } from '@/ui/theme';
 
 export default function MoviesScreen() {
@@ -57,11 +57,10 @@ export default function MoviesScreen() {
     <View style={styles.root}>
       <Board
         bar={
-          <AppBar
+          <BackBar
             boxed
             tight
             title={t('montage.title')}
-            left={<BackButton label={t('action.back')} onPress={() => goBack(router)} />}
             right={
               admin ? (
                 <IconButton

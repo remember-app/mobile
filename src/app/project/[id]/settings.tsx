@@ -10,10 +10,10 @@ import { goBack } from '@/ui/back';
 import { EventDates } from '@/ui/components/event-dates';
 import { confirmAction } from '@/ui/confirm';
 import { useProjectCard } from '@/ui/hooks';
-import { AppBar, Board } from '@/ui/kit/bars';
-import { BackButton, Button, IconButton } from '@/ui/kit/button';
-import { Empty } from '@/ui/kit/empty';
+import { Board } from '@/ui/kit/bars';
+import { Button, IconButton } from '@/ui/kit/button';
 import { Field } from '@/ui/kit/field';
+import { BackBar, Missing } from '@/ui/screens/chrome';
 import { space } from '@/ui/theme';
 
 export default function ProjectSettingsScreen() {
@@ -39,19 +39,7 @@ export default function ProjectSettingsScreen() {
   }, [project?.id]);
 
   if (!project) {
-    return (
-      <Board
-        bar={
-          <AppBar
-            boxed
-            title={t('project.settings')}
-            left={<BackButton label={t('action.back')} onPress={() => goBack(router)} />}
-          />
-        }
-      >
-        <Empty sign="dashed" title={t('project.notFound')} />
-      </Board>
-    );
+    return <Missing title={t('project.settings')} message={t('project.notFound')} />;
   }
 
   const save = async () => {
@@ -83,10 +71,9 @@ export default function ProjectSettingsScreen() {
         </View>
       }
       bar={
-        <AppBar
+        <BackBar
           boxed
           title={project.title}
-          left={<BackButton size={44} label={t('action.back')} onPress={() => goBack(router)} />}
           right={
             <IconButton
               icon={Trash2}

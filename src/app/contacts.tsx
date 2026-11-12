@@ -1,4 +1,3 @@
-import { useRouter } from 'expo-router';
 import { Plus, Trash2 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -10,23 +9,21 @@ import {
   loadSuggestions,
   removeContact,
 } from '@/functionality';
-import { goBack } from '@/ui/back';
 import { ArrowField } from '@/ui/components/arrow-field';
 import { InviteCode } from '@/ui/components/invite-code';
 import { Person } from '@/ui/components/person';
 import { MemberRowsSkeleton } from '@/ui/components/skeletons';
 import { SwipeRow } from '@/ui/components/swipe-row';
 import { useContacts, useSuggestions } from '@/ui/hooks';
-import { AppBar, Board, pageBody } from '@/ui/kit/bars';
+import { Board, pageBody } from '@/ui/kit/bars';
 import { Divider } from '@/ui/kit/bits';
-import { BackButton } from '@/ui/kit/button';
 import { Card } from '@/ui/kit/card';
 import { Text } from '@/ui/kit/text';
+import { BackBar } from '@/ui/screens/chrome';
 import { space, themed } from '@/ui/theme';
 
 export default function ContactsScreen() {
   const { t } = useTranslation();
-  const router = useRouter();
   const styles = useStyles();
   const contactsState = useContacts();
   const suggestionsState = useSuggestions();
@@ -64,15 +61,7 @@ export default function ContactsScreen() {
   );
 
   return (
-    <Board
-      body={pageBody}
-      bar={
-        <AppBar
-          title={t('contacts.title')}
-          left={<BackButton label={t('action.back')} onPress={() => goBack(router)} />}
-        />
-      }
-    >
+    <Board body={pageBody} bar={<BackBar title={t('contacts.title')} />}>
       <ArrowField
         label={t('contacts.nick')}
         value={username}

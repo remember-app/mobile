@@ -19,11 +19,11 @@ import { tileOf } from '@/ui/components/media/photo-item';
 import { PhotoViewer } from '@/ui/components/media/photo-viewer';
 import { useGallery, useLabels, useSession } from '@/ui/hooks';
 import { ActionBar } from '@/ui/kit/action-bar';
-import { AppBar, Board } from '@/ui/kit/bars';
 import { BlurBar } from '@/ui/kit/blur-bar';
-import { BackButton, Button } from '@/ui/kit/button';
+import { Button } from '@/ui/kit/button';
 import { Empty } from '@/ui/kit/empty';
 import { Text } from '@/ui/kit/text';
+import { Missing } from '@/ui/screens/chrome';
 import { space, useTheme } from '@/ui/theme';
 
 export default function LabelScreen() {
@@ -53,19 +53,7 @@ export default function LabelScreen() {
   );
 
   if (!label) {
-    return (
-      <Board
-        bar={
-          <AppBar
-            boxed
-            title={t('labels.title')}
-            left={<BackButton label={t('action.back')} onPress={() => goBack(router)} />}
-          />
-        }
-      >
-        <Empty sign="dashed" title={t('labels.notFound')} />
-      </Board>
-    );
+    return <Missing title={t('labels.title')} message={t('labels.notFound')} />;
   }
 
   return (

@@ -9,15 +9,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { loadGallery, loadMembers, loadMovies } from '@/functionality';
 import { montageItems } from '@/models';
 import type { ProjectId } from '@/types/id';
-import { goBack } from '@/ui/back';
 import { MontageConfigCard, VideoDetailsCard } from '@/ui/components/movie-blocks';
 import { fullDay, megabytes } from '@/ui/format';
 import { useGallery, useMembers, useMovies } from '@/ui/hooks';
 import { ActionBar } from '@/ui/kit/action-bar';
-import { AppBar, Board } from '@/ui/kit/bars';
-import { BackButton, Button, IconButton } from '@/ui/kit/button';
+import { Board } from '@/ui/kit/bars';
+import { Button, IconButton } from '@/ui/kit/button';
 import { CircularSpinner } from '@/ui/kit/circular-spinner';
 import { Empty } from '@/ui/kit/empty';
+import { BackBar } from '@/ui/screens/chrome';
 import { photo, radius, space, useTheme } from '@/ui/theme';
 
 type Track = { mediaId: string; name?: string; author?: string };
@@ -84,10 +84,9 @@ export default function MovieScreen() {
     <View style={styles.root}>
       <Board
         bar={
-          <AppBar
+          <BackBar
             boxed
             title={movie.name}
-            left={<BackButton label={t('action.back')} onPress={() => goBack(router)} />}
             right={
               <IconButton
                 icon={BookOpen}

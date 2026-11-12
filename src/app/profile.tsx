@@ -17,7 +17,6 @@ import {
 } from '@/functionality';
 import { writeLanguage } from '@/functionality/settings/language';
 import type { Language } from '@/types/language';
-import { goBack } from '@/ui/back';
 import { Person } from '@/ui/components/person';
 import { SettingsSelect } from '@/ui/components/settings-select';
 import { confirmAction } from '@/ui/confirm';
@@ -25,13 +24,14 @@ import { number, size } from '@/ui/format';
 import { useAvatar, useContacts, useSession } from '@/ui/hooks';
 import { applyLanguage } from '@/ui/i18n';
 import { Avatar } from '@/ui/kit/avatar';
-import { AppBar, Board, pageBody } from '@/ui/kit/bars';
+import { Board, pageBody } from '@/ui/kit/bars';
 import { Divider } from '@/ui/kit/bits';
 import { BottomSheet } from '@/ui/kit/bottom-sheet';
-import { BackButton, Button, IconButton } from '@/ui/kit/button';
+import { Button, IconButton } from '@/ui/kit/button';
 import { Card } from '@/ui/kit/card';
 import { Field } from '@/ui/kit/field';
 import { Text } from '@/ui/kit/text';
+import { BackBar } from '@/ui/screens/chrome';
 import { setTheme, space, themed, useTheme, useThemeChoice } from '@/ui/theme';
 
 const LANGUAGES = ['ru', 'en'] as const;
@@ -132,9 +132,8 @@ export default function ProfileScreen() {
     <Board
       body={pageBody}
       bar={
-        <AppBar
+        <BackBar
           title={t('profile.title')}
-          left={<BackButton label={t('action.back')} onPress={() => goBack(router)} />}
           right={
             <IconButton
               icon={LogOut}

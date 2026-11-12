@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { loadMembers, loadProjects, shareProjectConsumables } from '@/functionality';
 import type { ProjectId } from '@/types/id';
-import { goBack } from '@/ui/back';
 import { InviteBlocks } from '@/ui/components/invite-blocks';
 import { LabelsManager } from '@/ui/components/labels-manager';
 import { MemberList } from '@/ui/components/member-list';
@@ -13,14 +12,14 @@ import { MemberSheet } from '@/ui/components/member-sheet';
 import { confirmAction } from '@/ui/confirm';
 import { number } from '@/ui/format';
 import { useMembers, useProjectCard, useSession } from '@/ui/hooks';
-import { AppBar, Board, pageBody } from '@/ui/kit/bars';
+import { Board, pageBody } from '@/ui/kit/bars';
 import { BottomSheet } from '@/ui/kit/bottom-sheet';
-import { BackButton, Button, IconButton } from '@/ui/kit/button';
+import { Button, IconButton } from '@/ui/kit/button';
 import { Card } from '@/ui/kit/card';
 import { CircularProgress } from '@/ui/kit/circular-progress';
-import { Empty } from '@/ui/kit/empty';
 import { Slider } from '@/ui/kit/slider';
 import { Text } from '@/ui/kit/text';
+import { BackBar, Missing } from '@/ui/screens/chrome';
 import { space, themed, useTheme } from '@/ui/theme';
 
 type Metric = 'people' | 'gb' | 'tokens';
@@ -55,19 +54,7 @@ export default function ProjectInfoScreen() {
   }, [projectId]);
 
   if (!project) {
-    return (
-      <Board
-        bar={
-          <AppBar
-            boxed
-            title={t('project.title')}
-            left={<BackButton label={t('action.back')} onPress={() => goBack(router)} />}
-          />
-        }
-      >
-        <Empty sign="dashed" title={t('project.notFound')} />
-      </Board>
-    );
+    return <Missing title={t('project.title')} message={t('project.notFound')} />;
   }
 
   const members = membersState.members;
@@ -116,10 +103,9 @@ export default function ProjectInfoScreen() {
     <Board
       body={pageBody}
       bar={
-        <AppBar
+        <BackBar
           boxed
           title={project.title}
-          left={<BackButton label={t('action.back')} onPress={() => goBack(router)} />}
           right={
             <IconButton
               icon={Settings2}

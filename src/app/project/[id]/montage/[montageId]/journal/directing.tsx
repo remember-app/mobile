@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, View } from 'react-native';
@@ -6,23 +6,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { loadGallery, loadMontages } from '@/functionality';
 import { montageItems } from '@/models';
 import type { ProjectId } from '@/types/id';
-import { goBack } from '@/ui/back';
 import { type Photo, PhotoGrid, type Rect } from '@/ui/components/media/photo-grid';
 import { tileOf, viewerOf } from '@/ui/components/media/photo-item';
 import { PhotoViewer } from '@/ui/components/media/photo-viewer';
 import { useGallery, useMontages } from '@/ui/hooks';
 import { ActionBar } from '@/ui/kit/action-bar';
-import { AppBar, Board } from '@/ui/kit/bars';
 import { BlurBar } from '@/ui/kit/blur-bar';
 import { BottomSheet } from '@/ui/kit/bottom-sheet';
-import { BackButton, Button } from '@/ui/kit/button';
-import { Empty } from '@/ui/kit/empty';
+import { Button } from '@/ui/kit/button';
 import { Text } from '@/ui/kit/text';
+import { BackBar, Missing } from '@/ui/screens/chrome';
 import { space } from '@/ui/theme';
 
 export default function DirectingJournalScreen() {
   const { t } = useTranslation();
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id, montageId } = useLocalSearchParams<{ id: string; montageId: string }>();
   const projectId = id as ProjectId;
@@ -52,20 +49,10 @@ export default function DirectingJournalScreen() {
 
   const viewerPhotos = useMemo(() => items.map(viewerOf), [items]);
 
-  const bar = (
-    <AppBar
-      boxed
-      title={t('montage.journal.directing')}
-      left={<BackButton label={t('action.back')} onPress={() => goBack(router)} />}
-    />
-  );
+  const bar = <BackBar boxed title={t('montage.journal.directing')} />;
 
   if (items.length === 0) {
-    return (
-      <Board bar={bar}>
-        <Empty sign="dashed" title={t('montage.order.noItems')} />
-      </Board>
-    );
+    return <Missing title={t('montage.journal.directing')} message={t('montage.order.noItems')} />;
   }
 
   return (
