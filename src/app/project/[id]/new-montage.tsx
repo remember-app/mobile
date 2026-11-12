@@ -48,6 +48,7 @@ import {
   useSession,
 } from '@/ui/hooks';
 import { Text } from '@/ui/kit/text';
+import { orderOf } from '@/ui/selection';
 
 export default function NewMontageScreen() {
   const { t } = useTranslation();
@@ -142,13 +143,7 @@ export default function NewMontageScreen() {
   );
   const chosenSongs = songs.filter((song) => draft.musicIds.includes(song.mediaId));
 
-  const selectedAt = useMemo(() => {
-    const map = new Map<string, number>();
-    draft.includeItemIds.forEach((itemId, at) => {
-      map.set(itemId, at + 1);
-    });
-    return map;
-  }, [draft.includeItemIds]);
+  const selectedAt = useMemo(() => orderOf(draft.includeItemIds), [draft.includeItemIds]);
 
   const shots = useMemo(
     () =>

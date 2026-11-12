@@ -63,6 +63,7 @@ import { ActionBar } from '@/ui/kit/action-bar';
 import { BlurBar } from '@/ui/kit/blur-bar';
 import { Button, IconButton } from '@/ui/kit/button';
 import { Missing } from '@/ui/screens/chrome';
+import { orderOf } from '@/ui/selection';
 import { height, space, useTheme } from '@/ui/theme';
 
 export default function ProjectScreen() {
@@ -130,8 +131,7 @@ export default function ProjectScreen() {
   );
 
   const photos = useMemo<Photo[]>(() => {
-    const order = new Map<string, number>();
-    for (const id of selected) order.set(id, order.size + 1);
+    const order = orderOf(selected);
     const labelColors = new Map(labels.labels.map((label) => [label.id, label.color]));
     const files = gallery.items
       .filter((item) => {

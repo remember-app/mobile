@@ -31,6 +31,7 @@ import { ActionBar } from '@/ui/kit/action-bar';
 import { BlurBar } from '@/ui/kit/blur-bar';
 import { BackButton, Button, IconButton } from '@/ui/kit/button';
 import { Text } from '@/ui/kit/text';
+import { orderOf } from '@/ui/selection';
 import { radius, space, useTheme } from '@/ui/theme';
 
 const PAGE = 60;
@@ -261,13 +262,7 @@ export default function PickScreen() {
     }
   };
 
-  const order = useMemo(() => {
-    const map = new Map<string, number>();
-    selected.forEach((asset, index) => {
-      map.set(asset.id, index + 1);
-    });
-    return map;
-  }, [selected]);
+  const order = useMemo(() => orderOf(selected.map((asset) => asset.id)), [selected]);
 
   const photos = useMemo<Photo[]>(
     () =>

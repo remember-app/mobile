@@ -18,6 +18,7 @@ import { BackButton, Button, IconButton } from '@/ui/kit/button';
 import { CircularSpinner } from '@/ui/kit/circular-spinner';
 import { Empty } from '@/ui/kit/empty';
 import { Text } from '@/ui/kit/text';
+import { orderOf } from '@/ui/selection';
 import { radius, space, useTheme } from '@/ui/theme';
 
 type Quote = { queued: number; tokens: number };
@@ -58,13 +59,7 @@ export default function AnalyzeScreen() {
     [gallery.items],
   );
 
-  const order = useMemo(() => {
-    const map = new Map<string, number>();
-    [...selected].forEach((itemId, index) => {
-      map.set(itemId, index + 1);
-    });
-    return map;
-  }, [selected]);
+  const order = useMemo(() => orderOf(selected), [selected]);
 
   const photos = useMemo<Photo[]>(
     () => items.map((item) => ({ ...tileOf(item), select: order.get(item.id) ?? null })),
