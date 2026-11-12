@@ -54,10 +54,20 @@ export function OrderPage({
   return <View style={{ width, height }}>{children}</View>;
 }
 
-export function OrderScroll({ bottom, children }: { bottom: number; children: ReactNode }) {
+export function OrderScroll({
+  top,
+  bottom,
+  children,
+}: {
+  top: number;
+  bottom: number;
+  children: ReactNode;
+}) {
   const styles = useStyles();
   return (
-    <ScrollView contentContainerStyle={[styles.page, { paddingBottom: bottom }]}>
+    <ScrollView
+      contentContainerStyle={[styles.page, { paddingTop: top + space.s4, paddingBottom: bottom }]}
+    >
       {children}
     </ScrollView>
   );
@@ -114,7 +124,6 @@ const useStyles = themed(() =>
   StyleSheet.create({
     page: {
       paddingHorizontal: space.s5,
-      paddingTop: space.s4,
       gap: space.s4,
     },
     head: {

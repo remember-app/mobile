@@ -34,6 +34,7 @@ export function MusicPage({
   onSelect,
   width,
   height,
+  top,
   bottom,
 }: {
   songs: readonly Song[];
@@ -43,6 +44,7 @@ export function MusicPage({
   onSelect: (mediaId: string) => void;
   width: number;
   height: number;
+  top: number;
   bottom: number;
 }) {
   const { t } = useTranslation();
@@ -74,7 +76,7 @@ export function MusicPage({
 
   return (
     <OrderPage width={width} height={height}>
-      <OrderScroll bottom={bottom}>
+      <OrderScroll top={top} bottom={bottom}>
         <Pressable
           accessibilityRole="checkbox"
           accessibilityState={{ checked: director }}

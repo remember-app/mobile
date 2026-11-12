@@ -48,8 +48,10 @@ import {
   useProjectSongs,
   useSession,
 } from '@/ui/hooks';
+import { BlurBar } from '@/ui/kit/blur-bar';
 import { Text } from '@/ui/kit/text';
 import { orderOf } from '@/ui/selection';
+import { space } from '@/ui/theme';
 
 export default function NewMontageScreen() {
   const { t } = useTranslation();
@@ -68,6 +70,7 @@ export default function NewMontageScreen() {
   const [draft, setDraft] = useState<Draft>(Start);
   const [index, setIndex] = useState(0);
   const [height, setHeight] = useState(0);
+  const [headHeight, setHeadHeight] = useState(0);
   const [templates, setTemplates] = useState<MontageTemplate[] | null>(null);
   const [preview, setPreview] = useState<{ problems: string[]; tokens: number } | null>(null);
   const [previewFailed, setPreviewFailed] = useState(false);
@@ -322,9 +325,6 @@ export default function NewMontageScreen() {
 
   return (
     <View style={styles.root}>
-      <View style={{ paddingTop: insets.top }}>
-        <OrderHead step={index + 1} title={titles[index] ?? ''} />
-      </View>
       <View style={styles.pager} onLayout={(event) => setHeight(event.nativeEvent.layout.height)}>
         {height > 0 ? (
           <ScrollView
@@ -339,6 +339,7 @@ export default function NewMontageScreen() {
             <TemplatesPage
               width={width}
               height={height}
+              top={headHeight}
               bottom={bottom}
               templates={templates}
               language={account?.language ?? 'ru'}
@@ -349,6 +350,7 @@ export default function NewMontageScreen() {
             <MetaPage
               width={width}
               height={height}
+              top={headHeight}
               bottom={bottom}
               draft={draft}
               projectTitle={project?.title ?? ''}
@@ -357,6 +359,7 @@ export default function NewMontageScreen() {
             <ShotsPage
               width={width}
               height={height}
+              top={headHeight}
               bottom={insets.bottom + 72}
               photos={photos}
               blankIndex={viewer?.index ?? null}
@@ -373,6 +376,7 @@ export default function NewMontageScreen() {
             <MusicPage
               width={width}
               height={height}
+              top={headHeight}
               bottom={bottom}
               songs={songs}
               director={director}
@@ -381,7 +385,7 @@ export default function NewMontageScreen() {
               onSelect={chooseSong}
             />
             <OrderPage width={width} height={height}>
-              <OrderScroll bottom={bottom}>
+              <OrderScroll top={headHeight} bottom={bottom}>
                 <OrderSummary
                   title={draft.name.trim() || (project?.title ?? '')}
                   seconds={draft.targetSeconds}
@@ -416,6 +420,15 @@ export default function NewMontageScreen() {
           </ScrollView>
         ) : null}
       </View>
+      <BlurBar edge="top">
+        <View
+          onLayout={(event) =>
+            setHeadHeight(event.nativeEvent.layout.height + insets.top + space.s2)
+          }
+        >
+          <OrderHead step={index + 1} title={titles[index] ?? ''} />
+        </View>
+      </BlurBar>
       <OrderActions
         back={() => (index === 0 ? goBack(router) : go(index - 1))}
         next={next}

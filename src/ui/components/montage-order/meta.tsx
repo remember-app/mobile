@@ -16,6 +16,7 @@ export function MetaPage({
   onChange,
   width,
   height,
+  top,
   bottom,
 }: {
   draft: Draft;
@@ -23,13 +24,14 @@ export function MetaPage({
   onChange: Change;
   width: number;
   height: number;
+  top: number;
   bottom: number;
 }) {
   const { t } = useTranslation();
   const styles = useStyles();
   return (
     <OrderPage width={width} height={height}>
-      <OrderScroll bottom={bottom}>
+      <OrderScroll top={top} bottom={bottom}>
         <Field
           label={t('montage.order.movieName')}
           value={draft.name}

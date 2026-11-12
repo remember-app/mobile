@@ -11,6 +11,7 @@ export function ShotsPage({
   onRequire,
   width,
   height,
+  top,
   bottom,
 }: {
   photos: readonly Photo[];
@@ -20,6 +21,7 @@ export function ShotsPage({
   onRequire: (index: number) => void;
   width: number;
   height: number;
+  top: number;
   bottom: number;
 }) {
   return (
@@ -29,7 +31,7 @@ export function ShotsPage({
         onOpen={onOpen}
         onSelect={onSelect}
         onRequire={onRequire}
-        padding={{ top: space.s2, bottom }}
+        padding={{ top: top + space.s2, bottom }}
         blankIndex={blankIndex}
       />
     </OrderPage>

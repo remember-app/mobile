@@ -1,14 +1,12 @@
 import { Image } from 'expo-image';
 import { Clapperboard, RectangleHorizontal, RectangleVertical } from 'lucide-react-native';
 import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { MontageTemplate } from '@/models';
 import type { Language } from '@/types/language';
 import { duration } from '@/ui/format';
 import { BottomSheet } from '@/ui/kit/bottom-sheet';
-import { Button } from '@/ui/kit/button';
 import { Card } from '@/ui/kit/card';
 import { CircularSpinner } from '@/ui/kit/circular-spinner';
 import { Text } from '@/ui/kit/text';
@@ -25,10 +23,9 @@ export function TemplatesPage({
   chosenId,
   covers,
   onChoose,
-  failed,
-  onRetry,
   width,
   height,
+  top,
   bottom,
 }: {
   templates: MontageTemplate[] | null;
@@ -36,13 +33,11 @@ export function TemplatesPage({
   chosenId: string | null;
   covers: readonly string[];
   onChoose: (template: MontageTemplate | null) => void;
-  failed: boolean;
-  onRetry: () => void;
   width: number;
   height: number;
+  top: number;
   bottom: number;
 }) {
-  const { t } = useTranslation();
   const { color } = useTheme();
   const styles = useStyles();
   const [described, setDescribed] = useState<MontageTemplate | null>(null);
@@ -50,22 +45,10 @@ export function TemplatesPage({
   return (
     <>
       <OrderPage width={width} height={height}>
-        <OrderScroll bottom={bottom}>
+        <OrderScroll top={top} bottom={bottom}>
           {templates === null ? (
             <View style={styles.centre}>
               <CircularSpinner size={32} />
-            </View>
-          ) : failed ? (
-            <View style={styles.centre}>
-              <Text role="body" tone="muted">
-                {t('montage.order.templatesError')}
-              </Text>
-              <Button
-                label={t('action.retry')}
-                variant="secondary"
-                wide={false}
-                onPress={onRetry}
-              />
             </View>
           ) : (
             <View style={styles.templateGrid}>
@@ -196,7 +179,6 @@ const useStyles = themed(() =>
   StyleSheet.create({
     centre: {
       alignItems: 'center',
-      gap: space.s3,
       paddingVertical: space.s5,
     },
     templateGrid: {
