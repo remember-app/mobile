@@ -1,4 +1,5 @@
 import type { MediaId, MontageId, ProjectId, TemplateId, UserId } from '@/types/id';
+import type { Language } from '@/types/language';
 
 export type MontageStage = 'analysis' | 'preparation' | 'directing' | 'editing';
 
@@ -46,10 +47,16 @@ export type Montage = {
 
 export type MontageTemplate = {
   id: TemplateId;
-  name: string;
+  about: Record<
+    Language,
+    {
+      name: string;
+      description: string;
+    }
+  >;
   settings: MontageSettings;
   coverId: MediaId | null;
-  description: string | null;
+  coverUrl: string | null;
   referenceMediaId: MediaId | null;
 };
 

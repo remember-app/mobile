@@ -58,7 +58,16 @@ export function duration(seconds: number): string {
   return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;
 }
 
+const SCORE_RED = [255, 59, 48] as const;
+const SCORE_YELLOW = [255, 204, 0] as const;
+const SCORE_GREEN = [52, 199, 89] as const;
+
 export function scoreColor(score: number): string {
-  const clamped = Math.min(Math.max(score, 0), 1);
-  return `hsl(${Math.round(clamped * 120)}, 70%, 45%)`;
+  const value = Math.min(Math.max(score, 0), 10) / 10;
+  const [from, to, part] =
+    value < 0.5
+      ? ([SCORE_RED, SCORE_YELLOW, value / 0.5] as const)
+      : ([SCORE_YELLOW, SCORE_GREEN, (value - 0.5) / 0.5] as const);
+  const channel = (index: 0 | 1 | 2) => Math.round(from[index] + (to[index] - from[index]) * part);
+  return `rgb(${channel(0)}, ${channel(1)}, ${channel(2)})`;
 }

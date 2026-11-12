@@ -7,7 +7,6 @@ import { type ScrollViewInstance, StyleSheet, useWindowDimensions, View } from '
 import Animated, {
   Easing,
   scrollTo,
-  useAnimatedReaction,
   useAnimatedRef,
   useAnimatedScrollHandler,
   useAnimatedStyle,
@@ -70,6 +69,7 @@ export function PhotoViewer({
   const start = Math.max(0, viewPhotos.length - 1 - initialIndex);
   const indexRef = useRef(start);
   const [index, setIndex] = useState(start);
+  const [hdIndex, setHdIndex] = useState(-1);
   const [zoomed, setZoomed] = useState(false);
   const [info, setInfo] = useState(false);
   const [stripDriving, setStripDriving] = useState(false);
@@ -104,6 +104,19 @@ export function PhotoViewer({
     if (info) return;
     setChrome(true);
   }, [currentPhoto?.id, info]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setHdIndex(index);
+      const around: string[] = [];
+      for (let at = index - 2; at <= index + 2; at += 1) {
+        const uri = viewPhotos[at]?.source;
+        if (typeof uri === 'string') around.push(uri);
+      }
+      if (around.length > 0) void Image.prefetch(around, 'memory-disk').catch(() => undefined);
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [index, viewPhotos]);
 
   useEffect(() => () => setStatusBarHidden(false, 'fade'), []);
 
@@ -156,13 +169,6 @@ export function PhotoViewer({
       }
     },
   });
-
-  useAnimatedReaction(
-    () => Math.round(mainX.value / width),
-    (next) => {
-      scheduleOnRN(update, next);
-    },
-  );
 
   const leave = useCallback(() => {
     if (!origin || phase === 'leaving') {
@@ -305,6 +311,7 @@ export function PhotoViewer({
                 ) : (
                   <Zoomable
                     source={photo.source}
+                    hd={at === hdIndex ? (photo.original ?? null) : null}
                     media={mediaSize(photo)}
                     width={width}
                     height={height}

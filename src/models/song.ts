@@ -6,6 +6,7 @@ export type Song = {
   author: string;
   mediaId: MediaId;
   coverId: MediaId | null;
+  coverUrl: string | null;
   description: string | null;
   projectId: ProjectId | null;
   uploadedBy: UserId | null;

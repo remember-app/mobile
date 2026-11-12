@@ -2,6 +2,7 @@ import { onSignOut } from '@/functionality/auth/session';
 import {
   type CacheGroup,
   cachedMedia,
+  cachedMediaAny,
   clearMediaCache,
   keepMedia,
   mediaCacheUsage,
@@ -21,7 +22,7 @@ export const cachedPreview = (item: Item): string | null => {
 };
 
 export const cachedOriginal = (item: Item): string | null =>
-  cachedMedia(item.media.id, 'original', item.media.format, item.projectId);
+  cachedMediaAny(item.media.id, 'original', item.projectId);
 
 export async function ensureThumbnail(item: Item): Promise<string | null> {
   if (!item.links.thumbnail) return null;

@@ -21,6 +21,7 @@ export type Photo = {
   height?: number;
   upload?: TileUpload;
   select?: number | null;
+  required?: boolean;
   accent?: boolean;
   note?: string;
   author?: string | null;
@@ -41,6 +42,7 @@ type Props = {
   photos: readonly Photo[];
   onOpen: (index: number, rect?: Rect) => void;
   onSelect?: (index: number) => void;
+  onRequire?: (index: number) => void;
   padding?: { top: number; bottom: number };
   blankIndex?: number | null;
   measureRef?: MutableRefObject<MeasureTile | null>;
@@ -59,6 +61,7 @@ export function PhotoGrid({
   photos,
   onOpen,
   onSelect,
+  onRequire,
   padding,
   blankIndex,
   measureRef,
@@ -170,6 +173,8 @@ export function PhotoGrid({
                   source={photo.source}
                   upload={photo.upload}
                   select={photo.select}
+                  required={photo.required}
+                  onRequire={onRequire ? () => onRequire(index) : undefined}
                   mark={mark}
                   emptyMark={emptyMark}
                   accent={photo.accent}

@@ -36,6 +36,18 @@ export function cachedMedia(
   }
 }
 
+export function cachedMediaAny(
+  id: string,
+  role: MediaRole,
+  projectId: string | null,
+): string | null {
+  for (const ext of extensions[role]) {
+    const uri = cachedMedia(id, role, ext, projectId);
+    if (uri) return uri;
+  }
+  return null;
+}
+
 export async function keepMedia(
   id: string,
   role: MediaRole,

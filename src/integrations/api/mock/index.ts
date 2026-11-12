@@ -8,6 +8,7 @@ import {
   mockProjects,
   mockSongs,
   mockTemplates,
+  mockTrackUrl,
   mockUsers,
 } from './fixtures';
 
@@ -85,6 +86,10 @@ export function mockResponse(method: string, path: string, body?: unknown): unkn
     }
     if (parts[0] === 'projects' && parts[2] === 'songs') {
       return { items: mockSongs, nextOffset: null };
+    }
+    if (parts[0] === 'songs' && parts[1]) {
+      const found = mockSongs.find((song) => song.id === parts[1]);
+      return found ? { ...found, url: mockTrackUrl } : undefined;
     }
     if (parts[0] === 'projects' && parts[2] === 'montage-templates') return mockTemplates;
     if (parts[0] === 'projects' && parts[2] === 'invite') return invite;

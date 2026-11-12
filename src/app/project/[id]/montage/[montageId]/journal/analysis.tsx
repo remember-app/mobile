@@ -71,24 +71,26 @@ export default function AnalysisJournalScreen() {
                 onPress={() => setViewer(at)}
                 style={styles.row}
               >
-                {source ? (
-                  <Image
-                    source={source}
-                    style={styles.thumb}
-                    contentFit="cover"
-                    cachePolicy="memory-disk"
-                  />
-                ) : (
-                  <View style={styles.thumb} />
-                )}
+                <View style={styles.file}>
+                  {source ? (
+                    <Image
+                      source={source}
+                      style={styles.thumb}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                    />
+                  ) : (
+                    <View style={styles.thumb} />
+                  )}
+                  {analysis ? (
+                    <Text role="noteSm" style={{ color: scoreColor(analysis.score) }}>
+                      {analysis.score.toFixed(2)}
+                    </Text>
+                  ) : null}
+                </View>
                 <View style={styles.words}>
                   {analysis ? (
-                    <Text role="body">
-                      <Text style={{ color: scoreColor(analysis.score) }}>
-                        {analysis.score.toFixed(1)}
-                      </Text>{' '}
-                      {analysis.description}
-                    </Text>
+                    <Text role="body">{analysis.description}</Text>
                   ) : (
                     <Text role="body" tone="muted">
                       {t('montage.journal.noDescription')}
@@ -121,6 +123,10 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: radius.tile,
+  },
+  file: {
+    alignItems: 'center',
+    gap: 2,
   },
   words: {
     flex: 1,

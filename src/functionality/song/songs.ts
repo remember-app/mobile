@@ -1,9 +1,9 @@
 import { currentToken, onSignOut } from '@/functionality/auth/session';
 import { onProjectDeleted } from '@/functionality/project/projects';
-import { listLibrarySongs, listProjectSongs } from '@/integrations/api';
+import { getSong, listLibrarySongs, listProjectSongs } from '@/integrations/api';
 import { readCache, removeCache, writeCache } from '@/integrations/files/cache';
 import type { Song } from '@/models';
-import type { ProjectId } from '@/types/id';
+import type { ProjectId, SongId } from '@/types/id';
 
 export type SongsState = {
   status: 'loading' | 'ready' | 'error';
@@ -159,6 +159,10 @@ export function clearSongs(): void {
   library = EMPTY;
   removeCache(libraryCache);
   notify();
+}
+
+export async function songUrl(songId: SongId): Promise<string> {
+  return (await getSong(token(), songId)).url;
 }
 
 onProjectDeleted(forgetProjectSongs);

@@ -35,6 +35,7 @@ export function ProjectHeader({
   const montages = useMontages(projectId);
   const movies = useMovies(projectId);
   const shown = montages.items.slice(0, 3);
+  const hasShown = shown.length > 0;
   const [full, setFull] = useState(0);
   const [head, setHead] = useState(0);
   const side = space.s2 + 44 + space.s4 + space.s2;
@@ -43,7 +44,7 @@ export function ProjectHeader({
 
   const capsule = useAnimatedStyle(() => {
     const p = progress.value;
-    if (shown.length === 0) {
+    if (!hasShown) {
       return {
         width: collapsed,
         height: 44,

@@ -1,6 +1,6 @@
 import { Image, type ImageSource } from 'expo-image';
-import { useCallback, useState } from 'react';
-import { View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   type SharedValue,
@@ -15,6 +15,7 @@ import { viewerStyles } from './styles';
 
 type Props = {
   source: ImageSource | string | null;
+  hd?: string | null;
   media: { width: number; height: number } | null;
   width: number;
   height: number;
@@ -29,6 +30,7 @@ type Props = {
 
 export function Zoomable({
   source,
+  hd,
   media,
   width,
   height,
@@ -41,6 +43,7 @@ export function Zoomable({
   onTap,
 }: Props) {
   const [zoomed, setZoomed] = useState(false);
+  const [hdReady, setHdReady] = useState(false);
   const scale = useSharedValue(1);
   const x = useSharedValue(0);
   const y = useSharedValue(0);
@@ -178,17 +181,31 @@ export function Zoomable({
 
   const box = boxFor(media, width, height);
 
+  useEffect(() => setHdReady(false), [hd]);
+
   return (
     <GestureDetector gesture={gesture}>
       <Animated.View style={[viewerStyles.page, style]}>
         {source ? (
-          <Image
-            source={source}
-            style={box}
-            contentFit="contain"
-            transition={100}
-            cachePolicy="memory-disk"
-          />
+          <View style={box}>
+            <Image
+              source={source}
+              style={StyleSheet.absoluteFill}
+              contentFit="contain"
+              transition={100}
+              cachePolicy="memory-disk"
+            />
+            {hd ? (
+              <Image
+                source={hd}
+                style={[StyleSheet.absoluteFill, hdReady ? null : styles.hidden]}
+                contentFit="contain"
+                transition={120}
+                cachePolicy="memory-disk"
+                onLoad={() => setHdReady(true)}
+              />
+            ) : null}
+          </View>
         ) : (
           <View style={box} />
         )}
@@ -196,3 +213,7 @@ export function Zoomable({
     </GestureDetector>
   );
 }
+
+const styles = StyleSheet.create({
+  hidden: { opacity: 0 },
+});

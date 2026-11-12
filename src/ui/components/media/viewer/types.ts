@@ -3,6 +3,7 @@ import type { ImageSource } from 'expo-image';
 export type ViewerPhoto = {
   id: string;
   source: ImageSource | string | null;
+  original?: string | null;
   width?: number;
   height?: number;
   video?: boolean;

@@ -22,6 +22,8 @@ const SEA = asset(require('../../../../assets/images/mock/sea.jpg'));
 const FRIENDS = asset(require('../../../../assets/images/mock/friends.jpg'));
 const CITY = asset(require('../../../../assets/images/mock/city.jpg'));
 const VIDEO = asset(require('../../../../assets/mock/sea.mp4'));
+const TRACK = asset(require('../../../../assets/mock/track.mp3'));
+export const mockTrackUrl = TRACK;
 
 const PHOTOS = [PARTY, WEDDING, DANCE, BIRTHDAY, PICNIC, SEA, FRIENDS, CITY];
 
@@ -155,7 +157,7 @@ const item = (
       description,
       labelIds: options.labelIds ?? [],
       analysis:
-        options.analyzed && kind === 'photo' ? { description: 'Тёплый момент', score: 0.8 } : null,
+        options.analyzed && kind === 'photo' ? { description: 'Тёплый момент', score: 8.0 } : null,
       createdAt: at,
     },
     media:
@@ -574,7 +576,17 @@ export const mockBundles: Record<string, Bundle> = {
 export const mockTemplates: MontageTemplateResponse[] = [
   {
     id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb01',
-    name: 'Быстрый клип',
+    about: {
+      ru: {
+        name: 'Быстрый клип',
+        description: 'Короткий динамичный клип о самом ярком моменте события, без долгих планов.',
+      },
+      en: {
+        name: 'Quick clip',
+        description:
+          'A short, dynamic clip about the brightest moment of the event, no long shots.',
+      },
+    },
     settings: {
       targetSeconds: 15,
       prompt: 'Короткий динамичный клип о самом ярком моменте.',
@@ -582,12 +594,21 @@ export const mockTemplates: MontageTemplateResponse[] = [
       musicIds: [],
     },
     coverId: null,
-    description: null,
+    coverUrl: PARTY,
     referenceMediaId: null,
   },
   {
     id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb02',
-    name: 'Кино',
+    about: {
+      ru: {
+        name: 'Кино',
+        description: 'Тёплый фильм с историей, спокойным ритмом и титрами.',
+      },
+      en: {
+        name: 'Film',
+        description: 'A warm film with a story, an unhurried pace and captions.',
+      },
+    },
     settings: {
       targetSeconds: 60,
       prompt: 'Тёплый фильм с историей, спокойным ритмом и титрами.',
@@ -595,12 +616,21 @@ export const mockTemplates: MontageTemplateResponse[] = [
       musicIds: [],
     },
     coverId: null,
-    description: null,
+    coverUrl: WEDDING,
     referenceMediaId: null,
   },
   {
     id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb03',
-    name: 'Репортаж',
+    about: {
+      ru: {
+        name: 'Репортаж',
+        description: 'Репортаж о том, как прошёл день, от начала до конца.',
+      },
+      en: {
+        name: 'Report',
+        description: 'A report on how the day went, from start to finish.',
+      },
+    },
     settings: {
       targetSeconds: 45,
       prompt: 'Репортаж о том, как прошёл день, от начала до конца.',
@@ -608,7 +638,117 @@ export const mockTemplates: MontageTemplateResponse[] = [
       musicIds: [],
     },
     coverId: null,
-    description: null,
+    coverUrl: CITY,
+    referenceMediaId: null,
+  },
+  {
+    id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb04',
+    about: {
+      ru: {
+        name: 'Для родителей',
+        description: 'Мягкий семейный фильм о детях и близких.',
+      },
+      en: {
+        name: 'For parents',
+        description: 'A gentle family film about children and those close to you.',
+      },
+    },
+    settings: {
+      targetSeconds: 30,
+      prompt: 'Мягкий семейный фильм о детях и близких.',
+      dimensions: { width: 1080, height: 1920 },
+      musicIds: [],
+    },
+    coverId: null,
+    coverUrl: BIRTHDAY,
+    referenceMediaId: null,
+  },
+  {
+    id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb05',
+    about: {
+      ru: {
+        name: 'История',
+        description: 'Рассказ от первого лица о том, как прошёл вечер.',
+      },
+      en: {
+        name: 'Story',
+        description: 'A first-person story of how the evening went.',
+      },
+    },
+    settings: {
+      targetSeconds: 45,
+      prompt: 'Рассказ от первого лица о том, как прошёл вечер.',
+      dimensions: { width: 1080, height: 1920 },
+      musicIds: [],
+    },
+    coverId: null,
+    coverUrl: DANCE,
+    referenceMediaId: null,
+  },
+  {
+    id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb06',
+    about: {
+      ru: {
+        name: 'Атмосфера',
+        description: 'Медленные планы и детали, без суеты.',
+      },
+      en: {
+        name: 'Atmosphere',
+        description: 'Slow shots and details, no rush.',
+      },
+    },
+    settings: {
+      targetSeconds: 20,
+      prompt: 'Медленные планы и детали, без суеты.',
+      dimensions: { width: 1080, height: 1920 },
+      musicIds: [],
+    },
+    coverId: null,
+    coverUrl: SEA,
+    referenceMediaId: null,
+  },
+  {
+    id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb07',
+    about: {
+      ru: {
+        name: 'Трейлер',
+        description: 'Короткий трейлер с нарастанием и кульминацией в финале.',
+      },
+      en: {
+        name: 'Trailer',
+        description: 'A short trailer that builds up to a climax at the end.',
+      },
+    },
+    settings: {
+      targetSeconds: 30,
+      prompt: 'Короткий трейлер с нарастанием и кульминацией в финале.',
+      dimensions: { width: 1080, height: 1920 },
+      musicIds: [],
+    },
+    coverId: null,
+    coverUrl: FRIENDS,
+    referenceMediaId: null,
+  },
+  {
+    id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb08',
+    about: {
+      ru: {
+        name: 'Хроника',
+        description: 'Спокойная хроника события по порядку, от начала до конца.',
+      },
+      en: {
+        name: 'Chronicle',
+        description: 'A calm chronicle of the event in order, from start to finish.',
+      },
+    },
+    settings: {
+      targetSeconds: 75,
+      prompt: 'Спокойная хроника события по порядку, от начала до конца.',
+      dimensions: { width: 1920, height: 1080 },
+      musicIds: [],
+    },
+    coverId: null,
+    coverUrl: PICNIC,
     referenceMediaId: null,
   },
 ];
@@ -620,6 +760,7 @@ export const mockSongs: SongResponse[] = [
     author: 'Nox',
     mediaId: TRACK_MEDIA,
     coverId: null,
+    coverUrl: PARTY,
     description: null,
     projectId: null,
     uploadedBy: null,
@@ -630,6 +771,7 @@ export const mockSongs: SongResponse[] = [
     author: 'Nox',
     mediaId: '16161616-1616-4616-8616-161616161616',
     coverId: null,
+    coverUrl: SEA,
     description: null,
     projectId: null,
     uploadedBy: null,

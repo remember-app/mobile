@@ -1,5 +1,5 @@
 import { Image, type ImageSource } from 'expo-image';
-import { Check, CircleX } from 'lucide-react-native';
+import { Check, CircleX, Star } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/ui/kit/avatar';
@@ -18,6 +18,8 @@ type Props = {
   source: ImageSource | string | null;
   upload?: TileUpload;
   select?: number | null;
+  required?: boolean;
+  onRequire?: () => void;
   mark?: 'number' | 'check';
   emptyMark?: boolean;
   accent?: boolean;
@@ -33,6 +35,8 @@ export function PhotoTile({
   source,
   upload,
   select,
+  required,
+  onRequire,
   mark = 'number',
   emptyMark = true,
   accent,
@@ -87,6 +91,22 @@ export function PhotoTile({
               </Text>
             )
           ) : null}
+        </Pressable>
+      ) : null}
+      {chosen && onRequire ? (
+        <Pressable
+          onPress={onRequire}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityState={{ selected: !!required }}
+          style={styles.star}
+        >
+          <Star
+            size={17}
+            color={required ? theme.color.accent : theme.color.onFill}
+            fill={required ? theme.color.accent : 'transparent'}
+            strokeWidth={2.4}
+          />
         </Pressable>
       ) : null}
       {upload ? (
@@ -178,6 +198,17 @@ const styles = StyleSheet.create({
   },
   checkOff: {
     borderColor: 'rgba(255,255,255,0.8)',
+  },
+  star: {
+    position: 'absolute',
+    top: 5,
+    left: 5,
+    width: 27,
+    height: 27,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.35)',
   },
   note: {
     position: 'absolute',

@@ -259,6 +259,7 @@ export function toSong(wire: SongWire): Song {
     author: wire.author,
     mediaId: wire.mediaId,
     coverId: wire.coverId,
+    coverUrl: wire.coverUrl,
     description: wire.description,
     projectId: wire.projectId,
     uploadedBy: wire.uploadedBy,
@@ -296,7 +297,7 @@ export function toMontage(wire: MontageWire): Montage {
 export function toMontageTemplate(wire: MontageTemplateWire): MontageTemplate {
   return {
     id: wire.id,
-    name: wire.name,
+    about: wire.about,
     settings: {
       targetSeconds: wire.settings.targetSeconds,
       prompt: wire.settings.prompt,
@@ -304,7 +305,7 @@ export function toMontageTemplate(wire: MontageTemplateWire): MontageTemplate {
       musicIds: wire.settings.musicIds,
     },
     coverId: wire.coverId,
-    description: wire.description,
+    coverUrl: wire.coverUrl,
     referenceMediaId: wire.referenceMediaId,
   };
 }

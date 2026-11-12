@@ -5,7 +5,7 @@ import { StepDots } from '@/ui/components/onboarding/steps';
 import { ActionBar } from '@/ui/kit/action-bar';
 import { Button } from '@/ui/kit/button';
 import { Text } from '@/ui/kit/text';
-import { space, themed } from '@/ui/theme';
+import { space, themed, useTheme } from '@/ui/theme';
 
 export type Orientation = 'portrait' | 'landscape';
 
@@ -16,6 +16,7 @@ export type Draft = {
   orientation: Orientation;
   prompt: string;
   includeItemIds: string[];
+  requiredItemIds: string[];
   musicIds: string[];
 };
 
@@ -28,6 +29,7 @@ export const Start: Draft = {
   orientation: 'portrait',
   prompt: '',
   includeItemIds: [],
+  requiredItemIds: [],
   musicIds: [],
 };
 
@@ -61,11 +63,17 @@ export function OrderActions({
   label?: string;
 }) {
   const { t } = useTranslation();
+  const { color } = useTheme();
   const styles = useStyles();
   return (
     <ActionBar>
       <View style={styles.actions}>
-        <Button label={t('action.back')} variant="secondary" onPress={back} style={styles.action} />
+        <Button
+          label={t('action.back')}
+          variant="secondary"
+          onPress={back}
+          style={[styles.action, { backgroundColor: color.surface }]}
+        />
         <Button
           label={label ?? t('montage.order.next')}
           variant="primary"

@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 import { height, radius, space, themed, useTheme } from '@/ui/theme';
+import { Icon, type IconComponent } from './icon';
 import { hitSlop, TAP, useFocusRing, useHoverFocus } from './interaction';
 import { Text } from './text';
 
 type SegmentOption<T extends string | number> = {
   value: T;
   label: string;
+  icon?: IconComponent;
 };
 type SegmentProps<T extends string | number> = {
   label: string;
@@ -67,6 +69,7 @@ export function Segment<T extends string | number>({
             <Option
               key={option.value}
               label={option.label}
+              icon={option.icon}
               small={small}
               stacked={stacked}
               checked={checked}
@@ -89,7 +92,7 @@ export function Segment<T extends string | number>({
             role="controlSm"
             style={small ? styles.small : null}
             onLayout={(event) => {
-              const word = event.nativeEvent.layout.width;
+              const word = event.nativeEvent.layout.width + (option.icon ? 22 : 0);
               setWords((had) => (had[at] === word ? had : Object.assign([...had], { [at]: word })));
             }}
           >
@@ -102,6 +105,7 @@ export function Segment<T extends string | number>({
 }
 function Option({
   label,
+  icon,
   small,
   stacked,
   checked,
@@ -109,6 +113,7 @@ function Option({
   onPress,
 }: {
   label: string;
+  icon?: IconComponent;
   small?: boolean;
   stacked: boolean;
   checked: boolean;
@@ -136,16 +141,25 @@ function Option({
         focused ? focusRing : null,
       ]}
     >
-      <Text
-        role="controlSm"
-        style={[
-          small ? styles.small : null,
-          stacked ? (small ? styles.linesSmall : styles.lines) : null,
-          { color: checked ? color.ink : hovered ? color.paper : color.muted },
-        ]}
-      >
-        {label}
-      </Text>
+      <View style={[styles.face, stacked ? styles.faceStacked : null]}>
+        {icon ? (
+          <Icon
+            icon={icon}
+            size={small ? 14 : 16}
+            color={checked ? color.ink : hovered ? color.paper : color.muted}
+          />
+        ) : null}
+        <Text
+          role="controlSm"
+          style={[
+            small ? styles.small : null,
+            stacked ? (small ? styles.linesSmall : styles.lines) : null,
+            { color: checked ? color.ink : hovered ? color.paper : color.muted },
+          ]}
+        >
+          {label}
+        </Text>
+      </View>
     </Pressable>
   );
 }
@@ -174,6 +188,14 @@ const useStyles = themed(({ color }) =>
       alignItems: 'center',
       justifyContent: 'center',
       borderRadius: radius.pill,
+    },
+    face: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: space.s1,
+    },
+    faceStacked: {
+      flexDirection: 'column',
     },
     optionRow: { flexGrow: 1, flexBasis: 0, paddingHorizontal: space.s1 },
     optionStacked: {

@@ -1,5 +1,7 @@
+import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
+import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Check } from 'lucide-react-native';
+import { Check, Clapperboard, RectangleHorizontal, RectangleVertical } from 'lucide-react-native';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -10,6 +12,14 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   createMontage,
@@ -20,13 +30,15 @@ import {
   loadProjectSongs,
   loadProjects,
   previewMontage,
+  songUrl,
 } from '@/functionality';
 import { isApiError } from '@/integrations/api';
 import type { MontageTemplate, Song } from '@/models';
-import type { ProjectId } from '@/types/id';
+import type { ProjectId, SongId } from '@/types/id';
 import { goBack } from '@/ui/back';
 import { type Photo, PhotoGrid, type Rect } from '@/ui/components/media/photo-grid';
 import { PhotoViewer } from '@/ui/components/media/photo-viewer';
+import { OrderSummary } from '@/ui/components/montage-order/summary';
 import {
   type Draft,
   dimensionsOf,
@@ -36,7 +48,6 @@ import {
   orientationOf,
   Start,
 } from '@/ui/components/montage-order/wizard';
-import { MontageConfigCard, VideoDetailsCard } from '@/ui/components/movie-blocks';
 import { duration } from '@/ui/format';
 import {
   useGallery,
@@ -45,6 +56,7 @@ import {
   useProjectSongs,
   useSession,
 } from '@/ui/hooks';
+import { BottomSheet } from '@/ui/kit/bottom-sheet';
 import { Card } from '@/ui/kit/card';
 import { CircularSpinner } from '@/ui/kit/circular-spinner';
 import { Field } from '@/ui/kit/field';
@@ -53,8 +65,11 @@ import { Slider } from '@/ui/kit/slider';
 import { Text } from '@/ui/kit/text';
 import { radius, space, useTheme } from '@/ui/theme';
 
-const MIN_SHOTS = 3;
 const PAD = space.s5;
+const ON_PHOTO = '#ffffff';
+const ON_PHOTO_QUIET = 'rgba(255,255,255,0.78)';
+const SONG_COVER = require('../../../../assets/images/song-cover.jpg');
+const WAVE = [0.45, 0.75, 1, 0.7, 0.55];
 
 export default function NewMontageScreen() {
   const { t } = useTranslation();
@@ -79,9 +94,34 @@ export default function NewMontageScreen() {
   const [previewFailed, setPreviewFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [payer, setPayer] = useState<'project' | 'user' | null>(null);
   const pager = useRef<ScrollViewInstance>(null);
   const [viewer, setViewer] = useState<{ index: number; rect?: Rect } | null>(null);
   const [director, setDirector] = useState(false);
+  const [described, setDescribed] = useState<MontageTemplate | null>(null);
+  const [playingId, setPlayingId] = useState<SongId | null>(null);
+  const player = useAudioPlayer();
+  const status = useAudioPlayerStatus(player);
+
+  const togglePlay = async (song: Song) => {
+    if (playingId === song.id) {
+      player.pause();
+      setPlayingId(null);
+      return;
+    }
+    try {
+      const url = await songUrl(song.id);
+      player.replace(url);
+      player.play();
+      setPlayingId(song.id);
+    } catch {
+      setPlayingId(null);
+    }
+  };
+
+  useEffect(() => {
+    if (playingId && status.didJustFinish) setPlayingId(null);
+  }, [playingId, status.didJustFinish]);
 
   const change = (patch: Partial<Draft> | ((was: Draft) => Partial<Draft>)) =>
     setDraft((was) => ({ ...was, ...(typeof patch === 'function' ? patch(was) : patch) }));
@@ -96,6 +136,20 @@ export default function NewMontageScreen() {
 
   const dimensions = dimensionsOf(draft.orientation);
   const prompt = draft.prompt.trim() || null;
+
+  const thumbnails = useMemo(
+    () => gallery.items.flatMap((item) => (item.links.thumbnail ? [item.links.thumbnail] : [])),
+    [gallery.items],
+  );
+  const thumbOf = (id: string): string | null => {
+    if (thumbnails.length === 0) return null;
+    let hash = 2166136261;
+    for (const character of id) {
+      hash ^= character.charCodeAt(0);
+      hash = Math.imul(hash, 16777619);
+    }
+    return thumbnails[(hash >>> 0) % thumbnails.length] ?? null;
+  };
 
   useEffect(() => {
     if (draft.includeItemIds.length === 0) {
@@ -112,6 +166,7 @@ export default function NewMontageScreen() {
         dimensions: dimensionsOf(draft.orientation),
         musicIds: draft.musicIds,
         includeItemIds: draft.includeItemIds,
+        requiredItemIds: draft.requiredItemIds,
       },
     }).then(
       (answer) => {
@@ -128,6 +183,7 @@ export default function NewMontageScreen() {
     draft.includeItemIds,
     draft.musicIds,
     draft.orientation,
+    draft.requiredItemIds,
     draft.targetSeconds,
     draft.templateId,
     projectId,
@@ -151,9 +207,19 @@ export default function NewMontageScreen() {
     return map;
   }, [draft.includeItemIds]);
 
+  const shots = useMemo(
+    () =>
+      [...gallery.items].sort(
+        (left, right) =>
+          (right.media.capturedAt ?? right.createdAt).getTime() -
+          (left.media.capturedAt ?? left.createdAt).getTime(),
+      ),
+    [gallery.items],
+  );
+
   const photos = useMemo<Photo[]>(
     () =>
-      gallery.items.map((item) => ({
+      shots.map((item) => ({
         id: item.id,
         source: item.links.thumbnail ?? item.links.preview ?? item.links.original,
         video: item.kind === 'video',
@@ -165,14 +231,15 @@ export default function NewMontageScreen() {
         width: item.media.dimensions?.width,
         height: item.media.dimensions?.height,
         select: selectedAt.get(item.id) ?? null,
+        required: draft.requiredItemIds.includes(item.id),
         capturedAt: item.media.capturedAt,
       })),
-    [gallery.items, selectedAt],
+    [draft.requiredItemIds, selectedAt, shots],
   );
 
   const viewerPhotos = useMemo(
     () =>
-      gallery.items.map((item) => ({
+      shots.map((item) => ({
         id: item.id,
         source: item.links.preview ?? item.links.original ?? item.links.thumbnail,
         video: item.kind === 'video',
@@ -181,8 +248,18 @@ export default function NewMontageScreen() {
         height: item.media.dimensions?.height,
         capturedAt: item.media.capturedAt,
       })),
-    [gallery.items],
+    [shots],
   );
+
+  const posterShots = useMemo(() => {
+    const chosen = shots.filter((item) => draft.includeItemIds.includes(item.id));
+    const required = chosen.filter((item) => draft.requiredItemIds.includes(item.id));
+    const rest = chosen.filter((item) => !draft.requiredItemIds.includes(item.id));
+    return [...required, ...rest].slice(0, 3).flatMap((item) => {
+      const uri = item.links.thumbnail ?? item.links.preview ?? item.links.original;
+      return uri ? [uri] : [];
+    });
+  }, [draft.includeItemIds, draft.requiredItemIds, shots]);
 
   const projectFree = project
     ? project.consumables.tokens.tokens - project.consumables.tokens.spend
@@ -191,7 +268,7 @@ export default function NewMontageScreen() {
     ? account.consumables.tokens.tokens - account.consumables.tokens.spend
     : 0;
   const tokens = preview?.tokens ?? 0;
-  const payFrom = projectFree >= tokens ? 'project' : 'user';
+  const payFrom: 'project' | 'user' = payer ?? (projectFree >= tokens ? 'project' : 'user');
   const funded = (payFrom === 'project' ? projectFree : userFree) >= tokens;
   const blocked =
     preview === null || preview.problems.length > 0 || !funded || busy || photos.length === 0;
@@ -211,11 +288,28 @@ export default function NewMontageScreen() {
   };
 
   const toggleShot = (itemId: string) =>
-    change((was) => ({
-      includeItemIds: was.includeItemIds.includes(itemId)
-        ? was.includeItemIds.filter((entry) => entry !== itemId)
-        : [...was.includeItemIds, itemId],
-    }));
+    change((was) => {
+      if (was.includeItemIds.includes(itemId)) {
+        return {
+          includeItemIds: was.includeItemIds.filter((entry) => entry !== itemId),
+          requiredItemIds: was.requiredItemIds.filter((entry) => entry !== itemId),
+        };
+      }
+      return { includeItemIds: [...was.includeItemIds, itemId] };
+    });
+
+  const toggleRequired = (itemId: string) =>
+    change((was) => {
+      if (was.requiredItemIds.includes(itemId)) {
+        return { requiredItemIds: was.requiredItemIds.filter((entry) => entry !== itemId) };
+      }
+      return {
+        includeItemIds: was.includeItemIds.includes(itemId)
+          ? was.includeItemIds
+          : [...was.includeItemIds, itemId],
+        requiredItemIds: [...was.requiredItemIds, itemId],
+      };
+    });
 
   const submit = async () => {
     const token = currentToken();
@@ -233,6 +327,7 @@ export default function NewMontageScreen() {
           dimensions,
           musicIds: draft.musicIds,
           includeItemIds: draft.includeItemIds,
+          requiredItemIds: draft.requiredItemIds,
         },
       });
       router.replace({
@@ -254,11 +349,21 @@ export default function NewMontageScreen() {
   };
 
   const canNext =
-    index === 0 ||
-    index === 1 ||
-    (index === 2 && draft.includeItemIds.length >= MIN_SHOTS) ||
-    index === 3 ||
-    (index === 4 && !blocked);
+    index === 0 || index === 1 || index === 2 || index === 3 || (index === 4 && !blocked);
+
+  const emptyShots = index === 2 && draft.includeItemIds.length === 0;
+  const selectAllShots = () => change({ includeItemIds: gallery.items.map((item) => item.id) });
+  const next = () => {
+    if (index === titles.length - 1) {
+      void submit();
+      return;
+    }
+    if (emptyShots) {
+      if (gallery.items.length > 0) selectAllShots();
+      return;
+    }
+    go(index + 1);
+  };
 
   return (
     <View style={styles.root}>
@@ -285,28 +390,79 @@ export default function NewMontageScreen() {
                     <CircularSpinner size={32} />
                   </View>
                 ) : (
-                  templates.map((template) => (
-                    <Card
-                      key={template.id}
-                      onPress={() => {
-                        setDirector(false);
-                        applyTemplate(template, change);
-                      }}
-                      label={template.name}
-                      style={[
-                        styles.card,
-                        draft.templateId === template.id ? { borderColor: color.accent } : null,
-                      ]}
-                    >
-                      <Text role="row">{template.name}</Text>
-                      <Text role="meta" tone="muted">
-                        {duration(template.settings.targetSeconds)} ·{' '}
-                        {orientationOf(template.settings.dimensions) === 'portrait'
-                          ? t('montage.order.vertical')
-                          : t('montage.order.horizontal')}
-                      </Text>
-                    </Card>
-                  ))
+                  <View style={styles.templateGrid}>
+                    {templates.map((template) => {
+                      const text = template.about[account?.language ?? 'ru'];
+                      const chosenTemplate = draft.templateId === template.id;
+                      const cover = template.coverUrl ?? thumbOf(template.id);
+                      return (
+                        <Card
+                          key={template.id}
+                          clip
+                          onPress={() => {
+                            if (chosenTemplate) {
+                              change({ templateId: null });
+                              return;
+                            }
+                            setDirector(false);
+                            applyTemplate(template, change);
+                          }}
+                          label={text.name}
+                          style={styles.template}
+                        >
+                          {cover ? (
+                            <Image
+                              source={cover}
+                              style={[StyleSheet.absoluteFill, styles.templatePhoto]}
+                              contentFit="cover"
+                              cachePolicy="memory-disk"
+                            />
+                          ) : (
+                            <View style={[StyleSheet.absoluteFill, styles.templateEmpty]}>
+                              <Clapperboard size={28} color={color.muted} />
+                            </View>
+                          )}
+                          <View
+                            pointerEvents="none"
+                            style={[StyleSheet.absoluteFill, styles.templateScrim]}
+                          />
+                          <View style={styles.templateTop}>
+                            <View style={styles.templateSign}>
+                              {orientationOf(template.settings.dimensions) === 'portrait' ? (
+                                <RectangleVertical size={16} color={ON_PHOTO} />
+                              ) : (
+                                <RectangleHorizontal size={16} color={ON_PHOTO} />
+                              )}
+                            </View>
+                            <View style={styles.templateSpec}>
+                              <Text role="metaSm" style={styles.onPhoto}>
+                                {duration(template.settings.targetSeconds)}
+                              </Text>
+                            </View>
+                          </View>
+                          <View style={styles.templateFoot}>
+                            <Text role="row" numberOfLines={1} style={styles.onPhoto}>
+                              {text.name}
+                            </Text>
+                            <TemplateDescription
+                              text={text.description}
+                              onOpen={() => setDescribed(template)}
+                            />
+                          </View>
+                          {chosenTemplate ? (
+                            <View
+                              pointerEvents="none"
+                              style={[
+                                StyleSheet.absoluteFill,
+                                styles.templateFrame,
+                                { borderColor: color.accent },
+                              ]}
+                            />
+                          ) : null}
+                        </Card>
+                      );
+                    })}
+                  </View>
                 )}
               </ScrollView>
             </Page>
@@ -343,9 +499,18 @@ export default function NewMontageScreen() {
                 />
                 <Segment<Orientation>
                   label={t('montage.order.orientation')}
+                  hideLabel
                   options={[
-                    { value: 'portrait', label: t('montage.order.vertical') },
-                    { value: 'landscape', label: t('montage.order.horizontal') },
+                    {
+                      value: 'portrait',
+                      label: t('montage.order.vertical'),
+                      icon: RectangleVertical,
+                    },
+                    {
+                      value: 'landscape',
+                      label: t('montage.order.horizontal'),
+                      icon: RectangleHorizontal,
+                    },
                   ]}
                   value={draft.orientation}
                   onChange={(next) => change({ orientation: next })}
@@ -358,10 +523,14 @@ export default function NewMontageScreen() {
                 photos={photos}
                 onOpen={(at, rect) => setViewer({ index: at, rect })}
                 onSelect={(at) => {
-                  const item = gallery.items[at];
+                  const item = shots[at];
                   if (item) toggleShot(item.id);
                 }}
-                padding={{ top: space.s2, bottom: insets.bottom + 100 }}
+                onRequire={(at) => {
+                  const item = shots[at];
+                  if (item) toggleRequired(item.id);
+                }}
+                padding={{ top: space.s2, bottom: insets.bottom + 72 }}
                 blankIndex={viewer?.index ?? null}
               />
             </Page>
@@ -401,7 +570,9 @@ export default function NewMontageScreen() {
                         key={song.mediaId}
                         song={song}
                         on={!director && draft.musicIds.includes(song.mediaId)}
-                        onPress={() => {
+                        playing={playingId === song.id}
+                        onPlay={() => void togglePlay(song)}
+                        onSelect={() => {
                           if (director) {
                             setDirector(false);
                             change({ musicIds: [song.mediaId] });
@@ -424,63 +595,33 @@ export default function NewMontageScreen() {
               <ScrollView
                 contentContainerStyle={[styles.page, { paddingBottom: insets.bottom + 100 }]}
               >
-                <VideoDetailsCard
+                <OrderSummary
                   title={draft.name.trim() || (project?.title ?? '')}
-                  durationSeconds={draft.targetSeconds}
-                  chips={[
-                    {
-                      text:
-                        draft.orientation === 'portrait'
-                          ? t('montage.order.vertical')
-                          : t('montage.order.horizontal'),
-                    },
-                    {
-                      text: `${t('montage.order.shotsTitle')}: ${draft.includeItemIds.length}`,
-                    },
-                  ]}
-                />
-                <MontageConfigCard
-                  prompt={prompt}
-                  items={gallery.items.filter((item) => draft.includeItemIds.includes(item.id))}
-                  music={
-                    director
-                      ? []
-                      : chosenSongs.map((song) => ({
-                          id: song.mediaId,
-                          name: song.name,
-                          author: song.author,
-                        }))
-                  }
+                  seconds={draft.targetSeconds}
+                  orientation={draft.orientation}
+                  shots={posterShots}
+                  shotsCount={draft.includeItemIds.length}
+                  requiredCount={draft.requiredItemIds.length}
+                  songs={chosenSongs.map((song) => ({
+                    name: song.name,
+                    author: song.author,
+                    coverUrl: song.coverUrl,
+                  }))}
                   director={director}
-                  onFrames={() => go(2)}
-                >
-                  {preview === null ? (
-                    previewFailed ? (
-                      <Text role="body" tone="danger">
-                        {t('montage.order.error')}
-                      </Text>
-                    ) : (
-                      <View style={styles.centre}>
-                        <CircularSpinner size={24} />
-                      </View>
-                    )
-                  ) : preview.problems.length > 0 ? (
-                    preview.problems.map((problem) => (
-                      <Text key={problem} role="meta" tone="danger">
-                        {problem}
-                      </Text>
-                    ))
-                  ) : (
-                    <Row label={t('montage.order.tokens')} value={String(tokens)} />
-                  )}
-                </MontageConfigCard>
+                  prompt={prompt}
+                  tokens={tokens}
+                  payer={payFrom}
+                  onPayer={setPayer}
+                  projectFree={projectFree}
+                  userFree={userFree}
+                  loading={preview === null && !previewFailed}
+                  failed={preview === null && previewFailed}
+                  problems={preview?.problems ?? []}
+                  funded={funded}
+                />
                 {error ? (
                   <Text role="body" tone="danger">
                     {error}
-                  </Text>
-                ) : !funded && tokens > 0 ? (
-                  <Text role="body" tone="danger">
-                    {t('montage.order.tokensError')}
                   </Text>
                 ) : null}
               </ScrollView>
@@ -490,8 +631,14 @@ export default function NewMontageScreen() {
       </View>
       <OrderActions
         back={() => (index === 0 ? goBack(router) : go(index - 1))}
-        next={() => (index === titles.length - 1 ? void submit() : go(index + 1))}
-        label={index === titles.length - 1 ? t('montage.order.start') : t('montage.order.next')}
+        next={next}
+        label={
+          index === titles.length - 1
+            ? t('montage.order.start')
+            : emptyShots
+              ? t('montage.order.selectAll')
+              : t('montage.order.next')
+        }
         disabled={!canNext}
       />
       {viewer === null ? null : (
@@ -501,13 +648,22 @@ export default function NewMontageScreen() {
           origin={viewer.rect}
           onClose={() => setViewer(null)}
           onIndex={(next) => setViewer((was) => (was === null ? was : { ...was, index: next }))}
-          selected={selectedAt.has(gallery.items[viewer.index]?.id ?? '')}
+          selected={selectedAt.has(shots[viewer.index]?.id ?? '')}
           onSelect={() => {
-            const item = gallery.items[viewer.index];
+            const item = shots[viewer.index];
             if (item) toggleShot(item.id);
           }}
         />
       )}
+      <BottomSheet
+        visible={described !== null}
+        onClose={() => setDescribed(null)}
+        title={described ? described.about[account?.language ?? 'ru'].name : ''}
+      >
+        <Text role="body">
+          {described ? described.about[account?.language ?? 'ru'].description : ''}
+        </Text>
+      </BottomSheet>
     </View>
   );
 }
@@ -529,22 +685,94 @@ function Page({ width, height, children }: { width: number; height: number; chil
   return <View style={{ width, height }}>{children}</View>;
 }
 
-function TrackRow({ song, on, onPress }: { song: Song; on: boolean; onPress: () => void }) {
+function TrackRow({
+  song,
+  on,
+  playing,
+  onPlay,
+  onSelect,
+}: {
+  song: Song;
+  on: boolean;
+  playing: boolean;
+  onPlay: () => void;
+  onSelect: () => void;
+}) {
+  const { color } = useTheme();
   return (
-    <Pressable
-      accessibilityRole="checkbox"
-      accessibilityState={{ checked: on }}
-      onPress={onPress}
-      style={styles.row}
-    >
-      <View style={styles.words}>
-        <Text role="row">{song.name}</Text>
-        <Text role="meta" tone="muted">
-          {song.author}
-        </Text>
-      </View>
-      <CheckMark on={on} />
-    </Pressable>
+    <View style={styles.row}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={song.name}
+        onPress={onPlay}
+        style={styles.trackMain}
+      >
+        <View style={styles.art}>
+          <Image
+            source={song.coverUrl ?? SONG_COVER}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+          />
+          {playing ? (
+            <>
+              <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.artShade]} />
+              <Waveform />
+            </>
+          ) : null}
+        </View>
+        <View style={styles.trackWords}>
+          <Text role="row" numberOfLines={1} style={playing ? { color: color.accentText } : null}>
+            {song.name}
+          </Text>
+          <Text role="meta" tone="muted" numberOfLines={1}>
+            {song.author}
+          </Text>
+        </View>
+      </Pressable>
+      <Pressable
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: on }}
+        accessibilityLabel={song.name}
+        hitSlop={20}
+        onPress={onSelect}
+        style={styles.checkHit}
+      >
+        <CheckMark on={on} />
+      </Pressable>
+    </View>
+  );
+}
+
+function Waveform() {
+  const { color } = useTheme();
+  return (
+    <View pointerEvents="none" style={styles.wave}>
+      {WAVE.map((height, index) => (
+        <Bar
+          key={index}
+          height={height}
+          tint={index === 2 ? color.accent : ON_PHOTO}
+          delay={index * 90}
+        />
+      ))}
+    </View>
+  );
+}
+
+function Bar({ height, tint, delay }: { height: number; tint: string; delay: number }) {
+  const value = useSharedValue(0);
+  useEffect(() => {
+    value.value = withDelay(
+      delay,
+      withRepeat(withTiming(1, { duration: 420, easing: Easing.inOut(Easing.ease) }), -1, true),
+    );
+  }, [delay, value]);
+  const style = useAnimatedStyle(() => ({
+    transform: [{ scaleY: 0.35 + value.value * 0.65 }],
+  }));
+  return (
+    <Animated.View style={[styles.bar, { height: 24 * height, backgroundColor: tint }, style]} />
   );
 }
 
@@ -565,15 +793,35 @@ function CheckMark({ on }: { on: boolean }) {
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function TemplateDescription({ text, onOpen }: { text: string; onOpen: () => void }) {
+  const [width, setWidth] = useState(0);
+  const [lines, setLines] = useState(0);
+  const truncated = lines > 2;
   return (
-    <View style={styles.summaryRow}>
-      <Text role="rowPlain" tone="muted" style={styles.label}>
-        {label}
-      </Text>
-      <Text role="rowPlain" style={styles.value}>
-        {value}
-      </Text>
+    <View onLayout={(event) => setWidth(Math.ceil(event.nativeEvent.layout.width))}>
+      <Pressable
+        accessibilityRole={truncated ? 'button' : undefined}
+        accessibilityLabel={truncated ? text : undefined}
+        disabled={!truncated}
+        onPress={truncated ? onOpen : undefined}
+      >
+        <Text role="metaSm" numberOfLines={2} style={styles.onPhotoQuiet}>
+          {text}
+        </Text>
+      </Pressable>
+      {width > 0 ? (
+        <Text
+          role="metaSm"
+          pointerEvents="none"
+          style={[styles.onPhotoQuiet, styles.measure, { width }]}
+          onTextLayout={(event) => {
+            const count = event.nativeEvent.lines.length;
+            setLines((was) => (was === count ? was : count));
+          }}
+        >
+          {text}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -594,6 +842,69 @@ const styles = StyleSheet.create({
     padding: space.s4,
     gap: space.s3,
   },
+  templateGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: space.s2,
+  },
+  template: {
+    flexGrow: 1,
+    flexBasis: '45%',
+    height: 150,
+    padding: 0,
+  },
+  templatePhoto: {
+    opacity: 0.65,
+  },
+  templateEmpty: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  templateScrim: {
+    experimental_backgroundImage: `linear-gradient(to top, rgba(0,0,0,0.78), rgba(0,0,0,0.05))`,
+  },
+  templateTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: space.s2,
+    padding: space.s2,
+  },
+  templateSign: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  templateSpec: {
+    marginLeft: 'auto',
+    paddingVertical: 3,
+    paddingHorizontal: space.s2,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  templateFrame: {
+    borderWidth: 2,
+    borderRadius: radius.card,
+  },
+  measure: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    opacity: 0,
+  },
+  templateFoot: {
+    marginTop: 'auto',
+    padding: space.s3,
+    gap: space.s1,
+  },
+  onPhoto: {
+    color: ON_PHOTO,
+  },
+  onPhotoQuiet: {
+    color: ON_PHOTO_QUIET,
+  },
   area: {
     minHeight: 120,
     textAlignVertical: 'top',
@@ -608,16 +919,57 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: space.s3,
+    paddingVertical: space.s1,
+    paddingHorizontal: space.s2,
+    borderRadius: radius.card,
+  },
+  trackMain: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.s2,
+  },
+  art: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.tile,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(128,128,128,0.25)',
+  },
+  artShade: {
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  wave: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+  },
+  bar: {
+    width: 4,
+    borderRadius: 2,
+  },
+  trackWords: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  checkHit: {
+    padding: space.s1,
   },
   director: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: space.s3,
-  },
-  words: {
-    flexShrink: 1,
-    gap: space.s1,
   },
   check: {
     width: 26,
@@ -626,16 +978,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    gap: space.s3,
-  },
-  label: {
-    width: 130,
-  },
-  value: {
-    flex: 1,
-    textAlign: 'right',
   },
 });

@@ -25,7 +25,6 @@ import {
   attachItems,
   cachedOriginal,
   detachItems,
-  ensureOriginal,
   loadGallery,
   loadItem,
   loadLabels,
@@ -105,7 +104,6 @@ export default function ProjectScreen() {
   const session = useSession();
   const account = 'account' in session ? session.account : undefined;
   const [open, setOpen] = useState<{ index: number; rect?: Rect } | null>(null);
-  const [originals, setOriginals] = useState<Record<string, string>>({});
   const [scrolling, setScrolling] = useState(false);
   const [selecting, setSelecting] = useState(false);
   const [filtering, setFiltering] = useState(false);
@@ -187,6 +185,11 @@ export default function ProjectScreen() {
             item.links.thumbnail ??
             item.links.preview ??
             item.links.original,
+          preview:
+            item.kind === 'video'
+              ? (item.links.thumbnail ?? item.links.preview)
+              : (item.links.preview ?? item.links.thumbnail ?? item.links.original),
+          original: item.kind === 'photo' ? (cachedOriginal(item) ?? item.links.original) : null,
           video: item.kind === 'video',
           playbackUrl:
             item.kind === 'video'
@@ -223,6 +226,8 @@ export default function ProjectScreen() {
           photo: {
             id: upload.localId,
             source: upload.uri,
+            preview: upload.uri,
+            original: null,
             video: upload.kind === 'video',
             playbackUrl: upload.kind === 'video' ? upload.uri : null,
             note:
@@ -243,26 +248,9 @@ export default function ProjectScreen() {
   }, [filters, gallery.items, labelMode, labels.labels, pending, selecting, selected]);
 
   const viewerPhotos = useMemo<Photo[]>(
-    () =>
-      photos.map((photo) => {
-        const original = originals[photo.id];
-        return original && !photo.video ? { ...photo, source: original } : photo;
-      }),
-    [originals, photos],
+    () => photos.map((photo) => ({ ...photo, source: photo.preview ?? photo.source })),
+    [photos],
   );
-
-  const showOriginal = (itemId: string) => {
-    const item = gallery.items.find((entry) => entry.id === itemId);
-    if (item?.kind !== 'photo') return;
-    const cached = cachedOriginal(item);
-    if (cached) {
-      setOriginals((was) => (was[itemId] ? was : { ...was, [itemId]: cached }));
-      return;
-    }
-    void ensureOriginal(item).then((local) => {
-      if (local) setOriginals((was) => ({ ...was, [itemId]: local }));
-    });
-  };
 
   const actionStyle = useAnimatedStyle(() => ({
     opacity: 1 - chrome.value,
@@ -319,6 +307,7 @@ export default function ProjectScreen() {
   const loading = !project || (gallery.status === 'loading' && gallery.items.length === 0);
   const banner = montages.items.length > 0;
   const top = insets.top + space.s2 + 44 + (banner ? card + space.s2 * 2 + 2 : 0) + space.s2;
+  const edge = insets.top + space.s2 + 44 + space.s2;
   const bottom = insets.bottom + 76;
   const hideAfter = height.primary + space.s2 + insets.bottom;
   const scrolled = (offset: number) => {
@@ -439,7 +428,6 @@ export default function ProjectScreen() {
                 retryUpload(photo.id);
                 return;
               }
-              showOriginal(photo.id);
               setOpen({ index, rect });
             }}
             onSelect={
@@ -455,7 +443,7 @@ export default function ProjectScreen() {
                   }
                 : undefined
             }
-            padding={{ top, bottom }}
+            padding={{ top: edge, bottom }}
             blankIndex={open?.index ?? null}
             measureRef={measureTile}
             mark="check"
@@ -645,13 +633,11 @@ export default function ProjectScreen() {
             initialIndex={open.index}
             origin={open.rect}
             onClose={() => setOpen(null)}
-            onIndex={(next) => {
-              const photo = photos[next];
-              if (photo) showOriginal(photo.id);
+            onIndex={(next) =>
               measureTile.current?.(next, (rect) =>
                 setOpen((was) => (was === null ? was : { index: next, rect })),
-              );
-            }}
+              )
+            }
             author={account?.name ?? undefined}
             onDelete={(photo) => {
               setOpen(null);
