@@ -69,6 +69,14 @@ export function ProjectHeader({
       transform: [{ scale: 1 - progress.value * 0.5 }],
     };
   });
+  const leftRing = useAnimatedStyle(() => {
+    if (!hasShown) return { opacity: 1, transform: [{ scale: 1 }] };
+    return { opacity: progress.value, transform: [{ scale: progress.value }] };
+  });
+  const rightRing = useAnimatedStyle(() => {
+    if (!hasShown) return { opacity: 1, transform: [{ scale: 1 }] };
+    return { opacity: progress.value, transform: [{ scale: progress.value }] };
+  });
 
   const open = (montage: Montage) =>
     openMontage(
@@ -108,6 +116,7 @@ export function ProjectHeader({
                   <MontageCard
                     montage={montage}
                     movie={movies.items.find((movie) => movie.montageId === montage.id)}
+                    play={false}
                     onPress={() => open(montage)}
                   />
                 </View>
@@ -117,14 +126,34 @@ export function ProjectHeader({
         ) : null}
       </Animated.View>
       <View pointerEvents="box-none" style={styles.buttons}>
-        <BackButton label={t('action.back')} size={44} onPress={onBack} />
-        <IconButton
-          icon={Users}
-          label={t('project.members')}
-          tone="surface"
-          size={44}
-          onPress={onMembers}
-        />
+        <View style={styles.side}>
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.ring,
+              { backgroundColor: color.surface, borderColor: color.line },
+              leftRing,
+            ]}
+          />
+          <BackButton label={t('action.back')} size={44} tone="ghost" onPress={onBack} />
+        </View>
+        <View style={styles.side}>
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.ring,
+              { backgroundColor: color.surface, borderColor: color.line },
+              rightRing,
+            ]}
+          />
+          <IconButton
+            icon={Users}
+            label={t('project.members')}
+            tone="ghost"
+            size={44}
+            onPress={onMembers}
+          />
+        </View>
       </View>
       <View
         pointerEvents="none"
@@ -169,6 +198,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
+  },
+  side: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ring: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderWidth: 1,
+    borderRadius: 22,
   },
   measure: {
     position: 'absolute',

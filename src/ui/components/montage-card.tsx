@@ -46,11 +46,13 @@ export function MontageCard({
   montage,
   movie,
   wide,
+  play = true,
   onPress,
 }: {
   montage: Montage;
   movie?: Movie;
   wide?: boolean;
+  play?: boolean;
   onPress: () => void;
 }) {
   const { t } = useTranslation();
@@ -92,9 +94,11 @@ export function MontageCard({
       {finished ? (
         <>
           <View pointerEvents="none" style={[styles.shade, styles.shadeBottom]} />
-          <View style={[styles.play, wide ? styles.playWide : null]}>
-            <Play size={wide ? 28 : 20} color={color.onFill} fill={color.onFill} />
-          </View>
+          {play ? (
+            <View style={[styles.play, wide ? styles.playWide : null]}>
+              <Play size={wide ? 28 : 20} color={color.onFill} fill={color.onFill} />
+            </View>
+          ) : null}
         </>
       ) : (
         <>
