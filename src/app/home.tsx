@@ -176,14 +176,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: space.s4,
   },
-  bottom: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: space.s4,
-    paddingTop: space.s2,
-  },
   gap: {
     height: space.s3,
   },

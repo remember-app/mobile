@@ -202,61 +202,6 @@ const styles = StyleSheet.create({
     paddingTop: space.s5,
     gap: space.s4,
   },
-  card: {
-    padding: space.s4,
-    gap: space.s4,
-  },
-  files: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: space.s3,
-  },
-  thumbs: {
-    flexDirection: 'row',
-    gap: space.s1,
-  },
-  thumb: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.tile,
-  },
-  more: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  music: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.s2,
-  },
-  tracks: {
-    flexShrink: 1,
-    gap: 2,
-  },
-  fileTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: space.s3,
-  },
-  meta: {
-    alignItems: 'flex-end',
-    gap: 2,
-  },
-  chips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: space.s2,
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.s1,
-    paddingHorizontal: space.s3,
-    paddingVertical: space.s1,
-    borderRadius: radius.pill,
-  },
   centre: {
     flex: 1,
     alignItems: 'center',

@@ -348,10 +348,7 @@ const useStyles = themed(({ color }) =>
     tight: { paddingHorizontal: 14 },
     bare: { paddingHorizontal: 0, borderWidth: 0 },
     underline: { textDecorationLine: 'underline' },
-    inRow: { paddingHorizontal: 14, gap: 6 },
-    inRowPill: { paddingHorizontal: space.s3, gap: 6 },
     main: { gap: 9 },
-    boxed: { borderRadius: radius.field },
     wide: { width: '100%', flexShrink: 1 },
     round: {
       borderWidth: 1,

@@ -500,14 +500,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.s4,
   },
   fill: { flex: 1 },
-  bottom: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: space.s4,
-    paddingTop: space.s2,
-  },
   skeleton: {
     flexDirection: 'row',
     flexWrap: 'wrap',
