@@ -116,7 +116,6 @@ export function ProjectHeader({
                   <MontageCard
                     montage={montage}
                     movie={movies.items.find((movie) => movie.montageId === montage.id)}
-                    play={false}
                     onPress={() => open(montage)}
                   />
                 </View>

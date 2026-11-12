@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import type { useRouter } from 'expo-router';
-import { Play, TriangleExclamationPoint } from 'lucide-react-native';
+import { TriangleExclamationPoint } from 'lucide-react-native';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -12,7 +12,7 @@ import { MontageBackdrop } from '@/ui/components/movie-blocks';
 import { useGallery } from '@/ui/hooks';
 import { CircularSpinner } from '@/ui/kit/circular-spinner';
 import { Text } from '@/ui/kit/text';
-import { photo, radius, space, themed, useTheme } from '@/ui/theme';
+import { radius, space, themed, useTheme } from '@/ui/theme';
 
 const STAGE = {
   analysis: 'montage.stage.analysis',
@@ -46,13 +46,11 @@ export function MontageCard({
   montage,
   movie,
   wide,
-  play = true,
   onPress,
 }: {
   montage: Montage;
   movie?: Movie;
   wide?: boolean;
-  play?: boolean;
   onPress: () => void;
 }) {
   const { t } = useTranslation();
@@ -94,11 +92,6 @@ export function MontageCard({
       {finished ? (
         <>
           <View pointerEvents="none" style={[styles.shade, styles.shadeBottom]} />
-          {play ? (
-            <View style={[styles.play, wide ? styles.playWide : null]}>
-              <Play size={wide ? 28 : 20} color={color.onFill} fill={color.onFill} />
-            </View>
-          ) : null}
         </>
       ) : (
         <>
@@ -143,23 +136,6 @@ const useStyles = themed(({ color }) =>
     shadeBottom: {
       bottom: 0,
       experimental_backgroundImage: 'linear-gradient(to top, rgba(0,0,0,0.72), rgba(0,0,0,0))',
-    },
-    play: {
-      position: 'absolute',
-      alignSelf: 'center',
-      top: '50%',
-      marginTop: -20,
-      width: 40,
-      height: 40,
-      borderRadius: radius.pill,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: photo.glass,
-    },
-    playWide: {
-      width: 56,
-      height: 56,
-      marginTop: -28,
     },
     status: {
       position: 'absolute',
