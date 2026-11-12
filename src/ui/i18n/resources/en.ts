@@ -232,6 +232,8 @@ export const en = {
     edit: 'Edit',
     standard: 'Standard',
     noPlace: 'No place',
+    analysis: 'AI analysis',
+    score: 'Score',
   },
   network: {
     noNetwork: 'No network',

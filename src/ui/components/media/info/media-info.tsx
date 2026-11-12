@@ -6,7 +6,7 @@ import type { Item } from '@/models';
 import type { LabelId, ProjectId } from '@/types/id';
 import { useLabels } from '@/ui/hooks';
 import { space } from '@/ui/theme';
-
+import { AnalysisBlock } from './analysis-block';
 import { CaptionField } from './caption-field';
 import { LabelsBlock } from './labels-block';
 import { MetaCard, type PhotoMeta } from './meta-card';
@@ -64,8 +64,9 @@ export function MediaInfo({ projectId, item }: { projectId: ProjectId; item: Ite
         onChangeText={setCaption}
         onEndEditing={() => void updateItem(projectId, item.id, caption.trim() || null)}
       />
-      <MetaCard meta={meta} />
       <LabelsBlock labels={assigned} all={all} onToggle={toggle} />
+      {item.analysis ? <AnalysisBlock analysis={item.analysis} /> : null}
+      <MetaCard meta={meta} />
       <PlaceMap place={meta.place} />
     </View>
   );

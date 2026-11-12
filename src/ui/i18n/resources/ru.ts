@@ -235,6 +235,8 @@ export const ru: typeof en = {
     edit: 'Изменить',
     standard: 'Стандарт',
     noPlace: 'Место не указано',
+    analysis: 'Анализ ИИ',
+    score: 'Оценка',
   },
   network: {
     noNetwork: 'Нет сети',
