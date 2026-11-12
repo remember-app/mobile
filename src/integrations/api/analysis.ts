@@ -16,8 +16,9 @@ export function previewAnalysis(
   token: string,
   projectId: ProjectId,
   itemIds: ProjectItemId[],
+  force = false,
 ): Promise<AnalyzeItemsResponse> {
-  const body: AnalyzeItemsRequest = { itemIds };
+  const body: AnalyzeItemsRequest = { itemIds, ...(force ? { force: true } : {}) };
   return request<AnalyzeItemsResponse>(`/v1/projects/${projectId}/analyze/preview`, {
     method: 'POST',
     body,
@@ -29,8 +30,9 @@ export function analyzeItems(
   token: string,
   projectId: ProjectId,
   itemIds: ProjectItemId[],
+  force = false,
 ): Promise<AnalyzeItemsResponse> {
-  const body: AnalyzeItemsRequest = { itemIds };
+  const body: AnalyzeItemsRequest = { itemIds, ...(force ? { force: true } : {}) };
   return request<AnalyzeItemsResponse>(`/v1/projects/${projectId}/analyze`, {
     method: 'POST',
     body,

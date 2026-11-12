@@ -124,7 +124,7 @@ export function setItemLabels(
 
 export function setItemAnalyses(
   projectId: ProjectId,
-  entries: readonly { itemId: ProjectItemId; analysis: Analysis }[],
+  entries: readonly { itemId: ProjectItemId; analysis: Analysis | null }[],
 ): void {
   if (entries.length === 0) return;
   const current = galleryState(projectId);
@@ -132,8 +132,9 @@ export function setItemAnalyses(
   const byId = new Map(entries.map((entry) => [entry.itemId, entry.analysis]));
   let changed = false;
   const items = current.items.map((item) => {
-    const analysis = byId.get(item.id);
-    if (!analysis) return item;
+    if (!byId.has(item.id)) return item;
+    const analysis = byId.get(item.id) ?? null;
+    if (item.analysis === analysis) return item;
     changed = true;
     return { ...item, analysis };
   });

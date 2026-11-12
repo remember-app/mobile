@@ -65,7 +65,7 @@ export function MediaInfo({ projectId, item }: { projectId: ProjectId; item: Ite
         onEndEditing={() => void updateItem(projectId, item.id, caption.trim() || null)}
       />
       <LabelsBlock labels={assigned} all={all} onToggle={toggle} />
-      {item.analysis ? <AnalysisBlock analysis={item.analysis} /> : null}
+      <AnalysisBlock projectId={projectId} item={item} />
       <MetaCard meta={meta} />
       <PlaceMap place={meta.place} />
     </View>

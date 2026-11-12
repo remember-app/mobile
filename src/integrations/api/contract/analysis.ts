@@ -2,6 +2,7 @@ import type { AnalysisResponse, MediaKind } from './media';
 
 export type AnalyzeItemsRequest = {
   itemIds: string[];
+  force?: boolean;
 };
 
 export type AnalyzeItemsResponse = {

@@ -239,6 +239,11 @@ export const ru: typeof en = {
     noPlace: 'Место не указано',
     analysis: 'Анализ ИИ',
     score: 'Оценка',
+    analysisEmpty: 'Файл ещё не анализировался',
+    analyzeTitle: 'Запустить анализ ИИ?',
+    analyzeCost: 'Стоимость: {{tokens}} токенов.',
+    analysisAlready: 'Файл уже проанализирован',
+    analysisBusy: 'Анализ уже идёт',
   },
   network: {
     noNetwork: 'Нет сети',

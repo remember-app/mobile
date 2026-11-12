@@ -100,6 +100,7 @@ export {
   refreshGalleryAll,
   removeItem,
   removeItems,
+  setItemAnalyses,
   setItemLabels,
   subscribeGallery,
   updateItem,

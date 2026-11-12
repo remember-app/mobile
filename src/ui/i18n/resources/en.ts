@@ -236,6 +236,11 @@ export const en = {
     noPlace: 'No place',
     analysis: 'AI analysis',
     score: 'Score',
+    analysisEmpty: 'Not analyzed yet',
+    analyzeTitle: 'Run AI analysis?',
+    analyzeCost: 'Cost: {{tokens}} tokens.',
+    analysisAlready: 'This file is already analyzed',
+    analysisBusy: 'Analysis is already running',
   },
   network: {
     noNetwork: 'No network',
