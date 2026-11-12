@@ -23,7 +23,6 @@ JITTER = 0.07              # разброс размера
 COLS, ROWS = 5, 11         # слоты упаковки
 STROKE = 6.4
 OPACITY = 0.22
-STAR_OPACITY = 0.5
 SEED = 11
 BG = '#0B0B12'
 GRADIENT = [(0.0, (0x4B, 0x5B, 0xFF)), (1.0, (0xE4, 0xFF, 0x4F))]
@@ -231,7 +230,6 @@ def round_shape(s):
 def main():
     shapes = logo_shapes()
     basis = [round_shape(s) for s in shapes]
-    star = round_shape(next(s for s in shapes if s['fill'] == '#e4ff4f'))
 
     rng = random.Random(SEED)
     placed = []
@@ -258,18 +256,8 @@ def main():
                       sx0 + rng.uniform(-0.45, 0.45) * W / COLS,
                       sy0 + rng.uniform(-0.45, 0.45) * H / ROWS)
             if fits(pts):
-                placed.append({'pts': pts, 'bbox': bbox(pts), 'star': False})
+                placed.append({'pts': pts, 'bbox': bbox(pts)})
                 break
-
-    stars = 0
-    attempts = 0
-    while stars < 10 and attempts < 20000:
-        attempts += 1
-        pts = rot(star, rng.uniform(0, math.tau), 72 * rng.uniform(0.8, 1.15),
-                  rng.uniform(0, W), rng.uniform(0, H))
-        if fits(pts):
-            placed.append({'pts': pts, 'bbox': bbox(pts), 'star': True})
-            stars += 1
 
     check(placed)
 
@@ -283,15 +271,11 @@ def main():
         color = grad_color((p['bbox'][1] + p['bbox'][3]) / 2 / H)
         for dx in shifts:
             pts = [(x + dx, y) for x, y in p['pts']]
-            if p['star']:
-                out.append('<path d="%s" fill="none" stroke="#E4FF4F" stroke-width="4.8" stroke-opacity="%.2f" '
-                           'stroke-linejoin="round" stroke-linecap="round"/>' % (path_d(pts), STAR_OPACITY))
-            else:
-                out.append('<path d="%s" fill="none" stroke="%s" stroke-width="%.2f" stroke-opacity="%.2f" '
-                           'stroke-linejoin="round" stroke-linecap="round"/>' % (path_d(pts), color, STROKE, OPACITY))
+            out.append('<path d="%s" fill="none" stroke="%s" stroke-width="%.2f" stroke-opacity="%.2f" '
+                       'stroke-linejoin="round" stroke-linecap="round"/>' % (path_d(pts), color, STROKE, OPACITY))
     out.append('</svg>')
     (HERE / 'background.svg').write_text('\n'.join(out) + '\n')
-    print('background.svg: %d фигур, %d искр' % (len(placed) - stars, stars))
+    print('background.svg: %d фигур' % len(placed))
 
     if shutil.which('rsvg-convert'):
         subprocess.run(['rsvg-convert', '-w', str(int(W)), '-h', str(int(H)),
