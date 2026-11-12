@@ -1,6 +1,6 @@
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { Image } from 'expo-image';
-import { Check } from 'lucide-react-native';
+import { Check, Music } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -22,7 +22,6 @@ import { radius, space, themed, useTheme } from '@/ui/theme';
 
 import { OrderPage, OrderScroll } from './wizard';
 
-const SONG_COVER = require('../../../../assets/images/song-cover.jpg');
 const WAVE = [0.45, 0.75, 1, 0.7, 0.55];
 const ON_PHOTO = '#ffffff';
 
@@ -136,12 +135,16 @@ function TrackRow({
         style={styles.trackMain}
       >
         <View style={styles.art}>
-          <Image
-            source={song.coverUrl ?? SONG_COVER}
-            style={StyleSheet.absoluteFill}
-            contentFit="cover"
-            cachePolicy="memory-disk"
-          />
+          {song.coverUrl ? (
+            <Image
+              source={song.coverUrl}
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+            />
+          ) : (
+            <Music size={18} color={color.muted} />
+          )}
           {playing ? (
             <>
               <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.artShade]} />

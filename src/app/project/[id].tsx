@@ -351,7 +351,7 @@ export default function ProjectScreen() {
         ) : photos.length === 0 ? (
           <View style={[styles.emptyFill, { paddingTop: top, paddingBottom: bottom }]}>
             <Image
-              source={require('../../../assets/images/memory-empty.png')}
+              source={require('../../../assets/logo/logo-dashes.png')}
               style={styles.emptyArt}
               contentFit="contain"
             />

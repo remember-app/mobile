@@ -81,7 +81,7 @@ export default function HomeScreen() {
               style={styles.newCard}
             >
               <Image
-                source={require('../../assets/images/create-empty.png')}
+                source={require('../../assets/logo/logo-dashes-plus.png')}
                 style={styles.newArt}
                 contentFit="contain"
               />

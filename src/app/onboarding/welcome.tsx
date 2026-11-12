@@ -101,7 +101,7 @@ export default function WelcomeScreen() {
             Remember
           </Text>
           <Image
-            source={require('../../../assets/images/logo.svg')}
+            source={require('../../../assets/logo/logo-2048x2048.svg')}
             contentFit="contain"
             style={styles.logo}
           />

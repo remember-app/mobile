@@ -87,7 +87,7 @@ export function ProjectCard({ project, covers, onPress }: Props) {
       >
         {empty ? (
           <Image
-            source={require('../../../assets/images/memory-empty.png')}
+            source={require('../../../assets/logo/logo-dashes.png')}
             style={StyleSheet.absoluteFill}
             contentFit="contain"
           />
