@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ScrollView,
@@ -23,8 +23,9 @@ import { isApiError } from '@/integrations/api';
 import { itemSource, type MontageTemplate } from '@/models';
 import type { ProjectId } from '@/types/id';
 import { goBack } from '@/ui/back';
-import type { Photo } from '@/ui/components/media/photo-grid';
+import type { Photo, Rect } from '@/ui/components/media/photo-grid';
 import { tileOf, viewerOf } from '@/ui/components/media/photo-item';
+import { PhotoViewer } from '@/ui/components/media/photo-viewer';
 import { MetaPage } from '@/ui/components/montage-order/meta';
 import { MusicPage } from '@/ui/components/montage-order/music';
 import { ShotsPage } from '@/ui/components/montage-order/shots';
@@ -68,34 +69,25 @@ export default function NewMontageScreen() {
   const [index, setIndex] = useState(0);
   const [height, setHeight] = useState(0);
   const [templates, setTemplates] = useState<MontageTemplate[] | null>(null);
-  const [templatesFailed, setTemplatesFailed] = useState(false);
   const [preview, setPreview] = useState<{ problems: string[]; tokens: number } | null>(null);
   const [previewFailed, setPreviewFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [payer, setPayer] = useState<'project' | 'user' | null>(null);
   const [director, setDirector] = useState(false);
+  const [viewer, setViewer] = useState<{ index: number; rect?: Rect } | null>(null);
   const pager = useRef<ScrollViewInstance>(null);
 
   const change = (patch: Partial<Draft> | ((was: Draft) => Partial<Draft>)) =>
     setDraft((was) => ({ ...was, ...(typeof patch === 'function' ? patch(was) : patch) }));
 
-  const loadTemplates = useCallback(() => {
-    setTemplates(null);
-    setTemplatesFailed(false);
-    loadMontageTemplates(projectId).then(setTemplates, () => {
-      setTemplates([]);
-      setTemplatesFailed(true);
-    });
-  }, [projectId]);
-
   useEffect(() => {
-    loadTemplates();
+    loadMontageTemplates(projectId).then(setTemplates, () => setTemplates([]));
     void loadProjects();
     void loadGallery(projectId);
     void loadProjectSongs(projectId);
     void loadLibrarySongs();
-  }, [loadTemplates, projectId]);
+  }, [projectId]);
 
   const dimensions = dimensionsOf(draft.orientation);
   const prompt = draft.prompt.trim() || null;
@@ -353,8 +345,6 @@ export default function NewMontageScreen() {
               chosenId={draft.templateId}
               covers={thumbnails}
               onChoose={pickTemplate}
-              failed={templatesFailed}
-              onRetry={loadTemplates}
             />
             <MetaPage
               width={width}
@@ -369,11 +359,16 @@ export default function NewMontageScreen() {
               height={height}
               bottom={insets.bottom + 72}
               photos={photos}
-              viewerPhotos={viewerPhotos}
-              selectedAt={selectedAt}
-              ids={shotIds}
-              onToggle={toggleShot}
-              onToggleRequired={toggleRequired}
+              blankIndex={viewer?.index ?? null}
+              onOpen={(index, rect) => setViewer({ index, rect })}
+              onSelect={(index) => {
+                const itemId = shotIds[index];
+                if (itemId) toggleShot(itemId);
+              }}
+              onRequire={(index) => {
+                const itemId = shotIds[index];
+                if (itemId) toggleRequired(itemId);
+              }}
             />
             <MusicPage
               width={width}
@@ -433,6 +428,20 @@ export default function NewMontageScreen() {
         }
         disabled={!canNext}
       />
+      {viewer === null ? null : (
+        <PhotoViewer
+          photos={viewerPhotos}
+          initialIndex={viewer.index}
+          origin={viewer.rect}
+          onClose={() => setViewer(null)}
+          onIndex={(next) => setViewer((was) => (was === null ? was : { ...was, index: next }))}
+          selected={selectedAt.has(shotIds[viewer.index] ?? '')}
+          onSelect={() => {
+            const itemId = shotIds[viewer.index];
+            if (itemId) toggleShot(itemId);
+          }}
+        />
+      )}
     </View>
   );
 }
