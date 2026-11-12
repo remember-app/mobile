@@ -10,13 +10,15 @@ export function HeaderTitle({
   title,
   icon,
   maxWidth,
+  minWidth,
 }: {
   title: string;
   icon?: ReactNode;
   maxWidth?: number;
+  minWidth?: number;
 }) {
   return (
-    <View style={[styles.head, { minWidth: TITLE_MIN, maxWidth: maxWidth ?? '100%' }]}>
+    <View style={[styles.head, { minWidth: minWidth ?? TITLE_MIN, maxWidth: maxWidth ?? '100%' }]}>
       {icon}
       <Text role="barTitle" numberOfLines={1} ellipsizeMode="tail" style={styles.title}>
         {title}

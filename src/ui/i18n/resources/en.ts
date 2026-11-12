@@ -243,6 +243,13 @@ export const en = {
   },
   montage: {
     title: 'Videos',
+    analyze: 'Analyze',
+    analyzeCount: 'Analyze · {{count}}',
+    analysisTitle: 'Analyze items',
+    analysisStarted: 'Analysis started',
+    analysisQueued: 'Files queued: {{count}}',
+    analysisFailed: 'Could not start the analysis',
+    analysisEmpty: 'No files to analyze',
     create: 'Create video',
     emptyTitle: 'No videos yet',
     emptyText: 'Make the first one from the shots in this memory.',

@@ -246,6 +246,13 @@ export const ru: typeof en = {
   },
   montage: {
     title: 'Ролики',
+    analyze: 'Анализировать',
+    analyzeCount: 'Анализировать · {{count}}',
+    analysisTitle: 'Анализ кадров',
+    analysisStarted: 'Анализ запущен',
+    analysisQueued: 'Файлов в очереди: {{count}}',
+    analysisFailed: 'Не удалось запустить анализ',
+    analysisEmpty: 'Нет кадров для анализа',
     create: 'Создать ролик',
     emptyTitle: 'Пока нет роликов',
     emptyText: 'Соберите первый из кадров этого воспоминания.',

@@ -1,4 +1,5 @@
 export * from './account';
+export * from './analysis';
 export * from './auth';
 export * from './avatar';
 export { ApiError, isApiError, onSessionRefused } from './client';

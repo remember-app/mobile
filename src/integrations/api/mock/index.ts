@@ -104,6 +104,10 @@ export function mockResponse(method: string, path: string, body?: unknown): unkn
   }
 
   if (method === 'POST') {
+    if (parts[0] === 'projects' && parts[2] === 'analyze') {
+      const ids = Array.isArray(payload.itemIds) ? payload.itemIds : [];
+      return { queued: ids.length, tokens: 0 };
+    }
     if (url === '/auth/email/start') return { ok: true, code: '123456', registered: true };
     if (url === '/auth/email/verify') {
       const email = typeof payload.email === 'string' ? payload.email : active.email;

@@ -185,6 +185,7 @@ export function AppBar({
   left,
   right,
   boxed,
+  tight,
   style,
 }: {
   title: string;
@@ -193,6 +194,7 @@ export function AppBar({
   left?: ReactNode;
   right?: ReactNode;
   boxed?: boolean;
+  tight?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
   const styles = useStyles();
@@ -220,7 +222,7 @@ export function AppBar({
       <View style={[styles.barWords, inner ? styles.wordsCentre : null]}>
         {boxed ? (
           <View style={styles.box}>
-            <HeaderTitle title={title} />
+            <HeaderTitle title={title} minWidth={tight ? 0 : undefined} />
           </View>
         ) : (
           words

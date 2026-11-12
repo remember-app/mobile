@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Clapperboard } from 'lucide-react-native';
+import { Clapperboard, Sparkles } from 'lucide-react-native';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
@@ -12,7 +12,7 @@ import { MontageCard } from '@/ui/components/montage-card';
 import { useMontages, useMovies, useProjectCard } from '@/ui/hooks';
 import { ActionBar } from '@/ui/kit/action-bar';
 import { AppBar, Board, pageBody } from '@/ui/kit/bars';
-import { BackButton, Button } from '@/ui/kit/button';
+import { BackButton, Button, IconButton } from '@/ui/kit/button';
 import { CircularSpinner } from '@/ui/kit/circular-spinner';
 import { Empty } from '@/ui/kit/empty';
 import { space } from '@/ui/theme';
@@ -59,8 +59,25 @@ export default function MoviesScreen() {
         bar={
           <AppBar
             boxed
+            tight
             title={t('montage.title')}
             left={<BackButton label={t('action.back')} onPress={() => goBack(router)} />}
+            right={
+              admin ? (
+                <IconButton
+                  icon={Sparkles}
+                  label={t('montage.analyze')}
+                  tone="surface"
+                  size={44}
+                  onPress={() =>
+                    router.navigate({
+                      pathname: '/project/[id]/analyze',
+                      params: { id: projectId },
+                    })
+                  }
+                />
+              ) : undefined
+            }
           />
         }
         body={[pageBody, admin ? { paddingBottom: insets.bottom + 100 } : null]}
