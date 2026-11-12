@@ -14,12 +14,11 @@ import { Board } from '@/ui/kit/bars';
 import { BlurBar } from '@/ui/kit/blur-bar';
 import { Empty } from '@/ui/kit/empty';
 import { BackBar } from '@/ui/screens/chrome';
-import { space, useTheme } from '@/ui/theme';
+import { space } from '@/ui/theme';
 
 export default function MovieFramesScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const theme = useTheme();
   const { id, movieId } = useLocalSearchParams<{ id: string; movieId: string }>();
   const projectId = id as ProjectId;
   const movies = useMovies(projectId);
@@ -47,7 +46,7 @@ export default function MovieFramesScreen() {
   }
 
   return (
-    <View style={[styles.root, { backgroundColor: theme.color.ink }]}>
+    <View style={styles.root}>
       <PhotoGrid
         photos={photos}
         onOpen={(index, rect) => setOpen({ index, rect })}

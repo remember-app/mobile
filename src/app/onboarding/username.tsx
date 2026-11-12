@@ -67,7 +67,7 @@ export default function UsernameScreen() {
   };
 
   return (
-    <View style={[styles.root, { backgroundColor: color.ink }]}>
+    <View style={styles.root}>
       <Pressable style={styles.fill} onPress={Keyboard.dismiss}>
         <View style={[styles.top, { paddingTop: insets.top + space.s3 }]}>
           <StepDots step={3} total={3} />

@@ -19,13 +19,12 @@ import { CodeInput, type CodeOutcome } from '@/ui/components/code-input';
 import { StepDots } from '@/ui/components/onboarding/steps';
 import { Button } from '@/ui/kit/button';
 import { Text } from '@/ui/kit/text';
-import { font, space, useTheme } from '@/ui/theme';
+import { font, space } from '@/ui/theme';
 
 export default function CodeScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { color } = useTheme();
   const { email } = useLocalSearchParams<{ email?: string }>();
   const [code, setCode] = useState('');
   const [outcome, setOutcome] = useState<CodeOutcome | null>(null);
@@ -77,7 +76,7 @@ export default function CodeScreen() {
   };
 
   return (
-    <View style={[styles.root, { backgroundColor: color.ink }]}>
+    <View style={styles.root}>
       <Pressable style={styles.fill} onPress={Keyboard.dismiss}>
         <View style={[styles.top, { paddingTop: insets.top + space.s3 }]}>
           <StepDots step={2} total={3} />

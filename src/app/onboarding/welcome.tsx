@@ -26,7 +26,7 @@ import { loadSystemMedia } from '@/functionality';
 import { useSystemMedia } from '@/ui/hooks';
 import { Button } from '@/ui/kit/button';
 import { Text } from '@/ui/kit/text';
-import { radius, space, useTheme } from '@/ui/theme';
+import { radius, space } from '@/ui/theme';
 
 const SLIDE_MS = 6000;
 const REVEAL_AFTER_MS = 6500;
@@ -37,7 +37,6 @@ export default function WelcomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
-  const { color } = useTheme();
   const [index, setIndex] = useState(0);
   const taps = useRef(0);
   const dragged = useRef(false);
@@ -82,7 +81,7 @@ export default function WelcomeScreen() {
   }));
 
   return (
-    <View style={[styles.root, { backgroundColor: color.ink }]}>
+    <View style={styles.root}>
       <StatusBar style="light" />
       <View style={styles.photo}>
         {slide ? (

@@ -63,7 +63,7 @@ export default function HomeScreen() {
 
   return (
     <>
-      <View style={[styles.root, { backgroundColor: color.ink }]}>
+      <View style={styles.root}>
         {loading ? (
           <View
             style={[styles.loading, { paddingTop: insets.top, paddingBottom: insets.bottom + 92 }]}

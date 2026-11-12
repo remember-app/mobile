@@ -294,7 +294,7 @@ export default function PickScreen() {
   return (
     <>
       <Stack.Screen options={{ gestureEnabled: preview === null }} />
-      <View style={[styles.root, { backgroundColor: color.ink }]}>
+      <View style={styles.root}>
         <View style={styles.fill}>
           {denied ? (
             <View style={styles.centre}>

@@ -155,7 +155,7 @@ export default function AnalyzeScreen() {
   };
 
   return (
-    <View style={[styles.root, { backgroundColor: theme.color.ink }]}>
+    <View style={styles.root}>
       {loading ? (
         <View style={styles.centre}>
           <CircularSpinner size={32} />

@@ -235,7 +235,7 @@ export function AppBar({
 }
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
-    board: { flex: 1, backgroundColor: color.ink },
+    board: { flex: 1 },
     stands: { justifyContent: 'flex-end' },
     room: { flex: 1 },
     grow: { flexGrow: 1 },

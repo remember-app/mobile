@@ -64,13 +64,12 @@ import { BlurBar } from '@/ui/kit/blur-bar';
 import { Button, IconButton } from '@/ui/kit/button';
 import { Missing } from '@/ui/screens/chrome';
 import { orderOf } from '@/ui/selection';
-import { height, space, useTheme } from '@/ui/theme';
+import { height, space } from '@/ui/theme';
 
 export default function ProjectScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const theme = useTheme();
   const { width } = useWindowDimensions();
   const { id } = useLocalSearchParams<{ id: string }>();
   const projectId = id as ProjectId;
@@ -345,7 +344,7 @@ export default function ProjectScreen() {
   return (
     <>
       <Stack.Screen options={{ gestureEnabled: open === null && !selecting }} />
-      <View style={[styles.root, { backgroundColor: theme.color.ink }]}>
+      <View style={styles.root}>
         {loading ? (
           <GallerySkeleton top={top} bottom={bottom} />
         ) : photos.length === 0 ? (

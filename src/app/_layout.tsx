@@ -24,6 +24,7 @@ import { NoConnection } from '@/ui/components/no-connection';
 import { maybeCloseOpenRows } from '@/ui/components/swipe-row';
 import { useSession } from '@/ui/hooks';
 import { applyLanguage } from '@/ui/i18n';
+import { Backdrop } from '@/ui/kit/backdrop';
 import { useTheme } from '@/ui/theme';
 
 void SplashScreen.preventAutoHideAsync();
@@ -96,7 +97,7 @@ export default function RootLayout() {
   const base = theme.name === 'dark' ? DarkTheme : DefaultTheme;
   const navigation = {
     ...base,
-    colors: { ...base.colors, background: theme.color.ink, card: theme.color.ink },
+    colors: { ...base.colors, background: 'transparent', card: theme.color.ink },
   };
 
   return (
@@ -113,6 +114,7 @@ export default function RootLayout() {
                   return false;
                 }}
               >
+                <Backdrop />
                 {gate === 'checking' ? null : gate === 'blocked' ? (
                   <NoConnection onRetry={() => setAttempt((value) => value + 1)} />
                 ) : (
@@ -121,7 +123,7 @@ export default function RootLayout() {
                       headerShown: false,
                       animation: 'slide_from_right',
                       animationDuration: 220,
-                      contentStyle: { backgroundColor: theme.color.ink },
+                      contentStyle: { backgroundColor: 'transparent' },
                     }}
                   />
                 )}

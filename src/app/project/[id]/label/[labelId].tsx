@@ -24,13 +24,12 @@ import { Button } from '@/ui/kit/button';
 import { Empty } from '@/ui/kit/empty';
 import { Text } from '@/ui/kit/text';
 import { Missing } from '@/ui/screens/chrome';
-import { space, useTheme } from '@/ui/theme';
+import { space } from '@/ui/theme';
 
 export default function LabelScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const theme = useTheme();
   const { id, labelId } = useLocalSearchParams<{ id: string; labelId: string }>();
   const projectId = id as ProjectId;
   const labelKey = labelId as LabelId;
@@ -59,7 +58,7 @@ export default function LabelScreen() {
   return (
     <>
       <Stack.Screen options={{ gestureEnabled: open === null }} />
-      <View style={[styles.root, { backgroundColor: theme.color.ink }]}>
+      <View style={styles.root}>
         {photos.length === 0 ? (
           <View style={styles.centre}>
             <Empty sign="dashed" title={t('labels.empty')} />

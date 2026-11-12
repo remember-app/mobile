@@ -3,11 +3,9 @@ import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { parseInvite, stashInvite } from '@/functionality';
-import { useTheme } from '@/ui/theme';
 
 export default function InviteLinkScreen() {
   const router = useRouter();
-  const { color } = useTheme();
   const { token } = useLocalSearchParams<{ token?: string }>();
 
   useEffect(() => {
@@ -16,7 +14,7 @@ export default function InviteLinkScreen() {
     router.replace('/onboarding/email');
   }, [router, token]);
 
-  return <View style={[styles.root, { backgroundColor: color.ink }]} />;
+  return <View style={styles.root} />;
 }
 
 const styles = StyleSheet.create({
