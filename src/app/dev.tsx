@@ -3,6 +3,7 @@ import { Redirect, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { DevSettings, Pressable, StyleSheet, Switch, View } from 'react-native';
 
+import { config } from '@/config';
 import {
   confirmCode,
   currentToken,
@@ -183,6 +184,10 @@ export default function DevScreen() {
               trackColor={{ false: color.line, true: color.accent }}
               ios_backgroundColor={color.line}
             />
+          </View>
+          <View style={styles.row}>
+            <Text role="row">API</Text>
+            <Text role="hint">{config.api.baseUrl}</Text>
           </View>
           <Button label="Сбросить кеш" variant="secondary" onPress={() => void resetCache()} />
         </View>
