@@ -50,7 +50,6 @@ type Props = {
   onScroll?: (offset: number) => void;
   mark?: 'number' | 'check';
   emptyMark?: boolean;
-  tapSelects?: boolean;
 };
 
 type ListItem = { key: string; index: number; photo: Photo };
@@ -69,7 +68,6 @@ export function PhotoGrid({
   onScroll,
   mark,
   emptyMark,
-  tapSelects,
 }: Props) {
   const topPad = padding?.top ?? 0;
   const bottomPad = padding?.bottom ?? 0;
@@ -183,10 +181,6 @@ export function PhotoGrid({
                   labelColors={photo.labelColors}
                   onSelect={() => onSelect?.(index)}
                   onPress={() => {
-                    if (tapSelects && photo.select !== undefined) {
-                      onSelect?.(index);
-                      return;
-                    }
                     const node = cells.current.get(photo.id);
                     if (!node) {
                       onOpen(index);

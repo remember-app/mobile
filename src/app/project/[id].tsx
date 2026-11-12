@@ -362,10 +362,6 @@ export default function ProjectScreen() {
             onOpen={(index, rect) => {
               const photo = photos[index];
               if (!photo) return;
-              if (selecting) {
-                if (!photo.upload) toggle(photo.id);
-                return;
-              }
               if (photo.upload?.failed) {
                 retryUpload(photo.id);
                 return;
@@ -390,7 +386,6 @@ export default function ProjectScreen() {
             measureRef={measureTile}
             mark="check"
             emptyMark={false}
-            tapSelects={selecting}
             onLoadOlder={() => void loadMoreGallery(projectId)}
             onScroll={scrolled}
           />
@@ -501,14 +496,27 @@ export default function ProjectScreen() {
               )
             }
             author={account?.name ?? undefined}
-            onDelete={(photo) => {
-              setOpen(null);
-              if (pending.some((upload) => upload.localId === photo.id)) {
-                void removeUpload(photo.id);
-                return;
-              }
-              void removeItem(projectId, photo.id as ProjectItemId);
-            }}
+            selected={selecting ? selected.has(photos[open.index]?.id ?? '') : undefined}
+            onSelect={
+              selecting
+                ? () => {
+                    const photo = photos[open.index];
+                    if (photo && !photo.upload) toggle(photo.id);
+                  }
+                : undefined
+            }
+            onDelete={
+              selecting
+                ? undefined
+                : (photo) => {
+                    setOpen(null);
+                    if (pending.some((upload) => upload.localId === photo.id)) {
+                      void removeUpload(photo.id);
+                      return;
+                    }
+                    void removeItem(projectId, photo.id as ProjectItemId);
+                  }
+            }
             renderInfo={(index) => {
               const photo = photos[index];
               if (!photo) return null;

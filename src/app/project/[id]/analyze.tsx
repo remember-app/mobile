@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ListChecks } from 'lucide-react-native';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,8 +9,14 @@ import { currentToken, refreshGalleryAll } from '@/functionality';
 import { analyzeItems, previewAnalysis } from '@/integrations/api';
 import type { ProjectId, ProjectItemId } from '@/types/id';
 import { goBack } from '@/ui/back';
-import { type Photo, PhotoGrid } from '@/ui/components/media/photo-grid';
-import { tileOf } from '@/ui/components/media/photo-item';
+import {
+  type MeasureTile,
+  type Photo,
+  PhotoGrid,
+  type Rect,
+} from '@/ui/components/media/photo-grid';
+import { tileOf, viewerOf } from '@/ui/components/media/photo-item';
+import { PhotoViewer } from '@/ui/components/media/photo-viewer';
 import { useGallery } from '@/ui/hooks';
 import { ActionBar } from '@/ui/kit/action-bar';
 import { BlurBar } from '@/ui/kit/blur-bar';
@@ -35,6 +41,8 @@ export default function AnalyzeScreen() {
   const [quote, setQuote] = useState<Quote | null>(null);
   const [loading, setLoading] = useState(gallery.items.length === 0);
   const [busy, setBusy] = useState(false);
+  const [viewer, setViewer] = useState<{ index: number; rect?: Rect } | null>(null);
+  const measureTile = useRef<MeasureTile | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -51,11 +59,13 @@ export default function AnalyzeScreen() {
 
   const items = useMemo(
     () =>
-      [...gallery.items].sort(
-        (left, right) =>
-          (left.media.capturedAt ?? left.createdAt).getTime() -
-          (right.media.capturedAt ?? right.createdAt).getTime(),
-      ),
+      gallery.items
+        .filter((item) => item.analysis === null)
+        .sort(
+          (left, right) =>
+            (left.media.capturedAt ?? left.createdAt).getTime() -
+            (right.media.capturedAt ?? right.createdAt).getTime(),
+        ),
     [gallery.items],
   );
 
@@ -65,6 +75,7 @@ export default function AnalyzeScreen() {
     () => items.map((item) => ({ ...tileOf(item), select: order.get(item.id) ?? null })),
     [items, order],
   );
+  const viewerPhotos = useMemo(() => items.map(viewerOf), [items]);
 
   useEffect(() => {
     if (selected.size === 0) {
@@ -151,16 +162,22 @@ export default function AnalyzeScreen() {
         </View>
       ) : photos.length === 0 ? (
         <View style={styles.centre}>
-          <Empty sign="dashed" title={t('montage.analysisEmpty')} />
+          <Empty
+            sign="dashed"
+            title={
+              gallery.items.length > 0 ? t('montage.analysisNothing') : t('montage.analysisEmpty')
+            }
+          />
         </View>
       ) : (
         <PhotoGrid
           photos={photos}
-          onOpen={() => undefined}
+          onOpen={(index, rect) => setViewer({ index, rect })}
           onSelect={toggle}
-          tapSelects
           mark="check"
           padding={{ top: insets.top + 60, bottom: insets.bottom + 76 }}
+          blankIndex={viewer?.index ?? null}
+          measureRef={measureTile}
         />
       )}
       <BlurBar edge="top" style={styles.top}>
@@ -205,6 +222,21 @@ export default function AnalyzeScreen() {
           onPress={() => void confirm()}
         />
       </ActionBar>
+      {viewer === null ? null : (
+        <PhotoViewer
+          photos={viewerPhotos}
+          initialIndex={viewer.index}
+          origin={viewer.rect}
+          onClose={() => setViewer(null)}
+          onIndex={(index) =>
+            measureTile.current?.(index, (rect) =>
+              setViewer((was) => (was === null ? was : { index, rect })),
+            )
+          }
+          selected={selected.has(photos[viewer.index]?.id ?? '')}
+          onSelect={() => toggle(viewer.index)}
+        />
+      )}
     </View>
   );
 }
