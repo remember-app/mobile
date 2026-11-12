@@ -24,6 +24,31 @@ export function isApiError(error: unknown): error is ApiError {
   return error instanceof ApiError;
 }
 
+const SERVER_OVERRIDE = config.api.serverOverride;
+
+function overrideUrl(value: string): string {
+  if (!SERVER_OVERRIDE || !value.startsWith('http')) return value;
+  try {
+    const url = new URL(value);
+    if (url.hostname !== 'localhost' && url.hostname !== '127.0.0.1') return value;
+    url.hostname = SERVER_OVERRIDE;
+    return url.toString();
+  } catch {
+    return value;
+  }
+}
+
+function overrideServer(value: unknown): unknown {
+  if (typeof value === 'string') return overrideUrl(value);
+  if (Array.isArray(value)) return value.map(overrideServer);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nested]) => [key, overrideServer(nested)]),
+    );
+  }
+  return value;
+}
+
 type Query = Record<string, string | number | boolean | undefined | null>;
 
 export function query(params: Query): string {
@@ -78,7 +103,7 @@ export async function request<T>(
       for (const listener of refusals) listener(token);
     }
     if (!response.ok) throw new ApiError(response.status, parsed);
-    return parsed as T;
+    return overrideServer(parsed) as T;
   } finally {
     clearTimeout(timer);
   }
