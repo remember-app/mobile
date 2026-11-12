@@ -10,11 +10,9 @@ import {
   requestCode,
   setNetworkOverride,
   signOut,
-  startMockSession,
 } from '@/functionality';
 import { readLanguage, writeLanguage } from '@/functionality/settings/language';
 import { listUsers } from '@/integrations/api';
-import { initMockMode, mockMode, setMockMode } from '@/integrations/api/mock';
 import { clearCache } from '@/integrations/files/cache';
 import { clearMediaCache } from '@/integrations/files/media-cache';
 import type { Language } from '@/types/language';
@@ -54,7 +52,6 @@ export default function DevScreen() {
   const account = 'account' in session ? session.account : undefined;
   const [language, setLanguage] = useState<Language>('ru');
   const [open, setOpen] = useState<Open>(null);
-  const [mock, setMock] = useState(false);
   const [users, setUsers] = useState<SwitchableUser[]>([]);
   const [usersFailed, setUsersFailed] = useState(false);
   const [switching, setSwitching] = useState<string | null>(null);
@@ -68,7 +65,6 @@ export default function DevScreen() {
       setLanguage(next);
       void applyLanguage(next);
     });
-    void initMockMode().then(() => setMock(mockMode()));
   }, []);
 
   useEffect(() => {
@@ -97,17 +93,6 @@ export default function DevScreen() {
     clearMediaCache();
     await Image.clearMemoryCache();
     await Image.clearDiskCache();
-    DevSettings.reload();
-  };
-
-  const changeMock = async (next: boolean) => {
-    setMock(next);
-    await setMockMode(next);
-    if (next) {
-      clearCache();
-      clearMediaCache();
-      await startMockSession();
-    }
     DevSettings.reload();
   };
 
@@ -195,15 +180,6 @@ export default function DevScreen() {
             <Switch
               value={online}
               onValueChange={(next) => setNetworkOverride(next)}
-              trackColor={{ false: color.line, true: color.accent }}
-              ios_backgroundColor={color.line}
-            />
-          </View>
-          <View style={styles.row}>
-            <Text role="row">Мок-данные</Text>
-            <Switch
-              value={mock}
-              onValueChange={(next) => void changeMock(next)}
               trackColor={{ false: color.line, true: color.accent }}
               ios_backgroundColor={color.line}
             />

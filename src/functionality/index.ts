@@ -26,7 +26,6 @@ export {
   setUsername,
   signIn,
   signOut,
-  startMockSession,
   subscribeSession,
 } from './auth/session';
 export {
