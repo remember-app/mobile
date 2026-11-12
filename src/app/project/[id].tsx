@@ -1,25 +1,10 @@
 import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import {
-  Check,
-  CheckCheck,
-  ChevronDown,
-  Download,
-  ListFilter,
-  Send,
-  Tag,
-  Trash2,
-  X,
-} from 'lucide-react-native';
+import { CheckCheck, Tag, X } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
-import Animated, {
-  type SharedValue,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   attachItems,
@@ -46,13 +31,11 @@ import {
 } from '@/functionality';
 import type { LabelId, ProjectId, ProjectItemId } from '@/types/id';
 import { goBack } from '@/ui/back';
-import {
-  GalleryFiltersPanel,
-  type GalleryFiltersValue,
-  isFiltered,
-  NO_FILTERS,
-} from '@/ui/components/gallery-filters';
-import { LabelMark } from '@/ui/components/label';
+import { FilterControl } from '@/ui/components/gallery/filter-control';
+import { LabelMenu } from '@/ui/components/gallery/label-menu';
+import { SelectionActions } from '@/ui/components/gallery/selection-actions';
+import { SelectionBar } from '@/ui/components/gallery/selection-bar';
+import { type GalleryFiltersValue, isFiltered, NO_FILTERS } from '@/ui/components/gallery-filters';
 import { MediaInfo } from '@/ui/components/media/info/media-info';
 import {
   type MeasureTile,
@@ -79,12 +62,8 @@ import {
 import { ActionBar } from '@/ui/kit/action-bar';
 import { BlurBar } from '@/ui/kit/blur-bar';
 import { Button, IconButton } from '@/ui/kit/button';
-import { Icon, type IconComponent } from '@/ui/kit/icon';
-import { Text } from '@/ui/kit/text';
 import { Missing } from '@/ui/screens/chrome';
-import { height, radius, space, useTheme } from '@/ui/theme';
-
-const FILTER_HEIGHT = 288;
+import { height, space, useTheme } from '@/ui/theme';
 
 export default function ProjectScreen() {
   const { t } = useTranslation();
@@ -241,22 +220,12 @@ export default function ProjectScreen() {
     opacity: 1 - chrome.value,
     transform: [{ translateY: chrome.value * 96 }],
   }));
-  const leftStyle = useAnimatedStyle(() => ({
-    opacity: chrome.value,
-    transform: [{ translateX: (1 - chrome.value) * -72 }],
-  }));
   const rightStyle = useAnimatedStyle(() => ({
     opacity: chrome.value,
     transform: [{ translateX: (1 - chrome.value) * 72 }],
   }));
   const filtered = isFiltered(filters);
   const filterFull = width - space.s4 * 2;
-  const filterStyle = useAnimatedStyle(() => ({
-    width: 52 + (filterFull - 52) * filterAnim.value,
-    height: 52 + (FILTER_HEIGHT - 52) * filterAnim.value,
-  }));
-  const filterIcon = useAnimatedStyle(() => ({ opacity: 1 - filterAnim.value }));
-  const filterContent = useAnimatedStyle(() => ({ opacity: filterAnim.value }));
 
   useEffect(() => {
     chrome.value = withTiming(scrolling || selecting || filtering || filtered ? 1 : 0, {
@@ -459,38 +428,17 @@ export default function ProjectScreen() {
             pointerEvents={scrolling || selecting || filtering || filtered ? 'box-none' : 'none'}
             style={[styles.sideBar, { bottom: insets.bottom + space.s3 }]}
           >
-            <Animated.View style={[leftStyle, styles.filterLayer]}>
-              <Animated.View
-                style={[
-                  styles.filterBlock,
-                  filterStyle,
-                  { backgroundColor: theme.color.surface, borderColor: theme.color.line },
-                ]}
-              >
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={t('project.filter')}
-                  hitSlop={8}
-                  pointerEvents={filtering ? 'none' : 'auto'}
-                  onPress={() => setFiltering((was) => !was)}
-                  style={styles.filterHit}
-                >
-                  <Animated.View style={filterIcon}>
-                    <Icon icon={ListFilter} size={26} color={theme.color.paper} />
-                  </Animated.View>
-                </Pressable>
-                {filtering ? (
-                  <Animated.View style={[styles.filterContentWrap, filterContent]}>
-                    <GalleryFiltersPanel
-                      value={filters}
-                      labels={labels.labels}
-                      members={members.members}
-                      onChange={setFilters}
-                    />
-                  </Animated.View>
-                ) : null}
-              </Animated.View>
-            </Animated.View>
+            <FilterControl
+              chrome={chrome}
+              anim={filterAnim}
+              filtering={filtering}
+              full={filterFull}
+              onToggle={() => setFiltering((was) => !was)}
+              filters={filters}
+              labels={labels.labels}
+              members={members.members}
+              onChange={setFilters}
+            />
             <Animated.View style={[rightStyle, styles.rightButtons]}>
               {selecting ? (
                 <IconButton
@@ -515,90 +463,31 @@ export default function ProjectScreen() {
           </View>
         ) : null}
         {selecting && !labelMode ? (
-          <View style={[styles.actions, { bottom: insets.bottom + space.s3 + 52 + space.s2 }]}>
-            <RisingAction
-              progress={actions}
-              index={2}
-              icon={Download}
-              label={t('action.save')}
-              onPress={saveSelected}
-            />
-            <RisingAction
-              progress={actions}
-              index={1}
-              icon={Trash2}
-              label={t('action.delete')}
-              onPress={deleteSelected}
-            />
-            <RisingAction
-              progress={actions}
-              index={0}
-              icon={Send}
-              label={t('action.share')}
-              onPress={shareSelected}
-            />
-          </View>
+          <SelectionActions
+            progress={actions}
+            bottom={insets.bottom + space.s3 + 52 + space.s2}
+            onSave={saveSelected}
+            onDelete={deleteSelected}
+            onShare={shareSelected}
+          />
         ) : null}
         {selecting ? (
-          <View style={[styles.selectionBar, { top: insets.top + 52 }]}>
-            {labelMode && activeLabel ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={activeLabel.name}
-                onPress={() => setLabelMenu((was) => !was)}
-                style={[
-                  styles.labelPill,
-                  { backgroundColor: theme.color.surface, borderColor: theme.color.line },
-                ]}
-              >
-                <LabelMark tint={activeLabel.color} size={18} />
-                <Text role="row" numberOfLines={1} style={styles.labelName}>
-                  {activeLabel.name}
-                </Text>
-                <ChevronDown size={16} color={theme.color.muted} />
-              </Pressable>
-            ) : (
-              <View
-                style={[
-                  styles.selectionPill,
-                  { backgroundColor: theme.color.surface, borderColor: theme.color.line },
-                ]}
-              >
-                <Text role="row">{t('project.selected', { count: selected.size })}</Text>
-              </View>
-            )}
-          </View>
+          <SelectionBar
+            top={insets.top + 52}
+            labelMode={labelMode}
+            activeLabel={activeLabel}
+            selectedCount={selected.size}
+            onMenu={() => setLabelMenu((was) => !was)}
+          />
         ) : null}
         {selecting && labelMode && labelMenu && activeLabel ? (
-          <>
-            <Pressable style={styles.labelBackdrop} onPress={() => setLabelMenu(false)} />
-            <View style={[styles.labelMenuWrap, { top: insets.top + 52 + 48 }]}>
-              <View
-                style={[
-                  styles.labelMenu,
-                  { backgroundColor: theme.color.surface, borderColor: theme.color.line },
-                ]}
-              >
-                {labels.labels.map((label) => (
-                  <Pressable
-                    key={label.id}
-                    accessibilityRole="button"
-                    accessibilityLabel={label.name}
-                    onPress={() => void chooseLabel(label.id)}
-                    style={styles.labelOption}
-                  >
-                    <LabelMark tint={label.color} size={18} />
-                    <Text role="row" numberOfLines={1} style={styles.labelName}>
-                      {label.name}
-                    </Text>
-                    {label.id === activeLabel.id ? (
-                      <Check size={16} color={theme.color.accent} />
-                    ) : null}
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-          </>
+          <LabelMenu
+            top={insets.top + 52 + 48}
+            labels={labels.labels}
+            activeLabel={activeLabel}
+            onChoose={chooseLabel}
+            onClose={() => setLabelMenu(false)}
+          />
         ) : null}
         {open === null ? null : (
           <PhotoViewer
@@ -633,30 +522,6 @@ export default function ProjectScreen() {
   );
 }
 
-function RisingAction({
-  progress,
-  index,
-  icon,
-  label,
-  onPress,
-}: {
-  progress: SharedValue<number>;
-  index: number;
-  icon: IconComponent;
-  label: string;
-  onPress: () => void;
-}) {
-  const style = useAnimatedStyle(() => ({
-    opacity: progress.value,
-    transform: [{ translateY: (1 - progress.value) * index * (52 + space.s2) }],
-  }));
-  return (
-    <Animated.View style={style}>
-      <IconButton icon={icon} label={label} tone="surface" size={52} onPress={onPress} />
-    </Animated.View>
-  );
-}
-
 const styles = StyleSheet.create({
   root: { flex: 1 },
   emptyFill: {
@@ -685,98 +550,9 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
   },
-  filterLayer: {
-    width: 52,
-    height: 52,
-    zIndex: 2,
-  },
-  filterBlock: {
-    position: 'absolute',
-    left: 0,
-    bottom: 0,
-    borderRadius: 26,
-    borderWidth: 1,
-    overflow: 'hidden',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  filterHit: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  filterContentWrap: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  selectionBar: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
   rightButtons: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.s2,
-  },
-  labelPill: {
-    maxWidth: '60%',
-    minHeight: 40,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.s2,
-    paddingHorizontal: space.s3,
-    borderWidth: 1,
-    borderRadius: radius.pill,
-  },
-  labelName: {
-    flexShrink: 1,
-  },
-  labelBackdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  labelMenuWrap: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    zIndex: 20,
-  },
-  labelMenu: {
-    width: 260,
-    borderWidth: 1,
-    borderRadius: radius.card,
-    paddingVertical: space.s1,
-  },
-  labelOption: {
-    minHeight: 44,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.s2,
-    paddingHorizontal: space.s3,
-  },
-  actions: {
-    position: 'absolute',
-    right: space.s4,
-    alignItems: 'flex-end',
-    gap: space.s2,
-  },
-  selectionPill: {
-    paddingHorizontal: space.s3,
-    paddingVertical: space.s1,
-    borderWidth: 1,
-    borderRadius: radius.pill,
   },
 });

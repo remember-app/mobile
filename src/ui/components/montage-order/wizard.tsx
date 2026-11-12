@@ -1,5 +1,6 @@
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { StepDots } from '@/ui/components/onboarding/steps';
 import { ActionBar } from '@/ui/kit/action-bar';
@@ -8,6 +9,8 @@ import { Text } from '@/ui/kit/text';
 import { space, themed, useTheme } from '@/ui/theme';
 
 export type Orientation = 'portrait' | 'landscape';
+
+export type Change = (patch: Partial<Draft> | ((was: Draft) => Partial<Draft>)) => void;
 
 export type Draft = {
   templateId: string | null;
@@ -38,6 +41,27 @@ export const dimensionsOf = (orientation: Orientation) =>
 
 export const orientationOf = (dimensions: { width: number; height: number }): Orientation =>
   dimensions.width >= dimensions.height ? 'landscape' : 'portrait';
+
+export function OrderPage({
+  width,
+  height,
+  children,
+}: {
+  width: number;
+  height: number;
+  children: ReactNode;
+}) {
+  return <View style={{ width, height }}>{children}</View>;
+}
+
+export function OrderScroll({ bottom, children }: { bottom: number; children: ReactNode }) {
+  const styles = useStyles();
+  return (
+    <ScrollView contentContainerStyle={[styles.page, { paddingBottom: bottom }]}>
+      {children}
+    </ScrollView>
+  );
+}
 
 export function OrderHead({ step, title }: { step: number; title: string }) {
   const styles = useStyles();
@@ -88,6 +112,11 @@ export function OrderActions({
 
 const useStyles = themed(() =>
   StyleSheet.create({
+    page: {
+      paddingHorizontal: space.s5,
+      paddingTop: space.s4,
+      gap: space.s4,
+    },
     head: {
       gap: space.s3,
       paddingHorizontal: space.s4,
