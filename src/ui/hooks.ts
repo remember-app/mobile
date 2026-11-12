@@ -1,6 +1,7 @@
 import { useCallback, useSyncExternalStore } from 'react';
 
 import {
+  analysisJobsState,
   avatarState,
   contactsState,
   galleryState,
@@ -15,6 +16,7 @@ import {
   projectsState,
   pushState,
   sessionState,
+  subscribeAnalysisJobs,
   subscribeAvatar,
   subscribeContacts,
   subscribeGallery,
@@ -42,6 +44,11 @@ function useStore<T>(subscribe: (listener: () => void) => () => void, snapshot: 
 }
 
 export const useSession = () => useStore(subscribeSession, sessionState);
+
+export function useAnalysisJobs(projectId: ProjectId) {
+  const snapshot = useCallback(() => analysisJobsState(projectId), [projectId]);
+  return useStore(subscribeAnalysisJobs, snapshot);
+}
 export const useAvatar = () => useStore(subscribeAvatar, avatarState);
 export const useProjects = () => useStore(subscribeProjects, projectsState);
 export const useUploads = () => useStore(subscribeUploads, uploadsState);

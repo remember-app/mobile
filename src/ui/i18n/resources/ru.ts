@@ -254,6 +254,7 @@ export const ru: typeof en = {
     analysisConfirmText: 'Файлов: {{count}}. Токенов: {{tokens}}.',
     analysisNothing: 'Все выбранные файлы уже проанализированы',
     analysisNone: 'Задач анализа пока нет',
+    analysisLoadFailed: 'Не удалось загрузить анализ',
     analysisWaiting: 'В очереди',
     analysisRunning: 'Анализируется',
     analysisFailedState: 'Анализ не удался',

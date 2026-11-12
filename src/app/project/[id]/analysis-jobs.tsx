@@ -1,14 +1,14 @@
 import { useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
-import { currentToken, loadGallery } from '@/functionality';
-import { type AnalysisJob, listAnalysisJobs } from '@/integrations/api';
+import { loadGallery, watchAnalysisJobs } from '@/functionality';
+import type { AnalysisJob } from '@/integrations/api';
 import { itemSource } from '@/models';
 import type { ProjectId } from '@/types/id';
 import { AnalysisRow } from '@/ui/components/media/analysis-row';
-import { useGallery } from '@/ui/hooks';
+import { useAnalysisJobs, useGallery } from '@/ui/hooks';
 import { Board, pageBody } from '@/ui/kit/bars';
 import { CircularSpinner } from '@/ui/kit/circular-spinner';
 import { Empty } from '@/ui/kit/empty';
@@ -20,29 +20,14 @@ export default function AnalysisJobsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const projectId = id as ProjectId;
   const gallery = useGallery(projectId);
-  const [jobs, setJobs] = useState<AnalysisJob[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    const token = currentToken();
-    if (!token) return;
-    const answer = await listAnalysisJobs(token, projectId);
-    setJobs(answer.items);
-  }, [projectId]);
+  const state = useAnalysisJobs(projectId);
+  const jobs = state.items;
+  const loading = state.status === 'idle' || state.status === 'loading';
 
   useEffect(() => {
     void loadGallery(projectId);
-    void load()
-      .catch(() => undefined)
-      .finally(() => setLoading(false));
-  }, [load, projectId]);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      void load().catch(() => undefined);
-    }, 7000);
-    return () => clearInterval(timer);
-  }, [load]);
+    return watchAnalysisJobs(projectId);
+  }, [projectId]);
 
   const statusOf = (job: AnalysisJob): string => {
     if (job.status === 'running') return t('montage.analysisRunning');
@@ -58,6 +43,8 @@ export default function AnalysisJobsScreen() {
           <View style={styles.centre}>
             <CircularSpinner size={32} />
           </View>
+        ) : state.status === 'error' ? (
+          <Empty sign="dashed" title={t('montage.analysisLoadFailed')} />
         ) : jobs.length === 0 ? (
           <Empty sign="dashed" title={t('montage.analysisNone')} />
         ) : (

@@ -12,6 +12,14 @@ export {
   usernameAvailable,
 } from './account/username';
 export {
+  type AnalysisJobsState,
+  analysisJobsState,
+  clearAnalysisJobs,
+  loadAnalysisJobs,
+  subscribeAnalysisJobs,
+  watchAnalysisJobs,
+} from './analysis/jobs';
+export {
   confirmCode,
   currentToken,
   onBeforeSignOut,

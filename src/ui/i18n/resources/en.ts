@@ -251,6 +251,7 @@ export const en = {
     analysisConfirmText: 'Files: {{count}}. Tokens: {{tokens}}.',
     analysisNothing: 'All selected files are already analyzed',
     analysisNone: 'No analysis jobs yet',
+    analysisLoadFailed: 'Could not load the analysis',
     analysisWaiting: 'Queued',
     analysisRunning: 'Analyzing',
     analysisFailedState: 'Analysis failed',

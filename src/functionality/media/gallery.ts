@@ -11,7 +11,7 @@ import {
 } from '@/integrations/api';
 import { readCache, removeCache, writeCache } from '@/integrations/files/cache';
 import { forgetItemMedia } from '@/integrations/files/media-cache';
-import type { DownloadLink, Item } from '@/models';
+import type { Analysis, DownloadLink, Item } from '@/models';
 import type { LabelId, ProjectId, ProjectItemId } from '@/types/id';
 
 export type GalleryState = {
@@ -118,6 +118,26 @@ export function setItemLabels(
       : item.labelIds.filter((id) => id !== labelId);
     return { ...item, labelIds };
   });
+  emit(projectId, { ...current, items });
+  persist(projectId);
+}
+
+export function setItemAnalyses(
+  projectId: ProjectId,
+  entries: readonly { itemId: ProjectItemId; analysis: Analysis }[],
+): void {
+  if (entries.length === 0) return;
+  const current = galleryState(projectId);
+  if (current.items.length === 0) return;
+  const byId = new Map(entries.map((entry) => [entry.itemId, entry.analysis]));
+  let changed = false;
+  const items = current.items.map((item) => {
+    const analysis = byId.get(item.id);
+    if (!analysis) return item;
+    changed = true;
+    return { ...item, analysis };
+  });
+  if (!changed) return;
   emit(projectId, { ...current, items });
   persist(projectId);
 }
