@@ -11,17 +11,18 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider, useRouter } from 'expo-r
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { LucideProvider } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { onPushOpened, sessionState, startApp, systemMediaState } from '@/functionality';
-import { readLanguage } from '@/functionality/settings/language';
+import { readLanguage, writeLanguage } from '@/functionality/settings/language';
 import { health } from '@/integrations/api';
 import { NoConnection } from '@/ui/components/no-connection';
 import { maybeCloseOpenRows } from '@/ui/components/swipe-row';
+import { useSession } from '@/ui/hooks';
 import { applyLanguage } from '@/ui/i18n';
 import { useTheme } from '@/ui/theme';
 
@@ -30,7 +31,10 @@ void SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   const theme = useTheme();
   const router = useRouter();
+  const session = useSession();
+  const accountLanguage = 'account' in session ? session.account.language : null;
   const [ready, setReady] = useState(false);
+  const languageSynced = useRef(false);
   const [gate, setGate] = useState<'checking' | 'ready' | 'blocked'>('checking');
   const [attempt, setAttempt] = useState(0);
   const [loaded] = useFonts({
@@ -44,8 +48,17 @@ export default function RootLayout() {
 
   useEffect(() => {
     void startApp().finally(() => setReady(true));
-    void readLanguage().then(applyLanguage);
+    void readLanguage().then((stored) => {
+      if (!languageSynced.current) void applyLanguage(stored);
+    });
   }, []);
+
+  useEffect(() => {
+    if (!accountLanguage) return;
+    languageSynced.current = true;
+    void writeLanguage(accountLanguage);
+    void applyLanguage(accountLanguage);
+  }, [accountLanguage]);
 
   useEffect(() => {
     if (loaded && ready) void SplashScreen.hideAsync();

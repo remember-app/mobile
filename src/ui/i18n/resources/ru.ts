@@ -91,8 +91,8 @@ export const ru: typeof en = {
   },
   profile: {
     title: 'Профиль',
-    storage: 'Хранилище',
-    tokens: 'Токены',
+    storage: 'Памяти осталось',
+    tokens: 'Токенов осталось',
     language: 'Язык',
     theme: 'Тема',
     contacts: 'Мои контакты',

@@ -1,6 +1,7 @@
 import { Check, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { Icon, type IconComponent } from '@/ui/kit/icon';
 import { radius, space, themed, useTheme } from '@/ui/theme';
 
 import { Text } from '../kit/text';
@@ -12,6 +13,7 @@ export function SettingsSelect<T extends string>({
   onToggle,
   options,
   onChange,
+  icon,
 }: {
   label: string;
   value: string;
@@ -19,6 +21,7 @@ export function SettingsSelect<T extends string>({
   onToggle: () => void;
   options: readonly { value: T; label: string; selected: boolean }[];
   onChange: (value: T) => void;
+  icon?: IconComponent;
 }) {
   const { color } = useTheme();
   const styles = useStyles();
@@ -30,6 +33,7 @@ export function SettingsSelect<T extends string>({
           <Text role="rowPlain" tone="muted">
             {value}
           </Text>
+          {icon ? <Icon icon={icon} size={18} color={color.muted} /> : null}
           {open ? (
             <ChevronUp size={18} color={color.muted} />
           ) : (

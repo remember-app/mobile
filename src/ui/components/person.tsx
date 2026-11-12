@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
+import { type StyleProp, StyleSheet, type TextStyle, View, type ViewStyle } from 'react-native';
 import { Avatar } from '@/ui/kit/avatar';
 import { Text } from '@/ui/kit/text';
 import { space } from '@/ui/theme';
@@ -14,6 +14,7 @@ export function Person({
   uri,
   right,
   style,
+  nameStyle,
 }: {
   name: string;
   username: string;
@@ -24,6 +25,7 @@ export function Person({
   uri?: string | null;
   right?: ReactNode;
   style?: StyleProp<ViewStyle>;
+  nameStyle?: StyleProp<TextStyle>;
 }) {
   return (
     <View style={[styles.person, style]}>
@@ -34,7 +36,7 @@ export function Person({
             role={heading ? 'title' : 'row'}
             tone={accent ? 'accent' : 'paper'}
             numberOfLines={1}
-            style={styles.name}
+            style={[styles.name, nameStyle]}
           >
             {name}
           </Text>

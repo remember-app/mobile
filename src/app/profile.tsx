@@ -1,6 +1,14 @@
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Camera, ChevronRight, LogOut } from 'lucide-react-native';
+import {
+  Camera,
+  ChevronRight,
+  HardDrive,
+  Languages,
+  LogOut,
+  Palette,
+  Users,
+} from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -30,6 +38,7 @@ import { BottomSheet } from '@/ui/kit/bottom-sheet';
 import { Button, IconButton } from '@/ui/kit/button';
 import { Card } from '@/ui/kit/card';
 import { Field } from '@/ui/kit/field';
+import { Icon } from '@/ui/kit/icon';
 import { Text } from '@/ui/kit/text';
 import { BackBar } from '@/ui/screens/chrome';
 import { setTheme, space, themed, useTheme, useThemeChoice } from '@/ui/theme';
@@ -93,7 +102,6 @@ export default function ProfileScreen() {
   const tokens = account?.consumables.tokens;
   const gib = 1024 ** 3;
   const left = Math.max(0, (storage?.bytes ?? 0) - (storage?.spend ?? 0)) / gib;
-  const total = (storage?.bytes ?? 0) / gib;
   const tokenLeft = Math.max(0, (tokens?.tokens ?? 0) - (tokens?.spend ?? 0));
   const clean = username.trim().replace(/^@/, '');
   const valid = isUsernameShapeValid(clean);
@@ -171,6 +179,8 @@ export default function ProfileScreen() {
           heading
           note={account.email ?? ''}
           uri={avatar.url}
+          style={styles.personRoot}
+          nameStyle={styles.personName}
         />
       </Card>
 
@@ -178,7 +188,7 @@ export default function ProfileScreen() {
         <View style={styles.row}>
           <Text role="row">{t('profile.storage')}</Text>
           <Text role="rowPlain" tone="muted">
-            {`${number(left)} / ${number(total)} ${t('unit.gb')}`}
+            {number(left)}
           </Text>
         </View>
         <Divider style={styles.fullDivider} />
@@ -205,6 +215,7 @@ export default function ProfileScreen() {
             selected: item === language,
           }))}
           onChange={choose}
+          icon={Languages}
         />
         <Divider style={styles.fullDivider} />
         <SettingsSelect
@@ -224,6 +235,7 @@ export default function ProfileScreen() {
             setThemeOpen(false);
             void setTheme(next);
           }}
+          icon={Palette}
         />
       </Card>
 
@@ -233,6 +245,7 @@ export default function ProfileScreen() {
           <Text role="rowPlain" tone="muted">
             {contacts.contacts.length}
           </Text>
+          <Icon icon={Users} size={18} color={color.muted} />
           <ChevronRight size={18} color={color.muted} />
         </View>
       </Card>
@@ -243,6 +256,7 @@ export default function ProfileScreen() {
           <Text role="rowPlain" tone="muted">
             {size(cacheBytes)}
           </Text>
+          <Icon icon={HardDrive} size={18} color={color.muted} />
           <ChevronRight size={18} color={color.muted} />
         </View>
       </Card>
@@ -304,6 +318,13 @@ const useStyles = themed(() =>
       alignItems: 'center',
       gap: space.s4,
       paddingVertical: space.s4,
+    },
+    personRoot: {
+      flex: 1,
+      minWidth: 0,
+    },
+    personName: {
+      maxWidth: '60%',
     },
     form: {
       gap: space.s4,

@@ -88,8 +88,8 @@ export const en = {
   },
   profile: {
     title: 'Profile',
-    storage: 'Storage',
-    tokens: 'Tokens',
+    storage: 'Memory left',
+    tokens: 'Tokens left',
     language: 'Language',
     theme: 'Theme',
     contacts: 'My contacts',
