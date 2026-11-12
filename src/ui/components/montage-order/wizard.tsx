@@ -5,7 +5,6 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { StepDots } from '@/ui/components/onboarding/steps';
 import { ActionBar } from '@/ui/kit/action-bar';
 import { Button } from '@/ui/kit/button';
-import { Text } from '@/ui/kit/text';
 import { space, themed, useTheme } from '@/ui/theme';
 
 export type Orientation = 'portrait' | 'landscape';
@@ -73,13 +72,10 @@ export function OrderScroll({
   );
 }
 
-export function OrderHead({ step, title }: { step: number; title: string }) {
+export function OrderHead({ step }: { step: number }) {
   const styles = useStyles();
   return (
     <View style={styles.head}>
-      <Text role="title" accessibilityRole="header" style={styles.title}>
-        {title}
-      </Text>
       <StepDots step={step} total={STEPS} />
     </View>
   );
@@ -130,9 +126,6 @@ const useStyles = themed(() =>
       gap: space.s3,
       paddingHorizontal: space.s4,
       paddingBottom: space.s2,
-    },
-    title: {
-      textAlign: 'center',
     },
     actions: {
       flexDirection: 'row',

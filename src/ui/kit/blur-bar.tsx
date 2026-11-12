@@ -16,6 +16,7 @@ type Props = {
   children: ReactNode;
   intensity?: number;
   shade?: boolean;
+  fill?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -34,7 +35,7 @@ function Fade({ top }: { top: boolean }) {
   );
 }
 
-export function BlurBar({ edge, children, intensity = 30, shade = true, style }: Props) {
+export function BlurBar({ edge, children, intensity = 30, shade = true, fill, style }: Props) {
   const insets = useSafeAreaInsets();
   const { color, name } = useTheme();
   const top = edge === 'top';
@@ -54,7 +55,13 @@ export function BlurBar({ edge, children, intensity = 30, shade = true, style }:
         pointerEvents="none"
         style={[
           styles.blur,
-          top ? { top: 0, height: insets.top } : { bottom: 0, height: insets.bottom },
+          top
+            ? fill
+              ? { top: 0, bottom: 0 }
+              : { top: 0, height: insets.top }
+            : fill
+              ? { top: 0, bottom: 0 }
+              : { bottom: 0, height: insets.bottom },
         ]}
         maskElement={<Fade top={top} />}
       >

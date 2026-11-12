@@ -39,6 +39,7 @@ import {
   OrderPage,
   OrderScroll,
   orientationOf,
+  STEPS,
   Start,
 } from '@/ui/components/montage-order/wizard';
 import {
@@ -196,16 +197,8 @@ export default function NewMontageScreen() {
   const blocked =
     preview === null || preview.problems.length > 0 || !funded || busy || photos.length === 0;
 
-  const titles = [
-    t('montage.order.templatesTitle'),
-    t('montage.order.metaTitle'),
-    t('montage.order.shotsTitle'),
-    t('montage.order.musicTitle'),
-    t('montage.order.summaryTitle'),
-  ];
-
   const go = (next: number) => {
-    const target = Math.max(0, Math.min(titles.length - 1, next));
+    const target = Math.max(0, Math.min(STEPS - 1, next));
     pager.current?.scrollTo({ x: target * width, animated: true });
     setIndex(target);
   };
@@ -304,13 +297,12 @@ export default function NewMontageScreen() {
     }
   };
 
-  const canNext =
-    index === 0 || index === 1 || index === 2 || index === 3 || (index === 4 && !blocked);
+  const canNext = index < STEPS - 1 || !blocked;
 
   const emptyShots = index === 2 && draft.includeItemIds.length === 0;
   const selectAllShots = () => change({ includeItemIds: gallery.items.map((item) => item.id) });
   const next = () => {
-    if (index === titles.length - 1) {
+    if (index === STEPS - 1) {
       void submit();
       return;
     }
@@ -420,20 +412,20 @@ export default function NewMontageScreen() {
           </ScrollView>
         ) : null}
       </View>
-      <BlurBar edge="top">
+      <BlurBar edge="top" fill>
         <View
           onLayout={(event) =>
             setHeadHeight(event.nativeEvent.layout.height + insets.top + space.s2)
           }
         >
-          <OrderHead step={index + 1} title={titles[index] ?? ''} />
+          <OrderHead step={index + 1} />
         </View>
       </BlurBar>
       <OrderActions
         back={() => (index === 0 ? goBack(router) : go(index - 1))}
         next={next}
         label={
-          index === titles.length - 1
+          index === STEPS - 1
             ? t('montage.order.start')
             : emptyShots
               ? t('montage.order.selectAll')
