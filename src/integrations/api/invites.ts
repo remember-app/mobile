@@ -34,6 +34,13 @@ export function createAppInvite(token: string, input: NewAppInvite = {}): Promis
   );
 }
 
+export function checkInvite(inviteToken: string): Promise<{ ok: true }> {
+  return request('/v1/invites/check', {
+    method: 'POST',
+    body: { token: inviteToken },
+  });
+}
+
 export function acceptInvite(token: string, inviteToken: string): Promise<JoinResult> {
   return request<JoinResultWire>('/v1/invites/accept', {
     method: 'POST',

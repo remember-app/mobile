@@ -4,7 +4,17 @@ import { useTranslation } from 'react-i18next';
 import { Keyboard, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { acceptInvite, confirmCode, pendingInvite, readText, sessionState } from '@/functionality';
+import {
+  acceptInvite,
+  checkInvite,
+  clearPendingInvite,
+  confirmCode,
+  pendingInvite,
+  readText,
+  sessionState,
+  signOut,
+} from '@/functionality';
+import { isApiError } from '@/integrations/api';
 import { CodeInput, type CodeOutcome } from '@/ui/components/code-input';
 import { StepDots } from '@/ui/components/onboarding/steps';
 import { Button } from '@/ui/kit/button';
@@ -24,12 +34,27 @@ export default function CodeScreen() {
   const verify = async (value: string) => {
     if (busy) return;
     setBusy(true);
+    let entered = false;
     try {
-      await confirmCode(email ?? '', value);
       const invite = pendingInvite();
-      if (invite) await acceptInvite(invite).catch(() => undefined);
+      if (invite) {
+        try {
+          await checkInvite(invite);
+        } catch (failure) {
+          if (isApiError(failure) && [404, 409, 410].includes(failure.status)) {
+            clearPendingInvite();
+            router.back();
+            return;
+          }
+          throw failure;
+        }
+      }
+      await confirmCode(email ?? '', value);
+      entered = true;
+      if (invite) await acceptInvite(invite);
       setOutcome('ok');
     } catch {
+      if (entered) await signOut().catch(() => undefined);
       setOutcome('error');
     } finally {
       setBusy(false);

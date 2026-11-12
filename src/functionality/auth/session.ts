@@ -120,7 +120,7 @@ export async function signIn(token: string): Promise<void> {
   await keep(token, await getMe(token));
 }
 
-export async function requestCode(email: string): Promise<{ registered: boolean; code?: string }> {
+export async function requestCode(email: string): Promise<{ registered: boolean }> {
   return startEmailLogin(email);
 }
 

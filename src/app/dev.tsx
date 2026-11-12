@@ -4,14 +4,7 @@ import { useEffect, useState } from 'react';
 import { DevSettings, Pressable, StyleSheet, Switch, View } from 'react-native';
 
 import { config } from '@/config';
-import {
-  confirmCode,
-  currentToken,
-  refreshGlobal,
-  requestCode,
-  setNetworkOverride,
-  signOut,
-} from '@/functionality';
+import { currentToken, requestCode, setNetworkOverride, signOut } from '@/functionality';
 import { readLanguage, writeLanguage } from '@/functionality/settings/language';
 import { listUsers } from '@/integrations/api';
 import { clearCache } from '@/integrations/files/cache';
@@ -103,12 +96,10 @@ export default function DevScreen() {
     setError(null);
     try {
       await signOut();
-      const result = await requestCode(email);
-      await confirmCode(email, result.code ?? '123456');
-      await refreshGlobal();
-      router.navigate('/home');
+      await requestCode(email);
+      router.navigate({ pathname: '/onboarding/code', params: { email } });
     } catch {
-      setError('Не удалось войти под этим пользователем');
+      setError('Не удалось отправить код на эту почту');
     } finally {
       setSwitching(null);
     }

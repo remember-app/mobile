@@ -12,6 +12,7 @@ export default function EmailScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [invite, setInvite] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const address = email.trim();
   const ready = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address);
@@ -19,6 +20,7 @@ export default function EmailScreen() {
   const submit = async () => {
     if (!ready || busy) return;
     setBusy(true);
+    setError(null);
     try {
       const result = await requestCode(address);
       if (!pendingInvite() && !result.registered) {
@@ -27,7 +29,7 @@ export default function EmailScreen() {
       }
       router.navigate({ pathname: '/onboarding/code', params: { email: address } });
     } catch {
-      setInvite(true);
+      setError(t('onboarding.email.error'));
     } finally {
       setBusy(false);
     }
@@ -45,9 +47,13 @@ export default function EmailScreen() {
         caption={t('onboarding.email.prompt')}
         label={t('onboarding.email.label')}
         value={email}
-        onChangeText={setEmail}
+        onChangeText={(next) => {
+          setEmail(next);
+          setError(null);
+        }}
         placeholder="you@example.com"
         valid={ready}
+        error={error ?? undefined}
         inputMode="email"
         autoComplete="email"
         onSubmit={submit}

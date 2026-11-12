@@ -48,12 +48,14 @@ export const en = {
     email: {
       label: 'Email',
       prompt: 'Enter your email',
+      error: 'Could not send the code. Try again.',
     },
     invite: {
       title: 'Remember is available by invitation only',
       code: 'Invitation code',
       paste: 'Paste',
       notFound: 'No code found in the clipboard',
+      invalid: 'That invitation code did not work',
     },
     code: {
       sentTo: 'Code sent to',

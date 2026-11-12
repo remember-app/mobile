@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Keyboard, Pressable, StyleSheet, View } from 'react-native';
 
-import { parseInvite, readText, stashInvite } from '@/functionality';
+import { checkInvite, parseInvite, readText, stashInvite } from '@/functionality';
 import { BottomSheet } from '@/ui/kit/bottom-sheet';
 import { Button } from '@/ui/kit/button';
 import { Text } from '@/ui/kit/text';
@@ -19,18 +19,38 @@ type Props = {
 export function InviteSheet({ visible, onClose, onAccepted }: Props) {
   const { t } = useTranslation();
   const [code, setCode] = useState('');
-  const [bad, setBad] = useState(false);
+  const [error, setError] = useState<'paste' | 'server' | null>(null);
   const [outcome, setOutcome] = useState<CodeOutcome | null>(null);
+  const [checking, setChecking] = useState(false);
+  const latest = useRef('');
+
+  const verify = async (value: string) => {
+    if (checking) return;
+    setChecking(true);
+    try {
+      await checkInvite(value);
+      if (latest.current !== value) return;
+      stashInvite(value);
+      setOutcome('ok');
+    } catch {
+      if (latest.current !== value) return;
+      setError('server');
+      setOutcome('error');
+    } finally {
+      setChecking(false);
+    }
+  };
 
   const change = (next: string) => {
+    latest.current = next;
     setCode(next);
-    setBad(false);
-    setOutcome(next.length === 6 ? 'ok' : null);
+    setError(null);
+    setOutcome(null);
+    if (next.length === 6) void verify(next);
   };
 
   const settle = (result: CodeOutcome) => {
     if (result === 'ok') {
-      stashInvite(code);
       onAccepted();
       return;
     }
@@ -42,12 +62,14 @@ export function InviteSheet({ visible, onClose, onAccepted }: Props) {
     const text = await readText();
     const parsed = text ? parseInvite(text) : null;
     if (!parsed) {
-      setBad(true);
+      setError('paste');
       return;
     }
-    setBad(false);
+    setError(null);
+    latest.current = parsed;
     setCode(parsed);
-    setOutcome('ok');
+    setOutcome(null);
+    void verify(parsed);
   };
 
   return (
@@ -59,13 +81,13 @@ export function InviteSheet({ visible, onClose, onAccepted }: Props) {
             value={code}
             onChangeText={change}
             outcome={outcome}
-            state={bad ? 'error' : undefined}
+            state={error ? 'error' : undefined}
             onSettled={settle}
             alnum
           />
-          {bad ? (
+          {error ? (
             <Text role="hint" tone="danger" style={styles.hint}>
-              {t('onboarding.invite.notFound')}
+              {error === 'paste' ? t('onboarding.invite.notFound') : t('onboarding.invite.invalid')}
             </Text>
           ) : null}
         </View>

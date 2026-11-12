@@ -129,6 +129,7 @@ export { type ConsumableShare, shareProjectConsumables } from './project/consuma
 export { projectCoverFrames } from './project/cover';
 export {
   acceptInvite,
+  checkInvite,
   clearInvites,
   clearPendingInvite,
   createAppInvite,

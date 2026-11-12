@@ -8,7 +8,6 @@ export type LoginStartRequest = {
 export type LoginStartResponse = {
   ok: true;
   registered: boolean;
-  code?: string;
 };
 
 export type LoginVerifyRequest = {

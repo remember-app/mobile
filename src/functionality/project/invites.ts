@@ -1,6 +1,7 @@
 import { currentToken, onSignOut, refreshSession } from '@/functionality/auth/session';
 import {
   acceptInvite as apiAcceptInvite,
+  checkInvite as apiCheckInvite,
   createAppInvite as apiCreateAppInvite,
   getProjectInvite,
   rotateProjectInvite,
@@ -89,6 +90,10 @@ export async function createAppInvite(
   input: { maxUses?: number | null; expiresAt?: string | null } = {},
 ): Promise<AppInvite> {
   return apiCreateAppInvite(token(), input);
+}
+
+export async function checkInvite(inviteToken: string): Promise<void> {
+  await apiCheckInvite(inviteToken);
 }
 
 export async function acceptInvite(inviteToken: string): Promise<JoinResult> {
