@@ -10,7 +10,7 @@ import { analyzeItems, previewAnalysis } from '@/integrations/api';
 import type { ProjectId, ProjectItemId } from '@/types/id';
 import { goBack } from '@/ui/back';
 import { type Photo, PhotoGrid } from '@/ui/components/media/photo-grid';
-import { duration } from '@/ui/format';
+import { tileOf } from '@/ui/components/media/photo-item';
 import { useGallery } from '@/ui/hooks';
 import { ActionBar } from '@/ui/kit/action-bar';
 import { BlurBar } from '@/ui/kit/blur-bar';
@@ -67,17 +67,7 @@ export default function AnalyzeScreen() {
   }, [selected]);
 
   const photos = useMemo<Photo[]>(
-    () =>
-      items.map((item) => ({
-        id: item.id,
-        source: item.links.thumbnail ?? item.links.preview ?? item.links.original,
-        video: item.kind === 'video',
-        note:
-          item.kind === 'video' && item.media.duration !== null
-            ? duration(item.media.duration)
-            : undefined,
-        select: order.get(item.id) ?? null,
-      })),
+    () => items.map((item) => ({ ...tileOf(item), select: order.get(item.id) ?? null })),
     [items, order],
   );
 

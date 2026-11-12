@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import { loadGallery, loadMontages, loadProjects } from '@/functionality';
-import { type MontageStage, montageItemIds, montageStage } from '@/models';
+import { type MontageStage, montageItems, montageStage } from '@/models';
 import type { ProjectId } from '@/types/id';
 import { goBack } from '@/ui/back';
 import { useGallery, useMontages, useProjectCard } from '@/ui/hooks';
@@ -81,10 +81,7 @@ export default function JournalScreen() {
     return montage.status === 'failed' ? 'failed' : 'active';
   };
 
-  const ids = montageItemIds(montage);
-  const items = ids.flatMap((itemId) =>
-    gallery.items.filter((item) => item.id === itemId).slice(0, 1),
-  );
+  const items = montageItems(montage, gallery.items);
   const directing = montage.journal.directing;
 
   const openAnalysis = () =>

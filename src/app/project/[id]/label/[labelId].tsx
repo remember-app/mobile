@@ -15,8 +15,8 @@ import {
   PhotoGrid,
   type Rect,
 } from '@/ui/components/media/photo-grid';
+import { tileOf } from '@/ui/components/media/photo-item';
 import { PhotoViewer } from '@/ui/components/media/photo-viewer';
-import { duration } from '@/ui/format';
 import { useGallery, useLabels, useSession } from '@/ui/hooks';
 import { ActionBar } from '@/ui/kit/action-bar';
 import { AppBar, Board } from '@/ui/kit/bars';
@@ -48,22 +48,7 @@ export default function LabelScreen() {
   }, [projectId]);
 
   const photos = useMemo<Photo[]>(
-    () =>
-      gallery.items
-        .filter((item) => item.labelIds.includes(labelKey))
-        .map((item) => ({
-          id: item.id,
-          source: item.links.thumbnail ?? item.links.preview ?? item.links.original,
-          video: item.kind === 'video',
-          playbackUrl: item.kind === 'video' ? (item.links.preview ?? item.links.original) : null,
-          note:
-            item.kind === 'video' && item.media.duration !== null
-              ? duration(item.media.duration)
-              : undefined,
-          width: item.media.dimensions?.width,
-          height: item.media.dimensions?.height,
-          capturedAt: item.media.capturedAt,
-        })),
+    () => gallery.items.filter((item) => item.labelIds.includes(labelKey)).map(tileOf),
     [gallery.items, labelKey],
   );
 

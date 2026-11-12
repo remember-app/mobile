@@ -33,10 +33,11 @@ import {
   songUrl,
 } from '@/functionality';
 import { isApiError } from '@/integrations/api';
-import type { MontageTemplate, Song } from '@/models';
+import { itemSource, type MontageTemplate, type Song } from '@/models';
 import type { ProjectId, SongId } from '@/types/id';
 import { goBack } from '@/ui/back';
 import { type Photo, PhotoGrid, type Rect } from '@/ui/components/media/photo-grid';
+import { tileOf, viewerOf } from '@/ui/components/media/photo-item';
 import { PhotoViewer } from '@/ui/components/media/photo-viewer';
 import { OrderSummary } from '@/ui/components/montage-order/summary';
 import {
@@ -220,43 +221,21 @@ export default function NewMontageScreen() {
   const photos = useMemo<Photo[]>(
     () =>
       shots.map((item) => ({
-        id: item.id,
-        source: item.links.thumbnail ?? item.links.preview ?? item.links.original,
-        video: item.kind === 'video',
-        playbackUrl: item.kind === 'video' ? (item.links.preview ?? item.links.original) : null,
-        note:
-          item.kind === 'video' && item.media.duration !== null
-            ? duration(item.media.duration)
-            : undefined,
-        width: item.media.dimensions?.width,
-        height: item.media.dimensions?.height,
+        ...tileOf(item),
         select: selectedAt.get(item.id) ?? null,
         required: draft.requiredItemIds.includes(item.id),
-        capturedAt: item.media.capturedAt,
       })),
     [draft.requiredItemIds, selectedAt, shots],
   );
 
-  const viewerPhotos = useMemo(
-    () =>
-      shots.map((item) => ({
-        id: item.id,
-        source: item.links.preview ?? item.links.original ?? item.links.thumbnail,
-        video: item.kind === 'video',
-        playbackUrl: item.kind === 'video' ? (item.links.preview ?? item.links.original) : null,
-        width: item.media.dimensions?.width,
-        height: item.media.dimensions?.height,
-        capturedAt: item.media.capturedAt,
-      })),
-    [shots],
-  );
+  const viewerPhotos = useMemo(() => shots.map(viewerOf), [shots]);
 
   const posterShots = useMemo(() => {
     const chosen = shots.filter((item) => draft.includeItemIds.includes(item.id));
     const required = chosen.filter((item) => draft.requiredItemIds.includes(item.id));
     const rest = chosen.filter((item) => !draft.requiredItemIds.includes(item.id));
     return [...required, ...rest].slice(0, 3).flatMap((item) => {
-      const uri = item.links.thumbnail ?? item.links.preview ?? item.links.original;
+      const uri = itemSource(item);
       return uri ? [uri] : [];
     });
   }, [draft.includeItemIds, draft.requiredItemIds, shots]);

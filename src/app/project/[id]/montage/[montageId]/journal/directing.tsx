@@ -4,12 +4,12 @@ import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { loadGallery, loadMontages } from '@/functionality';
-import { montageItemIds } from '@/models';
+import { montageItems } from '@/models';
 import type { ProjectId } from '@/types/id';
 import { goBack } from '@/ui/back';
 import { type Photo, PhotoGrid, type Rect } from '@/ui/components/media/photo-grid';
+import { tileOf, viewerOf } from '@/ui/components/media/photo-item';
 import { PhotoViewer } from '@/ui/components/media/photo-viewer';
-import { duration } from '@/ui/format';
 import { useGallery, useMontages } from '@/ui/hooks';
 import { ActionBar } from '@/ui/kit/action-bar';
 import { AppBar, Board } from '@/ui/kit/bars';
@@ -37,50 +37,20 @@ export default function DirectingJournalScreen() {
     void loadGallery(projectId);
   }, [projectId]);
 
-  const items = useMemo(() => {
-    const ids = montage ? montageItemIds(montage) : [];
-    return ids.flatMap((itemId) => gallery.items.filter((item) => item.id === itemId).slice(0, 1));
-  }, [gallery.items, montage]);
+  const items = useMemo(
+    () => (montage ? montageItems(montage, gallery.items) : []),
+    [gallery.items, montage],
+  );
 
   const used = new Set(montage?.journal.directing?.usedItemIds ?? []);
   const text = montage?.journal.directing?.text ?? '';
 
   const photos = useMemo<Photo[]>(
-    () =>
-      items.map((item) => ({
-        id: item.id,
-        source: item.links.thumbnail ?? item.links.preview ?? item.links.original,
-        video: item.kind === 'video',
-        playbackUrl: item.kind === 'video' ? (item.links.preview ?? item.links.original) : null,
-        note:
-          item.kind === 'video' && item.media.duration !== null
-            ? duration(item.media.duration)
-            : undefined,
-        width: item.media.dimensions?.width,
-        height: item.media.dimensions?.height,
-        capturedAt: item.media.capturedAt,
-        accent: used.has(item.id),
-      })),
+    () => items.map((item) => ({ ...tileOf(item), accent: used.has(item.id) })),
     [items, used],
   );
 
-  const viewerPhotos = useMemo(
-    () =>
-      items.map((item) => ({
-        id: item.id,
-        source: item.links.preview ?? item.links.original ?? item.links.thumbnail,
-        video: item.kind === 'video',
-        playbackUrl: item.kind === 'video' ? (item.links.preview ?? item.links.original) : null,
-        note:
-          item.kind === 'video' && item.media.duration !== null
-            ? duration(item.media.duration)
-            : undefined,
-        width: item.media.dimensions?.width,
-        height: item.media.dimensions?.height,
-        capturedAt: item.media.capturedAt,
-      })),
-    [items],
-  );
+  const viewerPhotos = useMemo(() => items.map(viewerOf), [items]);
 
   const bar = (
     <AppBar

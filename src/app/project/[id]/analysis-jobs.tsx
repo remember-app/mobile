@@ -6,6 +6,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { currentToken, loadGallery } from '@/functionality';
 import { type AnalysisJob, listAnalysisJobs } from '@/integrations/api';
+import { itemSource } from '@/models';
 import type { ProjectId } from '@/types/id';
 import { goBack } from '@/ui/back';
 import { scoreColor } from '@/ui/format';
@@ -77,7 +78,7 @@ export default function AnalysisJobsScreen() {
         ) : (
           jobs.map((job) => {
             const item = gallery.items.find((entry) => entry.id === job.itemId);
-            const source = item?.links.thumbnail ?? item?.links.preview ?? item?.links.original;
+            const source = item ? itemSource(item) : null;
             const analysis = job.analysis;
             return (
               <View key={job.itemId} style={styles.row}>

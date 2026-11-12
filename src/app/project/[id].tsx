@@ -60,6 +60,7 @@ import {
   PhotoGrid,
   type Rect,
 } from '@/ui/components/media/photo-grid';
+import { tileOf } from '@/ui/components/media/photo-item';
 import { PhotoViewer } from '@/ui/components/media/photo-viewer';
 import { ProjectHeader } from '@/ui/components/project-header';
 import { GallerySkeleton } from '@/ui/components/skeletons';
@@ -176,46 +177,31 @@ export default function ProjectScreen() {
         }
         return true;
       })
-      .map((item) => ({
-        at: (item.media.capturedAt ?? item.createdAt).getTime(),
-        photo: {
-          id: item.id,
-          source:
-            localPreviewOf(item.id) ??
-            item.links.thumbnail ??
-            item.links.preview ??
-            item.links.original,
-          preview:
-            item.kind === 'video'
-              ? (item.links.thumbnail ?? item.links.preview)
-              : (item.links.preview ?? item.links.thumbnail ?? item.links.original),
-          original: item.kind === 'photo' ? (cachedOriginal(item) ?? item.links.original) : null,
-          video: item.kind === 'video',
-          playbackUrl:
-            item.kind === 'video'
-              ? (localPreviewOf(item.id) ?? item.links.preview ?? item.links.original)
-              : null,
-          note:
-            item.kind === 'video' && item.media.duration !== null
-              ? duration(item.media.duration)
-              : undefined,
-          width: item.media.dimensions?.width,
-          height: item.media.dimensions?.height,
-          capturedAt: item.media.capturedAt,
-          select: selecting ? (order.get(item.id) ?? null) : undefined,
-          author:
-            filters.uploaderIds.length > 0
-              ? item.uploader?.name?.trim() || item.uploader?.username || null
-              : null,
-          labelColors:
-            filters.labelIds.length > 0 || labelMode
-              ? item.labelIds.flatMap((labelId) => {
-                  const tint = labelColors.get(labelId);
-                  return tint ? [tint] : [];
-                })
-              : undefined,
-        } satisfies Photo,
-      }));
+      .map((item) => {
+        const tile = tileOf(item);
+        return {
+          at: (item.media.capturedAt ?? item.createdAt).getTime(),
+          photo: {
+            ...tile,
+            source: localPreviewOf(item.id) ?? tile.source,
+            original: item.kind === 'photo' ? (cachedOriginal(item) ?? tile.original) : null,
+            playbackUrl:
+              item.kind === 'video' ? (localPreviewOf(item.id) ?? tile.playbackUrl) : null,
+            select: selecting ? (order.get(item.id) ?? null) : undefined,
+            author:
+              filters.uploaderIds.length > 0
+                ? item.uploader?.name?.trim() || item.uploader?.username || null
+                : null,
+            labelColors:
+              filters.labelIds.length > 0 || labelMode
+                ? item.labelIds.flatMap((labelId) => {
+                    const tint = labelColors.get(labelId);
+                    return tint ? [tint] : [];
+                  })
+                : undefined,
+          } satisfies Photo,
+        };
+      });
     const sending = pending
       .filter((upload) => !replacedUploads.current.has(upload.localId))
       .map((upload) => {

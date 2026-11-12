@@ -73,3 +73,7 @@ export type Item = {
   analysis: Analysis | null;
   createdAt: Date;
 };
+
+export function itemSource(item: Item): string | null {
+  return item.links.thumbnail ?? item.links.preview ?? item.links.original;
+}

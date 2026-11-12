@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { loadGallery, loadMembers, loadMovies } from '@/functionality';
-import { montageItemIds } from '@/models';
+import { montageItems } from '@/models';
 import type { ProjectId } from '@/types/id';
 import { goBack } from '@/ui/back';
 import { MontageConfigCard, VideoDetailsCard } from '@/ui/components/movie-blocks';
@@ -68,10 +68,7 @@ export default function MovieScreen() {
   const author = member?.name?.trim() || member?.username || null;
   const video = movie.video;
   const settings = movie.montage?.manifest.preparationConfig ?? null;
-  const ids = movie.montage ? montageItemIds(movie.montage) : [];
-  const chosen = ids.flatMap((itemId) =>
-    gallery.items.filter((item) => item.id === itemId).slice(0, 1),
-  );
+  const chosen = movie.montage ? montageItems(movie.montage, gallery.items) : [];
   const report = movie.montage?.manifest.directingInput?.mergedMontageData as
     | { music?: Track[] }
     | undefined;

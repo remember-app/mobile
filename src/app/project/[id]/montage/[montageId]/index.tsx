@@ -13,7 +13,7 @@ import {
   loadProjects,
   retryMontage,
 } from '@/functionality';
-import { montageItemIds, montageStage } from '@/models';
+import { itemSource, montageItemIds, montageItems, montageStage } from '@/models';
 import type { ProjectId } from '@/types/id';
 import { goBack } from '@/ui/back';
 import { MontageBackdrop, MontageConfigCard, VideoDetailsCard } from '@/ui/components/movie-blocks';
@@ -132,16 +132,12 @@ export default function MontageScreen() {
 
   const settings = montage.manifest.preparationConfig;
   const ids = montageItemIds(montage);
-  const chosen = ids.flatMap((itemId) =>
-    gallery.items.filter((item) => item.id === itemId).slice(0, 1),
-  );
+  const chosen = montageItems(montage, gallery.items);
   const songs = [...projectSongs.items, ...library.items];
   const music = (settings?.musicIds ?? []).flatMap((mediaId) =>
     songs.filter((song) => song.mediaId === mediaId).slice(0, 1),
   );
-  const frames = chosen
-    .map((item) => item.links.thumbnail ?? item.links.preview ?? item.links.original)
-    .filter((source): source is string => Boolean(source));
+  const frames = chosen.map(itemSource).filter((source): source is string => Boolean(source));
   const failed = montage.status === 'failed';
   const wide = settings ? settings.dimensions.width >= settings.dimensions.height : false;
 

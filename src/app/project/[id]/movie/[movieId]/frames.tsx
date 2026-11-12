@@ -4,12 +4,12 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { loadGallery, loadMovies } from '@/functionality';
-import { montageItemIds } from '@/models';
+import { montageItems } from '@/models';
 import type { ProjectId } from '@/types/id';
 import { goBack } from '@/ui/back';
 import { type Photo, PhotoGrid, type Rect } from '@/ui/components/media/photo-grid';
+import { tileOf, viewerOf } from '@/ui/components/media/photo-item';
 import { PhotoViewer } from '@/ui/components/media/photo-viewer';
-import { duration } from '@/ui/format';
 import { useGallery, useMovies } from '@/ui/hooks';
 import { AppBar, Board } from '@/ui/kit/bars';
 import { BlurBar } from '@/ui/kit/blur-bar';
@@ -34,45 +34,13 @@ export default function MovieFramesScreen() {
   }, [projectId]);
 
   const movie = movies.items.find((entry) => entry.id === movieId);
-  const items = useMemo(() => {
-    const ids = movie?.montage ? montageItemIds(movie.montage) : [];
-    return ids.flatMap((itemId) => gallery.items.filter((item) => item.id === itemId).slice(0, 1));
-  }, [gallery.items, movie]);
+  const items = useMemo(
+    () => (movie?.montage ? montageItems(movie.montage, gallery.items) : []),
+    [gallery.items, movie],
+  );
 
-  const photos = useMemo<Photo[]>(
-    () =>
-      items.map((item) => ({
-        id: item.id,
-        source: item.links.thumbnail ?? item.links.preview ?? item.links.original,
-        video: item.kind === 'video',
-        playbackUrl: item.kind === 'video' ? (item.links.preview ?? item.links.original) : null,
-        note:
-          item.kind === 'video' && item.media.duration !== null
-            ? duration(item.media.duration)
-            : undefined,
-        width: item.media.dimensions?.width,
-        height: item.media.dimensions?.height,
-        capturedAt: item.media.capturedAt,
-      })),
-    [items],
-  );
-  const viewer = useMemo(
-    () =>
-      items.map((item) => ({
-        id: item.id,
-        source: item.links.preview ?? item.links.original ?? item.links.thumbnail,
-        video: item.kind === 'video',
-        playbackUrl: item.kind === 'video' ? (item.links.preview ?? item.links.original) : null,
-        note:
-          item.kind === 'video' && item.media.duration !== null
-            ? duration(item.media.duration)
-            : undefined,
-        width: item.media.dimensions?.width,
-        height: item.media.dimensions?.height,
-        capturedAt: item.media.capturedAt,
-      })),
-    [items],
-  );
+  const photos = useMemo<Photo[]>(() => items.map(tileOf), [items]);
+  const viewer = useMemo(() => items.map(viewerOf), [items]);
 
   const bar = (
     <AppBar

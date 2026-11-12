@@ -4,7 +4,7 @@ import { type ReactNode, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import type { Item } from '@/models';
+import { type Item, itemSource } from '@/models';
 import { duration } from '@/ui/format';
 import { BottomSheet } from '@/ui/kit/bottom-sheet';
 import { Card } from '@/ui/kit/card';
@@ -159,7 +159,7 @@ export function MontageConfigCard({
             <Pressable accessibilityRole="button" onPress={onFrames} style={styles.files}>
               <View style={styles.thumbs}>
                 {items.slice(0, 4).map((item) => {
-                  const source = item.links.thumbnail ?? item.links.preview ?? item.links.original;
+                  const source = itemSource(item);
                   return source ? (
                     <Image
                       key={item.id}
@@ -184,7 +184,7 @@ export function MontageConfigCard({
             <View style={styles.files}>
               <View style={styles.thumbs}>
                 {items.slice(0, 4).map((item) => {
-                  const source = item.links.thumbnail ?? item.links.preview ?? item.links.original;
+                  const source = itemSource(item);
                   return source ? (
                     <Image
                       key={item.id}

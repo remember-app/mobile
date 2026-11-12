@@ -1,6 +1,8 @@
 import type { MediaId, MontageId, ProjectId, TemplateId, UserId } from '@/types/id';
 import type { Language } from '@/types/language';
 
+import type { Item } from './media';
+
 export type MontageStage = 'analysis' | 'preparation' | 'directing' | 'editing';
 
 export type MontageStatus = 'queued' | 'processing' | 'done' | 'failed';
@@ -69,4 +71,10 @@ export function montageStage(montage: Montage): MontageStage {
 
 export function montageItemIds(montage: Montage): string[] {
   return montage.manifest.preparationConfig?.includeItemIds ?? [];
+}
+
+export function montageItems(montage: Montage, items: readonly Item[]): Item[] {
+  return montageItemIds(montage).flatMap((id) =>
+    items.filter((item) => item.id === id).slice(0, 1),
+  );
 }

@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { loadGallery } from '@/functionality';
-import { type Montage, type Movie, montageItemIds, montageStage } from '@/models';
+import { itemSource, type Montage, type Movie, montageItems, montageStage } from '@/models';
 import { MontageBackdrop } from '@/ui/components/movie-blocks';
 import { useGallery } from '@/ui/hooks';
 import { CircularSpinner } from '@/ui/kit/circular-spinner';
@@ -37,9 +37,8 @@ export function MontageCard({
   const finished = montage.status === 'done';
   const failed = montage.status === 'failed';
   const poster = finished ? (movie?.posterUrl ?? null) : null;
-  const frames = montageItemIds(montage)
-    .flatMap((itemId) => gallery.items.filter((item) => item.id === itemId).slice(0, 1))
-    .map((item) => item.links.thumbnail ?? item.links.preview ?? item.links.original)
+  const frames = montageItems(montage, gallery.items)
+    .map(itemSource)
     .filter((source): source is string => Boolean(source));
 
   useEffect(() => {

@@ -4,9 +4,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { loadGallery, loadMontages } from '@/functionality';
-import { montageItemIds } from '@/models';
+import { itemSource, montageItems } from '@/models';
 import type { ProjectId } from '@/types/id';
 import { goBack } from '@/ui/back';
+import { viewerOf } from '@/ui/components/media/photo-item';
 import { PhotoViewer } from '@/ui/components/media/photo-viewer';
 import { scoreColor } from '@/ui/format';
 import { useGallery, useMontages } from '@/ui/hooks';
@@ -31,20 +32,12 @@ export default function AnalysisJournalScreen() {
     void loadGallery(projectId);
   }, [projectId]);
 
-  const items = useMemo(() => {
-    const ids = montage ? montageItemIds(montage) : [];
-    return ids.flatMap((itemId) => gallery.items.filter((item) => item.id === itemId).slice(0, 1));
-  }, [gallery.items, montage]);
+  const items = useMemo(
+    () => (montage ? montageItems(montage, gallery.items) : []),
+    [gallery.items, montage],
+  );
 
-  const viewerPhotos = items.map((item) => ({
-    id: item.id,
-    source: item.links.preview ?? item.links.original ?? item.links.thumbnail,
-    video: item.kind === 'video',
-    playbackUrl: item.kind === 'video' ? (item.links.preview ?? item.links.original) : null,
-    width: item.media.dimensions?.width,
-    height: item.media.dimensions?.height,
-    capturedAt: item.media.capturedAt,
-  }));
+  const viewerPhotos = items.map(viewerOf);
 
   return (
     <View style={styles.root}>
@@ -63,7 +56,7 @@ export default function AnalysisJournalScreen() {
         ) : (
           items.map((item, at) => {
             const analysis = item.analysis;
-            const source = item.links.thumbnail ?? item.links.preview ?? item.links.original;
+            const source = itemSource(item);
             return (
               <Pressable
                 key={item.id}

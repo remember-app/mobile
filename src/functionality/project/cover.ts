@@ -1,5 +1,6 @@
 import { labelsState, loadLabels } from '@/functionality/label/labels';
 import { galleryState, loadGallery } from '@/functionality/media/gallery';
+import { itemSource } from '@/models';
 import type { ProjectId } from '@/types/id';
 
 const COVER = ['обложка', 'cover'];
@@ -25,7 +26,5 @@ export async function projectCoverFrames(projectId: ProjectId): Promise<string[]
   );
   const covered = label ? photos.filter((item) => item.labelIds.includes(label.id)) : [];
   const chosen = covered.length > 0 ? covered : shuffle(photos);
-  return chosen
-    .map((item) => item.links.thumbnail ?? item.links.preview ?? item.links.original)
-    .filter((url): url is string => url !== null);
+  return chosen.map(itemSource).filter((url): url is string => url !== null);
 }
