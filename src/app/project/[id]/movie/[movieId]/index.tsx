@@ -1,22 +1,38 @@
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
-import { BookOpen, HardDrive, Monitor, Play } from 'lucide-react-native';
-import { useEffect, useRef } from 'react';
+import {
+  BookOpen,
+  Clock,
+  HardDrive,
+  Images,
+  Play,
+  RectangleHorizontal,
+  RectangleVertical,
+} from 'lucide-react-native';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { loadGallery, loadMembers, loadMovies } from '@/functionality';
-import { montageItems } from '@/models';
+import { itemSource, montageItemIds, montageItems } from '@/models';
 import type { ProjectId } from '@/types/id';
-import { MontageConfigCard, VideoDetailsCard } from '@/ui/components/movie-blocks';
-import { fullDay, megabytes } from '@/ui/format';
+import {
+  type FactItem,
+  Facts,
+  FramesCard,
+  MusicCard,
+  PromptCard,
+} from '@/ui/components/montage-order/blocks';
+import { duration, fullDay, megabytes } from '@/ui/format';
 import { useGallery, useMembers, useMovies } from '@/ui/hooks';
 import { ActionBar } from '@/ui/kit/action-bar';
 import { Board } from '@/ui/kit/bars';
+import { BottomSheet } from '@/ui/kit/bottom-sheet';
 import { Button, IconButton } from '@/ui/kit/button';
 import { CircularSpinner } from '@/ui/kit/circular-spinner';
 import { Empty } from '@/ui/kit/empty';
+import { Text } from '@/ui/kit/text';
 import { BackBar } from '@/ui/screens/chrome';
 import { photo, radius, space, useTheme } from '@/ui/theme';
 
@@ -37,6 +53,7 @@ export default function MovieScreen() {
     entry.loop = false;
   });
   const view = useRef<VideoView>(null);
+  const [promptOpen, setPromptOpen] = useState(false);
 
   useEffect(() => {
     void loadMovies(projectId, true).catch(() => undefined);
@@ -69,12 +86,37 @@ export default function MovieScreen() {
   const video = movie.video;
   const settings = movie.montage?.manifest.preparationConfig ?? null;
   const chosen = movie.montage ? montageItems(movie.montage, gallery.items) : [];
+  const ids = movie.montage ? montageItemIds(movie.montage) : [];
+  const frameUrls = chosen.map(itemSource).filter((url): url is string => url !== null);
   const report = movie.montage?.manifest.directingInput?.mergedMontageData as
     | { music?: Track[] }
     | undefined;
   const allowed = settings?.musicIds ?? [];
   const tracks = allowed.map((mediaId) => report?.music?.find((one) => one.mediaId === mediaId));
-  const frames = () =>
+  const music = tracks.flatMap((track, at) => {
+    const mediaId = track?.mediaId ?? allowed[at];
+    if (!mediaId) return [];
+    return [{ name: track?.name ?? mediaId, author: track?.author ?? '', coverUrl: null }];
+  });
+  const wide = settings ? settings.dimensions.width >= settings.dimensions.height : true;
+  const facts: FactItem[] = [
+    ...(video?.durationSeconds != null
+      ? [{ icon: Clock, value: duration(video.durationSeconds) }]
+      : []),
+    ...(settings
+      ? [
+          {
+            icon: wide ? RectangleHorizontal : RectangleVertical,
+            value: wide ? '16:9' : '9:16',
+          },
+        ]
+      : []),
+    ...(ids.length > 0 ? [{ icon: Images, value: String(ids.length) }] : []),
+    ...(video ? [{ icon: HardDrive, value: megabytes(video.bytes) }] : []),
+  ];
+  const resolution = video?.width && video.height ? `${video.width} × ${video.height}` : null;
+  const meta = [fullDay(movie.createdAt), author, resolution].filter(Boolean).join(' · ');
+  const openFrames = () =>
     router.navigate({
       pathname: '/project/[id]/movie/[movieId]/frames',
       params: { id: projectId, movieId: movie.id },
@@ -134,32 +176,30 @@ export default function MovieScreen() {
         </Pressable>
 
         <View style={styles.body}>
-          <MontageConfigCard
-            prompt={settings?.prompt ?? null}
-            items={chosen}
-            music={tracks.map((track, at) => ({
-              id: track?.mediaId ?? allowed[at] ?? '',
-              name: track?.name,
-              author: track?.author,
-            }))}
-            onFrames={frames}
-          />
-          <VideoDetailsCard
-            durationSeconds={video?.durationSeconds}
-            meta={[fullDay(movie.createdAt), ...(author ? [author] : [])]}
-            chips={[
-              ...(video?.width && video.height
-                ? [{ icon: Monitor, text: `${video.width} × ${video.height}` }]
-                : []),
-              ...(video ? [{ icon: HardDrive, text: megabytes(video.bytes) }] : []),
-            ]}
-          />
+          <Facts items={facts} />
+          {meta ? (
+            <Text role="meta" tone="muted">
+              {meta}
+            </Text>
+          ) : null}
+          <MusicCard songs={music} />
+          <PromptCard prompt={settings?.prompt ?? null} onOpen={() => setPromptOpen(true)} />
+          {ids.length > 0 ? (
+            <FramesCard frames={frameUrls} count={ids.length} onPress={openFrames} />
+          ) : null}
         </View>
       </Board>
 
       <ActionBar>
         <Button label={t('montage.movie.watch')} variant="primary" icon={Play} onPress={watch} />
       </ActionBar>
+      <BottomSheet
+        visible={promptOpen}
+        onClose={() => setPromptOpen(false)}
+        title={t('montage.movie.prompt')}
+      >
+        <Text role="body">{settings?.prompt ?? ''}</Text>
+      </BottomSheet>
     </View>
   );
 }

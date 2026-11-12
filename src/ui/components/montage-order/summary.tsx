@@ -3,14 +3,10 @@ import {
   Clock,
   Coins,
   Images,
-  Music,
-  PenLine,
   RectangleHorizontal,
   RectangleVertical,
-  Sparkles,
   Star,
   Users,
-  VolumeX,
 } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
@@ -18,18 +14,16 @@ import { StyleSheet, View } from 'react-native';
 import { duration } from '@/ui/format';
 import { Card } from '@/ui/kit/card';
 import { CircularSpinner } from '@/ui/kit/circular-spinner';
-import { Icon, type IconComponent } from '@/ui/kit/icon';
 import { Segment } from '@/ui/kit/segment';
 import { Text } from '@/ui/kit/text';
 import { radius, space, themed, useTheme } from '@/ui/theme';
 
+import { Facts, MusicCard, PromptCard, type SummarySong } from './blocks';
 import type { Orientation } from './wizard';
 
 const ON_PHOTO = '#ffffff';
 const ON_PHOTO_QUIET = 'rgba(255,255,255,0.78)';
 const POSTER_CELLS = 3;
-
-type Song = { name: string; author: string; coverUrl: string | null };
 
 export function OrderSummary({
   title,
@@ -57,7 +51,7 @@ export function OrderSummary({
   shots: readonly string[];
   shotsCount: number;
   requiredCount: number;
-  songs: readonly Song[];
+  songs: readonly SummarySong[];
   director: boolean;
   prompt: string | null;
   tokens: number;
@@ -73,8 +67,6 @@ export function OrderSummary({
   const { t } = useTranslation();
   const { color } = useTheme();
   const styles = useStyles();
-  const first = songs[0];
-  const spare = songs.length - 1;
   const free = payer === 'project' ? projectFree : userFree;
 
   return (
@@ -124,79 +116,20 @@ export function OrderSummary({
         </View>
       </View>
 
-      <View style={styles.facts}>
-        <Fact icon={Clock} value={duration(seconds)} />
-        <Fact
-          icon={orientation === 'portrait' ? RectangleVertical : RectangleHorizontal}
-          value={orientation === 'portrait' ? '9:16' : '16:9'}
-        />
-        <Fact icon={Images} value={String(shotsCount)} />
-        <Fact icon={Star} value={String(requiredCount)} />
-      </View>
+      <Facts
+        items={[
+          { icon: Clock, value: duration(seconds) },
+          {
+            icon: orientation === 'portrait' ? RectangleVertical : RectangleHorizontal,
+            value: orientation === 'portrait' ? '9:16' : '16:9',
+          },
+          { icon: Images, value: String(shotsCount) },
+          { icon: Star, value: String(requiredCount) },
+        ]}
+      />
 
-      <Card style={styles.row}>
-        {director ? (
-          <>
-            <View style={[styles.sign, { backgroundColor: color.raise }]}>
-              <Sparkles size={18} color={color.paper} />
-            </View>
-            <View style={styles.rowWords}>
-              <Text role="row">{t('montage.order.musicTitle')}</Text>
-              <Text role="meta" tone="muted">
-                {t('montage.order.directorChoice')}
-              </Text>
-            </View>
-          </>
-        ) : first ? (
-          <>
-            <View style={styles.cover}>
-              {first.coverUrl ? (
-                <Image
-                  source={first.coverUrl}
-                  style={StyleSheet.absoluteFill}
-                  contentFit="cover"
-                  cachePolicy="memory-disk"
-                />
-              ) : (
-                <Music size={18} color={color.muted} />
-              )}
-            </View>
-            <View style={styles.rowWords}>
-              <Text role="row" numberOfLines={1}>
-                {first.name}
-              </Text>
-              <Text role="meta" tone="muted" numberOfLines={1}>
-                {first.author}
-              </Text>
-            </View>
-            {spare > 0 ? (
-              <View style={[styles.count, { backgroundColor: color.raise }]}>
-                <Text role="meta">+{spare}</Text>
-              </View>
-            ) : null}
-          </>
-        ) : (
-          <>
-            <View style={[styles.sign, { backgroundColor: color.raise }]}>
-              <VolumeX size={18} color={color.muted} />
-            </View>
-            <View style={styles.rowWords}>
-              <Text role="row">{t('montage.order.noMusicChoice')}</Text>
-            </View>
-          </>
-        )}
-      </Card>
-
-      {prompt ? (
-        <Card style={styles.row}>
-          <View style={[styles.sign, { backgroundColor: color.raise }]}>
-            <PenLine size={18} color={color.paper} />
-          </View>
-          <Text role="body" style={styles.quote} numberOfLines={4}>
-            «{prompt}»
-          </Text>
-        </Card>
-      ) : null}
+      <MusicCard songs={songs} director={director} />
+      <PromptCard prompt={prompt} />
 
       <Card style={styles.cost}>
         {loading ? (
@@ -250,17 +183,6 @@ export function OrderSummary({
   );
 }
 
-function Fact({ icon, value }: { icon: IconComponent; value: string }) {
-  const { color } = useTheme();
-  const styles = useStyles();
-  return (
-    <Card style={styles.fact}>
-      <Icon icon={icon} size={16} color={color.muted} />
-      <Text role="row">{value}</Text>
-    </Card>
-  );
-}
-
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
     poster: {
@@ -304,53 +226,12 @@ const useStyles = themed(({ color }) =>
     onPhotoQuiet: {
       color: ON_PHOTO_QUIET,
     },
-    facts: {
-      flexDirection: 'row',
-      gap: space.s2,
-    },
-    fact: {
-      flex: 1,
-      alignItems: 'center',
-      gap: 2,
-      paddingVertical: space.s2,
-    },
-    row: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: space.s3,
-      padding: space.s3,
-    },
-    rowWords: {
-      flex: 1,
-      minWidth: 0,
-      gap: 2,
-    },
     sign: {
       width: 38,
       height: 38,
       borderRadius: 19,
       alignItems: 'center',
       justifyContent: 'center',
-    },
-    cover: {
-      width: 44,
-      height: 44,
-      borderRadius: radius.tile,
-      overflow: 'hidden',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: color.raise,
-    },
-    count: {
-      minWidth: 30,
-      height: 30,
-      borderRadius: 15,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: space.s1,
-    },
-    quote: {
-      flex: 1,
     },
     cost: {
       padding: space.s3,
