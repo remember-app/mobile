@@ -100,13 +100,29 @@ export function mockResponse(method: string, path: string, body?: unknown): unkn
     if (parts[0] === 'projects' && parts[2] === 'movies') {
       return { items: bundleOf(parts[1] ?? '')?.movies ?? [], nextOffset: null };
     }
+    if (parts[0] === 'projects' && parts[2] === 'analyze') {
+      return {
+        items: (bundleOf(parts[1] ?? '')?.gallery.items ?? []).map((one) => ({
+          itemId: one.item.id,
+          mediaId: one.media.id,
+          kind: one.media.kind,
+          status: one.item.analysis ? 'done' : 'none',
+          error: null,
+          analysis: one.item.analysis,
+        })),
+      };
+    }
     return undefined;
   }
 
   if (method === 'POST') {
-    if (parts[0] === 'projects' && parts[2] === 'analyze') {
+    if (parts[0] === 'projects' && parts[2] === 'analyze' && parts[3] === 'preview') {
       const ids = Array.isArray(payload.itemIds) ? payload.itemIds : [];
-      return { queued: ids.length, tokens: 0 };
+      return { queued: ids.length, tokens: ids.length };
+    }
+    if (parts[0] === 'projects' && parts[2] === 'analyze' && parts.length === 3) {
+      const ids = Array.isArray(payload.itemIds) ? payload.itemIds : [];
+      return { queued: ids.length, tokens: ids.length };
     }
     if (url === '/auth/email/start') return { ok: true, code: '123456', registered: true };
     if (url === '/auth/email/verify') {
