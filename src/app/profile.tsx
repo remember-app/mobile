@@ -3,6 +3,8 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import {
   Camera,
   ChevronRight,
+  Coins,
+  Database,
   HardDrive,
   Languages,
   LogOut,
@@ -186,14 +188,24 @@ export default function ProfileScreen() {
 
       <Card style={styles.pad}>
         <View style={styles.row}>
-          <Text role="row">{t('profile.storage')}</Text>
+          <View style={styles.label}>
+            <Icon icon={HardDrive} size={18} color={color.muted} />
+            <Text role="row" numberOfLines={1} style={styles.labelText}>
+              {t('profile.storage')}
+            </Text>
+          </View>
           <Text role="rowPlain" tone="muted">
             {number(left)}
           </Text>
         </View>
         <Divider style={styles.fullDivider} />
         <View style={styles.row}>
-          <Text role="row">{t('profile.tokens')}</Text>
+          <View style={styles.label}>
+            <Icon icon={Coins} size={18} color={color.muted} />
+            <Text role="row" numberOfLines={1} style={styles.labelText}>
+              {t('profile.tokens')}
+            </Text>
+          </View>
           <Text role="rowPlain" tone="muted">
             {tokenLeft}
           </Text>
@@ -240,23 +252,31 @@ export default function ProfileScreen() {
       </Card>
 
       <Card onPress={() => router.navigate('/contacts')} style={[styles.pad, styles.row]}>
-        <Text role="row">{t('profile.contacts')}</Text>
+        <View style={styles.label}>
+          <Icon icon={Users} size={18} color={color.muted} />
+          <Text role="row" numberOfLines={1} style={styles.labelText}>
+            {t('profile.contacts')}
+          </Text>
+        </View>
         <View style={styles.value}>
           <Text role="rowPlain" tone="muted">
             {contacts.contacts.length}
           </Text>
-          <Icon icon={Users} size={18} color={color.muted} />
           <ChevronRight size={18} color={color.muted} />
         </View>
       </Card>
 
       <Card onPress={() => router.navigate('/cache')} style={[styles.pad, styles.row]}>
-        <Text role="row">{t('profile.cache')}</Text>
+        <View style={styles.label}>
+          <Icon icon={Database} size={18} color={color.muted} />
+          <Text role="row" numberOfLines={1} style={styles.labelText}>
+            {t('profile.cache')}
+          </Text>
+        </View>
         <View style={styles.value}>
           <Text role="rowPlain" tone="muted">
             {size(cacheBytes)}
           </Text>
-          <Icon icon={HardDrive} size={18} color={color.muted} />
           <ChevronRight size={18} color={color.muted} />
         </View>
       </Card>
@@ -358,6 +378,15 @@ const useStyles = themed(() =>
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: space.s3,
+    },
+    label: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: space.s2,
+      flexShrink: 1,
+    },
+    labelText: {
+      flexShrink: 1,
     },
     value: {
       flexDirection: 'row',

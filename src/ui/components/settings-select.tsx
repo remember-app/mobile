@@ -28,12 +28,16 @@ export function SettingsSelect<T extends string>({
   return (
     <View style={[styles.wrap, open ? styles.front : null]}>
       <Pressable onPress={onToggle} style={styles.row}>
-        <Text role="row">{label}</Text>
+        <View style={styles.label}>
+          {icon ? <Icon icon={icon} size={18} color={color.muted} /> : null}
+          <Text role="row" numberOfLines={1} style={styles.labelText}>
+            {label}
+          </Text>
+        </View>
         <View style={styles.value}>
           <Text role="rowPlain" tone="muted">
             {value}
           </Text>
-          {icon ? <Icon icon={icon} size={18} color={color.muted} /> : null}
           {open ? (
             <ChevronUp size={18} color={color.muted} />
           ) : (
@@ -74,6 +78,15 @@ const useStyles = themed(({ color }) =>
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: space.s3,
+    },
+    label: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: space.s2,
+      flexShrink: 1,
+    },
+    labelText: {
+      flexShrink: 1,
     },
     value: {
       flexDirection: 'row',
