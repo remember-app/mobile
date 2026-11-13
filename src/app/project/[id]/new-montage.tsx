@@ -24,6 +24,7 @@ import { isApiError } from '@/integrations/api';
 import { itemSource, type MontageTemplate } from '@/models';
 import type { ProjectId } from '@/types/id';
 import { goBack } from '@/ui/back';
+import { MediaInfo } from '@/ui/components/media/info/media-info';
 import type { Photo, Rect } from '@/ui/components/media/photo-grid';
 import { tileOf, viewerOf } from '@/ui/components/media/photo-item';
 import { PhotoViewer } from '@/ui/components/media/photo-viewer';
@@ -449,6 +450,10 @@ export default function NewMontageScreen() {
           onSelect={() => {
             const itemId = shotIds[viewer.index];
             if (itemId) toggleShot(itemId);
+          }}
+          renderInfo={(index) => {
+            const item = shots[index];
+            return item ? <MediaInfo key={item.id} projectId={projectId} item={item} /> : null;
           }}
         />
       )}
