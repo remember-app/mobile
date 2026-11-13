@@ -132,18 +132,23 @@ function LabelRow({
   onDelete: () => void;
 }) {
   const styles = useStyles();
+  const row = (
+    <Pressable accessibilityRole="button" onPress={onOpen} style={styles.row}>
+      <LabelMark tint={label.color} size={30} />
+      <Text role="row" numberOfLines={1} style={styles.name}>
+        {label.name}
+      </Text>
+      <Text role="bodySm" tone="muted">
+        {label.itemCount}
+      </Text>
+    </Pressable>
+  );
+
+  if (label.locked) return row;
 
   return (
     <SwipeRow tone="danger" icon={Trash2} onAction={onDelete}>
-      <Pressable accessibilityRole="button" onPress={onOpen} style={styles.row}>
-        <LabelMark tint={label.color} size={30} />
-        <Text role="row" numberOfLines={1} style={styles.name}>
-          {label.name}
-        </Text>
-        <Text role="bodySm" tone="muted">
-          {label.itemCount}
-        </Text>
-      </Pressable>
+      {row}
     </SwipeRow>
   );
 }

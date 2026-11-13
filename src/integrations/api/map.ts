@@ -234,6 +234,7 @@ export function toLabel(wire: LabelWire): Label {
     color: wire.colorHex as `#${string}`,
     description: wire.description,
     shared: wire.shared,
+    locked: wire.locked,
     itemCount: wire.itemCount,
     createdAt: date(wire.createdAt),
   };

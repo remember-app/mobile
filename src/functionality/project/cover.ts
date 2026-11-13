@@ -29,8 +29,8 @@ const shuffle = <T>(items: readonly T[]): T[] => {
 export async function projectCoverFrames(projectId: ProjectId): Promise<string[]> {
   await Promise.all([loadLabels(projectId), loadGallery(projectId)]);
   const photos = galleryState(projectId).items.filter((item) => item.kind === 'photo');
-  const label = labelsState(projectId).labels.find((entry) =>
-    COVER.includes(entry.name.trim().toLowerCase()),
+  const label = labelsState(projectId).labels.find(
+    (entry) => entry.locked || COVER.includes(entry.name.trim().toLowerCase()),
   );
   const covered = label ? photos.filter((item) => item.labelIds.includes(label.id)) : [];
   const chosen = covered.length > 0 ? covered : shuffle(photos);

@@ -8,6 +8,7 @@ export type Label = {
   color: `#${string}`;
   description: string | null;
   shared: boolean;
+  locked: boolean;
   itemCount: number;
   createdAt: Date;
 };
