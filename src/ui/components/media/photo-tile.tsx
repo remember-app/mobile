@@ -59,7 +59,7 @@ export function PhotoTile({
         <Image
           source={source}
           group={group}
-          style={[styles.fill, upload?.failed || chosen ? styles.dim : null]}
+          style={styles.fill}
           contentFit="cover"
           transition={120}
           cachePolicy="memory-disk"
@@ -68,6 +68,9 @@ export function PhotoTile({
       ) : (
         <View style={[styles.fill, styles.placeholder, { backgroundColor: theme.color.raise }]} />
       )}
+      {upload?.failed || chosen ? (
+        <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.shade]} />
+      ) : null}
       {note ? (
         <View style={styles.note} pointerEvents="none">
           <Text role="metaSm" tone="onFill">
@@ -167,8 +170,8 @@ const styles = StyleSheet.create({
   fill: {
     flex: 1,
   },
-  dim: {
-    opacity: 0.55,
+  shade: {
+    backgroundColor: 'rgba(0,0,0,0.38)',
   },
   placeholder: {
     alignItems: 'center',

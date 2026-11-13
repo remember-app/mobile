@@ -399,7 +399,6 @@ export default function ProjectScreen() {
             blankIndex={open?.index ?? null}
             measureRef={measureTile}
             mark="check"
-            emptyMark={false}
             onLoadOlder={() => void loadMoreGallery(projectId)}
             onScroll={scrolled}
           />
