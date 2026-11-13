@@ -85,6 +85,7 @@ export {
   saveItemToPhone,
   shareItem,
 } from './media/cache';
+export { nearDuplicateExtras } from './media/duplicates';
 export {
   clearGalleries,
   downloadItems,

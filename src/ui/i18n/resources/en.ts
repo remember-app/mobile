@@ -25,6 +25,7 @@ export const en = {
     pause: 'Pause',
     mute: 'Mute',
     unmute: 'Unmute',
+    removeDuplicates: 'Remove duplicates',
   },
   unit: {
     gb: 'GB',

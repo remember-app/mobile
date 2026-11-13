@@ -27,6 +27,7 @@ export const ru: typeof en = {
     pause: 'Пауза',
     mute: 'Выключить звук',
     unmute: 'Включить звук',
+    removeDuplicates: 'Убрать дубли',
   },
   unit: {
     gb: 'ГБ',

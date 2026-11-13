@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { CheckCheck, Tag, X } from 'lucide-react-native';
+import { CheckCheck, CopySlash, Tag, X } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
@@ -19,6 +19,7 @@ import {
   loadMovies,
   loadProjects,
   localPreviewOf,
+  nearDuplicateExtras,
   onUploaded,
   progressOf,
   removeItem,
@@ -131,11 +132,9 @@ export default function ProjectScreen() {
     [uploads.items, projectId],
   );
 
-  const photos = useMemo<Photo[]>(() => {
-    const order = orderOf(selected);
-    const labelColors = new Map(labels.labels.map((label) => [label.id, label.color]));
-    const files = gallery.items
-      .filter((item) => {
+  const visibleItems = useMemo(
+    () =>
+      gallery.items.filter((item) => {
         if (filters.kinds.length > 0 && !filters.kinds.includes(item.kind)) return false;
         const size = item.media.dimensions;
         if (size && filters.orientations.length > 0) {
@@ -155,34 +154,39 @@ export default function ProjectScreen() {
           return false;
         }
         return true;
-      })
-      .map((item) => {
-        const tile = tileOf(item);
-        return {
-          at: (item.media.capturedAt ?? item.createdAt).getTime(),
-          photo: {
-            ...tile,
-            source: localPreviewOf(item.id) ?? tile.source,
-            original: item.kind === 'photo' ? (cachedOriginal(item) ?? tile.original) : null,
-            playbackUrl:
-              item.kind === 'video' ? (localPreviewOf(item.id) ?? tile.playbackUrl) : null,
-            select: selecting ? (order.get(item.id) ?? null) : undefined,
-            author:
-              filters.uploaderIds.length > 0
-                ? item.uploader?.name?.trim() || item.uploader?.username || null
-                : null,
-            authorAvatarUrl:
-              filters.uploaderIds.length > 0 ? (item.uploader?.avatarUrl ?? null) : null,
-            labelColors:
-              filters.labelIds.length > 0 || labelMode
-                ? item.labelIds.flatMap((labelId) => {
-                    const tint = labelColors.get(labelId);
-                    return tint ? [tint] : [];
-                  })
-                : undefined,
-          } satisfies Photo,
-        };
-      });
+      }),
+    [filters, gallery.items],
+  );
+
+  const photos = useMemo<Photo[]>(() => {
+    const order = orderOf(selected);
+    const labelColors = new Map(labels.labels.map((label) => [label.id, label.color]));
+    const files = visibleItems.map((item) => {
+      const tile = tileOf(item);
+      return {
+        at: (item.media.capturedAt ?? item.createdAt).getTime(),
+        photo: {
+          ...tile,
+          source: localPreviewOf(item.id) ?? tile.source,
+          original: item.kind === 'photo' ? (cachedOriginal(item) ?? tile.original) : null,
+          playbackUrl: item.kind === 'video' ? (localPreviewOf(item.id) ?? tile.playbackUrl) : null,
+          select: selecting ? (order.get(item.id) ?? null) : undefined,
+          author:
+            filters.uploaderIds.length > 0
+              ? item.uploader?.name?.trim() || item.uploader?.username || null
+              : null,
+          authorAvatarUrl:
+            filters.uploaderIds.length > 0 ? (item.uploader?.avatarUrl ?? null) : null,
+          labelColors:
+            filters.labelIds.length > 0 || labelMode
+              ? item.labelIds.flatMap((labelId) => {
+                  const tint = labelColors.get(labelId);
+                  return tint ? [tint] : [];
+                })
+              : undefined,
+        } satisfies Photo,
+      };
+    });
     const sending = pending
       .filter((upload) => !replacedUploads.current.has(upload.localId))
       .map((upload) => {
@@ -212,7 +216,7 @@ export default function ProjectScreen() {
     return [...files, ...sending]
       .sort((left, right) => (filters.sort === 'new' ? right.at - left.at : left.at - right.at))
       .map((entry) => entry.photo);
-  }, [filters, gallery.items, labelMode, labels.labels, pending, selecting, selected]);
+  }, [filters, visibleItems, labelMode, labels.labels, pending, selecting, selected]);
 
   const viewerPhotos = useMemo<Photo[]>(
     () => photos.map((photo) => ({ ...photo, source: photo.preview ?? photo.source })),
@@ -302,6 +306,10 @@ export default function ProjectScreen() {
     void (has
       ? detachItems(projectId, labelId, [itemId])
       : attachItems(projectId, labelId, [itemId]));
+  };
+  const selectDuplicates = () => {
+    const extras = nearDuplicateExtras(visibleItems);
+    if (extras.size > 0) setSelected(new Set(extras));
   };
   const chosen = () => gallery.items.filter((item) => selected.has(item.id));
   const saveSelected = async () => {
@@ -446,6 +454,15 @@ export default function ProjectScreen() {
               onChange={setFilters}
             />
             <Animated.View style={[rightStyle, styles.rightButtons]}>
+              {selecting ? (
+                <IconButton
+                  icon={CopySlash}
+                  label={t('action.removeDuplicates')}
+                  tone="surface"
+                  size={52}
+                  onPress={selectDuplicates}
+                />
+              ) : null}
               {selecting ? (
                 <IconButton
                   icon={Tag}

@@ -164,6 +164,7 @@ export function toMedia(wire: MediaWire): Media {
     id: wire.id,
     kind: wire.kind,
     fingerprint: wire.fingerprint,
+    perceptualHash: wire.perceptualHash,
     format: wire.format,
     bytes: count(wire.bytes),
     capturedAt: dateOrNull(wire.capturedAt),
