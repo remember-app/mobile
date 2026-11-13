@@ -1,5 +1,4 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { CopySlash } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -18,13 +17,12 @@ import {
   loadMontageTemplates,
   loadProjectSongs,
   loadProjects,
-  nearDuplicateExtras,
   previewMontage,
   refreshSession,
 } from '@/functionality';
 import { isApiError } from '@/integrations/api';
 import { itemSource, type MontageTemplate } from '@/models';
-import type { ProjectId, ProjectItemId } from '@/types/id';
+import type { ProjectId } from '@/types/id';
 import { goBack } from '@/ui/back';
 import { MediaInfo } from '@/ui/components/media/info/media-info';
 import type { Photo, Rect } from '@/ui/components/media/photo-grid';
@@ -54,7 +52,6 @@ import {
   useSession,
 } from '@/ui/hooks';
 import { BlurBar } from '@/ui/kit/blur-bar';
-import { IconButton } from '@/ui/kit/button';
 import { Text } from '@/ui/kit/text';
 import { orderOf } from '@/ui/selection';
 import { space } from '@/ui/theme';
@@ -308,13 +305,6 @@ export default function NewMontageScreen() {
 
   const emptyShots = index === 2 && draft.includeItemIds.length === 0;
   const selectAllShots = () => change({ includeItemIds: gallery.items.map((item) => item.id) });
-  const removeShotsDuplicates = () => {
-    const extras = nearDuplicateExtras(shots);
-    change((was) => ({
-      includeItemIds: shots.map((item) => item.id).filter((id) => !extras.has(id)),
-      requiredItemIds: was.requiredItemIds.filter((id) => !extras.has(id as ProjectItemId)),
-    }));
-  };
   const next = () => {
     if (index === STEPS - 1) {
       void submit();
@@ -437,17 +427,6 @@ export default function NewMontageScreen() {
           <OrderHead step={index + 1} />
         </View>
       </BlurBar>
-      {index === 2 ? (
-        <View style={[styles.duplicates, { bottom: insets.bottom + 72 }]}>
-          <IconButton
-            icon={CopySlash}
-            label={t('action.removeDuplicates')}
-            tone="surface"
-            size={52}
-            onPress={removeShotsDuplicates}
-          />
-        </View>
-      ) : null}
       <OrderActions
         back={() => (index === 0 ? goBack(router) : go(index - 1))}
         next={next}
@@ -488,10 +467,5 @@ const styles = StyleSheet.create({
   },
   pager: {
     flex: 1,
-  },
-  duplicates: {
-    position: 'absolute',
-    left: space.s4,
-    zIndex: 1,
   },
 });
