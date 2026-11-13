@@ -156,7 +156,7 @@ function toSummary(wire: ProjectSummaryWire): Project {
 export const toProject = toSummary;
 
 export function toProjectCard(wire: ProjectCardWire): ProjectCard {
-  return { ...toSummary(wire), previewUrls: wire.previewUrls };
+  return { ...toSummary(wire), previewUrls: wire.previewUrls, members: wire.members };
 }
 
 export function toMedia(wire: MediaWire): Media {

@@ -1,5 +1,4 @@
 import { Image } from 'expo-image';
-import { Users } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
@@ -11,6 +10,7 @@ import Animated, {
 
 import type { ProjectCard as Project } from '@/models/project';
 import { dateRange } from '@/ui/format';
+import { AvatarStack } from '@/ui/kit/avatar';
 import { Text } from '@/ui/kit/text';
 import { radius, space, themed, useTheme } from '@/ui/theme';
 
@@ -127,12 +127,14 @@ export function ProjectCard({ project, covers, onPress }: Props) {
           {project.title}
         </Text>
         <View style={styles.foot}>
-          <View style={styles.people}>
-            <Users size={16} color={total > 0 ? color.onFill : color.paper} />
-            <Text role="meta" tone={total > 0 ? 'onFill' : 'paper'}>
-              {project.memberCount}
-            </Text>
-          </View>
+          <AvatarStack
+            faces={project.members.map((member) => ({
+              name: member.name?.trim() || member.username || '',
+              uri: member.avatarUrl,
+            }))}
+            total={project.memberCount}
+            on={total > 0 ? 'rgba(0,0,0,0.45)' : color.ink}
+          />
           <Text role="meta" tone={total > 0 ? 'onFill' : 'paper'}>
             {dateRange(project.eventStart, project.eventEnd)}
           </Text>
@@ -184,11 +186,6 @@ const useStyles = themed(({ color }) =>
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: space.s3,
-    },
-    people: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: space.s1,
     },
   }),
 );

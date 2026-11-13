@@ -1,5 +1,4 @@
 import { Image } from 'expo-image';
-import { Plus } from 'lucide-react-native';
 import { type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
 import { faceOf, font, themed, useTheme } from '@/ui/theme';
@@ -100,17 +99,24 @@ function lead(word: string): string {
 
 const STACK = {
   36: { overlap: 12, halo: 2, letters: 11 },
-  24: { overlap: 7, halo: 0, letters: 8 },
+  24: { overlap: 5, halo: 0, letters: 8 },
   26: { overlap: -5, halo: 0, letters: 10 },
 } as const;
 
+export type AvatarFace = {
+  name: string;
+  uri?: string | null;
+};
+
 export function AvatarStack({
-  names,
+  faces,
+  total,
   on,
-  size = 36,
-  limit,
+  size = 24,
+  limit = 7,
 }: {
-  names: readonly string[];
+  faces: readonly AvatarFace[];
+  total: number;
   on?: string;
   size?: keyof typeof STACK;
   limit?: number;
@@ -126,31 +132,22 @@ export function AvatarStack({
       ? { boxShadow: `0 0 0 ${halo}px ${under}` }
       : { borderWidth: 1, borderColor: under };
   const over = { marginLeft: -overlap };
-  const rest = limit === undefined && names.length > 4 ? names.length - 3 : 0;
-  const more = limit !== undefined && names.length > limit;
-  const faces =
-    limit !== undefined ? names.slice(0, limit) : rest ? names.slice(0, 3) : names.slice(0, 4);
-  const last = more || rest ? -1 : faces.length - 1;
+  const shown = faces.slice(0, limit);
+  const rest = Math.max(0, total - shown.length);
+  const last = rest > 0 ? -1 : shown.length - 1;
   return (
     <View style={styles.row}>
-      {faces.map((name, i) => (
+      {shown.map((face, i) => (
         <Avatar
-          key={`${name}-${i}`}
-          name={name}
+          key={`${face.name}-${i}`}
+          name={face.name}
+          uri={face.uri}
           size={size}
           stacked={{ letters, covered: i === last || apart ? 0 : overlap + halo }}
           style={[collar, i === 0 ? null : over]}
         />
       ))}
-      {more ? (
-        <View
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          style={[styles.more, collar, over, { width: size, height: size, borderRadius: size / 2 }]}
-        >
-          <Plus size={Math.round(size * 0.42)} color={color.muted} />
-        </View>
-      ) : rest ? (
+      {rest > 0 ? (
         <View
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"

@@ -58,6 +58,7 @@ function revive(card: ProjectCard): ProjectCard {
     ...card,
     eventStart: new Date(card.eventStart),
     eventEnd: card.eventEnd === null ? null : new Date(card.eventEnd),
+    members: card.members ?? [],
   };
 }
 
@@ -91,7 +92,11 @@ export function myRoleOf(id: string) {
 
 export function upsertProjectCard(project: Project): ProjectCard {
   const current = projectById(project.id);
-  const card: ProjectCard = { ...project, previewUrls: current?.previewUrls ?? [] };
+  const card: ProjectCard = {
+    ...project,
+    previewUrls: current?.previewUrls ?? [],
+    members: current?.members ?? [],
+  };
   const exists = current !== undefined;
   emit({
     ...state,
@@ -200,7 +205,7 @@ export async function createProject(input: {
   const token = currentToken();
   if (!token) throw new Error('not signed in');
   const project = await apiCreateProject(token, input);
-  const card: ProjectCard = { ...project, previewUrls: [] };
+  const card: ProjectCard = { ...project, previewUrls: [], members: [] };
   emit({ ...state, status: 'ready', cards: [card, ...state.cards], error: null });
   persist();
   return card;
@@ -218,7 +223,11 @@ export async function updateProject(
   if (!token) throw new Error('not signed in');
   const project: Project = await apiUpdateProject(token, id, patch);
   const current = projectById(id);
-  const card: ProjectCard = { ...project, previewUrls: current?.previewUrls ?? [] };
+  const card: ProjectCard = {
+    ...project,
+    previewUrls: current?.previewUrls ?? [],
+    members: current?.members ?? [],
+  };
   emit({
     ...state,
     status: 'ready',

@@ -19,8 +19,16 @@ export type ProjectSummary = {
   myContribution: Contribution;
 };
 
+export type ProjectMemberFace = {
+  userId: UserId;
+  name: string | null;
+  username: string | null;
+  avatarUrl: string | null;
+};
+
 export type ProjectCard = ProjectSummary & {
   previewUrls: string[];
+  members: ProjectMemberFace[];
 };
 
 export type Project = ProjectSummary;
