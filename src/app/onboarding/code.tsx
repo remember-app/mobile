@@ -11,6 +11,7 @@ import {
   confirmCode,
   pendingInvite,
   readText,
+  requestCode,
   sessionState,
   signOut,
 } from '@/functionality';
@@ -75,6 +76,24 @@ export default function CodeScreen() {
     if (digits.length === 6) void verify(digits);
   };
 
+  const resend = async () => {
+    if (busy) return;
+    if (!email) {
+      router.back();
+      return;
+    }
+    setBusy(true);
+    try {
+      await requestCode(email);
+      setCode('');
+      setOutcome(null);
+    } catch {
+      setOutcome('error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <View style={styles.root}>
       <Pressable style={styles.fill} onPress={Keyboard.dismiss}>
@@ -113,7 +132,8 @@ export default function CodeScreen() {
           <Button
             label={t('onboarding.code.resend')}
             variant="link"
-            onPress={() => undefined}
+            disabled={busy}
+            onPress={() => void resend()}
             style={styles.resend}
           />
         </View>
