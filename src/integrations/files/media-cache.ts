@@ -38,7 +38,13 @@ function fileOf(url: string, group: string | null): File | null {
 
 function partOf(url: string, group: string | null): File | null {
   const key = urlKey(url);
-  return key ? new File(folderOf(group), `${key.id}.${key.ext}.part`) : null;
+  const suffix = Math.random().toString(36).slice(2, 8);
+  return key ? new File(folderOf(group), `${key.id}.${key.ext}.${suffix}.part`) : null;
+}
+
+function cacheKeyOf(url: string, group: string | null): string | null {
+  const key = urlKey(url);
+  return key ? `${groupOf(group)}/${key.id}.${key.ext}` : null;
 }
 
 export function cachedUrl(url: string, group: string | null): string | null {
@@ -57,43 +63,72 @@ function folderReady(group: string | null): Directory {
   return folder;
 }
 
-export async function keepUrl(url: string, group: string | null): Promise<string | null> {
-  const file = fileOf(url, group);
-  const part = partOf(url, group);
-  const known = cachedUrl(url, group);
-  if (!file || !part || known) return known;
-  try {
-    folderReady(group);
-    if (part.exists) part.delete();
-    await File.downloadFileAsync(url, part, { idempotent: true });
-    await part.move(file, { overwrite: true });
-    return file.uri;
-  } catch (error) {
-    console.warn(`media ${url} was not kept:`, error);
-    try {
-      part.delete();
-    } catch {
-      // the half-file was already gone
-    }
-    return null;
-  }
+const downloading = new Map<string, Promise<string | null>>();
+const copying = new Map<string, Promise<string | null>>();
+let queue: Promise<unknown> = Promise.resolve();
+
+function serially<T>(run: () => Promise<T>): Promise<T> {
+  const next = queue.then(run, run);
+  queue = next.catch(() => undefined);
+  return next;
 }
 
-export async function keepLoaded(url: string, group: string | null): Promise<string | null> {
+function tracked(
+  map: Map<string, Promise<string | null>>,
+  key: string,
+  run: () => Promise<string | null>,
+): Promise<string | null> {
+  const running = map.get(key);
+  if (running) return running;
+  const promise = run().finally(() => map.delete(key));
+  map.set(key, promise);
+  return promise;
+}
+
+export function keepUrl(url: string, group: string | null): Promise<string | null> {
+  const key = cacheKeyOf(url, group);
+  if (!key) return Promise.resolve(null);
   const known = cachedUrl(url, group);
-  if (known) return known;
-  const file = fileOf(url, group);
-  const part = partOf(url, group);
-  if (file && part) {
-    try {
-      const source = await imageCachePath(url);
-      if (source) {
+  if (known) return Promise.resolve(known);
+  return tracked(downloading, key, () =>
+    serially(async () => {
+      const file = fileOf(url, group);
+      const part = partOf(url, group);
+      if (!file || !part) return null;
+      try {
         folderReady(group);
-        if (part.exists) part.delete();
-        await new File(source).copy(part, { overwrite: true });
+        await File.downloadFileAsync(url, part, { idempotent: true });
         await part.move(file, { overwrite: true });
         return file.uri;
+      } catch (error) {
+        console.warn(`media ${url} was not kept:`, error);
+        try {
+          part.delete();
+        } catch {
+          // the half-file was already gone
+        }
+        return null;
       }
+    }),
+  );
+}
+
+export function keepLoaded(url: string, group: string | null): Promise<string | null> {
+  const key = cacheKeyOf(url, group);
+  if (!key) return Promise.resolve(null);
+  const known = cachedUrl(url, group);
+  if (known) return Promise.resolve(known);
+  return tracked(copying, key, async () => {
+    const file = fileOf(url, group);
+    const part = partOf(url, group);
+    if (!file || !part) return null;
+    try {
+      const source = await imageCachePath(url);
+      if (!source) return null;
+      folderReady(group);
+      await new File(source).copy(part, { overwrite: true });
+      await part.move(file, { overwrite: true });
+      return file.uri;
     } catch (error) {
       console.warn(`displayed media ${url} could not be copied:`, error);
       try {
@@ -101,9 +136,9 @@ export async function keepLoaded(url: string, group: string | null): Promise<str
       } catch {
         // the half-file was already gone
       }
+      return null;
     }
-  }
-  return keepUrl(url, group);
+  });
 }
 
 async function imageCachePath(url: string): Promise<string | null> {
