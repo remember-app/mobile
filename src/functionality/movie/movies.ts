@@ -34,7 +34,8 @@ const listeners = new Set<() => void>();
 
 const cacheName = (projectId: ProjectId) => `movies-${projectId}`;
 
-export const moviesState = (projectId: ProjectId): MoviesState => states.get(projectId) ?? EMPTY;
+export const moviesState = (projectId: ProjectId | undefined): MoviesState =>
+  projectId ? (states.get(projectId) ?? EMPTY) : EMPTY;
 
 export const subscribeMovies = (listener: () => void): (() => void) => {
   listeners.add(listener);

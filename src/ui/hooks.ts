@@ -63,7 +63,7 @@ export function useProjectCard(projectId: ProjectId) {
   return state.cards.find((card) => card.id === projectId);
 }
 
-export function useGallery(projectId: ProjectId) {
+export function useGallery(projectId: ProjectId | undefined) {
   const snapshot = useCallback(() => galleryState(projectId), [projectId]);
   return useStore(subscribeGallery, snapshot);
 }
@@ -93,7 +93,7 @@ export function useMontages(projectId: ProjectId) {
   return useStore(subscribeMontages, snapshot);
 }
 
-export function useMovies(projectId: ProjectId) {
+export function useMovies(projectId: ProjectId | undefined) {
   const snapshot = useCallback(() => moviesState(projectId), [projectId]);
   return useStore(subscribeMovies, snapshot);
 }

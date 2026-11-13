@@ -39,7 +39,8 @@ const listeners = new Set<() => void>();
 
 const cacheName = (projectId: ProjectId) => `gallery-v2-${projectId}`;
 
-export const galleryState = (projectId: ProjectId): GalleryState => states.get(projectId) ?? EMPTY;
+export const galleryState = (projectId: ProjectId | undefined): GalleryState =>
+  projectId ? (states.get(projectId) ?? EMPTY) : EMPTY;
 
 export const subscribeGallery = (listener: () => void): (() => void) => {
   listeners.add(listener);
