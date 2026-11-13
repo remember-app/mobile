@@ -308,8 +308,7 @@ export default function ProjectScreen() {
       : attachItems(projectId, labelId, [itemId]));
   };
   const selectDuplicates = () => {
-    const extras = nearDuplicateExtras(visibleItems);
-    if (extras.size > 0) setSelected(new Set(extras));
+    setSelected(new Set(nearDuplicateExtras(visibleItems)));
   };
   const chosen = () => gallery.items.filter((item) => selected.has(item.id));
   const saveSelected = async () => {
