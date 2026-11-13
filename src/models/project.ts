@@ -34,4 +34,5 @@ export type Member = {
   contribution: Contribution;
   joinedAt: Date;
   invitedBy: UserId | null;
+  avatarUrl: string | null;
 };

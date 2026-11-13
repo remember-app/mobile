@@ -9,6 +9,7 @@ import { radius, space, themed, useTheme } from '@/ui/theme';
 export type Contact = {
   id: string;
   name: string;
+  avatarUrl?: string | null;
 };
 
 const AVATAR = 48;
@@ -59,7 +60,7 @@ export function ContactStrip({
               onPress={() => onToggle(contact.id)}
               style={[styles.face, on ? { boxShadow: `0 0 0 2px ${color.accent}` } : null]}
             >
-              <Avatar name={contact.name} size={AVATAR} />
+              <Avatar name={contact.name} size={AVATAR} uri={contact.avatarUrl} />
             </Pressable>
           );
         })}

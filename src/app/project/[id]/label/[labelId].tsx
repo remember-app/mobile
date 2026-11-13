@@ -17,7 +17,7 @@ import {
 } from '@/ui/components/media/photo-grid';
 import { tileOf } from '@/ui/components/media/photo-item';
 import { PhotoViewer } from '@/ui/components/media/photo-viewer';
-import { useGallery, useLabels, useSession } from '@/ui/hooks';
+import { useAvatar, useGallery, useLabels, useSession } from '@/ui/hooks';
 import { ActionBar } from '@/ui/kit/action-bar';
 import { BlurBar } from '@/ui/kit/blur-bar';
 import { Button } from '@/ui/kit/button';
@@ -36,6 +36,7 @@ export default function LabelScreen() {
   const labels = useLabels(projectId);
   const gallery = useGallery(projectId);
   const session = useSession();
+  const avatar = useAvatar();
   const account = 'account' in session ? session.account : undefined;
   const label = labels.labels.find((entry) => entry.id === labelKey);
   const [open, setOpen] = useState<{ index: number; rect?: Rect } | null>(null);
@@ -100,6 +101,7 @@ export default function LabelScreen() {
               )
             }
             author={account?.name ?? undefined}
+            authorAvatarUrl={avatar.url}
             renderInfo={(index) => {
               const photo = photos[index];
               if (!photo) return null;

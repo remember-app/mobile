@@ -28,6 +28,7 @@ export type PublicUser = {
   username: string | null;
   name: string | null;
   profileMediaId: string | null;
+  avatarUrl: string | null;
 };
 
 export type Account = User & {

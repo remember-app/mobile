@@ -1,3 +1,4 @@
+import { loadAvatar } from '@/functionality/account/avatar';
 import { onSignOut, restoreSession, sessionState } from '@/functionality/auth/session';
 import { hydrateContacts, loadContacts } from '@/functionality/contact/contacts';
 import { hydrateLabels } from '@/functionality/label/labels';
@@ -64,6 +65,7 @@ export async function startApp(): Promise<void> {
     void registerPush();
     void pump();
     void loadProjects(true);
+    void loadAvatar().catch(() => undefined);
   }
 }
 

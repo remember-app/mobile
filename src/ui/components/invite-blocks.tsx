@@ -47,6 +47,7 @@ export function InviteBlocks({
           contacts={available.map((contact) => ({
             id: contact.userId,
             name: contact.name ?? contact.username ?? '',
+            avatarUrl: contact.avatarUrl,
           }))}
           selected={NONE}
           onToggle={inviteContact}

@@ -77,6 +77,7 @@ export function MemberSheet({
               name={member.name ?? ''}
               username={member.username ?? ''}
               size={72}
+              uri={member.avatarUrl}
               heading
               right={
                 self ? (

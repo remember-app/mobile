@@ -103,6 +103,7 @@ export function toPublicUser(wire: PublicUserWire): PublicUser {
     username: wire.username,
     name: wire.name,
     profileMediaId: wire.profileMediaId,
+    avatarUrl: wire.avatarUrl,
   };
 }
 
@@ -133,6 +134,7 @@ export function toMember(wire: MemberWire): Member {
     contribution: wire.contribution,
     joinedAt: date(wire.joinedAt),
     invitedBy: wire.invitedBy,
+    avatarUrl: wire.avatarUrl,
   };
 }
 
@@ -237,7 +239,12 @@ export function toLabel(wire: LabelWire): Label {
 }
 
 export function toContact(wire: ContactWire): Contact {
-  return { userId: wire.contactId, username: wire.username, name: wire.name };
+  return {
+    userId: wire.contactId,
+    username: wire.username,
+    name: wire.name,
+    avatarUrl: wire.avatarUrl,
+  };
 }
 
 export function toProjectInvite(wire: ProjectInviteWire): ProjectInvite {

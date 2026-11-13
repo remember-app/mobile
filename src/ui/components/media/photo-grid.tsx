@@ -25,6 +25,7 @@ export type Photo = {
   accent?: boolean;
   note?: string;
   author?: string | null;
+  authorAvatarUrl?: string | null;
   labelColors?: string[];
   capturedAt?: Date | null;
 };
@@ -178,6 +179,7 @@ export function PhotoGrid({
                   accent={photo.accent}
                   note={photo.note}
                   author={photo.author}
+                  authorAvatarUrl={photo.authorAvatarUrl}
                   labelColors={photo.labelColors}
                   onSelect={() => onSelect?.(index)}
                   onPress={() => {

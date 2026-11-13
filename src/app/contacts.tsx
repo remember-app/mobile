@@ -98,6 +98,7 @@ export default function ContactsScreen() {
                 <Person
                   name={contact.name ?? ''}
                   username={contact.username ?? ''}
+                  uri={contact.avatarUrl}
                   style={styles.contact}
                 />
               </SwipeRow>
@@ -127,6 +128,7 @@ export default function ContactsScreen() {
                   <Person
                     name={suggestion.name ?? ''}
                     username={suggestion.username ?? ''}
+                    uri={suggestion.avatarUrl}
                     style={styles.contact}
                   />
                 </SwipeRow>

@@ -50,6 +50,7 @@ import { GallerySkeleton } from '@/ui/components/skeletons';
 import { confirmAction } from '@/ui/confirm';
 import { duration } from '@/ui/format';
 import {
+  useAvatar,
   useGallery,
   useLabels,
   useMembers,
@@ -81,6 +82,7 @@ export default function ProjectScreen() {
   const montages = useMontages(projectId);
   const uploads = useUploads();
   const session = useSession();
+  const avatar = useAvatar();
   const account = 'account' in session ? session.account : undefined;
   const [open, setOpen] = useState<{ index: number; rect?: Rect } | null>(null);
   const [scrolling, setScrolling] = useState(false);
@@ -169,6 +171,8 @@ export default function ProjectScreen() {
               filters.uploaderIds.length > 0
                 ? item.uploader?.name?.trim() || item.uploader?.username || null
                 : null,
+            authorAvatarUrl:
+              filters.uploaderIds.length > 0 ? (item.uploader?.avatarUrl ?? null) : null,
             labelColors:
               filters.labelIds.length > 0 || labelMode
                 ? item.labelIds.flatMap((labelId) => {
@@ -495,6 +499,7 @@ export default function ProjectScreen() {
               )
             }
             author={account?.name ?? undefined}
+            authorAvatarUrl={avatar.url}
             selected={selecting ? selected.has(photos[open.index]?.id ?? '') : undefined}
             onSelect={
               selecting

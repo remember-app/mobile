@@ -25,6 +25,7 @@ type Props = {
   accent?: boolean;
   note?: string;
   author?: string | null;
+  authorAvatarUrl?: string | null;
   labelColors?: string[];
   onPress: () => void;
   onSelect?: () => void;
@@ -42,6 +43,7 @@ export function PhotoTile({
   accent,
   note,
   author,
+  authorAvatarUrl,
   labelColors,
   onPress,
   onSelect,
@@ -135,7 +137,7 @@ export function PhotoTile({
       ) : null}
       {author ? (
         <View style={styles.author} pointerEvents="none">
-          <Avatar name={author} size={24} />
+          <Avatar name={author} size={24} uri={authorAvatarUrl} />
         </View>
       ) : null}
       {accent ? (

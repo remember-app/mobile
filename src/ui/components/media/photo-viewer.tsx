@@ -41,6 +41,7 @@ type Props = {
   onIndex?: (index: number) => void;
   renderInfo?: (index: number) => ReactNode;
   author?: string;
+  authorAvatarUrl?: string | null;
   onDelete?: (photo: ViewerPhoto) => void;
   selected?: boolean;
   onSelect?: () => void;
@@ -56,6 +57,7 @@ export function PhotoViewer({
   onIndex,
   renderInfo,
   author,
+  authorAvatarUrl,
   onDelete,
   selected,
   onSelect,
@@ -341,7 +343,7 @@ export function PhotoViewer({
       </Animated.View>
       {author && !currentPhoto?.video && !zoomed ? (
         <Animated.View style={[styles.author, authorStyle]} pointerEvents="none">
-          <Avatar name={author} size={34} />
+          <Avatar name={author} size={34} uri={authorAvatarUrl} />
         </Animated.View>
       ) : null}
       {phase === 'entering' && cover ? (

@@ -39,6 +39,7 @@ export function MemberList({
         name={member.name ?? ''}
         username={member.username ?? ''}
         size={44}
+        uri={member.avatarUrl}
         accent={isSelf(member)}
         style={styles.member}
         right={

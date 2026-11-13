@@ -136,7 +136,11 @@ export function GalleryFiltersPanel({
               onPress={() => set('uploaderIds', toggle(value.uploaderIds, member.userId))}
               style={[styles.avatarCell, { borderColor: on ? color.paper : 'transparent' }]}
             >
-              <Avatar name={member.name?.trim() || member.username || ''} size={36} />
+              <Avatar
+                name={member.name?.trim() || member.username || ''}
+                size={36}
+                uri={member.avatarUrl}
+              />
             </Pressable>
           );
         })}
