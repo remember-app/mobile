@@ -99,6 +99,7 @@ function lead(word: string): string {
 
 const STACK = {
   36: { overlap: 12, halo: 2, letters: 11 },
+  28: { overlap: 6, halo: 0, letters: 10 },
   24: { overlap: 5, halo: 0, letters: 8 },
   26: { overlap: -5, halo: 0, letters: 10 },
 } as const;
@@ -112,7 +113,7 @@ export function AvatarStack({
   faces,
   total,
   on,
-  size = 24,
+  size = 28,
   limit = 7,
 }: {
   faces: readonly AvatarFace[];
@@ -133,7 +134,7 @@ export function AvatarStack({
       : { borderWidth: 1, borderColor: under };
   const over = { marginLeft: -overlap };
   const shown = faces.slice(0, limit);
-  const rest = Math.max(0, total - shown.length);
+  const rest = shown.length === limit ? Math.max(0, total - shown.length) : 0;
   const last = rest > 0 ? -1 : shown.length - 1;
   return (
     <View style={styles.row}>
