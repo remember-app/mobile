@@ -18,6 +18,7 @@ import {
   loadProjectSongs,
   loadProjects,
   previewMontage,
+  refreshSession,
 } from '@/functionality';
 import { isApiError } from '@/integrations/api';
 import { itemSource, type MontageTemplate } from '@/models';
@@ -279,6 +280,8 @@ export default function NewMontageScreen() {
           requiredItemIds: draft.requiredItemIds,
         },
       });
+      await refreshSession().catch(() => undefined);
+      void loadProjects();
       router.replace({
         pathname: '/project/[id]/montage/[montageId]',
         params: { id: projectId, montageId: made.id },

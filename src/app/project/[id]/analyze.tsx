@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Alert, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { currentToken, refreshGalleryAll } from '@/functionality';
+import { currentToken, refreshGalleryAll, refreshSession } from '@/functionality';
 import { analyzeItems, previewAnalysis } from '@/integrations/api';
 import type { ProjectId, ProjectItemId } from '@/types/id';
 import { goBack } from '@/ui/back';
@@ -117,6 +117,7 @@ export default function AnalyzeScreen() {
     setBusy(true);
     try {
       await analyzeItems(token, projectId, ids());
+      await refreshSession().catch(() => undefined);
       router.replace({
         pathname: '/project/[id]/analysis-jobs',
         params: { id: projectId },

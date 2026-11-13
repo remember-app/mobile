@@ -6,6 +6,7 @@ import { Alert, StyleSheet, View } from 'react-native';
 import {
   currentToken,
   loadAnalysisJobs,
+  refreshSession,
   setItemAnalyses,
   watchAnalysisJobs,
 } from '@/functionality';
@@ -41,6 +42,7 @@ export function AnalysisBlock({ projectId, item }: { projectId: ProjectId; item:
     setBusy(true);
     try {
       const result = await analyzeItems(token, projectId, [itemId], true);
+      await refreshSession().catch(() => undefined);
       if (result.queued === 0) {
         Alert.alert(t('photo.analysis'), t('photo.analysisBusy'));
         return;
