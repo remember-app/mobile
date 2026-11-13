@@ -40,7 +40,7 @@ export function AnalysisRow({
       </View>
       <View style={styles.words}>
         {analysis ? (
-          <Text role="body">{analysis.description}</Text>
+          <Text role="body">{analysis.summary}</Text>
         ) : (
           <Text role="body" tone="muted">
             {status}

@@ -56,33 +56,27 @@ export type MediaResponse =
       camera: null;
     });
 
+export type AnalysisLevel = 'low' | 'medium' | 'high';
+
+export type AnalysisTags = Record<string, string>;
+
 export type AnalysisSegment = {
   secStart: number;
   secEnd: number;
-  text: string;
+  description: string;
+  tags: AnalysisTags | null;
 };
 
-export type AnalysisFrame = {
-  second: number;
-  text: string;
+export type AnalysisResponse = {
+  level: AnalysisLevel;
+  summary: string;
+  description: string;
+  score: number;
+  tags: AnalysisTags | null;
+  frames?: AnalysisSegment[] | null;
+  sounds?: AnalysisSegment[] | null;
+  words?: AnalysisSegment[] | null;
 };
-
-export type AnalysisResponse =
-  | {
-      description: string;
-      score: number;
-      transcription: AnalysisSegment[];
-      frames: AnalysisFrame[];
-    }
-  | {
-      description: string;
-      score: number;
-      transcription: AnalysisSegment[];
-    }
-  | {
-      description: string;
-      score: number;
-    };
 
 export type ItemResponse = {
   item: {

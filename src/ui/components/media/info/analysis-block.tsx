@@ -115,9 +115,9 @@ export function AnalysisBlock({ projectId, item }: { projectId: ProjectId; item:
       </View>
       <View style={styles.divider} />
       <View style={styles.body}>
-        {analysis?.description ? (
+        {analysis?.summary ? (
           <Text role="bodySm" style={styles.paper}>
-            {analysis.description}
+            {analysis.summary}
           </Text>
         ) : status ? (
           <Text role="bodySm" tone={job?.status === 'failed' ? 'danger' : 'muted'}>

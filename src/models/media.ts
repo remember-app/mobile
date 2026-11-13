@@ -34,22 +34,26 @@ export type Media = {
   uploadedBy: UserId | null;
 };
 
+export type AnalysisLevel = 'low' | 'medium' | 'high';
+
+export type AnalysisTags = Record<string, string>;
+
 export type AnalysisSegment = {
   secStart: number;
   secEnd: number;
-  text: string;
-};
-
-export type AnalysisFrame = {
-  second: number;
-  text: string;
+  description: string;
+  tags: AnalysisTags | null;
 };
 
 export type Analysis = {
+  level: AnalysisLevel;
+  summary: string;
   description: string;
   score: number;
-  transcription?: AnalysisSegment[];
-  frames?: AnalysisFrame[];
+  tags: AnalysisTags | null;
+  frames?: AnalysisSegment[] | null;
+  sounds?: AnalysisSegment[] | null;
+  words?: AnalysisSegment[] | null;
 };
 
 export type DownloadLink = {
