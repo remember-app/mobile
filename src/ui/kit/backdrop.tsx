@@ -25,6 +25,7 @@ export function Backdrop() {
       style={StyleSheet.absoluteFill}
       contentFit="cover"
       cachePolicy="memory"
+      allowDownscaling={false}
       pointerEvents="none"
     />
   );
