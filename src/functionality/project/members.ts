@@ -9,7 +9,7 @@ import {
 import { readCache, removeCache, writeCache } from '@/integrations/files/cache';
 import type { Contribution, Member, Role } from '@/models';
 import type { ProjectId, UserId } from '@/types/id';
-import { adjustProjectCounts, onProjectDeleted } from './projects';
+import { adjustProjectCounts, onProjectDeleted, setProjectContribution } from './projects';
 
 export type MembersState = {
   status: 'loading' | 'ready' | 'error';
@@ -237,6 +237,7 @@ export async function setContribution(
     }
     const delta = Number(terminal(contribution)) - Number(before !== undefined && terminal(before));
     if (delta !== 0) adjustProjectCounts(projectId, { shared: delta });
+    setProjectContribution(projectId, contribution);
   }
   return contribution;
 }

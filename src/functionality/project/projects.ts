@@ -6,7 +6,7 @@ import {
   listProjects,
 } from '@/integrations/api';
 import { readCache, removeCache, writeCache } from '@/integrations/files/cache';
-import type { Project, ProjectCard } from '@/models';
+import type { Contribution, Project, ProjectCard } from '@/models';
 
 const CACHE = 'projects';
 
@@ -121,6 +121,18 @@ export function adjustProjectCounts(
             sharedCount: Math.max(0, item.sharedCount + (delta.shared ?? 0)),
           }
         : item,
+    ),
+  });
+  persist();
+}
+
+export function setProjectContribution(id: string, contribution: Contribution): void {
+  const card = projectById(id);
+  if (!card || card.myContribution === contribution) return;
+  emit({
+    ...state,
+    cards: state.cards.map((item) =>
+      item.id === id ? { ...item, myContribution: contribution } : item,
     ),
   });
   persist();
