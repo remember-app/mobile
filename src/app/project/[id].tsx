@@ -344,6 +344,10 @@ export default function ProjectScreen() {
     setSelecting(false);
   };
   const pick = () => router.navigate({ pathname: '/project/[id]/pick', params: { id: projectId } });
+  const create = () =>
+    router.navigate({ pathname: '/project/[id]/new-montage', params: { id: projectId } });
+  const canCreate =
+    project !== undefined && project.myRole !== 'viewer' && project.myContribution === 'done';
 
   return (
     <>
@@ -410,7 +414,11 @@ export default function ProjectScreen() {
             style={actionStyle}
             pointerEvents={scrolling || selecting ? 'none' : 'auto'}
           >
-            <Button label={t('project.add')} variant="primary" onPress={pick} />
+            <Button
+              label={canCreate ? t('montage.create') : t('project.add')}
+              variant="primary"
+              onPress={canCreate ? create : pick}
+            />
           </Animated.View>
         </ActionBar>
         {filtering ? (

@@ -26,6 +26,7 @@ export default function MoviesScreen() {
   const montages = useMontages(projectId);
   const movies = useMovies(projectId);
   const admin = project?.myRole === 'admin';
+  const canCreate = admin || project?.myRole === 'contributor';
 
   useEffect(() => {
     void loadProjects();
@@ -63,7 +64,7 @@ export default function MoviesScreen() {
             }
           />
         }
-        body={[pageBody, admin ? { paddingBottom: insets.bottom + 100 } : null]}
+        body={[pageBody, canCreate ? { paddingBottom: insets.bottom + 100 } : null]}
       >
         {loading ? (
           <View style={{ paddingVertical: space.s7, alignItems: 'center' }}>
@@ -95,7 +96,7 @@ export default function MoviesScreen() {
           ))
         )}
       </Board>
-      {admin ? (
+      {canCreate ? (
         <ActionBar>
           <Button label={t('montage.create')} variant="primary" onPress={create} />
         </ActionBar>
