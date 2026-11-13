@@ -1,5 +1,4 @@
 import { FlashList, type FlashListRef } from '@shopify/flash-list';
-import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { User } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
@@ -79,13 +78,7 @@ export default function HomeScreen() {
               accessibilityLabel={t('home.create')}
               onPress={() => router.navigate('/create')}
               style={styles.newCard}
-            >
-              <Image
-                source={require('../../assets/logo/logo-dashes-plus.png')}
-                style={styles.newArt}
-                contentFit="contain"
-              />
-            </Pressable>
+            />
           </View>
         ) : (
           <FlashList
@@ -164,11 +157,6 @@ const styles = StyleSheet.create({
     gap: space.s3,
   },
   newCard: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: space.s3,
-  },
-  newArt: {
     width: 360,
     height: 270,
   },

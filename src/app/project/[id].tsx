@@ -1,4 +1,3 @@
-import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { CheckCheck, CopySlash, Tag, X } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -363,13 +362,7 @@ export default function ProjectScreen() {
         {loading ? (
           <GallerySkeleton top={top} bottom={bottom} />
         ) : photos.length === 0 ? (
-          <View style={[styles.emptyFill, { paddingTop: top, paddingBottom: bottom }]}>
-            <Image
-              source={require('../../../assets/logo/logo-dashes.png')}
-              style={styles.emptyArt}
-              contentFit="contain"
-            />
-          </View>
+          <View style={[styles.emptyFill, { paddingTop: top, paddingBottom: bottom }]} />
         ) : (
           <PhotoGrid
             photos={photos}
@@ -563,11 +556,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: space.s6,
-  },
-  emptyArt: {
-    width: 300,
-    height: 225,
-    alignSelf: 'center',
   },
   top: {
     paddingHorizontal: space.s4,

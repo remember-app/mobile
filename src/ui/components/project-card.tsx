@@ -85,13 +85,6 @@ export function ProjectCard({ project, covers, onPress }: Props) {
         }}
         style={[styles.card, empty ? styles.cardEmpty : null]}
       >
-        {empty ? (
-          <Image
-            source={require('../../../assets/logo/logo-dashes.png')}
-            style={StyleSheet.absoluteFill}
-            contentFit="contain"
-          />
-        ) : null}
         <Animated.View style={[StyleSheet.absoluteFill, style0]} pointerEvents="none">
           {sources[0] ? (
             <Image
