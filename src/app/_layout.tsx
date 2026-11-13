@@ -7,7 +7,7 @@ import { Onest_700Bold } from '@expo-google-fonts/onest/700Bold';
 import { useFonts } from '@expo-google-fonts/onest/useFonts';
 import { Unbounded_600SemiBold } from '@expo-google-fonts/unbounded/600SemiBold';
 import { Unbounded_700Bold } from '@expo-google-fonts/unbounded/700Bold';
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider, useRouter } from 'expo-router';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider, usePathname, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { LucideProvider } from 'lucide-react-native';
@@ -18,6 +18,7 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { onPushOpened, sessionState, startApp, systemMediaState } from '@/functionality';
+import { refreshScreen } from '@/functionality/screen-refresh';
 import { readLanguage, writeLanguage } from '@/functionality/settings/language';
 import { health } from '@/integrations/api';
 import { NoConnection } from '@/ui/components/no-connection';
@@ -32,6 +33,7 @@ void SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   const theme = useTheme();
   const router = useRouter();
+  const pathname = usePathname();
   const session = useSession();
   const accountLanguage = 'account' in session ? session.account.language : null;
   const [ready, setReady] = useState(false);
@@ -91,6 +93,11 @@ export default function RootLayout() {
       }
     });
   }, [router]);
+
+  useEffect(() => {
+    if (!ready) return;
+    refreshScreen(pathname);
+  }, [pathname, ready]);
 
   if (!loaded || !ready) return null;
 
