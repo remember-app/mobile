@@ -23,6 +23,7 @@ export function CaptionField({ value, onChangeText, onEndEditing }: Props) {
       selectionColor={color.accent}
       returnKeyType="done"
       maxLength={200}
+      multiline
       style={styles.input}
     />
   );
@@ -31,10 +32,12 @@ export function CaptionField({ value, onChangeText, onEndEditing }: Props) {
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
     input: {
-      height: 52,
+      minHeight: 52,
       borderRadius: radius.field,
       backgroundColor: color.surface,
       paddingHorizontal: space.s4,
+      paddingVertical: space.s4,
+      textAlignVertical: 'top',
       color: color.paper,
       fontFamily: font.regular,
       fontSize: 16,
