@@ -24,6 +24,7 @@ export function CaptionField({ value, onChangeText, onEndEditing }: Props) {
       returnKeyType="done"
       maxLength={200}
       multiline
+      scrollEnabled={false}
       style={styles.input}
     />
   );
