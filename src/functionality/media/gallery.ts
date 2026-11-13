@@ -10,7 +10,7 @@ import {
   updateItemDescription,
 } from '@/integrations/api';
 import { readCache, removeCache, writeCache } from '@/integrations/files/cache';
-import { forgetItemMedia } from '@/integrations/files/media-cache';
+import { clearMediaGroup } from '@/integrations/files/media-cache';
 import type { Analysis, DownloadLink, Item } from '@/models';
 import type { LabelId, ProjectId, ProjectItemId } from '@/types/id';
 
@@ -92,7 +92,7 @@ export function clearGalleries(): void {
 }
 
 export function forgetGallery(projectId: ProjectId): void {
-  for (const item of galleryState(projectId).items) forgetItemMedia(item.media.id, item.projectId);
+  clearMediaGroup(projectId);
   states.delete(projectId);
   removeCache(cacheName(projectId));
   for (const listener of listeners) listener();

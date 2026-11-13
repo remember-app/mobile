@@ -1,6 +1,5 @@
 import NativeSlider from '@react-native-community/slider';
 import { useEventListener } from 'expo';
-import { Image } from 'expo-image';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { Pause, Play, Volume2, VolumeX } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -18,7 +17,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { resolveDeviceAsset } from '@/functionality';
+import { cachedUrl, keepUrl } from '@/integrations/files/media-cache';
 import { IconButton } from '@/ui/kit/button';
+import { Image } from '@/ui/kit/image';
 import { radius, space, useTheme } from '@/ui/theme';
 
 import { boxFor, clamp, mediaSize } from './geometry';
@@ -77,7 +78,10 @@ export function VideoFrame({
 
   useEffect(() => {
     if (!photo.assetId) {
-      setUri(photo.playbackUrl ?? null);
+      const group = photo.projectId ?? null;
+      const url = photo.playbackUrl;
+      setUri(url ? (cachedUrl(url, group) ?? url) : null);
+      if (url && !cachedUrl(url, group)) void keepUrl(url, group);
       return;
     }
     let live = true;
@@ -90,7 +94,7 @@ export function VideoFrame({
     return () => {
       live = false;
     };
-  }, [photo.assetId, photo.playbackUrl]);
+  }, [photo.assetId, photo.playbackUrl, photo.projectId]);
 
   const pinch = Gesture.Pinch()
     .enabled(!info)
@@ -199,6 +203,7 @@ export function VideoFrame({
             <Animated.View style={[StyleSheet.absoluteFill, zoomStyle]}>
               <Image
                 source={photo.source}
+                group={photo.projectId}
                 style={StyleSheet.absoluteFill}
                 contentFit="contain"
                 cachePolicy="memory-disk"

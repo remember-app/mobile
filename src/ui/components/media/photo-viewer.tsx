@@ -1,4 +1,4 @@
-import { Image } from 'expo-image';
+import { Image as ExpoImage } from 'expo-image';
 import { setStatusBarHidden } from 'expo-status-bar';
 import { Circle, CircleCheck, Trash2 } from 'lucide-react-native';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -21,6 +21,7 @@ import { fullDay, time } from '@/ui/format';
 import { Avatar } from '@/ui/kit/avatar';
 import { BlurBar } from '@/ui/kit/blur-bar';
 import { BackButton, IconButton } from '@/ui/kit/button';
+import { Image } from '@/ui/kit/image';
 import { Text } from '@/ui/kit/text';
 import { photo, radius, space, useTheme } from '@/ui/theme';
 import { PhotoInfo } from './info/photo-info';
@@ -115,7 +116,7 @@ export function PhotoViewer({
         const uri = viewPhotos[at]?.source;
         if (typeof uri === 'string') around.push(uri);
       }
-      if (around.length > 0) void Image.prefetch(around, 'memory-disk').catch(() => undefined);
+      if (around.length > 0) void ExpoImage.prefetch(around, 'memory-disk').catch(() => undefined);
     }, 600);
     return () => clearTimeout(timer);
   }, [index, viewPhotos]);
@@ -314,6 +315,7 @@ export function PhotoViewer({
                   <Zoomable
                     source={photo.source}
                     hd={at === hdIndex ? (photo.original ?? null) : null}
+                    group={photo.projectId}
                     media={mediaSize(photo)}
                     width={width}
                     height={height}
@@ -355,7 +357,12 @@ export function PhotoViewer({
             growth,
           ]}
         >
-          <Image source={cover} style={StyleSheet.absoluteFill} contentFit="contain" />
+          <Image
+            source={cover}
+            group={viewPhotos[start]?.projectId}
+            style={StyleSheet.absoluteFill}
+            contentFit="contain"
+          />
         </Animated.View>
       ) : null}
       {phase === 'leaving' && current ? (
@@ -367,7 +374,12 @@ export function PhotoViewer({
             landing,
           ]}
         >
-          <Image source={current} style={StyleSheet.absoluteFill} contentFit="contain" />
+          <Image
+            source={current}
+            group={currentPhoto?.projectId}
+            style={StyleSheet.absoluteFill}
+            contentFit="contain"
+          />
         </Animated.View>
       ) : null}
       {phase === 'leaving' && current && origin ? (
@@ -375,7 +387,12 @@ export function PhotoViewer({
           pointerEvents="none"
           style={[styles.square, { width: origin.width, height: origin.height }, square]}
         >
-          <Image source={current} style={StyleSheet.absoluteFill} contentFit="cover" />
+          <Image
+            source={current}
+            group={currentPhoto?.projectId}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+          />
         </Animated.View>
       ) : null}
       {chrome && !zoomed && viewPhotos.length > 1 ? (

@@ -28,6 +28,20 @@ export function writeCache(name: string, value: unknown): void {
   }
 }
 
+export function cacheFolderUsage(): number {
+  try {
+    let bytes = 0;
+    if (!folder().exists) return bytes;
+    for (const file of folder().list()) {
+      if (file instanceof File) bytes += file.size ?? 0;
+    }
+    return bytes;
+  } catch (error) {
+    console.warn('cache folder could not be measured:', error);
+    return 0;
+  }
+}
+
 export function clearCache(): void {
   try {
     if (folder().exists) folder().delete();

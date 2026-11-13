@@ -11,6 +11,7 @@ export const PHOTO_COLUMNS = 3;
 
 export type Photo = {
   id: string;
+  projectId?: string | null;
   source: ImageSource | string | null;
   preview?: ImageSource | string | null;
   original?: string | null;
@@ -169,6 +170,7 @@ export function PhotoGrid({
               ) : (
                 <PhotoTile
                   id={photo.id}
+                  group={photo.projectId}
                   source={photo.source}
                   upload={photo.upload}
                   select={photo.select}

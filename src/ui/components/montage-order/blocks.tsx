@@ -1,10 +1,10 @@
-import { Image } from 'expo-image';
 import { ChevronRight, Images, Music, PenLine, Sparkles, VolumeX } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
 import { Card } from '@/ui/kit/card';
 import { Icon, type IconComponent } from '@/ui/kit/icon';
+import { Image } from '@/ui/kit/image';
 import { Text } from '@/ui/kit/text';
 import { radius, space, themed, useTheme } from '@/ui/theme';
 
@@ -35,9 +35,11 @@ function Fact({ item }: { item: FactItem }) {
 
 export function MusicCard({
   songs,
+  group,
   director,
 }: {
   songs: readonly SummarySong[];
+  group?: string | null;
   director?: boolean;
 }) {
   const { t } = useTranslation();
@@ -65,6 +67,7 @@ export function MusicCard({
             {first.coverUrl ? (
               <Image
                 source={first.coverUrl}
+                group={group}
                 style={StyleSheet.absoluteFill}
                 contentFit="cover"
                 cachePolicy="memory-disk"
@@ -126,10 +129,12 @@ export function PromptCard({ prompt, onOpen }: { prompt: string | null; onOpen?:
 
 export function FramesCard({
   frames,
+  group,
   count,
   onPress,
 }: {
   frames: readonly string[];
+  group?: string | null;
   count: number;
   onPress?: () => void;
 }) {
@@ -152,6 +157,7 @@ export function FramesCard({
           <Image
             key={uri}
             source={uri}
+            group={group}
             style={styles.thumb}
             contentFit="cover"
             cachePolicy="memory-disk"

@@ -1,5 +1,4 @@
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
-import { Image } from 'expo-image';
 import { Check, Music } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -14,9 +13,11 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { songUrl } from '@/functionality';
+import { cachedUrl, keepUrl } from '@/integrations/files/media-cache';
 import type { Song } from '@/models';
 import type { SongId } from '@/types/id';
 import { Card } from '@/ui/kit/card';
+import { Image } from '@/ui/kit/image';
 import { Text } from '@/ui/kit/text';
 import { radius, space, themed, useTheme } from '@/ui/theme';
 
@@ -61,9 +62,12 @@ export function MusicPage({
     }
     try {
       const url = await songUrl(song.id);
-      player.replace(url);
+      const group = song.projectId ?? null;
+      const local = cachedUrl(url, group);
+      player.replace(local ?? url);
       player.play();
       setPlayingId(song.id);
+      if (!local) void keepUrl(url, group);
     } catch {
       setPlayingId(null);
     }
@@ -138,6 +142,7 @@ function TrackRow({
           {song.coverUrl ? (
             <Image
               source={song.coverUrl}
+              group={song.projectId}
               style={StyleSheet.absoluteFill}
               contentFit="cover"
               cachePolicy="memory-disk"

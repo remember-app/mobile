@@ -1,4 +1,3 @@
-import { Image } from 'expo-image';
 import { Clapperboard, RectangleHorizontal, RectangleVertical } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -9,6 +8,7 @@ import { duration } from '@/ui/format';
 import { BottomSheet } from '@/ui/kit/bottom-sheet';
 import { Card } from '@/ui/kit/card';
 import { CircularSpinner } from '@/ui/kit/circular-spinner';
+import { Image } from '@/ui/kit/image';
 import { Text } from '@/ui/kit/text';
 import { radius, space, themed, useTheme } from '@/ui/theme';
 
@@ -22,6 +22,7 @@ export function TemplatesPage({
   language,
   chosenId,
   covers,
+  group,
   onChoose,
   width,
   height,
@@ -32,6 +33,7 @@ export function TemplatesPage({
   language: Language;
   chosenId: string | null;
   covers: readonly string[];
+  group?: string | null;
   onChoose: (template: MontageTemplate | null) => void;
   width: number;
   height: number;
@@ -67,6 +69,7 @@ export function TemplatesPage({
                     {cover ? (
                       <Image
                         source={cover}
+                        group={group}
                         style={[StyleSheet.absoluteFill, styles.templatePhoto]}
                         contentFit="cover"
                         cachePolicy="memory-disk"

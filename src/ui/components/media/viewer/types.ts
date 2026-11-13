@@ -2,6 +2,7 @@ import type { ImageSource } from 'expo-image';
 
 export type ViewerPhoto = {
   id: string;
+  projectId?: string | null;
   source: ImageSource | string | null;
   original?: string | null;
   width?: number;

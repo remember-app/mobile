@@ -75,8 +75,6 @@ export {
 } from './label/labels';
 export {
   cachedOriginal,
-  cachedPreview,
-  cachedThumbnail,
   cacheUsage,
   clearCache,
   ensureOriginal,

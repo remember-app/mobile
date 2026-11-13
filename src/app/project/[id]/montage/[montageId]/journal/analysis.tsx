@@ -70,6 +70,7 @@ export default function AnalysisJournalScreen() {
               <AnalysisRow
                 key={item.id}
                 source={itemSource(item)}
+                group={item.projectId}
                 analysis={item.analysis ?? job?.analysis ?? null}
                 status={job ? statusOf(job) : t('montage.journal.noDescription')}
                 error={job?.error}

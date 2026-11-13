@@ -340,6 +340,7 @@ export default function NewMontageScreen() {
               language={account?.language ?? 'ru'}
               chosenId={draft.templateId}
               covers={thumbnails}
+              group={projectId}
               onChoose={pickTemplate}
             />
             <MetaPage
@@ -386,6 +387,7 @@ export default function NewMontageScreen() {
                   seconds={draft.targetSeconds}
                   orientation={draft.orientation}
                   shots={posterShots}
+                  group={projectId}
                   shotsCount={draft.includeItemIds.length}
                   requiredCount={draft.requiredItemIds.length}
                   songs={chosenSongs.map((song) => ({

@@ -1,8 +1,8 @@
-import { Image } from 'expo-image';
 import { type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
 import { faceOf, font, themed, useTheme } from '@/ui/theme';
 
+import { Image } from './image';
 import { Text } from './text';
 
 const LETTERS: Record<number, number> = {

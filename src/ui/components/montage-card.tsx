@@ -1,4 +1,3 @@
-import { Image } from 'expo-image';
 import type { useRouter } from 'expo-router';
 import { TriangleExclamationPoint } from 'lucide-react-native';
 import { useEffect } from 'react';
@@ -11,6 +10,7 @@ import type { ProjectId } from '@/types/id';
 import { MontageBackdrop } from '@/ui/components/movie-blocks';
 import { useGallery } from '@/ui/hooks';
 import { CircularSpinner } from '@/ui/kit/circular-spinner';
+import { Image } from '@/ui/kit/image';
 import { Text } from '@/ui/kit/text';
 import { radius, space, themed, useTheme } from '@/ui/theme';
 
@@ -84,6 +84,7 @@ export function MontageCard({
       {poster ? (
         <Image
           source={poster}
+          group={montage.projectId}
           style={StyleSheet.absoluteFill}
           contentFit="cover"
           cachePolicy="memory-disk"
@@ -95,7 +96,12 @@ export function MontageCard({
         </>
       ) : (
         <>
-          <MontageBackdrop frames={frames} seed={montage.id} cycling={!failed} />
+          <MontageBackdrop
+            frames={frames}
+            group={montage.projectId}
+            seed={montage.id}
+            cycling={!failed}
+          />
           <View style={styles.status}>
             {failed ? (
               <TriangleExclamationPoint size={wide ? 30 : 22} color={color.danger} />

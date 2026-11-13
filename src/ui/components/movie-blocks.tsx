@@ -1,4 +1,3 @@
-import { Image } from 'expo-image';
 import { AudioLines, ChevronRight } from 'lucide-react-native';
 import { type ReactNode, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -9,6 +8,7 @@ import { duration } from '@/ui/format';
 import { BottomSheet } from '@/ui/kit/bottom-sheet';
 import { Card } from '@/ui/kit/card';
 import type { IconComponent } from '@/ui/kit/icon';
+import { Image } from '@/ui/kit/image';
 import { Text } from '@/ui/kit/text';
 import { radius, space, useTheme } from '@/ui/theme';
 
@@ -25,10 +25,12 @@ function seedIndex(seed: string, length: number): number {
 
 export function MontageBackdrop({
   frames,
+  group,
   seed,
   cycling,
 }: {
   frames: string[];
+  group?: string | null;
   seed: string;
   cycling: boolean;
 }) {
@@ -53,6 +55,7 @@ export function MontageBackdrop({
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       <Image
         source={source}
+        group={group}
         style={StyleSheet.absoluteFill}
         contentFit="cover"
         cachePolicy="memory-disk"
@@ -208,6 +211,7 @@ function Thumbnails({ items }: { items: Item[] }) {
           <Image
             key={item.id}
             source={source}
+            group={item.projectId}
             style={styles.thumb}
             contentFit="cover"
             cachePolicy="memory-disk"

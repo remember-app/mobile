@@ -54,6 +54,7 @@ export default function AnalysisJobsScreen() {
               <AnalysisRow
                 key={job.itemId}
                 source={item ? itemSource(item) : null}
+                group={item?.projectId}
                 analysis={job.analysis}
                 status={statusOf(job)}
                 error={job.error}

@@ -1,9 +1,10 @@
-import { Image, type ImageSource } from 'expo-image';
+import type { ImageSource } from 'expo-image';
 import { Check, CircleX, Star } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/ui/kit/avatar';
 import { CircularProgress } from '@/ui/kit/circular-progress';
+import { Image } from '@/ui/kit/image';
 import { Text } from '@/ui/kit/text';
 import { radius, useTheme } from '@/ui/theme';
 import { LabelMark } from '../label';
@@ -15,6 +16,7 @@ export type TileUpload = {
 
 type Props = {
   id: string;
+  group?: string | null;
   source: ImageSource | string | null;
   upload?: TileUpload;
   select?: number | null;
@@ -33,6 +35,7 @@ type Props = {
 
 export function PhotoTile({
   id,
+  group,
   source,
   upload,
   select,
@@ -55,6 +58,7 @@ export function PhotoTile({
       {source ? (
         <Image
           source={source}
+          group={group}
           style={[styles.fill, upload?.failed || chosen ? styles.dim : null]}
           contentFit="cover"
           transition={120}

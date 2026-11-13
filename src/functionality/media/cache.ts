@@ -1,50 +1,30 @@
+import { Image } from 'expo-image';
+
 import { onSignOut } from '@/functionality/auth/session';
+import { cacheFolderUsage, clearCache as clearDataCache } from '@/integrations/files/cache';
 import {
   type CacheGroup,
-  cachedMedia,
-  cachedMediaAny,
+  cachedUrl,
   clearMediaCache,
-  keepMedia,
+  keepUrl,
   mediaCacheUsage,
 } from '@/integrations/files/media-cache';
 import { saveToPhone, shareFile } from '@/integrations/files/save';
 import type { Item } from '@/models';
 
-const previewExt = (item: Item): string | null =>
-  item.kind === 'audio' ? null : item.kind === 'video' ? 'mp4' : 'jpg';
-
-export const cachedThumbnail = (item: Item): string | null =>
-  cachedMedia(item.media.id, 'thumbnail', 'jpg', item.projectId);
-
-export const cachedPreview = (item: Item): string | null => {
-  const ext = previewExt(item);
-  return ext === null ? null : cachedMedia(item.media.id, 'preview', ext, item.projectId);
-};
-
 export const cachedOriginal = (item: Item): string | null =>
-  cachedMediaAny(item.media.id, 'original', item.projectId);
+  item.links.original ? cachedUrl(item.links.original, item.projectId) : null;
 
-export async function ensureThumbnail(item: Item): Promise<string | null> {
-  if (!item.links.thumbnail) return null;
-  return keepMedia(item.media.id, 'thumbnail', 'jpg', item.links.thumbnail, item.projectId);
-}
+const keep = (url: string | null, item: Item): Promise<string | null> =>
+  url ? keepUrl(url, item.projectId) : Promise.resolve(null);
 
-export async function ensurePreview(item: Item): Promise<string | null> {
-  const ext = previewExt(item);
-  if (ext === null || !item.links.preview) return null;
-  return keepMedia(item.media.id, 'preview', ext, item.links.preview, item.projectId);
-}
+export const ensureThumbnail = (item: Item): Promise<string | null> =>
+  keep(item.links.thumbnail, item);
 
-export async function ensureOriginal(item: Item): Promise<string | null> {
-  if (!item.links.original) return null;
-  return keepMedia(
-    item.media.id,
-    'original',
-    item.media.format,
-    item.links.original,
-    item.projectId,
-  );
-}
+export const ensurePreview = (item: Item): Promise<string | null> => keep(item.links.preview, item);
+
+export const ensureOriginal = (item: Item): Promise<string | null> =>
+  keep(item.links.original, item);
 
 export async function saveItemToPhone(item: Item): Promise<boolean> {
   const local = await ensureOriginal(item);
@@ -68,8 +48,20 @@ export async function shareItem(item: Item): Promise<void> {
   await shareFile(local);
 }
 
-export const cacheUsage = (): { total: number; groups: CacheGroup[] } => mediaCacheUsage();
+export const cacheUsage = (): { total: number; groups: CacheGroup[] } => {
+  const media = mediaCacheUsage();
+  const data = cacheFolderUsage();
+  return {
+    total: media.total + data,
+    groups: data > 0 ? [...media.groups, { id: 'json', bytes: data }] : media.groups,
+  };
+};
 
-export const clearCache = (): void => clearMediaCache();
+export const clearCache = (): void => {
+  clearMediaCache();
+  clearDataCache();
+  void Image.clearDiskCache();
+  void Image.clearMemoryCache();
+};
 
-onSignOut(clearMediaCache);
+onSignOut(clearCache);

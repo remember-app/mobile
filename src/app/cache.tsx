@@ -32,6 +32,14 @@ export default function CacheScreen() {
   const titles = new Map(projects.cards.map((card) => [card.id, card.title]));
   const merged = new Map<string, { label: string; bytes: number }>();
   for (const group of usage.groups) {
+    if (group.id === 'json') {
+      const known = merged.get('json');
+      merged.set('json', {
+        label: t('cache.data'),
+        bytes: (known?.bytes ?? 0) + group.bytes,
+      });
+      continue;
+    }
     const title = group.id === 'other' ? undefined : titles.get(group.id);
     const key = title ? group.id : 'other';
     const known = merged.get(key);

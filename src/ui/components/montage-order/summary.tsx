@@ -1,4 +1,3 @@
-import { Image } from 'expo-image';
 import {
   Clock,
   Coins,
@@ -14,6 +13,7 @@ import { StyleSheet, View } from 'react-native';
 import { duration } from '@/ui/format';
 import { Card } from '@/ui/kit/card';
 import { CircularSpinner } from '@/ui/kit/circular-spinner';
+import { Image } from '@/ui/kit/image';
 import { Segment } from '@/ui/kit/segment';
 import { Text } from '@/ui/kit/text';
 import { radius, space, themed, useTheme } from '@/ui/theme';
@@ -30,6 +30,7 @@ export function OrderSummary({
   seconds,
   orientation,
   shots,
+  group,
   shotsCount,
   requiredCount,
   songs,
@@ -49,6 +50,7 @@ export function OrderSummary({
   seconds: number;
   orientation: Orientation;
   shots: readonly string[];
+  group?: string | null;
   shotsCount: number;
   requiredCount: number;
   songs: readonly SummarySong[];
@@ -91,6 +93,7 @@ export function OrderSummary({
                 {uri ? (
                   <Image
                     source={uri}
+                    group={group}
                     style={StyleSheet.absoluteFill}
                     contentFit="cover"
                     cachePolicy="memory-disk"

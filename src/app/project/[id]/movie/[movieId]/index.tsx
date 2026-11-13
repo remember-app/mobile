@@ -1,4 +1,3 @@
-import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import {
@@ -15,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { loadGallery, loadMembers, loadMovies } from '@/functionality';
+import { cachedUrl, keepUrl } from '@/integrations/files/media-cache';
 import { itemSource, montageItemIds, montageItems } from '@/models';
 import type { ProjectId } from '@/types/id';
 import {
@@ -32,6 +32,7 @@ import { BottomSheet } from '@/ui/kit/bottom-sheet';
 import { Button, IconButton } from '@/ui/kit/button';
 import { CircularSpinner } from '@/ui/kit/circular-spinner';
 import { Empty } from '@/ui/kit/empty';
+import { Image } from '@/ui/kit/image';
 import { Text } from '@/ui/kit/text';
 import { BackBar } from '@/ui/screens/chrome';
 import { photo, radius, space, useTheme } from '@/ui/theme';
@@ -49,7 +50,9 @@ export default function MovieScreen() {
   const members = useMembers(projectId);
   const gallery = useGallery(projectId);
   const movie = movies.items.find((entry) => entry.id === movieId);
-  const player = useVideoPlayer(movie?.videoUrl ?? null, (entry) => {
+  const videoUrl = movie?.videoUrl ?? null;
+  const videoLocal = videoUrl ? cachedUrl(videoUrl, projectId) : null;
+  const player = useVideoPlayer(videoLocal ?? videoUrl, (entry) => {
     entry.loop = false;
   });
   const view = useRef<VideoView>(null);
@@ -60,6 +63,10 @@ export default function MovieScreen() {
     void loadMembers(projectId);
     void loadGallery(projectId).catch(() => undefined);
   }, [projectId]);
+
+  useEffect(() => {
+    if (videoUrl && !videoLocal) void keepUrl(videoUrl, projectId);
+  }, [projectId, videoLocal, videoUrl]);
 
   if (!movie) {
     return (
@@ -164,6 +171,7 @@ export default function MovieScreen() {
           {movie.posterUrl ? (
             <Image
               source={movie.posterUrl}
+              group={movie.projectId}
               style={StyleSheet.absoluteFill}
               contentFit="cover"
               cachePolicy="memory-disk"
@@ -182,10 +190,15 @@ export default function MovieScreen() {
               {meta}
             </Text>
           ) : null}
-          <MusicCard songs={music} />
+          <MusicCard songs={music} group={projectId} />
           <PromptCard prompt={settings?.prompt ?? null} onOpen={() => setPromptOpen(true)} />
           {ids.length > 0 ? (
-            <FramesCard frames={frameUrls} count={ids.length} onPress={openFrames} />
+            <FramesCard
+              frames={frameUrls}
+              group={projectId}
+              count={ids.length}
+              onPress={openFrames}
+            />
           ) : null}
         </View>
       </Board>

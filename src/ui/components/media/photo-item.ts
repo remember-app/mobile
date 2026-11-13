@@ -8,6 +8,7 @@ export function tileOf(item: Item): Photo {
   const video = item.kind === 'video';
   return {
     id: item.id,
+    projectId: item.projectId,
     source: itemSource(item),
     preview: video
       ? (item.links.thumbnail ?? item.links.preview)
@@ -26,6 +27,7 @@ export function viewerOf(item: Item): ViewerPhoto {
   const video = item.kind === 'video';
   return {
     id: item.id,
+    projectId: item.projectId,
     source: item.links.preview ?? item.links.original ?? item.links.thumbnail,
     video,
     playbackUrl: video ? (item.links.preview ?? item.links.original) : null,

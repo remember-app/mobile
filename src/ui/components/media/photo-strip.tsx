@@ -1,4 +1,3 @@
-import { Image } from 'expo-image';
 import { Play } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -18,6 +17,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
+import { Image } from '@/ui/kit/image';
 import { useTheme } from '@/ui/theme';
 
 import { clamp } from './viewer/geometry';
@@ -64,6 +64,7 @@ function StripItem({ index, photo, lead, count, scrollX, onSelect }: ItemProps) 
         {photo.source ? (
           <Image
             source={photo.source}
+            group={photo.projectId}
             style={styles.fill}
             contentFit="cover"
             cachePolicy="memory-disk"

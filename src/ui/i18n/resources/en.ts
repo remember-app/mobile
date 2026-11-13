@@ -343,6 +343,7 @@ export const en = {
     stored: 'Stored on this device',
     empty: 'Cache is empty',
     other: 'Other',
+    data: 'Data',
     clear: 'Clear all cache',
     note: 'All media stays in the cloud — you can download it again when needed.',
   },

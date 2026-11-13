@@ -1,19 +1,21 @@
-import { Image } from 'expo-image';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { Analysis } from '@/models';
 import { scoreColor } from '@/ui/format';
+import { Image } from '@/ui/kit/image';
 import { Text } from '@/ui/kit/text';
 import { radius, space } from '@/ui/theme';
 
 export function AnalysisRow({
   source,
+  group,
   analysis,
   status,
   error,
   onPress,
 }: {
   source: string | null;
+  group?: string | null;
   analysis: Analysis | null;
   status: string;
   error?: string | null;
@@ -25,6 +27,7 @@ export function AnalysisRow({
         {source ? (
           <Image
             source={source}
+            group={group}
             style={styles.thumb}
             contentFit="cover"
             cachePolicy="memory-disk"

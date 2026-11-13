@@ -1,74 +1,75 @@
 import { Directory, File, Paths } from 'expo-file-system';
-
-export type MediaRole = 'thumbnail' | 'preview' | 'original';
+import { Image } from 'expo-image';
 
 export type CacheGroup = { id: string; bytes: number };
 
 const OTHER = 'other';
 const root = () => new Directory(Paths.document, 'media');
 const validId = (id: string) => /^[0-9a-f-]{36}$/i.test(id);
-const nameOf = (id: string, role: MediaRole, ext: string) => `${role}-${id}.${ext}`;
-const groupOf = (projectId: string | null) => (projectId && validId(projectId) ? projectId : OTHER);
-const folderOf = (projectId: string | null) => new Directory(root(), groupOf(projectId));
+const groupOf = (group: string | null) => (group && validId(group) ? group : OTHER);
+const folderOf = (group: string | null) => new Directory(root(), groupOf(group));
 
-const extensions: Record<MediaRole, string[]> = {
-  thumbnail: ['jpg'],
-  preview: ['jpg', 'mp4'],
-  original: ['jpeg', 'jpg', 'png', 'heic', 'webp', 'mp4', 'mov', 'mp3', 'm4a', 'wav'],
-};
+const cleared = new Set<() => void>();
 
-function fileOf(id: string, role: MediaRole, ext: string, projectId: string | null): File | null {
-  return validId(id) ? new File(folderOf(projectId), nameOf(id, role, ext)) : null;
+export function onCacheCleared(listener: () => void): () => void {
+  cleared.add(listener);
+  return () => {
+    cleared.delete(listener);
+  };
 }
 
-export function cachedMedia(
-  id: string,
-  role: MediaRole,
-  ext: string,
-  projectId: string | null,
-): string | null {
-  const file = fileOf(id, role, ext, projectId);
+export function urlKey(url: string): { id: string; ext: string } | null {
+  if (!/^https?:/i.test(url)) return null;
   try {
-    return file?.exists ? file.uri : null;
-  } catch (error) {
-    console.warn(`cached ${role} ${id} could not be read:`, error);
+    const parts = new URL(url).pathname.split('/').filter(Boolean);
+    const id = parts.at(-1);
+    const ext = parts.at(-2);
+    if (!id || !ext || !validId(id) || !/^[a-z0-9]+$/i.test(ext)) return null;
+    return { id: id.toLowerCase(), ext: ext.toLowerCase() };
+  } catch {
     return null;
   }
 }
 
-export function cachedMediaAny(
-  id: string,
-  role: MediaRole,
-  projectId: string | null,
-): string | null {
-  for (const ext of extensions[role]) {
-    const uri = cachedMedia(id, role, ext, projectId);
-    if (uri) return uri;
-  }
-  return null;
+function fileOf(url: string, group: string | null): File | null {
+  const key = urlKey(url);
+  return key ? new File(folderOf(group), `${key.id}.${key.ext}`) : null;
 }
 
-export async function keepMedia(
-  id: string,
-  role: MediaRole,
-  ext: string,
-  url: string,
-  projectId: string | null,
-): Promise<string | null> {
-  const file = fileOf(id, role, ext, projectId);
-  if (!file) return null;
-  const known = cachedMedia(id, role, ext, projectId);
-  if (known) return known;
-  const part = fileOf(id, role, `${ext}.part`, projectId);
-  if (!part) return null;
+function partOf(url: string, group: string | null): File | null {
+  const key = urlKey(url);
+  return key ? new File(folderOf(group), `${key.id}.${key.ext}.part`) : null;
+}
+
+export function cachedUrl(url: string, group: string | null): string | null {
+  const file = fileOf(url, group);
   try {
-    const folder = folderOf(projectId);
-    if (!folder.exists) folder.create({ intermediates: true, idempotent: true });
+    return file?.exists ? file.uri : null;
+  } catch (error) {
+    console.warn(`cached media ${url} could not be read:`, error);
+    return null;
+  }
+}
+
+function folderReady(group: string | null): Directory {
+  const folder = folderOf(group);
+  if (!folder.exists) folder.create({ intermediates: true, idempotent: true });
+  return folder;
+}
+
+export async function keepUrl(url: string, group: string | null): Promise<string | null> {
+  const file = fileOf(url, group);
+  const part = partOf(url, group);
+  const known = cachedUrl(url, group);
+  if (!file || !part || known) return known;
+  try {
+    folderReady(group);
+    if (part.exists) part.delete();
     await File.downloadFileAsync(url, part, { idempotent: true });
     await part.move(file, { overwrite: true });
     return file.uri;
   } catch (error) {
-    console.warn(`media ${role} ${id} was not kept:`, error);
+    console.warn(`media ${url} was not kept:`, error);
     try {
       part.delete();
     } catch {
@@ -78,16 +79,46 @@ export async function keepMedia(
   }
 }
 
-export function forgetItemMedia(id: string, projectId: string | null): void {
-  for (const [role, list] of Object.entries(extensions) as [MediaRole, string[]][]) {
-    for (const ext of list) {
+export async function keepLoaded(url: string, group: string | null): Promise<string | null> {
+  const known = cachedUrl(url, group);
+  if (known) return known;
+  const file = fileOf(url, group);
+  const part = partOf(url, group);
+  if (file && part) {
+    try {
+      const source = await imageCachePath(url);
+      if (source) {
+        folderReady(group);
+        if (part.exists) part.delete();
+        await new File(source).copy(part, { overwrite: true });
+        await part.move(file, { overwrite: true });
+        return file.uri;
+      }
+    } catch (error) {
+      console.warn(`displayed media ${url} could not be copied:`, error);
       try {
-        const file = fileOf(id, role, ext, projectId);
-        if (file?.exists) file.delete();
+        part.delete();
       } catch {
-        // already gone
+        // the half-file was already gone
       }
     }
+  }
+  return keepUrl(url, group);
+}
+
+async function imageCachePath(url: string): Promise<string | null> {
+  const first = await Image.getCachePathAsync(url);
+  if (first) return first;
+  await new Promise((resolve) => setTimeout(resolve, 350));
+  return Image.getCachePathAsync(url);
+}
+
+export function clearMediaGroup(group: string | null): void {
+  const folder = folderOf(group);
+  try {
+    if (folder.exists) folder.delete();
+  } catch (error) {
+    console.warn(`media group ${groupOf(group)} could not be cleared:`, error);
   }
 }
 
@@ -120,4 +151,5 @@ export function clearMediaCache(): void {
   } catch (error) {
     console.warn('media cache could not be cleared:', error);
   }
+  for (const listener of cleared) listener();
 }

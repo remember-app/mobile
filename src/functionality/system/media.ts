@@ -1,7 +1,7 @@
 import { systemMedia } from '@/integrations/api';
 import { toSystemMedia } from '@/integrations/api/map';
 import { readCache, writeCache } from '@/integrations/files/cache';
-import { keepMedia } from '@/integrations/files/media-cache';
+import { keepUrl } from '@/integrations/files/media-cache';
 import type { SystemMediaItem } from '@/models';
 
 const CACHE = 'system-media';
@@ -27,7 +27,7 @@ export async function loadSystemMedia(): Promise<void> {
     items = await Promise.all(
       answer.items.map(async (wire) => {
         const item = toSystemMedia(wire);
-        const local = await keepMedia(item.mediaId, 'preview', 'jpg', item.url, null);
+        const local = await keepUrl(item.url, null);
         return { ...item, url: local ?? item.url };
       }),
     );

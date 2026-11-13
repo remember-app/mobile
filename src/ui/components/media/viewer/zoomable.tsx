@@ -1,4 +1,4 @@
-import { Image, type ImageSource } from 'expo-image';
+import type { ImageSource } from 'expo-image';
 import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -9,6 +9,9 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
+
+import { Image } from '@/ui/kit/image';
+
 import { boxFor, clamp } from './geometry';
 import { verticalGestures } from './gestures';
 import { viewerStyles } from './styles';
@@ -16,6 +19,7 @@ import { viewerStyles } from './styles';
 type Props = {
   source: ImageSource | string | null;
   hd?: string | null;
+  group?: string | null;
   media: { width: number; height: number } | null;
   width: number;
   height: number;
@@ -31,6 +35,7 @@ type Props = {
 export function Zoomable({
   source,
   hd,
+  group,
   media,
   width,
   height,
@@ -190,6 +195,7 @@ export function Zoomable({
           <View style={box}>
             <Image
               source={source}
+              group={group}
               style={StyleSheet.absoluteFill}
               contentFit="contain"
               transition={100}
@@ -198,6 +204,7 @@ export function Zoomable({
             {hd ? (
               <Image
                 source={hd}
+                group={group}
                 style={[StyleSheet.absoluteFill, hdReady ? null : styles.hidden]}
                 contentFit="contain"
                 transition={120}

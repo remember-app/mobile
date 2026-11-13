@@ -1,4 +1,3 @@
-import { Image } from 'expo-image';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
@@ -11,6 +10,7 @@ import Animated, {
 import type { ProjectCard as Project } from '@/models/project';
 import { dateRange } from '@/ui/format';
 import { AvatarStack } from '@/ui/kit/avatar';
+import { Image } from '@/ui/kit/image';
 import { Text } from '@/ui/kit/text';
 import { radius, space, themed, useTheme } from '@/ui/theme';
 
@@ -96,6 +96,7 @@ export function ProjectCard({ project, covers, onPress }: Props) {
           {sources[0] ? (
             <Image
               source={sources[0]}
+              group={project.id}
               style={StyleSheet.absoluteFill}
               contentFit="cover"
               cachePolicy="memory-disk"
@@ -106,6 +107,7 @@ export function ProjectCard({ project, covers, onPress }: Props) {
           {sources[1] ? (
             <Image
               source={sources[1]}
+              group={project.id}
               style={StyleSheet.absoluteFill}
               contentFit="cover"
               cachePolicy="memory-disk"
