@@ -124,7 +124,7 @@ export default function HomeScreen() {
           icon={User}
           label={t('home.profile')}
           tone="surface"
-          size={48}
+          size={44}
           style={[styles.profile, { top: insets.top + space.s1 }]}
           onPress={() => router.navigate('/profile')}
         />
