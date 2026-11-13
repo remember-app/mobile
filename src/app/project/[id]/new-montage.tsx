@@ -310,10 +310,9 @@ export default function NewMontageScreen() {
   const selectAllShots = () => change({ includeItemIds: gallery.items.map((item) => item.id) });
   const removeShotsDuplicates = () => {
     const extras = nearDuplicateExtras(shots);
-    if (extras.size === 0) return;
     change((was) => ({
-      includeItemIds: was.includeItemIds.filter((entry) => !extras.has(entry as ProjectItemId)),
-      requiredItemIds: was.requiredItemIds.filter((entry) => !extras.has(entry as ProjectItemId)),
+      includeItemIds: shots.map((item) => item.id).filter((id) => !extras.has(id)),
+      requiredItemIds: was.requiredItemIds.filter((id) => !extras.has(id as ProjectItemId)),
     }));
   };
   const next = () => {
@@ -493,5 +492,6 @@ const styles = StyleSheet.create({
   duplicates: {
     position: 'absolute',
     left: space.s4,
+    zIndex: 1,
   },
 });
