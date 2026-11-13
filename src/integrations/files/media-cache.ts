@@ -155,6 +155,7 @@ export function clearMediaGroup(group: string | null): void {
   } catch (error) {
     console.warn(`media group ${groupOf(group)} could not be cleared:`, error);
   }
+  for (const listener of cleared) listener();
 }
 
 export function mediaCacheUsage(): { total: number; groups: CacheGroup[] } {

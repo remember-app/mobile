@@ -339,13 +339,13 @@ export const en = {
   },
   cache: {
     title: 'Cache',
-    used: 'Memory usage',
-    stored: 'Stored on this device',
     empty: 'Cache is empty',
     other: 'Other',
     data: 'Data',
-    clear: 'Clear all cache',
-    note: 'All media stays in the cloud — you can download it again when needed.',
+    system: 'System',
+    about: 'What is this cache',
+    hint: 'These are copies of your media on the device so the app runs fast. You can safely delete them — nothing will be lost, everything stays in the cloud.',
+    clear: 'Clear',
   },
   state: {
     loading: 'Loading…',

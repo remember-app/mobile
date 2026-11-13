@@ -16,6 +16,9 @@ type Props = {
   size?: number;
 };
 
+const amountOf = (bytes: number) => formatSize(bytes).split(' ')[0] ?? '';
+const unitOf = (bytes: number) => formatSize(bytes).split(' ').slice(1).join(' ');
+
 export function CacheDonut({ slices, total, size = 180 }: Props) {
   const { color } = useTheme();
   const stroke = 24;
@@ -78,13 +81,23 @@ export function CacheDonut({ slices, total, size = 180 }: Props) {
       })}
       <SvgText
         x={centre}
-        y={centre + 6}
+        y={centre - 2}
         fill={color.paper}
-        fontSize={18}
+        fontSize={20}
         fontWeight="700"
         textAnchor="middle"
       >
-        {formatSize(total)}
+        {amountOf(total)}
+      </SvgText>
+      <SvgText
+        x={centre}
+        y={centre + 17}
+        fill={color.muted}
+        fontSize={11}
+        fontWeight="600"
+        textAnchor="middle"
+      >
+        {unitOf(total)}
       </SvgText>
     </Svg>
   );

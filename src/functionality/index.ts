@@ -77,6 +77,7 @@ export {
   cachedOriginal,
   cacheUsage,
   clearCache,
+  clearCacheGroups,
   ensureOriginal,
   ensurePreview,
   ensureThumbnail,

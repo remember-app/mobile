@@ -6,6 +6,7 @@ import {
   type CacheGroup,
   cachedUrl,
   clearMediaCache,
+  clearMediaGroup,
   keepUrl,
   mediaCacheUsage,
 } from '@/integrations/files/media-cache';
@@ -62,6 +63,14 @@ export const clearCache = (): void => {
   clearDataCache();
   void Image.clearDiskCache();
   void Image.clearMemoryCache();
+};
+
+export const clearCacheGroups = (projectIds: readonly string[], system: boolean): void => {
+  for (const projectId of projectIds) clearMediaGroup(projectId);
+  if (system) {
+    clearMediaGroup(null);
+    clearDataCache();
+  }
 };
 
 onSignOut(clearCache);
