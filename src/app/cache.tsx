@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { cacheUsage, clearCache, clearCacheGroups } from '@/functionality';
+import type { MediaScope } from '@/integrations/files/media-cache';
 import { CacheDonut, type CacheSlice } from '@/ui/components/cache-donut';
 import { confirmAction } from '@/ui/confirm';
 import { size } from '@/ui/format';
@@ -21,13 +22,15 @@ import { height, labelColors, space, themed, useTheme } from '@/ui/theme';
 
 type Usage = ReturnType<typeof cacheUsage>;
 
+const EMPTY: Usage = { total: 0, projects: [], other: [], data: 0 };
+
 export default function CacheScreen() {
   const { t } = useTranslation();
   const theme = useTheme();
   const styles = useStyles();
   const insets = useSafeAreaInsets();
   const projects = useProjects();
-  const [usage, setUsage] = useState<Usage>({ total: 0, groups: [] });
+  const [usage, setUsage] = useState<Usage>(EMPTY);
   const [selected, setSelected] = useState<Set<string> | null>(null);
   const [systemOpen, setSystemOpen] = useState(false);
   const [hint, setHint] = useState(false);
@@ -39,16 +42,17 @@ export default function CacheScreen() {
   );
 
   const titles = new Map(projects.cards.map((card) => [card.id, card.title]));
-  const memories = usage.groups
-    .filter((group) => group.id !== 'json' && group.id !== 'other' && titles.has(group.id))
+  const memories = usage.projects
+    .filter((group) => titles.has(group.id))
     .map((group) => ({ id: group.id, label: titles.get(group.id) ?? '', bytes: group.bytes }))
     .sort((left, right) => right.bytes - left.bytes);
-  const known = new Set(memories.map((memory) => memory.id));
-  const dataBytes = usage.groups.find((group) => group.id === 'json')?.bytes ?? 0;
-  const otherBytes = usage.groups
-    .filter((group) => !known.has(group.id) && group.id !== 'json')
-    .reduce((sum, group) => sum + group.bytes, 0);
-  const systemBytes = otherBytes + dataBytes;
+  const hidden = usage.projects.filter((group) => !titles.has(group.id));
+  const scoped = (scope: MediaScope) => usage.other.find((group) => group.id === scope)?.bytes ?? 0;
+  const avatarsBytes = scoped('avatars');
+  const systemMediaBytes = scoped('system');
+  const musicBytes = scoped('music');
+  const orphanBytes = hidden.reduce((sum, group) => sum + group.bytes, 0) + scoped('misc');
+  const systemBytes = avatarsBytes + systemMediaBytes + musicBytes + orphanBytes + usage.data;
 
   const allIds = [...memories.map((memory) => memory.id), 'system'];
   const isSelected = (id: string) => selected === null || selected.has(id);
@@ -68,22 +72,29 @@ export default function CacheScreen() {
       label: memory.label,
       bytes: memory.bytes,
       color: palette[index % palette.length] ?? theme.color.accent,
+      on: isSelected(memory.id),
     })),
-    ...(systemBytes > 0
-      ? [
-          {
-            id: 'system',
-            label: t('cache.system'),
-            bytes: systemBytes,
-            color: palette[memories.length % palette.length] ?? theme.color.accent,
-          },
-        ]
-      : []),
+    {
+      id: 'system',
+      label: t('cache.system'),
+      bytes: systemBytes,
+      color: palette[memories.length % palette.length] ?? theme.color.accent,
+      on: isSelected('system'),
+    },
   ];
+  const tintOf = (id: string) => slices.find((slice) => slice.id === id)?.color;
 
   const selectedBytes =
     memories.reduce((sum, memory) => sum + (isSelected(memory.id) ? memory.bytes : 0), 0) +
     (isSelected('system') ? systemBytes : 0);
+
+  const breakdown = [
+    { id: 'avatars', label: t('cache.avatars'), bytes: avatarsBytes },
+    { id: 'systemMedia', label: t('cache.systemMedia'), bytes: systemMediaBytes },
+    { id: 'music', label: t('cache.music'), bytes: musicBytes },
+    { id: 'orphans', label: t('cache.orphans'), bytes: orphanBytes },
+    { id: 'data', label: t('cache.data'), bytes: usage.data },
+  ];
 
   const clear = () =>
     confirmAction({
@@ -95,7 +106,10 @@ export default function CacheScreen() {
         if (system && memories.every((memory) => isSelected(memory.id))) clearCache();
         else
           clearCacheGroups(
-            chosen.map((memory) => memory.id),
+            [
+              ...chosen.map((memory) => memory.id),
+              ...(system ? hidden.map((group) => group.id) : []),
+            ],
             system,
           );
         setUsage(cacheUsage());
@@ -139,7 +153,7 @@ export default function CacheScreen() {
         }
       >
         <View style={styles.top}>
-          <CacheDonut slices={slices} total={usage.total} />
+          <CacheDonut slices={slices} />
           {usage.total === 0 ? (
             <Text role="body" tone="muted">
               {t('cache.empty')}
@@ -156,6 +170,7 @@ export default function CacheScreen() {
                   <Checkbox
                     checked={isSelected(memory.id)}
                     label={memory.label}
+                    tint={tintOf(memory.id)}
                     onPress={() => toggle(memory.id)}
                   />
                   <Text role="row" numberOfLines={1} style={styles.grow}>
@@ -175,6 +190,7 @@ export default function CacheScreen() {
             <Checkbox
               checked={isSelected('system')}
               label={t('cache.system')}
+              tint={tintOf('system')}
               onPress={() => toggle('system')}
             />
             <Pressable
@@ -197,28 +213,21 @@ export default function CacheScreen() {
               {size(systemBytes)}
             </Text>
           </View>
-          {systemOpen ? (
-            <>
-              <Divider />
-              <View style={styles.line}>
-                <Text role="row" style={styles.grow}>
-                  {t('cache.other')}
-                </Text>
-                <Text role="rowPlain" tone="muted">
-                  {size(otherBytes)}
-                </Text>
-              </View>
-              <Divider />
-              <View style={styles.line}>
-                <Text role="row" style={styles.grow}>
-                  {t('cache.data')}
-                </Text>
-                <Text role="rowPlain" tone="muted">
-                  {size(dataBytes)}
-                </Text>
-              </View>
-            </>
-          ) : null}
+          {systemOpen
+            ? breakdown.map((line) => (
+                <View key={line.id}>
+                  <Divider />
+                  <View style={styles.line}>
+                    <Text role="row" style={styles.grow}>
+                      {line.label}
+                    </Text>
+                    <Text role="rowPlain" tone="muted">
+                      {size(line.bytes)}
+                    </Text>
+                  </View>
+                </View>
+              ))
+            : null}
         </Card>
       </Board>
 

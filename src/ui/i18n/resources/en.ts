@@ -340,9 +340,12 @@ export const en = {
   cache: {
     title: 'Cache',
     empty: 'Cache is empty',
-    other: 'Other',
     data: 'Data',
     system: 'System',
+    avatars: 'Avatars',
+    systemMedia: 'System media',
+    music: 'Music without a memory',
+    orphans: 'Other',
     about: 'What is this cache',
     hint: 'These are copies of your media on the device so the app runs fast. You can safely delete them — nothing will be lost, everything stays in the cloud.',
     clear: 'Clear',

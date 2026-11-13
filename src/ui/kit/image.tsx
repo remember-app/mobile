@@ -1,16 +1,24 @@
 import { Image as ExpoImage, type ImageProps } from 'expo-image';
 import { useEffect, useMemo, useState } from 'react';
 
-import { cachedUrl, keepLoaded, onCacheCleared } from '@/integrations/files/media-cache';
+import {
+  cachedUrl,
+  keepLoaded,
+  type MediaScope,
+  onCacheCleared,
+} from '@/integrations/files/media-cache';
 
-type Props = ImageProps & { group?: string | null };
+type Props = ImageProps & { group?: string | null; scope?: MediaScope };
 
-export function Image({ source, group, onLoad, ...rest }: Props) {
+export function Image({ source, group, scope, onLoad, ...rest }: Props) {
   const [epoch, setEpoch] = useState(0);
   useEffect(() => onCacheCleared(() => setEpoch((value) => value + 1)), []);
 
   const uri = uriOf(source);
-  const local = useMemo(() => (uri ? cachedUrl(uri, group ?? null) : null), [epoch, group, uri]);
+  const local = useMemo(
+    () => (uri ? cachedUrl(uri, group ?? null, scope) : null),
+    [epoch, group, scope, uri],
+  );
 
   return (
     <ExpoImage
@@ -18,7 +26,7 @@ export function Image({ source, group, onLoad, ...rest }: Props) {
       source={local ? { uri: local } : source}
       onLoad={(event) => {
         onLoad?.(event);
-        if (uri && !local) void keepLoaded(uri, group ?? null);
+        if (uri && !local) void keepLoaded(uri, group ?? null, scope);
       }}
     />
   );

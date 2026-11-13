@@ -1,13 +1,21 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import { Image } from 'expo-image';
 
-export type CacheGroup = { id: string; bytes: number };
+export type MediaScope = 'avatars' | 'system' | 'music' | 'misc';
+
+export type MediaUsage = {
+  total: number;
+  projects: { id: string; bytes: number }[];
+  other: { id: MediaScope; bytes: number }[];
+};
 
 const OTHER = 'other';
+const SCOPES: MediaScope[] = ['avatars', 'system', 'music', 'misc'];
 const root = () => new Directory(Paths.document, 'media');
 const validId = (id: string) => /^[0-9a-f-]{36}$/i.test(id);
-const groupOf = (group: string | null) => (group && validId(group) ? group : OTHER);
-const folderOf = (group: string | null) => new Directory(root(), groupOf(group));
+const isProject = (group: string | null): group is string => !!group && validId(group);
+const folderOf = (group: string | null, scope: MediaScope = 'misc') =>
+  isProject(group) ? new Directory(root(), group) : new Directory(root(), OTHER, scope);
 
 const cleared = new Set<() => void>();
 
@@ -31,24 +39,28 @@ export function urlKey(url: string): { id: string; ext: string } | null {
   }
 }
 
-function fileOf(url: string, group: string | null): File | null {
+function fileOf(url: string, group: string | null, scope: MediaScope): File | null {
   const key = urlKey(url);
-  return key ? new File(folderOf(group), `${key.id}.${key.ext}`) : null;
+  return key ? new File(folderOf(group, scope), `${key.id}.${key.ext}`) : null;
 }
 
-function partOf(url: string, group: string | null): File | null {
+function partOf(url: string, group: string | null, scope: MediaScope): File | null {
   const key = urlKey(url);
   const suffix = Math.random().toString(36).slice(2, 8);
-  return key ? new File(folderOf(group), `${key.id}.${key.ext}.${suffix}.part`) : null;
+  return key ? new File(folderOf(group, scope), `${key.id}.${key.ext}.${suffix}.part`) : null;
 }
 
-function cacheKeyOf(url: string, group: string | null): string | null {
+function cacheKeyOf(url: string, group: string | null, scope: MediaScope): string | null {
   const key = urlKey(url);
-  return key ? `${groupOf(group)}/${key.id}.${key.ext}` : null;
+  return key ? `${folderOf(group, scope).uri}/${key.id}.${key.ext}` : null;
 }
 
-export function cachedUrl(url: string, group: string | null): string | null {
-  const file = fileOf(url, group);
+export function cachedUrl(
+  url: string,
+  group: string | null,
+  scope: MediaScope = 'misc',
+): string | null {
+  const file = fileOf(url, group, scope);
   try {
     return file?.exists ? file.uri : null;
   } catch (error) {
@@ -57,8 +69,8 @@ export function cachedUrl(url: string, group: string | null): string | null {
   }
 }
 
-function folderReady(group: string | null): Directory {
-  const folder = folderOf(group);
+function folderReady(group: string | null, scope: MediaScope): Directory {
+  const folder = folderOf(group, scope);
   if (!folder.exists) folder.create({ intermediates: true, idempotent: true });
   return folder;
 }
@@ -85,18 +97,22 @@ function tracked(
   return promise;
 }
 
-export function keepUrl(url: string, group: string | null): Promise<string | null> {
-  const key = cacheKeyOf(url, group);
+export function keepUrl(
+  url: string,
+  group: string | null,
+  scope: MediaScope = 'misc',
+): Promise<string | null> {
+  const key = cacheKeyOf(url, group, scope);
   if (!key) return Promise.resolve(null);
-  const known = cachedUrl(url, group);
+  const known = cachedUrl(url, group, scope);
   if (known) return Promise.resolve(known);
   return tracked(downloading, key, () =>
     serially(async () => {
-      const file = fileOf(url, group);
-      const part = partOf(url, group);
+      const file = fileOf(url, group, scope);
+      const part = partOf(url, group, scope);
       if (!file || !part) return null;
       try {
-        folderReady(group);
+        folderReady(group, scope);
         await File.downloadFileAsync(url, part, { idempotent: true });
         await part.move(file, { overwrite: true });
         return file.uri;
@@ -113,19 +129,23 @@ export function keepUrl(url: string, group: string | null): Promise<string | nul
   );
 }
 
-export function keepLoaded(url: string, group: string | null): Promise<string | null> {
-  const key = cacheKeyOf(url, group);
+export function keepLoaded(
+  url: string,
+  group: string | null,
+  scope: MediaScope = 'misc',
+): Promise<string | null> {
+  const key = cacheKeyOf(url, group, scope);
   if (!key) return Promise.resolve(null);
-  const known = cachedUrl(url, group);
+  const known = cachedUrl(url, group, scope);
   if (known) return Promise.resolve(known);
   return tracked(copying, key, async () => {
-    const file = fileOf(url, group);
-    const part = partOf(url, group);
+    const file = fileOf(url, group, scope);
+    const part = partOf(url, group, scope);
     if (!file || !part) return null;
     try {
       const source = await imageCachePath(url);
       if (!source) return null;
-      folderReady(group);
+      folderReady(group, scope);
       await new File(source).copy(part, { overwrite: true });
       await part.move(file, { overwrite: true });
       return file.uri;
@@ -148,37 +168,63 @@ async function imageCachePath(url: string): Promise<string | null> {
   return Image.getCachePathAsync(url);
 }
 
+function sumFiles(directory: Directory): number {
+  let bytes = 0;
+  for (const file of directory.list()) {
+    if (file instanceof File) bytes += file.size ?? 0;
+  }
+  return bytes;
+}
+
 export function clearMediaGroup(group: string | null): void {
-  const folder = folderOf(group);
+  const folder = isProject(group) ? new Directory(root(), group) : new Directory(root(), OTHER);
   try {
     if (folder.exists) folder.delete();
   } catch (error) {
-    console.warn(`media group ${groupOf(group)} could not be cleared:`, error);
+    console.warn(`media group ${group ?? OTHER} could not be cleared:`, error);
   }
   for (const listener of cleared) listener();
 }
 
-export function mediaCacheUsage(): { total: number; groups: CacheGroup[] } {
-  const groups: CacheGroup[] = [];
+export function mediaCacheUsage(): MediaUsage {
+  const projects: { id: string; bytes: number }[] = [];
+  const other = new Map<MediaScope, number>();
   let total = 0;
+  const addOther = (scope: MediaScope, bytes: number) => {
+    if (bytes <= 0) return;
+    other.set(scope, (other.get(scope) ?? 0) + bytes);
+    total += bytes;
+  };
   try {
-    if (!root().exists) return { total, groups };
+    if (!root().exists) return { total, projects, other: [] };
     for (const entry of root().list()) {
       if (!(entry instanceof Directory)) continue;
-      let bytes = 0;
-      for (const file of entry.list()) {
-        if (file instanceof File) bytes += file.size ?? 0;
+      if (entry.name === OTHER) {
+        for (const child of entry.list()) {
+          if (child instanceof Directory) {
+            const scope = SCOPES.includes(child.name as MediaScope)
+              ? (child.name as MediaScope)
+              : 'misc';
+            addOther(scope, sumFiles(child));
+          } else if (child instanceof File) {
+            addOther('misc', child.size ?? 0);
+          }
+        }
+        continue;
       }
+      const bytes = sumFiles(entry);
       if (bytes > 0) {
-        groups.push({ id: entry.name, bytes });
+        projects.push({ id: entry.name, bytes });
         total += bytes;
       }
     }
   } catch (error) {
     console.warn('media cache could not be measured:', error);
   }
-  groups.sort((a, b) => b.bytes - a.bytes);
-  return { total, groups };
+  projects.sort((left, right) => right.bytes - left.bytes);
+  const scopes = [...other.entries()].map(([id, bytes]) => ({ id, bytes }));
+  scopes.sort((left, right) => right.bytes - left.bytes);
+  return { total, projects, other: scopes };
 }
 
 export function clearMediaCache(): void {

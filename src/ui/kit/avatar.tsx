@@ -54,7 +54,12 @@ export function Avatar({ name, size = 42, uri, ring, gone, display, stacked, sty
       ]}
     >
       {uri ? (
-        <Image source={{ uri }} contentFit="cover" style={[StyleSheet.absoluteFill, circle]} />
+        <Image
+          source={{ uri }}
+          scope="avatars"
+          contentFit="cover"
+          style={[StyleSheet.absoluteFill, circle]}
+        />
       ) : (
         <Text
           role={display ? 'subtitleDisplay' : 'row'}

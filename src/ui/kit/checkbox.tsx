@@ -6,14 +6,17 @@ import { themed, useTheme } from '@/ui/theme';
 export function Checkbox({
   checked,
   label,
+  tint,
   onPress,
 }: {
   checked: boolean;
   label: string;
+  tint?: string;
   onPress: () => void;
 }) {
   const { color } = useTheme();
   const styles = useStyles();
+  const mark = tint ?? color.accent;
   return (
     <Pressable
       accessibilityRole="checkbox"
@@ -24,8 +27,8 @@ export function Checkbox({
       style={[
         styles.box,
         {
-          borderColor: checked ? color.accent : color.line,
-          backgroundColor: checked ? color.accent : 'transparent',
+          borderColor: mark,
+          backgroundColor: checked ? mark : 'transparent',
         },
       ]}
     >

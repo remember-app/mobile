@@ -27,7 +27,7 @@ export async function loadSystemMedia(): Promise<void> {
     items = await Promise.all(
       answer.items.map(async (wire) => {
         const item = toSystemMedia(wire);
-        const local = await keepUrl(item.url, null);
+        const local = await keepUrl(item.url, null, 'system');
         return { ...item, url: local ?? item.url };
       }),
     );

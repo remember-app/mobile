@@ -3,7 +3,6 @@ import { Image } from 'expo-image';
 import { onSignOut } from '@/functionality/auth/session';
 import { cacheFolderUsage, clearCache as clearDataCache } from '@/integrations/files/cache';
 import {
-  type CacheGroup,
   cachedUrl,
   clearMediaCache,
   clearMediaGroup,
@@ -49,12 +48,14 @@ export async function shareItem(item: Item): Promise<void> {
   await shareFile(local);
 }
 
-export const cacheUsage = (): { total: number; groups: CacheGroup[] } => {
+export const cacheUsage = () => {
   const media = mediaCacheUsage();
   const data = cacheFolderUsage();
   return {
     total: media.total + data,
-    groups: data > 0 ? [...media.groups, { id: 'json', bytes: data }] : media.groups,
+    projects: media.projects,
+    other: media.other,
+    data,
   };
 };
 
