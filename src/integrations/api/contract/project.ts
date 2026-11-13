@@ -27,7 +27,7 @@ export type ProjectMemberFaceResponse = {
 
 export type ProjectCardResponse = ProjectResponse & {
   previewUrls: string[];
-  members: ProjectMemberFaceResponse[];
+  members?: ProjectMemberFaceResponse[];
 };
 
 export type ProjectsPageResponse = PageResponse<ProjectCardResponse>;
