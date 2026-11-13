@@ -10,7 +10,7 @@ import { readCache, writeCache } from '@/integrations/files/cache';
 import type { Contact, PublicUser } from '@/models';
 import type { UserId } from '@/types/id';
 
-const CACHE = 'contacts';
+const CACHE = 'contacts-v2';
 
 export type ContactsState = {
   status: 'loading' | 'ready' | 'error';

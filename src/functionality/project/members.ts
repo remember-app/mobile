@@ -34,7 +34,7 @@ const states = new Map<ProjectId, MembersState>();
 const inFlight = new Map<ProjectId, Promise<void>>();
 const listeners = new Set<() => void>();
 
-const cacheName = (projectId: ProjectId) => `members-${projectId}`;
+const cacheName = (projectId: ProjectId) => `members-v2-${projectId}`;
 const terminal = (contribution: Contribution) => contribution === 'done';
 
 export const membersState = (projectId: ProjectId): MembersState => states.get(projectId) ?? EMPTY;
