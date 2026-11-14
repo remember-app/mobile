@@ -142,6 +142,7 @@ function toSummary(wire: ProjectSummaryWire): Project {
   return {
     id: wire.id,
     title: wire.title,
+    description: wire.description,
     eventStart: date(wire.eventStart),
     eventEnd: dateOrNull(wire.eventEnd),
     consumables: toConsumable(wire.consumables),

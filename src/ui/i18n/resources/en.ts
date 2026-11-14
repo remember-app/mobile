@@ -121,6 +121,7 @@ export const en = {
   project: {
     title: 'Memory',
     notFound: 'Memory not found',
+    descriptionPlaceholder: 'What is this memory about?',
     members: 'Members',
     add: 'Add',
     select: 'Select files',
@@ -316,7 +317,7 @@ export const en = {
       shotsTitle: 'Shots',
       selectAll: 'Select all',
       promptTitle: 'Wish',
-      promptPlaceholder: 'What should the video feel like?',
+      promptPlaceholder: 'What are your wishes for the montage?',
       musicTitle: 'Music',
       directorChoice: 'Let the director choose',
       noMusicChoice: 'No music',

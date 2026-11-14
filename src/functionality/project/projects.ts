@@ -56,6 +56,7 @@ function emit(next: ProjectsState): void {
 function revive(card: ProjectCard): ProjectCard {
   return {
     ...card,
+    description: card.description ?? '',
     eventStart: new Date(card.eventStart),
     eventEnd: card.eventEnd === null ? null : new Date(card.eventEnd),
     members: card.members ?? [],
@@ -198,6 +199,7 @@ export async function loadMoreProjects(): Promise<void> {
 
 export async function createProject(input: {
   title: string;
+  description?: string;
   eventStart: string;
   eventEnd?: string | null;
   storageBytes?: number;
@@ -215,6 +217,7 @@ export async function updateProject(
   id: string,
   patch: {
     title?: string;
+    description?: string;
     eventStart?: string;
     eventEnd?: string | null;
   },

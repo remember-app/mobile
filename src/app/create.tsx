@@ -21,6 +21,7 @@ export default function CreateScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [from, setFrom] = useState<Date | null>(null);
   const [to, setTo] = useState<Date | null>(null);
   const session = useSession();
@@ -64,6 +65,16 @@ export default function CreateScreen() {
         placeholder={t('create.name')}
         maxLength={30}
       />
+      <Field
+        label={t('project.descriptionPlaceholder')}
+        value={description}
+        onChangeText={setDescription}
+        placeholder={t('project.descriptionPlaceholder')}
+        maxLength={2000}
+        multiline
+        scrollEnabled={false}
+        style={styles.note}
+      />
       <EventDates
         from={from}
         to={to}
@@ -103,6 +114,7 @@ export default function CreateScreen() {
             try {
               const project = await createProject({
                 title: title.trim(),
+                description: description.trim(),
                 eventStart: from.toISOString(),
                 eventEnd: to?.toISOString() ?? null,
                 storageBytes: size * 1024 ** 3,
@@ -136,5 +148,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.s5,
     paddingTop: space.s5,
     gap: space.s5,
+  },
+  note: {
+    textAlignVertical: 'top',
   },
 });

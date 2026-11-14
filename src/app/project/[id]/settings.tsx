@@ -24,6 +24,7 @@ export default function ProjectSettingsScreen() {
   const projectId = id as ProjectId;
   const project = useProjectCard(projectId);
   const [title, setTitle] = useState(project?.title ?? '');
+  const [description, setDescription] = useState(project?.description ?? '');
   const [from, setFrom] = useState<Date | null>(project?.eventStart ?? null);
   const [to, setTo] = useState<Date | null>(project?.eventEnd ?? null);
 
@@ -34,6 +35,7 @@ export default function ProjectSettingsScreen() {
   useEffect(() => {
     if (!project) return;
     setTitle(project.title);
+    setDescription(project.description);
     setFrom(project.eventStart);
     setTo(project.eventEnd);
   }, [project?.id]);
@@ -46,6 +48,7 @@ export default function ProjectSettingsScreen() {
     if (!title.trim() || !from) return;
     await updateProject(projectId, {
       title: title.trim(),
+      description: description.trim(),
       eventStart: from.toISOString(),
       eventEnd: to?.toISOString() ?? null,
     });
@@ -100,6 +103,16 @@ export default function ProjectSettingsScreen() {
         placeholder={t('project.name')}
         maxLength={30}
       />
+      <Field
+        label={t('project.descriptionPlaceholder')}
+        value={description}
+        onChangeText={setDescription}
+        placeholder={t('project.descriptionPlaceholder')}
+        maxLength={2000}
+        multiline
+        scrollEnabled={false}
+        style={styles.note}
+      />
       <EventDates
         from={from}
         to={to}
@@ -116,6 +129,9 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: space.s5,
     paddingTop: space.s3,
+  },
+  note: {
+    textAlignVertical: 'top',
   },
   body: {
     paddingHorizontal: space.s5,

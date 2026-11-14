@@ -10,6 +10,7 @@ export type ProjectPage = { limit?: number; offset?: number };
 
 export type NewProject = {
   title: string;
+  description?: string;
   eventStart: string;
   eventEnd?: string | null;
   storageBytes?: number;
@@ -17,6 +18,7 @@ export type NewProject = {
 
 export type ProjectPatch = {
   title?: string;
+  description?: string;
   eventStart?: string;
   eventEnd?: string | null;
 };

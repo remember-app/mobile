@@ -9,6 +9,7 @@ export type Contribution = 'not_started' | 'more_coming' | 'done';
 export type ProjectSummary = {
   id: ProjectId;
   title: string;
+  description: string;
   eventStart: Date;
   eventEnd: Date | null;
   consumables: Consumable;

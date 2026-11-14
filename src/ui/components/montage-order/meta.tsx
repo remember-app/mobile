@@ -13,6 +13,9 @@ import { type Change, type Draft, OrderPage, OrderScroll, type Orientation } fro
 export function MetaPage({
   draft,
   projectTitle,
+  eventDescription,
+  onEventDescription,
+  onEventDescriptionDone,
   onChange,
   width,
   height,
@@ -21,6 +24,9 @@ export function MetaPage({
 }: {
   draft: Draft;
   projectTitle: string;
+  eventDescription: string;
+  onEventDescription: (value: string) => void;
+  onEventDescriptionDone: () => void;
   onChange: Change;
   width: number;
   height: number;
@@ -38,6 +44,17 @@ export function MetaPage({
           onChangeText={(name) => onChange({ name })}
           placeholder={projectTitle}
           maxLength={200}
+        />
+        <Field
+          label={t('project.descriptionPlaceholder')}
+          value={eventDescription}
+          onChangeText={onEventDescription}
+          onEndEditing={onEventDescriptionDone}
+          placeholder={t('project.descriptionPlaceholder')}
+          maxLength={2000}
+          multiline
+          scrollEnabled={false}
+          style={styles.note}
         />
         <Field
           label={t('montage.order.promptTitle')}
@@ -83,6 +100,9 @@ export function MetaPage({
 
 const useStyles = themed(() =>
   StyleSheet.create({
+    note: {
+      textAlignVertical: 'top',
+    },
     area: {
       minHeight: 120,
       textAlignVertical: 'top',

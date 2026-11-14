@@ -19,6 +19,7 @@ import {
   loadProjects,
   previewMontage,
   refreshSession,
+  updateProject,
 } from '@/functionality';
 import { isApiError } from '@/integrations/api';
 import { itemSource, type MontageTemplate } from '@/models';
@@ -82,6 +83,8 @@ export default function NewMontageScreen() {
   const [payer, setPayer] = useState<'project' | 'user' | null>(null);
   const [director, setDirector] = useState(false);
   const [viewer, setViewer] = useState<{ index: number; rect?: Rect } | null>(null);
+  const [description, setDescription] = useState('');
+  const savedDescription = useRef('');
   const pager = useRef<ScrollViewInstance>(null);
 
   const change = (patch: Partial<Draft> | ((was: Draft) => Partial<Draft>)) =>
@@ -94,6 +97,20 @@ export default function NewMontageScreen() {
     void loadProjectSongs(projectId);
     void loadLibrarySongs();
   }, [projectId]);
+
+  useEffect(() => {
+    if (!project) return;
+    setDescription(project.description);
+    savedDescription.current = project.description;
+  }, [project?.id]);
+
+  const saveDescription = () => {
+    if (!project) return;
+    const next = description.trim();
+    if (next === savedDescription.current) return;
+    savedDescription.current = next;
+    void updateProject(projectId, { description: next });
+  };
 
   const dimensions = dimensionsOf(draft.orientation);
   const prompt = draft.prompt.trim() || null;
@@ -200,6 +217,7 @@ export default function NewMontageScreen() {
     preview === null || preview.problems.length > 0 || !funded || busy || photos.length === 0;
 
   const go = (next: number) => {
+    saveDescription();
     const target = Math.max(0, Math.min(STEPS - 1, next));
     pager.current?.scrollTo({ x: target * width, animated: true });
     setIndex(target);
@@ -265,6 +283,7 @@ export default function NewMontageScreen() {
   const submit = async () => {
     const token = currentToken();
     if (!token || busy || blocked) return;
+    saveDescription();
     setBusy(true);
     setError(null);
     try {
@@ -351,6 +370,9 @@ export default function NewMontageScreen() {
               bottom={bottom}
               draft={draft}
               projectTitle={project?.title ?? ''}
+              eventDescription={description}
+              onEventDescription={setDescription}
+              onEventDescriptionDone={saveDescription}
               onChange={change}
             />
             <ShotsPage

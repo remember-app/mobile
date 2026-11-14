@@ -124,6 +124,7 @@ export const ru: typeof en = {
   project: {
     title: 'Воспоминание',
     notFound: 'Воспоминание не найдено',
+    descriptionPlaceholder: 'О чём это воспоминание?',
     members: 'Участники',
     add: 'Добавить',
     select: 'Выбрать файлы',
@@ -319,7 +320,7 @@ export const ru: typeof en = {
       shotsTitle: 'Кадры',
       selectAll: 'Выбрать все',
       promptTitle: 'Пожелание',
-      promptPlaceholder: 'Каким должен получиться ролик?',
+      promptPlaceholder: 'Какие пожелания к монтажу?',
       musicTitle: 'Музыка',
       directorChoice: 'Пусть выберет режиссёр',
       noMusicChoice: 'Без музыки',
