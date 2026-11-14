@@ -72,7 +72,8 @@ export type AnalysisResponse = {
   level: AnalysisLevel;
   summary: string;
   description: string;
-  score: number;
+  scoreImportance?: number;
+  scoreQuality?: number;
   tags: AnalysisTags | null;
   frames?: AnalysisSegment[] | null;
   sounds?: AnalysisSegment[] | null;

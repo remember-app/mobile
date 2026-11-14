@@ -103,20 +103,34 @@ export function AnalysisBlock({ projectId, item }: { projectId: ProjectId; item:
           disabled={busy || live}
           onPress={() => void start()}
         />
-        <View style={styles.grow} />
-        {analysis ? (
-          <>
-            <Text role="meta" style={styles.muted}>
-              {t('photo.score')}
-            </Text>
-            <Text role="row" style={{ color: scoreColor(analysis.score) }}>
-              {analysis.score.toFixed(1)}
-            </Text>
-          </>
-        ) : null}
       </View>
       <View style={styles.divider} />
       <View style={styles.body}>
+        {analysis &&
+        (analysis.scoreImportance !== undefined || analysis.scoreQuality !== undefined) ? (
+          <View style={styles.scores}>
+            {analysis.scoreImportance !== undefined ? (
+              <View style={styles.score}>
+                <Text role="meta" style={styles.muted}>
+                  {t('photo.importance')}
+                </Text>
+                <Text role="row" style={{ color: scoreColor(analysis.scoreImportance) }}>
+                  {analysis.scoreImportance.toFixed(1)}
+                </Text>
+              </View>
+            ) : null}
+            {analysis.scoreQuality !== undefined ? (
+              <View style={styles.score}>
+                <Text role="meta" style={styles.muted}>
+                  {t('photo.quality')}
+                </Text>
+                <Text role="row" style={{ color: scoreColor(analysis.scoreQuality) }}>
+                  {analysis.scoreQuality.toFixed(1)}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
         {analysis?.summary ? (
           <Text role="bodySm" style={styles.paper}>
             {analysis.summary}
@@ -149,8 +163,14 @@ const useStyles = themed(({ color }) =>
       paddingHorizontal: space.s4,
       paddingVertical: space.s3,
     },
-    grow: {
-      flex: 1,
+    scores: {
+      flexDirection: 'row',
+      gap: space.s4,
+    },
+    score: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: space.s2,
     },
     divider: {
       height: StyleSheet.hairlineWidth,

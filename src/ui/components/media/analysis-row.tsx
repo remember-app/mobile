@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { Analysis } from '@/models';
@@ -21,6 +22,7 @@ export function AnalysisRow({
   error?: string | null;
   onPress?: () => void;
 }) {
+  const { t } = useTranslation();
   const face = (
     <>
       <View style={styles.file}>
@@ -35,9 +37,14 @@ export function AnalysisRow({
         ) : (
           <View style={[styles.thumb, styles.emptyThumb]} />
         )}
-        {analysis ? (
-          <Text role="noteSm" style={{ color: scoreColor(analysis.score) }}>
-            {analysis.score.toFixed(2)}
+        {analysis?.scoreImportance !== undefined ? (
+          <Text role="noteSm" style={{ color: scoreColor(analysis.scoreImportance) }}>
+            {t('photo.importanceShort')} {analysis.scoreImportance.toFixed(1)}
+          </Text>
+        ) : null}
+        {analysis?.scoreQuality !== undefined ? (
+          <Text role="noteSm" style={{ color: scoreColor(analysis.scoreQuality) }}>
+            {t('photo.qualityShort')} {analysis.scoreQuality.toFixed(1)}
           </Text>
         ) : null}
       </View>
