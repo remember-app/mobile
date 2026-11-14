@@ -14,6 +14,7 @@ import {
   currentToken,
   loadGallery,
   loadLibrarySongs,
+  loadMontages,
   loadMontageTemplates,
   loadProjectSongs,
   loadProjects,
@@ -48,6 +49,7 @@ import {
 import {
   useGallery,
   useLibrarySongs,
+  useMontages,
   useProjectCard,
   useProjectSongs,
   useSession,
@@ -70,6 +72,8 @@ export default function NewMontageScreen() {
   const gallery = useGallery(projectId);
   const projectSongs = useProjectSongs(projectId);
   const library = useLibrarySongs();
+  const montages = useMontages(projectId);
+  const defaultName = `№${montages.items.length + 1}`;
 
   const [draft, setDraft] = useState<Draft>(Start);
   const [index, setIndex] = useState(0);
@@ -96,6 +100,7 @@ export default function NewMontageScreen() {
     void loadGallery(projectId);
     void loadProjectSongs(projectId);
     void loadLibrarySongs();
+    void loadMontages(projectId, true).catch(() => undefined);
   }, [projectId]);
 
   useEffect(() => {
@@ -291,7 +296,7 @@ export default function NewMontageScreen() {
         templateId: draft.templateId,
         payFrom,
         config: {
-          name: draft.name.trim() || null,
+          name: draft.name.trim() || defaultName,
           targetSeconds: draft.targetSeconds,
           prompt,
           dimensions,
@@ -369,7 +374,7 @@ export default function NewMontageScreen() {
               top={headHeight}
               bottom={bottom}
               draft={draft}
-              projectTitle={project?.title ?? ''}
+              defaultName={defaultName}
               eventDescription={description}
               onEventDescription={setDescription}
               onEventDescriptionDone={saveDescription}
@@ -406,7 +411,7 @@ export default function NewMontageScreen() {
             <OrderPage width={width} height={height}>
               <OrderScroll top={headHeight} bottom={bottom}>
                 <OrderSummary
-                  title={draft.name.trim() || (project?.title ?? '')}
+                  title={draft.name.trim() || defaultName}
                   seconds={draft.targetSeconds}
                   orientation={draft.orientation}
                   shots={posterShots}

@@ -6,13 +6,13 @@ import { duration } from '@/ui/format';
 import { Field } from '@/ui/kit/field';
 import { Segment } from '@/ui/kit/segment';
 import { Slider } from '@/ui/kit/slider';
-import { space, themed } from '@/ui/theme';
+import { themed } from '@/ui/theme';
 
 import { type Change, type Draft, OrderPage, OrderScroll, type Orientation } from './wizard';
 
 export function MetaPage({
   draft,
-  projectTitle,
+  defaultName,
   eventDescription,
   onEventDescription,
   onEventDescriptionDone,
@@ -23,7 +23,7 @@ export function MetaPage({
   bottom,
 }: {
   draft: Draft;
-  projectTitle: string;
+  defaultName: string;
   eventDescription: string;
   onEventDescription: (value: string) => void;
   onEventDescriptionDone: () => void;
@@ -42,7 +42,7 @@ export function MetaPage({
           label={t('montage.order.movieName')}
           value={draft.name}
           onChangeText={(name) => onChange({ name })}
-          placeholder={projectTitle}
+          placeholder={defaultName}
           maxLength={200}
         />
         <Field
@@ -62,8 +62,9 @@ export function MetaPage({
           onChangeText={(prompt) => onChange({ prompt })}
           placeholder={t('montage.order.promptPlaceholder')}
           multiline
+          scrollEnabled={false}
           maxLength={4000}
-          style={styles.area}
+          style={styles.note}
         />
         <Slider
           label={t('montage.order.duration')}
@@ -102,11 +103,6 @@ const useStyles = themed(() =>
   StyleSheet.create({
     note: {
       textAlignVertical: 'top',
-    },
-    area: {
-      minHeight: 120,
-      textAlignVertical: 'top',
-      paddingTop: space.s3,
     },
   }),
 );
