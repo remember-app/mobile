@@ -25,27 +25,26 @@ const plain: Wallpaper = { base: BASE.plain, state: null };
 const centered = (state: number): Wallpaper => ({ base: BASE.center, state });
 
 /**
- * Обои по месту приложения: на главной и в профиле — плотный узор без
- * свободного центра, в воспоминании и на экране роликов — узор с пустым
- * центром и логотип поверх него.
+ * Обои одного экрана: на главной и в профиле — плотный узор без свободного
+ * центра, в воспоминании и на экране роликов — узор с пустым центром и
+ * логотип поверх него.
  */
 export function wallpaperFor(
-  pathname: string,
+  routeName: string,
+  projectId: ProjectId | undefined,
   cards: readonly ProjectCard[],
   movies: readonly Movie[],
   loadedItems: number,
 ): Wallpaper {
-  const [, section, id, page] = pathname.split('/');
-
-  if (section === 'home' || !section) {
+  if (routeName === 'home') {
     return cards.length > 0 ? plain : centered(STATE.empty);
   }
 
-  if (section === 'project' && id) {
-    if (page === 'movies') {
+  if (routeName.startsWith('project/[id]') && projectId) {
+    if (routeName.endsWith('/movies')) {
       return centered(movies.length > 0 ? STATE.complete : STATE.star);
     }
-    const card = cards.find((entry) => entry.id === (id as ProjectId));
+    const card = cards.find((entry) => entry.id === projectId);
     if (!card) return plain;
     const shared = card.memberCount > 0 ? card.sharedCount / card.memberCount : 0;
     if (shared >= 1) return centered(movies.length > 0 ? STATE.complete : STATE.full);
