@@ -52,8 +52,7 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    preloadWallpapers();
-    void startApp().finally(() => setReady(true));
+    void Promise.all([startApp(), preloadWallpapers()]).finally(() => setReady(true));
     void readLanguage().then((stored) => {
       if (!languageSynced.current) void applyLanguage(stored);
     });

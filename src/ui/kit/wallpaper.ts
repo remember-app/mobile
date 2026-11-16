@@ -1,4 +1,4 @@
-import { Image } from 'expo-image';
+import { Image, type ImageRef } from 'expo-image';
 
 import type { Movie, ProjectCard } from '@/models';
 import type { ProjectId } from '@/types/id';
@@ -21,19 +21,30 @@ const STATE: Record<string, number> = {
 const FILLED_AT_ITEMS = 5;
 const SHARED_ENOUGH = 0.75;
 
-export type Wallpaper = { base: number | null; state: number | null };
+export type Wallpaper = { base: ImageRef | number | null; state: number | null };
 
-const plain: Wallpaper = { base: BASE.plain, state: null };
-const centered = (state: number | null): Wallpaper => ({ base: BASE.center, state });
+let decoded: Record<keyof typeof BASE, ImageRef> | null = null;
 
 /**
- * Готовит обои заранее: иначе при переходе экран успевает выехать с прозрачным
- * фоном, и узор проявляется уже поверх старого экрана.
+ * Декодирует обои до первого экрана. Готовая картинка отдаётся экрану как
+ * есть, поэтому он выезжает с узором сразу, а не проявляет его поверх старого.
  */
-export function preloadWallpapers(): void {
-  void Image.loadAsync(BASE.plain).catch(() => undefined);
-  void Image.loadAsync(BASE.center).catch(() => undefined);
+export async function preloadWallpapers(): Promise<void> {
+  try {
+    const [plain, center] = await Promise.all([
+      Image.loadAsync(BASE.plain),
+      Image.loadAsync(BASE.center),
+    ]);
+    decoded = { plain, center };
+  } catch {
+    // без обоев экран останется на сплошном фоне
+  }
 }
+
+const base = (kind: keyof typeof BASE): ImageRef | number => decoded?.[kind] ?? BASE[kind];
+const solid: Wallpaper = { base: null, state: null };
+const plain = (): Wallpaper => ({ base: base('plain'), state: null });
+const centered = (state: number | null): Wallpaper => ({ base: base('center'), state });
 
 /**
  * Обои одного экрана: на главной и в профиле — плотный узор без свободного
@@ -47,11 +58,11 @@ export function wallpaperFor(
   movies: readonly Movie[],
   loadedItems: number,
 ): Wallpaper {
-  if (routeName === 'onboarding') return plain;
-  if (routeName === 'sign-up') return centered(null);
+  if (routeName === 'onboarding' || routeName === 'welcome') return solid;
+  if (routeName === 'sign-up') return plain();
 
   if (routeName === 'home') {
-    return cards.length > 0 ? plain : centered(STATE.empty);
+    return cards.length > 0 ? plain() : centered(STATE.empty);
   }
 
   if (routeName.startsWith('project/[id]') && projectId) {
@@ -59,7 +70,7 @@ export function wallpaperFor(
       return centered(movies.length > 0 ? STATE.complete : STATE.star);
     }
     const card = cards.find((entry) => entry.id === projectId);
-    if (!card) return plain;
+    if (!card) return plain();
     const shared = card.memberCount > 0 ? card.sharedCount / card.memberCount : 0;
     if (shared >= 1) return centered(movies.length > 0 ? STATE.complete : STATE.full);
     if (shared > SHARED_ENOUGH) return centered(STATE.more);
@@ -67,5 +78,5 @@ export function wallpaperFor(
     return centered(STATE.outline);
   }
 
-  return plain;
+  return plain();
 }
