@@ -45,8 +45,15 @@ function StripItem({ index, photo, lead, openWidth, scrollX, onSelect }: ItemPro
   const style = useAnimatedStyle(() => {
     const focus = scrollX.value / STRIP_PITCH;
     const distance = Math.min(1, Math.abs(index - focus));
-    const width = UNSELECTED + (openWidth - UNSELECTED) * (1 - distance);
-    return { left: lead + index * STRIP_PITCH - (width - UNSELECTED) / 2, width };
+    const grow = 1 - distance;
+    const width = UNSELECTED + (openWidth - UNSELECTED) * grow;
+    const height = BREADTH + (openWidth - BREADTH) * grow;
+    return {
+      left: lead + index * STRIP_PITCH - (width - UNSELECTED) / 2,
+      top: (STRIP_HEIGHT - height) / 2,
+      width,
+      height,
+    };
   });
 
   return (
@@ -209,17 +216,16 @@ const styles = StyleSheet.create({
   },
   item: {
     position: 'absolute',
-    top: (STRIP_HEIGHT - BREADTH) / 2,
-    height: BREADTH,
     borderRadius: 7,
     overflow: 'hidden',
   },
   press: {
     flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   reveal: {
-    height: '100%',
+    height: BREADTH,
   },
   fill: {
     flex: 1,
