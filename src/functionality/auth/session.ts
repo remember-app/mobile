@@ -13,6 +13,8 @@ import { clearCache } from '@/integrations/files/cache';
 import { readSecret, removeSecret, writeSecret } from '@/integrations/secure';
 import type { Account, Login } from '@/models';
 
+import { writeLastEmail } from '../settings/last-email';
+
 const TOKEN_KEY = 'session-token';
 const ACCOUNT_KEY = 'session-account';
 
@@ -68,6 +70,7 @@ async function keep(token: string, account: Account): Promise<void> {
   await Promise.all([
     writeSecret(TOKEN_KEY, token),
     writeSecret(ACCOUNT_KEY, JSON.stringify(account)),
+    account.email ? writeLastEmail(account.email) : Promise.resolve(),
   ]);
 }
 

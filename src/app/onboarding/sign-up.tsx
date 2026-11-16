@@ -14,6 +14,7 @@ import {
   isUsernameShapeValid,
   loadAvatar,
   pendingInvite,
+  readLastEmail,
   readText,
   requestCode,
   setName as saveName,
@@ -47,7 +48,7 @@ export default function SignUpScreen() {
   const startEmail = Array.isArray(params.email) ? params.email[0] : params.email;
 
   const [step, setStep] = useState<Step>(startStep);
-  const [email, setEmail] = useState(startEmail ?? '');
+  const [email, setEmail] = useState<string>(startEmail ?? '');
 
   const [invite, setInvite] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -72,6 +73,12 @@ export default function SignUpScreen() {
   useEffect(() => {
     if (step === 'username') void loadAvatar();
   }, [step]);
+
+  useEffect(() => {
+    void readLastEmail().then((saved) => {
+      if (saved) setEmail((current: string) => current || saved);
+    });
+  }, []);
 
   const submitEmail = async () => {
     if (!emailReady || emailBusy) return;
@@ -203,6 +210,7 @@ export default function SignUpScreen() {
           error={emailError ?? undefined}
           inputMode="email"
           autoComplete="email"
+          autoCorrect={false}
           onSubmit={submitEmail}
         />
         <InviteSheet visible={invite} onClose={() => setInvite(false)} onAccepted={accept} />

@@ -193,6 +193,7 @@ export {
   unregisterPush,
 } from './push/push';
 export { readLanguage, writeLanguage } from './settings/language';
+export { readLastEmail, writeLastEmail } from './settings/last-email';
 export {
   copyInviteLink,
   copyText,
