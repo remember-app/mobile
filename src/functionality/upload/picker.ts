@@ -51,6 +51,7 @@ export async function uploadDeviceAssets(
     files.push({
       projectId,
       uri: local.uri,
+      previewUri: local.previewUri,
       fileName: local.fileName,
       kind: local.kind,
       sizeBytes: local.sizeBytes,

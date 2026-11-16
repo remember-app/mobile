@@ -16,6 +16,7 @@ export type DeviceAsset = {
 
 export type LocalMedia = {
   uri: string;
+  previewUri: string;
   fileName: string;
   kind: DeviceAssetKind;
   sizeBytes: number;
@@ -71,6 +72,7 @@ export async function resolveDeviceAsset(id: string): Promise<LocalMedia> {
   if (!kind) throw new Error(`asset ${id} is not a photo or a video`);
   return {
     uri: info.localUri,
+    previewUri: info.uri,
     fileName: info.filename,
     kind,
     sizeBytes: new File(info.localUri).size,

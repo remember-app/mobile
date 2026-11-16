@@ -1,6 +1,6 @@
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { CheckCheck, CopySlash, Tag, X } from 'lucide-react-native';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -9,6 +9,7 @@ import {
   attachItems,
   cachedOriginal,
   detachItems,
+  dropReadyProjectPreviews,
   loadGallery,
   loadItem,
   loadLabels,
@@ -27,6 +28,7 @@ import {
   removeUpload,
   retryUpload,
   saveItemsToPhone,
+  setActiveProject,
   shareItem,
   shareText,
 } from '@/functionality';
@@ -120,6 +122,16 @@ export default function ProjectScreen() {
     });
   }, [projectId]);
 
+  useFocusEffect(
+    useCallback(() => {
+      setActiveProject(projectId);
+      return () => {
+        setActiveProject(null);
+        dropReadyProjectPreviews(projectId);
+      };
+    }, [projectId]),
+  );
+
   useEffect(() => {
     const timer = setTimeout(() => {
       opening.current = false;
@@ -198,8 +210,8 @@ export default function ProjectScreen() {
           at: (captured ?? new Date()).getTime(),
           photo: {
             id: upload.localId,
-            source: upload.uri,
-            preview: upload.uri,
+            source: upload.previewUri ?? upload.uri,
+            preview: upload.previewUri ?? upload.uri,
             original: null,
             video: upload.kind === 'video',
             playbackUrl: upload.kind === 'video' ? upload.uri : null,

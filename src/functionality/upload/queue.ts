@@ -1,4 +1,5 @@
 import { currentToken, onSignOut } from '@/functionality/auth/session';
+import { ensurePreview, ensureThumbnail } from '@/functionality/media/cache';
 import { refreshItem } from '@/functionality/media/gallery';
 import { onProjectDeleted } from '@/functionality/project/projects';
 import { cancelUpload, completeUpload, resumeUpload, startUpload } from '@/integrations/api';
@@ -15,6 +16,7 @@ export type QueuedUpload = {
   localId: string;
   projectId: ProjectId;
   uri: string;
+  previewUri: string | null;
   fileName: string;
   kind: MediaKind;
   sizeBytes: number;
@@ -39,10 +41,29 @@ const completed = new Set<
   (upload: UploadComplete, projectId: ProjectId, localId: string) => void | Promise<void>
 >();
 const localPreviews = new Map<string, string>();
+const previewProjects = new Map<string, ProjectId>();
+const readyPreviews = new Set<string>();
 const previewQueue: { projectId: ProjectId; itemId: ProjectItemId }[] = [];
 let previewing = false;
+let activeProject: ProjectId | null = null;
 
 export const localPreviewOf = (itemId: string): string | undefined => localPreviews.get(itemId);
+
+export function setActiveProject(projectId: ProjectId | null): void {
+  activeProject = projectId;
+}
+
+export function dropReadyProjectPreviews(projectId: ProjectId): void {
+  let changed = false;
+  for (const [itemId, project] of previewProjects) {
+    if (project !== projectId || !readyPreviews.has(itemId)) continue;
+    localPreviews.delete(itemId);
+    previewProjects.delete(itemId);
+    readyPreviews.delete(itemId);
+    changed = true;
+  }
+  if (changed) emit({ ...state, items: [...state.items] });
+}
 
 async function watchPreview(projectId: ProjectId, itemId: ProjectItemId): Promise<void> {
   previewQueue.push({ projectId, itemId });
@@ -52,9 +73,15 @@ async function watchPreview(projectId: ProjectId, itemId: ProjectItemId): Promis
     while (previewQueue.length > 0) {
       const next = previewQueue.shift();
       if (!next) continue;
-      for (let attempt = 0; attempt < 30; attempt += 1) {
+      for (let attempt = 0; attempt < 120; attempt += 1) {
         const item = await refreshItem(next.projectId, next.itemId).catch(() => undefined);
-        if (item?.links.thumbnail || item?.links.preview) break;
+        if (item?.links.thumbnail || item?.links.preview) {
+          readyPreviews.add(next.itemId);
+          void ensureThumbnail(item).catch(() => undefined);
+          void ensurePreview(item).catch(() => undefined);
+          if (activeProject !== next.projectId) dropReadyProjectPreviews(next.projectId);
+          break;
+        }
         await new Promise((resolve) => setTimeout(resolve, 1500));
       }
     }
@@ -104,6 +131,7 @@ export function hydrateUploads(): void {
   emit({
     items: stored.map((item) => ({
       ...item,
+      previewUri: item.previewUri ?? null,
       fingerprint: item.fingerprint ?? null,
       status: item.status === 'sending' ? 'waiting' : item.status,
     })),
@@ -120,6 +148,7 @@ export function enqueueUploads(
   files: {
     projectId: ProjectId;
     uri: string;
+    previewUri?: string | null;
     fileName: string;
     kind: MediaKind;
     sizeBytes: number;
@@ -133,6 +162,7 @@ export function enqueueUploads(
       localId: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       projectId: file.projectId,
       uri: file.uri,
+      previewUri: file.previewUri ?? null,
       fileName: file.fileName,
       kind: file.kind,
       sizeBytes: file.sizeBytes,
@@ -290,7 +320,8 @@ async function send(item: QueuedUpload, token: string): Promise<UploadComplete |
 }
 
 async function finish(item: QueuedUpload, done: UploadComplete): Promise<void> {
-  localPreviews.set(done.itemId, item.uri);
+  localPreviews.set(done.itemId, item.previewUri ?? item.uri);
+  previewProjects.set(done.itemId, item.projectId);
   await new Promise((resolve) => setTimeout(resolve, FINISH_MS));
   void watchPreview(item.projectId, done.itemId);
   await Promise.allSettled(
