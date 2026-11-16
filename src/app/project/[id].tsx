@@ -23,6 +23,7 @@ import {
   progressOf,
   removeItem,
   removeItems,
+  removeProjectUploads,
   removeUpload,
   retryUpload,
   saveItemsToPhone,
@@ -61,6 +62,7 @@ import {
   useUploads,
 } from '@/ui/hooks';
 import { ActionBar } from '@/ui/kit/action-bar';
+import { NoticeBanner } from '@/ui/kit/banner';
 import { BlurBar } from '@/ui/kit/blur-bar';
 import { Button, IconButton } from '@/ui/kit/button';
 import { Missing } from '@/ui/screens/chrome';
@@ -130,6 +132,7 @@ export default function ProjectScreen() {
     () => uploads.items.filter((upload) => upload.projectId === projectId),
     [uploads.items, projectId],
   );
+  const failed = useMemo(() => pending.filter((upload) => upload.status === 'failed'), [pending]);
 
   const visibleItems = useMemo(
     () =>
@@ -408,6 +411,24 @@ export default function ProjectScreen() {
             }
           />
         </BlurBar>
+        {failed.length > 2 ? (
+          <NoticeBanner
+            top={top}
+            text={t('project.uploadsFailed', { count: failed.length })}
+            actions={[
+              {
+                label: t('project.cancelUploads'),
+                onPress: () => void removeProjectUploads(projectId),
+              },
+              {
+                label: t('project.retryUploads'),
+                onPress: () => {
+                  for (const upload of failed) retryUpload(upload.localId);
+                },
+              },
+            ]}
+          />
+        ) : null}
         <ActionBar>
           <Animated.View
             style={actionStyle}

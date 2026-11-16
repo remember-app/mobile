@@ -64,8 +64,9 @@ export function cancelUpload(
   token: string,
   projectId: ProjectId,
   uploadId: UploadId,
+  purge = false,
 ): Promise<{ ok: true }> {
-  return request(`/v1/projects/${projectId}/uploads/${uploadId}`, {
+  return request(`/v1/projects/${projectId}/uploads/${uploadId}${purge ? '?purge=1' : ''}`, {
     method: 'DELETE',
     token,
   });

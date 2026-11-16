@@ -153,7 +153,18 @@ export function enqueueUploads(
 }
 
 export function retryUpload(localId: string): void {
-  update(localId, { status: 'waiting', error: null });
+  const item = state.items.find((candidate) => candidate.localId === localId);
+  const token = currentToken();
+  if (token && item?.uploadId) {
+    void cancelUpload(token, item.projectId, item.uploadId, true).catch(() => undefined);
+  }
+  update(localId, {
+    status: 'waiting',
+    error: null,
+    uploadId: null,
+    partBytes: null,
+    parts: {},
+  });
   void pump();
 }
 
@@ -162,7 +173,7 @@ export async function removeUpload(localId: string): Promise<void> {
   if (!item) return;
   const token = currentToken();
   if (token && item.uploadId)
-    await cancelUpload(token, item.projectId, item.uploadId).catch(() => undefined);
+    await cancelUpload(token, item.projectId, item.uploadId, true).catch(() => undefined);
   emit({ ...state, items: state.items.filter((candidate) => candidate.localId !== localId) });
   persist();
 }
@@ -172,7 +183,7 @@ export async function removeProjectUploads(projectId: ProjectId): Promise<void> 
   const targets = state.items.filter((item) => item.projectId === projectId);
   for (const item of targets) {
     if (token && item.uploadId) {
-      await cancelUpload(token, item.projectId, item.uploadId).catch(() => undefined);
+      await cancelUpload(token, item.projectId, item.uploadId, true).catch(() => undefined);
     }
   }
   emit({ ...state, items: state.items.filter((item) => item.projectId !== projectId) });

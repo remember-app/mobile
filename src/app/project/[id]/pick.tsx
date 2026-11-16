@@ -26,8 +26,9 @@ import {
 } from '@/ui/components/media/photo-grid';
 import { PhotoViewer } from '@/ui/components/media/photo-viewer';
 import { duration } from '@/ui/format';
-import { useProjectCard } from '@/ui/hooks';
+import { useProjectCard, useUploads } from '@/ui/hooks';
 import { ActionBar } from '@/ui/kit/action-bar';
+import { NoticeBanner } from '@/ui/kit/banner';
 import { BlurBar } from '@/ui/kit/blur-bar';
 import { BackButton, Button, IconButton } from '@/ui/kit/button';
 import { Text } from '@/ui/kit/text';
@@ -64,6 +65,7 @@ export default function PickScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const project = useProjectCard(id as ProjectId);
+  const uploads = useUploads();
   const { color } = useTheme();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -82,7 +84,26 @@ export default function PickScreen() {
   const [checking, setChecking] = useState(false);
   const [datesOnly, setDatesOnly] = useState(false);
   const [preview, setPreview] = useState<{ index: number; rect?: Rect } | null>(null);
+  const [preparing, setPreparing] = useState<{ done: number; total: number } | null>(null);
+  const [slow, setSlow] = useState(false);
+  const [storageWarning, setStorageWarning] = useState(0);
   const measureTile = useRef<MeasureTile | null>(null);
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
+  const sizes = useRef<Record<string, number>>({});
+  const resolved = useRef(new Map<string, Awaited<ReturnType<typeof resolveDeviceAsset>>>());
+  const resolving = useRef(
+    new Map<string, Promise<Awaited<ReturnType<typeof resolveDeviceAsset>>>>(),
+  );
+  const measureQueue = useRef<Promise<void>>(Promise.resolve());
+  const reserved = uploads.items
+    .filter((upload) => upload.projectId === (id as ProjectId))
+    .reduce((sum, upload) => sum + upload.sizeBytes, 0);
+  const available = project
+    ? Math.max(0, project.consumables.storage.bytes - project.consumables.storage.spend - reserved)
+    : null;
+  const availableRef = useRef(available);
+  availableRef.current = available;
   const from = project?.eventStart ? project.eventStart.getTime() : null;
   const to = project?.eventEnd
     ? project.eventEnd.getTime()
@@ -141,13 +162,77 @@ export default function PickScreen() {
     }
   }, [collection, cursor, datesOnly]);
 
+  const localOf = useCallback((asset: DeviceAsset) => {
+    const cached = resolved.current.get(asset.id);
+    if (cached) return Promise.resolve(cached);
+    const running = resolving.current.get(asset.id);
+    if (running) return running;
+    const promise = resolveDeviceAsset(asset.id)
+      .then((local) => {
+        resolved.current.set(asset.id, local);
+        return local;
+      })
+      .finally(() => {
+        resolving.current.delete(asset.id);
+      });
+    resolving.current.set(asset.id, promise);
+    return promise;
+  }, []);
+
+  const measure = useCallback(
+    (asset: DeviceAsset) => {
+      measureQueue.current = measureQueue.current
+        .then(() => localOf(asset))
+        .then((local) => {
+          const next = { ...sizes.current, [asset.id]: local.sizeBytes };
+          sizes.current = next;
+          const total = selectedRef.current.reduce((sum, entry) => sum + (next[entry.id] ?? 0), 0);
+          const limit = availableRef.current;
+          if (limit !== null && total > limit) {
+            setSelected((was) => was.filter((entry) => entry.id !== asset.id));
+            setStorageWarning((value) => value + 1);
+          }
+        })
+        .catch(() => undefined);
+    },
+    [localOf],
+  );
+
+  useEffect(() => {
+    if (!checking) {
+      setSlow(false);
+      return;
+    }
+    const timer = setTimeout(() => setSlow(true), 1500);
+    return () => clearTimeout(timer);
+  }, [checking]);
+
+  useEffect(() => {
+    if (storageWarning === 0) return;
+    const timer = setTimeout(() => setStorageWarning(0), 4000);
+    return () => clearTimeout(timer);
+  }, [storageWarning]);
+
   const toggle = (asset: DeviceAsset) => {
     setDuplicates(new Set());
-    setSelected((was) =>
-      was.some((entry) => entry.id === asset.id)
-        ? was.filter((entry) => entry.id !== asset.id)
-        : [...was, asset],
-    );
+    if (selectedRef.current.some((entry) => entry.id === asset.id)) {
+      setSelected((was) => was.filter((entry) => entry.id !== asset.id));
+      return;
+    }
+    const known = sizes.current[asset.id];
+    const limit = availableRef.current;
+    if (known !== undefined && limit !== null) {
+      const total = selectedRef.current.reduce(
+        (sum, entry) => sum + (sizes.current[entry.id] ?? 0),
+        0,
+      );
+      if (total + known > limit) {
+        setStorageWarning((value) => value + 1);
+        return;
+      }
+    }
+    setSelected((was) => [...was, asset]);
+    if (known === undefined) measure(asset);
   };
 
   const loadRange = async () => {
@@ -192,7 +277,9 @@ export default function PickScreen() {
   const confirm = async () => {
     if (!selected.length || !id || checking) return;
     const projectId = id as ProjectId;
+    const chosen = selected;
     setChecking(true);
+    setPreparing({ done: 0, total: chosen.length });
     try {
       const items = await refreshGalleryAll(projectId);
       const known = new Set(
@@ -204,11 +291,11 @@ export default function PickScreen() {
         fingerprint: string | null;
         file: Parameters<typeof enqueueUploads>[0][number];
       }[] = [];
-      for (let start = 0; start < selected.length; start += PREPARE_BATCH) {
-        const batch = selected.slice(start, start + PREPARE_BATCH);
-        const part = await Promise.all(
+      for (let at = 0; at < chosen.length; at += PREPARE_BATCH) {
+        const batch = chosen.slice(at, at + PREPARE_BATCH);
+        const entries = await Promise.all(
           batch.map(async (asset) => {
-            const local = await resolveDeviceAsset(asset.id);
+            const local = await localOf(asset);
             return {
               assetId: asset.id,
               fingerprint: knownSizes.has(local.sizeBytes) ? await fileDigest(local.uri) : null,
@@ -224,7 +311,14 @@ export default function PickScreen() {
             };
           }),
         );
-        prepared.push(...part);
+        prepared.push(...entries);
+        setPreparing({ done: prepared.length, total: chosen.length });
+      }
+      const used = prepared.reduce((sum, entry) => sum + entry.file.sizeBytes, 0);
+      const limit = availableRef.current;
+      if (limit !== null && used > limit) {
+        setStorageWarning((value) => value + 1);
+        return;
       }
       const dup = new Set(
         prepared
@@ -268,6 +362,7 @@ export default function PickScreen() {
       Alert.alert(t('picker.checkFailed'));
     } finally {
       setChecking(false);
+      setPreparing(null);
     }
   };
 
@@ -299,6 +394,16 @@ export default function PickScreen() {
       })),
     [ordered],
   );
+
+  const actionLabel = checking
+    ? slow && preparing
+      ? t('picker.preparing', { done: preparing.done, total: preparing.total })
+      : t('picker.checking')
+    : selected.length
+      ? t('picker.addCount', { count: selected.length })
+      : datesOnly
+        ? t('picker.selectAll')
+        : t('picker.dates');
 
   return (
     <>
@@ -384,6 +489,9 @@ export default function PickScreen() {
             }}
           />
         </BlurBar>
+        {storageWarning > 0 ? (
+          <NoticeBanner top={insets.top + 60} text={t('picker.storageExceeded')} />
+        ) : null}
         {menu ? (
           <>
             <Pressable style={StyleSheet.absoluteFill} onPress={() => setMenu(false)} />
@@ -422,15 +530,7 @@ export default function PickScreen() {
         ) : null}
         <ActionBar>
           <Button
-            label={
-              checking
-                ? t('picker.checking')
-                : selected.length
-                  ? t('picker.addCount', { count: selected.length })
-                  : datesOnly
-                    ? t('picker.selectAll')
-                    : t('picker.dates')
-            }
+            label={actionLabel}
             variant="primary"
             disabled={checking}
             onPress={() => {
