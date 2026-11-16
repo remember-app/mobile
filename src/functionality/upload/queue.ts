@@ -75,7 +75,14 @@ async function watchPreview(projectId: ProjectId, itemId: ProjectItemId): Promis
       if (!next) continue;
       for (let attempt = 0; attempt < 120; attempt += 1) {
         const item = await refreshItem(next.projectId, next.itemId).catch(() => undefined);
-        if (item?.links.thumbnail || item?.links.preview) {
+        const ready =
+          item !== undefined &&
+          (item.kind === 'video'
+            ? item.links.thumbnail !== null
+            : item.links.thumbnail !== null ||
+              item.links.preview !== null ||
+              item.links.original !== null);
+        if (ready && item) {
           readyPreviews.add(next.itemId);
           void ensureThumbnail(item).catch(() => undefined);
           void ensurePreview(item).catch(() => undefined);
