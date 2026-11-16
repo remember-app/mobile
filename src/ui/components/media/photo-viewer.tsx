@@ -162,6 +162,22 @@ export function PhotoViewer({
     [onIndex, update, viewPhotos.length],
   );
 
+  const snapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const snapToNearest = useCallback(() => {
+    const target = Math.round(mainX.value / width) * width;
+    if (Math.abs(mainX.value - target) > 1) {
+      mainRef.current?.scrollTo({ x: target, animated: true });
+    }
+    settle(Math.round(mainX.value / width));
+  }, [mainX, mainRef, settle, width]);
+
+  useEffect(
+    () => () => {
+      if (snapTimer.current) clearTimeout(snapTimer.current);
+    },
+    [],
+  );
+
   const mainScroll = useAnimatedScrollHandler({
     onScroll: (event) => {
       mainX.value = event.contentOffset.x;
@@ -281,14 +297,24 @@ export function PhotoViewer({
         <Animated.ScrollView
           ref={mainRef}
           horizontal
-          pagingEnabled
+          snapToInterval={width}
+          snapToAlignment="start"
+          decelerationRate="fast"
           showsHorizontalScrollIndicator={false}
           onScroll={mainScroll}
           scrollEventThrottle={16}
           scrollEnabled={!zoomed}
           contentOffset={initialMain.current}
+          onScrollEndDrag={() => {
+            if (snapTimer.current) clearTimeout(snapTimer.current);
+            snapTimer.current = setTimeout(snapToNearest, 120);
+          }}
+          onMomentumScrollBegin={() => {
+            if (snapTimer.current) clearTimeout(snapTimer.current);
+          }}
           onMomentumScrollEnd={() => {
-            settle(Math.round(mainX.value / width));
+            if (snapTimer.current) clearTimeout(snapTimer.current);
+            snapToNearest();
           }}
           style={StyleSheet.absoluteFill}
         >
