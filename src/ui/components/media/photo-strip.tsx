@@ -15,7 +15,6 @@ import Animated, {
   useAnimatedScrollHandler,
   useAnimatedStyle,
 } from 'react-native-reanimated';
-import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { Image } from '@/ui/kit/image';
@@ -26,12 +25,12 @@ import type { ViewerPhoto } from './viewer/types';
 
 const SELECTED = 30;
 const UNSELECTED = 20;
-const GAP = 6;
+const GAP = 14;
 const BREADTH = 30;
 const STRIP_HEIGHT = 42;
 const RADIUS = 4;
-const SHARE = 0.6;
-const FADE = 28;
+const SHARE = 0.8;
+const FADE = 36;
 export const STRIP_PITCH = UNSELECTED + GAP;
 const WINDOW = 14;
 
@@ -39,17 +38,25 @@ type ItemProps = {
   index: number;
   photo: ViewerPhoto;
   lead: number;
+  inset: number;
+  viewWidth: number;
   scrollX: SharedValue<number>;
   onSelect: (index: number) => void;
 };
 
-function StripItem({ index, photo, lead, scrollX, onSelect }: ItemProps) {
+function StripItem({ index, photo, lead, inset, viewWidth, scrollX, onSelect }: ItemProps) {
   const { color } = useTheme();
   const style = useAnimatedStyle(() => {
     const focus = scrollX.value / STRIP_PITCH;
     const distance = Math.min(1, Math.abs(index - focus));
     const width = UNSELECTED + (SELECTED - UNSELECTED) * (1 - distance);
-    return { left: lead + index * STRIP_PITCH - (width - UNSELECTED) / 2, width };
+    const centre = inset + lead + index * STRIP_PITCH + UNSELECTED / 2 - scrollX.value;
+    const edge = Math.min(centre - inset, inset + viewWidth - centre);
+    return {
+      left: lead + index * STRIP_PITCH - (width - UNSELECTED) / 2,
+      width,
+      opacity: clamp(edge / FADE, 0, 1),
+    };
   });
 
   return (
@@ -165,6 +172,8 @@ export function PhotoStrip({
           index={at}
           photo={photo}
           lead={lead}
+          inset={inset}
+          viewWidth={viewWidth}
           scrollX={scrollX}
           onSelect={select}
         />,
@@ -173,66 +182,32 @@ export function PhotoStrip({
   }
 
   return (
-    <>
-      <Animated.ScrollView
-        ref={scroller}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        onScroll={scrollHandler}
-        scrollEventThrottle={16}
-        snapToInterval={STRIP_PITCH}
-        style={[styles.scroll, { width: viewWidth, alignSelf: 'center' }]}
-        contentOffset={initialOffset.current}
-        onScrollBeginDrag={() => {
-          if (tapTimer.current) clearTimeout(tapTimer.current);
-          active.value = 1;
-          onDrive(true);
-        }}
-        onMomentumScrollEnd={stop}
-      >
-        <View style={{ width: viewWidth + (count - 1) * STRIP_PITCH, height: STRIP_HEIGHT }}>
-          {items}
-        </View>
-      </Animated.ScrollView>
-      <Svg
-        pointerEvents="none"
-        style={[styles.fade, { left: inset }]}
-        width={FADE}
-        height={STRIP_HEIGHT}
-      >
-        <Defs>
-          <LinearGradient id="stripFadeLeft" x1="0" y1="0" x2="1" y2="0">
-            <Stop offset="0" stopColor="#000000" stopOpacity="0.85" />
-            <Stop offset="1" stopColor="#000000" stopOpacity="0" />
-          </LinearGradient>
-        </Defs>
-        <Rect width={FADE} height={STRIP_HEIGHT} fill="url(#stripFadeLeft)" />
-      </Svg>
-      <Svg
-        pointerEvents="none"
-        style={[styles.fade, { right: inset }]}
-        width={FADE}
-        height={STRIP_HEIGHT}
-      >
-        <Defs>
-          <LinearGradient id="stripFadeRight" x1="1" y1="0" x2="0" y2="0">
-            <Stop offset="0" stopColor="#000000" stopOpacity="0.85" />
-            <Stop offset="1" stopColor="#000000" stopOpacity="0" />
-          </LinearGradient>
-        </Defs>
-        <Rect width={FADE} height={STRIP_HEIGHT} fill="url(#stripFadeRight)" />
-      </Svg>
-    </>
+    <Animated.ScrollView
+      ref={scroller}
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      onScroll={scrollHandler}
+      scrollEventThrottle={16}
+      snapToInterval={STRIP_PITCH}
+      style={[styles.scroll, { width: viewWidth, alignSelf: 'center' }]}
+      contentOffset={initialOffset.current}
+      onScrollBeginDrag={() => {
+        if (tapTimer.current) clearTimeout(tapTimer.current);
+        active.value = 1;
+        onDrive(true);
+      }}
+      onMomentumScrollEnd={stop}
+    >
+      <View style={{ width: viewWidth + (count - 1) * STRIP_PITCH, height: STRIP_HEIGHT }}>
+        {items}
+      </View>
+    </Animated.ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   scroll: {
     height: STRIP_HEIGHT,
-  },
-  fade: {
-    position: 'absolute',
-    top: 0,
   },
   item: {
     position: 'absolute',
