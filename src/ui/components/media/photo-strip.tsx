@@ -15,7 +15,7 @@ import Animated, {
   useAnimatedScrollHandler,
   useAnimatedStyle,
 } from 'react-native-reanimated';
-import { scheduleOnRN, scheduleOnUI } from 'react-native-worklets';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import { Image } from '@/ui/kit/image';
 import { useTheme } from '@/ui/theme';
@@ -26,9 +26,9 @@ import type { ViewerPhoto } from './viewer/types';
 const SELECTED = 40;
 const UNSELECTED = 26;
 const GAP = 8;
-const PADDING = 12;
 const BREADTH = 40;
 const STRIP_HEIGHT = 68;
+const GROW = SELECTED / UNSELECTED;
 export const STRIP_PITCH = UNSELECTED + GAP;
 const WINDOW = 14;
 
@@ -36,30 +36,20 @@ type ItemProps = {
   index: number;
   photo: ViewerPhoto;
   lead: number;
-  count: number;
   scrollX: SharedValue<number>;
   onSelect: (index: number) => void;
 };
 
-function StripItem({ index, photo, lead, count, scrollX, onSelect }: ItemProps) {
+function StripItem({ index, photo, lead, scrollX, onSelect }: ItemProps) {
   const { color } = useTheme();
   const style = useAnimatedStyle(() => {
-    const progress = clamp(scrollX.value / STRIP_PITCH, 0, count - 1);
-    const length =
-      UNSELECTED + (SELECTED - UNSELECTED) * Math.max(0, 1 - Math.abs(index - progress));
-    const base = Math.floor(progress);
-    let delta = 0;
-    for (let j = base - 1; j <= base + 2; j += 1) {
-      if (j >= 0 && j < index) {
-        delta += (SELECTED - UNSELECTED) * Math.max(0, 1 - Math.abs(j - progress));
-        delta += PADDING * Math.max(0, 1 - Math.abs(j + 0.5 - progress));
-      }
-    }
-    return { left: lead + index * STRIP_PITCH + delta, width: length };
+    const focus = scrollX.value / STRIP_PITCH;
+    const distance = Math.min(1, Math.abs(index - focus));
+    return { transform: [{ scaleX: 1 + (GROW - 1) * (1 - distance) }] };
   });
 
   return (
-    <Animated.View style={[styles.item, style]}>
+    <Animated.View style={[styles.item, { left: lead + index * STRIP_PITCH }, style]}>
       <Pressable onPress={() => onSelect(index)} style={styles.fill}>
         {photo.source ? (
           <Image
@@ -90,16 +80,26 @@ type Props = {
   main: AnimatedRef<ScrollViewInstance>;
   active: SharedValue<number>;
   scrollX: SharedValue<number>;
+  onDrive: (driving: boolean) => void;
   onSettle: (index: number) => void;
 };
 
-export function PhotoStrip({ photos, index, scroller, main, active, scrollX, onSettle }: Props) {
+export function PhotoStrip({
+  photos,
+  index,
+  scroller,
+  main,
+  active,
+  scrollX,
+  onDrive,
+  onSettle,
+}: Props) {
   const { width } = useWindowDimensions();
   const count = photos.length;
-  const lead = (width - SELECTED) / 2;
+  const lead = (width - UNSELECTED) / 2;
   const [center, setCenter] = useState(index);
   const initialOffset = useRef({ x: index * STRIP_PITCH, y: 0 });
-  const snapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -117,27 +117,34 @@ export function PhotoStrip({ photos, index, scroller, main, active, scrollX, onS
     },
   );
 
-  useEffect(
-    () => () => {
-      if (snapTimer.current) clearTimeout(snapTimer.current);
-    },
-    [],
-  );
+  const settledIndex = () => clamp(Math.round(scrollX.value / STRIP_PITCH), 0, count - 1);
 
-  // лента отдаёт управление экрану: он сам доезжает до целого кадра и ведёт её.
-  // scrollTo работает только на UI-потоке, иначе вызов молча ничего не делает.
-  const land = (next: number) => {
-    setCenter(next);
-    onSettle(next);
-    scheduleOnUI((target: number) => {
-      'worklet';
-      active.value = 0;
-      scrollTo(main, target * width, 0, true);
-    }, next);
+  const stop = () => {
+    const settled = settledIndex();
+    setCenter(settled);
+    onSettle(settled);
+    active.value = 0;
+    onDrive(false);
   };
 
-  const snap = () => {
-    land(clamp(Math.round(scrollX.value / STRIP_PITCH), 0, count - 1));
+  useEffect(() => {
+    scrollTo(scroller, index * STRIP_PITCH, 0, false);
+    return () => {
+      if (tapTimer.current) clearTimeout(tapTimer.current);
+    };
+  }, []);
+
+  const select = (next: number) => {
+    if (tapTimer.current) clearTimeout(tapTimer.current);
+    active.value = 1;
+    onDrive(true);
+    setCenter(next);
+    scrollTo(scroller, next * STRIP_PITCH, 0, true);
+    onSettle(next);
+    tapTimer.current = setTimeout(() => {
+      active.value = 0;
+      onDrive(false);
+    }, 400);
   };
 
   const from = Math.max(0, center - WINDOW);
@@ -152,9 +159,8 @@ export function PhotoStrip({ photos, index, scroller, main, active, scrollX, onS
           index={at}
           photo={photo}
           lead={lead}
-          count={count}
           scrollX={scrollX}
-          onSelect={land}
+          onSelect={select}
         />,
       );
     }
@@ -168,27 +174,20 @@ export function PhotoStrip({ photos, index, scroller, main, active, scrollX, onS
       onScroll={scrollHandler}
       scrollEventThrottle={16}
       decelerationRate="fast"
+      snapToInterval={STRIP_PITCH}
+      disableIntervalMomentum
       style={styles.scroll}
       contentOffset={initialOffset.current}
       onScrollBeginDrag={() => {
-        if (snapTimer.current) clearTimeout(snapTimer.current);
+        if (tapTimer.current) clearTimeout(tapTimer.current);
         active.value = 1;
+        onDrive(true);
       }}
-      onScrollEndDrag={() => {
-        if (snapTimer.current) clearTimeout(snapTimer.current);
-        snapTimer.current = setTimeout(snap, 120);
-      }}
-      onMomentumScrollBegin={() => {
-        if (snapTimer.current) clearTimeout(snapTimer.current);
-      }}
-      onMomentumScrollEnd={() => {
-        if (snapTimer.current) clearTimeout(snapTimer.current);
-        snap();
-      }}
+      onMomentumScrollEnd={stop}
     >
       <View
         style={{
-          width: 2 * lead + SELECTED + (count - 1) * STRIP_PITCH + PADDING,
+          width: 2 * lead + (count - 1) * STRIP_PITCH + UNSELECTED,
           height: STRIP_HEIGHT,
         }}
       >
@@ -205,6 +204,7 @@ const styles = StyleSheet.create({
   item: {
     position: 'absolute',
     top: (STRIP_HEIGHT - BREADTH) / 2,
+    width: UNSELECTED,
     height: BREADTH,
     borderRadius: 7,
     overflow: 'hidden',

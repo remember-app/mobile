@@ -14,7 +14,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { scheduleOnRN, scheduleOnUI } from 'react-native-worklets';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import { confirmAction } from '@/ui/confirm';
 import { fullDay, time } from '@/ui/format';
@@ -75,6 +75,7 @@ export function PhotoViewer({
   const [hdIndex, setHdIndex] = useState(-1);
   const [zoomed, setZoomed] = useState(false);
   const [info, setInfo] = useState(false);
+  const [stripDriving, setStripDriving] = useState(false);
   const dragY = useSharedValue(0);
   const lift = useSharedValue(0);
   const { width, height } = useWindowDimensions();
@@ -160,56 +161,6 @@ export function PhotoViewer({
       onIndex?.(viewPhotos.length - 1 - next);
     },
     [onIndex, update, viewPhotos.length],
-  );
-
-  const snapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const dragStart = useRef(0);
-  const releaseX = useRef(0);
-  const dragDir = useRef(0);
-  const touching = useRef(false);
-
-  // Кадр доводится в сторону жеста: назад лента не возвращается, а
-  // останавливается там, где затухла сила броска.
-  const snapDirectional = useCallback(() => {
-    const page = mainX.value / width;
-    let target = Math.round(page);
-    if (dragDir.current > 0) target = Math.max(target, Math.ceil(releaseX.current / width - 0.01));
-    if (dragDir.current < 0) target = Math.min(target, Math.floor(releaseX.current / width + 0.01));
-    target = Math.min(viewPhotos.length - 1, Math.max(0, target));
-    if (Math.abs(target * width - mainX.value) > 1) {
-      scheduleOnUI((x: number) => {
-        'worklet';
-        scrollTo(mainRef, x, 0, true);
-      }, target * width);
-    }
-    settle(target);
-  }, [mainX, mainRef, settle, viewPhotos.length, width]);
-
-  // Без инерции событие окончания броска не придёт — ждём, пока лента
-  // перестанет двигаться, и только тогда доводим кадр.
-  const settleWhenStill = useCallback(() => {
-    let last = mainX.value;
-    const check = () => {
-      if (touching.current) {
-        snapTimer.current = setTimeout(check, 100);
-        return;
-      }
-      const now = mainX.value;
-      if (Math.abs(now - last) < 0.5) {
-        snapDirectional();
-        return;
-      }
-      last = now;
-      snapTimer.current = setTimeout(check, 100);
-    };
-    snapTimer.current = setTimeout(check, 100);
-  }, [mainX, snapDirectional]);
-
-  useEffect(
-    () => () => {
-      if (snapTimer.current) clearTimeout(snapTimer.current);
-    },
-    [],
   );
 
   const mainScroll = useAnimatedScrollHandler({
@@ -331,38 +282,14 @@ export function PhotoViewer({
         <Animated.ScrollView
           ref={mainRef}
           horizontal
+          pagingEnabled={!stripDriving}
           showsHorizontalScrollIndicator={false}
           onScroll={mainScroll}
           scrollEventThrottle={16}
           scrollEnabled={!zoomed}
           contentOffset={initialMain.current}
-          onTouchStart={() => {
-            touching.current = true;
-          }}
-          onTouchEnd={() => {
-            touching.current = false;
-          }}
-          onTouchCancel={() => {
-            touching.current = false;
-          }}
-          onScrollBeginDrag={() => {
-            if (snapTimer.current) clearTimeout(snapTimer.current);
-            dragStart.current = mainX.value;
-            dragDir.current = 0;
-          }}
-          onScrollEndDrag={() => {
-            const moved = mainX.value - dragStart.current;
-            dragDir.current = Math.abs(moved) < 1 ? 0 : Math.sign(moved);
-            releaseX.current = mainX.value;
-            if (snapTimer.current) clearTimeout(snapTimer.current);
-            settleWhenStill();
-          }}
-          onMomentumScrollBegin={() => {
-            if (snapTimer.current) clearTimeout(snapTimer.current);
-          }}
           onMomentumScrollEnd={() => {
-            if (snapTimer.current) clearTimeout(snapTimer.current);
-            snapDirectional();
+            settle(Math.round(mainX.value / width));
           }}
           style={StyleSheet.absoluteFill}
         >
@@ -486,6 +413,7 @@ export function PhotoViewer({
             main={mainRef}
             active={stripActive}
             scrollX={stripX}
+            onDrive={setStripDriving}
             onSettle={(next) => settle(next)}
           />
         </Animated.View>
