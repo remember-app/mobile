@@ -43,7 +43,6 @@ export default function MoviesScreen() {
       <Board
         bar={
           <BackBar
-            boxed
             tight
             title={t('montage.title')}
             right={

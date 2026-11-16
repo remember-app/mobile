@@ -107,7 +107,6 @@ export default function MontageScreen() {
 
   const bar = (
     <BackBar
-      boxed
       title={heading}
       right={
         <IconButton

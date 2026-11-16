@@ -176,7 +176,6 @@ export function Board({ bar, heading, footer, body, list, children, style }: Boa
     </BoardScrollContext.Provider>
   );
 }
-const TITLE_LIMIT = 32;
 
 export function AppBar({
   title,
@@ -184,7 +183,6 @@ export function AppBar({
   variant = 'inner',
   left,
   right,
-  boxed,
   tight,
   style,
 }: {
@@ -193,25 +191,11 @@ export function AppBar({
   variant?: 'root' | 'inner' | 'live';
   left?: ReactNode;
   right?: ReactNode;
-  boxed?: boolean;
   tight?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
   const styles = useStyles();
   const inner = variant !== 'root';
-  const shown =
-    inner && title.length > TITLE_LIMIT ? `${title.slice(0, TITLE_LIMIT - 1).trimEnd()}…` : title;
-  const words = (
-    <Text
-      accessibilityRole="header"
-      role={variant === 'root' ? 'displaySm' : variant === 'live' ? 'barTitleLive' : 'barTitle'}
-      numberOfLines={inner ? 1 : undefined}
-      ellipsizeMode={inner ? 'tail' : undefined}
-      style={inner ? styles.titleCentre : undefined}
-    >
-      {shown}
-    </Text>
-  );
   return (
     <View style={[styles.bar, inner ? styles.barInner : null, style]}>
       {inner ? (
@@ -220,12 +204,14 @@ export function AppBar({
         <View>{left}</View>
       ) : null}
       <View style={[styles.barWords, inner ? styles.wordsCentre : null]}>
-        {boxed ? (
+        {inner ? (
           <View style={styles.box}>
             <HeaderTitle title={title} minWidth={tight ? 0 : undefined} />
           </View>
         ) : (
-          words
+          <Text accessibilityRole="header" role="displaySm">
+            {title}
+          </Text>
         )}
         {subtitle ? <Text role="meta">{subtitle}</Text> : null}
       </View>
@@ -247,12 +233,11 @@ const useStyles = themed(({ color }) =>
       paddingHorizontal: space.s4,
     },
     barInner: { gap: space.s2 },
-    side: { minWidth: 84, flexDirection: 'row', alignItems: 'center', gap: space.s1 },
+    side: { width: 44, flexDirection: 'row', alignItems: 'center', gap: space.s1 },
     sideLeft: { justifyContent: 'flex-start' },
     sideRight: { justifyContent: 'flex-end' },
     barWords: { flex: 1, minWidth: 0, gap: 2 },
     wordsCentre: { alignItems: 'center' },
-    titleCentre: { textAlign: 'center' },
     box: {
       minHeight: 44,
       maxWidth: '100%',

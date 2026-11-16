@@ -60,7 +60,7 @@ export default function AnalysisJournalScreen() {
 
   return (
     <View style={styles.root}>
-      <Board bar={<BackBar boxed title={t('montage.journal.analysis')} />} body={pageBody}>
+      <Board bar={<BackBar title={t('montage.journal.analysis')} />} body={pageBody}>
         {items.length === 0 ? (
           <Empty sign="dashed" title={t('montage.order.noItems')} />
         ) : (

@@ -38,7 +38,7 @@ export default function AnalysisJobsScreen() {
 
   return (
     <View style={styles.root}>
-      <Board bar={<BackBar boxed title={t('montage.analysisTitle')} />} body={pageBody}>
+      <Board bar={<BackBar title={t('montage.analysisTitle')} />} body={pageBody}>
         {loading ? (
           <View style={styles.centre}>
             <CircularSpinner size={32} />

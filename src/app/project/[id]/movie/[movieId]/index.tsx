@@ -134,7 +134,6 @@ export default function MovieScreen() {
       <Board
         bar={
           <BackBar
-            boxed
             title={movie.name}
             right={
               <IconButton

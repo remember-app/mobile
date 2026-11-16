@@ -104,7 +104,6 @@ export default function ProjectInfoScreen() {
       body={pageBody}
       bar={
         <BackBar
-          boxed
           title={project.title}
           right={
             <IconButton

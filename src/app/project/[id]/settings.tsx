@@ -75,7 +75,6 @@ export default function ProjectSettingsScreen() {
       }
       bar={
         <BackBar
-          boxed
           title={project.title}
           right={
             <IconButton

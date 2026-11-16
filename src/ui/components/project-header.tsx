@@ -38,7 +38,7 @@ export function ProjectHeader({
   const hasShown = shown.length > 0;
   const [full, setFull] = useState(0);
   const [head, setHead] = useState(0);
-  const side = space.s2 + 44 + space.s4 + space.s2;
+  const side = space.s4 + 44 + space.s3;
   const widest = Math.max(0, full - side * 2);
   const collapsed = Math.min(head > 0 ? head : widest, widest);
 
@@ -49,14 +49,12 @@ export function ProjectHeader({
         width: collapsed,
         height: 44,
         borderRadius: radius.pill,
-        transform: [{ translateY: space.s1 }],
       };
     }
     return {
       width: full - (full - collapsed) * p,
       height: 44 + (1 - p) * (space.s2 * 2 + card) + 2,
       borderRadius: radius.card + (radius.pill - radius.card) * p,
-      transform: [{ translateY: space.s1 }],
     };
   });
   const strip = useAnimatedStyle(() => {
@@ -191,9 +189,9 @@ const styles = StyleSheet.create({
   },
   buttons: {
     position: 'absolute',
-    top: space.s1,
-    left: space.s2,
-    right: space.s2,
+    top: 0,
+    left: space.s4,
+    right: space.s4,
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',

@@ -53,7 +53,6 @@ export default function JournalScreen() {
 
   const bar = (
     <BackBar
-      boxed
       title={
         montage?.manifest.preparationConfig?.name?.trim() ||
         project?.title ||

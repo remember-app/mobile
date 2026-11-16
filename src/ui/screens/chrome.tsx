@@ -11,13 +11,11 @@ import { Empty } from '@/ui/kit/empty';
 export function BackBar({
   title,
   right,
-  boxed,
   tight,
   style,
 }: {
   title: string;
   right?: ReactNode;
-  boxed?: boolean;
   tight?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
@@ -25,7 +23,6 @@ export function BackBar({
   const router = useRouter();
   return (
     <AppBar
-      boxed={boxed}
       tight={tight}
       title={title}
       style={style}
@@ -37,7 +34,7 @@ export function BackBar({
 
 export function Missing({ title, message }: { title: string; message: string }) {
   return (
-    <Board bar={<BackBar boxed title={title} />}>
+    <Board bar={<BackBar title={title} />}>
       <Empty sign="dashed" title={message} />
     </Board>
   );

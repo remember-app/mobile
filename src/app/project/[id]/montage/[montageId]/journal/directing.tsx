@@ -49,7 +49,7 @@ export default function DirectingJournalScreen() {
 
   const viewerPhotos = useMemo(() => items.map(viewerOf), [items]);
 
-  const bar = <BackBar boxed title={t('montage.journal.directing')} />;
+  const bar = <BackBar title={t('montage.journal.directing')} />;
 
   if (items.length === 0) {
     return <Missing title={t('montage.journal.directing')} message={t('montage.order.noItems')} />;

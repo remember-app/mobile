@@ -396,7 +396,7 @@ export default function ProjectScreen() {
             onScroll={scrolled}
           />
         )}
-        <BlurBar edge="top" style={styles.top}>
+        <BlurBar edge="top">
           <ProjectHeader
             projectId={projectId}
             title={title}
@@ -556,9 +556,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: space.s6,
-  },
-  top: {
-    paddingHorizontal: space.s4,
   },
   sideBar: {
     position: 'absolute',

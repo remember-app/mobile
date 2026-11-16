@@ -39,7 +39,7 @@ export default function MovieFramesScreen() {
   const photos = useMemo<Photo[]>(() => items.map(tileOf), [items]);
   const viewer = useMemo(() => items.map(viewerOf), [items]);
 
-  const bar = <BackBar boxed title={t('montage.movie.framesTitle')} />;
+  const bar = <BackBar title={t('montage.movie.framesTitle')} />;
 
   if (photos.length === 0) {
     return <Board bar={bar}>{movies.status === 'ready' ? <Empty sign="dashed" /> : null}</Board>;

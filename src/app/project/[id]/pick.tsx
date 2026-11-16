@@ -461,8 +461,9 @@ const styles = StyleSheet.create({
   top: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: space.s3,
-    minHeight: 52,
+    gap: space.s3,
+    paddingHorizontal: space.s4,
+    minHeight: 44,
   },
   headCentre: {
     flex: 1,

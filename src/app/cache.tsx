@@ -122,7 +122,6 @@ export default function CacheScreen() {
       <Board
         bar={
           <BackBar
-            boxed
             title={t('cache.title')}
             right={
               <IconButton

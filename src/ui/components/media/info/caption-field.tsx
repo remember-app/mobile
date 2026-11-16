@@ -8,24 +8,15 @@ type Props = {
   value: string;
   onChangeText: (value: string) => void;
   onEndEditing?: () => void;
-  placeholder?: string;
-  maxLength?: number;
 };
 
 const LINE = 22;
 
-export function CaptionField({
-  value,
-  onChangeText,
-  onEndEditing,
-  placeholder,
-  maxLength = 200,
-}: Props) {
+export function CaptionField({ value, onChangeText, onEndEditing }: Props) {
   const { t } = useTranslation();
   const { color } = useTheme();
   const styles = useStyles();
   const [open, setOpen] = useState(false);
-  const hint = placeholder ?? t('photo.caption');
 
   if (open) {
     return (
@@ -33,11 +24,11 @@ export function CaptionField({
         value={value}
         onChangeText={onChangeText}
         onEndEditing={onEndEditing}
-        placeholder={hint}
+        placeholder={t('photo.caption')}
         placeholderTextColor={color.faint}
         selectionColor={color.accent}
         returnKeyType="done"
-        maxLength={maxLength}
+        maxLength={200}
         multiline
         scrollEnabled={false}
         autoFocus
@@ -49,12 +40,12 @@ export function CaptionField({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={value.trim() || hint}
+      accessibilityLabel={value.trim() || t('photo.caption')}
       onPress={() => setOpen(true)}
       style={styles.box}
     >
       <Text numberOfLines={3} style={[styles.caption, value ? null : { color: color.faint }]}>
-        {value || hint}
+        {value || t('photo.caption')}
       </Text>
     </Pressable>
   );
