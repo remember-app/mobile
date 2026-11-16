@@ -90,26 +90,15 @@ type Props = {
   main: AnimatedRef<ScrollViewInstance>;
   active: SharedValue<number>;
   scrollX: SharedValue<number>;
-  onDrive: (driving: boolean) => void;
   onSettle: (index: number) => void;
 };
 
-export function PhotoStrip({
-  photos,
-  index,
-  scroller,
-  main,
-  active,
-  scrollX,
-  onDrive,
-  onSettle,
-}: Props) {
+export function PhotoStrip({ photos, index, scroller, main, active, scrollX, onSettle }: Props) {
   const { width } = useWindowDimensions();
   const count = photos.length;
   const lead = (width - SELECTED) / 2;
   const [center, setCenter] = useState(index);
   const initialOffset = useRef({ x: index * STRIP_PITCH, y: 0 });
-  const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const snapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const scrollHandler = useAnimatedScrollHandler({
@@ -131,34 +120,20 @@ export function PhotoStrip({
   useEffect(() => {
     scrollTo(scroller, index * STRIP_PITCH, 0, false);
     return () => {
-      if (tapTimer.current) clearTimeout(tapTimer.current);
       if (snapTimer.current) clearTimeout(snapTimer.current);
     };
   }, []);
 
-  const snap = () => {
-    const settled = clamp(Math.round(scrollX.value / STRIP_PITCH), 0, count - 1);
-    setCenter(settled);
-    onSettle(settled);
-    scrollTo(scroller, settled * STRIP_PITCH, 0, true);
-    if (tapTimer.current) clearTimeout(tapTimer.current);
-    tapTimer.current = setTimeout(() => {
-      active.value = 0;
-      onDrive(false);
-    }, 260);
+  // лента отдаёт управление экрану: он сам доезжает до целого кадра и ведёт её
+  const land = (next: number) => {
+    setCenter(next);
+    onSettle(next);
+    active.value = 0;
+    scrollTo(main, next * width, 0, true);
   };
 
-  const select = (next: number) => {
-    if (tapTimer.current) clearTimeout(tapTimer.current);
-    active.value = 1;
-    onDrive(true);
-    setCenter(next);
-    scrollTo(scroller, next * STRIP_PITCH, 0, true);
-    onSettle(next);
-    tapTimer.current = setTimeout(() => {
-      active.value = 0;
-      onDrive(false);
-    }, 400);
+  const snap = () => {
+    land(clamp(Math.round(scrollX.value / STRIP_PITCH), 0, count - 1));
   };
 
   const from = Math.max(0, center - WINDOW);
@@ -175,7 +150,7 @@ export function PhotoStrip({
           lead={lead}
           count={count}
           scrollX={scrollX}
-          onSelect={select}
+          onSelect={land}
         />,
       );
     }
@@ -192,10 +167,8 @@ export function PhotoStrip({
       style={styles.scroll}
       contentOffset={initialOffset.current}
       onScrollBeginDrag={() => {
-        if (tapTimer.current) clearTimeout(tapTimer.current);
         if (snapTimer.current) clearTimeout(snapTimer.current);
         active.value = 1;
-        onDrive(true);
       }}
       onScrollEndDrag={() => {
         if (snapTimer.current) clearTimeout(snapTimer.current);

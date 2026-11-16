@@ -75,7 +75,6 @@ export function PhotoViewer({
   const [hdIndex, setHdIndex] = useState(-1);
   const [zoomed, setZoomed] = useState(false);
   const [info, setInfo] = useState(false);
-  const [stripDriving, setStripDriving] = useState(false);
   const dragY = useSharedValue(0);
   const lift = useSharedValue(0);
   const { width, height } = useWindowDimensions();
@@ -282,7 +281,7 @@ export function PhotoViewer({
         <Animated.ScrollView
           ref={mainRef}
           horizontal
-          pagingEnabled={!stripDriving}
+          pagingEnabled
           showsHorizontalScrollIndicator={false}
           onScroll={mainScroll}
           scrollEventThrottle={16}
@@ -413,7 +412,6 @@ export function PhotoViewer({
             main={mainRef}
             active={stripActive}
             scrollX={stripX}
-            onDrive={setStripDriving}
             onSettle={(next) => settle(next)}
           />
         </Animated.View>
