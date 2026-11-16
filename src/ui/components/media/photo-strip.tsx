@@ -15,19 +15,23 @@ import Animated, {
   useAnimatedScrollHandler,
   useAnimatedStyle,
 } from 'react-native-reanimated';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { Image } from '@/ui/kit/image';
 import { useTheme } from '@/ui/theme';
 
-import { clamp, mediaSize } from './viewer/geometry';
+import { clamp } from './viewer/geometry';
 import type { ViewerPhoto } from './viewer/types';
 
-const SELECTED = 40;
-const UNSELECTED = 26;
-const GAP = 8;
-const BREADTH = 40;
-const STRIP_HEIGHT = 68;
+const SELECTED = 30;
+const UNSELECTED = 20;
+const GAP = 6;
+const BREADTH = 30;
+const STRIP_HEIGHT = 42;
+const RADIUS = 4;
+const SHARE = 0.6;
+const FADE = 28;
 export const STRIP_PITCH = UNSELECTED + GAP;
 const WINDOW = 14;
 
@@ -35,31 +39,23 @@ type ItemProps = {
   index: number;
   photo: ViewerPhoto;
   lead: number;
-  openWidth: number;
   scrollX: SharedValue<number>;
   onSelect: (index: number) => void;
 };
 
-function StripItem({ index, photo, lead, openWidth, scrollX, onSelect }: ItemProps) {
+function StripItem({ index, photo, lead, scrollX, onSelect }: ItemProps) {
   const { color } = useTheme();
   const style = useAnimatedStyle(() => {
     const focus = scrollX.value / STRIP_PITCH;
     const distance = Math.min(1, Math.abs(index - focus));
-    const grow = 1 - distance;
-    const width = UNSELECTED + (openWidth - UNSELECTED) * grow;
-    const height = BREADTH + (openWidth - BREADTH) * grow;
-    return {
-      left: lead + index * STRIP_PITCH - (width - UNSELECTED) / 2,
-      top: (STRIP_HEIGHT - height) / 2,
-      width,
-      height,
-    };
+    const width = UNSELECTED + (SELECTED - UNSELECTED) * (1 - distance);
+    return { left: lead + index * STRIP_PITCH - (width - UNSELECTED) / 2, width };
   });
 
   return (
     <Animated.View style={[styles.item, style]}>
       <Pressable onPress={() => onSelect(index)} style={styles.press}>
-        <View style={[styles.reveal, { width: openWidth }]}>
+        <View style={styles.reveal}>
           {photo.source ? (
             <Image
               source={photo.source}
@@ -75,7 +71,7 @@ function StripItem({ index, photo, lead, openWidth, scrollX, onSelect }: ItemPro
         </View>
         {photo.video ? (
           <View style={styles.play} pointerEvents="none">
-            <Play size={10} color="#ffffff" fill="#ffffff" />
+            <Play size={8} color="#ffffff" fill="#ffffff" />
           </View>
         ) : null}
       </Pressable>
@@ -104,9 +100,11 @@ export function PhotoStrip({
   onDrive,
   onSettle,
 }: Props) {
-  const { width } = useWindowDimensions();
+  const { width: screen } = useWindowDimensions();
+  const viewWidth = screen * SHARE;
+  const inset = (screen - viewWidth) / 2;
   const count = photos.length;
-  const lead = (width - UNSELECTED) / 2;
+  const lead = (viewWidth - UNSELECTED) / 2;
   const [center, setCenter] = useState(index);
   const initialOffset = useRef({ x: index * STRIP_PITCH, y: 0 });
   const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -115,7 +113,7 @@ export function PhotoStrip({
     onScroll: (event) => {
       scrollX.value = event.contentOffset.x;
       if (active.value === 1) {
-        scrollTo(main, (event.contentOffset.x / STRIP_PITCH) * width, 0, false);
+        scrollTo(main, (event.contentOffset.x / STRIP_PITCH) * screen, 0, false);
       }
     },
   });
@@ -127,10 +125,8 @@ export function PhotoStrip({
     },
   );
 
-  const settledIndex = () => clamp(Math.round(scrollX.value / STRIP_PITCH), 0, count - 1);
-
   const stop = () => {
-    const settled = settledIndex();
+    const settled = clamp(Math.round(scrollX.value / STRIP_PITCH), 0, count - 1);
     setCenter(settled);
     onSettle(settled);
     active.value = 0;
@@ -163,17 +159,12 @@ export function PhotoStrip({
   for (let at = from; at <= to; at += 1) {
     const photo = photos[at];
     if (photo) {
-      const size = mediaSize(photo);
-      const openWidth = size
-        ? clamp(BREADTH * (size.width / size.height), UNSELECTED, SELECTED)
-        : SELECTED;
       items.push(
         <StripItem
           key={photo.id}
           index={at}
           photo={photo}
           lead={lead}
-          openWidth={openWidth}
           scrollX={scrollX}
           onSelect={select}
         />,
@@ -182,31 +173,56 @@ export function PhotoStrip({
   }
 
   return (
-    <Animated.ScrollView
-      ref={scroller}
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      onScroll={scrollHandler}
-      scrollEventThrottle={16}
-      snapToInterval={STRIP_PITCH}
-      style={styles.scroll}
-      contentOffset={initialOffset.current}
-      onScrollBeginDrag={() => {
-        if (tapTimer.current) clearTimeout(tapTimer.current);
-        active.value = 1;
-        onDrive(true);
-      }}
-      onMomentumScrollEnd={stop}
-    >
-      <View
-        style={{
-          width: 2 * lead + (count - 1) * STRIP_PITCH + UNSELECTED,
-          height: STRIP_HEIGHT,
+    <>
+      <Animated.ScrollView
+        ref={scroller}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
+        snapToInterval={STRIP_PITCH}
+        style={[styles.scroll, { width: viewWidth, alignSelf: 'center' }]}
+        contentOffset={initialOffset.current}
+        onScrollBeginDrag={() => {
+          if (tapTimer.current) clearTimeout(tapTimer.current);
+          active.value = 1;
+          onDrive(true);
         }}
+        onMomentumScrollEnd={stop}
       >
-        {items}
-      </View>
-    </Animated.ScrollView>
+        <View style={{ width: viewWidth + (count - 1) * STRIP_PITCH, height: STRIP_HEIGHT }}>
+          {items}
+        </View>
+      </Animated.ScrollView>
+      <Svg
+        pointerEvents="none"
+        style={[styles.fade, { left: inset }]}
+        width={FADE}
+        height={STRIP_HEIGHT}
+      >
+        <Defs>
+          <LinearGradient id="stripFadeLeft" x1="0" y1="0" x2="1" y2="0">
+            <Stop offset="0" stopColor="#000000" stopOpacity="0.85" />
+            <Stop offset="1" stopColor="#000000" stopOpacity="0" />
+          </LinearGradient>
+        </Defs>
+        <Rect width={FADE} height={STRIP_HEIGHT} fill="url(#stripFadeLeft)" />
+      </Svg>
+      <Svg
+        pointerEvents="none"
+        style={[styles.fade, { right: inset }]}
+        width={FADE}
+        height={STRIP_HEIGHT}
+      >
+        <Defs>
+          <LinearGradient id="stripFadeRight" x1="1" y1="0" x2="0" y2="0">
+            <Stop offset="0" stopColor="#000000" stopOpacity="0.85" />
+            <Stop offset="1" stopColor="#000000" stopOpacity="0" />
+          </LinearGradient>
+        </Defs>
+        <Rect width={FADE} height={STRIP_HEIGHT} fill="url(#stripFadeRight)" />
+      </Svg>
+    </>
   );
 }
 
@@ -214,9 +230,15 @@ const styles = StyleSheet.create({
   scroll: {
     height: STRIP_HEIGHT,
   },
+  fade: {
+    position: 'absolute',
+    top: 0,
+  },
   item: {
     position: 'absolute',
-    borderRadius: 7,
+    top: (STRIP_HEIGHT - BREADTH) / 2,
+    height: BREADTH,
+    borderRadius: RADIUS,
     overflow: 'hidden',
   },
   press: {
@@ -225,6 +247,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   reveal: {
+    width: SELECTED,
     height: BREADTH,
   },
   fill: {
@@ -232,11 +255,11 @@ const styles = StyleSheet.create({
   },
   play: {
     position: 'absolute',
-    left: 4,
-    bottom: 4,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+    left: 3,
+    bottom: 3,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(0,0,0,0.5)',
