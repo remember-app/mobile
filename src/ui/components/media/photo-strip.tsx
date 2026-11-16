@@ -1,5 +1,5 @@
 import { Play } from 'lucide-react-native';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Pressable,
   type ScrollViewInstance,
@@ -14,52 +14,92 @@ import Animated, {
   useAnimatedReaction,
   useAnimatedScrollHandler,
   useAnimatedStyle,
+  useSharedValue,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { Image } from '@/ui/kit/image';
 import { useTheme } from '@/ui/theme';
 
-import { clamp } from './viewer/geometry';
+import { clamp, mediaSize } from './viewer/geometry';
 import type { ViewerPhoto } from './viewer/types';
 
-const SELECTED = 33;
-const UNSELECTED = 22;
-const GAP = 8;
-const BREADTH = 33;
-const STRIP_HEIGHT = 46;
-const SIDE_RADIUS = 2;
-const FOCUS_RADIUS = 4;
-const PUSH = 7;
+const HEIGHT = 34;
+const MIN_WIDTH = 19;
+const MAX_WIDTH = 37;
+const GROW = 6;
+const GAP = 6;
+const PUSH = 10;
+const STRIP_HEIGHT = 48;
+const SIDE_RADIUS = 4;
+const FOCUS_RADIUS = 6;
 const SHARE = 0.9;
 const FADE = 40;
-export const STRIP_PITCH = UNSELECTED + GAP;
 const WINDOW = 14;
+
+/** Дробный индекс кадра под точкой прокрутки. */
+function progressAt(x: number, offsets: number[]): number {
+  'worklet';
+  const last = offsets.length - 1;
+  if (last < 0) return 0;
+  if (x <= offsets[0]) return 0;
+  if (x >= offsets[last]) return last;
+  let lo = 0;
+  let hi = last;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (offsets[mid] <= x) lo = mid;
+    else hi = mid;
+  }
+  const span = offsets[hi] - offsets[lo];
+  return span > 0 ? lo + (x - offsets[lo]) / span : lo;
+}
+
+function offsetAt(progress: number, offsets: number[]): number {
+  'worklet';
+  const last = offsets.length - 1;
+  if (last < 0) return 0;
+  const p = Math.min(Math.max(progress, 0), last);
+  const at = Math.floor(p);
+  if (at >= last) return offsets[last];
+  return offsets[at] + (offsets[at + 1] - offsets[at]) * (p - at);
+}
 
 type ItemProps = {
   index: number;
   photo: ViewerPhoto;
-  lead: number;
+  left: number;
+  width: number;
+  offsets: number[];
   inset: number;
   viewWidth: number;
   scrollX: SharedValue<number>;
   onSelect: (index: number) => void;
 };
 
-function StripItem({ index, photo, lead, inset, viewWidth, scrollX, onSelect }: ItemProps) {
+function StripItem({
+  index,
+  photo,
+  left,
+  width,
+  offsets,
+  inset,
+  viewWidth,
+  scrollX,
+  onSelect,
+}: ItemProps) {
   const { color } = useTheme();
   const style = useAnimatedStyle(() => {
-    const focus = scrollX.value / STRIP_PITCH;
-    const d = index - focus;
+    const progress = progressAt(scrollX.value, offsets);
+    const d = index - progress;
     const near = Math.min(1, Math.abs(d));
-    const width = UNSELECTED + (SELECTED - UNSELECTED) * (1 - near);
-    // соседи отъезжают от центрального кадра, поэтому вокруг него зазор больше
+    const bonus = GROW * (1 - near);
     const push = PUSH * Math.max(0, 1 - Math.abs(Math.abs(d) - 1));
-    const centre = inset + lead + index * STRIP_PITCH + UNSELECTED / 2 - scrollX.value;
+    const centre = inset + left + width / 2 - scrollX.value;
     const edge = Math.min(centre - inset, inset + viewWidth - centre);
     return {
-      left: lead + index * STRIP_PITCH - (width - UNSELECTED) / 2 + Math.sign(d) * push,
-      width,
+      left: left - bonus / 2 + Math.sign(d) * push,
+      width: width + bonus,
       borderRadius: SIDE_RADIUS + (FOCUS_RADIUS - SIDE_RADIUS) * (1 - near),
       opacity: clamp(edge / FADE, 0, 1),
     };
@@ -68,7 +108,7 @@ function StripItem({ index, photo, lead, inset, viewWidth, scrollX, onSelect }: 
   return (
     <Animated.View style={[styles.item, style]}>
       <Pressable onPress={() => onSelect(index)} style={styles.press}>
-        <View style={styles.reveal}>
+        <View style={[styles.layer, { width: width + GROW }]}>
           {photo.source ? (
             <Image
               source={photo.source}
@@ -97,8 +137,8 @@ type Props = {
   index: number;
   scroller: AnimatedRef<ScrollViewInstance>;
   main: AnimatedRef<ScrollViewInstance>;
+  mainX: SharedValue<number>;
   active: SharedValue<number>;
-  scrollX: SharedValue<number>;
   onDrive: (driving: boolean) => void;
   onSettle: (index: number) => void;
 };
@@ -108,8 +148,8 @@ export function PhotoStrip({
   index,
   scroller,
   main,
+  mainX,
   active,
-  scrollX,
   onDrive,
   onSettle,
 }: Props) {
@@ -117,29 +157,66 @@ export function PhotoStrip({
   const viewWidth = screen * SHARE;
   const inset = (screen - viewWidth) / 2;
   const count = photos.length;
-  const lead = (viewWidth - UNSELECTED) / 2;
+
+  const layout = useMemo(() => {
+    const widths = photos.map((photo) => {
+      const size = mediaSize(photo);
+      const aspect = size ? size.width / size.height : 1;
+      return clamp(HEIGHT * aspect, MIN_WIDTH, MAX_WIDTH);
+    });
+    const lefts: number[] = [];
+    let cursor = 0;
+    for (const width of widths) {
+      lefts.push(cursor);
+      cursor += width + GAP;
+    }
+    const pad = (viewWidth - MIN_WIDTH) / 2;
+    const offsets = widths.map((width, at) => pad + lefts[at] + width / 2 - viewWidth / 2);
+    const last = widths.length - 1;
+    return {
+      widths,
+      lefts,
+      offsets,
+      pad,
+      content: pad * 2 + (last >= 0 ? lefts[last] + widths[last] : 0),
+    };
+  }, [photos, viewWidth]);
+
+  const { widths, lefts, offsets, pad, content } = layout;
+  const scrollX = useSharedValue(offsets[index] ?? 0);
   const [center, setCenter] = useState(index);
-  const initialOffset = useRef({ x: index * STRIP_PITCH, y: 0 });
+  const initialOffset = useRef({ x: offsets[index] ?? 0, y: 0 });
   const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
       scrollX.value = event.contentOffset.x;
       if (active.value === 1) {
-        scrollTo(main, (event.contentOffset.x / STRIP_PITCH) * screen, 0, false);
+        scrollTo(main, progressAt(event.contentOffset.x, offsets) * screen, 0, false);
       }
     },
   });
 
+  // большой кадр листают — лента едет за ним
   useAnimatedReaction(
-    () => clamp(Math.round(scrollX.value / STRIP_PITCH), 0, count - 1),
+    () => mainX.value / screen,
+    (progress) => {
+      if (active.value === 1) return;
+      const x = offsetAt(progress, offsets);
+      scrollX.value = x;
+      scrollTo(scroller, x, 0, false);
+    },
+  );
+
+  useAnimatedReaction(
+    () => Math.round(progressAt(scrollX.value, offsets)),
     (next) => {
       scheduleOnRN(setCenter, next);
     },
   );
 
   const stop = () => {
-    const settled = clamp(Math.round(scrollX.value / STRIP_PITCH), 0, count - 1);
+    const settled = clamp(Math.round(progressAt(scrollX.value, offsets)), 0, count - 1);
     setCenter(settled);
     onSettle(settled);
     active.value = 0;
@@ -147,7 +224,7 @@ export function PhotoStrip({
   };
 
   useEffect(() => {
-    scrollTo(scroller, index * STRIP_PITCH, 0, false);
+    scrollTo(scroller, offsets[index] ?? 0, 0, false);
     return () => {
       if (tapTimer.current) clearTimeout(tapTimer.current);
     };
@@ -158,7 +235,7 @@ export function PhotoStrip({
     active.value = 1;
     onDrive(true);
     setCenter(next);
-    scrollTo(scroller, next * STRIP_PITCH, 0, true);
+    scrollTo(scroller, offsets[next] ?? 0, 0, true);
     onSettle(next);
     tapTimer.current = setTimeout(() => {
       active.value = 0;
@@ -177,7 +254,9 @@ export function PhotoStrip({
           key={photo.id}
           index={at}
           photo={photo}
-          lead={lead}
+          left={pad + lefts[at]}
+          width={widths[at]}
+          offsets={offsets}
           inset={inset}
           viewWidth={viewWidth}
           scrollX={scrollX}
@@ -194,7 +273,7 @@ export function PhotoStrip({
       showsHorizontalScrollIndicator={false}
       onScroll={scrollHandler}
       scrollEventThrottle={16}
-      snapToInterval={STRIP_PITCH}
+      snapToOffsets={offsets}
       style={[styles.scroll, { width: viewWidth, alignSelf: 'center' }]}
       contentOffset={initialOffset.current}
       onScrollBeginDrag={() => {
@@ -204,9 +283,7 @@ export function PhotoStrip({
       }}
       onMomentumScrollEnd={stop}
     >
-      <View style={{ width: viewWidth + (count - 1) * STRIP_PITCH, height: STRIP_HEIGHT }}>
-        {items}
-      </View>
+      <View style={{ width: content, height: STRIP_HEIGHT }}>{items}</View>
     </Animated.ScrollView>
   );
 }
@@ -217,8 +294,8 @@ const styles = StyleSheet.create({
   },
   item: {
     position: 'absolute',
-    top: (STRIP_HEIGHT - BREADTH) / 2,
-    height: BREADTH,
+    top: (STRIP_HEIGHT - HEIGHT) / 2,
+    height: HEIGHT,
     overflow: 'hidden',
   },
   press: {
@@ -226,9 +303,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  reveal: {
-    width: SELECTED,
-    height: BREADTH,
+  layer: {
+    height: HEIGHT,
   },
   fill: {
     flex: 1,

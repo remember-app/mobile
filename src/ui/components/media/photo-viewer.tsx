@@ -6,7 +6,6 @@ import { useTranslation } from 'react-i18next';
 import { type ScrollViewInstance, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, {
   Easing,
-  scrollTo,
   useAnimatedRef,
   useAnimatedScrollHandler,
   useAnimatedStyle,
@@ -26,7 +25,7 @@ import { Text } from '@/ui/kit/text';
 import { photo, radius, space, useTheme } from '@/ui/theme';
 import { PhotoInfo } from './info/photo-info';
 import type { Rect } from './photo-grid';
-import { PhotoStrip, STRIP_PITCH } from './photo-strip';
+import { PhotoStrip } from './photo-strip';
 import { boxFor, mediaSize, targetFor } from './viewer/geometry';
 import type { ViewerPhoto } from './viewer/types';
 import { VideoFrame } from './viewer/video-frame';
@@ -82,7 +81,6 @@ export function PhotoViewer({
   const mainRef = useAnimatedRef<ScrollViewInstance>();
   const stripRef = useAnimatedRef<ScrollViewInstance>();
   const mainX = useSharedValue(start * width);
-  const stripX = useSharedValue(start * STRIP_PITCH);
   const stripActive = useSharedValue(0);
   const initialMain = useRef({ x: start * width, y: 0 });
   const cover = viewPhotos[start]?.source ?? null;
@@ -166,10 +164,6 @@ export function PhotoViewer({
   const mainScroll = useAnimatedScrollHandler({
     onScroll: (event) => {
       mainX.value = event.contentOffset.x;
-      if (stripActive.value === 0) {
-        stripX.value = (event.contentOffset.x / width) * STRIP_PITCH;
-        scrollTo(stripRef, stripX.value, 0, false);
-      }
     },
   });
 
@@ -411,8 +405,8 @@ export function PhotoViewer({
             index={start}
             scroller={stripRef}
             main={mainRef}
+            mainX={mainX}
             active={stripActive}
-            scrollX={stripX}
             onDrive={setStripDriving}
             onSettle={(next) => settle(next)}
           />
