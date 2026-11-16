@@ -193,27 +193,28 @@ export default function PickScreen() {
     const projectId = id as ProjectId;
     setChecking(true);
     try {
-      const [items, prepared] = await Promise.all([
-        refreshGalleryAll(projectId),
-        Promise.all(
-          selected.map(async (asset) => {
-            const local = await resolveDeviceAsset(asset.id);
-            return {
-              assetId: asset.id,
-              fingerprint: await fileDigest(local.uri),
-              file: {
-                projectId,
-                uri: local.uri,
-                fileName: local.fileName,
-                kind: local.kind,
-                sizeBytes: local.sizeBytes,
-                capturedAt: local.capturedAt,
-                durationSeconds: local.durationSeconds,
-              },
-            };
-          }),
-        ),
-      ]);
+      const items = await refreshGalleryAll(projectId);
+      const prepared: {
+        assetId: string;
+        fingerprint: string | null;
+        file: Parameters<typeof enqueueUploads>[0][number];
+      }[] = [];
+      for (const asset of selected) {
+        const local = await resolveDeviceAsset(asset.id);
+        prepared.push({
+          assetId: asset.id,
+          fingerprint: await fileDigest(local.uri),
+          file: {
+            projectId,
+            uri: local.uri,
+            fileName: local.fileName,
+            kind: local.kind,
+            sizeBytes: local.sizeBytes,
+            capturedAt: local.capturedAt,
+            durationSeconds: local.durationSeconds,
+          },
+        });
+      }
       const known = new Set(
         items.map((item) => item.media.fingerprint).filter((fingerprint) => fingerprint !== ''),
       );
