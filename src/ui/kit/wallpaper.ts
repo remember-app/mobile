@@ -1,3 +1,5 @@
+import { Image } from 'expo-image';
+
 import type { Movie, ProjectCard } from '@/models';
 import type { ProjectId } from '@/types/id';
 
@@ -22,8 +24,16 @@ const SHARED_ENOUGH = 0.75;
 export type Wallpaper = { base: number | null; state: number | null };
 
 const plain: Wallpaper = { base: BASE.plain, state: null };
-const solid: Wallpaper = { base: null, state: null };
 const centered = (state: number | null): Wallpaper => ({ base: BASE.center, state });
+
+/**
+ * Готовит обои заранее: иначе при переходе экран успевает выехать с прозрачным
+ * фоном, и узор проявляется уже поверх старого экрана.
+ */
+export function preloadWallpapers(): void {
+  void Image.loadAsync(BASE.plain).catch(() => undefined);
+  void Image.loadAsync(BASE.center).catch(() => undefined);
+}
 
 /**
  * Обои одного экрана: на главной и в профиле — плотный узор без свободного
@@ -37,7 +47,7 @@ export function wallpaperFor(
   movies: readonly Movie[],
   loadedItems: number,
 ): Wallpaper {
-  if (routeName === 'onboarding') return solid;
+  if (routeName === 'onboarding') return plain;
   if (routeName === 'sign-up') return centered(null);
 
   if (routeName === 'home') {

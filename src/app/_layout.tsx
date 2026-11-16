@@ -27,6 +27,7 @@ import { maybeCloseOpenRows } from '@/ui/components/swipe-row';
 import { useSession } from '@/ui/hooks';
 import { applyLanguage } from '@/ui/i18n';
 import { ScreenSkin } from '@/ui/kit/backdrop';
+import { preloadWallpapers } from '@/ui/kit/wallpaper';
 import { useTheme } from '@/ui/theme';
 
 void SplashScreen.preventAutoHideAsync();
@@ -51,6 +52,7 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
+    preloadWallpapers();
     void startApp().finally(() => setReady(true));
     void readLanguage().then((stored) => {
       if (!languageSynced.current) void applyLanguage(stored);
