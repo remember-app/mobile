@@ -97,7 +97,7 @@ export default function DevScreen() {
     try {
       await signOut();
       await requestCode(email);
-      router.navigate({ pathname: '/onboarding/code', params: { email } });
+      router.navigate({ pathname: '/onboarding/sign-up', params: { step: 'code', email } });
     } catch {
       setError('Не удалось отправить код на эту почту');
     } finally {

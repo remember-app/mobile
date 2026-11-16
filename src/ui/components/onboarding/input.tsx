@@ -2,7 +2,7 @@ import { Keyboard, Pressable, StyleSheet, type TextInputProps, View } from 'reac
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Text } from '@/ui/kit/text';
-import { space, useTheme } from '@/ui/theme';
+import { space } from '@/ui/theme';
 
 import { ArrowField } from '../arrow-field';
 import { StepDots } from './steps';
@@ -45,10 +45,9 @@ export function OnboardingInput({
   autoFocus = false,
 }: Props) {
   const insets = useSafeAreaInsets();
-  const { color } = useTheme();
 
   return (
-    <View style={[styles.root, { backgroundColor: color.ink }]}>
+    <View style={styles.root}>
       <Pressable style={styles.fill} onPress={Keyboard.dismiss}>
         <View style={[styles.top, { paddingTop: insets.top + space.s3 }]}>
           <StepDots step={step} total={total} />

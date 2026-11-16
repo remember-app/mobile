@@ -157,7 +157,7 @@ export default function WelcomeScreen() {
             label={t('onboarding.welcome.continue')}
             variant="primary"
             icon={Mail}
-            onPress={() => router.navigate('/onboarding/email')}
+            onPress={() => router.navigate('/onboarding/sign-up')}
           />
         </View>
       </Animated.View>
