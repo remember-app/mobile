@@ -173,9 +173,7 @@ export function PhotoStrip({
       showsHorizontalScrollIndicator={false}
       onScroll={scrollHandler}
       scrollEventThrottle={16}
-      decelerationRate="fast"
       snapToInterval={STRIP_PITCH}
-      disableIntervalMomentum
       style={styles.scroll}
       contentOffset={initialOffset.current}
       onScrollBeginDrag={() => {
