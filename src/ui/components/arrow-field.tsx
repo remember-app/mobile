@@ -3,6 +3,7 @@ import { type Ref, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, type TextInputProps, View } from 'react-native';
 
+import { CircularSpinner } from '@/ui/kit/circular-spinner';
 import { Field, type TextInputRef } from '@/ui/kit/field';
 import { height, radius, useTheme } from '@/ui/theme';
 
@@ -12,6 +13,7 @@ type Props = {
   onChangeText: (value: string) => void;
   placeholder: string;
   valid: boolean;
+  busy?: boolean;
   onSubmit: () => void;
   prefix?: string;
   inputMode?: TextInputProps['inputMode'];
@@ -28,6 +30,7 @@ export function ArrowField({
   onChangeText,
   placeholder,
   valid,
+  busy = false,
   onSubmit,
   prefix,
   inputMode,
@@ -60,7 +63,7 @@ export function ArrowField({
         onBlur={() => setFocused(false)}
         returnKeyType="done"
         onSubmitEditing={() => {
-          if (valid) onSubmit();
+          if (valid && !busy) onSubmit();
         }}
         style={value.length > 0 ? { paddingRight: height.fieldTall } : undefined}
       />
@@ -68,20 +71,24 @@ export function ArrowField({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('action.continue')}
-          disabled={!valid}
+          disabled={!valid || busy}
           onPress={onSubmit}
           style={[
             styles.arrow,
             {
-              backgroundColor: valid ? color.accent : color.raise,
+              backgroundColor: valid && !busy ? color.accent : color.raise,
               borderTopColor: border,
               borderBottomColor: border,
               borderRightColor: border,
-              borderLeftColor: valid ? color.accent : border,
+              borderLeftColor: valid && !busy ? color.accent : border,
             },
           ]}
         >
-          <ArrowRight size={20} color={valid ? color.onFill : color.faint} />
+          {busy ? (
+            <CircularSpinner size={20} />
+          ) : (
+            <ArrowRight size={20} color={valid ? color.onFill : color.faint} />
+          )}
         </Pressable>
       ) : null}
     </View>

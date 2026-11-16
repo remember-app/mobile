@@ -207,6 +207,7 @@ export default function SignUpScreen() {
           }}
           placeholder="you@example.com"
           valid={emailReady}
+          busy={emailBusy}
           error={emailError ?? undefined}
           inputMode="email"
           autoComplete="email"

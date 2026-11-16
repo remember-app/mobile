@@ -16,6 +16,7 @@ type Props = {
   onChangeText: (value: string) => void;
   placeholder: string;
   valid: boolean;
+  busy?: boolean;
   onSubmit: () => void;
   error?: string;
   prefix?: string;
@@ -35,6 +36,7 @@ export function OnboardingInput({
   onChangeText,
   placeholder,
   valid,
+  busy,
   onSubmit,
   error,
   prefix,
@@ -62,6 +64,7 @@ export function OnboardingInput({
             onChangeText={onChangeText}
             placeholder={placeholder}
             valid={valid}
+            busy={busy}
             onSubmit={onSubmit}
             prefix={prefix}
             inputMode={inputMode}
