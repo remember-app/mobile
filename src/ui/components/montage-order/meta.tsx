@@ -1,12 +1,11 @@
 import { RectangleHorizontal, RectangleVertical } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet } from 'react-native';
 
+import { CaptionField } from '@/ui/components/media/info/caption-field';
 import { duration } from '@/ui/format';
 import { Field } from '@/ui/kit/field';
 import { Segment } from '@/ui/kit/segment';
 import { Slider } from '@/ui/kit/slider';
-import { themed } from '@/ui/theme';
 
 import { type Change, type Draft, OrderPage, OrderScroll, type Orientation } from './wizard';
 
@@ -34,7 +33,6 @@ export function MetaPage({
   bottom: number;
 }) {
   const { t } = useTranslation();
-  const styles = useStyles();
   return (
     <OrderPage width={width} height={height}>
       <OrderScroll top={top} bottom={bottom}>
@@ -45,26 +43,18 @@ export function MetaPage({
           placeholder={defaultName}
           maxLength={200}
         />
-        <Field
-          label={t('project.descriptionPlaceholder')}
+        <CaptionField
           value={eventDescription}
           onChangeText={onEventDescription}
           onEndEditing={onEventDescriptionDone}
           placeholder={t('project.descriptionPlaceholder')}
           maxLength={2000}
-          multiline
-          scrollEnabled={false}
-          style={styles.note}
         />
-        <Field
-          label={t('montage.order.promptTitle')}
+        <CaptionField
           value={draft.prompt}
           onChangeText={(prompt) => onChange({ prompt })}
           placeholder={t('montage.order.promptPlaceholder')}
-          multiline
-          scrollEnabled={false}
           maxLength={4000}
-          style={styles.note}
         />
         <Slider
           label={t('montage.order.duration')}
@@ -98,11 +88,3 @@ export function MetaPage({
     </OrderPage>
   );
 }
-
-const useStyles = themed(() =>
-  StyleSheet.create({
-    note: {
-      textAlignVertical: 'top',
-    },
-  }),
-);
