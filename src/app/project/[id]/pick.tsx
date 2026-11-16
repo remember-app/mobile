@@ -36,6 +36,7 @@ import { radius, space, useTheme } from '@/ui/theme';
 
 const PAGE = 60;
 const SKELETON = 24;
+const PREPARE_BATCH = 3;
 
 const COLLECTIONS = [
   'all',
@@ -194,30 +195,37 @@ export default function PickScreen() {
     setChecking(true);
     try {
       const items = await refreshGalleryAll(projectId);
+      const known = new Set(
+        items.map((item) => item.media.fingerprint).filter((fingerprint) => fingerprint !== ''),
+      );
+      const knownSizes = new Set(items.map((item) => item.media.bytes));
       const prepared: {
         assetId: string;
         fingerprint: string | null;
         file: Parameters<typeof enqueueUploads>[0][number];
       }[] = [];
-      for (const asset of selected) {
-        const local = await resolveDeviceAsset(asset.id);
-        prepared.push({
-          assetId: asset.id,
-          fingerprint: await fileDigest(local.uri),
-          file: {
-            projectId,
-            uri: local.uri,
-            fileName: local.fileName,
-            kind: local.kind,
-            sizeBytes: local.sizeBytes,
-            capturedAt: local.capturedAt,
-            durationSeconds: local.durationSeconds,
-          },
-        });
+      for (let start = 0; start < selected.length; start += PREPARE_BATCH) {
+        const batch = selected.slice(start, start + PREPARE_BATCH);
+        const part = await Promise.all(
+          batch.map(async (asset) => {
+            const local = await resolveDeviceAsset(asset.id);
+            return {
+              assetId: asset.id,
+              fingerprint: knownSizes.has(local.sizeBytes) ? await fileDigest(local.uri) : null,
+              file: {
+                projectId,
+                uri: local.uri,
+                fileName: local.fileName,
+                kind: local.kind,
+                sizeBytes: local.sizeBytes,
+                capturedAt: local.capturedAt,
+                durationSeconds: local.durationSeconds,
+              },
+            };
+          }),
+        );
+        prepared.push(...part);
       }
-      const known = new Set(
-        items.map((item) => item.media.fingerprint).filter((fingerprint) => fingerprint !== ''),
-      );
       const dup = new Set(
         prepared
           .filter((entry) => entry.fingerprint !== null && known.has(entry.fingerprint))
