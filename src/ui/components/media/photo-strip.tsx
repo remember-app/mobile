@@ -15,7 +15,7 @@ import Animated, {
   useAnimatedScrollHandler,
   useAnimatedStyle,
 } from 'react-native-reanimated';
-import { scheduleOnRN } from 'react-native-worklets';
+import { scheduleOnRN, scheduleOnUI } from 'react-native-worklets';
 
 import { Image } from '@/ui/kit/image';
 import { useTheme } from '@/ui/theme';
@@ -117,19 +117,23 @@ export function PhotoStrip({ photos, index, scroller, main, active, scrollX, onS
     },
   );
 
-  useEffect(() => {
-    scrollTo(scroller, index * STRIP_PITCH, 0, false);
-    return () => {
+  useEffect(
+    () => () => {
       if (snapTimer.current) clearTimeout(snapTimer.current);
-    };
-  }, []);
+    },
+    [],
+  );
 
-  // лента отдаёт управление экрану: он сам доезжает до целого кадра и ведёт её
+  // лента отдаёт управление экрану: он сам доезжает до целого кадра и ведёт её.
+  // scrollTo работает только на UI-потоке, иначе вызов молча ничего не делает.
   const land = (next: number) => {
     setCenter(next);
     onSettle(next);
-    active.value = 0;
-    scrollTo(main, next * width, 0, true);
+    scheduleOnUI((target: number) => {
+      'worklet';
+      active.value = 0;
+      scrollTo(main, target * width, 0, true);
+    }, next);
   };
 
   const snap = () => {
