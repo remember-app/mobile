@@ -19,10 +19,11 @@ const STATE: Record<string, number> = {
 const FILLED_AT_ITEMS = 5;
 const SHARED_ENOUGH = 0.75;
 
-export type Wallpaper = { base: number; state: number | null };
+export type Wallpaper = { base: number | null; state: number | null };
 
 const plain: Wallpaper = { base: BASE.plain, state: null };
-const centered = (state: number): Wallpaper => ({ base: BASE.center, state });
+const solid: Wallpaper = { base: null, state: null };
+const centered = (state: number | null): Wallpaper => ({ base: BASE.center, state });
 
 /**
  * Обои одного экрана: на главной и в профиле — плотный узор без свободного
@@ -36,6 +37,9 @@ export function wallpaperFor(
   movies: readonly Movie[],
   loadedItems: number,
 ): Wallpaper {
+  if (routeName === 'onboarding') return solid;
+  if (routeName === 'sign-up') return centered(null);
+
   if (routeName === 'home') {
     return cards.length > 0 ? plain : centered(STATE.empty);
   }

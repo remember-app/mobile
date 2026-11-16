@@ -42,32 +42,30 @@ export function ScreenSkin({
 
   return (
     <View style={styles.skin}>
-      {name === 'dark' ? (
-        <>
-          <Image
-            source={base}
-            style={StyleSheet.absoluteFill}
-            contentFit="cover"
-            cachePolicy="memory"
-            allowDownscaling={false}
-            pointerEvents="none"
-          />
-          {state === null ? null : (
-            <Image
-              source={state}
-              style={{
-                position: 'absolute',
-                left: (width - logo) / 2,
-                top: (height - logo) / 2,
-                width: logo,
-                height: logo,
-              }}
-              contentFit="contain"
-              cachePolicy="memory"
-              pointerEvents="none"
-            />
-          )}
-        </>
+      {name === 'dark' && base !== null ? (
+        <Image
+          source={base}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+          cachePolicy="memory"
+          allowDownscaling={false}
+          pointerEvents="none"
+        />
+      ) : null}
+      {name === 'dark' && state !== null ? (
+        <Image
+          source={state}
+          style={{
+            position: 'absolute',
+            left: (width - logo) / 2,
+            top: (height - logo) / 2,
+            width: logo,
+            height: logo,
+          }}
+          contentFit="contain"
+          cachePolicy="memory"
+          pointerEvents="none"
+        />
       ) : null}
       {children}
     </View>
