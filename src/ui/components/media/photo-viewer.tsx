@@ -14,7 +14,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { scheduleOnRN } from 'react-native-worklets';
+import { scheduleOnRN, scheduleOnUI } from 'react-native-worklets';
 
 import { confirmAction } from '@/ui/confirm';
 import { fullDay, time } from '@/ui/format';
@@ -163,13 +163,47 @@ export function PhotoViewer({
   );
 
   const snapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const snapToNearest = useCallback(() => {
-    const target = Math.round(mainX.value / width) * width;
-    if (Math.abs(mainX.value - target) > 1) {
-      mainRef.current?.scrollTo({ x: target, animated: true });
+  const dragStart = useRef(0);
+  const releaseX = useRef(0);
+  const dragDir = useRef(0);
+  const touching = useRef(false);
+
+  // Кадр доводится в сторону жеста: назад лента не возвращается, а
+  // останавливается там, где затухла сила броска.
+  const snapDirectional = useCallback(() => {
+    const page = mainX.value / width;
+    let target = Math.round(page);
+    if (dragDir.current > 0) target = Math.max(target, Math.ceil(releaseX.current / width - 0.01));
+    if (dragDir.current < 0) target = Math.min(target, Math.floor(releaseX.current / width + 0.01));
+    target = Math.min(viewPhotos.length - 1, Math.max(0, target));
+    if (Math.abs(target * width - mainX.value) > 1) {
+      scheduleOnUI((x: number) => {
+        'worklet';
+        scrollTo(mainRef, x, 0, true);
+      }, target * width);
     }
-    settle(Math.round(mainX.value / width));
-  }, [mainX, mainRef, settle, width]);
+    settle(target);
+  }, [mainX, mainRef, settle, viewPhotos.length, width]);
+
+  // Без инерции событие окончания броска не придёт — ждём, пока лента
+  // перестанет двигаться, и только тогда доводим кадр.
+  const settleWhenStill = useCallback(() => {
+    let last = mainX.value;
+    const check = () => {
+      if (touching.current) {
+        snapTimer.current = setTimeout(check, 100);
+        return;
+      }
+      const now = mainX.value;
+      if (Math.abs(now - last) < 0.5) {
+        snapDirectional();
+        return;
+      }
+      last = now;
+      snapTimer.current = setTimeout(check, 100);
+    };
+    snapTimer.current = setTimeout(check, 100);
+  }, [mainX, snapDirectional]);
 
   useEffect(
     () => () => {
@@ -297,24 +331,38 @@ export function PhotoViewer({
         <Animated.ScrollView
           ref={mainRef}
           horizontal
-          snapToInterval={width}
-          snapToAlignment="start"
-          decelerationRate="fast"
           showsHorizontalScrollIndicator={false}
           onScroll={mainScroll}
           scrollEventThrottle={16}
           scrollEnabled={!zoomed}
           contentOffset={initialMain.current}
-          onScrollEndDrag={() => {
+          onTouchStart={() => {
+            touching.current = true;
+          }}
+          onTouchEnd={() => {
+            touching.current = false;
+          }}
+          onTouchCancel={() => {
+            touching.current = false;
+          }}
+          onScrollBeginDrag={() => {
             if (snapTimer.current) clearTimeout(snapTimer.current);
-            snapTimer.current = setTimeout(snapToNearest, 120);
+            dragStart.current = mainX.value;
+            dragDir.current = 0;
+          }}
+          onScrollEndDrag={() => {
+            const moved = mainX.value - dragStart.current;
+            dragDir.current = Math.abs(moved) < 1 ? 0 : Math.sign(moved);
+            releaseX.current = mainX.value;
+            if (snapTimer.current) clearTimeout(snapTimer.current);
+            settleWhenStill();
           }}
           onMomentumScrollBegin={() => {
             if (snapTimer.current) clearTimeout(snapTimer.current);
           }}
           onMomentumScrollEnd={() => {
             if (snapTimer.current) clearTimeout(snapTimer.current);
-            snapToNearest();
+            snapDirectional();
           }}
           style={StyleSheet.absoluteFill}
         >
