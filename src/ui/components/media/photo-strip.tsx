@@ -20,7 +20,7 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { Image } from '@/ui/kit/image';
 import { useTheme } from '@/ui/theme';
 
-import { clamp } from './viewer/geometry';
+import { clamp, mediaSize } from './viewer/geometry';
 import type { ViewerPhoto } from './viewer/types';
 
 const SELECTED = 40;
@@ -28,7 +28,6 @@ const UNSELECTED = 26;
 const GAP = 8;
 const BREADTH = 40;
 const STRIP_HEIGHT = 68;
-const GROW = SELECTED / UNSELECTED;
 export const STRIP_PITCH = UNSELECTED + GAP;
 const WINDOW = 14;
 
@@ -36,33 +35,37 @@ type ItemProps = {
   index: number;
   photo: ViewerPhoto;
   lead: number;
+  openWidth: number;
   scrollX: SharedValue<number>;
   onSelect: (index: number) => void;
 };
 
-function StripItem({ index, photo, lead, scrollX, onSelect }: ItemProps) {
+function StripItem({ index, photo, lead, openWidth, scrollX, onSelect }: ItemProps) {
   const { color } = useTheme();
   const style = useAnimatedStyle(() => {
     const focus = scrollX.value / STRIP_PITCH;
     const distance = Math.min(1, Math.abs(index - focus));
-    return { transform: [{ scaleX: 1 + (GROW - 1) * (1 - distance) }] };
+    const width = UNSELECTED + (openWidth - UNSELECTED) * (1 - distance);
+    return { left: lead + index * STRIP_PITCH - (width - UNSELECTED) / 2, width };
   });
 
   return (
-    <Animated.View style={[styles.item, { left: lead + index * STRIP_PITCH }, style]}>
-      <Pressable onPress={() => onSelect(index)} style={styles.fill}>
-        {photo.source ? (
-          <Image
-            source={photo.source}
-            group={photo.projectId}
-            style={styles.fill}
-            contentFit="cover"
-            cachePolicy="memory-disk"
-            recyclingKey={photo.id}
-          />
-        ) : (
-          <View style={[styles.fill, { backgroundColor: color.raise }]} />
-        )}
+    <Animated.View style={[styles.item, style]}>
+      <Pressable onPress={() => onSelect(index)} style={styles.press}>
+        <View style={[styles.reveal, { width: openWidth }]}>
+          {photo.source ? (
+            <Image
+              source={photo.source}
+              group={photo.projectId}
+              style={styles.fill}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              recyclingKey={photo.id}
+            />
+          ) : (
+            <View style={[styles.fill, { backgroundColor: color.raise }]} />
+          )}
+        </View>
         {photo.video ? (
           <View style={styles.play} pointerEvents="none">
             <Play size={10} color="#ffffff" fill="#ffffff" />
@@ -153,12 +156,17 @@ export function PhotoStrip({
   for (let at = from; at <= to; at += 1) {
     const photo = photos[at];
     if (photo) {
+      const size = mediaSize(photo);
+      const openWidth = size
+        ? clamp(BREADTH * (size.width / size.height), UNSELECTED, SELECTED)
+        : SELECTED;
       items.push(
         <StripItem
           key={photo.id}
           index={at}
           photo={photo}
           lead={lead}
+          openWidth={openWidth}
           scrollX={scrollX}
           onSelect={select}
         />,
@@ -202,10 +210,16 @@ const styles = StyleSheet.create({
   item: {
     position: 'absolute',
     top: (STRIP_HEIGHT - BREADTH) / 2,
-    width: UNSELECTED,
     height: BREADTH,
     borderRadius: 7,
     overflow: 'hidden',
+  },
+  press: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  reveal: {
+    height: '100%',
   },
   fill: {
     flex: 1,
