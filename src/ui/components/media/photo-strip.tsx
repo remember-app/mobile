@@ -23,14 +23,16 @@ import { useTheme } from '@/ui/theme';
 import { clamp } from './viewer/geometry';
 import type { ViewerPhoto } from './viewer/types';
 
-const SELECTED = 30;
-const UNSELECTED = 20;
-const GAP = 14;
-const BREADTH = 30;
-const STRIP_HEIGHT = 42;
-const RADIUS = 4;
-const SHARE = 0.8;
-const FADE = 36;
+const SELECTED = 33;
+const UNSELECTED = 22;
+const GAP = 8;
+const BREADTH = 33;
+const STRIP_HEIGHT = 46;
+const SIDE_RADIUS = 2;
+const FOCUS_RADIUS = 4;
+const PUSH = 7;
+const SHARE = 0.9;
+const FADE = 40;
 export const STRIP_PITCH = UNSELECTED + GAP;
 const WINDOW = 14;
 
@@ -48,13 +50,17 @@ function StripItem({ index, photo, lead, inset, viewWidth, scrollX, onSelect }: 
   const { color } = useTheme();
   const style = useAnimatedStyle(() => {
     const focus = scrollX.value / STRIP_PITCH;
-    const distance = Math.min(1, Math.abs(index - focus));
-    const width = UNSELECTED + (SELECTED - UNSELECTED) * (1 - distance);
+    const d = index - focus;
+    const near = Math.min(1, Math.abs(d));
+    const width = UNSELECTED + (SELECTED - UNSELECTED) * (1 - near);
+    // соседи отъезжают от центрального кадра, поэтому вокруг него зазор больше
+    const push = PUSH * Math.max(0, 1 - Math.abs(Math.abs(d) - 1));
     const centre = inset + lead + index * STRIP_PITCH + UNSELECTED / 2 - scrollX.value;
     const edge = Math.min(centre - inset, inset + viewWidth - centre);
     return {
-      left: lead + index * STRIP_PITCH - (width - UNSELECTED) / 2,
+      left: lead + index * STRIP_PITCH - (width - UNSELECTED) / 2 + Math.sign(d) * push,
       width,
+      borderRadius: SIDE_RADIUS + (FOCUS_RADIUS - SIDE_RADIUS) * (1 - near),
       opacity: clamp(edge / FADE, 0, 1),
     };
   });
@@ -213,7 +219,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: (STRIP_HEIGHT - BREADTH) / 2,
     height: BREADTH,
-    borderRadius: RADIUS,
     overflow: 'hidden',
   },
   press: {
