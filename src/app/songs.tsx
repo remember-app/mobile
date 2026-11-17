@@ -16,6 +16,7 @@ import {
   updateOwnSong,
   uploadFileOnce,
 } from '@/functionality';
+import { cachedUrl, keepUrl } from '@/integrations/files/media-cache';
 import type { Song } from '@/models';
 import type { MediaId, SongId } from '@/types/id';
 import { SwipeRow } from '@/ui/components/swipe-row';
@@ -74,12 +75,19 @@ export default function SongsScreen() {
   }, []);
 
   useEffect(() => {
+    let live = true;
     for (const song of songs.items) {
       if (urls.current.has(song.id)) continue;
       void songUrl(song.id)
-        .then((url) => urls.current.set(song.id, url))
+        .then((url) => {
+          urls.current.set(song.id, url);
+          if (live) void keepUrl(url, null, 'music');
+        })
         .catch(() => undefined);
     }
+    return () => {
+      live = false;
+    };
   }, [songs.items]);
 
   useEffect(() => {
@@ -183,13 +191,14 @@ export default function SongsScreen() {
     try {
       const url = urls.current.get(song.id) ?? (await songUrl(song.id));
       urls.current.set(song.id, url);
+      const local = cachedUrl(url, null, 'music') ?? (await keepUrl(url, null, 'music')) ?? url;
       setCurrentId(song.id);
-      if (source === url) {
+      if (source === local) {
         void player.seekTo(0);
         setPlaying(true);
         return;
       }
-      setSource(url);
+      setSource(local);
       setPlaying(true);
     } catch {
       setPlaying(false);
