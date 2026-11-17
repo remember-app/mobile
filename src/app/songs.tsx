@@ -113,9 +113,8 @@ export default function SongsScreen() {
     setError(null);
     let file: Awaited<ReturnType<typeof pickFiles>>[number] | undefined;
     try {
-      [file] = await pickFiles(['audio/*']);
+      [file] = await pickFiles();
     } catch {
-      setError(t('songs.uploadFailed'));
       return;
     }
     if (!file) return;
@@ -138,9 +137,8 @@ export default function SongsScreen() {
     await new Promise((resolve) => setTimeout(resolve, 400));
     let file: Awaited<ReturnType<typeof pickFiles>>[number] | undefined;
     try {
-      [file] = await pickFiles(['audio/*']);
+      [file] = await pickFiles();
     } catch {
-      setError(t('songs.uploadFailed'));
       setSheetOpen(true);
       return;
     }
@@ -283,12 +281,6 @@ export default function SongsScreen() {
         />
       }
     >
-      {error !== null && !sheetOpen ? (
-        <Text role="meta" tone="danger">
-          {error}
-        </Text>
-      ) : null}
-
       {songs.items.length > 0 ? (
         <Card style={styles.card}>
           <Rows items={songs.items} keyOf={(song) => song.id}>
