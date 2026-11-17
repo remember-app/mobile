@@ -121,6 +121,7 @@ export const ru: typeof en = {
     name: 'Название',
     author: 'Автор',
     changeCover: 'Изменить обложку',
+    pasteLink: 'Вставить ссылку',
     play: 'Слушать',
     pause: 'Пауза',
     uploading: 'Загружаем трек…',
@@ -205,6 +206,10 @@ export const ru: typeof en = {
     share: 'Поделиться',
     shareStorage: 'Поделиться хранилищем',
     shareTokens: 'Поделиться токенами',
+  },
+  linkImage: {
+    hint: 'Кнопка вставляет картинку по ссылке из буфера обмена.',
+    failed: 'Не получилось: в буфере нет подходящей ссылки на картинку.',
   },
   music: {
     add: 'Добавить музыку',

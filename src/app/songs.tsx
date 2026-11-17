@@ -1,5 +1,5 @@
 import * as ImagePicker from 'expo-image-picker';
-import { Camera, Music, Pause, Play, Plus, Trash2 } from 'lucide-react-native';
+import { Camera, Link2, Music, Pause, Play, Plus, Trash2 } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -15,6 +15,7 @@ import {
 } from '@/functionality';
 import type { Song } from '@/models';
 import type { MediaId, SongId } from '@/types/id';
+import { LinkBanner, useLinkImage } from '@/ui/components/link-image';
 import { MiniPlayer, useSongPlayer } from '@/ui/components/song-player';
 import { SwipeRow } from '@/ui/components/swipe-row';
 import { duration as clock } from '@/ui/format';
@@ -60,6 +61,9 @@ export default function SongsScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const player = useSongPlayer({ onDuration: rememberSongDuration });
+  const link = useLinkImage((mediaId, uri) =>
+    setDraft((current) => (current ? { ...current, coverId: mediaId, coverUri: uri } : current)),
+  );
   const prefetch = useRef(player.prefetch);
   prefetch.current = player.prefetch;
 
@@ -78,6 +82,7 @@ export default function SongsScreen() {
     setCoverBusy(false);
     setSaving(false);
     setError(null);
+    link.clear();
   };
 
   const uploadAudio = async (file: { uri: string; fileName: string }) => {
@@ -290,6 +295,7 @@ export default function SongsScreen() {
             </View>
           ) : draft ? (
             <>
+              {link.failed !== null ? <LinkBanner link={link.failed} /> : null}
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={t('songs.changeCover')}
@@ -310,6 +316,7 @@ export default function SongsScreen() {
                   pointerEvents="none"
                   style={[
                     styles.coverBadge,
+                    styles.coverBadgeRight,
                     { backgroundColor: color.paper, borderColor: color.surface },
                   ]}
                 >
@@ -319,6 +326,22 @@ export default function SongsScreen() {
                     <Camera size={14} color={color.ink} />
                   )}
                 </View>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('songs.pasteLink')}
+                  onPress={() => void link.paste()}
+                  style={[
+                    styles.coverBadge,
+                    styles.coverBadgeLeft,
+                    { backgroundColor: color.paper, borderColor: color.surface },
+                  ]}
+                >
+                  {link.busy ? (
+                    <CircularSpinner size={14} />
+                  ) : (
+                    <Link2 size={14} color={color.ink} />
+                  )}
+                </Pressable>
               </Pressable>
               <View style={styles.form}>
                 <Field
@@ -416,7 +439,6 @@ const useStyles = themed(({ color }) =>
     },
     coverBadge: {
       position: 'absolute',
-      right: -2,
       bottom: -2,
       width: 26,
       height: 26,
@@ -424,6 +446,12 @@ const useStyles = themed(({ color }) =>
       borderWidth: 2,
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    coverBadgeRight: {
+      right: -2,
+    },
+    coverBadgeLeft: {
+      left: -2,
     },
     uploading: {
       flexDirection: 'row',

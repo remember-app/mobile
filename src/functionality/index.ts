@@ -229,6 +229,7 @@ export {
 } from './song/songs';
 export { hydrateGlobal, hydrateProject, refreshGlobal, startApp } from './start';
 export { loadSystemMedia, subscribeSystemMedia, systemMediaState } from './system/media';
+export { isImageLink, uploadImageFromLink } from './upload/link';
 export {
   type DeviceAsset,
   type DeviceAssetKind,
