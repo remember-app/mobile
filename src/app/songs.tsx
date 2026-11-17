@@ -15,7 +15,6 @@ import {
 } from '@/functionality';
 import type { Song } from '@/models';
 import type { MediaId, SongId } from '@/types/id';
-import { CropImage } from '@/ui/components/crop-image';
 import { LinkBanner, useLinkImage } from '@/ui/components/link-image';
 import { MiniPlayer, useSongPlayer } from '@/ui/components/song-player';
 import { SwipeRow } from '@/ui/components/swipe-row';
@@ -59,7 +58,6 @@ export default function SongsScreen() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [coverBusy, setCoverBusy] = useState(false);
-  const [crop, setCrop] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const player = useSongPlayer({ onDuration: rememberSongDuration });
@@ -84,7 +82,6 @@ export default function SongsScreen() {
     setCoverBusy(false);
     setSaving(false);
     setError(null);
-    setCrop(null);
     link.clear();
   };
 
@@ -157,16 +154,18 @@ export default function SongsScreen() {
     });
     const asset = result.assets?.[0];
     if (result.canceled || !asset) return;
-    setCrop(asset.uri);
-  };
-
-  const applyCover = async (uri: string) => {
     setError(null);
     setCoverBusy(true);
     try {
-      const mediaId = await uploadFileOnce(token(), 'photo', uri, 'cover.jpg');
+      const extension = asset.mimeType?.split('/')[1] ?? 'jpg';
+      const mediaId = await uploadFileOnce(
+        token(),
+        'photo',
+        asset.uri,
+        asset.fileName ?? `cover.${extension}`,
+      );
       setDraft((current) =>
-        current === null ? current : { ...current, coverId: mediaId, coverUri: uri },
+        current === null ? current : { ...current, coverId: mediaId, coverUri: asset.uri },
       );
     } catch {
       setError(t('songs.uploadFailed'));
@@ -286,17 +285,8 @@ export default function SongsScreen() {
           </Card>
         ) : null}
 
-        <BottomSheet visible={sheetOpen} size={crop ? 'full' : 'auto'} onClose={close}>
-          {crop ? (
-            <CropImage
-              uri={crop}
-              onCancel={() => setCrop(null)}
-              onDone={(uri) => {
-                setCrop(null);
-                void applyCover(uri);
-              }}
-            />
-          ) : uploading ? (
+        <BottomSheet visible={sheetOpen} onClose={close}>
+          {uploading ? (
             <View style={styles.uploading}>
               <CircularSpinner size={20} />
               <Text role="row" tone="muted">

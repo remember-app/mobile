@@ -35,7 +35,7 @@ export function ScreenSkin({
     projectId,
     projects.cards,
     movies.items,
-    gallery.items.length,
+    gallery.items,
   );
   // логотип занимает ту же долю полотна, что и на запечённых фонах
   const logo = LOGO_BOX * Math.max(width / CANVAS_W, height / CANVAS_H);

@@ -121,7 +121,7 @@ export default function ProjectScreen() {
     void loadMontages(projectId, true).catch(() => undefined);
     void loadMovies(projectId, true).catch(() => undefined);
     return onUploaded(async (upload, project, localId) => {
-      if (project !== projectId) return;
+      if (project !== projectId || upload.itemId === null) return;
       replacedUploads.current.add(localId);
       await loadItem(projectId, upload.itemId);
     });
@@ -523,6 +523,7 @@ export default function ProjectScreen() {
             initialIndex={open.index}
             origin={open.rect}
             onClose={() => setOpen(null)}
+            onLoadMore={() => void loadMoreGallery(projectId)}
             onIndex={(next) =>
               measureTile.current?.(next, (rect) =>
                 setOpen((was) => (was === null ? was : { index: next, rect })),

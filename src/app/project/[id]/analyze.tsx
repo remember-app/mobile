@@ -68,6 +68,9 @@ export default function AnalyzeScreen() {
     [gallery.items],
   );
 
+  const allAnalyzed =
+    gallery.items.length > 0 && gallery.items.every((item) => item.analysis !== null);
+
   const order = useMemo(() => orderOf(selected), [selected]);
 
   const photos = useMemo<Photo[]>(
@@ -198,21 +201,23 @@ export default function AnalyzeScreen() {
           }
         />
       </BlurBar>
-      <ActionBar>
-        <Button
-          label={
-            selected.size > 0
-              ? t('montage.analyzeCount', {
-                  count: selected.size,
-                  tokens: quote?.tokens ?? 0,
-                })
-              : t('montage.analyze')
-          }
-          variant="primary"
-          disabled={selected.size === 0 || busy}
-          onPress={() => void confirm()}
-        />
-      </ActionBar>
+      {allAnalyzed ? null : (
+        <ActionBar>
+          <Button
+            label={
+              selected.size > 0
+                ? t('montage.analyzeCount', {
+                    count: selected.size,
+                    tokens: quote?.tokens ?? 0,
+                  })
+                : t('montage.analyze')
+            }
+            variant="primary"
+            disabled={selected.size === 0 || busy}
+            onPress={() => void confirm()}
+          />
+        </ActionBar>
+      )}
       {viewer === null ? null : (
         <PhotoViewer
           photos={viewerPhotos}

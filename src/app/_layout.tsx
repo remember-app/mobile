@@ -7,13 +7,12 @@ import { Onest_700Bold } from '@expo-google-fonts/onest/700Bold';
 import { useFonts } from '@expo-google-fonts/onest/useFonts';
 import { Unbounded_600SemiBold } from '@expo-google-fonts/unbounded/600SemiBold';
 import { Unbounded_700Bold } from '@expo-google-fonts/unbounded/700Bold';
-import { Image } from 'expo-image';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, usePathname, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { LucideProvider } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -32,10 +31,6 @@ import { preloadWallpapers } from '@/ui/kit/wallpaper';
 import { useTheme } from '@/ui/theme';
 
 void SplashScreen.preventAutoHideAsync();
-
-if (Platform.OS === 'ios') {
-  Image.configureCache({ maxMemoryCost: 128 * 1024 * 1024, maxMemoryCount: 200 });
-}
 
 export default function RootLayout() {
   const theme = useTheme();

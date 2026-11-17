@@ -2,7 +2,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Trash2 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { deleteProject, loadProjects, updateProject } from '@/functionality';
 import type { ProjectId } from '@/types/id';
@@ -62,17 +62,7 @@ export default function ProjectSettingsScreen() {
 
   return (
     <Board
-      body={styles.body}
-      footer={
-        <View style={[styles.footer, { paddingBottom: insets.bottom + space.s4 }]}>
-          <Button
-            label={t('project.save')}
-            variant="primary"
-            disabled={!title.trim() || !from}
-            onPress={() => void save()}
-          />
-        </View>
-      }
+      body={[styles.body, { paddingBottom: insets.bottom + space.s4 }]}
       bar={
         <BackBar
           title={project.title}
@@ -120,15 +110,17 @@ export default function ProjectSettingsScreen() {
           setTo(nextTo);
         }}
       />
+      <Button
+        label={t('project.save')}
+        variant="primary"
+        disabled={!title.trim() || !from}
+        onPress={() => void save()}
+      />
     </Board>
   );
 }
 
 const styles = StyleSheet.create({
-  footer: {
-    paddingHorizontal: space.s5,
-    paddingTop: space.s3,
-  },
   note: {
     textAlignVertical: 'top',
   },

@@ -301,7 +301,7 @@ export const ru: typeof en = {
     analysisWaiting: 'В очереди',
     analysisRunning: 'Анализируется',
     analysisFailedState: 'Анализ не удался',
-    analysisTitle: 'Анализ кадров',
+    analysisTitle: 'Анализ',
     analysisStarted: 'Анализ запущен',
     analysisQueued: 'Файлов в очереди: {{count}}',
     analysisFailed: 'Не удалось запустить анализ',

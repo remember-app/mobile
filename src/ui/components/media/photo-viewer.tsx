@@ -1,11 +1,20 @@
 import { Image as ExpoImage } from 'expo-image';
 import { setStatusBarHidden } from 'expo-status-bar';
 import { Circle, CircleCheck, Trash2 } from 'lucide-react-native';
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { type ScrollViewInstance, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, {
   Easing,
+  scrollTo,
   useAnimatedRef,
   useAnimatedScrollHandler,
   useAnimatedStyle,
@@ -25,7 +34,7 @@ import { Text } from '@/ui/kit/text';
 import { photo, radius, space, useTheme } from '@/ui/theme';
 import { PhotoInfo } from './info/photo-info';
 import type { Rect } from './photo-grid';
-import { PhotoStrip } from './photo-strip';
+import { PhotoStrip, STRIP_PITCH } from './photo-strip';
 import { boxFor, mediaSize, targetFor } from './viewer/geometry';
 import type { ViewerPhoto } from './viewer/types';
 import { VideoFrame } from './viewer/video-frame';
@@ -39,6 +48,7 @@ type Props = {
   origin?: Rect;
   onClose: () => void;
   onIndex?: (index: number) => void;
+  onLoadMore?: () => void;
   renderInfo?: (index: number) => ReactNode;
   author?: string;
   authorAvatarUrl?: string | null;
@@ -49,12 +59,15 @@ type Props = {
 
 type Phase = 'entering' | 'open' | 'leaving';
 
+const HUD_GAP = 40;
+
 export function PhotoViewer({
   photos,
   initialIndex,
   origin,
   onClose,
   onIndex,
+  onLoadMore,
   renderInfo,
   author,
   authorAvatarUrl,
@@ -74,19 +87,24 @@ export function PhotoViewer({
   const [hdIndex, setHdIndex] = useState(-1);
   const [zoomed, setZoomed] = useState(false);
   const [info, setInfo] = useState(false);
-  const [stripDriving, setStripDriving] = useState(false);
   const dragY = useSharedValue(0);
   const lift = useSharedValue(0);
   const { width, height } = useWindowDimensions();
   const mainRef = useAnimatedRef<ScrollViewInstance>();
   const stripRef = useAnimatedRef<ScrollViewInstance>();
   const mainX = useSharedValue(start * width);
+  const stripX = useSharedValue(start * STRIP_PITCH);
   const stripActive = useSharedValue(0);
-  const initialMain = useRef({ x: start * width, y: 0 });
+  const initialMain = useMemo(() => ({ x: index * width, y: 0 }), [index, width]);
   const cover = viewPhotos[start]?.source ?? null;
   const currentPhoto = viewPhotos[index];
   const current = currentPhoto?.source ?? null;
   const startBox = boxFor(currentPhoto ? mediaSize(currentPhoto) : null, width, height);
+  const landscape = width > height;
+  const hudPad = landscape
+    ? Math.max((width - startBox.width) / 2, Math.max(insets.left, insets.right) + space.s4) +
+      space.s4
+    : space.s4;
   const startTop = (height - startBox.height) / 2;
   const grows = Boolean(origin && cover);
   const [phase, setPhase] = useState<Phase>(grows ? 'entering' : 'open');
@@ -101,10 +119,31 @@ export function PhotoViewer({
     setStatusBarHidden(!chrome || info || zoomed, 'fade');
   }, [chrome, info, zoomed]);
 
+  const size = useRef({ width, height });
+  const realign = useRef(false);
+  useLayoutEffect(() => {
+    if (size.current.width === width && size.current.height === height) return;
+    size.current = { width, height };
+    realign.current = true;
+    const at = indexRef.current;
+    mainX.value = at * width;
+    stripX.value = at * STRIP_PITCH;
+    mainRef.current?.scrollTo({ x: at * width, y: 0, animated: false });
+    stripRef.current?.scrollTo({ x: at * STRIP_PITCH, y: 0, animated: false });
+  }, [height, mainX, stripX, width]);
+
   useEffect(() => {
     if (info) return;
     setChrome(true);
   }, [currentPhoto?.id, info]);
+
+  const loadMore = useRef(onLoadMore);
+  useEffect(() => {
+    loadMore.current = onLoadMore;
+  });
+  useEffect(() => {
+    if (index >= viewPhotos.length - 2) loadMore.current?.();
+  }, [index, viewPhotos.length]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -161,9 +200,22 @@ export function PhotoViewer({
     [onIndex, update, viewPhotos.length],
   );
 
+  const scrub = useCallback(
+    (next: number) => {
+      const before = indexRef.current;
+      settle(next);
+      if (next !== before) mainRef.current?.scrollTo({ x: next * width, y: 0, animated: false });
+    },
+    [settle, width],
+  );
+
   const mainScroll = useAnimatedScrollHandler({
     onScroll: (event) => {
       mainX.value = event.contentOffset.x;
+      if (stripActive.value === 0) {
+        stripX.value = (event.contentOffset.x / width) * STRIP_PITCH;
+        scrollTo(stripRef, stripX.value, 0, false);
+      }
     },
   });
 
@@ -276,12 +328,19 @@ export function PhotoViewer({
         <Animated.ScrollView
           ref={mainRef}
           horizontal
-          pagingEnabled={!stripDriving}
+          pagingEnabled
           showsHorizontalScrollIndicator={false}
           onScroll={mainScroll}
           scrollEventThrottle={16}
           scrollEnabled={!zoomed}
-          contentOffset={initialMain.current}
+          contentOffset={initialMain}
+          onContentSizeChange={() => {
+            if (!realign.current) return;
+            realign.current = false;
+            const at = indexRef.current;
+            mainX.value = at * width;
+            mainRef.current?.scrollTo({ x: at * width, y: 0, animated: false });
+          }}
           onMomentumScrollEnd={() => {
             settle(Math.round(mainX.value / width));
           }}
@@ -395,7 +454,7 @@ export function PhotoViewer({
           style={[
             styles.strip,
             {
-              bottom: insets.bottom + 44,
+              bottom: insets.bottom + space.s2,
             },
             stripStyle,
           ]}
@@ -405,17 +464,19 @@ export function PhotoViewer({
             index={start}
             scroller={stripRef}
             main={mainRef}
-            mainX={mainX}
             active={stripActive}
-            onDrive={setStripDriving}
-            onSettle={(next) => settle(next)}
+            scrollX={stripX}
+            onSettle={scrub}
           />
         </Animated.View>
       ) : null}
       {chrome && !zoomed && phase === 'open' ? (
-        <BlurBar edge="top" style={styles.hud}>
+        <BlurBar
+          edge="top"
+          style={[styles.hud, { paddingTop: insets.top + space.s3, paddingHorizontal: hudPad }]}
+        >
           <BackButton label={t('action.back')} size={44} onPress={leave} />
-          <View style={styles.hudWords}>
+          <View style={[styles.hudWords, { maxWidth: width - hudPad * 2 - 88 - HUD_GAP * 2 }]}>
             {currentPhoto?.capturedAt ? (
               <View
                 style={[
@@ -426,8 +487,12 @@ export function PhotoViewer({
                   },
                 ]}
               >
-                <Text role="row">{fullDay(currentPhoto.capturedAt)}</Text>
-                <Text role="meta">{time(currentPhoto.capturedAt)}</Text>
+                <Text role="row" numberOfLines={1}>
+                  {fullDay(currentPhoto.capturedAt)}
+                </Text>
+                <Text role="meta" numberOfLines={1}>
+                  {time(currentPhoto.capturedAt)}
+                </Text>
               </View>
             ) : null}
           </View>
@@ -493,16 +558,17 @@ const styles = StyleSheet.create({
   hud: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.s3,
+    justifyContent: 'center',
+    gap: HUD_GAP,
     paddingHorizontal: space.s4,
     minHeight: 44,
   },
   hudWords: {
-    flex: 1,
     alignItems: 'center',
     gap: 2,
   },
   hudBox: {
+    maxWidth: '100%',
     minHeight: 44,
     justifyContent: 'center',
     alignItems: 'center',

@@ -298,7 +298,7 @@ export const en = {
     analysisWaiting: 'Queued',
     analysisRunning: 'Analyzing',
     analysisFailedState: 'Analysis failed',
-    analysisTitle: 'Analyze items',
+    analysisTitle: 'Analysis',
     analysisStarted: 'Analysis started',
     analysisQueued: 'Files queued: {{count}}',
     analysisFailed: 'Could not start the analysis',

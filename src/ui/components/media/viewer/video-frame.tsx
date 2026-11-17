@@ -1,13 +1,13 @@
-import NativeSlider from '@react-native-community/slider';
 import { useEventListener } from 'expo';
-import { useVideoPlayer, VideoView } from 'expo-video';
+import { useVideoPlayer, type VideoPlayer, VideoView } from 'expo-video';
 import { Pause, Play, Volume2, VolumeX } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View, type ViewStyle } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   type AnimatedStyle,
+  Easing,
   type SharedValue,
   useAnimatedStyle,
   useSharedValue,
@@ -22,6 +22,7 @@ import { IconButton } from '@/ui/kit/button';
 import { Image } from '@/ui/kit/image';
 import { radius, space, useTheme } from '@/ui/theme';
 
+import { STRIP_HEIGHT, STRIP_SHARE } from '../photo-strip';
 import { boxFor, clamp, mediaSize } from './geometry';
 import { verticalGestures } from './gestures';
 import { viewerStyles } from './styles';
@@ -235,18 +236,13 @@ function Video({
 }) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const { width: screen, height: screenHeight } = useWindowDimensions();
   const theme = useTheme();
-  const [position, setPosition] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
-  const sliding = useRef(false);
   const player = useVideoPlayer(uri, (entry) => {
     entry.loop = true;
-    entry.timeUpdateEventInterval = 0.25;
-  });
-
-  useEventListener(player, 'timeUpdate', ({ currentTime }) => {
-    if (!sliding.current) setPosition(currentTime);
+    entry.timeUpdateEventInterval = 0.02;
   });
 
   useEventListener(player, 'playingChange', ({ isPlaying }) => {
@@ -256,10 +252,6 @@ function Video({
   useEventListener(player, 'mutedChange', ({ muted: isMuted }) => {
     setMuted(isMuted);
   });
-
-  useEffect(() => {
-    setPosition(0);
-  }, [uri]);
 
   useEffect(() => {
     if (active) player.play();
@@ -275,63 +267,144 @@ function Video({
     player.muted = !player.muted;
   };
 
-  const duration = player.duration > 0 ? player.duration : 1;
+  const barWidth = screen * (screen < screenHeight ? 0.9 : STRIP_SHARE);
+  const barBottom = insets.bottom + space.s2 + STRIP_HEIGHT + space.s2;
 
   return (
-    <View style={box}>
-      <Animated.View style={[StyleSheet.absoluteFill, zoomStyle]}>
-        <VideoView
-          player={player}
-          style={StyleSheet.absoluteFill}
-          contentFit="contain"
-          nativeControls={false}
-        />
-      </Animated.View>
-      <Pressable style={StyleSheet.absoluteFill} onPress={onTap} />
-      <Pressable style={styles.center} onPress={toggle} />
+    <View style={styles.fill}>
+      <View style={styles.centre}>
+        <View style={box}>
+          <Animated.View style={[StyleSheet.absoluteFill, zoomStyle]}>
+            <VideoView
+              player={player}
+              style={StyleSheet.absoluteFill}
+              contentFit="contain"
+              nativeControls={false}
+            />
+          </Animated.View>
+          <Pressable style={StyleSheet.absoluteFill} onPress={onTap} />
+          <Pressable style={styles.center} onPress={toggle} />
+        </View>
+      </View>
       {visible ? (
-        <View style={[styles.controls, { bottom: insets.bottom + space.s3 + 20 }]}>
+        <View
+          style={[
+            styles.controls,
+            { bottom: barBottom, width: barWidth, left: (screen - barWidth) / 2 },
+          ]}
+        >
           <IconButton
             icon={playing ? Pause : Play}
             label={playing ? t('action.pause') : t('action.play')}
             tone="ghost"
-            size={32}
+            size={36}
             tint={theme.color.onFill}
             hitX={14}
+            glyph={{ size: 18, filled: true }}
             onPress={toggle}
           />
-          <NativeSlider
-            style={styles.track}
-            value={position}
-            minimumValue={0}
-            maximumValue={duration}
-            minimumTrackTintColor={theme.color.onFill}
-            maximumTrackTintColor="rgba(255,255,255,0.35)"
-            thumbTintColor={theme.color.onFill}
-            onSlidingStart={() => {
-              sliding.current = true;
-            }}
-            onValueChange={(value) => {
-              setPosition(value);
-              player.currentTime = value;
-            }}
-            onSlidingComplete={(value) => {
-              player.currentTime = value;
-              sliding.current = false;
-            }}
-          />
+          <Progress player={player} uri={uri} />
           <IconButton
             icon={muted ? VolumeX : Volume2}
             label={muted ? t('action.unmute') : t('action.mute')}
             tone="ghost"
-            size={32}
+            size={36}
             tint={theme.color.onFill}
             hitX={14}
+            glyph={{ size: 18, filled: true }}
             onPress={toggleMute}
           />
         </View>
       ) : null}
     </View>
+  );
+}
+
+const THUMB_W = 24;
+const THUMB_H = 14;
+const RAIL = 5;
+
+function Progress({ player, uri }: { player: VideoPlayer; uri: string }) {
+  const { color } = useTheme();
+  const width = useSharedValue(0);
+  const duration = useSharedValue(0);
+  const shown = useSharedValue(0);
+  const sliding = useRef(false);
+  const wasPlaying = useRef(false);
+
+  useEventListener(player, 'timeUpdate', ({ currentTime }) => {
+    duration.value = player.duration > 0 ? player.duration : duration.value;
+    if (sliding.current) return;
+    shown.value = withTiming(currentTime, { duration: 100, easing: Easing.linear });
+  });
+
+  useEffect(() => {
+    shown.value = 0;
+  }, [shown, uri]);
+
+  const seek = useCallback(
+    (time: number) => {
+      player.currentTime = time;
+    },
+    [player],
+  );
+
+  const begin = useCallback(() => {
+    sliding.current = true;
+    wasPlaying.current = player.playing;
+    if (player.playing) player.pause();
+    player.scrubbingModeOptions = { scrubbingModeEnabled: true };
+    player.seekTolerance = { toleranceBefore: 0.1, toleranceAfter: 0.1 };
+  }, [player]);
+
+  const end = useCallback(() => {
+    sliding.current = false;
+    player.scrubbingModeOptions = { scrubbingModeEnabled: false };
+    player.seekTolerance = { toleranceBefore: 0, toleranceAfter: 0 };
+    if (wasPlaying.current) player.play();
+  }, [player]);
+
+  const scrub = Gesture.Pan()
+    .onBegin((event) => {
+      scheduleOnRN(begin);
+      const span = duration.value > 0 ? duration.value : 1;
+      const time = clamp((event.x / Math.max(width.value, 1)) * span, 0, span);
+      shown.value = time;
+      scheduleOnRN(seek, time);
+    })
+    .onUpdate((event) => {
+      const span = duration.value > 0 ? duration.value : 1;
+      const time = clamp((event.x / Math.max(width.value, 1)) * span, 0, span);
+      shown.value = time;
+      scheduleOnRN(seek, time);
+    })
+    .onEnd(() => {
+      scheduleOnRN(end);
+    });
+
+  const fill = useAnimatedStyle(() => {
+    const span = duration.value > 0 ? duration.value : 1;
+    return { width: width.value * clamp(shown.value / span, 0, 1) };
+  });
+  const thumb = useAnimatedStyle(() => {
+    const span = duration.value > 0 ? duration.value : 1;
+    const offset = width.value * clamp(shown.value / span, 0, 1) - THUMB_W / 2;
+    return { transform: [{ translateX: offset }] };
+  });
+
+  return (
+    <GestureDetector gesture={scrub}>
+      <View
+        style={styles.track}
+        onLayout={(event) => {
+          width.value = event.nativeEvent.layout.width;
+        }}
+      >
+        <View style={styles.rail} />
+        <Animated.View style={[styles.bar, { backgroundColor: color.onFill }, fill]} />
+        <Animated.View style={[styles.thumb, { backgroundColor: color.onFill }, thumb]} />
+      </View>
+    </GestureDetector>
   );
 }
 
@@ -343,19 +416,48 @@ const styles = StyleSheet.create({
     top: '40%',
     bottom: '40%',
   },
+  fill: {
+    flex: 1,
+    alignSelf: 'stretch',
+  },
+  centre: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   controls: {
     position: 'absolute',
-    left: space.s4,
-    right: space.s4,
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.s1,
     paddingHorizontal: space.s2,
+    paddingVertical: space.s1,
     borderRadius: radius.pill,
     backgroundColor: 'rgba(0,0,0,0.35)',
   },
   track: {
     flex: 1,
     height: 32,
+    justifyContent: 'center',
+  },
+  rail: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: RAIL,
+    borderRadius: RAIL / 2,
+    backgroundColor: 'rgba(255,255,255,0.35)',
+  },
+  bar: {
+    position: 'absolute',
+    left: 0,
+    height: RAIL,
+    borderRadius: RAIL / 2,
+  },
+  thumb: {
+    position: 'absolute',
+    width: THUMB_W,
+    height: THUMB_H,
+    borderRadius: THUMB_H / 2,
   },
 });
