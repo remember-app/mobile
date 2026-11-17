@@ -1,5 +1,5 @@
 import * as ImagePicker from 'expo-image-picker';
-import { Camera, ClipboardPaste, Music, Pause, Play, Plus, Trash2 } from 'lucide-react-native';
+import { Camera, Clipboard, Music, Pause, Play, Plus, Trash2 } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -343,7 +343,7 @@ export default function SongsScreen() {
                   {link.busy ? (
                     <CircularSpinner size={14} />
                   ) : (
-                    <ClipboardPaste size={14} color={color.ink} />
+                    <Clipboard size={14} color={color.ink} />
                   )}
                 </Pressable>
               </View>
