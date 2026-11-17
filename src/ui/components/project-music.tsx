@@ -79,18 +79,20 @@ export function ProjectMusic({ projectId }: { projectId: ProjectId }) {
             {t('music.empty')}
           </Text>
         ) : (
-          <Rows items={own.items} keyOf={(song) => song.id}>
-            {(song) => (
-              <Pressable
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: attached.has(song.id) }}
-                accessibilityLabel={song.name}
-                onPress={() => toggle(song)}
-              >
-                <Row song={song} checked={attached.has(song.id)} />
-              </Pressable>
-            )}
-          </Rows>
+          <View style={styles.sheetList}>
+            <Rows items={own.items} keyOf={(song) => song.id}>
+              {(song) => (
+                <Pressable
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: attached.has(song.id) }}
+                  accessibilityLabel={song.name}
+                  onPress={() => toggle(song)}
+                >
+                  <Row song={song} checked={attached.has(song.id)} />
+                </Pressable>
+              )}
+            </Rows>
+          </View>
         )}
       </BottomSheet>
     </>
@@ -179,6 +181,9 @@ const useStyles = themed(({ color }) =>
     },
     empty: {
       padding: space.s4,
+    },
+    sheetList: {
+      marginHorizontal: -space.s5,
     },
     add: {
       minHeight: 56,
