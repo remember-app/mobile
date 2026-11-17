@@ -12,7 +12,6 @@ import type { Song } from '@/models';
 import type { ProjectId } from '@/types/id';
 import { SwipeRow } from '@/ui/components/swipe-row';
 import { useOwnSongs, useProjectSongs } from '@/ui/hooks';
-import { Rows } from '@/ui/kit/bits';
 import { BottomSheet } from '@/ui/kit/bottom-sheet';
 import { Card } from '@/ui/kit/card';
 import { Image } from '@/ui/kit/image';
@@ -59,17 +58,16 @@ export function ProjectMusic({ projectId }: { projectId: ProjectId }) {
             {t('music.none')}
           </Text>
         ) : (
-          <Rows items={project.items} keyOf={(song) => song.id}>
-            {(song) => (
-              <SwipeRow
-                tone="danger"
-                icon={Trash2}
-                onAction={() => void detachProjectSong(projectId, song.id).catch(() => undefined)}
-              >
-                <Row song={song} />
-              </SwipeRow>
-            )}
-          </Rows>
+          project.items.map((song) => (
+            <SwipeRow
+              key={song.id}
+              tone="danger"
+              icon={Trash2}
+              onAction={() => void detachProjectSong(projectId, song.id).catch(() => undefined)}
+            >
+              <Row song={song} />
+            </SwipeRow>
+          ))
         )}
       </Card>
 
@@ -80,18 +78,17 @@ export function ProjectMusic({ projectId }: { projectId: ProjectId }) {
           </Text>
         ) : (
           <View style={styles.sheetList}>
-            <Rows items={own.items} keyOf={(song) => song.id}>
-              {(song) => (
-                <Pressable
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked: attached.has(song.id) }}
-                  accessibilityLabel={song.name}
-                  onPress={() => toggle(song)}
-                >
-                  <Row song={song} checked={attached.has(song.id)} />
-                </Pressable>
-              )}
-            </Rows>
+            {own.items.map((song) => (
+              <Pressable
+                key={song.id}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: attached.has(song.id) }}
+                accessibilityLabel={song.name}
+                onPress={() => toggle(song)}
+              >
+                <Row song={song} checked={attached.has(song.id)} />
+              </Pressable>
+            ))}
           </View>
         )}
       </BottomSheet>
@@ -184,6 +181,7 @@ const useStyles = themed(({ color }) =>
     },
     sheetList: {
       marginHorizontal: -space.s5,
+      marginBottom: -space.s6,
     },
     add: {
       minHeight: 56,
