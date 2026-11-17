@@ -53,13 +53,6 @@ const LABELS = {
   photos: 'picker.photos',
 } as const;
 
-const EMPTY = {
-  all: 'picker.emptyAll',
-  favorites: 'picker.emptyFavorites',
-  videos: 'picker.emptyVideos',
-  photos: 'picker.emptyPhotos',
-} as const;
-
 export default function PickScreen() {
   const { t } = useTranslation();
   const router = useRouter();
@@ -442,14 +435,7 @@ export default function PickScreen() {
                 </View>
               ))}
             </View>
-          ) : ordered.length === 0 ? (
-            <View style={styles.centre}>
-              <ImageOff size={40} color={color.muted} />
-              <Text role="body" tone="muted">
-                {t(EMPTY[collection])}
-              </Text>
-            </View>
-          ) : (
+          ) : ordered.length === 0 ? null : (
             <PhotoGrid
               key={collection}
               photos={photos}

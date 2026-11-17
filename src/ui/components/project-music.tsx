@@ -56,30 +56,22 @@ export function ProjectMusic({ projectId, player }: { projectId: ProjectId; play
           </Text>
         </Pressable>
         <View style={styles.divider} />
-        {project.items.length === 0 ? (
-          <Text role="noteSm" tone="muted" style={styles.empty}>
-            {t('music.none')}
-          </Text>
-        ) : (
-          project.items.map((song) => (
-            <SwipeRow
-              key={song.id}
-              tone="danger"
-              icon={Trash2}
-              onAction={() => void detachProjectSong(projectId, song.id).catch(() => undefined)}
-            >
-              <Row song={song} player={player} />
-            </SwipeRow>
-          ))
-        )}
+        {project.items.length === 0
+          ? null
+          : project.items.map((song) => (
+              <SwipeRow
+                key={song.id}
+                tone="danger"
+                icon={Trash2}
+                onAction={() => void detachProjectSong(projectId, song.id).catch(() => undefined)}
+              >
+                <Row song={song} player={player} />
+              </SwipeRow>
+            ))}
       </Card>
 
       <BottomSheet visible={open} onClose={() => setOpen(false)} title={t('music.new')}>
-        {own.items.length === 0 ? (
-          <Text role="noteSm" tone="muted" style={styles.empty}>
-            {t('music.empty')}
-          </Text>
-        ) : (
+        {own.items.length === 0 ? null : (
           <View style={styles.sheetList}>
             {own.items.map((song) => (
               <Pressable
@@ -202,9 +194,6 @@ const useStyles = themed(({ color }) =>
     divider: {
       height: StyleSheet.hairlineWidth,
       backgroundColor: color.line,
-    },
-    empty: {
-      padding: space.s4,
     },
     sheetList: {
       marginHorizontal: -space.s5,

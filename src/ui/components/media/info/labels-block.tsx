@@ -82,26 +82,22 @@ export function LabelsBlock({ labels, all, onToggle }: Props) {
           style={styles.body}
         >
           <Animated.View layout={LinearTransition.duration(180)} style={styles.labels}>
-            {labels.length === 0 ? (
-              <Text role="bodySm" style={styles.muted}>
-                {t('labels.noneOnPhoto')}
-              </Text>
-            ) : (
-              labels.map((label) => (
-                <Animated.View
-                  key={label.id}
-                  layout={LinearTransition.duration(180)}
-                  style={[styles.chip, names ? styles.chipOpen : styles.chipClosed]}
-                >
-                  <LabelMark tint={label.color} size={30} />
-                  {names ? (
-                    <Text role="metaSm" numberOfLines={1} style={styles.paper}>
-                      {label.name}
-                    </Text>
-                  ) : null}
-                </Animated.View>
-              ))
-            )}
+            {labels.length === 0
+              ? null
+              : labels.map((label) => (
+                  <Animated.View
+                    key={label.id}
+                    layout={LinearTransition.duration(180)}
+                    style={[styles.chip, names ? styles.chipOpen : styles.chipClosed]}
+                  >
+                    <LabelMark tint={label.color} size={30} />
+                    {names ? (
+                      <Text role="metaSm" numberOfLines={1} style={styles.paper}>
+                        {label.name}
+                      </Text>
+                    ) : null}
+                  </Animated.View>
+                ))}
           </Animated.View>
         </Pressable>
       </View>

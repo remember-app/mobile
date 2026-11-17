@@ -12,7 +12,6 @@ import { PhotoViewer } from '@/ui/components/media/photo-viewer';
 import { useGallery, useMovies } from '@/ui/hooks';
 import { Board } from '@/ui/kit/bars';
 import { BlurBar } from '@/ui/kit/blur-bar';
-import { Empty } from '@/ui/kit/empty';
 import { BackBar } from '@/ui/screens/chrome';
 import { space } from '@/ui/theme';
 
@@ -42,7 +41,7 @@ export default function MovieFramesScreen() {
   const bar = <BackBar title={t('montage.movie.framesTitle')} />;
 
   if (photos.length === 0) {
-    return <Board bar={bar}>{movies.status === 'ready' ? <Empty sign="dashed" /> : null}</Board>;
+    return <Board bar={bar} />;
   }
 
   return (

@@ -102,11 +102,6 @@ export default function ContactsScreen() {
               </SwipeRow>
             )}
           </Rows>
-          {contacts.length === 0 ? (
-            <Text role="note" tone="muted" style={styles.empty}>
-              {t('contacts.empty')}
-            </Text>
-          ) : null}
         </Card>
       )}
 
@@ -170,11 +165,6 @@ const useStyles = themed(({ color }) =>
       minHeight: 60,
       paddingHorizontal: space.s4,
       backgroundColor: color.surface,
-    },
-    empty: {
-      paddingVertical: space.s5,
-      paddingHorizontal: space.s4,
-      textAlign: 'center',
     },
     form: {
       gap: space.s4,

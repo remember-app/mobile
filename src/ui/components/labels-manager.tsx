@@ -82,11 +82,7 @@ export function LabelsManager({ projectId }: { projectId: ProjectId }) {
           </Text>
         </Pressable>
         <View style={styles.divider} />
-        {labels.length === 0 ? (
-          <Text role="noteSm" tone="muted" style={styles.empty}>
-            {t('labels.none')}
-          </Text>
-        ) : (
+        {labels.length === 0 ? null : (
           <CollapsibleList collapsed={224} expanded={392}>
             <Rows items={labels} keyOf={(label) => label.id} hairline>
               {(label) => (
@@ -208,9 +204,6 @@ const useStyles = themed(({ color }) =>
     divider: {
       height: StyleSheet.hairlineWidth,
       backgroundColor: color.line,
-    },
-    empty: {
-      padding: space.s4,
     },
     add: {
       minHeight: 56,

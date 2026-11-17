@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Clapperboard, Sparkles } from 'lucide-react-native';
+import { Sparkles } from 'lucide-react-native';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
@@ -12,7 +12,6 @@ import { ActionBar } from '@/ui/kit/action-bar';
 import { Board, pageBody } from '@/ui/kit/bars';
 import { Button, IconButton } from '@/ui/kit/button';
 import { CircularSpinner } from '@/ui/kit/circular-spinner';
-import { Empty } from '@/ui/kit/empty';
 import { BackBar } from '@/ui/screens/chrome';
 import { space } from '@/ui/theme';
 
@@ -69,14 +68,7 @@ export default function MoviesScreen() {
           <View style={{ paddingVertical: space.s7, alignItems: 'center' }}>
             <CircularSpinner size={32} />
           </View>
-        ) : montages.items.length === 0 ? (
-          <Empty
-            sign="dashed"
-            icon={Clapperboard}
-            title={t('montage.emptyTitle')}
-            text={t('montage.emptyText')}
-          />
-        ) : (
+        ) : montages.items.length === 0 ? null : (
           montages.items.map((montage) => (
             <MontageCard
               key={montage.id}

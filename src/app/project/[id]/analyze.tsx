@@ -22,7 +22,6 @@ import { ActionBar } from '@/ui/kit/action-bar';
 import { BlurBar } from '@/ui/kit/blur-bar';
 import { BackButton, Button, IconButton } from '@/ui/kit/button';
 import { CircularSpinner } from '@/ui/kit/circular-spinner';
-import { Empty } from '@/ui/kit/empty';
 import { Text } from '@/ui/kit/text';
 import { orderOf } from '@/ui/selection';
 import { radius, space, useTheme } from '@/ui/theme';
@@ -161,16 +160,7 @@ export default function AnalyzeScreen() {
         <View style={styles.centre}>
           <CircularSpinner size={32} />
         </View>
-      ) : photos.length === 0 ? (
-        <View style={styles.centre}>
-          <Empty
-            sign="dashed"
-            title={
-              gallery.items.length > 0 ? t('montage.analysisNothing') : t('montage.analysisEmpty')
-            }
-          />
-        </View>
-      ) : (
+      ) : photos.length === 0 ? null : (
         <PhotoGrid
           photos={photos}
           onOpen={(index, rect) => setViewer({ index, rect })}

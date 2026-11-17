@@ -70,11 +70,7 @@ export function MemberList({
           <View style={styles.divider} />
         </>
       ) : null}
-      {members.length === 0 ? (
-        <Text role="note" tone="muted" style={styles.empty}>
-          {t('members.empty')}
-        </Text>
-      ) : (
+      {members.length === 0 ? null : (
         <CollapsibleList collapsed={320} expanded={512}>
           {contributors.map(row)}
           {viewers.length > 0 ? (
@@ -95,10 +91,6 @@ export function MemberList({
 
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
-    empty: {
-      paddingVertical: space.s5,
-      textAlign: 'center',
-    },
     add: {
       minHeight: 56,
       alignItems: 'center',

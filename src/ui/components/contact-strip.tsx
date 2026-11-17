@@ -1,9 +1,7 @@
-import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet } from 'react-native';
 
 import { Avatar } from '@/ui/kit/avatar';
 import { Card } from '@/ui/kit/card';
-import { Text } from '@/ui/kit/text';
 import { radius, space, themed, useTheme } from '@/ui/theme';
 
 export type Contact = {
@@ -25,21 +23,10 @@ export function ContactStrip({
   selected: ReadonlySet<string>;
   onToggle: (id: string) => void;
 }) {
-  const { t } = useTranslation();
   const { color } = useTheme();
   const styles = useStyles();
 
-  if (contacts.length === 0) {
-    return (
-      <Card clip>
-        <View style={styles.empty}>
-          <Text role="noteSm" tone="muted">
-            {t('contacts.none')}
-          </Text>
-        </View>
-      </Card>
-    );
-  }
+  if (contacts.length === 0) return null;
 
   return (
     <Card clip>

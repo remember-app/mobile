@@ -21,7 +21,6 @@ import { useAvatar, useGallery, useLabels, useSession } from '@/ui/hooks';
 import { ActionBar } from '@/ui/kit/action-bar';
 import { BlurBar } from '@/ui/kit/blur-bar';
 import { Button } from '@/ui/kit/button';
-import { Empty } from '@/ui/kit/empty';
 import { Text } from '@/ui/kit/text';
 import { Missing } from '@/ui/screens/chrome';
 import { space } from '@/ui/theme';
@@ -60,11 +59,7 @@ export default function LabelScreen() {
     <>
       <Stack.Screen options={{ gestureEnabled: open === null }} />
       <View style={styles.root}>
-        {photos.length === 0 ? (
-          <View style={styles.centre}>
-            <Empty sign="dashed" title={t('labels.empty')} />
-          </View>
-        ) : (
+        {photos.length === 0 ? null : (
           <PhotoGrid
             photos={photos}
             onOpen={(index, rect) => setOpen({ index, rect })}

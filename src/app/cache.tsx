@@ -153,11 +153,6 @@ export default function CacheScreen() {
       >
         <View style={styles.top}>
           <CacheDonut slices={slices} />
-          {usage.total === 0 ? (
-            <Text role="body" tone="muted">
-              {t('cache.empty')}
-            </Text>
-          ) : null}
         </View>
 
         {memories.length > 0 ? (

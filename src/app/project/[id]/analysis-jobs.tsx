@@ -45,9 +45,7 @@ export default function AnalysisJobsScreen() {
           </View>
         ) : state.status === 'error' ? (
           <Empty sign="dashed" title={t('montage.analysisLoadFailed')} />
-        ) : jobs.length === 0 ? (
-          <Empty sign="dashed" title={t('montage.analysisNone')} />
-        ) : (
+        ) : jobs.length === 0 ? null : (
           jobs.map((job) => {
             const item = gallery.items.find((entry) => entry.id === job.itemId);
             return (
