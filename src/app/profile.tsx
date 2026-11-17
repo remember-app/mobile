@@ -137,16 +137,12 @@ export default function ProfileScreen() {
   };
 
   const pickAvatar = async () => {
-    // iOS presents the system picker slowly over an open sheet
-    setEditing(false);
-    await new Promise((resolve) => setTimeout(resolve, 300));
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
     });
-    setEditing(true);
     const asset = result.assets?.[0];
     if (result.canceled || !asset) return;
     const extension = asset.mimeType?.split('/')[1] ?? 'jpg';

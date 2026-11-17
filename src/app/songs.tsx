@@ -148,16 +148,12 @@ export default function SongsScreen() {
   };
 
   const pickCover = async () => {
-    // iOS presents the system picker slowly over an open sheet
-    setSheetOpen(false);
-    await new Promise((resolve) => setTimeout(resolve, 300));
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
     });
-    setSheetOpen(true);
     const asset = result.assets?.[0];
     if (result.canceled || !asset) return;
     setError(null);
