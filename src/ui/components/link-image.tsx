@@ -56,9 +56,11 @@ export function LinkBanner({ link }: { link: string }) {
       <Text role="hint" tone="danger">
         {t('linkImage.failed')}
       </Text>
-      <Text role="meta" tone="muted" numberOfLines={1} ellipsizeMode="middle">
-        {link || '—'}
-      </Text>
+      {isImageLink(link) ? (
+        <Text role="meta" tone="muted" numberOfLines={1} ellipsizeMode="middle">
+          {link}
+        </Text>
+      ) : null}
     </Animated.View>
   );
 }
