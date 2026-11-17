@@ -8,6 +8,7 @@ export type Song = {
   coverId: MediaId | null;
   coverUrl: string | null;
   description: string | null;
+  duration: number | null;
   uploadedBy: UserId | null;
 };
 

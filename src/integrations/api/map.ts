@@ -272,6 +272,7 @@ export function toSong(wire: SongWire): Song {
     coverId: wire.coverId,
     coverUrl: wire.coverUrl,
     description: wire.description,
+    duration: wire.duration,
     uploadedBy: wire.uploadedBy,
   };
 }

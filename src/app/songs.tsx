@@ -1,6 +1,6 @@
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import * as ImagePicker from 'expo-image-picker';
-import { Camera, Music, Pause, Play, Plus, Trash2, X } from 'lucide-react-native';
+import { Camera, Music, Pause, Play, Plus, Trash2 } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -20,6 +20,7 @@ import { cachedUrl, keepUrl } from '@/integrations/files/media-cache';
 import type { Song } from '@/models';
 import type { MediaId, SongId } from '@/types/id';
 import { SwipeRow } from '@/ui/components/swipe-row';
+import { duration as clock } from '@/ui/format';
 import { useOwnSongs } from '@/ui/hooks';
 import { Board, pageBody } from '@/ui/kit/bars';
 import { BottomSheet } from '@/ui/kit/bottom-sheet';
@@ -100,6 +101,9 @@ export default function SongsScreen() {
 
   const current = songs.items.find((song) => song.id === currentId) ?? null;
   const loading = current !== null && playing && !status.isLoaded;
+  const total = status.duration || current?.duration || 0;
+  const position = status.currentTime ?? 0;
+  const percent = total > 0 ? Math.min(100, (position / total) * 100) : 0;
 
   useEffect(() => {
     slide.value = withTiming(current === null ? 0 : 1, { duration: 220 });
@@ -203,12 +207,6 @@ export default function SongsScreen() {
     } catch {
       setPlaying(false);
     }
-  };
-
-  const stop = () => {
-    player.pause();
-    setPlaying(false);
-    setCurrentId(null);
   };
 
   const remove = (song: Song) => {
@@ -323,6 +321,11 @@ export default function SongsScreen() {
                         {song.author}
                       </Text>
                     </View>
+                    {song.duration !== null ? (
+                      <Text role="meta" tone="muted">
+                        {clock(song.duration)}
+                      </Text>
+                    ) : null}
                     {currentId === song.id && playing && !status.isLoaded ? (
                       <View style={styles.spinner}>
                         <CircularSpinner size={18} />
@@ -431,44 +434,61 @@ export default function SongsScreen() {
         style={[styles.player, { bottom: insets.bottom + space.s3 }, playerStyle]}
       >
         {current ? (
-          <View style={styles.playerRow}>
-            <View style={styles.art}>
-              {current.coverUrl ? (
-                <Image
-                  source={current.coverUrl}
-                  scope="music"
-                  style={StyleSheet.absoluteFill}
-                  contentFit="cover"
-                  cachePolicy="memory-disk"
-                />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={playing ? t('songs.pause') : t('songs.play')}
+            onPress={() => void toggle(current)}
+            style={styles.playerBody}
+          >
+            <View style={styles.playerRow}>
+              <View style={styles.art}>
+                {current.coverUrl ? (
+                  <Image
+                    source={current.coverUrl}
+                    scope="music"
+                    style={StyleSheet.absoluteFill}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                  />
+                ) : (
+                  <Music size={18} color={color.muted} />
+                )}
+              </View>
+              <View style={styles.words}>
+                <Text role="row" numberOfLines={1}>
+                  {current.name}
+                </Text>
+                <Text role="meta" tone="muted" numberOfLines={1}>
+                  {current.author}
+                </Text>
+              </View>
+              {loading ? (
+                <View style={styles.spinner}>
+                  <CircularSpinner size={18} />
+                </View>
               ) : (
-                <Music size={18} color={color.muted} />
+                <IconButton
+                  icon={playing ? Pause : Play}
+                  label={playing ? t('songs.pause') : t('songs.play')}
+                  tone="ghost"
+                  size={40}
+                  glyph={{ size: 18, filled: true }}
+                  onPress={() => void toggle(current)}
+                />
               )}
             </View>
-            <View style={styles.words}>
-              <Text role="row" numberOfLines={1}>
-                {current.name}
+            <View style={styles.progressRow}>
+              <Text role="meta" tone="muted">
+                {clock(position)}
               </Text>
-              <Text role="meta" tone="muted" numberOfLines={1}>
-                {current.author}
+              <View style={styles.bar}>
+                <View style={[styles.fill, { width: `${percent}%` }]} />
+              </View>
+              <Text role="meta" tone="muted">
+                {clock(total)}
               </Text>
             </View>
-            {loading ? (
-              <View style={styles.spinner}>
-                <CircularSpinner size={18} />
-              </View>
-            ) : (
-              <IconButton
-                icon={playing ? Pause : Play}
-                label={playing ? t('songs.pause') : t('songs.play')}
-                tone="ghost"
-                size={40}
-                glyph={{ size: 18, filled: true }}
-                onPress={() => void toggle(current)}
-              />
-            )}
-            <IconButton icon={X} label={t('action.close')} tone="ghost" size={40} onPress={stop} />
-          </View>
+          </Pressable>
         ) : null}
       </Animated.View>
     </View>
@@ -518,10 +538,29 @@ const useStyles = themed(({ color }) =>
       backgroundColor: color.surface,
       padding: space.s3,
     },
+    playerBody: {
+      gap: space.s2,
+    },
     playerRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: space.s3,
+    },
+    progressRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: space.s2,
+    },
+    bar: {
+      flex: 1,
+      height: 3,
+      borderRadius: radius.pill,
+      overflow: 'hidden',
+      backgroundColor: color.line,
+    },
+    fill: {
+      height: 3,
+      backgroundColor: color.accent,
     },
     spinner: {
       width: 40,
