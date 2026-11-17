@@ -25,12 +25,15 @@ export function listUploads(
   }).then((wire) => toCursorPage(wire, toUpload));
 }
 
+const uploadsOf = (projectId: ProjectId | null): string =>
+  projectId === null ? '/v1/uploads' : `/v1/projects/${projectId}/uploads`;
+
 export function startUpload(
   token: string,
-  projectId: ProjectId,
+  projectId: ProjectId | null,
   input: NewUpload,
 ): Promise<UploadPlan> {
-  return request<UploadPlanWire>(`/v1/projects/${projectId}/uploads`, {
+  return request<UploadPlanWire>(uploadsOf(projectId), {
     method: 'POST',
     body: input,
     token,
@@ -39,21 +42,21 @@ export function startUpload(
 
 export function resumeUpload(
   token: string,
-  projectId: ProjectId,
+  projectId: ProjectId | null,
   uploadId: UploadId,
 ): Promise<UploadPlan> {
-  return request<UploadPlanWire>(`/v1/projects/${projectId}/uploads/${uploadId}`, {
+  return request<UploadPlanWire>(`${uploadsOf(projectId)}/${uploadId}`, {
     token,
   }).then(toUploadPlan);
 }
 
 export function completeUpload(
   token: string,
-  projectId: ProjectId,
+  projectId: ProjectId | null,
   uploadId: UploadId,
   parts: UploadedPart[],
 ): Promise<UploadComplete> {
-  return request<UploadCompleteWire>(`/v1/projects/${projectId}/uploads/${uploadId}/complete`, {
+  return request<UploadCompleteWire>(`${uploadsOf(projectId)}/${uploadId}/complete`, {
     method: 'POST',
     body: { parts },
     token,
@@ -62,11 +65,11 @@ export function completeUpload(
 
 export function cancelUpload(
   token: string,
-  projectId: ProjectId,
+  projectId: ProjectId | null,
   uploadId: UploadId,
   purge = false,
 ): Promise<{ ok: true }> {
-  return request(`/v1/projects/${projectId}/uploads/${uploadId}${purge ? '?purge=1' : ''}`, {
+  return request(`${uploadsOf(projectId)}/${uploadId}${purge ? '?purge=1' : ''}`, {
     method: 'DELETE',
     token,
   });

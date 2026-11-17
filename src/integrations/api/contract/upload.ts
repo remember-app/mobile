@@ -8,7 +8,7 @@ export type DeriveStatus = 'queued' | 'running' | 'done' | 'failed';
 
 export type UploadResponse = {
   id: string;
-  projectId: string;
+  projectId: string | null;
   kind: MediaKind;
   fileName: string;
   declaredBytes: string;
@@ -48,6 +48,6 @@ export type UploadPlanResponse = {
 
 export type UploadCompleteResponse = {
   mediaId: string;
-  itemId: string;
+  itemId: string | null;
   status: 'processing';
 };

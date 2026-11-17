@@ -14,7 +14,7 @@ const FINISH_MS = 650;
 
 export type QueuedUpload = {
   localId: string;
-  projectId: ProjectId;
+  projectId: ProjectId | null;
   uri: string;
   previewUri: string | null;
   fileName: string;
@@ -38,7 +38,7 @@ export type UploadsState = {
 let state: UploadsState = { items: [], sending: false };
 const listeners = new Set<() => void>();
 const completed = new Set<
-  (upload: UploadComplete, projectId: ProjectId, localId: string) => void | Promise<void>
+  (upload: UploadComplete, projectId: ProjectId | null, localId: string) => void | Promise<void>
 >();
 const localPreviews = new Map<string, string>();
 const previewProjects = new Map<string, ProjectId>();
@@ -107,7 +107,11 @@ export const subscribeUploads = (listener: () => void): (() => void) => {
 };
 
 export function onUploaded(
-  listener: (upload: UploadComplete, projectId: ProjectId, localId: string) => void | Promise<void>,
+  listener: (
+    upload: UploadComplete,
+    projectId: ProjectId | null,
+    localId: string,
+  ) => void | Promise<void>,
 ): () => void {
   completed.add(listener);
   return () => {
@@ -153,7 +157,7 @@ export function clearUploads(): void {
 
 export function enqueueUploads(
   files: {
-    projectId: ProjectId;
+    projectId: ProjectId | null;
     uri: string;
     previewUri?: string | null;
     fileName: string;
@@ -327,10 +331,14 @@ async function send(item: QueuedUpload, token: string): Promise<UploadComplete |
 }
 
 async function finish(item: QueuedUpload, done: UploadComplete): Promise<void> {
-  localPreviews.set(done.itemId, item.previewUri ?? item.uri);
-  previewProjects.set(done.itemId, item.projectId);
-  await new Promise((resolve) => setTimeout(resolve, FINISH_MS));
-  void watchPreview(item.projectId, done.itemId);
+  if (done.itemId !== null && item.projectId !== null) {
+    localPreviews.set(done.itemId, item.previewUri ?? item.uri);
+    previewProjects.set(done.itemId, item.projectId);
+    await new Promise((resolve) => setTimeout(resolve, FINISH_MS));
+    void watchPreview(item.projectId, done.itemId);
+  } else {
+    await new Promise((resolve) => setTimeout(resolve, FINISH_MS));
+  }
   await Promise.allSettled(
     [...completed].map((listener) => listener(done, item.projectId, item.localId)),
   );
