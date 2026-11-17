@@ -169,7 +169,7 @@ export function FramesCard({
             onPress={onPress}
             style={styles.framesMore}
           >
-            <ChevronRight size={18} color={color.muted} />
+            <ChevronRight size={12} color={color.muted} />
           </Pressable>
         ) : null}
       </View>
@@ -242,7 +242,7 @@ const useStyles = themed(({ color }) =>
       gap: space.s1,
     },
     framesMore: {
-      width: 16,
+      width: 12,
       height: 56,
       alignItems: 'center',
       justifyContent: 'center',
