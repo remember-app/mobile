@@ -1,22 +1,10 @@
 import { request } from './client';
-import type { AvatarStartWire, AvatarWire } from './wire';
+import type { AvatarWire } from './wire';
 
-export type AvatarUpload = {
-  mediaId: string;
-  url: string;
-};
-
-export function startAvatarUpload(token: string, fileName: string): Promise<AvatarUpload> {
-  return request<AvatarStartWire>('/v1/me/avatar', {
+export function setAvatar(token: string, mediaId: string): Promise<{ url: string }> {
+  return request<AvatarWire>('/v1/me/avatar', {
     method: 'POST',
-    body: { fileName },
-    token,
-  });
-}
-
-export function completeAvatarUpload(token: string, mediaId: string): Promise<{ url: string }> {
-  return request<AvatarWire>(`/v1/me/avatar/${mediaId}/complete`, {
-    method: 'POST',
+    body: { mediaId },
     token,
   }).then((wire) => ({ url: wire.url ?? '' }));
 }

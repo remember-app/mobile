@@ -1,10 +1,5 @@
-export type AvatarStartRequest = {
-  fileName: string;
-};
-
-export type AvatarStartResponse = {
+export type SetAvatarRequest = {
   mediaId: string;
-  url: string;
 };
 
 export type AvatarResponse = {

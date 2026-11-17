@@ -4,7 +4,6 @@ import type {
   ApiErrorResponse,
   AppInviteResponse,
   AvatarResponse,
-  AvatarStartResponse,
   CameraResponse,
   ConsumableResponse,
   ContactResponse,
@@ -90,6 +89,5 @@ export type SystemMediaResponseWire = SystemMediaResponse;
 export type LoginStartWire = LoginStartResponse;
 export type LoginResultWire = LoginResponse;
 export type DownloadLinksWire = DownloadLinksResponse;
-export type AvatarStartWire = AvatarStartResponse;
 export type AvatarWire = AvatarResponse;
 export type SuggestionsPageWire = SuggestionsPageResponse;
