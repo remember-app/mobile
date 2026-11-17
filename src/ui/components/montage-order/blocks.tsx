@@ -1,7 +1,8 @@
-import { ChevronRight, Images, Music, PenLine, Sparkles, VolumeX } from 'lucide-react-native';
+import { Music, Sparkles, VolumeX } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { Button } from '@/ui/kit/button';
 import { Card } from '@/ui/kit/card';
 import { Icon, type IconComponent } from '@/ui/kit/icon';
 import { Image } from '@/ui/kit/image';
@@ -37,10 +38,12 @@ export function MusicCard({
   songs,
   group,
   director,
+  onPress,
 }: {
   songs: readonly SummarySong[];
   group?: string | null;
   director?: boolean;
+  onPress?: () => void;
 }) {
   const { t } = useTranslation();
   const { color } = useTheme();
@@ -48,7 +51,11 @@ export function MusicCard({
   const first = songs[0];
   const spare = songs.length - 1;
   return (
-    <Card style={styles.row}>
+    <Card
+      style={styles.row}
+      onPress={onPress}
+      label={onPress ? t('montage.order.musicTitle') : undefined}
+    >
       {director ? (
         <>
           <View style={[styles.sign, { backgroundColor: color.raise }]}>
@@ -108,7 +115,6 @@ export function MusicCard({
 
 export function PromptCard({ prompt, onOpen }: { prompt: string | null; onOpen?: () => void }) {
   const { t } = useTranslation();
-  const { color } = useTheme();
   const styles = useStyles();
   if (!prompt) return null;
   return (
@@ -117,11 +123,8 @@ export function PromptCard({ prompt, onOpen }: { prompt: string | null; onOpen?:
       onPress={onOpen}
       label={onOpen ? t('montage.movie.prompt') : undefined}
     >
-      <View style={[styles.sign, { backgroundColor: color.raise }]}>
-        <PenLine size={18} color={color.paper} />
-      </View>
-      <Text role="body" style={styles.quote} numberOfLines={4}>
-        «{prompt}»
+      <Text role="body" style={styles.quote} numberOfLines={3}>
+        {prompt}
       </Text>
     </Card>
   );
@@ -130,41 +133,35 @@ export function PromptCard({ prompt, onOpen }: { prompt: string | null; onOpen?:
 export function FramesCard({
   frames,
   group,
-  count,
   onPress,
 }: {
   frames: readonly string[];
   group?: string | null;
-  count: number;
   onPress?: () => void;
 }) {
   const { t } = useTranslation();
-  const { color } = useTheme();
   const styles = useStyles();
   return (
-    <Card style={styles.row} onPress={onPress} label={t('montage.movie.framesTitle')}>
-      <View style={[styles.sign, { backgroundColor: color.raise }]}>
-        <Images size={18} color={color.paper} />
-      </View>
-      <View style={styles.rowWords}>
-        <Text role="row">{t('montage.movie.framesTitle')}</Text>
-        <Text role="meta" tone="muted">
-          {count}
-        </Text>
-      </View>
-      <View style={styles.thumbs}>
-        {frames.slice(0, 3).map((uri) => (
+    <Card style={styles.framesCard}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.framesRow}
+      >
+        {frames.map((uri) => (
           <Image
             key={uri}
             source={uri}
             group={group}
-            style={styles.thumb}
+            style={styles.frame}
             contentFit="cover"
             cachePolicy="memory-disk"
           />
         ))}
-      </View>
-      {onPress ? <ChevronRight size={18} color={color.muted} /> : null}
+      </ScrollView>
+      {onPress ? (
+        <Button label={t('montage.movie.allFrames')} variant="quiet" onPress={onPress} />
+      ) : null}
     </Card>
   );
 }
@@ -219,13 +216,16 @@ const useStyles = themed(({ color }) =>
     quote: {
       flex: 1,
     },
-    thumbs: {
-      flexDirection: 'row',
+    framesCard: {
+      gap: space.s2,
+      padding: space.s3,
+    },
+    framesRow: {
       gap: space.s1,
     },
-    thumb: {
-      width: 36,
-      height: 36,
+    frame: {
+      width: 56,
+      height: 56,
       borderRadius: radius.tile,
     },
   }),

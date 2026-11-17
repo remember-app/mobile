@@ -1,10 +1,11 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as Sharing from 'expo-sharing';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import {
   BookOpen,
+  Calendar,
   Clock,
   HardDrive,
-  Images,
   Play,
   RectangleHorizontal,
   RectangleVertical,
@@ -24,9 +25,10 @@ import {
   MusicCard,
   PromptCard,
 } from '@/ui/components/montage-order/blocks';
-import { duration, fullDay, megabytes } from '@/ui/format';
+import { duration, fullDay } from '@/ui/format';
 import { useGallery, useMembers, useMovies } from '@/ui/hooks';
 import { ActionBar } from '@/ui/kit/action-bar';
+import { Avatar } from '@/ui/kit/avatar';
 import { Board } from '@/ui/kit/bars';
 import { BottomSheet } from '@/ui/kit/bottom-sheet';
 import { Button, IconButton } from '@/ui/kit/button';
@@ -88,8 +90,16 @@ export default function MovieScreen() {
     void view.current?.enterFullscreen();
   };
 
+  const download = async () => {
+    if (!videoUrl) return;
+    const local = cachedUrl(videoUrl, projectId) ?? (await keepUrl(videoUrl, projectId));
+    if (!local) return;
+    if (await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(local, { mimeType: 'video/mp4' });
+    }
+  };
+
   const member = members.members.find((entry) => entry.userId === movie.createdBy);
-  const author = member?.name?.trim() || member?.username || null;
   const video = movie.video;
   const settings = movie.montage?.manifest.preparationConfig ?? null;
   const chosen = movie.montage ? montageItems(movie.montage, gallery.items) : [];
@@ -118,14 +128,17 @@ export default function MovieScreen() {
           },
         ]
       : []),
-    ...(ids.length > 0 ? [{ icon: Images, value: String(ids.length) }] : []),
-    ...(video ? [{ icon: HardDrive, value: megabytes(video.bytes) }] : []),
+    { icon: Calendar, value: fullDay(movie.createdAt) },
+    ...(video ? [{ icon: HardDrive, value: (video.bytes / 1024 ** 3).toFixed(1) }] : []),
   ];
-  const resolution = video?.width && video.height ? `${video.width} × ${video.height}` : null;
-  const meta = [fullDay(movie.createdAt), author, resolution].filter(Boolean).join(' · ');
   const openFrames = () =>
     router.navigate({
       pathname: '/project/[id]/movie/[movieId]/frames',
+      params: { id: projectId, movieId: movie.id },
+    });
+  const openMusic = () =>
+    router.navigate({
+      pathname: '/project/[id]/movie/[movieId]/music',
       params: { id: projectId, movieId: movie.id },
     });
 
@@ -156,54 +169,67 @@ export default function MovieScreen() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('montage.movie.watch')}
-          onPress={watch}
+          onPress={movie.videoUrl ? watch : undefined}
           style={[styles.poster, { backgroundColor: color.raise }]}
         >
-          <VideoView
-            ref={view}
-            player={player}
-            style={StyleSheet.absoluteFill}
-            contentFit="cover"
-            nativeControls
-            onFullscreenExit={() => player.pause()}
-          />
-          {movie.posterUrl ? (
+          {movie.videoUrl ? (
+            <>
+              <VideoView
+                ref={view}
+                player={player}
+                style={StyleSheet.absoluteFill}
+                contentFit="cover"
+                nativeControls
+                onFullscreenExit={() => player.pause()}
+              />
+              {movie.posterUrl ? (
+                <Image
+                  source={movie.posterUrl}
+                  group={movie.projectId}
+                  style={StyleSheet.absoluteFill}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                />
+              ) : null}
+              <View pointerEvents="none" style={styles.shade} />
+              <View style={styles.play}>
+                <Play size={30} color={color.onFill} fill={color.onFill} />
+              </View>
+            </>
+          ) : (
             <Image
-              source={movie.posterUrl}
-              group={movie.projectId}
-              style={StyleSheet.absoluteFill}
-              contentFit="cover"
-              cachePolicy="memory-disk"
+              source={require('../../../../../../assets/logo/logo-heart-7-complete.png')}
+              style={styles.logo}
+              contentFit="contain"
             />
+          )}
+          {member ? (
+            <View style={styles.creator}>
+              <Avatar
+                name={member.name ?? member.username ?? ''}
+                size={32}
+                uri={member.avatarUrl}
+              />
+            </View>
           ) : null}
-          <View pointerEvents="none" style={styles.shade} />
-          <View style={styles.play}>
-            <Play size={30} color={color.onFill} fill={color.onFill} />
-          </View>
         </Pressable>
 
         <View style={styles.body}>
           <Facts items={facts} />
-          {meta ? (
-            <Text role="meta" tone="muted">
-              {meta}
-            </Text>
-          ) : null}
-          <MusicCard songs={music} group={projectId} />
+          <MusicCard songs={music} group={projectId} onPress={openMusic} />
           <PromptCard prompt={settings?.prompt ?? null} onOpen={() => setPromptOpen(true)} />
           {ids.length > 0 ? (
-            <FramesCard
-              frames={frameUrls}
-              group={projectId}
-              count={ids.length}
-              onPress={openFrames}
-            />
+            <FramesCard frames={frameUrls} group={projectId} onPress={openFrames} />
           ) : null}
         </View>
       </Board>
 
       <ActionBar>
-        <Button label={t('montage.movie.watch')} variant="primary" icon={Play} onPress={watch} />
+        <Button
+          label={t('montage.movie.download')}
+          variant="primary"
+          onPress={() => void download()}
+        />
       </ActionBar>
       <BottomSheet visible={promptOpen} onClose={() => setPromptOpen(false)}>
         <Text role="body">{settings?.prompt ?? ''}</Text>
@@ -218,7 +244,7 @@ const styles = StyleSheet.create({
   },
   poster: {
     aspectRatio: 16 / 9,
-    marginHorizontal: space.s5,
+    marginHorizontal: space.s4,
     marginTop: space.s2,
     alignItems: 'center',
     justifyContent: 'center',
@@ -240,6 +266,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: photo.glass,
+  },
+  logo: {
+    width: 160,
+    height: 160,
+  },
+  creator: {
+    position: 'absolute',
+    left: space.s3,
+    top: space.s3,
   },
   body: {
     paddingHorizontal: space.s5,

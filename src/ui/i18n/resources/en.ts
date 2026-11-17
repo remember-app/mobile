@@ -338,6 +338,8 @@ export const en = {
       watch: 'Watch',
       prompt: 'Wish',
       framesTitle: 'Video shots',
+      allFrames: 'All shots',
+      download: 'Download',
       noMusic: 'No music',
       unavailable: 'This video is unavailable',
     },

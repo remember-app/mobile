@@ -341,6 +341,8 @@ export const ru: typeof en = {
       watch: 'Смотреть',
       prompt: 'Пожелание',
       framesTitle: 'Кадры ролика',
+      allFrames: 'Все кадры',
+      download: 'Скачать',
       noMusic: 'Без музыки',
       unavailable: 'Ролик недоступен',
     },

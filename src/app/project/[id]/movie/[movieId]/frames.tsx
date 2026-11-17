@@ -30,12 +30,28 @@ export default function MovieFramesScreen() {
   }, [projectId]);
 
   const movie = movies.items.find((entry) => entry.id === movieId);
-  const items = useMemo(
-    () => (movie?.montage ? montageItems(movie.montage, gallery.items) : []),
+  const used = useMemo(
+    () =>
+      new Set(
+        movie?.montage ? montageItems(movie.montage, gallery.items).map((item) => item.id) : [],
+      ),
     [gallery.items, movie],
   );
+  const items = useMemo(() => {
+    const ids = movie?.montage?.manifest.preparationConfig?.includeItemIds ?? [];
+    const byId = new Map(gallery.items.map((item) => [item.id, item]));
+    const all = ids.flatMap((id) => {
+      const item = byId.get(id);
+      return item ? [item] : [];
+    });
+    if (all.length > 0) return all;
+    return movie?.montage ? montageItems(movie.montage, gallery.items) : [];
+  }, [gallery.items, movie]);
 
-  const photos = useMemo<Photo[]>(() => items.map(tileOf), [items]);
+  const photos = useMemo<Photo[]>(
+    () => items.map((item) => ({ ...tileOf(item), accent: used.has(item.id) })),
+    [items, used],
+  );
   const viewer = useMemo(() => items.map(viewerOf), [items]);
 
   const bar = <BackBar title={t('montage.movie.framesTitle')} />;
