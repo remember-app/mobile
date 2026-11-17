@@ -23,7 +23,7 @@ export type OwnSongInput = {
 };
 
 const EMPTY: OwnSongsState = { status: 'loading', items: [], error: null };
-const CACHE = 'songs-mine';
+const CACHE = 'songs-mine-v2';
 
 let state: OwnSongsState = EMPTY;
 let inFlight: Promise<void> | null = null;
