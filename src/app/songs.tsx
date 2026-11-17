@@ -433,6 +433,7 @@ const useStyles = themed(({ color }) =>
       position: 'relative',
       width: 72,
       height: 72,
+      marginBottom: space.s3,
     },
     coverFrame: {
       position: 'absolute',
