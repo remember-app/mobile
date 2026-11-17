@@ -67,7 +67,7 @@ export async function uploadDeviceAssets(
 }
 
 export async function uploadAudioFiles(): Promise<number> {
-  const picked = await pickFiles(['audio/*']);
+  const picked = await pickFiles();
   enqueueUploads(
     picked.map((file) => ({
       projectId: null,

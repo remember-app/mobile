@@ -1,5 +1,8 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
+import { Platform } from 'react-native';
+
+export const AUDIO_TYPES = Platform.OS === 'ios' ? ['public.audio'] : ['audio/*'];
 
 export type PickedFile = {
   uri: string;
@@ -8,7 +11,7 @@ export type PickedFile = {
   mimeType: string | null;
 };
 
-export async function pickFiles(type: string[] = ['audio/*']): Promise<PickedFile[]> {
+export async function pickFiles(type: string[] = AUDIO_TYPES): Promise<PickedFile[]> {
   const result = await DocumentPicker.getDocumentAsync({
     type,
     multiple: true,

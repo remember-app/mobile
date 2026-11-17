@@ -1,7 +1,7 @@
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import * as ImagePicker from 'expo-image-picker';
 import { Camera, ChevronRight, Music, Pause, Play, Plus } from 'lucide-react-native';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 import {
@@ -24,7 +24,6 @@ import { BottomSheet } from '@/ui/kit/bottom-sheet';
 import { Button, IconButton } from '@/ui/kit/button';
 import { Card } from '@/ui/kit/card';
 import { CircularSpinner } from '@/ui/kit/circular-spinner';
-import { Empty } from '@/ui/kit/empty';
 import { Field } from '@/ui/kit/field';
 import { Image } from '@/ui/kit/image';
 import { Text } from '@/ui/kit/text';
@@ -62,11 +61,6 @@ export default function SongsScreen() {
   const player = useAudioPlayer();
   const status = useAudioPlayerStatus(player);
   const [playing, setPlaying] = useState(false);
-  const draftRef = useRef<Draft | null>(null);
-
-  useEffect(() => {
-    draftRef.current = draft;
-  }, [draft]);
 
   useEffect(() => {
     void loadOwnSongs().catch(() => undefined);
@@ -91,12 +85,21 @@ export default function SongsScreen() {
     setError(null);
   };
 
-  const chooseFile = async () => {
+  const add = async () => {
     setError(null);
+    const [file] = await pickFiles().catch(() => []);
+    if (!file) return;
+    setDraft({
+      id: null,
+      mediaId: null,
+      audioUri: null,
+      name: '',
+      author: '',
+      coverId: null,
+      coverUri: null,
+    });
     setUploading(true);
     try {
-      const [file] = await pickFiles(['audio/*']);
-      if (!file || draftRef.current === null) return;
       const mediaId = await uploadFileOnce(token(), 'audio', file.uri, file.fileName);
       setDraft((current) =>
         current === null
@@ -113,23 +116,6 @@ export default function SongsScreen() {
     } finally {
       setUploading(false);
     }
-  };
-
-  const add = () => {
-    setError(null);
-    setDraft({
-      id: null,
-      mediaId: null,
-      audioUri: null,
-      name: '',
-      author: '',
-      coverId: null,
-      coverUri: null,
-    });
-    // the system picker cannot be presented while the sheet is still animating in
-    setTimeout(() => {
-      if (draftRef.current !== null) void chooseFile();
-    }, 400);
   };
 
   const open = (song: Song) => {
@@ -260,12 +246,9 @@ export default function SongsScreen() {
       }
     >
       {songs.items.length === 0 && songs.status === 'ready' ? (
-        <Empty
-          sign="dashed"
-          icon={Music}
-          title={t('songs.emptyTitle')}
-          text={t('songs.emptyText')}
-        />
+        <View style={styles.empty}>
+          <Button label={t('songs.add')} variant="primary" icon={Plus} onPress={() => void add()} />
+        </View>
       ) : null}
 
       {songs.items.length > 0 ? (
@@ -318,19 +301,6 @@ export default function SongsScreen() {
               {t('songs.uploading')}
             </Text>
           </View>
-        ) : draft && draft.mediaId === null && draft.id === null ? (
-          <View style={styles.form}>
-            <Button
-              label={t('songs.chooseFile')}
-              variant="primary"
-              onPress={() => void chooseFile()}
-            />
-            {error ? (
-              <Text role="meta" tone="danger">
-                {error}
-              </Text>
-            ) : null}
-          </View>
         ) : draft ? (
           <View style={styles.form}>
             <View style={styles.head}>
@@ -377,6 +347,7 @@ export default function SongsScreen() {
                 label={playing ? t('songs.pause') : t('songs.play')}
                 tone="surface"
                 size={44}
+                disabled={draft.mediaId === null && draft.id === null}
                 onPress={() => void toggle()}
               />
             </View>
@@ -423,6 +394,9 @@ const useStyles = themed(({ color }) =>
   StyleSheet.create({
     card: {
       padding: space.s4,
+    },
+    empty: {
+      paddingTop: space.s6,
     },
     row: {
       flexDirection: 'row',
