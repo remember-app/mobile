@@ -15,6 +15,7 @@ import {
 } from '@/functionality';
 import type { Song } from '@/models';
 import type { MediaId, SongId } from '@/types/id';
+import { CropImageModal } from '@/ui/components/crop-image';
 import { LinkBanner, useLinkImage } from '@/ui/components/link-image';
 import { MiniPlayer, useSongPlayer } from '@/ui/components/song-player';
 import { SwipeRow } from '@/ui/components/swipe-row';
@@ -58,6 +59,7 @@ export default function SongsScreen() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [coverBusy, setCoverBusy] = useState(false);
+  const [crop, setCrop] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const player = useSongPlayer({ onDuration: rememberSongDuration });
@@ -150,24 +152,20 @@ export default function SongsScreen() {
   const pickCover = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
       quality: 0.8,
     });
     const asset = result.assets?.[0];
     if (result.canceled || !asset) return;
+    setCrop(asset.uri);
+  };
+
+  const applyCover = async (uri: string) => {
     setError(null);
     setCoverBusy(true);
     try {
-      const extension = asset.mimeType?.split('/')[1] ?? 'jpg';
-      const mediaId = await uploadFileOnce(
-        token(),
-        'photo',
-        asset.uri,
-        asset.fileName ?? `cover.${extension}`,
-      );
+      const mediaId = await uploadFileOnce(token(), 'photo', uri, 'cover.jpg');
       setDraft((current) =>
-        current === null ? current : { ...current, coverId: mediaId, coverUri: asset.uri },
+        current === null ? current : { ...current, coverId: mediaId, coverUri: uri },
       );
     } catch {
       setError(t('songs.uploadFailed'));
@@ -386,6 +384,15 @@ export default function SongsScreen() {
       </Board>
 
       <MiniPlayer player={player} />
+
+      <CropImageModal
+        uri={crop}
+        onCancel={() => setCrop(null)}
+        onDone={(uri) => {
+          setCrop(null);
+          void applyCover(uri);
+        }}
+      />
     </View>
   );
 }

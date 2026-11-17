@@ -31,6 +31,7 @@ import {
 } from '@/functionality';
 import { writeLanguage } from '@/functionality/settings/language';
 import type { Language } from '@/types/language';
+import { CropImageModal } from '@/ui/components/crop-image';
 import { LinkBanner, useLinkImage } from '@/ui/components/link-image';
 import { Person } from '@/ui/components/person';
 import { SettingsSelect } from '@/ui/components/settings-select';
@@ -83,6 +84,7 @@ export default function ProfileScreen() {
   const [themeOpen, setThemeOpen] = useState(false);
   const chosen = useThemeChoice();
   const [editing, setEditing] = useState(false);
+  const [crop, setCrop] = useState<string | null>(null);
   const [name, setName] = useState(account?.name ?? '');
   const [username, setUsername] = useState(account?.username ?? '');
   const [cacheBytes, setCacheBytes] = useState(0);
@@ -139,14 +141,11 @@ export default function ProfileScreen() {
   const pickAvatar = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
       quality: 0.8,
     });
     const asset = result.assets?.[0];
     if (result.canceled || !asset) return;
-    const extension = asset.mimeType?.split('/')[1] ?? 'jpg';
-    await uploadAvatar(asset.uri, asset.fileName ?? `avatar.${extension}`).catch(() => undefined);
+    setCrop(asset.uri);
   };
 
   if (!account) return null;
@@ -381,6 +380,15 @@ export default function ProfileScreen() {
           <Button label={t('action.save')} variant="primary" disabled={!valid} onPress={save} />
         </View>
       </BottomSheet>
+
+      <CropImageModal
+        uri={crop}
+        onCancel={() => setCrop(null)}
+        onDone={(uri) => {
+          setCrop(null);
+          void uploadAvatar(uri, 'avatar.jpg').catch(() => undefined);
+        }}
+      />
     </Board>
   );
 }
