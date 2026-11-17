@@ -75,7 +75,7 @@ export function MontageBackdrop({
   );
 }
 
-export type MusicEntry = { id: string; name?: string; author?: string };
+export type MusicEntry = { id: string; name?: string; author?: string | null };
 
 export function VideoDetailsCard({
   title,

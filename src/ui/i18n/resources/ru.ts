@@ -118,7 +118,6 @@ export const ru: typeof en = {
     title: 'Мои песни',
     add: 'Добавить песню',
     edit: 'Песня',
-    chooseFile: 'Выбрать файл',
     name: 'Название',
     author: 'Автор',
     changeCover: 'Изменить обложку',

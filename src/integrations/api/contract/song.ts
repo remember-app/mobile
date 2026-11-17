@@ -3,7 +3,7 @@ import type { PageResponse } from './common';
 export type SongResponse = {
   id: string;
   name: string;
-  author: string;
+  author: string | null;
   mediaId: string;
   coverId: string | null;
   coverUrl: string | null;

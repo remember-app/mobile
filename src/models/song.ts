@@ -3,7 +3,7 @@ import type { MediaId, SongId, UserId } from '@/types/id';
 export type Song = {
   id: SongId;
   name: string;
-  author: string;
+  author: string | null;
   mediaId: MediaId;
   coverId: MediaId | null;
   coverUrl: string | null;

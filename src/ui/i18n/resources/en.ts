@@ -115,7 +115,6 @@ export const en = {
     title: 'My songs',
     add: 'Add song',
     edit: 'Song',
-    chooseFile: 'Choose file',
     name: 'Title',
     author: 'Artist',
     changeCover: 'Change cover',

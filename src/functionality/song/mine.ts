@@ -17,7 +17,7 @@ export type OwnSongsState = {
 
 export type OwnSongInput = {
   name: string;
-  author: string;
+  author?: string | null;
   mediaId: MediaId;
   coverId?: MediaId | null;
 };
@@ -90,7 +90,7 @@ export async function createOwnSong(input: OwnSongInput): Promise<Song> {
 
 export async function updateOwnSong(
   songId: SongId,
-  patch: { name?: string; author?: string; coverId?: MediaId | null },
+  patch: { name?: string; author?: string | null; coverId?: MediaId | null },
 ): Promise<Song> {
   const song = await apiUpdate(token(), songId, patch);
   set({ ...state, items: byName(state.items.map((item) => (item.id === songId ? song : item))) });

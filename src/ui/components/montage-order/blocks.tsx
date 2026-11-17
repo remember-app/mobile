@@ -9,7 +9,7 @@ import { Text } from '@/ui/kit/text';
 import { radius, space, themed, useTheme } from '@/ui/theme';
 
 export type FactItem = { icon: IconComponent; value: string };
-export type SummarySong = { name: string; author: string; coverUrl: string | null };
+export type SummarySong = { name: string; author: string | null; coverUrl: string | null };
 
 export function Facts({ items }: { items: readonly FactItem[] }) {
   const styles = useStyles();

@@ -56,7 +56,7 @@ export function createOwnSong(
   token: string,
   input: {
     name: string;
-    author: string;
+    author?: string | null;
     mediaId: MediaId;
     coverId?: MediaId | null;
     description?: string | null;
@@ -74,7 +74,7 @@ export function updateSong(
   songId: SongId,
   patch: {
     name?: string;
-    author?: string;
+    author?: string | null;
     coverId?: MediaId | null;
     description?: string | null;
   },

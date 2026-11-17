@@ -123,28 +123,6 @@ export default function SongsScreen() {
     await uploadAudio(file);
   };
 
-  const chooseFile = async () => {
-    // iOS cannot present the system picker over the open sheet
-    setSheetOpen(false);
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    let file: Awaited<ReturnType<typeof pickFiles>>[number] | undefined;
-    try {
-      [file] = await pickFiles();
-    } catch {
-      setSheetOpen(true);
-      return;
-    }
-    if (!file) {
-      setSheetOpen(true);
-      return;
-    }
-    setDraft((current) =>
-      current === null ? current : { ...current, name: current.name || baseName(file.fileName) },
-    );
-    setSheetOpen(true);
-    await uploadAudio(file);
-  };
-
   const open = (song: Song) => {
     setError(null);
     setSheetOpen(true);
@@ -153,7 +131,7 @@ export default function SongsScreen() {
       mediaId: song.mediaId,
       audioUri: null,
       name: song.name,
-      author: song.author,
+      author: song.author ?? '',
       coverId: song.coverId,
       coverUri: song.coverUrl,
     });
@@ -209,8 +187,8 @@ export default function SongsScreen() {
   const save = async () => {
     if (!draft) return;
     const name = draft.name.trim();
-    const author = draft.author.trim();
-    if (!name || !author) return;
+    const author = draft.author.trim() || null;
+    if (!name) return;
     setError(null);
     setSaving(true);
     try {
@@ -232,7 +210,6 @@ export default function SongsScreen() {
   const canSave =
     draft !== null &&
     draft.name.trim().length > 0 &&
-    draft.author.trim().length > 0 &&
     !saving &&
     !coverBusy &&
     (draft.id !== null || draft.mediaId !== null);
@@ -363,14 +340,6 @@ export default function SongsScreen() {
                   {error}
                 </Text>
               ) : null}
-              {draft.id === null ? (
-                <Button
-                  label={t('songs.chooseFile')}
-                  variant="secondary"
-                  disabled={uploading || saving}
-                  onPress={() => void chooseFile()}
-                />
-              ) : null}
               <Button
                 label={t('action.save')}
                 variant="primary"
@@ -393,6 +362,7 @@ const useStyles = themed(({ color }) =>
       gap: space.s3,
       minHeight: 56,
       paddingHorizontal: space.s4,
+      backgroundColor: color.surface,
     },
     art: {
       width: 44,
