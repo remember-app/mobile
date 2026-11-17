@@ -321,7 +321,7 @@ export default function SongsScreen() {
                         {song.author}
                       </Text>
                     </View>
-                    {song.duration !== null ? (
+                    {song.duration != null && Number.isFinite(song.duration) ? (
                       <Text role="meta" tone="muted">
                         {clock(song.duration)}
                       </Text>
