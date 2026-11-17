@@ -104,6 +104,7 @@ export const ru: typeof en = {
     name: 'Имя',
     nick: 'Ник',
     changePhoto: 'Изменить фото',
+    pasteImage: 'Вставить картинку',
     languages: {
       ru: 'Русский',
       en: 'English',

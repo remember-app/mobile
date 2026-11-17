@@ -1,5 +1,6 @@
 import { currentToken, onSignOut, refreshSession } from '@/functionality/auth/session';
 import { removeAvatar as apiRemoveAvatar, getAvatar, setAvatar } from '@/integrations/api';
+import type { MediaId } from '@/types/id';
 
 import { uploadFileOnce } from '../upload/single';
 
@@ -49,6 +50,11 @@ export async function loadAvatar(): Promise<void> {
 export async function uploadAvatar(uri: string, fileName: string): Promise<void> {
   const value = token();
   const mediaId = await uploadFileOnce(value, 'photo', uri, fileName);
+  await applyAvatar(mediaId);
+}
+
+export async function applyAvatar(mediaId: MediaId): Promise<void> {
+  const value = token();
   const { url } = await setAvatar(value, mediaId);
   emit({ url, status: 'idle' });
   await refreshSession();

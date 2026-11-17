@@ -101,6 +101,7 @@ export const en = {
     name: 'Name',
     nick: 'Username',
     changePhoto: 'Change photo',
+    pasteImage: 'Paste image',
     languages: {
       ru: 'Russian',
       en: 'English',

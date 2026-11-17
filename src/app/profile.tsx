@@ -3,6 +3,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import {
   Camera,
   ChevronRight,
+  Clipboard,
   Coins,
   Database,
   HardDrive,
@@ -16,6 +17,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 import {
+  applyAvatar,
   cacheUsage,
   isUsernameShapeValid,
   loadAvatar,
@@ -29,6 +31,7 @@ import {
 } from '@/functionality';
 import { writeLanguage } from '@/functionality/settings/language';
 import type { Language } from '@/types/language';
+import { LinkBanner, useLinkImage } from '@/ui/components/link-image';
 import { Person } from '@/ui/components/person';
 import { SettingsSelect } from '@/ui/components/settings-select';
 import { confirmAction } from '@/ui/confirm';
@@ -41,6 +44,7 @@ import { Divider } from '@/ui/kit/bits';
 import { BottomSheet } from '@/ui/kit/bottom-sheet';
 import { Button, IconButton } from '@/ui/kit/button';
 import { Card } from '@/ui/kit/card';
+import { CircularSpinner } from '@/ui/kit/circular-spinner';
 import { Field } from '@/ui/kit/field';
 import { Icon } from '@/ui/kit/icon';
 import { Text } from '@/ui/kit/text';
@@ -69,6 +73,9 @@ export default function ProfileScreen() {
   const session = useSession();
   const account = 'account' in session ? session.account : undefined;
   const avatar = useAvatar();
+  const link = useLinkImage((mediaId) => {
+    void applyAvatar(mediaId).catch(() => undefined);
+  });
   const contacts = useContacts();
   const ownSongs = useOwnSongs();
   const [language, setLanguage] = useState<Language>(account?.language ?? 'ru');
@@ -312,24 +319,46 @@ export default function ProfileScreen() {
         </View>
       </Card>
 
-      <BottomSheet visible={editing} onClose={() => setEditing(false)}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('profile.changePhoto')}
-          onPress={() => void pickAvatar()}
-          style={styles.avatarEdit}
-        >
-          <Avatar name={account.name ?? ''} size={72} uri={avatar.url} />
-          <View
-            pointerEvents="none"
+      <BottomSheet
+        visible={editing}
+        onClose={() => {
+          setEditing(false);
+          link.clear();
+        }}
+      >
+        {link.failed !== null ? <LinkBanner link={link.failed} /> : null}
+        <View style={styles.avatarWrap}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('profile.changePhoto')}
+            onPress={() => void pickAvatar()}
+            style={styles.avatarEdit}
+          >
+            <Avatar name={account.name ?? ''} size={72} uri={avatar.url} />
+            <View
+              pointerEvents="none"
+              style={[
+                styles.avatarBadge,
+                styles.avatarBadgeRight,
+                { backgroundColor: color.paper, borderColor: color.surface },
+              ]}
+            >
+              <Camera size={14} color={color.ink} />
+            </View>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('profile.pasteImage')}
+            onPress={() => void link.paste()}
             style={[
               styles.avatarBadge,
+              styles.avatarBadgeLeft,
               { backgroundColor: color.paper, borderColor: color.surface },
             ]}
           >
-            <Camera size={14} color={color.ink} />
-          </View>
-        </Pressable>
+            {link.busy ? <CircularSpinner size={14} /> : <Clipboard size={14} color={color.ink} />}
+          </Pressable>
+        </View>
         <View style={styles.form}>
           <Field
             label={t('profile.name')}
@@ -380,16 +409,25 @@ const useStyles = themed(() =>
     form: {
       gap: space.s4,
     },
-    avatarEdit: {
+    avatarWrap: {
       alignSelf: 'center',
       position: 'relative',
       width: 72,
       height: 72,
     },
+    avatarEdit: {
+      width: 72,
+      height: 72,
+    },
+    avatarBadgeRight: {
+      right: -6,
+    },
+    avatarBadgeLeft: {
+      left: -6,
+    },
     avatarBadge: {
       position: 'absolute',
-      right: -2,
-      bottom: -2,
+      bottom: -6,
       width: 26,
       height: 26,
       borderRadius: 13,
