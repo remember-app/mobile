@@ -111,7 +111,6 @@ export default function NewMontageScreen() {
   const filterAnim = useSharedValue(0);
   const savedDescription = useRef('');
   const pager = useRef<ScrollViewInstance>(null);
-  const scrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const change = (patch: Partial<Draft> | ((was: Draft) => Partial<Draft>)) =>
     setDraft((was) => ({ ...was, ...(typeof patch === 'function' ? patch(was) : patch) }));
@@ -436,13 +435,8 @@ export default function NewMontageScreen() {
                 if (itemId) toggleRequired(itemId);
               }}
               onScroll={(offset) => {
-                if (offset <= 40) {
-                  setScrolling(false);
-                  return;
-                }
-                setScrolling(true);
-                if (scrollTimer.current) clearTimeout(scrollTimer.current);
-                scrollTimer.current = setTimeout(() => setScrolling(false), 600);
+                const moving = offset > 40;
+                if (moving !== scrolling) setScrolling(moving);
               }}
               onLoadOlder={() => void loadMoreGallery(projectId)}
             />
