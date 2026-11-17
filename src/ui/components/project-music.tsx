@@ -10,7 +10,6 @@ import {
 } from '@/functionality';
 import type { Song } from '@/models';
 import type { ProjectId } from '@/types/id';
-import { CollapsibleList } from '@/ui/components/collapsible-list';
 import { SwipeRow } from '@/ui/components/swipe-row';
 import { useOwnSongs, useProjectSongs } from '@/ui/hooks';
 import { Rows } from '@/ui/kit/bits';
@@ -61,19 +60,17 @@ export function ProjectMusic({ projectId }: { projectId: ProjectId }) {
             {t('music.none')}
           </Text>
         ) : (
-          <CollapsibleList collapsed={224} expanded={392}>
-            <Rows items={project.items} keyOf={(song) => song.id} hairline>
-              {(song) => (
-                <SwipeRow
-                  tone="danger"
-                  icon={Trash2}
-                  onAction={() => void detachProjectSong(projectId, song.id).catch(() => undefined)}
-                >
-                  <Row song={song} />
-                </SwipeRow>
-              )}
-            </Rows>
-          </CollapsibleList>
+          <Rows items={project.items} keyOf={(song) => song.id}>
+            {(song) => (
+              <SwipeRow
+                tone="danger"
+                icon={Trash2}
+                onAction={() => void detachProjectSong(projectId, song.id).catch(() => undefined)}
+              >
+                <Row song={song} />
+              </SwipeRow>
+            )}
+          </Rows>
         )}
       </Card>
 
@@ -83,7 +80,7 @@ export function ProjectMusic({ projectId }: { projectId: ProjectId }) {
             {t('music.empty')}
           </Text>
         ) : (
-          <Rows items={own.items} keyOf={(song) => song.id} hairline>
+          <Rows items={own.items} keyOf={(song) => song.id}>
             {(song) => (
               <Pressable
                 accessibilityRole="checkbox"
