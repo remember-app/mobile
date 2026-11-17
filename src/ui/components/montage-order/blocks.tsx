@@ -169,7 +169,7 @@ export function FramesCard({
             onPress={onPress}
             style={styles.framesMore}
           >
-            <ChevronRight size={12} color={color.muted} />
+            <ChevronRight size={18} color={color.muted} />
           </Pressable>
         ) : null}
       </View>
