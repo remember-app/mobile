@@ -40,6 +40,7 @@ export function VideoFrame({
   onTap,
   onZoomed,
   active,
+  settled,
   visible,
 }: {
   photo: ViewerPhoto;
@@ -53,6 +54,7 @@ export function VideoFrame({
   onTap: () => void;
   onZoomed: (value: boolean) => void;
   active: boolean;
+  settled: boolean;
   visible: boolean;
 }) {
   const [uri, setUri] = useState<string | null>(photo.playbackUrl ?? null);
@@ -185,20 +187,35 @@ export function VideoFrame({
     ],
   }));
 
+  const live = active && settled;
+
   return (
     <GestureDetector
       gesture={Gesture.Simultaneous(pinch, Gesture.Race(move, openInfo, closeInfo, dismiss))}
     >
       <Animated.View style={[viewerStyles.page, style]}>
         {uri ? (
-          <Video
-            uri={uri}
-            box={videoBox}
-            active={active}
-            onTap={onTap}
-            visible={visible && !zoomed}
-            zoomStyle={zoomStyle}
-          />
+          <>
+            <Video
+              uri={uri}
+              box={videoBox}
+              active={live}
+              onTap={onTap}
+              visible={visible}
+              zoomStyle={zoomStyle}
+            />
+            {live || !photo.source ? null : (
+              <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                <Image
+                  source={photo.source}
+                  group={photo.projectId}
+                  style={StyleSheet.absoluteFill}
+                  contentFit="contain"
+                  cachePolicy="memory-disk"
+                />
+              </View>
+            )}
+          </>
         ) : photo.source ? (
           <View style={videoBox}>
             <Animated.View style={[StyleSheet.absoluteFill, zoomStyle]}>

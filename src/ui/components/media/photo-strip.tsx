@@ -94,10 +94,19 @@ type Props = {
   scroller: AnimatedRef<ScrollViewInstance>;
   active: SharedValue<number>;
   scrollX: SharedValue<number>;
+  onScrolling: (value: boolean) => void;
   onSettle: (index: number) => void;
 };
 
-export function PhotoStrip({ photos, index, scroller, active, scrollX, onSettle }: Props) {
+export function PhotoStrip({
+  photos,
+  index,
+  scroller,
+  active,
+  scrollX,
+  onScrolling,
+  onSettle,
+}: Props) {
   const { width: screen } = useWindowDimensions();
   const viewWidth = screen * SHARE;
   const inset = (screen - viewWidth) / 2;
@@ -133,6 +142,7 @@ export function PhotoStrip({ photos, index, scroller, active, scrollX, onSettle 
     );
     setCenter(settled);
     onSettle(settled);
+    onScrolling(false);
     active.value = 0;
   };
 
@@ -144,6 +154,7 @@ export function PhotoStrip({ photos, index, scroller, active, scrollX, onSettle 
     active.value = 0;
     setCenter(next);
     scroller.current?.scrollTo({ x: next * STRIP_PITCH, y: 0, animated: true });
+    onScrolling(false);
     onSettle(next);
   };
 
@@ -181,6 +192,7 @@ export function PhotoStrip({ photos, index, scroller, active, scrollX, onSettle 
       onScrollBeginDrag={() => {
         dragging.current = true;
         active.value = 1;
+        onScrolling(true);
       }}
       onMomentumScrollEnd={stop}
     >

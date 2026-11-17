@@ -89,6 +89,7 @@ export function PhotoViewer({
   const [hdIndex, setHdIndex] = useState(-1);
   const [zoomed, setZoomed] = useState(false);
   const [info, setInfo] = useState(false);
+  const [scrolling, setScrolling] = useState(false);
   const dragY = useSharedValue(0);
   const lift = useSharedValue(0);
   const { width, height } = useWindowDimensions();
@@ -120,6 +121,15 @@ export function PhotoViewer({
   useEffect(() => {
     setStatusBarHidden(!chrome || info || zoomed, 'fade');
   }, [chrome, info, zoomed]);
+
+  const endScroll = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearEndScroll = useCallback(() => {
+    if (endScroll.current) {
+      clearTimeout(endScroll.current);
+      endScroll.current = null;
+    }
+  }, []);
+  useEffect(() => () => clearEndScroll(), [clearEndScroll]);
 
   const jumpTo = useCallback(
     (at: number) => {
@@ -364,7 +374,18 @@ export function PhotoViewer({
             mainX.value = at * width;
             mainRef.current?.scrollTo({ x: at * width, y: 0, animated: false });
           }}
+          onScrollBeginDrag={() => {
+            clearEndScroll();
+            setScrolling(true);
+          }}
+          onScrollEndDrag={() => {
+            clearEndScroll();
+            endScroll.current = setTimeout(() => setScrolling(false), 220);
+          }}
+          onMomentumScrollBegin={clearEndScroll}
           onMomentumScrollEnd={() => {
+            clearEndScroll();
+            setScrolling(false);
             settle(Math.round(mainX.value / width));
           }}
           style={StyleSheet.absoluteFill}
@@ -385,7 +406,8 @@ export function PhotoViewer({
                     onTap={() => setChrome((shown) => !shown)}
                     onZoomed={setZoomed}
                     active={at === index}
-                    visible={chrome && !zoomed}
+                    settled={!scrolling}
+                    visible={chrome && !zoomed && at === index && !scrolling}
                   />
                 ) : (
                   <Zoomable
@@ -488,6 +510,7 @@ export function PhotoViewer({
             scroller={stripRef}
             active={stripActive}
             scrollX={stripX}
+            onScrolling={setScrolling}
             onSettle={scrub}
           />
         </Animated.View>
