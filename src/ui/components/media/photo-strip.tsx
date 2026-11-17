@@ -12,7 +12,6 @@ import {
 import Animated, {
   type AnimatedRef,
   type SharedValue,
-  scrollTo,
   useAnimatedReaction,
   useAnimatedScrollHandler,
   useAnimatedStyle,
@@ -93,13 +92,12 @@ type Props = {
   photos: readonly ViewerPhoto[];
   index: number;
   scroller: AnimatedRef<ScrollViewInstance>;
-  main: AnimatedRef<ScrollViewInstance>;
   active: SharedValue<number>;
   scrollX: SharedValue<number>;
   onSettle: (index: number) => void;
 };
 
-export function PhotoStrip({ photos, index, scroller, main, active, scrollX, onSettle }: Props) {
+export function PhotoStrip({ photos, index, scroller, active, scrollX, onSettle }: Props) {
   const { width: screen } = useWindowDimensions();
   const viewWidth = screen * SHARE;
   const inset = (screen - viewWidth) / 2;
@@ -112,16 +110,16 @@ export function PhotoStrip({ photos, index, scroller, main, active, scrollX, onS
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
       scrollX.value = event.contentOffset.x;
-      if (active.value === 1) {
-        scrollTo(main, (event.contentOffset.x / STRIP_PITCH) * screen, 0, false);
-      }
     },
   });
 
+  // Лента ведёт экран по кадрам, а не тянет его полотном: кадр меняется, только
+  // когда лента проходит середину очередной миниатюры.
   useAnimatedReaction(
     () => clamp(Math.round(scrollX.value / STRIP_PITCH), 0, count - 1),
     (next) => {
       scheduleOnRN(setCenter, next);
+      if (active.value === 1) scheduleOnRN(onSettle, next);
     },
   );
 

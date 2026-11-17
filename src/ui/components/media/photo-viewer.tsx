@@ -486,7 +486,6 @@ export function PhotoViewer({
             photos={viewPhotos}
             index={start}
             scroller={stripRef}
-            main={mainRef}
             active={stripActive}
             scrollX={stripX}
             onSettle={scrub}
