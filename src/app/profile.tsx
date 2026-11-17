@@ -255,19 +255,46 @@ export default function ProfileScreen() {
         />
       </Card>
 
-      <Card onPress={() => router.navigate('/contacts')} style={[styles.pad, styles.row]}>
-        <View style={styles.label}>
-          <Icon icon={Users} size={18} color={color.muted} />
-          <Text role="row" numberOfLines={1} style={styles.labelText}>
-            {t('profile.contacts')}
-          </Text>
-        </View>
-        <View style={styles.value}>
-          <Text role="rowPlain" tone="muted">
-            {contacts.contacts.length}
-          </Text>
-          <ChevronRight size={18} color={color.muted} />
-        </View>
+      <Card style={styles.pad}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('profile.contacts')}
+          onPress={() => router.navigate('/contacts')}
+          style={styles.row}
+        >
+          <View style={styles.label}>
+            <Icon icon={Users} size={18} color={color.muted} />
+            <Text role="row" numberOfLines={1} style={styles.labelText}>
+              {t('profile.contacts')}
+            </Text>
+          </View>
+          <View style={styles.value}>
+            <Text role="rowPlain" tone="muted">
+              {contacts.contacts.length}
+            </Text>
+            <ChevronRight size={18} color={color.muted} />
+          </View>
+        </Pressable>
+        <Divider style={styles.fullDivider} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('profile.songs')}
+          onPress={() => router.navigate('/songs')}
+          style={styles.row}
+        >
+          <View style={styles.label}>
+            <Icon icon={Music} size={18} color={color.muted} />
+            <Text role="row" numberOfLines={1} style={styles.labelText}>
+              {t('profile.songs')}
+            </Text>
+          </View>
+          <View style={styles.value}>
+            <Text role="rowPlain" tone="muted">
+              {ownSongs.items.length}
+            </Text>
+            <ChevronRight size={18} color={color.muted} />
+          </View>
+        </Pressable>
       </Card>
 
       <Card onPress={() => router.navigate('/cache')} style={[styles.pad, styles.row]}>
@@ -280,21 +307,6 @@ export default function ProfileScreen() {
         <View style={styles.value}>
           <Text role="rowPlain" tone="muted">
             {size(cacheBytes)}
-          </Text>
-          <ChevronRight size={18} color={color.muted} />
-        </View>
-      </Card>
-
-      <Card onPress={() => router.navigate('/songs')} style={[styles.pad, styles.row]}>
-        <View style={styles.label}>
-          <Icon icon={Music} size={18} color={color.muted} />
-          <Text role="row" numberOfLines={1} style={styles.labelText}>
-            {t('profile.songs')}
-          </Text>
-        </View>
-        <View style={styles.value}>
-          <Text role="rowPlain" tone="muted">
-            {ownSongs.items.length}
           </Text>
           <ChevronRight size={18} color={color.muted} />
         </View>

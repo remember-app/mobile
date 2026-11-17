@@ -127,6 +127,7 @@ export const en = {
   },
   contacts: {
     title: 'Contacts',
+    add: 'Add contact',
     nick: 'Username',
     empty: 'Nobody here yet',
     none: 'No contacts yet',

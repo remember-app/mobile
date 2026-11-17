@@ -1,7 +1,7 @@
 import { Plus, Trash2 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import {
   addContact,
   createAppInvite,
@@ -17,6 +17,8 @@ import { SwipeRow } from '@/ui/components/swipe-row';
 import { useContacts, useSuggestions } from '@/ui/hooks';
 import { Board, pageBody } from '@/ui/kit/bars';
 import { Rows } from '@/ui/kit/bits';
+import { BottomSheet } from '@/ui/kit/bottom-sheet';
+import { IconButton } from '@/ui/kit/button';
 import { Card } from '@/ui/kit/card';
 import { Text } from '@/ui/kit/text';
 import { BackBar } from '@/ui/screens/chrome';
@@ -32,6 +34,7 @@ export default function ContactsScreen() {
   const [username, setUsername] = useState('');
   const [invite, setInvite] = useState<string | null>(null);
   const [inviteError, setInviteError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
   const clean = username.trim();
 
   useEffect(() => {
@@ -46,6 +49,7 @@ export default function ContactsScreen() {
     if (!clean) return;
     await addContact(clean);
     setUsername('');
+    setOpen(false);
     void loadSuggestions(true);
   };
 
@@ -61,29 +65,23 @@ export default function ContactsScreen() {
   );
 
   return (
-    <Board body={pageBody} bar={<BackBar title={t('contacts.title')} />}>
-      <ArrowField
-        label={t('contacts.nick')}
-        value={username}
-        onChangeText={setUsername}
-        placeholder={t('contacts.nick')}
-        prefix="@"
-        valid={Boolean(clean)}
-        onSubmit={() => void add()}
-        autoCapitalize="none"
-        autoCorrect={false}
-      />
-
-      <Card>
-        {invite ? (
-          <InviteCode token={invite} />
-        ) : (
-          <Text role="noteSm" tone={inviteError ? 'danger' : 'muted'}>
-            {inviteError ?? t('state.loading')}
-          </Text>
-        )}
-      </Card>
-
+    <Board
+      body={pageBody}
+      bar={
+        <BackBar
+          title={t('contacts.title')}
+          right={
+            <IconButton
+              icon={Plus}
+              label={t('contacts.add')}
+              tone="surface"
+              size={44}
+              onPress={() => setOpen(true)}
+            />
+          }
+        />
+      }
+    >
       {loading ? (
         <MemberRowsSkeleton rows={4} />
       ) : (
@@ -137,6 +135,31 @@ export default function ContactsScreen() {
           </Card>
         </>
       ) : null}
+
+      <BottomSheet visible={open} onClose={() => setOpen(false)} title={t('contacts.add')}>
+        <View style={styles.form}>
+          <ArrowField
+            label={t('contacts.nick')}
+            value={username}
+            onChangeText={setUsername}
+            placeholder={t('contacts.nick')}
+            prefix="@"
+            valid={Boolean(clean)}
+            onSubmit={() => void add()}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          <Card>
+            {invite ? (
+              <InviteCode token={invite} />
+            ) : (
+              <Text role="noteSm" tone={inviteError ? 'danger' : 'muted'}>
+                {inviteError ?? t('state.loading')}
+              </Text>
+            )}
+          </Card>
+        </View>
+      </BottomSheet>
     </Board>
   );
 }
@@ -152,6 +175,9 @@ const useStyles = themed(({ color }) =>
       paddingVertical: space.s5,
       paddingHorizontal: space.s4,
       textAlign: 'center',
+    },
+    form: {
+      gap: space.s4,
     },
   }),
 );

@@ -130,6 +130,7 @@ export const ru: typeof en = {
   },
   contacts: {
     title: 'Контакты',
+    add: 'Добавить контакт',
     nick: 'Ник',
     empty: 'Пока никого нет',
     none: 'Контактов пока нет',
