@@ -15,6 +15,15 @@ export function listLibrarySongs(
   );
 }
 
+export function listMySongs(
+  token: string,
+  page: { limit?: number; offset?: number } = {},
+): Promise<Page<Song>> {
+  return request<OffsetPageWire<SongWire>>(`/v1/songs/mine${query(page)}`, { token }).then((wire) =>
+    toPage(wire, toSong),
+  );
+}
+
 export function listProjectSongs(
   token: string,
   projectId: ProjectId,
@@ -47,10 +56,21 @@ export function getSong(token: string, songId: SongId): Promise<SongWithUrl> {
   return request<SongWithUrlWire>(`/v1/songs/${songId}`, { token }).then(toSongWithUrl);
 }
 
-export function deleteSong(
+export function attachSong(token: string, projectId: ProjectId, songId: SongId): Promise<Song> {
+  return request<SongWire>(`/v1/projects/${projectId}/songs/${songId}`, {
+    method: 'POST',
+    token,
+  }).then(toSong);
+}
+
+export function detachSong(
   token: string,
   projectId: ProjectId,
   songId: SongId,
 ): Promise<{ ok: true }> {
   return request(`/v1/projects/${projectId}/songs/${songId}`, { method: 'DELETE', token });
+}
+
+export function deleteOwnSong(token: string, songId: SongId): Promise<{ ok: true }> {
+  return request(`/v1/songs/${songId}`, { method: 'DELETE', token });
 }

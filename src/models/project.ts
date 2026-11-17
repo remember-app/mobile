@@ -1,4 +1,4 @@
-import type { ProjectId, UserId } from '@/types/id';
+import type { ProjectId, SongId, UserId } from '@/types/id';
 
 import type { Consumable } from './user';
 
@@ -16,6 +16,7 @@ export type ProjectSummary = {
   itemCount: number;
   memberCount: number;
   sharedCount: number;
+  songIds: SongId[];
   myRole: Role;
   myContribution: Contribution;
 };

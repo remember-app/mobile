@@ -62,12 +62,11 @@ export function MusicPage({
     }
     try {
       const url = await songUrl(song.id);
-      const group = song.projectId ?? null;
-      const local = cachedUrl(url, group, 'music');
+      const local = cachedUrl(url, null, 'music');
       player.replace(local ?? url);
       player.play();
       setPlayingId(song.id);
-      if (!local) void keepUrl(url, group, 'music');
+      if (!local) void keepUrl(url, null, 'music');
     } catch {
       setPlayingId(null);
     }
@@ -142,7 +141,6 @@ function TrackRow({
           {song.coverUrl ? (
             <Image
               source={song.coverUrl}
-              group={song.projectId}
               scope="music"
               style={StyleSheet.absoluteFill}
               contentFit="cover"

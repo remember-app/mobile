@@ -1,4 +1,4 @@
-import type { MediaId, ProjectId, SongId, UserId } from '@/types/id';
+import type { MediaId, SongId, UserId } from '@/types/id';
 
 export type Song = {
   id: SongId;
@@ -8,7 +8,6 @@ export type Song = {
   coverId: MediaId | null;
   coverUrl: string | null;
   description: string | null;
-  projectId: ProjectId | null;
   uploadedBy: UserId | null;
 };
 

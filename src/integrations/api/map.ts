@@ -149,6 +149,7 @@ function toSummary(wire: ProjectSummaryWire): Project {
     itemCount: wire.itemCount,
     memberCount: wire.memberCount,
     sharedCount: wire.sharedCount,
+    songIds: wire.songIds,
     myRole: wire.myRole,
     myContribution: wire.myContribution,
   };
@@ -271,7 +272,6 @@ export function toSong(wire: SongWire): Song {
     coverId: wire.coverId,
     coverUrl: wire.coverUrl,
     description: wire.description,
-    projectId: wire.projectId,
     uploadedBy: wire.uploadedBy,
   };
 }
