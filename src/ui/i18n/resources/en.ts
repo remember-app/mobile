@@ -118,7 +118,7 @@ export const en = {
     name: 'Title',
     author: 'Artist',
     changeCover: 'Change cover',
-    pasteLink: 'Paste link',
+    pasteImage: 'Paste image',
     play: 'Play',
     pause: 'Pause',
     uploading: 'Uploading track…',
@@ -205,8 +205,8 @@ export const en = {
     shareTokens: 'Share tokens',
   },
   linkImage: {
-    hint: 'This button inserts a picture from a link in the clipboard.',
-    failed: 'It failed: the clipboard has no suitable image link.',
+    hint: 'This button inserts a picture from the clipboard. An image link works too.',
+    failed: 'It failed: the clipboard has no picture and no suitable link.',
   },
   music: {
     add: 'Add music',

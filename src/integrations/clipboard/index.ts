@@ -7,3 +7,8 @@ export async function copyText(text: string): Promise<void> {
 export async function readText(): Promise<string> {
   return Clipboard.getStringAsync();
 }
+
+export async function readImage(): Promise<string | null> {
+  const image = await Clipboard.getImageAsync({ format: 'jpeg', jpegQuality: 0.9 });
+  return image?.data ?? null;
+}

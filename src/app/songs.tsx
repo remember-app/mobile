@@ -1,5 +1,5 @@
 import * as ImagePicker from 'expo-image-picker';
-import { Camera, Link2, Music, Pause, Play, Plus, Trash2 } from 'lucide-react-native';
+import { Camera, ClipboardPaste, Music, Pause, Play, Plus, Trash2 } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -332,7 +332,7 @@ export default function SongsScreen() {
                 </Pressable>
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={t('songs.pasteLink')}
+                  accessibilityLabel={t('songs.pasteImage')}
                   onPress={() => void link.paste()}
                   style={[
                     styles.coverBadge,
@@ -343,7 +343,7 @@ export default function SongsScreen() {
                   {link.busy ? (
                     <CircularSpinner size={14} />
                   ) : (
-                    <Link2 size={14} color={color.ink} />
+                    <ClipboardPaste size={14} color={color.ink} />
                   )}
                 </Pressable>
               </View>

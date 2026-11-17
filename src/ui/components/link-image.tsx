@@ -3,7 +3,13 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
-import { isImageLink, readText, uploadImageFromLink } from '@/functionality';
+import {
+  isImageLink,
+  readImage,
+  readText,
+  uploadClipboardImage,
+  uploadImageFromLink,
+} from '@/functionality';
 import type { MediaId } from '@/types/id';
 import { Text } from '@/ui/kit/text';
 import { radius, space, themed } from '@/ui/theme';
@@ -14,17 +20,23 @@ export function useLinkImage(onMedia: (mediaId: MediaId, uri: string) => void) {
 
   const paste = async () => {
     setFailed(null);
-    const text = (await readText()).trim();
-    if (!isImageLink(text)) {
-      setFailed(text);
-      return;
-    }
     setBusy(true);
     try {
+      const image = await readImage();
+      if (image) {
+        const { mediaId, uri } = await uploadClipboardImage(image);
+        onMedia(mediaId, uri);
+        return;
+      }
+      const text = (await readText()).trim();
+      if (!isImageLink(text)) {
+        setFailed(text);
+        return;
+      }
       const { mediaId, uri } = await uploadImageFromLink(text);
       onMedia(mediaId, uri);
     } catch {
-      setFailed(text);
+      setFailed(await readText().catch(() => ''));
     } finally {
       setBusy(false);
     }

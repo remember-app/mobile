@@ -1,4 +1,5 @@
 import { File, Paths } from 'expo-file-system';
+import { writeAsStringAsync } from 'expo-file-system/legacy';
 import { currentToken } from '@/functionality/auth/session';
 import { readFilePart } from '@/integrations/files/parts';
 import type { MediaId } from '@/types/id';
@@ -29,6 +30,19 @@ function nameOf(url: string): string {
   const last = path.split('/').filter(Boolean).at(-1) ?? '';
   const extension = last.split('.').pop()?.toLowerCase() ?? '';
   return FORMATS.has(extension) ? last : `image-${Date.now()}.jpg`;
+}
+
+export async function uploadClipboardImage(
+  data: string,
+): Promise<{ mediaId: MediaId; uri: string }> {
+  const token = currentToken();
+  if (!token) throw new Error('not signed in');
+  const base64 = data.replace(/^data:[^;]+;base64,/, '');
+  const name = `clip-${Date.now()}.jpg`;
+  const target = new File(Paths.cache, name);
+  await writeAsStringAsync(target.uri, base64, { encoding: 'base64' });
+  const mediaId = await uploadFileOnce(token, 'photo', target.uri, name);
+  return { mediaId, uri: target.uri };
 }
 
 export async function uploadImageFromLink(url: string): Promise<{ mediaId: MediaId; uri: string }> {
