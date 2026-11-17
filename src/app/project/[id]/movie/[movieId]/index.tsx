@@ -12,7 +12,7 @@ import {
 } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { loadGallery, loadMembers, loadMovies } from '@/functionality';
 import { cachedUrl, keepUrl } from '@/integrations/files/media-cache';
@@ -46,6 +46,7 @@ export default function MovieScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { color } = useTheme();
+  const { width } = useWindowDimensions();
   const { id, movieId } = useLocalSearchParams<{ id: string; movieId: string }>();
   const projectId = id as ProjectId;
   const movies = useMovies(projectId);
@@ -170,7 +171,7 @@ export default function MovieScreen() {
           accessibilityRole="button"
           accessibilityLabel={t('montage.movie.watch')}
           onPress={movie.videoUrl ? watch : undefined}
-          style={[styles.poster, { backgroundColor: color.raise }]}
+          style={[styles.poster, { width: width - space.s2 * 2, backgroundColor: color.raise }]}
         >
           {movie.videoUrl ? (
             <>
@@ -248,7 +249,7 @@ const styles = StyleSheet.create({
   },
   poster: {
     aspectRatio: 16 / 9,
-    marginHorizontal: space.s4,
+    alignSelf: 'center',
     marginTop: space.s4,
     alignItems: 'center',
     justifyContent: 'center',
