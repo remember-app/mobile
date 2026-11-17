@@ -1,8 +1,7 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
-import { Platform } from 'react-native';
 
-export const AUDIO_TYPES = Platform.OS === 'ios' ? ['public.audio'] : ['audio/*'];
+export const AUDIO_TYPES = ['audio/*'];
 
 export type PickedFile = {
   uri: string;
