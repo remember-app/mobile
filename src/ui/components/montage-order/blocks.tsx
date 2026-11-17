@@ -1,4 +1,3 @@
-import { BlurView } from 'expo-blur';
 import { ChevronRight, Music, Sparkles, VolumeX } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -149,6 +148,7 @@ export function FramesCard({
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
+          style={styles.framesScroll}
           contentContainerStyle={styles.framesRow}
         >
           {frames.map((uri) => (
@@ -169,8 +169,7 @@ export function FramesCard({
             onPress={onPress}
             style={styles.framesMore}
           >
-            <BlurView intensity={40} tint="default" style={StyleSheet.absoluteFill} />
-            <ChevronRight size={18} color={color.paper} />
+            <ChevronRight size={18} color={color.muted} />
           </Pressable>
         ) : null}
       </View>
@@ -232,23 +231,21 @@ const useStyles = themed(({ color }) =>
       padding: space.s3,
     },
     framesWrap: {
-      position: 'relative',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: space.s2,
+    },
+    framesScroll: {
+      flex: 1,
     },
     framesRow: {
       gap: space.s1,
-      paddingRight: 44,
     },
     framesMore: {
-      position: 'absolute',
-      right: 0,
-      top: 0,
-      bottom: 0,
-      width: 44,
+      width: 32,
+      height: 56,
       alignItems: 'center',
       justifyContent: 'center',
-      overflow: 'hidden',
-      borderTopRightRadius: radius.tile,
-      borderBottomRightRadius: radius.tile,
     },
     frame: {
       width: 56,
