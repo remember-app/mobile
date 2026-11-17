@@ -85,7 +85,7 @@ export async function loadOwnSongs(force = false): Promise<void> {
 export function rememberSongDuration(songId: SongId, seconds: number): void {
   if (!Number.isFinite(seconds) || seconds <= 0) return;
   const song = state.items.find((item) => item.id === songId);
-  if (!song || (Number.isFinite(song.duration) && (song.duration ?? 0) > 0)) return;
+  if (!song || (song.duration !== null && song.duration > 0)) return;
   set({
     ...state,
     items: state.items.map((item) => (item.id === songId ? { ...item, duration: seconds } : item)),
@@ -103,15 +103,10 @@ export async function updateOwnSong(
   patch: { name?: string; author?: string | null; coverId?: MediaId | null },
 ): Promise<Song> {
   const song = await apiUpdate(token(), songId, patch);
-  set({
-    ...state,
-    items: byName(
-      state.items.map((item) =>
-        item.id === songId ? { ...song, duration: song.duration ?? item.duration ?? null } : item,
-      ),
-    ),
-  });
-  return song;
+  const known = state.items.find((item) => item.id === songId)?.duration ?? null;
+  const merged = song.duration == null && known !== null ? { ...song, duration: known } : song;
+  set({ ...state, items: byName(state.items.map((item) => (item.id === songId ? merged : item))) });
+  return merged;
 }
 
 export async function deleteOwnSong(songId: SongId): Promise<void> {

@@ -296,13 +296,13 @@ export default function SongsScreen() {
           ) : draft ? (
             <>
               {link.failed !== null ? <LinkBanner link={link.failed} /> : null}
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t('songs.changeCover')}
-                onPress={() => void pickCover()}
-                style={styles.coverEdit}
-              >
-                <View style={styles.coverFrame}>
+              <View style={styles.coverWrap}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('songs.changeCover')}
+                  onPress={() => void pickCover()}
+                  style={styles.coverEdit}
+                >
                   {draft.coverUri ? (
                     <Image
                       source={draft.coverUri}
@@ -313,9 +313,11 @@ export default function SongsScreen() {
                   ) : (
                     <Music size={28} color={color.muted} />
                   )}
-                </View>
-                <View
-                  pointerEvents="none"
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('songs.changeCover')}
+                  onPress={() => void pickCover()}
                   style={[
                     styles.coverBadge,
                     styles.coverBadgeRight,
@@ -327,7 +329,7 @@ export default function SongsScreen() {
                   ) : (
                     <Camera size={14} color={color.ink} />
                   )}
-                </View>
+                </Pressable>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={t('songs.pasteLink')}
@@ -344,7 +346,7 @@ export default function SongsScreen() {
                     <Link2 size={14} color={color.ink} />
                   )}
                 </Pressable>
-              </Pressable>
+              </View>
               <View style={styles.form}>
                 <Field
                   label={t('songs.name')}
@@ -428,19 +430,15 @@ const useStyles = themed(({ color }) =>
     form: {
       gap: space.s4,
     },
-    coverEdit: {
+    coverWrap: {
       alignSelf: 'center',
       position: 'relative',
       width: 72,
       height: 72,
-      marginBottom: space.s3,
     },
-    coverFrame: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
+    coverEdit: {
+      width: 72,
+      height: 72,
       borderRadius: radius.cell,
       overflow: 'hidden',
       alignItems: 'center',
@@ -449,7 +447,7 @@ const useStyles = themed(({ color }) =>
     },
     coverBadge: {
       position: 'absolute',
-      bottom: -13,
+      bottom: -6,
       width: 26,
       height: 26,
       borderRadius: 13,
@@ -458,10 +456,10 @@ const useStyles = themed(({ color }) =>
       justifyContent: 'center',
     },
     coverBadgeRight: {
-      right: -13,
+      right: -6,
     },
     coverBadgeLeft: {
-      left: -13,
+      left: -6,
     },
     uploading: {
       flexDirection: 'row',
