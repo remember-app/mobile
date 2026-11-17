@@ -8,6 +8,7 @@ import {
   HardDrive,
   Languages,
   LogOut,
+  Music,
   Palette,
   Users,
 } from 'lucide-react-native';
@@ -19,6 +20,7 @@ import {
   isUsernameShapeValid,
   loadAvatar,
   loadContacts,
+  loadOwnSongs,
   setName as saveName,
   setUsername as saveUsername,
   setAccountLanguage,
@@ -31,7 +33,7 @@ import { Person } from '@/ui/components/person';
 import { SettingsSelect } from '@/ui/components/settings-select';
 import { confirmAction } from '@/ui/confirm';
 import { number, size } from '@/ui/format';
-import { useAvatar, useContacts, useSession } from '@/ui/hooks';
+import { useAvatar, useContacts, useOwnSongs, useSession } from '@/ui/hooks';
 import { applyLanguage } from '@/ui/i18n';
 import { Avatar } from '@/ui/kit/avatar';
 import { Board, pageBody } from '@/ui/kit/bars';
@@ -68,6 +70,7 @@ export default function ProfileScreen() {
   const account = 'account' in session ? session.account : undefined;
   const avatar = useAvatar();
   const contacts = useContacts();
+  const ownSongs = useOwnSongs();
   const [language, setLanguage] = useState<Language>(account?.language ?? 'ru');
   const [open, setOpen] = useState(false);
   const [themeOpen, setThemeOpen] = useState(false);
@@ -80,6 +83,7 @@ export default function ProfileScreen() {
   useEffect(() => {
     void loadAvatar();
     void loadContacts();
+    void loadOwnSongs().catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -276,6 +280,21 @@ export default function ProfileScreen() {
         <View style={styles.value}>
           <Text role="rowPlain" tone="muted">
             {size(cacheBytes)}
+          </Text>
+          <ChevronRight size={18} color={color.muted} />
+        </View>
+      </Card>
+
+      <Card onPress={() => router.navigate('/songs')} style={[styles.pad, styles.row]}>
+        <View style={styles.label}>
+          <Icon icon={Music} size={18} color={color.muted} />
+          <Text role="row" numberOfLines={1} style={styles.labelText}>
+            {t('profile.songs')}
+          </Text>
+        </View>
+        <View style={styles.value}>
+          <Text role="rowPlain" tone="muted">
+            {ownSongs.items.length}
           </Text>
           <ChevronRight size={18} color={color.muted} />
         </View>

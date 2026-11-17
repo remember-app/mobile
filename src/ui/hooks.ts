@@ -12,6 +12,7 @@ import {
   montagesState,
   moviesState,
   networkState,
+  ownSongsState,
   projectSongsState,
   projectsState,
   pushState,
@@ -26,6 +27,7 @@ import {
   subscribeMontages,
   subscribeMovies,
   subscribeNetwork,
+  subscribeOwnSongs,
   subscribeProjects,
   subscribePush,
   subscribeSession,
@@ -104,3 +106,5 @@ export function useProjectSongs(projectId: ProjectId) {
 }
 
 export const useLibrarySongs = () => useStore(subscribeSongs, librarySongsState);
+
+export const useOwnSongs = () => useStore(subscribeOwnSongs, ownSongsState);

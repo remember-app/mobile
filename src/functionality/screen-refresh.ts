@@ -8,6 +8,7 @@ import { loadMontages } from '@/functionality/montage/montages';
 import { loadMovies } from '@/functionality/movie/movies';
 import { loadMembers } from '@/functionality/project/members';
 import { loadProjects } from '@/functionality/project/projects';
+import { loadOwnSongs } from '@/functionality/song/mine';
 import { loadLibrarySongs, loadProjectSongs } from '@/functionality/song/songs';
 import type { ProjectId } from '@/types/id';
 
@@ -38,6 +39,10 @@ export function refreshScreen(pathname: string): void {
   if (pathname.startsWith('/profile')) {
     once('avatar', () => loadAvatar());
     once('contacts', () => loadContacts(true));
+    once('own-songs', () => loadOwnSongs());
+  }
+  if (pathname === '/songs') {
+    once('own-songs', () => loadOwnSongs(true));
   }
   if (pathname.endsWith('/new-montage')) {
     once('library-songs', () => loadLibrarySongs(true));

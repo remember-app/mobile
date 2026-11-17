@@ -9,6 +9,7 @@ import { isOnline, subscribeNetwork } from '@/functionality/network/network';
 import { hydrateMembers } from '@/functionality/project/members';
 import { hydrateProjects, loadProjects } from '@/functionality/project/projects';
 import { registerPush } from '@/functionality/push/push';
+import { hydrateOwnSongs } from '@/functionality/song/mine';
 import { hydrateLibrarySongs, hydrateProjectSongs } from '@/functionality/song/songs';
 import { hydrateUploads, pump } from '@/functionality/upload/queue';
 import { onAppActive } from '@/integrations/app-state';
@@ -44,6 +45,7 @@ export function hydrateGlobal(): void {
   hydrateContacts();
   hydrateUploads();
   hydrateLibrarySongs();
+  hydrateOwnSongs();
 }
 
 export function hydrateProject(projectId: ProjectId): void {

@@ -1,4 +1,7 @@
 import { pickFiles } from '@/integrations/documents';
+
+export { pickFiles } from '@/integrations/documents';
+
 import {
   assetIsFavorite,
   type DeviceAsset,

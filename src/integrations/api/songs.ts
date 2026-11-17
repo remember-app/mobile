@@ -52,6 +52,40 @@ export function createSong(
   }).then(toSong);
 }
 
+export function createOwnSong(
+  token: string,
+  input: {
+    name: string;
+    author: string;
+    mediaId: MediaId;
+    coverId?: MediaId | null;
+    description?: string | null;
+  },
+): Promise<Song> {
+  return request<SongWire>('/v1/songs', {
+    method: 'POST',
+    body: input,
+    token,
+  }).then(toSong);
+}
+
+export function updateSong(
+  token: string,
+  songId: SongId,
+  patch: {
+    name?: string;
+    author?: string;
+    coverId?: MediaId | null;
+    description?: string | null;
+  },
+): Promise<Song> {
+  return request<SongWire>(`/v1/songs/${songId}`, {
+    method: 'PATCH',
+    body: patch,
+    token,
+  }).then(toSong);
+}
+
 export function getSong(token: string, songId: SongId): Promise<SongWithUrl> {
   return request<SongWithUrlWire>(`/v1/songs/${songId}`, { token }).then(toSongWithUrl);
 }

@@ -1,15 +1,7 @@
-import { File } from 'expo-file-system';
 import { currentToken, onSignOut, refreshSession } from '@/functionality/auth/session';
-import {
-  removeAvatar as apiRemoveAvatar,
-  completeUpload,
-  getAvatar,
-  setAvatar,
-  startUpload,
-} from '@/integrations/api';
-import { readFilePart } from '@/integrations/files/parts';
-import { putPart } from '@/integrations/storage/upload';
-import type { UploadedPart } from '@/models';
+import { removeAvatar as apiRemoveAvatar, getAvatar, setAvatar } from '@/integrations/api';
+
+import { uploadFileOnce } from '../upload/single';
 
 export type AvatarState = {
   url: string | null;
@@ -56,23 +48,8 @@ export async function loadAvatar(): Promise<void> {
 
 export async function uploadAvatar(uri: string, fileName: string): Promise<void> {
   const value = token();
-  const size = new File(uri).size;
-  if (!size) throw new Error('avatar file is empty');
-  const plan = await startUpload(value, null, { kind: 'photo', sizeBytes: size, fileName });
-  const parts: UploadedPart[] = [];
-  const total = Math.max(1, Math.ceil(size / plan.partBytes));
-  for (let number = 1; number <= total; number += 1) {
-    const url = plan.parts[number - 1];
-    if (!url) throw new Error(`no link for part ${number}`);
-    const start = (number - 1) * plan.partBytes;
-    const bytes = readFilePart(uri, {
-      start,
-      length: Math.min(plan.partBytes, size - start),
-    });
-    parts.push({ part_number: number, etag: await putPart(url, bytes) });
-  }
-  const done = await completeUpload(value, null, plan.id, parts);
-  const { url } = await setAvatar(value, done.mediaId);
+  const mediaId = await uploadFileOnce(value, 'photo', uri, fileName);
+  const { url } = await setAvatar(value, mediaId);
   emit({ url, status: 'idle' });
   await refreshSession();
 }
