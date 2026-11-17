@@ -1,4 +1,4 @@
-import { Check, Music, Trash2 } from 'lucide-react-native';
+import { Check, Music, Pause, Play, Trash2 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -10,15 +10,18 @@ import {
 } from '@/functionality';
 import type { Song } from '@/models';
 import type { ProjectId } from '@/types/id';
+import type { SongPlayer } from '@/ui/components/song-player';
 import { SwipeRow } from '@/ui/components/swipe-row';
 import { useOwnSongs, useProjectSongs } from '@/ui/hooks';
 import { BottomSheet } from '@/ui/kit/bottom-sheet';
+import { IconButton } from '@/ui/kit/button';
 import { Card } from '@/ui/kit/card';
+import { CircularSpinner } from '@/ui/kit/circular-spinner';
 import { Image } from '@/ui/kit/image';
 import { Text } from '@/ui/kit/text';
 import { radius, space, themed, useTheme } from '@/ui/theme';
 
-export function ProjectMusic({ projectId }: { projectId: ProjectId }) {
+export function ProjectMusic({ projectId, player }: { projectId: ProjectId; player: SongPlayer }) {
   const { t } = useTranslation();
   const styles = useStyles();
   const project = useProjectSongs(projectId);
@@ -65,7 +68,7 @@ export function ProjectMusic({ projectId }: { projectId: ProjectId }) {
               icon={Trash2}
               onAction={() => void detachProjectSong(projectId, song.id).catch(() => undefined)}
             >
-              <Row song={song} />
+              <Row song={song} player={player} />
             </SwipeRow>
           ))
         )}
@@ -96,9 +99,11 @@ export function ProjectMusic({ projectId }: { projectId: ProjectId }) {
   );
 }
 
-function Row({ song, checked }: { song: Song; checked?: boolean }) {
+function Row({ song, checked, player }: { song: Song; checked?: boolean; player?: SongPlayer }) {
+  const { t } = useTranslation();
   const { color } = useTheme();
   const styles = useStyles();
+  const current = player !== undefined && player.song?.id === song.id;
   return (
     <View style={styles.row}>
       <View style={styles.art}>
@@ -124,6 +129,22 @@ function Row({ song, checked }: { song: Song; checked?: boolean }) {
           </Text>
         ) : null}
       </View>
+      {player ? (
+        current && player.loading ? (
+          <View style={styles.spinner}>
+            <CircularSpinner size={18} />
+          </View>
+        ) : (
+          <IconButton
+            icon={current && player.playing ? Pause : Play}
+            label={current && player.playing ? t('songs.pause') : t('songs.play')}
+            tone="ghost"
+            size={40}
+            glyph={{ size: 18, filled: true }}
+            onPress={() => void player.play(song)}
+          />
+        )
+      ) : null}
       {checked === undefined ? null : (
         <View
           style={[
@@ -169,6 +190,12 @@ const useStyles = themed(({ color }) =>
       height: 26,
       borderRadius: radius.pill,
       borderWidth: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    spinner: {
+      width: 40,
+      height: 40,
       alignItems: 'center',
       justifyContent: 'center',
     },

@@ -1,11 +1,8 @@
-import { createAudioPlayer, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import * as ImagePicker from 'expo-image-picker';
 import { Camera, Music, Pause, Play, Plus, Trash2 } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   createOwnSong,
   currentToken,
@@ -13,13 +10,12 @@ import {
   loadOwnSongs,
   pickFiles,
   rememberSongDuration,
-  songUrl,
   updateOwnSong,
   uploadFileOnce,
 } from '@/functionality';
-import { cachedUrl, keepUrl } from '@/integrations/files/media-cache';
 import type { Song } from '@/models';
 import type { MediaId, SongId } from '@/types/id';
+import { MiniPlayer, useSongPlayer } from '@/ui/components/song-player';
 import { SwipeRow } from '@/ui/components/swipe-row';
 import { duration as clock } from '@/ui/format';
 import { useOwnSongs } from '@/ui/hooks';
@@ -52,26 +48,6 @@ const token = (): string => {
   return value;
 };
 
-const readDuration = (uri: string): Promise<number | null> =>
-  new Promise((resolve) => {
-    const player = createAudioPlayer(uri);
-    let settled = false;
-    const done = (value: number | null) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      subscription.remove();
-      player.remove();
-      resolve(value);
-    };
-    const subscription = player.addListener('playbackStatusUpdate', (status) => {
-      if (status.isLoaded && status.duration > 0) done(status.duration);
-    });
-    const timer = setTimeout(() => done(null), 5000);
-    const current = player.currentStatus;
-    if (current?.isLoaded && current.duration > 0) done(current.duration);
-  });
-
 export default function SongsScreen() {
   const { t } = useTranslation();
   const { color } = useTheme();
@@ -83,67 +59,17 @@ export default function SongsScreen() {
   const [coverBusy, setCoverBusy] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [source, setSource] = useState<string | null>(null);
-  const player = useAudioPlayer(source);
-  const status = useAudioPlayerStatus(player);
-  const [currentId, setCurrentId] = useState<SongId | null>(null);
-  const [playing, setPlaying] = useState(false);
-  const urls = useRef(new Map<SongId, string>());
-  const insets = useSafeAreaInsets();
-  const slide = useSharedValue(0);
+  const player = useSongPlayer({ onDuration: rememberSongDuration });
+  const prefetch = useRef(player.prefetch);
+  prefetch.current = player.prefetch;
 
   useEffect(() => {
     void loadOwnSongs().catch(() => undefined);
   }, []);
 
   useEffect(() => {
-    let live = true;
-    for (const song of songs.items) {
-      if (urls.current.has(song.id)) continue;
-      void songUrl(song.id)
-        .then((url) => {
-          urls.current.set(song.id, url);
-          return live ? keepUrl(url, null, 'music') : null;
-        })
-        .then((local) => (local ? readDuration(local) : null))
-        .then((seconds) => {
-          if (seconds !== null) rememberSongDuration(song.id, seconds);
-        })
-        .catch(() => undefined);
-    }
-    return () => {
-      live = false;
-    };
+    prefetch.current(songs.items);
   }, [songs.items]);
-
-  useEffect(() => {
-    if (playing && status.isLoaded) player.play();
-  }, [playing, status.isLoaded, player]);
-
-  useEffect(() => {
-    if (status.didJustFinish) setPlaying(false);
-  }, [status.didJustFinish]);
-
-  useEffect(() => {
-    if (currentId !== null && status.isLoaded && status.duration > 0) {
-      rememberSongDuration(currentId, status.duration);
-    }
-  }, [currentId, status.isLoaded, status.duration]);
-
-  const current = songs.items.find((song) => song.id === currentId) ?? null;
-  const loading = current !== null && playing && !status.isLoaded;
-  const total = current?.duration ?? 0;
-  const position = status.currentTime ?? 0;
-  const percent = total > 0 ? Math.min(100, (position / total) * 100) : 0;
-
-  useEffect(() => {
-    slide.value = withTiming(current === null ? 0 : 1, { duration: 220 });
-  }, [current, slide]);
-
-  const playerStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: (1 - slide.value) * 120 }],
-    opacity: slide.value,
-  }));
 
   const close = () => {
     setSheetOpen(false);
@@ -212,34 +138,6 @@ export default function SongsScreen() {
     });
   };
 
-  const toggle = async (song: Song) => {
-    if (currentId === song.id) {
-      if (playing) {
-        player.pause();
-        setPlaying(false);
-      } else {
-        if (status.didJustFinish) void player.seekTo(0);
-        setPlaying(true);
-      }
-      return;
-    }
-    try {
-      const url = urls.current.get(song.id) ?? (await songUrl(song.id));
-      urls.current.set(song.id, url);
-      const local = cachedUrl(url, null, 'music') ?? (await keepUrl(url, null, 'music')) ?? url;
-      setCurrentId(song.id);
-      if (source === local) {
-        void player.seekTo(0);
-        setPlaying(true);
-        return;
-      }
-      setSource(local);
-      setPlaying(true);
-    } catch {
-      setPlaying(false);
-    }
-  };
-
   const remove = (song: Song) => {
     void deleteOwnSong(song.id).catch(() => undefined);
   };
@@ -304,7 +202,7 @@ export default function SongsScreen() {
   return (
     <View style={styles.root}>
       <Board
-        body={current ? [pageBody, styles.bodyLifted] : pageBody}
+        body={player.song ? [pageBody, styles.bodyLifted] : pageBody}
         bar={
           <BackBar
             title={t('songs.title')}
@@ -357,20 +255,22 @@ export default function SongsScreen() {
                         {clock(song.duration)}
                       </Text>
                     ) : null}
-                    {currentId === song.id && playing && !status.isLoaded ? (
+                    {player.song?.id === song.id && player.loading ? (
                       <View style={styles.spinner}>
                         <CircularSpinner size={18} />
                       </View>
                     ) : (
                       <IconButton
-                        icon={currentId === song.id && playing ? Pause : Play}
+                        icon={player.song?.id === song.id && player.playing ? Pause : Play}
                         label={
-                          currentId === song.id && playing ? t('songs.pause') : t('songs.play')
+                          player.song?.id === song.id && player.playing
+                            ? t('songs.pause')
+                            : t('songs.play')
                         }
                         tone="ghost"
                         size={40}
                         glyph={{ size: 18, filled: true }}
-                        onPress={() => void toggle(song)}
+                        onPress={() => void player.play(song)}
                       />
                     )}
                   </Pressable>
@@ -460,68 +360,7 @@ export default function SongsScreen() {
         </BottomSheet>
       </Board>
 
-      <Animated.View
-        pointerEvents={current ? 'auto' : 'none'}
-        style={[styles.player, { bottom: insets.bottom + space.s3 }, playerStyle]}
-      >
-        {current ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={playing ? t('songs.pause') : t('songs.play')}
-            onPress={() => void toggle(current)}
-            style={styles.playerBody}
-          >
-            <View style={styles.playerRow}>
-              <View style={styles.art}>
-                {current.coverUrl ? (
-                  <Image
-                    source={current.coverUrl}
-                    scope="music"
-                    style={StyleSheet.absoluteFill}
-                    contentFit="cover"
-                    cachePolicy="memory-disk"
-                  />
-                ) : (
-                  <Music size={18} color={color.muted} />
-                )}
-              </View>
-              <View style={styles.words}>
-                <Text role="row" numberOfLines={1}>
-                  {current.name}
-                </Text>
-                <Text role="meta" tone="muted" numberOfLines={1}>
-                  {current.author}
-                </Text>
-              </View>
-              {loading ? (
-                <View style={styles.spinner}>
-                  <CircularSpinner size={18} />
-                </View>
-              ) : (
-                <IconButton
-                  icon={playing ? Pause : Play}
-                  label={playing ? t('songs.pause') : t('songs.play')}
-                  tone="ghost"
-                  size={40}
-                  glyph={{ size: 18, filled: true }}
-                  onPress={() => void toggle(current)}
-                />
-              )}
-            </View>
-            <View style={styles.progressRow}>
-              <Text role="meta" tone="muted">
-                {clock(position)}
-              </Text>
-              <View style={styles.bar}>
-                <View style={[styles.fill, { width: `${percent}%` }]} />
-              </View>
-              <Text role="meta" tone="muted">
-                {clock(total)}
-              </Text>
-            </View>
-          </Pressable>
-        ) : null}
-      </Animated.View>
+      <MiniPlayer player={player} />
     </View>
   );
 }
@@ -558,40 +397,6 @@ const useStyles = themed(({ color }) =>
     words: {
       flex: 1,
       gap: 2,
-    },
-    player: {
-      position: 'absolute',
-      left: space.s4,
-      right: space.s4,
-      borderRadius: radius.card,
-      borderWidth: 1,
-      borderColor: color.line,
-      backgroundColor: color.surface,
-      padding: space.s3,
-    },
-    playerBody: {
-      gap: space.s2,
-    },
-    playerRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: space.s3,
-    },
-    progressRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: space.s2,
-    },
-    bar: {
-      flex: 1,
-      height: 3,
-      borderRadius: radius.pill,
-      overflow: 'hidden',
-      backgroundColor: color.line,
-    },
-    fill: {
-      height: 3,
-      backgroundColor: color.accent,
     },
     spinner: {
       width: 40,

@@ -8,8 +8,9 @@ import type { ProjectId } from '@/types/id';
 import { InviteBlocks } from '@/ui/components/invite-blocks';
 import { LabelsManager } from '@/ui/components/labels-manager';
 import { MemberList } from '@/ui/components/member-list';
-import { ProjectMusic } from '@/ui/components/project-music';
 import { MemberSheet } from '@/ui/components/member-sheet';
+import { ProjectMusic } from '@/ui/components/project-music';
+import { MiniPlayer, useSongPlayer } from '@/ui/components/song-player';
 import { confirmAction } from '@/ui/confirm';
 import { number } from '@/ui/format';
 import { useMembers, useProjectCard, useSession } from '@/ui/hooks';
@@ -38,6 +39,7 @@ export default function ProjectInfoScreen() {
   const router = useRouter();
   const { color } = useTheme();
   const styles = useStyles();
+  const player = useSongPlayer();
   const { id } = useLocalSearchParams<{ id: string }>();
   const projectId = id as ProjectId;
   const project = useProjectCard(projectId);
@@ -101,109 +103,113 @@ export default function ProjectInfoScreen() {
   };
 
   return (
-    <Board
-      body={pageBody}
-      bar={
-        <BackBar
-          title={project.title}
-          right={
-            <IconButton
-              icon={Settings2}
-              label={t('project.settings')}
-              tone="surface"
-              size={44}
-              onPress={() =>
-                router.navigate({ pathname: '/project/[id]/settings', params: { id: projectId } })
-              }
-            />
-          }
-        />
-      }
-    >
-      <Card style={styles.stats}>
-        <Stat
-          icon={<Users size={26} color={color.paper} />}
-          value={project.memberCount > 0 ? project.sharedCount / project.memberCount : 0}
-          label={`${project.sharedCount} / ${project.memberCount}`}
-          onPress={() => setMetric('people')}
-        />
-        <Stat
-          icon={<HardDrive size={26} color={color.paper} />}
-          value={capacity > 0 ? used / capacity : 0}
-          label={`${number(used)} / ${number(capacity)}`}
-          onPress={() => setMetric('gb')}
-        />
-        <Stat
-          icon={<Coins size={26} color={color.paper} />}
-          value={tokens.tokens > 0 ? leftTokens / tokens.tokens : 0}
-          label={`${number(leftTokens)} / ${number(tokens.tokens)}`}
-          onPress={() => setMetric('tokens')}
-        />
-      </Card>
-
-      <MemberList
-        members={members}
-        loading={membersState.status === 'loading'}
-        onSelect={(member) => setSelectedId(member.userId)}
-        onAdd={() => setMetric('people')}
-      />
-
-      <LabelsManager projectId={projectId} />
-
-      <ProjectMusic projectId={projectId} />
-
-      <MemberSheet projectId={projectId} member={selected} onClose={() => setSelectedId(null)} />
-
-      <BottomSheet
-        visible={metric !== null}
-        onClose={() => setMetric(null)}
-        title={metric ? t(TITLES[metric]) : undefined}
+    <View style={styles.root}>
+      <Board
+        body={player.song ? [pageBody, styles.bodyLifted] : pageBody}
+        bar={
+          <BackBar
+            title={project.title}
+            right={
+              <IconButton
+                icon={Settings2}
+                label={t('project.settings')}
+                tone="surface"
+                size={44}
+                onPress={() =>
+                  router.navigate({ pathname: '/project/[id]/settings', params: { id: projectId } })
+                }
+              />
+            }
+          />
+        }
       >
-        {metric === 'people' ? (
-          <InviteBlocks projectId={projectId} projectTitle={project.title} />
-        ) : null}
-        {metric === 'gb' ? (
-          <>
-            <Slider
-              value={gbValue}
-              onChange={setGbAmount}
-              min={1}
-              max={gbMax}
-              valueLabel={`${number(gbValue)} ${t('unit.gb')}`}
-              minLabel={`1 ${t('unit.gb')}`}
-              maxLabel={`${number(gbMax)} ${t('unit.gb')}`}
-              label={t('info.shareStorage')}
-            />
-            <Button
-              label={t('info.share')}
-              variant="secondary"
-              disabled={ownStorage < 1}
-              onPress={shareStorage}
-            />
-          </>
-        ) : null}
-        {metric === 'tokens' ? (
-          <>
-            <Slider
-              value={tokenValue}
-              onChange={setTokenAmount}
-              min={1}
-              max={tokenMax}
-              valueLabel={`${number(tokenValue)}`}
-              minLabel="1"
-              maxLabel={`${number(tokenMax)}`}
-              label={t('info.shareTokens')}
-            />
-            <Button
-              label={t('info.share')}
-              variant="secondary"
-              disabled={ownTokens < 1}
-              onPress={shareTokens}
-            />
-          </>
-        ) : null}
-      </BottomSheet>
-    </Board>
+        <Card style={styles.stats}>
+          <Stat
+            icon={<Users size={26} color={color.paper} />}
+            value={project.memberCount > 0 ? project.sharedCount / project.memberCount : 0}
+            label={`${project.sharedCount} / ${project.memberCount}`}
+            onPress={() => setMetric('people')}
+          />
+          <Stat
+            icon={<HardDrive size={26} color={color.paper} />}
+            value={capacity > 0 ? used / capacity : 0}
+            label={`${number(used)} / ${number(capacity)}`}
+            onPress={() => setMetric('gb')}
+          />
+          <Stat
+            icon={<Coins size={26} color={color.paper} />}
+            value={tokens.tokens > 0 ? leftTokens / tokens.tokens : 0}
+            label={`${number(leftTokens)} / ${number(tokens.tokens)}`}
+            onPress={() => setMetric('tokens')}
+          />
+        </Card>
+
+        <MemberList
+          members={members}
+          loading={membersState.status === 'loading'}
+          onSelect={(member) => setSelectedId(member.userId)}
+          onAdd={() => setMetric('people')}
+        />
+
+        <LabelsManager projectId={projectId} />
+
+        <ProjectMusic projectId={projectId} player={player} />
+
+        <MemberSheet projectId={projectId} member={selected} onClose={() => setSelectedId(null)} />
+
+        <BottomSheet
+          visible={metric !== null}
+          onClose={() => setMetric(null)}
+          title={metric ? t(TITLES[metric]) : undefined}
+        >
+          {metric === 'people' ? (
+            <InviteBlocks projectId={projectId} projectTitle={project.title} />
+          ) : null}
+          {metric === 'gb' ? (
+            <>
+              <Slider
+                value={gbValue}
+                onChange={setGbAmount}
+                min={1}
+                max={gbMax}
+                valueLabel={`${number(gbValue)} ${t('unit.gb')}`}
+                minLabel={`1 ${t('unit.gb')}`}
+                maxLabel={`${number(gbMax)} ${t('unit.gb')}`}
+                label={t('info.shareStorage')}
+              />
+              <Button
+                label={t('info.share')}
+                variant="secondary"
+                disabled={ownStorage < 1}
+                onPress={shareStorage}
+              />
+            </>
+          ) : null}
+          {metric === 'tokens' ? (
+            <>
+              <Slider
+                value={tokenValue}
+                onChange={setTokenAmount}
+                min={1}
+                max={tokenMax}
+                valueLabel={`${number(tokenValue)}`}
+                minLabel="1"
+                maxLabel={`${number(tokenMax)}`}
+                label={t('info.shareTokens')}
+              />
+              <Button
+                label={t('info.share')}
+                variant="secondary"
+                disabled={ownTokens < 1}
+                onPress={shareTokens}
+              />
+            </>
+          ) : null}
+        </BottomSheet>
+      </Board>
+
+      <MiniPlayer player={player} />
+    </View>
   );
 }
 
@@ -236,6 +242,12 @@ function Stat({
 
 const useStyles = themed(() =>
   StyleSheet.create({
+    root: {
+      flex: 1,
+    },
+    bodyLifted: {
+      paddingBottom: 120,
+    },
     stats: {
       flexDirection: 'row',
       padding: space.s4,
