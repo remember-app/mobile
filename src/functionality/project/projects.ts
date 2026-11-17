@@ -104,7 +104,7 @@ export function upsertProjectCard(project: Project): ProjectCard {
     status: 'ready',
     cards: exists
       ? state.cards.map((item) => (item.id === project.id ? card : item))
-      : [card, ...state.cards],
+      : [...state.cards, card],
     error: null,
   });
   persist();
@@ -208,7 +208,7 @@ export async function createProject(input: {
   if (!token) throw new Error('not signed in');
   const project = await apiCreateProject(token, input);
   const card: ProjectCard = { ...project, previewUrls: [], members: [] };
-  emit({ ...state, status: 'ready', cards: [card, ...state.cards], error: null });
+  emit({ ...state, status: 'ready', cards: [...state.cards, card], error: null });
   persist();
   return card;
 }

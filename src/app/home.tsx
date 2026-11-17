@@ -95,6 +95,8 @@ export default function HomeScreen() {
               <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={color.muted} />
             }
             contentContainerStyle={{
+              flexGrow: 1,
+              justifyContent: 'flex-end',
               paddingTop: insets.top,
               paddingBottom: insets.bottom + 92,
               paddingHorizontal: space.s4,
