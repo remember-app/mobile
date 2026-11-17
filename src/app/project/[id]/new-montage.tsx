@@ -2,6 +2,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  Pressable,
   ScrollView,
   type ScrollViewInstance,
   StyleSheet,
@@ -508,6 +509,14 @@ export default function NewMontageScreen() {
         chrome={chrome}
         hidden={scrolling || filtering}
       />
+      {filtering ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('action.close')}
+          onPress={() => setFiltering(false)}
+          style={styles.filterBackdrop}
+        />
+      ) : null}
       {index === 2 ? (
         <View
           pointerEvents={scrolling || filtering || filtered ? 'box-none' : 'none'}
@@ -559,5 +568,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: space.s4,
     alignItems: 'flex-start',
+  },
+  filterBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
 });
