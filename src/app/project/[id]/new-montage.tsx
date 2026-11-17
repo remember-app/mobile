@@ -8,14 +8,18 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   createMontage,
   currentToken,
   loadGallery,
+  loadLabels,
   loadLibrarySongs,
+  loadMembers,
   loadMontages,
   loadMontageTemplates,
+  loadMoreGallery,
   loadProjectSongs,
   loadProjects,
   previewMontage,
@@ -26,6 +30,13 @@ import { isApiError } from '@/integrations/api';
 import { itemSource, type MontageTemplate } from '@/models';
 import type { ProjectId } from '@/types/id';
 import { goBack } from '@/ui/back';
+import { FilterControl } from '@/ui/components/gallery/filter-control';
+import {
+  filterItems,
+  type GalleryFiltersValue,
+  isFiltered,
+  NO_FILTERS,
+} from '@/ui/components/gallery-filters';
 import { MediaInfo } from '@/ui/components/media/info/media-info';
 import type { Photo, Rect } from '@/ui/components/media/photo-grid';
 import { tileOf, viewerOf } from '@/ui/components/media/photo-item';
@@ -48,7 +59,9 @@ import {
 } from '@/ui/components/montage-order/wizard';
 import {
   useGallery,
+  useLabels,
   useLibrarySongs,
+  useMembers,
   useMontages,
   useProjectCard,
   useProjectSongs,
@@ -73,7 +86,9 @@ export default function NewMontageScreen() {
   const projectSongs = useProjectSongs(projectId);
   const library = useLibrarySongs();
   const montages = useMontages(projectId);
-  const defaultName = `№${montages.items.length + 1}`;
+  const labels = useLabels(projectId);
+  const members = useMembers(projectId);
+  const defaultName = project ? `${project.title} ${montages.items.length + 1}` : '';
 
   const [draft, setDraft] = useState<Draft>(Start);
   const [index, setIndex] = useState(0);
@@ -88,6 +103,11 @@ export default function NewMontageScreen() {
   const [director, setDirector] = useState(false);
   const [viewer, setViewer] = useState<{ index: number; rect?: Rect } | null>(null);
   const [description, setDescription] = useState('');
+  const [filters, setFilters] = useState<GalleryFiltersValue>(NO_FILTERS);
+  const [filtering, setFiltering] = useState(false);
+  const [scrolling, setScrolling] = useState(false);
+  const chrome = useSharedValue(0);
+  const filterAnim = useSharedValue(0);
   const savedDescription = useRef('');
   const pager = useRef<ScrollViewInstance>(null);
 
@@ -101,12 +121,25 @@ export default function NewMontageScreen() {
     void loadProjectSongs(projectId);
     void loadLibrarySongs();
     void loadMontages(projectId, true).catch(() => undefined);
+    void loadLabels(projectId).catch(() => undefined);
+    void loadMembers(projectId).catch(() => undefined);
   }, [projectId]);
+
+  const filtered = isFiltered(filters);
+
+  useEffect(() => {
+    chrome.value = withTiming(scrolling || filtering || filtered ? 1 : 0, { duration: 220 });
+  }, [chrome, scrolling, filtering, filtered]);
+
+  useEffect(() => {
+    filterAnim.value = withTiming(filtering ? 1 : 0, { duration: 260 });
+  }, [filterAnim, filtering]);
 
   useEffect(() => {
     if (!project) return;
     setDescription(project.description);
     savedDescription.current = project.description;
+    setDraft((was) => (was.name ? was : { ...was, name: defaultName }));
   }, [project?.id]);
 
   const saveDescription = () => {
@@ -175,15 +208,14 @@ export default function NewMontageScreen() {
 
   const selectedAt = useMemo(() => orderOf(draft.includeItemIds), [draft.includeItemIds]);
 
-  const shots = useMemo(
-    () =>
-      [...gallery.items].sort(
-        (left, right) =>
-          (right.media.capturedAt ?? right.createdAt).getTime() -
-          (left.media.capturedAt ?? left.createdAt).getTime(),
-      ),
-    [gallery.items],
-  );
+  const shots = useMemo(() => {
+    const visible = filterItems(gallery.items, filters);
+    return [...visible].sort((left, right) => {
+      const leftAt = (left.media.capturedAt ?? left.createdAt).getTime();
+      const rightAt = (right.media.capturedAt ?? right.createdAt).getTime();
+      return filters.sort === 'new' ? rightAt - leftAt : leftAt - rightAt;
+    });
+  }, [filters, gallery.items]);
 
   const shotIds = useMemo(() => shots.map((item) => item.id), [shots]);
 
@@ -223,6 +255,8 @@ export default function NewMontageScreen() {
 
   const go = (next: number) => {
     saveDescription();
+    setScrolling(false);
+    setFiltering(false);
     const target = Math.max(0, Math.min(STEPS - 1, next));
     pager.current?.scrollTo({ x: target * width, animated: true });
     setIndex(target);
@@ -230,12 +264,13 @@ export default function NewMontageScreen() {
 
   const pickTemplate = (template: MontageTemplate | null) => {
     if (!template) {
-      change({ templateId: null });
+      change({ templateId: null, name: defaultName });
       return;
     }
     setDirector(false);
     change({
       templateId: template.id,
+      name: template.about[account?.language ?? 'ru'].name,
       targetSeconds: template.settings.targetSeconds,
       orientation: orientationOf(template.settings.dimensions),
       prompt: template.settings.prompt ?? '',
@@ -396,6 +431,11 @@ export default function NewMontageScreen() {
                 const itemId = shotIds[index];
                 if (itemId) toggleRequired(itemId);
               }}
+              onScroll={(offset) => {
+                const moving = offset > 40;
+                if (moving !== scrolling) setScrolling(moving);
+              }}
+              onLoadOlder={() => void loadMoreGallery(projectId)}
             />
             <MusicPage
               width={width}
@@ -465,7 +505,27 @@ export default function NewMontageScreen() {
               : t('montage.order.next')
         }
         disabled={!canNext}
+        chrome={chrome}
+        hidden={scrolling || filtering}
       />
+      {index === 2 ? (
+        <View
+          pointerEvents={scrolling || filtering || filtered ? 'box-none' : 'none'}
+          style={[styles.sideBar, { bottom: insets.bottom + space.s3 }]}
+        >
+          <FilterControl
+            chrome={chrome}
+            anim={filterAnim}
+            filtering={filtering}
+            full={width - space.s4 * 2}
+            onToggle={() => setFiltering((was) => !was)}
+            filters={filters}
+            labels={labels.labels}
+            members={members.members}
+            onChange={setFilters}
+          />
+        </View>
+      ) : null}
       {viewer === null ? null : (
         <PhotoViewer
           photos={viewerPhotos}
@@ -494,5 +554,10 @@ const styles = StyleSheet.create({
   },
   pager: {
     flex: 1,
+  },
+  sideBar: {
+    position: 'absolute',
+    right: space.s4,
+    alignItems: 'flex-end',
   },
 });

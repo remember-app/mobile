@@ -9,6 +9,8 @@ export function ShotsPage({
   onOpen,
   onSelect,
   onRequire,
+  onScroll,
+  onLoadOlder,
   width,
   height,
   top,
@@ -19,6 +21,8 @@ export function ShotsPage({
   onOpen: (index: number, rect?: Rect) => void;
   onSelect: (index: number) => void;
   onRequire: (index: number) => void;
+  onScroll?: (offset: number) => void;
+  onLoadOlder?: () => void;
   width: number;
   height: number;
   top: number;
@@ -31,6 +35,8 @@ export function ShotsPage({
         onOpen={onOpen}
         onSelect={onSelect}
         onRequire={onRequire}
+        onScroll={onScroll}
+        onLoadOlder={onLoadOlder}
         padding={{ top: top + space.s2, bottom }}
         blankIndex={blankIndex}
       />

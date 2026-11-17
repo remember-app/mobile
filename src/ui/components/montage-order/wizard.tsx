@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, View } from 'react-native';
+import Animated, { type SharedValue, useAnimatedStyle } from 'react-native-reanimated';
 
 import { StepDots } from '@/ui/components/onboarding/steps';
 import { ActionBar } from '@/ui/kit/action-bar';
@@ -86,18 +87,26 @@ export function OrderActions({
   next,
   disabled,
   label,
+  chrome,
+  hidden,
 }: {
   back: () => void;
   next: () => void;
   disabled?: boolean;
   label?: string;
+  chrome?: SharedValue<number>;
+  hidden?: boolean;
 }) {
   const { t } = useTranslation();
   const { color } = useTheme();
   const styles = useStyles();
+  const style = useAnimatedStyle(() => ({
+    opacity: 1 - (chrome?.value ?? 0),
+    transform: [{ translateY: (chrome?.value ?? 0) * 96 }],
+  }));
   return (
     <ActionBar>
-      <View style={styles.actions}>
+      <Animated.View style={[styles.actions, style]} pointerEvents={hidden ? 'none' : 'auto'}>
         <Button
           label={t('action.back')}
           variant="secondary"
@@ -111,7 +120,7 @@ export function OrderActions({
           onPress={next}
           style={styles.action}
         />
-      </View>
+      </Animated.View>
     </ActionBar>
   );
 }

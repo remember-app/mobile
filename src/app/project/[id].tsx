@@ -38,7 +38,12 @@ import { FilterControl } from '@/ui/components/gallery/filter-control';
 import { LabelMenu } from '@/ui/components/gallery/label-menu';
 import { SelectionActions } from '@/ui/components/gallery/selection-actions';
 import { SelectionBar } from '@/ui/components/gallery/selection-bar';
-import { type GalleryFiltersValue, isFiltered, NO_FILTERS } from '@/ui/components/gallery-filters';
+import {
+  filterItems,
+  type GalleryFiltersValue,
+  isFiltered,
+  NO_FILTERS,
+} from '@/ui/components/gallery-filters';
 import { MediaInfo } from '@/ui/components/media/info/media-info';
 import {
   type MeasureTile,
@@ -146,31 +151,7 @@ export default function ProjectScreen() {
   );
   const failed = useMemo(() => pending.filter((upload) => upload.status === 'failed'), [pending]);
 
-  const visibleItems = useMemo(
-    () =>
-      gallery.items.filter((item) => {
-        if (filters.kinds.length > 0 && !filters.kinds.includes(item.kind)) return false;
-        const size = item.media.dimensions;
-        if (size && filters.orientations.length > 0) {
-          const vertical = size.height >= size.width;
-          if (!filters.orientations.includes(vertical ? 'vertical' : 'horizontal')) return false;
-        }
-        if (
-          filters.labelIds.length > 0 &&
-          !item.labelIds.some((labelId) => filters.labelIds.includes(labelId))
-        ) {
-          return false;
-        }
-        if (
-          filters.uploaderIds.length > 0 &&
-          (!item.media.uploadedBy || !filters.uploaderIds.includes(item.media.uploadedBy))
-        ) {
-          return false;
-        }
-        return true;
-      }),
-    [filters, gallery.items],
-  );
+  const visibleItems = useMemo(() => filterItems(gallery.items, filters), [filters, gallery.items]);
 
   const photos = useMemo<Photo[]>(() => {
     const order = orderOf(selected);

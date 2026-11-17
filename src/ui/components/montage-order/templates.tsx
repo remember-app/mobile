@@ -64,7 +64,7 @@ export function TemplatesPage({
                     clip
                     onPress={() => onChoose(chosen ? null : template)}
                     label={text.name}
-                    style={styles.template}
+                    style={[styles.template, chosen ? { borderColor: color.accent } : null]}
                   >
                     {cover ? (
                       <Image
@@ -106,16 +106,6 @@ export function TemplatesPage({
                         onOpen={() => setDescribed(template)}
                       />
                     </View>
-                    {chosen ? (
-                      <View
-                        pointerEvents="none"
-                        style={[
-                          StyleSheet.absoluteFill,
-                          styles.templateFrame,
-                          { borderColor: color.accent },
-                        ]}
-                      />
-                    ) : null}
                   </Card>
                 );
               })}
@@ -221,10 +211,6 @@ const useStyles = themed(() =>
       paddingHorizontal: space.s2,
       borderRadius: radius.pill,
       backgroundColor: 'rgba(0,0,0,0.35)',
-    },
-    templateFrame: {
-      borderWidth: 2,
-      borderRadius: radius.card,
     },
     measure: {
       position: 'absolute',

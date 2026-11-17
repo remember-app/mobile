@@ -12,7 +12,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import type { Label, MediaKind, Member } from '@/models';
+import type { Item, Label, MediaKind, Member } from '@/models';
 import type { LabelId, UserId } from '@/types/id';
 import { Avatar } from '@/ui/kit/avatar';
 import { IconButton } from '@/ui/kit/button';
@@ -38,6 +38,30 @@ export const NO_FILTERS: GalleryFiltersValue = {
   labelIds: [],
   uploaderIds: [],
 };
+
+export function filterItems(items: readonly Item[], filters: GalleryFiltersValue): Item[] {
+  return items.filter((item) => {
+    if (filters.kinds.length > 0 && !filters.kinds.includes(item.kind)) return false;
+    const size = item.media.dimensions;
+    if (size && filters.orientations.length > 0) {
+      const vertical = size.height >= size.width;
+      if (!filters.orientations.includes(vertical ? 'vertical' : 'horizontal')) return false;
+    }
+    if (
+      filters.labelIds.length > 0 &&
+      !item.labelIds.some((labelId) => filters.labelIds.includes(labelId))
+    ) {
+      return false;
+    }
+    if (
+      filters.uploaderIds.length > 0 &&
+      (!item.media.uploadedBy || !filters.uploaderIds.includes(item.media.uploadedBy))
+    ) {
+      return false;
+    }
+    return true;
+  });
+}
 
 export function isFiltered(value: GalleryFiltersValue): boolean {
   return (
