@@ -557,7 +557,7 @@ const styles = StyleSheet.create({
   },
   sideBar: {
     position: 'absolute',
-    right: space.s4,
-    alignItems: 'flex-end',
+    left: space.s4,
+    alignItems: 'flex-start',
   },
 });
