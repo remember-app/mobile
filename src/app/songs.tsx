@@ -371,7 +371,7 @@ const useStyles = themed(({ color }) =>
       alignItems: 'center',
       gap: space.s3,
       paddingHorizontal: space.s4,
-      paddingVertical: space.s4,
+      paddingVertical: space.s3,
       backgroundColor: color.surface,
     },
     art: {
