@@ -84,6 +84,8 @@ export function PhotoViewer({
   const start = Math.max(0, viewPhotos.length - 1 - initialIndex);
   const indexRef = useRef(start);
   const [index, setIndex] = useState(start);
+  const shownId = useRef<string | null>(viewPhotos[start]?.id ?? null);
+  const shownCount = useRef(viewPhotos.length);
   const [hdIndex, setHdIndex] = useState(-1);
   const [zoomed, setZoomed] = useState(false);
   const [info, setInfo] = useState(false);
@@ -119,18 +121,38 @@ export function PhotoViewer({
     setStatusBarHidden(!chrome || info || zoomed, 'fade');
   }, [chrome, info, zoomed]);
 
+  const jumpTo = useCallback(
+    (at: number) => {
+      mainX.value = at * width;
+      stripX.value = at * STRIP_PITCH;
+      mainRef.current?.scrollTo({ x: at * width, y: 0, animated: false });
+      stripRef.current?.scrollTo({ x: at * STRIP_PITCH, y: 0, animated: false });
+    },
+    [mainX, stripX, width],
+  );
+
   const size = useRef({ width, height });
   const realign = useRef(false);
   useLayoutEffect(() => {
     if (size.current.width === width && size.current.height === height) return;
     size.current = { width, height };
     realign.current = true;
-    const at = indexRef.current;
-    mainX.value = at * width;
-    stripX.value = at * STRIP_PITCH;
-    mainRef.current?.scrollTo({ x: at * width, y: 0, animated: false });
-    stripRef.current?.scrollTo({ x: at * STRIP_PITCH, y: 0, animated: false });
-  }, [height, mainX, stripX, width]);
+    jumpTo(indexRef.current);
+  }, [height, jumpTo, width]);
+
+  // Older pages are prepended to the strip, so every index shifts. Follow the photo that is
+  // on screen instead of the number, or the viewer would silently jump to another one.
+  useLayoutEffect(() => {
+    if (viewPhotos.length === shownCount.current) return;
+    shownCount.current = viewPhotos.length;
+    const id = shownId.current;
+    if (id === null) return;
+    const at = viewPhotos.findIndex((photo) => photo.id === id);
+    if (at < 0 || at === indexRef.current) return;
+    indexRef.current = at;
+    setIndex(at);
+    jumpTo(at);
+  }, [jumpTo, viewPhotos]);
 
   useEffect(() => {
     if (info) return;
@@ -142,8 +164,8 @@ export function PhotoViewer({
     loadMore.current = onLoadMore;
   });
   useEffect(() => {
-    if (index >= viewPhotos.length - 2) loadMore.current?.();
-  }, [index, viewPhotos.length]);
+    if (index <= 2) loadMore.current?.();
+  }, [index]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -183,10 +205,11 @@ export function PhotoViewer({
     (next: number) => {
       if (next === indexRef.current) return;
       indexRef.current = next;
+      shownId.current = viewPhotos[next]?.id ?? null;
       dragY.value = 0;
       setIndex(next);
     },
-    [dragY],
+    [dragY, viewPhotos],
   );
 
   const lastSettled = useRef(start);
