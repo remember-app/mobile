@@ -1,10 +1,26 @@
 import { File, Paths } from 'expo-file-system';
 import { currentToken } from '@/functionality/auth/session';
+import { readFilePart } from '@/integrations/files/parts';
 import type { MediaId } from '@/types/id';
 
 import { uploadFileOnce } from './single';
 
 const FORMATS = new Set(['jpg', 'jpeg', 'png', 'heic', 'webp']);
+
+const starts = (bytes: Uint8Array, signature: number[], at = 0): boolean =>
+  signature.every((value, index) => bytes[at + index] === value);
+
+const ascii = (text: string): number[] => [...text].map((letter) => letter.charCodeAt(0));
+
+function looksLikeImage(uri: string): boolean {
+  const head = readFilePart(uri, { start: 0, length: 12 });
+  return (
+    starts(head, [0xff, 0xd8, 0xff]) ||
+    starts(head, [0x89, 0x50, 0x4e, 0x47]) ||
+    (starts(head, ascii('RIFF')) && starts(head, ascii('WEBP'), 8)) ||
+    starts(head, ascii('ftyp'), 4)
+  );
+}
 
 export const isImageLink = (text: string): boolean => /^https?:\/\/\S+$/i.test(text.trim());
 
@@ -21,6 +37,7 @@ export async function uploadImageFromLink(url: string): Promise<{ mediaId: Media
   const name = nameOf(url);
   const target = new File(Paths.cache, `link-${Date.now()}-${name}`);
   const file = await File.downloadFileAsync(url, target);
+  if (!looksLikeImage(file.uri)) throw new Error('the link is not an image');
   const mediaId = await uploadFileOnce(token, 'photo', file.uri, name);
   return { mediaId, uri: file.uri };
 }
