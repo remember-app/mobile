@@ -54,6 +54,7 @@ export default function SongsScreen() {
   const styles = useStyles();
   const songs = useOwnSongs();
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [coverBusy, setCoverBusy] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -78,6 +79,7 @@ export default function SongsScreen() {
   }, [draft, player]);
 
   const close = () => {
+    setSheetOpen(false);
     setDraft(null);
     setUploading(false);
     setCoverBusy(false);
@@ -85,19 +87,8 @@ export default function SongsScreen() {
     setError(null);
   };
 
-  const add = async () => {
+  const uploadAudio = async (file: { uri: string; fileName: string }) => {
     setError(null);
-    const [file] = await pickFiles().catch(() => []);
-    if (!file) return;
-    setDraft({
-      id: null,
-      mediaId: null,
-      audioUri: null,
-      name: '',
-      author: '',
-      coverId: null,
-      coverUri: null,
-    });
     setUploading(true);
     try {
       const mediaId = await uploadFileOnce(token(), 'audio', file.uri, file.fileName);
@@ -108,7 +99,7 @@ export default function SongsScreen() {
               ...current,
               mediaId,
               audioUri: file.uri,
-              name: baseName(file.fileName),
+              name: current.name || baseName(file.fileName),
             },
       );
     } catch {
@@ -118,8 +109,55 @@ export default function SongsScreen() {
     }
   };
 
+  const add = async () => {
+    setError(null);
+    let file: Awaited<ReturnType<typeof pickFiles>>[number] | undefined;
+    try {
+      [file] = await pickFiles(['audio/*']);
+    } catch {
+      setError(t('songs.uploadFailed'));
+      return;
+    }
+    if (!file) return;
+    setDraft({
+      id: null,
+      mediaId: null,
+      audioUri: null,
+      name: baseName(file.fileName),
+      author: '',
+      coverId: null,
+      coverUri: null,
+    });
+    setSheetOpen(true);
+    await uploadAudio(file);
+  };
+
+  const chooseFile = async () => {
+    // iOS cannot present the system picker over the open sheet
+    setSheetOpen(false);
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    let file: Awaited<ReturnType<typeof pickFiles>>[number] | undefined;
+    try {
+      [file] = await pickFiles(['audio/*']);
+    } catch {
+      setError(t('songs.uploadFailed'));
+      setSheetOpen(true);
+      return;
+    }
+    if (!file) {
+      setSheetOpen(true);
+      return;
+    }
+    setDraft((current) =>
+      current === null ? current : { ...current, name: current.name || baseName(file.fileName) },
+    );
+    setSheetOpen(true);
+    await uploadAudio(file);
+  };
+
   const open = (song: Song) => {
     setError(null);
+    setSheetOpen(true);
     setDraft({
       id: song.id,
       mediaId: song.mediaId,
@@ -245,10 +283,10 @@ export default function SongsScreen() {
         />
       }
     >
-      {songs.items.length === 0 && songs.status === 'ready' ? (
-        <View style={styles.empty}>
-          <Button label={t('songs.add')} variant="primary" icon={Plus} onPress={() => void add()} />
-        </View>
+      {error !== null && !sheetOpen ? (
+        <Text role="meta" tone="danger">
+          {error}
+        </Text>
       ) : null}
 
       {songs.items.length > 0 ? (
@@ -290,7 +328,7 @@ export default function SongsScreen() {
       ) : null}
 
       <BottomSheet
-        visible={draft !== null}
+        visible={sheetOpen}
         onClose={close}
         title={draft?.id ? t('songs.edit') : t('songs.add')}
       >
@@ -374,6 +412,14 @@ export default function SongsScreen() {
                 {error}
               </Text>
             ) : null}
+            {draft.id === null ? (
+              <Button
+                label={t('songs.chooseFile')}
+                variant="secondary"
+                disabled={uploading || saving}
+                onPress={() => void chooseFile()}
+              />
+            ) : null}
             <Button
               label={t('action.save')}
               variant="primary"
@@ -394,9 +440,6 @@ const useStyles = themed(({ color }) =>
   StyleSheet.create({
     card: {
       padding: space.s4,
-    },
-    empty: {
-      paddingTop: space.s6,
     },
     row: {
       flexDirection: 'row',
