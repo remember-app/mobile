@@ -1,9 +1,11 @@
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import * as ImagePicker from 'expo-image-picker';
-import { Camera, Music, Pause, Play, Plus, Trash2 } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { Camera, Music, Pause, Play, Plus, Trash2, X } from 'lucide-react-native';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   createOwnSong,
   currentToken,
@@ -61,19 +63,44 @@ export default function SongsScreen() {
   const [source, setSource] = useState<string | null>(null);
   const player = useAudioPlayer(source);
   const status = useAudioPlayerStatus(player);
-  const [playingId, setPlayingId] = useState<SongId | null>(null);
+  const [currentId, setCurrentId] = useState<SongId | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const urls = useRef(new Map<SongId, string>());
+  const insets = useSafeAreaInsets();
+  const slide = useSharedValue(0);
 
   useEffect(() => {
     void loadOwnSongs().catch(() => undefined);
   }, []);
 
   useEffect(() => {
-    if (playingId !== null && status.isLoaded) player.play();
-  }, [playingId, status.isLoaded, player]);
+    for (const song of songs.items) {
+      if (urls.current.has(song.id)) continue;
+      void songUrl(song.id)
+        .then((url) => urls.current.set(song.id, url))
+        .catch(() => undefined);
+    }
+  }, [songs.items]);
 
   useEffect(() => {
-    if (status.didJustFinish) setPlayingId(null);
+    if (playing && status.isLoaded) player.play();
+  }, [playing, status.isLoaded, player]);
+
+  useEffect(() => {
+    if (status.didJustFinish) setPlaying(false);
   }, [status.didJustFinish]);
+
+  const current = songs.items.find((song) => song.id === currentId) ?? null;
+  const loading = current !== null && playing && !status.isLoaded;
+
+  useEffect(() => {
+    slide.value = withTiming(current === null ? 0 : 1, { duration: 220 });
+  }, [current, slide]);
+
+  const playerStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: (1 - slide.value) * 120 }],
+    opacity: slide.value,
+  }));
 
   const close = () => {
     setSheetOpen(false);
@@ -143,23 +170,36 @@ export default function SongsScreen() {
   };
 
   const toggle = async (song: Song) => {
-    if (playingId === song.id) {
-      player.pause();
-      setPlayingId(null);
+    if (currentId === song.id) {
+      if (playing) {
+        player.pause();
+        setPlaying(false);
+      } else {
+        if (status.didJustFinish) void player.seekTo(0);
+        setPlaying(true);
+      }
       return;
     }
     try {
-      const url = await songUrl(song.id);
+      const url = urls.current.get(song.id) ?? (await songUrl(song.id));
+      urls.current.set(song.id, url);
+      setCurrentId(song.id);
       if (source === url) {
         void player.seekTo(0);
-        setPlayingId(song.id);
+        setPlaying(true);
         return;
       }
       setSource(url);
-      setPlayingId(song.id);
+      setPlaying(true);
     } catch {
-      setPlayingId(null);
+      setPlaying(false);
     }
+  };
+
+  const stop = () => {
+    player.pause();
+    setPlaying(false);
+    setCurrentId(null);
   };
 
   const remove = (song: Song) => {
@@ -224,150 +264,216 @@ export default function SongsScreen() {
     (draft.id !== null || draft.mediaId !== null);
 
   return (
-    <Board
-      body={pageBody}
-      bar={
-        <BackBar
-          title={t('songs.title')}
-          right={
-            <IconButton
-              icon={Plus}
-              label={t('songs.add')}
-              tone="surface"
-              size={44}
-              onPress={() => void add()}
-            />
-          }
-        />
-      }
-    >
-      {songs.items.length > 0 ? (
-        <Card clip style={styles.card}>
-          <View style={styles.list}>
-            {songs.items.map((song) => (
-              <SwipeRow key={song.id} tone="danger" icon={Trash2} onAction={() => remove(song)}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={song.name}
-                  onPress={() => open(song)}
-                  style={styles.row}
-                >
-                  <View style={styles.art}>
-                    {song.coverUrl ? (
-                      <Image
-                        source={song.coverUrl}
-                        scope="music"
-                        style={StyleSheet.absoluteFill}
-                        contentFit="cover"
-                        cachePolicy="memory-disk"
-                      />
-                    ) : (
-                      <Music size={18} color={color.muted} />
-                    )}
-                  </View>
-                  <View style={styles.words}>
-                    <Text role="row" numberOfLines={1}>
-                      {song.name}
-                    </Text>
-                    <Text role="meta" tone="muted" numberOfLines={1}>
-                      {song.author}
-                    </Text>
-                  </View>
-                  <IconButton
-                    icon={playingId === song.id ? Pause : Play}
-                    label={playingId === song.id ? t('songs.pause') : t('songs.play')}
-                    tone="ghost"
-                    size={40}
-                    glyph={{ size: 18, filled: true }}
-                    onPress={() => void toggle(song)}
-                  />
-                </Pressable>
-              </SwipeRow>
-            ))}
-          </View>
-        </Card>
-      ) : null}
-
-      <BottomSheet
-        visible={sheetOpen}
-        onClose={close}
-        title={draft?.id ? t('songs.edit') : t('songs.add')}
+    <View style={styles.root}>
+      <Board
+        body={current ? [pageBody, styles.bodyLifted] : pageBody}
+        bar={
+          <BackBar
+            title={t('songs.title')}
+            right={
+              <IconButton
+                icon={Plus}
+                label={t('songs.add')}
+                tone="surface"
+                size={44}
+                onPress={() => void add()}
+              />
+            }
+          />
+        }
       >
-        {uploading ? (
-          <View style={styles.uploading}>
-            <CircularSpinner size={20} />
-            <Text role="row" tone="muted">
-              {t('songs.uploading')}
-            </Text>
-          </View>
-        ) : draft ? (
-          <>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('songs.changeCover')}
-              onPress={() => void pickCover()}
-              style={styles.coverEdit}
-            >
-              {draft.coverUri ? (
+        {songs.items.length > 0 ? (
+          <Card clip style={styles.card}>
+            <View style={styles.list}>
+              {songs.items.map((song) => (
+                <SwipeRow key={song.id} tone="danger" icon={Trash2} onAction={() => remove(song)}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={song.name}
+                    onPress={() => open(song)}
+                    style={styles.row}
+                  >
+                    <View style={styles.art}>
+                      {song.coverUrl ? (
+                        <Image
+                          source={song.coverUrl}
+                          scope="music"
+                          style={StyleSheet.absoluteFill}
+                          contentFit="cover"
+                          cachePolicy="memory-disk"
+                        />
+                      ) : (
+                        <Music size={18} color={color.muted} />
+                      )}
+                    </View>
+                    <View style={styles.words}>
+                      <Text role="row" numberOfLines={1}>
+                        {song.name}
+                      </Text>
+                      <Text role="meta" tone="muted" numberOfLines={1}>
+                        {song.author}
+                      </Text>
+                    </View>
+                    {currentId === song.id && playing && !status.isLoaded ? (
+                      <View style={styles.spinner}>
+                        <CircularSpinner size={18} />
+                      </View>
+                    ) : (
+                      <IconButton
+                        icon={currentId === song.id && playing ? Pause : Play}
+                        label={
+                          currentId === song.id && playing ? t('songs.pause') : t('songs.play')
+                        }
+                        tone="ghost"
+                        size={40}
+                        glyph={{ size: 18, filled: true }}
+                        onPress={() => void toggle(song)}
+                      />
+                    )}
+                  </Pressable>
+                </SwipeRow>
+              ))}
+            </View>
+          </Card>
+        ) : null}
+
+        <BottomSheet
+          visible={sheetOpen}
+          onClose={close}
+          title={draft?.id ? t('songs.edit') : t('songs.add')}
+        >
+          {uploading ? (
+            <View style={styles.uploading}>
+              <CircularSpinner size={20} />
+              <Text role="row" tone="muted">
+                {t('songs.uploading')}
+              </Text>
+            </View>
+          ) : draft ? (
+            <>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('songs.changeCover')}
+                onPress={() => void pickCover()}
+                style={styles.coverEdit}
+              >
+                {draft.coverUri ? (
+                  <Image
+                    source={draft.coverUri}
+                    scope="music"
+                    style={StyleSheet.absoluteFill}
+                    contentFit="cover"
+                  />
+                ) : (
+                  <Music size={28} color={color.muted} />
+                )}
+                <View
+                  pointerEvents="none"
+                  style={[
+                    styles.coverBadge,
+                    { backgroundColor: color.paper, borderColor: color.surface },
+                  ]}
+                >
+                  {coverBusy ? (
+                    <CircularSpinner size={14} />
+                  ) : (
+                    <Camera size={14} color={color.ink} />
+                  )}
+                </View>
+              </Pressable>
+              <View style={styles.form}>
+                <Field
+                  label={t('songs.name')}
+                  value={draft.name}
+                  onChangeText={(name) =>
+                    setDraft((current) => (current ? { ...current, name } : current))
+                  }
+                  placeholder={t('songs.name')}
+                  autoCapitalize="sentences"
+                />
+                <Field
+                  label={t('songs.author')}
+                  value={draft.author}
+                  onChangeText={(author) =>
+                    setDraft((current) => (current ? { ...current, author } : current))
+                  }
+                  placeholder={t('songs.author')}
+                  autoCapitalize="words"
+                />
+                {error ? (
+                  <Text role="meta" tone="danger">
+                    {error}
+                  </Text>
+                ) : null}
+                <Button
+                  label={t('action.save')}
+                  variant="primary"
+                  disabled={!canSave}
+                  onPress={() => void save()}
+                />
+              </View>
+            </>
+          ) : null}
+        </BottomSheet>
+      </Board>
+
+      <Animated.View
+        pointerEvents={current ? 'auto' : 'none'}
+        style={[styles.player, { bottom: insets.bottom + space.s3 }, playerStyle]}
+      >
+        {current ? (
+          <View style={styles.playerRow}>
+            <View style={styles.art}>
+              {current.coverUrl ? (
                 <Image
-                  source={draft.coverUri}
+                  source={current.coverUrl}
                   scope="music"
                   style={StyleSheet.absoluteFill}
                   contentFit="cover"
+                  cachePolicy="memory-disk"
                 />
               ) : (
-                <Music size={28} color={color.muted} />
+                <Music size={18} color={color.muted} />
               )}
-              <View
-                pointerEvents="none"
-                style={[
-                  styles.coverBadge,
-                  { backgroundColor: color.paper, borderColor: color.surface },
-                ]}
-              >
-                {coverBusy ? <CircularSpinner size={14} /> : <Camera size={14} color={color.ink} />}
-              </View>
-            </Pressable>
-            <View style={styles.form}>
-              <Field
-                label={t('songs.name')}
-                value={draft.name}
-                onChangeText={(name) =>
-                  setDraft((current) => (current ? { ...current, name } : current))
-                }
-                placeholder={t('songs.name')}
-                autoCapitalize="sentences"
-              />
-              <Field
-                label={t('songs.author')}
-                value={draft.author}
-                onChangeText={(author) =>
-                  setDraft((current) => (current ? { ...current, author } : current))
-                }
-                placeholder={t('songs.author')}
-                autoCapitalize="words"
-              />
-              {error ? (
-                <Text role="meta" tone="danger">
-                  {error}
-                </Text>
-              ) : null}
-              <Button
-                label={t('action.save')}
-                variant="primary"
-                disabled={!canSave}
-                onPress={() => void save()}
-              />
             </View>
-          </>
+            <View style={styles.words}>
+              <Text role="row" numberOfLines={1}>
+                {current.name}
+              </Text>
+              <Text role="meta" tone="muted" numberOfLines={1}>
+                {current.author}
+              </Text>
+            </View>
+            {loading ? (
+              <View style={styles.spinner}>
+                <CircularSpinner size={18} />
+              </View>
+            ) : (
+              <IconButton
+                icon={playing ? Pause : Play}
+                label={playing ? t('songs.pause') : t('songs.play')}
+                tone="ghost"
+                size={40}
+                glyph={{ size: 18, filled: true }}
+                onPress={() => void toggle(current)}
+              />
+            )}
+            <IconButton icon={X} label={t('action.close')} tone="ghost" size={40} onPress={stop} />
+          </View>
         ) : null}
-      </BottomSheet>
-    </Board>
+      </Animated.View>
+    </View>
   );
 }
 
 const useStyles = themed(({ color }) =>
   StyleSheet.create({
+    root: {
+      flex: 1,
+    },
+    bodyLifted: {
+      paddingBottom: 120,
+    },
     card: {
       padding: space.s4,
     },
@@ -392,6 +498,27 @@ const useStyles = themed(({ color }) =>
     words: {
       flex: 1,
       gap: 2,
+    },
+    player: {
+      position: 'absolute',
+      left: space.s4,
+      right: space.s4,
+      borderRadius: radius.card,
+      borderWidth: 1,
+      borderColor: color.line,
+      backgroundColor: color.surface,
+      padding: space.s3,
+    },
+    playerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: space.s3,
+    },
+    spinner: {
+      width: 40,
+      height: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     form: {
       gap: space.s4,
