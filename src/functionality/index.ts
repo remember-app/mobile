@@ -210,6 +210,7 @@ export {
   hydrateOwnSongs,
   loadOwnSongs,
   ownSongsState,
+  rememberSongDuration,
   subscribeOwnSongs,
   updateOwnSong,
 } from './song/mine';

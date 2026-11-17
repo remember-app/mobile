@@ -1,4 +1,4 @@
-import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
+import { createAudioPlayer, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import * as ImagePicker from 'expo-image-picker';
 import { Camera, Music, Pause, Play, Plus, Trash2 } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
@@ -12,6 +12,7 @@ import {
   deleteOwnSong,
   loadOwnSongs,
   pickFiles,
+  rememberSongDuration,
   songUrl,
   updateOwnSong,
   uploadFileOnce,
@@ -51,6 +52,26 @@ const token = (): string => {
   return value;
 };
 
+const readDuration = (uri: string): Promise<number | null> =>
+  new Promise((resolve) => {
+    const player = createAudioPlayer(uri);
+    let settled = false;
+    const done = (value: number | null) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      subscription.remove();
+      player.remove();
+      resolve(value);
+    };
+    const subscription = player.addListener('playbackStatusUpdate', (status) => {
+      if (status.isLoaded && status.duration > 0) done(status.duration);
+    });
+    const timer = setTimeout(() => done(null), 5000);
+    const current = player.currentStatus;
+    if (current?.isLoaded && current.duration > 0) done(current.duration);
+  });
+
 export default function SongsScreen() {
   const { t } = useTranslation();
   const { color } = useTheme();
@@ -82,7 +103,11 @@ export default function SongsScreen() {
       void songUrl(song.id)
         .then((url) => {
           urls.current.set(song.id, url);
-          if (live) void keepUrl(url, null, 'music');
+          return live ? keepUrl(url, null, 'music') : null;
+        })
+        .then((local) => (local ? readDuration(local) : null))
+        .then((seconds) => {
+          if (seconds !== null) rememberSongDuration(song.id, seconds);
         })
         .catch(() => undefined);
     }
@@ -99,9 +124,15 @@ export default function SongsScreen() {
     if (status.didJustFinish) setPlaying(false);
   }, [status.didJustFinish]);
 
+  useEffect(() => {
+    if (currentId !== null && status.isLoaded && status.duration > 0) {
+      rememberSongDuration(currentId, status.duration);
+    }
+  }, [currentId, status.isLoaded, status.duration]);
+
   const current = songs.items.find((song) => song.id === currentId) ?? null;
   const loading = current !== null && playing && !status.isLoaded;
-  const total = status.duration || current?.duration || 0;
+  const total = current?.duration ?? 0;
   const position = status.currentTime ?? 0;
   const percent = total > 0 ? Math.min(100, (position / total) * 100) : 0;
 

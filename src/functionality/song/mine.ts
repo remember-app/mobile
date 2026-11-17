@@ -82,6 +82,16 @@ export async function loadOwnSongs(force = false): Promise<void> {
   return inFlight;
 }
 
+export function rememberSongDuration(songId: SongId, seconds: number): void {
+  if (!Number.isFinite(seconds) || seconds <= 0) return;
+  const song = state.items.find((item) => item.id === songId);
+  if (!song || (song.duration !== null && song.duration > 0)) return;
+  set({
+    ...state,
+    items: state.items.map((item) => (item.id === songId ? { ...item, duration: seconds } : item)),
+  });
+}
+
 export async function createOwnSong(input: OwnSongInput): Promise<Song> {
   const song = await apiCreate(token(), input);
   set({ ...state, items: byName([...state.items, song]) });
